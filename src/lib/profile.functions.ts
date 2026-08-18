@@ -9,8 +9,8 @@ export const getMyProfile = createServerFn({ method: "GET" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.ownerId);
+    const { resolveProfileOwnerId } = await import("@/lib/account-scope.server");
+    const ownerId = await resolveProfileOwnerId(supabase, userId, data.ownerId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [{ data: profile, error }, { data: authUser, error: authError }] = await Promise.all([
       supabaseAdmin
@@ -46,8 +46,8 @@ export const updateMyProfile = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.ownerId);
+    const { resolveProfileOwnerId } = await import("@/lib/account-scope.server");
+    const ownerId = await resolveProfileOwnerId(supabase, userId, data.ownerId);
     if (ownerId !== userId) {
       const { data: isAdmin, error: roleError } = await supabase.rpc("has_role", {
         _user_id: userId,
@@ -82,8 +82,8 @@ export const uploadMyAvatar = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.ownerId);
+    const { resolveProfileOwnerId } = await import("@/lib/account-scope.server");
+    const ownerId = await resolveProfileOwnerId(supabase, userId, data.ownerId);
     if (ownerId !== userId) {
       const { data: isAdmin, error: roleError } = await supabase.rpc("has_role", {
         _user_id: userId,
@@ -122,8 +122,8 @@ export const removeMyAvatar = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.ownerId);
+    const { resolveProfileOwnerId } = await import("@/lib/account-scope.server");
+    const ownerId = await resolveProfileOwnerId(supabase, userId, data.ownerId);
     if (ownerId !== userId) {
       const { data: isAdmin, error: roleError } = await supabase.rpc("has_role", {
         _user_id: userId,
@@ -181,8 +181,8 @@ export const requestEmailChange = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.ownerId);
+    const { resolveProfileOwnerId } = await import("@/lib/account-scope.server");
+    const ownerId = await resolveProfileOwnerId(supabase, userId, data.ownerId);
     if (ownerId === userId) {
       const { error } = await supabase.auth.updateUser({ email: data.email });
       if (error) throw new Error(error.message);
