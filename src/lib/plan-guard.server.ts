@@ -37,6 +37,39 @@ function getRuntimeEnv(): PaddleEnv {
   return import.meta.env.PROD ? "live" : "sandbox";
 }
 
+
+/**
+ * Uma assinatura só concede acesso se o período for válido. Para trials, o
+ * limite é `trial_ends_at` (o `current_period_end` costuma vir nulo em trials
+ * do Paddle — sem esse teto o trial nunca expiraria).
+ */
+function subscriptionGrantsAccess(sub: {
+  status?: string | null;
+  current_period_end?: string | null;
+  trial_ends_at?: string | null;
+  created_at?: string | null;
+}): boolean {
+  const status = sub.status ?? null;
+  const now = new Date();
+  const endDate = sub.current_period_end ? new Date(sub.current_period_end) : null;
+  const periodValid = !endDate || endDate > now;
+
+  if (status === "trialing") {
+    const trialEnd = sub.trial_ends_at
+      ? new Date(sub.trial_ends_at)
+      : sub.created_at
+        ? new Date(new Date(sub.created_at).getTime() + TRIAL_MAX_DAYS * 86_400_000)
+        : null;
+    const trialValid = !!trialEnd && trialEnd > now;
+    return trialValid && periodValid;
+  }
+  if (status === "active" || status === "past_due") return periodValid;
+  if (status === "canceled") return !!endDate && endDate > now;
+  return false;
+}
+
+const TRIAL_MAX_DAYS = 14;
+
 // Resolves the active plan for the authenticated user using their RLS-scoped
 // supabase client. Only honours subscriptions in the current runtime env so
 // a sandbox-signed webhook cannot unlock paid features in production.
@@ -47,7 +80,7 @@ export async function resolveUserPlan(
   const runtimeEnv = getRuntimeEnv();
   const { data: subs } = await supabase
     .from("subscriptions")
-    .select("status, product_id, current_period_end, environment, max_guides_override, created_at")
+    .select("status, product_id, current_period_end, trial_ends_at, environment, max_guides_override, created_at")
     .eq("user_id", userId)
     .eq("environment", runtimeEnv)
     .order("created_at", { ascending: false });
@@ -55,13 +88,7 @@ export async function resolveUserPlan(
   const candidates = subs ?? [];
   for (const sub of candidates) {
     const status = (sub.status as string) ?? null;
-    const endIso = (sub.current_period_end as string | null) ?? null;
-    const endDate = endIso ? new Date(endIso) : null;
-    const periodValid = !endDate || endDate > new Date();
-    const isActive =
-      ((status === "active" || status === "trialing" || status === "past_due") && periodValid) ||
-      (status === "canceled" && !!endDate && endDate > new Date());
-    if (!isActive) continue;
+    if (!subscriptionGrantsAccess(sub as never)) continue;
     const plan = planFromProductId(sub.product_id as string | null);
     if (!plan) continue;
     const cfg = PLANS[plan];
@@ -157,13 +184,18 @@ export async function assertFeature(
 ): Promise<void> {
   const plan = await resolveEffectivePlan(supabase, userId, opts);
   if (!plan.features[feature]) {
-    const labels = {
+    const labels: Record<string, string> = {
       autoImport: "Importação automática (Airbnb)",
       ai: "Concierge IA",
       customBrand: "Marca personalizada",
-    } as const;
+      guestChat: "Chat com o hóspede",
+      humanHandoff: "Atendimento humano",
+      team: "Equipe & permissões",
+      externalIntegration: "Integrações externas",
+      advancedIntake: "Captação avançada de dados",
+    };
     throw new Error(
-      `${labels[feature]} não está disponível no seu plano. Faça upgrade em /precos.`,
+      `${labels[feature] ?? "Este recurso"} não está disponível no seu plano. Faça upgrade em /precos.`,
     );
   }
 }
@@ -191,7 +223,7 @@ export async function resolveOwnerPlanAdmin(
   const runtimeEnv = getRuntimeEnv();
   const { data: subs } = await supabaseAdmin
     .from("subscriptions")
-    .select("status, product_id, current_period_end, environment, is_manual, max_guides_override, created_at")
+    .select("status, product_id, current_period_end, trial_ends_at, environment, is_manual, max_guides_override, created_at")
     .eq("user_id", ownerId)
     .order("created_at", { ascending: false });
   const list = subs ?? [];
@@ -201,17 +233,13 @@ export async function resolveOwnerPlanAdmin(
   };
   const candidates = [
     ...list.filter((sub) => sub.environment === runtimeEnv),
-    ...list.filter((sub) => sub.environment !== runtimeEnv && (sub.is_manual || sub.product_id === "enterprise_plan")),
+    // Concessão entre ambientes só vale para liberações manuais (evita que uma
+    // assinatura de sandbox destrave produção).
+    ...list.filter((sub) => sub.environment !== runtimeEnv && sub.is_manual === true),
   ];
   for (const sub of candidates) {
     const status = (sub.status as string) ?? null;
-    const endIso = (sub.current_period_end as string | null) ?? null;
-    const endDate = endIso ? new Date(endIso) : null;
-    const periodValid = !endDate || endDate > new Date();
-    const isActive =
-      ((status === "active" || status === "trialing" || status === "past_due") && periodValid) ||
-      (status === "canceled" && !!endDate && endDate > new Date());
-    if (!isActive) continue;
+    if (!subscriptionGrantsAccess(sub as never)) continue;
     const plan = planFromProductId(sub.product_id as string | null);
     if (!plan) continue;
     const cfg = PLANS[plan];
