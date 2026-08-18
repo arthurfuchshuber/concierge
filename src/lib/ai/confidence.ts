@@ -16,13 +16,17 @@ export type ConfidenceThresholds = {
   hedged: number;
 };
 
-export const DEFAULT_THRESHOLDS: ConfidenceThresholds = { auto: 0.75, hedged: 0.55 };
+/**
+ * Autonomia por padrão: o concierge resolve sozinho a grande maioria dos casos.
+ * Só assuntos realmente sensíveis (acesso, dinheiro, incidente) usam régua alta.
+ */
+export const DEFAULT_THRESHOLDS: ConfidenceThresholds = { auto: 0.6, hedged: 0.35 };
 
 /** Modo exploração é conversacional: tolera confiança menor e nunca escala sozinho. */
 export const EXPLORATION_THRESHOLDS: ConfidenceThresholds = { auto: 0.5, hedged: 0.2 };
 
 /** Temas sensíveis exigem confiança mais alta. */
-export const STRICT_THRESHOLDS: ConfidenceThresholds = { auto: 0.85, hedged: 0.7 };
+export const STRICT_THRESHOLDS: ConfidenceThresholds = { auto: 0.8, hedged: 0.6 };
 
 export function thresholdsFor(params: {
   explorationMode?: boolean;
@@ -35,6 +39,24 @@ export function thresholdsFor(params: {
     return STRICT_THRESHOLDS;
   }
   return DEFAULT_THRESHOLDS;
+}
+
+/**
+ * Assuntos em que um erro custa caro (acesso físico, dinheiro, contrato,
+ * emergência). Fora desta lista, a IA responde sozinha — no máximo com ressalva.
+ */
+export function isSensitiveContext(params: {
+  category?: string;
+  urgency?: string;
+  riskLevel?: "low" | "normal" | "high";
+}): boolean {
+  return (
+    params.urgency === "high" ||
+    params.riskLevel === "high" ||
+    params.category === "acesso" ||
+    params.category === "financeiro" ||
+    params.category === "operacional"
+  );
 }
 
 export function tierFor(confidence: number, t: ConfidenceThresholds): ConfidenceTier {
