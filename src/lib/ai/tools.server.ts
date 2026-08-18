@@ -343,6 +343,103 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
   });
 
   tools.push({
+    name: "search_web",
+    description:
+      "Busca na internet em fontes públicas confiáveis (sites oficiais de turismo, prefeitura, veículos de " +
+      "imprensa, sites dos próprios estabelecimentos). Use SOMENTE depois de consultar search_knowledge_base, " +
+      "list_recommendations e get_city_news sem encontrar a resposta, e apenas para assuntos EXTERNOS ao imóvel: " +
+      "eventos, horários de funcionamento, atrações, transporte, feriados e serviços da cidade. NUNCA use para " +
+      "dados da hospedagem (regras, senhas, horários de check-in, reserva) — esses só vêm da base oficial. " +
+      "Sempre diga ao hóspede que a informação veio de fonte externa e pode mudar.",
+    parameters: schema(
+      {
+        consulta: {
+          type: "string",
+          description: "Pergunta objetiva a pesquisar. Não inclua nome, telefone ou dados do hóspede.",
+        },
+        recente: {
+          type: ["boolean", "null"],
+          description: "true quando a resposta depende de algo desta semana (evento, agenda, horário sazonal).",
+        },
+      },
+      ["consulta", "recente"],
+    ),
+    execute: async (args) => {
+      const key = process.env.FIRECRAWL_API_KEY;
+      if (!key) return { disponivel: false, motivo: "busca externa indisponível" };
+      const city = (ctx.property.city as string) ?? "";
+      const consulta = String(args.consulta ?? "").slice(0, 180).trim();
+      if (consulta.length < 3) return { disponivel: false };
+      const query = city ? `${consulta} ${city}` : consulta;
+      // Domínios que nunca servem de fonte para o hóspede (conteúdo gerado por
+      // usuário, agregadores de reserva e redes sociais).
+      const BLOCKED =
+        /(facebook|instagram|tiktok|twitter|x\.com|pinterest|reddit|quora|booking\.com|airbnb|expedia|despegar|hoteis\.com|tripadvisor\.[a-z.]+\/ShowUserReviews)/i;
+      try {
+        const res = await fetch("https://api.firecrawl.dev/v2/search", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query,
+            limit: 8,
+            lang: "pt",
+            country: "br",
+            ...(args.recente ? { tbs: "qdr:w" } : {}),
+          }),
+          signal: AbortSignal.timeout(15000),
+        });
+        if (!res.ok) {
+          console.error(`[tool search_web] Firecrawl ${res.status}`);
+          return { disponivel: false };
+        }
+        const j = (await res.json()) as {
+          data?: Array<{ url?: string; title?: string; description?: string }> | { web?: Array<{ url?: string; title?: string; description?: string }> };
+        };
+        const list = Array.isArray(j.data) ? j.data : (j.data?.web ?? []);
+        const seen = new Set<string>();
+        const resultados = list
+          .filter((r) => r.url && !BLOCKED.test(r.url))
+          .filter((r) => {
+            let host = "";
+            try {
+              host = new URL(r.url!).hostname;
+            } catch {
+              return false;
+            }
+            if (seen.has(host)) return false;
+            seen.add(host);
+            return true;
+          })
+          .slice(0, 5)
+          .map((r) => ({
+            titulo: r.title ?? null,
+            resumo: (r.description ?? "").slice(0, 400),
+            link: r.url,
+            fonte: (() => {
+              try {
+                return new URL(r.url!).hostname.replace(/^www\./, "");
+              } catch {
+                return null;
+              }
+            })(),
+          }));
+        if (!resultados.length) return { disponivel: false };
+        ctx.collectSource({ source: "web", title: `Busca externa: ${consulta}`, confidence: confidenceOf("web") });
+        return {
+          disponivel: true,
+          aviso:
+            "Fonte externa: confirme com o hóspede que horários e datas podem mudar e cite de onde veio a informação.",
+          resultados,
+        };
+      } catch (err) {
+        console.error("[tool search_web]", err);
+        return { disponivel: false };
+      }
+    },
+  });
+
+
+  tools.push({
     name: "get_weather",
     description: "Previsão do tempo atual da cidade da hospedagem. Use para perguntas sobre clima e planejamento do dia.",
     parameters: schema({}, []),
