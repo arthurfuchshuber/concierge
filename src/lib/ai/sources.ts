@@ -32,6 +32,9 @@ export const SOURCE_CONFIDENCE: Record<string, number> = {
   maps: 0.94,
   recommendation: 0.94,
   city_reference: 0.9,
+  // Busca externa (Firecrawl) filtrada por domínios confiáveis: útil para
+  // eventos e horários da cidade, nunca para dados oficiais da hospedagem.
+  web: 0.78,
   // Roteiro já confirmado com o hóspede — reflete escolhas já validadas
   // (vindas de recommendation/maps ou confirmadas pelo próprio hóspede).
   itinerary: 0.93,
