@@ -6,6 +6,7 @@ import {
   inviteTeamMember,
   revokeTeamInvite,
   resendTeamInvite,
+  resendAllPendingInvites,
   removeTeamMember,
   updateTeamMemberRole,
 } from "@/lib/team.functions";
@@ -52,6 +53,7 @@ function EquipePage() {
   const inviteFn = useServerFn(inviteTeamMember);
   const revokeFn = useServerFn(revokeTeamInvite);
   const resendFn = useServerFn(resendTeamInvite);
+  const resendAllFn = useServerFn(resendAllPendingInvites);
   const removeFn = useServerFn(removeTeamMember);
   const updateRoleFn = useServerFn(updateTeamMemberRole);
   const qc = useQueryClient();
