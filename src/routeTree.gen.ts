@@ -69,6 +69,7 @@ import { Route as ApiPublicWhatsappSinchWebhookRouteImport } from './routes/api/
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicCronSyncAirbnbIcalRouteImport } from './routes/api/public/cron.sync-airbnb-ical'
 import { Route as ApiPublicCronSaasAlertsRouteImport } from './routes/api/public/cron.saas-alerts'
+import { Route as ApiPublicCronReindexKnowledgeRouteImport } from './routes/api/public/cron.reindex-knowledge'
 import { Route as ApiPublicCronRefreshRecommendationsRouteImport } from './routes/api/public/cron.refresh-recommendations'
 import { Route as ApiPublicCronRefreshCityReferencesRouteImport } from './routes/api/public/cron.refresh-city-references'
 import { Route as ApiPublicCronRefreshCityNewsRouteImport } from './routes/api/public/cron.refresh-city-news'
@@ -410,6 +411,12 @@ const ApiPublicCronSaasAlertsRoute = ApiPublicCronSaasAlertsRouteImport.update({
   path: '/api/public/cron/saas-alerts',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCronReindexKnowledgeRoute =
+  ApiPublicCronReindexKnowledgeRouteImport.update({
+    id: '/api/public/cron/reindex-knowledge',
+    path: '/api/public/cron/reindex-knowledge',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronRefreshRecommendationsRoute =
   ApiPublicCronRefreshRecommendationsRouteImport.update({
     id: '/api/public/cron/refresh-recommendations',
@@ -548,6 +555,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
+  '/api/public/cron/reindex-knowledge': typeof ApiPublicCronReindexKnowledgeRoute
   '/api/public/cron/saas-alerts': typeof ApiPublicCronSaasAlertsRoute
   '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -620,6 +628,7 @@ export interface FileRoutesByTo {
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
+  '/api/public/cron/reindex-knowledge': typeof ApiPublicCronReindexKnowledgeRoute
   '/api/public/cron/saas-alerts': typeof ApiPublicCronSaasAlertsRoute
   '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -696,6 +705,7 @@ export interface FileRoutesById {
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
+  '/api/public/cron/reindex-knowledge': typeof ApiPublicCronReindexKnowledgeRoute
   '/api/public/cron/saas-alerts': typeof ApiPublicCronSaasAlertsRoute
   '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -772,6 +782,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
+    | '/api/public/cron/reindex-knowledge'
     | '/api/public/cron/saas-alerts'
     | '/api/public/cron/sync-airbnb-ical'
     | '/api/public/payments/webhook'
@@ -844,6 +855,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
+    | '/api/public/cron/reindex-knowledge'
     | '/api/public/cron/saas-alerts'
     | '/api/public/cron/sync-airbnb-ical'
     | '/api/public/payments/webhook'
@@ -919,6 +931,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
+    | '/api/public/cron/reindex-knowledge'
     | '/api/public/cron/saas-alerts'
     | '/api/public/cron/sync-airbnb-ical'
     | '/api/public/payments/webhook'
@@ -972,6 +985,7 @@ export interface RootRouteChildren {
   ApiPublicCronRefreshCityNewsRoute: typeof ApiPublicCronRefreshCityNewsRoute
   ApiPublicCronRefreshCityReferencesRoute: typeof ApiPublicCronRefreshCityReferencesRoute
   ApiPublicCronRefreshRecommendationsRoute: typeof ApiPublicCronRefreshRecommendationsRoute
+  ApiPublicCronReindexKnowledgeRoute: typeof ApiPublicCronReindexKnowledgeRoute
   ApiPublicCronSaasAlertsRoute: typeof ApiPublicCronSaasAlertsRoute
   ApiPublicCronSyncAirbnbIcalRoute: typeof ApiPublicCronSyncAirbnbIcalRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
@@ -1405,6 +1419,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronSaasAlertsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/reindex-knowledge': {
+      id: '/api/public/cron/reindex-knowledge'
+      path: '/api/public/cron/reindex-knowledge'
+      fullPath: '/api/public/cron/reindex-knowledge'
+      preLoaderRoute: typeof ApiPublicCronReindexKnowledgeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/refresh-recommendations': {
       id: '/api/public/cron/refresh-recommendations'
       path: '/api/public/cron/refresh-recommendations'
@@ -1625,6 +1646,7 @@ const rootRouteChildren: RootRouteChildren = {
     ApiPublicCronRefreshCityReferencesRoute,
   ApiPublicCronRefreshRecommendationsRoute:
     ApiPublicCronRefreshRecommendationsRoute,
+  ApiPublicCronReindexKnowledgeRoute: ApiPublicCronReindexKnowledgeRoute,
   ApiPublicCronSaasAlertsRoute: ApiPublicCronSaasAlertsRoute,
   ApiPublicCronSyncAirbnbIcalRoute: ApiPublicCronSyncAirbnbIcalRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
