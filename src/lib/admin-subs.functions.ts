@@ -83,12 +83,8 @@ export const adminListCustomers = createServerFn({ method: "GET" })
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // Auth users (paginated). For now, take first 1000.
-    const { data: usersData, error: usersErr } = await supabaseAdmin.auth.admin.listUsers({
-      page: 1,
-      perPage: 1000,
-    });
-    if (usersErr) throw new Error("Erro ao listar usuários");
+    // Todas as páginas de usuários (sem teto de 1000).
+    const usersData = { users: await (await import("@/lib/admin-users.server")).listAllAuthUsers() };
 
     const { data: profiles } = await supabaseAdmin
       .from("profiles")
