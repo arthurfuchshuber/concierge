@@ -24,6 +24,7 @@ import { getMyGoogleCalendarStatus } from "@/lib/google-calendar.functions";
 import { getMyWhatsappConfig } from "@/lib/whatsapp.functions";
 import { getMyClicksignConfig } from "@/lib/clicksign.functions";
 import { cn } from "@/lib/utils";
+import { useImpersonation } from "@/hooks/useImpersonation";
 
 // ---------------------------------------------------------------------------
 // Racional importado do Orks Tech: busca + filtros com contadores, cards
@@ -88,6 +89,8 @@ const FILTERS: Array<{ key: FilterKey; label: string; icon: typeof Plug }> = [
 const STATUS_ORDER: Record<StatusKey, number> = { ativa: 0, inativa: 1, em_breve: 2 };
 
 export function IntegracoesPage() {
+  const { impersonation } = useImpersonation();
+  const accountOwnerId = impersonation?.userId ?? null;
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<FilterKey>("todas");
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -95,24 +98,24 @@ export function IntegracoesPage() {
 
   const waFn = useServerFn(getMyWhatsappConfig);
   const wa = useQuery({
-    queryKey: ["whatsapp-config"],
-    queryFn: () => waFn(),
+    queryKey: ["whatsapp-config", accountOwnerId],
+    queryFn: () => waFn({ data: { ownerId: accountOwnerId } }),
     retry: false,
   });
   const waActive = !!wa.data?.senderNumber;
 
   const csFn = useServerFn(getMyClicksignConfig);
   const cs = useQuery({
-    queryKey: ["clicksign-config"],
-    queryFn: () => csFn(),
+    queryKey: ["clicksign-config", accountOwnerId],
+    queryFn: () => csFn({ data: { ownerId: accountOwnerId } }),
     retry: false,
   });
   const csActive = !!cs.data?.hasToken;
 
   const gcalFn = useServerFn(getMyGoogleCalendarStatus);
   const gcal = useQuery({
-    queryKey: ["gcal-status"],
-    queryFn: () => gcalFn(),
+    queryKey: ["gcal-status", accountOwnerId],
+    queryFn: () => gcalFn({ data: { ownerId: accountOwnerId } }),
     retry: false,
   });
   const gcalActive = !!gcal.data?.connected;

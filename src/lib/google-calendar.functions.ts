@@ -9,13 +9,16 @@ export type { GcalStatus, GcalCalendar, GcalEvent, GcalAttachment } from "@/lib/
 /** Status da conexão do anfitrião logado com o Google Agenda. */
 export const getMyGoogleCalendarStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<GcalStatus> => {
+  .inputValidator((raw) => z.object({ ownerId: z.string().uuid().nullish() }).parse(raw ?? {}))
+  .handler(async ({ data, context }): Promise<GcalStatus> => {
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const ownerId = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
     const { getConnectionKeyForUser } = await import("@/lib/app-user-connections.server");
     const { CONNECTOR_ID, fetchCalendars } = await import("@/lib/google-calendar.server");
-    const connectionAPIKey = await getConnectionKeyForUser(context.userId, CONNECTOR_ID);
+    const connectionAPIKey = await getConnectionKeyForUser(ownerId, CONNECTOR_ID);
     if (!connectionAPIKey) return { connected: false, email: null, calendarsCount: 0, error: null };
     try {
-      const items = await fetchCalendars(context.userId);
+      const items = await fetchCalendars(ownerId);
       const primary = items.find((c) => c.primary) ?? items[0];
       return { connected: true, email: primary?.id ?? null, calendarsCount: items.length, error: null };
     } catch (e) {

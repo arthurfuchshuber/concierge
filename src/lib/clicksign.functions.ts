@@ -28,18 +28,22 @@ function newWebhookSecret(): string {
 
 export const getMyClicksignConfig = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<ClicksignConfigPublic> => {
+  .inputValidator((raw) => z.object({ ownerId: z.string().uuid().nullish() }).parse(raw ?? {}))
+  .handler(async ({ data: input, context }): Promise<ClicksignConfigPublic> => {
     const { supabase, userId } = context;
-    const { data } = await supabase
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, input.ownerId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin
       .from("host_integration_credentials")
       .select("environment, status, api_token_encrypted, last_verified_at, last_sync_at, last_error, webhook_secret, webhook_last_event_at")
-      .eq("owner_id", userId)
+      .eq("owner_id", ownerId)
       .eq("provider", "clicksign")
       .maybeSingle();
-    const { count } = await supabase
+    const { count } = await supabaseAdmin
       .from("clicksign_documents")
       .select("id", { count: "exact", head: true })
-      .eq("account_owner_id", userId);
+      .eq("account_owner_id", ownerId);
     return {
       environment: ((data?.environment as ClicksignConfigPublic["environment"]) ?? "production"),
       status: ((data?.status as ClicksignConfigPublic["status"]) ?? "pending"),
@@ -48,7 +52,7 @@ export const getMyClicksignConfig = createServerFn({ method: "GET" })
       lastSyncAt: (data?.last_sync_at as string) ?? null,
       lastError: (data?.last_error as string) ?? null,
       documentsCount: count ?? 0,
-      ownerId: userId,
+      ownerId,
       webhookSecret: (data?.webhook_secret as string) ?? null,
       webhookLastEventAt: (data?.webhook_last_event_at as string) ?? null,
     };
