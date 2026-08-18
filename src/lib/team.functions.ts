@@ -69,9 +69,7 @@ async function sendAccountInviteEmail(
   return { sent: true, via: "app-email" as const };
 }
 
-async function sendExistingUserAccessEmail(email: string, inviterName: string | null = null) {
-  return sendAccountInviteEmail(email, inviterName, { existingUser: true });
-}
+
 
 
 
