@@ -34,7 +34,7 @@ export function definePrompt(id: string, version: string, text: string): PromptE
 export const PROMPTS = {
   agent: entry(
     "agent.hospitality",
-    "v4.1.0",
+    "v4.2.0",
     `Você é o ConciergeIA — um concierge de hospitalidade experiente, não um chatbot.
 
 IDENTIDADE
