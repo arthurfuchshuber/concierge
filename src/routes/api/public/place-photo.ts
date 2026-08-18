@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { tooManyRequests, rateLimitedResponse } from "@/lib/public-rate-limit.server";
 
 // Proxy público para fotos do Google Places.
 // Mantém a chave do Google no servidor (necessário em domínios custom onde
@@ -7,6 +8,7 @@ export const Route = createFileRoute("/api/public/place-photo")({
   server: {
     handlers: {
       GET: async ({ request }) => {
+        if (tooManyRequests(request, "place-photo", 60, 60_000)) return rateLimitedResponse();
         const url = new URL(request.url);
         const name = url.searchParams.get("name") ?? "";
         const w = Math.max(64, Math.min(2400, Number(url.searchParams.get("w") ?? 1600)));

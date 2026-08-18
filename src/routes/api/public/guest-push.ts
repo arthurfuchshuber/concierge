@@ -4,6 +4,7 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
+import { tooManyRequests, rateLimitedResponse } from "@/lib/public-rate-limit.server";
 
 const SubscribeSchema = z.object({
   action: z.literal("subscribe"),
@@ -20,6 +21,7 @@ const SubscribeSchema = z.object({
 
 const UnsubscribeSchema = z.object({
   action: z.literal("unsubscribe"),
+  sessionId: z.string().min(1).max(200),
   endpoint: z.string().url().max(2000),
 });
 
@@ -41,6 +43,7 @@ export const Route = createFileRoute("/api/public/guest-push")({
         return jsonResponse({ publicKey });
       },
       POST: async ({ request }) => {
+        if (tooManyRequests(request, "guest-push", 30, 60_000)) return rateLimitedResponse();
         let raw: unknown;
         try {
           raw = await request.json();
@@ -53,10 +56,13 @@ export const Route = createFileRoute("/api/public/guest-push")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
         if (parsed.data.action === "unsubscribe") {
+          // Só a própria sessão pode remover sua inscrição (evita que
+          // qualquer um derrube o push de outro hóspede com o endpoint).
           await supabaseAdmin
             .from("guest_push_subscriptions")
             .delete()
-            .eq("endpoint", parsed.data.endpoint);
+            .eq("endpoint", parsed.data.endpoint)
+            .eq("guest_session_id", parsed.data.sessionId);
           return jsonResponse({ ok: true });
         }
 
@@ -67,6 +73,7 @@ export const Route = createFileRoute("/api/public/guest-push")({
           .from("properties")
           .select("id")
           .eq("slug", b.slug)
+          .eq("published", true)
           .maybeSingle();
         if (!prop) return jsonResponse({ error: "Imóvel não encontrado" }, 404);
 

@@ -36,6 +36,11 @@ const AccessInput = z.object({
 export const recordGuideAccess = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => AccessInput.parse(i))
   .handler(async ({ data }) => {
+    const { allowPublicRate, clientIpFrom } = await import("@/lib/public-rate-limit.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
+    if (!allowPublicRate(`guide-access:${clientIpFrom(getRequest())}`, 20, 60_000)) {
+      throw new Error("Muitas tentativas. Aguarde um instante e tente novamente.");
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const propQuery = supabaseAdmin
       .from("properties")
@@ -141,6 +146,11 @@ const AvailabilityInput = z.object({
 export const getGuideCalendarAvailability = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => AvailabilityInput.parse(i))
   .handler(async ({ data }) => {
+    const { allowPublicRate, clientIpFrom } = await import("@/lib/public-rate-limit.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
+    if (!allowPublicRate(`guide-availability:${clientIpFrom(getRequest())}`, 40, 60_000)) {
+      throw new Error("Muitas tentativas. Aguarde um instante e tente novamente.");
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { classifyCalendarPeriod, operationalTodayISO } = await import("@/lib/reservations.server");
     const propQuery = supabaseAdmin
@@ -187,6 +197,11 @@ export const getGuideCalendarAvailability = createServerFn({ method: "POST" })
 export const checkReservationBySlug = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => CheckReservationInput.parse(i))
   .handler(async ({ data }) => {
+    const { allowPublicRate, clientIpFrom } = await import("@/lib/public-rate-limit.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
+    if (!allowPublicRate(`guide-reservation-check:${clientIpFrom(getRequest())}`, 30, 60_000)) {
+      throw new Error("Muitas tentativas. Aguarde um instante e tente novamente.");
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const propQuery = supabaseAdmin
       .from("properties")

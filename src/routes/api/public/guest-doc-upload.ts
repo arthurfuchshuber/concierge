@@ -72,10 +72,14 @@ async function checkLegibilityWithGemini(base64: string, mime: string): Promise<
   }
 }
 
+import { tooManyRequests, rateLimitedResponse } from "@/lib/public-rate-limit.server";
+
 export const Route = createFileRoute("/api/public/guest-doc-upload")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        // Upload anônimo com custo de storage + visão de IA: limita por IP.
+        if (tooManyRequests(request, "guest-doc-upload", 10, 60_000)) return rateLimitedResponse();
         let form: FormData;
         try {
           form = await request.formData();
