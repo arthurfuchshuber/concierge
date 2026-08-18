@@ -53,57 +53,24 @@ async function findUserIdByEmail(email: string): Promise<string | null> {
   return found?.id ?? null;
 }
 
-function resolveSiteUrl() {
-  const siteUrl =
-    process.env.SITE_URL ||
-    process.env.PUBLIC_SITE_URL ||
-    "https://sigmaconcierge.lovable.app";
-  return siteUrl.replace(/\/$/, "");
-}
-
-async function sendAccountInviteEmail(email: string, inviterName: string | null) {
-  // Novo usuário: convite nativo do Supabase → passa pelo nosso webhook e usa
-  // o template branded invite.tsx (em português).
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const redirectTo = `${resolveSiteUrl()}/definir-senha`;
-  const meta = { invited_by_name: inviterName ?? undefined, invite_kind: "account_member" };
-  const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-    redirectTo,
-    data: meta,
-  });
-  if (error) throw new Error(error.message);
-  return { sent: true, via: "invite" as const };
-}
-
-/**
- * Usuário que já existe no sistema não pode receber `inviteUserByEmail`.
- * Enviamos um e-mail de link de acesso (magic link) para que ele entre e veja
- * o convite pendente da equipe — e possa definir/alterar a senha se quiser.
- */
-async function sendExistingUserAccessEmail(email: string) {
-  const { createClient } = await import("@supabase/supabase-js");
-  const url = process.env["SUPABASE_URL"]!;
-  const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
-  const anon = createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-    global: {
-      fetch: (input, init) => {
-        const h = new Headers(init?.headers);
-        if (key.startsWith("sb_") && h.get("Authorization") === `Bearer ${key}`) {
-          h.delete("Authorization");
-        }
-        h.set("apikey", key);
-        return fetch(input as RequestInfo, { ...init, headers: h });
-      },
-    },
-  });
-  const { error } = await anon.auth.signInWithOtp({
+async function sendAccountInviteEmail(
+  email: string,
+  inviterName: string | null,
+  opts?: { existingUser?: boolean; expiresAt?: string | null; inviteId?: string | null },
+) {
+  const { sendBrandedAccountInvite } = await import("@/lib/team-invite-email.server");
+  await sendBrandedAccountInvite({
     email,
-    options: { emailRedirectTo: `${resolveSiteUrl()}/painel`, shouldCreateUser: false },
+    inviterName,
+    existingUser: !!opts?.existingUser,
+    expiresAt: opts?.expiresAt ?? null,
+    inviteId: opts?.inviteId ?? null,
   });
-  if (error) throw new Error(error.message);
-  return { sent: true, via: "magiclink" as const };
+  return { sent: true, via: "app-email" as const };
 }
+
+
+
 
 
 
@@ -149,13 +116,20 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
     // Sigma user. Previously we auto-accepted for existing users, which
     // silently added them to the account without their consent.
     const existingUserId = await findUserIdByEmail(data.email);
+    const inviterName = ((inviter?.trade_name as string) || (inviter?.full_name as string)) ?? null;
     try {
-      if (existingUserId) {
-        await sendExistingUserAccessEmail(data.email);
-        return { ok: true, id: inserted.id, emailSent: true, autoAccepted: false, existingUser: true };
-      }
-      await sendAccountInviteEmail(data.email, ((inviter?.trade_name as string) || (inviter?.full_name as string)) ?? null);
-      return { ok: true, id: inserted.id, emailSent: true, autoAccepted: false };
+      await sendAccountInviteEmail(data.email, inviterName, {
+        existingUser: !!existingUserId,
+        inviteId: inserted.id as string,
+      });
+      return {
+        ok: true,
+        id: inserted.id,
+        emailSent: true,
+        autoAccepted: false,
+        existingUser: !!existingUserId,
+      };
+
     } catch (e) {
       // Convite fica registrado mesmo se o envio falhar — o titular pode
       // usar o botão "Reenviar" na lista de convites pendentes.
@@ -218,12 +192,14 @@ export const resendTeamInvite = createServerFn({ method: "POST" })
     // they already have a Sigma account. We simply refresh the expiration and
     // (optionally) resend the branded invite e-mail.
     const existingUserId = await findUserIdByEmail(inv.email as string);
-    if (existingUserId) {
-      await sendExistingUserAccessEmail(inv.email as string);
-      return { ok: true, autoAccepted: false, existingUser: true, emailSent: true };
-    }
-    await sendAccountInviteEmail(inv.email as string, ((inviter?.trade_name as string) || (inviter?.full_name as string)) ?? null);
-    return { ok: true, autoAccepted: false, emailSent: true };
+    const inviterName = ((inviter?.trade_name as string) || (inviter?.full_name as string)) ?? null;
+    await sendAccountInviteEmail(inv.email as string, inviterName, {
+      existingUser: !!existingUserId,
+      expiresAt: newExpiry,
+      inviteId: inv.id as string,
+    });
+    return { ok: true, autoAccepted: false, existingUser: !!existingUserId, emailSent: true };
+
 
 
 
@@ -252,9 +228,12 @@ export const getTeamInviteLink = createServerFn({ method: "POST" })
     if (inv.status !== "pending") throw new Error("Este convite não está mais pendente.");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { resolveSiteUrl } = await import("@/lib/team-invite-email.server");
     const email = inv.email as string;
     const existingUserId = await findUserIdByEmail(email);
-    const redirectTo = `${resolveSiteUrl()}/definir-senha`;
+    const redirectTo = existingUserId
+      ? `${resolveSiteUrl()}/painel`
+      : `${resolveSiteUrl()}/definir-senha`;
     const { data: link, error: linkErr } = await supabaseAdmin.auth.admin.generateLink(
       existingUserId
         ? { type: "magiclink", email, options: { redirectTo } }
@@ -265,6 +244,60 @@ export const getTeamInviteLink = createServerFn({ method: "POST" })
     if (!url) throw new Error("Não foi possível gerar o link de acesso.");
     return { ok: true, url, email };
   });
+
+/**
+ * Reenvia o e-mail de convite para TODOS os convites pendentes da conta,
+ * renovando a validade de cada um.
+ */
+export const resendAllPendingInvites = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "equipe.write", {});
+
+    const { data: invites, error } = await supabase
+      .from("account_member_invites")
+      .select("id, email, expires_at")
+      .eq("owner_id", userId)
+      .eq("status", "pending");
+    if (error) throw new Error(error.message);
+
+    const { data: inviter } = await supabase
+      .from("profiles")
+      .select("full_name, trade_name")
+      .eq("id", userId)
+      .maybeSingle();
+    const inviterName =
+      ((inviter?.trade_name as string) || (inviter?.full_name as string)) ?? null;
+
+    const newExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    let sent = 0;
+    const failed: Array<{ email: string; error: string }> = [];
+
+    for (const inv of invites ?? []) {
+      const email = inv.email as string;
+      try {
+        await supabase
+          .from("account_member_invites")
+          .update({ expires_at: newExpiry })
+          .eq("id", inv.id as string)
+          .eq("owner_id", userId);
+        const existingUserId = await findUserIdByEmail(email);
+        await sendAccountInviteEmail(email, inviterName, {
+          existingUser: !!existingUserId,
+          expiresAt: newExpiry,
+          inviteId: inv.id as string,
+        });
+        sent += 1;
+      } catch (e) {
+        failed.push({ email, error: (e as Error).message });
+      }
+    }
+
+    return { ok: true, total: (invites ?? []).length, sent, failed };
+  });
+
 
 
 const MemberOpInput = z.object({ memberId: z.string().uuid() });

@@ -6,6 +6,7 @@ import {
   inviteTeamMember,
   revokeTeamInvite,
   resendTeamInvite,
+  resendAllPendingInvites,
   removeTeamMember,
   updateTeamMemberRole,
 } from "@/lib/team.functions";
@@ -52,6 +53,7 @@ function EquipePage() {
   const inviteFn = useServerFn(inviteTeamMember);
   const revokeFn = useServerFn(revokeTeamInvite);
   const resendFn = useServerFn(resendTeamInvite);
+  const resendAllFn = useServerFn(resendAllPendingInvites);
   const removeFn = useServerFn(removeTeamMember);
   const updateRoleFn = useServerFn(updateTeamMemberRole);
   const qc = useQueryClient();
@@ -104,6 +106,25 @@ function EquipePage() {
       setTimeout(() => setFeedback(null), 5000);
     },
   });
+  const resendAll = useMutation({
+    mutationFn: async () => resendAllFn({}),
+    onSuccess: (res) => {
+      const r = res as { total: number; sent: number; failed: Array<{ email: string }> };
+      qc.invalidateQueries({ queryKey: ["my-team"] });
+      if (r.sent > 0) {
+        toast.success(
+          `${r.sent} de ${r.total} convite(s) reenviado(s) por e-mail.` +
+            (r.failed.length ? ` ${r.failed.length} falharam.` : ""),
+        );
+      } else if (r.total === 0) {
+        toast.info("Não há convites pendentes.");
+      } else {
+        toast.error("Nenhum e-mail pôde ser enviado agora.");
+      }
+    },
+    onError: (e) => toast.error("Falha ao reenviar: " + (e as Error).message),
+  });
+
   const remove = useMutation({
     mutationFn: async (id: string) => removeFn({ data: { memberId: id } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["my-team"] }),
@@ -460,7 +481,24 @@ function EquipePage() {
           </AccordionTrigger>
           <AccordionContent className="pb-0">
             <div className="px-4 lg:px-6 pb-5 pt-2 border-t border-border/60">
+              {(team.data?.invites?.length ?? 0) > 0 && (
+                <div className="flex justify-end pt-3">
+                  <button
+                    onClick={() => resendAll.mutate()}
+                    disabled={resendAll.isPending}
+                    className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-medium inline-flex items-center gap-1.5 disabled:opacity-60"
+                  >
+                    {resendAll.isPending ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                      <SendIcon className="size-3" />
+                    )}
+                    Reenviar todos os convites
+                  </button>
+                </div>
+              )}
               <div className="divide-y divide-border">
+
                 {team.data?.invites?.length === 0 && <div className="text-sm text-muted-foreground py-2">Nenhum convite pendente.</div>}
                 {(team.data?.invites ?? []).map((i) => {
                   const isResending = resend.isPending && resend.variables === (i.id as string);
