@@ -40,14 +40,18 @@ function siteOrigin(): string {
 
 export const getMyWhatsappConfig = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<WhatsappConfigPublic> => {
+  .inputValidator((raw) => z.object({ ownerId: z.string().uuid().nullish() }).parse(raw ?? {}))
+  .handler(async ({ data: input, context }): Promise<WhatsappConfigPublic> => {
     const { supabase, userId } = context;
-    const { data } = await supabase
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, input.ownerId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin
       .from("host_whatsapp_config")
       .select("provider, sender_number, service_plan_id, app_id, api_token_encrypted, webhook_secret, status, last_verified_at, last_error")
-      .eq("owner_id", userId)
+      .eq("owner_id", ownerId)
       .maybeSingle();
-    const webhookUrl = `${siteOrigin()}/api/public/whatsapp/sinch-webhook?owner=${userId}`;
+    const webhookUrl = `${siteOrigin()}/api/public/whatsapp/sinch-webhook?owner=${ownerId}`;
     return {
       provider: (data?.provider as string) ?? "sinch",
       senderNumber: (data?.sender_number as string) ?? null,

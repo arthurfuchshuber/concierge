@@ -7,6 +7,7 @@ import {
   createPortalSession,
   PLANS,
   listMyPayments,
+  getAccountPaymentMethod,
   changePlan,
   type PlanKey,
 } from "@/lib/payments.functions";
@@ -32,6 +33,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { metaPixelTrack, metaPixelTrackCustom, metaPixelTrackOnce } from "@/lib/meta-pixel";
+import { useImpersonation } from "@/hooks/useImpersonation";
 
 export { AssinaturaPage };
 
@@ -39,8 +41,11 @@ const PLAN_ORDER: PlanKey[] = ["starter", "pro", "business", "enterprise"];
 
 function AssinaturaPage() {
   const { info, isLoading, refetch } = useSubscription();
+  const { impersonation } = useImpersonation();
+  const accountOwnerId = impersonation?.userId ?? null;
   const portal = useServerFn(createPortalSession);
   const fetchPayments = useServerFn(listMyPayments);
+  const fetchPaymentMethod = useServerFn(getAccountPaymentMethod);
   const doChangePlan = useServerFn(changePlan);
   const { openCheckout } = usePaddleCheckout();
   const env = getPaddleEnvironment();
@@ -100,15 +105,21 @@ function AssinaturaPage() {
   }, [user?.id, info.status]);
 
   const paymentsQuery = useQuery({
-    queryKey: ["my-payments", env],
-    queryFn: () => fetchPayments({ data: { environment: env } }),
+    queryKey: ["my-payments", env, accountOwnerId],
+    queryFn: () => fetchPayments({ data: { environment: env, ownerId: accountOwnerId } }),
     enabled: info.isActive,
+  });
+
+  const paymentMethodQuery = useQuery({
+    queryKey: ["account-payment-method", env, accountOwnerId],
+    queryFn: () => fetchPaymentMethod({ data: { environment: env, ownerId: accountOwnerId } }),
+    enabled: info.isActive && !info.isManual,
   });
 
   async function openPortal() {
     setOpening(true);
     try {
-      const res = await portal({ data: { environment: env } });
+      const res = await portal({ data: { environment: env, ownerId: accountOwnerId } });
       window.open(res.overviewUrl, "_blank", "noopener,noreferrer");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao abrir o portal");
@@ -149,7 +160,7 @@ function AssinaturaPage() {
     setChanging(target);
     try {
       await doChangePlan({
-        data: { environment: env, targetPriceExternalId: targetPlan.priceId },
+        data: { environment: env, targetPriceExternalId: targetPlan.priceId, ownerId: accountOwnerId },
       });
       toast.success(`Plano alterado para ${targetPlan.name}. As mudanças serão refletidas em instantes.`);
       const t = setInterval(() => refetch(), 2000);
@@ -394,6 +405,8 @@ function AssinaturaPage() {
                 onOpenPortal={openPortal}
                 opening={opening}
                 user={user}
+                paymentMethod={paymentMethodQuery.data?.paymentMethod ?? null}
+                paymentMethodLoading={paymentMethodQuery.isLoading}
               />
             </TabsContent>
 
@@ -509,12 +522,16 @@ function CardTab({
   onOpenPortal,
   opening,
   user,
+  paymentMethod,
+  paymentMethodLoading,
 }: {
   isActive: boolean;
   isManual: boolean;
   onOpenPortal: () => void;
   opening: boolean;
   user: { id: string; email: string | null } | null;
+  paymentMethod: import("@/lib/payments.functions").PaymentMethodSummary | null;
+  paymentMethodLoading: boolean;
 }) {
   const { openCheckout } = usePaddleCheckout();
   const [openingInline, setOpeningInline] = useState(false);
@@ -656,9 +673,27 @@ function CardTab({
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="font-medium text-base">Método de pagamento</h3>
-          <p className="text-xs text-muted-foreground mt-1">
-            Cadastre ou atualize o cartão usado nas próximas cobranças pelo portal seguro de pagamentos.
-          </p>
+          {paymentMethodLoading ? (
+            <p className="text-xs text-muted-foreground mt-1">Carregando cartão cadastrado…</p>
+          ) : paymentMethod?.last4 ? (
+            <div className="mt-2 space-y-0.5">
+              <p className="text-sm font-medium capitalize">
+                {paymentMethod.brand ?? "Cartão"} terminado em {paymentMethod.last4}
+              </p>
+              {(paymentMethod.expiryMonth || paymentMethod.expiryYear) && (
+                <p className="text-xs text-muted-foreground">
+                  Validade {String(paymentMethod.expiryMonth ?? "").padStart(2, "0")}/{paymentMethod.expiryYear ?? ""}
+                </p>
+              )}
+              {paymentMethod.cardholderName && (
+                <p className="text-xs text-muted-foreground">{paymentMethod.cardholderName}</p>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground mt-1">
+              Consulte ou atualize o cartão usado nas próximas cobranças pelo portal seguro de pagamentos.
+            </p>
+          )}
           <div className="mt-4 flex flex-wrap gap-2">
             <Button onClick={onOpenPortal} disabled={opening} className="rounded-full">
               {opening ? (

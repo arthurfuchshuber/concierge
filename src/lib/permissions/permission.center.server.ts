@@ -239,9 +239,9 @@ async function buildUser(
   };
 }
 
-async function resolveContext(supabase: SupabaseClient, userId: string) {
+async function resolveContext(supabase: SupabaseClient, userId: string, requestedTenantId?: string) {
   const saas = await isSaasAdmin(supabase, userId);
-  const { tenantId } = await resolveTenantOf(userId);
+  const tenantId = requestedTenantId ?? (await resolveTenantOf(userId)).tenantId;
   const profiles = await profilesFor([tenantId]);
   return {
     kind: (saas ? "saas" : "account") as "saas" | "account",
@@ -255,11 +255,12 @@ async function resolveContext(supabase: SupabaseClient, userId: string) {
 export async function loadCenterOverview(
   supabase: SupabaseClient,
   userId: string,
+  requestedTenantId?: string,
 ): Promise<CenterOverview | CenterDenial> {
   const guard = await assertCenterAccess(userId);
   if (!guard.allowed) return { allowed: false, reason: guard.reason };
 
-  const { kind, tenantId, tenantName } = await resolveContext(supabase, userId);
+  const { kind, tenantId, tenantName } = await resolveContext(supabase, userId, requestedTenantId);
   const client = await db();
 
   const { data: members } = await client
@@ -387,11 +388,12 @@ export async function loadCenterUserDetail(
   supabase: SupabaseClient,
   userId: string,
   targetUserId: string,
+  requestedTenantId?: string,
 ): Promise<CenterUserDetail | CenterDenial> {
   const guard = await assertCenterAccess(userId);
   if (!guard.allowed) return { allowed: false, reason: guard.reason };
 
-  const { kind, tenantId, tenantName } = await resolveContext(supabase, userId);
+  const { kind, tenantId, tenantName } = await resolveContext(supabase, userId, requestedTenantId);
   const client = await db();
 
   let role = "owner";
