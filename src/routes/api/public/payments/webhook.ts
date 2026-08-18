@@ -108,8 +108,37 @@ async function handleSubscriptionCreated(data: any, env: PaddleEnv) {
   }
 }
 
-async function handleSubscriptionUpdated(data: any, env: PaddleEnv) {
+/**
+ * Webhooks do Paddle podem chegar fora de ordem ou repetidos. Só aplicamos a
+ * atualização quando o evento é mais novo que o último já gravado na linha.
+ */
+async function isStaleEvent(id: string, env: PaddleEnv, occurredAt?: string | null): Promise<boolean> {
+  if (!occurredAt) return false;
+  const { data } = await getSupabase()
+    .from("subscriptions")
+    .select("updated_at")
+    .eq("paddle_subscription_id", id)
+    .eq("environment", env)
+    .maybeSingle();
+  const last = (data as { updated_at?: string | null } | null)?.updated_at;
+  return !!last && new Date(last) > new Date(occurredAt);
+}
+
+async function refreshPlanCache(id: string, env: PaddleEnv) {
+  const { data } = await getSupabase()
+    .from("subscriptions")
+    .select("user_id")
+    .eq("paddle_subscription_id", id)
+    .eq("environment", env)
+    .maybeSingle();
+  const userId = (data as { user_id?: string } | null)?.user_id;
+  const { invalidateOwnerPlanCache } = await import("@/lib/plan-guard.server");
+  invalidateOwnerPlanCache(userId ?? undefined);
+}
+
+async function handleSubscriptionUpdated(data: any, env: PaddleEnv, occurredAt?: string | null) {
   const { id, status, currentBillingPeriod, scheduledChange, items } = data;
+  if (await isStaleEvent(id, env, occurredAt)) return;
 
   const item = items?.[0];
   const priceId = item?.price?.importMeta?.externalId;
@@ -130,14 +159,25 @@ async function handleSubscriptionUpdated(data: any, env: PaddleEnv) {
     .update(update)
     .eq("paddle_subscription_id", id)
     .eq("environment", env);
+  await refreshPlanCache(id, env);
 }
 
-async function handleSubscriptionCanceled(data: any, env: PaddleEnv) {
+async function handleSubscriptionCanceled(data: any, env: PaddleEnv, occurredAt?: string | null) {
+  if (await isStaleEvent(data.id, env, occurredAt)) return;
+  // O acesso vai até o fim do período informado pelo próprio evento; sem isso
+  // um cancelamento imediato manteria a data antiga (e o acesso) no ar.
+  const endsAt =
+    data?.currentBillingPeriod?.endsAt ?? data?.canceledAt ?? new Date().toISOString();
   await getSupabase()
     .from("subscriptions")
-    .update({ status: "canceled", updated_at: new Date().toISOString() })
+    .update({
+      status: "canceled",
+      current_period_end: endsAt,
+      updated_at: new Date().toISOString(),
+    })
     .eq("paddle_subscription_id", data.id)
     .eq("environment", env);
+  await refreshPlanCache(data.id, env);
 }
 
 async function handleWebhook(req: Request, env: PaddleEnv) {
@@ -147,10 +187,10 @@ async function handleWebhook(req: Request, env: PaddleEnv) {
       await handleSubscriptionCreated(event.data, env);
       break;
     case EventName.SubscriptionUpdated:
-      await handleSubscriptionUpdated(event.data, env);
+      await handleSubscriptionUpdated(event.data, env, (event as { occurredAt?: string }).occurredAt);
       break;
     case EventName.SubscriptionCanceled:
-      await handleSubscriptionCanceled(event.data, env);
+      await handleSubscriptionCanceled(event.data, env, (event as { occurredAt?: string }).occurredAt);
       break;
     default:
       console.log("payments.webhook: unhandled event", event.eventType);

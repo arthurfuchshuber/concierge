@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { zonedTimeToUtc } from "@/lib/property-timezone";
 import { useServerFn } from "@tanstack/react-start";
 import { recordGuideAccess, checkReservationBySlug, getGuideCalendarAvailability } from "@/lib/guide-access.functions";
 import { BottomNav } from "@/components/guide/BottomNav";
@@ -75,21 +76,28 @@ export type AccessRecord = {
 
 type CalendarPeriod = { checkin: string; checkout: string; type: "reservation" | "block" };
 
-function isExpired(checkoutDate: string): boolean {
+/**
+ * O acesso vale até as 15h do dia de checkout no fuso do imóvel. Quando o fuso
+ * não é conhecido, damos 12h de tolerância para não expulsar um hóspede que
+ * está navegando de outro fuso.
+ */
+function isExpired(checkoutDate: string, timeZone?: string | null): boolean {
   const [y, m, d] = checkoutDate.split("-").map(Number);
   if (!y || !m || !d) return true;
-  const end = new Date(y, m - 1, d, 15, 0, 0, 0).getTime();
+  const end = timeZone
+    ? zonedTimeToUtc(y, m, d, 15, 0, timeZone).getTime()
+    : Date.UTC(y, m - 1, d, 15, 0, 0, 0) + 12 * 3_600_000;
   return Date.now() > end;
 }
 
-export function readAccessRecord(slug: string): AccessRecord | null {
+export function readAccessRecord(slug: string, timeZone?: string | null): AccessRecord | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(STORAGE_PREFIX + slug);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<AccessRecord>;
     if (!parsed?.name || !parsed?.checkinDate || !parsed?.checkoutDate) return null;
-    if (isExpired(parsed.checkoutDate)) {
+    if (isExpired(parsed.checkoutDate, timeZone)) {
       window.localStorage.removeItem(STORAGE_PREFIX + slug);
       return null;
     }

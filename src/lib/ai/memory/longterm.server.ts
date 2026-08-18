@@ -88,13 +88,21 @@ export async function writeMemories(params: {
 
     try {
       // Reforço: se a mesma memória já existe, incrementa ocorrências e renova a data.
-      const { data: existing } = await supabase
+      // A chave de deduplicação precisa incluir o hóspede e o imóvel: sem
+      // isso, dois hóspedes com a mesma frase colidiriam na mesma memória.
+      let existingQuery = supabase
         .from("ai_memories")
         .select("id, occurrences, importance")
         .eq("owner_id", params.ownerId)
         .eq("scope", scope)
-        .eq("content_hash", contentHash)
-        .maybeSingle();
+        .eq("content_hash", contentHash);
+      existingQuery = subjectKey
+        ? existingQuery.eq("subject_key", subjectKey)
+        : existingQuery.is("subject_key", null);
+      existingQuery = params.propertyId
+        ? existingQuery.eq("property_id", params.propertyId)
+        : existingQuery.is("property_id", null);
+      const { data: existing } = await existingQuery.maybeSingle();
 
       if (existing?.id) {
         await supabase

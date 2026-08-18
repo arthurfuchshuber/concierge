@@ -473,14 +473,13 @@ export function GuideAiChat({
 
   async function openItinerary() {
     setShowItinerary(true);
-    const name = isPreviewMode() ? PREVIEW_GUEST_NAME : (guestName ?? readAccessRecord(slug)?.name ?? "");
-    if (!name.trim()) {
+    if (!sessionId) {
       setItineraryDays([]);
       return;
     }
     setItineraryLoading(true);
     try {
-      const res = await fetch(`/api/public/itinerary?slug=${encodeURIComponent(slug)}&guestName=${encodeURIComponent(name)}`);
+      const res = await fetch(`/api/public/itinerary?slug=${encodeURIComponent(slug)}&sessionId=${encodeURIComponent(sessionId)}`);
       const data = (await res.json().catch(() => ({}))) as { days?: typeof itineraryDays };
       setItineraryDays(Array.isArray(data.days) ? data.days : []);
     } catch {
