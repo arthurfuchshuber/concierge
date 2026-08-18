@@ -9,15 +9,18 @@ import { z } from "zod";
  * Authorization Runtime existente (`permission.guard.server.ts`).
  */
 
-const TargetInput = z.object({ targetUserId: z.string().uuid() });
+const TargetInput = z.object({ targetUserId: z.string().uuid(), ownerId: z.string().uuid().nullish() });
 const OptionalTargetInput = z.object({ targetUserId: z.string().uuid().nullish() });
 
 /** Lista de usuários do contexto com resumo de acesso. */
 export const getPermissionCenterOverview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((i: unknown) => z.object({ ownerId: z.string().uuid().nullish() }).parse(i ?? {}))
+  .handler(async ({ data, context }) => {
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const ownerId = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
     const { loadCenterOverview } = await import("@/lib/permissions/permission.center.server");
-    return loadCenterOverview(context.supabase, context.userId);
+    return loadCenterOverview(context.supabase, context.userId, ownerId);
   });
 
 /** Detalhe de um usuário: roles → permissions → scopes → imóveis. */
@@ -25,8 +28,10 @@ export const getPermissionCenterUser = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => TargetInput.parse(i))
   .handler(async ({ data, context }) => {
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const ownerId = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
     const { loadCenterUserDetail } = await import("@/lib/permissions/permission.center.server");
-    return loadCenterUserDetail(context.supabase, context.userId, data.targetUserId);
+    return loadCenterUserDetail(context.supabase, context.userId, data.targetUserId, ownerId);
   });
 
 /** Catálogo do Permission Registry (namespace, descrição, domínio, status). */

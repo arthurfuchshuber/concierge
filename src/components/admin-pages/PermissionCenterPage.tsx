@@ -25,6 +25,7 @@ import {
 } from "@/lib/permission-center.functions";
 import { getTeamInviteLink, resendTeamInvite, revokeTeamInvite } from "@/lib/team.functions";
 import { cn } from "@/lib/utils";
+import { useImpersonation } from "@/hooks/useImpersonation";
 import {
   ACCOUNT_AREAS,
   SAAS_AREAS,
@@ -192,6 +193,8 @@ export function UserAccess({
   onBack?: () => void;
   areas?: AreaGroup[];
 }) {
+  const { impersonation } = useImpersonation();
+  const accountOwnerId = impersonation?.userId ?? null;
   const qc = useQueryClient();
   const fn = useServerFn(getPermissionCenterUser);
   const grant = useServerFn(grantPermissionCenterPermission);
@@ -199,8 +202,8 @@ export function UserAccess({
   
 
   const q = useQuery({
-    queryKey: ["permission-center-user", userId],
-    queryFn: () => fn({ data: { targetUserId: userId } }),
+    queryKey: ["permission-center-user", accountOwnerId, userId],
+    queryFn: () => fn({ data: { targetUserId: userId, ownerId: accountOwnerId } }),
     retry: false,
   });
 
@@ -461,6 +464,8 @@ export function PermissionCenterPage({
 }: {
   context?: PermissionCenterContext;
 } = {}) {
+  const { impersonation } = useImpersonation();
+  const accountOwnerId = impersonation?.userId ?? null;
   const areas = context === "saas" ? SAAS_AREAS : ACCOUNT_AREAS;
   const [selected, setSelected] = useState<string | null>(null);
   const fn = useServerFn(getPermissionCenterOverview);
@@ -499,8 +504,8 @@ export function PermissionCenterPage({
     onError: (e: Error) => toast.error(e.message),
   });
   const q = useQuery({
-    queryKey: ["permission-center-overview"],
-    queryFn: () => fn(),
+    queryKey: ["permission-center-overview", accountOwnerId],
+    queryFn: () => fn({ data: { ownerId: accountOwnerId } }),
     retry: false,
   });
 
