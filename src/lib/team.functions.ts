@@ -118,13 +118,20 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
     // Sigma user. Previously we auto-accepted for existing users, which
     // silently added them to the account without their consent.
     const existingUserId = await findUserIdByEmail(data.email);
+    const inviterName = ((inviter?.trade_name as string) || (inviter?.full_name as string)) ?? null;
     try {
-      if (existingUserId) {
-        await sendExistingUserAccessEmail(data.email);
-        return { ok: true, id: inserted.id, emailSent: true, autoAccepted: false, existingUser: true };
-      }
-      await sendAccountInviteEmail(data.email, ((inviter?.trade_name as string) || (inviter?.full_name as string)) ?? null);
-      return { ok: true, id: inserted.id, emailSent: true, autoAccepted: false };
+      await sendAccountInviteEmail(data.email, inviterName, {
+        existingUser: !!existingUserId,
+        inviteId: inserted.id as string,
+      });
+      return {
+        ok: true,
+        id: inserted.id,
+        emailSent: true,
+        autoAccepted: false,
+        existingUser: !!existingUserId,
+      };
+
     } catch (e) {
       // Convite fica registrado mesmo se o envio falhar — o titular pode
       // usar o botão "Reenviar" na lista de convites pendentes.
