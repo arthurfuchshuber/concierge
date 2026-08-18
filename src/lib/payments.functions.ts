@@ -8,7 +8,6 @@ import {
   planFromPriceId,
   type PlanKey,
 } from "@/lib/payments.shared";
-import { resolveAuthorizedAccountOwnerId } from "@/lib/account-scope.server";
 
 // Re-export shared helpers so existing `@/lib/payments.functions` importers keep working.
 export { PLANS, planFromProductId, planFromPriceId };
@@ -70,6 +69,7 @@ export const getAccountSubscription = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
     const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.ownerId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows, error } = await supabaseAdmin
@@ -96,6 +96,7 @@ export const createPortalSession = createServerFn({ method: "POST" })
     z.object({ environment: PaddleEnvSchema, ownerId: z.string().uuid().nullish() }).parse(data),
   )
   .handler(async ({ data, context }) => {
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
     const ownerId = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: sub, error } = await supabaseAdmin
@@ -149,6 +150,7 @@ export const listMyPayments = createServerFn({ method: "GET" })
     z.object({ environment: PaddleEnvSchema, ownerId: z.string().uuid().nullish() }).parse(data),
   )
   .handler(async ({ data, context }): Promise<{ payments: PaymentRow[] }> => {
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
     const ownerId = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: sub } = await supabaseAdmin
@@ -198,6 +200,7 @@ export const getAccountPaymentMethod = createServerFn({ method: "GET" })
     z.object({ environment: PaddleEnvSchema, ownerId: z.string().uuid().nullish() }).parse(data),
   )
   .handler(async ({ data, context }): Promise<{ paymentMethod: PaymentMethodSummary | null }> => {
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
     const ownerId = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: sub } = await supabaseAdmin
@@ -246,19 +249,23 @@ export const getAccountPaymentMethod = createServerFn({ method: "GET" })
 
 export const changePlan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { environment: PaddleEnv; targetPriceExternalId: string }) =>
+  .inputValidator((data: { environment: PaddleEnv; targetPriceExternalId: string; ownerId?: string | null }) =>
     z
       .object({
         environment: PaddleEnvSchema,
         targetPriceExternalId: z.string().min(1).max(80),
+        ownerId: z.string().uuid().nullish(),
       })
       .parse(data),
   )
   .handler(async ({ data, context }) => {
-    const { data: sub, error } = await context.supabase
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const ownerId = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: sub, error } = await supabaseAdmin
       .from("subscriptions")
       .select("paddle_subscription_id, environment")
-      .eq("user_id", context.userId)
+      .eq("user_id", ownerId)
       .eq("environment", data.environment)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -273,10 +280,10 @@ export const changePlan = createServerFn({ method: "POST" })
     const targetPlan = planFromPriceId(data.targetPriceExternalId);
     if (targetPlan) {
       const targetMax = PLANS[targetPlan].maxGuides;
-      const { count } = await context.supabase
+      const { count } = await supabaseAdmin
         .from("properties")
         .select("id", { count: "exact", head: true })
-        .eq("owner_id", context.userId);
+        .eq("owner_id", ownerId);
       const current = count ?? 0;
       if (current > targetMax) {
         throw new Error(
@@ -301,7 +308,7 @@ export const changePlan = createServerFn({ method: "POST" })
     });
     const { auditBilling } = await import("@/lib/ai/audit/platform.server");
     await auditBilling("plan_changed", {
-      userId: context.userId,
+      userId: ownerId,
       entityId: sub.paddle_subscription_id,
       description: `Plano alterado para ${targetPlan ? PLANS[targetPlan].name : data.targetPriceExternalId}.`,
       metadata: { environment: data.environment, targetPriceExternalId: data.targetPriceExternalId },

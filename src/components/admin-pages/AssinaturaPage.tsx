@@ -160,7 +160,7 @@ function AssinaturaPage() {
     setChanging(target);
     try {
       await doChangePlan({
-        data: { environment: env, targetPriceExternalId: targetPlan.priceId },
+        data: { environment: env, targetPriceExternalId: targetPlan.priceId, ownerId: accountOwnerId },
       });
       toast.success(`Plano alterado para ${targetPlan.name}. As mudanças serão refletidas em instantes.`);
       const t = setInterval(() => refetch(), 2000);
