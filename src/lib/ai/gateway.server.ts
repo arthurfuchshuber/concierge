@@ -151,27 +151,29 @@ export async function chatJson<T>(
 
 // ───────────────────────── Embeddings ─────────────────────────
 
-const EMBED_BATCH = 90;
+/**
+ * O modelo de embeddings do gateway aceita apenas UM texto por requisição
+ * (lotes retornam 404). Compensamos com concorrência controlada.
+ */
+const EMBED_CONCURRENCY = 6;
 
 export async function embedTexts(texts: string[]): Promise<{ vectors: number[][]; usage: Usage }> {
   const model = modelFor("embeddings");
-  const vectors: number[][] = [];
+  const vectors: number[][] = new Array(texts.length).fill(null).map(() => [] as number[]);
   let usage = EMPTY_USAGE;
 
-  for (let i = 0; i < texts.length; i += EMBED_BATCH) {
-    const batch = texts.slice(i, i + EMBED_BATCH);
+  async function embedAt(index: number): Promise<void> {
     const res = await fetchWithRetry(`${BASE}/embeddings`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey() },
-      body: JSON.stringify({ model, input: batch }),
+      body: JSON.stringify({ model, input: texts[index] }),
     });
     if (!res.ok) throwForStatus(res.status, await res.text().catch(() => ""));
     const json = (await res.json()) as {
-      data?: Array<{ index?: number; embedding?: number[] }>;
+      data?: Array<{ embedding?: number[] }>;
       usage?: { prompt_tokens?: number };
     };
-    const sorted = (json.data ?? []).slice().sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
-    for (const row of sorted) vectors.push(row.embedding ?? []);
+    vectors[index] = json.data?.[0]?.embedding ?? [];
     const inputTokens = json.usage?.prompt_tokens ?? 0;
     usage = mergeUsage(usage, {
       inputTokens,
@@ -180,8 +182,14 @@ export async function embedTexts(texts: string[]): Promise<{ vectors: number[][]
     });
   }
 
+  for (let i = 0; i < texts.length; i += EMBED_CONCURRENCY) {
+    const slice = texts.slice(i, i + EMBED_CONCURRENCY).map((_, k) => embedAt(i + k));
+    await Promise.all(slice);
+  }
+
   return { vectors, usage };
 }
+
 
 export async function embedOne(text: string): Promise<{ vector: number[] | null; usage: Usage }> {
   const { vectors, usage } = await embedTexts([text]);
