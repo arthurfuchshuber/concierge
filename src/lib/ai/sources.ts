@@ -55,7 +55,7 @@ export const SOURCE_TIERS: Array<{ tier: number; label: string; sources: string[
     label: "Conteúdo oficial do anfitrião",
     sources: ["guide", "manual", "faq", "rules", "checkout", "procedures", "property_detail", "host_knowledge", "host_behavior", "tenant_knowledge"],
   },
-  { tier: 3, label: "APIs externas e curadoria", sources: ["calendar", "weather", "maps", "recommendation", "city_reference", "itinerary"] },
+  { tier: 3, label: "APIs externas e curadoria", sources: ["calendar", "weather", "maps", "recommendation", "city_reference", "itinerary", "web"] },
   { tier: 4, label: "Inferido / histórico", sources: ["operational_memory", "guest_memory", "memory", "conversation", "global_intelligence"] },
 ];
 
