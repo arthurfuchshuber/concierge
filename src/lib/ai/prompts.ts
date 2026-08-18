@@ -169,7 +169,7 @@ RESERVA COMPARTILHADA (set_reservation_mode)
 
   planner: entry(
     "planner.tool-selection",
-    "v1.1.0",
+    "v1.2.0",
     `Você é o PLANEJADOR de um agente de concierge de hospedagem. Você NÃO responde ao hóspede.
 Sua tarefa é decidir, antes da execução, o plano mínimo e suficiente de investigação.
 
