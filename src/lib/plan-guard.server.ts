@@ -68,7 +68,7 @@ function subscriptionGrantsAccess(sub: {
   return false;
 }
 
-const TRIAL_MAX_DAYS = 14;
+const TRIAL_MAX_DAYS = 7;
 
 // Resolves the active plan for the authenticated user using their RLS-scoped
 // supabase client. Only honours subscriptions in the current runtime env so
