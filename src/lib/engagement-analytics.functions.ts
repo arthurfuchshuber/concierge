@@ -110,11 +110,14 @@ async function runAnalytics(
   let ownerIds: string[] = [ctx.userId];
   let db = ctx.supabase;
   if (requestedOwners.length > 0 && !(requestedOwners.length === 1 && requestedOwners[0] === ctx.userId)) {
-    const { data: isAdmin } = await ctx.supabase.rpc("has_role", { _user_id: ctx.userId, _role: "admin" });
-    if (!isAdmin) throw new Error("Acesso negado");
+    // Cada conta pedida precisa ser validada: titular, membro ativo ou admin.
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const authorized = await Promise.all(
+      requestedOwners.map((id) => resolveAuthorizedAccountOwnerId(ctx.supabase, ctx.userId, id)),
+    );
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     db = supabaseAdmin as unknown as typeof ctx.supabase;
-    ownerIds = requestedOwners;
+    ownerIds = Array.from(new Set(authorized));
   }
   const supabase = db;
   const days = daysFor(input.period);
