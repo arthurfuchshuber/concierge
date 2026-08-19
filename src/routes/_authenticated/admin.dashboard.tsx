@@ -1163,13 +1163,11 @@ function KpiCard({
         {compact ? (
           <button
             type="button"
-            className={`w-full flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+            className="w-full min-w-0 flex items-center gap-2.5 px-4 py-2.5 text-left transition-colors hover:bg-secondary/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           >
-            <Icon className="size-3.5 text-muted-foreground" />
-            <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold truncate">
-              {label}
-            </span>
-            <span className={`ml-auto text-lg font-display tabular-nums ${valueColor}`}>
+            <Icon className="size-3.5 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-muted-foreground">{label}</span>
+            <span className={`shrink-0 font-display text-[15px] leading-none tabular-nums ${valueColor}`}>
               {loading ? "—" : rows.length}
             </span>
           </button>
