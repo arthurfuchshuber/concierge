@@ -11,11 +11,11 @@
   --font-mono: "Geist Mono", ui-monospace, monospace;
 
   /* ConciergeIA brand palette */
-  --color-brand-purple: #7C1AD8;
-  --color-brand-magenta: #E82DAE;
-  --color-brand-cream: #FDF9F2;
+  --color-brand-purple: #7c1ad8;
+  --color-brand-magenta: #e82dae;
+  --color-brand-cream: #fdf9f2;
   --color-brand-ink: #000000;
-  --gradient-brand: linear-gradient(135deg, #7C1AD8 0%, #E82DAE 100%);
+  --gradient-brand: linear-gradient(135deg, #7c1ad8 0%, #e82dae 100%);
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -126,7 +126,8 @@
     border-color: var(--color-border);
   }
 
-  html, body {
+  html,
+  body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
@@ -138,11 +139,18 @@
 
   /* Toque imediato no celular: remove o atraso de ~300ms do duplo-toque
      e o realce cinza padrão do iOS/Android ao tocar em botões e links. */
-  button, a, [role="button"], [role="tab"], summary, label, input, select, textarea {
+  button,
+  a,
+  [role="button"],
+  [role="tab"],
+  summary,
+  label,
+  input,
+  select,
+  textarea {
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
   }
-
 
   /* SaaS display headings — Geist, clean, premium and highly legible */
   .font-display {
@@ -251,13 +259,13 @@
     font-weight: 400 !important;
   }
 
-
-
   .guide-access-calendar .guide-available-checkin:not([data-disabled="true"]) button {
     background: #ffffff;
     color: #0a0a0a;
     font-weight: 800;
-    box-shadow: 0 0 0 1px rgba(0,0,0,0.12), 0 6px 18px rgba(0,0,0,0.18);
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.12),
+      0 6px 18px rgba(0, 0, 0, 0.18);
   }
 
   .guide-access-calendar [data-selected="true"] button,
@@ -265,8 +273,6 @@
     background: #0a0a0a !important;
     color: #ffffff !important;
   }
-
-
 
   .font-mono {
     font-family: var(--font-mono);
@@ -289,11 +295,20 @@
     -webkit-backdrop-filter: saturate(180%) blur(20px);
   }
 
-  .no-scrollbar::-webkit-scrollbar { display: none; }
-  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 
-  .text-balance { text-wrap: balance; }
-  .text-pretty { text-wrap: pretty; }
+  .text-balance {
+    text-wrap: balance;
+  }
+  .text-pretty {
+    text-wrap: pretty;
+  }
 
   /* Soft ambient gradient for the public guide background — adapts to theme */
   .guide-ambient {
@@ -304,8 +319,12 @@
 
   /* Wifi shimmer — slow light sweep */
   @keyframes wifi-shimmer {
-    0% { transform: translateX(-120%) skewX(-18deg); }
-    100% { transform: translateX(260%) skewX(-18deg); }
+    0% {
+      transform: translateX(-120%) skewX(-18deg);
+    }
+    100% {
+      transform: translateX(260%) skewX(-18deg);
+    }
   }
   .wifi-shimmer::before {
     content: "";
@@ -327,12 +346,20 @@
 
   /* Slow pulse for the wifi icon halo */
   @keyframes wifi-pulse {
-    0%, 100% { opacity: 0.45; transform: scale(1); }
-    50% { opacity: 0.9; transform: scale(1.08); }
+    0%,
+    100% {
+      opacity: 0.45;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.9;
+      transform: scale(1.08);
+    }
   }
-  .wifi-pulse { animation: wifi-pulse 3s ease-in-out infinite; }
+  .wifi-pulse {
+    animation: wifi-pulse 3s ease-in-out infinite;
+  }
 }
-
 
 /* International phone input — premium guide-access styling */
 .sg-phone-input .PhoneInput {
@@ -344,7 +371,10 @@
   border-radius: 12px;
   border: 1px solid var(--border);
   background-color: color-mix(in oklab, var(--foreground) 4%, transparent);
-  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
 }
 .sg-phone-input .PhoneInputCountry {
   display: flex;
@@ -383,15 +413,17 @@
   background-color: color-mix(in oklab, var(--foreground) 6%, transparent);
 }
 
-
-
 /* Discreet, elegant scrollbar for in-dialog content */
 .sg-elegant-scroll {
   scrollbar-width: thin;
   scrollbar-color: color-mix(in oklab, hsl(var(--accent)) 35%, transparent) transparent;
 }
-.sg-elegant-scroll::-webkit-scrollbar { width: 6px; }
-.sg-elegant-scroll::-webkit-scrollbar-track { background: transparent; }
+.sg-elegant-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.sg-elegant-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
 .sg-elegant-scroll::-webkit-scrollbar-thumb {
   background: color-mix(in oklab, hsl(var(--accent)) 28%, transparent);
   border-radius: 9999px;
@@ -402,40 +434,75 @@
 
 /* Continuous shine sweep for CTA buttons */
 @keyframes btn-shine-sweep {
-  0% { transform: translateX(-160%) skewX(-20deg); }
-  60% { transform: translateX(260%) skewX(-20deg); }
-  100% { transform: translateX(260%) skewX(-20deg); }
+  0% {
+    transform: translateX(-160%) skewX(-20deg);
+  }
+  60% {
+    transform: translateX(260%) skewX(-20deg);
+  }
+  100% {
+    transform: translateX(260%) skewX(-20deg);
+  }
 }
-.btn-shine { position: relative; overflow: hidden; isolation: isolate; }
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
 .btn-shine::after {
   content: "";
   position: absolute;
-  top: 0; left: 0;
-  width: 45%; height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255,255,255,0.55) 50%,
-    transparent 100%
-  );
+  top: 0;
+  left: 0;
+  width: 45%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.55) 50%, transparent 100%);
   animation: btn-shine-sweep 3s ease-in-out infinite;
   pointer-events: none;
   z-index: 1;
 }
-.btn-shine > * { position: relative; z-index: 2; }
-
+.btn-shine > * {
+  position: relative;
+  z-index: 2;
+}
 
 /* Regra global: pontuação nunca inicia uma linha (evita órfãos ",", ".", ";", etc). */
-:root { hanging-punctuation: first allow-end last; }
-h1, h2, h3, h4, h5, h6, p, li, blockquote, figcaption, dt, dd { text-wrap: pretty; }
-
-/* Amber mirror sweep — faixa "Em Limpeza" */
-@keyframes amber-mirror-sweep {
-  0% { transform: translateX(-140%) skewX(-18deg); }
-  55% { transform: translateX(320%) skewX(-18deg); }
-  100% { transform: translateX(320%) skewX(-18deg); }
+:root {
+  hanging-punctuation: first allow-end last;
 }
-.amber-mirror { position: relative; overflow: hidden; isolation: isolate; border-radius: 1rem; }
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+li,
+blockquote,
+figcaption,
+dt,
+dd {
+  text-wrap: pretty;
+}
+
+/* Amber mirror sweep — faixa "Liberado Limpeza" */
+@keyframes amber-mirror-sweep {
+  0% {
+    transform: translateX(-140%) skewX(-18deg);
+  }
+  55% {
+    transform: translateX(320%) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(320%) skewX(-18deg);
+  }
+}
+.amber-mirror {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 1rem;
+}
 .amber-mirror::after {
   content: "";
   position: absolute;
@@ -453,7 +520,10 @@ h1, h2, h3, h4, h5, h6, p, li, blockquote, figcaption, dt, dd { text-wrap: prett
   z-index: 3;
 }
 @media (prefers-reduced-motion: reduce) {
-  .amber-mirror::after { animation: none; opacity: 0; }
+  .amber-mirror::after {
+    animation: none;
+    opacity: 0;
+  }
 }
 
 /* Barra de rolagem sempre visível — sinaliza que há mais conteúdo abaixo. */
@@ -463,7 +533,9 @@ h1, h2, h3, h4, h5, h6, p, li, blockquote, figcaption, dt, dd { text-wrap: prett
   scrollbar-color: color-mix(in oklab, #a855f7 55%, transparent) color-mix(in oklab, var(--foreground) 8%, transparent);
   scrollbar-gutter: stable;
 }
-.sg-always-scroll::-webkit-scrollbar { width: 6px; }
+.sg-always-scroll::-webkit-scrollbar {
+  width: 6px;
+}
 .sg-always-scroll::-webkit-scrollbar-track {
   background: color-mix(in oklab, var(--foreground) 8%, transparent);
   border-radius: 9999px;
