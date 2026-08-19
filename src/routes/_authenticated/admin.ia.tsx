@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/ui-kit";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -53,15 +54,18 @@ function IaGovernancePage() {
   const [form, setForm] = useState<typeof EMPTY_KNOWLEDGE | null>(null);
   return (
     <div className="max-w-[1440px] mx-auto w-full px-6 lg:px-10 py-8 lg:py-10 space-y-6">
-      <header className="space-y-1">
-        <h1 className="font-display text-2xl sm:text-3xl flex items-center gap-2">
-          <BrainCircuit className="size-6 text-primary" />
-          IA Concierge
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Tudo que a inteligência aprendeu sobre a sua operação — e o que ainda depende da sua aprovação.
-        </p>
-      </header>
+      <PageHeader
+        eyebrow="Inteligência"
+        title={
+          <span className="inline-flex items-center gap-2">
+            <BrainCircuit className="size-6 text-primary" />
+            IA Concierge
+          </span>
+        }
+        subtitle="Tudo que a inteligência aprendeu sobre a sua operação — e o que ainda depende da sua aprovação."
+        className="mb-6"
+      />
+
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         {/* "+ Novo conhecimento" embutido na mesma linha das abas, em vez de

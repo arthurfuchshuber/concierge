@@ -1,4 +1,6 @@
 import { PhoneActionButton } from "@/components/PhoneActionButton";
+import { PageHeader, PillScroller } from "@/components/ui-kit";
+
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Home, Compass } from "lucide-react";
 import { useSearch } from "@tanstack/react-router";
@@ -121,16 +123,20 @@ function guideCompleteness(p: {
 
 function GuiasTabsBar() {
   return (
-    <TabsList className="mb-5">
-      <TabsTrigger value="imoveis">
-        <Home className="size-4" /> Guias de Imóveis
-      </TabsTrigger>
-      <TabsTrigger value="destinos">
-        <Compass className="size-4" /> Guias de Destinos
-      </TabsTrigger>
-    </TabsList>
+    <PillScroller className="mb-6">
+      <TabsList className="gap-2">
+        <TabsTrigger value="imoveis">
+          <Home className="size-4" /> Imóveis
+        </TabsTrigger>
+        <TabsTrigger value="destinos">
+          <Compass className="size-4" /> Destinos
+        </TabsTrigger>
+      </TabsList>
+    </PillScroller>
   );
 }
+
+
 
 function GuiasTabs() {
   const search = useSearch({ from: "/_authenticated/admin/guias" });
@@ -458,62 +464,52 @@ function Dashboard() {
         </div>
       )}
 
-      {/* Welcome */}
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
-        <div>
-          <h1 className="font-display text-3xl md:text-4xl leading-tight">
-            {readOnly ? `Painel de ${impersonation?.name ?? ""}` : "Guias de Imóveis e Destinos"}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1.5">
-            {readOnly
-              ? "Visualização apenas de leitura. Nenhuma alteração será salva."
-              : "Aqui está o resumo do seu painel hoje."}
-          </p>
-        </div>
-      </div>
+      {/* Cabeçalho de página — padrão do pacote UX v4 */}
+      <PageHeader
+        eyebrow={readOnly ? "Visualização de conta" : "Aqui está o resumo do seu painel"}
+        title={readOnly ? `Painel de ${impersonation?.name ?? ""}` : "Guias"}
+        subtitle={
+          readOnly ? "Visualização apenas de leitura. Nenhuma alteração será salva." : undefined
+        }
+      />
 
-      {/* Stat cards (collapsible) — apenas para o titular da conta */}
+
+      <GuiasTabsBar />
+
+      {/* Faixa de plano e uso — padrão do pacote: um card só, com barra */}
       {canSeePlan && (
-        <div className="mb-10">
+        <div className="mb-8">
           <button
             type="button"
             onClick={() => setStatCardsOpen((v) => !v)}
-            className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl border border-border bg-card hover:bg-secondary/40 transition-colors mb-3"
+            className="ui-card w-full p-4 text-left transition-colors hover:bg-secondary/30 mb-3"
             aria-expanded={statCardsOpen}
           >
-            <span className="text-sm font-medium text-foreground/80 flex items-center gap-2">
-              <CreditCard className="size-4 text-muted-foreground" />
-              Plano e uso ·{" "}
-              <span className="text-muted-foreground">
-                {planName} · {count}
-                {planLimit > 0 ? `/${planLimit >= 9999 ? "∞" : planLimit}` : ""}
+            <div className="flex items-center justify-between gap-3">
+              <span className="ui-card-title flex min-w-0 items-center gap-2 truncate">
+                <CreditCard className="size-4 shrink-0 text-muted-foreground" />
+                {planName}
               </span>
-            </span>
-            <ChevronDown
-              className={`size-4 text-muted-foreground transition-transform ${statCardsOpen ? "rotate-180" : ""}`}
-            />
-          </button>
-
-          {/* Barra elegante de uso de guias */}
-          {planLimit > 0 && (
-            <div className="mb-3 px-1">
-              <div className="flex items-center justify-between text-[11px] mb-1.5">
-                <span className="uppercase tracking-[0.14em] text-muted-foreground font-medium">Uso de guias</span>
-                <span className="tabular-nums text-foreground/80">
-                  <span className="font-semibold text-foreground">{count}</span>
-                  <span className="text-muted-foreground"> / {planLimit >= 9999 ? "∞" : planLimit}</span>
-                </span>
-              </div>
-              <div className="relative h-2 rounded-full bg-secondary/60 overflow-hidden ring-1 ring-inset ring-border/40">
+              <span className="ui-meta shrink-0 tabular-nums">
+                {count}
+                {planLimit > 0 ? ` / ${planLimit >= 9999 ? "∞" : planLimit}` : ""} guias
+                <ChevronDown
+                  className={`ml-1.5 inline size-3.5 transition-transform ${statCardsOpen ? "rotate-180" : ""}`}
+                />
+              </span>
+            </div>
+            {planLimit > 0 && (
+              <div className="relative mt-3 h-1.5 overflow-hidden rounded-full bg-secondary/60">
                 <div
-                  className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-accent/70 via-accent to-accent/90 shadow-[0_0_12px_-2px_oklch(from_var(--accent)_l_c_h/0.6)] transition-all duration-700 ease-out"
+                  className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-amber-400/80 to-amber-300 transition-all duration-700 ease-out"
                   style={{
                     width: `${planLimit >= 9999 ? Math.min(100, (count / Math.max(count + 10, 20)) * 100) : pct}%`,
                   }}
                 />
               </div>
-            </div>
-          )}
+            )}
+          </button>
+
 
           {statCardsOpen && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -633,15 +629,11 @@ function Dashboard() {
         </div>
       )}
 
-      <GuiasTabsBar />
-
       {/* Guias section */}
       <div className="flex flex-col gap-3 sm:gap-4 mb-5">
         <div className="flex flex-wrap items-center gap-2">
-          {/* "Seus guias" — redundante no mobile logo abaixo do título de
-              página e das abas Imóveis/Destinos; mantido no desktop, onde
-              serve de âncora visual mais forte pra seção. */}
-          <h2 className="hidden sm:block font-display text-2xl sm:mr-auto">Seus guias</h2>
+          <h2 className="hidden sm:block ui-section-title sm:mr-auto">Seus guias</h2>
+
 
           {/* Busca — só no mobile ela mora aqui, ocupando o espaço que sobra
               nesta mesma linha ao lado dos ícones (evita gastar uma linha
@@ -973,17 +965,18 @@ function Dashboard() {
                   <Link
                     to="/admin/properties/$id"
                     params={{ id: p.id }}
-                    className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-medium bg-secondary rounded-full py-2 hover:bg-secondary/70"
+                    className="flex-1 inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-secondary text-[13px] font-bold hover:bg-secondary/70"
                   >
-                    <Pencil className="size-3" /> Editar
+                    <Pencil className="size-3.5" /> Editar
                   </Link>
                   <button
                     type="button"
                     onClick={() => setViewSlug(p.slug)}
-                    className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-medium bg-secondary rounded-full py-2 hover:bg-secondary/70"
+                    className="flex-1 inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-secondary text-[13px] font-bold hover:bg-secondary/70"
                   >
-                    <ExternalLink className="size-3" /> Ver
+                    <ExternalLink className="size-3.5" /> Ver
                   </button>
+
                   {/* Copiar link / Duplicar / Excluir — consolidados num só
                       menu "⋮" em vez de 3 botões soltos ao lado de
                       Editar/Ver. A confirmação de exclusão (AlertDialog)
@@ -995,10 +988,11 @@ function Dashboard() {
                         type="button"
                         title="Mais ações"
                         aria-label="Mais ações"
-                        className="p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                        className="grid size-9 shrink-0 place-items-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                       >
-                        <MoreHorizontal className="size-3.5" />
+                        <MoreHorizontal className="size-4" />
                       </button>
+
                     </PopoverTrigger>
                     <PopoverContent align="end" className="w-52 p-1.5">
                       <button

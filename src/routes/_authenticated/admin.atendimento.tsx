@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/ui-kit";
 import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
@@ -72,7 +73,7 @@ function AtendimentoPage() {
         <div className="glass rounded-2xl p-8 border border-border">
           <div className="inline-flex items-center gap-2 mb-3">
             <Headphones className="size-5 text-primary" />
-            <h1 className="font-display text-2xl">Central de atendimento</h1>
+            <h1 className="ui-page-title">Central de atendimento</h1>
           </div>
           <p className="text-sm text-muted-foreground mb-4">
             A Central de Atendimento humano com handoff da IA está disponível nos planos <strong>Business</strong> e <strong>Enterprise</strong>.
@@ -113,15 +114,20 @@ function AtendimentoPage() {
 
   return (
     <div className="h-[calc(100vh-0px)] lg:h-screen flex flex-col">
-      <header className="border-b border-border px-6 lg:px-10 py-8 lg:py-10 shrink-0">
-        <h1 className="font-display text-2xl sm:text-3xl flex items-center gap-2">
-          <Headphones className="size-6 lg:size-7 text-muted-foreground" />
-          Central de Atendimento
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Converse com hóspedes que precisam de ajuda humana e acompanhe as filas de atendimento.
-        </p>
+      <header className="border-b border-border px-6 lg:px-10 pt-8 lg:pt-10 shrink-0">
+        <PageHeader
+          eyebrow="Operação"
+          title={
+            <span className="inline-flex items-center gap-2">
+              <Headphones className="size-6 text-muted-foreground" />
+              Central de Atendimento
+            </span>
+          }
+          subtitle="Converse com hóspedes que precisam de ajuda humana e acompanhe as filas de atendimento."
+          className="mb-6"
+        />
       </header>
+
       <div className="flex-1 min-h-0 flex px-6 lg:px-10">
         {/* Filas */}
         <aside className="w-56 border-r border-border shrink-0 hidden md:flex flex-col">

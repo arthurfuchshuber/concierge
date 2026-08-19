@@ -218,7 +218,7 @@ function AdminCityDetail() {
       <div className="pb-6 border-b border-border/60 flex items-start justify-between gap-4 flex-wrap">
         <div className="min-w-0">
           <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">Na Cidade</p>
-          <h1 className="font-display text-3xl sm:text-4xl leading-tight">
+          <h1 className="ui-page-title">
             {label}
             {state ? <span className="text-muted-foreground"> — {state}</span> : null}
           </h1>
