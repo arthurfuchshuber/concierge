@@ -819,7 +819,13 @@ function DashboardPage() {
             coluna tem sempre a mesma largura confortável, não importa o
             espaço disponível. */}
         <div ref={kanbanRowRef} className="hidden sm:flex gap-3 items-start overflow-x-auto snap-x pb-2 -mx-1 px-1">
-          <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
+          <div
+            ref={(el) => {
+              colRefs.current.checkin = el;
+            }}
+            style={{ width: kanbanColWidth }}
+            className={`shrink-0 snap-start rounded-2xl transition-shadow ${flashCol === "checkin" ? "ring-2 ring-primary/60" : ""}`}
+          >
             <KanbanColumn
               onScroll={() => setExpandedByColumn((prev) => ({ ...prev, checkin: null }))}
               title="Check-ins"
