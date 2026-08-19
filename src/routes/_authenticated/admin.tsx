@@ -49,6 +49,16 @@ const adminOnlyNav = [
   { to: "/admin/admins", label: "Administradores", icon: ShieldCheck, exact: false },
 ] as const;
 
+// Rótulos curtos pro menu inferior mobile — a barra é apertada, então só ali
+// (nunca na sidebar desktop nem na gaveta mobile, que têm espaço de sobra)
+// usa-se uma versão encurtada do nome real da seção.
+const BOTTOM_NAV_SHORT_LABEL: Record<string, string> = {
+  "Stakeholders": "Pessoas",
+  "IA Concierge": "IA",
+  "Atendimento": "Suporte",
+  "Administrativo": "Config.",
+};
+
 function AdminLayout() {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -343,7 +353,7 @@ function AdminLayout() {
           <div className="size-9" />
         </header>
 
-        <main className="flex-1">
+        <main className="flex-1 pb-[86px] lg:pb-0">
           <PushNotificationBanner />
           {resolvingAccount || (routePermission && areaAccess.loading) ? (
             <div className="mx-auto w-full max-w-7xl space-y-3 px-4 py-10">
@@ -359,6 +369,48 @@ function AdminLayout() {
             <Outlet />
           )}
         </main>
+
+        {/* Menu inferior — só mobile (lg:hidden); desktop usa a sidebar.
+            Mesmo padrão visual do menu do guia do hóspede: emblema circular
+            com gradiente da marca no item ativo, ícone monocromático nos
+            demais. Os itens vêm do mesmo array `nav` já filtrado por
+            permissão que alimenta a sidebar — nunca uma lista fixa própria,
+            pra não desalinhar do que a pessoa realmente pode acessar. */}
+        {!awaitingAccountChoice && nav.length > 0 && (
+          <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-20 flex items-stretch justify-around gap-1 border-t border-border bg-background/85 backdrop-blur-xl px-3 pt-2 pb-[max(env(safe-area-inset-bottom),8px)]">
+            {nav.map((item) => {
+              const active = item.exact ? pathname === item.to : pathname.startsWith(item.to);
+              const Icon = item.icon;
+              const badge = ("badge" in item ? item.badge : 0) ?? 0;
+              const shortLabel = BOTTOM_NAV_SHORT_LABEL[item.label] ?? item.label;
+              return (
+                <Link
+                  key={item.label}
+                  to={item.to}
+                  className="flex-1 min-w-0 flex flex-col items-center justify-center gap-1 py-1.5 rounded-2xl relative"
+                >
+                  <span
+                    className={`size-10 rounded-2xl grid place-items-center ${
+                      active
+                        ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white shadow-[0_4px_20px_-2px_rgba(232,45,174,0.65)]"
+                        : "text-white/60"
+                    }`}
+                  >
+                    <Icon className="size-[18px]" strokeWidth={1.9} />
+                  </span>
+                  <span className={`text-[10px] font-bold tracking-tight truncate max-w-full ${active ? "text-white" : "text-white/55"}`}>
+                    {shortLabel}
+                  </span>
+                  {badge > 0 && (
+                    <span className="absolute top-0 right-[18%] min-w-[15px] h-[15px] px-1 rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white text-[9px] font-bold grid place-items-center ring-2 ring-background">
+                      {badge}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+        )}
 
       </div>
       {handoffEnabled &&
