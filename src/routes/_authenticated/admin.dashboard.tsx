@@ -570,7 +570,7 @@ function DashboardPage() {
   }
 
   return (
-    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-[1440px] mx-auto w-full">
+    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-[1440px] mx-auto w-full space-y-6 [&>header]:mb-0">
       <PageHeader
         eyebrow="Operação"
         title="Dashboard"
