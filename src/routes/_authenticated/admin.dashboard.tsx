@@ -568,14 +568,12 @@ function DashboardPage() {
     };
   }
 
-  // Extraído como função pra poder aparecer em dois lugares diferentes (ao
-  // lado dos pendentes no desktop, embaixo no mobile) sem duplicar o JSX de
-  // verdade — os dois pontos de chamada leem o mesmo engQ/range do
-  // componente pai, então nunca ficam dessincronizados entre si.
+  // Progresso operacional — compacto, sem cabeçalho próprio: é contexto, não
+  // uma página de analytics.
   function renderEngagementPanel(wrapperClassName: string) {
     if (counts.checkin === 0) return null;
     return (
-      <section className={`rounded-2xl border border-border bg-card p-4 sm:p-5 ${wrapperClassName}`}>
+      <div className={`border-t border-border/60 px-4 py-3 sm:px-5 ${wrapperClassName}`}>
         <EngagementBars
           loading={engQ.isLoading}
           checkins={engQ.data?.checkinsInPeriod ?? 0}
@@ -583,72 +581,104 @@ function DashboardPage() {
           checkinBreakdown={engQ.data?.checkinBreakdown}
           codesBreakdown={engQ.data?.codesBreakdown}
         />
-      </section>
+      </div>
     );
   }
 
+  // Situações que exigem intervenção — derivadas dos dados que já existem.
+  const noGuideAccess = checkinPendingRows.filter((r) => !r.openedCheckin).length;
+  const codesNotViewed = engQ.data?.codesBreakdown?.notViewed.length ?? 0;
+  const attention: Array<{ key: string; label: string; count: number; tone: AttnTone; to: BoardMode }> = [
+    { key: "checkout", label: "Checkouts pendentes", count: counts.checkout, tone: "amber", to: "checkout" },
+    { key: "cleaning", label: "Em limpeza", count: counts.cleaning, tone: "violet", to: "cleaning" },
+    { key: "checkin", label: "Check-ins pendentes", count: counts.checkin, tone: "emerald", to: "checkin" },
+    { key: "noguide", label: "Sem acesso ao guia", count: noGuideAccess, tone: "rose", to: "checkin" },
+    { key: "codes", label: "Senha não visualizada", count: codesNotViewed, tone: "rose", to: "checkin" },
+  ].filter((a) => a.count > 0);
+
   return (
-    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-[1440px] mx-auto w-full space-y-6">
-      <header>
-        <h1 className="font-display text-3xl md:text-4xl flex items-center gap-2.5">
-          <TrendingUp className="size-7 text-muted-foreground" /> Operação de Reservas
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1.5">
-          Sua rotina diária: check-ins, checkouts e visualização de instruções/senhas..
+    <div className="px-4 sm:px-6 lg:px-10 py-5 lg:py-8 max-w-[1440px] mx-auto w-full space-y-5">
+      {/* Header compacto: contexto em uma linha, sem desperdiçar vertical */}
+      <header className="space-y-1">
+        <div className="flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-[0.16em] text-primary">
+          <TrendingUp className="size-3.5" /> Operação de Reservas
+        </div>
+        <h1 className="font-display text-[22px] leading-tight tracking-[-0.01em]">Dashboard</h1>
+        <p className="text-[13px] text-muted-foreground">
+          Sua rotina diária: check-ins, checkouts e visualização de instruções/senhas.
         </p>
       </header>
 
-      {/* KPIs */}
-      <section className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
-          <KpiCard
-            label="Check-ins Pendentes"
-            rows={checkinPendingRows}
+      {/* Central de operação — indicadores, atenção e progresso num único
+          bloco contínuo, em vez de cards soltos espalhados pela tela. */}
+      <section className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 divide-x divide-y divide-border/60">
+          <OpsKpi
+            label="Check-ins pendentes"
+            value={checkinListQ.isLoading ? null : counts.checkin}
             icon={LogIn}
-            tone="primary"
-            loading={checkinListQ.isLoading}
-            onRefresh={() => checkinListQ.refetch()}
-            kind="checkin"
-            rangeLabel={rangeLabel[range]}
-            shadowTone="emerald"
-            onEditTime={handleEditTime}
-            onAdvance={(r) => handleAdvance(r, "checkin")}
+            tone="emerald"
+            onClick={() => focusBoard("checkin")}
           />
-          <KpiCard
-            label="Checkouts Pendentes"
-            rows={checkoutPendingRows}
+          <OpsKpi
+            label="Checkouts pendentes"
+            value={checkoutListQ.isLoading ? null : counts.checkout}
             icon={LogOut}
-            tone="primary"
-            loading={checkoutListQ.isLoading}
-            onRefresh={() => checkoutListQ.refetch()}
-            kind="checkout"
-            rangeLabel={rangeLabel[range]}
-            shadowTone="amber"
-            onEditTime={handleEditTime}
-            onAdvance={(r) => handleAdvance(r, "checkout")}
+            tone="amber"
+            onClick={() => focusBoard("checkout")}
+          />
+          <OpsKpi
+            label="Em limpeza"
+            value={checkoutListQ.isLoading ? null : counts.cleaning}
+            icon={Sparkles}
+            tone="violet"
+            onClick={() => focusBoard("cleaning")}
+          />
+          <OpsKpi
+            label="Em estadia"
+            value={checkinListQ.isLoading ? null : counts.stay}
+            icon={BedDouble}
+            tone="sky"
+            onClick={() => focusBoard("stay")}
+          />
+          <FreePropertiesCard
+            loading={occupancyQ.isLoading}
+            properties={freeProperties}
+            onRefresh={() => occupancyQ.refetch()}
           />
         </div>
 
-        {/* Em Limpeza — faixa fina logo abaixo dos pendentes (só quando houver 1+) */}
-        {cleaningRows.length > 0 ? (
-          <div className="amber-mirror ring-1 ring-amber-500/25 shadow-[0_0_24px_-8px_oklch(0.83_0.16_85/0.45)]">
-            <KpiCard
-              label="Em Limpeza"
-              rows={cleaningRows}
-              icon={Sparkles}
-              tone="primary-soft"
-              loading={checkoutListQ.isLoading}
-              onRefresh={() => checkoutListQ.refetch()}
-              kind="checkout"
-              rangeLabel={rangeLabel[range]}
-              onEditTime={handleEditTime}
-              onAdvance={(r) => handleAdvance(r, "cleaning")}
-              compact
-            />
-          </div>
-        ) : null}
+        {/* Faixa de atenção — prioridade operacional, não "mais um card" */}
+        <div className="border-t border-border/60 px-4 py-3 sm:px-5">
+          {attention.length === 0 ? (
+            <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
+              <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
+              Nada exigindo atenção agora.
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex items-center gap-1.5 shrink-0 text-[10.5px] font-bold uppercase tracking-[0.16em] text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="size-3.5" /> Atenção
+              </div>
+              <div className="flex-1 min-w-0 flex gap-2 overflow-x-auto [mask-image:linear-gradient(to_right,black_88%,transparent)] pb-0.5">
+                {attention.map((a) => (
+                  <button
+                    key={a.key}
+                    type="button"
+                    onClick={() => focusBoard(a.to)}
+                    className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors ${ATTN_TONE[a.tone]}`}
+                  >
+                    {a.label}
+                    <span className="tabular-nums font-bold">{a.count}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* Amanhã — contexto de véspera, thin row */}
+        <div className="border-t border-border/60 grid grid-cols-2 divide-x divide-border/60">
           <KpiCard
             label="Check-ins amanhã"
             rows={tomorrowCheckinPendingRows}
@@ -660,6 +690,7 @@ function DashboardPage() {
             rangeLabel="Amanhã"
             onEditTime={handleEditTime}
             onAdvance={(r) => handleAdvance(r, "checkin")}
+            compact
           />
           <KpiCard
             label="Checkouts amanhã"
@@ -672,51 +703,22 @@ function DashboardPage() {
             rangeLabel="Amanhã"
             onEditTime={handleEditTime}
             onAdvance={(r) => handleAdvance(r, "checkout")}
-          />
-          <KpiCard
-            label="Em Estadia"
-            rows={stayRows}
-            icon={BedDouble}
-            tone="primary-soft"
-            loading={checkinListQ.isLoading}
-            onRefresh={() => checkinListQ.refetch()}
-            kind="checkin"
-            rangeLabel={rangeLabel[range]}
-            onEditTime={handleEditTime}
-            onAdvance={(r) => handleAdvance(r, "stay")}
-          />
-          <FreePropertiesCard
-            loading={occupancyQ.isLoading}
-            properties={freeProperties}
-            onRefresh={() => occupancyQ.refetch()}
+            compact
           />
         </div>
+
+        {/* Progresso operacional */}
+        {renderEngagementPanel("")}
       </section>
 
-      {/* Engajamento do guia — volta a aparecer aqui embaixo, sempre, em
-          largura total (mobile e desktop). Versão discreta, sem cabeçalho. */}
-      {renderEngagementPanel("")}
-      {/* Agenda macro de ocupação */}
-      <OccupancyPanel
-        loading={occupancyQ.isLoading}
-        start={occupancyQ.data?.start ?? agendaStart}
-        days={occupancyQ.data?.days ?? 21}
-        properties={occupancyQ.data?.properties ?? []}
-        stays={occupancyQ.data?.stays ?? []}
-        checkedInPropertyIds={checkedInPropertyIds}
-        onStartChange={setAgendaStart}
-        defaultStart={todayISO}
-      />
-
-      {/* Quadro de operação — Kanban por status, colunas lado a lado (estilo
-          Jira). Antes era uma lista só com um dropdown pra trocar de status;
-          agora todos os status ficam visíveis ao mesmo tempo, e "puxar" um
-          card de um status pro outro fica visual, não escondido atrás de um
-          menu. */}
-      <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
+      {/* Quadro de operação — o coração da tela, logo após os indicadores */}
+      <section
+        ref={boardRef}
+        className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm scroll-mt-4"
+      >
         <div className="flex items-center gap-3">
-          <h2 className="font-display text-base sm:text-lg flex items-center gap-2">
-            <LayoutGrid className="size-4.5 text-muted-foreground" /> Quadro de operação
+          <h2 className="font-display text-[15px] flex items-center gap-2">
+            <LayoutGrid className="size-4 text-muted-foreground" /> Quadro de operação
           </h2>
           <div className="ml-auto">
             <RangeDropdown
@@ -731,6 +733,7 @@ function DashboardPage() {
             />
           </div>
         </div>
+
 
         {/* Mobile: abas roláveis, uma coluna ativa por vez — 5 colunas lado a
             lado não cabem numa tela estreita. Cada aba já carrega a contagem
