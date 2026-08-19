@@ -73,7 +73,7 @@ function AtendimentoPage() {
         <div className="glass rounded-2xl p-8 border border-border">
           <div className="inline-flex items-center gap-2 mb-3">
             <Headphones className="size-5 text-primary" />
-            <h1 className="font-display text-2xl">Central de atendimento</h1>
+            <h1 className="ui-page-title">Central de atendimento</h1>
           </div>
           <p className="text-sm text-muted-foreground mb-4">
             A Central de Atendimento humano com handoff da IA está disponível nos planos <strong>Business</strong> e <strong>Enterprise</strong>.

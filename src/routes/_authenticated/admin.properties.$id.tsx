@@ -1222,7 +1222,7 @@ function PropertyEditor() {
         <div className="mb-6 pb-4 border-b border-border/60">
           <div className="flex items-center justify-between gap-2 mb-1.5">
             <div className="flex items-center gap-2 min-w-0">
-              <h1 className="font-display text-2xl sm:text-3xl truncate">{isNew ? "Novo imóvel" : (form.property.name || "Informações do imóvel")}</h1>
+              <h1 className="ui-page-title">{isNew ? "Novo imóvel" : (form.property.name || "Informações do imóvel")}</h1>
               {!isNew && (
                 <span className="shrink-0 rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground">
                   Sem guia criado
@@ -1309,7 +1309,7 @@ function PropertyEditor() {
 
       <div className="mb-4 sm:mb-5 pb-4 border-b border-border/60 flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="font-display text-2xl sm:text-4xl break-words leading-tight line-clamp-2">{form.property.name || "Sem título"}</h1>
+          <h1 className="ui-page-title">{form.property.name || "Sem título"}</h1>
         </div>
         {!isNew && (
           <div className="shrink-0 flex items-center gap-2">
