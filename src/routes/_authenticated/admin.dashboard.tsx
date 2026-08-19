@@ -63,6 +63,7 @@ import {
   type ArrivalRow,
 } from "@/lib/dashboard.functions";
 import { useImpersonation } from "@/hooks/useImpersonation";
+import { ConfirmActionDialog } from "@/components/permissions/ConfirmActionDialog";
 
 function PhoneLink({ phone, country }: { phone: string | null; country: string | null }) {
   return <PhoneActionButton phone={phone} country={country} size={12} />;
@@ -228,6 +229,11 @@ function DashboardPage() {
   });
   // Card em ação (para feedback imediato no toque, sem travar o quadro inteiro).
   const [busyRowId, setBusyRowId] = useState<string | null>(null);
+  // Confirmação de antecipação (card com data futura).
+  const [confirmAdvance, setConfirmAdvance] = useState<{
+    row: ArrivalRow;
+    from: "checkin" | "stay" | "checkout" | "cleaning";
+  } | null>(null);
   // Engagement window follows the kanban range: tomorrow/all map to 7d/30d.
   const engRange: "today" | "tomorrow" | "7d" | "30d" =
     range === "today" ? "today" : range === "tomorrow" ? "tomorrow" : range === "all" ? "30d" : "7d";
@@ -396,7 +402,7 @@ function DashboardPage() {
     [patchList],
   );
 
-  function handleAdvance(row: ArrivalRow, from: "checkin" | "stay" | "checkout" | "cleaning") {
+  function runAdvance(row: ArrivalRow, from: "checkin" | "stay" | "checkout" | "cleaning") {
     const target = statusTarget(row);
     if (!target.logId && !target.reservationId) {
       toast.error("Não foi possível identificar esse card. Atualize a página e tente novamente.");
@@ -410,6 +416,21 @@ function DashboardPage() {
     }
     advance.mutate({ ...target, from });
   }
+
+  /**
+   * Antecipar um card com data futura (ex.: "Checkouts amanhã") é uma ação
+   * fora do fluxo normal — antes ela acontecia no primeiro clique e o card
+   * simplesmente sumia da tela. Agora pede confirmação explícita e, ao
+   * confirmar, o card segue para o status correto (Em Limpeza).
+   */
+  function handleAdvance(row: ArrivalRow, from: "checkin" | "stay" | "checkout" | "cleaning") {
+    if ((from === "checkout" || from === "checkin") && row.date > todayISO) {
+      setConfirmAdvance({ row, from });
+      return;
+    }
+    runAdvance(row, from);
+  }
+
 
   function handleEditTime(row: ArrivalRow, k: "checkin" | "checkout", time: string | null) {
     setBusyRowId(row.logId);
@@ -454,7 +475,20 @@ function DashboardPage() {
     () => (tomorrowCheckoutListQ.data?.rows ?? []).filter((r) => r.status === "pending"),
     [tomorrowCheckoutListQ.data?.rows],
   );
-  const cleaningRows = useMemo(() => coRows.filter((r) => r.status === "done"), [coRows]);
+  /**
+   * "Em Limpeza" precisa incluir também o checkout ANTECIPADO de um card de
+   * amanhã: ele sai da lista de amanhã (deixa de ser pendente) e, sem isso,
+   * não apareceria em lugar nenhum.
+   */
+  const cleaningRows = useMemo(() => {
+    const done = coRows.filter((r) => r.status === "done");
+    const seen = new Set(done.map((r) => r.logId));
+    const early = (tomorrowCheckoutListQ.data?.rows ?? []).filter(
+      (r) => r.status === "done" && !seen.has(r.logId),
+    );
+    return [...done, ...early];
+  }, [coRows, tomorrowCheckoutListQ.data?.rows]);
+
   const concludedRows = concludedQ.data?.rows ?? [];
   const counts = {
     checkin: checkinPendingRows.length,
@@ -889,9 +923,41 @@ function DashboardPage() {
           </div>
         </div>
       </section>
+
+      <ConfirmActionDialog
+        open={!!confirmAdvance}
+        onOpenChange={(v) => {
+          if (!v) setConfirmAdvance(null);
+        }}
+        title={confirmAdvance?.from === "checkin" ? "Antecipar check-in?" : "Antecipar checkout?"}
+        destructive={false}
+        confirmLabel="Sim, antecipar"
+        description={
+          confirmAdvance ? (
+            <>
+              {confirmAdvance.from === "checkin" ? "O check-in de " : "O checkout de "}
+              <strong className="text-foreground">{confirmAdvance.row.guestName}</strong>
+              {confirmAdvance.row.propertyName ? ` (${confirmAdvance.row.propertyName})` : ""} está previsto para{" "}
+              <strong className="text-foreground">
+                {new Date(`${confirmAdvance.row.date}T12:00:00`).toLocaleDateString("pt-BR")}
+              </strong>
+              . Confirmar agora move o card para{" "}
+              <strong className="text-foreground">
+                {confirmAdvance.from === "checkin" ? "Em Estadia" : "Em Limpeza"}
+              </strong>{" "}
+              hoje.
+            </>
+          ) : null
+        }
+        onConfirm={() => {
+          if (confirmAdvance) runAdvance(confirmAdvance.row, confirmAdvance.from);
+          setConfirmAdvance(null);
+        }}
+      />
     </div>
   );
 }
+
 
 /* ------------------------- UI Building Blocks ------------------------- */
 
