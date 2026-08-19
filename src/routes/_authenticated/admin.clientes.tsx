@@ -141,7 +141,7 @@ function ClientesPage() {
           <div className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-accent font-semibold mb-2">
             <Shield className="size-3" /> Admin SaaS
           </div>
-          <h1 className="ui-page-title flex items-center gap-2.5">
+          <h1 className="font-display text-3xl md:text-4xl flex items-center gap-2.5">
             <Users className="size-7 text-muted-foreground" /> Clientes
           </h1>
           <p className="text-sm text-muted-foreground mt-1.5">

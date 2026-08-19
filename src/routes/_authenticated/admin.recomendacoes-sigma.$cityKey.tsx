@@ -67,7 +67,7 @@ function SigmaPackEditor() {
 
       <header className="flex items-end gap-4">
         <div>
-          <h1 className="ui-page-title">{pack.city_label}</h1>
+          <h1 className="font-display text-2xl sm:text-3xl">{pack.city_label}</h1>
           <p className="text-xs text-muted-foreground mt-1">
             {pack.country ?? "—"} · {pack.is_published ? "Publicado" : "Rascunho"}
           </p>

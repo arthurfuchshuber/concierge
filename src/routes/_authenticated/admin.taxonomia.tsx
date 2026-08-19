@@ -96,7 +96,7 @@ function TaxonomyPage() {
       </div>
 
       <div>
-        <h1 className="ui-page-title">Categorias &amp; Tags</h1>
+        <h1 className="text-xl font-semibold">Categorias & Tags</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Organize como os pontos são classificados nos guias. Tags padrão (com cadeado) podem ser renomeadas — mas não excluídas — porque a IA usa o identificador interno para classificar pontos do Google Maps.
         </p>

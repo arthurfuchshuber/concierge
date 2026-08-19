@@ -1,6 +1,4 @@
 import { PhoneActionButton } from "@/components/PhoneActionButton";
-import { PageHeader, PillScroller } from "@/components/ui-kit";
-
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Home, Compass } from "lucide-react";
 import { useSearch } from "@tanstack/react-router";
@@ -123,20 +121,16 @@ function guideCompleteness(p: {
 
 function GuiasTabsBar() {
   return (
-    <PillScroller className="mb-6">
-      <TabsList className="gap-2">
-        <TabsTrigger value="imoveis">
-          <Home className="size-4" /> Imóveis
-        </TabsTrigger>
-        <TabsTrigger value="destinos">
-          <Compass className="size-4" /> Destinos
-        </TabsTrigger>
-      </TabsList>
-    </PillScroller>
+    <TabsList className="mb-5">
+      <TabsTrigger value="imoveis">
+        <Home className="size-4" /> Guias de Imóveis
+      </TabsTrigger>
+      <TabsTrigger value="destinos">
+        <Compass className="size-4" /> Guias de Destinos
+      </TabsTrigger>
+    </TabsList>
   );
 }
-
-
 
 function GuiasTabs() {
   const search = useSearch({ from: "/_authenticated/admin/guias" });
@@ -464,52 +458,62 @@ function Dashboard() {
         </div>
       )}
 
-      {/* Cabeçalho de página — padrão do pacote UX v4 */}
-      <PageHeader
-        eyebrow={readOnly ? "Visualização de conta" : "Aqui está o resumo do seu painel"}
-        title={readOnly ? `Painel de ${impersonation?.name ?? ""}` : "Guias"}
-        subtitle={
-          readOnly ? "Visualização apenas de leitura. Nenhuma alteração será salva." : undefined
-        }
-      />
+      {/* Welcome */}
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
+        <div>
+          <h1 className="font-display text-3xl md:text-4xl leading-tight">
+            {readOnly ? `Painel de ${impersonation?.name ?? ""}` : "Guias de Imóveis e Destinos"}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1.5">
+            {readOnly
+              ? "Visualização apenas de leitura. Nenhuma alteração será salva."
+              : "Aqui está o resumo do seu painel hoje."}
+          </p>
+        </div>
+      </div>
 
-
-      <GuiasTabsBar />
-
-      {/* Faixa de plano e uso — padrão do pacote: um card só, com barra */}
+      {/* Stat cards (collapsible) — apenas para o titular da conta */}
       {canSeePlan && (
-        <div className="mb-8">
+        <div className="mb-10">
           <button
             type="button"
             onClick={() => setStatCardsOpen((v) => !v)}
-            className="ui-card w-full p-4 text-left transition-colors hover:bg-secondary/30 mb-3"
+            className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl border border-border bg-card hover:bg-secondary/40 transition-colors mb-3"
             aria-expanded={statCardsOpen}
           >
-            <div className="flex items-center justify-between gap-3">
-              <span className="ui-card-title flex min-w-0 items-center gap-2 truncate">
-                <CreditCard className="size-4 shrink-0 text-muted-foreground" />
-                {planName}
+            <span className="text-sm font-medium text-foreground/80 flex items-center gap-2">
+              <CreditCard className="size-4 text-muted-foreground" />
+              Plano e uso ·{" "}
+              <span className="text-muted-foreground">
+                {planName} · {count}
+                {planLimit > 0 ? `/${planLimit >= 9999 ? "∞" : planLimit}` : ""}
               </span>
-              <span className="ui-meta shrink-0 tabular-nums">
-                {count}
-                {planLimit > 0 ? ` / ${planLimit >= 9999 ? "∞" : planLimit}` : ""} guias
-                <ChevronDown
-                  className={`ml-1.5 inline size-3.5 transition-transform ${statCardsOpen ? "rotate-180" : ""}`}
-                />
-              </span>
-            </div>
-            {planLimit > 0 && (
-              <div className="relative mt-3 h-1.5 overflow-hidden rounded-full bg-secondary/60">
+            </span>
+            <ChevronDown
+              className={`size-4 text-muted-foreground transition-transform ${statCardsOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+
+          {/* Barra elegante de uso de guias */}
+          {planLimit > 0 && (
+            <div className="mb-3 px-1">
+              <div className="flex items-center justify-between text-[11px] mb-1.5">
+                <span className="uppercase tracking-[0.14em] text-muted-foreground font-medium">Uso de guias</span>
+                <span className="tabular-nums text-foreground/80">
+                  <span className="font-semibold text-foreground">{count}</span>
+                  <span className="text-muted-foreground"> / {planLimit >= 9999 ? "∞" : planLimit}</span>
+                </span>
+              </div>
+              <div className="relative h-2 rounded-full bg-secondary/60 overflow-hidden ring-1 ring-inset ring-border/40">
                 <div
-                  className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-amber-400/80 to-amber-300 transition-all duration-700 ease-out"
+                  className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-accent/70 via-accent to-accent/90 shadow-[0_0_12px_-2px_oklch(from_var(--accent)_l_c_h/0.6)] transition-all duration-700 ease-out"
                   style={{
                     width: `${planLimit >= 9999 ? Math.min(100, (count / Math.max(count + 10, 20)) * 100) : pct}%`,
                   }}
                 />
               </div>
-            )}
-          </button>
-
+            </div>
+          )}
 
           {statCardsOpen && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -629,39 +633,13 @@ function Dashboard() {
         </div>
       )}
 
+      <GuiasTabsBar />
+
       {/* Guias section */}
-      <div className="flex flex-col gap-3 sm:gap-4 mb-5">
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="hidden sm:block ui-section-title sm:mr-auto">Seus guias</h2>
-
-
-          {/* Busca — só no mobile ela mora aqui, ocupando o espaço que sobra
-              nesta mesma linha ao lado dos ícones (evita gastar uma linha
-              inteira de altura só pra ela). No desktop some daqui e aparece
-              em linha própria mais abaixo, onde já havia espaço de sobra. */}
-          {data && data.length > 0 && (
-            <div className="relative flex-1 min-w-[100px] sm:hidden order-1">
-              <Search className="size-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar guia…"
-                className="pl-9 pr-9 rounded-full"
-              />
-              {search && (
-                <button
-                  type="button"
-                  onClick={() => setSearch("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 size-6 grid place-items-center rounded-full text-muted-foreground hover:bg-secondary"
-                  aria-label="Limpar busca"
-                >
-                  <X className="size-3.5" />
-                </button>
-              )}
-            </div>
-          )}
-
-          <div className="flex items-center gap-2 order-2">
+      <div className="flex flex-col gap-4 mb-5">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="font-display text-2xl">Seus guias</h2>
+          <div className="flex items-center gap-2">
             <Popover>
               <PopoverTrigger asChild>
                 <button
@@ -772,10 +750,8 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Busca no desktop — linha própria, como já era. No mobile ela já
-            aparece embutida na linha de cima, junto com filtro/visualização/+. */}
         {data && data.length > 0 && (
-          <div className="relative hidden sm:block">
+          <div className="relative">
             <Search className="size-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
             <Input
               value={search}
@@ -965,88 +941,65 @@ function Dashboard() {
                   <Link
                     to="/admin/properties/$id"
                     params={{ id: p.id }}
-                    className="flex-1 inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-secondary text-[13px] font-bold hover:bg-secondary/70"
+                    className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-medium bg-secondary rounded-full py-2 hover:bg-secondary/70"
                   >
-                    <Pencil className="size-3.5" /> Editar
+                    <Pencil className="size-3" /> Editar
                   </Link>
                   <button
                     type="button"
                     onClick={() => setViewSlug(p.slug)}
-                    className="flex-1 inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-secondary text-[13px] font-bold hover:bg-secondary/70"
+                    className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-medium bg-secondary rounded-full py-2 hover:bg-secondary/70"
                   >
-                    <ExternalLink className="size-3.5" /> Ver
+                    <ExternalLink className="size-3" /> Ver
                   </button>
-
-                  {/* Copiar link / Duplicar / Excluir — consolidados num só
-                      menu "⋮" em vez de 3 botões soltos ao lado de
-                      Editar/Ver. A confirmação de exclusão (AlertDialog)
-                      continua exatamente como era, só que agora vive dentro
-                      do menu. */}
-                  <Popover>
-                    <PopoverTrigger asChild>
+                  <button
+                    onClick={() => handleCopyLink(p.slug, p.id)}
+                    title="Copiar link público"
+                    aria-label="Copiar link público"
+                    className="p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {copiedId === p.id ? <Check className="size-3.5 text-accent" /> : <Link2 className="size-3.5" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDupTarget({ id: p.id, name: p.name });
+                      setDupCopies(1);
+                    }}
+                    title="Duplicar guia"
+                    aria-label="Duplicar guia"
+                    className="p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Copy className="size-3.5" />
+                  </button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
                       <button
-                        type="button"
-                        title="Mais ações"
-                        aria-label="Mais ações"
-                        className="grid size-9 shrink-0 place-items-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                        title="Excluir"
+                        className="p-2 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                        aria-label="Excluir"
                       >
-                        <MoreHorizontal className="size-4" />
+                        <Trash2 className="size-3.5" />
                       </button>
-
-                    </PopoverTrigger>
-                    <PopoverContent align="end" className="w-52 p-1.5">
-                      <button
-                        type="button"
-                        onClick={() => handleCopyLink(p.slug, p.id)}
-                        className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
-                      >
-                        {copiedId === p.id ? (
-                          <Check className="size-3.5 text-accent" />
-                        ) : (
-                          <Link2 className="size-3.5 text-muted-foreground" />
-                        )}
-                        {copiedId === p.id ? "Link copiado" : "Copiar link público"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDupTarget({ id: p.id, name: p.name });
-                          setDupCopies(1);
-                        }}
-                        className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
-                      >
-                        <Copy className="size-3.5 text-muted-foreground" /> Duplicar
-                      </button>
-                      <div className="my-1 h-px bg-border/70" />
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <button
-                            type="button"
-                            className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-destructive hover:bg-destructive/10 transition-colors text-left"
-                          >
-                            <Trash2 className="size-3.5" /> Excluir
-                          </button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Excluir guia?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Isso removerá permanentemente "{p.name}" e não poderá ser desfeito.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDelete(p.id, p.name)}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
-                              Excluir
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </PopoverContent>
-                  </Popover>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir guia?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Isso removerá permanentemente "{p.name}" e não poderá ser desfeito.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDelete(p.id, p.name)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Excluir
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </div>
             </div>

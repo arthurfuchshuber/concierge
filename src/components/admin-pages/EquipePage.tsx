@@ -237,7 +237,7 @@ function EquipePage() {
     return (
       <div className="p-6 max-w-3xl mx-auto">
         <div className="glass rounded-2xl p-8 border border-border">
-          <h1 className="ui-page-title mb-2">Equipe</h1>
+          <h1 className="font-display text-2xl mb-2">Equipe</h1>
           <p className="text-sm text-muted-foreground mb-4">
             Convidar atendentes está disponível nos planos <strong>Business</strong> e <strong>Enterprise</strong>.
           </p>
@@ -253,7 +253,7 @@ function EquipePage() {
     <div className="w-full space-y-6">
       <div className="flex items-center gap-2">
         <Users className="size-5 text-primary" />
-        <h1 className="ui-page-title">Equipe & Permissões</h1>
+        <h1 className="font-display text-2xl">Equipe & Permissões</h1>
       </div>
       <p className="text-sm text-muted-foreground -mt-4">
         Dados e recursos que cada membro pode acessar. Recursos operacionais respeitam os limites do seu plano.

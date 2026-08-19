@@ -161,7 +161,7 @@ export function MeuPerfilPage() {
     <div className="w-full space-y-6">
       <div className="flex items-center gap-2">
         <UserIcon className="size-5 text-primary" />
-        <h1 className="ui-section-title">{impersonation ? "Perfil da conta" : "Meu perfil"}</h1>
+        <h1 className="font-display text-2xl">{impersonation ? "Perfil da conta" : "Meu perfil"}</h1>
       </div>
 
       {/* Avatar */}

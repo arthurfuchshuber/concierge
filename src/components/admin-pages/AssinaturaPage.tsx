@@ -16,7 +16,6 @@ import { usePaddleCheckout } from "@/hooks/usePaddleCheckout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { DowngradeExcessDialog } from "@/components/DowngradeExcessDialog";
 import {
   CreditCard,
@@ -31,7 +30,6 @@ import {
   Receipt,
   Loader2,
   ShieldCheck,
-  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { metaPixelTrack, metaPixelTrackCustom, metaPixelTrackOnce } from "@/lib/meta-pixel";
@@ -56,7 +54,6 @@ function AssinaturaPage() {
   const [changing, setChanging] = useState<PlanKey | null>(null);
   const [user, setUser] = useState<{ id: string; email: string | null } | null>(null);
   const [excessTarget, setExcessTarget] = useState<PlanKey | null>(null);
-  const [subTab, setSubTab] = useState("plano");
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -188,12 +185,11 @@ function AssinaturaPage() {
     <div className="w-full">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="ui-page-title">Assinatura</h1>
-          <p className="ui-page-subtitle mt-1.5">
+          <h1 className="font-display text-3xl md:text-4xl">Assinatura</h1>
+          <p className="text-sm text-muted-foreground mt-1.5">
             Gerencie seu plano, pagamentos e faturas.
           </p>
         </div>
-
         {info.isActive && (
           <Button
             onClick={openPortal}
@@ -238,32 +234,12 @@ function AssinaturaPage() {
             </div>
           )}
 
-          <Tabs
-            value={subTab}
-            onValueChange={setSubTab}
-            className="mt-6"
-          >
-            {/* "Plano/Cartão/Pagamentos" era uma 2ª barra de abas empilhada
-                logo abaixo da barra "Perfil/Assinatura/Permissões/
-                Integrações" da página-mãe. Virou um único seletor-dropdown,
-                mostrando a seção atual — a página nunca tem 2 barras de
-                aba visíveis ao mesmo tempo. */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full border border-border bg-secondary text-sm font-medium hover:bg-secondary/70 transition-colors"
-                >
-                  {subTab === "plano" ? "Plano" : subTab === "cartao" ? "Cartão de crédito" : "Pagamentos"}
-                  <ChevronDown className="size-3.5 text-muted-foreground" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-48">
-                <DropdownMenuItem onClick={() => setSubTab("plano")}>Plano</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSubTab("cartao")}>Cartão de crédito</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSubTab("pagamentos")}>Pagamentos</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          <Tabs defaultValue="plano" className="mt-6">
+            <TabsList>
+              <TabsTrigger value="plano">Plano</TabsTrigger>
+              <TabsTrigger value="cartao">Cartão de crédito</TabsTrigger>
+              <TabsTrigger value="pagamentos">Pagamentos</TabsTrigger>
+            </TabsList>
 
             <TabsContent value="plano" className="mt-6">
               {/* Macro overview */}
@@ -337,7 +313,7 @@ function AssinaturaPage() {
           <section className="mt-10">
             <div className="flex items-end justify-between gap-3 flex-wrap mb-4">
               <div>
-                <h2 className="ui-section-title">Todos os planos</h2>
+                <h2 className="font-display text-2xl">Todos os planos</h2>
                 <p className="text-sm text-muted-foreground mt-0.5">
                   Faça upgrade ou downgrade a qualquer momento.
                 </p>
@@ -439,7 +415,7 @@ function AssinaturaPage() {
               <section>
             <div className="flex items-center gap-2 mb-4">
               <Receipt className="size-4 text-muted-foreground" />
-              <h2 className="ui-section-title">Extrato de pagamentos</h2>
+              <h2 className="font-display text-2xl">Extrato de pagamentos</h2>
             </div>
             <div className="rounded-2xl border border-border bg-card overflow-hidden">
               {paymentsQuery.isLoading ? (

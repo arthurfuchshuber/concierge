@@ -65,8 +65,6 @@ function AdminLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { isAdmin, isLoading: adminLoading } = useIsAdmin();
   const [email, setEmail] = useState<string>("");
-  const [displayName, setDisplayName] = useState<string>("");
-
   const [open, setOpen] = useState(false);
   // Recolher o menu lateral (só desktop — no mobile o menu já é um overlay
   // que abre/fecha por cima, "recolher" não se aplica lá). Lembra a escolha
@@ -150,16 +148,8 @@ function AdminLayout() {
 
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setEmail(data.user?.email ?? "");
-      const meta = (data.user?.user_metadata ?? {}) as Record<string, unknown>;
-      const name = [meta["full_name"], meta["name"], meta["display_name"]].find(
-        (v): v is string => typeof v === "string" && v.trim().length > 0,
-      );
-      setDisplayName(name?.trim() ?? "");
-    });
+    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
   }, []);
-
 
   useEffect(() => { setOpen(false); }, [pathname]);
 
@@ -176,15 +166,7 @@ function AdminLayout() {
     navigate({ to: "/auth", replace: true, search: { next: undefined } });
   }
 
-  // Iniciais do nome (padrão do pacote: "Gislaine Glowasky" → "GG"); sem nome
-  // cadastrado, cai para as duas primeiras letras do e-mail.
-  const initials = (() => {
-    const parts = displayName.split(/\s+/).filter(Boolean);
-    if (parts.length >= 2) return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
-    if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
-    return (email || "?").slice(0, 2).toUpperCase();
-  })();
-
+  const initials = (email || "?").slice(0, 2).toUpperCase();
 
   const { info: sub, isLoading: subLoading } = useSubscription();
 
@@ -277,8 +259,8 @@ function AdminLayout() {
                 title={collapsed ? item.label : undefined}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${collapsed ? "justify-center" : ""} ${
                   active
-                    ? "bg-secondary text-foreground font-bold shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
-                    : "text-muted-foreground font-medium hover:bg-secondary/60 hover:text-foreground"
+                    ? "bg-primary text-primary-foreground font-medium shadow-sm"
+                    : "text-foreground/70 hover:bg-secondary hover:text-foreground"
                 }`}
               >
                 <Icon className="size-4 shrink-0" strokeWidth={2} />
@@ -312,8 +294,8 @@ function AdminLayout() {
                     title={collapsed ? item.label : undefined}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${collapsed ? "justify-center" : ""} ${
                       active
-                        ? "bg-secondary text-foreground font-bold shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
-                        : "text-muted-foreground font-medium hover:bg-secondary/60 hover:text-foreground"
+                        ? "bg-primary text-primary-foreground font-medium shadow-sm"
+                        : "text-foreground/70 hover:bg-secondary hover:text-foreground"
                     }`}
                   >
                     <Icon className="size-4 shrink-0" strokeWidth={2} />
@@ -327,17 +309,16 @@ function AdminLayout() {
 
         <div className={`border-t border-border p-3 space-y-2 shrink-0 ${collapsed ? "flex flex-col items-center" : ""}`}>
           <div className={`flex items-center gap-3 px-2 py-1 ${collapsed ? "justify-center px-0" : ""}`}>
-            <div className="size-9 rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white grid place-items-center text-xs font-bold shrink-0">
+            <div className="size-9 rounded-full bg-accent text-accent-foreground grid place-items-center text-xs font-semibold shrink-0">
               {initials}
             </div>
             {!collapsed && (
               <div className="flex-1 min-w-0">
-                <div className="ui-card-title truncate">{displayName || "Anfitrião"}</div>
-                <div className="ui-meta truncate">{email || "—"}</div>
+                <div className="text-sm font-medium truncate">{email ? "Conectado como" : "Anfitrião"}</div>
+                <div className="text-[11px] text-muted-foreground truncate">{email || "—"}</div>
               </div>
             )}
           </div>
-
           <button
             onClick={signOut}
             title={collapsed ? "Sair / Trocar usuário" : undefined}

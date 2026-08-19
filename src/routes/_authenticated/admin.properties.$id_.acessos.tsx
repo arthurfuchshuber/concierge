@@ -49,7 +49,7 @@ function AccessLogsPage() {
         <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">
           Auditoria de acessos
         </p>
-        <h1 className="ui-page-title">{data?.property.name ?? "Carregando…"}</h1>
+        <h1 className="font-display text-2xl sm:text-3xl">{data?.property.name ?? "Carregando…"}</h1>
         <p className="text-sm text-muted-foreground mt-2">
           Registros de quem abriu o guia público (nome, código da reserva e data de check-in informados).
         </p>

@@ -1,4 +1,3 @@
-import { PageHeader } from "@/components/ui-kit";
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CreditCard, ShieldCheck, User as UserIcon, Plug } from "lucide-react";
@@ -37,15 +36,10 @@ function AdministrativoPage() {
 
   return (
     <div className="min-h-screen">
-      <div className="px-6 lg:px-10 pt-8 lg:pt-10 max-w-[1440px] mx-auto w-full">
-        <PageHeader
-          eyebrow="Conta"
-          title="Administrativo"
-          subtitle="Perfil, assinatura, equipe e integrações da sua conta."
-          className="mb-6"
-        />
+      <div className="px-6 lg:px-10 pt-8 lg:pt-10 pb-2 max-w-[1440px] mx-auto w-full">
+        <h1 className="font-display text-3xl md:text-4xl tracking-tight">Administrativo</h1>
+        <p className="text-sm text-muted-foreground mt-1">Perfil, assinatura, equipe e integrações da sua conta.</p>
       </div>
-
       <Tabs
         value={activeTab}
         onValueChange={(v) =>

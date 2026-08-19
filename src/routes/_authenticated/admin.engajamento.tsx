@@ -152,7 +152,7 @@ function EngagementPage() {
           <div className="text-[11px] uppercase tracking-widest text-muted-foreground font-medium mb-1">
             Behavioral Analytics
           </div>
-          <h1 className="ui-page-title">Engajamento</h1>
+          <h1 className="text-2xl sm:text-3xl font-display">Engajamento</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Como seus hóspedes usam o guia.
           </p>
