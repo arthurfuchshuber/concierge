@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight, Download, Loader2, Mail, MessageCircle, Sear
 import { listOwnerGuestForms, savePortariaEmail } from "@/lib/guide-access-admin.functions";
 import { toast } from "sonner";
 import { CopyButton } from "@/components/CopyButton";
+import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { openHandoffDock } from "@/lib/handoff-dock";
 import { useImpersonation } from "@/hooks/useImpersonation";
 
@@ -181,7 +182,10 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
                     </span>
                     <div className="min-w-0 flex-1 grid sm:grid-cols-[1.2fr_1fr_.8fr_.6fr] gap-3 items-center">
                       <div className="min-w-0">
-                        <div className="text-sm font-medium truncate">{r.guest_name}</div>
+                        <div className="text-sm font-medium truncate flex items-center gap-1.5">
+                          <span className="truncate">{r.guest_name}</span>
+                          {r.guest_phone && <PhoneActionButton phone={r.guest_phone} country={r.guest_phone_country} />}
+                        </div>
                         <div className="text-[11px] text-muted-foreground truncate flex items-center gap-1.5">
                           <span className="truncate">{r.property_name ?? "—"}</span>
                           {r.reservation_code && (

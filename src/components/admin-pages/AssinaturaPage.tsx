@@ -16,6 +16,7 @@ import { usePaddleCheckout } from "@/hooks/usePaddleCheckout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { DowngradeExcessDialog } from "@/components/DowngradeExcessDialog";
 import {
   CreditCard,
@@ -30,6 +31,7 @@ import {
   Receipt,
   Loader2,
   ShieldCheck,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { metaPixelTrack, metaPixelTrackCustom, metaPixelTrackOnce } from "@/lib/meta-pixel";
@@ -54,6 +56,7 @@ function AssinaturaPage() {
   const [changing, setChanging] = useState<PlanKey | null>(null);
   const [user, setUser] = useState<{ id: string; email: string | null } | null>(null);
   const [excessTarget, setExcessTarget] = useState<PlanKey | null>(null);
+  const [subTab, setSubTab] = useState("plano");
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -234,12 +237,32 @@ function AssinaturaPage() {
             </div>
           )}
 
-          <Tabs defaultValue="plano" className="mt-6">
-            <TabsList>
-              <TabsTrigger value="plano">Plano</TabsTrigger>
-              <TabsTrigger value="cartao">Cartão de crédito</TabsTrigger>
-              <TabsTrigger value="pagamentos">Pagamentos</TabsTrigger>
-            </TabsList>
+          <Tabs
+            value={subTab}
+            onValueChange={setSubTab}
+            className="mt-6"
+          >
+            {/* "Plano/Cartão/Pagamentos" era uma 2ª barra de abas empilhada
+                logo abaixo da barra "Perfil/Assinatura/Permissões/
+                Integrações" da página-mãe. Virou um único seletor-dropdown,
+                mostrando a seção atual — a página nunca tem 2 barras de
+                aba visíveis ao mesmo tempo. */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full border border-border bg-secondary text-sm font-medium hover:bg-secondary/70 transition-colors"
+                >
+                  {subTab === "plano" ? "Plano" : subTab === "cartao" ? "Cartão de crédito" : "Pagamentos"}
+                  <ChevronDown className="size-3.5 text-muted-foreground" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                <DropdownMenuItem onClick={() => setSubTab("plano")}>Plano</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSubTab("cartao")}>Cartão de crédito</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSubTab("pagamentos")}>Pagamentos</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <TabsContent value="plano" className="mt-6">
               {/* Macro overview */}

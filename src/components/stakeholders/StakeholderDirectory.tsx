@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { PhoneActionButton } from "@/components/PhoneActionButton";
 import {
   Plus,
   Search,
@@ -381,7 +382,10 @@ function StakeholderCard({
     >
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
         <div className="min-w-0">
-          <p className="truncate font-medium leading-tight">{row.trade_name || row.name}</p>
+          <p className="flex items-center gap-1.5 min-w-0">
+            <span className="truncate font-medium leading-tight">{row.trade_name || row.name}</span>
+            {row.phone && <PhoneActionButton phone={row.phone} />}
+          </p>
           <p className="truncate text-[11px] text-muted-foreground mt-0.5">
             {categoryLabel ? `${categoryLabel} · ` : ""}
             {row.city || row.email || row.phone || "Sem dados de contato"}
