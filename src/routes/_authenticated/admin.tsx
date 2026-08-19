@@ -396,14 +396,17 @@ function AdminLayout() {
                     className={`size-10 rounded-2xl grid place-items-center ${
                       active
                         ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white shadow-[0_4px_20px_-2px_rgba(232,45,174,0.65)]"
-                        : "text-white/60"
+                        : "text-muted-foreground"
                     }`}
                   >
                     <Icon className="size-[18px]" strokeWidth={1.9} />
                   </span>
-                  <span className={`text-[10px] font-bold tracking-tight truncate max-w-full ${active ? "text-white" : "text-white/55"}`}>
+                  <span
+                    className={`ds-1l max-w-full text-[10px] font-bold tracking-tight ${active ? "text-foreground" : "text-muted-foreground"}`}
+                  >
                     {shortLabel}
                   </span>
+
                   {badge > 0 && (
                     <span className="absolute top-0 right-[18%] min-w-[15px] h-[15px] px-1 rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white text-[9px] font-bold grid place-items-center ring-2 ring-background">
                       {badge}
