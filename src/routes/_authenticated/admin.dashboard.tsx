@@ -228,6 +228,11 @@ function DashboardPage() {
   });
   // Card em ação (para feedback imediato no toque, sem travar o quadro inteiro).
   const [busyRowId, setBusyRowId] = useState<string | null>(null);
+  // Confirmação de antecipação (card com data futura).
+  const [confirmAdvance, setConfirmAdvance] = useState<{
+    row: ArrivalRow;
+    from: "checkin" | "stay" | "checkout" | "cleaning";
+  } | null>(null);
   // Engagement window follows the kanban range: tomorrow/all map to 7d/30d.
   const engRange: "today" | "tomorrow" | "7d" | "30d" =
     range === "today" ? "today" : range === "tomorrow" ? "tomorrow" : range === "all" ? "30d" : "7d";
