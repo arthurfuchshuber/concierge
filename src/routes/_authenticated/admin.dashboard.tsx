@@ -594,7 +594,9 @@ function DashboardPage() {
     { key: "checkin", label: "Check-ins pendentes", count: counts.checkin, tone: "emerald", to: "checkin" },
     { key: "noguide", label: "Sem acesso ao guia", count: noGuideAccess, tone: "rose", to: "checkin" },
     { key: "codes", label: "Senha não visualizada", count: codesNotViewed, tone: "rose", to: "checkin" },
-  ].filter((a) => a.count > 0);
+  ] as Array<{ key: string; label: string; count: number; tone: AttnTone; to: BoardMode }>).filter(
+    (a) => a.count > 0,
+  );
 
   return (
     <div className="px-4 sm:px-6 lg:px-10 py-5 lg:py-8 max-w-[1440px] mx-auto w-full space-y-5">
