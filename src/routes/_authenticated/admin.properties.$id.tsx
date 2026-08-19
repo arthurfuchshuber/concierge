@@ -26,7 +26,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Section, SectionGroup } from "@/components/editor/Section";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, ImagePlus, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle, Sun, Moon, Palette, Lock, MessageSquare, LogOut, ChevronDown, Ticket, RefreshCw, Copy, Share2, X, MoveRight, ClipboardList, Car, IdCard, NotebookPen } from "lucide-react";
+import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, ImagePlus, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle, Sun, Moon, Palette, Lock, MessageSquare, LogOut, ChevronDown, Ticket, RefreshCw, Copy, Share2, X, MoveRight, ClipboardList, Car, IdCard, NotebookPen, MoreVertical } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ImageUpload } from "@/components/ImageUpload";
 import { MediaUpload, type MediaItem } from "@/components/MediaUpload";
@@ -1312,22 +1312,34 @@ function PropertyEditor() {
           <h1 className="font-display text-2xl sm:text-4xl break-words leading-tight line-clamp-2">{form.property.name || "Sem título"}</h1>
         </div>
         {!isNew && (
-          <div className="shrink-0 flex items-center gap-3">
+          <div className="shrink-0 flex items-center gap-2">
             <PresenceAvatars users={presence.users} />
-            <Link
-              to="/admin/properties/$id/acessos"
-              params={{ id }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-surface text-xs hover:bg-secondary transition-colors"
-            >
-              <Shield className="size-3.5" /> Acessos
-            </Link>
-            <Link
-              to="/admin/properties/$id/conversas"
-              params={{ id }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-surface text-xs hover:bg-secondary transition-colors"
-            >
-              <MessageSquare className="size-3.5" /> Conversas
-            </Link>
+            {/* Acessos + Conversas — antes 2 botões soltos ao lado da
+                presença; consolidados num só menu "⋮" pra não competir por
+                espaço com o título do imóvel em telas estreitas. */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Mais opções do guia"
+                  className="size-9 grid place-items-center rounded-lg border border-border bg-surface hover:bg-secondary transition-colors"
+                >
+                  <MoreVertical className="size-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem asChild>
+                  <Link to="/admin/properties/$id/acessos" params={{ id }} className="flex items-center gap-2">
+                    <Shield className="size-3.5 text-muted-foreground" /> Acessos
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/admin/properties/$id/conversas" params={{ id }} className="flex items-center gap-2">
+                    <MessageSquare className="size-3.5 text-muted-foreground" /> Conversas
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         )}
       </div>
