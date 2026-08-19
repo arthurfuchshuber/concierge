@@ -557,7 +557,7 @@ function DashboardPage() {
   function renderEngagementPanel(wrapperClassName: string) {
     if (counts.checkin === 0) return null;
     return (
-      <section className={`rounded-2xl border border-border bg-card p-4 sm:p-5 ${wrapperClassName}`}>
+      <section className={`rounded-[14px] border border-border bg-card p-4 sm:p-5 ${wrapperClassName}`}>
         <EngagementBars
           loading={engQ.isLoading}
           checkins={engQ.data?.checkinsInPeriod ?? 0}
@@ -700,7 +700,7 @@ function DashboardPage() {
           agora todos os status ficam visíveis ao mesmo tempo, e "puxar" um
           card de um status pro outro fica visual, não escondido atrás de um
           menu. */}
-      <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
+      <section className="rounded-[14px] border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
           <h2 className="flex min-w-0 items-center gap-2">
             <LayoutGrid className="size-4 shrink-0 text-muted-foreground" />
@@ -1068,34 +1068,35 @@ function KpiCard({
         {compact ? (
           <button
             type="button"
-            className={`w-full flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+            className={`w-full flex items-center gap-3 rounded-[14px] border border-border bg-card px-4 py-3.5 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
-            <Icon className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className="ds-kpi-label ds-1l min-w-0 flex-1 text-muted-foreground" title={label}>
+            <Icon className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <span className="ds-kpi-label min-w-0 flex-1 text-muted-foreground" title={label}>
               {label}
             </span>
-            <span className={`shrink-0 text-lg font-display tabular-nums ${valueColor}`}>
+            <span className={`shrink-0 text-xl font-display tabular-nums ${valueColor}`}>
               {loading ? "—" : rows.length}
             </span>
           </button>
         ) : (
           <button
             type="button"
-            className={`w-full h-full min-w-0 rounded-2xl border border-border bg-card p-4 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+            className={`flex h-full w-full min-w-0 flex-col justify-between gap-3 rounded-[14px] border border-border bg-card p-4 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
-            <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
-              <span className={`size-1.5 shrink-0 rounded-full ${dotColor}`} />
-              <span className="ds-kpi-label ds-1l min-w-0 flex-1" title={label}>
+            <div className="flex min-w-0 items-start gap-2 text-muted-foreground">
+              <span className={`mt-[5px] size-1.5 shrink-0 rounded-full ${dotColor}`} />
+              <span className="ds-kpi-label min-w-0 flex-1" title={label}>
                 {label}
               </span>
             </div>
             <div
-              className={`font-display mt-3 tabular-nums leading-none ${big ? "text-[30px]" : "text-[22px]"} ${valueColor}`}
+              className={`font-display tabular-nums leading-none ${big ? "text-[34px]" : "text-[26px]"} ${valueColor}`}
             >
               {loading ? "—" : rows.length}
             </div>
           </button>
         )}
+
       </DialogTrigger>
 
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-2xl border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
@@ -1243,18 +1244,19 @@ function FreePropertiesCard({
       <DialogTrigger asChild>
         <button
           type="button"
-          className="w-full h-full min-w-0 rounded-2xl border border-border bg-card p-4 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 shadow-sm hover:shadow-md"
+          className="flex h-full w-full min-w-0 flex-col justify-between gap-3 rounded-[14px] border border-border bg-card p-4 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 shadow-sm hover:shadow-md"
         >
-          <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
-            <Home className="size-3.5 shrink-0" />
-            <span className="ds-kpi-label ds-1l min-w-0 flex-1" title="Imóveis sem ninguém">
-              Imóveis sem ninguém
+          <div className="flex min-w-0 items-start gap-2 text-muted-foreground">
+            <Home className="mt-[1px] size-3.5 shrink-0" />
+            <span className="ds-kpi-label min-w-0 flex-1" title="Imóveis livres">
+              Imóveis livres
             </span>
           </div>
-          <div className="font-display mt-3 text-[22px] leading-none tabular-nums text-foreground">
+          <div className="font-display text-[26px] leading-none tabular-nums text-foreground">
             {loading ? "—" : properties.length}
           </div>
         </button>
+
 
       </DialogTrigger>
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-2xl">
@@ -1483,7 +1485,7 @@ function OccupancyPanel({
       collapsible
       value={openAgenda}
       onValueChange={setOpenAgenda}
-      className="rounded-2xl border border-border bg-card shadow-sm"
+      className="rounded-[14px] border border-border bg-card shadow-sm"
     >
       <AccordionItem value="agenda" className="border-0">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 sm:px-5 py-4">
