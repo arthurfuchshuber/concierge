@@ -970,17 +970,18 @@ function Dashboard() {
                   <Link
                     to="/admin/properties/$id"
                     params={{ id: p.id }}
-                    className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-medium bg-secondary rounded-full py-2 hover:bg-secondary/70"
+                    className="flex-1 inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-secondary text-[13px] font-bold hover:bg-secondary/70"
                   >
-                    <Pencil className="size-3" /> Editar
+                    <Pencil className="size-3.5" /> Editar
                   </Link>
                   <button
                     type="button"
                     onClick={() => setViewSlug(p.slug)}
-                    className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-medium bg-secondary rounded-full py-2 hover:bg-secondary/70"
+                    className="flex-1 inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-secondary text-[13px] font-bold hover:bg-secondary/70"
                   >
-                    <ExternalLink className="size-3" /> Ver
+                    <ExternalLink className="size-3.5" /> Ver
                   </button>
+
                   {/* Copiar link / Duplicar / Excluir — consolidados num só
                       menu "⋮" em vez de 3 botões soltos ao lado de
                       Editar/Ver. A confirmação de exclusão (AlertDialog)
