@@ -915,7 +915,13 @@ function DashboardPage() {
             </KanbanColumn>
           </div>
 
-          <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
+          <div
+            ref={(el) => {
+              colRefs.current.done = el;
+            }}
+            style={{ width: kanbanColWidth }}
+            className={`shrink-0 snap-start rounded-2xl transition-shadow ${flashCol === "done" ? "ring-2 ring-primary/60" : ""}`}
+          >
             <KanbanColumn
               onScroll={() => setExpandedByColumn((prev) => ({ ...prev, done: null }))}
               title="Concluídos"
@@ -934,6 +940,19 @@ function DashboardPage() {
           </div>
         </div>
       </section>
+
+      {/* Agenda macro de ocupação — contexto de médio prazo, depois da
+          operação do dia (antes vinha acima e empurrava o quadro pra baixo). */}
+      <OccupancyPanel
+        loading={occupancyQ.isLoading}
+        start={occupancyQ.data?.start ?? agendaStart}
+        days={occupancyQ.data?.days ?? 21}
+        properties={occupancyQ.data?.properties ?? []}
+        stays={occupancyQ.data?.stays ?? []}
+        checkedInPropertyIds={checkedInPropertyIds}
+        onStartChange={setAgendaStart}
+        defaultStart={todayISO}
+      />
     </div>
   );
 }
