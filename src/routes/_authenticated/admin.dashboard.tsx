@@ -396,7 +396,7 @@ function DashboardPage() {
     [patchList],
   );
 
-  function handleAdvance(row: ArrivalRow, from: "checkin" | "stay" | "checkout" | "cleaning") {
+  function runAdvance(row: ArrivalRow, from: "checkin" | "stay" | "checkout" | "cleaning") {
     const target = statusTarget(row);
     if (!target.logId && !target.reservationId) {
       toast.error("Não foi possível identificar esse card. Atualize a página e tente novamente.");
@@ -410,6 +410,21 @@ function DashboardPage() {
     }
     advance.mutate({ ...target, from });
   }
+
+  /**
+   * Antecipar um card com data futura (ex.: "Checkouts amanhã") é uma ação
+   * fora do fluxo normal — antes ela acontecia no primeiro clique e o card
+   * simplesmente sumia da tela. Agora pede confirmação explícita e, ao
+   * confirmar, o card segue para o status correto (Em Limpeza).
+   */
+  function handleAdvance(row: ArrivalRow, from: "checkin" | "stay" | "checkout" | "cleaning") {
+    if ((from === "checkout" || from === "checkin") && row.date > todayISO) {
+      setConfirmAdvance({ row, from });
+      return;
+    }
+    runAdvance(row, from);
+  }
+
 
   function handleEditTime(row: ArrivalRow, k: "checkin" | "checkout", time: string | null) {
     setBusyRowId(row.logId);
