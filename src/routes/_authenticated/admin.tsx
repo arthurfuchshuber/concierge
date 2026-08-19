@@ -384,7 +384,8 @@ function AdminLayout() {
 
               const active = item.exact ? pathname === item.to : pathname.startsWith(item.to);
               const Icon = item.icon;
-              const badge = ("badge" in item ? item.badge : 0) ?? 0;
+              const badge = Number(("badge" in item ? item.badge : 0) ?? 0);
+
               const shortLabel = BOTTOM_NAV_SHORT_LABEL[item.label] ?? item.label;
               return (
                 <Link
