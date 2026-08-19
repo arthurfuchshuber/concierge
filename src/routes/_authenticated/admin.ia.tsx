@@ -49,6 +49,8 @@ export const Route = createFileRoute("/_authenticated/admin/ia")({
 });
 
 function IaGovernancePage() {
+  const [activeTab, setActiveTab] = useState("conhecimento");
+  const [form, setForm] = useState<typeof EMPTY_KNOWLEDGE | null>(null);
   return (
     <div className="max-w-[1440px] mx-auto w-full px-6 lg:px-10 py-8 lg:py-10 space-y-6">
       <header className="space-y-1">
@@ -61,14 +63,31 @@ function IaGovernancePage() {
         </p>
       </header>
 
-      <Tabs defaultValue="conhecimento">
-        <TabsList className="w-full flex overflow-x-auto justify-start">
-          <TabsTrigger value="conhecimento" className="shrink-0">Conhecimento da Operação</TabsTrigger>
-          <TabsTrigger value="aprendizados" className="shrink-0">Aprendizados Pendentes</TabsTrigger>
-        </TabsList>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        {/* "+ Novo conhecimento" embutido na mesma linha das abas, em vez de
+            uma linha própria abaixo — evita gastar uma linha inteira de
+            altura só pra um botão, e só aparece quando faz sentido (aba
+            Conhecimento ativa). Mesmo formato de pílula das abas ao lado. */}
+        <div className="flex items-center gap-2">
+          <TabsList className="flex-1 min-w-0 flex overflow-x-auto justify-start">
+            <TabsTrigger value="conhecimento" className="shrink-0">Conhecimento da Operação</TabsTrigger>
+            <TabsTrigger value="aprendizados" className="shrink-0">Aprendizados Pendentes</TabsTrigger>
+          </TabsList>
+          {activeTab === "conhecimento" && (
+            <Button
+              size="sm"
+              className="shrink-0 rounded-full"
+              onClick={() => setForm({ ...EMPTY_KNOWLEDGE })}
+              aria-label="Novo conhecimento"
+            >
+              <Plus className="size-4" />
+              <span className="hidden sm:inline">Novo conhecimento</span>
+            </Button>
+          )}
+        </div>
 
         <TabsContent value="conhecimento" className="mt-5">
-          <KnowledgeTab />
+          <KnowledgeTab form={form} setForm={setForm} />
         </TabsContent>
         <TabsContent value="aprendizados" className="mt-5">
           <QueueTab />
@@ -89,12 +108,17 @@ const EMPTY_KNOWLEDGE = {
   priority: 3,
 };
 
-function KnowledgeTab() {
+function KnowledgeTab({
+  form,
+  setForm,
+}: {
+  form: typeof EMPTY_KNOWLEDGE | null;
+  setForm: (v: typeof EMPTY_KNOWLEDGE | null) => void;
+}) {
   const qc = useQueryClient();
   const listFn = useServerFn(listOperationKnowledge);
   const saveFn = useServerFn(saveOperationKnowledge);
   const archiveFn = useServerFn(archiveOperationKnowledge);
-  const [form, setForm] = useState<typeof EMPTY_KNOWLEDGE | null>(null);
   const [saving, setSaving] = useState(false);
   const { impersonation } = useImpersonation();
   const tenantId = impersonation?.userId;
@@ -138,12 +162,6 @@ function KnowledgeTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={() => setForm({ ...EMPTY_KNOWLEDGE })}>
-          <Plus className="size-4" /> Novo conhecimento
-        </Button>
-      </div>
-
       {isLoading ? (
         <Loading />
       ) : !data?.length ? (
