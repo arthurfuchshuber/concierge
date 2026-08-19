@@ -632,15 +632,11 @@ function Dashboard() {
         </div>
       )}
 
-      <GuiasTabsBar />
-
       {/* Guias section */}
       <div className="flex flex-col gap-3 sm:gap-4 mb-5">
         <div className="flex flex-wrap items-center gap-2">
-          {/* "Seus guias" — redundante no mobile logo abaixo do título de
-              página e das abas Imóveis/Destinos; mantido no desktop, onde
-              serve de âncora visual mais forte pra seção. */}
-          <h2 className="hidden sm:block font-display text-2xl sm:mr-auto">Seus guias</h2>
+          <h2 className="hidden sm:block ui-section-title sm:mr-auto">Seus guias</h2>
+
 
           {/* Busca — só no mobile ela mora aqui, ocupando o espaço que sobra
               nesta mesma linha ao lado dos ícones (evita gastar uma linha
