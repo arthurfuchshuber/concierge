@@ -557,7 +557,7 @@ function DashboardPage() {
   function renderEngagementPanel(wrapperClassName: string) {
     if (counts.checkin === 0) return null;
     return (
-      <section className={`rounded-2xl border border-border bg-card p-4 sm:p-5 ${wrapperClassName}`}>
+      <section className={`rounded-[14px] border border-border bg-card p-4 sm:p-5 ${wrapperClassName}`}>
         <EngagementBars
           loading={engQ.isLoading}
           checkins={engQ.data?.checkinsInPeriod ?? 0}
@@ -700,7 +700,7 @@ function DashboardPage() {
           agora todos os status ficam visíveis ao mesmo tempo, e "puxar" um
           card de um status pro outro fica visual, não escondido atrás de um
           menu. */}
-      <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
+      <section className="rounded-[14px] border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
           <h2 className="flex min-w-0 items-center gap-2">
             <LayoutGrid className="size-4 shrink-0 text-muted-foreground" />
@@ -1485,7 +1485,7 @@ function OccupancyPanel({
       collapsible
       value={openAgenda}
       onValueChange={setOpenAgenda}
-      className="rounded-2xl border border-border bg-card shadow-sm"
+      className="rounded-[14px] border border-border bg-card shadow-sm"
     >
       <AccordionItem value="agenda" className="border-0">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 sm:px-5 py-4">
