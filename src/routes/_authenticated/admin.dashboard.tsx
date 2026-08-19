@@ -635,7 +635,7 @@ function DashboardPage() {
           </div>
         ) : null}
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:grid-cols-4 gap-3">
           <KpiCard
             label="Check-ins amanhã"
             rows={tomorrowCheckinPendingRows}
