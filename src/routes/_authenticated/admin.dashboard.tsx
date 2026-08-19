@@ -977,7 +977,10 @@ function KanbanColumn({
         <div className={`size-7 rounded-lg grid place-items-center ring-1 shrink-0 ${KANBAN_TONE[tone]}`}>
           <Icon className="size-3.5" />
         </div>
-        <span className="text-sm font-semibold truncate">{title}</span>
+        <span className="ds-card-title ds-1l min-w-0 flex-1" title={title}>
+          {title}
+        </span>
+
         <span className="ml-auto text-xs font-medium text-muted-foreground tabular-nums shrink-0">{count}</span>
       </div>
       <div
