@@ -1479,22 +1479,26 @@ function OccupancyPanel({
       className="rounded-2xl border border-border bg-card shadow-sm"
     >
       <AccordionItem value="agenda" className="border-0">
-        <div className="flex w-full items-center gap-2 px-4 sm:px-5 py-4">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 sm:px-5 py-4">
           <button
             type="button"
             onClick={() => setOpenAgenda((v) => (v ? "" : "agenda"))}
-            className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm font-semibold"
+            className="flex min-w-0 items-center gap-2 text-left"
           >
             <CalendarCheck className="size-4 shrink-0 text-muted-foreground" />
-            <span className="truncate">Ocupação dos Imóveis</span>
+            <span className="ds-section-title ds-1l min-w-0" title="Ocupação dos imóveis">
+              Ocupação dos imóveis
+            </span>
           </button>
+          <div className="flex shrink-0 items-center gap-2">
           <Popover>
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className="relative ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-background/60 px-2.5 py-1.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-muted/60"
+                className="ds-btn relative border border-border bg-background/60 text-foreground/80 transition-colors hover:bg-muted/60"
               >
                 <Filter className="size-3.5 opacity-70" /> Filtros
+
                 {activeFilters > 0 ? (
                   <span className="ml-0.5 grid size-4 place-items-center rounded-full bg-primary text-[9px] font-semibold text-primary-foreground">
                     {activeFilters}
