@@ -1013,6 +1013,7 @@ function KpiCard({
   onEditTime,
   onAdvance,
   compact,
+  big,
 }: {
   label: string;
   rows: ArrivalRow[];
@@ -1028,6 +1029,8 @@ function KpiCard({
   onAdvance?: (row: ArrivalRow) => void;
   /** Faixa fina (largura total) em vez de card quadrado. */
   compact?: boolean;
+  /** Indicador principal — número em escala maior. */
+  big?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const valueTone = tone === "primary" ? "text-primary" : "text-foreground";
@@ -1037,6 +1040,8 @@ function KpiCard({
       : shadowTone === "amber"
         ? "text-amber-600 dark:text-amber-400"
         : valueTone;
+  const dotColor =
+    shadowTone === "emerald" ? "bg-emerald-500" : shadowTone === "amber" ? "bg-amber-500" : "bg-muted-foreground/60";
   const shadowClass =
     shadowTone === "emerald"
       ? "shadow-[0_18px_42px_-18px_rgba(16,185,129,0.85),0_0_0_1px_rgba(16,185,129,0.10)] hover:shadow-[0_22px_52px_-18px_rgba(16,185,129,0.95),0_0_0_1px_rgba(16,185,129,0.16)]"
@@ -1056,28 +1061,36 @@ function KpiCard({
         {compact ? (
           <button
             type="button"
-            className={`w-full flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+            className={`w-full flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
-            <Icon className="size-3.5 text-muted-foreground" />
-            <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold truncate">
+            <Icon className="size-3.5 shrink-0 text-muted-foreground" />
+            <span className="ds-eyebrow ds-1l min-w-0 flex-1 text-muted-foreground" title={label}>
               {label}
             </span>
-            <span className={`ml-auto text-lg font-display tabular-nums ${valueColor}`}>
+            <span className={`shrink-0 text-lg font-display tabular-nums ${valueColor}`}>
               {loading ? "—" : rows.length}
             </span>
           </button>
         ) : (
           <button
             type="button"
-            className={`w-full h-full rounded-xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+            className={`w-full h-full min-w-0 rounded-2xl border border-border bg-card p-4 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
-            <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold">
-              <Icon className="size-3.5" /> <span className="truncate">{label}</span>
+            <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
+              <span className={`size-1.5 shrink-0 rounded-full ${dotColor}`} />
+              <span className="ds-eyebrow ds-1l min-w-0 flex-1" title={label}>
+                {label}
+              </span>
             </div>
-            <div className={`text-2xl font-display mt-1 tabular-nums ${valueColor}`}>{loading ? "—" : rows.length}</div>
+            <div
+              className={`font-display mt-3 tabular-nums leading-none ${big ? "text-[30px]" : "text-[22px]"} ${valueColor}`}
+            >
+              {loading ? "—" : rows.length}
+            </div>
           </button>
         )}
       </DialogTrigger>
+
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-2xl border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
         <div
           className={`absolute inset-x-0 top-0 h-px ${shadowTone === "emerald" ? "bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" : shadowTone === "amber" ? "bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" : "bg-gradient-to-r from-transparent via-primary/50 to-transparent"}`}
