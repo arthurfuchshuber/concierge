@@ -64,7 +64,7 @@ function IntelligencePage() {
   return (
     <div className="max-w-[1440px] mx-auto w-full px-6 lg:px-10 py-8 lg:py-10 space-y-6">
       <header className="space-y-1">
-        <h1 className="ui-page-title">
+        <h1 className="ui-page-title flex items-center gap-2.5">
           <BrainCircuit className="size-6 text-primary" /> Inteligência
         </h1>
         <p className="text-sm text-muted-foreground">
