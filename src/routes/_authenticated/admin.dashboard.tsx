@@ -867,7 +867,13 @@ function DashboardPage() {
             </KanbanColumn>
           </div>
 
-          <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
+          <div
+            ref={(el) => {
+              colRefs.current.stay = el;
+            }}
+            style={{ width: kanbanColWidth }}
+            className={`shrink-0 snap-start rounded-2xl transition-shadow ${flashCol === "stay" ? "ring-2 ring-primary/60" : ""}`}
+          >
             <KanbanColumn
               onScroll={() => setExpandedByColumn((prev) => ({ ...prev, stay: null }))}
               title="Em Estadia"
