@@ -1789,7 +1789,7 @@ function EngagementBars({
   const checkinViewed = checkinBreakdown?.viewed.length ?? 0;
   const codesViewed = codesBreakdown?.viewed.length ?? 0;
   return (
-    <div className="relative space-y-4">
+    <div className="relative space-y-5">
       {checkins > 0 && (
         <BarRow
           label="Viram instruções de check-in"
@@ -1797,6 +1797,7 @@ function EngagementBars({
           total={checkins}
           pct={pctOf(checkinViewed, checkins)}
           breakdown={checkinBreakdown}
+          hint="Quantos hóspedes com check-in no período já abriram a aba “Chegada” do guia pelo menos uma vez."
         />
       )}
       {checkinsWithCodes > 0 && (
@@ -1806,10 +1807,12 @@ function EngagementBars({
           total={checkinsWithCodes}
           pct={pctOf(codesViewed, checkinsWithCodes)}
           breakdown={codesBreakdown}
+          hint="Conta apenas quando o hóspede revela a senha no guia — abrir a página sem revelar não conta."
         />
       )}
     </div>
   );
+
 }
 
 /** Mesma lógica dos cards: hóspede principal (1º a acessar) + "+N" expansível. */
