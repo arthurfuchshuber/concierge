@@ -1882,12 +1882,14 @@ function BarRow({
   total,
   pct,
   breakdown,
+  hint,
 }: {
   label: string;
   value: number;
   total: number;
   pct: number;
   breakdown?: Breakdown;
+  hint?: string;
 }) {
   const bar = (
     <div className="space-y-2">
@@ -1895,10 +1897,14 @@ function BarRow({
         <span className="ds-card-title ds-1l min-w-0" title={label}>
           {label}
         </span>
-        <span className="ds-meta shrink-0 whitespace-nowrap tabular-nums text-muted-foreground">
-          {value} de {total}
+        <span className="flex shrink-0 items-center gap-1">
+          <span className="ds-meta whitespace-nowrap tabular-nums text-muted-foreground">
+            {value} de {total}
+          </span>
+          {hint ? <InfoHint title={label}>{hint}</InfoHint> : null}
         </span>
       </div>
+
 
 
       {/* Battery: red base, green fill overlay — mais fina, versão discreta */}
