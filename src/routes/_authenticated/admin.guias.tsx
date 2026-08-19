@@ -636,10 +636,40 @@ function Dashboard() {
       <GuiasTabsBar />
 
       {/* Guias section */}
-      <div className="flex flex-col gap-4 mb-5">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="font-display text-2xl">Seus guias</h2>
-          <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-3 sm:gap-4 mb-5">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* "Seus guias" — redundante no mobile logo abaixo do título de
+              página e das abas Imóveis/Destinos; mantido no desktop, onde
+              serve de âncora visual mais forte pra seção. */}
+          <h2 className="hidden sm:block font-display text-2xl sm:mr-auto">Seus guias</h2>
+
+          {/* Busca — só no mobile ela mora aqui, ocupando o espaço que sobra
+              nesta mesma linha ao lado dos ícones (evita gastar uma linha
+              inteira de altura só pra ela). No desktop some daqui e aparece
+              em linha própria mais abaixo, onde já havia espaço de sobra. */}
+          {data && data.length > 0 && (
+            <div className="relative flex-1 min-w-[100px] sm:hidden order-1">
+              <Search className="size-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar guia…"
+                className="pl-9 pr-9 rounded-full"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 size-6 grid place-items-center rounded-full text-muted-foreground hover:bg-secondary"
+                  aria-label="Limpar busca"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 order-2">
             <Popover>
               <PopoverTrigger asChild>
                 <button
@@ -750,8 +780,10 @@ function Dashboard() {
           </div>
         </div>
 
+        {/* Busca no desktop — linha própria, como já era. No mobile ela já
+            aparece embutida na linha de cima, junto com filtro/visualização/+. */}
         {data && data.length > 0 && (
-          <div className="relative">
+          <div className="relative hidden sm:block">
             <Search className="size-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
             <Input
               value={search}
@@ -952,54 +984,75 @@ function Dashboard() {
                   >
                     <ExternalLink className="size-3" /> Ver
                   </button>
-                  <button
-                    onClick={() => handleCopyLink(p.slug, p.id)}
-                    title="Copiar link público"
-                    aria-label="Copiar link público"
-                    className="p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {copiedId === p.id ? <Check className="size-3.5 text-accent" /> : <Link2 className="size-3.5" />}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDupTarget({ id: p.id, name: p.name });
-                      setDupCopies(1);
-                    }}
-                    title="Duplicar guia"
-                    aria-label="Duplicar guia"
-                    className="p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <Copy className="size-3.5" />
-                  </button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
+                  {/* Copiar link / Duplicar / Excluir — consolidados num só
+                      menu "⋮" em vez de 3 botões soltos ao lado de
+                      Editar/Ver. A confirmação de exclusão (AlertDialog)
+                      continua exatamente como era, só que agora vive dentro
+                      do menu. */}
+                  <Popover>
+                    <PopoverTrigger asChild>
                       <button
-                        title="Excluir"
-                        className="p-2 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
-                        aria-label="Excluir"
+                        type="button"
+                        title="Mais ações"
+                        aria-label="Mais ações"
+                        className="p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
                       >
-                        <Trash2 className="size-3.5" />
+                        <MoreHorizontal className="size-3.5" />
                       </button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Excluir guia?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Isso removerá permanentemente "{p.name}" e não poderá ser desfeito.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleDelete(p.id, p.name)}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          Excluir
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-52 p-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleCopyLink(p.slug, p.id)}
+                        className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
+                      >
+                        {copiedId === p.id ? (
+                          <Check className="size-3.5 text-accent" />
+                        ) : (
+                          <Link2 className="size-3.5 text-muted-foreground" />
+                        )}
+                        {copiedId === p.id ? "Link copiado" : "Copiar link público"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDupTarget({ id: p.id, name: p.name });
+                          setDupCopies(1);
+                        }}
+                        className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
+                      >
+                        <Copy className="size-3.5 text-muted-foreground" /> Duplicar
+                      </button>
+                      <div className="my-1 h-px bg-border/70" />
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <button
+                            type="button"
+                            className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-destructive hover:bg-destructive/10 transition-colors text-left"
+                          >
+                            <Trash2 className="size-3.5" /> Excluir
+                          </button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir guia?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Isso removerá permanentemente "{p.name}" e não poderá ser desfeito.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDelete(p.id, p.name)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Excluir
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
             </div>
