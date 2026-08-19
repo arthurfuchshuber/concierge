@@ -538,3 +538,13 @@ h1, h2, h3, h4, h5, h6, p, li, blockquote, figcaption, dt, dd { text-wrap: prett
   -webkit-mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 28px), transparent 100%);
   mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 28px), transparent 100%);
 }
+
+/* Rótulo de KPI — mesma família do eyebrow, porém com tracking menor para
+   caber inteiro em uma linha nos cards de 2 colunas do mobile. */
+.ds-kpi-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
