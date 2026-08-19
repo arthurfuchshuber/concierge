@@ -188,11 +188,12 @@ function AssinaturaPage() {
     <div className="w-full">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="font-display text-3xl md:text-4xl">Assinatura</h1>
-          <p className="text-sm text-muted-foreground mt-1.5">
+          <h1 className="ui-page-title">Assinatura</h1>
+          <p className="ui-page-subtitle mt-1.5">
             Gerencie seu plano, pagamentos e faturas.
           </p>
         </div>
+
         {info.isActive && (
           <Button
             onClick={openPortal}
