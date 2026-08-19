@@ -187,24 +187,6 @@ function DashboardPage() {
   // cabem as 5 colunas lado a lado). No desktop não é usado; as 5 colunas
   // aparecem todas ao mesmo tempo.
   const [mobileTab, setMobileTab] = useState<BoardMode>("checkin");
-  // KPI e alertas não são destino: cada um leva direto pra coluna
-  // correspondente do quadro de operação (no mobile troca a aba; no desktop
-  // rola a coluna pra vista e a destaca por um instante).
-  const boardRef = useRef<HTMLDivElement>(null);
-  const colRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const [flashCol, setFlashCol] = useState<BoardMode | null>(null);
-  const focusBoard = useCallback((mode: BoardMode) => {
-    setMobileTab(mode);
-    setFlashCol(mode);
-    window.setTimeout(() => setFlashCol((c) => (c === mode ? null : c)), 1600);
-    window.requestAnimationFrame(() => {
-      const col = colRefs.current[mode];
-      if (col && window.matchMedia("(min-width: 640px)").matches) {
-        col.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-      }
-      boardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-  }, []);
   // Largura das colunas do Kanban (desktop) — calculada de verdade a partir
   // do espaço disponível, não um número fixo. Cabe quantas colunas couberem
   // numa largura mínima confortável (240px), e essas colunas esticam pra
@@ -568,12 +550,14 @@ function DashboardPage() {
     };
   }
 
-  // Progresso operacional — compacto, sem cabeçalho próprio: é contexto, não
-  // uma página de analytics.
+  // Extraído como função pra poder aparecer em dois lugares diferentes (ao
+  // lado dos pendentes no desktop, embaixo no mobile) sem duplicar o JSX de
+  // verdade — os dois pontos de chamada leem o mesmo engQ/range do
+  // componente pai, então nunca ficam dessincronizados entre si.
   function renderEngagementPanel(wrapperClassName: string) {
     if (counts.checkin === 0) return null;
     return (
-      <div className={`border-t border-border/60 px-4 py-3 sm:px-5 ${wrapperClassName}`}>
+      <section className={`rounded-2xl border border-border bg-card p-4 sm:p-5 ${wrapperClassName}`}>
         <EngagementBars
           loading={engQ.isLoading}
           checkins={engQ.data?.checkinsInPeriod ?? 0}
@@ -581,106 +565,72 @@ function DashboardPage() {
           checkinBreakdown={engQ.data?.checkinBreakdown}
           codesBreakdown={engQ.data?.codesBreakdown}
         />
-      </div>
+      </section>
     );
   }
 
-  // Situações que exigem intervenção — derivadas dos dados que já existem.
-  const noGuideAccess = checkinPendingRows.filter((r) => !r.openedCheckin).length;
-  const codesNotViewed = engQ.data?.codesBreakdown?.notViewed.length ?? 0;
-  const attention = ([
-    { key: "checkout", label: "Checkouts pendentes", count: counts.checkout, tone: "amber", to: "checkout" },
-    { key: "cleaning", label: "Em limpeza", count: counts.cleaning, tone: "violet", to: "cleaning" },
-    { key: "checkin", label: "Check-ins pendentes", count: counts.checkin, tone: "emerald", to: "checkin" },
-    { key: "noguide", label: "Sem acesso ao guia", count: noGuideAccess, tone: "rose", to: "checkin" },
-    { key: "codes", label: "Senha não visualizada", count: codesNotViewed, tone: "rose", to: "checkin" },
-  ] as Array<{ key: string; label: string; count: number; tone: AttnTone; to: BoardMode }>).filter(
-    (a) => a.count > 0,
-  );
-
   return (
-    <div className="px-4 sm:px-6 lg:px-10 py-5 lg:py-8 max-w-[1440px] mx-auto w-full space-y-5">
-      {/* Header compacto: contexto em uma linha, sem desperdiçar vertical */}
-      <header className="space-y-1">
-        <div className="flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-[0.16em] text-primary">
-          <TrendingUp className="size-3.5" /> Operação de Reservas
-        </div>
-        <h1 className="font-display text-[22px] leading-tight tracking-[-0.01em]">Dashboard</h1>
-        <p className="text-[13px] text-muted-foreground">
-          Sua rotina diária: check-ins, checkouts e visualização de instruções/senhas.
+    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-[1440px] mx-auto w-full space-y-6">
+      <header>
+        <h1 className="font-display text-3xl md:text-4xl flex items-center gap-2.5">
+          <TrendingUp className="size-7 text-muted-foreground" /> Operação de Reservas
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1.5">
+          Sua rotina diária: check-ins, checkouts e visualização de instruções/senhas..
         </p>
       </header>
 
-      {/* Central de operação — indicadores, atenção e progresso num único
-          bloco contínuo, em vez de cards soltos espalhados pela tela. */}
-      <section className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 divide-x divide-y divide-border/60">
-          <OpsKpi
-            label="Check-ins pendentes"
-            value={checkinListQ.isLoading ? null : counts.checkin}
+      {/* KPIs */}
+      <section className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <KpiCard
+            label="Check-ins Pendentes"
+            rows={checkinPendingRows}
             icon={LogIn}
-            tone="emerald"
-            onClick={() => focusBoard("checkin")}
+            tone="primary"
+            loading={checkinListQ.isLoading}
+            onRefresh={() => checkinListQ.refetch()}
+            kind="checkin"
+            rangeLabel={rangeLabel[range]}
+            shadowTone="emerald"
+            onEditTime={handleEditTime}
+            onAdvance={(r) => handleAdvance(r, "checkin")}
           />
-          <OpsKpi
-            label="Checkouts pendentes"
-            value={checkoutListQ.isLoading ? null : counts.checkout}
+          <KpiCard
+            label="Checkouts Pendentes"
+            rows={checkoutPendingRows}
             icon={LogOut}
-            tone="amber"
-            onClick={() => focusBoard("checkout")}
-          />
-          <OpsKpi
-            label="Em limpeza"
-            value={checkoutListQ.isLoading ? null : counts.cleaning}
-            icon={Sparkles}
-            tone="violet"
-            onClick={() => focusBoard("cleaning")}
-          />
-          <OpsKpi
-            label="Em estadia"
-            value={checkinListQ.isLoading ? null : counts.stay}
-            icon={BedDouble}
-            tone="sky"
-            onClick={() => focusBoard("stay")}
-          />
-          <FreePropertiesCard
-            loading={occupancyQ.isLoading}
-            properties={freeProperties}
-            onRefresh={() => occupancyQ.refetch()}
+            tone="primary"
+            loading={checkoutListQ.isLoading}
+            onRefresh={() => checkoutListQ.refetch()}
+            kind="checkout"
+            rangeLabel={rangeLabel[range]}
+            shadowTone="amber"
+            onEditTime={handleEditTime}
+            onAdvance={(r) => handleAdvance(r, "checkout")}
           />
         </div>
 
-        {/* Faixa de atenção — prioridade operacional, não "mais um card" */}
-        <div className="border-t border-border/60 px-4 py-3 sm:px-5">
-          {attention.length === 0 ? (
-            <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
-              <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
-              Nada exigindo atenção agora.
-            </div>
-          ) : (
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="flex items-center gap-1.5 shrink-0 text-[10.5px] font-bold uppercase tracking-[0.16em] text-amber-600 dark:text-amber-400">
-                <AlertTriangle className="size-3.5" /> Atenção
-              </div>
-              <div className="flex-1 min-w-0 flex gap-2 overflow-x-auto [mask-image:linear-gradient(to_right,black_88%,transparent)] pb-0.5">
-                {attention.map((a) => (
-                  <button
-                    key={a.key}
-                    type="button"
-                    onClick={() => focusBoard(a.to)}
-                    className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors ${ATTN_TONE[a.tone]}`}
-                  >
-                    {a.label}
-                    <span className="tabular-nums font-bold">{a.count}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Em Limpeza — faixa fina logo abaixo dos pendentes (só quando houver 1+) */}
+        {cleaningRows.length > 0 ? (
+          <div className="amber-mirror ring-1 ring-amber-500/25 shadow-[0_0_24px_-8px_oklch(0.83_0.16_85/0.45)]">
+            <KpiCard
+              label="Em Limpeza"
+              rows={cleaningRows}
+              icon={Sparkles}
+              tone="primary-soft"
+              loading={checkoutListQ.isLoading}
+              onRefresh={() => checkoutListQ.refetch()}
+              kind="checkout"
+              rangeLabel={rangeLabel[range]}
+              onEditTime={handleEditTime}
+              onAdvance={(r) => handleAdvance(r, "cleaning")}
+              compact
+            />
+          </div>
+        ) : null}
 
-        {/* Amanhã — contexto de véspera, thin row */}
-        <div className="border-t border-border/60 grid grid-cols-2 divide-x divide-border/60">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <KpiCard
             label="Check-ins amanhã"
             rows={tomorrowCheckinPendingRows}
@@ -692,7 +642,6 @@ function DashboardPage() {
             rangeLabel="Amanhã"
             onEditTime={handleEditTime}
             onAdvance={(r) => handleAdvance(r, "checkin")}
-            compact
           />
           <KpiCard
             label="Checkouts amanhã"
@@ -705,22 +654,51 @@ function DashboardPage() {
             rangeLabel="Amanhã"
             onEditTime={handleEditTime}
             onAdvance={(r) => handleAdvance(r, "checkout")}
-            compact
+          />
+          <KpiCard
+            label="Em Estadia"
+            rows={stayRows}
+            icon={BedDouble}
+            tone="primary-soft"
+            loading={checkinListQ.isLoading}
+            onRefresh={() => checkinListQ.refetch()}
+            kind="checkin"
+            rangeLabel={rangeLabel[range]}
+            onEditTime={handleEditTime}
+            onAdvance={(r) => handleAdvance(r, "stay")}
+          />
+          <FreePropertiesCard
+            loading={occupancyQ.isLoading}
+            properties={freeProperties}
+            onRefresh={() => occupancyQ.refetch()}
           />
         </div>
-
-        {/* Progresso operacional */}
-        {renderEngagementPanel("")}
       </section>
 
-      {/* Quadro de operação — o coração da tela, logo após os indicadores */}
-      <section
-        ref={boardRef}
-        className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm scroll-mt-4"
-      >
+      {/* Engajamento do guia — volta a aparecer aqui embaixo, sempre, em
+          largura total (mobile e desktop). Versão discreta, sem cabeçalho. */}
+      {renderEngagementPanel("")}
+      {/* Agenda macro de ocupação */}
+      <OccupancyPanel
+        loading={occupancyQ.isLoading}
+        start={occupancyQ.data?.start ?? agendaStart}
+        days={occupancyQ.data?.days ?? 21}
+        properties={occupancyQ.data?.properties ?? []}
+        stays={occupancyQ.data?.stays ?? []}
+        checkedInPropertyIds={checkedInPropertyIds}
+        onStartChange={setAgendaStart}
+        defaultStart={todayISO}
+      />
+
+      {/* Quadro de operação — Kanban por status, colunas lado a lado (estilo
+          Jira). Antes era uma lista só com um dropdown pra trocar de status;
+          agora todos os status ficam visíveis ao mesmo tempo, e "puxar" um
+          card de um status pro outro fica visual, não escondido atrás de um
+          menu. */}
+      <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
         <div className="flex items-center gap-3">
-          <h2 className="font-display text-[15px] flex items-center gap-2">
-            <LayoutGrid className="size-4 text-muted-foreground" /> Quadro de operação
+          <h2 className="font-display text-base sm:text-lg flex items-center gap-2">
+            <LayoutGrid className="size-4.5 text-muted-foreground" /> Quadro de operação
           </h2>
           <div className="ml-auto">
             <RangeDropdown
@@ -735,7 +713,6 @@ function DashboardPage() {
             />
           </div>
         </div>
-
 
         {/* Mobile: abas roláveis, uma coluna ativa por vez — 5 colunas lado a
             lado não cabem numa tela estreita. Cada aba já carrega a contagem
@@ -821,13 +798,7 @@ function DashboardPage() {
             coluna tem sempre a mesma largura confortável, não importa o
             espaço disponível. */}
         <div ref={kanbanRowRef} className="hidden sm:flex gap-3 items-start overflow-x-auto snap-x pb-2 -mx-1 px-1">
-          <div
-            ref={(el) => {
-              colRefs.current.checkin = el;
-            }}
-            style={{ width: kanbanColWidth }}
-            className={`shrink-0 snap-start rounded-2xl transition-shadow ${flashCol === "checkin" ? "ring-2 ring-primary/60" : ""}`}
-          >
+          <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
             <KanbanColumn
               onScroll={() => setExpandedByColumn((prev) => ({ ...prev, checkin: null }))}
               title="Check-ins"
@@ -845,13 +816,7 @@ function DashboardPage() {
             </KanbanColumn>
           </div>
 
-          <div
-            ref={(el) => {
-              colRefs.current.checkout = el;
-            }}
-            style={{ width: kanbanColWidth }}
-            className={`shrink-0 snap-start rounded-2xl transition-shadow ${flashCol === "checkout" ? "ring-2 ring-primary/60" : ""}`}
-          >
+          <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
             <KanbanColumn
               onScroll={() => setExpandedByColumn((prev) => ({ ...prev, checkout: null }))}
               title="Checkouts"
@@ -869,13 +834,7 @@ function DashboardPage() {
             </KanbanColumn>
           </div>
 
-          <div
-            ref={(el) => {
-              colRefs.current.stay = el;
-            }}
-            style={{ width: kanbanColWidth }}
-            className={`shrink-0 snap-start rounded-2xl transition-shadow ${flashCol === "stay" ? "ring-2 ring-primary/60" : ""}`}
-          >
+          <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
             <KanbanColumn
               onScroll={() => setExpandedByColumn((prev) => ({ ...prev, stay: null }))}
               title="Em Estadia"
@@ -893,13 +852,7 @@ function DashboardPage() {
             </KanbanColumn>
           </div>
 
-          <div
-            ref={(el) => {
-              colRefs.current.cleaning = el;
-            }}
-            style={{ width: kanbanColWidth }}
-            className={`shrink-0 snap-start rounded-2xl transition-shadow ${flashCol === "cleaning" ? "ring-2 ring-primary/60" : ""}`}
-          >
+          <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
             <KanbanColumn
               onScroll={() => setExpandedByColumn((prev) => ({ ...prev, cleaning: null }))}
               title="Em Limpeza"
@@ -917,13 +870,7 @@ function DashboardPage() {
             </KanbanColumn>
           </div>
 
-          <div
-            ref={(el) => {
-              colRefs.current.done = el;
-            }}
-            style={{ width: kanbanColWidth }}
-            className={`shrink-0 snap-start rounded-2xl transition-shadow ${flashCol === "done" ? "ring-2 ring-primary/60" : ""}`}
-          >
+          <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
             <KanbanColumn
               onScroll={() => setExpandedByColumn((prev) => ({ ...prev, done: null }))}
               title="Concluídos"
@@ -942,19 +889,6 @@ function DashboardPage() {
           </div>
         </div>
       </section>
-
-      {/* Agenda macro de ocupação — contexto de médio prazo, depois da
-          operação do dia (antes vinha acima e empurrava o quadro pra baixo). */}
-      <OccupancyPanel
-        loading={occupancyQ.isLoading}
-        start={occupancyQ.data?.start ?? agendaStart}
-        days={occupancyQ.data?.days ?? 21}
-        properties={occupancyQ.data?.properties ?? []}
-        stays={occupancyQ.data?.stays ?? []}
-        checkedInPropertyIds={checkedInPropertyIds}
-        onStartChange={setAgendaStart}
-        defaultStart={todayISO}
-      />
     </div>
   );
 }
@@ -979,54 +913,6 @@ const KANBAN_TONE_ACTIVE: Record<string, string> = {
   violet: "border-violet-500 bg-violet-500/10 text-violet-600 dark:text-violet-400",
   zinc: "border-primary bg-primary/10 text-primary",
 };
-
-type AttnTone = "emerald" | "amber" | "violet" | "rose";
-const ATTN_TONE: Record<AttnTone, string> = {
-  emerald: "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20",
-  amber: "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20",
-  violet: "border-violet-500/40 bg-violet-500/10 text-violet-600 dark:text-violet-400 hover:bg-violet-500/20",
-  rose: "border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20",
-};
-
-const OPS_KPI_TONE: Record<string, string> = {
-  emerald: "text-emerald-600 dark:text-emerald-400",
-  amber: "text-amber-600 dark:text-amber-400",
-  sky: "text-sky-600 dark:text-sky-400",
-  violet: "text-violet-600 dark:text-violet-400",
-  zinc: "text-foreground",
-};
-
-/**
- * Indicador compacto: não é destino, é atalho. Um clique leva direto pra
- * coluna correspondente do quadro de operação.
- */
-function OpsKpi({
-  label,
-  value,
-  icon: Icon,
-  tone,
-  onClick,
-}: {
-  label: string;
-  value: number | null;
-  icon: React.ElementType;
-  tone: "emerald" | "amber" | "sky" | "violet" | "zinc";
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="group flex min-w-0 items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-    >
-      <Icon className={`size-4 shrink-0 ${OPS_KPI_TONE[tone]}`} strokeWidth={2} />
-      <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-muted-foreground">{label}</span>
-      <span className={`font-display text-[19px] leading-none tabular-nums shrink-0 ${OPS_KPI_TONE[tone]}`}>
-        {value === null ? "—" : value}
-      </span>
-    </button>
-  );
-}
 
 /** Uma coluna do quadro Kanban — cabeçalho fixo (título + contagem) e corpo
  * com rolagem própria, adaptando a altura ao que a tela do usuário permitir. */
@@ -1165,11 +1051,13 @@ function KpiCard({
         {compact ? (
           <button
             type="button"
-            className="w-full min-w-0 flex items-center gap-2.5 px-4 py-2.5 text-left transition-colors hover:bg-secondary/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            className={`w-full flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
-            <Icon className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-muted-foreground">{label}</span>
-            <span className={`shrink-0 font-display text-[15px] leading-none tabular-nums ${valueColor}`}>
+            <Icon className="size-3.5 text-muted-foreground" />
+            <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold truncate">
+              {label}
+            </span>
+            <span className={`ml-auto text-lg font-display tabular-nums ${valueColor}`}>
               {loading ? "—" : rows.length}
             </span>
           </button>
@@ -1330,13 +1218,14 @@ function FreePropertiesCard({
       <DialogTrigger asChild>
         <button
           type="button"
-          className="flex min-w-0 items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          className="w-full h-full rounded-xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 shadow-sm hover:shadow-md"
         >
-          <Home className="size-4 shrink-0 text-muted-foreground" strokeWidth={2} />
-          <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-muted-foreground">Imóveis livres</span>
-          <span className="shrink-0 font-display text-[19px] leading-none tabular-nums text-foreground">
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold">
+            <Home className="size-3.5" /> <span className="truncate">Imóveis sem ninguém</span>
+          </div>
+          <div className="text-2xl font-display mt-1 tabular-nums text-foreground">
             {loading ? "—" : properties.length}
-          </span>
+          </div>
         </button>
       </DialogTrigger>
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-2xl">
