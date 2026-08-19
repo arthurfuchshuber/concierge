@@ -337,7 +337,7 @@ function AssinaturaPage() {
           <section className="mt-10">
             <div className="flex items-end justify-between gap-3 flex-wrap mb-4">
               <div>
-                <h2 className="font-display text-2xl">Todos os planos</h2>
+                <h2 className="ui-section-title">Todos os planos</h2>
                 <p className="text-sm text-muted-foreground mt-0.5">
                   Faça upgrade ou downgrade a qualquer momento.
                 </p>
@@ -439,7 +439,7 @@ function AssinaturaPage() {
               <section>
             <div className="flex items-center gap-2 mb-4">
               <Receipt className="size-4 text-muted-foreground" />
-              <h2 className="font-display text-2xl">Extrato de pagamentos</h2>
+              <h2 className="ui-section-title">Extrato de pagamentos</h2>
             </div>
             <div className="rounded-2xl border border-border bg-card overflow-hidden">
               {paymentsQuery.isLoading ? (
