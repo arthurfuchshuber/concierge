@@ -1743,7 +1743,7 @@ function RangeDropdown<T extends string>({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/[0.04] px-3 py-2 text-xs font-medium text-foreground/80 hover:bg-primary/[0.08] transition-colors"
+          className="ds-btn border border-border bg-background/60 text-foreground/80 hover:bg-muted/60 transition-colors"
         >
           {current} <ChevronDown className="size-3.5 opacity-60" />
         </button>
