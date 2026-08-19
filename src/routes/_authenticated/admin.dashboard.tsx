@@ -604,15 +604,18 @@ function DashboardPage() {
   }
 
   return (
-    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-[1440px] mx-auto w-full space-y-6">
+    <div className="px-4 sm:px-6 lg:px-10 py-6 lg:py-10 max-w-[1440px] mx-auto w-full space-y-5 sm:space-y-6">
       <header>
-        <h1 className="font-display text-3xl md:text-4xl flex items-center gap-2.5">
-          <TrendingUp className="size-7 text-muted-foreground" /> Operação de Reservas
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1.5">
-          Sua rotina diária: check-ins, checkouts e visualização de instruções/senhas..
+        <div className="flex items-center gap-2 text-[11px] sm:text-xs uppercase tracking-[0.18em] font-semibold text-primary/80">
+          <TrendingUp className="size-3.5" />
+          <span>Operação de Reservas</span>
+        </div>
+        <h1 className="font-display text-[28px] leading-tight md:text-4xl mt-1.5">Dashboard</h1>
+        <p className="text-[13px] sm:text-sm text-muted-foreground mt-1">
+          Sua rotina diária: check-ins, checkouts e senhas.
         </p>
       </header>
+
 
       {/* KPIs */}
       <section className="space-y-3">
