@@ -469,7 +469,20 @@ function DashboardPage() {
     () => (tomorrowCheckoutListQ.data?.rows ?? []).filter((r) => r.status === "pending"),
     [tomorrowCheckoutListQ.data?.rows],
   );
-  const cleaningRows = useMemo(() => coRows.filter((r) => r.status === "done"), [coRows]);
+  /**
+   * "Em Limpeza" precisa incluir também o checkout ANTECIPADO de um card de
+   * amanhã: ele sai da lista de amanhã (deixa de ser pendente) e, sem isso,
+   * não apareceria em lugar nenhum.
+   */
+  const cleaningRows = useMemo(() => {
+    const done = coRows.filter((r) => r.status === "done");
+    const seen = new Set(done.map((r) => r.logId));
+    const early = (tomorrowCheckoutListQ.data?.rows ?? []).filter(
+      (r) => r.status === "done" && !seen.has(r.logId),
+    );
+    return [...done, ...early];
+  }, [coRows, tomorrowCheckoutListQ.data?.rows]);
+
   const concludedRows = concludedQ.data?.rows ?? [];
   const counts = {
     checkin: checkinPendingRows.length,
