@@ -118,10 +118,15 @@ function AdminLayout() {
       ] as const);
   // Admin do SaaS sem conta selecionada: o menu da conta do cliente fica
   // oculto até que ele escolha um cliente no seletor acima.
-  const nav = (awaitingAccountChoice ? [] : navAll).filter((item) => {
-    const permission = permissionForPath(item.to);
-    return !permission || areaAccess.can(permission);
-  });
+  const nav = (awaitingAccountChoice ? [] : navAll)
+    .filter((item) => {
+      const permission = permissionForPath(item.to);
+      return !permission || areaAccess.can(permission);
+    })
+    // TEMPORÁRIO — refatoração de UX página a página: só o Dashboard aparece
+    // no menu. As rotas continuam existindo e acessíveis por URL direta.
+    .filter((item) => NAV_VISIBLE_PATHS.includes(item.to));
+
   const routePermission = permissionForPath(pathname);
   useImpersonationQuerySync();
 
