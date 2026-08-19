@@ -187,6 +187,24 @@ function DashboardPage() {
   // cabem as 5 colunas lado a lado). No desktop não é usado; as 5 colunas
   // aparecem todas ao mesmo tempo.
   const [mobileTab, setMobileTab] = useState<BoardMode>("checkin");
+  // KPI e alertas não são destino: cada um leva direto pra coluna
+  // correspondente do quadro de operação (no mobile troca a aba; no desktop
+  // rola a coluna pra vista e a destaca por um instante).
+  const boardRef = useRef<HTMLDivElement>(null);
+  const colRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [flashCol, setFlashCol] = useState<BoardMode | null>(null);
+  const focusBoard = useCallback((mode: BoardMode) => {
+    setMobileTab(mode);
+    setFlashCol(mode);
+    window.setTimeout(() => setFlashCol((c) => (c === mode ? null : c)), 1600);
+    window.requestAnimationFrame(() => {
+      const col = colRefs.current[mode];
+      if (col && window.matchMedia("(min-width: 640px)").matches) {
+        col.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+      }
+      boardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, []);
   // Largura das colunas do Kanban (desktop) — calculada de verdade a partir
   // do espaço disponível, não um número fixo. Cabe quantas colunas couberem
   // numa largura mínima confortável (240px), e essas colunas esticam pra
