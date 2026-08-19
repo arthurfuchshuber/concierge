@@ -557,7 +557,7 @@ function DashboardPage() {
   function renderEngagementPanel(wrapperClassName: string) {
     if (counts.checkin === 0) return null;
     return (
-      <section className={`rounded-[14px] border border-border bg-card p-4 sm:p-5 ${wrapperClassName}`}>
+      <section className={`rounded-2xl border border-border bg-card p-4 sm:p-5 ${wrapperClassName}`}>
         <EngagementBars
           loading={engQ.isLoading}
           checkins={engQ.data?.checkinsInPeriod ?? 0}
@@ -570,23 +570,21 @@ function DashboardPage() {
   }
 
   return (
-    <div className="px-4 sm:px-6 lg:px-10 py-6 lg:py-10 max-w-[1440px] mx-auto w-full space-y-8">
-      <header className="min-w-0">
-        <div className="ds-eyebrow text-primary flex items-center gap-1.5 min-w-0">
-          <TrendingUp className="size-3.5 shrink-0" />
-          <span className="ds-1l">Operação de reservas</span>
-        </div>
-        <h1 className="ds-page-title ds-1l mt-1">Dashboard</h1>
-        <p className="ds-page-sub text-muted-foreground mt-1">
-          Sua rotina diária: check-ins, checkouts e senhas.
+    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-[1440px] mx-auto w-full space-y-6">
+      <header>
+        <h1 className="font-display text-3xl md:text-4xl flex items-center gap-2.5">
+          <TrendingUp className="size-7 text-muted-foreground" /> Operação de Reservas
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1.5">
+          Sua rotina diária: check-ins, checkouts e visualização de instruções/senhas..
         </p>
       </header>
 
       {/* KPIs */}
       <section className="space-y-3">
-        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <KpiCard
-            label="Check-ins pendentes"
+            label="Check-ins Pendentes"
             rows={checkinPendingRows}
             icon={LogIn}
             tone="primary"
@@ -595,12 +593,11 @@ function DashboardPage() {
             kind="checkin"
             rangeLabel={rangeLabel[range]}
             shadowTone="emerald"
-            big
             onEditTime={handleEditTime}
             onAdvance={(r) => handleAdvance(r, "checkin")}
           />
           <KpiCard
-            label="Checkouts pendentes"
+            label="Checkouts Pendentes"
             rows={checkoutPendingRows}
             icon={LogOut}
             tone="primary"
@@ -609,12 +606,10 @@ function DashboardPage() {
             kind="checkout"
             rangeLabel={rangeLabel[range]}
             shadowTone="amber"
-            big
             onEditTime={handleEditTime}
             onAdvance={(r) => handleAdvance(r, "checkout")}
           />
         </div>
-
 
         {/* Em Limpeza — faixa fina logo abaixo dos pendentes (só quando houver 1+) */}
         {cleaningRows.length > 0 ? (
@@ -635,7 +630,7 @@ function DashboardPage() {
           </div>
         ) : null}
 
-        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <KpiCard
             label="Check-ins amanhã"
             rows={tomorrowCheckinPendingRows}
@@ -700,15 +695,12 @@ function DashboardPage() {
           agora todos os status ficam visíveis ao mesmo tempo, e "puxar" um
           card de um status pro outro fica visual, não escondido atrás de um
           menu. */}
-      <section className="rounded-[14px] border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-          <h2 className="flex min-w-0 items-center gap-2">
-            <LayoutGrid className="size-4 shrink-0 text-muted-foreground" />
-            <span className="ds-section-title ds-1l min-w-0" title="Quadro de operação">
-              Quadro de operação
-            </span>
+      <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
+        <div className="flex items-center gap-3">
+          <h2 className="font-display text-base sm:text-lg flex items-center gap-2">
+            <LayoutGrid className="size-4.5 text-muted-foreground" /> Quadro de operação
           </h2>
-          <div className="shrink-0">
+          <div className="ml-auto">
             <RangeDropdown
               value={range}
               onChange={setRange}
@@ -727,7 +719,7 @@ function DashboardPage() {
             e usa a mesma cor da coluna correspondente no desktop, pra manter
             a mesma linguagem visual entre os dois tamanhos de tela. */}
         <div className="sm:hidden space-y-3">
-          <div className="ds-scroll-x ds-fade-x snap-x gap-2 pb-2 -mx-1 px-1">
+          <div className="flex gap-1.5 overflow-x-auto snap-x pb-3 -mx-1 px-1">
             {(
               [
                 { key: "checkin", label: "Check-ins", icon: CalendarCheck, count: counts.checkin, tone: "emerald" },
@@ -744,18 +736,17 @@ function DashboardPage() {
                   key={t.key}
                   type="button"
                   onClick={() => setMobileTab(t.key)}
-                  className={`ds-btn snap-start rounded-full border transition-colors ${
+                  className={`shrink-0 snap-start inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
                     active ? KANBAN_TONE_ACTIVE[t.tone] : "border-border text-muted-foreground"
                   }`}
                 >
-                  <Icon className="size-3.5 shrink-0" />
+                  <Icon className="size-3.5" />
                   {t.label}
-                  <span className="tabular-nums opacity-75">· {t.count}</span>
+                  <span className="opacity-75 tabular-nums">{t.count}</span>
                 </button>
               );
             })}
           </div>
-
 
           {mobileTab === "checkin" &&
             (checkinListQ.isLoading ? (
@@ -977,10 +968,7 @@ function KanbanColumn({
         <div className={`size-7 rounded-lg grid place-items-center ring-1 shrink-0 ${KANBAN_TONE[tone]}`}>
           <Icon className="size-3.5" />
         </div>
-        <span className="ds-card-title ds-1l min-w-0 flex-1" title={title}>
-          {title}
-        </span>
-
+        <span className="text-sm font-semibold truncate">{title}</span>
         <span className="ml-auto text-xs font-medium text-muted-foreground tabular-nums shrink-0">{count}</span>
       </div>
       <div
@@ -1020,7 +1008,6 @@ function KpiCard({
   onEditTime,
   onAdvance,
   compact,
-  big,
 }: {
   label: string;
   rows: ArrivalRow[];
@@ -1036,8 +1023,6 @@ function KpiCard({
   onAdvance?: (row: ArrivalRow) => void;
   /** Faixa fina (largura total) em vez de card quadrado. */
   compact?: boolean;
-  /** Indicador principal — número em escala maior. */
-  big?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const valueTone = tone === "primary" ? "text-primary" : "text-foreground";
@@ -1047,8 +1032,6 @@ function KpiCard({
       : shadowTone === "amber"
         ? "text-amber-600 dark:text-amber-400"
         : valueTone;
-  const dotColor =
-    shadowTone === "emerald" ? "bg-emerald-500" : shadowTone === "amber" ? "bg-amber-500" : "bg-muted-foreground/60";
   const shadowClass =
     shadowTone === "emerald"
       ? "shadow-[0_18px_42px_-18px_rgba(16,185,129,0.85),0_0_0_1px_rgba(16,185,129,0.10)] hover:shadow-[0_22px_52px_-18px_rgba(16,185,129,0.95),0_0_0_1px_rgba(16,185,129,0.16)]"
@@ -1068,37 +1051,28 @@ function KpiCard({
         {compact ? (
           <button
             type="button"
-            className={`w-full flex items-center gap-3 rounded-[14px] border border-border bg-card px-4 py-3.5 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+            className={`w-full flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
-            <Icon className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
-            <span className="ds-kpi-label min-w-0 flex-1 text-muted-foreground" title={label}>
+            <Icon className="size-3.5 text-muted-foreground" />
+            <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold truncate">
               {label}
             </span>
-            <span className={`shrink-0 text-xl font-display tabular-nums ${valueColor}`}>
+            <span className={`ml-auto text-lg font-display tabular-nums ${valueColor}`}>
               {loading ? "—" : rows.length}
             </span>
           </button>
         ) : (
           <button
             type="button"
-            className={`flex h-full w-full min-w-0 flex-col justify-between gap-3 rounded-[14px] border border-border bg-card p-4 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+            className={`w-full h-full rounded-xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
-            <div className="flex min-w-0 items-start gap-2 text-muted-foreground">
-              <span className={`mt-[5px] size-1.5 shrink-0 rounded-full ${dotColor}`} />
-              <span className="ds-kpi-label min-w-0 flex-1" title={label}>
-                {label}
-              </span>
+            <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold">
+              <Icon className="size-3.5" /> <span className="truncate">{label}</span>
             </div>
-            <div
-              className={`font-display tabular-nums leading-none ${big ? "text-[34px]" : "text-[26px]"} ${valueColor}`}
-            >
-              {loading ? "—" : rows.length}
-            </div>
+            <div className={`text-2xl font-display mt-1 tabular-nums ${valueColor}`}>{loading ? "—" : rows.length}</div>
           </button>
         )}
-
       </DialogTrigger>
-
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-2xl border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
         <div
           className={`absolute inset-x-0 top-0 h-px ${shadowTone === "emerald" ? "bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" : shadowTone === "amber" ? "bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" : "bg-gradient-to-r from-transparent via-primary/50 to-transparent"}`}
@@ -1244,20 +1218,15 @@ function FreePropertiesCard({
       <DialogTrigger asChild>
         <button
           type="button"
-          className="flex h-full w-full min-w-0 flex-col justify-between gap-3 rounded-[14px] border border-border bg-card p-4 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 shadow-sm hover:shadow-md"
+          className="w-full h-full rounded-xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 shadow-sm hover:shadow-md"
         >
-          <div className="flex min-w-0 items-start gap-2 text-muted-foreground">
-            <Home className="mt-[1px] size-3.5 shrink-0" />
-            <span className="ds-kpi-label min-w-0 flex-1" title="Imóveis livres">
-              Imóveis livres
-            </span>
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold">
+            <Home className="size-3.5" /> <span className="truncate">Imóveis sem ninguém</span>
           </div>
-          <div className="font-display text-[26px] leading-none tabular-nums text-foreground">
+          <div className="text-2xl font-display mt-1 tabular-nums text-foreground">
             {loading ? "—" : properties.length}
           </div>
         </button>
-
-
       </DialogTrigger>
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-2xl">
         <DialogHeader className="px-5 pt-5 pb-3">
@@ -1485,32 +1454,25 @@ function OccupancyPanel({
       collapsible
       value={openAgenda}
       onValueChange={setOpenAgenda}
-      className="rounded-[14px] border border-border bg-card shadow-sm"
+      className="rounded-2xl border border-border bg-card shadow-sm"
     >
       <AccordionItem value="agenda" className="border-0">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 sm:px-5 py-4">
+        <div className="flex w-full items-center gap-2 px-4 sm:px-5 py-4">
           <button
             type="button"
             onClick={() => setOpenAgenda((v) => (v ? "" : "agenda"))}
-            className="flex min-w-0 items-center gap-2 text-left"
+            className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm font-semibold"
           >
             <CalendarCheck className="size-4 shrink-0 text-muted-foreground" />
-            <span className="ds-section-title ds-1l min-w-0" title="Ocupação dos imóveis">
-              Ocupação dos imóveis
-            </span>
+            <span className="truncate">Ocupação dos Imóveis</span>
           </button>
-          <div className="flex shrink-0 items-center gap-2">
           <Popover>
             <PopoverTrigger asChild>
               <button
                 type="button"
-                aria-label="Filtros"
-                className="ds-btn relative w-9 px-0 sm:w-auto sm:px-3 border border-border bg-background/60 text-foreground/80 transition-colors hover:bg-muted/60"
+                className="relative ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-background/60 px-2.5 py-1.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-muted/60"
               >
-                <Filter className="size-3.5 opacity-70" />
-                <span className="max-sm:hidden">Filtros</span>
-
-
+                <Filter className="size-3.5 opacity-70" /> Filtros
                 {activeFilters > 0 ? (
                   <span className="ml-0.5 grid size-4 place-items-center rounded-full bg-primary text-[9px] font-semibold text-primary-foreground">
                     {activeFilters}
@@ -1569,7 +1531,7 @@ function OccupancyPanel({
                   setCityFilter("");
                   if (defaultStart && onStartChange) onStartChange(defaultStart);
                 }}
-                className="ds-btn w-full border border-border text-muted-foreground hover:bg-muted/60"
+                className="w-full rounded-md border border-border px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-muted/60"
               >
                 Limpar filtros
               </button>
@@ -1579,13 +1541,11 @@ function OccupancyPanel({
             type="button"
             aria-label={openAgenda ? "Recolher" : "Expandir"}
             onClick={() => setOpenAgenda((v) => (v ? "" : "agenda"))}
-            className="ds-btn ds-btn-icon border border-border bg-background/60 text-muted-foreground hover:text-foreground"
+            className="shrink-0 text-muted-foreground transition-transform hover:text-foreground"
           >
             <ChevronDown className={`size-4 transition-transform ${openAgenda ? "rotate-180" : ""}`} />
           </button>
-          </div>
         </div>
-
         <AccordionContent className="px-4 sm:px-5 pb-5">
           {loading ? (
             <div className="py-10 grid place-items-center text-muted-foreground">
@@ -1748,7 +1708,7 @@ function RangeDropdown<T extends string>({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="ds-btn border border-border bg-background/60 text-foreground/80 hover:bg-muted/60 transition-colors"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/[0.04] px-3 py-2 text-xs font-medium text-foreground/80 hover:bg-primary/[0.08] transition-colors"
         >
           {current} <ChevronDown className="size-3.5 opacity-60" />
         </button>
@@ -1794,7 +1754,7 @@ function EngagementBars({
   const checkinViewed = checkinBreakdown?.viewed.length ?? 0;
   const codesViewed = codesBreakdown?.viewed.length ?? 0;
   return (
-    <div className="relative space-y-5">
+    <div className="relative space-y-4">
       {checkins > 0 && (
         <BarRow
           label="Viram instruções de check-in"
@@ -1802,7 +1762,6 @@ function EngagementBars({
           total={checkins}
           pct={pctOf(checkinViewed, checkins)}
           breakdown={checkinBreakdown}
-          hint="Quantos hóspedes com check-in no período já abriram a aba “Chegada” do guia pelo menos uma vez."
         />
       )}
       {checkinsWithCodes > 0 && (
@@ -1812,12 +1771,10 @@ function EngagementBars({
           total={checkinsWithCodes}
           pct={pctOf(codesViewed, checkinsWithCodes)}
           breakdown={codesBreakdown}
-          hint="Conta apenas quando o hóspede revela a senha no guia — abrir a página sem revelar não conta."
         />
       )}
     </div>
   );
-
 }
 
 /** Mesma lógica dos cards: hóspede principal (1º a acessar) + "+N" expansível. */
@@ -1887,65 +1844,43 @@ function BarRow({
   total,
   pct,
   breakdown,
-  hint,
 }: {
   label: string;
   value: number;
   total: number;
   pct: number;
   breakdown?: Breakdown;
-  hint?: string;
 }) {
-  const barGraph = (
-    <div className="h-1.5 rounded-full bg-rose-500/70 overflow-hidden ring-1 ring-rose-500/20">
-      <div
-        className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-[width] duration-700"
-        style={{ width: `${pct}%` }}
-      />
-    </div>
-  );
-  const head = (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-      <span className="ds-card-title ds-1l min-w-0" title={label}>
-        {label}
-      </span>
-      <span className="ds-meta shrink-0 whitespace-nowrap tabular-nums text-muted-foreground">
-        {value} de {total}
-      </span>
-    </div>
-  );
-  if (!breakdown)
-    return (
-      <div className="space-y-2">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-1">
-          {head}
-          {hint ? <InfoHint title={label}>{hint}</InfoHint> : <span />}
-        </div>
-        {barGraph}
-      </div>
-    );
-  return (
-    <Dialog>
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-1">
-        <DialogTrigger asChild>
-          <button
-            type="button"
-            aria-label={`Detalhes: ${label}`}
-            className="min-w-0 space-y-2 rounded-lg px-1 -mx-1 py-1 text-left transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {head}
-            {barGraph}
-          </button>
-        </DialogTrigger>
-        {hint ? (
-          <span className="self-start pt-1">
-            <InfoHint title={label}>{hint}</InfoHint>
-          </span>
-        ) : (
-          <span />
-        )}
+  const bar = (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between gap-2 text-sm">
+        <span className="font-medium truncate whitespace-nowrap min-w-0">{label}</span>
+        <span className="tabular-nums text-muted-foreground text-xs whitespace-nowrap shrink-0">
+          {value} de {total} check-ins
+        </span>
       </div>
 
+      {/* Battery: red base, green fill overlay — mais fina, versão discreta */}
+      <div className="h-1.5 rounded-full bg-rose-500/70 overflow-hidden ring-1 ring-rose-500/20">
+        <div
+          className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-[width] duration-700"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+  if (!breakdown) return bar;
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Detalhes: ${label}`}
+          className="w-full text-left rounded-lg transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring px-1 -mx-1 py-1"
+        >
+          {bar}
+        </button>
+      </DialogTrigger>
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-2xl border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" />
         <DialogHeader className="px-5 pt-5 pb-4">
