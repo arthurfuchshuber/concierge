@@ -39,6 +39,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CopyButton } from "@/components/CopyButton";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
+import { PageHeader } from "@/components/ui-kit";
+
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
   DropdownMenu,
