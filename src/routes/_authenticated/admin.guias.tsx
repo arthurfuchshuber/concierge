@@ -124,23 +124,18 @@ function guideCompleteness(p: {
 function GuiasTabsBar() {
   return (
     <PillScroller className="mb-6">
-      <TabsList className="h-auto gap-2 bg-transparent p-0">
-        <TabsTrigger
-          value="imoveis"
-          className="ui-pill ui-pill-idle data-[state=active]:ui-pill-active shrink-0 border-0 shadow-none"
-        >
+      <TabsList className="gap-2">
+        <TabsTrigger value="imoveis">
           <Home className="size-4" /> Imóveis
         </TabsTrigger>
-        <TabsTrigger
-          value="destinos"
-          className="ui-pill ui-pill-idle data-[state=active]:ui-pill-active shrink-0 border-0 shadow-none"
-        >
+        <TabsTrigger value="destinos">
           <Compass className="size-4" /> Destinos
         </TabsTrigger>
       </TabsList>
     </PillScroller>
   );
 }
+
 
 
 function GuiasTabs() {
