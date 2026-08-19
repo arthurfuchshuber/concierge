@@ -1557,7 +1557,7 @@ function OccupancyPanel({
                   setCityFilter("");
                   if (defaultStart && onStartChange) onStartChange(defaultStart);
                 }}
-                className="w-full rounded-md border border-border px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-muted/60"
+                className="ds-btn w-full border border-border text-muted-foreground hover:bg-muted/60"
               >
                 Limpar filtros
               </button>
@@ -1567,11 +1567,13 @@ function OccupancyPanel({
             type="button"
             aria-label={openAgenda ? "Recolher" : "Expandir"}
             onClick={() => setOpenAgenda((v) => (v ? "" : "agenda"))}
-            className="shrink-0 text-muted-foreground transition-transform hover:text-foreground"
+            className="ds-btn ds-btn-icon border border-border bg-background/60 text-muted-foreground hover:text-foreground"
           >
             <ChevronDown className={`size-4 transition-transform ${openAgenda ? "rotate-180" : ""}`} />
           </button>
+          </div>
         </div>
+
         <AccordionContent className="px-4 sm:px-5 pb-5">
           {loading ? (
             <div className="py-10 grid place-items-center text-muted-foreground">
