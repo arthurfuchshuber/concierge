@@ -843,7 +843,13 @@ function DashboardPage() {
             </KanbanColumn>
           </div>
 
-          <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
+          <div
+            ref={(el) => {
+              colRefs.current.checkout = el;
+            }}
+            style={{ width: kanbanColWidth }}
+            className={`shrink-0 snap-start rounded-2xl transition-shadow ${flashCol === "checkout" ? "ring-2 ring-primary/60" : ""}`}
+          >
             <KanbanColumn
               onScroll={() => setExpandedByColumn((prev) => ({ ...prev, checkout: null }))}
               title="Checkouts"
