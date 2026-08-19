@@ -697,7 +697,12 @@ function DashboardPage() {
           menu. */}
       <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
         <div className="flex items-center gap-3">
-          <h2 className="font-display text-base sm:text-lg flex items-center gap-2">
+          {/* Título "Quadro de operação" — redundante no mobile, onde as
+              próprias abas logo abaixo (Check-ins, Checkouts...) já deixam
+              claro o que é a seção. No desktop, onde a visão é de colunas
+              lado a lado sem essa legenda textual, o título continua útil
+              e foi mantido. */}
+          <h2 className="hidden sm:flex font-display text-base sm:text-lg items-center gap-2">
             <LayoutGrid className="size-4.5 text-muted-foreground" /> Quadro de operação
           </h2>
           <div className="ml-auto">
