@@ -978,6 +978,54 @@ const KANBAN_TONE_ACTIVE: Record<string, string> = {
   zinc: "border-primary bg-primary/10 text-primary",
 };
 
+type AttnTone = "emerald" | "amber" | "violet" | "rose";
+const ATTN_TONE: Record<AttnTone, string> = {
+  emerald: "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20",
+  amber: "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20",
+  violet: "border-violet-500/40 bg-violet-500/10 text-violet-600 dark:text-violet-400 hover:bg-violet-500/20",
+  rose: "border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20",
+};
+
+const OPS_KPI_TONE: Record<string, string> = {
+  emerald: "text-emerald-600 dark:text-emerald-400",
+  amber: "text-amber-600 dark:text-amber-400",
+  sky: "text-sky-600 dark:text-sky-400",
+  violet: "text-violet-600 dark:text-violet-400",
+  zinc: "text-foreground",
+};
+
+/**
+ * Indicador compacto: não é destino, é atalho. Um clique leva direto pra
+ * coluna correspondente do quadro de operação.
+ */
+function OpsKpi({
+  label,
+  value,
+  icon: Icon,
+  tone,
+  onClick,
+}: {
+  label: string;
+  value: number | null;
+  icon: React.ElementType;
+  tone: "emerald" | "amber" | "sky" | "violet" | "zinc";
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex min-w-0 items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+    >
+      <Icon className={`size-4 shrink-0 ${OPS_KPI_TONE[tone]}`} strokeWidth={2} />
+      <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-muted-foreground">{label}</span>
+      <span className={`font-display text-[19px] leading-none tabular-nums shrink-0 ${OPS_KPI_TONE[tone]}`}>
+        {value === null ? "—" : value}
+      </span>
+    </button>
+  );
+}
+
 /** Uma coluna do quadro Kanban — cabeçalho fixo (título + contagem) e corpo
  * com rolagem própria, adaptando a altura ao que a tela do usuário permitir. */
 function KanbanColumn({
