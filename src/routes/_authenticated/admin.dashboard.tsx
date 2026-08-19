@@ -1503,7 +1503,7 @@ function OccupancyPanel({
               <button
                 type="button"
                 aria-label="Filtros"
-                className="ds-btn max-sm:ds-btn-icon relative border border-border bg-background/60 text-foreground/80 transition-colors hover:bg-muted/60"
+                className="ds-btn relative w-9 px-0 sm:w-auto sm:px-3 border border-border bg-background/60 text-foreground/80 transition-colors hover:bg-muted/60"
               >
                 <Filter className="size-3.5 opacity-70" />
                 <span className="max-sm:hidden">Filtros</span>
