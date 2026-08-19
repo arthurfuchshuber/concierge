@@ -16,6 +16,11 @@ const buttonVariants = cva(
         secondary: "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
+        // Ação primária do pacote UX v4 — gradiente da marca, usada uma única
+        // vez por tela (a ação que o usuário veio fazer ali).
+        brand:
+          "bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] text-white font-semibold shadow-[0_6px_20px_-8px_rgba(232,45,174,0.65)] hover:opacity-95",
+
       },
       size: {
         // Uma altura só (36px) em todo o app — só muda o preenchimento

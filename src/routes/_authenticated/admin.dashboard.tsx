@@ -39,6 +39,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CopyButton } from "@/components/CopyButton";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
+import { PageHeader } from "@/components/ui-kit";
+
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
   DropdownMenu,
@@ -570,18 +572,16 @@ function DashboardPage() {
   }
 
   return (
-    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-[1440px] mx-auto w-full space-y-6">
-      <header>
-        <h1 className="font-display text-3xl md:text-4xl flex items-center gap-2.5">
-          <TrendingUp className="size-7 text-muted-foreground" /> Operação de Reservas
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1.5">
-          Sua rotina diária: check-ins, checkouts e visualização de instruções/senhas..
-        </p>
-      </header>
+    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-[1440px] mx-auto w-full space-y-6 [&>header]:mb-0">
+      <PageHeader
+        eyebrow="Operação"
+        title="Dashboard"
+        subtitle="Sua rotina diária: check-ins, checkouts e visualização de instruções/senhas."
+      />
 
       {/* KPIs */}
       <section className="space-y-3">
+
         <div className="grid grid-cols-2 gap-3">
           <KpiCard
             label="Check-ins Pendentes"
@@ -1069,13 +1069,20 @@ function KpiCard({
         ) : (
           <button
             type="button"
-            className={`w-full h-full rounded-xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+            className={`w-full h-full ui-card px-5 py-4 text-left transition hover:bg-secondary/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
-            <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold">
-              <Icon className="size-3.5" /> <span className="truncate">{label}</span>
+            <div className="flex items-center gap-2">
+              <span
+                className={`size-2.5 shrink-0 rounded-full ${shadowTone === "emerald" ? "bg-emerald-400" : shadowTone === "amber" ? "bg-amber-400" : "bg-primary/60"}`}
+                aria-hidden
+              />
+              <span className="ui-eyebrow !text-muted-foreground truncate">{label}</span>
             </div>
-            <div className={`text-2xl font-display mt-1 tabular-nums ${valueColor}`}>{loading ? "—" : rows.length}</div>
+            <div className={`mt-3 font-display text-[34px] leading-none tabular-nums ${valueColor}`}>
+              {loading ? "—" : rows.length}
+            </div>
           </button>
+
         )}
       </DialogTrigger>
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-2xl border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
