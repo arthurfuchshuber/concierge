@@ -1,4 +1,6 @@
 import { PhoneActionButton } from "@/components/PhoneActionButton";
+import { PageHeader, PillScroller } from "@/components/ui-kit";
+
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Home, Compass } from "lucide-react";
 import { useSearch } from "@tanstack/react-router";
