@@ -570,21 +570,23 @@ function DashboardPage() {
   }
 
   return (
-    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-[1440px] mx-auto w-full space-y-6">
-      <header>
-        <h1 className="font-display text-3xl md:text-4xl flex items-center gap-2.5">
-          <TrendingUp className="size-7 text-muted-foreground" /> Operação de Reservas
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1.5">
-          Sua rotina diária: check-ins, checkouts e visualização de instruções/senhas..
+    <div className="px-4 sm:px-6 lg:px-10 py-6 lg:py-10 max-w-[1440px] mx-auto w-full space-y-8">
+      <header className="min-w-0">
+        <div className="ds-eyebrow text-primary flex items-center gap-1.5 min-w-0">
+          <TrendingUp className="size-3.5 shrink-0" />
+          <span className="ds-1l">Operação de reservas</span>
+        </div>
+        <h1 className="ds-page-title ds-1l mt-1">Dashboard</h1>
+        <p className="ds-page-sub text-muted-foreground mt-1">
+          Sua rotina diária: check-ins, checkouts e senhas.
         </p>
       </header>
 
       {/* KPIs */}
       <section className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
           <KpiCard
-            label="Check-ins Pendentes"
+            label="Check-ins pendentes"
             rows={checkinPendingRows}
             icon={LogIn}
             tone="primary"
@@ -593,11 +595,12 @@ function DashboardPage() {
             kind="checkin"
             rangeLabel={rangeLabel[range]}
             shadowTone="emerald"
+            big
             onEditTime={handleEditTime}
             onAdvance={(r) => handleAdvance(r, "checkin")}
           />
           <KpiCard
-            label="Checkouts Pendentes"
+            label="Checkouts pendentes"
             rows={checkoutPendingRows}
             icon={LogOut}
             tone="primary"
@@ -606,10 +609,12 @@ function DashboardPage() {
             kind="checkout"
             rangeLabel={rangeLabel[range]}
             shadowTone="amber"
+            big
             onEditTime={handleEditTime}
             onAdvance={(r) => handleAdvance(r, "checkout")}
           />
         </div>
+
 
         {/* Em Limpeza — faixa fina logo abaixo dos pendentes (só quando houver 1+) */}
         {cleaningRows.length > 0 ? (
