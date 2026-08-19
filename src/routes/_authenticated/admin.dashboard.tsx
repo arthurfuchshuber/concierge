@@ -1887,13 +1887,16 @@ function BarRow({
   breakdown?: Breakdown;
 }) {
   const bar = (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between gap-2 text-sm">
-        <span className="font-medium truncate whitespace-nowrap min-w-0">{label}</span>
-        <span className="tabular-nums text-muted-foreground text-xs whitespace-nowrap shrink-0">
-          {value} de {total} check-ins
+    <div className="space-y-2">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+        <span className="ds-card-title ds-1l min-w-0" title={label}>
+          {label}
+        </span>
+        <span className="ds-meta shrink-0 whitespace-nowrap tabular-nums text-muted-foreground">
+          {value} de {total}
         </span>
       </div>
+
 
       {/* Battery: red base, green fill overlay — mais fina, versão discreta */}
       <div className="h-1.5 rounded-full bg-rose-500/70 overflow-hidden ring-1 ring-rose-500/20">
