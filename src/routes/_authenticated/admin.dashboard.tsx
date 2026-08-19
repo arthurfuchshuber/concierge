@@ -1891,43 +1891,56 @@ function BarRow({
   breakdown?: Breakdown;
   hint?: string;
 }) {
-  const bar = (
-    <div className="space-y-2">
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-        <span className="ds-card-title ds-1l min-w-0" title={label}>
-          {label}
-        </span>
-        <span className="flex shrink-0 items-center gap-1">
-          <span className="ds-meta whitespace-nowrap tabular-nums text-muted-foreground">
-            {value} de {total}
-          </span>
-          {hint ? <InfoHint title={label}>{hint}</InfoHint> : null}
-        </span>
-      </div>
-
-
-
-      {/* Battery: red base, green fill overlay — mais fina, versão discreta */}
-      <div className="h-1.5 rounded-full bg-rose-500/70 overflow-hidden ring-1 ring-rose-500/20">
-        <div
-          className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-[width] duration-700"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
+  const barGraph = (
+    <div className="h-1.5 rounded-full bg-rose-500/70 overflow-hidden ring-1 ring-rose-500/20">
+      <div
+        className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-[width] duration-700"
+        style={{ width: `${pct}%` }}
+      />
     </div>
   );
-  if (!breakdown) return bar;
+  const head = (
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+      <span className="ds-card-title ds-1l min-w-0" title={label}>
+        {label}
+      </span>
+      <span className="ds-meta shrink-0 whitespace-nowrap tabular-nums text-muted-foreground">
+        {value} de {total}
+      </span>
+    </div>
+  );
+  if (!breakdown)
+    return (
+      <div className="space-y-2">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-1">
+          {head}
+          {hint ? <InfoHint title={label}>{hint}</InfoHint> : <span />}
+        </div>
+        {barGraph}
+      </div>
+    );
   return (
     <Dialog>
-      <DialogTrigger asChild>
-        <button
-          type="button"
-          aria-label={`Detalhes: ${label}`}
-          className="w-full text-left rounded-lg transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring px-1 -mx-1 py-1"
-        >
-          {bar}
-        </button>
-      </DialogTrigger>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-1">
+        <DialogTrigger asChild>
+          <button
+            type="button"
+            aria-label={`Detalhes: ${label}`}
+            className="min-w-0 space-y-2 rounded-lg px-1 -mx-1 py-1 text-left transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {head}
+            {barGraph}
+          </button>
+        </DialogTrigger>
+        {hint ? (
+          <span className="self-start pt-1">
+            <InfoHint title={label}>{hint}</InfoHint>
+          </span>
+        ) : (
+          <span />
+        )}
+      </div>
+
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-2xl border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" />
         <DialogHeader className="px-5 pt-5 pb-4">
