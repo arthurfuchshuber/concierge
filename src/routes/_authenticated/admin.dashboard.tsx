@@ -1067,13 +1067,20 @@ function KpiCard({
         ) : (
           <button
             type="button"
-            className={`w-full h-full rounded-xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+            className={`w-full h-full ui-card px-5 py-4 text-left transition hover:bg-secondary/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
-            <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold">
-              <Icon className="size-3.5" /> <span className="truncate">{label}</span>
+            <div className="flex items-center gap-2">
+              <span
+                className={`size-2.5 shrink-0 rounded-full ${shadowTone === "emerald" ? "bg-emerald-400" : shadowTone === "amber" ? "bg-amber-400" : "bg-primary/60"}`}
+                aria-hidden
+              />
+              <span className="ui-eyebrow !text-muted-foreground truncate">{label}</span>
             </div>
-            <div className={`text-2xl font-display mt-1 tabular-nums ${valueColor}`}>{loading ? "—" : rows.length}</div>
+            <div className={`mt-3 font-display text-[34px] leading-none tabular-nums ${valueColor}`}>
+              {loading ? "—" : rows.length}
+            </div>
           </button>
+
         )}
       </DialogTrigger>
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-2xl border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
