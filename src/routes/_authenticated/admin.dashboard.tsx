@@ -588,7 +588,7 @@ function DashboardPage() {
   // Situações que exigem intervenção — derivadas dos dados que já existem.
   const noGuideAccess = checkinPendingRows.filter((r) => !r.openedCheckin).length;
   const codesNotViewed = engQ.data?.codesBreakdown?.notViewed.length ?? 0;
-  const attention: Array<{ key: string; label: string; count: number; tone: AttnTone; to: BoardMode }> = [
+  const attention = ([
     { key: "checkout", label: "Checkouts pendentes", count: counts.checkout, tone: "amber", to: "checkout" },
     { key: "cleaning", label: "Em limpeza", count: counts.cleaning, tone: "violet", to: "cleaning" },
     { key: "checkin", label: "Check-ins pendentes", count: counts.checkin, tone: "emerald", to: "checkin" },
