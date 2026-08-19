@@ -49,6 +49,13 @@ const adminOnlyNav = [
   { to: "/admin/admins", label: "Administradores", icon: ShieldCheck, exact: false },
 ] as const;
 
+/**
+ * TEMPORÁRIO — durante a refatoração de UX página a página, apenas estas
+ * rotas aparecem no menu (sidebar, gaveta mobile e barra inferior).
+ * Para reexibir uma página, basta acrescentar o caminho aqui.
+ */
+const NAV_VISIBLE_PATHS: string[] = ["/admin/dashboard"];
+
 // Rótulos curtos pro menu inferior mobile — a barra é apertada, então só ali
 // (nunca na sidebar desktop nem na gaveta mobile, que têm espaço de sobra)
 // usa-se uma versão encurtada do nome real da seção.
@@ -118,10 +125,15 @@ function AdminLayout() {
       ] as const);
   // Admin do SaaS sem conta selecionada: o menu da conta do cliente fica
   // oculto até que ele escolha um cliente no seletor acima.
-  const nav = (awaitingAccountChoice ? [] : navAll).filter((item) => {
-    const permission = permissionForPath(item.to);
-    return !permission || areaAccess.can(permission);
-  });
+  const nav = (awaitingAccountChoice ? [] : navAll)
+    .filter((item) => {
+      const permission = permissionForPath(item.to);
+      return !permission || areaAccess.can(permission);
+    })
+    // TEMPORÁRIO — refatoração de UX página a página: só o Dashboard aparece
+    // no menu. As rotas continuam existindo e acessíveis por URL direta.
+    .filter((item) => NAV_VISIBLE_PATHS.includes(item.to));
+
   const routePermission = permissionForPath(pathname);
   useImpersonationQuerySync();
 
