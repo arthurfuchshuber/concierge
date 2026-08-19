@@ -1502,9 +1502,12 @@ function OccupancyPanel({
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className="ds-btn relative border border-border bg-background/60 text-foreground/80 transition-colors hover:bg-muted/60"
+                aria-label="Filtros"
+                className="ds-btn max-sm:ds-btn-icon relative border border-border bg-background/60 text-foreground/80 transition-colors hover:bg-muted/60"
               >
-                <Filter className="size-3.5 opacity-70" /> Filtros
+                <Filter className="size-3.5 opacity-70" />
+                <span className="max-sm:hidden">Filtros</span>
+
 
                 {activeFilters > 0 ? (
                   <span className="ml-0.5 grid size-4 place-items-center rounded-full bg-primary text-[9px] font-semibold text-primary-foreground">
