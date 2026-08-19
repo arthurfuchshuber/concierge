@@ -993,10 +993,11 @@ function Dashboard() {
                         type="button"
                         title="Mais ações"
                         aria-label="Mais ações"
-                        className="p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                        className="grid size-9 shrink-0 place-items-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                       >
-                        <MoreHorizontal className="size-3.5" />
+                        <MoreHorizontal className="size-4" />
                       </button>
+
                     </PopoverTrigger>
                     <PopoverContent align="end" className="w-52 p-1.5">
                       <button
