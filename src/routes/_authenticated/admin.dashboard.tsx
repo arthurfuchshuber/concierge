@@ -701,11 +701,14 @@ function DashboardPage() {
           card de um status pro outro fica visual, não escondido atrás de um
           menu. */}
       <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
-        <div className="flex items-center gap-3">
-          <h2 className="font-display text-base sm:text-lg flex items-center gap-2">
-            <LayoutGrid className="size-4.5 text-muted-foreground" /> Quadro de operação
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+          <h2 className="flex min-w-0 items-center gap-2">
+            <LayoutGrid className="size-4 shrink-0 text-muted-foreground" />
+            <span className="ds-section-title ds-1l min-w-0" title="Quadro de operação">
+              Quadro de operação
+            </span>
           </h2>
-          <div className="ml-auto">
+          <div className="shrink-0">
             <RangeDropdown
               value={range}
               onChange={setRange}
@@ -724,7 +727,7 @@ function DashboardPage() {
             e usa a mesma cor da coluna correspondente no desktop, pra manter
             a mesma linguagem visual entre os dois tamanhos de tela. */}
         <div className="sm:hidden space-y-3">
-          <div className="flex gap-1.5 overflow-x-auto snap-x pb-3 -mx-1 px-1">
+          <div className="ds-scroll-x ds-fade-x snap-x gap-2 pb-2 -mx-1 px-1">
             {(
               [
                 { key: "checkin", label: "Check-ins", icon: CalendarCheck, count: counts.checkin, tone: "emerald" },
@@ -741,17 +744,18 @@ function DashboardPage() {
                   key={t.key}
                   type="button"
                   onClick={() => setMobileTab(t.key)}
-                  className={`shrink-0 snap-start inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
+                  className={`ds-btn snap-start rounded-full border transition-colors ${
                     active ? KANBAN_TONE_ACTIVE[t.tone] : "border-border text-muted-foreground"
                   }`}
                 >
-                  <Icon className="size-3.5" />
+                  <Icon className="size-3.5 shrink-0" />
                   {t.label}
-                  <span className="opacity-75 tabular-nums">{t.count}</span>
+                  <span className="tabular-nums opacity-75">· {t.count}</span>
                 </button>
               );
             })}
           </div>
+
 
           {mobileTab === "checkin" &&
             (checkinListQ.isLoading ? (
