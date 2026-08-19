@@ -472,3 +472,69 @@ h1, h2, h3, h4, h5, h6, p, li, blockquote, figcaption, dt, dd { text-wrap: prett
   background: color-mix(in oklab, #a855f7 55%, transparent);
   border-radius: 9999px;
 }
+
+/* =========================================================
+   Sistema de Design — ConciergeIA (regra oficial de layout)
+   Escala tipográfica, espaçamento 4px, botão único de 36px.
+   ========================================================= */
+
+/* Títulos SEMPRE em uma linha só; se não couber, reticências. */
+.ds-1l {
+  display: block;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-wrap: nowrap;
+}
+
+.ds-page-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  line-height: 1.16;
+  letter-spacing: -0.01em;
+}
+.ds-page-sub { font-size: 13px; font-weight: 400; line-height: 1.45; }
+.ds-section-title { font-family: var(--font-display); font-weight: 700; font-size: 15px; line-height: 1.2; }
+.ds-card-title { font-family: var(--font-display); font-weight: 700; font-size: 13.5px; line-height: 1.25; }
+.ds-body { font-size: 13px; font-weight: 500; line-height: 1.45; }
+.ds-meta { font-size: 12px; font-weight: 500; line-height: 1.4; }
+.ds-eyebrow {
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+/* Botão — um tamanho só (36px), inclusive o de ícone/kebab (36x36). */
+.ds-btn {
+  height: 36px;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding-inline: 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.ds-btn-icon { width: 36px; padding-inline: 0; }
+
+/* Barra de ações/filtros: rola na horizontal, nunca quebra em 2 linhas. */
+.ds-scroll-x {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.ds-scroll-x::-webkit-scrollbar { display: none; }
+.ds-fade-x {
+  -webkit-mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 28px), transparent 100%);
+}
