@@ -477,48 +477,42 @@ function Dashboard() {
       />
 
 
-      {/* Stat cards (collapsible) — apenas para o titular da conta */}
+      <GuiasTabsBar />
+
+      {/* Faixa de plano e uso — padrão do pacote: um card só, com barra */}
       {canSeePlan && (
-        <div className="mb-10">
+        <div className="mb-8">
           <button
             type="button"
             onClick={() => setStatCardsOpen((v) => !v)}
-            className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl border border-border bg-card hover:bg-secondary/40 transition-colors mb-3"
+            className="ui-card w-full p-4 text-left transition-colors hover:bg-secondary/30 mb-3"
             aria-expanded={statCardsOpen}
           >
-            <span className="text-sm font-medium text-foreground/80 flex items-center gap-2">
-              <CreditCard className="size-4 text-muted-foreground" />
-              Plano e uso ·{" "}
-              <span className="text-muted-foreground">
-                {planName} · {count}
-                {planLimit > 0 ? `/${planLimit >= 9999 ? "∞" : planLimit}` : ""}
+            <div className="flex items-center justify-between gap-3">
+              <span className="ui-card-title flex min-w-0 items-center gap-2 truncate">
+                <CreditCard className="size-4 shrink-0 text-muted-foreground" />
+                {planName}
               </span>
-            </span>
-            <ChevronDown
-              className={`size-4 text-muted-foreground transition-transform ${statCardsOpen ? "rotate-180" : ""}`}
-            />
-          </button>
-
-          {/* Barra elegante de uso de guias */}
-          {planLimit > 0 && (
-            <div className="mb-3 px-1">
-              <div className="flex items-center justify-between text-[11px] mb-1.5">
-                <span className="uppercase tracking-[0.14em] text-muted-foreground font-medium">Uso de guias</span>
-                <span className="tabular-nums text-foreground/80">
-                  <span className="font-semibold text-foreground">{count}</span>
-                  <span className="text-muted-foreground"> / {planLimit >= 9999 ? "∞" : planLimit}</span>
-                </span>
-              </div>
-              <div className="relative h-2 rounded-full bg-secondary/60 overflow-hidden ring-1 ring-inset ring-border/40">
+              <span className="ui-meta shrink-0 tabular-nums">
+                {count}
+                {planLimit > 0 ? ` / ${planLimit >= 9999 ? "∞" : planLimit}` : ""} guias
+                <ChevronDown
+                  className={`ml-1.5 inline size-3.5 transition-transform ${statCardsOpen ? "rotate-180" : ""}`}
+                />
+              </span>
+            </div>
+            {planLimit > 0 && (
+              <div className="relative mt-3 h-1.5 overflow-hidden rounded-full bg-secondary/60">
                 <div
-                  className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-accent/70 via-accent to-accent/90 shadow-[0_0_12px_-2px_oklch(from_var(--accent)_l_c_h/0.6)] transition-all duration-700 ease-out"
+                  className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-amber-400/80 to-amber-300 transition-all duration-700 ease-out"
                   style={{
                     width: `${planLimit >= 9999 ? Math.min(100, (count / Math.max(count + 10, 20)) * 100) : pct}%`,
                   }}
                 />
               </div>
-            </div>
-          )}
+            )}
+          </button>
+
 
           {statCardsOpen && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
