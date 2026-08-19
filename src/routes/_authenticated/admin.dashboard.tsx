@@ -1071,7 +1071,7 @@ function KpiCard({
             className={`w-full flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
             <Icon className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className="ds-eyebrow ds-1l min-w-0 flex-1 text-muted-foreground" title={label}>
+            <span className="ds-kpi-label ds-1l min-w-0 flex-1 text-muted-foreground" title={label}>
               {label}
             </span>
             <span className={`shrink-0 text-lg font-display tabular-nums ${valueColor}`}>
@@ -1085,7 +1085,7 @@ function KpiCard({
           >
             <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
               <span className={`size-1.5 shrink-0 rounded-full ${dotColor}`} />
-              <span className="ds-eyebrow ds-1l min-w-0 flex-1" title={label}>
+              <span className="ds-kpi-label ds-1l min-w-0 flex-1" title={label}>
                 {label}
               </span>
             </div>
@@ -1247,7 +1247,7 @@ function FreePropertiesCard({
         >
           <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
             <Home className="size-3.5 shrink-0" />
-            <span className="ds-eyebrow ds-1l min-w-0 flex-1" title="Imóveis sem ninguém">
+            <span className="ds-kpi-label ds-1l min-w-0 flex-1" title="Imóveis sem ninguém">
               Imóveis sem ninguém
             </span>
           </div>
@@ -1502,9 +1502,12 @@ function OccupancyPanel({
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className="ds-btn relative border border-border bg-background/60 text-foreground/80 transition-colors hover:bg-muted/60"
+                aria-label="Filtros"
+                className="ds-btn relative w-9 px-0 sm:w-auto sm:px-3 border border-border bg-background/60 text-foreground/80 transition-colors hover:bg-muted/60"
               >
-                <Filter className="size-3.5 opacity-70" /> Filtros
+                <Filter className="size-3.5 opacity-70" />
+                <span className="max-sm:hidden">Filtros</span>
+
 
                 {activeFilters > 0 ? (
                   <span className="ml-0.5 grid size-4 place-items-center rounded-full bg-primary text-[9px] font-semibold text-primary-foreground">
