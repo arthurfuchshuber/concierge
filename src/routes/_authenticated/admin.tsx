@@ -378,7 +378,10 @@ function AdminLayout() {
             pra não desalinhar do que a pessoa realmente pode acessar. */}
         {!awaitingAccountChoice && nav.length > 0 && (
           <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-20 flex items-stretch justify-around gap-1 border-t border-border bg-background/85 backdrop-blur-xl px-3 pt-2 pb-[max(env(safe-area-inset-bottom),8px)]">
-            {nav.map((item) => {
+            {nav
+              .filter((item) => item.label !== "Atendimento" && item.label !== "Administrativo")
+              .map((item) => {
+
               const active = item.exact ? pathname === item.to : pathname.startsWith(item.to);
               const Icon = item.icon;
               const badge = ("badge" in item ? item.badge : 0) ?? 0;
