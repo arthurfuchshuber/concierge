@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/ui-kit";
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CreditCard, ShieldCheck, User as UserIcon, Plug } from "lucide-react";
