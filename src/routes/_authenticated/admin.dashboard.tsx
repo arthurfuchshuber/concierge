@@ -63,6 +63,7 @@ import {
   type ArrivalRow,
 } from "@/lib/dashboard.functions";
 import { useImpersonation } from "@/hooks/useImpersonation";
+import { ConfirmActionDialog } from "@/components/permissions/ConfirmActionDialog";
 
 function PhoneLink({ phone, country }: { phone: string | null; country: string | null }) {
   return <PhoneActionButton phone={phone} country={country} size={12} />;
