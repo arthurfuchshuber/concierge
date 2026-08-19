@@ -1068,34 +1068,35 @@ function KpiCard({
         {compact ? (
           <button
             type="button"
-            className={`w-full flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+            className={`w-full flex items-center gap-3 rounded-[14px] border border-border bg-card px-4 py-3.5 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
-            <Icon className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className="ds-kpi-label ds-1l min-w-0 flex-1 text-muted-foreground" title={label}>
+            <Icon className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <span className="ds-kpi-label min-w-0 flex-1 text-muted-foreground" title={label}>
               {label}
             </span>
-            <span className={`shrink-0 text-lg font-display tabular-nums ${valueColor}`}>
+            <span className={`shrink-0 text-xl font-display tabular-nums ${valueColor}`}>
               {loading ? "—" : rows.length}
             </span>
           </button>
         ) : (
           <button
             type="button"
-            className={`w-full h-full min-w-0 rounded-2xl border border-border bg-card p-4 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+            className={`flex h-full w-full min-w-0 flex-col justify-between gap-3 rounded-[14px] border border-border bg-card p-4 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
-            <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
-              <span className={`size-1.5 shrink-0 rounded-full ${dotColor}`} />
-              <span className="ds-kpi-label ds-1l min-w-0 flex-1" title={label}>
+            <div className="flex min-w-0 items-start gap-2 text-muted-foreground">
+              <span className={`mt-[5px] size-1.5 shrink-0 rounded-full ${dotColor}`} />
+              <span className="ds-kpi-label min-w-0 flex-1" title={label}>
                 {label}
               </span>
             </div>
             <div
-              className={`font-display mt-3 tabular-nums leading-none ${big ? "text-[30px]" : "text-[22px]"} ${valueColor}`}
+              className={`font-display tabular-nums leading-none ${big ? "text-[34px]" : "text-[26px]"} ${valueColor}`}
             >
               {loading ? "—" : rows.length}
             </div>
           </button>
         )}
+
       </DialogTrigger>
 
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-2xl border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
