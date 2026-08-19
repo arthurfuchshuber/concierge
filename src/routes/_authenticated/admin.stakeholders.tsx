@@ -23,12 +23,15 @@ function StakeholdersPage() {
 
   return (
     <div className="min-h-screen">
-      <div className="px-6 lg:px-10 pt-8 lg:pt-10 pb-2 max-w-[1440px] mx-auto w-full">
-        <h1 className="font-display text-3xl md:text-4xl tracking-tight">Stakeholders</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Proprietários, hóspedes e prestadores da sua operação em um só lugar.
-        </p>
+      <div className="px-6 lg:px-10 pt-8 lg:pt-10 max-w-[1440px] mx-auto w-full">
+        <PageHeader
+          eyebrow="Pessoas"
+          title="Stakeholders"
+          subtitle="Proprietários, hóspedes e prestadores da sua operação em um só lugar."
+          className="mb-6"
+        />
       </div>
+
       <Tabs
         value={tab}
         onValueChange={(v) => navigate({ to: "/admin/stakeholders", search: { tab: coerceTab(v) } })}
