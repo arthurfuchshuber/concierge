@@ -1244,18 +1244,19 @@ function FreePropertiesCard({
       <DialogTrigger asChild>
         <button
           type="button"
-          className="w-full h-full min-w-0 rounded-2xl border border-border bg-card p-4 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 shadow-sm hover:shadow-md"
+          className="flex h-full w-full min-w-0 flex-col justify-between gap-3 rounded-[14px] border border-border bg-card p-4 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 shadow-sm hover:shadow-md"
         >
-          <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
-            <Home className="size-3.5 shrink-0" />
-            <span className="ds-kpi-label ds-1l min-w-0 flex-1" title="Imóveis sem ninguém">
-              Imóveis sem ninguém
+          <div className="flex min-w-0 items-start gap-2 text-muted-foreground">
+            <Home className="mt-[1px] size-3.5 shrink-0" />
+            <span className="ds-kpi-label min-w-0 flex-1" title="Imóveis livres">
+              Imóveis livres
             </span>
           </div>
-          <div className="font-display mt-3 text-[22px] leading-none tabular-nums text-foreground">
+          <div className="font-display text-[26px] leading-none tabular-nums text-foreground">
             {loading ? "—" : properties.length}
           </div>
         </button>
+
 
       </DialogTrigger>
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-2xl">
