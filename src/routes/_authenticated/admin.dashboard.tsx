@@ -922,9 +922,41 @@ function DashboardPage() {
           </div>
         </div>
       </section>
+
+      <ConfirmActionDialog
+        open={!!confirmAdvance}
+        onOpenChange={(v) => {
+          if (!v) setConfirmAdvance(null);
+        }}
+        title={confirmAdvance?.from === "checkin" ? "Antecipar check-in?" : "Antecipar checkout?"}
+        destructive={false}
+        confirmLabel="Sim, antecipar"
+        description={
+          confirmAdvance ? (
+            <>
+              {confirmAdvance.from === "checkin" ? "O check-in de " : "O checkout de "}
+              <strong className="text-foreground">{confirmAdvance.row.guestName}</strong>
+              {confirmAdvance.row.propertyName ? ` (${confirmAdvance.row.propertyName})` : ""} está previsto para{" "}
+              <strong className="text-foreground">
+                {new Date(`${confirmAdvance.row.date}T12:00:00`).toLocaleDateString("pt-BR")}
+              </strong>
+              . Confirmar agora move o card para{" "}
+              <strong className="text-foreground">
+                {confirmAdvance.from === "checkin" ? "Em Estadia" : "Em Limpeza"}
+              </strong>{" "}
+              hoje.
+            </>
+          ) : null
+        }
+        onConfirm={() => {
+          if (confirmAdvance) runAdvance(confirmAdvance.row, confirmAdvance.from);
+          setConfirmAdvance(null);
+        }}
+      />
     </div>
   );
 }
+
 
 /* ------------------------- UI Building Blocks ------------------------- */
 
