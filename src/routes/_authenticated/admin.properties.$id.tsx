@@ -1269,22 +1269,22 @@ function PropertyEditor() {
           <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-border/60">
             <Link
               to="/admin/guias"
-              className="inline-flex items-center h-10 px-4 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors"
+              className="inline-flex items-center h-9 px-4 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors"
             >
               Cancelar
             </Link>
             {isNew ? (
-              <Button className="h-10 min-w-[140px]" onClick={() => handleSave()} disabled={saving || !form.property.name.trim()}>
+              <Button className="min-w-[140px]" onClick={() => handleSave()} disabled={saving || !form.property.name.trim()}>
                 {saving ? <Loader2 className="size-4 animate-spin" /> : null}
                 <span className={saving ? "ml-1.5" : ""}>{saving ? "Criando…" : "Criar imóvel"}</span>
               </Button>
             ) : (
               <>
-                <Button variant="secondary" className="h-10 min-w-[140px]" onClick={() => handleSave()} disabled={saving || !form.property.name.trim()}>
+                <Button variant="secondary" className="min-w-[140px]" onClick={() => handleSave()} disabled={saving || !form.property.name.trim()}>
                   {saving ? <Loader2 className="size-4 animate-spin" /> : null}
                   <span className={saving ? "ml-1.5" : ""}>{saving ? "Salvando…" : "Salvar alterações"}</span>
                 </Button>
-                <Button className="h-10 min-w-[140px]" onClick={handleCreateGuide} disabled={saving || !form.property.name.trim()}>
+                <Button className="min-w-[140px]" onClick={handleCreateGuide} disabled={saving || !form.property.name.trim()}>
                   {saving ? <Loader2 className="size-4 animate-spin" /> : null}
                   <span className={saving ? "ml-1.5" : ""}>{saving ? "Criando…" : "Criar guia"}</span>
                 </Button>

@@ -36,6 +36,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ArrowLeft, ChevronDown, Lock, Pencil, Plus, Trash2, Loader2 } from "lucide-react";
+import { PageHeader, ActionBar } from "@/components/ds/PageHeader";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/taxonomia")({
@@ -79,31 +80,30 @@ function TaxonomyPage() {
 
   return (
     <div className="container mx-auto max-w-3xl p-4 sm:p-6 space-y-4">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <Link to="/admin" className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
-          <ArrowLeft className="size-3.5" /> Painel
-        </Link>
-        <div className="flex items-center gap-2">
-          {selectedCats.size >= 2 && (
-            <Button size="sm" variant="outline" onClick={() => setMergeOpen(true)}>
-              Unificar ({selectedCats.size})
-            </Button>
-          )}
-          <Button size="sm" onClick={() => setNewCatOpen(true)}>
-            <Plus className="size-3.5" /> Nova categoria
-          </Button>
-        </div>
-      </div>
+      <Link to="/admin" className="ds-meta hover:text-foreground inline-flex items-center gap-1">
+        <ArrowLeft className="size-3.5" /> Painel
+      </Link>
 
-      <div>
-        <h1 className="text-xl font-semibold">Categorias & Tags</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Organize como os pontos são classificados nos guias. Tags padrão (com cadeado) podem ser renomeadas — mas não excluídas — porque a IA usa o identificador interno para classificar pontos do Google Maps.
-        </p>
-      </div>
+      <PageHeader
+        className="mt-3"
+        title="Categorias & Tags"
+        subtitle="Organize como os pontos são classificados nos guias. Tags padrão (com cadeado) podem ser renomeadas — mas não excluídas — porque a IA usa o identificador interno para classificar pontos do Google Maps."
+        actions={
+          <>
+            {selectedCats.size >= 2 && (
+              <Button size="sm" variant="outline" onClick={() => setMergeOpen(true)}>
+                Unificar ({selectedCats.size})
+              </Button>
+            )}
+            <Button size="sm" onClick={() => setNewCatOpen(true)}>
+              <Plus className="size-3.5" /> Nova categoria
+            </Button>
+          </>
+        }
+      />
 
       {isLoading ? (
-        <div className="text-sm text-muted-foreground">Carregando…</div>
+        <div className="ds-body">Carregando…</div>
       ) : (
         <div className="space-y-2">
           {groups.map(({ cat, tags }) => {
@@ -122,9 +122,9 @@ function TaxonomyPage() {
                     className="flex-1 flex items-center gap-2 text-left min-w-0"
                   >
                     <ChevronDown className={`size-4 text-muted-foreground transition-transform ${open ? "" : "-rotate-90"}`} />
-                    <span className="text-sm font-medium truncate">{cat.label}</span>
+                    <span className="ds-card-title truncate">{cat.label}</span>
                     {cat.is_protected && <Lock className="size-3 text-muted-foreground/60 shrink-0" />}
-                    <span className="text-[11px] text-muted-foreground shrink-0">({tags.length})</span>
+                    <span className="ds-meta shrink-0">({tags.length})</span>
                   </button>
                   <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setEditCat(cat)}>
                     <Pencil className="size-3" />
@@ -136,12 +136,12 @@ function TaxonomyPage() {
                 {open && (
                   <div className="divide-y divide-border/40">
                     {tags.length === 0 ? (
-                      <div className="px-3.5 py-3 text-xs text-muted-foreground">Nenhuma tag nesta categoria.</div>
+                      <div className="px-3.5 py-3 ds-meta">Nenhuma tag nesta categoria.</div>
                     ) : (
                       tags.map((tag) => (
                         <div key={tag.id} className="px-3.5 py-2 flex items-center gap-2">
-                          <span className="text-sm flex-1 truncate">{tag.label}</span>
-                          <code className="text-[10px] text-muted-foreground/70">{tag.slug}</code>
+                          <span className="ds-body flex-1 truncate">{tag.label}</span>
+                          <code className="ds-meta text-muted-foreground/70">{tag.slug}</code>
                           {tag.is_protected && <Lock className="size-3 text-muted-foreground/60" />}
                           <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditTag(tag)}>
                             <Pencil className="size-3" />
@@ -265,11 +265,11 @@ function MergeCategoriesDialog({ categories, saving, onClose, onConfirm }: {
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-sm">
         <DialogHeader><DialogTitle>Unificar categorias</DialogTitle></DialogHeader>
-        <p className="text-xs text-muted-foreground">
+        <p className="ds-meta">
           As tags de todas as selecionadas serão movidas para uma única categoria.
           As categorias absorvidas serão excluídas (categorias padrão não podem ser absorvidas).
         </p>
-        <Label className="text-xs">Nome da categoria unificada</Label>
+        <Label className="ds-meta">Nome da categoria unificada</Label>
         <Input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={120} />
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
@@ -318,7 +318,7 @@ function EditCategoryDialog({ cat, onClose, onSave, onDelete }: {
         <DialogHeader><DialogTitle>Editar categoria</DialogTitle></DialogHeader>
         <Input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={60} />
         {cat.is_protected && (
-          <p className="text-[11px] text-muted-foreground flex gap-1.5 items-start">
+          <p className="ds-meta flex gap-1.5 items-start">
             <Lock className="size-3 mt-0.5" /> Categoria padrão — pode renomear, não pode excluir.
           </p>
         )}
@@ -359,11 +359,11 @@ function EditTagDialog({ tag, categories, onClose, onSave, onDelete }: {
         <DialogHeader><DialogTitle>Editar tag</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div>
-            <Label className="text-xs">Nome</Label>
+            <Label className="ds-meta">Nome</Label>
             <Input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={60} />
           </div>
           <div>
-            <Label className="text-xs">Categoria</Label>
+            <Label className="ds-meta">Categoria</Label>
             <Select value={catId} onValueChange={setCatId}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -371,12 +371,12 @@ function EditTagDialog({ tag, categories, onClose, onSave, onDelete }: {
               </SelectContent>
             </Select>
           </div>
-          <button type="button" onClick={() => setShowAi(!showAi)} className="text-[11px] text-muted-foreground underline">
+          <button type="button" onClick={() => setShowAi(!showAi)} className="ds-meta underline">
             {showAi ? "Ocultar" : "Mostrar"} mapeamento avançado (IA)
           </button>
           {showAi && (
             <div className="space-y-2 border-l-2 border-border pl-3">
-              <p className="text-[11px] text-muted-foreground">A IA usa esses dados para classificar pontos automaticamente nesta tag durante "Gerar com IA".</p>
+              <p className="ds-meta">A IA usa esses dados para classificar pontos automaticamente nesta tag durante "Gerar com IA".</p>
               <Input value={primary} onChange={(e) => setPrimary(e.target.value)} placeholder="Primary types (vírgula)" />
               <Input value={places} onChange={(e) => setPlaces(e.target.value)} placeholder="Places types (vírgula)" />
               <Input value={variants} onChange={(e) => setVariants(e.target.value)} placeholder="Variantes de busca (vírgula)" />
@@ -384,7 +384,7 @@ function EditTagDialog({ tag, categories, onClose, onSave, onDelete }: {
             </div>
           )}
           {tag.is_protected && (
-            <p className="text-[11px] text-muted-foreground flex gap-1.5 items-start">
+            <p className="ds-meta flex gap-1.5 items-start">
               <Lock className="size-3 mt-0.5" /> Tag padrão — pode renomear e mudar categoria; não pode excluir (a IA usa o slug <code>{tag.slug}</code>).
             </p>
           )}
@@ -437,7 +437,7 @@ function NewTagDialog({ categoryId, categoryLabel, onClose, onSave }: {
         <DialogHeader><DialogTitle>Nova tag em "{categoryLabel}"</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Nome (ex: Cachoeira)" maxLength={60} />
-          <button type="button" onClick={() => setShowAi(!showAi)} className="text-[11px] text-muted-foreground underline">
+          <button type="button" onClick={() => setShowAi(!showAi)} className="ds-meta underline">
             {showAi ? "Ocultar" : "Mostrar"} mapeamento avançado (IA)
           </button>
           {showAi && (
