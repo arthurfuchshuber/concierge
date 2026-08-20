@@ -236,17 +236,16 @@ function EquipePage() {
 
   if (access.data?.allowed !== true) {
     return (
-      <div className="p-6 max-w-3xl mx-auto">
-        <div className="glass rounded-2xl p-8 border border-border">
-          <h1 className="font-display text-2xl mb-2">Equipe</h1>
-          <p className="text-sm text-muted-foreground mb-4">
-            Convidar atendentes está disponível nos planos <strong>Business</strong> e <strong>Enterprise</strong>.
-          </p>
-          <a href="/admin/assinatura" className="inline-flex items-center rounded-xl px-4 py-2 bg-primary text-primary-foreground font-medium">
-            Fazer upgrade
-          </a>
-        </div>
-      </div>
+      <PlanLockCard
+        title="Permissões disponíveis no Business e Enterprise"
+        description="Convidar atendentes e controlar quem acessa o quê faz parte dos planos superiores."
+        bullets={[
+          "Convite e gestão de atendentes",
+          "Permissões por área e por imóvel",
+          "Permissões detalhadas por recurso",
+        ]}
+        currentPlan={planName}
+      />
     );
   }
 
@@ -259,8 +258,9 @@ function EquipePage() {
         collapsible
         value={openSection}
         onValueChange={setOpenSection}
-        className="space-y-3"
+        className="flex flex-col gap-1.5"
       >
+
         <AccordionItem
           value="push"
           className="glass rounded-2xl border border-border overflow-hidden data-[state=open]:border-primary/40"
