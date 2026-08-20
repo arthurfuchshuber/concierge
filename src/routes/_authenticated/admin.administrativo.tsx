@@ -35,11 +35,26 @@ function AdministrativoPage() {
   const canSeeBilling = isOwner || isAdmin;
   const activeTab: Tab = tab === "assinatura" && !canSeeBilling ? "perfil" : tab;
 
+  const headers: Record<Tab, { title: string; subtitle: string }> = {
+    perfil: { title: "Meu perfil", subtitle: "Seus dados pessoais e preferências nesta conta." },
+    assinatura: { title: "Assinatura", subtitle: "Plano, cobrança e pagamentos da sua conta." },
+    permissoes: {
+      title: "Permissões",
+      subtitle: "Quem tem acesso à sua conta e o que cada um pode fazer.",
+    },
+    integracoes: { title: "Integrações", subtitle: "Conexões externas e canais da sua conta." },
+  };
+
   return (
     <div className="min-h-screen">
       <div className="px-6 lg:px-10 pt-8 lg:pt-10 pb-2 max-w-[1440px] mx-auto w-full">
-        <PageHeader title="Administrativo" subtitle="Perfil, assinatura, equipe e integrações da sua conta." />
+        <PageHeader
+          eyebrow="Administrativo"
+          title={headers[activeTab].title}
+          subtitle={headers[activeTab].subtitle}
+        />
       </div>
+
       <Tabs
         value={activeTab}
         onValueChange={(v) =>
