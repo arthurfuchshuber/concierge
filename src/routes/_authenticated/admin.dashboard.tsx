@@ -606,7 +606,7 @@ function DashboardPage() {
   return (
     <div className="px-4 sm:px-6 lg:px-10 py-6 lg:py-10 max-w-[1440px] mx-auto w-full space-y-5 sm:space-y-6">
       <header>
-        <div className="flex items-center gap-2 text-[11px] sm:text-xs uppercase tracking-[0.18em] font-semibold text-primary/80">
+        <div className="flex items-center gap-2 text-[11px] sm:text-xs uppercase tracking-[0.18em] font-semibold text-accent">
           <TrendingUp className="size-3.5" />
           <span>Operação de Reservas</span>
         </div>
@@ -650,7 +650,7 @@ function DashboardPage() {
 
         {/* Em Limpeza — faixa fina logo abaixo dos pendentes (só quando houver 1+) */}
         {cleaningRows.length > 0 ? (
-          <div className="amber-mirror ring-1 ring-amber-500/25 shadow-[0_0_24px_-8px_oklch(0.83_0.16_85/0.45)]">
+          <div className="amber-mirror shadow-[0_0_24px_-8px_oklch(0.83_0.16_85/0.45)]">
             <KpiCard
               label="Em Limpeza"
               rows={cleaningRows}
@@ -733,7 +733,13 @@ function DashboardPage() {
           card de um status pro outro fica visual, não escondido atrás de um
           menu. */}
       <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
-        <div className="flex items-center gap-3">
+        {/* Título "Quadro de operação" — redundante no mobile, onde as
+            próprias abas logo abaixo (Check-ins, Checkouts...) já deixam
+            claro do que se trata; mantido no desktop, onde a visão é de
+            colunas lado a lado sem essa legenda textual. O filtro "Hoje"
+            também só aparece aqui no desktop — no mobile ele migra pra
+            dentro da linha de abas, ver abaixo. */}
+        <div className="hidden sm:flex items-center gap-3">
           <h2 className="font-display text-base sm:text-lg flex items-center gap-2">
             <LayoutGrid className="size-4.5 text-muted-foreground" /> Quadro de operação
           </h2>
@@ -752,37 +758,52 @@ function DashboardPage() {
         </div>
 
         {/* Mobile: abas roláveis, uma coluna ativa por vez — 5 colunas lado a
-            lado não cabem numa tela estreita. Cada aba já carrega a contagem
-            e usa a mesma cor da coluna correspondente no desktop, pra manter
-            a mesma linguagem visual entre os dois tamanhos de tela. */}
+            lado não cabem numa tela estreita. O item ativo usa sempre o
+            gradiente da marca (mesmo tratamento de toda aba/badge ativo do
+            app), não uma cor diferente por aba. O filtro "Hoje" fica fixo
+            no fim dessa mesma linha, não numa linha própria acima. */}
         <div className="sm:hidden space-y-3">
-          <div className="flex gap-1.5 overflow-x-auto snap-x pb-3 -mx-1 px-1">
-            {(
-              [
-                { key: "checkin", label: "Check-ins", icon: CalendarCheck, count: counts.checkin, tone: "emerald" },
-                { key: "checkout", label: "Checkouts", icon: CalendarX, count: counts.checkout, tone: "amber" },
-                { key: "stay", label: "Estadia", icon: BedDouble, count: counts.stay, tone: "sky" },
-                { key: "cleaning", label: "Limpeza", icon: Sparkles, count: counts.cleaning, tone: "violet" },
-                { key: "done", label: "Concluídos", icon: CheckCircle2, count: counts.done, tone: "zinc" },
-              ] as const
-            ).map((t) => {
-              const Icon = t.icon;
-              const active = mobileTab === t.key;
-              return (
-                <button
-                  key={t.key}
-                  type="button"
-                  onClick={() => setMobileTab(t.key)}
-                  className={`shrink-0 snap-start inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
-                    active ? KANBAN_TONE_ACTIVE[t.tone] : "border-border text-muted-foreground"
-                  }`}
-                >
-                  <Icon className="size-3.5" />
-                  {t.label}
-                  <span className="opacity-75 tabular-nums">{t.count}</span>
-                </button>
-              );
-            })}
+          <div className="flex items-center gap-1.5">
+            <div className="flex-1 min-w-0 flex gap-1.5 overflow-x-auto snap-x pb-1 -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {(
+                [
+                  { key: "checkin", label: "Check-ins", icon: CalendarCheck, count: counts.checkin },
+                  { key: "checkout", label: "Checkouts", icon: CalendarX, count: counts.checkout },
+                  { key: "stay", label: "Estadia", icon: BedDouble, count: counts.stay },
+                  { key: "cleaning", label: "Limpeza", icon: Sparkles, count: counts.cleaning },
+                  { key: "done", label: "Concluídos", icon: CheckCircle2, count: counts.done },
+                ] as const
+              ).map((t) => {
+                const Icon = t.icon;
+                const active = mobileTab === t.key;
+                return (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => setMobileTab(t.key)}
+                    className={`shrink-0 snap-start inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
+                      active
+                        ? "border-transparent bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
+                        : "border-border text-muted-foreground"
+                    }`}
+                  >
+                    <Icon className="size-3.5" />
+                    {t.label}
+                    <span className="opacity-75 tabular-nums">{t.count}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <RangeDropdown
+              value={range}
+              onChange={setRange}
+              options={[
+                ["today", "Hoje"],
+                ["tomorrow", "Amanhã"],
+                ["7d", "7 dias"],
+                ["all", "Todos"],
+              ]}
+            />
           </div>
 
           {mobileTab === "checkin" &&
@@ -1094,7 +1115,7 @@ function KpiCard({
   compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const valueTone = tone === "primary" ? "text-primary" : "text-foreground";
+  const valueTone = tone === "primary" ? "text-accent" : "text-foreground";
   const valueColor =
     shadowTone === "emerald"
       ? "text-emerald-600 dark:text-emerald-400"
@@ -1126,9 +1147,11 @@ function KpiCard({
         {compact ? (
           <button
             type="button"
-            className={`w-full flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-3.5 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+            className={`w-full flex items-center gap-2 rounded-2xl border ${
+              shadowTone === "amber" ? "border-amber-500/45" : shadowTone === "emerald" ? "border-emerald-500/45" : "border-border"
+            } bg-card px-4 py-3.5 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
-            <Icon className="size-3.5 text-muted-foreground shrink-0" />
+            <Icon className={`size-3.5 shrink-0 ${dotClass.replace("bg-", "text-")}`} />
             <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold truncate">
               {label}
             </span>
@@ -1149,7 +1172,11 @@ function KpiCard({
               )}
               <span className="truncate">{label}</span>
             </div>
-            <div className={`text-3xl sm:text-2xl font-display mt-2 tabular-nums leading-none ${valueColor}`}>
+            <div
+              className={`font-display mt-2 tabular-nums leading-none ${valueColor} ${
+                shadowTone ? "text-3xl sm:text-[28px]" : "text-xl sm:text-lg"
+              }`}
+            >
               {loading ? "—" : rows.length}
             </div>
           </button>
@@ -1163,7 +1190,7 @@ function KpiCard({
         <DialogHeader className="px-5 pt-5 pb-4">
           <div className="flex items-center gap-3">
             <div
-              className={`grid place-items-center size-10 rounded-xl ${shadowTone === "emerald" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : shadowTone === "amber" ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : "bg-primary/10 text-primary"}`}
+              className={`grid place-items-center size-10 rounded-xl ${shadowTone === "emerald" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : shadowTone === "amber" ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : "bg-accent/10 text-accent"}`}
             >
               <Icon className="size-5" />
             </div>
@@ -1199,7 +1226,7 @@ function KpiCard({
                     className="group flex items-start gap-2 rounded-xl border border-border/50 bg-background/40 px-2.5 py-2 transition hover:border-border hover:bg-secondary/40"
                   >
                     <div
-                      className={`grid place-items-center size-8 rounded-full text-xs font-semibold shrink-0 ${r.pendingFill ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"}`}
+                      className={`grid place-items-center size-8 rounded-full text-xs font-semibold shrink-0 ${r.pendingFill ? "bg-muted text-muted-foreground" : "bg-accent/10 text-accent"}`}
                     >
                       {r.pendingFill ? <UserPlus className="size-4" /> : initials}
                     </div>
@@ -1558,7 +1585,7 @@ function OccupancyPanel({
               >
                 <Filter className="size-3.5 opacity-70" /> Filtros
                 {activeFilters > 0 ? (
-                  <span className="ml-0.5 grid size-4 place-items-center rounded-full bg-primary text-[9px] font-semibold text-primary-foreground">
+                  <span className="ml-0.5 grid size-4 place-items-center rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-[9px] font-semibold text-white">
                     {activeFilters}
                   </span>
                 ) : null}
@@ -1689,7 +1716,7 @@ function OccupancyPanel({
                           >
                             <div className="min-w-0 max-w-full">
                               {p.ownerName ? (
-                                <div className="truncate text-[10px] font-semibold text-primary" title={p.ownerName}>
+                                <div className="truncate text-[10px] font-semibold text-accent" title={p.ownerName}>
                                   {p.ownerName}
                                 </div>
                               ) : null}
@@ -1792,7 +1819,7 @@ function RangeDropdown<T extends string>({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/[0.04] px-3 py-2 text-xs font-medium text-foreground/80 hover:bg-primary/[0.08] transition-colors"
+          className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/[0.04] px-3 py-1.5 text-xs font-medium text-foreground/80 hover:bg-primary/[0.08] transition-colors"
         >
           {current} <ChevronDown className="size-3.5 opacity-60" />
         </button>
@@ -1802,7 +1829,7 @@ function RangeDropdown<T extends string>({
           <DropdownMenuItem
             key={v}
             onClick={() => onChange(v)}
-            className={value === v ? "bg-primary/10 text-primary font-medium" : ""}
+            className={value === v ? "bg-accent/10 text-accent font-medium" : ""}
           >
             {label}
           </DropdownMenuItem>
@@ -2251,8 +2278,8 @@ function ArrivalCard({
             )}
           </div>
 
-          {/* Período: "dd/mm/aaaa a dd/mm/aaaa", editável inline, alinhado à esquerda */}
-          <div className="mt-1 flex items-center gap-1 text-xs tabular-nums text-foreground/80">
+          {/* Período + código da reserva na mesma linha — "17/08 → 21/08  HMSFBXFHYX" */}
+          <div className="mt-1 flex items-center gap-1.5 text-xs tabular-nums text-foreground/80 flex-wrap">
             <DateEditor
               value={row.guestCheckin}
               disabled={busy || isPendingFill}
@@ -2260,7 +2287,7 @@ function ArrivalCard({
             />
             {row.guestCheckout && (
               <>
-                <span className="text-muted-foreground">a</span>
+                <span className="text-muted-foreground">→</span>
                 <DateEditor
                   value={row.guestCheckout}
                   disabled={busy || isPendingFill}
@@ -2268,14 +2295,13 @@ function ArrivalCard({
                 />
               </>
             )}
+            {row.reservationCode && (isPendingFill || (row.guestName && row.guestName !== row.reservationCode)) && (
+              <span className="inline-flex items-center gap-0.5 rounded-md bg-secondary px-1.5 py-0.5 text-[11px] text-muted-foreground font-normal">
+                <span className="truncate max-w-[160px]">{row.reservationCode}</span>
+                <CopyButton value={row.reservationCode} size={10} className="p-0.5" />
+              </span>
+            )}
           </div>
-          {/* Código da reserva abaixo do período: sempre que houver código */}
-          {row.reservationCode && (isPendingFill || (row.guestName && row.guestName !== row.reservationCode)) && (
-            <div className="mt-0.5 inline-flex items-center gap-0.5 text-[11px] text-muted-foreground font-normal tabular-nums">
-              <span className="truncate max-w-[160px]">{row.reservationCode}</span>
-              <CopyButton value={row.reservationCode} size={10} className="p-0.5" />
-            </div>
-          )}
         </div>
       </div>
 
@@ -2461,7 +2487,7 @@ function ArrivalCard({
                   onNote(row, noteText.trim() || null);
                   setNoteOpen(false);
                 }}
-                className="text-xs px-3 py-1 rounded-md bg-primary text-primary-foreground"
+                className="text-xs px-3 py-1 rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
                 disabled={busy}
               >
                 Salvar
@@ -2662,7 +2688,7 @@ function ArrivalCard({
                 setConfirmMsg(null);
                 onMark(row);
               }}
-              className="text-xs px-3 py-2 rounded-lg bg-primary text-primary-foreground"
+              className="text-xs px-3 py-2 rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
             >
               Confirmar
             </button>
@@ -2762,7 +2788,7 @@ function TimeDropdown({
               e.stopPropagation();
               onChange(t);
             }}
-            className={`tabular-nums text-xs justify-center ${value === t ? "bg-primary/10 text-primary font-medium" : ""}`}
+            className={`tabular-nums text-xs justify-center ${value === t ? "bg-accent/10 text-accent font-medium" : ""}`}
           >
             {t}
           </DropdownMenuItem>
