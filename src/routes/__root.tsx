@@ -291,6 +291,7 @@ function RootComponent() {
 
   const content = (
     <I18nProvider>
+      <BuildBadge />
       <OfflineBanner />
       <Outlet />
       <Toaster position="top-center" />
