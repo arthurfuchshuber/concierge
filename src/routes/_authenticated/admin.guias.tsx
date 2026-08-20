@@ -18,6 +18,8 @@ import {
 } from "@/lib/properties.functions";
 import { useMyPermissions } from "@/hooks/useMyPermissions";
 import { PageHeader, SectionTitle, ActionBar } from "@/components/ds/PageHeader";
+import { EmptyState } from "@/components/ds/EmptyState";
+import { LoadingState } from "@/components/ds/LoadingState";
 
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -784,28 +786,14 @@ function Dashboard() {
       </div>
 
       {isLoading ? (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-1.5">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="ds-surface border border-border bg-card overflow-hidden">
-              <div className="aspect-[16/10] bg-secondary animate-pulse" />
-              <div className="p-4 space-y-2">
-                <div className="h-4 bg-secondary rounded animate-pulse w-2/3" />
-                <div className="h-3 bg-secondary rounded animate-pulse w-1/2" />
-              </div>
-            </div>
-          ))}
-        </div>
+        <LoadingState count={3} />
       ) : !data?.length ? (
         !canCreate || readOnly ? (
-          <div className="ds-surface border border-dashed border-border bg-card/30 p-12 text-center">
-            <div className="size-12 ds-surface bg-secondary grid place-items-center mx-auto mb-4">
-              <Search className="size-5 text-muted-foreground" />
-            </div>
-            <h3 className="ds-section-title mb-2">Nenhum guia disponível</h3>
-            <p className="text-sm text-muted-foreground max-w-md mx-auto">
-              Não há guias vinculados ao seu acesso nesta conta.
-            </p>
-          </div>
+          <EmptyState
+            icon={Home}
+            title="Nenhum guia disponível"
+            description="Não há guias vinculados ao seu acesso nesta conta."
+          />
         ) : (
           <div className="ds-surface border border-accent/20 bg-card p-6">
             <div className="flex items-center justify-between mb-5">
@@ -844,18 +832,16 @@ function Dashboard() {
           </div>
         )
       ) : filtered.length === 0 ? (
-        <div className="ds-surface border border-dashed border-border bg-card/30 p-12 text-center">
-          <div className="size-12 ds-surface bg-secondary grid place-items-center mx-auto mb-4">
-            <Search className="size-5 text-muted-foreground" />
-          </div>
-          <h3 className="ds-section-title mb-2">Nenhum guia encontrado</h3>
-          <p className="text-sm text-muted-foreground mb-5 max-w-md mx-auto">
-            Tente ajustar a busca ou limpar os filtros.
-          </p>
-          <Button variant="outline" onClick={clearFilters} className="rounded-full">
-            Limpar filtros
-          </Button>
-        </div>
+        <EmptyState
+          icon={Search}
+          title="Nenhum guia encontrado"
+          description="Tente ajustar a busca ou limpar os filtros."
+          action={
+            <Button variant="outline" onClick={clearFilters} className="rounded-full">
+              Limpar filtros
+            </Button>
+          }
+        />
       ) : view === "grid" ? (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-1.5">
           {filtered.map((p) => (

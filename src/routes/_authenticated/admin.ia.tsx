@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { BrainCircuit, BookOpen, Sparkles, Plus, Archive, Loader2, Check, X } from "lucide-react";
+import { BookOpen, Sparkles, Plus, Archive, Loader2, Check, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,6 +65,67 @@ function IaGovernancePage() {
 
 /* ---------------------------------------------------------------- */
 
+function IaTabs() {
+  const [tab, setTab] = useState<"conhecimento" | "aprendizados">("conhecimento");
+  const [openNew, setOpenNew] = useState(0);
+  const { impersonation } = useImpersonation();
+  const tenantId = impersonation?.userId;
+  const listFn = useServerFn(listLearningQueue);
+  const { data: queueData } = useQuery({
+    queryKey: ["ia-learning-queue", tenantId ?? "self"],
+    queryFn: async () => {
+      try {
+        return await listFn({ data: { status: "pending", tenantId } });
+      } catch {
+        return [] as Array<Record<string, unknown>>;
+      }
+    },
+    staleTime: 15_000,
+  });
+  const pendingCount = queueData?.length ?? 0;
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between gap-2">
+        <div className="ds-scroll-x gap-2">
+          <button
+            onClick={() => setTab("conhecimento")}
+            className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors ${
+              tab === "conhecimento"
+                ? "bg-gradient-to-r from-primary to-accent text-primary-foreground"
+                : "border border-border text-foreground hover:bg-secondary"
+            }`}
+          >
+            <BookOpen className="size-4" /> Conhecimento
+          </button>
+          <button
+            onClick={() => setTab("aprendizados")}
+            className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors ${
+              tab === "aprendizados"
+                ? "bg-gradient-to-r from-primary to-accent text-primary-foreground"
+                : "border border-border text-foreground hover:bg-secondary"
+            }`}
+          >
+            <Sparkles className="size-4" /> Aprendizados{pendingCount > 0 ? ` · ${pendingCount}` : ""}
+          </button>
+        </div>
+        {tab === "conhecimento" && (
+          <button
+            onClick={() => setOpenNew((v) => v + 1)}
+            aria-label="Novo conhecimento"
+            title="Novo conhecimento"
+            className="grid size-9 shrink-0 place-items-center rounded-full bg-gradient-to-r from-primary to-accent text-primary-foreground"
+          >
+            <Plus className="size-4" />
+          </button>
+        )}
+      </div>
+
+      {tab === "conhecimento" ? <KnowledgeTab openNewSignal={openNew} /> : <QueueTab />}
+    </div>
+  );
+}
+
 const EMPTY_KNOWLEDGE = {
   id: null as string | null,
   title: "",
@@ -74,7 +135,7 @@ const EMPTY_KNOWLEDGE = {
   priority: 3,
 };
 
-function KnowledgeTab() {
+function KnowledgeTab({ openNewSignal }: { openNewSignal: number }) {
   const qc = useQueryClient();
   const listFn = useServerFn(listOperationKnowledge);
   const saveFn = useServerFn(saveOperationKnowledge);
@@ -83,6 +144,13 @@ function KnowledgeTab() {
   const [saving, setSaving] = useState(false);
   const { impersonation } = useImpersonation();
   const tenantId = impersonation?.userId;
+  const lastSignal = useRef(openNewSignal);
+  useEffect(() => {
+    if (openNewSignal !== lastSignal.current) {
+      lastSignal.current = openNewSignal;
+      setForm({ ...EMPTY_KNOWLEDGE });
+    }
+  }, [openNewSignal]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["ia-operation-knowledge", tenantId ?? "self"],
@@ -123,12 +191,6 @@ function KnowledgeTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={() => setForm({ ...EMPTY_KNOWLEDGE })}>
-          <Plus className="size-4" /> Novo conhecimento
-        </Button>
-      </div>
-
       {isLoading ? (
         <Loading />
       ) : !data?.length ? (
@@ -138,9 +200,9 @@ function KnowledgeTab() {
           text="Registre aqui as regras da sua empresa: políticas de check-in, tom de voz, exceções e procedimentos."
         />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="ds-list grid gap-1.5 sm:grid-cols-2">
           {data.map((k) => (
-            <article key={k.id} className="rounded-2xl border border-border bg-surface p-4 space-y-2 shadow-sm">
+            <article key={k.id} className="ds-surface border border-border bg-card p-4 space-y-2 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <h3 className="ds-card-title leading-snug min-w-0 truncate">{k.title}</h3>
                 <Badge variant="secondary" className="shrink-0">
@@ -292,32 +354,33 @@ function QueueTab() {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="ds-list">
       {rows.map((c) => {
         const id = String(c.id);
         return (
-          <article key={id} className="rounded-2xl border border-border bg-surface p-4 space-y-2 shadow-sm">
+          <article key={id} className="ds-surface border border-border bg-card p-4 space-y-2 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <h3 className="ds-card-title min-w-0 truncate">{String(c.title ?? "Novo aprendizado")}</h3>
-              <div className="flex gap-2">
-                <Badge variant="secondary">{String(c.learning_type ?? "regra")}</Badge>
-                <Badge variant="outline">
-                  {Math.round(Number(c.confidence ?? 0) * 100)}% confiança
-                </Badge>
-              </div>
+              <Badge className="shrink-0 border-emerald-500/30 bg-emerald-500/10 text-emerald-600" variant="outline">
+                {Math.round(Number(c.confidence ?? 0) * 100)}% confiança
+              </Badge>
             </div>
+            <p className="ds-meta">
+              {String(c.learning_type ?? "Regra")} · abrangência sugerida: {String(c.recommended_scope ?? c.suggested_scope ?? "imóvel")}
+            </p>
             <p className="ds-card-desc whitespace-pre-wrap">
               {String(c.extracted_information ?? c.proposed_memory ?? "")}
             </p>
             {c.rationale ? <p className="ds-meta">Motivo: {String(c.rationale)}</p> : null}
-            <p className="ds-meta">
-              Abrangência sugerida: {String(c.recommended_scope ?? c.suggested_scope ?? "imóvel")}
-            </p>
             <div className="flex gap-2 pt-1">
-              <Button size="sm" disabled={busy === id} onClick={() => review(id, "approve")}>
+              <Button
+                className="flex-1 bg-gradient-to-r from-primary to-accent"
+                disabled={busy === id}
+                onClick={() => review(id, "approve")}
+              >
                 <Check className="size-4" /> Aprovar
               </Button>
-              <Button size="sm" variant="ghost" disabled={busy === id} onClick={() => review(id, "reject")}>
+              <Button className="flex-1" variant="outline" disabled={busy === id} onClick={() => review(id, "reject")}>
                 <X className="size-4" /> Descartar
               </Button>
             </div>

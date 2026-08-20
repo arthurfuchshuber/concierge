@@ -8,6 +8,8 @@ import { CopyButton } from "@/components/CopyButton";
 import { openHandoffDock } from "@/lib/handoff-dock";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { PageHeader } from "@/components/ds/PageHeader";
+import { EmptyState } from "@/components/ds/EmptyState";
+import { LoadingListState } from "@/components/ds/LoadingState";
 
 
 function fmt(iso: string) {
@@ -149,16 +151,17 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
       </div>
 
       {isLoading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" /> Carregando…
-        </div>
+        <LoadingListState count={4} />
       ) : filtered.length === 0 ? (
-        <div className="ds-surface border border-border bg-surface p-8 text-center">
-          <Users className="size-8 mx-auto mb-3 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">
-            {rows.length === 0 ? "Nenhum hóspede preencheu o formulário ainda." : "Nenhum resultado para a busca."}
-          </p>
-        </div>
+        <EmptyState
+          icon={Users}
+          title={rows.length === 0 ? "Nenhum hóspede ainda" : "Nenhum hóspede encontrado"}
+          description={
+            rows.length === 0
+              ? "Assim que um hóspede preencher o formulário de primeiro acesso, ele aparece aqui."
+              : `Nenhum resultado para "${query}". Tente outro termo.`
+          }
+        />
       ) : (
         <div className="ds-surface border border-border bg-surface overflow-hidden">
           <div className="px-4 py-3 border-b border-border/60 text-xs text-muted-foreground">

@@ -46,6 +46,8 @@ import {
 } from "./StakeholderFormDialog";
 import { PROVIDER_CATEGORIES, type StakeholderKind } from "./constants";
 import { statusLabel, statusChip, effectiveStatus } from "@/lib/stakeholder-status";
+import { EmptyState } from "@/components/ds/EmptyState";
+import { LoadingListState } from "@/components/ds/LoadingState";
 import { useImpersonation } from "@/hooks/useImpersonation";
 
 export { PROVIDER_CATEGORIES };
@@ -235,19 +237,18 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground py-16 justify-center">
-          <Loader2 className="size-4 animate-spin" /> Carregando...
-        </div>
+        <LoadingListState count={4} />
       ) : filtered.length === 0 ? (
-        <div className="ds-surface border border-dashed border-border bg-card/50 py-16 text-center">
-          <Icon className="size-8 mx-auto text-muted-foreground/60 mb-3" />
-          <p className="text-sm text-muted-foreground">
-            Nenhum {labelSingular.toLowerCase()} cadastrado ainda.
-          </p>
-          <Button onClick={openNew} variant="outline" className="rounded-full mt-4">
-            <Plus className="size-4 mr-1.5" /> Cadastrar {labelSingular.toLowerCase()}
-          </Button>
-        </div>
+        <EmptyState
+          icon={Icon}
+          title={`Nenhum ${labelSingular.toLowerCase()} cadastrado`}
+          description={q ? `Nenhum resultado para "${q}". Tente outro termo ou limpe os filtros.` : `Cadastre seu primeiro ${labelSingular.toLowerCase()} para começar.`}
+          action={
+            <Button onClick={openNew} variant="outline" className="rounded-full">
+              <Plus className="size-4 mr-1.5" /> Cadastrar {labelSingular.toLowerCase()}
+            </Button>
+          }
+        />
       ) : view === "list" ? (
         <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((r) => (
