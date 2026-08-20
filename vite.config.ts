@@ -6,6 +6,20 @@
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
+import { execSync } from "node:child_process";
+
+/** Identificação do build (hash do commit + data) — usada no selo de versão. */
+function buildInfo() {
+  let commit = "dev";
+  try {
+    commit = execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] })
+      .toString()
+      .trim();
+  } catch {
+    /* sem git disponível */
+  }
+  return { commit, builtAt: new Date().toISOString() };
+}
 
 export default defineConfig({
   tanstackStart: {
@@ -15,6 +29,9 @@ export default defineConfig({
   },
   vite: {
     plugins: [mcpPlugin()],
+    define: {
+      __BUILD_INFO__: JSON.stringify(buildInfo()),
+    },
   },
 });
 
