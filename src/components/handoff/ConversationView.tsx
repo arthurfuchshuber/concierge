@@ -1154,7 +1154,7 @@ export function ConversationList({
   onSelect: (id: string) => void;
 }) {
   return (
-    <div className="flex flex-col divide-y divide-border">
+    <div className="ds-list p-2">
       {conversations.length === 0 && (
         <div className="p-4 text-xs text-muted-foreground text-center">Nenhuma conversa.</div>
       )}
@@ -1177,7 +1177,9 @@ export function ConversationList({
         return (
           <div
             key={c.id}
-            className={`px-3 py-2.5 hover:bg-secondary transition-colors cursor-pointer ${isActive ? "bg-secondary" : ""}`}
+            className={`ds-surface border px-3 py-2.5 hover:bg-secondary transition-colors cursor-pointer ${
+              isActive ? "bg-secondary border-border" : "bg-card border-border"
+            } ${urgent ? "border-l-2 border-l-destructive" : ""}`}
             onClick={() => onSelect(c.id)}
           >
             {/* Mesma ordem do card do Kanban: proprietário → imóvel → hóspede → datas → reserva. */}
@@ -1233,8 +1235,8 @@ export function ConversationList({
               </div>
             )}
             {withWhom && (
-              <div className="text-[11px] mt-0.5 inline-flex items-center gap-1 text-primary">
-                <UserCheck className="size-3" /> Com {withWhom}
+              <div className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                <User className="size-3" /> Com {withWhom}
               </div>
             )}
             {res && res.status !== "no_ical" && (

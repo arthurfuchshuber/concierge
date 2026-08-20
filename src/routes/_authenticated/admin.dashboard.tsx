@@ -2035,7 +2035,8 @@ function BarRow({
           </div>
         </div>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+    </div>
   );
 }
 
