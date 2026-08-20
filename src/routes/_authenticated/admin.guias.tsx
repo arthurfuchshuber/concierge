@@ -17,6 +17,7 @@ import {
   countAccountGuides,
 } from "@/lib/properties.functions";
 import { useMyPermissions } from "@/hooks/useMyPermissions";
+import { PageHeader, SectionTitle, ActionBar } from "@/components/ds/PageHeader";
 
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -459,18 +460,15 @@ function Dashboard() {
       )}
 
       {/* Welcome */}
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
-        <div>
-          <h1 className="font-display text-3xl md:text-4xl leading-tight">
-            {readOnly ? `Painel de ${impersonation?.name ?? ""}` : "Guias de Imóveis e Destinos"}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1.5">
-            {readOnly
-              ? "Visualização apenas de leitura. Nenhuma alteração será salva."
-              : "Aqui está o resumo do seu painel hoje."}
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title={readOnly ? `Painel de ${impersonation?.name ?? ""}` : "Guias de Imóveis e Destinos"}
+        subtitle={
+          readOnly
+            ? "Visualização apenas de leitura. Nenhuma alteração será salva."
+            : "Aqui está o resumo do seu painel hoje."
+        }
+        className="mb-8"
+      />
 
       {/* Stat cards (collapsible) — apenas para o titular da conta */}
       {canSeePlan && (

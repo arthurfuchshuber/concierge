@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, ShieldCheck, Loader2, Users } from "lucide-react";
 import { listGuideAccessLogs } from "@/lib/guide-access-admin.functions";
+import { PageHeader } from "@/components/ds/PageHeader";
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id_/acessos")({
   component: AccessLogsPage,
@@ -45,15 +46,12 @@ function AccessLogsPage() {
         <ArrowLeft className="size-3.5" /> Voltar para o guia
       </button>
 
-      <div className="mb-6 pb-5 border-b border-border/60">
-        <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">
-          Auditoria de acessos
-        </p>
-        <h1 className="font-display text-2xl sm:text-3xl">{data?.property.name ?? "Carregando…"}</h1>
-        <p className="text-sm text-muted-foreground mt-2">
-          Registros de quem abriu o guia público (nome, código da reserva e data de check-in informados).
-        </p>
-      </div>
+      <PageHeader
+        title={data?.property.name ?? "Carregando…"}
+        subtitle="Auditoria de acessos · registros de quem abriu o guia público (nome, código da reserva e data de check-in informados)."
+      />
+
+      <div className="mt-10">
 
       {isLoading ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -114,6 +112,8 @@ function AccessLogsPage() {
           })()}
         </div>
       )}
+
+      </div>
 
       <div className="mt-6">
         <Link
