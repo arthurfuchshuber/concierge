@@ -443,7 +443,7 @@ function Dashboard() {
         </div>
       )}
       {noOwners && !readOnly && (
-        <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm flex items-center gap-3">
+        <div className="mb-6 ds-surface border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm flex items-center gap-3">
           <AlertTriangle className="size-4 text-amber-500 shrink-0" />
           <span className="flex-1">
             Cadastre ao menos um proprietário em{" "}
@@ -476,7 +476,7 @@ function Dashboard() {
           <button
             type="button"
             onClick={() => setStatCardsOpen((v) => !v)}
-            className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl border border-border bg-card hover:bg-secondary/40 transition-colors mb-3"
+            className="w-full flex items-center justify-between gap-2 px-4 py-2.5 ds-surface border border-border bg-card hover:bg-secondary/40 transition-colors mb-3"
             aria-expanded={statCardsOpen}
           >
             <span className="text-sm font-medium text-foreground/80 flex items-center gap-2">
@@ -516,7 +516,7 @@ function Dashboard() {
           {statCardsOpen && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Plano */}
-              <div className="rounded-2xl border border-border bg-card p-5">
+              <div className="ds-surface border border-border bg-card p-5">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-medium text-muted-foreground">Seu Plano</span>
                   <CreditCard className="size-4 text-muted-foreground" />
@@ -580,7 +580,7 @@ function Dashboard() {
               </div>
 
               {/* Uso */}
-              <div className="rounded-2xl border border-border bg-card p-5">
+              <div className="ds-surface border border-border bg-card p-5">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-medium text-muted-foreground">Uso de guias</span>
                   <BookOpen className="size-4 text-muted-foreground" />
@@ -613,7 +613,7 @@ function Dashboard() {
       )}
 
       {canSeePlan && sub.isPastDue && (
-        <div className="mb-6 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 flex items-start gap-3">
+        <div className="mb-6 ds-surface border border-destructive/30 bg-destructive/5 p-4 flex items-start gap-3">
           <AlertTriangle className="size-5 text-destructive shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="text-sm font-medium text-destructive">Pagamento falhou</p>
@@ -784,9 +784,9 @@ function Dashboard() {
       </div>
 
       {isLoading ? (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-1.5">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="rounded-2xl border border-border bg-card overflow-hidden">
+            <div key={i} className="ds-surface border border-border bg-card overflow-hidden">
               <div className="aspect-[16/10] bg-secondary animate-pulse" />
               <div className="p-4 space-y-2">
                 <div className="h-4 bg-secondary rounded animate-pulse w-2/3" />
@@ -797,8 +797,8 @@ function Dashboard() {
         </div>
       ) : !data?.length ? (
         !canCreate || readOnly ? (
-          <div className="rounded-2xl border border-dashed border-border bg-card/30 p-12 text-center">
-            <div className="size-12 rounded-2xl bg-secondary grid place-items-center mx-auto mb-4">
+          <div className="ds-surface border border-dashed border-border bg-card/30 p-12 text-center">
+            <div className="size-12 ds-surface bg-secondary grid place-items-center mx-auto mb-4">
               <Search className="size-5 text-muted-foreground" />
             </div>
             <h3 className="ds-section-title mb-2">Nenhum guia disponível</h3>
@@ -807,7 +807,7 @@ function Dashboard() {
             </p>
           </div>
         ) : (
-          <div className="rounded-2xl border border-accent/20 bg-card p-6">
+          <div className="ds-surface border border-accent/20 bg-card p-6">
             <div className="flex items-center justify-between mb-5">
               <div>
                 <p className="text-[10px] uppercase tracking-[0.2em] text-accent font-semibold mb-1">
@@ -844,8 +844,8 @@ function Dashboard() {
           </div>
         )
       ) : filtered.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-card/30 p-12 text-center">
-          <div className="size-12 rounded-2xl bg-secondary grid place-items-center mx-auto mb-4">
+        <div className="ds-surface border border-dashed border-border bg-card/30 p-12 text-center">
+          <div className="size-12 ds-surface bg-secondary grid place-items-center mx-auto mb-4">
             <Search className="size-5 text-muted-foreground" />
           </div>
           <h3 className="ds-section-title mb-2">Nenhum guia encontrado</h3>
@@ -857,11 +857,11 @@ function Dashboard() {
           </Button>
         </div>
       ) : view === "grid" ? (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-1.5">
           {filtered.map((p) => (
             <div
               key={p.id}
-              className="rounded-2xl border border-border bg-card overflow-hidden group hover:shadow-elevated transition-shadow"
+              className="ds-surface border border-border bg-card overflow-hidden group hover:shadow-elevated transition-shadow"
             >
               <div className="aspect-[16/10] bg-secondary relative">
                 {p.hero_image_url ? (
@@ -1091,7 +1091,7 @@ function Dashboard() {
                 return (
                   <div
                     key={gk}
-                    className="rounded-2xl border border-border/70 bg-card/60 overflow-hidden backdrop-blur-[2px]"
+                    className="ds-surface border border-border/70 bg-card/60 overflow-hidden backdrop-blur-[2px]"
                   >
                     <button
                       type="button"
@@ -1147,7 +1147,7 @@ function Dashboard() {
                               <button
                                 type="button"
                                 onClick={() => navigate({ to: "/admin/properties/$id", params: { id: p.id } })}
-                                className="size-12 rounded-xl bg-secondary overflow-hidden shrink-0 ring-1 ring-border/60 hover:ring-foreground/30 transition"
+                                className="size-12 ds-surface bg-secondary overflow-hidden shrink-0 ring-1 ring-border/60 hover:ring-foreground/30 transition"
                                 aria-label={`Editar ${p.name}`}
                               >
                                 {p.hero_image_url ? (
@@ -1352,7 +1352,7 @@ function Dashboard() {
                 <button
                   type="button"
                   onClick={() => setPreviewMode("mobile")}
-                  className="group flex flex-col items-center gap-2 rounded-2xl border border-border bg-card hover:border-foreground/40 hover:bg-secondary/40 transition-colors p-5"
+                  className="group flex flex-col items-center gap-2 ds-surface border border-border bg-card hover:border-foreground/40 hover:bg-secondary/40 transition-colors p-5"
                 >
                   <div className="w-10 h-14 rounded-md border-2 border-foreground/70 group-hover:border-foreground transition-colors" />
                   <span className="text-sm font-medium">Mobile</span>
@@ -1361,7 +1361,7 @@ function Dashboard() {
                 <button
                   type="button"
                   onClick={() => setPreviewMode("desktop")}
-                  className="group flex flex-col items-center gap-2 rounded-2xl border border-border bg-card hover:border-foreground/40 hover:bg-secondary/40 transition-colors p-5"
+                  className="group flex flex-col items-center gap-2 ds-surface border border-border bg-card hover:border-foreground/40 hover:bg-secondary/40 transition-colors p-5"
                 >
                   <div className="w-14 h-10 rounded-md border-2 border-foreground/70 group-hover:border-foreground transition-colors" />
                   <span className="text-sm font-medium">Navegador</span>
@@ -1378,7 +1378,7 @@ function Dashboard() {
             </div>
           ) : (
             <div
-              className={`flex flex-col ${previewMode === "desktop" ? "h-[85vh] max-h-[820px] rounded-2xl" : "h-[85vh] max-h-[820px] rounded-[2rem]"} overflow-hidden bg-background shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)] ring-1 ring-black/10`}
+              className={`flex flex-col ${previewMode === "desktop" ? "h-[85vh] max-h-[820px] ds-surface" : "h-[85vh] max-h-[820px] rounded-[2rem]"} overflow-hidden bg-background shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)] ring-1 ring-black/10`}
             >
               <div className="flex items-center justify-between gap-3 px-4 h-9 bg-background/95 backdrop-blur border-b border-border/40 shrink-0">
                 <div className="flex items-center gap-2 min-w-0">

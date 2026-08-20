@@ -239,7 +239,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
           <Loader2 className="size-4 animate-spin" /> Carregando...
         </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-card/50 py-16 text-center">
+        <div className="ds-surface border border-dashed border-border bg-card/50 py-16 text-center">
           <Icon className="size-8 mx-auto text-muted-foreground/60 mb-3" />
           <p className="text-sm text-muted-foreground">
             Nenhum {labelSingular.toLowerCase()} cadastrado ainda.
@@ -249,7 +249,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
           </Button>
         </div>
       ) : view === "list" ? (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((r) => (
             <StakeholderCard
               key={r.id}
@@ -267,12 +267,12 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
           {kanbanColumns.map((col) => {
             const items = filtered.filter(col.test);
             return (
-              <div key={col.key} className="rounded-2xl border border-border bg-card/40 p-3">
+              <div key={col.key} className="ds-surface border border-border bg-card/40 p-3">
                 <div className="flex items-center justify-between mb-3 px-1">
                   <span className="ds-body">{col.label}</span>
                   <span className="ds-meta tabular-nums">{items.length}</span>
                 </div>
-                <div className="space-y-2.5">
+                <div className="space-y-1.5">
                   {items.map((r) => (
                     <StakeholderCard
                       key={r.id}
@@ -377,7 +377,7 @@ function StakeholderCard({
   return (
     <div
       onClick={onOpen}
-      className="group cursor-pointer rounded-2xl border border-border bg-card p-4 hover:border-primary/40 hover:shadow-[0_8px_30px_-12px_hsl(var(--primary)/0.35)] transition-all"
+      className="group cursor-pointer ds-surface border border-border bg-card p-4 hover:border-primary/40 hover:shadow-[0_8px_30px_-12px_hsl(var(--primary)/0.35)] transition-all"
     >
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
         <div className="min-w-0">

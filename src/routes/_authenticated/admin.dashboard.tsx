@@ -161,7 +161,7 @@ function InfoHint({ title, children }: { title: string; children: React.ReactNod
         side="bottom"
         align="end"
         sideOffset={6}
-        className="w-64 max-w-[calc(100vw-2rem)] rounded-xl border-border/70 bg-popover/95 backdrop-blur p-3 text-xs leading-relaxed shadow-xl"
+        className="w-64 max-w-[calc(100vw-2rem)] rounded-lg border-border/70 bg-popover/95 backdrop-blur p-3 text-xs leading-relaxed shadow-xl"
       >
         <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">{title}</div>
         <div className="text-foreground/90">{children}</div>
@@ -592,7 +592,7 @@ function DashboardPage() {
   function renderEngagementPanel(wrapperClassName: string) {
     if (counts.checkin === 0) return null;
     return (
-      <section className={`rounded-2xl border border-border bg-card p-4 sm:p-5 ${wrapperClassName}`}>
+      <section className={`rounded-lg border border-border bg-card p-4 sm:p-5 ${wrapperClassName}`}>
         <EngagementBars
           loading={engQ.isLoading}
           checkins={engQ.data?.checkinsInPeriod ?? 0}
@@ -621,7 +621,7 @@ function DashboardPage() {
 
       {/* KPIs */}
       <section className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-1.5">
           <KpiCard
             label="Check-ins Pendentes"
             rows={checkinPendingRows}
@@ -669,7 +669,7 @@ function DashboardPage() {
           </div>
         ) : null}
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5">
           <KpiCard
             label="Check-ins amanhã"
             rows={tomorrowCheckinPendingRows}
@@ -734,7 +734,7 @@ function DashboardPage() {
           agora todos os status ficam visíveis ao mesmo tempo, e "puxar" um
           card de um status pro outro fica visual, não escondido atrás de um
           menu. */}
-      <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
+      <section className="rounded-lg border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
         {/* Título "Quadro de operação" — redundante no mobile, onde as
             próprias abas logo abaixo (Check-ins, Checkouts...) já deixam
             claro do que se trata; mantido no desktop, onde a visão é de
@@ -1055,8 +1055,8 @@ function KanbanColumn({
   }, [count, children]);
 
   return (
-    <div className="flex flex-col min-w-0 rounded-2xl border border-border/70">
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border/60 shrink-0 bg-background/40 rounded-t-2xl">
+    <div className="flex flex-col min-w-0 rounded-lg border border-border/70">
+      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border/60 shrink-0 bg-background/40 rounded-t-lg">
         <div className={`size-7 rounded-lg grid place-items-center ring-1 shrink-0 ${KANBAN_TONE[tone]}`}>
           <Icon className="size-3.5" />
         </div>
@@ -1067,7 +1067,7 @@ function KanbanColumn({
         ref={bodyRef}
         onScroll={onScroll}
         style={maxHeight !== undefined ? { maxHeight } : undefined}
-        className="flex-1 min-h-0 overflow-y-auto snap-y snap-mandatory p-2.5 space-y-2.5"
+        className="flex-1 min-h-0 overflow-y-auto snap-y snap-mandatory p-2.5 space-y-1.5"
       >
         {children}
       </div>
@@ -1149,7 +1149,7 @@ function KpiCard({
         {compact ? (
           <button
             type="button"
-            className={`w-full flex items-center gap-2 rounded-2xl border ${
+            className={`w-full flex items-center gap-2 rounded-lg border ${
               shadowTone === "amber" ? "border-amber-500/45" : shadowTone === "emerald" ? "border-emerald-500/45" : "border-border"
             } bg-card px-4 py-3.5 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
@@ -1164,7 +1164,7 @@ function KpiCard({
         ) : (
           <button
             type="button"
-            className={`w-full h-full rounded-2xl border border-border bg-card px-4 py-4 sm:px-4 sm:py-4 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+            className={`w-full h-full rounded-lg border border-border bg-card px-4 py-4 sm:px-4 sm:py-4 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
             <div className="flex items-center gap-2 ds-eyebrow">
               {shadowTone ? (
@@ -1185,7 +1185,7 @@ function KpiCard({
         )}
       </DialogTrigger>
 
-      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-2xl border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
+      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-lg border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
         <div
           className={`absolute inset-x-0 top-0 h-px ${shadowTone === "emerald" ? "bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" : shadowTone === "amber" ? "bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" : "bg-gradient-to-r from-transparent via-primary/50 to-transparent"}`}
         />
@@ -1225,7 +1225,7 @@ function KpiCard({
                 return (
                   <li
                     key={r.logId}
-                    className="group flex items-start gap-2 rounded-xl border border-border/50 bg-background/40 px-2.5 py-2 transition hover:border-border hover:bg-secondary/40"
+                    className="group flex items-start gap-2 rounded-lg border border-border/50 bg-background/40 px-2.5 py-2 transition hover:border-border hover:bg-secondary/40"
                   >
                     <div
                       className={`grid place-items-center size-8 rounded-full text-xs font-semibold shrink-0 ${r.pendingFill ? "bg-muted text-muted-foreground" : "bg-accent/10 text-accent"}`}
@@ -1330,7 +1330,7 @@ function FreePropertiesCard({
       <DialogTrigger asChild>
         <button
           type="button"
-          className="w-full h-full rounded-2xl border border-border bg-card px-4 py-4 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 shadow-[0_10px_28px_-22px_rgba(0,0,0,0.9)]"
+          className="w-full h-full rounded-lg border border-border bg-card px-4 py-4 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 shadow-[0_10px_28px_-22px_rgba(0,0,0,0.9)]"
         >
           <div className="flex items-center gap-2 ds-eyebrow">
             <Home className="size-3.5 shrink-0" /> <span className="truncate">Imóveis livres</span>
@@ -1341,7 +1341,7 @@ function FreePropertiesCard({
         </button>
 
       </DialogTrigger>
-      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-2xl">
+      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-lg">
         <DialogHeader className="px-5 pt-5 pb-3">
           <DialogTitle className="text-base font-display">Imóveis sem ninguém hoje</DialogTitle>
         </DialogHeader>
@@ -1567,7 +1567,7 @@ function OccupancyPanel({
       collapsible
       value={openAgenda}
       onValueChange={setOpenAgenda}
-      className="rounded-2xl border border-border bg-card shadow-sm"
+      className="rounded-lg border border-border bg-card shadow-sm"
     >
       <AccordionItem value="agenda" className="border-0">
         <div className="flex w-full items-center gap-2 px-4 sm:px-5 py-4">
@@ -1994,7 +1994,7 @@ function BarRow({
           {bar}
         </button>
       </DialogTrigger>
-      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-2xl border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
+      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-lg border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" />
         <DialogHeader className="px-5 pt-5 pb-4">
           <div className="flex items-center gap-3">
@@ -2077,7 +2077,7 @@ function ArrivalGroup({
   // se espremerem em várias colunas dentro de uma coluna de ~220px.
   if (rows.length === 0) return null;
   return (
-    <div className={`flex flex-col gap-3 ${muted ? "opacity-70" : ""}`}>
+    <div className={`flex flex-col gap-1.5 ${muted ? "opacity-70" : ""}`}>
       {rows.map((r) => (
         <ArrivalCard
           key={r.logId}

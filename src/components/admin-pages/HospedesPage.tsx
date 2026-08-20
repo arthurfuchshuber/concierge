@@ -153,14 +153,14 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
           <Loader2 className="size-4 animate-spin" /> Carregando…
         </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-xl border border-border bg-surface p-8 text-center">
+        <div className="ds-surface border border-border bg-surface p-8 text-center">
           <Users className="size-8 mx-auto mb-3 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
             {rows.length === 0 ? "Nenhum hóspede preencheu o formulário ainda." : "Nenhum resultado para a busca."}
           </p>
         </div>
       ) : (
-        <div className="rounded-xl border border-border bg-surface overflow-hidden">
+        <div className="ds-surface border border-border bg-surface overflow-hidden">
           <div className="px-4 py-3 border-b border-border/60 text-xs text-muted-foreground">
             <span className="ds-meta">{filtered.length} {filtered.length === 1 ? "registro" : "registros"}</span>
           </div>
@@ -284,7 +284,7 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
 
       {sendOpen && (
         <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm grid place-items-center p-4" onClick={() => setSendOpen(null)}>
-          <div className="w-full max-w-md rounded-2xl bg-card border border-border p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-md ds-surface bg-card border border-border p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-display text-lg mb-1">Enviar para portaria</h3>
             <p className="text-xs text-muted-foreground mb-4">
               Hóspede <span className="text-foreground font-medium">{sendOpen.guest_name}</span> · Check-in {fmtDate(sendOpen.checkin_date)}
