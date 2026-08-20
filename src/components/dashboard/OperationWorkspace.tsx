@@ -579,22 +579,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // verdade — os dois pontos de chamada leem o mesmo engQ/range do
   // componente pai, então nunca ficam dessincronizados entre si.
   function renderEngagementPanel(wrapperClassName: string) {
-    // O bloco de engajamento é fixo no layout (como no mockup): mesmo sem
-    // check-ins no período ele aparece, com um recado curto no lugar das
-    // barras — some só se a consulta falhar de vez.
+    // Só aparece quando existe informação de visualização; sem dados, some.
     const hasData =
       (engQ.data?.checkinsInPeriod ?? 0) > 0 || (engQ.data?.checkinsWithCodes ?? 0) > 0;
-    if (!engQ.isLoading && !hasData) {
-      return (
-        <section className={`rounded-[0.3rem] bg-card p-3 sm:p-4 ${wrapperClassName}`}>
-          <div className="ds-eyebrow text-muted-foreground">Engajamento</div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Sem check-ins no período — as barras de instruções e senha aparecem assim que
-            houver chegadas.
-          </p>
-        </section>
-      );
-    }
+    if (!engQ.isLoading && !hasData) return null;
 
     return (
       <section className={`rounded-[0.3rem] bg-card p-4 sm:p-5 ${wrapperClassName}`}>
@@ -776,7 +764,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                         key={t.key}
                         type="button"
                         onClick={() => setMobileTab(t.key)}
-                        className={`h-8 shrink-0 snap-start inline-flex items-center gap-1.5 rounded-[0.3rem] border px-3 text-xs font-medium whitespace-nowrap transition-colors ${
+                        className={`h-9 box-border shrink-0 snap-start inline-flex items-center gap-1.5 rounded-lg border px-3 text-xs font-medium leading-none whitespace-nowrap transition-colors ${
                           active
                             ? "border-transparent bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
                             : "border-border text-muted-foreground"
@@ -1877,7 +1865,7 @@ function RangeDropdown<T extends string>({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/[0.04] px-3 py-1.5 text-xs font-medium text-foreground/80 hover:bg-primary/[0.08] transition-colors"
+          className="h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/[0.04] px-3 text-xs font-medium leading-none text-foreground/80 hover:bg-primary/[0.08] transition-colors"
         >
           {current} <ChevronDown className="size-3.5 opacity-60" />
         </button>
