@@ -250,7 +250,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
           }
         />
       ) : view === "list" ? (
-        <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="ds-list sm:grid sm:gap-1.5 sm:grid-cols-2 xl:grid-cols-3 sm:space-y-0">
           {filtered.map((r) => (
             <StakeholderCard
               key={r.id}
@@ -375,65 +375,83 @@ function StakeholderCard({
     kind === "provider"
       ? PROVIDER_CATEGORIES.find((c) => c.value === row.category)?.label ?? "Outros"
       : null;
+  const cityUf = [row.city, row.state].filter(Boolean).join("/");
   return (
     <div
       onClick={onOpen}
       className="group cursor-pointer ds-surface border border-border bg-card p-4 hover:border-primary/40 hover:shadow-[0_8px_30px_-12px_hsl(var(--primary)/0.35)] transition-all"
     >
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-        <div className="min-w-0">
-          <p className="ds-card-title truncate leading-tight">{row.trade_name || row.name}</p>
-          <p className="ds-meta truncate mt-0.5">
-            {categoryLabel ? `${categoryLabel} · ` : ""}
-            {row.city || row.email || row.phone || "Sem dados de contato"}
-          </p>
-        </div>
+        <p className="ds-card-title truncate leading-tight min-w-0">{row.trade_name || row.name}</p>
         <div className="flex items-center gap-1 shrink-0">
           {pending > 0 && (
             <span className="rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[10px] px-2 py-0.5 tabular-nums">
               {pending}
             </span>
           )}
-          <span className={`rounded-full text-[10px] px-2 py-0.5 ${statusChip(effectiveStatus(row.status, row.status_changed_at))}`}>
+          {categoryLabel && (
+            <span className="rounded-full bg-accent/10 text-accent text-[10px] px-2 py-0.5 whitespace-nowrap">
+              {categoryLabel}
+            </span>
+          )}
+          <span className={`rounded-full text-[10px] px-2 py-0.5 whitespace-nowrap ${statusChip(effectiveStatus(row.status, row.status_changed_at))}`}>
             {statusLabel(effectiveStatus(row.status, row.status_changed_at))}
           </span>
         </div>
       </div>
 
       {!compact && (
-        <div className="mt-3 space-y-1 ds-meta">
+        <div className="mt-3 grid grid-cols-2 gap-3">
           {row.email && (
-            <p className="flex items-center gap-1.5 truncate">
-              <Mail className="size-3 shrink-0" /> {row.email}
-            </p>
+            <div className="min-w-0">
+              <p className="ds-eyebrow text-muted-foreground">Email</p>
+              <p className="ds-body truncate mt-0.5 flex items-center gap-1.5">
+                <Mail className="size-3 shrink-0 text-muted-foreground" /> {row.email}
+              </p>
+            </div>
           )}
           {row.phone && (
-            <p className="flex items-center gap-1.5 truncate">
-              <Phone className="size-3 shrink-0" /> {row.phone}
-            </p>
+            <div className="min-w-0">
+              <p className="ds-eyebrow text-muted-foreground">Telefone</p>
+              <p className="ds-body truncate mt-0.5 flex items-center gap-1.5">
+                <Phone className="size-3 shrink-0 text-muted-foreground" /> {row.phone}
+              </p>
+            </div>
           )}
-          {(row.city || row.state) && (
-            <p className="flex items-center gap-1.5 truncate">
-              <MapPin className="size-3 shrink-0" /> {[row.city, row.state].filter(Boolean).join(" / ")}
-            </p>
+          {cityUf && (
+            <div className="min-w-0">
+              <p className="ds-eyebrow text-muted-foreground">Cidade/UF</p>
+              <p className="ds-body truncate mt-0.5 flex items-center gap-1.5">
+                <MapPin className="size-3 shrink-0 text-muted-foreground" /> {cityUf}
+              </p>
+            </div>
           )}
         </div>
       )}
 
-      <div className="mt-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="mt-3 flex items-center gap-1.5">
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onEdit(); }}
-          className="text-[11px] px-2 py-1 rounded-md hover:bg-secondary flex items-center gap-1 text-muted-foreground"
+          className="h-9 flex-1 inline-flex items-center justify-center gap-1.5 rounded-full border border-border text-sm font-medium hover:bg-secondary transition-colors"
         >
-          <Pencil className="size-3" /> Editar
+          <Pencil className="size-3.5" /> Editar
+        </button>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onOpen(); }}
+          className="h-9 flex-1 inline-flex items-center justify-center gap-1.5 rounded-full border border-border text-sm font-medium hover:bg-secondary transition-colors"
+        >
+          Ver detalhes
         </button>
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="text-[11px] px-2 py-1 rounded-md hover:bg-destructive/10 hover:text-destructive flex items-center gap-1 text-muted-foreground"
+          aria-label="Excluir"
+          title="Excluir"
+          className="size-9 shrink-0 inline-flex items-center justify-center rounded-full border border-border hover:bg-destructive/10 hover:text-destructive transition-colors"
         >
-          <Trash2 className="size-3" /> Excluir
+          <Trash2 className="size-3.5" />
         </button>
       </div>
     </div>
