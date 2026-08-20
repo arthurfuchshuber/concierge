@@ -90,7 +90,7 @@ function AdministrativoPage() {
             </TabsContent>
           )}
           <TabsContent value="permissoes" className="mt-0">
-            <PermissionCenterPage />
+            <EquipePage />
           </TabsContent>
 
           <TabsContent value="integracoes" className="mt-0">
