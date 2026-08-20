@@ -575,6 +575,13 @@ dd {
   font-weight: 700;
   font-size: 13.5px;
   line-height: 1.3;
+  /* Títulos de card nunca quebram linha: sempre reticências. */
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 @utility ds-body {
   font-family: var(--font-sans);
