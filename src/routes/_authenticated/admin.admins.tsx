@@ -18,6 +18,7 @@ import { Shield, ShieldCheck, Trash2, Loader2, UserPlus, Mail, Activity, Search,
 import { toast } from "sonner";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
 import { PermissionCenterPage } from "@/components/admin-pages/PermissionCenterPage";
+import { PageHeader } from "@/components/ds/PageHeader";
 
 
 export const Route = createFileRoute("/_authenticated/admin/admins")({
@@ -115,15 +116,16 @@ function AdminsPage() {
 
   return (
     <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-[1440px] mx-auto w-full">
-      <div className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-accent font-semibold mb-2">
-        <Shield className="size-3" /> Admin SaaS
-      </div>
-      <h1 className="font-display text-3xl md:text-4xl flex items-center gap-2.5">
-        <ShieldCheck className="size-7 text-muted-foreground" /> Administradores
-      </h1>
-      <p className="text-sm text-muted-foreground mt-1.5">
-        Gerencie quem tem acesso de administrador e veja tudo o que cada pessoa fez no SaaS.
-      </p>
+      <PageHeader
+        title={<span className="inline-flex items-center gap-2.5"><ShieldCheck className="size-6 text-muted-foreground" /> Administradores</span>}
+        subtitle={
+          <>
+            <span className="ds-eyebrow inline-flex items-center gap-1.5 text-accent mb-1"><Shield className="size-3" /> Admin SaaS</span>
+            <br />
+            Gerencie quem tem acesso de administrador e veja tudo o que cada pessoa fez no SaaS.
+          </>
+        }
+      />
 
       <Tabs value={tab} onValueChange={setTab} className="mt-8">
         <TabsList>
@@ -134,7 +136,7 @@ function AdminsPage() {
         </TabsList>
 
         <TabsContent value="permissoes" className="mt-6">
-          <div className="rounded-xl border border-border/60 bg-muted/30 p-3 text-xs text-muted-foreground mb-4">
+          <div className="rounded-xl border border-border/60 bg-muted/30 p-3 ds-meta mb-4">
             Acessos dos membros do SaaS. Para permissões dentro de uma conta de cliente, use
             Administrativo → Permissões na conta correspondente.
           </div>
@@ -148,7 +150,7 @@ function AdminsPage() {
             className="p-5 rounded-2xl border border-border bg-surface flex gap-3 items-end flex-wrap"
           >
             <div className="flex-1 min-w-[240px]">
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+              <label className="ds-meta mb-1.5 block">
                 Email do convidado (se ainda não tiver conta, enviamos um convite)
               </label>
               <Input
@@ -167,13 +169,13 @@ function AdminsPage() {
 
           <div className="rounded-2xl border border-border bg-surface overflow-hidden">
             <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-              <h2 className="font-medium text-sm">Administradores atuais</h2>
-              <span className="text-xs text-muted-foreground">{admins.length} no total</span>
+              <h2 className="ds-card-title">Administradores atuais</h2>
+              <span className="ds-meta">{admins.length} no total</span>
             </div>
             {query.isLoading ? (
               <div className="p-8 grid place-items-center text-muted-foreground"><Loader2 className="size-5 animate-spin" /></div>
             ) : admins.length === 0 ? (
-              <div className="p-8 text-center text-sm text-muted-foreground">Nenhum admin.</div>
+              <div className="p-8 text-center ds-body">Nenhum admin.</div>
             ) : (
               <ul className="divide-y divide-border">
                 {admins.map((a) => {
@@ -185,11 +187,11 @@ function AdminsPage() {
                         {(a.email ?? "?").slice(0, 2).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate">{a.fullName ?? a.email ?? "—"}</div>
-                        <div className="text-xs text-muted-foreground truncate">{a.email ?? a.userId}</div>
+                        <div className="ds-card-title truncate">{a.fullName ?? a.email ?? "—"}</div>
+                        <div className="ds-meta truncate">{a.email ?? a.userId}</div>
                       </div>
                       {isSelf ? (
-                        <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">Você</span>
+                        <span className="ds-eyebrow">Você</span>
                       ) : (
                         <Button
                           variant="ghost"
@@ -199,7 +201,7 @@ function AdminsPage() {
                           className="text-destructive hover:text-destructive"
                         >
                           {revokingId === a.userId ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-                          Revogar
+                          <span className="hidden sm:inline">Revogar</span>
                         </Button>
                       )}
                     </li>
@@ -213,21 +215,21 @@ function AdminsPage() {
         <TabsContent value="invites" className="mt-6">
           <div className="rounded-2xl border border-border bg-surface overflow-hidden">
             <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-              <h2 className="font-medium text-sm">Convites pendentes</h2>
-              <span className="text-xs text-muted-foreground">{invites.length} no total</span>
+              <h2 className="ds-card-title">Convites pendentes</h2>
+              <span className="ds-meta">{invites.length} no total</span>
             </div>
             {invitesQuery.isLoading ? (
               <div className="p-8 grid place-items-center text-muted-foreground"><Loader2 className="size-5 animate-spin" /></div>
             ) : invites.length === 0 ? (
-              <div className="p-8 text-center text-sm text-muted-foreground">Nenhum convite pendente.</div>
+              <div className="p-8 text-center ds-body">Nenhum convite pendente.</div>
             ) : (
               <ul className="divide-y divide-border">
                 {invites.map((inv) => (
                   <li key={inv.id} className="px-5 py-4 flex items-center gap-4">
                     <Mail className="size-5 text-muted-foreground shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{inv.email}</div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="ds-card-title truncate">{inv.email}</div>
+                      <div className="ds-meta">
                         Convidado{inv.invitedByEmail ? ` por ${inv.invitedByEmail}` : ""}
                         {inv.createdAt ? ` • ${new Date(inv.createdAt).toLocaleString("pt-BR")}` : ""}
                       </div>
@@ -240,7 +242,7 @@ function AdminsPage() {
                       className="text-destructive hover:text-destructive"
                     >
                       {revokingInvite === inv.id ? <Loader2 className="size-4 animate-spin" /> : <XCircle className="size-4" />}
-                      Cancelar
+                      <span className="hidden sm:inline">Cancelar</span>
                     </Button>
                   </li>
                 ))}
@@ -267,13 +269,13 @@ function AdminsPage() {
 
           <div className="rounded-2xl border border-border bg-surface overflow-hidden">
             <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-              <h2 className="font-medium text-sm">Atividades recentes</h2>
-              <span className="text-xs text-muted-foreground">{logs.length} registros</span>
+              <h2 className="ds-card-title">Atividades recentes</h2>
+              <span className="ds-meta">{logs.length} registros</span>
             </div>
             {logsQuery.isLoading ? (
               <div className="p-8 grid place-items-center text-muted-foreground"><Loader2 className="size-5 animate-spin" /></div>
             ) : logs.length === 0 ? (
-              <div className="p-8 text-center text-sm text-muted-foreground">Nenhum registro encontrado.</div>
+              <div className="p-8 text-center ds-body">Nenhum registro encontrado.</div>
             ) : (
               <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
                 <table className="w-full text-sm">
