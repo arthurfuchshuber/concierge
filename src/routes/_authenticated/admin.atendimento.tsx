@@ -8,7 +8,7 @@ import {
   getAtendimentoAccess,
 } from "@/lib/handoff.functions";
 import { ConversationList, ConversationView, useMyUserId } from "@/components/handoff/ConversationView";
-import { Headphones, MessagesSquare, Search } from "lucide-react";
+import { Headphones, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { QUEUES, type Queue } from "@/lib/handoff-queues";
 import { useImpersonation } from "@/hooks/useImpersonation";
@@ -114,67 +114,48 @@ function AtendimentoPage() {
 
   return (
     <div className="h-[calc(100vh-0px)] lg:h-screen flex flex-col">
-      <header className="border-b border-border px-6 lg:px-10 py-8 lg:py-10 shrink-0">
+      <header className="border-b border-border px-6 lg:px-10 py-8 lg:py-10 shrink-0 space-y-4">
         <PageHeader
-          title={
-            <span className="inline-flex items-center gap-2">
-              <Headphones className="size-6 lg:size-7 text-muted-foreground" />
-              Central de Atendimento
-            </span>
-          }
-          subtitle="Converse com hóspedes que precisam de ajuda humana e acompanhe as filas de atendimento."
+          eyebrow={<span className="text-accent">Central de atendimento</span>}
+          title="Atendimento"
+          subtitle="Hóspedes que precisam de ajuda humana."
         />
+        <div className="ds-scroll-x gap-2">
+          {QUEUES.map((q) => {
+            const Icon = q.icon;
+            const active = queue === q.key;
+            const primary = q.key === "all_active";
+            return (
+              <button
+                key={q.key}
+                onClick={() => setQueue(q.key)}
+                className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors ${
+                  active
+                    ? primary
+                      ? "bg-gradient-to-r from-primary to-accent text-primary-foreground"
+                      : "bg-primary text-primary-foreground"
+                    : "border border-border text-foreground hover:bg-secondary"
+                }`}
+              >
+                <Icon className="size-4" />
+                {q.label}
+                {q.key === queue ? ` · ${filteredConversations.length}` : ""}
+              </button>
+            );
+          })}
+        </div>
       </header>
       <div className="flex-1 min-h-0 flex px-6 lg:px-10">
-        {/* Filas */}
-        <aside className="w-56 border-r border-border shrink-0 hidden md:flex flex-col">
-          <nav className="p-2 space-y-1">
-            {QUEUES.map((q) => {
-              const active = queue === q.key;
-              const Icon = q.icon;
-              return (
-                <button
-                  key={q.key}
-                  onClick={() => setQueue(q.key)}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${active ? "bg-primary text-primary-foreground font-medium" : "hover:bg-secondary"}`}
-                >
-                  <Icon className="size-4" />
-                  {q.label}
-                </button>
-              );
-            })}
-          </nav>
-        </aside>
-
         {/* Lista */}
         <div className="w-full md:w-80 border-r border-border overflow-y-auto shrink-0">
-          <div className="md:hidden p-2 border-b border-border">
-            <div className="flex w-full items-center gap-1 overflow-x-auto whitespace-nowrap rounded-xl border border-border bg-muted/40 p-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-              {QUEUES.map((q) => {
-                const Icon = q.icon;
-                const active = queue === q.key;
-                return (
-                  <button
-                    key={q.key}
-                    onClick={() => setQueue(q.key)}
-                    className={`inline-flex flex-1 min-w-fit items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[11px] font-medium transition-all ${
-                      active ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <Icon className="size-3" /> {q.short}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
           <div className="p-2 border-b border-border">
             <div className="relative">
               <Search className="size-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Nome, guia, telefone, check-in, mensagem…"
-                className="h-8 pl-8 text-xs"
+                placeholder="Nome, guia, telefone, check-in…"
+                className="h-9 rounded-full pl-8 text-sm"
               />
             </div>
           </div>

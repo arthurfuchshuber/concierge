@@ -55,7 +55,7 @@ function ConversationsPage() {
       {isLoading ? (
         <div className="flex items-center gap-2 ds-body"><Loader2 className="size-4 animate-spin" /> Carregando…</div>
       ) : !data || data.conversations.length === 0 ? (
-        <div className="rounded-xl border border-border bg-surface p-8 text-center">
+        <div className="ds-surface border border-border bg-surface p-8 text-center">
           <MessageSquare className="size-8 mx-auto text-muted-foreground mb-3" />
           <p className="ds-body">Nenhuma conversa ainda.</p>
         </div>
@@ -66,7 +66,7 @@ function ConversationsPage() {
               <button
                 key={c.id}
                 onClick={() => setSelected(c.id)}
-                className={`w-full text-left px-3 py-2.5 rounded-lg border transition-colors ${
+                className={`w-full text-left px-3 py-2.5 ds-surface border transition-colors ${
                   selected === c.id
                     ? "border-primary bg-primary/5"
                     : "border-border hover:bg-secondary/60"
@@ -80,7 +80,7 @@ function ConversationsPage() {
             ))}
           </div>
 
-          <div className="rounded-xl border border-border bg-surface p-4 sm:p-5 min-h-[300px]">
+          <div className="ds-surface border border-border bg-surface p-4 sm:p-5 min-h-[300px]">
             {!selected ? (
               <div className="ds-body text-center py-10">
                 Selecione uma conversa para ver as mensagens.
@@ -107,7 +107,7 @@ function ConversationsPage() {
                           <Bot className="size-3.5 text-primary" />
                         </div>
                       )}
-                      <div className={`max-w-[80%] rounded-2xl px-3.5 py-2 ds-body whitespace-pre-wrap ${
+                      <div className={`max-w-[80%] ds-surface px-3.5 py-2 ds-body whitespace-pre-wrap ${
                         m.role === "user" ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"
                       }`}>
                         {m.content}

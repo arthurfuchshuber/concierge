@@ -19,6 +19,8 @@ const MAX_VIDEO = 60 * 1024 * 1024;
 export function MediaUpload({ value, onChange, folder = "checkin", max = 8, className }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [queued, setQueued] = useState(0);
   const remaining = Math.max(0, max - value.length);
 
   async function handleFiles(files: FileList | null) {
@@ -29,6 +31,14 @@ export function MediaUpload({ value, onChange, folder = "checkin", max = 8, clas
     }
     const list = Array.from(files).slice(0, remaining);
     setUploading(true);
+    setProgress(0);
+    setQueued(list.length);
+    // Progresso simulado por lote — o Storage não expõe eventos de progresso
+    // por arquivo, então mostramos uma barra suave até 90% e completamos ao
+    // final do lote.
+    const tick = window.setInterval(() => {
+      setProgress((p) => (p < 90 ? p + Math.max(1, (90 - p) / 10) : p));
+    }, 150);
     try {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) throw new Error("Não autenticado");
@@ -68,11 +78,17 @@ export function MediaUpload({ value, onChange, folder = "checkin", max = 8, clas
         }
         added.push({ url: signed.signedUrl, type: isImage ? "image" : "video" });
       }
+      setProgress(100);
       if (added.length) onChange([...value, ...added]);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro no upload");
     } finally {
-      setUploading(false);
+      window.clearInterval(tick);
+      window.setTimeout(() => {
+        setUploading(false);
+        setProgress(0);
+        setQueued(0);
+      }, 200);
       if (inputRef.current) inputRef.current.value = "";
     }
   }
@@ -99,8 +115,22 @@ export function MediaUpload({ value, onChange, folder = "checkin", max = 8, clas
         className="hidden"
         onChange={(e) => handleFiles(e.target.files)}
       />
-      {value.length > 0 && (
+      {(value.length > 0 || uploading) && (
         <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
+          {uploading && (
+            <li className="relative rounded-lg overflow-hidden border border-accent/40 bg-accent/10 aspect-square grid place-items-center gap-2">
+              <Loader2 className="size-5 animate-spin text-accent-foreground/80" />
+              <span className="text-xs font-medium tabular-nums text-muted-foreground">
+                {Math.round(progress)}%{queued > 1 ? ` · ${queued} arquivos` : ""}
+              </span>
+              <div className="absolute inset-x-0 bottom-0 h-1 bg-border/60 overflow-hidden">
+                <div
+                  className="h-full bg-[image:var(--gradient-brand)] transition-[width] duration-150 ease-linear"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </li>
+          )}
           {value.map((m, i) => (
             <li key={`${m.url}-${i}`} className="relative group rounded-lg overflow-hidden border border-border bg-muted/40 aspect-square">
               {m.type === "image" ? (

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, ArrowLeft, Eye, Lock, Pencil, ShieldOff, Home, Mail, RotateCw, Trash2, Link2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Eye, Lock, Pencil, ShieldOff, Home, Mail, RotateCw, Trash2, Link2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -533,9 +533,15 @@ export function PermissionCenterPage({
       </div>
 
       {q.data.users.length === 0 ? (
-        <p className="py-10 text-center text-sm text-muted-foreground">
-          Ainda não há ninguém além de você nesta conta. Use “Convidar Membro” para adicionar alguém.
-        </p>
+        <div className="ds-surface border border-dashed border-border bg-card/30 p-12 text-center">
+          <div className="size-12 ds-surface bg-secondary grid place-items-center mx-auto mb-4">
+            <Users className="size-5 text-muted-foreground" />
+          </div>
+          <h3 className="ds-section-title mb-2">Ainda não há ninguém além de você</h3>
+          <p className="ds-body text-muted-foreground max-w-md mx-auto">
+            Use "Convidar membro" para adicionar alguém à sua conta.
+          </p>
+        </div>
       ) : (
         <div className="grid gap-2">
           {q.data.users.map((u) => (

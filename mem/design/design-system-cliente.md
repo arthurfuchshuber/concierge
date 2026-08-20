@@ -59,3 +59,12 @@ Nada de tamanhos fora dessa escala. Título de página nunca compete com título
 - ANTES (errado): vários botões soltos lado a lado (Data, Status, ícone, Ordenar, Exportar).
 - DEPOIS (certo): consolidar em **um único acionador** ("Filtros" com badge de contagem dos
   filtros ativos) + kebab para o resto. Menos ruído, decisão única.
+
+## Refinamento executivo — bordas e densidade
+- Raio de borda de contêineres estruturais (card, item de acordeão, painel, linha de
+  lista) reduzido para 8px (era ~12–20px / efeito "pílula" em alguns lugares). Botões,
+  badges de status e chips de filtro NÃO mudam — não fazem parte desta regra.
+- Gap entre cards/itens irmãos de uma mesma lista reduzido para 6px (era 12–16px) —
+  visual mais denso e executivo.
+- Isso não altera os espaçamentos "título → conteúdo": os 24px (seção) e 32/40px
+  (página) da escala de espaçamento acima permanecem exatamente como estão.

@@ -8,6 +8,8 @@ import { CopyButton } from "@/components/CopyButton";
 import { openHandoffDock } from "@/lib/handoff-dock";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { PageHeader } from "@/components/ds/PageHeader";
+import { EmptyState } from "@/components/ds/EmptyState";
+import { LoadingListState } from "@/components/ds/LoadingState";
 
 
 function fmt(iso: string) {
@@ -149,35 +151,30 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
       </div>
 
       {isLoading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" /> Carregando…
-        </div>
+        <LoadingListState count={4} />
       ) : filtered.length === 0 ? (
-        <div className="rounded-xl border border-border bg-surface p-8 text-center">
-          <Users className="size-8 mx-auto mb-3 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">
-            {rows.length === 0 ? "Nenhum hóspede preencheu o formulário ainda." : "Nenhum resultado para a busca."}
-          </p>
-        </div>
+        <EmptyState
+          icon={Users}
+          title={rows.length === 0 ? "Nenhum hóspede ainda" : "Nenhum hóspede encontrado"}
+          description={
+            rows.length === 0
+              ? "Assim que um hóspede preencher o formulário de primeiro acesso, ele aparece aqui."
+              : `Nenhum resultado para "${query}". Tente outro termo.`
+          }
+        />
       ) : (
-        <div className="rounded-xl border border-border bg-surface overflow-hidden">
-          <div className="px-4 py-3 border-b border-border/60 text-xs text-muted-foreground">
-            <span className="ds-meta">{filtered.length} {filtered.length === 1 ? "registro" : "registros"}</span>
-          </div>
-          <div className="divide-y divide-border/60">
-            {filtered.map((r) => {
+        <div className="space-y-1.5">
+          <p className="ds-meta px-1">{filtered.length} {filtered.length === 1 ? "registro" : "registros"}</p>
+          {filtered.map((r) => {
               const isOpen = expanded === r.id;
               const hasExtras = (r.guest_vehicles && r.guest_vehicles.length > 0) || (r.guest_documents && r.guest_documents.length > 0) || r.guest_arrival_time;
               return (
-                <div key={r.id}>
+                <div key={r.id} className="ds-surface border border-border bg-card overflow-hidden">
                   <button
                     type="button"
                     onClick={() => setExpanded(isOpen ? null : r.id)}
                     className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-muted/30 transition-colors"
                   >
-                    <span className="text-muted-foreground shrink-0">
-                      {isOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
-                    </span>
                     <div className="min-w-0 flex-1 grid sm:grid-cols-[1.2fr_1fr_.8fr_.6fr] gap-3 items-center">
                       <div className="min-w-0">
                         <div className="ds-card-title truncate">{r.guest_name}</div>
@@ -199,41 +196,48 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
                       <div className="ds-meta hidden sm:block">Check-in {fmtDate(r.checkin_date)}</div>
                       <div className="ds-meta text-right whitespace-nowrap">{fmt(r.created_at)}</div>
                     </div>
+                    <span className="text-muted-foreground shrink-0">
+                      {isOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+                    </span>
                   </button>
                   {isOpen && (
-                    <div className="px-4 pb-4 pt-1 bg-muted/10 space-y-3">
-                      <div className="grid sm:grid-cols-2 gap-2 text-xs text-muted-foreground">
-                        {r.guest_arrival_time && (
-                          <div className="flex items-center gap-2"><Clock className="size-3.5" /> Chegada prevista: <span className="text-foreground">{r.guest_arrival_time}</span></div>
-                        )}
-                        {r.guest_phone && (
-                          <div className="flex items-center gap-2"><Phone className="size-3.5" /> Telefone: <span className="text-foreground">{r.guest_phone_country ?? ""} {r.guest_phone}</span></div>
-                        )}
-                        {r.reservation_code && (
-                          <div className="flex items-center gap-1">Reserva: <span className="text-foreground">{r.reservation_code}</span><CopyButton value={r.reservation_code} size={11} /></div>
-                        )}
-                      </div>
+                    <div className="px-4 pb-4 pt-3 border-t border-border/60 space-y-3">
+                      {r.guest_arrival_time && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Clock className="size-3.5" /> Chegada prevista: <span className="text-foreground font-medium">{r.guest_arrival_time}</span>
+                        </div>
+                      )}
+                      {r.guest_phone && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Phone className="size-3.5" /> Telefone: <span className="text-foreground font-medium">{r.guest_phone_country ?? ""} {r.guest_phone}</span>
+                        </div>
+                      )}
+                      {r.reservation_code && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          Reserva: <span className="text-foreground font-medium">{r.reservation_code}</span><CopyButton value={r.reservation_code} size={11} />
+                        </div>
+                      )}
 
                       {r.guest_vehicles && r.guest_vehicles.length > 0 && (
-                        <div>
-                          <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1 flex items-center gap-1"><Car className="size-3.5" /> Veículos</div>
-                          <ul className="text-xs space-y-1">
+                        <div className="flex items-start gap-2">
+                          <Car className="size-4 shrink-0 text-muted-foreground mt-1.5" />
+                          <div className="min-w-0 flex-1 space-y-1.5">
                             {r.guest_vehicles.map((v, i) => (
-                              <li key={i} className="text-foreground">
+                              <div key={i} className="ds-surface bg-secondary/50 border border-border/50 px-3 py-2 text-xs text-foreground">
                                 {[v.plate, v.model, v.color].filter(Boolean).join(" · ") || "(sem detalhes)"}
-                              </li>
+                              </div>
                             ))}
-                          </ul>
+                          </div>
                         </div>
                       )}
 
                       {r.guest_documents && r.guest_documents.length > 0 && (
-                        <div>
-                          <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1 flex items-center gap-1"><FileText className="size-3.5" /> Documentos</div>
-                          <ul className="text-xs space-y-1">
+                        <div className="flex items-start gap-2">
+                          <FileText className="size-4 shrink-0 text-muted-foreground mt-1.5" />
+                          <div className="min-w-0 flex-1 space-y-1.5">
                             {r.guest_documents.map((d, i) => (
-                              <li key={i} className="flex items-center gap-2 flex-wrap">
-                                <span className="text-foreground">{d.guest_name ?? r.guest_name}</span>
+                              <div key={i} className="ds-surface bg-secondary/50 border border-border/50 px-3 py-2 text-xs text-foreground flex items-center gap-2 flex-wrap">
+                                <span>{d.guest_name ?? r.guest_name}</span>
                                 {d.doc_type && <span className="text-muted-foreground">· {d.doc_type}</span>}
                                 {d.doc_number && <span className="text-muted-foreground">· {d.doc_number}</span>}
                                 {d.file_url && (
@@ -241,9 +245,9 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
                                     <Download className="size-3.5" /> baixar
                                   </a>
                                 )}
-                              </li>
+                              </div>
                             ))}
-                          </ul>
+                          </div>
                         </div>
                       )}
 
@@ -278,13 +282,12 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
                 </div>
               );
             })}
-          </div>
         </div>
       )}
 
       {sendOpen && (
         <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm grid place-items-center p-4" onClick={() => setSendOpen(null)}>
-          <div className="w-full max-w-md rounded-2xl bg-card border border-border p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-md ds-surface bg-card border border-border p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-display text-lg mb-1">Enviar para portaria</h3>
             <p className="text-xs text-muted-foreground mb-4">
               Hóspede <span className="text-foreground font-medium">{sendOpen.guest_name}</span> · Check-in {fmtDate(sendOpen.checkin_date)}

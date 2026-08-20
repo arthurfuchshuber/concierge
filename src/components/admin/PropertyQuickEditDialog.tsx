@@ -16,7 +16,13 @@ import {
   Plus,
   ChevronDown,
 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+  ResponsiveDialogDescription,
+} from "@/components/ResponsiveDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -322,14 +328,14 @@ export function PropertyQuickEditDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-3xl max-h-[88vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Editar imóvel</DialogTitle>
-          <DialogDescription>
+    <ResponsiveDialog open={open} onOpenChange={onOpenChange}>
+      <ResponsiveDialogContent className="w-[calc(100vw-2rem)] sm:max-w-3xl max-h-[88vh] overflow-y-auto">
+        <ResponsiveDialogHeader>
+          <ResponsiveDialogTitle>Editar imóvel</ResponsiveDialogTitle>
+          <ResponsiveDialogDescription>
             Mesma tela da aba "A casa" do editor completo. Para checkin, checkout, FAQ e recomendações, abra o guia.
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveDialogDescription>
+        </ResponsiveDialogHeader>
 
         {isLoading || !edited ? (
           <div className="flex items-center justify-center py-16 text-sm text-muted-foreground gap-2">
@@ -536,7 +542,7 @@ export function PropertyQuickEditDialog({
             </div>
           </>
         )}
-      </DialogContent>
-    </Dialog>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   );
 }

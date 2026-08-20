@@ -1062,7 +1062,7 @@ function PropertyEditor() {
   const renderAirbnbCalendarSection = () => (
           <Section id="airbnb-calendar" icon={RefreshCw} title="Calendário e reservas (Airbnb)" desc="Sincronize para habilitar dashboard, calendário e kanban — funciona mesmo sem publicar um guia." collapsible>
             {!canAirbnb && (
-              <div className="mb-3 rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground flex items-start gap-2">
+              <div className="mb-3 ds-surface border border-border bg-secondary/40 p-3 text-xs text-muted-foreground flex items-start gap-2">
                 <Lock className="size-3.5 shrink-0 mt-0.5" />
                 <span>
                   Sincronização automática é exclusiva dos planos <strong>Pro</strong>, <strong>Business</strong> e <strong>Enterprise</strong>. Faça upgrade em{" "}
@@ -1072,7 +1072,7 @@ function PropertyEditor() {
             )}
 
             {isNew && (
-              <div className="mb-3 rounded-xl border border-border bg-muted/30 p-3 text-xs text-muted-foreground flex items-start gap-2">
+              <div className="mb-3 ds-surface border border-border bg-muted/30 p-3 text-xs text-muted-foreground flex items-start gap-2">
                 <Clock className="size-3.5 shrink-0 mt-0.5" />
                 <span>Salve o imóvel uma vez (botão "Salvar" abaixo) para liberar a sincronização — não precisa preencher o guia.</span>
               </div>
@@ -1162,7 +1162,7 @@ function PropertyEditor() {
             )}
 
             {reservationsQuery.data?.reservations && reservationsQuery.data.reservations.length > 0 && (
-              <details className="group rounded-xl border border-border bg-muted/30">
+              <details className="group ds-surface border border-border bg-muted/30">
                 <summary className="list-none cursor-pointer select-none px-3 py-2.5 flex items-center justify-between text-xs font-semibold">
                   <span>Próximas reservas ({reservationsQuery.data.reservations.length})</span>
                   <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
@@ -1409,7 +1409,7 @@ function PropertyEditor() {
 
           <Section id="import-airbnb" icon={Sparkles} tone="accent" title="Importar do Airbnb" desc="Cole o link do anúncio para importar descrição, fotos e comodidades no guia." collapsible>
             {!canAirbnb && (
-              <div className="mb-3 rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground flex items-start gap-2">
+              <div className="mb-3 ds-surface border border-border bg-secondary/40 p-3 text-xs text-muted-foreground flex items-start gap-2">
                 <Lock className="size-3.5 shrink-0 mt-0.5" />
                 <span>
                   Importação automática é exclusiva dos planos <strong>Pro</strong>, <strong>Business</strong> e <strong>Enterprise</strong>. Faça upgrade em{" "}
@@ -1496,7 +1496,7 @@ function PropertyEditor() {
               </Select>
             </Field>
             {form.property.access_mode === "pin" && (
-              <div className="grid grid-cols-2 gap-3 rounded-xl bg-muted/40 p-3 border border-border/60">
+              <div className="grid grid-cols-2 gap-3 ds-surface bg-muted/40 p-3 border border-border/60">
                 <Field label="Código de acesso" required>
                   <Input value={form.property.pin_code} maxLength={20} onChange={(e) => update("pin_code", e.target.value)} placeholder="ex: 4729" />
                 </Field>
@@ -1527,7 +1527,7 @@ function PropertyEditor() {
             </div>
           </Section>
 
-          <div className="flex items-center justify-between rounded-xl bg-muted/40 px-4 py-3.5 border border-border/60">
+          <div className="flex items-center justify-between ds-surface bg-muted/40 px-4 py-3.5 border border-border/60">
             <div className="flex items-center gap-2.5 min-w-0">
               <span className={`inline-block size-2.5 rounded-full shrink-0 ${form.property.published ? "bg-emerald-500" : "bg-muted-foreground/50"}`} />
               <div className="min-w-0">
@@ -1566,7 +1566,7 @@ function PropertyEditor() {
 
           <Section id="access-codes" icon={KeyRound} title="Senhas de Acesso" desc="Códigos de portão e fechadura, mais o código que libera as senhas no Guia." collapsible>
             {/* Campo inline — Código para visualizar as senhas no Guia */}
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/40 px-3.5 py-2.5">
+            <div className="flex items-center justify-between gap-3 ds-surface border border-border/60 bg-muted/40 px-3.5 py-2.5">
               <div className="min-w-0">
                 <p className="text-sm font-medium leading-tight">Código para visualizar as senhas de acesso no Guia</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Opcional. Deixe em branco para liberar apenas pela janela de horário.</p>
@@ -1582,7 +1582,7 @@ function PropertyEditor() {
 
             <div className="space-y-3 mt-3">
               {/* Portão — sempre recolhido por padrão */}
-              <details className="group rounded-2xl border border-border/60 bg-card/30" open={gateOpen}>
+              <details className="group ds-surface border border-border/60 bg-card/30" open={gateOpen}>
                 <summary
                   className="list-none cursor-pointer select-none w-full flex items-center gap-3 px-4 py-3.5"
                   onClick={(e) => { e.preventDefault(); setGateOpen((v) => !v); }}
@@ -1623,7 +1623,7 @@ function PropertyEditor() {
               </details>
 
               {/* Fechadura — sempre recolhido por padrão */}
-              <details className="group rounded-2xl border border-border/60 bg-card/30" open={lockOpen}>
+              <details className="group ds-surface border border-border/60 bg-card/30" open={lockOpen}>
                 <summary
                   className="list-none cursor-pointer select-none w-full flex items-center gap-3 px-4 py-3.5"
                   onClick={(e) => { e.preventDefault(); setLockOpen((v) => !v); }}
@@ -1664,7 +1664,7 @@ function PropertyEditor() {
               </details>
 
               {!gateOpen && !lockOpen ? (
-                <p className="text-[12px] text-muted-foreground rounded-xl border border-dashed border-border/60 bg-background/30 px-4 py-3">
+                <p className="text-[12px] text-muted-foreground ds-surface border border-dashed border-border/60 bg-background/30 px-4 py-3">
                   Ative ao menos um tipo de acesso acima para cadastrar código e instruções.
                 </p>
               ) : null}
@@ -1687,7 +1687,7 @@ function PropertyEditor() {
                   { label: "Período da viagem (chegada e saída)", icon: Clock },
                   { label: "Telefone", icon: Phone },
                 ].map((it) => (
-                  <div key={it.label} className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/40 px-3.5 py-2">
+                  <div key={it.label} className="flex items-center justify-between ds-surface border border-border/60 bg-muted/40 px-3.5 py-2">
                     <div className="flex items-center gap-2.5">
                       <span className="grid place-items-center size-7 rounded-lg bg-accent/10 text-accent"><it.icon className="size-3.5" /></span>
                       <span className="text-sm font-medium">{it.label}</span>
@@ -1830,7 +1830,7 @@ function PropertyEditor() {
               const isOpen = openFaqIdx === i;
               const isSigma = m.tags.includes("sigma");
               return (
-                <div key={i} className={`group bg-background border rounded-xl overflow-hidden transition-colors ${isSigma ? "border-amber-400/40" : "border-border/60 hover:border-border"}`}>
+                <div key={i} className={`group bg-background border ds-surface overflow-hidden transition-colors ${isSigma ? "border-amber-400/40" : "border-border/60 hover:border-border"}`}>
                   <div className="flex items-center gap-2 px-3.5 py-3">
                     <button type="button" onClick={() => setOpenFaqIdx(isOpen ? null : i)} className="flex-1 flex items-center gap-2 min-w-0 text-left" aria-expanded={isOpen}>
                       {isSigma && <Lock className="size-3.5 text-amber-300 shrink-0" />}
@@ -1885,7 +1885,7 @@ function PropertyEditor() {
           {!isNew && <SigmaActiveBanner propertyId={id} />}
           <SectionGroup>
 
-          <div className="rounded-xl border border-border/60 bg-background/40 p-3.5 space-y-2">
+          <div className="ds-surface border border-border/60 bg-background/40 p-3.5 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Adicionar ponto/estabelecimento</p>
               <span className="text-[10px] text-muted-foreground/70">Decidimos o quadrante pela distância</span>
@@ -2025,7 +2025,7 @@ function PropertyEditor() {
             >
               <DialogTitle className="sr-only">Pré-visualização do guia</DialogTitle>
               {previewMode === null ? (
-                <div className="p-6 bg-background rounded-2xl border border-border shadow-xl">
+                <div className="p-6 bg-background ds-surface border border-border shadow-xl">
                   <div className="text-center mb-5">
                     <h3 className="font-display text-xl">Como deseja visualizar?</h3>
                     <p className="text-xs text-muted-foreground mt-1">Escolha o modo de pré-visualização do guia.</p>
@@ -2034,7 +2034,7 @@ function PropertyEditor() {
                     <button
                       type="button"
                       onClick={() => setPreviewMode("mobile")}
-                      className="group flex flex-col items-center gap-2 rounded-2xl border border-border bg-card hover:border-foreground/40 hover:bg-secondary/40 transition-colors p-5"
+                      className="group flex flex-col items-center gap-2 ds-surface border border-border bg-card hover:border-foreground/40 hover:bg-secondary/40 transition-colors p-5"
                     >
                       <div className="w-10 h-14 rounded-md border-2 border-foreground/70 group-hover:border-foreground transition-colors" />
                       <span className="text-sm font-medium">Mobile</span>
@@ -2043,7 +2043,7 @@ function PropertyEditor() {
                     <button
                       type="button"
                       onClick={() => setPreviewMode("desktop")}
-                      className="group flex flex-col items-center gap-2 rounded-2xl border border-border bg-card hover:border-foreground/40 hover:bg-secondary/40 transition-colors p-5"
+                      className="group flex flex-col items-center gap-2 ds-surface border border-border bg-card hover:border-foreground/40 hover:bg-secondary/40 transition-colors p-5"
                     >
                       <div className="w-14 h-10 rounded-md border-2 border-foreground/70 group-hover:border-foreground transition-colors" />
                       <span className="text-sm font-medium">Navegador</span>
@@ -2094,7 +2094,7 @@ function PropertyEditor() {
                   </button>
                 </div>
               ) : (
-                <div className="flex flex-col h-[85vh] max-h-[820px] rounded-2xl overflow-hidden bg-background shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)] ring-1 ring-black/10">
+                <div className="flex flex-col h-[85vh] max-h-[820px] ds-surface overflow-hidden bg-background shadow-[0_30px_80px_-20px_rgba(0,0,0,0.45)] ring-1 ring-black/10">
                   <div className="flex items-center justify-between gap-3 px-4 h-9 bg-background/95 backdrop-blur border-b border-border/40 shrink-0">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="inline-flex size-1.5 rounded-full bg-emerald-500/80" />
@@ -2231,7 +2231,7 @@ function AddBtn({ onClick }: { onClick: () => void }) {
 
 function EmptyHint({ text }: { text: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-5 text-center text-xs text-muted-foreground leading-relaxed">
+    <div className="ds-surface border border-dashed border-border/70 bg-muted/30 px-4 py-5 text-center text-xs text-muted-foreground leading-relaxed">
       {text}
     </div>
   );
@@ -2308,7 +2308,7 @@ function ManualItemImages({
 
 function ItemCard({ children, onRemove }: { children: React.ReactNode; onRemove: () => void }) {
   return (
-    <div className="group bg-background border border-border/60 rounded-xl p-3.5 pr-10 space-y-2.5 relative hover:border-border transition-colors">
+    <div className="group bg-background border border-border/60 ds-surface p-3.5 pr-10 space-y-2.5 relative hover:border-border transition-colors">
       {children}
       <button
         onClick={onRemove}
@@ -2414,7 +2414,7 @@ export function PlaceAutocomplete({
         {loading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />}
       </div>
       {open && results.length > 0 && (
-        <div className="absolute z-20 mt-1.5 w-full rounded-xl border border-border bg-popover shadow-lg overflow-hidden max-h-80 overflow-y-auto">
+        <div className="absolute z-20 mt-1.5 w-full ds-surface border border-border bg-popover shadow-lg overflow-hidden max-h-80 overflow-y-auto">
           {results.map((p) => {
             const dup = p.place_id ? existingPlaceIds.has(p.place_id) : false;
             return (
@@ -3007,7 +3007,7 @@ export function RecGroup({
             return (
               <div
                 key={cat}
-                className={`rounded-xl border bg-background/40 overflow-hidden transition-colors ${
+                className={`ds-surface border bg-background/40 overflow-hidden transition-colors ${
                   dragOverCat === cat ? "border-primary/70 ring-2 ring-primary/30" : "border-border/60"
                 } ${dragCat === cat ? "opacity-60" : ""}`}
                 onDragOver={(e) => { e.preventDefault(); if (dragCat && dragCat !== cat) setDragOverCat(cat); }}
@@ -3621,7 +3621,7 @@ function GenerateModeDialog({
             <button
               type="button"
               onClick={() => onPick("fill")}
-              className="group text-left rounded-2xl border border-border bg-card hover:border-primary/40 hover:bg-primary/[0.03] hover:shadow-sm transition-all p-4"
+              className="group text-left ds-surface border border-border bg-card hover:border-primary/40 hover:bg-primary/[0.03] hover:shadow-sm transition-all p-4"
             >
               <div className="flex items-center gap-2.5 mb-1.5">
                 <span className="grid place-items-center size-8 rounded-full bg-primary/10 text-primary shrink-0">
@@ -3637,7 +3637,7 @@ function GenerateModeDialog({
             <button
               type="button"
               onClick={() => onPick("replace")}
-              className="group text-left rounded-2xl border border-border bg-card hover:border-destructive/40 hover:bg-destructive/[0.03] hover:shadow-sm transition-all p-4"
+              className="group text-left ds-surface border border-border bg-card hover:border-destructive/40 hover:bg-destructive/[0.03] hover:shadow-sm transition-all p-4"
             >
               <div className="flex items-center gap-2.5 mb-1.5">
                 <span className="grid place-items-center size-8 rounded-full bg-destructive/10 text-destructive shrink-0">
@@ -3687,7 +3687,7 @@ function CaptureRow({
   return (
     <div
       className={cn(
-        "rounded-2xl border transition-all",
+        "ds-surface border transition-all",
         active ? "border-accent/40 bg-accent/5" : "border-border/60 bg-card",
       )}
     >

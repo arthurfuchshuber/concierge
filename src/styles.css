@@ -639,3 +639,24 @@ dd {
     flex: none;
   }
 }
+
+/* ============================================================
+   Refinamento executivo — bordas e densidade
+   Contêineres estruturais (card, item de acordeão, painel, linha
+   de lista) em 8px. Botões, badges e chips NÃO entram nesta regra.
+   ============================================================ */
+@utility ds-surface {
+  border-radius: 8px;
+}
+/* Lista densa: 6px entre itens irmãos. */
+@utility ds-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.glass,
+[data-slot="card"],
+[data-slot="accordion-item"] {
+  border-radius: 8px;
+}

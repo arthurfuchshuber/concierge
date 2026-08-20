@@ -250,7 +250,7 @@ function AdminLayout() {
           </button>
         </div>
 
-        <nav className="flex-1 px-3 py-4 pb-8 space-y-1 overflow-y-auto min-h-0">
+        <nav className="flex-1 px-3 py-4 pb-8 space-y-1.5 overflow-y-auto min-h-0">
           {!collapsed && (isAdmin ? (
             <div className="px-1 pb-3 mb-2 border-b border-border/60">
               <ClientSwitcher />
@@ -269,7 +269,7 @@ function AdminLayout() {
                 key={item.label}
                 to={item.to}
                 title={collapsed ? item.label : undefined}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${collapsed ? "justify-center" : ""} ${
+                className={`flex items-center gap-3 px-3 py-2.5 ds-surface text-sm transition-colors ${collapsed ? "justify-center" : ""} ${
                   active
                     ? "bg-primary text-primary-foreground font-medium shadow-sm"
                     : "text-foreground/70 hover:bg-secondary hover:text-foreground"
@@ -304,7 +304,7 @@ function AdminLayout() {
                     key={item.label}
                     to={item.to}
                     title={collapsed ? item.label : undefined}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${collapsed ? "justify-center" : ""} ${
+                    className={`flex items-center gap-3 px-3 py-2.5 ds-surface text-sm transition-colors ${collapsed ? "justify-center" : ""} ${
                       active
                         ? "bg-primary text-primary-foreground font-medium shadow-sm"
                         : "text-foreground/70 hover:bg-secondary hover:text-foreground"

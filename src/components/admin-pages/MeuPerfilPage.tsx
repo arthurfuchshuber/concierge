@@ -170,7 +170,7 @@ export function MeuPerfilPage() {
       />
 
       {/* Avatar */}
-      <section className="glass rounded-2xl p-4 lg:p-6 border border-border">
+      <section className="glass ds-surface p-4 lg:p-6 border border-border">
         <div className="flex items-center gap-4">
           <div className="relative">
             {avatar ? (
@@ -225,7 +225,7 @@ export function MeuPerfilPage() {
       </section>
 
       {/* Dados */}
-      <section className="glass rounded-2xl p-5 border border-border space-y-4">
+      <section className="glass ds-surface p-5 border border-border space-y-4">
         <h2 className="ds-section-title mb-0">Dados pessoais</h2>
 
         <Field label="Nome completo" required>

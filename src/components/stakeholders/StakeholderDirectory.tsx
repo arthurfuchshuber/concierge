@@ -17,6 +17,8 @@ import {
   Trash2,
   Pencil,
   Home,
+  MessageCircle,
+  StickyNote,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +30,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Select,
   SelectContent,
@@ -46,6 +49,8 @@ import {
 } from "./StakeholderFormDialog";
 import { PROVIDER_CATEGORIES, type StakeholderKind } from "./constants";
 import { statusLabel, statusChip, effectiveStatus } from "@/lib/stakeholder-status";
+import { EmptyState } from "@/components/ds/EmptyState";
+import { LoadingListState } from "@/components/ds/LoadingState";
 import { useImpersonation } from "@/hooks/useImpersonation";
 
 export { PROVIDER_CATEGORIES };
@@ -55,6 +60,7 @@ type Row = Record<string, any>;
 
 
 export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
+  const isMobile = useIsMobile();
   const qc = useQueryClient();
   const listFn = useServerFn(listStakeholders);
   const delFn = useServerFn(deleteStakeholder);
@@ -235,21 +241,20 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground py-16 justify-center">
-          <Loader2 className="size-4 animate-spin" /> Carregando...
-        </div>
+        <LoadingListState count={4} />
       ) : filtered.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-card/50 py-16 text-center">
-          <Icon className="size-8 mx-auto text-muted-foreground/60 mb-3" />
-          <p className="text-sm text-muted-foreground">
-            Nenhum {labelSingular.toLowerCase()} cadastrado ainda.
-          </p>
-          <Button onClick={openNew} variant="outline" className="rounded-full mt-4">
-            <Plus className="size-4 mr-1.5" /> Cadastrar {labelSingular.toLowerCase()}
-          </Button>
-        </div>
+        <EmptyState
+          icon={Icon}
+          title={`Nenhum ${labelSingular.toLowerCase()} cadastrado`}
+          description={q ? `Nenhum resultado para "${q}". Tente outro termo ou limpe os filtros.` : `Cadastre seu primeiro ${labelSingular.toLowerCase()} para começar.`}
+          action={
+            <Button onClick={openNew} variant="outline" className="rounded-full">
+              <Plus className="size-4 mr-1.5" /> Cadastrar {labelSingular.toLowerCase()}
+            </Button>
+          }
+        />
       ) : view === "list" ? (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="ds-list sm:grid sm:gap-1.5 sm:grid-cols-2 xl:grid-cols-3 sm:space-y-0">
           {filtered.map((r) => (
             <StakeholderCard
               key={r.id}
@@ -267,12 +272,12 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
           {kanbanColumns.map((col) => {
             const items = filtered.filter(col.test);
             return (
-              <div key={col.key} className="rounded-2xl border border-border bg-card/40 p-3">
+              <div key={col.key} className="ds-surface border border-border bg-card/40 p-3">
                 <div className="flex items-center justify-between mb-3 px-1">
                   <span className="ds-body">{col.label}</span>
                   <span className="ds-meta tabular-nums">{items.length}</span>
                 </div>
-                <div className="space-y-2.5">
+                <div className="space-y-1.5">
                   {items.map((r) => (
                     <StakeholderCard
                       key={r.id}
@@ -340,9 +345,16 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
       </Dialog>
 
 
-      {/* Detail */}
+      {/* Detail — bottom-sheet no mobile, painel lateral no desktop */}
       <Sheet open={!!detailId} onOpenChange={(o) => !o && setDetailId(null)}>
-        <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto p-0">
+        <SheetContent
+          side={isMobile ? "bottom" : "right"}
+          className={
+            isMobile
+              ? "w-full h-[92dvh] max-h-[92dvh] rounded-t-2xl overflow-y-auto p-0"
+              : "w-full sm:max-w-3xl overflow-y-auto p-0"
+          }
+        >
           {detailId && <StakeholderDetailSheet kind={kind} id={detailId} accountOwnerId={activeAccountId} onEdit={() => {
             const row = rows.find((r) => r.id === detailId);
             if (row) { setDetailId(null); openEdit(row); }
@@ -374,65 +386,123 @@ function StakeholderCard({
     kind === "provider"
       ? PROVIDER_CATEGORIES.find((c) => c.value === row.category)?.label ?? "Outros"
       : null;
+  const cityUf = [row.city, row.state].filter(Boolean).join("/");
   return (
     <div
       onClick={onOpen}
-      className="group cursor-pointer rounded-2xl border border-border bg-card p-4 hover:border-primary/40 hover:shadow-[0_8px_30px_-12px_hsl(var(--primary)/0.35)] transition-all"
+      className="group cursor-pointer ds-surface border border-border bg-card p-4 hover:border-primary/40 hover:shadow-[0_8px_30px_-12px_hsl(var(--primary)/0.35)] transition-all"
     >
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-        <div className="min-w-0">
-          <p className="ds-card-title truncate leading-tight">{row.trade_name || row.name}</p>
-          <p className="ds-meta truncate mt-0.5">
-            {categoryLabel ? `${categoryLabel} · ` : ""}
-            {row.city || row.email || row.phone || "Sem dados de contato"}
-          </p>
-        </div>
+        <p className="ds-card-title truncate leading-tight min-w-0">{row.trade_name || row.name}</p>
         <div className="flex items-center gap-1 shrink-0">
           {pending > 0 && (
             <span className="rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[10px] px-2 py-0.5 tabular-nums">
               {pending}
             </span>
           )}
-          <span className={`rounded-full text-[10px] px-2 py-0.5 ${statusChip(effectiveStatus(row.status, row.status_changed_at))}`}>
+          {categoryLabel && (
+            <span className="rounded-full bg-accent/10 text-accent text-[10px] px-2 py-0.5 whitespace-nowrap">
+              {categoryLabel}
+            </span>
+          )}
+          <span className={`rounded-full text-[10px] px-2 py-0.5 whitespace-nowrap ${statusChip(effectiveStatus(row.status, row.status_changed_at))}`}>
             {statusLabel(effectiveStatus(row.status, row.status_changed_at))}
           </span>
         </div>
       </div>
 
       {!compact && (
-        <div className="mt-3 space-y-1 ds-meta">
-          {row.email && (
-            <p className="flex items-center gap-1.5 truncate">
-              <Mail className="size-3 shrink-0" /> {row.email}
-            </p>
+        <>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            {row.doc && (
+              <div className="min-w-0">
+                <p className="ds-eyebrow text-muted-foreground">CPF/CNPJ</p>
+                <p className="ds-body truncate mt-0.5">{row.doc}</p>
+              </div>
+            )}
+            {cityUf && (
+              <div className="min-w-0">
+                <p className="ds-eyebrow text-muted-foreground">Cidade/UF</p>
+                <p className="ds-body truncate mt-0.5 flex items-center gap-1.5">
+                  <MapPin className="size-3 shrink-0 text-muted-foreground" /> {cityUf}
+                </p>
+              </div>
+            )}
+            {kind === "provider" && row.hourly_rate_cents ? (
+              <div className="min-w-0">
+                <p className="ds-eyebrow text-muted-foreground">Valor/hora</p>
+                <p className="ds-body truncate mt-0.5">
+                  {(row.hourly_rate_cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                </p>
+              </div>
+            ) : null}
+          </div>
+
+          {(row.phone || row.email) && (
+            <div className="mt-3 min-w-0">
+              <p className="ds-eyebrow text-muted-foreground">Contato</p>
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                {row.phone && (
+                  <span className="ds-body inline-flex items-center gap-1.5 min-w-0">
+                    <Phone className="size-3 shrink-0 text-muted-foreground" />
+                    <span className="truncate">{row.phone}</span>
+                    <a
+                      href={`https://wa.me/55${String(row.phone).replace(/\D/g, "")}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Conversar no WhatsApp"
+                      title="Conversar no WhatsApp"
+                      className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 transition-colors"
+                    >
+                      <MessageCircle className="size-3.5" />
+                    </a>
+                  </span>
+                )}
+                {row.phone && row.email && <span className="ds-meta">·</span>}
+                {row.email && (
+                  <span className="ds-body inline-flex items-center gap-1.5 min-w-0 truncate">
+                    <Mail className="size-3 shrink-0 text-muted-foreground" /> {row.email}
+                  </span>
+                )}
+              </div>
+            </div>
           )}
-          {row.phone && (
-            <p className="flex items-center gap-1.5 truncate">
-              <Phone className="size-3 shrink-0" /> {row.phone}
-            </p>
+
+          {row.notes && (
+            <div className="mt-3 ds-surface bg-secondary/40 border border-border/50 px-3 py-2.5">
+              <p className="ds-body text-muted-foreground flex items-start gap-2 line-clamp-2">
+                <StickyNote className="size-3.5 shrink-0 mt-0.5 text-muted-foreground" />
+                <span>{row.notes}</span>
+              </p>
+            </div>
           )}
-          {(row.city || row.state) && (
-            <p className="flex items-center gap-1.5 truncate">
-              <MapPin className="size-3 shrink-0" /> {[row.city, row.state].filter(Boolean).join(" / ")}
-            </p>
-          )}
-        </div>
+        </>
       )}
 
-      <div className="mt-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="mt-3 flex items-center gap-1.5">
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onEdit(); }}
-          className="text-[11px] px-2 py-1 rounded-md hover:bg-secondary flex items-center gap-1 text-muted-foreground"
+          className="h-9 flex-1 inline-flex items-center justify-center gap-1.5 rounded-full border border-border text-sm font-medium hover:bg-secondary transition-colors"
         >
-          <Pencil className="size-3" /> Editar
+          <Pencil className="size-3.5" /> Editar
+        </button>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onOpen(); }}
+          className="h-9 flex-1 inline-flex items-center justify-center gap-1.5 rounded-full border border-border text-sm font-medium hover:bg-secondary transition-colors"
+        >
+          Ver detalhes
         </button>
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="text-[11px] px-2 py-1 rounded-md hover:bg-destructive/10 hover:text-destructive flex items-center gap-1 text-muted-foreground"
+          aria-label="Excluir"
+          title="Excluir"
+          className="size-9 shrink-0 inline-flex items-center justify-center rounded-full border border-border hover:bg-destructive/10 hover:text-destructive transition-colors"
         >
-          <Trash2 className="size-3" /> Excluir
+          <Trash2 className="size-3.5" />
         </button>
       </div>
     </div>

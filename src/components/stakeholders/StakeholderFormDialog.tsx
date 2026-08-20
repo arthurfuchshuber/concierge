@@ -400,18 +400,18 @@ export function StakeholderFormDialog({
                 }}
                 className={`flex items-center gap-2.5 p-3 rounded-xl border transition-all text-left ${
                   form.person_type === key
-                    ? "border-primary bg-primary/10"
+                    ? "border-transparent bg-gradient-to-r from-primary to-accent shadow-sm"
                     : "border-border/60 hover:border-primary/40"
                 }`}
               >
                 <Icon
-                  className={`size-4 shrink-0 ${form.person_type === key ? "text-primary" : "text-muted-foreground"}`}
+                  className={`size-4 shrink-0 ${form.person_type === key ? "text-primary-foreground" : "text-muted-foreground"}`}
                 />
                 <span className="min-w-0">
-                  <span className="block text-sm font-medium truncate">{label}</span>
-                  <span className="block ds-meta">{sub}</span>
+                  <span className={`block text-sm font-medium truncate ${form.person_type === key ? "text-primary-foreground" : ""}`}>{label}</span>
+                  <span className={`block ds-meta ${form.person_type === key ? "text-primary-foreground/80" : ""}`}>{sub}</span>
                 </span>
-                {form.person_type === key && <Check className="size-4 text-primary ml-auto" />}
+                {form.person_type === key && <Check className="size-4 text-primary-foreground ml-auto" />}
               </button>
             ))}
           </div>
@@ -741,7 +741,7 @@ export function StakeholderFormDialog({
             Cancelar
           </Button>
           <Button
-            className="rounded-full"
+            className="rounded-full bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90"
             onClick={submit}
             disabled={saving || checkingCnpj}
           >

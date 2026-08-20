@@ -205,7 +205,7 @@ export function IntegracoesPage() {
           Nenhuma integração encontrada com esses filtros.
         </p>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map(({ cfg, statusKey }) => {
             const Icon = cfg.icon;
             const isOpen = expanded === cfg.key;
@@ -213,7 +213,7 @@ export function IntegracoesPage() {
               <div
                 key={cfg.key}
                 className={cn(
-                  "rounded-2xl border bg-card p-4 transition-all",
+                  "ds-surface border bg-card p-4 transition-all",
                   isOpen ? "border-primary/30 shadow-[0_8px_30px_-12px_hsl(var(--primary)/0.35)]" : "border-border",
                   statusKey === "em_breve" && "opacity-80",
                 )}

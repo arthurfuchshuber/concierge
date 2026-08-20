@@ -62,6 +62,7 @@ import { listStakeholderOptions } from "@/lib/stakeholder-links.functions";
 import { PropertyQuickEditDialog } from "@/components/admin/PropertyQuickEditDialog";
 import { useRealtimeInvalidate } from "@/hooks/useRealtimeInvalidate";
 import type { StakeholderKind } from "./StakeholderDirectory";
+import { EmptyState } from "@/components/ds/EmptyState";
 import {
   statusLabel,
   statusStyle,
@@ -1173,11 +1174,5 @@ function Placeholder({
   title: string;
   desc: string;
 }) {
-  return (
-    <div className="rounded-2xl border border-dashed border-border p-10 text-center">
-      <Icon className="size-5 mx-auto text-muted-foreground" />
-      <p className="text-sm mt-3">{title}</p>
-      <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">{desc}</p>
-    </div>
-  );
+  return <EmptyState icon={Icon} title={title} description={desc} />;
 }

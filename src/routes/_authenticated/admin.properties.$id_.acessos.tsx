@@ -58,12 +58,12 @@ function AccessLogsPage() {
           <Loader2 className="size-4 animate-spin" /> Carregando…
         </div>
       ) : !data || data.logs.length === 0 ? (
-        <div className="rounded-xl border border-border bg-surface p-8 text-center">
+        <div className="ds-surface border border-border bg-surface p-8 text-center">
           <ShieldCheck className="size-8 mx-auto mb-3 text-muted-foreground" />
           <p className="ds-body">Nenhum acesso registrado ainda.</p>
         </div>
       ) : (
-        <div className="rounded-xl border border-border bg-surface overflow-hidden">
+        <div className="ds-surface border border-border bg-surface overflow-hidden">
           <div className="px-4 py-3 border-b border-border/60 flex items-center gap-2 ds-meta">
             <Users className="size-3.5" />
             {data.logs.length} {data.logs.length === 1 ? "registro" : "registros"}
