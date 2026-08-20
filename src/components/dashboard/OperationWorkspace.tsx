@@ -1212,11 +1212,14 @@ function KpiCard({
             type="button"
             className={`w-full h-full rounded-[0.3rem] bg-card px-3 py-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
-            <div className="flex items-start gap-2 ds-eyebrow">
-              <Icon className="mt-px size-3.5 shrink-0" />
-              {/* Rótulo em duas linhas, sem truncar (como no mockup). */}
-              <span className="min-w-0 leading-[1.25] [text-wrap:balance]">{label}</span>
+            <div className="flex items-center gap-2 ds-eyebrow min-w-0">
+              <Icon className="size-3.5 shrink-0" />
+              {/* Uma única linha — sempre reticências, nunca quebra. */}
+              <span className="min-w-0 flex-1 truncate leading-none" title={label}>
+                {label}
+              </span>
             </div>
+
 
             <div
               className={`font-display mt-1.5 tabular-nums leading-none ${valueColor} ${
