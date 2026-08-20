@@ -1875,6 +1875,7 @@ function EngagementBars({
           total={checkins}
           pct={pctOf(checkinViewed, checkins)}
           breakdown={checkinBreakdown}
+          hint={'Quantos hóspedes com check-in no período já abriram a aba "Chegada" do guia pelo menos uma vez.'}
         />
       )}
       {checkinsWithCodes > 0 && (
@@ -1884,6 +1885,7 @@ function EngagementBars({
           total={checkinsWithCodes}
           pct={pctOf(codesViewed, checkinsWithCodes)}
           breakdown={codesBreakdown}
+          hint={'Quantos hóspedes com check-in no período já visualizaram a senha de acesso no guia pelo menos uma vez.'}
         />
       )}
     </div>

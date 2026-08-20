@@ -23,6 +23,7 @@ import { attachStaffMessage } from "@/lib/chat-attachments.functions";
 import {
   Send,
   UserCheck,
+  User,
   RotateCcw,
   CheckCircle2,
   Loader2,
