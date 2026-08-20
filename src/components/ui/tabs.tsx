@@ -12,7 +12,8 @@ const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "flex w-full max-w-full items-center justify-start gap-1 overflow-hidden whitespace-nowrap rounded-xl border border-border bg-muted/40 p-1 text-muted-foreground",
+      // Nunca quebra em 2ª linha: rola horizontalmente com esmaecimento na borda.
+      "ds-scroll-x w-full max-w-full justify-start gap-1 whitespace-nowrap rounded-xl border border-border bg-muted/40 p-1 text-muted-foreground",
       className,
     )}
     {...props}
