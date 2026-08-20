@@ -16,6 +16,7 @@ import { I18nProvider } from "../lib/i18n";
 import { installPermissionDeniedHandler } from "@/lib/permissions/permissionClient";
 import { Toaster } from "../components/ui/sonner";
 import { OfflineBanner } from "../components/OfflineBanner";
+import { BuildBadge } from "../components/ds/BuildBadge";
 import { supabase } from "../integrations/supabase/client";
 import { META_PIXEL_ID, initMetaPixel, metaPixelPageView } from "../lib/meta-pixel";
 import { startTrail, trackPageView } from "../lib/trail";
