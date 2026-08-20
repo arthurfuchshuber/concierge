@@ -47,7 +47,7 @@ export function FilterSheetButton(props: FilterSheetProps) {
         variant="outline"
         size="sm"
         onClick={() => setOpen(true)}
-        className="rounded-full h-9 px-3.5 gap-1.5 relative"
+        className="rounded-full px-3.5 gap-1.5 relative"
       >
         <SlidersHorizontal className="size-3.5" />
         <span className="text-[12px]">Filtros</span>

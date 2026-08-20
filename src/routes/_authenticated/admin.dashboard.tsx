@@ -1198,7 +1198,7 @@ function KpiCard({
             </div>
             <div className="min-w-0">
               <DialogTitle className="text-base font-display leading-tight truncate">{label}</DialogTitle>
-              <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground mt-0.5">
+              <div className="ds-meta mt-0.5">
                 {rangeLabel} · {rows.length} {rows.length === 1 ? "hóspede" : "hóspedes"}
               </div>
             </div>
@@ -2298,7 +2298,7 @@ function ArrivalCard({
               </>
             )}
             {row.reservationCode && (isPendingFill || (row.guestName && row.guestName !== row.reservationCode)) && (
-              <span className="inline-flex items-center gap-0.5 rounded-md bg-secondary px-1.5 py-0.5 text-[11px] text-muted-foreground font-normal">
+              <span className="ds-meta inline-flex items-center gap-0.5 rounded-md bg-secondary px-1.5 py-0.5">
                 <span className="truncate max-w-[160px]">{row.reservationCode}</span>
                 <CopyButton value={row.reservationCode} size={10} className="p-0.5" />
               </span>

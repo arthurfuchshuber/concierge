@@ -292,7 +292,7 @@ function AdminLayout() {
           {isAdmin && (
             <div className="pt-6 mt-2 border-t border-border/60">
               {!collapsed && (
-                <div className="px-3 pb-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">
+                <div className="px-3 pb-2 flex items-center gap-2 ds-eyebrow">
                   <Shield className="size-3" /> Admin SaaS
                 </div>
               )}

@@ -777,7 +777,7 @@ function Dashboard() {
         )}
 
         {data && data.length > 0 && hasActiveFilters && (
-          <p className="text-xs text-muted-foreground">
+          <p className="ds-meta">
             Mostrando {filtered.length} de {data.length} guia{data.length > 1 ? "s" : ""}
           </p>
         )}
@@ -801,7 +801,7 @@ function Dashboard() {
             <div className="size-12 rounded-2xl bg-secondary grid place-items-center mx-auto mb-4">
               <Search className="size-5 text-muted-foreground" />
             </div>
-            <h3 className="font-display text-xl mb-2">Nenhum guia disponível</h3>
+            <h3 className="ds-section-title mb-2">Nenhum guia disponível</h3>
             <p className="text-sm text-muted-foreground max-w-md mx-auto">
               Não há guias vinculados ao seu acesso nesta conta.
             </p>
@@ -813,7 +813,7 @@ function Dashboard() {
                 <p className="text-[10px] uppercase tracking-[0.2em] text-accent font-semibold mb-1">
                   Primeiros passos
                 </p>
-                <h3 className="font-display text-xl">Crie seu primeiro guia em minutos</h3>
+                <h3 className="ds-section-title">Crie seu primeiro guia em minutos</h3>
               </div>
               <div className="text-right">
                 <span className="text-2xl font-display text-accent">01</span>
@@ -848,7 +848,7 @@ function Dashboard() {
           <div className="size-12 rounded-2xl bg-secondary grid place-items-center mx-auto mb-4">
             <Search className="size-5 text-muted-foreground" />
           </div>
-          <h3 className="font-display text-xl mb-2">Nenhum guia encontrado</h3>
+          <h3 className="ds-section-title mb-2">Nenhum guia encontrado</h3>
           <p className="text-sm text-muted-foreground mb-5 max-w-md mx-auto">
             Tente ajustar a busca ou limpar os filtros.
           </p>
@@ -1345,7 +1345,7 @@ function Dashboard() {
           {previewMode === null ? (
             <div className="p-6 bg-background">
               <div className="text-center mb-5">
-                <h3 className="font-display text-xl">Como deseja visualizar?</h3>
+                <h3 className="ds-section-title">Como deseja visualizar?</h3>
                 <p className="text-xs text-muted-foreground mt-1">Escolha como abrir o guia.</p>
               </div>
               <div className="grid grid-cols-2 gap-3">

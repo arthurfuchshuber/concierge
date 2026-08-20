@@ -269,8 +269,8 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
             return (
               <div key={col.key} className="rounded-2xl border border-border bg-card/40 p-3">
                 <div className="flex items-center justify-between mb-3 px-1">
-                  <span className="text-xs font-medium text-foreground/80">{col.label}</span>
-                  <span className="text-[11px] text-muted-foreground tabular-nums">{items.length}</span>
+                  <span className="ds-body">{col.label}</span>
+                  <span className="ds-meta tabular-nums">{items.length}</span>
                 </div>
                 <div className="space-y-2.5">
                   {items.map((r) => (
@@ -286,7 +286,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
                     />
                   ))}
                   {items.length === 0 && (
-                    <p className="text-[11px] text-muted-foreground px-1 py-6 text-center">Vazio</p>
+                    <p className="ds-meta px-1 py-6 text-center">Vazio</p>
                   )}
                 </div>
               </div>
@@ -381,8 +381,8 @@ function StakeholderCard({
     >
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
         <div className="min-w-0">
-          <p className="truncate font-medium leading-tight">{row.trade_name || row.name}</p>
-          <p className="truncate text-[11px] text-muted-foreground mt-0.5">
+          <p className="ds-card-title truncate leading-tight">{row.trade_name || row.name}</p>
+          <p className="ds-meta truncate mt-0.5">
             {categoryLabel ? `${categoryLabel} · ` : ""}
             {row.city || row.email || row.phone || "Sem dados de contato"}
           </p>
@@ -400,7 +400,7 @@ function StakeholderCard({
       </div>
 
       {!compact && (
-        <div className="mt-3 space-y-1 text-[11px] text-muted-foreground">
+        <div className="mt-3 space-y-1 ds-meta">
           {row.email && (
             <p className="flex items-center gap-1.5 truncate">
               <Mail className="size-3 shrink-0" /> {row.email}

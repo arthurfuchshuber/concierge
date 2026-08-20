@@ -429,7 +429,7 @@ export function StakeholderDetailSheet({
           ev.details.length > 0 ? (
             <ul className="space-y-0.5">
               {ev.details.map((d, i) => (
-                <li key={i} className="text-[11px] text-muted-foreground break-words">
+                <li key={i} className="ds-meta break-words">
                   {d}
                 </li>
               ))}
@@ -450,7 +450,7 @@ export function StakeholderDetailSheet({
           </div>
           <div className="min-w-0">
             <h2
-              className="font-display text-xl sm:text-2xl leading-tight truncate"
+              className="ds-page-title leading-tight truncate"
               title={displayName}
             >
               {displayName}
@@ -523,7 +523,7 @@ export function StakeholderDetailSheet({
             className="relative flex w-full items-center justify-center gap-2 py-1 text-center"
             aria-expanded={dataOpen}
           >
-            <span className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+            <span className="ds-eyebrow">
               Dados pessoais
             </span>
             <ChevronDown
@@ -635,9 +635,9 @@ export function StakeholderDetailSheet({
         {/* -------------------- Log -------------------- */}
         <TabsContent value="log" className="mt-5 space-y-4">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-            <h3 className="font-display text-xl truncate">Log de atividades</h3>
+            <h3 className="ds-section-title truncate">Log de atividades</h3>
             {trail.isLoading && (
-              <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground shrink-0">
+              <span className="flex items-center gap-1.5 ds-meta shrink-0">
                 <Loader2 className="size-3 animate-spin" /> Carregando…
               </span>
             )}
@@ -655,12 +655,12 @@ export function StakeholderDetailSheet({
             <ul className="space-y-2">
               {(trail.data?.items ?? []).map((ev) => (
                 <li key={ev.id} className="rounded-2xl border border-border bg-card px-4 py-3">
-                  <p className="text-sm font-medium break-words">{ev.title}</p>
-                  <p className="text-[11px] text-muted-foreground">{ev.badge}</p>
+                  <p className="ds-card-title break-words">{ev.title}</p>
+                  <p className="ds-meta">{ev.badge}</p>
                   {ev.details.length > 0 && (
                     <ul className="mt-1 space-y-0.5">
                       {ev.details.map((d, i) => (
-                        <li key={i} className="text-[11px] text-muted-foreground break-words">
+                        <li key={i} className="ds-meta break-words">
                           {d}
                         </li>
                       ))}
@@ -696,9 +696,9 @@ export function StakeholderDetailSheet({
           {/* Linha do tempo */}
           <section className="space-y-4">
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-              <h3 className="font-display text-xl truncate">Linha do Tempo</h3>
+              <h3 className="ds-section-title truncate">Linha do Tempo</h3>
               {feed.isLoading && (
-                <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground shrink-0">
+                <span className="flex items-center gap-1.5 ds-meta shrink-0">
                   <Loader2 className="size-3 animate-spin" /> Sincronizando…
                 </span>
               )}
@@ -729,10 +729,10 @@ export function StakeholderDetailSheet({
                         <div className="flex items-start gap-2.5">
                           <Icon className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
                           <div className="min-w-0 flex-1 space-y-1">
-                            <p className="text-sm font-medium break-words">{item.title}</p>
-                            <p className="text-[11px] text-muted-foreground">{item.badge}</p>
+                            <p className="ds-card-title break-words">{item.title}</p>
+                            <p className="ds-meta">{item.badge}</p>
                             {item.body}
-                            <p className="text-[11px] text-muted-foreground/80">
+                            <p className="ds-meta opacity-80">
                               {item.at ? fmt(item.at) : "Sem data"}
                             </p>
                           </div>
@@ -751,8 +751,8 @@ export function StakeholderDetailSheet({
           <TabsContent value="imoveis" className="mt-5 space-y-5">
             <section className="space-y-3">
               <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-                <h3 className="font-display text-xl truncate">Imóveis vinculados</h3>
-                <span className="text-[11px] text-muted-foreground shrink-0">
+                <h3 className="ds-section-title truncate">Imóveis vinculados</h3>
+                <span className="ds-meta shrink-0">
                   {properties.length} residência(s)
                 </span>
               </div>
@@ -777,14 +777,14 @@ export function StakeholderDetailSheet({
                       className="rounded-2xl border border-border bg-card p-4 space-y-2"
                     >
                       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
-                        <p className="text-sm font-medium break-words">{p.name}</p>
+                        <p className="ds-card-title break-words">{p.name}</p>
                         <span
                           className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] ${status.cls}`}
                         >
                           {status.label}
                         </span>
                       </div>
-                      <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      <p className="flex items-center gap-1.5 ds-meta">
                         <MapPin className="size-3 shrink-0" />
                         {[p.city, p.state].filter(Boolean).join(" / ") || "Sem localização"}
                       </p>
@@ -866,7 +866,7 @@ export function StakeholderDetailSheet({
 
             {available.length > 0 && (
               <section className="rounded-2xl border border-dashed border-border p-5 space-y-2">
-                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                <p className="ds-eyebrow">
                   Vincular residência existente
                 </p>
                 {available.map((p: any) => (
@@ -920,11 +920,11 @@ export function StakeholderDetailSheet({
         <TabsContent value="documentos" className="mt-5 space-y-6">
           <section className="space-y-3">
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-              <h3 className="font-display text-xl truncate">Contratos e aditivos</h3>
-              <span className="text-[11px] text-muted-foreground shrink-0">{feedDocs.length} documento(s)</span>
+              <h3 className="ds-section-title truncate">Contratos e aditivos</h3>
+              <span className="ds-meta shrink-0">{feedDocs.length} documento(s)</span>
             </div>
             {feed.isLoading ? (
-              <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <p className="flex items-center gap-1.5 ds-meta">
                 <Loader2 className="size-3 animate-spin" /> Buscando documentos…
               </p>
             ) : feedDocs.length === 0 ? (
@@ -938,8 +938,8 @@ export function StakeholderDetailSheet({
                 {feedDocs.map((d) => (
                   <li key={d.id} className="flex items-start justify-between gap-3 px-4 py-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{d.name}</p>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="ds-card-title truncate">{d.name}</p>
+                      <p className="ds-meta">
                         {d.status ?? "—"}
                         {d.at ? ` · ${fmt(d.at)}` : ""}
                         {d.signers.length > 0 ? ` · ${d.signers.length} signatários` : ""}
@@ -1008,7 +1008,7 @@ export function StakeholderDetailSheet({
                     }`}
                   >
                     <div className="text-xs font-medium">{opt.label}</div>
-                    <div className="text-[11px] text-muted-foreground">{opt.hint}</div>
+                    <div className="ds-meta">{opt.hint}</div>
                   </button>
                 ))}
               </div>
@@ -1116,7 +1116,7 @@ function Field({
   return (
     <div className="min-w-0">
       <div className="flex items-center gap-1.5">
-        <dt className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">{label}</dt>
+        <dt className="ds-eyebrow">{label}</dt>
         {copy && <CopyButton value={copy} size={11} />}
       </div>
       <dd className={`mt-0.5 text-sm break-words ${mono ? "font-mono tabular-nums" : ""}`}>
@@ -1158,7 +1158,7 @@ function InfoCard({ label, value }: { label: string; value?: string | null }) {
   if (!value) return null;
   return (
     <div className="rounded-2xl border border-border bg-card px-4 py-3 min-w-0">
-      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="ds-eyebrow">{label}</p>
       <p className="text-sm mt-0.5 break-words">{value}</p>
     </div>
   );
