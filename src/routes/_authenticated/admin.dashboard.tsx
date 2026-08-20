@@ -590,7 +590,12 @@ function DashboardPage() {
   // verdade — os dois pontos de chamada leem o mesmo engQ/range do
   // componente pai, então nunca ficam dessincronizados entre si.
   function renderEngagementPanel(wrapperClassName: string) {
-    if (counts.checkin === 0) return null;
+    // Aparece sempre que existirem check-ins no período — antes dependia de
+    // haver check-in PENDENTE, o que escondia o card justamente quando a
+    // operação do dia já tinha sido concluída.
+    const hasData =
+      (engQ.data?.checkinsInPeriod ?? 0) > 0 || (engQ.data?.checkinsWithCodes ?? 0) > 0;
+    if (!engQ.isLoading && !hasData) return null;
     return (
       <section className={`rounded-lg border border-border bg-card p-4 sm:p-5 ${wrapperClassName}`}>
         <EngagementBars
@@ -603,6 +608,7 @@ function DashboardPage() {
       </section>
     );
   }
+
 
   return (
     <div className="px-4 sm:px-6 lg:px-10 py-6 lg:py-10 max-w-[1440px] mx-auto w-full space-y-5 sm:space-y-6">
