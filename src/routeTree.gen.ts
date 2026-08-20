@@ -58,6 +58,7 @@ import { Route as AuthenticatedAdminAdministrativoRouteImport } from './routes/_
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as AuthenticatedAdminRecomendacoesSigmaIndexRouteImport } from './routes/_authenticated/admin.recomendacoes-sigma.index'
+import { Route as AuthenticatedAdminDashboardIndexRouteImport } from './routes/_authenticated/admin.dashboard.index'
 import { Route as AuthenticatedAdminCidadesIndexRouteImport } from './routes/_authenticated/admin.cidades.index'
 import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
@@ -79,6 +80,8 @@ import { Route as ApiPublicCronEvaluationSuiteRouteImport } from './routes/api/p
 import { Route as ApiPublicCronConversationRemindersRouteImport } from './routes/api/public/cron.conversation-reminders'
 import { Route as AuthenticatedAdminRecomendacoesSigmaCityKeyRouteImport } from './routes/_authenticated/admin.recomendacoes-sigma.$cityKey'
 import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_authenticated/admin.properties.$id'
+import { Route as AuthenticatedAdminDashboardKanbanRouteImport } from './routes/_authenticated/admin.dashboard.kanban'
+import { Route as AuthenticatedAdminDashboardCalendarioRouteImport } from './routes/_authenticated/admin.dashboard.calendario'
 import { Route as AuthenticatedAdminCidadesCityKeyRouteImport } from './routes/_authenticated/admin.cidades.$cityKey'
 import { Route as AuthenticatedAdminPropertiesIdConversasRouteImport } from './routes/_authenticated/admin.properties.$id_.conversas'
 import { Route as AuthenticatedAdminPropertiesIdAcessosRouteImport } from './routes/_authenticated/admin.properties.$id_.acessos'
@@ -347,6 +350,12 @@ const AuthenticatedAdminRecomendacoesSigmaIndexRoute =
     path: '/recomendacoes-sigma/',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminDashboardIndexRoute =
+  AuthenticatedAdminDashboardIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAdminDashboardRoute,
+  } as any)
 const AuthenticatedAdminCidadesIndexRoute =
   AuthenticatedAdminCidadesIndexRouteImport.update({
     id: '/cidades/',
@@ -469,6 +478,18 @@ const AuthenticatedAdminPropertiesIdRoute =
     path: '/properties/$id',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminDashboardKanbanRoute =
+  AuthenticatedAdminDashboardKanbanRouteImport.update({
+    id: '/kanban',
+    path: '/kanban',
+    getParentRoute: () => AuthenticatedAdminDashboardRoute,
+  } as any)
+const AuthenticatedAdminDashboardCalendarioRoute =
+  AuthenticatedAdminDashboardCalendarioRouteImport.update({
+    id: '/calendario',
+    path: '/calendario',
+    getParentRoute: () => AuthenticatedAdminDashboardRoute,
+  } as any)
 const AuthenticatedAdminCidadesCityKeyRoute =
   AuthenticatedAdminCidadesCityKeyRouteImport.update({
     id: '/cidades/$cityKey',
@@ -513,7 +534,7 @@ export interface FileRoutesByFullPath {
   '/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
   '/admin/atendimento': typeof AuthenticatedAdminAtendimentoRoute
   '/admin/clientes': typeof AuthenticatedAdminClientesRoute
-  '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/admin/dashboard': typeof AuthenticatedAdminDashboardRouteWithChildren
   '/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
   '/admin/equipe': typeof AuthenticatedAdminEquipeRoute
   '/admin/guias': typeof AuthenticatedAdminGuiasRoute
@@ -537,6 +558,8 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
   '/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
+  '/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
+  '/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
@@ -558,6 +581,7 @@ export interface FileRoutesByFullPath {
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
   '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
   '/admin/cidades/': typeof AuthenticatedAdminCidadesIndexRoute
+  '/admin/dashboard/': typeof AuthenticatedAdminDashboardIndexRoute
   '/admin/recomendacoes-sigma/': typeof AuthenticatedAdminRecomendacoesSigmaIndexRoute
   '/admin/properties/$id/acessos': typeof AuthenticatedAdminPropertiesIdAcessosRoute
   '/admin/properties/$id/conversas': typeof AuthenticatedAdminPropertiesIdConversasRoute
@@ -585,7 +609,6 @@ export interface FileRoutesByTo {
   '/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
   '/admin/atendimento': typeof AuthenticatedAdminAtendimentoRoute
   '/admin/clientes': typeof AuthenticatedAdminClientesRoute
-  '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
   '/admin/equipe': typeof AuthenticatedAdminEquipeRoute
   '/admin/guias': typeof AuthenticatedAdminGuiasRoute
@@ -609,6 +632,8 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/g/$slug': typeof GSlugIndexRoute
   '/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
+  '/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
+  '/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
@@ -630,6 +655,7 @@ export interface FileRoutesByTo {
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
   '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
   '/admin/cidades': typeof AuthenticatedAdminCidadesIndexRoute
+  '/admin/dashboard': typeof AuthenticatedAdminDashboardIndexRoute
   '/admin/recomendacoes-sigma': typeof AuthenticatedAdminRecomendacoesSigmaIndexRoute
   '/admin/properties/$id/acessos': typeof AuthenticatedAdminPropertiesIdAcessosRoute
   '/admin/properties/$id/conversas': typeof AuthenticatedAdminPropertiesIdConversasRoute
@@ -661,7 +687,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
   '/_authenticated/admin/atendimento': typeof AuthenticatedAdminAtendimentoRoute
   '/_authenticated/admin/clientes': typeof AuthenticatedAdminClientesRoute
-  '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRouteWithChildren
   '/_authenticated/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
   '/_authenticated/admin/equipe': typeof AuthenticatedAdminEquipeRoute
   '/_authenticated/admin/guias': typeof AuthenticatedAdminGuiasRoute
@@ -685,6 +711,8 @@ export interface FileRoutesById {
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/g/$slug/': typeof GSlugIndexRoute
   '/_authenticated/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
+  '/_authenticated/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
+  '/_authenticated/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
   '/_authenticated/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/_authenticated/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
@@ -706,6 +734,7 @@ export interface FileRoutesById {
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
   '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
   '/_authenticated/admin/cidades/': typeof AuthenticatedAdminCidadesIndexRoute
+  '/_authenticated/admin/dashboard/': typeof AuthenticatedAdminDashboardIndexRoute
   '/_authenticated/admin/recomendacoes-sigma/': typeof AuthenticatedAdminRecomendacoesSigmaIndexRoute
   '/_authenticated/admin/properties/$id_/acessos': typeof AuthenticatedAdminPropertiesIdAcessosRoute
   '/_authenticated/admin/properties/$id_/conversas': typeof AuthenticatedAdminPropertiesIdConversasRoute
@@ -761,6 +790,8 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/g/$slug/'
     | '/admin/cidades/$cityKey'
+    | '/admin/dashboard/calendario'
+    | '/admin/dashboard/kanban'
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/conversation-reminders'
@@ -782,6 +813,7 @@ export interface FileRouteTypes {
     | '/lovable/email/transactional/preview'
     | '/lovable/email/transactional/send'
     | '/admin/cidades/'
+    | '/admin/dashboard/'
     | '/admin/recomendacoes-sigma/'
     | '/admin/properties/$id/acessos'
     | '/admin/properties/$id/conversas'
@@ -809,7 +841,6 @@ export interface FileRouteTypes {
     | '/admin/assinatura'
     | '/admin/atendimento'
     | '/admin/clientes'
-    | '/admin/dashboard'
     | '/admin/engajamento'
     | '/admin/equipe'
     | '/admin/guias'
@@ -833,6 +864,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/g/$slug'
     | '/admin/cidades/$cityKey'
+    | '/admin/dashboard/calendario'
+    | '/admin/dashboard/kanban'
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/conversation-reminders'
@@ -854,6 +887,7 @@ export interface FileRouteTypes {
     | '/lovable/email/transactional/preview'
     | '/lovable/email/transactional/send'
     | '/admin/cidades'
+    | '/admin/dashboard'
     | '/admin/recomendacoes-sigma'
     | '/admin/properties/$id/acessos'
     | '/admin/properties/$id/conversas'
@@ -908,6 +942,8 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/'
     | '/g/$slug/'
     | '/_authenticated/admin/cidades/$cityKey'
+    | '/_authenticated/admin/dashboard/calendario'
+    | '/_authenticated/admin/dashboard/kanban'
     | '/_authenticated/admin/properties/$id'
     | '/_authenticated/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/conversation-reminders'
@@ -929,6 +965,7 @@ export interface FileRouteTypes {
     | '/lovable/email/transactional/preview'
     | '/lovable/email/transactional/send'
     | '/_authenticated/admin/cidades/'
+    | '/_authenticated/admin/dashboard/'
     | '/_authenticated/admin/recomendacoes-sigma/'
     | '/_authenticated/admin/properties/$id_/acessos'
     | '/_authenticated/admin/properties/$id_/conversas'
@@ -1329,6 +1366,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRecomendacoesSigmaIndexRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/dashboard/': {
+      id: '/_authenticated/admin/dashboard/'
+      path: '/'
+      fullPath: '/admin/dashboard/'
+      preLoaderRoute: typeof AuthenticatedAdminDashboardIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminDashboardRoute
+    }
     '/_authenticated/admin/cidades/': {
       id: '/_authenticated/admin/cidades/'
       path: '/cidades'
@@ -1476,6 +1520,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminPropertiesIdRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/dashboard/kanban': {
+      id: '/_authenticated/admin/dashboard/kanban'
+      path: '/kanban'
+      fullPath: '/admin/dashboard/kanban'
+      preLoaderRoute: typeof AuthenticatedAdminDashboardKanbanRouteImport
+      parentRoute: typeof AuthenticatedAdminDashboardRoute
+    }
+    '/_authenticated/admin/dashboard/calendario': {
+      id: '/_authenticated/admin/dashboard/calendario'
+      path: '/calendario'
+      fullPath: '/admin/dashboard/calendario'
+      preLoaderRoute: typeof AuthenticatedAdminDashboardCalendarioRouteImport
+      parentRoute: typeof AuthenticatedAdminDashboardRoute
+    }
     '/_authenticated/admin/cidades/$cityKey': {
       id: '/_authenticated/admin/cidades/$cityKey'
       path: '/cidades/$cityKey'
@@ -1500,13 +1558,34 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedAdminDashboardRouteChildren {
+  AuthenticatedAdminDashboardCalendarioRoute: typeof AuthenticatedAdminDashboardCalendarioRoute
+  AuthenticatedAdminDashboardKanbanRoute: typeof AuthenticatedAdminDashboardKanbanRoute
+  AuthenticatedAdminDashboardIndexRoute: typeof AuthenticatedAdminDashboardIndexRoute
+}
+
+const AuthenticatedAdminDashboardRouteChildren: AuthenticatedAdminDashboardRouteChildren =
+  {
+    AuthenticatedAdminDashboardCalendarioRoute:
+      AuthenticatedAdminDashboardCalendarioRoute,
+    AuthenticatedAdminDashboardKanbanRoute:
+      AuthenticatedAdminDashboardKanbanRoute,
+    AuthenticatedAdminDashboardIndexRoute:
+      AuthenticatedAdminDashboardIndexRoute,
+  }
+
+const AuthenticatedAdminDashboardRouteWithChildren =
+  AuthenticatedAdminDashboardRoute._addFileChildren(
+    AuthenticatedAdminDashboardRouteChildren,
+  )
+
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminAdministrativoRoute: typeof AuthenticatedAdminAdministrativoRoute
   AuthenticatedAdminAdminsRoute: typeof AuthenticatedAdminAdminsRoute
   AuthenticatedAdminAssinaturaRoute: typeof AuthenticatedAdminAssinaturaRoute
   AuthenticatedAdminAtendimentoRoute: typeof AuthenticatedAdminAtendimentoRoute
   AuthenticatedAdminClientesRoute: typeof AuthenticatedAdminClientesRoute
-  AuthenticatedAdminDashboardRoute: typeof AuthenticatedAdminDashboardRoute
+  AuthenticatedAdminDashboardRoute: typeof AuthenticatedAdminDashboardRouteWithChildren
   AuthenticatedAdminEngajamentoRoute: typeof AuthenticatedAdminEngajamentoRoute
   AuthenticatedAdminEquipeRoute: typeof AuthenticatedAdminEquipeRoute
   AuthenticatedAdminGuiasRoute: typeof AuthenticatedAdminGuiasRoute
@@ -1532,7 +1611,8 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminAssinaturaRoute: AuthenticatedAdminAssinaturaRoute,
   AuthenticatedAdminAtendimentoRoute: AuthenticatedAdminAtendimentoRoute,
   AuthenticatedAdminClientesRoute: AuthenticatedAdminClientesRoute,
-  AuthenticatedAdminDashboardRoute: AuthenticatedAdminDashboardRoute,
+  AuthenticatedAdminDashboardRoute:
+    AuthenticatedAdminDashboardRouteWithChildren,
   AuthenticatedAdminEngajamentoRoute: AuthenticatedAdminEngajamentoRoute,
   AuthenticatedAdminEquipeRoute: AuthenticatedAdminEquipeRoute,
   AuthenticatedAdminGuiasRoute: AuthenticatedAdminGuiasRoute,
