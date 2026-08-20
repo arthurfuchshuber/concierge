@@ -946,6 +946,20 @@ function DashboardPage() {
         </div>
       </section>
 
+      {/* Agenda macro de ocupação — abaixo do quadro, como no mockup. */}
+      <OccupancyPanel
+        loading={occupancyQ.isLoading}
+        start={occupancyQ.data?.start ?? agendaStart}
+        days={occupancyQ.data?.days ?? 21}
+        properties={occupancyQ.data?.properties ?? []}
+        stays={occupancyQ.data?.stays ?? []}
+        checkedInPropertyIds={checkedInPropertyIds}
+        onStartChange={setAgendaStart}
+        defaultStart={todayISO}
+      />
+
+
+
       <ConfirmActionDialog
         open={!!confirmAdvance}
         onOpenChange={(v) => {
