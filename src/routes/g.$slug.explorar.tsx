@@ -1364,7 +1364,7 @@ function RecCard({ rec }: { rec: Rec }) {
 
       <div className="p-4 pr-12 flex-1 flex flex-col gap-2">
         <div className="flex items-start justify-between gap-2">
-          <h4 className="ds-card-title line-clamp-2 flex-1">{rec.name}</h4>
+          <h4 className="ds-card-title min-w-0 flex-1">{rec.name}</h4>
         </div>
 
         {rec.note && <p className="ds-card-desc">{rec.note}</p>}
@@ -1455,7 +1455,7 @@ function RecRow({ rec }: { rec: Rec }) {
       <div className="flex-1 min-w-0 flex flex-col gap-1.5 py-0.5">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <h4 className="ds-card-title line-clamp-2">{rec.name}</h4>
+            <h4 className="ds-card-title">{rec.name}</h4>
           </div>
         </div>
 

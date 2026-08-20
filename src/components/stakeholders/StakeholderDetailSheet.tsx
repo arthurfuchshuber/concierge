@@ -656,7 +656,7 @@ export function StakeholderDetailSheet({
             <ul className="space-y-2">
               {(trail.data?.items ?? []).map((ev) => (
                 <li key={ev.id} className="rounded-2xl border border-border bg-card px-4 py-3">
-                  <p className="ds-card-title break-words">{ev.title}</p>
+                  <p className="ds-card-title">{ev.title}</p>
                   <p className="ds-meta">{ev.badge}</p>
                   {ev.details.length > 0 && (
                     <ul className="mt-1 space-y-0.5">
@@ -730,7 +730,7 @@ export function StakeholderDetailSheet({
                         <div className="flex items-start gap-2.5">
                           <Icon className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
                           <div className="min-w-0 flex-1 space-y-1">
-                            <p className="ds-card-title break-words">{item.title}</p>
+                            <p className="ds-card-title">{item.title}</p>
                             <p className="ds-meta">{item.badge}</p>
                             {item.body}
                             <p className="ds-meta opacity-80">
@@ -778,7 +778,7 @@ export function StakeholderDetailSheet({
                       className="rounded-2xl border border-border bg-card p-4 space-y-2"
                     >
                       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
-                        <p className="ds-card-title break-words">{p.name}</p>
+                        <p className="ds-card-title">{p.name}</p>
                         <span
                           className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] ${status.cls}`}
                         >
