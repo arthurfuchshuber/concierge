@@ -1251,7 +1251,7 @@ function OccupancyPanel({
   onStartChange?: (v: string) => void;
   defaultStart?: string;
 }) {
-  const [openAgenda, setOpenAgenda] = useState<string>("");
+  const [openAgenda, setOpenAgenda] = useState<string>("agenda");
   const [ownerFilter, setOwnerFilter] = useState<string>("");
   const [cityFilter, setCityFilter] = useState<string>("");
 
@@ -1422,6 +1422,19 @@ function OccupancyPanel({
     return [first, second];
   }
 
+  const occupancyRate = useMemo(() => {
+    if (visibleProperties.length === 0 || dayList.length === 0) return 0;
+    let busy = 0;
+    for (const prop of visibleProperties) {
+      for (const d of dayList) {
+        const [a, b] = cellHalves(prop.id, d);
+        if (a === "busy" || b === "busy") busy += 1;
+      }
+    }
+    return Math.round((busy / (visibleProperties.length * dayList.length)) * 100);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleProperties, dayList, byProperty, checkedInPropertyIds]);
+
   return (
     <Accordion
       type="single"
@@ -1439,6 +1452,9 @@ function OccupancyPanel({
           >
             <CalendarCheck className="size-4 shrink-0 text-muted-foreground" />
             <span className="truncate">Ocupação dos Imóveis</span>
+            <span className="shrink-0 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
+              {occupancyRate}% ocupado
+            </span>
           </button>
           <Popover>
             <PopoverTrigger asChild>
@@ -1533,7 +1549,7 @@ function OccupancyPanel({
                 <div
                   ref={scrollRef}
                   style={{ scrollPaddingLeft: NAME_COL, width: viewportW, maxWidth: "100%" }}
-                  className="sg-elegant-scroll max-h-[18rem] overflow-auto snap-x snap-mandatory"
+                  className="sg-elegant-scroll max-h-[62vh] overflow-auto snap-x snap-mandatory"
                 >
                   <table
                     className="table-fixed border-separate border-spacing-x-0 border-spacing-y-1 text-xs"
