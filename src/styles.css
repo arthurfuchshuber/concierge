@@ -655,10 +655,8 @@ dd {
   gap: 6px;
 }
 
-@layer components {
-  .glass,
-  [data-slot="card"],
-  [data-slot="accordion-item"] {
-    border-radius: 8px;
-  }
+.glass,
+[data-slot="card"],
+[data-slot="accordion-item"] {
+  border-radius: 8px;
 }
