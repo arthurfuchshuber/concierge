@@ -2290,7 +2290,7 @@ function ArrivalCard({
 
   return (
     <div
-      className={`group relative snap-start flex flex-col rounded border border-border/60 bg-secondary/70 hover:bg-secondary/90 p-3 gap-2.5 transition-colors ${
+      className={`group relative snap-start flex flex-col rounded-[0.3rem] bg-secondary/70 hover:bg-secondary/90 p-3 gap-2.5 transition-colors ${
         isOverdue && !visualDone
           ? "border-l-[3px] border-l-red-500"
           : isFuture && !visualDone

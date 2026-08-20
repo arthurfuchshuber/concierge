@@ -646,7 +646,7 @@ dd {
    de lista) em 8px. Botões, badges e chips NÃO entram nesta regra.
    ============================================================ */
 @utility ds-surface {
-  border-radius: 8px;
+  border-radius: 0.3rem;
 }
 /* Lista densa: 6px entre itens irmãos. */
 @utility ds-list {
@@ -658,5 +658,5 @@ dd {
 .glass,
 [data-slot="card"],
 [data-slot="accordion-item"] {
-  border-radius: 8px;
+  border-radius: 0.3rem;
 }
