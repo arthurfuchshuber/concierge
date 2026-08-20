@@ -8,6 +8,7 @@ import {
   ScrollText, Search, Activity, BrainCircuit, SlidersHorizontal,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { PageHeader, ActionBar } from "@/components/ds/PageHeader";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -62,19 +63,18 @@ function IntelligencePage() {
   const [group, setGroup] = useState<"ia" | "auditoria">("ia");
 
   return (
-    <div className="max-w-[1440px] mx-auto w-full px-6 lg:px-10 py-8 lg:py-10 space-y-6">
-      <header className="space-y-1">
-        <h1 className="font-display text-2xl sm:text-3xl flex items-center gap-2">
-          <BrainCircuit className="size-6 text-primary" /> Inteligência
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Evolução da IA da plataforma e o rastro de auditoria de todo o SaaS — acessos, permissões,
-          integrações, cobrança, dados e decisões.
-        </p>
-      </header>
+    <div className="max-w-[1440px] mx-auto w-full px-6 lg:px-10 py-8 lg:py-10 space-y-8">
+      <PageHeader
+        title={
+          <span className="inline-flex items-center gap-2">
+            <BrainCircuit className="size-6 text-primary" /> Inteligência
+          </span>
+        }
+        subtitle="Evolução da IA da plataforma e o rastro de auditoria de todo o SaaS — acessos, permissões, integrações, cobrança, dados e decisões."
+      />
 
       {/* Dois grupos, cada um com suas próprias abas */}
-      <div className="inline-flex flex-wrap gap-2">
+      <ActionBar>
         <Button
           variant={group === "ia" ? "default" : "outline"}
           onClick={() => setGroup("ia")}
@@ -87,8 +87,7 @@ function IntelligencePage() {
         >
           <ScrollText className="size-4" /> Auditoria do SaaS
         </Button>
-      </div>
-
+      </ActionBar>
 
       {group === "ia" ? <AiGroup /> : <AuditGroup />}
     </div>
@@ -98,7 +97,7 @@ function IntelligencePage() {
 function AiGroup() {
   return (
     <section className="space-y-4">
-      <p className="text-sm text-muted-foreground">
+      <p className="ds-body">
         Inteligência agregada de toda a plataforma — sem expor dados de nenhum cliente específico.
       </p>
       <Tabs defaultValue="global">
@@ -120,7 +119,7 @@ function AiGroup() {
 function AuditGroup() {
   return (
     <section className="space-y-4">
-      <p className="text-sm text-muted-foreground">
+      <p className="ds-body">
         Cada ação da plataforma registrada com autor, conta, motivo, origem, canal e severidade.
       </p>
       <Tabs defaultValue="eventos">
@@ -193,11 +192,11 @@ function GlobalTab() {
           {data.map((g) => (
             <article key={g.id} className="rounded-2xl border border-border bg-surface p-4 space-y-2 shadow-sm">
               <div className="flex items-start justify-between gap-3">
-                <h3 className="font-medium leading-snug">{g.title}</h3>
+                <h3 className="ds-card-title leading-snug">{g.title}</h3>
                 <Badge variant={g.status === "published" ? "default" : "secondary"}>{g.status}</Badge>
               </div>
-              <p className="text-sm text-foreground/80 whitespace-pre-wrap">{g.insight}</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="ds-card-desc whitespace-pre-wrap">{g.insight}</p>
+              <p className="ds-meta">
                 {g.category} · {Math.round(g.confidence * 100)}% confiança · {g.source_tenants} conta(s) ·{" "}
                 {g.source_conversations} conversa(s)
               </p>
@@ -303,14 +302,14 @@ function PipelineTab() {
       {data.map((p) => (
         <article key={p.id} className="rounded-2xl border border-border bg-surface p-4 space-y-2 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-2">
-            <h3 className="font-medium">{p.title ?? "Aprendizado"}</h3>
+            <h3 className="ds-card-title">{p.title ?? "Aprendizado"}</h3>
             <div className="flex gap-2">
               <Badge variant="secondary">{p.approval_status}</Badge>
               {p.promoted_global_id && <Badge>global</Badge>}
             </div>
           </div>
-          <p className="text-sm text-foreground/80 whitespace-pre-wrap line-clamp-4">{p.content}</p>
-          <p className="text-xs text-muted-foreground">
+          <p className="ds-card-desc whitespace-pre-wrap line-clamp-4">{p.content}</p>
+          <p className="ds-meta">
             {p.learning_type ?? "regra"} · escopo {p.approved_scope ?? p.suggested_scope ?? "—"} ·{" "}
             {p.confidence == null ? "—" : `${Math.round(p.confidence * 100)}% confiança`} ·{" "}
             {new Date(p.created_at).toLocaleDateString("pt-BR")}
@@ -406,13 +405,13 @@ function PromptsTab() {
       {data.map((s) => (
         <article key={s.id} className="rounded-2xl border border-border bg-surface p-4 space-y-2 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-2">
-            <h3 className="font-medium">
+            <h3 className="ds-card-title">
               {s.prompt_key} {s.prompt_version ? <span className="text-muted-foreground">· {s.prompt_version}</span> : null}
             </h3>
             <Badge variant="secondary">{s.status}</Badge>
           </div>
-          <p className="text-sm text-foreground/80 whitespace-pre-wrap">{s.suggestion}</p>
-          {s.reason && <p className="text-xs text-muted-foreground">Motivo: {s.reason}</p>}
+          <p className="ds-card-desc whitespace-pre-wrap">{s.suggestion}</p>
+          {s.reason && <p className="ds-meta">Motivo: {s.reason}</p>}
           {s.expected_impact && <p className="text-xs rounded-lg bg-secondary/60 px-2 py-1">{s.expected_impact}</p>}
           {s.status === "pending" && (
             <div className="flex gap-2 pt-1">

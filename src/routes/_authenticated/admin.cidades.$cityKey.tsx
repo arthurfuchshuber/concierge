@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Eye, EyeOff, Trash2, Sparkles, Plus, Star, Search, Loader2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useCityReferencesRealtime } from "@/hooks/useCityReferencesRealtime";
+import { PageHeader, ActionBar } from "@/components/ds/PageHeader";
 
 
 const SearchSchema = z.object({
@@ -215,52 +216,53 @@ function AdminCityDetail() {
         <ArrowLeft className="size-3" /> Todas as cidades
       </Link>
 
-      <div className="pb-6 border-b border-border/60 flex items-start justify-between gap-4 flex-wrap">
-        <div className="min-w-0">
-          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">Na Cidade</p>
-          <h1 className="font-display text-3xl sm:text-4xl leading-tight">
-            {label}
-            {state ? <span className="text-muted-foreground"> — {state}</span> : null}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-2 max-w-2xl">
-            Pontos turísticos e referências macro compartilhados entre todas as suas residências nesta cidade.
-            {data?.job?.last_refreshed_at && (
-              <> <span className="text-foreground/70">Atualizado em {new Date(data.job.last_refreshed_at).toLocaleDateString("pt-BR")}.</span></>
-            )}
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-2 shrink-0">
-          <div className="flex gap-2">
-            <Button onClick={() => handleGenerate(null)} disabled={generating !== null}>
-              {generating === "__all__" ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Sparkles className="size-4 mr-2" />}
-              Gerar tudo com IA
-            </Button>
-            <Button variant="outline" onClick={() => setAddOpen((v) => !v)}>
-              <Plus className="size-4 mr-2" /> Adicionar manual
-            </Button>
-          </div>
-          {generating === "__all__" && generateProgress && (
-            <div className="flex items-center gap-2.5 text-[11.5px] text-muted-foreground">
-              <div className="flex gap-0.5">
-                {Array.from({ length: generateProgress.total }).map((_, i) => (
-                  <span
-                    key={i}
-                    className={`block h-1 w-4 rounded-full transition-colors duration-500 ${
-                      i < generateProgress.current ? "bg-accent" : "bg-border"
-                    }`}
-                  />
-                ))}
-              </div>
-              <span>
-                Buscando <span className="text-foreground font-medium">{generateProgress.label}</span>…
-                <span className="ml-1 text-muted-foreground/60">{generateProgress.current}/{generateProgress.total}</span>
-              </span>
+      <div className="pb-6 border-b border-border/60 space-y-4">
+        <PageHeader
+          title={
+            <>
+              {label}
+              {state ? <span className="text-muted-foreground"> — {state}</span> : null}
+            </>
+          }
+          subtitle={
+            <>
+              Pontos turísticos e referências macro compartilhados entre todas as suas residências nesta cidade.
+              {data?.job?.last_refreshed_at && (
+                <> <span className="text-foreground/70">Atualizado em {new Date(data.job.last_refreshed_at).toLocaleDateString("pt-BR")}.</span></>
+              )}
+            </>
+          }
+          actions={
+            <>
+              <Button onClick={() => handleGenerate(null)} disabled={generating !== null}>
+                {generating === "__all__" ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                Gerar tudo com IA
+              </Button>
+              <Button variant="outline" onClick={() => setAddOpen((v) => !v)}>
+                <Plus className="size-4" /> Adicionar manual
+              </Button>
+            </>
+          }
+        />
+        {generating === "__all__" && generateProgress && (
+          <div className="flex items-center gap-2.5 ds-meta justify-end">
+            <div className="flex gap-0.5">
+              {Array.from({ length: generateProgress.total }).map((_, i) => (
+                <span
+                  key={i}
+                  className={`block h-1 w-4 rounded-full transition-colors duration-500 ${
+                    i < generateProgress.current ? "bg-accent" : "bg-border"
+                  }`}
+                />
+              ))}
             </div>
-          )}
-        </div>
+            <span>
+              Buscando <span className="text-foreground font-medium">{generateProgress.label}</span>…
+              <span className="ml-1 text-muted-foreground/60">{generateProgress.current}/{generateProgress.total}</span>
+            </span>
+          </div>
+        )}
       </div>
-
-
 
       {addOpen && (
         <div className="rounded-xl border border-border bg-card p-4 space-y-3">
@@ -290,8 +292,8 @@ function AdminCityDetail() {
                     <div className="size-12 rounded bg-secondary shrink-0" />
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{p.name}</p>
-                    <p className="text-[11px] text-muted-foreground truncate">
+                    <p className="ds-card-title truncate">{p.name}</p>
+                    <p className="ds-meta truncate">
                       {p.category}
                       {typeof p.rating === "number" ? ` · ★ ${p.rating} (${p.user_ratings_total ?? 0})` : ""}
                     </p>
@@ -306,11 +308,11 @@ function AdminCityDetail() {
         </div>
       )}
 
-      {isLoading && <p className="text-sm text-muted-foreground">Carregando…</p>}
+      {isLoading && <p className="ds-body">Carregando…</p>}
 
       {selected.size > 0 && (
         <div className="sticky top-2 z-20 flex items-center justify-between gap-3 rounded-xl border border-destructive/40 bg-destructive/10 backdrop-blur px-4 py-2.5 shadow-md">
-          <p className="text-sm font-medium">{selected.size} selecionada{selected.size > 1 ? "s" : ""}</p>
+          <p className="ds-body">{selected.size} selecionada{selected.size > 1 ? "s" : ""}</p>
           <div className="flex gap-2">
             <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Cancelar</Button>
             <Button size="sm" variant="destructive" onClick={handleBulkDelete}>
@@ -339,9 +341,9 @@ function AdminCityDetail() {
                 }}
                 className="size-4 accent-current"
               />
-              <h3 className="font-medium text-sm uppercase tracking-wider">
+              <h3 className="ds-eyebrow">
                 {list[0]?.category ?? type}{" "}
-                <span className="text-muted-foreground font-normal">({list.length})</span>
+                <span className="text-muted-foreground font-normal normal-case">({list.length})</span>
               </h3>
             </div>
             <Button
@@ -371,7 +373,7 @@ function AdminCityDetail() {
                   <div className="size-14 rounded bg-secondary shrink-0" />
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">
+                  <p className="ds-card-title truncate">
                     {it.name}
                     {it.source === "manual" && (
                       <span className="ml-2 text-[10px] uppercase px-1.5 py-0.5 rounded bg-accent/15 text-accent">
@@ -379,7 +381,7 @@ function AdminCityDetail() {
                       </span>
                     )}
                   </p>
-                  <p className="text-[11.5px] text-muted-foreground truncate flex items-center gap-2">
+                  <p className="ds-meta truncate flex items-center gap-2">
                     {it.rating != null && (
                       <span className="inline-flex items-center gap-1">
                         <Star className="size-3 fill-current text-amber-500" strokeWidth={0} />
@@ -430,18 +432,18 @@ function AdminCityDetail() {
           <div className="mx-auto size-12 rounded-full bg-secondary/60 flex items-center justify-center mb-4">
             <Sparkles className="size-5 text-muted-foreground" />
           </div>
-          <h3 className="font-display text-lg mb-1">Nenhuma referência ainda</h3>
-          <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
+          <h3 className="ds-section-title mb-1">Nenhuma referência ainda</h3>
+          <p className="ds-body max-w-sm mx-auto mb-5">
             Gere automaticamente pontos turísticos populares de {label} com IA, ou adicione manualmente seus favoritos.
           </p>
           <div className="flex flex-col items-center gap-3">
             <div className="flex gap-2 justify-center">
               <Button onClick={() => handleGenerate(null)} disabled={generating !== null}>
-                {generating === "__all__" ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Sparkles className="size-4 mr-2" />}
+                {generating === "__all__" ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
                 Gerar com IA
               </Button>
               <Button variant="outline" onClick={() => setAddOpen(true)}>
-                <Plus className="size-4 mr-2" /> Adicionar manual
+                <Plus className="size-4" /> Adicionar manual
               </Button>
             </div>
             {generating === "__all__" && generateProgress && (
