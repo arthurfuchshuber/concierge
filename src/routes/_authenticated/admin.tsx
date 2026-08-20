@@ -382,9 +382,9 @@ function AdminLayout() {
             demais. Os itens vêm do mesmo array `nav` já filtrado por
             permissão que alimenta a sidebar — nunca uma lista fixa própria,
             pra não desalinhar do que a pessoa realmente pode acessar. */}
-        {!awaitingAccountChoice && nav.length > 0 && (
+        {!awaitingAccountChoice && bottomNav.length > 0 && (
           <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-20 flex items-stretch justify-around gap-1 border-t border-border bg-background/85 backdrop-blur-xl px-3 pt-2 pb-[max(env(safe-area-inset-bottom),8px)]">
-            {nav.map((item) => {
+            {bottomNav.map((item) => {
               const active = item.exact ? pathname === item.to : pathname.startsWith(item.to);
               const Icon = item.icon;
               const badge = ("badge" in item ? item.badge : 0) ?? 0;
@@ -393,18 +393,22 @@ function AdminLayout() {
                 <Link
                   key={item.label}
                   to={item.to}
-                  className="flex-1 min-w-0 flex flex-col items-center justify-center gap-1 py-1.5 rounded-2xl relative"
+                  className="flex-1 min-w-0 flex flex-col items-center justify-center gap-1 py-1.5 rounded-lg relative"
                 >
                   <span
-                    className={`size-10 rounded-2xl grid place-items-center ${
+                    className={`size-10 rounded-lg grid place-items-center ${
                       active
-                        ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white shadow-[0_4px_20px_-2px_rgba(232,45,174,0.65)]"
-                        : "text-white/60"
+                        ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white shadow-[0_4px_20px_-2px_rgba(232,45,174,0.55)]"
+                        : "text-muted-foreground"
                     }`}
                   >
                     <Icon className="size-[18px]" strokeWidth={1.9} />
                   </span>
-                  <span className={`text-[10px] font-bold tracking-tight truncate max-w-full ${active ? "text-white" : "text-white/55"}`}>
+                  <span
+                    className={`text-[10px] font-bold tracking-tight truncate max-w-full ${
+                      active ? "text-foreground" : "text-muted-foreground"
+                    }`}
+                  >
                     {shortLabel}
                   </span>
                   {badge > 0 && (
@@ -417,6 +421,7 @@ function AdminLayout() {
             })}
           </nav>
         )}
+
 
       </div>
       {handoffEnabled &&
