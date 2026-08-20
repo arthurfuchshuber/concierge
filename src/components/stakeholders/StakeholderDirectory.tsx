@@ -17,6 +17,8 @@ import {
   Trash2,
   Pencil,
   Home,
+  MessageCircle,
+  StickyNote,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +30,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Select,
   SelectContent,
@@ -57,6 +60,7 @@ type Row = Record<string, any>;
 
 
 export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
+  const isMobile = useIsMobile();
   const qc = useQueryClient();
   const listFn = useServerFn(listStakeholders);
   const delFn = useServerFn(deleteStakeholder);
@@ -341,9 +345,16 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
       </Dialog>
 
 
-      {/* Detail */}
+      {/* Detail — bottom-sheet no mobile, painel lateral no desktop */}
       <Sheet open={!!detailId} onOpenChange={(o) => !o && setDetailId(null)}>
-        <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto p-0">
+        <SheetContent
+          side={isMobile ? "bottom" : "right"}
+          className={
+            isMobile
+              ? "w-full h-[92dvh] max-h-[92dvh] rounded-t-2xl overflow-y-auto p-0"
+              : "w-full sm:max-w-3xl overflow-y-auto p-0"
+          }
+        >
           {detailId && <StakeholderDetailSheet kind={kind} id={detailId} accountOwnerId={activeAccountId} onEdit={() => {
             const row = rows.find((r) => r.id === detailId);
             if (row) { setDetailId(null); openEdit(row); }
@@ -401,32 +412,72 @@ function StakeholderCard({
       </div>
 
       {!compact && (
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          {row.email && (
-            <div className="min-w-0">
-              <p className="ds-eyebrow text-muted-foreground">Email</p>
-              <p className="ds-body truncate mt-0.5 flex items-center gap-1.5">
-                <Mail className="size-3 shrink-0 text-muted-foreground" /> {row.email}
+        <>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            {row.doc && (
+              <div className="min-w-0">
+                <p className="ds-eyebrow text-muted-foreground">CPF/CNPJ</p>
+                <p className="ds-body truncate mt-0.5">{row.doc}</p>
+              </div>
+            )}
+            {cityUf && (
+              <div className="min-w-0">
+                <p className="ds-eyebrow text-muted-foreground">Cidade/UF</p>
+                <p className="ds-body truncate mt-0.5 flex items-center gap-1.5">
+                  <MapPin className="size-3 shrink-0 text-muted-foreground" /> {cityUf}
+                </p>
+              </div>
+            )}
+            {kind === "provider" && row.hourly_rate_cents ? (
+              <div className="min-w-0">
+                <p className="ds-eyebrow text-muted-foreground">Valor/hora</p>
+                <p className="ds-body truncate mt-0.5">
+                  {(row.hourly_rate_cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                </p>
+              </div>
+            ) : null}
+          </div>
+
+          {(row.phone || row.email) && (
+            <div className="mt-3 min-w-0">
+              <p className="ds-eyebrow text-muted-foreground">Contato</p>
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                {row.phone && (
+                  <span className="ds-body inline-flex items-center gap-1.5 min-w-0">
+                    <Phone className="size-3 shrink-0 text-muted-foreground" />
+                    <span className="truncate">{row.phone}</span>
+                    <a
+                      href={`https://wa.me/55${String(row.phone).replace(/\D/g, "")}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label="Conversar no WhatsApp"
+                      title="Conversar no WhatsApp"
+                      className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 transition-colors"
+                    >
+                      <MessageCircle className="size-3.5" />
+                    </a>
+                  </span>
+                )}
+                {row.phone && row.email && <span className="ds-meta">·</span>}
+                {row.email && (
+                  <span className="ds-body inline-flex items-center gap-1.5 min-w-0 truncate">
+                    <Mail className="size-3 shrink-0 text-muted-foreground" /> {row.email}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {row.notes && (
+            <div className="mt-3 ds-surface bg-secondary/40 border border-border/50 px-3 py-2.5">
+              <p className="ds-body text-muted-foreground flex items-start gap-2 line-clamp-2">
+                <StickyNote className="size-3.5 shrink-0 mt-0.5 text-muted-foreground" />
+                <span>{row.notes}</span>
               </p>
             </div>
           )}
-          {row.phone && (
-            <div className="min-w-0">
-              <p className="ds-eyebrow text-muted-foreground">Telefone</p>
-              <p className="ds-body truncate mt-0.5 flex items-center gap-1.5">
-                <Phone className="size-3 shrink-0 text-muted-foreground" /> {row.phone}
-              </p>
-            </div>
-          )}
-          {cityUf && (
-            <div className="min-w-0">
-              <p className="ds-eyebrow text-muted-foreground">Cidade/UF</p>
-              <p className="ds-body truncate mt-0.5 flex items-center gap-1.5">
-                <MapPin className="size-3 shrink-0 text-muted-foreground" /> {cityUf}
-              </p>
-            </div>
-          )}
-        </div>
+        </>
       )}
 
       <div className="mt-3 flex items-center gap-1.5">

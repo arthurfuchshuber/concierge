@@ -8,7 +8,13 @@ import {
   unlinkPropertyFromGroup,
   renameCityGroup,
 } from "@/lib/city-reference-groups.functions";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+  ResponsiveDialogFooter,
+} from "@/components/ResponsiveDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -118,11 +124,11 @@ function LinkGuidesDialog({
   }
 
   return (
-    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Vincular guias da mesma cidade</DialogTitle>
-        </DialogHeader>
+    <ResponsiveDialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <ResponsiveDialogContent className="max-w-lg">
+        <ResponsiveDialogHeader>
+          <ResponsiveDialogTitle>Vincular guias da mesma cidade</ResponsiveDialogTitle>
+        </ResponsiveDialogHeader>
 
         <p className="text-xs text-muted-foreground">
           Guias vinculados compartilham automaticamente as "Referências na Cidade".
@@ -204,13 +210,13 @@ function LinkGuidesDialog({
           )}
         </div>
 
-        <DialogFooter className="gap-2">
+        <ResponsiveDialogFooter className="gap-2">
           <Button variant="ghost" onClick={onClose} disabled={saving}>Fechar</Button>
           <Button onClick={handleLink} disabled={saving || selected.size === 0}>
             {saving && <Loader2 className="size-3.5 animate-spin" />} Vincular {selected.size > 0 && `(${selected.size})`}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ResponsiveDialogFooter>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   );
 }

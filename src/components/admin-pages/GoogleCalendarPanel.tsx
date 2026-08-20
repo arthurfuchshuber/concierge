@@ -143,11 +143,24 @@ export function GoogleCalendarPanel({ accountOwnerId = null, readOnly = false }:
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge className="gap-1 border-0 bg-emerald-500/15 text-[10px] text-emerald-600 dark:text-emerald-400">
-          <CalendarDays className="size-2.5" /> {status.data?.email ?? "Conta conectada"}
-        </Badge>
-        <span className="text-[11px] text-muted-foreground">{status.data?.calendarsCount ?? 0} agendas</span>
+      <div className="ds-surface border border-border bg-card/60 p-3.5">
+        <div className="flex items-center gap-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+            <CalendarDays className="size-5" />
+          </span>
+          <div className="min-w-0">
+            <p className="ds-body font-medium">Conta conectada</p>
+            <p className="ds-meta truncate flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+              <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" /> {status.data?.email ?? "—"}
+            </p>
+          </div>
+        </div>
+        <div className="mt-3 divide-y divide-border/60 border-t border-border/60">
+          <div className="flex items-center justify-between py-2 text-xs">
+            <span className="text-muted-foreground">Agendas sincronizadas</span>
+            <span className="font-semibold tabular-nums">{status.data?.calendarsCount ?? 0}</span>
+          </div>
+        </div>
       </div>
 
       {status.data?.error && <p className="text-[11px] text-destructive">{status.data.error}</p>}
@@ -283,12 +296,12 @@ export function GoogleCalendarPanel({ accountOwnerId = null, readOnly = false }:
 
       <Button
         size="sm"
-        variant="ghost"
-        className="h-7 rounded-full px-2 text-[11px] text-destructive hover:text-destructive"
+        variant="outline"
+        className="h-9 w-full rounded-lg text-xs text-destructive hover:text-destructive"
         onClick={() => disconnect.mutate()}
         disabled={disconnect.isPending}
       >
-        <Trash2 className="mr-1 size-3" /> Desconectar
+        <Trash2 className="mr-1.5 size-3.5" /> Desconectar conta
       </Button>
 
       <LinkEventDialog target={linkTarget} onOpenChange={(o) => !o && setLinkTarget(null)} />

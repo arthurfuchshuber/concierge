@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog";
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+  ResponsiveDialogFooter,
+  ResponsiveDialogDescription,
+} from "@/components/ResponsiveDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -358,14 +358,14 @@ export function BulkEditDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
-      <DialogContent className="w-[calc(100vw-1.5rem)] sm:max-w-3xl max-h-[85vh] overflow-y-auto overflow-x-hidden">
-        <DialogHeader>
-          <DialogTitle>Editar {ids.length} {ids.length === 1 ? "guia" : "guias"}</DialogTitle>
-          <DialogDescription>
+    <ResponsiveDialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
+      <ResponsiveDialogContent className="w-[calc(100vw-1.5rem)] sm:max-w-3xl max-h-[85vh] overflow-y-auto overflow-x-hidden">
+        <ResponsiveDialogHeader>
+          <ResponsiveDialogTitle>Editar {ids.length} {ids.length === 1 ? "guia" : "guias"}</ResponsiveDialogTitle>
+          <ResponsiveDialogDescription>
             {loading ? "Carregando dados dos guias selecionados…" : "Ative os campos que deseja aplicar. Ao salvar, você escolhe se sobrescreve ou apenas preenche os guias que ainda não têm a informação."}
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveDialogDescription>
+        </ResponsiveDialogHeader>
 
         {loading ? (
           <div className="py-10 grid place-items-center text-muted-foreground">
@@ -464,13 +464,13 @@ export function BulkEditDialog({
         </Tabs>
         )}
 
-        <DialogFooter>
+        <ResponsiveDialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
           <Button onClick={() => setConfirmMode("ask")} disabled={saving || loading || !hasAnySelected}>
             {saving && <Loader2 className="size-4 mr-1.5 animate-spin" />}
             Aplicar a {ids.length} {ids.length === 1 ? "guia" : "guias"}
           </Button>
-        </DialogFooter>
+        </ResponsiveDialogFooter>
 
         {confirmMode === "ask" && (
           <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" onClick={() => !saving && setConfirmMode(null)}>
@@ -499,8 +499,8 @@ export function BulkEditDialog({
             </div>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   );
 }
 
