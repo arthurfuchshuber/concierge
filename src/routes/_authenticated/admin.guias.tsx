@@ -983,7 +983,7 @@ function Dashboard() {
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
                         <AlertDialogAction
                           onClick={() => handleDelete(p.id, p.name)}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          className="border border-destructive/40 bg-destructive/15 text-destructive hover:bg-destructive/25"
                         >
                           Excluir
                         </AlertDialogAction>
