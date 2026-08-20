@@ -53,23 +53,12 @@ function IaGovernancePage() {
   return (
     <div className="max-w-[1440px] mx-auto w-full px-6 lg:px-10 py-8 lg:py-10 space-y-6">
       <PageHeader
-        title={<span className="inline-flex items-center gap-2"><BrainCircuit className="size-5 text-primary" /> IA Concierge</span>}
-        subtitle="Tudo que a inteligência aprendeu sobre a sua operação — e o que ainda depende da sua aprovação."
+        eyebrow={<span className="text-accent">Memória e conhecimento</span>}
+        title="IA Concierge"
+        subtitle="Tudo que a IA aprendeu — e o que depende da sua aprovação."
       />
 
-      <Tabs defaultValue="conhecimento">
-        <TabsList className="w-full justify-start">
-          <TabsTrigger value="conhecimento" className="shrink-0">Conhecimento da Operação</TabsTrigger>
-          <TabsTrigger value="aprendizados" className="shrink-0">Aprendizados Pendentes</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="conhecimento" className="mt-5">
-          <KnowledgeTab />
-        </TabsContent>
-        <TabsContent value="aprendizados" className="mt-5">
-          <QueueTab />
-        </TabsContent>
-      </Tabs>
+      <IaTabs />
     </div>
   );
 }
