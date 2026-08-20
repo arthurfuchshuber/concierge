@@ -759,15 +759,24 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ).map((t) => {
                     const Icon = t.icon;
                     const active = mobileTab === t.key;
+                    // Cor por status: só aparece no item selecionado, e apenas
+                    // como borda inferior (sem fundo, sem borda ao redor).
+                    const toneByKey: Record<string, string> = {
+                      checkin: "border-b-emerald-500 text-emerald-500",
+                      checkout: "border-b-orange-500 text-orange-500",
+                      stay: "border-b-violet-400 text-violet-400",
+                      cleaning: "border-b-sky-400 text-sky-400",
+                      done: "border-b-muted-foreground text-muted-foreground",
+                    };
                     return (
                       <button
                         key={t.key}
                         type="button"
                         onClick={() => setMobileTab(t.key)}
-                        className={`h-9 box-border shrink-0 snap-start inline-flex items-center gap-1.5 rounded-none border-0 px-3.5 text-xs font-medium leading-none whitespace-nowrap transition-colors ${
+                        className={`h-9 box-border shrink-0 snap-start inline-flex items-center gap-1.5 rounded-none border-0 border-b-2 bg-transparent px-3.5 text-xs font-medium leading-none whitespace-nowrap transition-colors ${
                           active
-                            ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
-                            : "bg-secondary/50 text-muted-foreground"
+                            ? `${toneByKey[t.key]} border-b-current`
+                            : "border-b-transparent text-muted-foreground"
                         }`}
                       >
                         <Icon className="size-3.5" />
@@ -776,6 +785,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                       </button>
                     );
                   })}
+
                 </div>
                 <RangeDropdown
                   value={range}
