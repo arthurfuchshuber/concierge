@@ -590,12 +590,23 @@ function DashboardPage() {
   // verdade — os dois pontos de chamada leem o mesmo engQ/range do
   // componente pai, então nunca ficam dessincronizados entre si.
   function renderEngagementPanel(wrapperClassName: string) {
-    // Aparece sempre que existirem check-ins no período — antes dependia de
-    // haver check-in PENDENTE, o que escondia o card justamente quando a
-    // operação do dia já tinha sido concluída.
+    // O bloco de engajamento é fixo no layout (como no mockup): mesmo sem
+    // check-ins no período ele aparece, com um recado curto no lugar das
+    // barras — some só se a consulta falhar de vez.
     const hasData =
       (engQ.data?.checkinsInPeriod ?? 0) > 0 || (engQ.data?.checkinsWithCodes ?? 0) > 0;
-    if (!engQ.isLoading && !hasData) return null;
+    if (!engQ.isLoading && !hasData) {
+      return (
+        <section className={`rounded-lg border border-border bg-card p-4 sm:p-5 ${wrapperClassName}`}>
+          <div className="ds-eyebrow text-muted-foreground">Engajamento</div>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Sem check-ins no período — as barras de instruções e senha aparecem assim que
+            houver chegadas.
+          </p>
+        </section>
+      );
+    }
+
     return (
       <section className={`rounded-lg border border-border bg-card p-4 sm:p-5 ${wrapperClassName}`}>
         <EngagementBars
