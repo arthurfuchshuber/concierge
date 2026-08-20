@@ -21,6 +21,23 @@ function buildInfo() {
   return { commit, builtAt: new Date().toISOString() };
 }
 
+/** Expõe o módulo virtual "virtual:build-info" com hash do commit e data do build. */
+function buildInfoPlugin() {
+  const id = "virtual:build-info";
+  const resolved = "\0" + id;
+  const info = buildInfo();
+  return {
+    name: "build-info",
+    resolveId(source: string) {
+      return source === id ? resolved : null;
+    },
+    load(loadedId: string) {
+      if (loadedId !== resolved) return null;
+      return `export default ${JSON.stringify(info)};`;
+    },
+  };
+}
+
 export default defineConfig({
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
@@ -28,10 +45,7 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
-    plugins: [mcpPlugin()],
-    define: {
-      __BUILD_INFO__: JSON.stringify(buildInfo()),
-    },
+    plugins: [mcpPlugin(), buildInfoPlugin()],
   },
 });
 
