@@ -127,6 +127,23 @@ function AdminLayout() {
       return !permission || areaAccess.can(permission);
     });
 
+  /**
+   * Barra inferior (mobile): no máximo 5 destinos — Dashboard, Guias,
+   * Pessoas, IA e Suporte, como no mockup. "Administrativo" continua na
+   * gaveta lateral; 6 itens não cabem numa tela de 390px sem virar rótulo
+   * cortado.
+   */
+  const BOTTOM_NAV_PATHS = [
+    "/admin/dashboard",
+    "/admin/guias",
+    "/admin/stakeholders",
+    "/admin/ia",
+    "/admin/atendimento",
+  ];
+  const bottomNav = nav.filter((item) => BOTTOM_NAV_PATHS.includes(item.to));
+
+
+
 
   const routePermission = permissionForPath(pathname);
   useImpersonationQuerySync();
