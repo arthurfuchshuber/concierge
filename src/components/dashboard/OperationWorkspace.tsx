@@ -764,7 +764,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                         key={t.key}
                         type="button"
                         onClick={() => setMobileTab(t.key)}
-                        className={`h-8 shrink-0 snap-start inline-flex items-center gap-1.5 rounded-[0.3rem] border px-3 text-xs font-medium whitespace-nowrap transition-colors ${
+                        className={`h-9 box-border shrink-0 snap-start inline-flex items-center gap-1.5 rounded-lg border px-3 text-xs font-medium leading-none whitespace-nowrap transition-colors ${
                           active
                             ? "border-transparent bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
                             : "border-border text-muted-foreground"
