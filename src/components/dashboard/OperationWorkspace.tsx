@@ -64,18 +64,6 @@ import {
 } from "@/lib/dashboard.functions";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { ConfirmActionDialog } from "@/components/permissions/ConfirmActionDialog";
-import {
-  OperationTopbar,
-  NowStrip,
-  DayCard,
-  TomorrowStrip,
-  FreePropertyChips,
-  OperationShortcuts,
-  effectiveTime,
-  minutesOf,
-  nowMinutesSaoPaulo,
-  type OperationView,
-} from "@/components/dashboard/OperationUI";
 
 function PhoneLink({ phone, country }: { phone: string | null; country: string | null }) {
   return <PhoneActionButton phone={phone} country={country} size={12} />;
@@ -169,7 +157,7 @@ function InfoHint({ title, children }: { title: string; children: React.ReactNod
   );
 }
 
-export type { OperationView };
+export type OperationView = "resumo" | "kanban" | "calendario";
 
 export function OperationWorkspace({ view }: { view: OperationView }) {
   const engFn = useServerFn(getGuideEngagement);
@@ -622,176 +610,339 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   }
 
 
-  const nowMin = nowMinutesSaoPaulo();
-  const lateIds = useMemo(() => {
-    const out = new Set<string>();
-    for (const r of [...checkinPendingRows, ...checkoutPendingRows]) {
-      if (r.date !== todayISO) continue;
-      const m = minutesOf(effectiveTime(r));
-      if (m !== null && m < nowMin) out.add(r.logId);
-    }
-    return out;
-  }, [checkinPendingRows, checkoutPendingRows, todayISO, nowMin]);
-
-  const soonCount = useMemo(
-    () =>
-      checkinPendingRows.filter((r) => {
-        if (r.date !== todayISO) return false;
-        const m = minutesOf(effectiveTime(r));
-        return m !== null && m >= nowMin && m <= nowMin + 180;
-      }).length,
-    [checkinPendingRows, todayISO, nowMin],
-  );
-
-  const checkinDone = useMemo(() => ciRows.filter((r) => r.status === "done").length, [ciRows]);
-  const checkoutDone = useMemo(() => coRows.filter((r) => r.status === "done").length, [coRows]);
-
-
   return (
-    <div className="px-4 sm:px-6 lg:px-10 pb-8 pt-2 max-w-[1440px] mx-auto w-full space-y-2">
-      <OperationTopbar view={view} counts={{ kanban: counts.checkin + counts.checkout + counts.cleaning }} />
+    <div className="px-4 sm:px-6 lg:px-10 py-5 lg:py-8 max-w-[1440px] mx-auto w-full space-y-1.5">
+      <OperationShell view={view} />
 
       {view === "resumo" ? (
-        <div className="space-y-2 lg:grid lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:gap-2 lg:space-y-0">
-          <div className="space-y-2">
-            <NowStrip late={lateIds.size} soon={soonCount} cleaning={cleaningRows.length} />
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <DayCard
-                title="Check-ins de hoje"
-                icon={LogIn}
-                tone="arrival"
+        <>
+          {/* KPIs — mesmo espaçamento de 6px do cabeçalho acima, replicado para
+              linha↔linha, linha↔card e card↔card em toda a página. */}
+          <section className="space-y-1.5">
+            <div className="grid grid-cols-2 gap-1.5">
+              <KpiCard
+                label="Check-ins Pendentes"
                 rows={checkinPendingRows}
-                doneCount={checkinDone}
+                icon={LogIn}
+                tone="primary"
                 loading={checkinListQ.isLoading}
-                lateIds={lateIds}
-                busyRowId={busyRowId}
+                onRefresh={() => checkinListQ.refetch()}
+                kind="checkin"
+                rangeLabel={rangeLabel[range]}
+                shadowTone="emerald"
+                onEditTime={handleEditTime}
                 onAdvance={(r) => handleAdvance(r, "checkin")}
               />
-              <DayCard
-                title="Checkouts de hoje"
-                icon={LogOut}
-                tone="departure"
+              <KpiCard
+                label="Checkouts Pendentes"
                 rows={checkoutPendingRows}
-                doneCount={checkoutDone}
+                icon={LogOut}
+                tone="primary"
                 loading={checkoutListQ.isLoading}
-                lateIds={lateIds}
-                busyRowId={busyRowId}
+                onRefresh={() => checkoutListQ.refetch()}
+                kind="checkout"
+                rangeLabel={rangeLabel[range]}
+                shadowTone="amber"
+                onEditTime={handleEditTime}
                 onAdvance={(r) => handleAdvance(r, "checkout")}
               />
             </div>
 
-            <TomorrowStrip
-              checkins={tomorrowCheckinPendingRows.length}
-              checkouts={tomorrowCheckoutPendingRows.length}
-            />
-          </div>
+            {/* Em Limpeza — faixa fina logo abaixo dos pendentes (só quando houver 1+) */}
+            {cleaningRows.length > 0 ? (
+              // Sem o shimmer/glow âmbar (amber-mirror) — menos "colorido",
+              // mais executivo; o card já sinaliza com o pontinho âmbar.
+              <div>
+                <KpiCard
+                  label="Em Limpeza"
+                  rows={cleaningRows}
+                  icon={Sparkles}
+                  tone="primary-soft"
+                  loading={checkoutListQ.isLoading}
+                  onRefresh={() => checkoutListQ.refetch()}
+                  kind="checkout"
+                  rangeLabel={rangeLabel[range]}
+                  onEditTime={handleEditTime}
+                  onAdvance={(r) => handleAdvance(r, "cleaning")}
+                  compact
+                />
+              </div>
+            ) : null}
 
-          <div className="space-y-2">
-            {renderEngagementPanel("")}
-            <FreePropertyChips loading={occupancyQ.isLoading} properties={freeProperties} />
-            <OperationShortcuts />
-          </div>
-        </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5">
+              <KpiCard
+                label="Check-ins amanhã"
+                rows={tomorrowCheckinPendingRows}
+                icon={CalendarCheck}
+                tone="primary-soft"
+                loading={tomorrowCheckinListQ.isLoading}
+                onRefresh={() => tomorrowCheckinListQ.refetch()}
+                kind="checkin"
+                rangeLabel="Amanhã"
+                onEditTime={handleEditTime}
+                onAdvance={(r) => handleAdvance(r, "checkin")}
+              />
+              <KpiCard
+                label="Checkouts amanhã"
+                rows={tomorrowCheckoutPendingRows}
+                icon={CalendarX}
+                tone="primary-soft"
+                loading={tomorrowCheckoutListQ.isLoading}
+                onRefresh={() => tomorrowCheckoutListQ.refetch()}
+                kind="checkout"
+                rangeLabel="Amanhã"
+                onEditTime={handleEditTime}
+                onAdvance={(r) => handleAdvance(r, "checkout")}
+              />
+              <KpiCard
+                label="Em Estadia"
+                rows={stayRows}
+                icon={BedDouble}
+                tone="primary-soft"
+                loading={checkinListQ.isLoading}
+                onRefresh={() => checkinListQ.refetch()}
+                kind="checkin"
+                rangeLabel={rangeLabel[range]}
+                onEditTime={handleEditTime}
+                onAdvance={(r) => handleAdvance(r, "stay")}
+              />
+              <FreePropertiesCard
+                loading={occupancyQ.isLoading}
+                properties={freeProperties}
+                onRefresh={() => occupancyQ.refetch()}
+              />
+            </div>
+          </section>
+
+          {/* Engajamento do guia — volta a aparecer aqui embaixo, sempre, em
+              largura total (mobile e desktop). Versão discreta, sem cabeçalho. */}
+          {renderEngagementPanel("")}
+        </>
       ) : null}
 
       {view === "kanban" ? (
-        <section className="space-y-2">
-          <div className="flex items-center gap-2">
-            <h2 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Quadro de operação
-            </h2>
-            <div className="ml-auto">
-              <RangeDropdown
-                value={range}
-                onChange={setRange}
-                options={[
-                  ["today", "Hoje"],
-                  ["tomorrow", "Amanhã"],
-                  ["7d", "7 dias"],
-                  ["all", "Todos"],
-                ]}
-              />
+        <>
+          {/* Quadro de operação — Kanban por status, colunas lado a lado (estilo
+              Jira). Antes era uma lista só com um dropdown pra trocar de status;
+              agora todos os status ficam visíveis ao mesmo tempo, e "puxar" um
+              card de um status pro outro fica visual, não escondido atrás de um
+              menu. */}
+          <section className="rounded-lg border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
+            {/* Título "Quadro de operação" — redundante no mobile, onde as
+                próprias abas logo abaixo (Check-ins, Checkouts...) já deixam
+                claro do que se trata; mantido no desktop, onde a visão é de
+                colunas lado a lado sem essa legenda textual. O filtro "Hoje"
+                também só aparece aqui no desktop — no mobile ele migra pra
+                dentro da linha de abas, ver abaixo. */}
+            <div className="hidden sm:flex items-center gap-3">
+              <h2 className="ds-section-title mb-0 flex items-center gap-2">
+                <LayoutGrid className="size-4.5 text-muted-foreground" /> Quadro de operação
+              </h2>
+              <div className="ml-auto">
+                <RangeDropdown
+                  value={range}
+                  onChange={setRange}
+                  options={[
+                    ["today", "Hoje"],
+                    ["tomorrow", "Amanhã"],
+                    ["7d", "7 dias"],
+                    ["all", "Todos"],
+                  ]}
+                />
+              </div>
             </div>
-          </div>
 
-          <div
-            ref={kanbanRowRef}
-            className="flex gap-2 items-start overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1"
-          >
-            {(
-              [
-                {
-                  key: "checkin" as const,
-                  title: "Chegadas",
-                  icon: CalendarCheck,
-                  tone: "emerald" as const,
-                  count: counts.checkin,
-                  loading: checkinListQ.isLoading,
-                  rows: checkinPendingRows,
-                },
-                {
-                  key: "stay" as const,
-                  title: "Em estadia",
-                  icon: BedDouble,
-                  tone: "sky" as const,
-                  count: counts.stay,
-                  loading: checkinListQ.isLoading,
-                  rows: stayRows,
-                },
-                {
-                  key: "checkout" as const,
-                  title: "Saídas",
-                  icon: CalendarX,
-                  tone: "amber" as const,
-                  count: counts.checkout,
-                  loading: checkoutListQ.isLoading,
-                  rows: checkoutPendingRows,
-                },
-                {
-                  key: "cleaning" as const,
-                  title: "Limpeza",
-                  icon: Sparkles,
-                  tone: "violet" as const,
-                  count: counts.cleaning,
-                  loading: checkoutListQ.isLoading,
-                  rows: cleaningRows,
-                },
-                {
-                  key: "done" as const,
-                  title: "Concluídos",
-                  icon: CheckCircle2,
-                  tone: "zinc" as const,
-                  count: counts.done,
-                  loading: concludedQ.isLoading,
-                  rows: concludedRows,
-                },
-              ]
-            ).map((col) => (
-              <div
-                key={col.key}
-                className="shrink-0 snap-start w-[85vw] sm:w-(--kw)"
-                style={{ "--kw": `${kanbanColWidth}px` } as React.CSSProperties}
-              >
+            {/* Mobile: abas roláveis, uma coluna ativa por vez — 5 colunas lado a
+                lado não cabem numa tela estreita. O item ativo usa sempre o
+                gradiente da marca (mesmo tratamento de toda aba/badge ativo do
+                app), não uma cor diferente por aba. O filtro "Hoje" fica fixo
+                no fim dessa mesma linha, não numa linha própria acima. */}
+            <div className="sm:hidden space-y-3">
+              <div className="flex items-center gap-1.5">
+                <div className="ds-scroll-x flex-1 min-w-0 gap-1.5 snap-x pb-1 -mx-1 px-1">
+                  {(
+                    [
+                      { key: "checkin", label: "Check-ins", icon: CalendarCheck, count: counts.checkin },
+                      { key: "checkout", label: "Checkouts", icon: CalendarX, count: counts.checkout },
+                      { key: "stay", label: "Estadia", icon: BedDouble, count: counts.stay },
+                      { key: "cleaning", label: "Limpeza", icon: Sparkles, count: counts.cleaning },
+                      { key: "done", label: "Concluídos", icon: CheckCircle2, count: counts.done },
+                    ] as const
+                  ).map((t) => {
+                    const Icon = t.icon;
+                    const active = mobileTab === t.key;
+                    return (
+                      <button
+                        key={t.key}
+                        type="button"
+                        onClick={() => setMobileTab(t.key)}
+                        className={`shrink-0 snap-start inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
+                          active
+                            ? "border-transparent bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
+                            : "border-border text-muted-foreground"
+                        }`}
+                      >
+                        <Icon className="size-3.5" />
+                        {t.label}
+                        <span className="opacity-75 tabular-nums">{t.count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <RangeDropdown
+                  value={range}
+                  onChange={setRange}
+                  options={[
+                    ["today", "Hoje"],
+                    ["tomorrow", "Amanhã"],
+                    ["7d", "7 dias"],
+                    ["all", "Todos"],
+                  ]}
+                />
+              </div>
+
+              {mobileTab === "checkin" &&
+                (checkinListQ.isLoading ? (
+                  <ColumnLoading />
+                ) : checkinPendingRows.length === 0 ? (
+                  <ColumnEmpty />
+                ) : (
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("checkin", checkinPendingRows)} />
+                ))}
+              {mobileTab === "checkout" &&
+                (checkoutListQ.isLoading ? (
+                  <ColumnLoading />
+                ) : checkoutPendingRows.length === 0 ? (
+                  <ColumnEmpty />
+                ) : (
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("checkout", checkoutPendingRows)} />
+                ))}
+              {mobileTab === "stay" &&
+                (checkinListQ.isLoading ? (
+                  <ColumnLoading />
+                ) : stayRows.length === 0 ? (
+                  <ColumnEmpty />
+                ) : (
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", stayRows)} />
+                ))}
+              {mobileTab === "cleaning" &&
+                (checkoutListQ.isLoading ? (
+                  <ColumnLoading />
+                ) : cleaningRows.length === 0 ? (
+                  <ColumnEmpty />
+                ) : (
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", cleaningRows)} />
+                ))}
+              {mobileTab === "done" &&
+                (concludedQ.isLoading ? (
+                  <ColumnLoading />
+                ) : concludedRows.length === 0 ? (
+                  <ColumnEmpty />
+                ) : (
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("done", concludedRows)} />
+                ))}
+            </div>
+
+            {/* Desktop/tablet: colunas com largura fixa e confortável, com
+                rolagem horizontal quando não couberem todas — igual Jira/Trello
+                de verdade. Antes o grid forçava sempre 5 colunas na mesma
+                largura da tela toda, então ficava ruim ou bom dependendo de
+                quanto espaço sobrava (ex.: menu recolhido ou não). Agora cada
+                coluna tem sempre a mesma largura confortável, não importa o
+                espaço disponível. */}
+            <div ref={kanbanRowRef} className="hidden sm:flex gap-3 items-start overflow-x-auto snap-x pb-2 -mx-1 px-1">
+              <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
                 <KanbanColumn
-                  onScroll={() => setExpandedByColumn((prev) => ({ ...prev, [col.key]: null }))}
-                  title={col.title}
-                  icon={col.icon}
-                  count={col.count}
-                  tone={col.tone}
+                  onScroll={() => setExpandedByColumn((prev) => ({ ...prev, checkin: null }))}
+                  title="Check-ins"
+                  icon={CalendarCheck}
+                  count={counts.checkin}
+                  tone="emerald"
                 >
-                  {col.loading ? (
+                  {checkinListQ.isLoading ? (
                     <ColumnLoading />
-                  ) : col.rows.length === 0 ? (
+                  ) : checkinPendingRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor(col.key, col.rows)} />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("checkin", checkinPendingRows)} />
                   )}
                 </KanbanColumn>
               </div>
-            ))}
-          </div>
-        </section>
+
+              <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
+                <KanbanColumn
+                  onScroll={() => setExpandedByColumn((prev) => ({ ...prev, checkout: null }))}
+                  title="Checkouts"
+                  icon={CalendarX}
+                  count={counts.checkout}
+                  tone="amber"
+                >
+                  {checkoutListQ.isLoading ? (
+                    <ColumnLoading />
+                  ) : checkoutPendingRows.length === 0 ? (
+                    <ColumnEmpty />
+                  ) : (
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("checkout", checkoutPendingRows)} />
+                  )}
+                </KanbanColumn>
+              </div>
+
+              <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
+                <KanbanColumn
+                  onScroll={() => setExpandedByColumn((prev) => ({ ...prev, stay: null }))}
+                  title="Em Estadia"
+                  icon={BedDouble}
+                  count={counts.stay}
+                  tone="sky"
+                >
+                  {checkinListQ.isLoading ? (
+                    <ColumnLoading />
+                  ) : stayRows.length === 0 ? (
+                    <ColumnEmpty />
+                  ) : (
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", stayRows)} />
+                  )}
+                </KanbanColumn>
+              </div>
+
+              <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
+                <KanbanColumn
+                  onScroll={() => setExpandedByColumn((prev) => ({ ...prev, cleaning: null }))}
+                  title="Em Limpeza"
+                  icon={Sparkles}
+                  count={counts.cleaning}
+                  tone="violet"
+                >
+                  {checkoutListQ.isLoading ? (
+                    <ColumnLoading />
+                  ) : cleaningRows.length === 0 ? (
+                    <ColumnEmpty />
+                  ) : (
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", cleaningRows)} />
+                  )}
+                </KanbanColumn>
+              </div>
+
+              <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
+                <KanbanColumn
+                  onScroll={() => setExpandedByColumn((prev) => ({ ...prev, done: null }))}
+                  title="Concluídos"
+                  icon={CheckCircle2}
+                  count={counts.done}
+                  tone="zinc"
+                >
+                  {concludedQ.isLoading ? (
+                    <ColumnLoading />
+                  ) : concludedRows.length === 0 ? (
+                    <ColumnEmpty />
+                  ) : (
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("done", concludedRows)} />
+                  )}
+                </KanbanColumn>
+              </div>
+            </div>
+          </section>
+        </>
       ) : null}
 
       {view === "calendario" ? (
@@ -845,6 +996,54 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 }
 
 
+
+/* --------- Cabeçalho compartilhado das 3 telas de operação --------- */
+
+const OPERATION_TABS = [
+  { view: "resumo" as const, label: "Dashboard", to: "/admin/dashboard" },
+  { view: "kanban" as const, label: "Kanban", to: "/admin/dashboard/kanban" },
+  { view: "calendario" as const, label: "Calendário", to: "/admin/dashboard/calendario" },
+];
+
+const OPERATION_COPY: Record<OperationView, { title: string; subtitle: string }> = {
+  resumo: { title: "Dashboard", subtitle: "Sua rotina diária: check-ins, checkouts e senhas." },
+  kanban: { title: "Kanban", subtitle: "Cada reserva na etapa em que ela realmente está." },
+  calendario: { title: "Calendário", subtitle: "Ocupação dos imóveis dia a dia." },
+};
+
+function OperationShell({ view }: { view: OperationView }) {
+  const copy = OPERATION_COPY[view];
+  return (
+    <div className="space-y-3">
+      <div>
+        <div className="flex items-center gap-2 ds-eyebrow text-accent">
+          <span>Operação de Reservas</span>
+          <TrendingUp className="size-3.5" />
+        </div>
+        <h1 className="ds-page-title truncate mt-1.5">{copy.title}</h1>
+        <p className="ds-page-subtitle mt-1.5">{copy.subtitle}</p>
+      </div>
+
+      {/* Segmented control — Dashboard / Kanban / Calendário */}
+      <nav className="flex gap-1 rounded-lg bg-foreground/5 p-1">
+        {OPERATION_TABS.map((t) => {
+          const active = t.view === view;
+          return (
+            <Link
+              key={t.view}
+              to={t.to}
+              className={`flex-1 rounded-md px-3 py-1.5 text-center text-xs font-semibold transition-colors ${
+                active ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t.label}
+            </Link>
+          );
+        })}
+      </nav>
+    </div>
+  );
+}
 
 /* ------------------------- UI Building Blocks ------------------------- */
 
@@ -1251,7 +1450,7 @@ function OccupancyPanel({
   onStartChange?: (v: string) => void;
   defaultStart?: string;
 }) {
-  const [openAgenda, setOpenAgenda] = useState<string>("agenda");
+  const [openAgenda, setOpenAgenda] = useState<string>("");
   const [ownerFilter, setOwnerFilter] = useState<string>("");
   const [cityFilter, setCityFilter] = useState<string>("");
 
@@ -1422,19 +1621,6 @@ function OccupancyPanel({
     return [first, second];
   }
 
-  const occupancyRate = useMemo(() => {
-    if (visibleProperties.length === 0 || dayList.length === 0) return 0;
-    let busy = 0;
-    for (const prop of visibleProperties) {
-      for (const d of dayList) {
-        const [a, b] = cellHalves(prop.id, d);
-        if (a === "busy" || b === "busy") busy += 1;
-      }
-    }
-    return Math.round((busy / (visibleProperties.length * dayList.length)) * 100);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visibleProperties, dayList, byProperty, checkedInPropertyIds]);
-
   return (
     <Accordion
       type="single"
@@ -1452,9 +1638,6 @@ function OccupancyPanel({
           >
             <CalendarCheck className="size-4 shrink-0 text-muted-foreground" />
             <span className="truncate">Ocupação dos Imóveis</span>
-            <span className="shrink-0 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
-              {occupancyRate}% ocupado
-            </span>
           </button>
           <Popover>
             <PopoverTrigger asChild>
@@ -1549,7 +1732,7 @@ function OccupancyPanel({
                 <div
                   ref={scrollRef}
                   style={{ scrollPaddingLeft: NAME_COL, width: viewportW, maxWidth: "100%" }}
-                  className="sg-elegant-scroll max-h-[62vh] overflow-auto snap-x snap-mandatory"
+                  className="sg-elegant-scroll max-h-[18rem] overflow-auto snap-x snap-mandatory"
                 >
                   <table
                     className="table-fixed border-separate border-spacing-x-0 border-spacing-y-1 text-xs"
