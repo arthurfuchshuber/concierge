@@ -37,7 +37,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Users, Bell, BellOff, Loader2, Trash2, Mail, Send as SendIcon, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
-import { PageHeader } from "@/components/ds/PageHeader";
+
 
 export { EquipePage };
 
