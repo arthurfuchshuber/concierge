@@ -1,23 +1,21 @@
 import { useEffect, useState } from "react";
+// @ts-expect-error módulo virtual gerado pelo Vite (vite.config.ts)
+import buildInfo from "virtual:build-info";
 
-declare const __BUILD_INFO__: { commit: string; builtAt: string } | undefined;
+type BuildInfo = { commit: string; builtAt: string };
 
 /**
  * Selo de versão do build (hash do commit + horário da compilação).
  * Renderizado só após a hidratação para não gerar diferença entre servidor e cliente.
  */
 export function BuildBadge() {
-  const [info, setInfo] = useState<{ commit: string; builtAt: string } | null>(null);
+  const [info, setInfo] = useState<BuildInfo | null>(null);
 
   useEffect(() => {
-    try {
-      if (typeof __BUILD_INFO__ !== "undefined" && __BUILD_INFO__) setInfo(__BUILD_INFO__);
-    } catch {
-      /* define ausente */
-    }
+    setInfo(buildInfo as BuildInfo);
   }, []);
 
-  if (!info) return null;
+  if (!info?.commit) return null;
 
   const when = new Date(info.builtAt);
   const label = Number.isNaN(when.getTime())
