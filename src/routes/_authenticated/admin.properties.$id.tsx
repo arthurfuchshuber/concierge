@@ -2161,9 +2161,9 @@ function PropertyEditor() {
             Próximo
             <ArrowLeft className="size-3.5 ml-1 rotate-180" />
           </Button>
-          <Button variant="ghost" className="h-10 min-w-[120px]" onClick={() => navigate({ to: "/admin/guias" })}>{readOnly ? "Voltar" : "Cancelar"}</Button>
+          <Button variant="ghost" className="min-w-[120px]" onClick={() => navigate({ to: "/admin/guias" })}>{readOnly ? "Voltar" : "Cancelar"}</Button>
           {!readOnly && (
-            <Button className="h-10 min-w-[120px]" onClick={() => handleSave()} disabled={saving || !form.property.name}>
+            <Button className="min-w-[120px]" onClick={() => handleSave()} disabled={saving || !form.property.name}>
               {saving ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
               Salvar
             </Button>
@@ -2223,7 +2223,7 @@ function Field({ label, hint, required, children }: { label: string; hint?: stri
 
 function AddBtn({ onClick }: { onClick: () => void }) {
   return (
-    <Button size="sm" variant="outline" onClick={onClick} className="shrink-0 h-8 rounded-full text-xs">
+    <Button size="sm" variant="outline" onClick={onClick} className="shrink-0 rounded-full text-xs">
       <Plus className="size-3.5" /> Adicionar
     </Button>
   );
@@ -2835,12 +2835,12 @@ export function RecGroup({
           </button>
           {selectedIdx.size > 0 && (
             <>
-              <Button size="sm" variant="destructive" onClick={() => setConfirmDeleteOpen(true)} className="h-8 rounded-full text-xs">
+              <Button size="sm" variant="destructive" onClick={() => setConfirmDeleteOpen(true)} className="rounded-full text-xs">
                 <Trash2 className="size-3.5" /> Excluir ({selectedIdx.size})
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button size="sm" variant="outline" className="h-8 rounded-full text-xs">
+                  <Button size="sm" variant="outline" className="rounded-full text-xs">
                     <MoveRight className="size-3.5" /> Mover ({selectedIdx.size})
                   </Button>
                 </DropdownMenuTrigger>
@@ -2899,19 +2899,19 @@ export function RecGroup({
         <div className="ml-auto flex items-center gap-1.5 flex-wrap justify-end">
           {headerExtra}
           {onReplicate && (
-            <Button size="sm" variant="ghost" onClick={onReplicate} className="shrink-0 h-8 rounded-full text-xs text-muted-foreground hover:text-foreground" title="Replicar">
+            <Button size="sm" variant="ghost" onClick={onReplicate} className="shrink-0 rounded-full text-xs text-muted-foreground hover:text-foreground" title="Replicar">
               <Share2 className="size-3.5" /> <span className="hidden sm:inline">Replicar</span>
             </Button>
           )}
           {onGenerate && (
-            <Button size="sm" variant="secondary" onClick={onGenerate} disabled={generating} className="shrink-0 h-8 rounded-full text-xs" title="Gerar com IA">
+            <Button size="sm" variant="secondary" onClick={onGenerate} disabled={generating} className="shrink-0 rounded-full text-xs" title="Gerar com IA">
               {generating ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
               <span className="hidden sm:inline">Gerar com IA</span>
             </Button>
           )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline" className="shrink-0 h-8 rounded-full text-xs" title="Editar">
+              <Button size="sm" variant="outline" className="shrink-0 rounded-full text-xs" title="Editar">
                 <Settings2 className="size-3.5" />
               </Button>
             </DropdownMenuTrigger>

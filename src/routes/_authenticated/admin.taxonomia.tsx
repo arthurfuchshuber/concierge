@@ -126,11 +126,11 @@ function TaxonomyPage() {
                     {cat.is_protected && <Lock className="size-3 text-muted-foreground/60 shrink-0" />}
                     <span className="ds-meta shrink-0">({tags.length})</span>
                   </button>
-                  <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setEditCat(cat)}>
-                    <Pencil className="size-3" />
+                  <Button size="icon" variant="ghost" onClick={() => setEditCat(cat)} aria-label="Editar categoria" title="Editar categoria">
+                    <Pencil className="size-3.5" />
                   </Button>
-                  <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setNewTagInCat(cat)}>
-                    <Plus className="size-3" /> tag
+                  <Button size="sm" variant="ghost" onClick={() => setNewTagInCat(cat)}>
+                    <Plus className="size-3.5" /> tag
                   </Button>
                 </div>
                 {open && (
@@ -143,8 +143,8 @@ function TaxonomyPage() {
                           <span className="ds-body flex-1 truncate">{tag.label}</span>
                           <code className="ds-meta text-muted-foreground/70">{tag.slug}</code>
                           {tag.is_protected && <Lock className="size-3 text-muted-foreground/60" />}
-                          <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditTag(tag)}>
-                            <Pencil className="size-3" />
+                          <Button size="icon" variant="ghost" onClick={() => setEditTag(tag)} aria-label="Editar tag" title="Editar tag">
+                            <Pencil className="size-3.5" />
                           </Button>
                         </div>
                       ))
