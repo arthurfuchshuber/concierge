@@ -6,37 +6,6 @@
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
-import { execSync } from "node:child_process";
-
-/** Identificação do build (hash do commit + data) — usada no selo de versão. */
-function buildInfo() {
-  let commit = "dev";
-  try {
-    commit = execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] })
-      .toString()
-      .trim();
-  } catch {
-    /* sem git disponível */
-  }
-  return { commit, builtAt: new Date().toISOString() };
-}
-
-/** Expõe o módulo virtual "virtual:build-info" com hash do commit e data do build. */
-function buildInfoPlugin() {
-  const id = "virtual:build-info";
-  const resolved = "\0" + id;
-  const info = buildInfo();
-  return {
-    name: "build-info",
-    resolveId(source: string) {
-      return source === id ? resolved : null;
-    },
-    load(loadedId: string) {
-      if (loadedId !== resolved) return null;
-      return `export default ${JSON.stringify(info)};`;
-    },
-  };
-}
 
 export default defineConfig({
   tanstackStart: {
@@ -45,7 +14,7 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
-    plugins: [mcpPlugin(), buildInfoPlugin()],
+    plugins: [mcpPlugin()],
   },
 });
 

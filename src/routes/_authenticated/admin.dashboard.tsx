@@ -183,14 +183,6 @@ function DashboardPage() {
   const concludedFn = useServerFn(listConcludedArrivals);
   const occupancyFn = useServerFn(getOccupancyBoard);
 
-  // Subpáginas do Dashboard: Visão Geral (resumo + KPIs), Kanban (quadro de
-  // operação completo) e Calendário (ocupação dos imóveis) — três telas
-  // antes empilhadas na mesma página, agora divididas por abas para reduzir
-  // a poluição visual e dar foco a cada tarefa.
-  const [dashView, setDashView] = useState<"overview" | "kanban" | "calendar">("overview");
-  // Pré-visualização de chegadas na Visão Geral: alterna entre check-ins e
-  // checkouts pendentes, reaproveitando as mesmas listas do Kanban.
-  const [previewTab, setPreviewTab] = useState<"checkin" | "checkout">("checkin");
   const [range, setRange] = useState<"today" | "tomorrow" | "7d" | "all">("today");
   // Qual coluna do Kanban está ativa no mobile (lá o quadro vira abas — não
   // cabem as 5 colunas lado a lado). No desktop não é usado; as 5 colunas
@@ -628,176 +620,144 @@ function DashboardPage() {
   }
 
 
-  const viewCopy: Record<typeof dashView, { title: string; subtitle: string }> = {
-    overview: { title: "Visão Geral", subtitle: "Resumo das operações do dia." },
-    kanban: { title: "Kanban", subtitle: "Gerencie suas reservas por status." },
-    calendar: { title: "Calendário", subtitle: "Visualize a ocupação dos imóveis." },
-  };
-
   return (
-    <div className="px-4 sm:px-6 lg:px-10 py-6 lg:py-10 max-w-[1440px] mx-auto w-full space-y-4">
+    <div className="px-4 sm:px-6 lg:px-10 py-6 lg:py-10 max-w-[1440px] mx-auto w-full space-y-1.5">
       <div>
-        {/* Título e subtítulo trocam de acordo com a subpágina ativa — sem
-            eyebrow: com três abas visíveis logo abaixo, a etiqueta ficava
-            redundante e só acrescentava ruído visual. */}
-        <h1 className="ds-page-title truncate">{viewCopy[dashView].title}</h1>
-        <p className="ds-page-subtitle mt-1">{viewCopy[dashView].subtitle}</p>
+        {/* Ícone no fim da frase (não antes) — único ajuste pedido nesta
+            linha; o padrão ícone-antes-do-texto em todo o resto da página
+            (KPIs, seções, etc.) permanece como está. */}
+        <div className="flex items-center gap-2 ds-eyebrow text-accent">
+          <span>Operação de Reservas</span>
+          <TrendingUp className="size-3.5" />
+        </div>
+        {/* Título e subtítulo renderizados aqui (em vez do <PageHeader/>
+            compartilhado) só para poder igualar o espaçamento entre as 3
+            linhas (eyebrow → título → subtítulo = mesmos 6px), sem alterar
+            o <PageHeader/> usado pelas outras páginas. Fonte inalterada —
+            só o espaçamento. */}
+        <h1 className="ds-page-title truncate mt-1.5">Dashboard</h1>
+        <p className="ds-page-subtitle mt-1.5">Sua rotina diária: check-ins, checkouts e senhas.</p>
       </div>
 
-      {/* Abas da página — Visão Geral / Kanban / Calendário. Estado local (não
-          sincronizado na URL ainda); dá pra evoluir para search params depois
-          se precisarmos de link direto para uma aba específica. */}
-      <div className="flex items-center gap-1 rounded-xl bg-secondary/40 p-1">
-        {(
-          [
-            ["overview", "Visão Geral"],
-            ["kanban", "Kanban"],
-            ["calendar", "Calendário"],
-          ] as const
-        ).map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setDashView(key)}
-            className={`flex-1 rounded-lg py-2 text-sm font-semibold text-center transition-colors ${
-              dashView === key ? "bg-secondary text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {dashView === "overview" && (
-        <div className="space-y-4">
-          {/* KPIs — grade 2 colunas, cantos mais generosos e número em
-              destaque, no padrão "cartão executivo" da nova referência. */}
-          <section className="space-y-1.5">
-            <div className="grid grid-cols-2 gap-1.5">
-              <KpiCard
-                label="Check-ins Pend."
-                rows={checkinPendingRows}
-                icon={LogIn}
-                tone="primary"
-                loading={checkinListQ.isLoading}
-                onRefresh={() => checkinListQ.refetch()}
-                kind="checkin"
-                rangeLabel={rangeLabel[range]}
-                shadowTone="emerald"
-                onEditTime={handleEditTime}
-                onAdvance={(r) => handleAdvance(r, "checkin")}
-              />
-              <KpiCard
-                label="Checkouts Pend."
-                rows={checkoutPendingRows}
-                icon={LogOut}
-                tone="primary"
-                loading={checkoutListQ.isLoading}
-                onRefresh={() => checkoutListQ.refetch()}
-                kind="checkout"
-                rangeLabel={rangeLabel[range]}
-                shadowTone="amber"
-                onEditTime={handleEditTime}
-                onAdvance={(r) => handleAdvance(r, "checkout")}
-              />
-            </div>
-
-            {/* Em Limpeza — faixa fina logo abaixo dos pendentes (só quando houver 1+) */}
-            {cleaningRows.length > 0 ? (
-              <div>
-                <KpiCard
-                  label="Em Limpeza"
-                  rows={cleaningRows}
-                  icon={Sparkles}
-                  tone="primary-soft"
-                  loading={checkoutListQ.isLoading}
-                  onRefresh={() => checkoutListQ.refetch()}
-                  kind="checkout"
-                  rangeLabel={rangeLabel[range]}
-                  onEditTime={handleEditTime}
-                  onAdvance={(r) => handleAdvance(r, "cleaning")}
-                  compact
-                />
-              </div>
-            ) : null}
-
-            <div className="grid grid-cols-2 gap-1.5">
-              <KpiCard
-                label="Check-ins Amanhã"
-                rows={tomorrowCheckinPendingRows}
-                icon={CalendarCheck}
-                tone="primary-soft"
-                loading={tomorrowCheckinListQ.isLoading}
-                onRefresh={() => tomorrowCheckinListQ.refetch()}
-                kind="checkin"
-                rangeLabel="Amanhã"
-                onEditTime={handleEditTime}
-                onAdvance={(r) => handleAdvance(r, "checkin")}
-              />
-              <KpiCard
-                label="Checkouts Amanhã"
-                rows={tomorrowCheckoutPendingRows}
-                icon={CalendarX}
-                tone="primary-soft"
-                loading={tomorrowCheckoutListQ.isLoading}
-                onRefresh={() => tomorrowCheckoutListQ.refetch()}
-                kind="checkout"
-                rangeLabel="Amanhã"
-                onEditTime={handleEditTime}
-                onAdvance={(r) => handleAdvance(r, "checkout")}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-1.5">
-              <KpiCard
-                label="Em Estadia"
-                rows={stayRows}
-                icon={BedDouble}
-                tone="primary-soft"
-                loading={checkinListQ.isLoading}
-                onRefresh={() => checkinListQ.refetch()}
-                kind="checkin"
-                rangeLabel={rangeLabel[range]}
-                onEditTime={handleEditTime}
-                onAdvance={(r) => handleAdvance(r, "stay")}
-              />
-              <FreePropertiesCard
-                loading={occupancyQ.isLoading}
-                properties={freeProperties}
-                onRefresh={() => occupancyQ.refetch()}
-              />
-            </div>
-          </section>
-
-          {/* Engajamento do guia — versão discreta, sem cabeçalho. */}
-          {renderEngagementPanel("")}
-
-          {/* Pré-visualização de chegadas — alterna Check-ins/Checkouts
-              pendentes; reaproveita exatamente as mesmas listas do Kanban,
-              só que exibidas direto na página em vez de escondidas num
-              diálogo. "Ver quadro completo" leva para a aba Kanban. */}
-          <ArrivalsPreview
-            previewTab={previewTab}
-            onPreviewTabChange={setPreviewTab}
-            checkinRows={checkinPendingRows}
-            checkoutRows={checkoutPendingRows}
-            loading={previewTab === "checkin" ? checkinListQ.isLoading : checkoutListQ.isLoading}
-            range={range}
-            onRangeChange={setRange}
-            onOpenKanban={() => setDashView("kanban")}
+      {/* KPIs — mesmo espaçamento de 6px do cabeçalho acima, replicado para
+          linha↔linha, linha↔card e card↔card em toda a página. */}
+      <section className="space-y-1.5">
+        <div className="grid grid-cols-2 gap-1.5">
+          <KpiCard
+            label="Check-ins Pendentes"
+            rows={checkinPendingRows}
+            icon={LogIn}
+            tone="primary"
+            loading={checkinListQ.isLoading}
+            onRefresh={() => checkinListQ.refetch()}
+            kind="checkin"
+            rangeLabel={rangeLabel[range]}
+            shadowTone="emerald"
+            onEditTime={handleEditTime}
+            onAdvance={(r) => handleAdvance(r, "checkin")}
+          />
+          <KpiCard
+            label="Checkouts Pendentes"
+            rows={checkoutPendingRows}
+            icon={LogOut}
+            tone="primary"
+            loading={checkoutListQ.isLoading}
+            onRefresh={() => checkoutListQ.refetch()}
+            kind="checkout"
+            rangeLabel={rangeLabel[range]}
+            shadowTone="amber"
+            onEditTime={handleEditTime}
+            onAdvance={(r) => handleAdvance(r, "checkout")}
           />
         </div>
-      )}
+
+        {/* Em Limpeza — faixa fina logo abaixo dos pendentes (só quando houver 1+) */}
+        {cleaningRows.length > 0 ? (
+          // Sem o shimmer/glow âmbar (amber-mirror) — menos "colorido",
+          // mais executivo; o card já sinaliza com o pontinho âmbar.
+          <div>
+            <KpiCard
+              label="Em Limpeza"
+              rows={cleaningRows}
+              icon={Sparkles}
+              tone="primary-soft"
+              loading={checkoutListQ.isLoading}
+              onRefresh={() => checkoutListQ.refetch()}
+              kind="checkout"
+              rangeLabel={rangeLabel[range]}
+              onEditTime={handleEditTime}
+              onAdvance={(r) => handleAdvance(r, "cleaning")}
+              compact
+            />
+          </div>
+        ) : null}
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5">
+          <KpiCard
+            label="Check-ins amanhã"
+            rows={tomorrowCheckinPendingRows}
+            icon={CalendarCheck}
+            tone="primary-soft"
+            loading={tomorrowCheckinListQ.isLoading}
+            onRefresh={() => tomorrowCheckinListQ.refetch()}
+            kind="checkin"
+            rangeLabel="Amanhã"
+            onEditTime={handleEditTime}
+            onAdvance={(r) => handleAdvance(r, "checkin")}
+          />
+          <KpiCard
+            label="Checkouts amanhã"
+            rows={tomorrowCheckoutPendingRows}
+            icon={CalendarX}
+            tone="primary-soft"
+            loading={tomorrowCheckoutListQ.isLoading}
+            onRefresh={() => tomorrowCheckoutListQ.refetch()}
+            kind="checkout"
+            rangeLabel="Amanhã"
+            onEditTime={handleEditTime}
+            onAdvance={(r) => handleAdvance(r, "checkout")}
+          />
+          <KpiCard
+            label="Em Estadia"
+            rows={stayRows}
+            icon={BedDouble}
+            tone="primary-soft"
+            loading={checkinListQ.isLoading}
+            onRefresh={() => checkinListQ.refetch()}
+            kind="checkin"
+            rangeLabel={rangeLabel[range]}
+            onEditTime={handleEditTime}
+            onAdvance={(r) => handleAdvance(r, "stay")}
+          />
+          <FreePropertiesCard
+            loading={occupancyQ.isLoading}
+            properties={freeProperties}
+            onRefresh={() => occupancyQ.refetch()}
+          />
+        </div>
+      </section>
+
+      {/* Engajamento do guia — volta a aparecer aqui embaixo, sempre, em
+          largura total (mobile e desktop). Versão discreta, sem cabeçalho. */}
+      {renderEngagementPanel("")}
 
 
       {/* Quadro de operação — Kanban por status, colunas lado a lado (estilo
           Jira). Antes era uma lista só com um dropdown pra trocar de status;
           agora todos os status ficam visíveis ao mesmo tempo, e "puxar" um
           card de um status pro outro fica visual, não escondido atrás de um
-          menu. Agora vive na aba "Kanban" — o título já está no cabeçalho
-          da página, então o card não repete "Quadro de operação". */}
-      {dashView === "kanban" && (
+          menu. */}
       <section className="rounded-lg border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
+        {/* Título "Quadro de operação" — redundante no mobile, onde as
+            próprias abas logo abaixo (Check-ins, Checkouts...) já deixam
+            claro do que se trata; mantido no desktop, onde a visão é de
+            colunas lado a lado sem essa legenda textual. O filtro "Hoje"
+            também só aparece aqui no desktop — no mobile ele migra pra
+            dentro da linha de abas, ver abaixo. */}
         <div className="hidden sm:flex items-center gap-3">
+          <h2 className="ds-section-title mb-0 flex items-center gap-2">
+            <LayoutGrid className="size-4.5 text-muted-foreground" /> Quadro de operação
+          </h2>
           <div className="ml-auto">
             <RangeDropdown
               value={range}
@@ -1002,25 +962,20 @@ function DashboardPage() {
           </div>
         </div>
       </section>
-      )}
 
-      {/* Ocupação dos imóveis — agora vive na aba "Calendário", sempre
-          expandida (sem o accordion recolhível de antes), com o resumo de
-          taxa de ocupação/noites vendidas logo abaixo do quadro. */}
-      {dashView === "calendar" && (
+      {/* Agenda macro de ocupação — abaixo do quadro, como no mockup. */}
       <OccupancyPanel
         loading={occupancyQ.isLoading}
         start={occupancyQ.data?.start ?? agendaStart}
         days={occupancyQ.data?.days ?? 21}
         properties={occupancyQ.data?.properties ?? []}
         stays={occupancyQ.data?.stays ?? []}
-        freeProperties={freeProperties}
         checkedInPropertyIds={checkedInPropertyIds}
         onStartChange={setAgendaStart}
         defaultStart={todayISO}
-        embedded
       />
-      )}
+
+
 
       <ConfirmActionDialog
         open={!!confirmAdvance}
@@ -1236,14 +1191,14 @@ function KpiCard({
             type="button"
             className={`w-full h-full rounded-md border border-border bg-card px-3 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
-            <div className="flex items-start justify-between gap-2 ds-eyebrow">
+            <div className="flex items-start gap-2 ds-eyebrow">
+              {shadowTone ? (
+                <span className={`mt-1 size-1.5 rounded-full shrink-0 ${dotClass}`} />
+              ) : (
+                <Icon className="mt-px size-3.5 shrink-0" />
+              )}
               {/* Rótulo em duas linhas, sem truncar (como no mockup). */}
               <span className="min-w-0 leading-[1.25] [text-wrap:balance]">{label}</span>
-              {/* Indicador de cor no canto superior direito, ao lado do
-                  rótulo — só nos KPIs "quentes" (check-in/checkout
-                  pendentes), igual à referência. Os demais ficam sem ícone
-                  nem indicador, mais limpos. */}
-              {shadowTone ? <span className={`mt-1 size-1.5 rounded-full shrink-0 ${dotClass}`} /> : null}
             </div>
 
             <div
@@ -1442,111 +1397,6 @@ function FreePropertiesCard({
   );
 }
 
-/**
- * Pré-visualização de chegadas na Visão Geral — alterna entre check-ins e
- * checkouts pendentes (mesmas listas do Kanban), mostra os primeiros
- * registros direto na página e leva para a aba Kanban para qualquer ação
- * (confirmar, editar horário etc.) — aqui é só leitura, sem duplicar toda a
- * interatividade do card completo.
- */
-function ArrivalsPreview({
-  previewTab,
-  onPreviewTabChange,
-  checkinRows,
-  checkoutRows,
-  loading,
-  range,
-  onRangeChange,
-  onOpenKanban,
-}: {
-  previewTab: "checkin" | "checkout";
-  onPreviewTabChange: (v: "checkin" | "checkout") => void;
-  checkinRows: ArrivalRow[];
-  checkoutRows: ArrivalRow[];
-  loading: boolean;
-  range: "today" | "tomorrow" | "7d" | "all";
-  onRangeChange: (v: "today" | "tomorrow" | "7d" | "all") => void;
-  onOpenKanban: () => void;
-}) {
-  const rows = previewTab === "checkin" ? checkinRows : checkoutRows;
-  const visibleRows = rows.slice(0, 5);
-
-  return (
-    <section className="rounded-lg border border-border bg-card p-4 sm:p-5 space-y-3 shadow-sm">
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1 rounded-lg bg-secondary/40 p-1 text-xs font-semibold">
-          <button
-            type="button"
-            onClick={() => onPreviewTabChange("checkin")}
-            className={`rounded-md px-2.5 py-1.5 transition-colors ${
-              previewTab === "checkin" ? "bg-secondary text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Check-ins <span className="tabular-nums opacity-75">{checkinRows.length}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onPreviewTabChange("checkout")}
-            className={`rounded-md px-2.5 py-1.5 transition-colors ${
-              previewTab === "checkout" ? "bg-secondary text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Checkouts <span className="tabular-nums opacity-75">{checkoutRows.length}</span>
-          </button>
-        </div>
-        <div className="ml-auto">
-          <RangeDropdown
-            value={range}
-            onChange={onRangeChange}
-            options={[
-              ["today", "Hoje"],
-              ["tomorrow", "Amanhã"],
-              ["7d", "7 dias"],
-              ["all", "Todos"],
-            ]}
-          />
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="py-8 grid place-items-center text-muted-foreground">
-          <Loader2 className="size-5 animate-spin" />
-        </div>
-      ) : visibleRows.length === 0 ? (
-        <div className="py-8 text-center text-sm text-muted-foreground">
-          Nenhum {previewTab === "checkin" ? "check-in" : "checkout"} pendente no período.
-        </div>
-      ) : (
-        <ul className="space-y-1.5">
-          {visibleRows.map((r) => (
-            <li key={r.logId} className="rounded-lg border border-border/50 bg-background/40 px-3 py-2.5">
-              <div className="flex items-start justify-between gap-2">
-                <OwnerLine name={r.ownerName} phone={r.ownerPhone} country={r.ownerPhoneCountry} phonePosition="adjacent" />
-                <span className="shrink-0 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                  Pendente
-                </span>
-              </div>
-              <div className="mt-0.5 truncate text-sm text-muted-foreground" title={r.propertyName ?? undefined}>
-                {r.propertyName ?? "Sem nome"}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {rows.length > 0 && (
-        <button
-          type="button"
-          onClick={onOpenKanban}
-          className="w-full rounded-lg border border-border/60 py-2 text-xs font-semibold text-muted-foreground hover:bg-secondary/40 hover:text-foreground transition-colors"
-        >
-          Ver quadro completo
-        </button>
-      )}
-    </section>
-  );
-}
-
 /** Agenda macro: ocupação de todos os imóveis nos próximos dias. */
 function OccupancyPanel({
   loading,
@@ -1554,28 +1404,20 @@ function OccupancyPanel({
   days,
   properties,
   stays,
-  freeProperties,
   checkedInPropertyIds,
   onStartChange,
   defaultStart,
-  embedded,
 }: {
   loading: boolean;
   start: string;
   days: number;
   properties: Array<{ id: string; name: string; city: string | null; ownerName?: string | null }>;
   stays: Array<{ propertyId: string; checkin: string; checkout: string | null; guest: string | null }>;
-  /** Imóveis livres hoje — usado só para o cartão-resumo "Imóveis Disponíveis" (modo embedded). */
-  freeProperties?: Array<{ id: string; name: string }>;
   checkedInPropertyIds: Set<string>;
   onStartChange?: (v: string) => void;
   defaultStart?: string;
-  /** Usado dentro da aba "Calendário": sempre expandido, sem o accordion
-   * recolhível, e com o resumo de ocupação (taxa, noites vendidas...)
-   * logo abaixo do quadro/legenda. */
-  embedded?: boolean;
 }) {
-  const [openAgenda, setOpenAgenda] = useState<string>(embedded ? "agenda" : "");
+  const [openAgenda, setOpenAgenda] = useState<string>("");
   const [ownerFilter, setOwnerFilter] = useState<string>("");
   const [cityFilter, setCityFilter] = useState<string>("");
 
@@ -1746,63 +1588,24 @@ function OccupancyPanel({
     return [first, second];
   }
 
-  // Resumo da ocupação (modo embedded / aba Calendário): taxa de ocupação e
-  // noites vendidas no período visível, calculadas a partir das mesmas
-  // meia-células (cellHalves) que desenham o quadro — sem depender de nenhum
-  // dado novo do servidor. "Reservas no período" conta estadias distintas
-  // que tocam alguma das datas exibidas (não inventamos "dias bloqueados":
-  // esse conceito não existe hoje no schema, então preferimos um número
-  // real a um placeholder).
-  const occupancySummary = useMemo(() => {
-    if (visibleProperties.length === 0 || dayList.length === 0) {
-      return { ratePct: 0, nightsSold: 0, reservationsInRange: 0 };
-    }
-    let occupiedCells = 0;
-    let totalCells = 0;
-    for (const p of visibleProperties) {
-      for (const d of dayList) {
-        const [a, b] = cellHalves(p.id, d);
-        totalCells += 1;
-        if (a !== "free" || b !== "free") occupiedCells += 1;
-      }
-    }
-    const ratePct = totalCells > 0 ? Math.round((occupiedCells / totalCells) * 100) : 0;
-    const rangeStart = dayList[0];
-    const rangeEnd = dayList[dayList.length - 1];
-    const staysInRange = stays.filter(
-      (s) => s.checkin <= rangeEnd && (s.checkout ?? s.checkin) >= rangeStart,
-    );
-    const nightsSold = staysInRange.reduce((sum, s) => {
-      const from = s.checkin < rangeStart ? rangeStart : s.checkin;
-      const to = (s.checkout ?? s.checkin) > rangeEnd ? rangeEnd : (s.checkout ?? s.checkin);
-      const nights = Math.max(0, (new Date(`${to}T00:00:00Z`).getTime() - new Date(`${from}T00:00:00Z`).getTime()) / 86_400_000);
-      return sum + nights;
-    }, 0);
-    return { ratePct, nightsSold, reservationsInRange: staysInRange.length };
-  }, [visibleProperties, dayList, stays]);
-
   return (
     <Accordion
       type="single"
-      collapsible={!embedded}
+      collapsible
       value={openAgenda}
       onValueChange={setOpenAgenda}
-      className={embedded ? "" : "rounded-lg border border-border bg-card shadow-sm"}
+      className="rounded-lg border border-border bg-card shadow-sm"
     >
       <AccordionItem value="agenda" className="border-0">
-        <div className={`flex w-full items-center gap-2 ${embedded ? "px-0 pb-3" : "px-4 sm:px-5 py-4"}`}>
-          {embedded ? (
-            <span className="flex-1" />
-          ) : (
-            <button
-              type="button"
-              onClick={() => setOpenAgenda((v) => (v ? "" : "agenda"))}
-              className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm font-semibold"
-            >
-              <CalendarCheck className="size-4 shrink-0 text-muted-foreground" />
-              <span className="truncate">Ocupação dos Imóveis</span>
-            </button>
-          )}
+        <div className="flex w-full items-center gap-2 px-4 sm:px-5 py-4">
+          <button
+            type="button"
+            onClick={() => setOpenAgenda((v) => (v ? "" : "agenda"))}
+            className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm font-semibold"
+          >
+            <CalendarCheck className="size-4 shrink-0 text-muted-foreground" />
+            <span className="truncate">Ocupação dos Imóveis</span>
+          </button>
           <Popover>
             <PopoverTrigger asChild>
               <button
@@ -1874,16 +1677,14 @@ function OccupancyPanel({
               </button>
             </PopoverContent>
           </Popover>
-          {embedded ? null : (
-            <button
-              type="button"
-              aria-label={openAgenda ? "Recolher" : "Expandir"}
-              onClick={() => setOpenAgenda((v) => (v ? "" : "agenda"))}
-              className="shrink-0 text-muted-foreground transition-transform hover:text-foreground"
-            >
-              <ChevronDown className={`size-4 transition-transform ${openAgenda ? "rotate-180" : ""}`} />
-            </button>
-          )}
+          <button
+            type="button"
+            aria-label={openAgenda ? "Recolher" : "Expandir"}
+            onClick={() => setOpenAgenda((v) => (v ? "" : "agenda"))}
+            className="shrink-0 text-muted-foreground transition-transform hover:text-foreground"
+          >
+            <ChevronDown className={`size-4 transition-transform ${openAgenda ? "rotate-180" : ""}`} />
+          </button>
         </div>
         <AccordionContent className="px-4 sm:px-5 pb-5">
           {loading ? (
@@ -1986,13 +1787,13 @@ function OccupancyPanel({
                               >
                                 {a === b ? (
                                   <div
-                                    className={`mx-auto rounded-md ${clsOf(a)}`}
+                                    className={`mx-auto rounded-full ${clsOf(a)}`}
                                     style={{ width: dotSize, height: dotSize }}
                                     title={title}
                                   />
                                 ) : (
                                   <div
-                                    className="mx-auto flex overflow-hidden rounded-md"
+                                    className="mx-auto flex overflow-hidden rounded-full"
                                     style={{ width: dotSize, height: dotSize }}
                                     title={title}
                                   >
@@ -2024,52 +1825,6 @@ function OccupancyPanel({
                   <span className="size-2.5 rounded-full bg-muted" /> Livre
                 </span>
               </div>
-
-              {/* Resumo do período — só na aba Calendário (embedded). Os dois
-                  primeiros números vêm do próprio quadro acima (nenhum dado
-                  novo do servidor); "Reservas no período" substitui o "Dias
-                  Bloqueados" da referência porque esse conceito não existe
-                  hoje no schema — preferimos mostrar um número real. */}
-              {embedded ? (
-                <div className="mt-4 grid grid-cols-2 gap-1.5">
-                  <div className="rounded-md border border-border bg-card px-3 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
-                    <div className="ds-eyebrow text-muted-foreground">Taxa de Ocupação</div>
-                    <div className="font-display mt-1.5 text-lg sm:text-base tabular-nums leading-none text-foreground">
-                      {loading ? "—" : `${occupancySummary.ratePct}%`}
-                    </div>
-                    <div className="mt-1.5 inline-flex items-center gap-1 text-[10px] text-muted-foreground">
-                      <span className="size-1.5 rounded-full bg-emerald-500" /> no período
-                    </div>
-                  </div>
-                  <div className="rounded-md border border-border bg-card px-3 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
-                    <div className="ds-eyebrow text-muted-foreground">Noites Vendidas</div>
-                    <div className="font-display mt-1.5 text-lg sm:text-base tabular-nums leading-none text-foreground">
-                      {loading ? "—" : occupancySummary.nightsSold}
-                    </div>
-                    <div className="mt-1.5 inline-flex items-center gap-1 text-[10px] text-muted-foreground">
-                      <span className="size-1.5 rounded-full bg-emerald-500" /> no período
-                    </div>
-                  </div>
-                  <div className="rounded-md border border-border bg-card px-3 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
-                    <div className="ds-eyebrow text-muted-foreground">Imóveis Disponíveis</div>
-                    <div className="font-display mt-1.5 text-lg sm:text-base tabular-nums leading-none text-foreground">
-                      {loading ? "—" : (freeProperties?.length ?? 0)}
-                    </div>
-                    <div className="mt-1.5 inline-flex items-center gap-1 text-[10px] text-muted-foreground">
-                      <span className="size-1.5 rounded-full bg-amber-500" /> hoje
-                    </div>
-                  </div>
-                  <div className="rounded-md border border-border bg-card px-3 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
-                    <div className="ds-eyebrow text-muted-foreground">Reservas no Período</div>
-                    <div className="font-display mt-1.5 text-lg sm:text-base tabular-nums leading-none text-foreground">
-                      {loading ? "—" : occupancySummary.reservationsInRange}
-                    </div>
-                    <div className="mt-1.5 inline-flex items-center gap-1 text-[10px] text-muted-foreground">
-                      <span className="size-1.5 rounded-full bg-primary" /> {days} dias
-                    </div>
-                  </div>
-                </div>
-              ) : null}
             </>
           )}
         </AccordionContent>
@@ -2527,10 +2282,8 @@ function ArrivalCard({
       )}
 
       {/* Header: nome + imóvel + data — sem avatar (ocupava espaço demais
-          numa coluna estreita de Kanban; o nome já identifica o hóspede).
-          Status (Pendente/Concluído) no canto superior direito, como na
-          referência. */}
-      <div className="flex items-start gap-3">
+          numa coluna estreita de Kanban; o nome já identifica o hóspede). */}
+      <div className="flex items-center gap-3">
         <div className="flex-1 min-w-0">
           <OwnerLine
             name={row.ownerName}
@@ -2593,13 +2346,6 @@ function ArrivalCard({
             )}
           </div>
         </div>
-        <span
-          className={`shrink-0 mt-0.5 text-[11px] font-semibold whitespace-nowrap ${
-            done ? "text-muted-foreground" : "text-emerald-600 dark:text-emerald-400"
-          }`}
-        >
-          {done ? "Concluído" : "Pendente"}
-        </span>
       </div>
 
       {/* Detalhes operacionais — expansivo, começa recolhido e só um card por vez */}
@@ -2794,18 +2540,15 @@ function ArrivalCard({
         </div>
       )}
 
-      {/* Action row: botão principal largo e rotulado (ex.: "Confirmar
-          Check-in"), como na referência — só ícone ficava ambíguo demais
-          numa ação irreversível. Maps e "mais opções" continuam compactos,
-          só com ícone, à direita. */}
+      {/* Action row: ícones à esquerda; Copiar + Maps agrupados à direita */}
       <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
         {mode === "done" ? (
           <span
             title="Esteira concluída"
             aria-label="Esteira concluída"
-            className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-500/10 px-4 py-2.5 text-sm font-semibold text-emerald-700 dark:text-emerald-400 border border-emerald-500/30"
+            className="inline-flex items-center justify-center size-9 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30"
           >
-            <CheckCircle2 className="size-4" /> Concluído
+            <CheckCircle2 className="size-4" />
           </span>
         ) : (
           <button
@@ -2853,7 +2596,7 @@ function ArrivalCard({
                       ? "Reabrir (voltar para Pendente)"
                       : "Marcar como Concluído"
             }
-            className={`flex-1 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
+            className={`size-9 grid place-items-center rounded-lg transition-colors ${
               cleaningBlock
                 ? "bg-orange-500/25 text-orange-700 dark:text-orange-400 border border-orange-500/50 cursor-not-allowed"
                 : blockCheck
@@ -2865,22 +2608,7 @@ function ArrivalCard({
                       : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-600/20"
             }`}
           >
-            <Check className="size-4 shrink-0" />
-            <span className="truncate">
-              {cleaningBlock
-                ? blockReason === "checkout"
-                  ? "Check-out Pendente"
-                  : "Limpeza Pendente"
-                : blockCheck
-                  ? "Data Futura"
-                  : mode === "cleaning"
-                    ? "Concluir Limpeza"
-                    : done
-                      ? "Reabrir"
-                      : mode === "checkout"
-                        ? "Confirmar Checkout"
-                        : "Confirmar Check-in"}
-            </span>
+            <Check className="size-4" />
           </button>
         )}
 
@@ -2905,13 +2633,13 @@ function ArrivalCard({
                   ? "Voltar para a etapa anterior (lista de Checkouts)"
                   : "Voltar para a etapa anterior (lista Em Limpeza)"
             }
-            className="shrink-0 size-9 grid place-items-center rounded-lg bg-secondary hover:bg-secondary/80 border border-border/60 transition-colors"
+            className="size-9 grid place-items-center rounded-lg bg-secondary hover:bg-secondary/80 border border-border/60 transition-colors"
           >
             <Undo2 className="size-4" />
           </button>
         )}
 
-        <div className="ml-auto flex shrink-0 items-center gap-1.5">
+        <div className="ml-auto flex items-center gap-1.5">
           {mapsHref && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
