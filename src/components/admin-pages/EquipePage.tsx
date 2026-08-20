@@ -267,7 +267,7 @@ function EquipePage() {
 
         <AccordionItem
           value="push"
-          className="glass rounded-2xl border border-border overflow-hidden data-[state=open]:border-primary/40"
+          className="glass border border-border overflow-hidden data-[state=open]:border-primary/40"
         >
           <AccordionTrigger className="px-4 lg:px-6 py-4 hover:no-underline">
             <span className="ds-card-title flex items-center gap-2">
@@ -297,7 +297,7 @@ function EquipePage() {
 
         <AccordionItem
           value="invite"
-          className="glass rounded-2xl border border-border overflow-hidden data-[state=open]:border-primary/40"
+          className="glass border border-border overflow-hidden data-[state=open]:border-primary/40"
         >
           <AccordionTrigger className="px-4 lg:px-6 py-4 hover:no-underline">
             <span className="ds-card-title flex items-center gap-2">
@@ -337,7 +337,7 @@ function EquipePage() {
 
         <AccordionItem
           value="members"
-          className="glass rounded-2xl border border-border overflow-hidden data-[state=open]:border-primary/40"
+          className="glass border border-border overflow-hidden data-[state=open]:border-primary/40"
         >
           <AccordionTrigger className="px-4 lg:px-6 py-4 hover:no-underline">
             <span className="ds-card-title flex items-center gap-2">
@@ -352,7 +352,7 @@ function EquipePage() {
               {members.length === 0 ? (
                 <div className="text-sm text-muted-foreground py-2">Nenhum membro ainda. Envie um convite acima.</div>
               ) : (
-                <Accordion type="single" collapsible value={openMemberId} onValueChange={setOpenMemberId} className="space-y-3">
+                <Accordion type="single" collapsible value={openMemberId} onValueChange={setOpenMemberId} className="flex flex-col gap-1.5">
                   {members.map((m) => {
                     const id = m.member_user_id as string;
                     const prof = profiles[id];
@@ -364,7 +364,7 @@ function EquipePage() {
                       <AccordionItem
                         key={m.id as string}
                         value={id}
-                        className="rounded-2xl border border-border overflow-hidden bg-background/60 data-[state=open]:border-primary/40"
+                        className="border border-border overflow-hidden bg-background/60 data-[state=open]:border-primary/40"
                       >
                         <AccordionTrigger className="px-4 py-3 hover:no-underline">
                           <div className="flex-1 min-w-0 text-left flex items-center gap-3">
@@ -472,7 +472,7 @@ function EquipePage() {
 
         <AccordionItem
           value="invites"
-          className="glass rounded-2xl border border-border overflow-hidden data-[state=open]:border-primary/40"
+          className="glass border border-border overflow-hidden data-[state=open]:border-primary/40"
         >
           <AccordionTrigger className="px-4 lg:px-6 py-4 hover:no-underline">
             <span className="ds-card-title flex items-center gap-2">
@@ -530,7 +530,7 @@ function EquipePage() {
 
         <AccordionItem
           value="permissoes-v2"
-          className="glass rounded-2xl border border-border overflow-hidden data-[state=open]:border-primary/40"
+          className="glass border border-border overflow-hidden data-[state=open]:border-primary/40"
         >
           <AccordionTrigger className="px-4 lg:px-6 py-4 hover:no-underline">
             <span className="ds-card-title flex items-center gap-2">
@@ -576,5 +576,97 @@ function EquipePage() {
 
 
     </div>
+  );
+}
+
+/* ---------- 6ª seção: acesso por área e imóvel ---------- */
+
+function useAreaAccessOverview() {
+  const { impersonation } = useImpersonation();
+  const accountOwnerId = impersonation?.userId ?? null;
+  const fn = useServerFn(getPermissionCenterOverview);
+  return useQuery({
+    queryKey: ["permission-center-overview", accountOwnerId],
+    queryFn: () => fn({ data: { ownerId: accountOwnerId } }),
+    retry: false,
+  });
+}
+
+function AreaAccessCountBadge() {
+  const q = useAreaAccessOverview();
+  const users = q.data && q.data.allowed !== false ? q.data.users.filter((u) => !u.isOwner) : [];
+  if (!users.length) return null;
+  return (
+    <span className="ds-meta px-2 py-0.5 rounded-full bg-secondary border border-border">
+      {users.length} {users.length === 1 ? "pessoa" : "pessoas"}
+    </span>
+  );
+}
+
+function initialsOf(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+function AreaPropertyAccessList() {
+  const q = useAreaAccessOverview();
+  const [open, setOpen] = useState<string>("");
+
+  if (q.isLoading) {
+    return (
+      <div className="ds-meta flex items-center gap-2">
+        <Loader2 className="size-3 animate-spin" /> Carregando acessos…
+      </div>
+    );
+  }
+  if (q.isError || !q.data || q.data.allowed === false) {
+    return (
+      <p className="ds-body text-muted-foreground">
+        Esta área só pode ser gerenciada pelo titular da conta.
+      </p>
+    );
+  }
+  const users = q.data.users;
+  if (!users.length) {
+    return (
+      <p className="ds-body text-muted-foreground">
+        Ainda não há ninguém além de você nesta conta.
+      </p>
+    );
+  }
+
+  return (
+    <Accordion type="single" collapsible value={open} onValueChange={setOpen} className="flex flex-col gap-1.5">
+      {users.map((u) => (
+        <AccordionItem
+          key={u.userId}
+          value={u.userId}
+          className="border border-border overflow-hidden bg-background/60 data-[state=open]:border-primary/40"
+        >
+          <AccordionTrigger className="px-4 py-3 hover:no-underline">
+            <span className="flex min-w-0 flex-1 items-center gap-3 text-left">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-semibold">
+                {initialsOf(u.name || u.email || "?")}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">{u.name}</span>
+                <span className="ds-meta block truncate">
+                  {u.isOwner ? "Titular da conta" : (u.email ?? "—")}
+                </span>
+              </span>
+            </span>
+          </AccordionTrigger>
+          <AccordionContent className="pb-0">
+            <div className="border-t border-border/60 p-4">
+              {open === u.userId ? <UserAccess userId={u.userId} /> : null}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      ))}
+    </Accordion>
   );
 }
