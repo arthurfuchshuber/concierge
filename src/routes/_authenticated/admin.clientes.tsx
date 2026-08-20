@@ -136,18 +136,14 @@ function ClientesPage() {
 
   return (
     <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-[1440px] mx-auto w-full">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <div className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-accent font-semibold mb-2">
-            <Shield className="size-3" /> Admin SaaS
-          </div>
-          <h1 className="font-display text-3xl md:text-4xl flex items-center gap-2.5">
-            <Users className="size-7 text-muted-foreground" /> Clientes
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1.5">
-            Gerencie planos, valores e períodos de teste de cada cliente.
-          </p>
-        </div>
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2.5">
+            <Users className="size-6 text-muted-foreground" /> Clientes
+          </span>
+        }
+        subtitle="Gerencie planos, valores e períodos de teste de cada cliente."
+        actions={
         <div className="flex items-center gap-2">
           <div className="relative">
             <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -231,8 +227,10 @@ function ClientesPage() {
             </SheetContent>
           </Sheet>
         </div>
-      </div>
+        }
+      />
 
+      <div className="mt-10">
       {/* Stats — refletem os filtros aplicados */}
       <div className="mt-6 grid grid-cols-2 md:grid-cols-6 gap-3">
         <StatCard label="Total" value={filtered.length} />
