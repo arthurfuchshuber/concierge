@@ -407,75 +407,75 @@ function AssinaturaPage() {
               <section>
             <div className="flex items-center gap-2 mb-6">
               <Receipt className="size-4 text-muted-foreground" />
-              <h2 className="ds-section-title mb-0">Extrato de pagamentos</h2>
+              <h2 className="ds-section-title mb-0">Histórico de pagamentos</h2>
             </div>
-            <div className="ds-surface border border-border bg-card overflow-hidden">
-              {paymentsQuery.isLoading ? (
-                <div className="p-6 h-32 animate-pulse" />
-              ) : !paymentsQuery.data?.payments?.length ? (
-                <div className="p-8 text-center">
-                  <div className="size-10 rounded-xl bg-secondary grid place-items-center mx-auto mb-3">
-                    <CreditCard className="size-4 text-muted-foreground" />
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Nenhum pagamento registrado ainda.
-                  </p>
+            {paymentsQuery.isLoading ? (
+              <div className="ds-surface border border-border bg-card p-6 h-32 animate-pulse" />
+            ) : !paymentsQuery.data?.payments?.length ? (
+              <div className="ds-surface border border-border bg-card p-8 text-center">
+                <div className="size-10 rounded-xl bg-secondary grid place-items-center mx-auto mb-3">
+                  <CreditCard className="size-4 text-muted-foreground" />
                 </div>
-              ) : (
-                <table className="w-full text-sm">
-                  <thead className="bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
-                    <tr>
-                      <th className="text-left font-medium px-4 py-2.5">Data</th>
-                      <th className="text-left font-medium px-4 py-2.5">Valor</th>
-                      <th className="text-left font-medium px-4 py-2.5">Status</th>
-                      <th className="text-right font-medium px-4 py-2.5">Fatura</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paymentsQuery.data.payments.map((p) => (
-                      <tr key={p.id} className="border-t border-border">
-                        <td className="px-4 py-3">
-                          {new Date(p.createdAt).toLocaleDateString("pt-BR")}
-                        </td>
-                        <td className="px-4 py-3 font-medium">
+                <p className="text-sm text-muted-foreground">
+                  Nenhum pagamento registrado ainda.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {paymentsQuery.data.payments.map((p) => {
+                  const date = new Date(p.createdAt);
+                  const label = date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+                  const isPaid = p.status === "completed" || p.status === "paid";
+                  return (
+                    <div
+                      key={p.id}
+                      className="ds-surface border border-border bg-card p-4 flex items-center justify-between gap-3 flex-wrap"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium capitalize">
+                          Fatura {label}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {isPaid ? "Pago em " : "Emitida em "}
+                          {date.toLocaleDateString("pt-BR")}
+                          {!isPaid && (
+                            <span
+                              className={`ml-2 text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full ${
+                                p.status === "past_due"
+                                  ? "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400"
+                                  : "bg-secondary text-muted-foreground"
+                              }`}
+                            >
+                              {p.status}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="text-sm font-semibold">
                           {(Number(p.amount) / 100).toLocaleString("pt-BR", {
                             style: "currency",
                             currency: p.currency || "BRL",
                           })}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full ${
-                              p.status === "completed" || p.status === "paid"
-                                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                                : p.status === "past_due"
-                                  ? "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400"
-                                  : "bg-secondary text-muted-foreground"
-                            }`}
+                        </span>
+                        {p.invoiceUrl ? (
+                          <a
+                            href={p.invoiceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 h-9 px-3 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 transition-colors"
                           >
-                            {p.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          {p.invoiceUrl ? (
-                            <a
-                              href={p.invoiceUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-accent hover:underline inline-flex items-center gap-1"
-                            >
-                              Ver <ExternalLink className="size-3" />
-                            </a>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
+                            <Receipt className="size-3.5" /> Recibo
+                          </a>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </section>
             </TabsContent>
           </Tabs>
@@ -657,50 +657,63 @@ function CardTab({
     );
   }
 
+  const hasCard = !paymentMethodLoading && !!paymentMethod?.last4;
+
   return (
-    <div className="ds-surface border border-border bg-card p-5 sm:p-6">
-      <div className="flex items-start gap-4">
-        <div className="size-11 rounded-xl bg-secondary grid place-items-center shrink-0">
-          <CreditCard className="size-5 text-foreground" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="ds-card-title">Método de pagamento</h3>
-          {paymentMethodLoading ? (
-            <p className="text-xs text-muted-foreground mt-1">Carregando cartão cadastrado…</p>
-          ) : paymentMethod?.last4 ? (
-            <div className="mt-2 space-y-0.5">
-              <p className="text-sm font-medium capitalize">
-                {paymentMethod.brand ?? "Cartão"} terminado em {paymentMethod.last4}
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-2 mb-4">
+        <CreditCard className="size-4 text-muted-foreground" />
+        <h2 className="ds-section-title mb-0">Método de pagamento</h2>
+      </div>
+
+      {paymentMethodLoading ? (
+        <div className="ds-surface border border-border bg-card p-5 h-16 animate-pulse" />
+      ) : hasCard ? (
+        <div className="ds-surface border border-border bg-card p-4 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="h-9 px-3 rounded-md bg-foreground text-background grid place-items-center text-[11px] font-bold uppercase tracking-wider shrink-0">
+              {paymentMethod?.brand || "Cartão"}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium tracking-wide">
+                •••• •••• •••• {paymentMethod?.last4}
               </p>
-              {(paymentMethod.expiryMonth || paymentMethod.expiryYear) && (
-                <p className="text-xs text-muted-foreground">
-                  Validade {String(paymentMethod.expiryMonth ?? "").padStart(2, "0")}/{paymentMethod.expiryYear ?? ""}
+              {(paymentMethod?.expiryMonth || paymentMethod?.expiryYear) && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Expira {String(paymentMethod?.expiryMonth ?? "").padStart(2, "0")}/{paymentMethod?.expiryYear ?? ""}
                 </p>
               )}
-              {paymentMethod.cardholderName && (
-                <p className="text-xs text-muted-foreground">{paymentMethod.cardholderName}</p>
-              )}
             </div>
-          ) : (
-            <p className="text-xs text-muted-foreground mt-1">
-              Consulte ou atualize o cartão usado nas próximas cobranças pelo portal seguro de pagamentos.
-            </p>
-          )}
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button onClick={onOpenPortal} disabled={opening} className="rounded-full">
-              {opening ? (
-                <Loader2 className="size-4 mr-1.5 animate-spin" />
-              ) : (
-                <CreditCard className="size-4 mr-1.5" />
-              )}
-              Gerenciar cartão
-            </Button>
           </div>
-          <div className="mt-3 text-[11px] text-muted-foreground flex items-center gap-1.5">
-            <ShieldCheck className="size-3.5" /> Os dados do cartão ficam armazenados com segurança no
-            provedor de pagamento — nunca passam pelos servidores da ConciergeIA.
-          </div>
+          <span className="text-[10px] uppercase tracking-wider font-semibold px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 shrink-0">
+            Ativo
+          </span>
         </div>
+      ) : (
+        <div className="ds-surface border border-border bg-card p-5">
+          <p className="text-xs text-muted-foreground">
+            Consulte ou atualize o cartão usado nas próximas cobranças pelo portal seguro de pagamentos.
+          </p>
+        </div>
+      )}
+
+      <Button
+        onClick={onOpenPortal}
+        disabled={opening}
+        variant="outline"
+        className="w-full rounded-full mt-1.5"
+      >
+        {opening ? (
+          <Loader2 className="size-4 mr-1.5 animate-spin" />
+        ) : (
+          <CreditCard className="size-4 mr-1.5" />
+        )}
+        Trocar cartão
+      </Button>
+
+      <div className="pt-2 text-[11px] text-muted-foreground flex items-center gap-1.5">
+        <ShieldCheck className="size-3.5" /> Os dados do cartão ficam armazenados com segurança no
+        provedor de pagamento — nunca passam pelos servidores da ConciergeIA.
       </div>
     </div>
   );
