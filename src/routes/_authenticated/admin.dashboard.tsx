@@ -1957,43 +1957,54 @@ function BarRow({
   total,
   pct,
   breakdown,
+  hint,
 }: {
   label: string;
   value: number;
   total: number;
   pct: number;
   breakdown?: Breakdown;
+  /** Texto explicativo do que a métrica mede (ícone "i" ao lado do valor). */
+  hint?: string;
 }) {
-  const bar = (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between gap-2 text-sm">
-        <span className="font-medium truncate whitespace-nowrap min-w-0">{label}</span>
-        <span className="tabular-nums text-muted-foreground text-xs whitespace-nowrap shrink-0">
-          {value} de {total} check-ins
-        </span>
-      </div>
-
-      {/* Battery: red base, green fill overlay — mais fina, versão discreta */}
-      <div className="h-1.5 rounded-full bg-rose-500/70 overflow-hidden ring-1 ring-rose-500/20">
-        <div
-          className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-[width] duration-700"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
+  const track = (
+    <div className="h-1.5 rounded-full bg-rose-500/70 overflow-hidden ring-1 ring-rose-500/20">
+      <div
+        className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-[width] duration-700"
+        style={{ width: `${pct}%` }}
+      />
     </div>
   );
-  if (!breakdown) return bar;
+  const header = (
+    <div className="flex items-center justify-between gap-2 text-sm">
+      <span className="font-medium truncate whitespace-nowrap min-w-0">{label}</span>
+      <span className="tabular-nums text-muted-foreground text-xs whitespace-nowrap shrink-0 inline-flex items-center gap-1">
+        {value} de {total}
+        {hint ? <InfoHint title={label}>{hint}</InfoHint> : null}
+      </span>
+    </div>
+  );
+  if (!breakdown) {
+    return (
+      <div className="space-y-1.5">
+        {header}
+        {track}
+      </div>
+    );
+  }
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <button
-          type="button"
-          aria-label={`Detalhes: ${label}`}
-          className="w-full text-left rounded-lg transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring px-1 -mx-1 py-1"
-        >
-          {bar}
-        </button>
-      </DialogTrigger>
+    <div className="space-y-1.5">
+      {header}
+      <Dialog>
+        <DialogTrigger asChild>
+          <button
+            type="button"
+            aria-label={`Detalhes: ${label}`}
+            className="w-full text-left rounded-lg transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring px-1 -mx-1 py-1"
+          >
+            {track}
+          </button>
+        </DialogTrigger>
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-lg border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" />
         <DialogHeader className="px-5 pt-5 pb-4">
