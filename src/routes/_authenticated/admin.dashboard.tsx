@@ -1176,14 +1176,17 @@ function KpiCard({
             type="button"
             className={`w-full h-full rounded-lg border border-border bg-card px-4 py-4 sm:px-4 sm:py-4 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
-            <div className="flex items-center gap-2 ds-eyebrow">
+            <div className="flex items-start gap-2 ds-eyebrow">
               {shadowTone ? (
-                <span className={`size-2 rounded-full shrink-0 ${dotClass}`} />
+                <span className={`mt-1 size-2 rounded-full shrink-0 ${dotClass}`} />
               ) : (
-                <Icon className="size-3.5 shrink-0" />
+                <Icon className="mt-px size-3.5 shrink-0" />
               )}
-              <span className="truncate">{label}</span>
+              {/* Antes truncava ("CHECK-INS PENDEN…") em telas estreitas —
+                  o rótulo agora quebra em duas linhas, como no mockup. */}
+              <span className="min-w-0 leading-[1.25] [text-wrap:balance]">{label}</span>
             </div>
+
             <div
               className={`font-display mt-2 tabular-nums leading-none ${valueColor} ${
                 shadowTone ? "text-3xl sm:text-[28px]" : "text-xl sm:text-lg"
