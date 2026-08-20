@@ -1149,7 +1149,7 @@ function Dashboard() {
                                 onClick={() => navigate({ to: "/admin/properties/$id", params: { id: p.id } })}
                                 className="flex-1 min-w-0 text-left"
                               >
-                                <h3 className="ds-card-title leading-snug line-clamp-2 [text-wrap:balance]">
+                                <h3 className="ds-card-title leading-snug">
                                   {p.name}
                                 </h3>
                                 <div className="mt-1 flex items-center gap-1.5 ds-meta min-w-0">
