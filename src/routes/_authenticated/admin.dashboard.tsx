@@ -590,7 +590,23 @@ function DashboardPage() {
   // verdade — os dois pontos de chamada leem o mesmo engQ/range do
   // componente pai, então nunca ficam dessincronizados entre si.
   function renderEngagementPanel(wrapperClassName: string) {
-    if (counts.checkin === 0) return null;
+    // O bloco de engajamento é fixo no layout (como no mockup): mesmo sem
+    // check-ins no período ele aparece, com um recado curto no lugar das
+    // barras — some só se a consulta falhar de vez.
+    const hasData =
+      (engQ.data?.checkinsInPeriod ?? 0) > 0 || (engQ.data?.checkinsWithCodes ?? 0) > 0;
+    if (!engQ.isLoading && !hasData) {
+      return (
+        <section className={`rounded-lg border border-border bg-card p-4 sm:p-5 ${wrapperClassName}`}>
+          <div className="ds-eyebrow text-muted-foreground">Engajamento</div>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Sem check-ins no período — as barras de instruções e senha aparecem assim que
+            houver chegadas.
+          </p>
+        </section>
+      );
+    }
+
     return (
       <section className={`rounded-lg border border-border bg-card p-4 sm:p-5 ${wrapperClassName}`}>
         <EngagementBars
@@ -603,6 +619,7 @@ function DashboardPage() {
       </section>
     );
   }
+
 
   return (
     <div className="px-4 sm:px-6 lg:px-10 py-6 lg:py-10 max-w-[1440px] mx-auto w-full space-y-5 sm:space-y-6">
@@ -717,17 +734,7 @@ function DashboardPage() {
       {/* Engajamento do guia — volta a aparecer aqui embaixo, sempre, em
           largura total (mobile e desktop). Versão discreta, sem cabeçalho. */}
       {renderEngagementPanel("")}
-      {/* Agenda macro de ocupação */}
-      <OccupancyPanel
-        loading={occupancyQ.isLoading}
-        start={occupancyQ.data?.start ?? agendaStart}
-        days={occupancyQ.data?.days ?? 21}
-        properties={occupancyQ.data?.properties ?? []}
-        stays={occupancyQ.data?.stays ?? []}
-        checkedInPropertyIds={checkedInPropertyIds}
-        onStartChange={setAgendaStart}
-        defaultStart={todayISO}
-      />
+
 
       {/* Quadro de operação — Kanban por status, colunas lado a lado (estilo
           Jira). Antes era uma lista só com um dropdown pra trocar de status;
@@ -950,6 +957,20 @@ function DashboardPage() {
         </div>
       </section>
 
+      {/* Agenda macro de ocupação — abaixo do quadro, como no mockup. */}
+      <OccupancyPanel
+        loading={occupancyQ.isLoading}
+        start={occupancyQ.data?.start ?? agendaStart}
+        days={occupancyQ.data?.days ?? 21}
+        properties={occupancyQ.data?.properties ?? []}
+        stays={occupancyQ.data?.stays ?? []}
+        checkedInPropertyIds={checkedInPropertyIds}
+        onStartChange={setAgendaStart}
+        defaultStart={todayISO}
+      />
+
+
+
       <ConfirmActionDialog
         open={!!confirmAdvance}
         onOpenChange={(v) => {
@@ -1166,14 +1187,17 @@ function KpiCard({
             type="button"
             className={`w-full h-full rounded-lg border border-border bg-card px-4 py-4 sm:px-4 sm:py-4 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
-            <div className="flex items-center gap-2 ds-eyebrow">
+            <div className="flex items-start gap-2 ds-eyebrow">
               {shadowTone ? (
-                <span className={`size-2 rounded-full shrink-0 ${dotClass}`} />
+                <span className={`mt-1 size-2 rounded-full shrink-0 ${dotClass}`} />
               ) : (
-                <Icon className="size-3.5 shrink-0" />
+                <Icon className="mt-px size-3.5 shrink-0" />
               )}
-              <span className="truncate">{label}</span>
+              {/* Antes truncava ("CHECK-INS PENDEN…") em telas estreitas —
+                  o rótulo agora quebra em duas linhas, como no mockup. */}
+              <span className="min-w-0 leading-[1.25] [text-wrap:balance]">{label}</span>
             </div>
+
             <div
               className={`font-display mt-2 tabular-nums leading-none ${valueColor} ${
                 shadowTone ? "text-3xl sm:text-[28px]" : "text-xl sm:text-lg"
