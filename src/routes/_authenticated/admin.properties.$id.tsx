@@ -51,6 +51,7 @@ import { getMyPropertySigmaState } from "@/lib/sigma-recommendations.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { useAccess } from "@/lib/permissions/useAccess";
+import { PageHeader } from "@/components/ds/PageHeader";
 
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
@@ -1219,24 +1220,25 @@ function PropertyEditor() {
           <ArrowLeft className="size-3.5" /> Voltar
         </Link>
 
-        <div className="mb-6 pb-4 border-b border-border/60">
-          <div className="flex items-center justify-between gap-2 mb-1.5">
-            <div className="flex items-center gap-2 min-w-0">
-              <h1 className="font-display text-2xl sm:text-3xl truncate">{isNew ? "Novo imóvel" : (form.property.name || "Informações do imóvel")}</h1>
+        <PageHeader
+          className="mb-6 pb-4 border-b border-border/60"
+          title={
+            <span className="inline-flex items-center gap-2 min-w-0">
+              <span className="truncate">{isNew ? "Novo imóvel" : (form.property.name || "Informações do imóvel")}</span>
               {!isNew && (
                 <span className="shrink-0 rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground">
                   Sem guia criado
                 </span>
               )}
-            </div>
-            <PresenceAvatars users={presence.users} />
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {isNew
+            </span>
+          }
+          subtitle={
+            isNew
               ? "Só o essencial para cadastrar a residência. O guia para hóspedes, checkin, checkout, FAQ e recomendações ficam disponíveis depois de criado — não são obrigatórios."
-              : "Este imóvel ainda não tem um guia para hóspedes. Você pode continuar usando dashboard, calendário e kanban só com essas informações, ou criar o guia quando quiser."}
-          </p>
-        </div>
+              : "Este imóvel ainda não tem um guia para hóspedes. Você pode continuar usando dashboard, calendário e kanban só com essas informações, ou criar o guia quando quiser."
+          }
+          actions={<PresenceAvatars users={presence.users} />}
+        />
 
         <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
           <SectionGroup>
@@ -1267,22 +1269,22 @@ function PropertyEditor() {
           <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-border/60">
             <Link
               to="/admin/guias"
-              className="inline-flex items-center h-10 px-4 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors"
+              className="inline-flex items-center h-9 px-4 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors"
             >
               Cancelar
             </Link>
             {isNew ? (
-              <Button className="h-10 min-w-[140px]" onClick={() => handleSave()} disabled={saving || !form.property.name.trim()}>
+              <Button className="min-w-[140px]" onClick={() => handleSave()} disabled={saving || !form.property.name.trim()}>
                 {saving ? <Loader2 className="size-4 animate-spin" /> : null}
                 <span className={saving ? "ml-1.5" : ""}>{saving ? "Criando…" : "Criar imóvel"}</span>
               </Button>
             ) : (
               <>
-                <Button variant="secondary" className="h-10 min-w-[140px]" onClick={() => handleSave()} disabled={saving || !form.property.name.trim()}>
+                <Button variant="secondary" className="min-w-[140px]" onClick={() => handleSave()} disabled={saving || !form.property.name.trim()}>
                   {saving ? <Loader2 className="size-4 animate-spin" /> : null}
                   <span className={saving ? "ml-1.5" : ""}>{saving ? "Salvando…" : "Salvar alterações"}</span>
                 </Button>
-                <Button className="h-10 min-w-[140px]" onClick={handleCreateGuide} disabled={saving || !form.property.name.trim()}>
+                <Button className="min-w-[140px]" onClick={handleCreateGuide} disabled={saving || !form.property.name.trim()}>
                   {saving ? <Loader2 className="size-4 animate-spin" /> : null}
                   <span className={saving ? "ml-1.5" : ""}>{saving ? "Criando…" : "Criar guia"}</span>
                 </Button>
@@ -1307,30 +1309,31 @@ function PropertyEditor() {
       ) : null}
       <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
 
-      <div className="mb-4 sm:mb-5 pb-4 border-b border-border/60 flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="font-display text-2xl sm:text-4xl break-words leading-tight line-clamp-2">{form.property.name || "Sem título"}</h1>
-        </div>
-        {!isNew && (
-          <div className="shrink-0 flex items-center gap-3">
-            <PresenceAvatars users={presence.users} />
-            <Link
-              to="/admin/properties/$id/acessos"
-              params={{ id }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-surface text-xs hover:bg-secondary transition-colors"
-            >
-              <Shield className="size-3.5" /> Acessos
-            </Link>
-            <Link
-              to="/admin/properties/$id/conversas"
-              params={{ id }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-surface text-xs hover:bg-secondary transition-colors"
-            >
-              <MessageSquare className="size-3.5" /> Conversas
-            </Link>
-          </div>
-        )}
-      </div>
+      <PageHeader
+        className="mb-4 sm:mb-5 pb-4 border-b border-border/60"
+        title={<span className="break-words line-clamp-2">{form.property.name || "Sem título"}</span>}
+        actions={
+          !isNew ? (
+            <div className="shrink-0 flex items-center gap-3">
+              <PresenceAvatars users={presence.users} />
+              <Link
+                to="/admin/properties/$id/acessos"
+                params={{ id }}
+                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-xs hover:bg-secondary transition-colors shrink-0"
+              >
+                <Shield className="size-3.5 shrink-0" /> Acessos
+              </Link>
+              <Link
+                to="/admin/properties/$id/conversas"
+                params={{ id }}
+                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-xs hover:bg-secondary transition-colors shrink-0"
+              >
+                <MessageSquare className="size-3.5 shrink-0" /> Conversas
+              </Link>
+            </div>
+          ) : null
+        }
+      />
 
 
       <Tabs value={step} onValueChange={setStep}>
@@ -2158,9 +2161,9 @@ function PropertyEditor() {
             Próximo
             <ArrowLeft className="size-3.5 ml-1 rotate-180" />
           </Button>
-          <Button variant="ghost" className="h-10 min-w-[120px]" onClick={() => navigate({ to: "/admin/guias" })}>{readOnly ? "Voltar" : "Cancelar"}</Button>
+          <Button variant="ghost" className="min-w-[120px]" onClick={() => navigate({ to: "/admin/guias" })}>{readOnly ? "Voltar" : "Cancelar"}</Button>
           {!readOnly && (
-            <Button className="h-10 min-w-[120px]" onClick={() => handleSave()} disabled={saving || !form.property.name}>
+            <Button className="min-w-[120px]" onClick={() => handleSave()} disabled={saving || !form.property.name}>
               {saving ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
               Salvar
             </Button>
@@ -2220,7 +2223,7 @@ function Field({ label, hint, required, children }: { label: string; hint?: stri
 
 function AddBtn({ onClick }: { onClick: () => void }) {
   return (
-    <Button size="sm" variant="outline" onClick={onClick} className="shrink-0 h-8 rounded-full text-xs">
+    <Button size="sm" variant="outline" onClick={onClick} className="shrink-0 rounded-full text-xs">
       <Plus className="size-3.5" /> Adicionar
     </Button>
   );
@@ -2832,12 +2835,12 @@ export function RecGroup({
           </button>
           {selectedIdx.size > 0 && (
             <>
-              <Button size="sm" variant="destructive" onClick={() => setConfirmDeleteOpen(true)} className="h-8 rounded-full text-xs">
+              <Button size="sm" variant="destructive" onClick={() => setConfirmDeleteOpen(true)} className="rounded-full text-xs">
                 <Trash2 className="size-3.5" /> Excluir ({selectedIdx.size})
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button size="sm" variant="outline" className="h-8 rounded-full text-xs">
+                  <Button size="sm" variant="outline" className="rounded-full text-xs">
                     <MoveRight className="size-3.5" /> Mover ({selectedIdx.size})
                   </Button>
                 </DropdownMenuTrigger>
@@ -2896,19 +2899,19 @@ export function RecGroup({
         <div className="ml-auto flex items-center gap-1.5 flex-wrap justify-end">
           {headerExtra}
           {onReplicate && (
-            <Button size="sm" variant="ghost" onClick={onReplicate} className="shrink-0 h-8 rounded-full text-xs text-muted-foreground hover:text-foreground" title="Replicar">
+            <Button size="sm" variant="ghost" onClick={onReplicate} className="shrink-0 rounded-full text-xs text-muted-foreground hover:text-foreground" title="Replicar">
               <Share2 className="size-3.5" /> <span className="hidden sm:inline">Replicar</span>
             </Button>
           )}
           {onGenerate && (
-            <Button size="sm" variant="secondary" onClick={onGenerate} disabled={generating} className="shrink-0 h-8 rounded-full text-xs" title="Gerar com IA">
+            <Button size="sm" variant="secondary" onClick={onGenerate} disabled={generating} className="shrink-0 rounded-full text-xs" title="Gerar com IA">
               {generating ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
               <span className="hidden sm:inline">Gerar com IA</span>
             </Button>
           )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline" className="shrink-0 h-8 rounded-full text-xs" title="Editar">
+              <Button size="sm" variant="outline" className="shrink-0 rounded-full text-xs" title="Editar">
                 <Settings2 className="size-3.5" />
               </Button>
             </DropdownMenuTrigger>

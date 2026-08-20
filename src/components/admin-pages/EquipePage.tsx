@@ -37,6 +37,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Users, Bell, BellOff, Loader2, Trash2, Mail, Send as SendIcon, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/ds/PageHeader";
 
 export { EquipePage };
 
@@ -250,14 +251,16 @@ function EquipePage() {
   }
 
   return (
-    <div className="w-full space-y-6">
-      <div className="flex items-center gap-2">
-        <Users className="size-5 text-primary" />
-        <h1 className="font-display text-2xl">Equipe & Permissões</h1>
-      </div>
-      <p className="text-sm text-muted-foreground -mt-4">
-        Dados e recursos que cada membro pode acessar. Recursos operacionais respeitam os limites do seu plano.
-      </p>
+    <div className="w-full space-y-8">
+      <PageHeader
+        title={
+          <span className="inline-flex items-center gap-2">
+            <Users className="size-5 text-primary" />
+            Equipe & Permissões
+          </span>
+        }
+        subtitle="Dados e recursos que cada membro pode acessar. Recursos operacionais respeitam os limites do seu plano."
+      />
 
       <Accordion
         type="single"
@@ -271,7 +274,7 @@ function EquipePage() {
           className="glass rounded-2xl border border-border overflow-hidden data-[state=open]:border-primary/40"
         >
           <AccordionTrigger className="px-4 lg:px-6 py-4 hover:no-underline">
-            <span className="flex items-center gap-2 font-display text-base">
+            <span className="ds-card-title flex items-center gap-2">
               {pushOn ? <Bell className="size-4 text-primary" /> : <BellOff className="size-4 text-muted-foreground" />}
               Notificações neste dispositivo
             </span>
@@ -301,7 +304,7 @@ function EquipePage() {
           className="glass rounded-2xl border border-border overflow-hidden data-[state=open]:border-primary/40"
         >
           <AccordionTrigger className="px-4 lg:px-6 py-4 hover:no-underline">
-            <span className="flex items-center gap-2 font-display text-base">
+            <span className="ds-card-title flex items-center gap-2">
               <Mail className="size-4 text-primary" /> Convidar atendente
             </span>
           </AccordionTrigger>
@@ -341,9 +344,9 @@ function EquipePage() {
           className="glass rounded-2xl border border-border overflow-hidden data-[state=open]:border-primary/40"
         >
           <AccordionTrigger className="px-4 lg:px-6 py-4 hover:no-underline">
-            <span className="flex items-center gap-2 font-display text-base">
+            <span className="ds-card-title flex items-center gap-2">
               <Users className="size-4 text-primary" /> Membros da equipe
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-secondary border border-border text-muted-foreground">
+              <span className="ds-meta px-2 py-0.5 rounded-full bg-secondary border border-border">
                 {members.length}
               </span>
             </span>
@@ -476,9 +479,9 @@ function EquipePage() {
           className="glass rounded-2xl border border-border overflow-hidden data-[state=open]:border-primary/40"
         >
           <AccordionTrigger className="px-4 lg:px-6 py-4 hover:no-underline">
-            <span className="flex items-center gap-2 font-display text-base">
+            <span className="ds-card-title flex items-center gap-2">
               <SendIcon className="size-4 text-primary" /> Convites pendentes
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-secondary border border-border text-muted-foreground">
+              <span className="ds-meta px-2 py-0.5 rounded-full bg-secondary border border-border">
                 {team.data?.invites?.length ?? 0}
               </span>
             </span>
@@ -534,9 +537,9 @@ function EquipePage() {
           className="glass rounded-2xl border border-border overflow-hidden data-[state=open]:border-primary/40"
         >
           <AccordionTrigger className="px-4 lg:px-6 py-4 hover:no-underline">
-            <span className="flex items-center gap-2 font-display text-base">
+            <span className="ds-card-title flex items-center gap-2">
               <ShieldIcon className="size-4 text-primary" /> Permissões detalhadas por recurso
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-secondary border border-border text-muted-foreground">
+              <span className="ds-meta px-2 py-0.5 rounded-full bg-secondary border border-border">
                 em validação
               </span>
             </span>

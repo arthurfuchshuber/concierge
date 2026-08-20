@@ -7,6 +7,7 @@ import { MeuPerfilPage } from "@/components/admin-pages/MeuPerfilPage";
 import { IntegracoesPage } from "@/components/admin-pages/IntegracoesPage";
 import { useMyPermissions } from "@/hooks/useMyPermissions";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { PageHeader } from "@/components/ds/PageHeader";
 
 type Tab = "perfil" | "assinatura" | "permissoes" | "integracoes";
 
@@ -37,8 +38,7 @@ function AdministrativoPage() {
   return (
     <div className="min-h-screen">
       <div className="px-6 lg:px-10 pt-8 lg:pt-10 pb-2 max-w-[1440px] mx-auto w-full">
-        <h1 className="font-display text-3xl md:text-4xl tracking-tight">Administrativo</h1>
-        <p className="text-sm text-muted-foreground mt-1">Perfil, assinatura, equipe e integrações da sua conta.</p>
+        <PageHeader title="Administrativo" subtitle="Perfil, assinatura, equipe e integrações da sua conta." />
       </div>
       <Tabs
         value={activeTab}

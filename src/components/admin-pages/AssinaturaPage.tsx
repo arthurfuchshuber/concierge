@@ -34,6 +34,7 @@ import {
 import { toast } from "sonner";
 import { metaPixelTrack, metaPixelTrackCustom, metaPixelTrackOnce } from "@/lib/meta-pixel";
 import { useImpersonation } from "@/hooks/useImpersonation";
+import { PageHeader } from "@/components/ds/PageHeader";
 
 export { AssinaturaPage };
 
@@ -183,24 +184,19 @@ function AssinaturaPage() {
 
   return (
     <div className="w-full">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="font-display text-3xl md:text-4xl">Assinatura</h1>
-          <p className="text-sm text-muted-foreground mt-1.5">
-            Gerencie seu plano, pagamentos e faturas.
-          </p>
-        </div>
-        {info.isActive && (
-          <Button
-            onClick={openPortal}
-            disabled={opening}
-            variant="outline"
-            className="rounded-full"
-          >
-            <ExternalLink className="size-4 mr-1.5" /> Portal de pagamento
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title="Assinatura"
+        subtitle="Gerencie seu plano, pagamentos e faturas."
+        actions={
+          info.isActive ? (
+            <Button onClick={openPortal} disabled={opening} variant="outline" className="rounded-full">
+              <ExternalLink className="size-4 mr-1.5" />
+              <span className="hidden sm:inline">Portal de pagamento</span>
+              <span className="sm:hidden">Portal</span>
+            </Button>
+          ) : null
+        }
+      />
 
       {isLoading ? (
         <div className="mt-8 rounded-2xl border border-border bg-card p-6 h-40 animate-pulse" />
@@ -234,7 +230,7 @@ function AssinaturaPage() {
             </div>
           )}
 
-          <Tabs defaultValue="plano" className="mt-6">
+          <Tabs defaultValue="plano" className="mt-8">
             <TabsList>
               <TabsTrigger value="plano">Plano</TabsTrigger>
               <TabsTrigger value="cartao">Cartão de crédito</TabsTrigger>
@@ -250,14 +246,14 @@ function AssinaturaPage() {
               )}
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1.5">
+                  <p className="ds-eyebrow flex items-center gap-1.5">
                     {currentPlan === "enterprise" && <Crown className="size-3.5 text-accent" />}
                     Plano atual
                   </p>
-                  <h2 className="font-display text-3xl mt-1">
+                  <h2 className="ds-section-title mb-0 mt-1">
                     {currentPlanConfig ? currentPlanConfig.name : "Sem plano"}
                   </h2>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="ds-body mt-1">
                     {currentPlanConfig
                       ? `${currentPlanConfig.priceLabel}${currentPlanConfig.priceNumeric ? " /mês" : ""}`
                       : "Escolha um plano para começar"}
@@ -298,9 +294,7 @@ function AssinaturaPage() {
               </dl>
             </div>
             <div className="rounded-2xl border border-border bg-card p-5">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
-                Recursos
-              </p>
+              <p className="ds-eyebrow">Recursos</p>
               <ul className="mt-3 space-y-2 text-sm">
                 <FeatureRow on={info.features.autoImport} label="Importação automática" />
                 <FeatureRow on={info.features.ai} label="Sugestões com IA" />
@@ -310,14 +304,12 @@ function AssinaturaPage() {
           </section>
 
           {/* Plans grid */}
-          <section className="mt-10">
-            <div className="flex items-end justify-between gap-3 flex-wrap mb-4">
-              <div>
-                <h2 className="font-display text-2xl">Todos os planos</h2>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  Faça upgrade ou downgrade a qualquer momento.
-                </p>
-              </div>
+          <section className="mt-8">
+            <div className="mb-6">
+              <h2 className="ds-section-title mb-0">Todos os planos</h2>
+              <p className="ds-body mt-0.5">
+                Faça upgrade ou downgrade a qualquer momento.
+              </p>
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {PLAN_ORDER.map((key) => {
@@ -345,8 +337,8 @@ function AssinaturaPage() {
                         <Sparkles className="size-3" /> Premium
                       </span>
                     )}
-                    <h3 className="font-display text-xl">{p.name}</h3>
-                    <p className="text-xs text-muted-foreground mt-1 min-h-[32px]">
+                    <h3 className="ds-card-title">{p.name}</h3>
+                    <p className="ds-card-desc mt-1 min-h-[32px]">
                       {p.description}
                     </p>
                     <div className="mt-3 flex items-baseline gap-1">
@@ -413,9 +405,9 @@ function AssinaturaPage() {
             <TabsContent value="pagamentos" className="mt-6">
               {/* Payment history */}
               <section>
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-6">
               <Receipt className="size-4 text-muted-foreground" />
-              <h2 className="font-display text-2xl">Extrato de pagamentos</h2>
+              <h2 className="ds-section-title mb-0">Extrato de pagamentos</h2>
             </div>
             <div className="rounded-2xl border border-border bg-card overflow-hidden">
               {paymentsQuery.isLoading ? (
@@ -586,10 +578,10 @@ function CardTab({
                 <ShieldCheck className="size-6" strokeWidth={2} />
               </div>
               <div className="min-w-0">
-                <h3 className="font-display text-xl tracking-tight text-foreground mb-2">
+                <h3 className="ds-card-title mb-2">
                   Validação de cartão obrigatória
                 </h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
+                <p className="ds-body leading-relaxed">
                   Exigimos um cartão válido para fins de validação e segurança.{" "}
                   <span className="text-emerald-500 font-medium">Você tem 7 dias para usar sem ser cobrado.</span>{" "}
                   Após esse período, a assinatura será iniciada normalmente.
@@ -672,7 +664,7 @@ function CardTab({
           <CreditCard className="size-5 text-foreground" />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-base">Método de pagamento</h3>
+          <h3 className="ds-card-title">Método de pagamento</h3>
           {paymentMethodLoading ? (
             <p className="text-xs text-muted-foreground mt-1">Carregando cartão cadastrado…</p>
           ) : paymentMethod?.last4 ? (

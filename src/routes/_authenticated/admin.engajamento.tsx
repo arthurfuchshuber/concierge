@@ -12,6 +12,7 @@ import { getEngagementGuests } from "@/lib/engagement-guests.functions";
 import { checkIsAdmin } from "@/lib/admin-subs.functions";
 import { useSubscription } from "@/hooks/useSubscription";
 import { AiPlanLock } from "@/components/admin/AiPlanLock";
+import { PageHeader } from "@/components/ds/PageHeader";
 
 import { FiltersIconButton, type EngagementFilters } from "@/components/engagement/GlobalFilters";
 import { InsightsRibbon } from "@/components/engagement/InsightsRibbon";
@@ -146,23 +147,21 @@ function EngagementPage() {
   );
 
   return (
-    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-[1440px] mx-auto w-full space-y-4">
-      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-        <div className="min-w-0">
-          <div className="text-[11px] uppercase tracking-widest text-muted-foreground font-medium mb-1">
-            Behavioral Analytics
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-display">Engajamento</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Como seus hóspedes usam o guia.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
+    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-[1440px] mx-auto w-full space-y-8">
+      <PageHeader
+        title={
+          <span>
+            <span className="ds-eyebrow block mb-1">Behavioral Analytics</span>
+            Engajamento
+          </span>
+        }
+        subtitle="Como seus hóspedes usam o guia."
+        actions={
           <Button asChild variant="ghost" size="sm">
             <Link to="/admin"><ArrowLeft className="size-4 mr-1" /> Voltar</Link>
           </Button>
-        </div>
-      </header>
+        }
+      />
 
       {analyticsQ.isLoading && (
         <div className="py-24 flex items-center justify-center text-sm text-muted-foreground">
@@ -183,7 +182,7 @@ function EngagementPage() {
             <EmptyState />
           ) : (
             <Tabs value={tab} onValueChange={(v) => patch({ tab: v })} className="w-full">
-              <TabsList className="w-full h-auto p-1 bg-muted/40 flex-wrap">
+              <TabsList className="w-full">
                 <TabsTrigger value="panorama" className="text-xs flex-1">Panorama</TabsTrigger>
                 <TabsTrigger value="jornada" className="text-xs flex-1">Jornada</TabsTrigger>
                 <TabsTrigger value="conteudo" className="text-xs flex-1">Conteúdo</TabsTrigger>

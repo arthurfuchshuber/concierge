@@ -26,6 +26,7 @@ import {
 } from "@/lib/knowledge-governance.functions";
 import { listLearningQueue, reviewLearningCandidate } from "@/lib/ai-learning.functions";
 import { useImpersonation } from "@/hooks/useImpersonation";
+import { PageHeader } from "@/components/ds/PageHeader";
 
 export const Route = createFileRoute("/_authenticated/admin/ia")({
   head: () => ({
@@ -51,18 +52,13 @@ export const Route = createFileRoute("/_authenticated/admin/ia")({
 function IaGovernancePage() {
   return (
     <div className="max-w-[1440px] mx-auto w-full px-6 lg:px-10 py-8 lg:py-10 space-y-6">
-      <header className="space-y-1">
-        <h1 className="font-display text-2xl sm:text-3xl flex items-center gap-2">
-          <BrainCircuit className="size-6 text-primary" />
-          IA Concierge
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Tudo que a inteligência aprendeu sobre a sua operação — e o que ainda depende da sua aprovação.
-        </p>
-      </header>
+      <PageHeader
+        title={<span className="inline-flex items-center gap-2"><BrainCircuit className="size-5 text-primary" /> IA Concierge</span>}
+        subtitle="Tudo que a inteligência aprendeu sobre a sua operação — e o que ainda depende da sua aprovação."
+      />
 
       <Tabs defaultValue="conhecimento">
-        <TabsList className="w-full flex overflow-x-auto justify-start">
+        <TabsList className="w-full justify-start">
           <TabsTrigger value="conhecimento" className="shrink-0">Conhecimento da Operação</TabsTrigger>
           <TabsTrigger value="aprendizados" className="shrink-0">Aprendizados Pendentes</TabsTrigger>
         </TabsList>
@@ -157,15 +153,15 @@ function KnowledgeTab() {
           {data.map((k) => (
             <article key={k.id} className="rounded-2xl border border-border bg-surface p-4 space-y-2 shadow-sm">
               <div className="flex items-start justify-between gap-3">
-                <h3 className="font-medium leading-snug">{k.title}</h3>
+                <h3 className="ds-card-title leading-snug min-w-0 truncate">{k.title}</h3>
                 <Badge variant="secondary" className="shrink-0">
                   {k.knowledge_scope === "PORTFOLIO_KNOWLEDGE" ? "Carteira" : "Empresa"}
                 </Badge>
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="ds-meta">
                 {k.category} · prioridade {k.priority}
               </p>
-              <p className="text-sm text-foreground/80 whitespace-pre-wrap line-clamp-6">{k.content}</p>
+              <p className="ds-card-desc whitespace-pre-wrap line-clamp-6">{k.content}</p>
               <div className="flex gap-2 pt-1">
                 <Button
                   size="sm"
@@ -313,7 +309,7 @@ function QueueTab() {
         return (
           <article key={id} className="rounded-2xl border border-border bg-surface p-4 space-y-2 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-2">
-              <h3 className="font-medium">{String(c.title ?? "Novo aprendizado")}</h3>
+              <h3 className="ds-card-title min-w-0 truncate">{String(c.title ?? "Novo aprendizado")}</h3>
               <div className="flex gap-2">
                 <Badge variant="secondary">{String(c.learning_type ?? "regra")}</Badge>
                 <Badge variant="outline">
@@ -321,11 +317,11 @@ function QueueTab() {
                 </Badge>
               </div>
             </div>
-            <p className="text-sm text-foreground/80 whitespace-pre-wrap">
+            <p className="ds-card-desc whitespace-pre-wrap">
               {String(c.extracted_information ?? c.proposed_memory ?? "")}
             </p>
-            {c.rationale ? <p className="text-xs text-muted-foreground">Motivo: {String(c.rationale)}</p> : null}
-            <p className="text-xs text-muted-foreground">
+            {c.rationale ? <p className="ds-meta">Motivo: {String(c.rationale)}</p> : null}
+            <p className="ds-meta">
               Abrangência sugerida: {String(c.recommended_scope ?? c.suggested_scope ?? "imóvel")}
             </p>
             <div className="flex gap-2 pt-1">
@@ -357,8 +353,8 @@ function Empty({ icon, title, text }: { icon: React.ReactNode; title: string; te
   return (
     <div className="rounded-2xl border border-dashed border-border p-10 text-center space-y-2">
       <div className="grid place-items-center text-muted-foreground">{icon}</div>
-      <h3 className="font-medium">{title}</h3>
-      <p className="text-sm text-muted-foreground max-w-md mx-auto">{text}</p>
+      <h3 className="ds-card-title">{title}</h3>
+      <p className="ds-body max-w-md mx-auto">{text}</p>
     </div>
   );
 }

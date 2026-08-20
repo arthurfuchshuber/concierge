@@ -47,10 +47,10 @@ export function FilterSheetButton(props: FilterSheetProps) {
         variant="outline"
         size="sm"
         onClick={() => setOpen(true)}
-        className="rounded-full h-9 px-3.5 gap-1.5 relative"
+        className="rounded-full px-3.5 gap-1.5 relative"
       >
         <SlidersHorizontal className="size-3.5" />
-        <span className="text-[12px]">Filtros</span>
+        <span className="ds-body">Filtros</span>
         {activeCount > 0 && (
           <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-accent text-accent-foreground text-[10px] font-semibold">
             {activeCount}
@@ -61,7 +61,7 @@ export function FilterSheetButton(props: FilterSheetProps) {
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh] overflow-y-auto sm:max-w-md sm:mx-auto">
           <SheetHeader>
-            <SheetTitle className="text-base">Filtros</SheetTitle>
+            <SheetTitle className="ds-section-title">Filtros</SheetTitle>
           </SheetHeader>
 
           <div className="mt-4 space-y-5">
@@ -81,7 +81,7 @@ export function FilterSheetButton(props: FilterSheetProps) {
             {props.reviewOptions.length > 0 && (
               <section>
                 <Label>Mínimo de avaliações</Label>
-                <div className="flex flex-wrap gap-2 mt-2">
+                <div className="ds-scroll-x gap-2 mt-2 py-0.5">
                   {props.reviewOptions.map((o) => (
                     <Chip key={o.value} active={props.minReviews === o.value} onClick={() => props.setMinReviews(o.value)}>
                       {o.label}
@@ -94,7 +94,7 @@ export function FilterSheetButton(props: FilterSheetProps) {
             {props.showProximity && (
               <section>
                 <Label>Proximidade</Label>
-                <div className="flex flex-wrap gap-2 mt-2">
+                <div className="ds-scroll-x gap-2 mt-2 py-0.5">
                   {(props.proximityCounts?.near ?? 0) > 0 && (
                     <Chip active={props.showNear} onClick={() => props.setShowNear(!props.showNear)}>
                       Pertinho
@@ -131,7 +131,7 @@ export function FilterSheetButton(props: FilterSheetProps) {
 }
 
 function Label({ children }: { children: React.ReactNode }) {
-  return <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">{children}</div>;
+  return <div className="ds-eyebrow text-muted-foreground">{children}</div>;
 }
 
 function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
@@ -139,7 +139,7 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
     <button
       type="button"
       onClick={onClick}
-      className={`px-3 py-1.5 rounded-full text-[12px] font-medium border transition-colors ${
+      className={`ds-body px-3 py-1.5 rounded-full border transition-colors ${
         active
           ? "bg-accent text-accent-foreground border-accent shadow-sm"
           : "bg-card/60 text-muted-foreground border-border hover:text-foreground"

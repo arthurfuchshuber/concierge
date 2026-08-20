@@ -519,12 +519,12 @@ export function PermissionCenterPage({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+        <div className="min-w-0">
+          <p className="ds-section-title mb-0">
             {context === "saas" ? "Quem tem acesso ao SaaS" : "Quem tem acesso à conta"}
           </p>
-          <p className="text-sm text-muted-foreground">
+          <p className="ds-body mt-1">
             Escolha uma pessoa para definir, em cada área, se ela pode apenas visualizar ou também
             editar.
           </p>
@@ -562,7 +562,7 @@ export function PermissionCenterPage({
 
       {q.data.invites && q.data.invites.length > 0 ? (
         <div className="space-y-2 pt-2">
-          <p className="text-sm font-semibold">Convites enviados</p>
+          <p className="ds-section-title mb-0">Convites enviados</p>
           <div className="grid gap-2">
             {q.data.invites.map((inv) => (
               <div

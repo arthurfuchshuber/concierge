@@ -21,6 +21,7 @@ import { cityKey as makeCityKey } from "@/lib/city-key";
 import { ArrowLeft, Plus, Trash2, Loader2, Eye, EyeOff, MapPin, Link2, HelpCircle, Send } from "lucide-react";
 import { toast } from "sonner";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
+import { PageHeader, ActionBar } from "@/components/ds/PageHeader";
 
 export const Route = createFileRoute("/_authenticated/admin/recomendacoes-sigma/$cityKey")({
   component: SigmaPackEditor,
@@ -52,27 +53,23 @@ function SigmaPackEditor() {
   }
 
   return (
-    <div className="max-w-[1440px] mx-auto w-full px-6 lg:px-10 py-8 lg:py-10 space-y-6">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <Link to="/admin/recomendacoes-sigma" className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
-          <ArrowLeft className="size-3.5" /> Voltar
-        </Link>
-        <div className="flex items-center gap-2">
-          <ApplySigmaToGuideButton cityKey={cityKey} disabled={!pack.is_published} />
-          <Button variant="outline" onClick={togglePublish} className="rounded-full">
-            {pack.is_published ? <><EyeOff className="size-3.5" /> Despublicar</> : <><Eye className="size-3.5" /> Publicar</>}
-          </Button>
-        </div>
-      </div>
+    <div className="max-w-[1440px] mx-auto w-full px-6 lg:px-10 py-8 lg:py-10 space-y-8">
+      <Link to="/admin/recomendacoes-sigma" className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+        <ArrowLeft className="size-3.5" /> Voltar
+      </Link>
 
-      <header className="flex items-end gap-4">
-        <div>
-          <h1 className="font-display text-2xl sm:text-3xl">{pack.city_label}</h1>
-          <p className="text-xs text-muted-foreground mt-1">
-            {pack.country ?? "—"} · {pack.is_published ? "Publicado" : "Rascunho"}
-          </p>
-        </div>
-      </header>
+      <PageHeader
+        title={pack.city_label}
+        subtitle={`${pack.country ?? "—"} · ${pack.is_published ? "Publicado" : "Rascunho"}`}
+        actions={
+          <>
+            <ApplySigmaToGuideButton cityKey={cityKey} disabled={!pack.is_published} />
+            <Button variant="outline" onClick={togglePublish} className="rounded-full">
+              {pack.is_published ? <><EyeOff className="size-3.5" /> Despublicar</> : <><Eye className="size-3.5" /> Publicar</>}
+            </Button>
+          </>
+        }
+      />
 
       <Tabs defaultValue="recs">
         <TabsList className="rounded-full">
@@ -144,11 +141,11 @@ function ApplySigmaToGuideButton({ cityKey, disabled }: { cityKey: string; disab
                   {g.hero_image_url ? <img src={g.hero_image_url} alt="" className="size-11 rounded-lg object-cover" /> : <div className="size-11 rounded-lg bg-muted grid place-items-center"><MapPin className="size-4 text-muted-foreground" /></div>}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 min-w-0">
-                      <p className="text-sm font-medium truncate">{g.name}</p>
+                      <p className="ds-card-title truncate">{g.name}</p>
                       {g.sigma_pack_city_key === cityKey && <Badge variant="secondary" className="shrink-0">Já aplicado</Badge>}
                       {!sameCity && <Badge variant="outline" className="shrink-0">Outra cidade</Badge>}
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">{g.city}{g.state ? `/${g.state}` : ""} · {g.owner_email ?? "sem e-mail"}</p>
+                    <p className="ds-meta truncate">{g.city}{g.state ? `/${g.state}` : ""} · {g.owner_email ?? "sem e-mail"}</p>
                   </div>
                   <Button size="sm" className="rounded-full" onClick={() => apply(g.id)} disabled={!sameCity || applyingId === g.id}>
                     {applyingId === g.id && <Loader2 className="size-3.5 animate-spin" />} Aplicar
@@ -314,7 +311,7 @@ function MarketplaceTab({ cityKey, items, refresh }: { cityKey: string; items: A
   return (
     <div className="space-y-3">
       <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
-        <h3 className="text-sm font-medium">Adicionar link de marketplace</h3>
+        <h3 className="ds-card-title">Adicionar link de marketplace</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Nome (ex: Airbnb Experiences)" />
           <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://..." />
@@ -328,7 +325,7 @@ function MarketplaceTab({ cityKey, items, refresh }: { cityKey: string; items: A
       </div>
       <div className="space-y-2">
         {items.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">Nenhum link ainda.</p>
+          <p className="ds-body text-center py-8">Nenhum link ainda.</p>
         ) : items.map((m) => (
           <div key={m.id} className="rounded-xl border border-border/60 bg-card p-3 space-y-2">
             <div className="flex items-center gap-2">
@@ -383,7 +380,7 @@ function FaqsTab({ cityKey, items, refresh }: { cityKey: string; items: Awaited<
   return (
     <div className="space-y-3">
       <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
-        <h3 className="text-sm font-medium">Nova pergunta</h3>
+        <h3 className="ds-card-title">Nova pergunta</h3>
         <Input value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Pergunta" />
         <Textarea value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Resposta" rows={3} />
         <div className="flex justify-end">
@@ -394,7 +391,7 @@ function FaqsTab({ cityKey, items, refresh }: { cityKey: string; items: Awaited<
       </div>
       <div className="space-y-2">
         {items.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">Nenhuma FAQ ainda.</p>
+          <p className="ds-body text-center py-8">Nenhuma FAQ ainda.</p>
         ) : items.map((f) => (
           <div key={f.id} className="rounded-xl border border-border/60 bg-card p-3 space-y-2">
             <div className="flex items-start gap-2">

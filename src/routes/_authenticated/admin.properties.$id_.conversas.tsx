@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { ArrowLeft, MessageSquare, User, Bot, Loader2 } from "lucide-react";
 import { listPropertyConversations, getConversationMessages } from "@/lib/chat-admin.functions";
+import { PageHeader } from "@/components/ds/PageHeader";
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id_/conversas")({
   component: ConversationsPage,
@@ -39,27 +40,24 @@ function ConversationsPage() {
     <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-[1440px] mx-auto w-full">
       <button
         onClick={() => navigate({ to: "/admin/properties/$id", params: { id } })}
-        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors"
+        className="inline-flex items-center gap-1.5 ds-meta hover:text-foreground mb-5 transition-colors"
       >
         <ArrowLeft className="size-3.5" /> Voltar para o guia
       </button>
 
-      <div className="mb-6 pb-5 border-b border-border/60">
-        <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">
-          Conversas dos hóspedes
-        </p>
-        <h1 className="font-display text-2xl sm:text-3xl">{data?.property.name ?? "Carregando…"}</h1>
-        <p className="text-sm text-muted-foreground mt-2">
-          Perguntas e respostas trocadas com o assistente do guia.
-        </p>
-      </div>
+      <PageHeader
+        title={data?.property.name ?? "Carregando…"}
+        subtitle="Conversas dos hóspedes · perguntas e respostas trocadas com o assistente do guia."
+      />
+
+      <div className="mt-10">
 
       {isLoading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Carregando…</div>
+        <div className="flex items-center gap-2 ds-body"><Loader2 className="size-4 animate-spin" /> Carregando…</div>
       ) : !data || data.conversations.length === 0 ? (
         <div className="rounded-xl border border-border bg-surface p-8 text-center">
           <MessageSquare className="size-8 mx-auto text-muted-foreground mb-3" />
-          <p className="text-sm text-muted-foreground">Nenhuma conversa ainda.</p>
+          <p className="ds-body">Nenhuma conversa ainda.</p>
         </div>
       ) : (
         <div className="grid md:grid-cols-[280px_1fr] gap-4">
@@ -74,30 +72,30 @@ function ConversationsPage() {
                     : "border-border hover:bg-secondary/60"
                 }`}
               >
-                <div className="text-sm font-medium truncate">
+                <div className="ds-card-title truncate">
                   {c.guest_name || `Hóspede ${c.guest_session_id.slice(0, 6)}`}
                 </div>
-                <div className="text-[11px] text-muted-foreground mt-0.5">{formatDate(c.last_message_at)}</div>
+                <div className="ds-meta mt-0.5">{formatDate(c.last_message_at)}</div>
               </button>
             ))}
           </div>
 
           <div className="rounded-xl border border-border bg-surface p-4 sm:p-5 min-h-[300px]">
             {!selected ? (
-              <div className="text-sm text-muted-foreground text-center py-10">
+              <div className="ds-body text-center py-10">
                 Selecione uma conversa para ver as mensagens.
               </div>
             ) : loadingDetail || !detail ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 ds-body">
                 <Loader2 className="size-4 animate-spin" /> Carregando mensagens…
               </div>
             ) : (
               <div className="space-y-3">
                 <div className="pb-3 border-b border-border/60">
-                  <div className="text-sm font-medium">
+                  <div className="ds-card-title">
                     {detail.conversation.guest_name || `Hóspede ${detail.conversation.guest_session_id.slice(0, 6)}`}
                   </div>
-                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                  <div className="ds-meta mt-0.5">
                     Iniciada em {formatDate(detail.conversation.created_at)}
                   </div>
                 </div>
@@ -109,7 +107,7 @@ function ConversationsPage() {
                           <Bot className="size-3.5 text-primary" />
                         </div>
                       )}
-                      <div className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap ${
+                      <div className={`max-w-[80%] rounded-2xl px-3.5 py-2 ds-body whitespace-pre-wrap ${
                         m.role === "user" ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"
                       }`}>
                         {m.content}
@@ -130,6 +128,7 @@ function ConversationsPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

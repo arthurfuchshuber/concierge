@@ -1,4 +1,5 @@
 import { PhoneActionButton } from "@/components/PhoneActionButton";
+import { PageHeader } from "@/components/ds/PageHeader";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -605,16 +606,17 @@ function DashboardPage() {
 
   return (
     <div className="px-4 sm:px-6 lg:px-10 py-6 lg:py-10 max-w-[1440px] mx-auto w-full space-y-5 sm:space-y-6">
-      <header>
-        <div className="flex items-center gap-2 text-[11px] sm:text-xs uppercase tracking-[0.18em] font-semibold text-accent">
+      <div>
+        <div className="flex items-center gap-2 ds-eyebrow text-accent">
           <TrendingUp className="size-3.5" />
           <span>Operação de Reservas</span>
         </div>
-        <h1 className="font-display text-[28px] leading-tight md:text-4xl mt-1.5">Dashboard</h1>
-        <p className="text-[13px] sm:text-sm text-muted-foreground mt-1">
-          Sua rotina diária: check-ins, checkouts e senhas.
-        </p>
-      </header>
+        <PageHeader
+          className="mt-1.5"
+          title="Dashboard"
+          subtitle="Sua rotina diária: check-ins, checkouts e senhas."
+        />
+      </div>
 
 
       {/* KPIs */}
@@ -740,7 +742,7 @@ function DashboardPage() {
             também só aparece aqui no desktop — no mobile ele migra pra
             dentro da linha de abas, ver abaixo. */}
         <div className="hidden sm:flex items-center gap-3">
-          <h2 className="font-display text-base sm:text-lg flex items-center gap-2">
+          <h2 className="ds-section-title mb-0 flex items-center gap-2">
             <LayoutGrid className="size-4.5 text-muted-foreground" /> Quadro de operação
           </h2>
           <div className="ml-auto">
@@ -764,7 +766,7 @@ function DashboardPage() {
             no fim dessa mesma linha, não numa linha própria acima. */}
         <div className="sm:hidden space-y-3">
           <div className="flex items-center gap-1.5">
-            <div className="flex-1 min-w-0 flex gap-1.5 overflow-x-auto snap-x pb-1 -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="ds-scroll-x flex-1 min-w-0 gap-1.5 snap-x pb-1 -mx-1 px-1">
               {(
                 [
                   { key: "checkin", label: "Check-ins", icon: CalendarCheck, count: counts.checkin },
@@ -1058,7 +1060,7 @@ function KanbanColumn({
         <div className={`size-7 rounded-lg grid place-items-center ring-1 shrink-0 ${KANBAN_TONE[tone]}`}>
           <Icon className="size-3.5" />
         </div>
-        <span className="text-sm font-semibold truncate">{title}</span>
+        <span className="ds-card-title truncate">{title}</span>
         <span className="ml-auto text-xs font-medium text-muted-foreground tabular-nums shrink-0">{count}</span>
       </div>
       <div
@@ -1152,7 +1154,7 @@ function KpiCard({
             } bg-card px-4 py-3.5 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
             <Icon className={`size-3.5 shrink-0 ${dotClass.replace("bg-", "text-")}`} />
-            <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold truncate">
+            <span className="ds-eyebrow truncate">
               {label}
             </span>
             <span className={`ml-auto text-xl font-display tabular-nums ${valueColor}`}>
@@ -1164,7 +1166,7 @@ function KpiCard({
             type="button"
             className={`w-full h-full rounded-2xl border border-border bg-card px-4 py-4 sm:px-4 sm:py-4 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
-            <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold">
+            <div className="flex items-center gap-2 ds-eyebrow">
               {shadowTone ? (
                 <span className={`size-2 rounded-full shrink-0 ${dotClass}`} />
               ) : (
@@ -1196,7 +1198,7 @@ function KpiCard({
             </div>
             <div className="min-w-0">
               <DialogTitle className="text-base font-display leading-tight truncate">{label}</DialogTitle>
-              <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground mt-0.5">
+              <div className="ds-meta mt-0.5">
                 {rangeLabel} · {rows.length} {rows.length === 1 ? "hóspede" : "hóspedes"}
               </div>
             </div>
@@ -1330,7 +1332,7 @@ function FreePropertiesCard({
           type="button"
           className="w-full h-full rounded-2xl border border-border bg-card px-4 py-4 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 shadow-[0_10px_28px_-22px_rgba(0,0,0,0.9)]"
         >
-          <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold">
+          <div className="flex items-center gap-2 ds-eyebrow">
             <Home className="size-3.5 shrink-0" /> <span className="truncate">Imóveis livres</span>
           </div>
           <div className="text-3xl sm:text-2xl font-display mt-2 tabular-nums leading-none text-foreground">
@@ -2248,7 +2250,7 @@ function ArrivalCard({
             country={row.ownerPhoneCountry}
             phonePosition="adjacent"
           />
-          <div className="font-semibold truncate text-foreground" title={row.propertyName ?? undefined}>
+          <div className="ds-card-title truncate" title={row.propertyName ?? undefined}>
             {row.propertyName ?? "Sem nome"}
           </div>
 
@@ -2296,7 +2298,7 @@ function ArrivalCard({
               </>
             )}
             {row.reservationCode && (isPendingFill || (row.guestName && row.guestName !== row.reservationCode)) && (
-              <span className="inline-flex items-center gap-0.5 rounded-md bg-secondary px-1.5 py-0.5 text-[11px] text-muted-foreground font-normal">
+              <span className="ds-meta inline-flex items-center gap-0.5 rounded-md bg-secondary px-1.5 py-0.5">
                 <span className="truncate max-w-[160px]">{row.reservationCode}</span>
                 <CopyButton value={row.reservationCode} size={10} className="p-0.5" />
               </span>

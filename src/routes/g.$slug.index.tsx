@@ -1341,7 +1341,7 @@ function Guide({ data }: { data: GuideOk }) {
                                           <MapPin className="size-[14px]" strokeWidth={1.75} />
                                         </span>
                                         <div className="flex-1 min-w-0 text-left">
-                                          <p className="text-[14px] font-medium leading-tight">
+                                          <p className="ds-card-title">
                                             {garageHref ? "Como chegar — Entrada principal" : "Abrir no Google Maps"}
                                           </p>
                                           {p.address && (
@@ -1364,7 +1364,7 @@ function Guide({ data }: { data: GuideOk }) {
                                           <Car className="size-[14px]" strokeWidth={1.75} />
                                         </span>
                                         <div className="flex-1 min-w-0 text-left">
-                                          <p className="text-[14px] font-medium leading-tight">Como chegar — Garagem</p>
+                                          <p className="ds-card-title">Como chegar — Garagem</p>
                                           <p className="text-[12px] text-muted-foreground mt-1">
                                             Entrada pelo acesso da garagem
                                           </p>
@@ -1383,7 +1383,7 @@ function Guide({ data }: { data: GuideOk }) {
                                           <Car className="size-[14px]" strokeWidth={1.75} />
                                         </span>
                                         <div className="flex-1 min-w-0 text-left">
-                                          <p className="text-[14px] font-medium leading-tight">Pedir Uber</p>
+                                          <p className="ds-card-title">Pedir Uber</p>
                                           <p className="text-[12px] text-muted-foreground mt-1">
                                             Corrida até o endereço
                                           </p>
@@ -1402,7 +1402,7 @@ function Guide({ data }: { data: GuideOk }) {
                                           99
                                         </span>
                                         <div className="flex-1 min-w-0 text-left">
-                                          <p className="text-[14px] font-medium leading-tight">Pedir 99</p>
+                                          <p className="ds-card-title">Pedir 99</p>
                                           <p className="text-[12px] text-muted-foreground mt-1">
                                             Corrida até o endereço
                                           </p>
@@ -1761,7 +1761,7 @@ function Guide({ data }: { data: GuideOk }) {
                         <>
                           <div className="mt-6 mb-3 flex items-center gap-2">
                             <ListChecks className="size-4 text-muted-foreground" />
-                            <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">
+                            <h3 className="ds-eyebrow text-muted-foreground">
                               Antes de sair
                             </h3>
                           </div>
@@ -1788,7 +1788,7 @@ function Guide({ data }: { data: GuideOk }) {
                     <div>
                       <div className="mb-3 flex items-center gap-2">
                         <HelpCircle className="size-4 text-muted-foreground" />
-                        <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">
+                        <h3 className="ds-eyebrow text-muted-foreground">
                           Perguntas frequentes
                         </h3>
                       </div>
@@ -1807,7 +1807,7 @@ function Guide({ data }: { data: GuideOk }) {
                                   <span className="text-[10px] font-mono text-accent/70 tabular-nums tracking-wider shrink-0">
                                     {String(idx + 1).padStart(2, "0")}
                                   </span>
-                                  <span className="text-[13.5px] font-medium leading-snug truncate">{f.question}</span>
+                                  <span className="ds-card-title truncate">{f.question}</span>
                                 </span>
                               </AccordionTrigger>
                               <AccordionContent className="text-[13.5px] leading-relaxed whitespace-pre-line text-foreground/80 pl-6 pr-1 pb-3.5 max-w-prose">
@@ -1833,7 +1833,7 @@ function Guide({ data }: { data: GuideOk }) {
                     <div>
                       <div className="mb-3 flex items-center gap-2">
                         <LifeBuoy className="size-4 text-muted-foreground" />
-                        <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">
+                        <h3 className="ds-eyebrow text-muted-foreground">
                           Emergências
                         </h3>
                       </div>
@@ -1872,7 +1872,7 @@ function Guide({ data }: { data: GuideOk }) {
                         </div>
                         <div className="min-w-0 flex-1">
                           {p.host_name && (
-                            <p className="text-[14px] font-medium leading-tight truncate">{p.host_name}</p>
+                            <p className="ds-card-title truncate">{p.host_name}</p>
                           )}
                           {p.host_phone && (
                             <p className="text-[11.5px] text-muted-foreground font-mono tracking-wider mt-0.5 truncate">
@@ -2592,8 +2592,8 @@ function SectionCard({
           <span className={`${iconColorCls} [&>svg]:size-5`}>{icon}</span>
         </div>
         <div className="relative flex-1 min-w-0">
-          <p className={`text-[14px] font-black leading-tight ${titleColor}`}>{title}</p>
-          <p className={`mt-1 text-[11.5px] leading-snug line-clamp-2 ${descColor}`}>{desc}</p>
+          <p className={`ds-card-title ${titleColor}`}>{title}</p>
+          <p className={`ds-card-desc mt-1 ${descColor}`}>{desc}</p>
         </div>
         <ChevronRight
           className={`relative size-4 shrink-0 ${isDark ? "text-white/82" : "text-slate-950/68"}`}
@@ -3649,7 +3649,7 @@ function TaggedFaqs({ faqs, tag }: { faqs: any[]; tag: "chegada" | "saida" | "re
     <div className="pt-2">
       <div className="mb-3 flex items-center gap-2">
         <HelpCircle className="size-4 text-muted-foreground" />
-        <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">
+        <h3 className="ds-eyebrow text-muted-foreground">
           Perguntas frequentes
         </h3>
       </div>
@@ -3665,7 +3665,7 @@ function TaggedFaqs({ faqs, tag }: { faqs: any[]; tag: "chegada" | "saida" | "re
                 <span className="text-[10px] font-mono text-accent/70 tabular-nums tracking-wider shrink-0">
                   {String(idx + 1).padStart(2, "0")}
                 </span>
-                <span className="text-[13.5px] font-medium leading-snug truncate">{f.question}</span>
+                <span className="ds-card-title truncate">{f.question}</span>
               </span>
             </AccordionTrigger>
             <AccordionContent className="text-[13.5px] leading-relaxed whitespace-pre-line text-foreground/80 pl-6 pr-1 pb-3.5 max-w-prose">

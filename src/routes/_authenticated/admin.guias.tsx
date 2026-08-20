@@ -17,6 +17,7 @@ import {
   countAccountGuides,
 } from "@/lib/properties.functions";
 import { useMyPermissions } from "@/hooks/useMyPermissions";
+import { PageHeader, SectionTitle, ActionBar } from "@/components/ds/PageHeader";
 
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -459,18 +460,15 @@ function Dashboard() {
       )}
 
       {/* Welcome */}
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
-        <div>
-          <h1 className="font-display text-3xl md:text-4xl leading-tight">
-            {readOnly ? `Painel de ${impersonation?.name ?? ""}` : "Guias de Imóveis e Destinos"}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1.5">
-            {readOnly
-              ? "Visualização apenas de leitura. Nenhuma alteração será salva."
-              : "Aqui está o resumo do seu painel hoje."}
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title={readOnly ? `Painel de ${impersonation?.name ?? ""}` : "Guias de Imóveis e Destinos"}
+        subtitle={
+          readOnly
+            ? "Visualização apenas de leitura. Nenhuma alteração será salva."
+            : "Aqui está o resumo do seu painel hoje."
+        }
+        className="mb-8"
+      />
 
       {/* Stat cards (collapsible) — apenas para o titular da conta */}
       {canSeePlan && (
@@ -637,22 +635,23 @@ function Dashboard() {
 
       {/* Guias section */}
       <div className="flex flex-col gap-4 mb-5">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="font-display text-2xl">Seus guias</h2>
-          <div className="flex items-center gap-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className="relative size-10 grid place-items-center rounded-full border border-border bg-card hover:bg-secondary/60 transition-colors"
-                  aria-label="Filtros"
-                >
-                  <Filter className="size-4" />
-                  {(statusFilter !== "all" || accessFilter !== "all") && (
-                    <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-accent" />
-                  )}
-                </button>
-              </PopoverTrigger>
+        <SectionTitle
+          actions={
+            <>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="relative size-9 grid place-items-center rounded-full border border-border bg-card hover:bg-secondary/60 transition-colors shrink-0"
+                    aria-label="Filtros"
+                    title="Filtros"
+                  >
+                    <Filter className="size-4" />
+                    {(statusFilter !== "all" || accessFilter !== "all") && (
+                      <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-accent" />
+                    )}
+                  </button>
+                </PopoverTrigger>
               <PopoverContent align="end" className="w-64 p-4 space-y-4">
                 <div>
                   <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
@@ -710,45 +709,50 @@ function Dashboard() {
                   </button>
                 )}
               </PopoverContent>
-            </Popover>
-            <div className="flex items-center gap-1 rounded-full border border-border p-1 bg-card">
-              <button
-                onClick={() => setView("grid")}
-                className={`size-8 grid place-items-center rounded-full transition-colors ${view === "grid" ? "bg-secondary text-foreground" : "text-muted-foreground"}`}
-                aria-label="Grade"
-              >
-                <LayoutGrid className="size-3.5" />
-              </button>
-              <button
-                onClick={() => setView("list")}
-                className={`size-8 grid place-items-center rounded-full transition-colors ${view === "list" ? "bg-secondary text-foreground" : "text-muted-foreground"}`}
-                aria-label="Lista"
-              >
-                <List className="size-3.5" />
-              </button>
-            </div>
-            {!readOnly && canCreate && (
-              <button
-                type="button"
-                onClick={goCreate}
-                disabled={reachedLimit || !sub.plan || noOwners}
-                aria-label="Novo guia"
-                title={
-                  !sub.plan
-                    ? "Assine um plano para criar guias"
-                    : noOwners
-                      ? "Cadastre um proprietário em Stakeholders antes de criar guias"
-                      : reachedLimit
-                        ? "Limite do seu plano atingido. Faça upgrade."
-                        : "Novo guia"
-                }
-                className="size-10 grid place-items-center rounded-full bg-secondary text-foreground border border-border hover:bg-secondary/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Plus className="size-4" />
-              </button>
-            )}
-          </div>
-        </div>
+              </Popover>
+              <div className="flex items-center gap-1 rounded-full border border-border p-1 bg-card shrink-0">
+                <button
+                  onClick={() => setView("grid")}
+                  className={`size-7 grid place-items-center rounded-full transition-colors ${view === "grid" ? "bg-secondary text-foreground" : "text-muted-foreground"}`}
+                  aria-label="Grade"
+                  title="Grade"
+                >
+                  <LayoutGrid className="size-3.5" />
+                </button>
+                <button
+                  onClick={() => setView("list")}
+                  className={`size-7 grid place-items-center rounded-full transition-colors ${view === "list" ? "bg-secondary text-foreground" : "text-muted-foreground"}`}
+                  aria-label="Lista"
+                  title="Lista"
+                >
+                  <List className="size-3.5" />
+                </button>
+              </div>
+              {!readOnly && canCreate && (
+                <button
+                  type="button"
+                  onClick={goCreate}
+                  disabled={reachedLimit || !sub.plan || noOwners}
+                  aria-label="Novo guia"
+                  title={
+                    !sub.plan
+                      ? "Assine um plano para criar guias"
+                      : noOwners
+                        ? "Cadastre um proprietário em Stakeholders antes de criar guias"
+                        : reachedLimit
+                          ? "Limite do seu plano atingido. Faça upgrade."
+                          : "Novo guia"
+                  }
+                  className="size-9 grid place-items-center rounded-full bg-secondary text-foreground border border-border hover:bg-secondary/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                >
+                  <Plus className="size-4" />
+                </button>
+              )}
+            </>
+          }
+        >
+          Seus guias
+        </SectionTitle>
 
         {data && data.length > 0 && (
           <div className="relative">
@@ -773,7 +777,7 @@ function Dashboard() {
         )}
 
         {data && data.length > 0 && hasActiveFilters && (
-          <p className="text-xs text-muted-foreground">
+          <p className="ds-meta">
             Mostrando {filtered.length} de {data.length} guia{data.length > 1 ? "s" : ""}
           </p>
         )}
@@ -797,7 +801,7 @@ function Dashboard() {
             <div className="size-12 rounded-2xl bg-secondary grid place-items-center mx-auto mb-4">
               <Search className="size-5 text-muted-foreground" />
             </div>
-            <h3 className="font-display text-xl mb-2">Nenhum guia disponível</h3>
+            <h3 className="ds-section-title mb-2">Nenhum guia disponível</h3>
             <p className="text-sm text-muted-foreground max-w-md mx-auto">
               Não há guias vinculados ao seu acesso nesta conta.
             </p>
@@ -809,7 +813,7 @@ function Dashboard() {
                 <p className="text-[10px] uppercase tracking-[0.2em] text-accent font-semibold mb-1">
                   Primeiros passos
                 </p>
-                <h3 className="font-display text-xl">Crie seu primeiro guia em minutos</h3>
+                <h3 className="ds-section-title">Crie seu primeiro guia em minutos</h3>
               </div>
               <div className="text-right">
                 <span className="text-2xl font-display text-accent">01</span>
@@ -844,7 +848,7 @@ function Dashboard() {
           <div className="size-12 rounded-2xl bg-secondary grid place-items-center mx-auto mb-4">
             <Search className="size-5 text-muted-foreground" />
           </div>
-          <h3 className="font-display text-xl mb-2">Nenhum guia encontrado</h3>
+          <h3 className="ds-section-title mb-2">Nenhum guia encontrado</h3>
           <p className="text-sm text-muted-foreground mb-5 max-w-md mx-auto">
             Tente ajustar a busca ou limpar os filtros.
           </p>
@@ -912,14 +916,14 @@ function Dashboard() {
                     />
                   </div>
                 )}
-                <h3 className="font-semibold leading-tight truncate">{p.name}</h3>
+                <h3 className="ds-card-title truncate">{p.name}</h3>
                 {p.city && (
-                  <p className="mt-0.5 truncate text-[11px] font-semibold text-yellow-500">
+                  <p className="mt-0.5 truncate ds-meta font-semibold text-yellow-500">
                     {p.city}
                     {p.country ? `, ${p.country}` : ""}
                   </p>
                 )}
-                <p className="text-xs text-muted-foreground mt-1 truncate">
+                <p className="ds-card-desc mt-1">
                   {p.tagline || `${p.city ?? ""}${p.country ? `, ${p.country}` : ""}`}
                 </p>
 
@@ -1030,7 +1034,7 @@ function Dashboard() {
           const allSelected = selected.size > 0 && selected.size === filtered.length;
           return (
             <div className="space-y-3">
-              <div className="flex flex-wrap items-center gap-2 px-1">
+              <div className="ds-scroll-x items-center gap-2 px-1">
                 <Checkbox
                   checked={allSelected}
                   onCheckedChange={(v) => {
@@ -1159,10 +1163,10 @@ function Dashboard() {
                                 onClick={() => navigate({ to: "/admin/properties/$id", params: { id: p.id } })}
                                 className="flex-1 min-w-0 text-left"
                               >
-                                <h3 className="font-medium text-[13.5px] leading-snug tracking-tight line-clamp-2 [text-wrap:balance]">
+                                <h3 className="ds-card-title leading-snug line-clamp-2 [text-wrap:balance]">
                                   {p.name}
                                 </h3>
-                                <div className="mt-1 flex items-center gap-1.5 text-[10.5px] text-muted-foreground/90 min-w-0">
+                                <div className="mt-1 flex items-center gap-1.5 ds-meta min-w-0">
                                   <span className="inline-flex items-center gap-1 shrink-0 uppercase tracking-[0.12em]">
                                     {p.access_mode === "pin" ? (
                                       <Lock className="size-2.5" />
@@ -1341,7 +1345,7 @@ function Dashboard() {
           {previewMode === null ? (
             <div className="p-6 bg-background">
               <div className="text-center mb-5">
-                <h3 className="font-display text-xl">Como deseja visualizar?</h3>
+                <h3 className="ds-section-title">Como deseja visualizar?</h3>
                 <p className="text-xs text-muted-foreground mt-1">Escolha como abrir o guia.</p>
               </div>
               <div className="grid grid-cols-2 gap-3">

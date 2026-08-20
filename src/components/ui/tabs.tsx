@@ -12,7 +12,8 @@ const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "flex w-full max-w-full items-center justify-start gap-1 overflow-hidden whitespace-nowrap rounded-xl border border-border bg-muted/40 p-1 text-muted-foreground",
+      // Nunca quebra em 2ª linha: rola horizontalmente com esmaecimento na borda.
+      "ds-scroll-x w-full max-w-full justify-start gap-1 whitespace-nowrap rounded-xl border border-border bg-muted/40 p-1 text-muted-foreground",
       className,
     )}
     {...props}
@@ -27,7 +28,7 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "block flex-1 min-w-0 truncate text-center rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium ring-offset-background cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed hover:text-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm [&_svg]:inline [&_svg]:align-[-0.18em] [&_svg]:mr-1.5 [&_svg]:shrink-0",
+      "block !flex-1 min-w-max shrink-0 text-center rounded-lg px-3 py-1.5 text-[13px] font-medium ring-offset-background cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed hover:text-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm [&_svg]:inline [&_svg]:align-[-0.18em] [&_svg]:mr-1.5 [&_svg]:shrink-0",
       className,
     )}
     {...props}
