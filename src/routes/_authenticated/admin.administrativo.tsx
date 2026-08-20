@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CreditCard, ShieldCheck, User as UserIcon, Plug } from "lucide-react";
 import { AssinaturaPage } from "@/components/admin-pages/AssinaturaPage";
-import { PermissionCenterPage } from "@/components/admin-pages/PermissionCenterPage";
+import { EquipePage } from "@/components/admin-pages/EquipePage";
 import { MeuPerfilPage } from "@/components/admin-pages/MeuPerfilPage";
 import { IntegracoesPage } from "@/components/admin-pages/IntegracoesPage";
 import { useMyPermissions } from "@/hooks/useMyPermissions";
