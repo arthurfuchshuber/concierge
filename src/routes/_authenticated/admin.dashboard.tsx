@@ -723,17 +723,7 @@ function DashboardPage() {
       {/* Engajamento do guia — volta a aparecer aqui embaixo, sempre, em
           largura total (mobile e desktop). Versão discreta, sem cabeçalho. */}
       {renderEngagementPanel("")}
-      {/* Agenda macro de ocupação */}
-      <OccupancyPanel
-        loading={occupancyQ.isLoading}
-        start={occupancyQ.data?.start ?? agendaStart}
-        days={occupancyQ.data?.days ?? 21}
-        properties={occupancyQ.data?.properties ?? []}
-        stays={occupancyQ.data?.stays ?? []}
-        checkedInPropertyIds={checkedInPropertyIds}
-        onStartChange={setAgendaStart}
-        defaultStart={todayISO}
-      />
+
 
       {/* Quadro de operação — Kanban por status, colunas lado a lado (estilo
           Jira). Antes era uma lista só com um dropdown pra trocar de status;
