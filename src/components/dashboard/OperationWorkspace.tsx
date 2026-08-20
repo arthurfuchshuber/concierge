@@ -88,7 +88,7 @@ function ExtraGuests({
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-secondary/50 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground transition hover:border-border hover:text-foreground"
+        className="h-8 shrink-0 inline-flex items-center gap-1 rounded-[0.3rem] border border-border/60 bg-secondary/50 px-2.5 text-xs font-medium text-muted-foreground transition hover:border-border hover:text-foreground"
         title={`${guests.length} outro(s) hóspede(s) nesta reserva`}
       >
         +{guests.length}
@@ -586,7 +586,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       (engQ.data?.checkinsInPeriod ?? 0) > 0 || (engQ.data?.checkinsWithCodes ?? 0) > 0;
     if (!engQ.isLoading && !hasData) {
       return (
-        <section className={`rounded-md border border-border bg-card p-3 sm:p-4 ${wrapperClassName}`}>
+        <section className={`rounded-[0.3rem] bg-card p-3 sm:p-4 ${wrapperClassName}`}>
           <div className="ds-eyebrow text-muted-foreground">Engajamento</div>
           <p className="mt-2 text-sm text-muted-foreground">
             Sem check-ins no período — as barras de instruções e senha aparecem assim que
@@ -597,7 +597,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     }
 
     return (
-      <section className={`rounded-lg border border-border bg-card p-4 sm:p-5 ${wrapperClassName}`}>
+      <section className={`rounded-[0.3rem] bg-card p-4 sm:p-5 ${wrapperClassName}`}>
         <EngagementBars
           loading={engQ.isLoading}
           checkins={engQ.data?.checkinsInPeriod ?? 0}
@@ -727,7 +727,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               agora todos os status ficam visíveis ao mesmo tempo, e "puxar" um
               card de um status pro outro fica visual, não escondido atrás de um
               menu. */}
-          <section className="rounded-lg border border-border bg-card p-4 sm:p-5 space-y-4 shadow-sm">
+          <section className="rounded-[0.3rem] bg-card p-4 sm:p-5 space-y-4 shadow-sm">
             {/* Título "Quadro de operação" — redundante no mobile, onde as
                 próprias abas logo abaixo (Check-ins, Checkouts...) já deixam
                 claro do que se trata; mantido no desktop, onde a visão é de
@@ -776,7 +776,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                         key={t.key}
                         type="button"
                         onClick={() => setMobileTab(t.key)}
-                        className={`shrink-0 snap-start inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
+                        className={`h-8 shrink-0 snap-start inline-flex items-center gap-1.5 rounded-[0.3rem] border px-3 text-xs font-medium whitespace-nowrap transition-colors ${
                           active
                             ? "border-transparent bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
                             : "border-border text-muted-foreground"
@@ -1024,16 +1024,18 @@ function OperationShell({ view }: { view: OperationView }) {
         <p className="ds-page-subtitle mt-1.5">{copy.subtitle}</p>
       </div>
 
-      {/* Segmented control — Dashboard / Kanban / Calendário */}
-      <nav className="flex gap-1 rounded-lg bg-foreground/5 p-1">
+      {/* Segmented control — Dashboard / Kanban / Calendário (de ponta a ponta) */}
+      <nav className="flex -mx-4 sm:-mx-6 lg:-mx-10 bg-foreground/5">
         {OPERATION_TABS.map((t) => {
           const active = t.view === view;
           return (
             <Link
               key={t.view}
               to={t.to}
-              className={`flex-1 rounded-md px-3 py-1.5 text-center text-xs font-semibold transition-colors ${
-                active ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              className={`flex-1 px-3 py-2.5 text-center text-xs font-semibold transition-colors ${
+                active
+                  ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {t.label}
@@ -1115,8 +1117,8 @@ function KanbanColumn({
   }, [count, children]);
 
   return (
-    <div className="flex flex-col min-w-0 rounded-lg border border-border/70">
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border/60 shrink-0 bg-background/40 rounded-t-lg">
+    <div className="flex flex-col min-w-0 rounded-[0.3rem]">
+      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border/60 shrink-0 bg-background/40 rounded-t-[0.3rem]">
         <div className={`size-7 rounded-lg grid place-items-center ring-1 shrink-0 ${KANBAN_TONE[tone]}`}>
           <Icon className="size-3.5" />
         </div>
@@ -1207,9 +1209,7 @@ function KpiCard({
         {compact ? (
           <button
             type="button"
-            className={`w-full flex items-center gap-2 rounded-md border ${
-              shadowTone === "amber" ? "border-amber-500/25" : shadowTone === "emerald" ? "border-emerald-500/25" : "border-border"
-            } bg-card px-3 py-2.5 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+            className={`w-full flex items-center gap-2 rounded-[0.3rem] bg-card px-3 py-2.5 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
             <Icon className={`size-3.5 shrink-0 ${dotClass.replace("bg-", "text-")}`} />
             <span className="ds-eyebrow truncate">
@@ -1222,14 +1222,10 @@ function KpiCard({
         ) : (
           <button
             type="button"
-            className={`w-full h-full rounded-md border border-border bg-card px-3 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+            className={`w-full h-full rounded-[0.3rem] bg-card px-3 py-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
             <div className="flex items-start gap-2 ds-eyebrow">
-              {shadowTone ? (
-                <span className={`mt-1 size-1.5 rounded-full shrink-0 ${dotClass}`} />
-              ) : (
-                <Icon className="mt-px size-3.5 shrink-0" />
-              )}
+              <Icon className="mt-px size-3.5 shrink-0" />
               {/* Rótulo em duas linhas, sem truncar (como no mockup). */}
               <span className="min-w-0 leading-[1.25] [text-wrap:balance]">{label}</span>
             </div>
@@ -1390,7 +1386,7 @@ function FreePropertiesCard({
       <DialogTrigger asChild>
         <button
           type="button"
-          className="w-full h-full rounded-md border border-border bg-card px-3 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 shadow-[0_1px_2px_rgba(0,0,0,0.4)]"
+          className="w-full h-full rounded-[0.3rem] bg-card px-3 py-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 shadow-[0_1px_2px_rgba(0,0,0,0.4)]"
         >
           <div className="flex items-center gap-2 ds-eyebrow">
             <Home className="size-3.5 shrink-0" /> <span className="truncate">Imóveis livres</span>
@@ -1627,7 +1623,7 @@ function OccupancyPanel({
       collapsible
       value={openAgenda}
       onValueChange={setOpenAgenda}
-      className="rounded-lg border border-border bg-card shadow-sm"
+      className="rounded-[0.3rem] bg-card shadow-sm"
     >
       <AccordionItem value="agenda" className="border-0">
         <div className="flex w-full items-center gap-2 px-4 sm:px-5 py-4">
