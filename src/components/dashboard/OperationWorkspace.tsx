@@ -579,22 +579,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // verdade — os dois pontos de chamada leem o mesmo engQ/range do
   // componente pai, então nunca ficam dessincronizados entre si.
   function renderEngagementPanel(wrapperClassName: string) {
-    // O bloco de engajamento é fixo no layout (como no mockup): mesmo sem
-    // check-ins no período ele aparece, com um recado curto no lugar das
-    // barras — some só se a consulta falhar de vez.
+    // Só aparece quando existe informação de visualização; sem dados, some.
     const hasData =
       (engQ.data?.checkinsInPeriod ?? 0) > 0 || (engQ.data?.checkinsWithCodes ?? 0) > 0;
-    if (!engQ.isLoading && !hasData) {
-      return (
-        <section className={`rounded-[0.3rem] bg-card p-3 sm:p-4 ${wrapperClassName}`}>
-          <div className="ds-eyebrow text-muted-foreground">Engajamento</div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Sem check-ins no período — as barras de instruções e senha aparecem assim que
-            houver chegadas.
-          </p>
-        </section>
-      );
-    }
+    if (!engQ.isLoading && !hasData) return null;
 
     return (
       <section className={`rounded-[0.3rem] bg-card p-4 sm:p-5 ${wrapperClassName}`}>
