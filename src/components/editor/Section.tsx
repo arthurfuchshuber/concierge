@@ -64,7 +64,7 @@ export function Section({
       ].join(" ")}
     >
       {(title || action) && (
-        <header className="flex flex-wrap items-start justify-between gap-3 px-4 sm:px-5 pt-4 sm:pt-5 pb-3.5">
+        <header className="flex items-start justify-between gap-3 px-4 sm:px-5 pt-4 sm:pt-5 pb-3">
           <button
             type="button"
             onClick={toggle}
@@ -83,8 +83,8 @@ export function Section({
               </span>
             )}
             <div className="min-w-0 flex-1">
-              {title && <h3 className="text-sm font-semibold leading-tight text-foreground">{title}</h3>}
-              {desc && <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{desc}</p>}
+              {title && <h3 className="ds-section-title text-foreground">{title}</h3>}
+              {desc && <p className="ds-card-desc mt-1">{desc}</p>}
             </div>
             {collapsible && (
               <ChevronDown
@@ -92,7 +92,8 @@ export function Section({
               />
             )}
           </button>
-          {action && <div className="flex flex-wrap items-center gap-1.5 ml-auto">{action}</div>}
+          {/* Ações nunca quebram em 2ª linha: rolam na horizontal com fade. */}
+          {action && <div className="ds-scroll-x gap-2 ml-auto max-w-[60%]">{action}</div>}
         </header>
       )}
       {isOpen && (
