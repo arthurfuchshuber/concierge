@@ -15,6 +15,7 @@ import {
 } from "@/lib/sigma-recommendations.functions";
 import { Star, Plus, Globe2, Users, MapPin, Eye, EyeOff, Trash2, Loader2, ArrowRight, LayoutGrid, List } from "lucide-react";
 import { toast } from "sonner";
+import { PageHeader, ActionBar } from "@/components/ds/PageHeader";
 
 
 export const Route = createFileRoute("/_authenticated/admin/recomendacoes-sigma/")({
@@ -59,40 +60,35 @@ function SigmaPacksIndex() {
 
   return (
     <div className="max-w-[1440px] mx-auto w-full px-6 lg:px-10 py-8 lg:py-10 space-y-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="font-display text-2xl sm:text-3xl flex items-center gap-2">
-            <Star className="size-6 text-amber-400" /> Recomendações
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1.5 max-w-2xl">
-            Curadoria por cidade que qualquer anfitrião pode importar em 1 clique para o guia dele.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="inline-flex items-center rounded-full border border-border/60 p-0.5 bg-card">
-            <button
-              type="button"
-              onClick={() => setViewMode("list")}
-              className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-medium ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-              aria-label="Visualizar em lista"
-            >
-              <List className="size-3.5" /> Lista
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("grid")}
-              className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-medium ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-              aria-label="Visualizar em quadrantes"
-            >
-              <LayoutGrid className="size-3.5" /> Quadrantes
-            </button>
-          </div>
-          <Button onClick={() => setNewOpen(true)} className="rounded-full">
-            <Plus className="size-4" /> Nova cidade
-          </Button>
-        </div>
-      </div>
-
+      <PageHeader
+        title={<span className="inline-flex items-center gap-2"><Star className="size-5 text-amber-400" /> Recomendações</span>}
+        subtitle="Curadoria por cidade que qualquer anfitrião pode importar em 1 clique para o guia dele."
+        actions={
+          <>
+            <div className="inline-flex items-center rounded-full border border-border/60 p-0.5 bg-card shrink-0">
+              <button
+                type="button"
+                onClick={() => setViewMode("list")}
+                className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full ds-meta font-medium ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                aria-label="Visualizar em lista"
+              >
+                <List className="size-3.5" /> Lista
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("grid")}
+                className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full ds-meta font-medium ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                aria-label="Visualizar em quadrantes"
+              >
+                <LayoutGrid className="size-3.5" /> Quadrantes
+              </button>
+            </div>
+            <Button onClick={() => setNewOpen(true)} className="rounded-full">
+              <Plus className="size-4" /> Nova cidade
+            </Button>
+          </>
+        }
+      />
 
 
       {/* Dashboard cards */}
@@ -105,13 +101,13 @@ function SigmaPacksIndex() {
 
       {/* City cards */}
       {q.isLoading ? (
-        <div className="text-sm text-muted-foreground py-12 text-center">Carregando…</div>
+        <div className="ds-body py-12 text-center">Carregando…</div>
       ) : packs.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border/60 p-10 text-center space-y-3">
           <div className="size-12 rounded-full bg-amber-500/10 grid place-items-center mx-auto">
             <Star className="size-6 text-amber-400" />
           </div>
-          <p className="text-sm text-muted-foreground">Nenhuma cidade ainda. Comece adicionando a primeira.</p>
+          <p className="ds-body">Nenhuma cidade ainda. Comece adicionando a primeira.</p>
           <Button onClick={() => setNewOpen(true)}>Criar cidade</Button>
         </div>
       ) : viewMode === "grid" ? (
@@ -130,8 +126,8 @@ function SigmaPacksIndex() {
               </div>
               <div className="p-4 space-y-3">
                 <div>
-                  <h3 className="font-display text-lg leading-tight">{p.city_label}</h3>
-                  {p.country && <p className="text-xs text-muted-foreground mt-0.5">{p.country}</p>}
+                  <h3 className="ds-card-title text-base">{p.city_label}</h3>
+                  {p.country && <p className="ds-meta mt-0.5">{p.country}</p>}
                 </div>
                 <div className="grid grid-cols-4 gap-2 text-center">
                   <Metric label="Pontos" value={p.recs_count} />
@@ -169,14 +165,14 @@ function SigmaPacksIndex() {
               </div>
               <div className="flex-1 min-w-0 flex flex-col justify-center gap-1.5">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-display text-lg leading-tight truncate">{p.city_label}</h3>
+                  <h3 className="ds-card-title text-base truncate">{p.city_label}</h3>
                   <span className={`text-[9px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded-full ${
                     p.is_published ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300" : "bg-amber-500/20 text-amber-700 dark:text-amber-300"
                   }`}>
                     {p.is_published ? "Publicado" : "Rascunho"}
                   </span>
                 </div>
-                <div className="text-[11px] text-muted-foreground">
+                <div className="ds-meta">
                   {p.country ? `${p.country} · ` : ""}
                   {p.recs_count} pontos · {p.marketplace_count} marketplace · {p.faqs_count} FAQs · {p.adoption_count} guias usando
                 </div>
@@ -226,7 +222,7 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
   return (
     <div className="rounded-2xl border border-border/60 bg-card p-4">
       <div className="flex items-center justify-between text-muted-foreground">
-        <span className="text-[11px] uppercase tracking-wider">{label}</span>
+        <span className="ds-eyebrow">{label}</span>
         {icon}
       </div>
       <div className="text-3xl font-display mt-2 tabular-nums">{value}</div>
@@ -238,7 +234,7 @@ function Metric({ label, value, highlight }: { label: string; value: number; hig
   return (
     <div className={`rounded-lg py-1.5 ${highlight ? "bg-amber-500/10 ring-1 ring-amber-400/20" : "bg-muted/30"}`}>
       <div className="text-sm font-semibold tabular-nums">{value}</div>
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="ds-eyebrow">{label}</div>
     </div>
   );
 }
@@ -281,16 +277,16 @@ function NewCityDialog({ existingPacks, onClose, onCreated }: { existingPacks: P
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <Label className="text-xs">Cidade</Label>
+            <Label className="ds-meta">Cidade</Label>
             <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Ex: Foz do Iguaçu" autoFocus />
             {duplicate && (
-              <p className="text-xs text-rose-400 mt-1.5">
+              <p className="ds-meta text-rose-400 mt-1.5">
                 Já existe uma recomendação para <strong>{duplicate.city_label}</strong>. Edite a cidade existente.
               </p>
             )}
           </div>
           <div>
-            <Label className="text-xs">País</Label>
+            <Label className="ds-meta">País</Label>
             <Input value={country} onChange={(e) => setCountry(e.target.value)} />
           </div>
         </div>

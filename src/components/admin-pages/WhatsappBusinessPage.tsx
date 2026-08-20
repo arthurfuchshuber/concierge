@@ -70,7 +70,7 @@ export function WhatsappBusinessPage({ accountOwnerId = null, readOnly = false }
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">
+        <p className="ds-body">
           Conecte sua conta Sinch para conversar com hóspedes pelo WhatsApp.
         </p>
         <Badge variant="outline" className={`capitalize shrink-0 ${statusColor}`}>
@@ -86,7 +86,7 @@ export function WhatsappBusinessPage({ accountOwnerId = null, readOnly = false }
 
       {!readOnly && <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <Label className="text-xs">Número emissor</Label>
+          <Label className="ds-meta">Número emissor</Label>
           <Input
             placeholder="+5511999999999"
             value={form.senderNumber || cfg?.senderNumber || ""}
@@ -94,7 +94,7 @@ export function WhatsappBusinessPage({ accountOwnerId = null, readOnly = false }
           />
         </div>
         <div>
-          <Label className="text-xs">Project ID</Label>
+          <Label className="ds-meta">Project ID</Label>
           <Input
             placeholder="12345678-abcd-…"
             value={form.projectId || cfg?.projectId || ""}
@@ -102,7 +102,7 @@ export function WhatsappBusinessPage({ accountOwnerId = null, readOnly = false }
           />
         </div>
         <div>
-          <Label className="text-xs">App ID</Label>
+          <Label className="ds-meta">App ID</Label>
           <Input
             placeholder="01H…"
             value={form.appId || cfg?.appId || ""}
@@ -110,7 +110,7 @@ export function WhatsappBusinessPage({ accountOwnerId = null, readOnly = false }
           />
         </div>
         <div>
-          <Label className="text-xs">API Token</Label>
+          <Label className="ds-meta">API Token</Label>
           <Input
             type="password"
             placeholder={cfg?.hasToken ? "•••••••• (salvo)" : "Token da Sinch"}
@@ -155,7 +155,7 @@ export function WhatsappBusinessPage({ accountOwnerId = null, readOnly = false }
           onClick={() => { if (confirm("Remover configuração de WhatsApp Business?")) disconnect.mutate(); }}
           disabled={!cfg?.hasToken || disconnect.isPending}
         >
-          <Trash2 className="size-4 mr-1" /> Desconectar
+          <Trash2 className="size-4 mr-1" /> <span className="hidden sm:inline">Desconectar</span>
         </Button>
         <Button className="rounded-full" onClick={() => save.mutate()} disabled={save.isPending || !showForm}>
           {save.isPending ? <Loader2 className="size-4 mr-2 animate-spin" /> : null}

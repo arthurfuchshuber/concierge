@@ -455,7 +455,7 @@ export function StakeholderDetailSheet({
             >
               {displayName}
             </h2>
-            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <div className="mt-2 ds-scroll-x items-center gap-1.5">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -788,7 +788,7 @@ export function StakeholderDetailSheet({
                         <MapPin className="size-3 shrink-0" />
                         {[p.city, p.state].filter(Boolean).join(" / ") || "Sem localização"}
                       </p>
-                      <div className="flex items-center gap-1 pt-1 flex-wrap">
+                      <div className="ds-scroll-x items-center gap-1 pt-1">
                         <button
                           type="button"
                           onClick={() => setEditingPropertyId(p.id)}

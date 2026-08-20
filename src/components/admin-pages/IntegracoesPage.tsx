@@ -168,7 +168,7 @@ export function IntegracoesPage() {
             autoComplete="off"
           />
         </div>
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="ds-scroll-x gap-1.5">
           {FILTERS.map((f) => {
             const Icon = f.icon;
             const active = filter === f.key;
@@ -232,9 +232,9 @@ export function IntegracoesPage() {
                     <Icon className="size-5" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium leading-tight">{cfg.nome}</p>
+                    <p className="ds-card-title truncate leading-tight">{cfg.nome}</p>
                     <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                      <span className="text-[11px] text-muted-foreground">{cfg.categoria}</span>
+                      <span className="ds-meta">{cfg.categoria}</span>
                       <StatusBadge status={statusKey} />
                     </div>
                   </div>
@@ -245,7 +245,7 @@ export function IntegracoesPage() {
 
                 {isOpen && (
                   <div className="mt-3 space-y-3 border-t border-border pt-3">
-                    <p className="text-xs text-muted-foreground">{cfg.detalhe}</p>
+                    <p className="ds-card-desc">{cfg.detalhe}</p>
 
                     {statusKey === "em_breve" ? (
                       <div className="flex items-center gap-2 rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
