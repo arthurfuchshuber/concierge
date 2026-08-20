@@ -9,11 +9,13 @@ import { cn } from "@/lib/utils";
  * - 40px de respiro até o primeiro conteúdo
  */
 export function PageHeader({
+  eyebrow,
   title,
   subtitle,
   actions,
   className,
 }: {
+  eyebrow?: ReactNode;
   title: ReactNode;
   subtitle?: ReactNode;
   actions?: ReactNode;
@@ -27,9 +29,11 @@ export function PageHeader({
       )}
     >
       <div className="min-w-0">
+        {eyebrow ? <p className="ds-eyebrow">{eyebrow}</p> : null}
         <h1 className="ds-page-title truncate">{title}</h1>
         {subtitle ? <p className="ds-page-subtitle mt-1">{subtitle}</p> : null}
       </div>
+
       {actions ? <div className="ds-scroll-x gap-2 max-w-full">{actions}</div> : null}
     </header>
   );

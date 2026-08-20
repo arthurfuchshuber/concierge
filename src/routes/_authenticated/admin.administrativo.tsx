@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CreditCard, ShieldCheck, User as UserIcon, Plug } from "lucide-react";
 import { AssinaturaPage } from "@/components/admin-pages/AssinaturaPage";
-import { PermissionCenterPage } from "@/components/admin-pages/PermissionCenterPage";
+import { EquipePage } from "@/components/admin-pages/EquipePage";
 import { MeuPerfilPage } from "@/components/admin-pages/MeuPerfilPage";
 import { IntegracoesPage } from "@/components/admin-pages/IntegracoesPage";
 import { useMyPermissions } from "@/hooks/useMyPermissions";
@@ -35,11 +35,26 @@ function AdministrativoPage() {
   const canSeeBilling = isOwner || isAdmin;
   const activeTab: Tab = tab === "assinatura" && !canSeeBilling ? "perfil" : tab;
 
+  const headers: Record<Tab, { title: string; subtitle: string }> = {
+    perfil: { title: "Meu perfil", subtitle: "Seus dados pessoais e preferências nesta conta." },
+    assinatura: { title: "Assinatura", subtitle: "Plano, cobrança e pagamentos da sua conta." },
+    permissoes: {
+      title: "Permissões",
+      subtitle: "Quem tem acesso à sua conta e o que cada um pode fazer.",
+    },
+    integracoes: { title: "Integrações", subtitle: "Conexões externas e canais da sua conta." },
+  };
+
   return (
     <div className="min-h-screen">
       <div className="px-6 lg:px-10 pt-8 lg:pt-10 pb-2 max-w-[1440px] mx-auto w-full">
-        <PageHeader title="Administrativo" subtitle="Perfil, assinatura, equipe e integrações da sua conta." />
+        <PageHeader
+          eyebrow="Administrativo"
+          title={headers[activeTab].title}
+          subtitle={headers[activeTab].subtitle}
+        />
       </div>
+
       <Tabs
         value={activeTab}
         onValueChange={(v) =>
@@ -75,7 +90,7 @@ function AdministrativoPage() {
             </TabsContent>
           )}
           <TabsContent value="permissoes" className="mt-0">
-            <PermissionCenterPage />
+            <EquipePage />
           </TabsContent>
 
           <TabsContent value="integracoes" className="mt-0">

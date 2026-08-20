@@ -37,7 +37,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Users, Bell, BellOff, Loader2, Trash2, Mail, Send as SendIcon, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
-import { PageHeader } from "@/components/ds/PageHeader";
+
 
 export { EquipePage };
 
@@ -252,15 +252,7 @@ function EquipePage() {
 
   return (
     <div className="w-full space-y-8">
-      <PageHeader
-        title={
-          <span className="inline-flex items-center gap-2">
-            <Users className="size-5 text-primary" />
-            Equipe & Permissões
-          </span>
-        }
-        subtitle="Dados e recursos que cada membro pode acessar. Recursos operacionais respeitam os limites do seu plano."
-      />
+
 
       <Accordion
         type="single"
