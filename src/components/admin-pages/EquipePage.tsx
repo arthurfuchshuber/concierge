@@ -23,7 +23,11 @@ import {
 
 import { Shield as ShieldIcon } from "lucide-react";
 import { PermissionTreeManager } from "@/components/permissions/PermissionTreeManager";
+import { UserAccess } from "@/components/admin-pages/PermissionCenterPage";
+import { getPermissionCenterOverview } from "@/lib/permission-center.functions";
+import { PlanLockCard } from "@/components/ds/PlanLockCard";
 import { getAtendimentoAccess } from "@/lib/handoff.functions";
+
 
 import { useSubscription } from "@/hooks/useSubscription";
 import { enablePush, disablePush, isPushSupported, currentPushSubscription } from "@/lib/push-client";
