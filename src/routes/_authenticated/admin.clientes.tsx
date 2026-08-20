@@ -19,6 +19,7 @@ import {
   adminCancelEnterpriseSubscription,
 } from "@/lib/admin-enterprise.functions";
 import { PLANS, type PlanKey } from "@/lib/payments.functions";
+import { PageHeader } from "@/components/ds/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -160,7 +161,7 @@ function ClientesPage() {
                 variant="outline"
                 size="icon"
                 aria-label="Filtros"
-                className="relative size-10 rounded-full shrink-0"
+                className="relative rounded-full shrink-0"
               >
                 <Filter className="size-4" />
                 {activeFilterCount > 0 && (
@@ -539,6 +540,7 @@ function ClientesPage() {
           }}
         />
       )}
+      </div>
     </div>
   );
 }
@@ -957,7 +959,7 @@ function StatCard({ label, value, tone }: { label: string; value: number; tone?:
             : "text-foreground";
   return (
     <div className="rounded-xl border border-border bg-card px-4 py-3">
-      <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold">{label}</div>
+      <div className="ds-eyebrow">{label}</div>
       <div className={`text-2xl font-display mt-1 tabular-nums ${toneClass}`}>{value}</div>
     </div>
   );

@@ -12,6 +12,7 @@ import { Camera, Loader2, Trash2, User as UserIcon, Mail, Save, ShieldCheck } fr
 import { toast } from "sonner";
 import { formatCPF } from "@/lib/masks";
 import { useImpersonation } from "@/hooks/useImpersonation";
+import { PageHeader } from "@/components/ds/PageHeader";
 
 export function MeuPerfilPage() {
   const getFn = useServerFn(getMyProfile);
@@ -158,11 +159,15 @@ export function MeuPerfilPage() {
   }
 
   return (
-    <div className="w-full space-y-6">
-      <div className="flex items-center gap-2">
-        <UserIcon className="size-5 text-primary" />
-        <h1 className="font-display text-2xl">{impersonation ? "Perfil da conta" : "Meu perfil"}</h1>
-      </div>
+    <div className="w-full space-y-8">
+      <PageHeader
+        title={
+          <span className="inline-flex items-center gap-2">
+            <UserIcon className="size-5 text-primary" />
+            {impersonation ? "Perfil da conta" : "Meu perfil"}
+          </span>
+        }
+      />
 
       {/* Avatar */}
       <section className="glass rounded-2xl p-4 lg:p-6 border border-border">
@@ -186,8 +191,8 @@ export function MeuPerfilPage() {
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium">Foto de perfil</div>
-            <div className="text-xs text-muted-foreground">PNG, JPG ou WEBP · até 3MB</div>
+            <div className="ds-card-title">Foto de perfil</div>
+            <div className="ds-meta">PNG, JPG ou WEBP · até 3MB</div>
             <div className="flex gap-2 mt-2">
               <button
                 type="button"
@@ -220,8 +225,8 @@ export function MeuPerfilPage() {
       </section>
 
       {/* Dados */}
-      <section className="glass rounded-2xl p-4 lg:p-6 border border-border space-y-4">
-        <h2 className="font-display text-lg">Dados pessoais</h2>
+      <section className="glass rounded-2xl p-5 border border-border space-y-4">
+        <h2 className="ds-section-title mb-0">Dados pessoais</h2>
 
         <Field label="Nome completo" required>
           <input
@@ -372,11 +377,11 @@ function Field({
 }) {
   return (
     <div>
-      <label className="text-xs font-medium text-foreground/80 mb-1 block">
+      <label className="ds-meta mb-1 block">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
       {children}
-      {hint && <p className="text-[11px] text-muted-foreground mt-1">{hint}</p>}
+      {hint && <p className="ds-meta mt-1">{hint}</p>}
     </div>
   );
 }

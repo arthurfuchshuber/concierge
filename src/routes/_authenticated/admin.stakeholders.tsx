@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Building2, Users, Wrench } from "lucide-react";
 import { StakeholderDirectory } from "@/components/stakeholders/StakeholderDirectory";
+import { PageHeader } from "@/components/ds/PageHeader";
 import { HospedesPage } from "@/components/admin-pages/HospedesPage";
 
 type Tab = "proprietarios" | "hospedes" | "prestadores";
@@ -24,10 +25,10 @@ function StakeholdersPage() {
   return (
     <div className="min-h-screen">
       <div className="px-6 lg:px-10 pt-8 lg:pt-10 pb-2 max-w-[1440px] mx-auto w-full">
-        <h1 className="font-display text-3xl md:text-4xl tracking-tight">Stakeholders</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Proprietários, hóspedes e prestadores da sua operação em um só lugar.
-        </p>
+        <PageHeader
+          title="Stakeholders"
+          subtitle="Proprietários, hóspedes e prestadores da sua operação em um só lugar."
+        />
       </div>
       <Tabs
         value={tab}

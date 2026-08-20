@@ -1761,7 +1761,7 @@ function Guide({ data }: { data: GuideOk }) {
                         <>
                           <div className="mt-6 mb-3 flex items-center gap-2">
                             <ListChecks className="size-4 text-muted-foreground" />
-                            <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">
+                            <h3 className="ds-eyebrow text-muted-foreground">
                               Antes de sair
                             </h3>
                           </div>
@@ -1788,7 +1788,7 @@ function Guide({ data }: { data: GuideOk }) {
                     <div>
                       <div className="mb-3 flex items-center gap-2">
                         <HelpCircle className="size-4 text-muted-foreground" />
-                        <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">
+                        <h3 className="ds-eyebrow text-muted-foreground">
                           Perguntas frequentes
                         </h3>
                       </div>
@@ -1833,7 +1833,7 @@ function Guide({ data }: { data: GuideOk }) {
                     <div>
                       <div className="mb-3 flex items-center gap-2">
                         <LifeBuoy className="size-4 text-muted-foreground" />
-                        <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">
+                        <h3 className="ds-eyebrow text-muted-foreground">
                           Emergências
                         </h3>
                       </div>
@@ -3649,7 +3649,7 @@ function TaggedFaqs({ faqs, tag }: { faqs: any[]; tag: "chegada" | "saida" | "re
     <div className="pt-2">
       <div className="mb-3 flex items-center gap-2">
         <HelpCircle className="size-4 text-muted-foreground" />
-        <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">
+        <h3 className="ds-eyebrow text-muted-foreground">
           Perguntas frequentes
         </h3>
       </div>

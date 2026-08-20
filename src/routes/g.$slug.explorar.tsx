@@ -708,7 +708,7 @@ function ExplorePage() {
               <div className="mt-10">
                 <div className="mb-3 flex items-center gap-2">
                   <Ticket className="size-4 text-muted-foreground" />
-                  <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">
+                  <h3 className="ds-eyebrow text-muted-foreground">
                     Reservas & experiências
                   </h3>
                 </div>
@@ -780,7 +780,7 @@ function ExplorePage() {
                 <div className="mt-10">
                   <div className="mb-3 flex items-center gap-2">
                     <HelpCircle className="size-4 text-muted-foreground" />
-                    <h3 className="text-xs uppercase tracking-[0.18em] font-semibold text-muted-foreground">
+                    <h3 className="ds-eyebrow text-muted-foreground">
                       Perguntas frequentes
                     </h3>
                   </div>

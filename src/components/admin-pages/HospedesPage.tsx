@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { CopyButton } from "@/components/CopyButton";
 import { openHandoffDock } from "@/lib/handoff-dock";
 import { useImpersonation } from "@/hooks/useImpersonation";
+import { PageHeader } from "@/components/ds/PageHeader";
 
 
 function fmt(iso: string) {
@@ -127,14 +128,12 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
   return (
     <div className={embedded ? "w-full" : "px-6 lg:px-10 py-8 lg:py-10 max-w-7xl mx-auto w-full"}>
       {!embedded && (
-        <div className="mb-6 pb-5 border-b border-border/60">
-          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">
-            Formulários de primeiro acesso
-          </p>
-          <h1 className="font-display text-2xl sm:text-3xl">Hóspedes</h1>
-          <p className="text-sm text-muted-foreground mt-2">
-            Todos os dados enviados pelos hóspedes ao abrirem o guia. Baixe documentos e envie tudo para a portaria em 1 clique.
-          </p>
+        <div className="mb-8 pb-5 border-b border-border/60">
+          <p className="ds-eyebrow mb-2">Formulários de primeiro acesso</p>
+          <PageHeader
+            title="Hóspedes"
+            subtitle="Todos os dados enviados pelos hóspedes ao abrirem o guia. Baixe documentos e envie tudo para a portaria em 1 clique."
+          />
         </div>
       )}
 
@@ -163,7 +162,7 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
       ) : (
         <div className="rounded-xl border border-border bg-surface overflow-hidden">
           <div className="px-4 py-3 border-b border-border/60 text-xs text-muted-foreground">
-            {filtered.length} {filtered.length === 1 ? "registro" : "registros"}
+            <span className="ds-meta">{filtered.length} {filtered.length === 1 ? "registro" : "registros"}</span>
           </div>
           <div className="divide-y divide-border/60">
             {filtered.map((r) => {
@@ -181,8 +180,8 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
                     </span>
                     <div className="min-w-0 flex-1 grid sm:grid-cols-[1.2fr_1fr_.8fr_.6fr] gap-3 items-center">
                       <div className="min-w-0">
-                        <div className="text-sm font-medium truncate">{r.guest_name}</div>
-                        <div className="text-[11px] text-muted-foreground truncate flex items-center gap-1.5">
+                        <div className="ds-card-title truncate">{r.guest_name}</div>
+                        <div className="ds-meta truncate flex items-center gap-1.5">
                           <span className="truncate">{r.property_name ?? "—"}</span>
                           {r.reservation_code && (
                             <span className="inline-flex items-center gap-0.5 shrink-0">
@@ -194,11 +193,11 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
                           )}
                         </div>
                       </div>
-                      <div className="text-xs text-muted-foreground truncate hidden sm:block">
+                      <div className="ds-meta truncate hidden sm:block">
                         {r.guest_phone ? `${r.guest_phone_country ?? ""} ${r.guest_phone}` : "—"}
                       </div>
-                      <div className="text-xs text-muted-foreground hidden sm:block">Check-in {fmtDate(r.checkin_date)}</div>
-                      <div className="text-[11px] text-muted-foreground text-right whitespace-nowrap">{fmt(r.created_at)}</div>
+                      <div className="ds-meta hidden sm:block">Check-in {fmtDate(r.checkin_date)}</div>
+                      <div className="ds-meta text-right whitespace-nowrap">{fmt(r.created_at)}</div>
                     </div>
                   </button>
                   {isOpen && (
@@ -252,7 +251,7 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
                         <div className="text-xs text-muted-foreground italic">Nenhum dado opcional coletado.</div>
                       )}
 
-                      <div className="pt-2 flex flex-wrap gap-2">
+                      <div className="pt-2 ds-scroll-x gap-2">
                         <button
                           type="button"
                           onClick={() => openHandoffDock({
@@ -264,7 +263,7 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
                           className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700"
                           title="Abrir chat (WhatsApp integrado, quando configurado)"
                         >
-                          <MessageCircle className="size-3.5" /> Falar com hóspede
+                          <MessageCircle className="size-3.5" /> <span>Falar com hóspede</span>
                         </button>
                         <button
                           type="button"
