@@ -544,3 +544,98 @@ dd {
   background: color-mix(in oklab, #a855f7 55%, transparent);
   border-radius: 9999px;
 }
+
+/* ============================================================
+   Sistema de Design — ConciergeIA (visão do cliente)
+   Escala tipográfica fixa, espaçamento base 4px e barras de
+   ação que rolam na horizontal em vez de quebrar em 2 linhas.
+   ============================================================ */
+@utility ds-page-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  line-height: 1.18;
+  letter-spacing: -0.01em;
+}
+@utility ds-page-subtitle {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted-foreground);
+}
+@utility ds-section-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.25;
+}
+@utility ds-card-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13.5px;
+  line-height: 1.3;
+}
+@utility ds-body {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 13px;
+  line-height: 1.5;
+}
+@utility ds-meta {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted-foreground);
+}
+@utility ds-eyebrow {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 10.5px;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Descrição de apoio do card padrão — no máximo 2 linhas. */
+@utility ds-card-desc {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted-foreground);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Barra de ações/filtros/abas: rola na horizontal, nunca quebra,
+   com esmaecimento sutil na borda indicando que há mais conteúdo. */
+@utility ds-scroll-x {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+  mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 20px), transparent 100%);
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 12px,
+    #000 calc(100% - 20px),
+    transparent 100%
+  );
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  & > * {
+    flex: none;
+  }
+}
