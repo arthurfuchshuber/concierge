@@ -550,7 +550,29 @@ function EquipePage() {
             </div>
           </AccordionContent>
         </AccordionItem>
+
+        <AccordionItem
+          value="acesso-area-imovel"
+          className="glass border border-border overflow-hidden data-[state=open]:border-primary/40"
+        >
+          <AccordionTrigger className="px-4 lg:px-6 py-4 hover:no-underline">
+            <span className="ds-card-title flex items-center gap-2">
+              <Home className="size-4 text-primary" /> Acesso por área e imóvel
+              <AreaAccessCountBadge />
+            </span>
+          </AccordionTrigger>
+          <AccordionContent className="pb-0">
+            <div className="px-4 lg:px-6 pb-5 pt-4 border-t border-border/60">
+              <p className="ds-body text-muted-foreground mb-4">
+                Controle fino de área (visualizar ou editar) e de quais imóveis cada pessoa
+                enxerga. O titular da conta sempre tem acesso total.
+              </p>
+              <AreaPropertyAccessList />
+            </div>
+          </AccordionContent>
+        </AccordionItem>
       </Accordion>
+
 
 
     </div>
