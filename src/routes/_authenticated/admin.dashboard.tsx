@@ -1,5 +1,4 @@
 import { PhoneActionButton } from "@/components/PhoneActionButton";
-import { PageHeader } from "@/components/ds/PageHeader";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -597,7 +596,7 @@ function DashboardPage() {
       (engQ.data?.checkinsInPeriod ?? 0) > 0 || (engQ.data?.checkinsWithCodes ?? 0) > 0;
     if (!engQ.isLoading && !hasData) {
       return (
-        <section className={`rounded-lg border border-border bg-card p-4 sm:p-5 ${wrapperClassName}`}>
+        <section className={`rounded-md border border-border bg-card p-3 sm:p-4 ${wrapperClassName}`}>
           <div className="ds-eyebrow text-muted-foreground">Engajamento</div>
           <p className="mt-2 text-sm text-muted-foreground">
             Sem check-ins no período — as barras de instruções e senha aparecem assim que
@@ -622,22 +621,27 @@ function DashboardPage() {
 
 
   return (
-    <div className="px-4 sm:px-6 lg:px-10 py-6 lg:py-10 max-w-[1440px] mx-auto w-full space-y-5 sm:space-y-6">
+    <div className="px-4 sm:px-6 lg:px-10 py-6 lg:py-10 max-w-[1440px] mx-auto w-full space-y-1.5">
       <div>
+        {/* Ícone no fim da frase (não antes) — único ajuste pedido nesta
+            linha; o padrão ícone-antes-do-texto em todo o resto da página
+            (KPIs, seções, etc.) permanece como está. */}
         <div className="flex items-center gap-2 ds-eyebrow text-accent">
-          <TrendingUp className="size-3.5" />
           <span>Operação de Reservas</span>
+          <TrendingUp className="size-3.5" />
         </div>
-        <PageHeader
-          className="mt-1.5"
-          title="Dashboard"
-          subtitle="Sua rotina diária: check-ins, checkouts e senhas."
-        />
+        {/* Título e subtítulo renderizados aqui (em vez do <PageHeader/>
+            compartilhado) só para poder igualar o espaçamento entre as 3
+            linhas (eyebrow → título → subtítulo = mesmos 6px), sem alterar
+            o <PageHeader/> usado pelas outras páginas. Fonte inalterada —
+            só o espaçamento. */}
+        <h1 className="ds-page-title truncate mt-1.5">Dashboard</h1>
+        <p className="ds-page-subtitle mt-1.5">Sua rotina diária: check-ins, checkouts e senhas.</p>
       </div>
 
-
-      {/* KPIs */}
-      <section className="space-y-3">
+      {/* KPIs — mesmo espaçamento de 6px do cabeçalho acima, replicado para
+          linha↔linha, linha↔card e card↔card em toda a página. */}
+      <section className="space-y-1.5">
         <div className="grid grid-cols-2 gap-1.5">
           <KpiCard
             label="Check-ins Pendentes"
@@ -669,7 +673,9 @@ function DashboardPage() {
 
         {/* Em Limpeza — faixa fina logo abaixo dos pendentes (só quando houver 1+) */}
         {cleaningRows.length > 0 ? (
-          <div className="amber-mirror shadow-[0_0_24px_-8px_oklch(0.83_0.16_85/0.45)]">
+          // Sem o shimmer/glow âmbar (amber-mirror) — menos "colorido",
+          // mais executivo; o card já sinaliza com o pontinho âmbar.
+          <div>
             <KpiCard
               label="Em Limpeza"
               rows={cleaningRows}
@@ -1145,12 +1151,10 @@ function KpiCard({
       : shadowTone === "amber"
         ? "text-amber-600 dark:text-amber-400"
         : valueTone;
-  const shadowClass =
-    shadowTone === "emerald"
-      ? "shadow-[0_10px_28px_-20px_rgba(16,185,129,0.7)]"
-      : shadowTone === "amber"
-        ? "shadow-[0_10px_28px_-20px_rgba(245,158,11,0.7)]"
-        : "shadow-[0_10px_28px_-22px_rgba(0,0,0,0.9)]";
+  // Refinamento executivo (só nesta página): removido o glow colorido
+  // (shadow grande em rgba emerald/amber) — mantém a sombra neutra e fina
+  // que já era usada nos cards sem cor, pra reduzir o "volume" visual.
+  const shadowClass = "shadow-[0_1px_2px_rgba(0,0,0,0.4)]";
   const dotClass =
     shadowTone === "emerald"
       ? "bg-emerald-500"
@@ -1170,37 +1174,36 @@ function KpiCard({
         {compact ? (
           <button
             type="button"
-            className={`w-full flex items-center gap-2 rounded-lg border ${
-              shadowTone === "amber" ? "border-amber-500/45" : shadowTone === "emerald" ? "border-emerald-500/45" : "border-border"
-            } bg-card px-4 py-3.5 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+            className={`w-full flex items-center gap-2 rounded-md border ${
+              shadowTone === "amber" ? "border-amber-500/25" : shadowTone === "emerald" ? "border-emerald-500/25" : "border-border"
+            } bg-card px-3 py-2.5 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
             <Icon className={`size-3.5 shrink-0 ${dotClass.replace("bg-", "text-")}`} />
             <span className="ds-eyebrow truncate">
               {label}
             </span>
-            <span className={`ml-auto text-xl font-display tabular-nums ${valueColor}`}>
+            <span className={`ml-auto text-base font-display tabular-nums ${valueColor}`}>
               {loading ? "—" : rows.length}
             </span>
           </button>
         ) : (
           <button
             type="button"
-            className={`w-full h-full rounded-lg border border-border bg-card px-4 py-4 sm:px-4 sm:py-4 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+            className={`w-full h-full rounded-md border border-border bg-card px-3 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
             <div className="flex items-start gap-2 ds-eyebrow">
               {shadowTone ? (
-                <span className={`mt-1 size-2 rounded-full shrink-0 ${dotClass}`} />
+                <span className={`mt-1 size-1.5 rounded-full shrink-0 ${dotClass}`} />
               ) : (
                 <Icon className="mt-px size-3.5 shrink-0" />
               )}
-              {/* Antes truncava ("CHECK-INS PENDEN…") em telas estreitas —
-                  o rótulo agora quebra em duas linhas, como no mockup. */}
+              {/* Rótulo em duas linhas, sem truncar (como no mockup). */}
               <span className="min-w-0 leading-[1.25] [text-wrap:balance]">{label}</span>
             </div>
 
             <div
-              className={`font-display mt-2 tabular-nums leading-none ${valueColor} ${
-                shadowTone ? "text-3xl sm:text-[28px]" : "text-xl sm:text-lg"
+              className={`font-display mt-1.5 tabular-nums leading-none ${valueColor} ${
+                shadowTone ? "text-xl sm:text-lg" : "text-lg sm:text-base"
               }`}
             >
               {loading ? "—" : rows.length}
@@ -1354,12 +1357,12 @@ function FreePropertiesCard({
       <DialogTrigger asChild>
         <button
           type="button"
-          className="w-full h-full rounded-lg border border-border bg-card px-4 py-4 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 shadow-[0_10px_28px_-22px_rgba(0,0,0,0.9)]"
+          className="w-full h-full rounded-md border border-border bg-card px-3 py-3 text-left transition hover:border-primary/40 hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 shadow-[0_1px_2px_rgba(0,0,0,0.4)]"
         >
           <div className="flex items-center gap-2 ds-eyebrow">
             <Home className="size-3.5 shrink-0" /> <span className="truncate">Imóveis livres</span>
           </div>
-          <div className="text-3xl sm:text-2xl font-display mt-2 tabular-nums leading-none text-foreground">
+          <div className="text-lg sm:text-base font-display mt-1.5 tabular-nums leading-none text-foreground">
             {loading ? "—" : properties.length}
           </div>
         </button>
@@ -1891,7 +1894,7 @@ function EngagementBars({
   const checkinViewed = checkinBreakdown?.viewed.length ?? 0;
   const codesViewed = codesBreakdown?.viewed.length ?? 0;
   return (
-    <div className="relative space-y-4">
+    <div className="relative space-y-1.5">
       {checkins > 0 && (
         <BarRow
           label="Viram instruções de check-in"
