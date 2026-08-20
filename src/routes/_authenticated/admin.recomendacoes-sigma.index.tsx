@@ -143,12 +143,12 @@ function SigmaPacksIndex() {
                   >
                     Editar <ArrowRight className="size-3.5" />
                   </Link>
-                  <Button size="sm" variant="ghost" className="h-9 w-9 p-0 rounded-full"
-                    onClick={() => togglePublish(p)} title={p.is_published ? "Despublicar" : "Publicar"}>
+                  <Button size="icon" variant="ghost" className="rounded-full"
+                    onClick={() => togglePublish(p)} title={p.is_published ? "Despublicar" : "Publicar"} aria-label={p.is_published ? "Despublicar" : "Publicar"}>
                     {p.is_published ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                   </Button>
-                  <Button size="sm" variant="ghost" className="h-9 w-9 p-0 rounded-full text-rose-400 hover:text-rose-300"
-                    onClick={() => setConfirmDel(p)} title="Excluir">
+                  <Button size="icon" variant="ghost" className="rounded-full text-rose-400 hover:text-rose-300"
+                    onClick={() => setConfirmDel(p)} title="Excluir" aria-label="Excluir">
                     <Trash2 className="size-4" />
                   </Button>
                 </div>
@@ -185,12 +185,12 @@ function SigmaPacksIndex() {
                 >
                   Editar <ArrowRight className="size-3.5" />
                 </Link>
-                <Button size="sm" variant="ghost" className="h-9 w-9 p-0 rounded-full"
-                  onClick={() => togglePublish(p)} title={p.is_published ? "Despublicar" : "Publicar"}>
+                <Button size="icon" variant="ghost" className="rounded-full"
+                  onClick={() => togglePublish(p)} title={p.is_published ? "Despublicar" : "Publicar"} aria-label={p.is_published ? "Despublicar" : "Publicar"}>
                   {p.is_published ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </Button>
-                <Button size="sm" variant="ghost" className="h-9 w-9 p-0 rounded-full text-rose-400 hover:text-rose-300"
-                  onClick={() => setConfirmDel(p)} title="Excluir">
+                <Button size="icon" variant="ghost" className="rounded-full text-rose-400 hover:text-rose-300"
+                  onClick={() => setConfirmDel(p)} title="Excluir" aria-label="Excluir">
                   <Trash2 className="size-4" />
                 </Button>
               </div>

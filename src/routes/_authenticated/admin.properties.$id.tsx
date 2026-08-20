@@ -51,6 +51,7 @@ import { getMyPropertySigmaState } from "@/lib/sigma-recommendations.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { useAccess } from "@/lib/permissions/useAccess";
+import { PageHeader } from "@/components/ds/PageHeader";
 
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
@@ -1219,24 +1220,25 @@ function PropertyEditor() {
           <ArrowLeft className="size-3.5" /> Voltar
         </Link>
 
-        <div className="mb-6 pb-4 border-b border-border/60">
-          <div className="flex items-center justify-between gap-2 mb-1.5">
-            <div className="flex items-center gap-2 min-w-0">
-              <h1 className="font-display text-2xl sm:text-3xl truncate">{isNew ? "Novo imóvel" : (form.property.name || "Informações do imóvel")}</h1>
+        <PageHeader
+          className="mb-6 pb-4 border-b border-border/60"
+          title={
+            <span className="inline-flex items-center gap-2 min-w-0">
+              <span className="truncate">{isNew ? "Novo imóvel" : (form.property.name || "Informações do imóvel")}</span>
               {!isNew && (
                 <span className="shrink-0 rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground">
                   Sem guia criado
                 </span>
               )}
-            </div>
-            <PresenceAvatars users={presence.users} />
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {isNew
+            </span>
+          }
+          subtitle={
+            isNew
               ? "Só o essencial para cadastrar a residência. O guia para hóspedes, checkin, checkout, FAQ e recomendações ficam disponíveis depois de criado — não são obrigatórios."
-              : "Este imóvel ainda não tem um guia para hóspedes. Você pode continuar usando dashboard, calendário e kanban só com essas informações, ou criar o guia quando quiser."}
-          </p>
-        </div>
+              : "Este imóvel ainda não tem um guia para hóspedes. Você pode continuar usando dashboard, calendário e kanban só com essas informações, ou criar o guia quando quiser."
+          }
+          actions={<PresenceAvatars users={presence.users} />}
+        />
 
         <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
           <SectionGroup>
@@ -1307,30 +1309,31 @@ function PropertyEditor() {
       ) : null}
       <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
 
-      <div className="mb-4 sm:mb-5 pb-4 border-b border-border/60 flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="font-display text-2xl sm:text-4xl break-words leading-tight line-clamp-2">{form.property.name || "Sem título"}</h1>
-        </div>
-        {!isNew && (
-          <div className="shrink-0 flex items-center gap-3">
-            <PresenceAvatars users={presence.users} />
-            <Link
-              to="/admin/properties/$id/acessos"
-              params={{ id }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-surface text-xs hover:bg-secondary transition-colors"
-            >
-              <Shield className="size-3.5" /> Acessos
-            </Link>
-            <Link
-              to="/admin/properties/$id/conversas"
-              params={{ id }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-surface text-xs hover:bg-secondary transition-colors"
-            >
-              <MessageSquare className="size-3.5" /> Conversas
-            </Link>
-          </div>
-        )}
-      </div>
+      <PageHeader
+        className="mb-4 sm:mb-5 pb-4 border-b border-border/60"
+        title={<span className="break-words line-clamp-2">{form.property.name || "Sem título"}</span>}
+        actions={
+          !isNew ? (
+            <div className="shrink-0 flex items-center gap-3">
+              <PresenceAvatars users={presence.users} />
+              <Link
+                to="/admin/properties/$id/acessos"
+                params={{ id }}
+                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-xs hover:bg-secondary transition-colors shrink-0"
+              >
+                <Shield className="size-3.5 shrink-0" /> Acessos
+              </Link>
+              <Link
+                to="/admin/properties/$id/conversas"
+                params={{ id }}
+                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-xs hover:bg-secondary transition-colors shrink-0"
+              >
+                <MessageSquare className="size-3.5 shrink-0" /> Conversas
+              </Link>
+            </div>
+          ) : null
+        }
+      />
 
 
       <Tabs value={step} onValueChange={setStep}>

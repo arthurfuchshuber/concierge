@@ -114,7 +114,7 @@ function SectionDivider({ label, busy }: { label: string; busy?: boolean }) {
   return (
     <div className="flex items-center gap-3 pt-1">
       <div className="h-px flex-1 bg-border/40" />
-      <span className="text-[11px] uppercase tracking-widest text-muted-foreground/70 font-medium flex items-center gap-1.5">
+      <span className="ds-eyebrow flex items-center gap-1.5">
         {label}
         {busy && <Loader2 className="size-3 animate-spin text-primary" />}
       </span>
@@ -409,7 +409,7 @@ export function StakeholderFormDialog({
                 />
                 <span className="min-w-0">
                   <span className="block text-sm font-medium truncate">{label}</span>
-                  <span className="block text-[11px] text-muted-foreground">{sub}</span>
+                  <span className="block ds-meta">{sub}</span>
                 </span>
                 {form.person_type === key && <Check className="size-4 text-primary ml-auto" />}
               </button>
@@ -622,7 +622,7 @@ export function StakeholderFormDialog({
                 {provisionalPwd && provisionalPwd.trim().length < 8 && (
                   <p className="text-xs text-destructive">A senha precisa ter pelo menos 8 caracteres.</p>
                 )}
-                <p className="text-[11px] text-muted-foreground">
+                <p className="ds-meta">
                   Passe essa senha à pessoa por WhatsApp. Em branco, enviamos convite por e-mail.
                 </p>
               </div>
@@ -736,7 +736,7 @@ export function StakeholderFormDialog({
           </div>
         </div>
 
-        <div className="flex flex-wrap justify-center gap-2 pt-3 border-t border-border/30">
+        <div className="ds-scroll-x justify-center gap-2 pt-3 border-t border-border/30">
           <Button variant="ghost" className="rounded-full" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>

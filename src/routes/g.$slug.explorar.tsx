@@ -1364,10 +1364,10 @@ function RecCard({ rec }: { rec: Rec }) {
 
       <div className="p-4 pr-12 flex-1 flex flex-col gap-2">
         <div className="flex items-start justify-between gap-2">
-          <h4 className="text-[15px] font-medium leading-snug line-clamp-2 flex-1">{rec.name}</h4>
+          <h4 className="ds-card-title line-clamp-2 flex-1">{rec.name}</h4>
         </div>
 
-        {rec.note && <p className="text-[12.5px] text-muted-foreground leading-relaxed line-clamp-3">{rec.note}</p>}
+        {rec.note && <p className="ds-card-desc">{rec.note}</p>}
 
         <div className="pt-2 flex flex-col gap-1.5 text-[11.5px] text-muted-foreground">
           {rec.rating != null && (
@@ -1455,11 +1455,11 @@ function RecRow({ rec }: { rec: Rec }) {
       <div className="flex-1 min-w-0 flex flex-col gap-1.5 py-0.5">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <h4 className="text-[15px] font-medium leading-snug line-clamp-2">{rec.name}</h4>
+            <h4 className="ds-card-title line-clamp-2">{rec.name}</h4>
           </div>
         </div>
 
-        {rec.note && <p className="text-[12.5px] text-muted-foreground leading-relaxed line-clamp-2">{rec.note}</p>}
+        {rec.note && <p className="ds-card-desc">{rec.note}</p>}
 
         <div className="mt-auto flex flex-col gap-1 text-[11.5px] text-muted-foreground">
           {rec.rating != null && (
