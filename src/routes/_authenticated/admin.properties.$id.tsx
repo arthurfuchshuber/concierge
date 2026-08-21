@@ -711,10 +711,22 @@ function PropertyEditor() {
       toast.success(`Preenchido! ${nearby} arredores${extraStr}`);
 
       const cityForGeneration = (r.city || form.property.city).trim();
-      // Se este guia já usa recomendações da cidade criadas pelo Sigma, nunca
-      // regeramos automaticamente — isso sobrescreveria/duplicaria a curadoria.
-      const alreadyHasCityRefs = ((cityRefsQuery.data?.items ?? []) as unknown[]).length > 0;
-      if (cityForGeneration && !alreadyHasCityRefs) {
+      // Só bloqueamos a regeração automática quando alguma recomendação da
+      // cidade está "plugada": agrupada com a de outro guia (group_id) ou
+      // curada/criada pelo Sigma (sem property_id, ou origem manual/sigma).
+      const cityRefItems = (cityRefsQuery.data?.items ?? []) as Array<{
+        group_id?: string | null;
+        property_id?: string | null;
+        source?: string | null;
+      }>;
+      const hasLinkedCityRefs = cityRefItems.some(
+        (item) =>
+          !!item.group_id ||
+          !item.property_id ||
+          ["manual", "sigma", "admin", "curated"].includes((item.source ?? "").toLowerCase()),
+      );
+      if (cityForGeneration && !hasLinkedCityRefs) {
+
         void (async () => {
           try {
             const result = await generateCityRefs({
