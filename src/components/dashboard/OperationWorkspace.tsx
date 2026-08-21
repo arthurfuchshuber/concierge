@@ -481,7 +481,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
   const concludedRows = concludedQ.data?.rows ?? [];
   const counts = {
-    checkin: checkinPendingRows.length,
+    checkin: rawCheckinPendingRows.length,
     checkout: checkoutPendingRows.length,
     stay: stayRows.length,
     cleaning: cleaningRows.length,
