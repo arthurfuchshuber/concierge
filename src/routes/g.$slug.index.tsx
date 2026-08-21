@@ -666,9 +666,9 @@ function Guide({ data }: { data: GuideOk }) {
     p.wifi_ssid ||
     p.checkin_instructions
   );
-  const hasCheckin = hasCheckinData && !stayCardsExpired;
+  const hasCheckin = hasCheckinData && !stayCardsExpired && !checkoutConcluded;
   const hasSaidaData = !!(p.checkout_time || p.checkout_note || p.checkout_instructions);
-  const hasSaida = hasSaidaData && !stayCardsExpired;
+  const hasSaida = hasSaidaData && !stayCardsExpired && !checkoutConcluded;
   const hasResidencia = houseManual.length > 0;
   const hasLocWifi = !hasResidencia && !!(p.address || p.maps_url || p.wifi_ssid || (p as any).wifi_password_set);
   const hasFaq = !!(p.host_name || p.host_phone) || data.emergency.length > 0 || data.faqs.length > 0;
@@ -807,8 +807,8 @@ function Guide({ data }: { data: GuideOk }) {
   // (ambos agora em tela cheia, com o mesmo menu real embaixo, travado em
   // "Chegada" até o hóspede terminar).
   const guideNavItems: Array<{ key: BottomNavKey; label: string }> = [{ key: "home", label: "Início" }];
-  if (hasCheckinData) guideNavItems.push({ key: "checkin", label: "Chegada" });
-  if (hasSaidaData) guideNavItems.push({ key: "saida", label: "Saída" });
+  if (hasCheckinData && !checkoutConcluded) guideNavItems.push({ key: "checkin", label: "Chegada" });
+  if (hasSaidaData && !checkoutConcluded) guideNavItems.push({ key: "saida", label: "Saída" });
   if (hasResidencia) guideNavItems.push({ key: "residencia", label: "Residência" });
   if (hasExplore) guideNavItems.push({ key: "explore", label: "Explorar" });
 
@@ -1972,8 +1972,8 @@ function Guide({ data }: { data: GuideOk }) {
         const items: Array<{ key: import("@/components/guide/BottomNav").BottomNavKey; label: string }> = [
           { key: "home", label: "Início" },
         ];
-        if (hasCheckinData) items.push({ key: "checkin", label: "Chegada" });
-        if (hasSaidaData) items.push({ key: "saida", label: "Saída" });
+        if (hasCheckinData && !checkoutConcluded) items.push({ key: "checkin", label: "Chegada" });
+        if (hasSaidaData && !checkoutConcluded) items.push({ key: "saida", label: "Saída" });
         if (hasResidencia) items.push({ key: "residencia", label: "Residência" });
         if (hasExplore) items.push({ key: "explore", label: "Explorar" });
         if (items.length <= 1) return null;
