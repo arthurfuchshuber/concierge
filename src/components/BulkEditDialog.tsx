@@ -409,15 +409,19 @@ export function BulkEditDialog({
   /** Campos que vieram preenchidos e foram desligados → serão removidos. */
   const removedFields = useMemo(() => {
     const out: FieldDef[] = [];
+    const perProp = new Set<string>(PER_PROPERTY_FIELDS as readonly string[]);
     for (const t of TEXT_TABS) {
       for (const g of t.groups) {
         for (const f of groupFields(g)) {
+          if (ids.length > 1 && perProp.has(f.key)) continue;
           if (initialEnabledRef.current[f.key] && !state.enabled[f.key]) out.push(f);
         }
       }
     }
     return out;
-  }, [state]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, ids.length]);
+
 
 
 
