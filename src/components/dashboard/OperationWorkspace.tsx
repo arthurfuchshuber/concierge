@@ -2654,16 +2654,18 @@ function ArrivalCard({
         </div>
       )}
 
-      {/* Action row: ícones à esquerda; Copiar + Maps agrupados à direita */}
-      <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
+      {/* Action row: botão principal em largura total; Maps + menu à direita */}
+      <div className="mt-auto flex flex-nowrap items-center gap-2 pt-1">
         {mode === "done" ? (
           <span
             title="Esteira concluída"
             aria-label="Esteira concluída"
-            className="inline-flex items-center justify-center size-9 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30"
+            className="inline-flex flex-1 min-w-0 h-9 items-center justify-center gap-2 px-3 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 text-xs font-semibold"
           >
-            <CheckCircle2 className="size-4" />
+            <CheckCircle2 className="size-4 shrink-0" />
+            <span className="truncate">Concluído</span>
           </span>
+
         ) : (
           <button
             onClick={() => {
