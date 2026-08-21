@@ -663,13 +663,19 @@ export function BulkEditDialog({
         )}
 
         <ResponsiveDialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
-          <Button onClick={() => setConfirmMode("ask")} disabled={saving || loading || !hasAnySelected}>
+          <div className="mr-auto flex items-center gap-2">
+            <AutosaveIndicator status={saving ? "saving" : autosave.status} />
+          </div>
+          <Button
+            onClick={async () => { await autosave.flush(); onOpenChange(false); }}
+            disabled={saving}
+          >
             {saving && <Loader2 className="size-4 mr-1.5 animate-spin" />}
-            Aplicar a {ids.length} {ids.length === 1 ? "guia" : "guias"}
+            Concluir
           </Button>
         </ResponsiveDialogFooter>
         </>
+
         )}
 
       </ResponsiveDialogContent>
