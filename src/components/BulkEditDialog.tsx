@@ -42,14 +42,23 @@ type FieldDef = { key: FieldKey; label: string; kind: FieldKind; placeholder?: s
 
 type ListKey = "manual" | "checkout" | "emergency" | "faqs";
 
+type SubGroup = { id: string; title: string; fields: FieldDef[] };
+
 type Group = {
   id: string;
   title: string;
   desc?: string;
   icon?: SectionIcon;
   fields?: FieldDef[];
+  subgroups?: SubGroup[];
   lists?: ListKey[];
 };
+
+/** Todos os campos de um quadrante (soltos + agrupados em sub-quadros). */
+function groupFields(g: Group): FieldDef[] {
+  return [...(g.fields ?? []), ...(g.subgroups ?? []).flatMap((s) => s.fields)];
+}
+
 
 /** Mesma organização (abas + quadrantes) do editor individual do guia. */
 const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
@@ -137,16 +146,29 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
       {
         id: "access-codes", title: "Senhas de Acesso", icon: KeyRound,
         desc: "Códigos de portão e fechadura, mais o código que libera as senhas no Guia.",
+        subgroups: [
+          {
+            id: "gate", title: "Portão",
+            fields: [
+              { key: "gate_label", label: "Nome do portão", kind: "text" },
+              { key: "gate_code", label: "Código do portão", kind: "text" },
+              { key: "gate_instructions", label: "Instruções do portão", kind: "textarea" },
+            ],
+          },
+          {
+            id: "lock", title: "Fechadura",
+            fields: [
+              { key: "lock_label", label: "Nome da fechadura", kind: "text" },
+              { key: "lock_code", label: "Código da fechadura", kind: "text" },
+              { key: "lock_instructions", label: "Instruções da fechadura", kind: "textarea" },
+            ],
+          },
+        ],
         fields: [
-          { key: "gate_label", label: "Nome do portão", kind: "text" },
-          { key: "gate_code", label: "Código do portão", kind: "text" },
-          { key: "gate_instructions", label: "Instruções do portão", kind: "textarea" },
-          { key: "lock_label", label: "Nome da fechadura", kind: "text" },
-          { key: "lock_code", label: "Código da fechadura", kind: "text" },
-          { key: "lock_instructions", label: "Instruções da fechadura", kind: "textarea" },
           { key: "access_codes_pin", label: "Senha para liberar códigos e Wi-Fi", kind: "text" },
         ],
       },
+
       {
         id: "wifi", title: "Wi-Fi", icon: Wifi,
         desc: "Rede e senha exibidas no card de Wi-Fi do guia público.",
@@ -233,7 +255,7 @@ const emptyState: State = { enabled: {}, values: {}, listsEnabled: {}, manual: [
 
 type FetchData = Awaited<ReturnType<typeof bulkFetchProperties>>;
 
-const ALL_FIELDS: FieldDef[] = TEXT_TABS.flatMap((t) => t.groups.flatMap((g) => g.fields ?? []));
+const ALL_FIELDS: FieldDef[] = TEXT_TABS.flatMap((t) => t.groups.flatMap((g) => groupFields(g)));
 
 /**
  * Pré-carrega o popup com o que já existe nos guias selecionados: campo
@@ -292,22 +314,33 @@ export function BulkEditDialog({
   // recarregar (e resetar) o popup sem necessidade.
   const idsKey = ids.join(",");
   const loadedKeyRef = useRef<string | null>(null);
+  // Quais campos vieram preenchidos ao abrir: desligar a chave de um deles
+  // significa "remover essa informação dos guias selecionados".
+  const initialEnabledRef = useRef<Partial<Record<FieldKey, boolean>>>({});
 
-  useEffect(() => {
-    if (!open || ids.length === 0) return;
-    if (loadedKeyRef.current === idsKey) return;
+  function load(force = false) {
+    if (ids.length === 0) return;
+    if (!force && loadedKeyRef.current === idsKey) return;
     loadedKeyRef.current = idsKey;
     setLoading(true);
     setData(null);
     fetchFn({ data: { ids: idsKey.split(",") } })
       .then((d) => {
         setData(d);
-        setState(buildInitialState(d));
+        const init = buildInitialState(d);
+        initialEnabledRef.current = { ...init.enabled };
+        setState(init);
       })
       .catch(() => toast.error("Erro ao carregar dados dos guias"))
       .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, idsKey]);
+
 
 
   function reset() {
@@ -363,15 +396,30 @@ export function BulkEditDialog({
     return { withItems, empty };
   }
 
-  const hasAnySelected = useMemo(() => {
-    return Object.values(state.enabled).some(Boolean) || Object.values(state.listsEnabled).some(Boolean);
+  /** Campos que vieram preenchidos e foram desligados → serão removidos. */
+  const removedFields = useMemo(() => {
+    const out: FieldDef[] = [];
+    for (const t of TEXT_TABS) {
+      for (const g of t.groups) {
+        for (const f of groupFields(g)) {
+          if (initialEnabledRef.current[f.key] && !state.enabled[f.key]) out.push(f);
+        }
+      }
+    }
+    return out;
   }, [state]);
+
+  const hasAnySelected = useMemo(() => {
+    return Object.values(state.enabled).some(Boolean)
+      || Object.values(state.listsEnabled).some(Boolean)
+      || removedFields.length > 0;
+  }, [state, removedFields]);
 
   /** Algum campo de texto ativo está vazio → a intenção é remover o valor. */
   const hasClearing = useMemo(() => {
     for (const tab of TEXT_TABS) {
       for (const g of tab.groups) {
-        for (const f of g.fields ?? []) {
+        for (const f of groupFields(g)) {
           if (!state.enabled[f.key]) continue;
           if (f.kind !== "text" && f.kind !== "textarea") continue;
           if (String(state.values[f.key] ?? "").trim() === "") return true;
@@ -380,6 +428,7 @@ export function BulkEditDialog({
     }
     return false;
   }, [state]);
+
 
 
 
@@ -398,11 +447,17 @@ export function BulkEditDialog({
     const patch: Record<string, unknown> = {};
     for (const tab of TEXT_TABS) {
       for (const g of tab.groups) {
-        for (const f of g.fields ?? []) {
+        for (const f of groupFields(g)) {
           if (state.enabled[f.key]) patch[f.key] = coerce(f, state.values[f.key]);
         }
       }
     }
+    // Chaves desligadas de campos que tinham valor = remoção (sempre sobrescreve).
+    const clearPatch: Record<string, unknown> = {};
+    for (const f of removedFields) {
+      clearPatch[f.key] = f.kind === "boolean" ? false : f.kind === "number" ? 0 : "";
+    }
+
     const lists: Record<string, unknown> = {};
     if (state.listsEnabled.manual)
       lists.manual = state.manual.filter((m) => m.title.trim()).map((m) => ({
@@ -419,23 +474,82 @@ export function BulkEditDialog({
     if (state.listsEnabled.checkout)
       lists.checkout = state.checkout.filter((c) => c.label.trim()).map((c) => ({ label: c.label.trim() }));
 
-    if (Object.keys(patch).length === 0 && Object.keys(lists).length === 0) {
+    if (Object.keys(patch).length === 0 && Object.keys(lists).length === 0 && Object.keys(clearPatch).length === 0) {
       toast.error("Marque ao menos um campo para aplicar");
       return;
     }
 
     setSaving(true);
     try {
-      const r = await apply({ data: { ids, patch, lists: Object.keys(lists).length ? lists : undefined, mode } });
-      toast.success(`${r.updated} ${r.updated === 1 ? "guia atualizado" : "guias atualizados"}`);
-      // Volta para a tela de edição (não fecha o popup inteiro).
+      let updated = 0;
+      if (Object.keys(patch).length || Object.keys(lists).length) {
+        const r = await apply({ data: { ids, patch, lists: Object.keys(lists).length ? lists : undefined, mode } });
+        updated = r.updated;
+      }
+      if (Object.keys(clearPatch).length) {
+        const r2 = await apply({ data: { ids, patch: clearPatch, mode: "overwrite" } });
+        updated = Math.max(updated, r2.updated);
+      }
+      toast.success(`${updated} ${updated === 1 ? "guia atualizado" : "guias atualizados"}`);
+      // Volta para a tela de edição (não fecha o popup inteiro) e recarrega
+      // os dados para refletir exatamente o que ficou salvo.
       setConfirmMode(null);
+      load(true);
       onSaved?.();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao atualizar");
     } finally {
       setSaving(false);
     }
+  }
+
+  /** Conteúdo de um campo (cabeçalho + chave + input + limpar). */
+  function fieldBlock(f: FieldDef, bare: boolean) {
+    const enabled = !!state.enabled[f.key];
+    const value = state.values[f.key];
+    const s2 = fieldSummary(f.key);
+    const willRemove = !enabled && !!initialEnabledRef.current[f.key];
+    const emptyActive = enabled && (f.kind === "text" || f.kind === "textarea") && String(value ?? "").trim() === "";
+    return (
+      <div className={bare ? "min-w-0" : "min-w-0"}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <label className="text-sm font-medium truncate block">{f.label}</label>
+            <div className={`text-[11px] mt-0.5 truncate ${emptyActive || willRemove ? "text-destructive" : "text-muted-foreground"}`}>
+              {willRemove
+                ? "Será removido dos guias selecionados"
+                : emptyActive
+                  ? "Será removido dos guias selecionados"
+                  : <>
+                      {s2.filled > 0 && s2.empty === 0 && s2.distinct.length === 1 && `Atual: ${s2.distinct[0]}`}
+                      {s2.filled > 0 && s2.empty === 0 && s2.distinct.length > 1 && `${s2.filled} guias · ${s2.distinct.length} valores distintos`}
+                      {s2.filled > 0 && s2.empty > 0 && `${s2.filled} preenchido${s2.filled > 1 ? "s" : ""} · ${s2.empty} vazio${s2.empty > 1 ? "s" : ""}`}
+                      {s2.filled === 0 && `${s2.empty} guia${s2.empty > 1 ? "s" : ""} sem valor`}
+                    </>}
+            </div>
+          </div>
+          <Switch checked={enabled} onCheckedChange={(v) => toggle(f.key, v)} />
+        </div>
+        {enabled && <div className="mt-2">{renderField(f, value, (v) => setValue(f.key, v))}</div>}
+        {enabled && (f.kind === "text" || f.kind === "textarea") && (
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <span className="text-[11px] text-muted-foreground truncate">
+              {String(value ?? "").trim() === ""
+                ? "Campo vazio: ao substituir em todos, o valor será removido."
+                : "Deixe vazio para remover o valor."}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 shrink-0 text-[11px]"
+              onClick={() => setValue(f.key, "")}
+            >
+              <Trash2 className="size-3 mr-1" /> Limpar
+            </Button>
+          </div>
+        )}
+      </div>
+    );
   }
 
 
@@ -454,6 +568,12 @@ export function BulkEditDialog({
                   ? "Há campos ativos sem valor: use “Substituir em todos” para removê-los dos guias selecionados."
                   : "Alguns guias selecionados já podem ter esses campos preenchidos. Escolha como proceder:"}
               </p>
+              {removedFields.length > 0 && (
+                <p className="text-[12px] leading-relaxed text-destructive">
+                  {removedFields.length} campo{removedFields.length > 1 ? "s" : ""} desligado{removedFields.length > 1 ? "s" : ""} será{removedFields.length > 1 ? "ão" : ""} removido{removedFields.length > 1 ? "s" : ""} dos guias selecionados.
+                </p>
+              )}
+
             </div>
 
             <div className="space-y-2">
@@ -525,7 +645,7 @@ export function BulkEditDialog({
                 <div className="space-y-4">
                 {tab.groups.map((group) => {
                   const activeCount =
-                    (group.fields ?? []).filter((f) => state.enabled[f.key]).length +
+                    groupFields(group).filter((f) => state.enabled[f.key]).length +
                     (group.lists ?? []).filter((lk) => state.listsEnabled[lk]).length;
                   return (
                   <Section
@@ -547,51 +667,45 @@ export function BulkEditDialog({
                     }
 
                   >
-                  {(group.fields ?? []).map((f) => {
-                    const enabled = !!state.enabled[f.key];
-                    const value = state.values[f.key];
-                    const s2 = fieldSummary(f.key);
+                  {(group.subgroups ?? []).map((sg) => {
+                    const someOn = sg.fields.some((f) => state.enabled[f.key]);
                     return (
-                      <div key={f.key} className={`rounded-xl border p-3 transition-colors min-w-0 ${enabled ? "border-accent/50 bg-accent/5" : "border-border bg-card/40"}`}>
-                        <div className="flex items-center justify-between mb-2 gap-3">
-                          <div className="min-w-0 flex-1">
-                            <label className="text-sm font-medium truncate block">{f.label}</label>
-                            <div className={`text-[11px] mt-0.5 truncate ${enabled && (f.kind === "text" || f.kind === "textarea") && String(value ?? "").trim() === "" ? "text-destructive" : "text-muted-foreground"}`}>
-                              {enabled && (f.kind === "text" || f.kind === "textarea") && String(value ?? "").trim() === ""
-                                ? "Será removido dos guias selecionados"
-                                : <>
-                                    {s2.filled > 0 && s2.empty === 0 && s2.distinct.length === 1 && `Atual: ${s2.distinct[0]}`}
-                                    {s2.filled > 0 && s2.empty === 0 && s2.distinct.length > 1 && `${s2.filled} guias · ${s2.distinct.length} valores distintos`}
-                                    {s2.filled > 0 && s2.empty > 0 && `${s2.filled} preenchido${s2.filled > 1 ? "s" : ""} · ${s2.empty} vazio${s2.empty > 1 ? "s" : ""}`}
-                                    {s2.filled === 0 && `${s2.empty} guia${s2.empty > 1 ? "s" : ""} sem valor`}
-                                  </>}
+                      <div
+                        key={sg.id}
+                        className={`rounded-xl border p-3 transition-colors min-w-0 ${someOn ? "border-accent/50 bg-accent/5" : "border-border bg-card/40"}`}
+                      >
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold">{sg.title}</div>
+                            <div className="text-[11px] text-muted-foreground truncate">
+                              {someOn ? "Aplicando nos guias selecionados" : "Desligado — os valores atuais serão removidos ao salvar"}
                             </div>
-
                           </div>
-                          <Switch checked={enabled} onCheckedChange={(v) => toggle(f.key, v)} />
+                          <Switch
+                            checked={someOn}
+                            onCheckedChange={(v) => sg.fields.forEach((f) => toggle(f.key, v))}
+                          />
                         </div>
-                        {enabled && renderField(f, value, (v) => setValue(f.key, v))}
-                        {enabled && (f.kind === "text" || f.kind === "textarea") && (
-                          <div className="mt-2 flex items-center justify-between gap-2">
-                            <span className="text-[11px] text-muted-foreground truncate">
-                              {String(value ?? "").trim() === ""
-                                ? "Campo vazio: ao substituir em todos, o valor será removido."
-                                : "Deixe vazio para remover o valor."}
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 shrink-0 text-[11px]"
-                              onClick={() => setValue(f.key, "")}
-                            >
-                              <Trash2 className="size-3 mr-1" /> Limpar
-                            </Button>
-                          </div>
-                        )}
+                        <div className="divide-y divide-border/60">
+                          {sg.fields.map((f) => (
+                            <div key={f.key} className="py-2.5 first:pt-0 last:pb-0">
+                              {fieldBlock(f, true)}
+                            </div>
+                          ))}
+                        </div>
                       </div>
-
                     );
                   })}
+
+                  {(group.fields ?? []).map((f) => {
+                    const enabled = !!state.enabled[f.key];
+                    return (
+                      <div key={f.key} className={`rounded-xl border p-3 transition-colors min-w-0 ${enabled ? "border-accent/50 bg-accent/5" : "border-border bg-card/40"}`}>
+                        {fieldBlock(f, false)}
+                      </div>
+                    );
+                  })}
+
 
                   {(group.lists ?? []).map((lk) => {
                     const ls = listSummary(lk);
