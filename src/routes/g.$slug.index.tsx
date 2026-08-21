@@ -3173,6 +3173,8 @@ function PostAccessOnboarding({
   checkinInstructionsText?: string | null;
   lockCode?: string | null;
   gateCode?: string | null;
+  lockLabel?: string | null;
+  gateLabel?: string | null;
   wifiPassword?: string | null;
   wifiSsid?: string | null;
   requestUnlock: (cb?: () => void) => void;
