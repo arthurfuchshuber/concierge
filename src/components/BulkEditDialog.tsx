@@ -676,7 +676,6 @@ export function BulkEditDialog({
         </ResponsiveDialogFooter>
         </>
 
-        )}
 
       </ResponsiveDialogContent>
     </ResponsiveDialog>
