@@ -1036,13 +1036,10 @@ function OperationShell({ view }: { view: OperationView }) {
   return (
     <div className="space-y-3">
       <div>
-        <div className="flex items-center gap-2 ds-eyebrow text-accent">
-          <span>Operação de Reservas</span>
-          <TrendingUp className="size-3.5" />
-        </div>
-        <h1 className="ds-page-title truncate mt-1.5">{copy.title}</h1>
+        <h1 className="ds-page-title truncate">{copy.title}</h1>
         <p className="ds-page-subtitle mt-1.5">{copy.subtitle}</p>
       </div>
+
 
       {/* Segmented control — Dashboard / Kanban / Calendário (largura da página) */}
       <nav className="mb-5 flex w-full overflow-hidden rounded-[0.3rem] bg-foreground/5">
