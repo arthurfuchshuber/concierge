@@ -201,7 +201,7 @@ export async function buildArrivalRows(
             .from("guide_section_events")
             .select("property_id, section, guest_name, guest_phone")
             .in("property_id", propIds)
-            .in("section", ["home", "checkin", "checkin-lido", "senhas", "saida", "residencia", "faq", "explorar"])
+            .in("section", ["home", "checkin", "checkin-lido", "senhas", "senhas:lock", "senhas:gate", "saida", "residencia", "faq", "explorar"])
             .limit(5000)
         : Promise.resolve({
             data: [] as Array<{
