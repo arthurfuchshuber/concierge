@@ -1037,7 +1037,7 @@ const OPERATION_TABS = [
 ];
 
 const OPERATION_COPY: Record<OperationView, { title: string; subtitle: string }> = {
-  resumo: { title: "Dashboard", subtitle: "Sua rotina diária: check-ins, checkouts e senhas." },
+  resumo: { title: "Operação", subtitle: "Sua rotina diária: check-ins, checkouts e senhas." },
   kanban: { title: "Kanban", subtitle: "Cada reserva na etapa em que ela realmente está." },
   calendario: { title: "Calendário", subtitle: "Ocupação dos imóveis dia a dia." },
 };
@@ -1047,13 +1047,10 @@ function OperationShell({ view }: { view: OperationView }) {
   return (
     <div className="space-y-3">
       <div>
-        <div className="flex items-center gap-2 ds-eyebrow text-accent">
-          <span>Operação de Reservas</span>
-          <TrendingUp className="size-3.5" />
-        </div>
-        <h1 className="ds-page-title truncate mt-1.5">{copy.title}</h1>
+        <h1 className="ds-page-title truncate">{copy.title}</h1>
         <p className="ds-page-subtitle mt-1.5">{copy.subtitle}</p>
       </div>
+
 
       {/* Segmented control — Dashboard / Kanban / Calendário (largura da página) */}
       <nav className="flex w-full overflow-hidden rounded-[0.3rem] bg-foreground/5 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_10%,transparent),0_1px_2px_color-mix(in_oklab,var(--foreground)_10%,transparent),0_4px_10px_-6px_color-mix(in_oklab,var(--foreground)_22%,transparent)]">
@@ -1861,7 +1858,7 @@ function OccupancyPanel({
                         className="sticky left-0 top-0 z-20 bg-card pb-2 pr-3 text-left"
                         style={{ width: NAME_COL, minWidth: NAME_COL }}
                       >
-                        <span className="ds-eyebrow">Imóvel</span>
+                        <span className="ds-eyebrow block pl-[10px]">Imóvel</span>
                       </th>
                       {dayList.map((d) => {
                         const wd = new Date(`${d}T12:00:00Z`).toLocaleDateString("pt-BR", {
@@ -1917,7 +1914,6 @@ function OccupancyPanel({
                           {dayList.map((d, i) => {
                             const a = halves[i * 2] as CellPart;
                             const b = halves[i * 2 + 1] as CellPart;
-                            const isToday = d === todayISO;
                             const labelOf = (s: CellPart) =>
                               s === "in" ? "Check-in" : s === "out" ? "Checkout" : s === "busy" ? "Ocupado" : "Livre";
                             const title =
@@ -1935,8 +1931,9 @@ function OccupancyPanel({
                               <td
                                 key={d}
                                 style={{ width: dayW, minWidth: dayW }}
-                                className={`px-0 py-1 snap-start ${isToday ? "bg-primary/[0.06]" : ""}`}
+                                className="px-0 py-1 snap-start"
                                 title={title}
+
                               >
                                 <div className="relative flex h-6 w-full items-center">
                                   <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border/50" />
