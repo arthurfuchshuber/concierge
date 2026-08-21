@@ -150,6 +150,28 @@ export function MeuPerfilPage() {
     /^\d{4}-\d{2}-\d{2}$/.test(birthDate) &&
     new Date(birthDate) <= new Date();
 
+  // Salvamento instantâneo (mesma regra do editor de guia): qualquer alteração
+  // válida é persistida sozinha, sem depender do botão "Salvar".
+  const autosave = useAutosave(
+    { fullName, tradeName, birthDate, jobTitle, phone, phoneCountry },
+    async (v) => {
+      await updateFn({
+        data: {
+          full_name: v.fullName.trim(),
+          trade_name: v.tradeName.trim() || null,
+          birth_date: v.birthDate,
+          job_title: v.jobTitle.trim() || null,
+          phone: v.phone.trim() || null,
+          phone_country: v.phoneCountry.trim() || null,
+          ownerId: accountOwnerId,
+        },
+      });
+      qc.invalidateQueries({ queryKey: ["account-profile", accountOwnerId] });
+    },
+    { enabled: canSave && !q.isLoading, delay: 300 },
+  );
+
+
   if (q.isLoading) {
     return (
       <div className="p-8 flex items-center gap-2 text-sm text-muted-foreground">
