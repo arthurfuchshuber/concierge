@@ -3145,6 +3145,8 @@ function PostAccessOnboarding({
   checkinInstructionsText,
   lockCode,
   gateCode,
+  lockLabel,
+  gateLabel,
   wifiPassword,
   wifiSsid,
   requestUnlock,
