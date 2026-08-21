@@ -445,11 +445,14 @@ export function BulkEditDialog({
   async function saveAuto() {
     if (!data || ids.length === 0) return;
     const patch: Record<string, unknown> = {};
+    const perProp = new Set<string>(PER_PROPERTY_FIELDS as readonly string[]);
     for (const f of ALL_FIELDS) {
       if (!dirtyRef.current.has(f.key)) continue;
       if (!state.enabled[f.key]) continue;
+      if (ids.length > 1 && perProp.has(f.key)) continue;
       patch[f.key] = coerce(f, state.values[f.key]);
     }
+
     // Bloco desligado = remover essas informações dos guias selecionados.
     for (const f of removedFields) {
       patch[f.key] = f.kind === "boolean" ? false : f.kind === "number" ? 0 : "";
