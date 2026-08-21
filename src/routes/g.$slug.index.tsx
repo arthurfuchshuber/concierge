@@ -918,7 +918,7 @@ function Guide({ data }: { data: GuideOk }) {
 
               {/* Bloco de check-in — topo, logo abaixo da imagem.
                   Barra "check-in libera em" é clicável e expande as senhas. */}
-              {homeStripsVisible && (
+              {homeStripsVisible && !checkoutConcluded && (
                 <div className="mt-3 md:mt-4">
                   {(() => {
                     const hasCodes =
