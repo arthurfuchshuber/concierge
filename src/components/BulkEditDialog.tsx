@@ -448,114 +448,83 @@ export function BulkEditDialog({
     return v === undefined ? "" : v;
   }
 
-  async function performSave(mode: "overwrite" | "fill-empty") {
+  /**
+   * Salvamento automático (igual às outras telas): aplica nos guias
+   * selecionados só o que foi editado agora, sobrescrevendo o valor.
+   */
+  async function saveAuto() {
+    if (!data || ids.length === 0) return;
     const patch: Record<string, unknown> = {};
-    for (const tab of TEXT_TABS) {
-      for (const g of tab.groups) {
-        for (const f of groupFields(g)) {
-          if (state.enabled[f.key]) patch[f.key] = coerce(f, state.values[f.key]);
-        }
-      }
+    for (const f of ALL_FIELDS) {
+      if (!dirtyRef.current.has(f.key)) continue;
+      if (!state.enabled[f.key]) continue;
+      patch[f.key] = coerce(f, state.values[f.key]);
     }
-    // Chaves desligadas de campos que tinham valor = remoção (sempre sobrescreve).
-    const clearPatch: Record<string, unknown> = {};
+    // Bloco desligado = remover essas informações dos guias selecionados.
     for (const f of removedFields) {
-      clearPatch[f.key] = f.kind === "boolean" ? false : f.kind === "number" ? 0 : "";
+      patch[f.key] = f.kind === "boolean" ? false : f.kind === "number" ? 0 : "";
     }
 
     const lists: Record<string, unknown> = {};
-    if (state.listsEnabled.manual)
+    if (state.listsEnabled.manual && state.manual.length)
       lists.manual = state.manual.filter((m) => m.title.trim()).map((m) => ({
         title: m.title.trim(), description: m.description.trim() || null, body: m.body.trim() || null,
       }));
-    if (state.listsEnabled.emergency)
+    if (state.listsEnabled.emergency && state.emergency.length)
       lists.emergency = state.emergency.filter((e) => e.label.trim() && e.number.trim())
         .map((e) => ({ label: e.label.trim(), number: e.number.trim() }));
-    if (state.listsEnabled.faqs)
+    if (state.listsEnabled.faqs && state.faqs.length)
       lists.faqs = state.faqs.filter((f) => f.question.trim() && f.answer.trim()).map((f) => ({
         question: f.question.trim(), answer: f.answer.trim(),
         tags: f.tags.split(",").map((t) => t.trim()).filter(Boolean),
       }));
-    if (state.listsEnabled.checkout)
+    if (state.listsEnabled.checkout && state.checkout.length)
       lists.checkout = state.checkout.filter((c) => c.label.trim()).map((c) => ({ label: c.label.trim() }));
 
-    if (Object.keys(patch).length === 0 && Object.keys(lists).length === 0 && Object.keys(clearPatch).length === 0) {
-      toast.error("Marque ao menos um campo para aplicar");
-      return;
-    }
+    if (Object.keys(patch).length === 0 && Object.keys(lists).length === 0) return;
 
     setSaving(true);
     try {
-      let updated = 0;
-      if (Object.keys(patch).length || Object.keys(lists).length) {
-        const r = await apply({ data: { ids, patch, lists: Object.keys(lists).length ? lists : undefined, mode } });
-        updated = r.updated;
-      }
-      if (Object.keys(clearPatch).length) {
-        const r2 = await apply({ data: { ids, patch: clearPatch, mode: "overwrite" } });
-        updated = Math.max(updated, r2.updated);
-      }
-      toast.success(`${updated} ${updated === 1 ? "guia atualizado" : "guias atualizados"}`);
-      // Volta para a tela de edição (não fecha o popup inteiro) e recarrega
-      // os dados para refletir exatamente o que ficou salvo.
-      setConfirmMode(null);
-      load(true);
+      await apply({ data: { ids, patch, lists: Object.keys(lists).length ? lists : undefined, mode: "overwrite" } });
       onSaved?.();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao atualizar");
     } finally {
       setSaving(false);
     }
   }
 
-  /** Conteúdo de um campo (cabeçalho + chave + input + limpar). */
-  function fieldBlock(f: FieldDef, bare: boolean) {
+  const autosave = useAutosave(state, saveAuto, { enabled: open && !loading && !!data, delay: 1200 });
+
+  /** Conteúdo de um campo. A chave fica apenas no bloco (ligar/desligar). */
+  function fieldBlock(f: FieldDef, showSwitch: boolean) {
     const enabled = !!state.enabled[f.key];
     const value = state.values[f.key];
     const s2 = fieldSummary(f.key);
-    const willRemove = !enabled && !!initialEnabledRef.current[f.key];
-    const emptyActive = enabled && (f.kind === "text" || f.kind === "textarea") && String(value ?? "").trim() === "";
+    const willRemove = showSwitch && !enabled && !!initialEnabledRef.current[f.key];
+    const mixed = s2.distinct.length > 1;
     return (
-      <div className={bare ? "min-w-0" : "min-w-0"}>
+      <div className="min-w-0">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
             <label className="text-sm font-medium truncate block">{f.label}</label>
-            <div className={`text-[11px] mt-0.5 truncate ${emptyActive || willRemove ? "text-destructive" : "text-muted-foreground"}`}>
+            <div className={`text-[11px] mt-0.5 truncate ${willRemove ? "text-destructive" : "text-muted-foreground"}`}>
               {willRemove
                 ? "Será removido dos guias selecionados"
-                : emptyActive
-                  ? "Será removido dos guias selecionados"
-                  : <>
-                      {s2.filled > 0 && s2.empty === 0 && s2.distinct.length === 1 && `Atual: ${s2.distinct[0]}`}
-                      {s2.filled > 0 && s2.empty === 0 && s2.distinct.length > 1 && `${s2.filled} guias · ${s2.distinct.length} valores distintos`}
-                      {s2.filled > 0 && s2.empty > 0 && `${s2.filled} preenchido${s2.filled > 1 ? "s" : ""} · ${s2.empty} vazio${s2.empty > 1 ? "s" : ""}`}
-                      {s2.filled === 0 && `${s2.empty} guia${s2.empty > 1 ? "s" : ""} sem valor`}
-                    </>}
+                : mixed
+                  ? `${s2.distinct.length} valores diferentes — preencha para igualar em todos`
+                  : s2.filled > 0
+                    ? (s2.empty > 0 ? `${s2.filled} preenchido${s2.filled > 1 ? "s" : ""} · ${s2.empty} vazio${s2.empty > 1 ? "s" : ""}` : "Valor atual")
+                    : `${s2.empty} guia${s2.empty > 1 ? "s" : ""} sem valor`}
             </div>
           </div>
-          <Switch checked={enabled} onCheckedChange={(v) => toggle(f.key, v)} />
+          {showSwitch && <Switch checked={enabled} onCheckedChange={(v) => toggle(f.key, v)} />}
         </div>
-        {enabled && <div className="mt-2">{renderField(f, value, (v) => setValue(f.key, v))}</div>}
-        {enabled && (f.kind === "text" || f.kind === "textarea") && (
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <span className="text-[11px] text-muted-foreground truncate">
-              {String(value ?? "").trim() === ""
-                ? "Campo vazio: ao substituir em todos, o valor será removido."
-                : "Deixe vazio para remover o valor."}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 shrink-0 text-[11px]"
-              onClick={() => setValue(f.key, "")}
-            >
-              <Trash2 className="size-3 mr-1" /> Limpar
-            </Button>
-          </div>
+        {(!showSwitch || enabled) && (
+          <div className="mt-2">{renderField(f, value, (v) => setValue(f.key, v))}</div>
         )}
       </div>
     );
   }
+
 
 
   return (
