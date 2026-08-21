@@ -1371,10 +1371,10 @@ function PropertyEditor() {
       ) : null}
       <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
 
-      <PageHeader
-        className="mb-3"
-        title={<span className="block w-full break-words whitespace-normal">{form.property.name || "Sem título"}</span>}
-      />
+      <header className="mb-3 min-w-0">
+        <h1 className="ds-page-title w-full break-words">{form.property.name || "Sem título"}</h1>
+      </header>
+
       {!isNew ? (
         <div className="mb-4 sm:mb-5 pb-4 border-b border-border/60 ds-scroll-x items-center gap-2">
           <PresenceAvatars users={presence.users} />
