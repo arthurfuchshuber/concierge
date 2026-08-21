@@ -744,7 +744,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               agora todos os status ficam visíveis ao mesmo tempo, e "puxar" um
               card de um status pro outro fica visual, não escondido atrás de um
               menu. */}
-          <section className="rounded-[0.3rem] bg-card p-4 sm:p-5 space-y-4 ds-3d">
+          <section className="rounded-none bg-transparent p-0 space-y-4">
             {/* Título "Quadro de operação" — redundante no mobile, onde as
                 próprias abas logo abaixo (Check-ins, Checkouts...) já deixam
                 claro do que se trata; mantido no desktop, onde a visão é de
