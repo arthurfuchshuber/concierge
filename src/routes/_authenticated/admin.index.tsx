@@ -21,8 +21,10 @@ function AdminEntry() {
   useEffect(() => {
     if (!access.ready) return;
     const first =
-      ROUTE_PERMISSIONS.find((r) => access.can(r.permission))?.prefix ?? "/admin/dashboard";
-    navigate({ to: first, replace: true });
+      ROUTE_PERMISSIONS.filter((r) => r.prefix !== "/admin/properties").find((r) =>
+        access.can(r.permission),
+      )?.prefix ?? "/admin/dashboard";
+    navigate({ to: first as "/admin/dashboard", replace: true });
   }, [access.ready]);
 
   return (
