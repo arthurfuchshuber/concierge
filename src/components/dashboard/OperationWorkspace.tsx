@@ -585,7 +585,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     if (!engQ.isLoading && !hasData) return null;
 
     return (
-      <section className={`rounded-[0.3rem] bg-card p-4 sm:p-5 ${wrapperClassName}`}>
+      <section className={`rounded-[0.3rem] bg-card p-4 sm:p-5 ds-3d ${wrapperClassName}`}>
         <EngagementBars
           loading={engQ.isLoading}
           checkins={engQ.data?.checkinsInPeriod ?? 0}
@@ -1580,7 +1580,7 @@ function OccupancyPanel({
           : "bg-transparent";
 
   return (
-    <section className="relative rounded-[0.3rem] bg-card shadow-sm">
+    <section className="relative rounded-[0.3rem] bg-card ds-3d">
       <div className="flex items-center justify-end px-2 pt-2">
         <Popover>
           <PopoverTrigger asChild>
