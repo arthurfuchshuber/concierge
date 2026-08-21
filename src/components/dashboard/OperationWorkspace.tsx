@@ -89,7 +89,7 @@ function ExtraGuests({
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="h-8 shrink-0 inline-flex items-center gap-1 rounded-[0.3rem] border border-border/60 bg-secondary/50 px-2.5 text-xs font-medium text-muted-foreground transition hover:border-border hover:text-foreground"
+        className="shrink-0 inline-flex items-center border-0 bg-transparent p-0 text-xs font-semibold text-muted-foreground transition hover:text-foreground"
         title={`${guests.length} outro(s) hóspede(s) nesta reserva`}
       >
         +{guests.length}
@@ -1411,9 +1411,9 @@ function KpiCard({
                           </>
                         ) : (
                           <>
+                            <ExtraGuests guests={r.additionalGuests ?? []} />
                             <span className="min-w-0 truncate">{r.guestName}</span>
                             <PhoneLink phone={r.guestPhone} country={r.guestPhoneCountry} />
-                            <ExtraGuests guests={r.additionalGuests ?? []} />
                           </>
                         )}
                       </div>
@@ -2435,9 +2435,9 @@ function ArrivalCard({
               )
             ) : (
               <span className="inline-flex min-w-0 items-center gap-1.5">
+                <ExtraGuests guests={row.additionalGuests ?? []} />
                 <span className="min-w-0 truncate">{row.guestName}</span>
                 <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
-                <ExtraGuests guests={row.additionalGuests ?? []} />
               </span>
             )}
           </div>
@@ -2712,16 +2712,16 @@ function ArrivalCard({
                       ? "Reabrir (voltar para Pendente)"
                       : "Marcar como Concluído"
             }
-            className={`flex-1 min-w-0 h-9 inline-flex items-center justify-center gap-2 px-3 text-xs font-semibold rounded-lg transition-colors ${
+            className={`flex-1 min-w-0 h-9 box-border leading-none inline-flex items-center justify-center gap-2 px-3 text-[12.5px] font-semibold tracking-tight rounded-lg transition-all active:scale-[0.99] ${
               cleaningBlock
                 ? "bg-orange-500/25 text-orange-700 dark:text-orange-400 border border-orange-500/50 cursor-not-allowed"
                 : blockCheck
                   ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/40 cursor-not-allowed"
                   : mode === "cleaning"
-                    ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-600/20"
+                    ? "bg-gradient-to-b from-emerald-500 to-emerald-600 text-white hover:from-emerald-500 hover:to-emerald-700 shadow-sm shadow-emerald-600/25"
                     : done
-                      ? "bg-secondary hover:bg-secondary/80"
-                      : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-600/20"
+                      ? "bg-secondary text-foreground/80 hover:bg-secondary/80"
+                      : "bg-gradient-to-b from-emerald-500 to-emerald-600 text-white hover:from-emerald-500 hover:to-emerald-700 shadow-sm shadow-emerald-600/25"
             }`}
           >
             <Check className="size-4 shrink-0" />
