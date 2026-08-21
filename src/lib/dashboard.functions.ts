@@ -370,9 +370,26 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     ]);
 
     // Quem viu / quem não viu.
-    const propName = new Map(
-      ((props ?? []) as Array<{ id: string; name?: string | null }>).map((p) => [p.id, p.name ?? ""]),
-    );
+    const propRows = (props ?? []) as Array<{ id: string; name?: string | null; owner_contact_id?: string | null }>;
+    const propName = new Map(propRows.map((p) => [p.id, p.name ?? ""]));
+    // Nome do proprietário — usado para espelhar a ordenação dos cards do Kanban.
+    const ownerIds = Array.from(new Set(propRows.map((p) => p.owner_contact_id).filter((v): v is string => !!v)));
+    const ownerByProp = new Map<string, string>();
+    if (ownerIds.length > 0) {
+      const { data: owners } = await context.supabase
+        .from("property_owners")
+        .select("id, name, trade_name")
+        .in("id", ownerIds);
+      const label = new Map(
+        ((owners ?? []) as Array<{ id: string; name: string | null; trade_name: string | null }>).map((o) => [
+          o.id,
+          (o.trade_name || o.name || "").trim(),
+        ]),
+      );
+      for (const p of propRows) {
+        if (p.owner_contact_id) ownerByProp.set(p.id, label.get(p.owner_contact_id) ?? "");
+      }
+    }
     const identity = (propertyId: string, name?: string | null, phone?: string | null) =>
       `${propertyId}|${(name || "").trim().toLowerCase()}|${(phone || "").replace(/\D/g, "")}`;
     const looseIdentity = (propertyId: string, name?: string | null) =>
