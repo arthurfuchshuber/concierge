@@ -1447,8 +1447,8 @@ function OccupancyPanel({
   onStartChange?: (v: string) => void;
   defaultStart?: string;
 }) {
-  const [openAgenda, setOpenAgenda] = useState<string>("");
   const [ownerFilter, setOwnerFilter] = useState<string>("");
+
   const [cityFilter, setCityFilter] = useState<string>("");
 
   /**
@@ -1484,59 +1484,8 @@ function OccupancyPanel({
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [openAgenda, days]);
+  }, [days]);
 
-  // Recolhe a agenda ao rolar a página — só depois de uma rolagem significativa
-  // e com uma pequena espera, para não parecer agressivo. Rolagem dentro do
-  // próprio quadrante do calendário nunca recolhe.
-  useEffect(() => {
-    if (!openAgenda) return;
-    const THRESHOLD = 260; // px de rolagem acumulada antes de recolher
-    const DELAY = 700; // ms de espera após ultrapassar o limite
-    const insideRef = { current: false };
-    let insideTimer: ReturnType<typeof setTimeout> | undefined;
-    let collapseTimer: ReturnType<typeof setTimeout> | undefined;
-    let baseY = window.scrollY;
-    const markInside = (e: Event) => {
-      const el = outerRef.current;
-      const t = e.target as Node | null;
-      if (el && t && el.contains(t)) {
-        insideRef.current = true;
-        baseY = window.scrollY;
-        if (collapseTimer) {
-          clearTimeout(collapseTimer);
-          collapseTimer = undefined;
-        }
-        if (insideTimer) clearTimeout(insideTimer);
-        insideTimer = setTimeout(() => {
-          insideRef.current = false;
-          baseY = window.scrollY;
-        }, 600);
-      }
-    };
-    const onScroll = () => {
-      if (insideRef.current) {
-        baseY = window.scrollY;
-        return;
-      }
-      if (Math.abs(window.scrollY - baseY) < THRESHOLD) return;
-      if (collapseTimer) return;
-      collapseTimer = setTimeout(() => {
-        collapseTimer = undefined;
-        if (!insideRef.current) setOpenAgenda("");
-      }, DELAY);
-    };
-    window.addEventListener("wheel", markInside, { passive: true, capture: true });
-    window.addEventListener("touchmove", markInside, { passive: true, capture: true });
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      if (insideTimer) clearTimeout(insideTimer);
-      if (collapseTimer) clearTimeout(collapseTimer);
-      window.removeEventListener("wheel", markInside, true);
-      window.removeEventListener("touchmove", markInside, true);
-      window.removeEventListener("scroll", onScroll);
-    };
-  }, [openAgenda]);
 
   const todayISO = todayISOSaoPaulo();
 
@@ -1618,250 +1567,247 @@ function OccupancyPanel({
     return [first, second];
   }
 
+  const rangeLabel = (() => {
+    const first = dayList[0];
+    const last = dayList[dayList.length - 1];
+    if (!first || !last) return "";
+    const f = (iso: string) =>
+      new Date(`${iso}T12:00:00Z`).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", timeZone: "UTC" });
+    return `${f(first).replace(".", "")} — ${f(last).replace(".", "")}`;
+  })();
+
+  const clsOf = (s: CellPart) =>
+    s === "in"
+      ? "bg-emerald-500"
+      : s === "out"
+        ? "bg-amber-500"
+        : s === "busy"
+          ? "bg-primary/35"
+          : "bg-transparent";
+
   return (
-    <Accordion
-      type="single"
-      collapsible
-      value={openAgenda}
-      onValueChange={setOpenAgenda}
-      className="rounded-[0.3rem] bg-card shadow-sm"
-    >
-      <AccordionItem value="agenda" className="border-0">
-        <div className="flex w-full items-center gap-2 px-4 sm:px-5 py-4">
-          <button
-            type="button"
-            onClick={() => setOpenAgenda((v) => (v ? "" : "agenda"))}
-            className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm font-semibold"
-          >
+    <section className="rounded-[0.3rem] bg-card shadow-sm">
+      <div className="flex items-center gap-3 px-4 sm:px-5 pt-4 pb-3">
+        <div className="min-w-0 flex-1">
+          <p className="ds-eyebrow">Ocupação</p>
+          <h3 className="ds-card-title flex items-center gap-2">
             <CalendarCheck className="size-4 shrink-0 text-muted-foreground" />
-            <span className="truncate">Ocupação dos Imóveis</span>
-          </button>
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className="relative ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-background/60 px-2.5 py-1.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-muted/60"
-              >
-                <Filter className="size-3.5 opacity-70" /> Filtros
-                {activeFilters > 0 ? (
-                  <span className="ml-0.5 grid size-4 place-items-center rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-[9px] font-semibold text-white">
-                    {activeFilters}
-                  </span>
-                ) : null}
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-64 space-y-4 p-3" onOpenAutoFocus={(e) => e.preventDefault()}>
-              {onStartChange ? (
-                <div>
-                  <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-                    Início do período ({days} dias)
-                  </p>
-                  <input
-                    type="date"
-                    value={start}
-                    onChange={(e) => e.target.value && onStartChange(e.target.value)}
-                    className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs tabular-nums"
-                  />
-                </div>
-              ) : null}
-              <div>
-                <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">Proprietário</p>
-                <select
-                  value={ownerFilter}
-                  onChange={(e) => setOwnerFilter(e.target.value)}
-                  className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
-                >
-                  <option value="">Todos</option>
-                  {owners.map((o) => (
-                    <option key={o} value={o}>
-                      {o}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">Cidade</p>
-                <select
-                  value={cityFilter}
-                  onChange={(e) => setCityFilter(e.target.value)}
-                  className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
-                >
-                  <option value="">Todas</option>
-                  {cities.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setOwnerFilter("");
-                  setCityFilter("");
-                  if (defaultStart && onStartChange) onStartChange(defaultStart);
-                }}
-                className="w-full rounded-md border border-border px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-muted/60"
-              >
-                Limpar filtros
-              </button>
-            </PopoverContent>
-          </Popover>
-          <button
-            type="button"
-            aria-label={openAgenda ? "Recolher" : "Expandir"}
-            onClick={() => setOpenAgenda((v) => (v ? "" : "agenda"))}
-            className="shrink-0 text-muted-foreground transition-transform hover:text-foreground"
-          >
-            <ChevronDown className={`size-4 transition-transform ${openAgenda ? "rotate-180" : ""}`} />
-          </button>
+            <span className="truncate">Agenda dos imóveis</span>
+          </h3>
         </div>
-        <AccordionContent className="px-4 sm:px-5 pb-5">
-          {loading ? (
-            <div className="py-10 grid place-items-center text-muted-foreground">
-              <Loader2 className="size-5 animate-spin" />
+        <span className="hidden shrink-0 text-[11px] tabular-nums text-muted-foreground sm:block">{rangeLabel}</span>
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="relative inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-secondary/50 px-3 text-xs font-medium text-foreground/80 transition-colors hover:bg-secondary"
+            >
+              <Filter className="size-3.5 opacity-70" /> Filtros
+              {activeFilters > 0 ? (
+                <span className="ml-0.5 grid size-4 place-items-center rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-[9px] font-semibold text-white">
+                  {activeFilters}
+                </span>
+              ) : null}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-64 space-y-4 p-3" onOpenAutoFocus={(e) => e.preventDefault()}>
+            {onStartChange ? (
+              <div>
+                <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Início do período ({days} dias)
+                </p>
+                <input
+                  type="date"
+                  value={start}
+                  onChange={(e) => e.target.value && onStartChange(e.target.value)}
+                  className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs tabular-nums"
+                />
+              </div>
+            ) : null}
+            <div>
+              <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">Proprietário</p>
+              <select
+                value={ownerFilter}
+                onChange={(e) => setOwnerFilter(e.target.value)}
+                className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
+              >
+                <option value="">Todos</option>
+                {owners.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
             </div>
-          ) : properties.length === 0 ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">Nenhum imóvel para exibir.</div>
-          ) : (
-            <>
-              <div ref={outerRef} className="w-full">
-                <div
-                  ref={scrollRef}
-                  style={{ scrollPaddingLeft: NAME_COL, width: viewportW, maxWidth: "100%" }}
-                  className="sg-elegant-scroll max-h-[18rem] overflow-auto snap-x snap-mandatory"
+            <div>
+              <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">Cidade</p>
+              <select
+                value={cityFilter}
+                onChange={(e) => setCityFilter(e.target.value)}
+                className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
+              >
+                <option value="">Todas</option>
+                {cities.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setOwnerFilter("");
+                setCityFilter("");
+                if (defaultStart && onStartChange) onStartChange(defaultStart);
+              }}
+              className="w-full rounded-md border border-border px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-muted/60"
+            >
+              Limpar filtros
+            </button>
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      <div className="px-4 sm:px-5 pb-5">
+        {loading ? (
+          <div className="py-10 grid place-items-center text-muted-foreground">
+            <Loader2 className="size-5 animate-spin" />
+          </div>
+        ) : properties.length === 0 ? (
+          <div className="py-8 text-center text-sm text-muted-foreground">Nenhum imóvel para exibir.</div>
+        ) : (
+          <>
+            <div ref={outerRef} className="w-full">
+              <div
+                ref={scrollRef}
+                style={{ scrollPaddingLeft: NAME_COL, width: viewportW, maxWidth: "100%" }}
+                className="sg-elegant-scroll max-h-[22rem] overflow-auto snap-x snap-mandatory"
+              >
+                <table
+                  className="table-fixed border-separate border-spacing-x-0 border-spacing-y-1 text-xs"
+                  style={{ width: NAME_COL + dayList.length * dayW, minWidth: NAME_COL + dayList.length * dayW }}
                 >
-                  <table
-                    className="table-fixed border-separate border-spacing-x-0 border-spacing-y-1 text-xs"
-                    style={{ width: NAME_COL + dayList.length * dayW, minWidth: NAME_COL + dayList.length * dayW }}
-                  >
-                    <thead>
-                      <tr>
-                        <th
-                          className="sticky left-0 top-0 z-20 bg-card pr-2 text-left font-medium text-muted-foreground"
-                          style={{ width: NAME_COL, minWidth: NAME_COL }}
-                        >
-                          Imóvel
-                        </th>
-                        {dayList.map((d) => {
-                          const wd = new Date(`${d}T12:00:00Z`).toLocaleDateString("pt-BR", {
-                            weekday: "short",
-                            timeZone: "UTC",
-                          });
-                          const isToday = d === todayISO;
-                          return (
-                            <th
-                              key={d}
-                              style={{ width: dayW, minWidth: dayW }}
-                              className={`sticky top-0 z-10 snap-start bg-card px-0 font-medium tabular-nums ${
-                                isToday ? "text-emerald-500" : "text-muted-foreground"
+                  <thead>
+                    <tr>
+                      <th
+                        className="sticky left-0 top-0 z-20 bg-card pb-2 pr-3 text-left"
+                        style={{ width: NAME_COL, minWidth: NAME_COL }}
+                      >
+                        <span className="ds-eyebrow">Imóvel</span>
+                      </th>
+                      {dayList.map((d) => {
+                        const wd = new Date(`${d}T12:00:00Z`).toLocaleDateString("pt-BR", {
+                          weekday: "short",
+                          timeZone: "UTC",
+                        });
+                        const isToday = d === todayISO;
+                        return (
+                          <th
+                            key={d}
+                            style={{ width: dayW, minWidth: dayW }}
+                            className="sticky top-0 z-10 snap-start bg-card px-0 pb-2 font-medium tabular-nums"
+                          >
+                            <div
+                              className={`mx-auto flex w-full flex-col items-center rounded-md py-1 ${
+                                isToday ? "bg-primary/10 text-primary" : "text-muted-foreground"
                               }`}
                             >
-                              <div className="text-[9px] uppercase tracking-wide opacity-70">{wd.replace(".", "")}</div>
-                              <div className="text-[10px]">
-                                {d.slice(8, 10)}/{d.slice(5, 7)}
-                              </div>
-                            </th>
-                          );
-                        })}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {visibleProperties.map((p) => (
-                        <tr key={p.id}>
+                              <span className="text-[9px] uppercase tracking-wide opacity-70">
+                                {wd.replace(".", "")}
+                              </span>
+                              <span className="text-[11px] font-semibold leading-tight">{d.slice(8, 10)}</span>
+                            </div>
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleProperties.map((p) => {
+                      const halves = dayList.flatMap((d) => cellHalves(p.id, d));
+                      const occ = halves.map((h) => h !== "free");
+                      return (
+                        <tr key={p.id} className="group">
                           <td
-                            className="sticky left-0 z-10 bg-card pr-2 align-middle"
+                            className="sticky left-0 z-10 bg-card py-1 pr-3 align-middle"
                             style={{ width: NAME_COL, minWidth: NAME_COL }}
                           >
-                            <div className="min-w-0 max-w-full">
+                            <div className="min-w-0 max-w-full border-l-2 border-border/60 pl-2 group-hover:border-primary/50">
                               {p.ownerName ? (
-                                <div className="truncate text-[10px] font-semibold text-accent" title={p.ownerName}>
+                                <div className="truncate text-[9.5px] font-semibold uppercase tracking-wide text-accent/80">
                                   {p.ownerName}
                                 </div>
                               ) : null}
-                              <div className="truncate text-[11px] font-medium leading-tight" title={p.name}>
+                              <div className="truncate text-[11.5px] font-semibold leading-tight" title={p.name}>
                                 {p.name}
                               </div>
                               {p.city ? (
-                                <div
-                                  className="text-[10px] leading-tight text-muted-foreground break-words whitespace-normal"
-                                  title={p.city}
-                                >
-                                  {p.city}
-                                </div>
+                                <div className="truncate text-[10px] leading-tight text-muted-foreground">{p.city}</div>
                               ) : null}
                             </div>
                           </td>
-                          {dayList.map((d) => {
-                            const [a, b] = cellHalves(p.id, d);
+                          {dayList.map((d, i) => {
+                            const a = halves[i * 2] as CellPart;
+                            const b = halves[i * 2 + 1] as CellPart;
                             const isToday = d === todayISO;
-                            const clsOf = (s: CellPart) =>
-                              s === "in"
-                                ? "bg-emerald-500/85"
-                                : s === "out"
-                                  ? "bg-amber-500/85"
-                                  : s === "busy"
-                                    ? "bg-primary/45"
-                                    : "bg-muted/60";
                             const labelOf = (s: CellPart) =>
                               s === "in" ? "Check-in" : s === "out" ? "Checkout" : s === "busy" ? "Ocupado" : "Livre";
                             const title =
                               a === b
                                 ? `${labelOf(a)} · ${fmtDateBR(d)}`
                                 : `${labelOf(a)} → ${labelOf(b)} · ${fmtDateBR(d)}`;
+                            const idxA = i * 2;
+                            const idxB = i * 2 + 1;
+                            const round = (idx: number) =>
+                              [
+                                occ[idx] && !occ[idx - 1] ? "rounded-l-full" : "",
+                                occ[idx] && !occ[idx + 1] ? "rounded-r-full" : "",
+                              ].join(" ");
                             return (
                               <td
                                 key={d}
                                 style={{ width: dayW, minWidth: dayW }}
-                                className={`snap-start px-0 ${isToday ? "bg-emerald-500/10" : ""}`}
+                                className={`px-0 py-1 snap-start ${isToday ? "bg-primary/[0.06]" : ""}`}
+                                title={title}
                               >
-                                {a === b ? (
-                                  <div
-                                    className={`mx-auto rounded-full ${clsOf(a)}`}
-                                    style={{ width: dotSize, height: dotSize }}
-                                    title={title}
-                                  />
-                                ) : (
-                                  <div
-                                    className="mx-auto flex overflow-hidden rounded-full"
-                                    style={{ width: dotSize, height: dotSize }}
-                                    title={title}
-                                  >
-                                    <div className={`h-full w-1/2 ${clsOf(a)}`} />
-                                    <div className={`h-full w-1/2 ${clsOf(b)}`} />
-                                  </div>
-                                )}
+                                <div className="relative flex h-6 w-full items-center">
+                                  <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border/50" />
+                                  <div className={`relative z-10 h-full w-1/2 ${clsOf(a)} ${round(idxA)}`} />
+                                  <div className={`relative z-10 h-full w-1/2 ${clsOf(b)} ${round(idxB)}`} />
+                                </div>
                               </td>
                             );
                           })}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
+            </div>
 
-              <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
-                <span className="inline-flex items-center gap-1">
-                  <span className="size-2.5 rounded-full bg-emerald-500/80" /> Check-in
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <span className="size-2.5 rounded-full bg-amber-500/80" /> Checkout
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <span className="size-2.5 rounded-full bg-primary/50" /> Ocupado
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <span className="size-2.5 rounded-full bg-muted" /> Livre
-                </span>
-              </div>
-            </>
-          )}
-        </AccordionContent>
-      </AccordionItem>
-    </Accordion>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[10.5px] font-medium text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-2 w-4 rounded-full bg-emerald-500" /> Check-in
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-2 w-4 rounded-full bg-amber-500" /> Checkout
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-2 w-4 rounded-full bg-primary/35" /> Ocupado
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-px w-4 bg-border" /> Livre
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+    </section>
   );
 }
+
 
 function RangeDropdown<T extends string>({
   value,
