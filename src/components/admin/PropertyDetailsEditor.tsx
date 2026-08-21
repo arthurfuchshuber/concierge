@@ -125,10 +125,10 @@ export function PropertyDetailsEditor({ propertyId }: { propertyId: string }) {
     el.style.height = `${Math.max(el.scrollHeight, 180)}px`;
   }, [text, loaded]);
 
-  // Salva sozinho alguns instantes depois da última mudança — nada de botão
-  // "Salvar". `primaryId`/`legacyIds` são lidos de novo a cada chamada (via
-  // a ref interna do useAutosave), então o primeiro save (que cria o
-  // registro) não faz o segundo save tentar inserir de novo.
+  // Salvamento instantâneo (estilo Miro/Figma): dispara ~250ms após a tecla,
+  // atualiza o cache local na hora e NUNCA refaz a busca no servidor — refetch
+  // a cada save era o que deixava a tela lenta.
+  const legacyCleanedRef = useRef(false);
   const autosave = useAutosave(
     { text, images },
     async (value) => {
@@ -146,14 +146,29 @@ export function PropertyDetailsEditor({ propertyId }: { propertyId: string }) {
           source: "text",
         },
       });
+      const savedId = saved?.id ?? currentId;
       if (saved?.id) createdIdRef.current = saved.id;
-      for (const id of legacyIds) {
-        await deleteFn({ data: { id, propertyId } });
+      // Cache local reflete o novo estado sem nenhuma ida extra ao servidor.
+      qc.setQueryData(["property-details", propertyId], (prev: unknown) => {
+        const list = ((prev as { details?: Array<Record<string, unknown>> } | undefined)?.details ?? []).slice(0, 1);
+        const base = list[0] ?? {};
+        return {
+          ...(prev as Record<string, unknown> | undefined),
+          details: savedId
+            ? [{ ...base, id: savedId, title: null, content: value.text.trim(), images: value.images }]
+            : [],
+        };
+      });
+      if (!legacyCleanedRef.current && legacyIds.length) {
+        legacyCleanedRef.current = true;
+        void Promise.all(legacyIds.map((id) => deleteFn({ data: { id, propertyId } }))).catch(() => {
+          legacyCleanedRef.current = false;
+        });
       }
-      qc.invalidateQueries({ queryKey: ["property-details", propertyId] });
     },
-    { enabled: loaded },
+    { enabled: loaded, delay: 250 },
   );
+
 
   async function handleFiles(files: FileList) {
     setUploading(true);
