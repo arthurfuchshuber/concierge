@@ -3126,12 +3126,31 @@ function PostAccessOnboarding({
    * do próprio onboarding pra voltar. */
   onBackToForm: () => void;
 }) {
-  const [step, setStep] = useState<0 | 1 | 2 | 3>(0);
+  // O fluxo é montado a partir do que REALMENTE existe cadastrado: sem
+  // instruções, a etapa "Passo a passo" não existe; sem nenhuma senha, a etapa
+  // "Senhas" não existe. Nunca mostramos uma etapa vazia para o hóspede.
+  const hasStepsStage = !!(hasCheckinSteps && checkinInstructionsText && checkinInstructionsText.trim());
+  const hasPasswordsStage = !!(lockCode || wifiPassword || gateCode);
+  const flow = useMemo(
+    () =>
+      [
+        "intro" as const,
+        ...(hasStepsStage ? (["steps"] as const) : []),
+        ...(hasPasswordsStage ? (["passwords"] as const) : []),
+        "final" as const,
+      ] as Array<"intro" | "steps" | "passwords" | "final">,
+    [hasStepsStage, hasPasswordsStage],
+  );
+  const [stepIndex, setStepIndex] = useState(0);
+  const current = flow[Math.min(stepIndex, flow.length - 1)];
+  const step = current === "intro" ? 0 : current === "final" ? 3 : 1;
+  const goNext = () => setStepIndex((i) => Math.min(i + 1, flow.length - 1));
+  const goBack = () => setStepIndex((i) => Math.max(i - 1, 0));
   /** Acordeão de senhas: todos recolhidos ao abrir, apenas um aberto por vez. */
   const [openPwd, setOpenPwd] = useState<string | null>(null);
   useEffect(() => {
     if (active) {
-      setStep(0);
+      setStepIndex(0);
       setOpenPwd(null);
     }
   }, [active]);
@@ -3178,25 +3197,25 @@ function PostAccessOnboarding({
               : "rounded-[22px] border border-[#a855f7]/25 bg-card/95 backdrop-blur-2xl shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65),0_0_60px_-20px_rgba(232,45,174,0.3)] p-5",
           )}
         >
-          {step > 0 && step < 3 && (
+          {current !== "intro" && current !== "final" && (
             <div className="mb-3 flex items-center gap-1.5">
-              {[0, 1, 2].map((i) => (
+              {flow.slice(0, -1).map((k, i) => (
                 <span
-                  key={i}
+                  key={k}
                   className={cn(
                     "h-1 rounded-full transition-all",
-                    i === step ? "w-6 bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]" : "w-3 bg-[#a855f7]/25",
+                    i === stepIndex ? "w-6 bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]" : "w-3 bg-[#a855f7]/25",
                   )}
                 />
               ))}
               <span className="ml-auto text-[9.5px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                Passo {step + 1}/3
+                Passo {stepIndex + 1}/{flow.length - 1}
               </span>
             </div>
           )}
 
           {/* Passo 1: confirmação da estadia */}
-          {step === 0 && (
+          {current === "intro" && (
             <>
               <h2 className="text-[22px] font-bold leading-[1.14] tracking-tight text-foreground mb-1">
                 Tudo certo, {firstName}!
@@ -3257,7 +3276,7 @@ function PostAccessOnboarding({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setStep(1)}
+                  onClick={goNext}
                   className="flex-1 h-[42px] rounded-2xl text-white font-semibold text-[13px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
                 >
                   Está tudo certo →
@@ -3267,31 +3286,25 @@ function PostAccessOnboarding({
           )}
 
           {/* Passo 2: passo a passo real da chegada */}
-          {step === 1 && (
+          {current === "steps" && (
             <>
               <OnboardingArrivalHeader propertyName={propertyName} city={city} tab="steps" />
 
-              <div className="mt-3 mb-4 max-h-[calc(100dvh-330px)] min-h-[140px] overflow-y-auto sg-always-scroll pr-1.5">
-                {hasCheckinSteps && checkinInstructionsText ? (
-                  <StepList text={checkinInstructionsText} dense compact />
-                ) : (
-                  <p className="text-[12.5px] text-muted-foreground leading-relaxed [text-wrap:auto]">
-                    Assim que estiver na janela de check-in, o passo a passo completo aparece na aba Chegada.
-                  </p>
-                )}
-              </div>
+              <WholeItemsScroll className="mt-3 mb-4">
+                <StepList text={checkinInstructionsText!} dense compact />
+              </WholeItemsScroll>
 
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setStep(0)}
+                  onClick={goBack}
                   className="h-[42px] px-4 rounded-2xl border-0 text-[12.5px] font-medium text-muted-foreground hover:text-foreground transition-colors"
                 >
                   ← Voltar
                 </button>
                 <button
                   type="button"
-                  onClick={() => setStep(2)}
+                  onClick={goNext}
                   className="flex-1 h-[42px] rounded-2xl text-white font-semibold text-[13px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
                 >
                   Entendi →
@@ -3301,7 +3314,7 @@ function PostAccessOnboarding({
           )}
 
           {/* Passo 3: senhas de acesso — cards expansivos, um por vez */}
-          {step === 2 && (
+          {current === "passwords" && (
             <>
               <OnboardingArrivalHeader propertyName={propertyName} city={city} tab="passwords" />
 
@@ -3360,14 +3373,14 @@ function PostAccessOnboarding({
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setStep(1)}
+                  onClick={goBack}
                   className="h-[42px] px-4 rounded-2xl border-0 text-[12.5px] font-medium text-muted-foreground hover:text-foreground transition-colors"
                 >
                   ← Voltar
                 </button>
                 <button
                   type="button"
-                  onClick={() => setStep(3)}
+                  onClick={goNext}
                   className="flex-1 h-[42px] rounded-2xl text-white font-semibold text-[13px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
                 >
                   Perfeito →
@@ -3379,7 +3392,7 @@ function PostAccessOnboarding({
 
 
           {/* Passo 4: encerramento — pergunta direta, chat só aqui, por último */}
-          {step === 3 && (
+          {current === "final" && (
             <div className="text-center">
               <div className="mx-auto mb-4 size-13 rounded-full bg-emerald-500/15 border-2 border-emerald-500 grid place-items-center text-[22px]">
                 ✓
