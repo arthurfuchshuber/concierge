@@ -1055,18 +1055,18 @@ function OperationShell({ view }: { view: OperationView }) {
         <p className="ds-page-subtitle mt-1.5">{copy.subtitle}</p>
       </div>
 
-      {/* Segmented control — Dashboard / Kanban / Calendário (de ponta a ponta) */}
-      <nav className="flex -mx-4 sm:-mx-6 lg:-mx-10 bg-foreground/5">
+      {/* Segmented control — Dashboard / Kanban / Calendário (largura da página) */}
+      <nav className="flex w-full overflow-hidden rounded-[0.3rem] bg-foreground/5 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_10%,transparent),0_1px_2px_color-mix(in_oklab,var(--foreground)_10%,transparent),0_4px_10px_-6px_color-mix(in_oklab,var(--foreground)_22%,transparent)]">
         {OPERATION_TABS.map((t) => {
           const active = t.view === view;
           return (
             <Link
               key={t.view}
               to={t.to}
-              className={`flex-1 px-3 py-2.5 text-center text-xs font-semibold transition-colors ${
+              className={`flex-1 px-3 py-2.5 text-center text-xs font-semibold transition-all ${
                 active
-                  ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_2px_6px_-1px_rgba(124,26,216,0.45)]"
+                  : "text-muted-foreground hover:text-foreground shadow-[inset_0_-1px_0_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
               }`}
             >
               {t.label}
@@ -1074,6 +1074,7 @@ function OperationShell({ view }: { view: OperationView }) {
           );
         })}
       </nav>
+
     </div>
   );
 }
