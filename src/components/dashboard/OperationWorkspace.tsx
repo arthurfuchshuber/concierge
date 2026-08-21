@@ -1917,7 +1917,6 @@ function OccupancyPanel({
                           {dayList.map((d, i) => {
                             const a = halves[i * 2] as CellPart;
                             const b = halves[i * 2 + 1] as CellPart;
-                            const isToday = d === todayISO;
                             const labelOf = (s: CellPart) =>
                               s === "in" ? "Check-in" : s === "out" ? "Checkout" : s === "busy" ? "Ocupado" : "Livre";
                             const title =
