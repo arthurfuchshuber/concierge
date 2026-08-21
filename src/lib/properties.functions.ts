@@ -428,8 +428,28 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
     const patch: Record<string, unknown> = Object.fromEntries(
       Object.entries(data.patch).map(([k, v]) => [k, v === "" ? null : v]),
     );
+    // Trava de segurança: senhas, Wi-Fi, endereço e mapas nunca podem ser
+    // gravados em lote — um imóvel jamais recebe o código de outro.
+    if (data.ids.length > 1) {
+      for (const k of PER_PROPERTY_FIELDS) delete patch[k];
+    }
     const patchKeys = Object.keys(patch);
     const updatedSet = new Set<string>();
+
+    // Guarda os valores anteriores para permitir recuperação em caso de engano.
+    if (patchKeys.length > 0) {
+      const before = await sb.from("properties").select(["id", ...patchKeys].join(",")).in("id", data.ids);
+      if (!before.error && before.data) {
+        await sb.from("audit_logs").insert({
+          user_id: context.userId,
+          action: "properties.bulk_edit.snapshot",
+          entity_type: "properties",
+          entity_id: data.ids[0]!,
+          metadata: { before: before.data, fields: patchKeys, ids: data.ids } as never,
+        } as never);
+      }
+    }
+
 
     function isEmpty(v: unknown): boolean {
       return v === null || v === undefined || v === "";
