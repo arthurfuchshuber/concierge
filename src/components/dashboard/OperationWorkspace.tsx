@@ -585,7 +585,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     if (!engQ.isLoading && !hasData) return null;
 
     return (
-      <section className={`rounded-[0.3rem] bg-card p-4 sm:p-5 ds-3d ${wrapperClassName}`}>
+      <section className={`rounded-[0.3rem] border-0 bg-card p-4 sm:p-5 ds-3d ${wrapperClassName}`}>
         <EngagementBars
           loading={engQ.isLoading}
           checkins={engQ.data?.checkinsInPeriod ?? 0}
@@ -1207,7 +1207,7 @@ function KpiCard({
         {compact ? (
           <button
             type="button"
-            className={`w-full flex items-center gap-2 rounded-[0.3rem] bg-card px-3 py-2.5 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+            className={`w-full flex items-center gap-2 rounded-[0.3rem] border-0 bg-card px-3.5 py-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
             <Icon className={`size-3.5 shrink-0 ${dotClass.replace("bg-", "text-")}`} />
             <span className="ds-eyebrow truncate">
@@ -1220,7 +1220,7 @@ function KpiCard({
         ) : (
           <button
             type="button"
-            className={`w-full h-full rounded-[0.3rem] bg-card px-3 py-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+            className={`w-full h-full rounded-[0.3rem] border-0 bg-card px-3.5 py-5 min-h-[96px] flex flex-col justify-between text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
             <div className="flex items-center gap-2 ds-eyebrow min-w-0">
               <Icon className="size-3.5 shrink-0" />
@@ -1387,7 +1387,7 @@ function FreePropertiesCard({
       <DialogTrigger asChild>
         <button
           type="button"
-          className="w-full h-full rounded-[0.3rem] bg-card px-3 py-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ds-3d ds-3d-hover"
+          className="w-full h-full rounded-[0.3rem] border-0 bg-card px-3.5 py-5 min-h-[96px] flex flex-col justify-between text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ds-3d ds-3d-hover"
         >
           <div className="flex items-center gap-2 ds-eyebrow">
             <Home className="size-3.5 shrink-0" /> <span className="truncate">Imóveis livres</span>
@@ -1580,7 +1580,7 @@ function OccupancyPanel({
           : "bg-transparent";
 
   return (
-    <section className="relative rounded-[0.3rem] bg-card ds-3d">
+    <section className="relative rounded-[0.3rem] border-0 bg-card ds-3d">
       <div className="flex items-center justify-end px-2 pt-2">
         <Popover>
           <PopoverTrigger asChild>
