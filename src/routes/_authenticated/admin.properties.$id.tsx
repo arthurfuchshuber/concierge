@@ -304,6 +304,7 @@ function PropertyEditor() {
     }
   }, []);
   const [enriching, setEnriching] = useState(false);
+  const enrichedUrlRef = useRef<string | null>(null);
   const [generatingCityRecs, setGeneratingCityRecs] = useState(false);
   const [saving, setSaving] = useState(false);
   // Itens para o picker @mention (FAQs do imóvel; recomendações são carregadas em outro fluxo).
@@ -727,6 +728,20 @@ function PropertyEditor() {
     }
   }
 
+  // Auto-preenchimento: dispara sozinho assim que um link válido do Maps é colado/digitado.
+  useEffect(() => {
+    const url = (form.property.maps_url || "").trim();
+    if (!url || !/^https?:\/\/\S+$/i.test(url) || !/(google\.[a-z.]+\/maps|maps\.app\.goo\.gl|goo\.gl\/maps)/i.test(url)) return;
+    if (enrichedUrlRef.current === url) return;
+    if (enriching) return;
+    const t = setTimeout(() => {
+      enrichedUrlRef.current = url;
+      void handleEnrich();
+    }, 900);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.property.maps_url, enriching]);
+
   async function handleGenerateCityRecommendations(mode: "replace" | "fill" = "fill") {
     const city = form.property.city.trim();
     if (!city) {
@@ -1057,15 +1072,14 @@ function PropertyEditor() {
   );
 
   const renderAddressSection = () => (
-          <Section id="address" icon={MapPinned} title="Endereço e localização" desc="Cole o link do Google Maps e use Auto-preencher." collapsible>
+          <Section id="address" icon={MapPinned} title="Endereço e localização" desc="Cole o link do Google Maps — o endereço é preenchido automaticamente." collapsible>
             <Field label="Link do Google Maps — Entrada principal" required>
-              <div className="flex gap-2">
-                <Input value={form.property.maps_url} onChange={(e) => update("maps_url", e.target.value)} placeholder="https://maps.app.goo.gl/..." />
-                <Button onClick={handleEnrich} disabled={enriching} variant="secondary" className="shrink-0">
-                  {enriching ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-                  <span className="ml-1.5 hidden sm:inline">{enriching ? "Buscando…" : "Auto-preencher"}</span>
-                </Button>
-              </div>
+              <Input value={form.property.maps_url} onChange={(e) => update("maps_url", e.target.value)} placeholder="https://maps.app.goo.gl/..." />
+              {enriching && (
+                <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Loader2 className="size-3.5 animate-spin" /> Buscando endereço…
+                </p>
+              )}
             </Field>
             <Field label="Link do Google Maps — Garagem (opcional)" hint="Aparece como um segundo botão de localização no guia.">
               <Input value={form.property.garage_maps_url} onChange={(e) => update("garage_maps_url", e.target.value)} placeholder="https://maps.app.goo.gl/..." />
