@@ -1567,14 +1567,8 @@ function OccupancyPanel({
     return [first, second];
   }
 
-  const rangeLabel = (() => {
-    const first = dayList[0];
-    const last = dayList[dayList.length - 1];
-    if (!first || !last) return "";
-    const f = (iso: string) =>
-      new Date(`${iso}T12:00:00Z`).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", timeZone: "UTC" });
-    return `${f(first).replace(".", "")} — ${f(last).replace(".", "")}`;
-  })();
+
+
 
   const clsOf = (s: CellPart) =>
     s === "in"
