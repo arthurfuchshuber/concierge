@@ -415,26 +415,52 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       seen: { strict: Set<string>; loose: Set<string>; phones: Set<string> },
       list: Entry[],
     ) {
-      const viewed: GuestMark[] = [];
-      const notViewed: GuestMark[] = [];
+      type Item = { mark: GuestMark; propertyId: string };
+      const viewed: Item[] = [];
+      const notViewed: Item[] = [];
       for (const e of list) {
-        const mark: GuestMark = { name: e.name, property: propName.get(e.property_id) || "" };
+        const mark: GuestMark = {
+          name: e.name,
+          property: propName.get(e.property_id) || "",
+          owner: ownerByProp.get(e.property_id) || "",
+          time: e.time ?? null,
+        };
         const digits = (e.phone || "").replace(/\D/g, "");
         const hit =
           e.name !== "Hóspede pendente" &&
           (seen.strict.has(identity(e.property_id, e.name, e.phone)) ||
             seen.loose.has(looseIdentity(e.property_id, e.name)) ||
             (digits.length >= 8 && seen.phones.has(`${e.property_id}|${digits.slice(-8)}`)));
-        (hit ? viewed : notViewed).push(mark);
+        (hit ? viewed : notViewed).push({ mark, propertyId: e.property_id });
       }
-      // Mantém a ordem de acesso dentro de cada imóvel (o 1º a acessar é o
-      // hóspede principal) e agrupa os imóveis por nome.
-      const stableByProperty = (list: GuestMark[]) =>
-        list
-          .map((m, i) => ({ m, i }))
-          .sort((a, b) => a.m.property.localeCompare(b.m.property, "pt-BR") || a.i - b.i)
-          .map((x) => x.m);
-      return { viewed: stableByProperty(viewed), notViewed: stableByProperty(notViewed) };
+      // Mesma ordenação dos cards do Kanban: horário previsto (mais cedo
+      // primeiro, sem horário por último) → proprietário A→Z → anúncio A→Z.
+      // Dentro do imóvel mantém a ordem de acesso (1º a acessar = principal).
+      const txt = (a?: string | null, b?: string | null) =>
+        (a ?? "").localeCompare(b ?? "", "pt-BR", { sensitivity: "base" });
+      const sortMarks = (items: Item[]) => {
+        const earliest = new Map<string, string | null>();
+        items.forEach(({ mark, propertyId }, i) => {
+          const cur = earliest.get(propertyId);
+          if (!earliest.has(propertyId) || (mark.time && (!cur || mark.time < cur))) {
+            earliest.set(propertyId, mark.time ?? cur ?? null);
+          }
+          void i;
+        });
+        return items
+          .map((it, i) => ({ it, i }))
+          .sort((a, b) => {
+            const ta = earliest.get(a.it.propertyId) ?? null;
+            const tb = earliest.get(b.it.propertyId) ?? null;
+            if (ta && tb && ta !== tb) return ta.localeCompare(tb);
+            if (!!ta !== !!tb) return ta ? -1 : 1;
+            return (
+              txt(a.it.mark.owner, b.it.mark.owner) || txt(a.it.mark.property, b.it.mark.property) || a.i - b.i
+            );
+          })
+          .map((x) => x.it.mark);
+      };
+      return { viewed: sortMarks(viewed), notViewed: sortMarks(notViewed) };
     }
 
     const checkinBreakdown = breakdown(checkinSeen, entries);
