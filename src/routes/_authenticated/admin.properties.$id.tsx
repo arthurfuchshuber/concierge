@@ -1072,15 +1072,14 @@ function PropertyEditor() {
   );
 
   const renderAddressSection = () => (
-          <Section id="address" icon={MapPinned} title="Endereço e localização" desc="Cole o link do Google Maps e use Auto-preencher." collapsible>
+          <Section id="address" icon={MapPinned} title="Endereço e localização" desc="Cole o link do Google Maps — o endereço é preenchido automaticamente." collapsible>
             <Field label="Link do Google Maps — Entrada principal" required>
-              <div className="flex gap-2">
-                <Input value={form.property.maps_url} onChange={(e) => update("maps_url", e.target.value)} placeholder="https://maps.app.goo.gl/..." />
-                <Button onClick={handleEnrich} disabled={enriching} variant="secondary" className="shrink-0">
-                  {enriching ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-                  <span className="ml-1.5 hidden sm:inline">{enriching ? "Buscando…" : "Auto-preencher"}</span>
-                </Button>
-              </div>
+              <Input value={form.property.maps_url} onChange={(e) => update("maps_url", e.target.value)} placeholder="https://maps.app.goo.gl/..." />
+              {enriching && (
+                <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Loader2 className="size-3.5 animate-spin" /> Buscando endereço…
+                </p>
+              )}
             </Field>
             <Field label="Link do Google Maps — Garagem (opcional)" hint="Aparece como um segundo botão de localização no guia.">
               <Input value={form.property.garage_maps_url} onChange={(e) => update("garage_maps_url", e.target.value)} placeholder="https://maps.app.goo.gl/..." />
