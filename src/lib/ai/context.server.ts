@@ -18,20 +18,21 @@ export type AgentContext = {
   stayPhase: "pre_checkin" | "checkin_day" | "in_stay" | "checkout_day" | "post_checkout" | "unknown";
 };
 
-/** 17:00 (horário local do imóvel) do dia anterior ao check-in, em UTC. */
-function pinReleaseAt(checkinDate: string, tz: string): Date {
-  const [y, m, d] = checkinDate.split("-").map(Number);
-  const prev = new Date(
-    Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1) - 86_400_000,
-  );
-  return zonedTimeToUtc(
-    prev.getUTCFullYear(),
-    prev.getUTCMonth() + 1,
-    prev.getUTCDate(),
-    17,
-    0,
-    tz,
-  );
+function parseHm(v: unknown, fallbackH: number): [number, number] {
+  const m = String(v ?? "").match(/^(\d{1,2}):(\d{2})/);
+  return m ? [Number(m[1]), Number(m[2])] : [fallbackH, 0];
+}
+
+/** Data/hora local do imóvel (em UTC) para uma data ISO + horário configurado. */
+function localMoment(dateIso: string, tz: string, time: unknown, fallbackH: number): Date {
+  const [y, m, d] = dateIso.split("-").map(Number);
+  const [hh, mm] = parseHm(time, fallbackH);
+  return zonedTimeToUtc(y ?? 1970, m ?? 1, d ?? 1, hh, mm, tz);
+}
+
+/** 24h antes do horário previsto de check-in (fuso do imóvel), em UTC. */
+function pinReleaseAt(checkinDate: string, tz: string, checkinTime: unknown): Date {
+  return new Date(localMoment(checkinDate, tz, checkinTime, 15).getTime() - 86_400_000);
 }
 
 function nowInfo(tz: string): string {
@@ -113,13 +114,16 @@ export async function buildAgentContext(params: {
   // Estado da estadia (fase) — determina prioridade e tom.
   let stayPhase: AgentContext["stayPhase"] = "unknown";
   let checkinDate: string | null = null;
+  let checkoutDate: string | null = null;
+  let checkinDone = false;
+  let checkoutDone = false;
   const guestName = (params.guestName ?? "").trim();
   {
-    type AccessLog = { guest_name: string; checkin_date: string; checkout_date: string | null };
+    type AccessLog = { id: string; guest_name: string; checkin_date: string; checkout_date: string | null };
     const todayIso = todayInTZ(tz);
     const { data: rows } = await supabase
       .from("guide_access_logs")
-      .select("guest_name, checkin_date, checkout_date")
+      .select("id, guest_name, checkin_date, checkout_date")
       .eq("property_id", p.id as string)
       .order("created_at", { ascending: false })
       .limit(60);
@@ -158,7 +162,24 @@ export async function buildAgentContext(params: {
       const ci = String(log.checkin_date).slice(0, 10);
       checkinDate = ci;
       const co = log.checkout_date ? String(log.checkout_date).slice(0, 10) : null;
-      if (today < ci) stayPhase = "pre_checkin";
+      checkoutDate = co;
+      // Check-in / check-out marcados como concluídos (pelo hóspede no guia ou
+      // pelo anfitrião no Kanban da Operação).
+      try {
+        const { data: statuses } = await supabase
+          .from("guest_arrival_status")
+          .select("kind, status, done_at")
+          .eq("log_id", log.id);
+        for (const s of (statuses ?? []) as Array<{ kind: string; status: string | null; done_at: string | null }>) {
+          if (!(s.status === "done" || s.done_at)) continue;
+          if (s.kind === "checkin") checkinDone = true;
+          if (s.kind === "checkout") checkoutDone = true;
+        }
+      } catch (e) {
+        console.warn("stay status lookup failed", e);
+      }
+      if (checkoutDone) stayPhase = "post_checkout";
+      else if (today < ci) stayPhase = "pre_checkin";
       else if (today === ci) stayPhase = "checkin_day";
       else if (co && today === co) stayPhase = "checkout_day";
       else if (co && today > co) stayPhase = "post_checkout";
@@ -166,8 +187,12 @@ export async function buildAgentContext(params: {
       const dayMs = 86400000;
       const daysTo = Math.round((Date.parse(`${ci}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / dayMs);
       const fmt = (d: string) => d.split("-").reverse().join("/");
-      const phaseNote =
-        stayPhase === "pre_checkin"
+      const phaseNote = checkoutDone
+        ? "CHECK-OUT JÁ CONCLUÍDO (confirmado pelo hóspede ou pelo anfitrião). NÃO HÁ ESTADIA EM ANDAMENTO: " +
+          "não fale como se ele estivesse na residência, não informe senhas, códigos de acesso, Wi-Fi, endereço, " +
+          "instruções de chegada ou qualquer dado do imóvel/da estadia — esses conteúdos foram ocultados no guia. " +
+          "Trate a conversa como pós-estadia (agradecimento, dúvidas gerais sobre a cidade, objetos esquecidos, futura reserva)."
+        : stayPhase === "pre_checkin"
           ? `O hóspede AINDA NÃO ESTÁ NA CIDADE: faltam ${daysTo} dia(s) para o check-in. ` +
             "NUNCA sugira algo para 'hoje', 'agora' ou 'hoje à noite', nem use o clima de hoje como base. " +
             "Fale sempre no futuro, referindo-se aos dias da estadia, e trate qualquer conversa atual como planejamento antecipado."
@@ -175,30 +200,40 @@ export async function buildAgentContext(params: {
             ? "A estadia já terminou: não sugira programas locais como se ele estivesse hospedado."
             : "O hóspede está na estadia: sugestões para hoje/agora são apropriadas.";
       lines.push(
-        `\n## Dados de estadia informados no acesso ao guia\nHóspede: ${log.guest_name}\nHoje: ${fmt(today)}\nCheck-in: ${fmt(ci)}${co ? `\nCheck-out: ${fmt(co)}` : ""}\nFase da estadia: ${stayPhase}\n${phaseNote}`,
+        `\n## Dados de estadia informados no acesso ao guia\nHóspede: ${log.guest_name}\nHoje: ${fmt(today)}\nCheck-in: ${fmt(ci)}${co ? `\nCheck-out: ${fmt(co)}` : ""}\nCheck-in concluído: ${checkinDone ? "sim" : "não"}\nCheck-out concluído: ${checkoutDone ? "sim" : "não"}\nFase da estadia: ${stayPhase}\n${phaseNote}`,
       );
     }
 
   }
 
   // ── Senha de liberação do guia (código de visualização)
-  // Só pode ser informada pela IA a partir das 17:00 (America/Sao_Paulo) do dia
-  // anterior ao check-in. Antes disso a IA avisa que ainda não está liberada.
+  // Liberada 24h antes do horário de check-in e encerrada no horário de
+  // check-out (ou assim que o check-out for marcado como concluído).
   if (sensitiveLocked) {
     keys.push("access_pin_policy");
-    if (!checkinDate) {
+    const windowClosed =
+      checkoutDone ||
+      (!!checkoutDate && Date.now() > localMoment(checkoutDate, tz, p.checkout_time, 11).getTime());
+    if (windowClosed) {
+      lines.push(
+        "\n## Senha de liberação do guia (código de visualização)\n" +
+          "JANELA ENCERRADA (check-out realizado ou horário de check-out atingido). NUNCA informe o código nem qualquer dado de acesso do imóvel.",
+      );
+    } else if (!checkinDate) {
       lines.push(
         "\n## Senha de liberação do guia (código de visualização)\n" +
           "Não há data de check-in informada no acesso ao guia. NÃO informe a senha de liberação. " +
-          "Explique que ela é liberada a partir das 17:00 do dia anterior ao check-in e peça que ele confirme os dados de check-in no guia.",
+          "Explique que ela é liberada 24h antes do horário de check-in e peça que ele confirme os dados de check-in no guia.",
       );
     } else {
-      const releaseAt = pinReleaseAt(checkinDate, tz);
+      const releaseAt = pinReleaseAt(checkinDate, tz, p.checkin_time);
       const released = Date.now() >= releaseAt.getTime();
       const releaseLabel = new Intl.DateTimeFormat("pt-BR", {
         timeZone: tz,
         day: "2-digit",
         month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
       }).format(releaseAt);
       if (released) {
         lines.push(
@@ -211,7 +246,7 @@ export async function buildAgentContext(params: {
       } else {
         lines.push(
           "\n## Senha de liberação do guia (código de visualização)\n" +
-            `AINDA NÃO LIBERADA. NUNCA informe o código agora, nem parcialmente. Diga com gentileza que ele é liberado a partir das 17:00 do dia ${releaseLabel} (véspera do check-in).`,
+            `AINDA NÃO LIBERADA. NUNCA informe o código agora, nem parcialmente. Diga com gentileza que ele é liberado em ${releaseLabel} (24h antes do horário de check-in).`,
         );
       }
     }
