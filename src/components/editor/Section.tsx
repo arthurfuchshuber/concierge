@@ -83,7 +83,7 @@ export function Section({
               </span>
             )}
             <div className="min-w-0 flex-1">
-              {title && <h3 className="ds-section-title text-foreground">{title}</h3>}
+              {title && <h3 className="ds-section-title text-foreground truncate">{title}</h3>}
               {desc && <p className="ds-card-desc mt-1">{desc}</p>}
             </div>
             {collapsible && (

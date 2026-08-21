@@ -3561,7 +3561,7 @@ function Stepper({
             );
           })}
         </div>
-        <p className="text-[11px] font-medium text-foreground mt-3">
+        <p className="text-[11px] font-normal text-foreground mt-3">
           <span className="text-muted-foreground/70 tracking-[0.18em] uppercase mr-2">Passo {currentIdx + 1}/{steps.length}</span>
           {steps[currentIdx]?.label}
         </p>
@@ -3588,7 +3588,7 @@ function Stepper({
                     type="button"
                     onClick={() => onChange(s.value)}
                     className={[
-                      "group inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all border shrink-0",
+                      "group inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-normal whitespace-nowrap transition-all border shrink-0",
                       active
                         ? "bg-primary text-primary-foreground border-primary shadow-soft"
                         : done
