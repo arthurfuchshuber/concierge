@@ -80,6 +80,8 @@ export function PropertyDetailsEditor({ propertyId }: { propertyId: string }) {
   const { data, isLoading } = useQuery({
     queryKey: ["property-details", propertyId],
     queryFn: () => listFn({ data: { propertyId } }),
+    staleTime: 5 * 60_000,
+    gcTime: 30 * 60_000,
   });
 
   const details = data?.details ?? [];
