@@ -111,7 +111,6 @@ function ExtraGuests({
   );
 }
 
-
 function fmtDateBR(iso: string) {
   try {
     const [y, m, d] = iso.split("-");
@@ -422,7 +421,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     runAdvance(row, from);
   }
 
-
   function handleEditTime(row: ArrivalRow, k: "checkin" | "checkout", time: string | null) {
     setBusyRowId(row.logId);
     upsert.mutate({ ...statusTarget(row), kind: k, arrivalTimeOverride: time });
@@ -474,9 +472,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const cleaningRows = useMemo(() => {
     const done = coRows.filter((r) => r.status === "done");
     const seen = new Set(done.map((r) => r.logId));
-    const early = (tomorrowCheckoutListQ.data?.rows ?? []).filter(
-      (r) => r.status === "done" && !seen.has(r.logId),
-    );
+    const early = (tomorrowCheckoutListQ.data?.rows ?? []).filter((r) => r.status === "done" && !seen.has(r.logId));
     return [...done, ...early];
   }, [coRows, tomorrowCheckoutListQ.data?.rows]);
 
@@ -613,8 +609,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // componente pai, então nunca ficam dessincronizados entre si.
   function renderEngagementPanel(wrapperClassName: string) {
     // Só aparece quando existe informação de visualização; sem dados, some.
-    const hasData =
-      (engQ.data?.checkinsInPeriod ?? 0) > 0 || (engQ.data?.checkinsWithCodes ?? 0) > 0;
+    const hasData = (engQ.data?.checkinsInPeriod ?? 0) > 0 || (engQ.data?.checkinsWithCodes ?? 0) > 0;
     if (!engQ.isLoading && !hasData) return null;
 
     return (
@@ -629,7 +624,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       </section>
     );
   }
-
 
   return (
     <div className="px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] mx-auto w-full space-y-1.5">
@@ -807,9 +801,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                         type="button"
                         onClick={() => setMobileTab(t.key)}
                         className={`h-9 box-border shrink-0 snap-start inline-flex items-center gap-1.5 rounded-none border-0 border-b-2 bg-transparent px-3.5 text-xs font-medium leading-none whitespace-nowrap transition-colors ${
-                          active
-                            ? `${toneByKey[t.key]} border-b-current`
-                            : "border-b-transparent text-muted-foreground"
+                          active ? `${toneByKey[t.key]} border-b-current` : "border-b-transparent text-muted-foreground"
                         }`}
                       >
                         <Icon className="size-3.5" />
@@ -818,7 +810,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                       </button>
                     );
                   })}
-
                 </div>
                 <RangeDropdown
                   value={range}
@@ -1026,8 +1017,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   );
 }
 
-
-
 /* --------- Cabeçalho compartilhado das 3 telas de operação --------- */
 
 const OPERATION_TABS = [
@@ -1037,7 +1026,7 @@ const OPERATION_TABS = [
 ];
 
 const OPERATION_COPY: Record<OperationView, { title: string; subtitle: string }> = {
-  resumo: { title: "Operação", subtitle: "Sua rotina diária: check-ins, checkouts e senhas." },
+  resumo: { title: "Dashboard", subtitle: "Sua rotina diária: check-ins, checkouts e senhas." },
   kanban: { title: "Kanban", subtitle: "Cada reserva na etapa em que ela realmente está." },
   calendario: { title: "Calendário", subtitle: "Ocupação dos imóveis dia a dia." },
 };
@@ -1047,10 +1036,13 @@ function OperationShell({ view }: { view: OperationView }) {
   return (
     <div className="space-y-3">
       <div>
-        <h1 className="ds-page-title truncate">{copy.title}</h1>
+        <div className="flex items-center gap-2 ds-eyebrow text-accent">
+          <span>Operação de Reservas</span>
+          <TrendingUp className="size-3.5" />
+        </div>
+        <h1 className="ds-page-title truncate mt-1.5">{copy.title}</h1>
         <p className="ds-page-subtitle mt-1.5">{copy.subtitle}</p>
       </div>
-
 
       {/* Segmented control — Dashboard / Kanban / Calendário (largura da página) */}
       <nav className="flex w-full overflow-hidden rounded-[0.3rem] bg-foreground/5 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_10%,transparent),0_1px_2px_color-mix(in_oklab,var(--foreground)_10%,transparent),0_4px_10px_-6px_color-mix(in_oklab,var(--foreground)_22%,transparent)]">
@@ -1071,7 +1063,6 @@ function OperationShell({ view }: { view: OperationView }) {
           );
         })}
       </nav>
-
     </div>
   );
 }
@@ -1245,7 +1236,6 @@ function useWholeCardsMaxHeight(visible: number, key: unknown) {
   return { ref: setNode, maxHeight };
 }
 
-
 function ColumnLoading() {
   return (
     <div className="py-8 grid place-items-center text-muted-foreground">
@@ -1301,11 +1291,7 @@ function KpiCard({
   // que já era usada nos cards sem cor, pra reduzir o "volume" visual.
   const shadowClass = "ds-3d ds-3d-hover";
   const dotClass =
-    shadowTone === "emerald"
-      ? "bg-emerald-500"
-      : shadowTone === "amber"
-        ? "bg-amber-500"
-        : "bg-muted-foreground/50";
+    shadowTone === "emerald" ? "bg-emerald-500" : shadowTone === "amber" ? "bg-amber-500" : "bg-muted-foreground/50";
 
   return (
     <Dialog
@@ -1322,9 +1308,7 @@ function KpiCard({
             className={`w-full flex items-center gap-2 rounded-[0.3rem] border-0 bg-card px-3.5 py-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
             <Icon className={`size-3.5 shrink-0 ${dotClass.replace("bg-", "text-")}`} />
-            <span className="ds-eyebrow truncate">
-              {label}
-            </span>
+            <span className="ds-eyebrow truncate">{label}</span>
             <span className={`ml-auto text-base font-display tabular-nums ${valueColor}`}>
               {loading ? "—" : rows.length}
             </span>
@@ -1341,7 +1325,6 @@ function KpiCard({
                 {label}
               </span>
             </div>
-
 
             <div
               className={`font-display mt-1.5 tabular-nums leading-none ${valueColor} ${
@@ -1568,7 +1551,6 @@ function FreePropertiesCard({
             {loading ? "—" : properties.length}
           </div>
         </button>
-
       </DialogTrigger>
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-lg">
         <DialogHeader className="px-5 pt-5 pb-3">
@@ -1663,7 +1645,6 @@ function OccupancyPanel({
     return () => ro.disconnect();
   }, [days]);
 
-
   const todayISO = todayISOSaoPaulo();
 
   const dayList = useMemo(() => {
@@ -1744,17 +1725,8 @@ function OccupancyPanel({
     return [first, second];
   }
 
-
-
-
   const clsOf = (s: CellPart) =>
-    s === "in"
-      ? "bg-emerald-500"
-      : s === "out"
-        ? "bg-amber-500"
-        : s === "busy"
-          ? "bg-primary/35"
-          : "bg-transparent";
+    s === "in" ? "bg-emerald-500" : s === "out" ? "bg-amber-500" : s === "busy" ? "bg-primary/35" : "bg-transparent";
 
   return (
     <section className="relative rounded-[0.3rem] border-0 bg-card ds-3d">
@@ -1933,7 +1905,6 @@ function OccupancyPanel({
                                 style={{ width: dayW, minWidth: dayW }}
                                 className="px-0 py-1 snap-start"
                                 title={title}
-
                               >
                                 <div className="relative flex h-6 w-full items-center">
                                   <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border/50" />
@@ -1971,7 +1942,6 @@ function OccupancyPanel({
     </section>
   );
 }
-
 
 function RangeDropdown<T extends string>({
   value,
@@ -2042,7 +2012,9 @@ function EngagementBars({
           total={checkins}
           pct={pctOf(checkinViewed, checkins)}
           breakdown={checkinBreakdown}
-          hint={'Quantos hóspedes com check-in no período já abriram a aba "Chegada" do guia pelo menos uma vez.'}
+          hint={
+            'Hóspedes com check-in no período que já abriram as "Instruções" apresentadas na sessão "Chegada" pelo menos uma vez.'
+          }
         />
       )}
       {checkinsWithCodes > 0 && (
@@ -2052,7 +2024,9 @@ function EngagementBars({
           total={checkinsWithCodes}
           pct={pctOf(codesViewed, checkinsWithCodes)}
           breakdown={codesBreakdown}
-          hint={'Quantos hóspedes com check-in no período já visualizaram a senha de acesso no guia pelo menos uma vez.'}
+          hint={
+            "Quantos hóspedes com check-in no período já visualizaram a senha de acesso no guia pelo menos uma vez."
+          }
         />
       )}
     </div>
@@ -2179,40 +2153,40 @@ function BarRow({
             {track}
           </button>
         </DialogTrigger>
-      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-lg border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" />
-        <DialogHeader className="px-5 pt-5 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="grid place-items-center size-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-              <TrendingUp className="size-5" />
-            </div>
-            <div className="min-w-0">
-              <DialogTitle className="text-base font-display leading-tight">{label}</DialogTitle>
-              <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground mt-0.5">
-                {value} de {total} check-ins
+        <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-lg border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" />
+          <DialogHeader className="px-5 pt-5 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="grid place-items-center size-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <TrendingUp className="size-5" />
+              </div>
+              <div className="min-w-0">
+                <DialogTitle className="text-base font-display leading-tight">{label}</DialogTitle>
+                <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground mt-0.5">
+                  {value} de {total} check-ins
+                </div>
               </div>
             </div>
-          </div>
-        </DialogHeader>
-        <div
-          ref={list.ref}
-          style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
-          className="sg-elegant-scroll max-h-[70vh] overflow-y-auto px-5 space-y-4 text-sm"
-        >
-          <div>
-            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-400">
-              Viram ({breakdown.viewed.length})
+          </DialogHeader>
+          <div
+            ref={list.ref}
+            style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
+            className="sg-elegant-scroll max-h-[70vh] overflow-y-auto px-5 space-y-4 text-sm"
+          >
+            <div>
+              <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-400">
+                Viram ({breakdown.viewed.length})
+              </div>
+              <GuestMarkList items={breakdown.viewed} tone="ok" />
             </div>
-            <GuestMarkList items={breakdown.viewed} tone="ok" />
-          </div>
-          <div>
-            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-rose-600 dark:text-rose-400">
-              Não viram ({breakdown.notViewed.length})
+            <div>
+              <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-rose-600 dark:text-rose-400">
+                Não viram ({breakdown.notViewed.length})
+              </div>
+              <GuestMarkList items={breakdown.notViewed} tone="off" />
             </div>
-            <GuestMarkList items={breakdown.notViewed} tone="off" />
           </div>
-        </div>
-      </DialogContent>
+        </DialogContent>
       </Dialog>
     </div>
   );
@@ -2422,7 +2396,9 @@ function ArrivalCard({
         <div className="flex items-center gap-1.5">
           <span
             className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-              isOverdue ? "bg-red-500/15 text-red-600 dark:text-red-400" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+              isOverdue
+                ? "bg-red-500/15 text-red-600 dark:text-red-400"
+                : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
             }`}
           >
             <AlertTriangle className="size-2.5" /> {isOverdue ? "Atrasado" : "Data futura"}
