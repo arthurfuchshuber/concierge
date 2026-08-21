@@ -1035,7 +1035,7 @@ function PropertyEditor() {
       } finally {
         setAutoSaving(false);
       }
-    }, 3000);
+    }, 800);
 
     return () => {
       if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
