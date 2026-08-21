@@ -1059,7 +1059,7 @@ function PropertyEditor() {
     globalTimerRef.current = setTimeout(() => {
       globalSnapshotRef.current = formKey;
       void handleSave(undefined, { silent: true });
-    }, 1200);
+    }, 350);
     return () => { if (globalTimerRef.current) clearTimeout(globalTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formKey, isNew, readOnly, saving]);
