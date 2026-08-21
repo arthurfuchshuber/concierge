@@ -711,7 +711,10 @@ function PropertyEditor() {
       toast.success(`Preenchido! ${nearby} arredores${extraStr}`);
 
       const cityForGeneration = (r.city || form.property.city).trim();
-      if (cityForGeneration) {
+      // Se este guia já usa recomendações da cidade criadas pelo Sigma, nunca
+      // regeramos automaticamente — isso sobrescreveria/duplicaria a curadoria.
+      const alreadyHasCityRefs = ((cityRefsQuery.data?.items ?? []) as unknown[]).length > 0;
+      if (cityForGeneration && !alreadyHasCityRefs) {
         void (async () => {
           try {
             const result = await generateCityRefs({
