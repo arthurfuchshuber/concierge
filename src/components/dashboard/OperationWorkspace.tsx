@@ -726,7 +726,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               <FreePropertiesCard
                 loading={occupancyQ.isLoading}
                 properties={freeProperties}
-                allProperties={occupancyQ.data?.properties ?? []}
                 onRefresh={() => occupancyQ.refetch()}
               />
             </div>
@@ -1524,16 +1523,12 @@ function EngagementFlags({
 function FreePropertiesCard({
   loading,
   properties,
-  allProperties,
   onRefresh,
 }: {
   loading: boolean;
   properties: Array<{ id: string; name: string }>;
-  allProperties?: Array<{ id: string; name: string }>;
   onRefresh: () => void;
 }) {
-  const freeIds = new Set(properties.map((p) => p.id));
-  const occupied = (allProperties ?? []).filter((p) => !freeIds.has(p.id));
   const [open, setOpen] = useState(false);
   const list = useWholeCardsMaxHeight(2, `${open}:${properties.length}:${loading}`);
   return (
