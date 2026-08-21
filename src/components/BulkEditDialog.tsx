@@ -21,6 +21,8 @@ import {
 import { useServerFn } from "@tanstack/react-start";
 import { bulkUpdateProperties, bulkFetchProperties } from "@/lib/properties.functions";
 import { toast } from "sonner";
+import { useAutosave } from "@/hooks/useAutosave";
+import { AutosaveIndicator } from "@/components/ui/autosave-indicator";
 
 type FieldKey =
   | "checkin_time" | "checkin_time_max" | "checkin_note"
@@ -258,15 +260,15 @@ type FetchData = Awaited<ReturnType<typeof bulkFetchProperties>>;
 const ALL_FIELDS: FieldDef[] = TEXT_TABS.flatMap((t) => t.groups.flatMap((g) => groupFields(g)));
 
 /**
- * Pré-carrega o popup com o que já existe nos guias selecionados: campo
- * preenchido em qualquer anúncio vem ativado e com o valor mais comum,
- * para que o anfitrião veja (e possa limpar) a informação atual.
+ * Pré-carrega o popup com o que já existe nos guias selecionados: o campo
+ * aparece sempre preenchido com o valor atual (quando os guias divergem, o
+ * campo fica vazio com aviso — nada é sobrescrito sem edição explícita).
  */
 function buildInitialState(d: FetchData): State {
   const enabled: State["enabled"] = {};
   const values: State["values"] = {};
   for (const f of ALL_FIELDS) {
-    const counts = new Map<string, number>();
+    const distinct = new Set<string>();
     let filled = 0;
     let sample: string | boolean | number | undefined;
     for (const p of d.properties) {
@@ -274,25 +276,18 @@ function buildInitialState(d: FetchData): State {
       if (raw === null || raw === undefined || raw === "") continue;
       if (f.kind === "boolean" && raw === false) continue;
       filled += 1;
-      const k = String(raw);
-      counts.set(k, (counts.get(k) ?? 0) + 1);
+      distinct.add(String(raw));
       if (sample === undefined) sample = raw as string | boolean | number;
     }
     if (filled === 0) continue;
-    // Nunca pré-selecionar um valor arbitrário quando os anúncios possuem
-    // conteúdos diferentes. Em edição em massa isso fazia o valor mais comum
-    // sobrescrever endereço, links e outras informações específicas.
-    if (counts.size > 1) continue;
-    let best = sample;
-    let bestN = -1;
-    for (const [k, n] of counts) {
-      if (n > bestN) { bestN = n; best = f.kind === "boolean" ? k === "true" : f.kind === "number" ? Number(k) : k; }
-    }
     enabled[f.key] = true;
-    values[f.key] = best as string | boolean | number;
+    // Valores divergentes entre os guias: mostramos o campo vazio para não
+    // sobrescrever informações específicas sem intenção.
+    values[f.key] = distinct.size === 1 ? (sample as string | boolean | number) : (f.kind === "boolean" ? false : f.kind === "number" ? 0 : "");
   }
   return { ...emptyState, enabled, values };
 }
+
 
 
 export function BulkEditDialog({
@@ -309,7 +304,6 @@ export function BulkEditDialog({
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<FetchData | null>(null);
-  const [confirmMode, setConfirmMode] = useState<null | "ask">(null);
   // Aba atual controlada: o popup precisa lembrar onde a pessoa parou mesmo
   // que o componente pai re-renderize (refetch, troca de aba do navegador…).
   const [tab, setTab] = useState<string>(TEXT_TABS[0]?.id ?? "house");
@@ -321,6 +315,9 @@ export function BulkEditDialog({
   // Quais campos vieram preenchidos ao abrir: desligar a chave de um deles
   // significa "remover essa informação dos guias selecionados".
   const initialEnabledRef = useRef<Partial<Record<FieldKey, boolean>>>({});
+  // Só salvamos o que a pessoa realmente editou — assim campos com valores
+  // diferentes entre os guias nunca são sobrescritos por engano.
+  const dirtyRef = useRef<Set<FieldKey>>(new Set());
 
   function load(force = false) {
     if (ids.length === 0) return;
@@ -333,6 +330,7 @@ export function BulkEditDialog({
         setData(d);
         const init = buildInitialState(d);
         initialEnabledRef.current = { ...init.enabled };
+        dirtyRef.current = new Set();
         setState(init);
       })
       .catch(() => toast.error("Erro ao carregar dados dos guias"))
@@ -350,20 +348,23 @@ export function BulkEditDialog({
   function reset() {
     setState(emptyState);
     setData(null);
-    setConfirmMode(null);
+    dirtyRef.current = new Set();
     loadedKeyRef.current = null;
     setTab(TEXT_TABS[0]?.id ?? "house");
   }
 
   function toggle(field: FieldKey, v: boolean) {
+    dirtyRef.current.add(field);
     setState((s) => ({ ...s, enabled: { ...s.enabled, [field]: v } }));
   }
   function setValue(field: FieldKey, value: string | boolean | number) {
+    dirtyRef.current.add(field);
     setState((s) => ({ ...s, values: { ...s.values, [field]: value } }));
   }
   function toggleList(k: ListKey, v: boolean) {
     setState((s) => ({ ...s, listsEnabled: { ...s.listsEnabled, [k]: v } }));
   }
+
 
   // Sumário dos valores atuais calculado UMA vez por carga de dados — antes
   // era recalculado por campo a cada render, o que travava o popup.
@@ -413,25 +414,6 @@ export function BulkEditDialog({
     return out;
   }, [state]);
 
-  const hasAnySelected = useMemo(() => {
-    return Object.values(state.enabled).some(Boolean)
-      || Object.values(state.listsEnabled).some(Boolean)
-      || removedFields.length > 0;
-  }, [state, removedFields]);
-
-  /** Algum campo de texto ativo está vazio → a intenção é remover o valor. */
-  const hasClearing = useMemo(() => {
-    for (const tab of TEXT_TABS) {
-      for (const g of tab.groups) {
-        for (const f of groupFields(g)) {
-          if (!state.enabled[f.key]) continue;
-          if (f.kind !== "text" && f.kind !== "textarea") continue;
-          if (String(state.values[f.key] ?? "").trim() === "") return true;
-        }
-      }
-    }
-    return false;
-  }, [state]);
 
 
 
@@ -447,180 +429,98 @@ export function BulkEditDialog({
     return v === undefined ? "" : v;
   }
 
-  async function performSave(mode: "overwrite" | "fill-empty") {
+  /**
+   * Salvamento automático (igual às outras telas): aplica nos guias
+   * selecionados só o que foi editado agora, sobrescrevendo o valor.
+   */
+  async function saveAuto() {
+    if (!data || ids.length === 0) return;
     const patch: Record<string, unknown> = {};
-    for (const tab of TEXT_TABS) {
-      for (const g of tab.groups) {
-        for (const f of groupFields(g)) {
-          if (state.enabled[f.key]) patch[f.key] = coerce(f, state.values[f.key]);
-        }
-      }
+    for (const f of ALL_FIELDS) {
+      if (!dirtyRef.current.has(f.key)) continue;
+      if (!state.enabled[f.key]) continue;
+      patch[f.key] = coerce(f, state.values[f.key]);
     }
-    // Chaves desligadas de campos que tinham valor = remoção (sempre sobrescreve).
-    const clearPatch: Record<string, unknown> = {};
+    // Bloco desligado = remover essas informações dos guias selecionados.
     for (const f of removedFields) {
-      clearPatch[f.key] = f.kind === "boolean" ? false : f.kind === "number" ? 0 : "";
+      patch[f.key] = f.kind === "boolean" ? false : f.kind === "number" ? 0 : "";
     }
 
     const lists: Record<string, unknown> = {};
-    if (state.listsEnabled.manual)
+    if (state.listsEnabled.manual && state.manual.length)
       lists.manual = state.manual.filter((m) => m.title.trim()).map((m) => ({
         title: m.title.trim(), description: m.description.trim() || null, body: m.body.trim() || null,
       }));
-    if (state.listsEnabled.emergency)
+    if (state.listsEnabled.emergency && state.emergency.length)
       lists.emergency = state.emergency.filter((e) => e.label.trim() && e.number.trim())
         .map((e) => ({ label: e.label.trim(), number: e.number.trim() }));
-    if (state.listsEnabled.faqs)
+    if (state.listsEnabled.faqs && state.faqs.length)
       lists.faqs = state.faqs.filter((f) => f.question.trim() && f.answer.trim()).map((f) => ({
         question: f.question.trim(), answer: f.answer.trim(),
         tags: f.tags.split(",").map((t) => t.trim()).filter(Boolean),
       }));
-    if (state.listsEnabled.checkout)
+    if (state.listsEnabled.checkout && state.checkout.length)
       lists.checkout = state.checkout.filter((c) => c.label.trim()).map((c) => ({ label: c.label.trim() }));
 
-    if (Object.keys(patch).length === 0 && Object.keys(lists).length === 0 && Object.keys(clearPatch).length === 0) {
-      toast.error("Marque ao menos um campo para aplicar");
-      return;
-    }
+    if (Object.keys(patch).length === 0 && Object.keys(lists).length === 0) return;
 
     setSaving(true);
     try {
-      let updated = 0;
-      if (Object.keys(patch).length || Object.keys(lists).length) {
-        const r = await apply({ data: { ids, patch, lists: Object.keys(lists).length ? lists : undefined, mode } });
-        updated = r.updated;
-      }
-      if (Object.keys(clearPatch).length) {
-        const r2 = await apply({ data: { ids, patch: clearPatch, mode: "overwrite" } });
-        updated = Math.max(updated, r2.updated);
-      }
-      toast.success(`${updated} ${updated === 1 ? "guia atualizado" : "guias atualizados"}`);
-      // Volta para a tela de edição (não fecha o popup inteiro) e recarrega
-      // os dados para refletir exatamente o que ficou salvo.
-      setConfirmMode(null);
-      load(true);
+      await apply({ data: { ids, patch, lists: Object.keys(lists).length ? lists : undefined, mode: "overwrite" } });
       onSaved?.();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao atualizar");
     } finally {
       setSaving(false);
     }
   }
 
-  /** Conteúdo de um campo (cabeçalho + chave + input + limpar). */
-  function fieldBlock(f: FieldDef, bare: boolean) {
+  const autosave = useAutosave(state, saveAuto, { enabled: open && !loading && !!data, delay: 1200 });
+
+  /** Conteúdo de um campo. A chave fica apenas no bloco (ligar/desligar). */
+  function fieldBlock(f: FieldDef, showSwitch: boolean) {
     const enabled = !!state.enabled[f.key];
     const value = state.values[f.key];
     const s2 = fieldSummary(f.key);
-    const willRemove = !enabled && !!initialEnabledRef.current[f.key];
-    const emptyActive = enabled && (f.kind === "text" || f.kind === "textarea") && String(value ?? "").trim() === "";
+    const willRemove = showSwitch && !enabled && !!initialEnabledRef.current[f.key];
+    const mixed = s2.distinct.length > 1;
     return (
-      <div className={bare ? "min-w-0" : "min-w-0"}>
+      <div className="min-w-0">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
             <label className="text-sm font-medium truncate block">{f.label}</label>
-            <div className={`text-[11px] mt-0.5 truncate ${emptyActive || willRemove ? "text-destructive" : "text-muted-foreground"}`}>
+            <div className={`text-[11px] mt-0.5 truncate ${willRemove ? "text-destructive" : "text-muted-foreground"}`}>
               {willRemove
                 ? "Será removido dos guias selecionados"
-                : emptyActive
-                  ? "Será removido dos guias selecionados"
-                  : <>
-                      {s2.filled > 0 && s2.empty === 0 && s2.distinct.length === 1 && `Atual: ${s2.distinct[0]}`}
-                      {s2.filled > 0 && s2.empty === 0 && s2.distinct.length > 1 && `${s2.filled} guias · ${s2.distinct.length} valores distintos`}
-                      {s2.filled > 0 && s2.empty > 0 && `${s2.filled} preenchido${s2.filled > 1 ? "s" : ""} · ${s2.empty} vazio${s2.empty > 1 ? "s" : ""}`}
-                      {s2.filled === 0 && `${s2.empty} guia${s2.empty > 1 ? "s" : ""} sem valor`}
-                    </>}
+                : mixed
+                  ? `${s2.distinct.length} valores diferentes — preencha para igualar em todos`
+                  : s2.filled > 0
+                    ? (s2.empty > 0 ? `${s2.filled} preenchido${s2.filled > 1 ? "s" : ""} · ${s2.empty} vazio${s2.empty > 1 ? "s" : ""}` : "Valor atual")
+                    : `${s2.empty} guia${s2.empty > 1 ? "s" : ""} sem valor`}
             </div>
           </div>
-          <Switch checked={enabled} onCheckedChange={(v) => toggle(f.key, v)} />
+          {showSwitch && <Switch checked={enabled} onCheckedChange={(v) => toggle(f.key, v)} />}
         </div>
-        {enabled && <div className="mt-2">{renderField(f, value, (v) => setValue(f.key, v))}</div>}
-        {enabled && (f.kind === "text" || f.kind === "textarea") && (
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <span className="text-[11px] text-muted-foreground truncate">
-              {String(value ?? "").trim() === ""
-                ? "Campo vazio: ao substituir em todos, o valor será removido."
-                : "Deixe vazio para remover o valor."}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 shrink-0 text-[11px]"
-              onClick={() => setValue(f.key, "")}
-            >
-              <Trash2 className="size-3 mr-1" /> Limpar
-            </Button>
-          </div>
+        {(!showSwitch || enabled) && (
+          <div className="mt-2">{renderField(f, value, (v) => setValue(f.key, v))}</div>
         )}
       </div>
     );
   }
 
 
+
   return (
     <ResponsiveDialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
       <ResponsiveDialogContent className="w-[calc(100vw-1.5rem)] sm:max-w-3xl max-h-[85vh] overflow-y-auto overflow-x-hidden">
-        {confirmMode === "ask" ? (
-          <div className="mx-auto flex w-full max-w-md flex-col gap-5 py-6">
-            <div className="space-y-1.5 text-center">
-              <div className="mx-auto grid size-11 place-items-center rounded-[0.3rem] bg-primary/10 text-primary">
-                <ClipboardCheck className="size-5" />
-              </div>
-              <h3 className="pt-1 text-base font-semibold tracking-tight">Como aplicar as informações?</h3>
-              <p className="text-[13px] leading-relaxed text-muted-foreground">
-                {hasClearing
-                  ? "Há campos ativos sem valor: use “Substituir em todos” para removê-los dos guias selecionados."
-                  : "Alguns guias selecionados já podem ter esses campos preenchidos. Escolha como proceder:"}
-              </p>
-              {removedFields.length > 0 && (
-                <p className="text-[12px] leading-relaxed text-destructive">
-                  {removedFields.length} campo{removedFields.length > 1 ? "s" : ""} desligado{removedFields.length > 1 ? "s" : ""} será{removedFields.length > 1 ? "ão" : ""} removido{removedFields.length > 1 ? "s" : ""} dos guias selecionados.
-                </p>
-              )}
-
-            </div>
-
-            <div className="space-y-2">
-              <button
-                type="button"
-                className="relative z-10 w-full rounded-[0.3rem] border border-border bg-card/60 p-3.5 text-left transition-colors hover:border-primary/40 hover:bg-card disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={() => void performSave("fill-empty")}
-                disabled={saving || hasClearing}
-              >
-                <div className="text-sm font-medium">Preencher só onde estiver vazio</div>
-                <div className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
-                  Mantém as informações existentes nos guias que já as têm.
-                </div>
-              </button>
-              <button
-                type="button"
-                className="relative z-10 w-full rounded-[0.3rem] bg-primary p-3.5 text-left text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={() => void performSave("overwrite")}
-                disabled={saving}
-              >
-                <div className="text-sm font-medium">Substituir em todos</div>
-                <div className="mt-0.5 text-[11px] leading-snug opacity-80">
-                  Sobrescreve os valores atuais em todos os guias selecionados.
-                </div>
-              </button>
-            </div>
-
-            <div className="flex items-center justify-center gap-2">
-              {saving && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
-              <Button type="button" variant="ghost" size="sm" onClick={() => setConfirmMode(null)} disabled={saving}>
-                Voltar
-              </Button>
-            </div>
-          </div>
-        ) : (
-
         <>
         <ResponsiveDialogHeader>
           <ResponsiveDialogTitle>Editar {ids.length} {ids.length === 1 ? "guia" : "guias"}</ResponsiveDialogTitle>
           <ResponsiveDialogDescription>
-            {loading ? "Carregando dados dos guias selecionados…" : "Ative os campos que deseja aplicar. Ao salvar, você escolhe se sobrescreve ou apenas preenche os guias que ainda não têm a informação."}
+            {loading
+              ? "Carregando dados dos guias selecionados…"
+              : "As informações atuais já aparecem preenchidas. Qualquer alteração é salva automaticamente nos guias selecionados."}
           </ResponsiveDialogDescription>
         </ResponsiveDialogHeader>
+
 
         {loading ? (
           <div className="py-10 grid place-items-center text-muted-foreground">
@@ -682,7 +582,7 @@ export function BulkEditDialog({
                           <div className="min-w-0">
                             <div className="truncate text-sm font-semibold">{sg.title}</div>
                             <div className="text-[11px] text-muted-foreground truncate">
-                              {someOn ? "Aplicando nos guias selecionados" : "Desligado — os valores atuais serão removidos ao salvar"}
+                              {someOn ? "Ativo nos guias selecionados" : "Desligado — as informações serão removidas"}
                             </div>
                           </div>
                           <Switch
@@ -690,13 +590,15 @@ export function BulkEditDialog({
                             onCheckedChange={(v) => sg.fields.forEach((f) => toggle(f.key, v))}
                           />
                         </div>
-                        <div className="divide-y divide-border/60">
-                          {sg.fields.map((f) => (
-                            <div key={f.key} className="py-2.5 first:pt-0 last:pb-0">
-                              {fieldBlock(f, true)}
-                            </div>
-                          ))}
-                        </div>
+                        {someOn && (
+                          <div className="divide-y divide-border/60">
+                            {sg.fields.map((f) => (
+                              <div key={f.key} className="py-2.5 first:pt-0 last:pb-0">
+                                {fieldBlock(f, false)}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -705,10 +607,11 @@ export function BulkEditDialog({
                     const enabled = !!state.enabled[f.key];
                     return (
                       <div key={f.key} className={`rounded-xl border p-3 transition-colors min-w-0 ${enabled ? "border-accent/50 bg-accent/5" : "border-border bg-card/40"}`}>
-                        {fieldBlock(f, false)}
+                        {fieldBlock(f, true)}
                       </div>
                     );
                   })}
+
 
 
                   {(group.lists ?? []).map((lk) => {
@@ -741,14 +644,19 @@ export function BulkEditDialog({
         )}
 
         <ResponsiveDialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
-          <Button onClick={() => setConfirmMode("ask")} disabled={saving || loading || !hasAnySelected}>
+          <div className="mr-auto flex items-center gap-2">
+            <AutosaveIndicator status={saving ? "saving" : autosave.status} />
+          </div>
+          <Button
+            onClick={async () => { await autosave.flush(); onOpenChange(false); }}
+            disabled={saving}
+          >
             {saving && <Loader2 className="size-4 mr-1.5 animate-spin" />}
-            Aplicar a {ids.length} {ids.length === 1 ? "guia" : "guias"}
+            Concluir
           </Button>
         </ResponsiveDialogFooter>
         </>
-        )}
+
 
       </ResponsiveDialogContent>
     </ResponsiveDialog>
