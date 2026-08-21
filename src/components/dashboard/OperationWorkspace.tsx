@@ -2759,13 +2759,13 @@ function ArrivalCard({
                   ? "Voltar para a etapa anterior (lista de Checkouts)"
                   : "Voltar para a etapa anterior (lista Em Limpeza)"
             }
-            className="size-9 grid place-items-center rounded-lg bg-secondary hover:bg-secondary/80 border border-border/60 transition-colors"
+            className="size-9 shrink-0 grid place-items-center rounded-lg bg-secondary hover:bg-secondary/80 border border-border/60 transition-colors"
           >
             <Undo2 className="size-4" />
           </button>
         )}
 
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="ml-auto flex shrink-0 items-center gap-1.5">
           {mapsHref && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
