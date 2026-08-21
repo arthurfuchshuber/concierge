@@ -135,6 +135,15 @@
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     font-feature-settings: "kern", "liga", "calt";
+    /* Nenhuma tela pode ultrapassar a largura do dispositivo nem rolar na horizontal. */
+    max-width: 100%;
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
+  }
+
+  #root {
+    max-width: 100%;
+    overflow-x: clip;
   }
 
   /* Toque imediato no celular: remove o atraso de ~300ms do duplo-toque
