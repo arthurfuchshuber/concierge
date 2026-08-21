@@ -443,11 +443,10 @@ export function BulkEditDialog({
   async function saveAuto() {
     if (!data || ids.length === 0) return;
     const patch: Record<string, unknown> = {};
-    const perProp = new Set<string>(PER_PROPERTY_FIELDS as readonly string[]);
     for (const f of ALL_FIELDS) {
+      // Só entra no patch o que a pessoa editou agora, neste popup.
       if (!dirtyRef.current.has(f.key)) continue;
       if (!state.enabled[f.key]) continue;
-      if (ids.length > 1 && perProp.has(f.key)) continue;
       patch[f.key] = coerce(f, state.values[f.key]);
     }
 
