@@ -599,7 +599,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
 
   return (
-    <div className="px-4 sm:px-6 lg:px-10 py-5 lg:py-8 max-w-[1440px] mx-auto w-full space-y-1.5">
+    <div className="px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] mx-auto w-full space-y-1.5">
       <OperationShell view={view} />
 
       {view === "resumo" ? (
@@ -715,7 +715,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               agora todos os status ficam visíveis ao mesmo tempo, e "puxar" um
               card de um status pro outro fica visual, não escondido atrás de um
               menu. */}
-          <section className="rounded-[0.3rem] bg-card p-4 sm:p-5 space-y-4 shadow-sm">
+          <section className="rounded-[0.3rem] bg-card p-4 sm:p-5 space-y-4 ds-3d">
             {/* Título "Quadro de operação" — redundante no mobile, onde as
                 próprias abas logo abaixo (Check-ins, Checkouts...) já deixam
                 claro do que se trata; mantido no desktop, onde a visão é de
@@ -1187,7 +1187,7 @@ function KpiCard({
   // Refinamento executivo (só nesta página): removido o glow colorido
   // (shadow grande em rgba emerald/amber) — mantém a sombra neutra e fina
   // que já era usada nos cards sem cor, pra reduzir o "volume" visual.
-  const shadowClass = "shadow-[0_1px_2px_rgba(0,0,0,0.4)]";
+  const shadowClass = "ds-3d ds-3d-hover";
   const dotClass =
     shadowTone === "emerald"
       ? "bg-emerald-500"
@@ -1387,7 +1387,7 @@ function FreePropertiesCard({
       <DialogTrigger asChild>
         <button
           type="button"
-          className="w-full h-full rounded-[0.3rem] bg-card px-3 py-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 shadow-[0_1px_2px_rgba(0,0,0,0.4)]"
+          className="w-full h-full rounded-[0.3rem] bg-card px-3 py-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ds-3d ds-3d-hover"
         >
           <div className="flex items-center gap-2 ds-eyebrow">
             <Home className="size-3.5 shrink-0" /> <span className="truncate">Imóveis livres</span>
@@ -1960,7 +1960,7 @@ function BarRow({
   hint?: string;
 }) {
   const track = (
-    <div className="h-1.5 rounded-full bg-rose-500/70 overflow-hidden ring-1 ring-rose-500/20">
+    <div className="h-1 rounded-full bg-rose-500/60 overflow-hidden">
       <div
         className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-[width] duration-700"
         style={{ width: `${pct}%` }}
