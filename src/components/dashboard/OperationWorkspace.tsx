@@ -775,8 +775,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 app), não uma cor diferente por aba. O filtro "Hoje" fica fixo
                 no fim dessa mesma linha, não numa linha própria acima. */}
             <div className="sm:hidden space-y-3">
-              <div className="flex items-center gap-1.5">
-                <div className="ds-scroll-x flex-1 min-w-0 gap-1.5 snap-x pb-1 -mx-1 px-1">
+              <div className="space-y-2">
+                <div className="ds-scroll-x w-full min-w-0 gap-1.5 snap-x pb-1 -mx-1 px-1">
+
                   {(
                     [
                       { key: "checkin", label: "Check-ins", icon: CalendarCheck, count: counts.checkin },
