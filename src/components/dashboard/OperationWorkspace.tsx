@@ -1325,8 +1325,8 @@ function KpiCard({
             </div>
 
             <div
-              className={`font-display mt-1.5 tabular-nums leading-none ${valueColor} ${
-                shadowTone ? "text-xl sm:text-lg" : "text-lg sm:text-base"
+              className={`font-display font-bold mt-1.5 tabular-nums leading-none ${valueColor} ${
+                shadowTone ? "text-[30px] sm:text-[32px]" : "text-[28px] sm:text-[30px]"
               }`}
             >
               {loading ? "—" : rows.length}
