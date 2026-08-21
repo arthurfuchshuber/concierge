@@ -558,13 +558,21 @@ export function PropertyQuickEditDialog({
               </Section>
             </SectionGroup>
 
-            <div className="flex justify-end gap-2 pt-4 mt-2 border-t border-border/60">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-              <Button onClick={handleSave} disabled={saving}>
+            <div className="flex items-center justify-end gap-3 pt-4 mt-2 border-t border-border/60">
+              <AutosaveIndicator status={autosave.status} />
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  await autosave.flush();
+                  onOpenChange(false);
+                }}
+                disabled={saving}
+              >
                 {saving ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
-                {saving ? "Salvando…" : "Salvar"}
+                Fechar
               </Button>
             </div>
+
           </>
         )}
       </ResponsiveDialogContent>
