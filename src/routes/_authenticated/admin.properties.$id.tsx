@@ -1831,7 +1831,7 @@ function PropertyEditor() {
             </Field>
           </Section>
 
-          <Section id="checkout-list" icon={ClipboardCheck} title="Checklist de check-out" desc="O que o hóspede deve fazer antes de sair." collapsible action={<AddBtn onClick={() => setForm((f) => ({ ...f, checkout: [...f.checkout, { label: "" }] }))} />}>
+          <Section id="checkout-list" icon={ClipboardCheck} title="Checklist de check-out" desc="O que o hóspede deve fazer antes de sair." collapsible>
             {form.checkout.length === 0 ? (
               <EmptyHint text="Ex: trancar a porta, deixar a chave na mesa, fechar janelas." />
             ) : form.checkout.map((c, i) => (
@@ -1839,7 +1839,11 @@ function PropertyEditor() {
                 <Input placeholder="ex: Trancar a porta" value={c.label} maxLength={200} onChange={(e) => setForm((f) => ({ ...f, checkout: f.checkout.map((x, j) => j === i ? { label: e.target.value } : x) }))} />
               </ItemCard>
             ))}
+            <div className="pt-1">
+              <AddBtn onClick={() => setForm((f) => ({ ...f, checkout: [...f.checkout, { label: "" }] }))} />
+            </div>
           </Section>
+
 
           </SectionGroup>
         </TabsContent>
