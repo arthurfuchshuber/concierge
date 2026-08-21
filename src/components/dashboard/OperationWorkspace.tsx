@@ -1543,7 +1543,7 @@ function FreePropertiesCard({
           <div className="flex items-center gap-2 ds-eyebrow">
             <Home className="size-3.5 shrink-0" /> <span className="truncate">Imóveis livres</span>
           </div>
-          <div className="text-lg sm:text-base font-display mt-1.5 tabular-nums leading-none text-foreground">
+          <div className="text-[28px] sm:text-[30px] font-display font-bold mt-1.5 tabular-nums leading-none text-foreground">
             {loading ? "—" : properties.length}
           </div>
         </button>
