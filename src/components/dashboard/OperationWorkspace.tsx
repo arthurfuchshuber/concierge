@@ -1484,59 +1484,8 @@ function OccupancyPanel({
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [openAgenda, days]);
+  }, [days]);
 
-  // Recolhe a agenda ao rolar a página — só depois de uma rolagem significativa
-  // e com uma pequena espera, para não parecer agressivo. Rolagem dentro do
-  // próprio quadrante do calendário nunca recolhe.
-  useEffect(() => {
-    if (!openAgenda) return;
-    const THRESHOLD = 260; // px de rolagem acumulada antes de recolher
-    const DELAY = 700; // ms de espera após ultrapassar o limite
-    const insideRef = { current: false };
-    let insideTimer: ReturnType<typeof setTimeout> | undefined;
-    let collapseTimer: ReturnType<typeof setTimeout> | undefined;
-    let baseY = window.scrollY;
-    const markInside = (e: Event) => {
-      const el = outerRef.current;
-      const t = e.target as Node | null;
-      if (el && t && el.contains(t)) {
-        insideRef.current = true;
-        baseY = window.scrollY;
-        if (collapseTimer) {
-          clearTimeout(collapseTimer);
-          collapseTimer = undefined;
-        }
-        if (insideTimer) clearTimeout(insideTimer);
-        insideTimer = setTimeout(() => {
-          insideRef.current = false;
-          baseY = window.scrollY;
-        }, 600);
-      }
-    };
-    const onScroll = () => {
-      if (insideRef.current) {
-        baseY = window.scrollY;
-        return;
-      }
-      if (Math.abs(window.scrollY - baseY) < THRESHOLD) return;
-      if (collapseTimer) return;
-      collapseTimer = setTimeout(() => {
-        collapseTimer = undefined;
-        if (!insideRef.current) setOpenAgenda("");
-      }, DELAY);
-    };
-    window.addEventListener("wheel", markInside, { passive: true, capture: true });
-    window.addEventListener("touchmove", markInside, { passive: true, capture: true });
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      if (insideTimer) clearTimeout(insideTimer);
-      if (collapseTimer) clearTimeout(collapseTimer);
-      window.removeEventListener("wheel", markInside, true);
-      window.removeEventListener("touchmove", markInside, true);
-      window.removeEventListener("scroll", onScroll);
-    };
-  }, [openAgenda]);
 
   const todayISO = todayISOSaoPaulo();
 
