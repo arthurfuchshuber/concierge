@@ -940,7 +940,7 @@ function PropertyEditor() {
         checkout: form.checkout.filter((m) => m.label),
       };
       const r = await save({ data: payload });
-      toast.success(isNew ? "Imóvel criado" : "Guia salvo");
+      if (!silent) toast.success(isNew ? "Imóvel criado" : "Guia salvo");
       dirtyRef.current = false;
       // Invalida caches para que o próximo mount reflita o estado salvo
       // (published, campos alterados, etc.) em vez de servir cache stale.
