@@ -452,7 +452,7 @@ export function BulkEditDialog({
             <Loader2 className="size-5 animate-spin" />
           </div>
         ) : (
-        <Tabs defaultValue="house" className="w-full min-w-0">
+        <Tabs value={tab} onValueChange={setTab} className="w-full min-w-0">
           <div className="-mx-1 overflow-x-auto pb-1">
             <TabsList className="inline-flex h-auto w-max gap-1">
               {TEXT_TABS.map((t) => (
