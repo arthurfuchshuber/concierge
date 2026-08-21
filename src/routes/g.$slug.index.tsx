@@ -474,9 +474,52 @@ function Guide({ data }: { data: GuideOk }) {
   // removida porque o hóspede pode precisar consultar as senhas a qualquer
   // momento durante a estadia.)
 
+  // Check-in / check-out confirmados pelo próprio hóspede (persistidos no
+  // dispositivo). Guiam a visibilidade das faixas, senhas e abas.
+  const [checkinConcluded, setCheckinConcluded] = useState(false);
+  const [checkoutConcluded, setCheckoutConcluded] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const key = `guide-checkin-done:${slug}`;
+    const outKey = `guide-checkout-done:${slug}`;
+    const confirmed = () => localStorage.getItem(key) === "1";
+    const passedCheckinMoment = () => {
+      const d = accessRec?.checkinDate;
+      if (!d) return false;
+      const [y, mo, day] = d.split("-").map(Number);
+      if (!y || !mo || !day) return false;
+      const t = String(p.checkin_time ?? "").match(/^(\d{1,2}):(\d{2})/);
+      const start = new Date(y, mo - 1, day, t ? Number(t[1]) : 15, t ? Number(t[2]) : 0, 0, 0).getTime();
+      return Date.now() >= start;
+    };
+    const evaluate = () => {
+      setCheckinConcluded(confirmed() || passedCheckinMoment());
+      setCheckoutConcluded(localStorage.getItem(outKey) === "1");
+    };
+    evaluate();
+    const onDone = () => {
+      localStorage.setItem(key, "1");
+      setCheckinConcluded(true);
+    };
+    const onCheckout = () => {
+      localStorage.setItem(outKey, "1");
+      setCheckoutConcluded(true);
+    };
+    window.addEventListener("guide-checkin-done", onDone as EventListener);
+    window.addEventListener("guide-checkout-done", onCheckout as EventListener);
+    const id = window.setInterval(evaluate, 60_000);
+    return () => {
+      window.removeEventListener("guide-checkin-done", onDone as EventListener);
+      window.removeEventListener("guide-checkout-done", onCheckout as EventListener);
+      window.clearInterval(id);
+    };
+  }, [slug, accessRec?.checkinDate, p.checkin_time]);
+
   // Informações sensíveis (Wi-Fi, senhas de acesso) permanecem disponíveis
-  // dentro da página "Chegada" até as 15h00 do dia do check-out.
+  // dentro da página "Chegada" até as 15h00 do dia do check-out — ou até o
+  // hóspede confirmar o check-out.
   const checkinLocked = (() => {
+    if (checkoutConcluded) return true;
     if (!accessRec?.checkoutDate) return false;
     const [y, mo, d] = accessRec.checkoutDate.split("-").map(Number);
     if (!y || !mo || !d) return false;
@@ -489,43 +532,14 @@ function Guide({ data }: { data: GuideOk }) {
   // A revelação das senhas continua gated por `checkinLocked`.
   const homeStripsVisible = !!accessRec;
 
-  // Check-in concluído: só então a informação de check-out pode aparecer.
-  // Considera concluído quando o hóspede confirmou no onboarding
-  // ("Consegui fazer o check-in!") ou quando já passou o horário de
-  // check-in do dia de chegada.
-  const [checkinConcluded, setCheckinConcluded] = useState(false);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const key = `guide-checkin-done:${slug}`;
-    const confirmed = () => localStorage.getItem(key) === "1";
-    const passedCheckinMoment = () => {
-      const d = accessRec?.checkinDate;
-      if (!d) return false;
-      const [y, mo, day] = d.split("-").map(Number);
-      if (!y || !mo || !day) return false;
-      const t = String(p.checkin_time ?? "").match(/^(\d{1,2}):(\d{2})/);
-      const start = new Date(y, mo - 1, day, t ? Number(t[1]) : 15, t ? Number(t[2]) : 0, 0, 0).getTime();
-      return Date.now() >= start;
-    };
-    const evaluate = () => setCheckinConcluded(confirmed() || passedCheckinMoment());
-    evaluate();
-    const onDone = () => {
-      localStorage.setItem(key, "1");
-      setCheckinConcluded(true);
-    };
-    window.addEventListener("guide-checkin-done", onDone as EventListener);
-    const id = window.setInterval(evaluate, 60_000);
-    return () => {
-      window.removeEventListener("guide-checkin-done", onDone as EventListener);
-      window.clearInterval(id);
-    };
-  }, [slug, accessRec?.checkinDate, p.checkin_time]);
+  // Faixa de check-in: some assim que o check-in é concluído.
+  const checkinNoticeVisible = homeStripsVisible && !checkinConcluded && !checkoutConcluded;
 
   // Aviso de check-out: aparece como faixa na home a partir das 3h00 do
-  // dia do check-out e até as 15h00 do mesmo dia — e nunca antes do
-  // check-in estar concluído.
+  // dia do check-out e até as 15h00 do mesmo dia — só depois do check-in
+  // concluído e some quando o hóspede confirma a saída.
   const checkoutNoticeVisible = (() => {
-    if (!checkinConcluded) return false;
+    if (!checkinConcluded || checkoutConcluded) return false;
     if (!accessRec?.checkoutDate) return false;
     if (!p.checkout_note && !p.checkout_time) return false;
     const [y, mo, d] = accessRec.checkoutDate.split("-").map(Number);
@@ -652,9 +666,9 @@ function Guide({ data }: { data: GuideOk }) {
     p.wifi_ssid ||
     p.checkin_instructions
   );
-  const hasCheckin = hasCheckinData && !stayCardsExpired;
+  const hasCheckin = hasCheckinData && !stayCardsExpired && !checkoutConcluded;
   const hasSaidaData = !!(p.checkout_time || p.checkout_note || p.checkout_instructions);
-  const hasSaida = hasSaidaData && !stayCardsExpired;
+  const hasSaida = hasSaidaData && !stayCardsExpired && !checkoutConcluded;
   const hasResidencia = houseManual.length > 0;
   const hasLocWifi = !hasResidencia && !!(p.address || p.maps_url || p.wifi_ssid || (p as any).wifi_password_set);
   const hasFaq = !!(p.host_name || p.host_phone) || data.emergency.length > 0 || data.faqs.length > 0;
@@ -793,8 +807,8 @@ function Guide({ data }: { data: GuideOk }) {
   // (ambos agora em tela cheia, com o mesmo menu real embaixo, travado em
   // "Chegada" até o hóspede terminar).
   const guideNavItems: Array<{ key: BottomNavKey; label: string }> = [{ key: "home", label: "Início" }];
-  if (hasCheckinData) guideNavItems.push({ key: "checkin", label: "Chegada" });
-  if (hasSaidaData) guideNavItems.push({ key: "saida", label: "Saída" });
+  if (hasCheckinData && !checkoutConcluded) guideNavItems.push({ key: "checkin", label: "Chegada" });
+  if (hasSaidaData && !checkoutConcluded) guideNavItems.push({ key: "saida", label: "Saída" });
   if (hasResidencia) guideNavItems.push({ key: "residencia", label: "Residência" });
   if (hasExplore) guideNavItems.push({ key: "explore", label: "Explorar" });
 
@@ -904,7 +918,7 @@ function Guide({ data }: { data: GuideOk }) {
 
               {/* Bloco de check-in — topo, logo abaixo da imagem.
                   Barra "check-in libera em" é clicável e expande as senhas. */}
-              {homeStripsVisible && (
+              {homeStripsVisible && !checkoutConcluded && (
                 <div className="mt-3 md:mt-4">
                   {(() => {
                     const hasCodes =
@@ -1015,13 +1029,13 @@ function Guide({ data }: { data: GuideOk }) {
               )}
 
               {/* Faixa amarela — informações importantes de check-in/check-out. */}
-              {((homeStripsVisible && p.checkin_note) ||
+              {((checkinNoticeVisible && p.checkin_note) ||
                 (checkoutNoticeVisible && (p.checkout_note || p.checkout_time))) && (
                 <div className="px-4 md:px-10 lg:px-16 mt-3">
                   <div
                     className={`rounded-[22px] border px-4 py-4 flex flex-col gap-4 ${theme === "dark" ? "border-amber-300/22 bg-amber-300/10 text-amber-50" : "border-amber-200/80 bg-amber-50/90 text-amber-950"}`}
                   >
-                    {homeStripsVisible && p.checkin_note && (
+                    {checkinNoticeVisible && p.checkin_note && (
                       <div className="flex items-start gap-3 md:flex-1 md:min-w-0">
                         <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-400/15 text-amber-400">
                           <LogIn className="size-[18px]" strokeWidth={2} />
@@ -1058,6 +1072,13 @@ function Guide({ data }: { data: GuideOk }) {
                               />
                             </p>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => window.dispatchEvent(new CustomEvent("guide-checkout-done"))}
+                            className={`mt-3 h-9 px-3.5 rounded-xl text-[12px] font-semibold transition-colors ${theme === "dark" ? "bg-amber-300/15 text-amber-100 hover:bg-amber-300/25" : "bg-amber-900/10 text-amber-950 hover:bg-amber-900/15"}`}
+                          >
+                            Já fiz o check-out ✓
+                          </button>
                         </div>
                       </div>
                     )}
@@ -1951,8 +1972,8 @@ function Guide({ data }: { data: GuideOk }) {
         const items: Array<{ key: import("@/components/guide/BottomNav").BottomNavKey; label: string }> = [
           { key: "home", label: "Início" },
         ];
-        if (hasCheckinData) items.push({ key: "checkin", label: "Chegada" });
-        if (hasSaidaData) items.push({ key: "saida", label: "Saída" });
+        if (hasCheckinData && !checkoutConcluded) items.push({ key: "checkin", label: "Chegada" });
+        if (hasSaidaData && !checkoutConcluded) items.push({ key: "saida", label: "Saída" });
         if (hasResidencia) items.push({ key: "residencia", label: "Residência" });
         if (hasExplore) items.push({ key: "explore", label: "Explorar" });
         if (items.length <= 1) return null;
