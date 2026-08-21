@@ -993,6 +993,7 @@ function Guide({ data }: { data: GuideOk }) {
         checkoutTime={fmtOnbTime(p.checkout_time)}
         address={(p.address as string | null) ?? null}
         hasAccessPin={hasAccessPin}
+        checkinAlreadyConfirmed={checkinConcluded || checkoutConcluded}
         hasCheckinSteps={!!(p.checkin_instructions || (Array.isArray(p.checkin_media) && p.checkin_media.length > 0))}
         checkinInstructionsText={p.checkin_instructions ? String(p.checkin_instructions) : null}
         lockCode={p.lock_code ? String(p.lock_code) : null}
@@ -3137,6 +3138,7 @@ function PostAccessOnboarding({
   checkoutTime,
   address,
   hasAccessPin,
+  checkinAlreadyConfirmed,
   hasCheckinSteps,
   checkinInstructionsText,
   lockCode,
@@ -3161,6 +3163,8 @@ function PostAccessOnboarding({
   checkoutTime?: string | null;
   address?: string | null;
   hasAccessPin: boolean;
+  /** Check-in já marcado como feito (por outro hóspede da reserva ou pelo anfitrião). */
+  checkinAlreadyConfirmed: boolean;
   hasCheckinSteps: boolean;
   checkinInstructionsText?: string | null;
   lockCode?: string | null;
@@ -3213,10 +3217,16 @@ function PostAccessOnboarding({
   // fazer o check-in?" — o hóspede pode nem ter chegado na cidade ainda. Nessa
   // janela, a etapa final vira só uma confirmação de que ele entendeu o
   // fluxo, sem forçar uma resposta de sucesso/dificuldade que ainda não existe.
-  const beforeCheckinWindow = (() => {
+  // A pergunta "conseguiu fazer o check-in?" só faz sentido a partir de 6h
+  // antes do horário de check-in configurado — e nunca quando o check-in já
+  // foi confirmado (por outro hóspede da reserva ou pelo anfitrião).
+  const canAskCheckin = (() => {
+    if (checkinAlreadyConfirmed) return false;
     const [y, m, d] = checkinDate.split("-").map(Number);
     if (!y || !m || !d) return false;
-    return new Date() < new Date(y, m - 1, d, 8, 0, 0);
+    const [hh, mm] = (checkinTime || "15:00").split(":").map(Number);
+    const start = new Date(y, m - 1, d, Number.isFinite(hh) ? hh : 15, Number.isFinite(mm) ? mm : 0, 0);
+    return Date.now() >= start.getTime() - 6 * 60 * 60 * 1000;
   })();
 
   function openDifficultyChat() {
@@ -3449,19 +3459,19 @@ function PostAccessOnboarding({
               </div>
               <DialogTitleFallback className="mb-1.5 text-[19px]">Tudo pronto, {firstName}!</DialogTitleFallback>
               <p className="text-[12.5px] leading-relaxed text-muted-foreground mb-5 max-w-[300px] mx-auto [text-wrap:auto]">
-                {beforeCheckinWindow
+                {!canAskCheckin
                   ? "Você já sabe onde encontrar o passo a passo e as senhas quando chegar a hora."
                   : "Você já sabe onde encontrar o passo a passo e as senhas. Conseguiu fazer o check-in sem problema?"}
               </p>
 
               <div className="space-y-2">
-                {beforeCheckinWindow ? (
+                {!canAskCheckin ? (
                   <button
                     type="button"
                     onClick={onDone}
-                    className="w-full h-[44px] rounded-2xl text-white font-semibold text-[13px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
+                    className="w-full h-[44px] rounded-2xl text-white font-semibold text-[13px] bg-gradient-to-r from-emerald-400 to-emerald-500 shadow-[0_10px_30px_-8px_rgba(16,185,129,0.55)] hover:brightness-110 transition-all"
                   >
-                    Entendido. Estou pronto para o check-in!
+                    Acessar o Guia Digital
                   </button>
                 ) : (
                   <>
@@ -3471,7 +3481,7 @@ function PostAccessOnboarding({
                         window.dispatchEvent(new CustomEvent("guide-checkin-done"));
                         onDone();
                       }}
-                      className="w-full h-[44px] rounded-2xl text-white font-semibold text-[13px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
+                      className="w-full h-[44px] rounded-2xl text-white font-semibold text-[13px] bg-gradient-to-r from-emerald-400 to-emerald-500 shadow-[0_10px_30px_-8px_rgba(16,185,129,0.55)] hover:brightness-110 transition-all"
                     >
                       Consegui fazer o check-in! 🎉
                     </button>
