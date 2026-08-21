@@ -626,7 +626,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   }
 
   return (
-    <div className="px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] mx-auto w-full space-y-1.5">
+    {/* Alinhado à esquerda (sem mx-auto): com o menu recolhido a área fica mais
+        larga e o centramento aumentava a margem esquerda — o espaçamento até o
+        menu precisa ser idêntico nos dois estados. */}
+    <div className="px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full space-y-1.5">
       <OperationShell view={view} />
 
       {view === "resumo" ? (
