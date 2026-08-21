@@ -25,6 +25,7 @@ import {
   Link as LinkIcon,
   KeyRound,
   Eye,
+  ListChecks,
   Trash2,
   BedDouble,
   CheckCircle2,
@@ -1194,16 +1195,10 @@ function useWholeCardsMaxHeight(visible: number, key: unknown) {
       // Mede na mesma coordenada absoluta para incluir qualquer gap ou título
       // anterior ao item. A altura termina exatamente na borda inferior do
       // card escolhido, sem depender do offsetParent de listas aninhadas.
-      const absoluteTop = (element: HTMLElement) => {
-        let top = 0;
-        let current: HTMLElement | null = element;
-        while (current) {
-          top += current.offsetTop;
-          current = current.offsetParent as HTMLElement | null;
-        }
-        return top;
-      };
-      const base = absoluteTop(node);
+      // Medimos por rect (imune a offsetParent de listas aninhadas/portais)
+      // e compensamos o scroll atual do container.
+      const absoluteTop = (element: HTMLElement) => element.getBoundingClientRect().top;
+      const base = node.getBoundingClientRect().top - node.scrollTop;
       const cap = Math.round(window.innerHeight * 0.7);
       const tops = items.map((i) => absoluteTop(i) - base);
       const bottoms = items.map((i) => absoluteTop(i) + i.offsetHeight - base);
@@ -1459,11 +1454,12 @@ function KpiCard({
                           <TimeDropdown value={time} onChange={(v) => onEditTime(r, kind, v)} />
                         </div>
                       </div>
-                      {!r.openedCheckin && (
-                        <div className="mt-1 text-[10px] uppercase tracking-wider font-semibold text-amber-600 dark:text-amber-400">
-                          Não Acessou o Guia
-                        </div>
-                      )}
+                      <EngagementFlags
+                        openedGuide={r.openedGuide}
+                        readInstructions={r.readInstructions}
+                        hasPasswords={r.hasPasswords}
+                        viewedPasswords={r.viewedPasswords}
+                      />
                     </div>
                     {onAdvance && (
                       <div className="self-end shrink-0">
@@ -1486,6 +1482,59 @@ function KpiCard({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * Pendências de engajamento do hóspede — só mostramos o que está em falta:
+ * 1) não acessou o guia · 2) não leu as instruções (menos de 5s na Chegada)
+ * 3) não viu as senhas.
+ */
+function EngagementFlags({
+  openedGuide,
+  readInstructions,
+  hasPasswords,
+  viewedPasswords,
+  variant = "text",
+}: {
+  openedGuide?: boolean;
+  readInstructions?: boolean;
+  hasPasswords?: boolean;
+  viewedPasswords?: boolean;
+  variant?: "text" | "pills";
+}) {
+  const flags: Array<{ icon: typeof Eye; label: string }> = [];
+  if (!openedGuide) flags.push({ icon: Eye, label: "Não acessou o guia" });
+  else {
+    if (!readInstructions) flags.push({ icon: ListChecks, label: "Não leu as instruções" });
+    if (hasPasswords && !viewedPasswords) flags.push({ icon: KeyRound, label: "Não viu as senhas" });
+  }
+  if (flags.length === 0) return null;
+  if (variant === "pills") {
+    return (
+      <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+        {flags.map((f) => (
+          <span
+            key={f.label}
+            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25"
+          >
+            <f.icon className="size-3" /> {f.label}
+          </span>
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div className="mt-1 flex flex-col gap-0.5">
+      {flags.map((f) => (
+        <div
+          key={f.label}
+          className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-semibold text-amber-600 dark:text-amber-400"
+        >
+          <f.icon className="size-3 shrink-0" /> {f.label}
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -2494,22 +2543,15 @@ function ArrivalCard({
               )}
 
               {/* Engagement — só mostra pendências (fatos negativos). */}
-              {mode !== "cleaning" &&
-                !isPendingFill &&
-                (!row.openedCheckin || (row.hasPasswords && !row.viewedPasswords)) && (
-                  <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-                    {!row.openedCheckin && (
-                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25">
-                        <Eye className="size-3" /> Não abriu Chegada
-                      </span>
-                    )}
-                    {row.hasPasswords && !row.viewedPasswords && (
-                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25">
-                        <KeyRound className="size-3" /> Não viu senhas
-                      </span>
-                    )}
-                  </div>
-                )}
+              {mode !== "cleaning" && !isPendingFill && (
+                <EngagementFlags
+                  openedGuide={row.openedGuide}
+                  readInstructions={row.readInstructions}
+                  hasPasswords={row.hasPasswords}
+                  viewedPasswords={row.viewedPasswords}
+                  variant="pills"
+                />
+              )}
 
               {row.ical.hasIcal &&
                 !isPendingFill &&

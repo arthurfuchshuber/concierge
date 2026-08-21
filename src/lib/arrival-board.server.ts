@@ -201,7 +201,7 @@ export async function buildArrivalRows(
             .from("guide_section_events")
             .select("property_id, section, guest_name, guest_phone")
             .in("property_id", propIds)
-            .in("section", ["checkin", "senhas"])
+            .in("section", ["home", "checkin", "checkin-lido", "senhas", "saida", "residencia", "faq", "explorar"])
             .limit(5000)
         : Promise.resolve({
             data: [] as Array<{
@@ -291,6 +291,11 @@ export async function buildArrivalRows(
       `${pid}|${(name || "").trim().toLowerCase()}|${(phone || "").replace(/\D/g, "")}`;
     const openedCheckinSet = new Set<string>();
     const viewedPasswordsSet = new Set<string>();
+    // Abriu o guia = existe QUALQUER evento de navegação do hóspede.
+    const openedGuideSet = new Set<string>();
+    // Leu as instruções = permaneceu ao menos 5s na aba Chegada (evento
+    // "checkin-lido", disparado pelo guia só depois desse tempo).
+    const readInstructionsSet = new Set<string>();
     for (const ev of (sectionEvents ?? []) as Array<{
       property_id: string;
       section: string;
@@ -298,7 +303,9 @@ export async function buildArrivalRows(
       guest_phone: string | null;
     }>) {
       const k = eventKey(ev.property_id, ev.guest_name, ev.guest_phone);
+      openedGuideSet.add(k);
       if (ev.section === "checkin") openedCheckinSet.add(k);
+      else if (ev.section === "checkin-lido") readInstructionsSet.add(k);
       else if (ev.section === "senhas") viewedPasswordsSet.add(k);
     }
 
@@ -597,6 +604,8 @@ export async function buildArrivalRows(
         garageMapsUrl: p?.garage_maps_url ?? null,
         hasPasswords: !!p?.hasPasswords,
         openedCheckin: openedCheckinSet.has(evK),
+        openedGuide: openedGuideSet.has(evK),
+        readInstructions: readInstructionsSet.has(evK),
         viewedPasswords: viewedPasswordsSet.has(evK),
         guestName: l.guest_name,
         guestPhone: l.guest_phone,
@@ -676,6 +685,8 @@ export async function buildArrivalRows(
         garageMapsUrl: p?.garage_maps_url ?? null,
         hasPasswords: !!p?.hasPasswords,
         openedCheckin: matchedLog ? openedCheckinSet.has(evK) : false,
+        openedGuide: matchedLog ? openedGuideSet.has(evK) : false,
+        readInstructions: matchedLog ? readInstructionsSet.has(evK) : false,
         viewedPasswords: matchedLog ? viewedPasswordsSet.has(evK) : false,
         guestName: matchedLog?.guest_name ?? r.guest_hint ?? "Reserva Airbnb",
         guestPhone: matchedLog?.guest_phone ?? null,
