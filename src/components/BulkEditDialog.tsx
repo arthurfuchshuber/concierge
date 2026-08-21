@@ -16,10 +16,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Section, SectionGroup, type SectionIcon } from "@/components/editor/Section";
 import {
   Loader2, Plus, Trash2, MapPinned, ClipboardCheck, BookOpen, UserRound, FileText, Shield,
-  Globe, DoorOpen, Clock, KeyRound, Wifi, ClipboardList, LogOut, Phone, HelpCircle,
+  Globe, DoorOpen, Clock, KeyRound, Wifi, ClipboardList, LogOut, Phone, HelpCircle, Lock,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
-import { bulkUpdateProperties, bulkFetchProperties } from "@/lib/properties.functions";
+import { bulkUpdateProperties, bulkFetchProperties, PER_PROPERTY_FIELDS } from "@/lib/properties.functions";
+
 import { toast } from "sonner";
 import { useAutosave } from "@/hooks/useAutosave";
 import { AutosaveIndicator } from "@/components/ui/autosave-indicator";
