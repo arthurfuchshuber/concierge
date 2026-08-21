@@ -16,10 +16,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Section, SectionGroup, type SectionIcon } from "@/components/editor/Section";
 import {
   Loader2, Plus, Trash2, MapPinned, ClipboardCheck, BookOpen, UserRound, FileText, Shield,
-  Globe, DoorOpen, Clock, KeyRound, Wifi, ClipboardList, LogOut, Phone, HelpCircle,
+  Globe, DoorOpen, Clock, KeyRound, Wifi, ClipboardList, LogOut, Phone, HelpCircle, Lock,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
-import { bulkUpdateProperties, bulkFetchProperties } from "@/lib/properties.functions";
+import { bulkUpdateProperties, bulkFetchProperties, PER_PROPERTY_FIELDS } from "@/lib/properties.functions";
+
 import { toast } from "sonner";
 import { useAutosave } from "@/hooks/useAutosave";
 import { AutosaveIndicator } from "@/components/ui/autosave-indicator";
@@ -408,15 +409,19 @@ export function BulkEditDialog({
   /** Campos que vieram preenchidos e foram desligados → serão removidos. */
   const removedFields = useMemo(() => {
     const out: FieldDef[] = [];
+    const perProp = new Set<string>(PER_PROPERTY_FIELDS as readonly string[]);
     for (const t of TEXT_TABS) {
       for (const g of t.groups) {
         for (const f of groupFields(g)) {
+          if (ids.length > 1 && perProp.has(f.key)) continue;
           if (initialEnabledRef.current[f.key] && !state.enabled[f.key]) out.push(f);
         }
       }
     }
     return out;
-  }, [state]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, ids.length]);
+
 
 
 
@@ -440,11 +445,14 @@ export function BulkEditDialog({
   async function saveAuto() {
     if (!data || ids.length === 0) return;
     const patch: Record<string, unknown> = {};
+    const perProp = new Set<string>(PER_PROPERTY_FIELDS as readonly string[]);
     for (const f of ALL_FIELDS) {
       if (!dirtyRef.current.has(f.key)) continue;
       if (!state.enabled[f.key]) continue;
+      if (ids.length > 1 && perProp.has(f.key)) continue;
       patch[f.key] = coerce(f, state.values[f.key]);
     }
+
     // Bloco desligado = remover essas informações dos guias selecionados.
     for (const f of removedFields) {
       patch[f.key] = f.kind === "boolean" ? false : f.kind === "number" ? 0 : "";
@@ -486,13 +494,18 @@ export function BulkEditDialog({
     const s2 = fieldSummary(f.key);
     const willRemove = showSwitch && !enabled && !!initialEnabledRef.current[f.key];
     const mixed = s2.distinct.length > 1;
+    // Senhas, Wi-Fi, endereço e mapas são exclusivos de cada residência:
+    // com vários guias selecionados o campo fica travado.
+    const locked = ids.length > 1 && (PER_PROPERTY_FIELDS as readonly string[]).includes(f.key);
     return (
       <div className="min-w-0">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
             <label className="text-sm font-medium truncate block">{f.label}</label>
-            <div className={`text-[11px] mt-0.5 truncate ${willRemove ? "text-destructive" : "text-muted-foreground"}`}>
-              {willRemove
+            <div className={`text-[11px] mt-0.5 ${locked ? "text-amber-600 dark:text-amber-400" : willRemove ? "text-destructive" : "text-muted-foreground"} ${locked ? "" : "truncate"}`}>
+              {locked
+                ? "Exclusivo de cada residência — edite no guia individual"
+                : willRemove
                 ? "Será removido dos guias selecionados"
                 : mixed
                   ? `${s2.distinct.length} valores diferentes — preencha para igualar em todos`
@@ -501,14 +514,16 @@ export function BulkEditDialog({
                     : `${s2.empty} guia${s2.empty > 1 ? "s" : ""} sem valor`}
             </div>
           </div>
-          {showSwitch && <Switch checked={enabled} onCheckedChange={(v) => toggle(f.key, v)} />}
+          {showSwitch && !locked && <Switch checked={enabled} onCheckedChange={(v) => toggle(f.key, v)} />}
+          {locked && <Lock className="size-4 shrink-0 text-muted-foreground" />}
         </div>
-        {(!showSwitch || enabled) && (
+        {!locked && (!showSwitch || enabled) && (
           <div className="mt-2">{renderField(f, value, (v) => setValue(f.key, v))}</div>
         )}
       </div>
     );
   }
+
 
 
 

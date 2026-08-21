@@ -334,6 +334,19 @@ const BulkPatch = z.object({
   document_scope: z.enum(["main", "all"]).optional(),
 }).strict();
 
+/**
+ * Campos que são EXCLUSIVOS de cada residência (senhas, Wi-Fi, endereço, links
+ * de mapa). Aplicá-los em vários guias de uma vez faria um imóvel receber o
+ * código de outro — por isso são bloqueados quando há mais de um selecionado.
+ */
+export const PER_PROPERTY_FIELDS = [
+  "gate_code", "lock_code", "access_codes_pin", "pin_code",
+  "wifi_ssid", "wifi_password",
+  "address", "maps_url", "garage_maps_url",
+] as const;
+
+
+
 const BulkListsInput = z.object({
   manual: z.array(z.object({
     title: z.string().min(1).max(120),
@@ -415,8 +428,28 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
     const patch: Record<string, unknown> = Object.fromEntries(
       Object.entries(data.patch).map(([k, v]) => [k, v === "" ? null : v]),
     );
+    // Trava de segurança: senhas, Wi-Fi, endereço e mapas nunca podem ser
+    // gravados em lote — um imóvel jamais recebe o código de outro.
+    if (data.ids.length > 1) {
+      for (const k of PER_PROPERTY_FIELDS) delete patch[k];
+    }
     const patchKeys = Object.keys(patch);
     const updatedSet = new Set<string>();
+
+    // Guarda os valores anteriores para permitir recuperação em caso de engano.
+    if (patchKeys.length > 0) {
+      const before = await sb.from("properties").select(["id", ...patchKeys].join(",")).in("id", data.ids);
+      if (!before.error && before.data) {
+        await sb.from("audit_logs").insert({
+          user_id: context.userId,
+          action: "properties.bulk_edit.snapshot",
+          entity_type: "properties",
+          entity_id: data.ids[0]!,
+          metadata: { before: before.data, fields: patchKeys, ids: data.ids } as never,
+        } as never);
+      }
+    }
+
 
     function isEmpty(v: unknown): boolean {
       return v === null || v === undefined || v === "";
