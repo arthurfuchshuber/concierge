@@ -1447,7 +1447,7 @@ function OccupancyPanel({
   onStartChange?: (v: string) => void;
   defaultStart?: string;
 }) {
-  const [openAgenda, setOpenAgenda] = useState<string>("");
+  const [ownerFilter, setOwnerFilter] = useState<string>("");
   const [ownerFilter, setOwnerFilter] = useState<string>("");
   const [cityFilter, setCityFilter] = useState<string>("");
 
