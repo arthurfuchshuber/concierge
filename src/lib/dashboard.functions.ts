@@ -200,7 +200,7 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
 // ----- Engagement -----
 
 type EventRow = { property_id: string; guest_name: string | null; guest_phone: string | null };
-type GuestMark = { name: string; property: string };
+type GuestMark = { name: string; property: string; owner?: string; time?: string | null };
 
 const EngagementInput = z.object({
   range: z.enum(["today", "tomorrow", "7d", "30d"]).default("today"),
@@ -234,7 +234,10 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       to = addDaysISO(today, 29);
     }
     const [{ data: props }, { data: reservations }, { data: logs }, { data: allStatuses }] = await Promise.all([
-      context.supabase.from("properties").select("id, name, airbnb_ical_url, lock_code, gate_code").in("id", propIds),
+      context.supabase
+        .from("properties")
+        .select("id, name, airbnb_ical_url, lock_code, gate_code, owner_contact_id")
+        .in("id", propIds),
       context.supabase
         .from("property_reservations")
         .select("id, property_id, checkin_date, checkout_date, status, raw_summary")
@@ -246,7 +249,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         .limit(5000),
       context.supabase
         .from("guide_access_logs")
-        .select("id, property_id, guest_name, guest_phone, checkin_date")
+        .select("id, property_id, guest_name, guest_phone, guest_arrival_time, checkin_date")
         .in("property_id", propIds)
         .gte("checkin_date", from)
         .lte("checkin_date", to)
@@ -282,12 +285,13 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       property_id: string;
       guest_name: string | null;
       guest_phone: string | null;
+      guest_arrival_time?: string | null;
       checkin_date: string | null;
     };
     const allLogs = ((logs ?? []) as LogRow[]).filter((r) => !isPlaceholderGuest(r.guest_name));
 
     // Uma entrada por check-in PENDENTE do período (mesma base usada no contador).
-    type Entry = { property_id: string; name: string; phone: string | null };
+    type Entry = { property_id: string; name: string; phone: string | null; time: string | null };
     const entries: Entry[] = [];
     const usedLog = new Set<number>();
 
@@ -314,6 +318,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         property_id: r.property_id,
         name: (matched?.guest_name || "").trim() || "Hóspede pendente",
         phone: matched?.guest_phone ?? null,
+        time: matched?.guest_arrival_time ?? null,
       });
     }
 
@@ -329,6 +334,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         property_id: l.property_id,
         name: (l.guest_name || "").trim() || "Hóspede pendente",
         phone: l.guest_phone,
+        time: l.guest_arrival_time ?? null,
       });
     }
 
@@ -364,9 +370,26 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     ]);
 
     // Quem viu / quem não viu.
-    const propName = new Map(
-      ((props ?? []) as Array<{ id: string; name?: string | null }>).map((p) => [p.id, p.name ?? ""]),
-    );
+    const propRows = (props ?? []) as Array<{ id: string; name?: string | null; owner_contact_id?: string | null }>;
+    const propName = new Map(propRows.map((p) => [p.id, p.name ?? ""]));
+    // Nome do proprietário — usado para espelhar a ordenação dos cards do Kanban.
+    const ownerIds = Array.from(new Set(propRows.map((p) => p.owner_contact_id).filter((v): v is string => !!v)));
+    const ownerByProp = new Map<string, string>();
+    if (ownerIds.length > 0) {
+      const { data: owners } = await context.supabase
+        .from("property_owners")
+        .select("id, name, trade_name")
+        .in("id", ownerIds);
+      const label = new Map(
+        ((owners ?? []) as Array<{ id: string; name: string | null; trade_name: string | null }>).map((o) => [
+          o.id,
+          (o.trade_name || o.name || "").trim(),
+        ]),
+      );
+      for (const p of propRows) {
+        if (p.owner_contact_id) ownerByProp.set(p.id, label.get(p.owner_contact_id) ?? "");
+      }
+    }
     const identity = (propertyId: string, name?: string | null, phone?: string | null) =>
       `${propertyId}|${(name || "").trim().toLowerCase()}|${(phone || "").replace(/\D/g, "")}`;
     const looseIdentity = (propertyId: string, name?: string | null) =>
@@ -392,26 +415,52 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       seen: { strict: Set<string>; loose: Set<string>; phones: Set<string> },
       list: Entry[],
     ) {
-      const viewed: GuestMark[] = [];
-      const notViewed: GuestMark[] = [];
+      type Item = { mark: GuestMark; propertyId: string };
+      const viewed: Item[] = [];
+      const notViewed: Item[] = [];
       for (const e of list) {
-        const mark: GuestMark = { name: e.name, property: propName.get(e.property_id) || "" };
+        const mark: GuestMark = {
+          name: e.name,
+          property: propName.get(e.property_id) || "",
+          owner: ownerByProp.get(e.property_id) || "",
+          time: e.time ?? null,
+        };
         const digits = (e.phone || "").replace(/\D/g, "");
         const hit =
           e.name !== "Hóspede pendente" &&
           (seen.strict.has(identity(e.property_id, e.name, e.phone)) ||
             seen.loose.has(looseIdentity(e.property_id, e.name)) ||
             (digits.length >= 8 && seen.phones.has(`${e.property_id}|${digits.slice(-8)}`)));
-        (hit ? viewed : notViewed).push(mark);
+        (hit ? viewed : notViewed).push({ mark, propertyId: e.property_id });
       }
-      // Mantém a ordem de acesso dentro de cada imóvel (o 1º a acessar é o
-      // hóspede principal) e agrupa os imóveis por nome.
-      const stableByProperty = (list: GuestMark[]) =>
-        list
-          .map((m, i) => ({ m, i }))
-          .sort((a, b) => a.m.property.localeCompare(b.m.property, "pt-BR") || a.i - b.i)
-          .map((x) => x.m);
-      return { viewed: stableByProperty(viewed), notViewed: stableByProperty(notViewed) };
+      // Mesma ordenação dos cards do Kanban: horário previsto (mais cedo
+      // primeiro, sem horário por último) → proprietário A→Z → anúncio A→Z.
+      // Dentro do imóvel mantém a ordem de acesso (1º a acessar = principal).
+      const txt = (a?: string | null, b?: string | null) =>
+        (a ?? "").localeCompare(b ?? "", "pt-BR", { sensitivity: "base" });
+      const sortMarks = (items: Item[]) => {
+        const earliest = new Map<string, string | null>();
+        items.forEach(({ mark, propertyId }, i) => {
+          const cur = earliest.get(propertyId);
+          if (!earliest.has(propertyId) || (mark.time && (!cur || mark.time < cur))) {
+            earliest.set(propertyId, mark.time ?? cur ?? null);
+          }
+          void i;
+        });
+        return items
+          .map((it, i) => ({ it, i }))
+          .sort((a, b) => {
+            const ta = earliest.get(a.it.propertyId) ?? null;
+            const tb = earliest.get(b.it.propertyId) ?? null;
+            if (ta && tb && ta !== tb) return ta.localeCompare(tb);
+            if (!!ta !== !!tb) return ta ? -1 : 1;
+            return (
+              txt(a.it.mark.owner, b.it.mark.owner) || txt(a.it.mark.property, b.it.mark.property) || a.i - b.i
+            );
+          })
+          .map((x) => x.it.mark);
+      };
+      return { viewed: sortMarks(viewed), notViewed: sortMarks(notViewed) };
     }
 
     const checkinBreakdown = breakdown(checkinSeen, entries);
