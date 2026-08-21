@@ -334,6 +334,19 @@ const BulkPatch = z.object({
   document_scope: z.enum(["main", "all"]).optional(),
 }).strict();
 
+/**
+ * Campos que são EXCLUSIVOS de cada residência (senhas, Wi-Fi, endereço, links
+ * de mapa). Aplicá-los em vários guias de uma vez faria um imóvel receber o
+ * código de outro — por isso são bloqueados quando há mais de um selecionado.
+ */
+export const PER_PROPERTY_FIELDS = [
+  "gate_code", "lock_code", "access_codes_pin", "pin_code",
+  "wifi_ssid", "wifi_password",
+  "address", "maps_url", "garage_maps_url",
+] as const;
+
+
+
 const BulkListsInput = z.object({
   manual: z.array(z.object({
     title: z.string().min(1).max(120),
