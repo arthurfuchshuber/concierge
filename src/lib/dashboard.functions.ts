@@ -318,6 +318,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         property_id: r.property_id,
         name: (matched?.guest_name || "").trim() || "Hóspede pendente",
         phone: matched?.guest_phone ?? null,
+        time: matched?.guest_arrival_time ?? null,
       });
     }
 
