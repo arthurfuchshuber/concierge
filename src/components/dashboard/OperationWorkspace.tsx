@@ -1184,23 +1184,28 @@ function useWholeCardsMaxHeight(visible: number, key: unknown) {
     let tries = 0;
 
     const recalc = () => {
-      const ul = node.querySelector<HTMLElement>("ul");
-      const items = ul ? Array.from(ul.children) as HTMLElement[] : [];
+      const items = Array.from(node.querySelectorAll<HTMLElement>("[data-whole-card]"));
       if (items.length === 0) {
         setMaxHeight(undefined);
         // O diálogo anima ao abrir; tenta de novo nos primeiros frames.
         if (tries++ < 20) raf = requestAnimationFrame(recalc);
         return;
       }
-      // offsetTop/offsetHeight não sofrem com o scale da animação de abertura.
-      const base = ul!.offsetTop;
+      // Mede na mesma coordenada absoluta para incluir qualquer gap ou título
+      // anterior ao item. A altura termina exatamente na borda inferior do
+      // card escolhido, sem depender do offsetParent de listas aninhadas.
+      const absoluteTop = (element: HTMLElement) => {
+        let top = 0;
+        let current: HTMLElement | null = element;
+        while (current) {
+          top += current.offsetTop;
+          current = current.offsetParent as HTMLElement | null;
+        }
+        return top;
+      };
+      const base = absoluteTop(node);
       const cap = Math.round(window.innerHeight * 0.7);
-      // O corte precisa terminar no pixel final do card-alvo. Somar o
-      // padding inferior aqui deixava uma janela de 16px depois do segundo
-      // card; como o terceiro já está dentro do mesmo <ul>, essa janela
-      // revelava o topo dele. O respiro continua existindo quando a lista
-      // termina naturalmente, mas listas roláveis são recortadas no card.
-      const bottoms = items.map((i) => i.offsetTop + i.offsetHeight - base);
+      const bottoms = items.map((i) => absoluteTop(i) + i.offsetHeight - base);
       const total = bottoms[bottoms.length - 1];
       if (items.length <= visible && total <= cap) {
         setMaxHeight(undefined);
@@ -1208,10 +1213,11 @@ function useWholeCardsMaxHeight(visible: number, key: unknown) {
       }
       let height = bottoms[Math.min(visible, bottoms.length) - 1];
       if (height > cap) {
-        // Recua até o último card que cabe por inteiro (ou o primeiro, cortado).
-        height = bottoms.filter((b) => b <= cap).pop() ?? cap;
+        // Recua somente para um card COMPLETO. Mesmo se o primeiro for mais
+        // alto que o limite visual, nunca o corta ao meio.
+        height = bottoms.filter((b) => b <= cap).pop() ?? bottoms[0];
       }
-      setMaxHeight(height);
+      setMaxHeight(Math.ceil(height));
     };
 
     raf = requestAnimationFrame(recalc);
@@ -1221,7 +1227,7 @@ function useWholeCardsMaxHeight(visible: number, key: unknown) {
       raf = requestAnimationFrame(recalc);
     });
     ro.observe(node);
-    for (const item of node.querySelectorAll("li")) ro.observe(item);
+    for (const item of node.querySelectorAll("[data-whole-card]")) ro.observe(item);
     const mo = new MutationObserver(() => {
       cancelAnimationFrame(raf);
       tries = 0;
