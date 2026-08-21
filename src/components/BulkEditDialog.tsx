@@ -302,6 +302,22 @@ export function BulkEditDialog({
     return Object.values(state.enabled).some(Boolean) || Object.values(state.listsEnabled).some(Boolean);
   }, [state]);
 
+  /** Algum campo de texto ativo está vazio → a intenção é remover o valor. */
+  const hasClearing = useMemo(() => {
+    for (const tab of TEXT_TABS) {
+      for (const g of tab.groups) {
+        for (const f of g.fields ?? []) {
+          if (!state.enabled[f.key]) continue;
+          if (f.kind !== "text" && f.kind !== "textarea") continue;
+          if (String(state.values[f.key] ?? "").trim() === "") return true;
+        }
+      }
+    }
+    return false;
+  }, [state]);
+
+
+
   function coerce(f: FieldDef, v: string | boolean | number | undefined): unknown {
     if (f.kind === "boolean") return v === true;
     if (f.kind === "theme") return v === "light" ? "light" : "dark";
@@ -431,7 +447,25 @@ export function BulkEditDialog({
                           <Switch checked={enabled} onCheckedChange={(v) => toggle(f.key, v)} />
                         </div>
                         {enabled && renderField(f, value, (v) => setValue(f.key, v))}
+                        {enabled && (f.kind === "text" || f.kind === "textarea") && (
+                          <div className="mt-2 flex items-center justify-between gap-2">
+                            <span className="text-[11px] text-muted-foreground truncate">
+                              {String(value ?? "").trim() === ""
+                                ? "Campo vazio: ao substituir em todos, o valor será removido."
+                                : "Deixe vazio para remover o valor."}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 shrink-0 text-[11px]"
+                              onClick={() => setValue(f.key, "")}
+                            >
+                              <Trash2 className="size-3 mr-1" /> Limpar
+                            </Button>
+                          </div>
+                        )}
                       </div>
+
                     );
                   })}
 
@@ -477,10 +511,13 @@ export function BulkEditDialog({
             <div className="max-w-md w-full rounded-2xl border border-border bg-card p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
               <div className="text-lg font-medium">Como aplicar as informações?</div>
               <p className="text-sm text-muted-foreground">
-                Alguns dos guias selecionados já podem ter esses campos preenchidos. Escolha como proceder:
+                {hasClearing
+                  ? "Há campos ativos sem valor: use “Substituir em todos” para removê-los dos guias selecionados."
+                  : "Alguns dos guias selecionados já podem ter esses campos preenchidos. Escolha como proceder:"}
               </p>
               <div className="space-y-2">
-                <Button className="w-full justify-start h-auto py-3" variant="outline" onClick={() => performSave("fill-empty")} disabled={saving}>
+                <Button className="w-full justify-start h-auto py-3" variant="outline" onClick={() => performSave("fill-empty")} disabled={saving || hasClearing}>
+
                   <div className="text-left">
                     <div className="text-sm font-medium">Preencher só onde estiver vazio</div>
                     <div className="text-[11px] text-muted-foreground">Mantém as informações existentes nos guias que já as têm.</div>
