@@ -232,6 +232,42 @@ const emptyState: State = { enabled: {}, values: {}, listsEnabled: {}, manual: [
 
 type FetchData = Awaited<ReturnType<typeof bulkFetchProperties>>;
 
+const ALL_FIELDS: FieldDef[] = TEXT_TABS.flatMap((t) => t.groups.flatMap((g) => g.fields ?? []));
+
+/**
+ * Pré-carrega o popup com o que já existe nos guias selecionados: campo
+ * preenchido em qualquer anúncio vem ativado e com o valor mais comum,
+ * para que o anfitrião veja (e possa limpar) a informação atual.
+ */
+function buildInitialState(d: FetchData): State {
+  const enabled: State["enabled"] = {};
+  const values: State["values"] = {};
+  for (const f of ALL_FIELDS) {
+    const counts = new Map<string, number>();
+    let filled = 0;
+    let sample: string | boolean | number | undefined;
+    for (const p of d.properties) {
+      const raw = (p as Record<string, unknown>)[f.key];
+      if (raw === null || raw === undefined || raw === "") continue;
+      if (f.kind === "boolean" && raw === false) continue;
+      filled += 1;
+      const k = String(raw);
+      counts.set(k, (counts.get(k) ?? 0) + 1);
+      if (sample === undefined) sample = raw as string | boolean | number;
+    }
+    if (filled === 0) continue;
+    let best = sample;
+    let bestN = -1;
+    for (const [k, n] of counts) {
+      if (n > bestN) { bestN = n; best = f.kind === "boolean" ? k === "true" : f.kind === "number" ? Number(k) : k; }
+    }
+    enabled[f.key] = true;
+    values[f.key] = best as string | boolean | number;
+  }
+  return { ...emptyState, enabled, values };
+}
+
+
 export function BulkEditDialog({
   open, onOpenChange, ids, onSaved,
 }: {
@@ -253,10 +289,14 @@ export function BulkEditDialog({
     setLoading(true);
     setData(null);
     fetchFn({ data: { ids } })
-      .then((d) => setData(d))
+      .then((d) => {
+        setData(d);
+        setState(buildInitialState(d));
+      })
       .catch(() => toast.error("Erro ao carregar dados dos guias"))
       .finally(() => setLoading(false));
   }, [open, ids, fetchFn]);
+
 
   function reset() {
     setState(emptyState);
@@ -437,12 +477,17 @@ export function BulkEditDialog({
                         <div className="flex items-center justify-between mb-2 gap-3">
                           <div className="min-w-0 flex-1">
                             <label className="text-sm font-medium truncate block">{f.label}</label>
-                            <div className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                              {s2.filled > 0 && s2.empty === 0 && s2.distinct.length === 1 && `Atual: ${s2.distinct[0]}`}
-                              {s2.filled > 0 && s2.empty === 0 && s2.distinct.length > 1 && `${s2.filled} guias · ${s2.distinct.length} valores distintos`}
-                              {s2.filled > 0 && s2.empty > 0 && `${s2.filled} preenchido${s2.filled > 1 ? "s" : ""} · ${s2.empty} vazio${s2.empty > 1 ? "s" : ""}`}
-                              {s2.filled === 0 && `${s2.empty} guia${s2.empty > 1 ? "s" : ""} sem valor`}
+                            <div className={`text-[11px] mt-0.5 truncate ${enabled && (f.kind === "text" || f.kind === "textarea") && String(value ?? "").trim() === "" ? "text-destructive" : "text-muted-foreground"}`}>
+                              {enabled && (f.kind === "text" || f.kind === "textarea") && String(value ?? "").trim() === ""
+                                ? "Será removido dos guias selecionados"
+                                : <>
+                                    {s2.filled > 0 && s2.empty === 0 && s2.distinct.length === 1 && `Atual: ${s2.distinct[0]}`}
+                                    {s2.filled > 0 && s2.empty === 0 && s2.distinct.length > 1 && `${s2.filled} guias · ${s2.distinct.length} valores distintos`}
+                                    {s2.filled > 0 && s2.empty > 0 && `${s2.filled} preenchido${s2.filled > 1 ? "s" : ""} · ${s2.empty} vazio${s2.empty > 1 ? "s" : ""}`}
+                                    {s2.filled === 0 && `${s2.empty} guia${s2.empty > 1 ? "s" : ""} sem valor`}
+                                  </>}
                             </div>
+
                           </div>
                           <Switch checked={enabled} onCheckedChange={(v) => toggle(f.key, v)} />
                         </div>
