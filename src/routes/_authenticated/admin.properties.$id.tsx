@@ -853,14 +853,14 @@ function PropertyEditor() {
   async function handleSave(overrides?: Partial<FormState["property"]>, opts?: { silent?: boolean }) {
     const silent = opts?.silent === true;
     if (gateOpen) {
-      if (!form.property.gate_code.trim()) { toast.error("Informe o código do portão ou desative essa opção."); return; }
-      if (!form.property.gate_label.trim()) { toast.error("Defina um nome para o acesso do portão."); return; }
+      if (!form.property.gate_code.trim()) { if (!silent) toast.error("Informe o código do portão ou desative essa opção."); return; }
+      if (!form.property.gate_label.trim()) { if (!silent) toast.error("Defina um nome para o acesso do portão."); return; }
     }
     if (lockOpen) {
-      if (!form.property.lock_code.trim()) { toast.error("Informe o código da fechadura ou desative essa opção."); return; }
-      if (!form.property.lock_label.trim()) { toast.error("Defina um nome para o acesso da fechadura."); return; }
+      if (!form.property.lock_code.trim()) { if (!silent) toast.error("Informe o código da fechadura ou desative essa opção."); return; }
+      if (!form.property.lock_label.trim()) { if (!silent) toast.error("Defina um nome para o acesso da fechadura."); return; }
     }
-    setSaving(true);
+    if (silent) setAutoSaving(true); else setSaving(true);
     try {
       // `overrides` existe para casos como "Criar guia": precisamos gravar
       // guide_created=true NA MESMA chamada de save, sem esperar um ciclo de
