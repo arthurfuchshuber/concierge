@@ -4132,7 +4132,7 @@ function WifiStrip({
     }
     if (checkinLocked) {
       toast.error(
-        "A senha do Wi-Fi fica disponível somente a partir de 24h antes do início do check-in até 12h depois. Fora dessa janela, fale com o time pelo chat do guia.",
+        "A senha do Wi-Fi fica disponível a partir de 24h antes do horário do check-in e até o horário do check-out. Fora dessa janela, fale com o time pelo chat do guia.",
         { duration: 9000 },
       );
       return false;
