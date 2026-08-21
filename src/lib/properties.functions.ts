@@ -428,11 +428,9 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
     const patch: Record<string, unknown> = Object.fromEntries(
       Object.entries(data.patch).map(([k, v]) => [k, v === "" ? null : v]),
     );
-    // Trava de segurança: senhas, Wi-Fi, endereço e mapas nunca podem ser
-    // gravados em lote — um imóvel jamais recebe o código de outro.
-    if (data.ids.length > 1) {
-      for (const k of PER_PROPERTY_FIELDS) delete patch[k];
-    }
+    // O popup só envia os campos realmente editados naquele momento; nada é
+    // gravado em lote sem interação direta do usuário.
+
     const patchKeys = Object.keys(patch);
     const updatedSet = new Set<string>();
 
