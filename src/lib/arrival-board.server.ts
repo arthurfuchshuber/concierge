@@ -635,7 +635,6 @@ export async function buildArrivalRows(
       // ainda está em andamento ou quando o check-in continua pendente (atrasado).
       if (date < today && !s && !virtualStay && !(overduePending && data.range !== "tomorrow")) return null;
 
-      const evK = eventKey(l.property_id, l.guest_name, l.guest_phone);
       return {
         logId: l.id,
         reservationId: null,
@@ -715,7 +714,6 @@ export async function buildArrivalRows(
       // vigente ou um check-in ainda pendente (atrasado).
       if (date < today && !s && !virtualStay && !overduePending) return null;
 
-      const evK = matchedLog ? eventKey(matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : "";
 
       return {
         logId: matchedLog?.id ?? `ical:${r.id}`,
