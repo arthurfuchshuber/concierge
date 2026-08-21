@@ -474,9 +474,52 @@ function Guide({ data }: { data: GuideOk }) {
   // removida porque o hóspede pode precisar consultar as senhas a qualquer
   // momento durante a estadia.)
 
+  // Check-in / check-out confirmados pelo próprio hóspede (persistidos no
+  // dispositivo). Guiam a visibilidade das faixas, senhas e abas.
+  const [checkinConcluded, setCheckinConcluded] = useState(false);
+  const [checkoutConcluded, setCheckoutConcluded] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const key = `guide-checkin-done:${slug}`;
+    const outKey = `guide-checkout-done:${slug}`;
+    const confirmed = () => localStorage.getItem(key) === "1";
+    const passedCheckinMoment = () => {
+      const d = accessRec?.checkinDate;
+      if (!d) return false;
+      const [y, mo, day] = d.split("-").map(Number);
+      if (!y || !mo || !day) return false;
+      const t = String(p.checkin_time ?? "").match(/^(\d{1,2}):(\d{2})/);
+      const start = new Date(y, mo - 1, day, t ? Number(t[1]) : 15, t ? Number(t[2]) : 0, 0, 0).getTime();
+      return Date.now() >= start;
+    };
+    const evaluate = () => {
+      setCheckinConcluded(confirmed() || passedCheckinMoment());
+      setCheckoutConcluded(localStorage.getItem(outKey) === "1");
+    };
+    evaluate();
+    const onDone = () => {
+      localStorage.setItem(key, "1");
+      setCheckinConcluded(true);
+    };
+    const onCheckout = () => {
+      localStorage.setItem(outKey, "1");
+      setCheckoutConcluded(true);
+    };
+    window.addEventListener("guide-checkin-done", onDone as EventListener);
+    window.addEventListener("guide-checkout-done", onCheckout as EventListener);
+    const id = window.setInterval(evaluate, 60_000);
+    return () => {
+      window.removeEventListener("guide-checkin-done", onDone as EventListener);
+      window.removeEventListener("guide-checkout-done", onCheckout as EventListener);
+      window.clearInterval(id);
+    };
+  }, [slug, accessRec?.checkinDate, p.checkin_time]);
+
   // Informações sensíveis (Wi-Fi, senhas de acesso) permanecem disponíveis
-  // dentro da página "Chegada" até as 15h00 do dia do check-out.
+  // dentro da página "Chegada" até as 15h00 do dia do check-out — ou até o
+  // hóspede confirmar o check-out.
   const checkinLocked = (() => {
+    if (checkoutConcluded) return true;
     if (!accessRec?.checkoutDate) return false;
     const [y, mo, d] = accessRec.checkoutDate.split("-").map(Number);
     if (!y || !mo || !d) return false;
@@ -489,43 +532,14 @@ function Guide({ data }: { data: GuideOk }) {
   // A revelação das senhas continua gated por `checkinLocked`.
   const homeStripsVisible = !!accessRec;
 
-  // Check-in concluído: só então a informação de check-out pode aparecer.
-  // Considera concluído quando o hóspede confirmou no onboarding
-  // ("Consegui fazer o check-in!") ou quando já passou o horário de
-  // check-in do dia de chegada.
-  const [checkinConcluded, setCheckinConcluded] = useState(false);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const key = `guide-checkin-done:${slug}`;
-    const confirmed = () => localStorage.getItem(key) === "1";
-    const passedCheckinMoment = () => {
-      const d = accessRec?.checkinDate;
-      if (!d) return false;
-      const [y, mo, day] = d.split("-").map(Number);
-      if (!y || !mo || !day) return false;
-      const t = String(p.checkin_time ?? "").match(/^(\d{1,2}):(\d{2})/);
-      const start = new Date(y, mo - 1, day, t ? Number(t[1]) : 15, t ? Number(t[2]) : 0, 0, 0).getTime();
-      return Date.now() >= start;
-    };
-    const evaluate = () => setCheckinConcluded(confirmed() || passedCheckinMoment());
-    evaluate();
-    const onDone = () => {
-      localStorage.setItem(key, "1");
-      setCheckinConcluded(true);
-    };
-    window.addEventListener("guide-checkin-done", onDone as EventListener);
-    const id = window.setInterval(evaluate, 60_000);
-    return () => {
-      window.removeEventListener("guide-checkin-done", onDone as EventListener);
-      window.clearInterval(id);
-    };
-  }, [slug, accessRec?.checkinDate, p.checkin_time]);
+  // Faixa de check-in: some assim que o check-in é concluído.
+  const checkinNoticeVisible = homeStripsVisible && !checkinConcluded && !checkoutConcluded;
 
   // Aviso de check-out: aparece como faixa na home a partir das 3h00 do
-  // dia do check-out e até as 15h00 do mesmo dia — e nunca antes do
-  // check-in estar concluído.
+  // dia do check-out e até as 15h00 do mesmo dia — só depois do check-in
+  // concluído e some quando o hóspede confirma a saída.
   const checkoutNoticeVisible = (() => {
-    if (!checkinConcluded) return false;
+    if (!checkinConcluded || checkoutConcluded) return false;
     if (!accessRec?.checkoutDate) return false;
     if (!p.checkout_note && !p.checkout_time) return false;
     const [y, mo, d] = accessRec.checkoutDate.split("-").map(Number);
