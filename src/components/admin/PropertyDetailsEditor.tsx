@@ -88,6 +88,11 @@ export function PropertyDetailsEditor({ propertyId }: { propertyId: string }) {
   const [loaded, setLoaded] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  // Evita que um refetch tardio sobrescreva o que a pessoa já digitou.
+  const dirtyRef = useRef(false);
+  // Guarda o id criado no primeiro save, para o seguinte atualizar em vez de
+  // inserir de novo (o refetch pode ainda não ter chegado).
+  const createdIdRef = useRef<string | null>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
   const { data } = useQuery({
@@ -102,7 +107,7 @@ export function PropertyDetailsEditor({ propertyId }: { propertyId: string }) {
   const legacyIds = details.slice(1).map((d) => d.id);
 
   useEffect(() => {
-    if (!data || loaded) return;
+    if (!data || loaded || dirtyRef.current) return;
     const merged = details
       .map((d) => [d.title ? `${d.title}` : "", d.content].filter(Boolean).join("\n"))
       .filter(Boolean)
@@ -127,10 +132,13 @@ export function PropertyDetailsEditor({ propertyId }: { propertyId: string }) {
   const autosave = useAutosave(
     { text, images },
     async (value) => {
-      if (!value.text.trim() && value.images.length === 0) return;
-      await saveFn({
+      const currentId = createdIdRef.current ?? primaryId;
+      // Campo vazio e sem registro criado: nada a salvar (mas se já existe
+      // registro, gravamos o vazio — limpar também é uma alteração).
+      if (!value.text.trim() && value.images.length === 0 && !currentId) return;
+      const saved = await saveFn({
         data: {
-          id: primaryId,
+          id: currentId,
           propertyId,
           title: null,
           content: value.text.trim(),
@@ -138,6 +146,7 @@ export function PropertyDetailsEditor({ propertyId }: { propertyId: string }) {
           source: "text",
         },
       });
+      if (saved?.id) createdIdRef.current = saved.id;
       for (const id of legacyIds) {
         await deleteFn({ data: { id, propertyId } });
       }
@@ -199,7 +208,11 @@ export function PropertyDetailsEditor({ propertyId }: { propertyId: string }) {
             ref={taRef}
             value={text}
             maxLength={40000}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => {
+              dirtyRef.current = true;
+              setLoaded(true);
+              setText(e.target.value);
+            }}
             placeholder="Ex: O aquecedor da piscina fica no armário externo à direita; leva cerca de 40 minutos para aquecer. A fechadura da porta dos fundos emperra quando chove — basta puxar e girar…"
             className="w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm leading-relaxed outline-none focus:border-primary/60 focus:ring-0 overflow-hidden"
           />
