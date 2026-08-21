@@ -38,7 +38,7 @@ import { TimePicker } from "@/components/ui/time-picker";
 import { DateTimePicker } from "@/components/ui/date-picker";
 import { TagPicker, useTaxonomy, TAXONOMY_QUERY_KEY, NewCategoryDialog, NewTagDialog } from "@/components/admin/TagPicker";
 import { updatePoiCategory, reorderPoiCategories, deletePoiCategory } from "@/lib/poi-taxonomy.functions";
-import { PropertyDetailsEditor, DetailImages } from "@/components/admin/PropertyDetailsEditor";
+import { PropertyDetailsEditor, DetailImages, usePrefetchPropertyDetails } from "@/components/admin/PropertyDetailsEditor";
 import { PropertyTypeSelect } from "@/components/admin/PropertyTypeSelect";
 import { usePresence } from "@/hooks/usePresence";
 import { useRealtimeInvalidate } from "@/hooks/useRealtimeInvalidate";
