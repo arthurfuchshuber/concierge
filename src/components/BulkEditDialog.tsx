@@ -447,11 +447,17 @@ export function BulkEditDialog({
     const patch: Record<string, unknown> = {};
     for (const tab of TEXT_TABS) {
       for (const g of tab.groups) {
-        for (const f of g.fields ?? []) {
+        for (const f of groupFields(g)) {
           if (state.enabled[f.key]) patch[f.key] = coerce(f, state.values[f.key]);
         }
       }
     }
+    // Chaves desligadas de campos que tinham valor = remoção (sempre sobrescreve).
+    const clearPatch: Record<string, unknown> = {};
+    for (const f of removedFields) {
+      clearPatch[f.key] = f.kind === "boolean" ? false : f.kind === "number" ? 0 : "";
+    }
+
     const lists: Record<string, unknown> = {};
     if (state.listsEnabled.manual)
       lists.manual = state.manual.filter((m) => m.title.trim()).map((m) => ({
