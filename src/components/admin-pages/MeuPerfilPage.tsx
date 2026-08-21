@@ -8,11 +8,14 @@ import {
   removeMyAvatar,
   requestEmailChange,
 } from "@/lib/profile.functions";
-import { Camera, Loader2, Trash2, User as UserIcon, Mail, Save, ShieldCheck } from "lucide-react";
+import { Camera, Loader2, Trash2, User as UserIcon, Mail, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { formatCPF } from "@/lib/masks";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { PageHeader } from "@/components/ds/PageHeader";
+import { useAutosave } from "@/hooks/useAutosave";
+import { AutosaveIndicator } from "@/components/ui/autosave-indicator";
+
 
 export function MeuPerfilPage() {
   const getFn = useServerFn(getMyProfile);
