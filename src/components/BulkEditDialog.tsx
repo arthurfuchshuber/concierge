@@ -353,14 +353,18 @@ export function BulkEditDialog({
     setTab(TEXT_TABS[0]?.id ?? "house");
   }
 
+  // Ligar a chave NÃO propaga valor nenhum: ela só habilita a edição (e,
+  // quando desligada, marca a informação para remoção). Sem isso, ligar um
+  // bloco copiava o valor de um imóvel para todos os outros selecionados.
   function toggle(field: FieldKey, v: boolean) {
-    dirtyRef.current.add(field);
+    if (!v) dirtyRef.current.delete(field);
     setState((s) => ({ ...s, enabled: { ...s.enabled, [field]: v } }));
   }
   function setValue(field: FieldKey, value: string | boolean | number) {
     dirtyRef.current.add(field);
     setState((s) => ({ ...s, values: { ...s.values, [field]: value } }));
   }
+
   function toggleList(k: ListKey, v: boolean) {
     setState((s) => ({ ...s, listsEnabled: { ...s.listsEnabled, [k]: v } }));
   }
