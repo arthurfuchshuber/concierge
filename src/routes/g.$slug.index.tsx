@@ -666,16 +666,20 @@ function Guide({ data }: { data: GuideOk }) {
   const [unlocked, setUnlocked] = useState(initialUnlocked);
   // Só registramos "viu a senha de acesso" quando o código foi de fato
   // exibido na tela (não basta abrir a seção ou destravar o PIN).
-  const passwordsTrackedRef = useRef(false);
-  const markPasswordsSeen = () => {
-    if (passwordsTrackedRef.current || checkinLocked) return;
-    passwordsTrackedRef.current = true;
+  // Rastreamos por tipo de senha (fechadura/portão) — o dashboard só marca
+  // "viu as senhas" quando TODAS as senhas de acesso foram abertas. Wi-Fi não
+  // é senha de acesso ao imóvel, portanto não é registrado.
+  const passwordsTrackedRef = useRef<Set<string>>(new Set());
+  const markPasswordsSeen = (kind: "lock" | "gate" | "wifi" = "lock") => {
+    if (kind === "wifi") return;
+    if (passwordsTrackedRef.current.has(kind) || checkinLocked) return;
+    passwordsTrackedRef.current.add(kind);
     const sid = typeof window !== "undefined" ? (localStorage.getItem(`guide-chat-session:${slug}`) ?? "anon") : "anon";
     const pagePath = typeof window !== "undefined" ? window.location.pathname : null;
     trackEvent({
       data: {
         slug,
-        section: "senhas",
+        section: `senhas:${kind}`,
         sessionId: sid,
         guestName: accessRec?.name ?? null,
         guestPhone: accessRec?.phone ?? null,
@@ -1672,7 +1676,7 @@ function Guide({ data }: { data: GuideOk }) {
                                             unlocked={unlocked}
                                             requestUnlock={requestUnlock}
                                             hasPin={hasAccessPin}
-                                            onShown={markPasswordsSeen}
+                                            onShown={() => markPasswordsSeen("gate")}
                                           />
                                         )}
                                         {lockCodeSet && (
@@ -1686,7 +1690,7 @@ function Guide({ data }: { data: GuideOk }) {
                                             unlocked={unlocked}
                                             requestUnlock={requestUnlock}
                                             hasPin={hasAccessPin}
-                                            onShown={markPasswordsSeen}
+                                            onShown={() => markPasswordsSeen("lock")}
                                           />
                                         )}
                                       </div>
@@ -3178,7 +3182,7 @@ function PostAccessOnboarding({
   wifiPassword?: string | null;
   wifiSsid?: string | null;
   requestUnlock: (cb?: () => void) => void;
-  markPasswordsSeen: () => void;
+  markPasswordsSeen: (kind?: "lock" | "gate" | "wifi") => void;
   theme: "dark" | "light";
   navItems: Array<{ key: BottomNavKey; label: string }>;
   /** Volta pro formulário de identificação — só existe na 1ª etapa do
@@ -3405,7 +3409,7 @@ function PostAccessOnboarding({
                     value={lockCode}
                     ready
                     requestUnlock={requestUnlock}
-                    onRevealed={markPasswordsSeen}
+                    onRevealed={() => markPasswordsSeen("lock")}
                     expanded={openPwd === "lock"}
                     onToggle={() => setOpenPwd((k) => (k === "lock" ? null : "lock"))}
                   />
@@ -3418,7 +3422,7 @@ function PostAccessOnboarding({
                     value={wifiPassword}
                     ready
                     requestUnlock={requestUnlock}
-                    onRevealed={markPasswordsSeen}
+                    onRevealed={() => markPasswordsSeen("wifi")}
                     expanded={openPwd === "wifi"}
                     onToggle={() => setOpenPwd((k) => (k === "wifi" ? null : "wifi"))}
                   />
@@ -3796,7 +3800,7 @@ function AccessBlock({
   unlocked: boolean;
   requestUnlock: (cb?: () => void) => void;
   hasPin: boolean;
-  onShown?: () => void;
+  onShown?: (kind: "lock" | "gate") => void;
 }) {
   const [open, setOpen] = useState(false);
   const [revealed, setRevealed] = useState(false);
@@ -3808,9 +3812,9 @@ function AccessBlock({
   const showing = !hasPin || (unlocked && revealed);
   const masked = "•".repeat(Math.max(4, Math.min(code.length, 10)));
   useEffect(() => {
-    if (showing && code) onShown?.();
+    if (showing && code) onShown?.(kind);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showing, code]);
+  }, [showing, code, kind]);
 
   function handleEye(e: React.MouseEvent) {
     e.stopPropagation();
@@ -4409,7 +4413,7 @@ function AccessCodesStrip({
   lockVideoUrl?: string | null;
   gateMedia?: Array<{ url: string; type: "image" | "video" }>;
   lockMedia?: Array<{ url: string; type: "image" | "video" }>;
-  onShown?: () => void;
+  onShown?: (kind: "lock" | "gate") => void;
 }) {
   const [revealed, setRevealed] = useState(false);
   const [instrOpen, setInstrOpen] = useState(false);
@@ -4420,9 +4424,11 @@ function AccessCodesStrip({
   const hasLock = !!lockCode || !!lockCodeSet;
   const showing = unlocked && revealed && (!!gateCode || !!lockCode);
   useEffect(() => {
-    if (showing) onShown?.();
+    if (!showing) return;
+    if (lockCode) onShown?.("lock");
+    if (gateCode) onShown?.("gate");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showing]);
+  }, [showing, lockCode, gateCode]);
   const gateInstr = (gateInstructions || "").trim();
   const lockInstr = (lockInstructions || "").trim();
   const gateVid = (gateVideoUrl || "").trim();

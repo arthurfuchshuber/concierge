@@ -357,16 +357,17 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         .from("guide_section_events")
         .select("id, property_id, guest_name, guest_phone")
         .in("property_id", propIds)
-        .eq("section", "checkin")
+        // "Leu" = permaneceu ao menos 5s na aba Chegada (mesma regra dos cards).
+        .eq("section", "checkin-lido")
         .limit(20000),
       codesProps.size
         ? context.supabase
             .from("guide_section_events")
-            .select("id, property_id, guest_name, guest_phone")
+            .select("id, property_id, guest_name, guest_phone, section")
             .in("property_id", Array.from(codesProps))
-            .eq("section", "senhas")
+            .in("section", ["senhas", "senhas:lock", "senhas:gate"])
             .limit(20000)
-        : Promise.resolve({ data: [] as Array<EventRow> }),
+        : Promise.resolve({ data: [] as Array<EventRow & { section: string }> }),
     ]);
 
     // Quem viu / quem não viu.
@@ -409,11 +410,42 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       return { strict, loose, phones };
     }
     const checkinSeen = seenSets(evs as EventRow[] | null);
-    const codesSeen = seenSets(codeEvs as EventRow[] | null);
+    // Senhas: só conta como "viu" quem abriu TODAS as senhas de acesso
+    // configuradas no imóvel (fechadura e/ou portão). Wi-Fi não entra.
+    const codeEvRows = (codeEvs ?? []) as Array<EventRow & { section?: string }>;
+    const codesSeen = seenSets(codeEvRows);
+    const lockSeen = seenSets(codeEvRows.filter((e) => e.section === "senhas:lock"));
+    const gateSeen = seenSets(codeEvRows.filter((e) => e.section === "senhas:gate"));
+    const accessCodesByProp = new Map<string, Array<"lock" | "gate">>();
+    for (const p of (props ?? []) as Array<{ id: string; lock_code: string | null; gate_code: string | null }>) {
+      const codes: Array<"lock" | "gate"> = [];
+      if (p.lock_code?.trim()) codes.push("lock");
+      if (p.gate_code?.trim()) codes.push("gate");
+      accessCodesByProp.set(p.id, codes);
+    }
+
+    type Seen = { strict: Set<string>; loose: Set<string>; phones: Set<string> };
+    const seenHas = (seen: Seen, propertyId: string, name: string, phone: string | null) => {
+      const digits = (phone || "").replace(/\D/g, "");
+      return (
+        seen.strict.has(identity(propertyId, name, phone)) ||
+        seen.loose.has(looseIdentity(propertyId, name)) ||
+        (digits.length >= 8 && seen.phones.has(`${propertyId}|${digits.slice(-8)}`))
+      );
+    };
+    /** Viu todas as senhas de acesso configuradas no imóvel. */
+    const sawAllCodes = (propertyId: string, name: string, phone: string | null) => {
+      const codes = accessCodesByProp.get(propertyId) ?? [];
+      if (codes.length === 0) return true;
+      // Eventos antigos gravavam apenas "senhas" (sem detalhar qual).
+      if (codes.length === 1 && seenHas(codesSeen, propertyId, name, phone)) return true;
+      return codes.every((c) => seenHas(c === "lock" ? lockSeen : gateSeen, propertyId, name, phone));
+    };
 
     function breakdown(
       seen: { strict: Set<string>; loose: Set<string>; phones: Set<string> },
       list: Entry[],
+      hitFn?: (propertyId: string, name: string, phone: string | null) => boolean,
     ) {
       type Item = { mark: GuestMark; propertyId: string };
       const viewed: Item[] = [];
@@ -425,12 +457,9 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
           owner: ownerByProp.get(e.property_id) || "",
           time: e.time ?? null,
         };
-        const digits = (e.phone || "").replace(/\D/g, "");
         const hit =
           e.name !== "Hóspede pendente" &&
-          (seen.strict.has(identity(e.property_id, e.name, e.phone)) ||
-            seen.loose.has(looseIdentity(e.property_id, e.name)) ||
-            (digits.length >= 8 && seen.phones.has(`${e.property_id}|${digits.slice(-8)}`)));
+          (hitFn ? hitFn(e.property_id, e.name, e.phone) : seenHas(seen, e.property_id, e.name, e.phone));
         (hit ? viewed : notViewed).push({ mark, propertyId: e.property_id });
       }
       // Mesma ordenação dos cards do Kanban: horário previsto (mais cedo
@@ -464,7 +493,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     }
 
     const checkinBreakdown = breakdown(checkinSeen, entries);
-    const codesBreakdown = breakdown(codesSeen, codeEntries);
+    const codesBreakdown = breakdown(codesSeen, codeEntries, sawAllCodes);
 
     return {
       guideOpens,
