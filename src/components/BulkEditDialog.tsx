@@ -302,6 +302,22 @@ export function BulkEditDialog({
     return Object.values(state.enabled).some(Boolean) || Object.values(state.listsEnabled).some(Boolean);
   }, [state]);
 
+  /** Algum campo de texto ativo está vazio → a intenção é remover o valor. */
+  const hasClearing = useMemo(() => {
+    for (const tab of TEXT_TABS) {
+      for (const g of tab.groups) {
+        for (const f of g.fields ?? []) {
+          if (!state.enabled[f.key]) continue;
+          if (f.kind !== "text" && f.kind !== "textarea") continue;
+          if (String(state.values[f.key] ?? "").trim() === "") return true;
+        }
+      }
+    }
+    return false;
+  }, [state]);
+
+
+
   function coerce(f: FieldDef, v: string | boolean | number | undefined): unknown {
     if (f.kind === "boolean") return v === true;
     if (f.kind === "theme") return v === "light" ? "light" : "dark";
