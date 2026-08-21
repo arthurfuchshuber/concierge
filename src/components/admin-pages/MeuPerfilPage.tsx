@@ -365,17 +365,21 @@ export function MeuPerfilPage() {
           </Field>
         </div>
 
-        <div className="pt-2 flex justify-end">
-          <button
-            type="button"
-            onClick={() => save.mutate()}
-            disabled={!canSave || save.isPending}
-            className="inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-sm font-medium hover:opacity-90 disabled:opacity-50"
-          >
-            {save.isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-            Salvar alterações
-          </button>
+        <div className="pt-2 flex items-center justify-end gap-3">
+          <AutosaveIndicator status={autosave.status} />
+          {email !== emailOriginal && (
+            <button
+              type="button"
+              onClick={() => save.mutate()}
+              disabled={!canSave || save.isPending}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-sm font-medium hover:opacity-90 disabled:opacity-50"
+            >
+              {save.isPending ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}
+              Confirmar novo e-mail
+            </button>
+          )}
         </div>
+
       </section>
 
       <style>{`
