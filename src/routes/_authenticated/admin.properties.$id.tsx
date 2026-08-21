@@ -850,7 +850,8 @@ function PropertyEditor() {
 
 
 
-  async function handleSave(overrides?: Partial<FormState["property"]>) {
+  async function handleSave(overrides?: Partial<FormState["property"]>, opts?: { silent?: boolean }) {
+    const silent = opts?.silent === true;
     if (gateOpen) {
       if (!form.property.gate_code.trim()) { toast.error("Informe o código do portão ou desative essa opção."); return; }
       if (!form.property.gate_label.trim()) { toast.error("Defina um nome para o acesso do portão."); return; }
