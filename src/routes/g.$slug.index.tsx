@@ -3065,6 +3065,56 @@ function fmtOnbDate(iso: string): string {
 }
 
 /**
+ * Área rolável que nunca "corta" um item pela metade: a altura máxima é
+ * arredondada para baixo até a borda inferior do último item COMPLETO que cabe
+ * no espaço disponível (mesmo critério usado nos tooltips do painel).
+ */
+function WholeItemsScroll({ children, className }: { children: React.ReactNode; className?: string }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [maxHeight, setMaxHeight] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    let raf = 0;
+    const recalc = () => {
+      const inner = node.firstElementChild as HTMLElement | null;
+      const items = inner ? (Array.from(inner.children) as HTMLElement[]) : [];
+      if (items.length === 0) return;
+      const cap = Math.max(160, window.innerHeight - 330);
+      const base = node.getBoundingClientRect().top - node.scrollTop;
+      const bottoms = items.map((i) => i.getBoundingClientRect().bottom - base);
+      const total = bottoms[bottoms.length - 1];
+      if (total <= cap) {
+        setMaxHeight(Math.ceil(total));
+        return;
+      }
+      const whole = bottoms.filter((b) => b <= cap).pop() ?? bottoms[0];
+      setMaxHeight(Math.ceil(whole));
+    };
+    raf = requestAnimationFrame(recalc);
+    const ro = new ResizeObserver(() => recalc());
+    ro.observe(node);
+    window.addEventListener("resize", recalc);
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      window.removeEventListener("resize", recalc);
+    };
+  }, [children]);
+
+  return (
+    <div
+      ref={ref}
+      className={cn("min-h-[140px] overflow-y-auto sg-always-scroll pr-1.5", className)}
+      style={maxHeight ? { maxHeight } : undefined}
+    >
+      <div>{children}</div>
+    </div>
+  );
+}
+
+/**
  * Onboarding pós-formulário: substitui o antigo tour de spotlight (2 passos)
  * por um fluxo guiado de verdade — confirma a estadia, mostra o passo a
  * passo real, explica como as senhas funcionam (COM ou SEM código de
@@ -3438,7 +3488,7 @@ function PostAccessOnboarding({
                 <div className="flex items-center justify-center pt-0.5">
                   <button
                     type="button"
-                    onClick={() => setStep(2)}
+                    onClick={goBack}
                     className="h-[38px] px-4 rounded-2xl border-0 text-[12.5px] font-medium text-muted-foreground hover:text-foreground transition-colors"
                   >
                     ← Voltar
