@@ -474,17 +474,27 @@ export function BulkEditDialog({
     if (state.listsEnabled.checkout)
       lists.checkout = state.checkout.filter((c) => c.label.trim()).map((c) => ({ label: c.label.trim() }));
 
-    if (Object.keys(patch).length === 0 && Object.keys(lists).length === 0) {
+    if (Object.keys(patch).length === 0 && Object.keys(lists).length === 0 && Object.keys(clearPatch).length === 0) {
       toast.error("Marque ao menos um campo para aplicar");
       return;
     }
 
     setSaving(true);
     try {
-      const r = await apply({ data: { ids, patch, lists: Object.keys(lists).length ? lists : undefined, mode } });
-      toast.success(`${r.updated} ${r.updated === 1 ? "guia atualizado" : "guias atualizados"}`);
-      // Volta para a tela de edição (não fecha o popup inteiro).
+      let updated = 0;
+      if (Object.keys(patch).length || Object.keys(lists).length) {
+        const r = await apply({ data: { ids, patch, lists: Object.keys(lists).length ? lists : undefined, mode } });
+        updated = r.updated;
+      }
+      if (Object.keys(clearPatch).length) {
+        const r2 = await apply({ data: { ids, patch: clearPatch, mode: "overwrite" } });
+        updated = Math.max(updated, r2.updated);
+      }
+      toast.success(`${updated} ${updated === 1 ? "guia atualizado" : "guias atualizados"}`);
+      // Volta para a tela de edição (não fecha o popup inteiro) e recarrega
+      // os dados para refletir exatamente o que ficou salvo.
       setConfirmMode(null);
+      load(true);
       onSaved?.();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao atualizar");
@@ -492,6 +502,7 @@ export function BulkEditDialog({
       setSaving(false);
     }
   }
+
 
 
   return (
