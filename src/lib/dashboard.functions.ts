@@ -234,7 +234,10 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       to = addDaysISO(today, 29);
     }
     const [{ data: props }, { data: reservations }, { data: logs }, { data: allStatuses }] = await Promise.all([
-      context.supabase.from("properties").select("id, name, airbnb_ical_url, lock_code, gate_code").in("id", propIds),
+      context.supabase
+        .from("properties")
+        .select("id, name, airbnb_ical_url, lock_code, gate_code, owner_contact_id")
+        .in("id", propIds),
       context.supabase
         .from("property_reservations")
         .select("id, property_id, checkin_date, checkout_date, status, raw_summary")
