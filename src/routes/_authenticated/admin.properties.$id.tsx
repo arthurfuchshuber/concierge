@@ -659,26 +659,8 @@ function PropertyEditor() {
     setEnriching(true);
     try {
       const r = await enrich({ data: { mapsUrl: form.property.maps_url, propertyId: id !== "new" ? id : undefined } });
-      // Geração das referências da cidade roda em paralelo e grava direto em
-      // city_references — não precisamos mais misturar no form do imóvel.
-      const cityForGeneration = (r.city || form.property.city).trim();
-      let cityGenCount = 0;
-      if (cityForGeneration) {
-        try {
-          const result = await generateCityRefs({
-            data: {
-              city_label: cityForGeneration,
-              state: (r.state || form.property.state || "").trim() || null,
-              country: (r.country || form.property.country || "BR").trim() || "BR",
-              propertyId: id,
-            },
-          });
-          cityGenCount = (result.inserted ?? 0) + (result.updated ?? 0);
-          invalidateCityRefs();
-        } catch (cityError) {
-          console.warn("[CityRefs] auto-fill city generation skipped", cityError);
-        }
-      }
+      // O endereço aparece na hora: aplicamos o resultado imediatamente e só
+      // depois disparamos a geração das referências da cidade em segundo plano.
       setForm((f) => ({
         ...f,
         property: {
@@ -720,7 +702,28 @@ function PropertyEditor() {
       if (r.tagline) extras.push("descrição");
       if (r.hero_image_url) extras.push("foto de capa");
       const extraStr = extras.length ? ` · ${extras.join(" + ")}` : "";
-      toast.success(`Preenchido! ${nearby} arredores · ${cityGenCount} pela cidade${extraStr}`);
+      toast.success(`Preenchido! ${nearby} arredores${extraStr}`);
+
+      const cityForGeneration = (r.city || form.property.city).trim();
+      if (cityForGeneration) {
+        void (async () => {
+          try {
+            const result = await generateCityRefs({
+              data: {
+                city_label: cityForGeneration,
+                state: (r.state || form.property.state || "").trim() || null,
+                country: (r.country || form.property.country || "BR").trim() || "BR",
+                propertyId: id,
+              },
+            });
+            const count = (result.inserted ?? 0) + (result.updated ?? 0);
+            invalidateCityRefs();
+            if (count > 0) toast.success(`${count} recomendações da cidade atualizadas.`);
+          } catch (cityError) {
+            console.warn("[CityRefs] auto-fill city generation skipped", cityError);
+          }
+        })();
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao enriquecer");
     } finally {
@@ -737,7 +740,7 @@ function PropertyEditor() {
     const t = setTimeout(() => {
       enrichedUrlRef.current = url;
       void handleEnrich();
-    }, 900);
+    }, 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.property.maps_url, enriching]);
