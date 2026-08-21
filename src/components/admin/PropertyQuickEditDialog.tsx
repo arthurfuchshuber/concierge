@@ -264,13 +264,14 @@ export function PropertyQuickEditDialog({
     }
   }
 
-  async function handleSave() {
+  async function persist(opts?: { silent?: boolean }) {
+    const silent = opts?.silent ?? false;
     if (!edited || !data) return;
     if (!edited.name.trim()) {
-      toast.error("Informe o nome do imóvel.");
+      if (!silent) toast.error("Informe o nome do imóvel.");
       return;
     }
-    setSaving(true);
+    if (!silent) setSaving(true);
     try {
       const raw = data.property as Record<string, unknown>;
       const payload = {
@@ -313,19 +314,43 @@ export function PropertyQuickEditDialog({
       };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await saveFn({ data: payload as any });
-      toast.success("Imóvel atualizado");
       dirtyRef.current = false;
+      if (silent) {
+        // Autosave: marca as listas como obsoletas sem refetch imediato, para
+        // não travar a digitação.
+        qc.invalidateQueries({ queryKey: ["property", propertyId], refetchType: "none" });
+        qc.invalidateQueries({ queryKey: ["my-properties"], refetchType: "none" });
+        qc.invalidateQueries({ queryKey: ["property-quick-edit", propertyId], refetchType: "none" });
+        return;
+      }
+      toast.success("Imóvel atualizado");
       qc.invalidateQueries({ queryKey: ["property", propertyId] });
       qc.invalidateQueries({ queryKey: ["my-properties"] });
       qc.invalidateQueries({ queryKey: ["property-quick-edit", propertyId] });
       qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === "stakeholder-detail" });
       onOpenChange(false);
     } catch (err) {
+      if (silent) throw err;
       toast.error(err instanceof Error ? err.message : "Não foi possível salvar");
     } finally {
-      setSaving(false);
+      if (!silent) setSaving(false);
     }
   }
+
+  async function handleSave() {
+    await persist();
+  }
+
+  // Salvamento instantâneo — mesma regra do editor de guia: cada alteração é
+  // persistida sozinha, sem depender do botão.
+  const autosave = useAutosave(
+    { edited, manual },
+    async () => {
+      await persist({ silent: true });
+    },
+    { enabled: open && !!edited && !!edited.name.trim() && !isLoading, delay: 300 },
+  );
+
 
   return (
     <ResponsiveDialog open={open} onOpenChange={onOpenChange}>
