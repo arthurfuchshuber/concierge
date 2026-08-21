@@ -814,17 +814,20 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     );
                   })}
                 </div>
-                <RangeDropdown
-                  value={range}
-                  onChange={setRange}
-                  options={[
-                    ["today", "Hoje"],
-                    ["tomorrow", "Amanhã"],
-                    ["7d", "7 dias"],
-                    ["all", "Todos"],
-                  ]}
-                />
+                <div className="flex justify-start">
+                  <RangeDropdown
+                    value={range}
+                    onChange={setRange}
+                    options={[
+                      ["today", "Hoje"],
+                      ["tomorrow", "Amanhã"],
+                      ["7d", "7 dias"],
+                      ["all", "Todos"],
+                    ]}
+                  />
+                </div>
               </div>
+
 
               {mobileTab === "checkin" &&
                 (checkinListQ.isLoading ? (
