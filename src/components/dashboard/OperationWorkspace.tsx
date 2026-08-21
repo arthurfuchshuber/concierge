@@ -1262,6 +1262,7 @@ function KpiCard({
   compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const list = useWholeCardsMaxHeight(2, `${open}:${rows.length}:${loading}`);
   const valueTone = tone === "primary" ? "text-accent" : "text-foreground";
   const valueColor =
     shadowTone === "emerald"
