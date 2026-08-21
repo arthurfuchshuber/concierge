@@ -414,6 +414,9 @@ function PropertyEditor() {
     if (!data || isNew) return;
     const p = data.property as Record<string, unknown> | null;
     if (!p) return;
+    // O link do Maps que já veio salvo do banco NUNCA re-dispara enriquecimento:
+    // abrir a aba "A casa" não pode refazer a busca nem regerar recomendações.
+    enrichedUrlRef.current = ((p.maps_url as string | null) ?? "").trim() || null;
     setGateOpen(!!(p.gate_code as string));
     setLockOpen(!!(p.lock_code as string));
     setForm({
@@ -708,7 +711,10 @@ function PropertyEditor() {
       toast.success(`Preenchido! ${nearby} arredores${extraStr}`);
 
       const cityForGeneration = (r.city || form.property.city).trim();
-      if (cityForGeneration) {
+      // Se este guia já usa recomendações da cidade criadas pelo Sigma, nunca
+      // regeramos automaticamente — isso sobrescreveria/duplicaria a curadoria.
+      const alreadyHasCityRefs = ((cityRefsQuery.data?.items ?? []) as unknown[]).length > 0;
+      if (cityForGeneration && !alreadyHasCityRefs) {
         void (async () => {
           try {
             const result = await generateCityRefs({
