@@ -2712,7 +2712,7 @@ function ArrivalCard({
                       ? "Reabrir (voltar para Pendente)"
                       : "Marcar como Concluído"
             }
-            className={`size-9 grid place-items-center rounded-lg transition-colors ${
+            className={`flex-1 min-w-0 h-9 inline-flex items-center justify-center gap-2 px-3 text-xs font-semibold rounded-lg transition-colors ${
               cleaningBlock
                 ? "bg-orange-500/25 text-orange-700 dark:text-orange-400 border border-orange-500/50 cursor-not-allowed"
                 : blockCheck
@@ -2724,8 +2724,18 @@ function ArrivalCard({
                       : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-600/20"
             }`}
           >
-            <Check className="size-4" />
+            <Check className="size-4 shrink-0" />
+            <span className="truncate">
+              {mode === "cleaning"
+                ? "Limpeza concluída!"
+                : mode === "checkout"
+                  ? "Check-out realizado!"
+                  : done
+                    ? "Reabrir"
+                    : "Check-in realizado!"}
+            </span>
           </button>
+
         )}
 
         {onRevert && mode !== "checkin" && (
