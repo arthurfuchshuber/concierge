@@ -1636,7 +1636,10 @@ function OccupancyPanel({
       const isDesktop = w >= 768;
       const count = isDesktop ? Math.max(1, Math.min(days, Math.floor(usable / MIN_DAY_W))) : MOBILE_DAYS;
       setVisibleDays(count);
-      setDayW(Math.max(MIN_DAY_W, Math.floor(usable / count)));
+      // Colunas compactas: nunca mais largas que 46px (desktop) / 40px (mobile).
+      const maxW = isDesktop ? 46 : 40;
+      setDayW(Math.min(maxW, Math.max(MIN_DAY_W, Math.floor(usable / count))));
+
     };
 
     update();
