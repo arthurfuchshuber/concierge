@@ -146,16 +146,29 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
       {
         id: "access-codes", title: "Senhas de Acesso", icon: KeyRound,
         desc: "Códigos de portão e fechadura, mais o código que libera as senhas no Guia.",
+        subgroups: [
+          {
+            id: "gate", title: "Portão",
+            fields: [
+              { key: "gate_label", label: "Nome do portão", kind: "text" },
+              { key: "gate_code", label: "Código do portão", kind: "text" },
+              { key: "gate_instructions", label: "Instruções do portão", kind: "textarea" },
+            ],
+          },
+          {
+            id: "lock", title: "Fechadura",
+            fields: [
+              { key: "lock_label", label: "Nome da fechadura", kind: "text" },
+              { key: "lock_code", label: "Código da fechadura", kind: "text" },
+              { key: "lock_instructions", label: "Instruções da fechadura", kind: "textarea" },
+            ],
+          },
+        ],
         fields: [
-          { key: "gate_label", label: "Nome do portão", kind: "text" },
-          { key: "gate_code", label: "Código do portão", kind: "text" },
-          { key: "gate_instructions", label: "Instruções do portão", kind: "textarea" },
-          { key: "lock_label", label: "Nome da fechadura", kind: "text" },
-          { key: "lock_code", label: "Código da fechadura", kind: "text" },
-          { key: "lock_instructions", label: "Instruções da fechadura", kind: "textarea" },
           { key: "access_codes_pin", label: "Senha para liberar códigos e Wi-Fi", kind: "text" },
         ],
       },
+
       {
         id: "wifi", title: "Wi-Fi", icon: Wifi,
         desc: "Rede e senha exibidas no card de Wi-Fi do guia público.",
