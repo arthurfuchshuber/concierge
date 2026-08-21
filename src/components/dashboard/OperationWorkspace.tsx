@@ -1330,7 +1330,7 @@ function KpiCard({
 
             <div
               className={`font-display font-bold mt-1.5 tabular-nums leading-none ${valueColor} ${
-                shadowTone ? "text-[26px] sm:text-[32px]" : "text-[24px] sm:text-[30px]"
+                shadowTone ? "text-[26px] sm:text-[28px]" : "text-[24px] sm:text-[26px]"
               }`}
             >
               {loading ? "—" : rows.length}
@@ -1550,7 +1550,7 @@ function FreePropertiesCard({
               Imóveis livres
             </span>
           </div>
-          <div className="text-[24px] sm:text-[30px] font-display font-bold mt-1.5 tabular-nums leading-none text-foreground">
+          <div className="text-[24px] sm:text-[26px] font-display font-bold mt-1.5 tabular-nums leading-none text-foreground">
             {loading ? "—" : properties.length}
           </div>
         </button>
