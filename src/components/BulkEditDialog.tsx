@@ -304,7 +304,6 @@ export function BulkEditDialog({
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<FetchData | null>(null);
-  const [confirmMode, setConfirmMode] = useState<null | "ask">(null);
   // Aba atual controlada: o popup precisa lembrar onde a pessoa parou mesmo
   // que o componente pai re-renderize (refetch, troca de aba do navegador…).
   const [tab, setTab] = useState<string>(TEXT_TABS[0]?.id ?? "house");
@@ -349,7 +348,6 @@ export function BulkEditDialog({
   function reset() {
     setState(emptyState);
     setData(null);
-    setConfirmMode(null);
     dirtyRef.current = new Set();
     loadedKeyRef.current = null;
     setTab(TEXT_TABS[0]?.id ?? "house");
@@ -416,25 +414,6 @@ export function BulkEditDialog({
     return out;
   }, [state]);
 
-  const hasAnySelected = useMemo(() => {
-    return Object.values(state.enabled).some(Boolean)
-      || Object.values(state.listsEnabled).some(Boolean)
-      || removedFields.length > 0;
-  }, [state, removedFields]);
-
-  /** Algum campo de texto ativo está vazio → a intenção é remover o valor. */
-  const hasClearing = useMemo(() => {
-    for (const tab of TEXT_TABS) {
-      for (const g of tab.groups) {
-        for (const f of groupFields(g)) {
-          if (!state.enabled[f.key]) continue;
-          if (f.kind !== "text" && f.kind !== "textarea") continue;
-          if (String(state.values[f.key] ?? "").trim() === "") return true;
-        }
-      }
-    }
-    return false;
-  }, [state]);
 
 
 
