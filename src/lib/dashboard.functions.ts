@@ -249,7 +249,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         .limit(5000),
       context.supabase
         .from("guide_access_logs")
-        .select("id, property_id, guest_name, guest_phone, checkin_date")
+        .select("id, property_id, guest_name, guest_phone, guest_arrival_time, checkin_date")
         .in("property_id", propIds)
         .gte("checkin_date", from)
         .lte("checkin_date", to)
