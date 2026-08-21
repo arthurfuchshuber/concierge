@@ -441,6 +441,45 @@ export function BulkEditDialog({
   return (
     <ResponsiveDialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
       <ResponsiveDialogContent className="w-[calc(100vw-1.5rem)] sm:max-w-3xl max-h-[85vh] overflow-y-auto overflow-x-hidden">
+        {confirmMode === "ask" ? (
+          <div className="mx-auto flex min-h-[min(24rem,70dvh)] w-full max-w-md flex-col justify-center gap-4 py-6">
+            <div className="text-lg font-medium">Como aplicar as informações?</div>
+            <p className="text-sm text-muted-foreground">
+              {hasClearing
+                ? "Há campos ativos sem valor: use “Substituir em todos” para removê-los dos guias selecionados."
+                : "Alguns dos guias selecionados já podem ter esses campos preenchidos. Escolha como proceder:"}
+            </p>
+            <div className="space-y-2">
+              <Button
+                type="button"
+                className="relative z-10 w-full justify-start h-auto py-3"
+                variant="outline"
+                onClick={() => void performSave("fill-empty")}
+                disabled={saving || hasClearing}
+              >
+                <div className="text-left">
+                  <div className="text-sm font-medium">Preencher só onde estiver vazio</div>
+                  <div className="text-[11px] text-muted-foreground">Mantém as informações existentes nos guias que já as têm.</div>
+                </div>
+              </Button>
+              <Button
+                type="button"
+                className="relative z-10 w-full justify-start h-auto py-3"
+                onClick={() => void performSave("overwrite")}
+                disabled={saving}
+              >
+                <div className="text-left">
+                  <div className="text-sm font-medium">Substituir em todos</div>
+                  <div className="text-[11px] opacity-80">Sobrescreve os valores atuais em todos os guias selecionados.</div>
+                </div>
+              </Button>
+            </div>
+            <div className="flex justify-end">
+              <Button type="button" variant="ghost" size="sm" onClick={() => setConfirmMode(null)} disabled={saving}>Voltar</Button>
+            </div>
+          </div>
+        ) : (
+        <>
         <ResponsiveDialogHeader>
           <ResponsiveDialogTitle>Editar {ids.length} {ids.length === 1 ? "guia" : "guias"}</ResponsiveDialogTitle>
           <ResponsiveDialogDescription>
@@ -579,40 +618,7 @@ export function BulkEditDialog({
             Aplicar a {ids.length} {ids.length === 1 ? "guia" : "guias"}
           </Button>
         </ResponsiveDialogFooter>
-
-        {confirmMode === "ask" && (
-          <div
-            className="absolute inset-0 z-[60] grid place-items-center bg-black/60 p-4"
-            style={{ pointerEvents: "auto" }}
-            onClick={() => !saving && setConfirmMode(null)}
-          >
-            <div className="max-w-md w-full rounded-2xl border border-border bg-card p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
-              <div className="text-lg font-medium">Como aplicar as informações?</div>
-              <p className="text-sm text-muted-foreground">
-                {hasClearing
-                  ? "Há campos ativos sem valor: use “Substituir em todos” para removê-los dos guias selecionados."
-                  : "Alguns dos guias selecionados já podem ter esses campos preenchidos. Escolha como proceder:"}
-              </p>
-              <div className="space-y-2">
-                <Button className="w-full justify-start h-auto py-3" variant="outline" onClick={() => performSave("fill-empty")} disabled={saving || hasClearing}>
-
-                  <div className="text-left">
-                    <div className="text-sm font-medium">Preencher só onde estiver vazio</div>
-                    <div className="text-[11px] text-muted-foreground">Mantém as informações existentes nos guias que já as têm.</div>
-                  </div>
-                </Button>
-                <Button className="w-full justify-start h-auto py-3" onClick={() => performSave("overwrite")} disabled={saving}>
-                  <div className="text-left">
-                    <div className="text-sm font-medium">Substituir em todos</div>
-                    <div className="text-[11px] opacity-80">Sobrescreve os valores atuais em todos os guias selecionados.</div>
-                  </div>
-                </Button>
-              </div>
-              <div className="flex justify-end">
-                <Button variant="ghost" size="sm" onClick={() => setConfirmMode(null)} disabled={saving}>Voltar</Button>
-              </div>
-            </div>
-          </div>
+        </>
         )}
 
       </ResponsiveDialogContent>
