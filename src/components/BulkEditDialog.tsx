@@ -568,6 +568,12 @@ export function BulkEditDialog({
                   ? "Há campos ativos sem valor: use “Substituir em todos” para removê-los dos guias selecionados."
                   : "Alguns guias selecionados já podem ter esses campos preenchidos. Escolha como proceder:"}
               </p>
+              {removedFields.length > 0 && (
+                <p className="text-[12px] leading-relaxed text-destructive">
+                  {removedFields.length} campo{removedFields.length > 1 ? "s" : ""} desligado{removedFields.length > 1 ? "s" : ""} será{removedFields.length > 1 ? "ão" : ""} removido{removedFields.length > 1 ? "s" : ""} dos guias selecionados.
+                </p>
+              )}
+
             </div>
 
             <div className="space-y-2">
