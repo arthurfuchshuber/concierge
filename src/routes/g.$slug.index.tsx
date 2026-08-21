@@ -882,6 +882,14 @@ function Guide({ data }: { data: GuideOk }) {
   if (hasResidencia) guideNavItems.push({ key: "residencia", label: "Residência" });
   if (hasExplore) guideNavItems.push({ key: "explore", label: "Explorar" });
 
+  // Check-out concluído: sai de qualquer seção do imóvel/estadia e fecha popups
+  useEffect(() => {
+    if (!checkoutConcluded) return;
+    setLocWifiOpen(false);
+    setSectionRaw((cur) => (cur === "checkin" || cur === "saida" || cur === "residencia" ? "home" : cur));
+  }, [checkoutConcluded]);
+
+
   return (
     <div
       className={`sigma-public-guide relative min-h-screen bg-background text-foreground pb-10 overflow-x-hidden ${theme === "light" ? "theme-light" : ""}`}
