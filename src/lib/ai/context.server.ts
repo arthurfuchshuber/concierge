@@ -207,8 +207,8 @@ export async function buildAgentContext(params: {
   }
 
   // ── Senha de liberação do guia (código de visualização)
-  // Só pode ser informada pela IA a partir das 17:00 (America/Sao_Paulo) do dia
-  // anterior ao check-in. Antes disso a IA avisa que ainda não está liberada.
+  // Liberada 24h antes do horário de check-in e encerrada no horário de
+  // check-out (ou assim que o check-out for marcado como concluído).
   if (sensitiveLocked) {
     keys.push("access_pin_policy");
     const windowClosed =
