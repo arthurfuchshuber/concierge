@@ -1852,7 +1852,7 @@ function PropertyEditor() {
         <TabsContent value="faq" className="space-y-4 mt-6">
           <SectionGroup>
 
-          <Section id="emergency" icon={Phone} title="Emergências" desc="Telefones úteis em caso de urgência." collapsible action={<AddBtn onClick={() => setForm((f) => ({ ...f, emergency: [...f.emergency, { label: "", number: "" }] }))} />}>
+          <Section id="emergency" icon={Phone} title="Emergências" desc="Telefones úteis em caso de urgência." collapsible>
             {form.emergency.length === 0 ? (
               <EmptyHint text="Adicione contatos como polícia, bombeiros, médico de plantão." />
             ) : form.emergency.map((m, i) => (
@@ -1863,25 +1863,13 @@ function PropertyEditor() {
                 </div>
               </ItemCard>
             ))}
+            <div className="pt-1">
+              <AddBtn onClick={() => setForm((f) => ({ ...f, emergency: [...f.emergency, { label: "", number: "" }] }))} />
+            </div>
           </Section>
 
-          <Section id="faqs" icon={HelpCircle} title="Perguntas frequentes" desc="Antecipe dúvidas comuns dos hóspedes." collapsible action={
-            <div className="flex items-center gap-1.5">
-              <button type="button" onClick={() => {
-                const defaults = buildDefaultFaqs(form.property);
-                if (defaults.length === 0) { toast.info("Preencha campos como horários, endereço, Wi-Fi ou contato para gerar perguntas."); return; }
-                setForm((f) => {
-                  const { merged, added } = mergeDefaultFaqs(f.faqs, defaults);
-                  if (added === 0) { toast.info("Todas as perguntas padrão já estão na sua FAQ."); return f; }
-                  toast.success(`${added} pergunta${added > 1 ? "s" : ""} gerada${added > 1 ? "s" : ""} a partir dos campos.`);
-                  return { ...f, faqs: merged };
-                });
-              }} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-background text-xs text-muted-foreground hover:text-foreground hover:border-accent/50 transition-colors">
-                <Sparkles className="size-3.5" /> Gerar dos campos
-              </button>
-              <AddBtn onClick={() => setForm((f) => ({ ...f, faqs: [...f.faqs, { question: "", answer: "", tags: [] }] }))} />
-            </div>
-          }>
+          <Section id="faqs" icon={HelpCircle} title="Perguntas frequentes" desc="Antecipe dúvidas comuns dos hóspedes." collapsible>
+
             {form.faqs.length === 0 ? (
               <EmptyHint text="Ex: posso fumar? tem estacionamento? aceita pets?" />
             ) : form.faqs.map((m, i) => {
