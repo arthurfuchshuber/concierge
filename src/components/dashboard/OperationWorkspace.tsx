@@ -498,6 +498,38 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     }
     return blocked;
   }, [coRows]);
+
+  /**
+   * Ordenação dos cards de chegada:
+   * 1) horário previsto de chegada (mais cedo primeiro; sem horário vai por último)
+   * 2) imóveis já liberados para check-in acima (sem checkout/limpeza pendente)
+   * 3) proprietário A→Z
+   * 4) nome do anúncio A→Z
+   */
+  const sortCheckinRows = useCallback(
+    (rows: ArrivalRow[]) => {
+      const txt = (a?: string | null, b?: string | null) =>
+        (a ?? "").localeCompare(b ?? "", "pt-BR", { sensitivity: "base" });
+      const time = (r: ArrivalRow) => r.arrivalTimeOverride ?? r.guestArrivalTime ?? null;
+      const blockedRank = (r: ArrivalRow) => (cleaningPendingPropIds.has(r.propertyId) ? 1 : 0);
+      return [...rows].sort((a, b) => {
+        const ta = time(a);
+        const tb = time(b);
+        if (ta && tb && ta !== tb) return ta.localeCompare(tb);
+        if (!!ta !== !!tb) return ta ? -1 : 1;
+        return blockedRank(a) - blockedRank(b) || txt(a.ownerName, b.ownerName) || txt(a.propertyName, b.propertyName);
+      });
+    },
+    [cleaningPendingPropIds],
+  );
+  const checkinPendingRows = useMemo(
+    () => sortCheckinRows(rawCheckinPendingRows),
+    [rawCheckinPendingRows, sortCheckinRows],
+  );
+  const tomorrowCheckinPendingRows = useMemo(
+    () => sortCheckinRows(rawTomorrowCheckinPendingRows),
+    [rawTomorrowCheckinPendingRows, sortCheckinRows],
+  );
   // Imóvel com check-out pendente ou limpeza em andamento não é "livre".
   const freeProperties = useMemo(
     () => (occupancyQ.data?.freeToday ?? []).filter((p) => !cleaningPendingPropIds.has(p.id)),
