@@ -285,12 +285,13 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       property_id: string;
       guest_name: string | null;
       guest_phone: string | null;
+      guest_arrival_time?: string | null;
       checkin_date: string | null;
     };
     const allLogs = ((logs ?? []) as LogRow[]).filter((r) => !isPlaceholderGuest(r.guest_name));
 
     // Uma entrada por check-in PENDENTE do período (mesma base usada no contador).
-    type Entry = { property_id: string; name: string; phone: string | null };
+    type Entry = { property_id: string; name: string; phone: string | null; time: string | null };
     const entries: Entry[] = [];
     const usedLog = new Set<number>();
 
