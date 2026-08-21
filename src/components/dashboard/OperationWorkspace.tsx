@@ -726,6 +726,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               <FreePropertiesCard
                 loading={occupancyQ.isLoading}
                 properties={freeProperties}
+                allProperties={occupancyQ.data?.properties ?? []}
                 onRefresh={() => occupancyQ.refetch()}
               />
             </div>
@@ -1523,12 +1524,16 @@ function EngagementFlags({
 function FreePropertiesCard({
   loading,
   properties,
+  allProperties,
   onRefresh,
 }: {
   loading: boolean;
   properties: Array<{ id: string; name: string }>;
+  allProperties?: Array<{ id: string; name: string }>;
   onRefresh: () => void;
 }) {
+  const freeIds = new Set(properties.map((p) => p.id));
+  const occupied = (allProperties ?? []).filter((p) => !freeIds.has(p.id));
   const [open, setOpen] = useState(false);
   const list = useWholeCardsMaxHeight(2, `${open}:${properties.length}:${loading}`);
   return (
@@ -1542,19 +1547,23 @@ function FreePropertiesCard({
       <DialogTrigger asChild>
         <button
           type="button"
-          className="w-full h-full rounded-[0.3rem] border-0 bg-card px-3.5 py-3.5 min-h-[92px] flex flex-col justify-between text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ds-3d ds-3d-hover"
+          className="w-full h-full rounded-[0.3rem] border-0 bg-card px-3.5 py-5 min-h-[96px] flex flex-col justify-between text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ds-3d ds-3d-hover"
         >
-          <div className="flex items-center gap-2 ds-eyebrow">
-            <Home className="size-3.5 shrink-0" /> <span className="truncate">Imóveis livres</span>
+          <div className="flex items-center gap-2 ds-eyebrow min-w-0">
+            <Home className="size-3.5 shrink-0" />
+            <span className="min-w-0 flex-1 truncate leading-none" title="Imóveis livres">
+              Imóveis livres
+            </span>
           </div>
           <div className="text-[28px] sm:text-[30px] font-display font-bold mt-1.5 tabular-nums leading-none text-foreground">
             {loading ? "—" : properties.length}
           </div>
         </button>
+
       </DialogTrigger>
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-lg">
         <DialogHeader className="px-5 pt-5 pb-3">
-          <DialogTitle className="text-base font-display">Imóveis sem ninguém hoje</DialogTitle>
+          <DialogTitle className="text-base font-display">Imóveis livres hoje</DialogTitle>
         </DialogHeader>
         <div
           ref={list.ref}
@@ -1565,20 +1574,48 @@ function FreePropertiesCard({
             <div className="py-10 grid place-items-center text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
             </div>
-          ) : properties.length === 0 ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">Todos os imóveis estão ocupados hoje.</div>
           ) : (
-            <ul className="space-y-1.5">
-              {properties.map((p) => (
-                <li
-                  key={p.id}
-                  data-whole-card
-                  className="rounded-lg border border-border/50 bg-background/40 px-3 py-2 text-sm truncate"
-                >
-                  {p.name}
-                </li>
-              ))}
-            </ul>
+            <div className="space-y-4 pb-2">
+              <div>
+                <div className="ds-eyebrow mb-1.5 text-emerald-600 dark:text-emerald-400">
+                  Livres hoje ({properties.length})
+                </div>
+                {properties.length === 0 ? (
+                  <div className="text-sm text-muted-foreground">Todos os imóveis estão ocupados hoje.</div>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {properties.map((p) => (
+                      <li
+                        key={p.id}
+                        data-whole-card
+                        className="rounded-lg border border-emerald-500/25 bg-emerald-500/[0.06] px-3 py-2 text-sm truncate"
+                        title={p.name}
+                      >
+                        {p.name}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {occupied.length > 0 && (
+                <div>
+                  <div className="ds-eyebrow mb-1.5 text-muted-foreground">Ocupados hoje ({occupied.length})</div>
+                  <ul className="space-y-1.5">
+                    {occupied.map((p) => (
+                      <li
+                        key={p.id}
+                        data-whole-card
+                        className="rounded-lg border border-border/50 bg-background/40 px-3 py-2 text-sm text-muted-foreground truncate"
+                        title={p.name}
+                      >
+                        {p.name}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </DialogContent>
