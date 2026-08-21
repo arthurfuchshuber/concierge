@@ -90,7 +90,7 @@ export function PropertyDetailsEditor({ propertyId }: { propertyId: string }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data } = useQuery({
     queryKey: ["property-details", propertyId],
     queryFn: () => listFn({ data: { propertyId } }),
     staleTime: 5 * 60_000,
@@ -194,8 +194,7 @@ export function PropertyDetailsEditor({ propertyId }: { propertyId: string }) {
         </p>
       </div>
 
-      {false ? null : (
-        <>
+      <>
           <textarea
             ref={taRef}
             value={text}
@@ -234,8 +233,7 @@ export function PropertyDetailsEditor({ propertyId }: { propertyId: string }) {
               <AutosaveIndicator status={autosave.status} />
             </div>
           </div>
-        </>
-      )}
+      </>
     </div>
   );
 }
