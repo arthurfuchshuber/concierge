@@ -1259,6 +1259,8 @@ export const listConcludedArrivals = createServerFn({ method: "GET" })
         garageMapsUrl: p?.garage_maps_url ?? null,
         hasPasswords: false,
         openedCheckin: true,
+        openedGuide: true,
+        readInstructions: true,
         viewedPasswords: true,
         guestName: (log?.["guest_name"] as string) ?? (res?.["guest_hint"] as string) ?? "Reserva Airbnb",
         guestPhone: (log?.["guest_phone"] as string) ?? null,

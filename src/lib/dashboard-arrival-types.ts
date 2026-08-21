@@ -13,6 +13,8 @@ export type ArrivalRow = {
 
   hasPasswords: boolean;
   openedCheckin: boolean;
+  openedGuide: boolean;
+  readInstructions: boolean;
   viewedPasswords: boolean;
   guestName: string;
   guestPhone: string | null;

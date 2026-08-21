@@ -406,6 +406,7 @@ function Guide({ data }: { data: GuideOk }) {
       },
     }).catch(() => {});
   }
+
   const { lang, setLang } = useI18n();
 
   // Auto-detect browser language on first visit (if no saved preference)
@@ -426,6 +427,29 @@ function Guide({ data }: { data: GuideOk }) {
   // e mostra o conteúdo do guia diretamente, sem exigir preenchimento.
   const [isPreview, setIsPreview] = useState(false);
   const [accessRec, setAccessRec] = useState<AccessRecord | null>(null);
+
+
+  // "Leu as instruções": só conta se o hóspede ficar ao menos 5 segundos na
+  // aba Chegada. Sai antes disso, não registramos nada.
+  const readInstructionsRef = useRef(false);
+  useEffect(() => {
+    if (section !== "checkin" || readInstructionsRef.current) return;
+    const t = setTimeout(() => {
+      readInstructionsRef.current = true;
+      const sid = typeof window !== "undefined" ? (localStorage.getItem(`guide-chat-session:${slug}`) ?? "anon") : "anon";
+      trackEvent({
+        data: {
+          slug,
+          section: "checkin-lido",
+          sessionId: sid,
+          guestName: accessRec?.name ?? null,
+          guestPhone: accessRec?.phone ?? null,
+          pagePath: typeof window !== "undefined" ? window.location.pathname : null,
+        },
+      }).catch(() => {});
+    }, 5000);
+    return () => clearTimeout(t);
+  }, [section, slug, accessRec?.name, accessRec?.phone]);
   const [formPrefill, setFormPrefill] = useState<AccessRecord | null>(null);
   const [tourActive, setTourActive] = useState(false);
   // Hidrata o registro do localStorage somente após mount (evita mismatch SSR
