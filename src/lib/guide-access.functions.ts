@@ -342,3 +342,53 @@ export const getGuideStayStatus = createServerFn({ method: "POST" })
     }
     return { checkinDone, checkoutDone };
   });
+
+const MarkStepInput = StayStatusInput.extend({ kind: z.enum(["checkin", "checkout"]) });
+
+/**
+ * O próprio hóspede marca "já fiz o check-in/check-out" no guia — o mesmo
+ * status que o anfitrião marca no Kanban da Operação.
+ */
+export const markGuideStayStep = createServerFn({ method: "POST" })
+  .inputValidator((i: unknown) => MarkStepInput.parse(i))
+  .handler(async ({ data }) => {
+    const { allowPublicRate, clientIpFrom } = await import("@/lib/public-rate-limit.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
+    if (!allowPublicRate(`guide-mark-step:${clientIpFrom(getRequest())}`, 20, 60_000)) return { ok: false as const };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const propQuery = supabaseAdmin.from("properties").select("id").eq("slug", data.slug).eq("published", true);
+    const { data: prop } = data.property_id
+      ? await propQuery.eq("id", data.property_id).maybeSingle()
+      : await propQuery.maybeSingle();
+    if (!prop) return { ok: false as const };
+
+    const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+    const guest = data.guest_name ? norm(data.guest_name) : null;
+    const { data: logs } = await supabaseAdmin
+      .from("guide_access_logs")
+      .select("id, guest_name, checkout_date")
+      .eq("property_id", prop.id)
+      .eq("checkin_date", data.checkin_date)
+      .limit(200);
+    const match = ((logs ?? []) as Array<{ id: string; guest_name: string | null; checkout_date: string | null }>).find(
+      (l) => {
+        if (data.checkout_date && l.checkout_date && l.checkout_date !== data.checkout_date) return false;
+        if (guest && l.guest_name && norm(l.guest_name) !== guest) return false;
+        return true;
+      },
+    );
+    if (!match) return { ok: false as const };
+
+    const { error } = await supabaseAdmin.from("guest_arrival_status").upsert(
+      {
+        log_id: match.id,
+        property_id: prop.id,
+        kind: data.kind,
+        status: "done",
+        done_at: new Date().toISOString(),
+      } as never,
+      { onConflict: "log_id,kind" },
+    );
+    if (error) return { ok: false as const };
+    return { ok: true as const };
+  });
