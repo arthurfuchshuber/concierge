@@ -253,10 +253,14 @@ export function BulkEditDialog({
     setLoading(true);
     setData(null);
     fetchFn({ data: { ids } })
-      .then((d) => setData(d))
+      .then((d) => {
+        setData(d);
+        setState(buildInitialState(d));
+      })
       .catch(() => toast.error("Erro ao carregar dados dos guias"))
       .finally(() => setLoading(false));
   }, [open, ids, fetchFn]);
+
 
   function reset() {
     setState(emptyState);
