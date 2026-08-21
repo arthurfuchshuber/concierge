@@ -667,3 +667,26 @@ dd {
 [data-slot="accordion-item"] {
   border-radius: 0.3rem;
 }
+
+/* ============================================================
+   Relevo 3D sutil — cards e quadrantes
+   Sombra em camadas + realce interno no topo (luz) e sombra
+   interna na base. Sem exageros: apenas dá volume ao card.
+   ============================================================ */
+@utility ds-3d {
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--foreground) 8%, transparent),
+    inset 0 -1px 0 color-mix(in oklab, var(--background) 60%, transparent),
+    0 1px 1px color-mix(in oklab, var(--foreground) 8%, transparent),
+    0 4px 10px -4px color-mix(in oklab, var(--foreground) 16%, transparent);
+}
+@utility ds-3d-hover {
+  transition: box-shadow 200ms ease, transform 200ms ease;
+}
+.ds-3d-hover:hover {
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--foreground) 10%, transparent),
+    0 2px 3px color-mix(in oklab, var(--foreground) 10%, transparent),
+    0 10px 20px -8px color-mix(in oklab, var(--foreground) 22%, transparent);
+  transform: translateY(-1px);
+}
