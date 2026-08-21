@@ -955,9 +955,10 @@ function PropertyEditor() {
       queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "stakeholder-detail" });
       if (isNew) navigate({ to: "/admin/properties/$id", params: { id: r.id } });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao salvar");
+      if (!silent) toast.error(e instanceof Error ? e.message : "Erro ao salvar");
+      else console.warn("[autosave] guia", e);
     } finally {
-      setSaving(false);
+      if (silent) setAutoSaving(false); else setSaving(false);
     }
   }
 
