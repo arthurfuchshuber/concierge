@@ -496,16 +496,13 @@ export function BulkEditDialog({
     const mixed = s2.distinct.length > 1;
     // Senhas, Wi-Fi, endereço e mapas são exclusivos de cada residência:
     // com vários guias selecionados o campo fica travado.
-    const locked = ids.length > 1 && (PER_PROPERTY_FIELDS as readonly string[]).includes(f.key);
     return (
       <div className="min-w-0">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
             <label className="text-sm font-medium truncate block">{f.label}</label>
-            <div className={`text-[11px] mt-0.5 ${locked ? "text-amber-600 dark:text-amber-400" : willRemove ? "text-destructive" : "text-muted-foreground"} ${locked ? "" : "truncate"}`}>
-              {locked
-                ? "Exclusivo de cada residência — edite no guia individual"
-                : willRemove
+            <div className={`text-[11px] mt-0.5 truncate ${willRemove ? "text-destructive" : "text-muted-foreground"}`}>
+              {willRemove
                 ? "Será removido dos guias selecionados"
                 : mixed
                   ? `${s2.distinct.length} valores diferentes — preencha para igualar em todos`
@@ -514,10 +511,9 @@ export function BulkEditDialog({
                     : `${s2.empty} guia${s2.empty > 1 ? "s" : ""} sem valor`}
             </div>
           </div>
-          {showSwitch && !locked && <Switch checked={enabled} onCheckedChange={(v) => toggle(f.key, v)} />}
-          {locked && <Lock className="size-4 shrink-0 text-muted-foreground" />}
+          {showSwitch && <Switch checked={enabled} onCheckedChange={(v) => toggle(f.key, v)} />}
         </div>
-        {!locked && (!showSwitch || enabled) && (
+        {(!showSwitch || enabled) && (
           <div className="mt-2">{renderField(f, value, (v) => setValue(f.key, v))}</div>
         )}
       </div>
