@@ -2024,9 +2024,7 @@ function EngagementBars({
           total={checkinsWithCodes}
           pct={pctOf(codesViewed, checkinsWithCodes)}
           breakdown={codesBreakdown}
-          hint={
-            "Quantos hóspedes com check-in no período já visualizaram a senha de acesso no guia pelo menos uma vez."
-          }
+          hint={"Hóspedes com check-in no período que já visualizaram as senhas de acesso no guia pelo menos uma vez."}
         />
       )}
     </div>
