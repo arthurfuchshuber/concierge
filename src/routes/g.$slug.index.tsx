@@ -3227,11 +3227,15 @@ function PostAccessOnboarding({
                   <>
                     <button
                       type="button"
-                      onClick={onDone}
+                      onClick={() => {
+                        window.dispatchEvent(new CustomEvent("guide-checkin-done"));
+                        onDone();
+                      }}
                       className="w-full h-[44px] rounded-2xl text-white font-semibold text-[13px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
                     >
                       Consegui fazer o check-in! 🎉
                     </button>
+
                     <button
                       type="button"
                       onClick={openDifficultyChat}
