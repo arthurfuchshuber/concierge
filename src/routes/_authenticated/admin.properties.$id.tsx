@@ -1016,6 +1016,28 @@ function PropertyEditor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.recommendations, step, isNew]);
 
+  // ---- Autosave global do editor ----
+  // Qualquer campo, chave ou botão do "Editar guia" grava sozinho ~1,2s depois
+  // da última alteração — sem depender do botão "Salvar" (que foi removido).
+  const globalSnapshotRef = useRef<string>("");
+  const globalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const formKey = JSON.stringify({
+    p: form.property, m: form.manual, e: form.emergency, f: form.faqs, c: form.checkout,
+  });
+  useEffect(() => {
+    if (!hydratedRef.current || isNew || readOnly || saving) { globalSnapshotRef.current = formKey; return; }
+    if (!globalSnapshotRef.current) { globalSnapshotRef.current = formKey; return; }
+    if (globalSnapshotRef.current === formKey) return;
+    if (globalTimerRef.current) clearTimeout(globalTimerRef.current);
+    globalTimerRef.current = setTimeout(() => {
+      globalSnapshotRef.current = formKey;
+      void handleSave(undefined, { silent: true });
+    }, 1200);
+    return () => { if (globalTimerRef.current) clearTimeout(globalTimerRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formKey, isNew, readOnly, saving]);
+
+
   if (!isNew && isLoading) {
     return <div className="max-w-4xl mx-auto px-6 py-10 text-sm text-muted-foreground">Carregando…</div>;
   }
