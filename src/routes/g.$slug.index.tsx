@@ -666,16 +666,20 @@ function Guide({ data }: { data: GuideOk }) {
   const [unlocked, setUnlocked] = useState(initialUnlocked);
   // Só registramos "viu a senha de acesso" quando o código foi de fato
   // exibido na tela (não basta abrir a seção ou destravar o PIN).
-  const passwordsTrackedRef = useRef(false);
-  const markPasswordsSeen = () => {
-    if (passwordsTrackedRef.current || checkinLocked) return;
-    passwordsTrackedRef.current = true;
+  // Rastreamos por tipo de senha (fechadura/portão) — o dashboard só marca
+  // "viu as senhas" quando TODAS as senhas de acesso foram abertas. Wi-Fi não
+  // é senha de acesso ao imóvel, portanto não é registrado.
+  const passwordsTrackedRef = useRef<Set<string>>(new Set());
+  const markPasswordsSeen = (kind: "lock" | "gate" | "wifi" = "lock") => {
+    if (kind === "wifi") return;
+    if (passwordsTrackedRef.current.has(kind) || checkinLocked) return;
+    passwordsTrackedRef.current.add(kind);
     const sid = typeof window !== "undefined" ? (localStorage.getItem(`guide-chat-session:${slug}`) ?? "anon") : "anon";
     const pagePath = typeof window !== "undefined" ? window.location.pathname : null;
     trackEvent({
       data: {
         slug,
-        section: "senhas",
+        section: `senhas:${kind}`,
         sessionId: sid,
         guestName: accessRec?.name ?? null,
         guestPhone: accessRec?.phone ?? null,
@@ -1672,7 +1676,7 @@ function Guide({ data }: { data: GuideOk }) {
                                             unlocked={unlocked}
                                             requestUnlock={requestUnlock}
                                             hasPin={hasAccessPin}
-                                            onShown={markPasswordsSeen}
+                                            onShown={() => markPasswordsSeen("gate")}
                                           />
                                         )}
                                         {lockCodeSet && (
