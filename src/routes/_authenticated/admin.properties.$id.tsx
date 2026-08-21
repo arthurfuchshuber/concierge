@@ -304,6 +304,7 @@ function PropertyEditor() {
     }
   }, []);
   const [enriching, setEnriching] = useState(false);
+  const enrichedUrlRef = useRef<string | null>(null);
   const [generatingCityRecs, setGeneratingCityRecs] = useState(false);
   const [saving, setSaving] = useState(false);
   // Itens para o picker @mention (FAQs do imóvel; recomendações são carregadas em outro fluxo).
