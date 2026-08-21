@@ -727,6 +727,20 @@ function PropertyEditor() {
     }
   }
 
+  // Auto-preenchimento: dispara sozinho assim que um link válido do Maps é colado/digitado.
+  useEffect(() => {
+    const url = (form.property.maps_url || "").trim();
+    if (!url || !/^https?:\/\/\S+$/i.test(url) || !/(google\.[a-z.]+\/maps|maps\.app\.goo\.gl|goo\.gl\/maps)/i.test(url)) return;
+    if (enrichedUrlRef.current === url) return;
+    if (enriching) return;
+    const t = setTimeout(() => {
+      enrichedUrlRef.current = url;
+      void handleEnrich();
+    }, 900);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.property.maps_url, enriching]);
+
   async function handleGenerateCityRecommendations(mode: "replace" | "fill" = "fill") {
     const city = form.property.city.trim();
     if (!city) {
