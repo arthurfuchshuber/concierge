@@ -2011,7 +2011,7 @@ function GuestMarkGroup({ group, tone }: { group: GuestMark[]; tone: "ok" | "off
   const [open, setOpen] = useState(false);
   const [main, ...rest] = group;
   return (
-    <li className="flex items-start gap-1.5">
+    <li data-whole-card className="flex items-start gap-1.5">
       <span className={`mt-1 size-1.5 shrink-0 rounded-full ${tone === "ok" ? "bg-emerald-500" : "bg-rose-500"}`} />
       <span className="min-w-0">
         <span className="font-medium text-foreground/90">{main.name}</span>
@@ -2083,6 +2083,11 @@ function BarRow({
   /** Texto explicativo do que a métrica mede (ícone "i" ao lado do valor). */
   hint?: string;
 }) {
+  const [open, setOpen] = useState(false);
+  const list = useWholeCardsMaxHeight(
+    2,
+    `${open}:${breakdown?.viewed.length ?? 0}:${breakdown?.notViewed.length ?? 0}`,
+  );
   const track = (
     <div className="h-1 rounded-full bg-rose-500/60 overflow-hidden">
       <div
@@ -2111,7 +2116,7 @@ function BarRow({
   return (
     <div className="space-y-1.5">
       {header}
-      <Dialog>
+      <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
           <button
             type="button"
@@ -2136,7 +2141,11 @@ function BarRow({
             </div>
           </div>
         </DialogHeader>
-        <div className="max-h-[70vh] overflow-y-auto px-5 pb-5 space-y-4 text-sm">
+        <div
+          ref={list.ref}
+          style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
+          className="sg-elegant-scroll max-h-[70vh] overflow-y-auto px-5 space-y-4 text-sm"
+        >
           <div>
             <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-400">
               Viram ({breakdown.viewed.length})
