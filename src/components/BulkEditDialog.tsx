@@ -428,8 +428,8 @@ export function BulkEditDialog({
     try {
       const r = await apply({ data: { ids, patch, lists: Object.keys(lists).length ? lists : undefined, mode } });
       toast.success(`${r.updated} ${r.updated === 1 ? "guia atualizado" : "guias atualizados"}`);
-      reset();
-      onOpenChange(false);
+      // Volta para a tela de edição (não fecha o popup inteiro).
+      setConfirmMode(null);
       onSaved?.();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao atualizar");
@@ -438,47 +438,58 @@ export function BulkEditDialog({
     }
   }
 
+
   return (
     <ResponsiveDialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
       <ResponsiveDialogContent className="w-[calc(100vw-1.5rem)] sm:max-w-3xl max-h-[85vh] overflow-y-auto overflow-x-hidden">
         {confirmMode === "ask" ? (
-          <div className="mx-auto flex min-h-[min(24rem,70dvh)] w-full max-w-md flex-col justify-center gap-4 py-6">
-            <div className="text-lg font-medium">Como aplicar as informações?</div>
-            <p className="text-sm text-muted-foreground">
-              {hasClearing
-                ? "Há campos ativos sem valor: use “Substituir em todos” para removê-los dos guias selecionados."
-                : "Alguns dos guias selecionados já podem ter esses campos preenchidos. Escolha como proceder:"}
-            </p>
+          <div className="mx-auto flex w-full max-w-md flex-col gap-5 py-6">
+            <div className="space-y-1.5 text-center">
+              <div className="mx-auto grid size-11 place-items-center rounded-[0.3rem] bg-primary/10 text-primary">
+                <ClipboardCheck className="size-5" />
+              </div>
+              <h3 className="pt-1 text-base font-semibold tracking-tight">Como aplicar as informações?</h3>
+              <p className="text-[13px] leading-relaxed text-muted-foreground">
+                {hasClearing
+                  ? "Há campos ativos sem valor: use “Substituir em todos” para removê-los dos guias selecionados."
+                  : "Alguns guias selecionados já podem ter esses campos preenchidos. Escolha como proceder:"}
+              </p>
+            </div>
+
             <div className="space-y-2">
-              <Button
+              <button
                 type="button"
-                className="relative z-10 w-full justify-start h-auto py-3"
-                variant="outline"
+                className="relative z-10 w-full rounded-[0.3rem] border border-border bg-card/60 p-3.5 text-left transition-colors hover:border-primary/40 hover:bg-card disabled:cursor-not-allowed disabled:opacity-50"
                 onClick={() => void performSave("fill-empty")}
                 disabled={saving || hasClearing}
               >
-                <div className="text-left">
-                  <div className="text-sm font-medium">Preencher só onde estiver vazio</div>
-                  <div className="text-[11px] text-muted-foreground">Mantém as informações existentes nos guias que já as têm.</div>
+                <div className="text-sm font-medium">Preencher só onde estiver vazio</div>
+                <div className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+                  Mantém as informações existentes nos guias que já as têm.
                 </div>
-              </Button>
-              <Button
+              </button>
+              <button
                 type="button"
-                className="relative z-10 w-full justify-start h-auto py-3"
+                className="relative z-10 w-full rounded-[0.3rem] bg-primary p-3.5 text-left text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 onClick={() => void performSave("overwrite")}
                 disabled={saving}
               >
-                <div className="text-left">
-                  <div className="text-sm font-medium">Substituir em todos</div>
-                  <div className="text-[11px] opacity-80">Sobrescreve os valores atuais em todos os guias selecionados.</div>
+                <div className="text-sm font-medium">Substituir em todos</div>
+                <div className="mt-0.5 text-[11px] leading-snug opacity-80">
+                  Sobrescreve os valores atuais em todos os guias selecionados.
                 </div>
-              </Button>
+              </button>
             </div>
-            <div className="flex justify-end">
-              <Button type="button" variant="ghost" size="sm" onClick={() => setConfirmMode(null)} disabled={saving}>Voltar</Button>
+
+            <div className="flex items-center justify-center gap-2">
+              {saving && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
+              <Button type="button" variant="ghost" size="sm" onClick={() => setConfirmMode(null)} disabled={saving}>
+                Voltar
+              </Button>
             </div>
           </div>
         ) : (
+
         <>
         <ResponsiveDialogHeader>
           <ResponsiveDialogTitle>Editar {ids.length} {ids.length === 1 ? "guia" : "guias"}</ResponsiveDialogTitle>
