@@ -396,15 +396,30 @@ export function BulkEditDialog({
     return { withItems, empty };
   }
 
-  const hasAnySelected = useMemo(() => {
-    return Object.values(state.enabled).some(Boolean) || Object.values(state.listsEnabled).some(Boolean);
+  /** Campos que vieram preenchidos e foram desligados → serão removidos. */
+  const removedFields = useMemo(() => {
+    const out: FieldDef[] = [];
+    for (const t of TEXT_TABS) {
+      for (const g of t.groups) {
+        for (const f of groupFields(g)) {
+          if (initialEnabledRef.current[f.key] && !state.enabled[f.key]) out.push(f);
+        }
+      }
+    }
+    return out;
   }, [state]);
+
+  const hasAnySelected = useMemo(() => {
+    return Object.values(state.enabled).some(Boolean)
+      || Object.values(state.listsEnabled).some(Boolean)
+      || removedFields.length > 0;
+  }, [state, removedFields]);
 
   /** Algum campo de texto ativo está vazio → a intenção é remover o valor. */
   const hasClearing = useMemo(() => {
     for (const tab of TEXT_TABS) {
       for (const g of tab.groups) {
-        for (const f of g.fields ?? []) {
+        for (const f of groupFields(g)) {
           if (!state.enabled[f.key]) continue;
           if (f.kind !== "text" && f.kind !== "textarea") continue;
           if (String(state.values[f.key] ?? "").trim() === "") return true;
@@ -413,6 +428,7 @@ export function BulkEditDialog({
     }
     return false;
   }, [state]);
+
 
 
 
