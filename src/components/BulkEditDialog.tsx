@@ -486,11 +486,15 @@ export function BulkEditDialog({
                     collapsible
                     action={
                       activeCount > 0 ? (
-                        <span className="rounded-full bg-accent/15 text-accent-foreground border border-accent/40 px-2 py-0.5 text-[11px]">
-                          {activeCount} ativo{activeCount > 1 ? "s" : ""}
+                        <span
+                          title={`${activeCount} campo${activeCount > 1 ? "s" : ""} ativo${activeCount > 1 ? "s" : ""}`}
+                          className="size-5 rounded-full bg-primary/15 text-primary text-[10px] font-semibold grid place-items-center tabular-nums"
+                        >
+                          {activeCount}
                         </span>
                       ) : null
                     }
+
                   >
                   {(group.fields ?? []).map((f) => {
                     const enabled = !!state.enabled[f.key];
