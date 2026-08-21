@@ -726,7 +726,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               <FreePropertiesCard
                 loading={occupancyQ.isLoading}
                 properties={freeProperties}
-                allProperties={occupancyQ.data?.properties ?? []}
                 onRefresh={() => occupancyQ.refetch()}
               />
             </div>
@@ -1524,16 +1523,12 @@ function EngagementFlags({
 function FreePropertiesCard({
   loading,
   properties,
-  allProperties,
   onRefresh,
 }: {
   loading: boolean;
   properties: Array<{ id: string; name: string }>;
-  allProperties?: Array<{ id: string; name: string }>;
   onRefresh: () => void;
 }) {
-  const freeIds = new Set(properties.map((p) => p.id));
-  const occupied = (allProperties ?? []).filter((p) => !freeIds.has(p.id));
   const [open, setOpen] = useState(false);
   const list = useWholeCardsMaxHeight(2, `${open}:${properties.length}:${loading}`);
   return (
@@ -1574,48 +1569,21 @@ function FreePropertiesCard({
             <div className="py-10 grid place-items-center text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
             </div>
+          ) : properties.length === 0 ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">Nenhum imóvel livre hoje.</div>
           ) : (
-            <div className="space-y-4 pb-2">
-              <div>
-                <div className="ds-eyebrow mb-1.5 text-emerald-600 dark:text-emerald-400">
-                  Livres hoje ({properties.length})
-                </div>
-                {properties.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">Todos os imóveis estão ocupados hoje.</div>
-                ) : (
-                  <ul className="space-y-1.5">
-                    {properties.map((p) => (
-                      <li
-                        key={p.id}
-                        data-whole-card
-                        className="rounded-lg border border-emerald-500/25 bg-emerald-500/[0.06] px-3 py-2 text-sm truncate"
-                        title={p.name}
-                      >
-                        {p.name}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              {occupied.length > 0 && (
-                <div>
-                  <div className="ds-eyebrow mb-1.5 text-muted-foreground">Ocupados hoje ({occupied.length})</div>
-                  <ul className="space-y-1.5">
-                    {occupied.map((p) => (
-                      <li
-                        key={p.id}
-                        data-whole-card
-                        className="rounded-lg border border-border/50 bg-background/40 px-3 py-2 text-sm text-muted-foreground truncate"
-                        title={p.name}
-                      >
-                        {p.name}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
+            <ul className="space-y-1.5 pb-2">
+              {properties.map((p) => (
+                <li
+                  key={p.id}
+                  data-whole-card
+                  className="rounded-lg border border-emerald-500/25 bg-emerald-500/[0.06] px-3 py-2 text-sm truncate"
+                  title={p.name}
+                >
+                  {p.name}
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       </DialogContent>
