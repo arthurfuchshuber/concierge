@@ -580,17 +580,36 @@ function Guide({ data }: { data: GuideOk }) {
   ]);
 
 
-  // Informações sensíveis (Wi-Fi, senhas de acesso) permanecem disponíveis
-  // dentro da página "Chegada" até as 15h00 do dia do check-out — ou até o
-  // hóspede confirmar o check-out.
+  // Janela de senhas: liberadas 24h ANTES do horário previsto de check-in e
+  // encerradas no horário previsto de check-out (ou assim que o check-out for
+  // dado como feito pelo hóspede ou pelo anfitrião).
+  const parseHm = (v: unknown, fallbackH: number): [number, number] => {
+    const m = String(v ?? "").match(/^(\d{1,2}):(\d{2})/);
+    return m ? [Number(m[1]), Number(m[2])] : [fallbackH, 0];
+  };
   const checkinLocked = (() => {
     if (checkoutConcluded) return true;
-    if (!accessRec?.checkoutDate) return false;
-    const [y, mo, d] = accessRec.checkoutDate.split("-").map(Number);
-    if (!y || !mo || !d) return false;
-    const end = new Date(y, mo - 1, d, 15, 0, 0, 0).getTime();
-    return Date.now() > end;
+    const now = Date.now();
+    // Fim: horário configurado de check-out
+    if (accessRec?.checkoutDate) {
+      const [y, mo, d] = accessRec.checkoutDate.split("-").map(Number);
+      if (y && mo && d) {
+        const [hh, mm] = parseHm(p.checkout_time, 15);
+        if (now > new Date(y, mo - 1, d, hh, mm, 0, 0).getTime()) return true;
+      }
+    }
+    // Início: 24h antes do horário configurado de check-in
+    if (accessRec?.checkinDate) {
+      const [y, mo, d] = accessRec.checkinDate.split("-").map(Number);
+      if (y && mo && d) {
+        const [hh, mm] = parseHm(p.checkin_time, 15);
+        const release = new Date(y, mo - 1, d, hh, mm, 0, 0).getTime() - 86_400_000;
+        if (now < release) return true;
+      }
+    }
+    return false;
   })();
+
 
   // Faixas da home (Wi-Fi/Acesso e aviso de check-in): visíveis sempre que
   // o hóspede já preencheu o formulário de acesso — sem janela temporal.
