@@ -1935,8 +1935,9 @@ function OccupancyPanel({
                               <td
                                 key={d}
                                 style={{ width: dayW, minWidth: dayW }}
-                                className={`px-0 py-1 snap-start ${isToday ? "bg-primary/[0.06]" : ""}`}
+                                className="px-0 py-1 snap-start"
                                 title={title}
+
                               >
                                 <div className="relative flex h-6 w-full items-center">
                                   <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border/50" />
