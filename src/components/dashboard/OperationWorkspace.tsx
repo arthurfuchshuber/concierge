@@ -1482,12 +1482,10 @@ function EngagementFlags({
   viewedPasswords?: boolean;
   variant?: "text" | "pills";
 }) {
+  // "Não acessou o guia" foi removido a pedido: mostramos apenas instruções e senhas.
   const flags: Array<{ icon: typeof Eye; label: string }> = [];
-  if (!openedGuide) flags.push({ icon: Eye, label: "Não acessou o guia" });
-  else {
-    if (!readInstructions) flags.push({ icon: ListChecks, label: "Não leu as instruções" });
-    if (hasPasswords && !viewedPasswords) flags.push({ icon: KeyRound, label: "Não viu as senhas" });
-  }
+  if (!readInstructions) flags.push({ icon: ListChecks, label: "Não leu as instruções" });
+  if (hasPasswords && !viewedPasswords) flags.push({ icon: KeyRound, label: "Não viu as senhas" });
   if (flags.length === 0) return null;
   if (variant === "pills") {
     return (
