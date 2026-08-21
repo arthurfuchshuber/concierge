@@ -1167,6 +1167,59 @@ function KanbanColumn({
   );
 }
 
+/** Limita a altura de uma lista em N cards INTEIROS — nunca corta um card ao
+ * meio. Mede os itens de verdade e escolhe o maior corte que caiba na tela. */
+function useWholeCardsMaxHeight(visible: number, key: unknown) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [maxHeight, setMaxHeight] = useState<number | undefined>(undefined);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let raf = 0;
+
+    const recalc = () => {
+      const node = ref.current;
+      if (!node) return;
+      const items = Array.from(node.querySelectorAll<HTMLElement>(":scope > ul > li"));
+      if (items.length === 0) {
+        setMaxHeight(undefined);
+        return;
+      }
+      const top = node.getBoundingClientRect().top;
+      const PAD = 16; // padding inferior do contêiner
+      const cap = Math.round(window.innerHeight * 0.7);
+      const bottoms = items.map((i) => Math.ceil(i.getBoundingClientRect().bottom - top) + PAD);
+      if (items.length <= visible && bottoms[bottoms.length - 1] <= cap) {
+        setMaxHeight(undefined);
+        return;
+      }
+      const target = bottoms[Math.min(visible, bottoms.length) - 1];
+      // Se não couber na tela, recua até o último card que cabe por inteiro.
+      let height = target;
+      if (height > cap) {
+        height = bottoms.find((b) => b > cap) === bottoms[0] ? cap : bottoms.filter((b) => b <= cap).pop() || cap;
+      }
+      setMaxHeight(height);
+    };
+
+    recalc();
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(recalc);
+    });
+    for (const item of el.querySelectorAll("li")) ro.observe(item);
+    window.addEventListener("resize", recalc);
+    return () => {
+      ro.disconnect();
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", recalc);
+    };
+  }, [visible, key]);
+
+  return { ref, maxHeight };
+}
+
 function ColumnLoading() {
   return (
     <div className="py-8 grid place-items-center text-muted-foreground">
@@ -1209,6 +1262,7 @@ function KpiCard({
   compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const list = useWholeCardsMaxHeight(2, `${open}:${rows.length}:${loading}`);
   const valueTone = tone === "primary" ? "text-accent" : "text-foreground";
   const valueColor =
     shadowTone === "emerald"
@@ -1293,7 +1347,11 @@ function KpiCard({
             </div>
           </div>
         </DialogHeader>
-        <div className="max-h-[70vh] overflow-y-auto px-3 pb-4">
+        <div
+          ref={list.ref}
+          style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
+          className="sg-elegant-scroll max-h-[70vh] overflow-y-auto px-3 pb-4"
+        >
           {loading ? (
             <div className="py-14 grid place-items-center text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
