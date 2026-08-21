@@ -1861,7 +1861,7 @@ function OccupancyPanel({
                         className="sticky left-0 top-0 z-20 bg-card pb-2 pr-3 text-left"
                         style={{ width: NAME_COL, minWidth: NAME_COL }}
                       >
-                        <span className="ds-eyebrow">Imóvel</span>
+                        <span className="ds-eyebrow block pl-[10px]">Imóvel</span>
                       </th>
                       {dayList.map((d) => {
                         const wd = new Date(`${d}T12:00:00Z`).toLocaleDateString("pt-BR", {
