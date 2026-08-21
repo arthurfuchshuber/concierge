@@ -1377,7 +1377,7 @@ function KpiCard({
         <div
           ref={list.ref}
           style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
-          className="sg-elegant-scroll max-h-[70vh] overflow-y-auto px-3 pb-4"
+          className="sg-elegant-scroll max-h-[70vh] overflow-y-auto px-3"
         >
           {loading ? (
             <div className="py-14 grid place-items-center text-muted-foreground">
@@ -1399,6 +1399,7 @@ function KpiCard({
                 return (
                   <li
                     key={r.logId}
+                    data-whole-card
                     className="group flex items-start gap-2 rounded-lg border border-border/50 bg-background/40 px-2.5 py-2 transition hover:border-border hover:bg-secondary/40"
                   >
                     <div
@@ -1493,6 +1494,7 @@ function FreePropertiesCard({
   onRefresh: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const list = useWholeCardsMaxHeight(2, `${open}:${properties.length}:${loading}`);
   return (
     <Dialog
       open={open}
@@ -1519,7 +1521,11 @@ function FreePropertiesCard({
         <DialogHeader className="px-5 pt-5 pb-3">
           <DialogTitle className="text-base font-display">Imóveis sem ninguém hoje</DialogTitle>
         </DialogHeader>
-        <div className="max-h-[70vh] overflow-y-auto px-4 pb-5">
+        <div
+          ref={list.ref}
+          style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
+          className="sg-elegant-scroll max-h-[70vh] overflow-y-auto px-4"
+        >
           {loading ? (
             <div className="py-10 grid place-items-center text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
@@ -1531,6 +1537,7 @@ function FreePropertiesCard({
               {properties.map((p) => (
                 <li
                   key={p.id}
+                  data-whole-card
                   className="rounded-lg border border-border/50 bg-background/40 px-3 py-2 text-sm truncate"
                 >
                   {p.name}
