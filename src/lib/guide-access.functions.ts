@@ -260,3 +260,85 @@ export const checkReservationBySlug = createServerFn({ method: "POST" })
 
 
 
+const StayStatusInput = z.object({
+  slug: z.string().regex(/^[a-z0-9-]{1,64}$/),
+  property_id: z.string().uuid().optional(),
+  guest_name: z.string().trim().max(200).optional().nullable(),
+  checkin_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  checkout_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+});
+
+/**
+ * Status de check-in/check-out marcado pelo ANFITRIÃO (Kanban da Operação),
+ * para a reserva do hóspede que está vendo o guia. Retorna apenas booleanos.
+ */
+export const getGuideStayStatus = createServerFn({ method: "POST" })
+  .inputValidator((i: unknown) => StayStatusInput.parse(i))
+  .handler(async ({ data }) => {
+    const empty = { checkinDone: false, checkoutDone: false };
+    const { allowPublicRate, clientIpFrom } = await import("@/lib/public-rate-limit.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
+    if (!allowPublicRate(`guide-stay-status:${clientIpFrom(getRequest())}`, 60, 60_000)) return empty;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const propQuery = supabaseAdmin.from("properties").select("id").eq("slug", data.slug).eq("published", true);
+    const { data: prop } = data.property_id
+      ? await propQuery.eq("id", data.property_id).maybeSingle()
+      : await propQuery.maybeSingle();
+    if (!prop) return empty;
+
+    const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+    const guest = data.guest_name ? norm(data.guest_name) : null;
+
+    const [{ data: logs }, { data: reservations }] = await Promise.all([
+      supabaseAdmin
+        .from("guide_access_logs")
+        .select("id, guest_name, checkin_date, checkout_date")
+        .eq("property_id", prop.id)
+        .eq("checkin_date", data.checkin_date)
+        .limit(200),
+      supabaseAdmin
+        .from("property_reservations")
+        .select("id, checkin_date, checkout_date")
+        .eq("property_id", prop.id)
+        .eq("checkin_date", data.checkin_date)
+        .limit(50),
+    ]);
+
+    const logIds = ((logs ?? []) as Array<{ id: string; guest_name: string | null; checkout_date: string | null }>)
+      .filter((l) => {
+        if (data.checkout_date && l.checkout_date && l.checkout_date !== data.checkout_date) return false;
+        if (guest && l.guest_name && norm(l.guest_name) !== guest) return false;
+        return true;
+      })
+      .map((l) => l.id);
+    const resIds = ((reservations ?? []) as Array<{ id: string; checkout_date: string }>)
+      .filter((r) => !data.checkout_date || r.checkout_date === data.checkout_date)
+      .map((r) => r.id);
+
+    if (logIds.length === 0 && resIds.length === 0) return empty;
+
+    const { data: statuses } = await supabaseAdmin
+      .from("guest_arrival_status")
+      .select("kind, status, done_at, log_id, reservation_id")
+      .eq("property_id", prop.id)
+      .limit(500);
+
+    let checkinDone = false;
+    let checkoutDone = false;
+    for (const s of (statuses ?? []) as Array<{
+      kind: string;
+      status: string | null;
+      done_at: string | null;
+      log_id: string | null;
+      reservation_id: string | null;
+    }>) {
+      const belongs =
+        (s.log_id && logIds.includes(s.log_id)) || (s.reservation_id && resIds.includes(s.reservation_id));
+      if (!belongs) continue;
+      const done = s.status === "done" || !!s.done_at;
+      if (!done) continue;
+      if (s.kind === "checkin") checkinDone = true;
+      if (s.kind === "checkout") checkoutDone = true;
+    }
+    return { checkinDone, checkoutDone };
+  });
