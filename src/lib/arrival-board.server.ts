@@ -245,6 +245,7 @@ export async function buildArrivalRows(
         maps_url: string | null;
         garage_maps_url: string | null;
         hasPasswords: boolean;
+        accessCodes: Array<"lock" | "gate">;
         checkin_time: string | null;
         checkin_time_max: string | null;
         checkout_time: string | null;
