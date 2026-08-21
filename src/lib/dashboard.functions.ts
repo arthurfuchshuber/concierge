@@ -200,7 +200,7 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
 // ----- Engagement -----
 
 type EventRow = { property_id: string; guest_name: string | null; guest_phone: string | null };
-type GuestMark = { name: string; property: string };
+type GuestMark = { name: string; property: string; owner?: string; time?: string | null };
 
 const EngagementInput = z.object({
   range: z.enum(["today", "tomorrow", "7d", "30d"]).default("today"),
