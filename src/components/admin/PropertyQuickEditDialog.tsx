@@ -34,6 +34,9 @@ import { enrichFromMapsLink } from "@/lib/maps.functions";
 import { PropertyTypeSelect } from "@/components/admin/PropertyTypeSelect";
 import { PropertyDetailsEditor } from "@/components/admin/PropertyDetailsEditor";
 import { useRealtimeInvalidate } from "@/hooks/useRealtimeInvalidate";
+import { useAutosave } from "@/hooks/useAutosave";
+import { AutosaveIndicator } from "@/components/ui/autosave-indicator";
+
 
 function Field({
   label,
