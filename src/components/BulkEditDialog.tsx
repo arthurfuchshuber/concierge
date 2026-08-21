@@ -314,22 +314,33 @@ export function BulkEditDialog({
   // recarregar (e resetar) o popup sem necessidade.
   const idsKey = ids.join(",");
   const loadedKeyRef = useRef<string | null>(null);
+  // Quais campos vieram preenchidos ao abrir: desligar a chave de um deles
+  // significa "remover essa informação dos guias selecionados".
+  const initialEnabledRef = useRef<Partial<Record<FieldKey, boolean>>>({});
 
-  useEffect(() => {
-    if (!open || ids.length === 0) return;
-    if (loadedKeyRef.current === idsKey) return;
+  function load(force = false) {
+    if (ids.length === 0) return;
+    if (!force && loadedKeyRef.current === idsKey) return;
     loadedKeyRef.current = idsKey;
     setLoading(true);
     setData(null);
     fetchFn({ data: { ids: idsKey.split(",") } })
       .then((d) => {
         setData(d);
-        setState(buildInitialState(d));
+        const init = buildInitialState(d);
+        initialEnabledRef.current = { ...init.enabled };
+        setState(init);
       })
       .catch(() => toast.error("Erro ao carregar dados dos guias"))
       .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, idsKey]);
+
 
 
   function reset() {
