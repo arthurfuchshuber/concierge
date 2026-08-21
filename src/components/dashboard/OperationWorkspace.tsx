@@ -1026,7 +1026,7 @@ const OPERATION_TABS = [
 ];
 
 const OPERATION_COPY: Record<OperationView, { title: string; subtitle: string }> = {
-  resumo: { title: "Dashboard", subtitle: "Sua rotina diária: check-ins, checkouts e senhas." },
+  resumo: { title: "Operação", subtitle: "Sua rotina diária: check-ins, checkouts e senhas." },
   kanban: { title: "Kanban", subtitle: "Cada reserva na etapa em que ela realmente está." },
   calendario: { title: "Calendário", subtitle: "Ocupação dos imóveis dia a dia." },
 };
@@ -1039,7 +1039,6 @@ function OperationShell({ view }: { view: OperationView }) {
         <h1 className="ds-page-title truncate">{copy.title}</h1>
         <p className="ds-page-subtitle mt-1.5">{copy.subtitle}</p>
       </div>
-
 
       {/* Segmented control — Dashboard / Kanban / Calendário (largura da página) */}
       <nav className="mb-5 flex w-full overflow-hidden rounded-[0.3rem] bg-foreground/5">
@@ -1060,7 +1059,6 @@ function OperationShell({ view }: { view: OperationView }) {
           );
         })}
       </nav>
-
     </div>
   );
 }
@@ -1637,7 +1635,6 @@ function OccupancyPanel({
       // Colunas compactas: nunca mais largas que 46px (desktop) / 40px (mobile).
       const maxW = isDesktop ? 46 : 40;
       setDayW(Math.min(maxW, Math.max(MIN_DAY_W, Math.floor(usable / count))));
-
     };
 
     update();
