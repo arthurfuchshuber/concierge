@@ -1027,7 +1027,7 @@ function PropertyEditor() {
   // criação do imóvel (isNew) quanto na aba "A casa" do editor completo —
   // mesmo JSX, duas telas, sem duplicar campos/handlers.
   const renderPropertyTypeSection = () => (
-          <Section id="property-type" icon={Home} title="Tipo do imóvel" desc="Ajuda a organizar seus imóveis — as opções são totalmente editáveis." collapsible={false}>
+          <Section id="property-type" icon={Home} title="Tipo do imóvel" desc="Ajuda a organizar seus imóveis — as opções são totalmente editáveis." collapsible>
             <PropertyTypeSelect value={form.property.property_type_id} onChange={(v) => update("property_type_id", v)} />
           </Section>
   );
