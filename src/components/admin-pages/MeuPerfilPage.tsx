@@ -8,11 +8,14 @@ import {
   removeMyAvatar,
   requestEmailChange,
 } from "@/lib/profile.functions";
-import { Camera, Loader2, Trash2, User as UserIcon, Mail, Save, ShieldCheck } from "lucide-react";
+import { Camera, Loader2, Trash2, User as UserIcon, Mail, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { formatCPF } from "@/lib/masks";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { PageHeader } from "@/components/ds/PageHeader";
+import { useAutosave } from "@/hooks/useAutosave";
+import { AutosaveIndicator } from "@/components/ui/autosave-indicator";
+
 
 export function MeuPerfilPage() {
   const getFn = useServerFn(getMyProfile);
@@ -149,6 +152,28 @@ export function MeuPerfilPage() {
     fullName.trim().length > 0 &&
     /^\d{4}-\d{2}-\d{2}$/.test(birthDate) &&
     new Date(birthDate) <= new Date();
+
+  // Salvamento instantâneo (mesma regra do editor de guia): qualquer alteração
+  // válida é persistida sozinha, sem depender do botão "Salvar".
+  const autosave = useAutosave(
+    { fullName, tradeName, birthDate, jobTitle, phone, phoneCountry },
+    async (v) => {
+      await updateFn({
+        data: {
+          full_name: v.fullName.trim(),
+          trade_name: v.tradeName.trim() || null,
+          birth_date: v.birthDate,
+          job_title: v.jobTitle.trim() || null,
+          phone: v.phone.trim() || null,
+          phone_country: v.phoneCountry.trim() || null,
+          ownerId: accountOwnerId,
+        },
+      });
+      qc.invalidateQueries({ queryKey: ["account-profile", accountOwnerId] });
+    },
+    { enabled: canSave && !q.isLoading, delay: 300 },
+  );
+
 
   if (q.isLoading) {
     return (
@@ -343,17 +368,21 @@ export function MeuPerfilPage() {
           </Field>
         </div>
 
-        <div className="pt-2 flex justify-end">
-          <button
-            type="button"
-            onClick={() => save.mutate()}
-            disabled={!canSave || save.isPending}
-            className="inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-sm font-medium hover:opacity-90 disabled:opacity-50"
-          >
-            {save.isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-            Salvar alterações
-          </button>
+        <div className="pt-2 flex items-center justify-end gap-3">
+          <AutosaveIndicator status={autosave.status} />
+          {email !== emailOriginal && (
+            <button
+              type="button"
+              onClick={() => save.mutate()}
+              disabled={!canSave || save.isPending}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-sm font-medium hover:opacity-90 disabled:opacity-50"
+            >
+              {save.isPending ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}
+              Confirmar novo e-mail
+            </button>
+          )}
         </div>
+
       </section>
 
       <style>{`
