@@ -1347,7 +1347,11 @@ function KpiCard({
             </div>
           </div>
         </DialogHeader>
-        <div className="max-h-[70vh] overflow-y-auto px-3 pb-4">
+        <div
+          ref={list.ref}
+          style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
+          className="sg-elegant-scroll max-h-[70vh] overflow-y-auto px-3 pb-4"
+        >
           {loading ? (
             <div className="py-14 grid place-items-center text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
