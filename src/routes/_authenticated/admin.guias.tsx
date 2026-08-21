@@ -998,14 +998,15 @@ function Dashboard() {
       ) : (
         (() => {
           const norm = (s?: string | null) => (s ?? "").toLowerCase().trim().replace(/\s+/g, " ");
-          // Agrupa pelo endereço escrito (fonte da verdade do card). Só cai para
-          // coordenadas quando o guia não tem endereço preenchido.
+          // As coordenadas identificam o imóvel físico e não são alteradas por
+          // textos compartilhados em edição em massa. Assim, endereços
+          // acidentalmente repetidos não colapsam imóveis diferentes.
           const keyOf = (p: (typeof filtered)[number]) => {
+            if (p.lat != null && p.lng != null) {
+              return `geo:${Number(p.lat).toFixed(5)},${Number(p.lng).toFixed(5)}`;
+            }
             const a = norm(p.address);
             if (a) return `addr:${a}`;
-            if (p.lat != null && p.lng != null) {
-              return `geo:${Number(p.lat).toFixed(4)},${Number(p.lng).toFixed(4)}`;
-            }
             return "none";
           };
           const groups = new Map<string, { label: string; items: typeof filtered }>();
