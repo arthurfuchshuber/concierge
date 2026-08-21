@@ -255,7 +255,7 @@ const emptyState: State = { enabled: {}, values: {}, listsEnabled: {}, manual: [
 
 type FetchData = Awaited<ReturnType<typeof bulkFetchProperties>>;
 
-const ALL_FIELDS: FieldDef[] = TEXT_TABS.flatMap((t) => t.groups.flatMap((g) => g.fields ?? []));
+const ALL_FIELDS: FieldDef[] = TEXT_TABS.flatMap((t) => t.groups.flatMap((g) => groupFields(g)));
 
 /**
  * Pré-carrega o popup com o que já existe nos guias selecionados: campo
