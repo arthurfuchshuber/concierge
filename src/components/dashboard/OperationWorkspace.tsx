@@ -1194,9 +1194,13 @@ function useWholeCardsMaxHeight(visible: number, key: unknown) {
       }
       // offsetTop/offsetHeight não sofrem com o scale da animação de abertura.
       const base = ul!.offsetTop;
-      const PAD = 16; // padding inferior do contêiner
       const cap = Math.round(window.innerHeight * 0.7);
-      const bottoms = items.map((i) => i.offsetTop + i.offsetHeight - base + PAD);
+      // O corte precisa terminar no pixel final do card-alvo. Somar o
+      // padding inferior aqui deixava uma janela de 16px depois do segundo
+      // card; como o terceiro já está dentro do mesmo <ul>, essa janela
+      // revelava o topo dele. O respiro continua existindo quando a lista
+      // termina naturalmente, mas listas roláveis são recortadas no card.
+      const bottoms = items.map((i) => i.offsetTop + i.offsetHeight - base);
       const total = bottoms[bottoms.length - 1];
       if (items.length <= visible && total <= cap) {
         setMaxHeight(undefined);
