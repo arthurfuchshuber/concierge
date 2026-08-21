@@ -15,7 +15,7 @@ export function useAutosave<T>(
   onSave: (value: T) => Promise<void>,
   options?: { delay?: number; enabled?: boolean },
 ) {
-  const delay = options?.delay ?? 900;
+  const delay = options?.delay ?? 300;
   const enabled = options?.enabled ?? true;
   const [status, setStatus] = useState<AutosaveStatus>("idle");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
