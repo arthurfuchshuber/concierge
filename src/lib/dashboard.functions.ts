@@ -357,16 +357,17 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         .from("guide_section_events")
         .select("id, property_id, guest_name, guest_phone")
         .in("property_id", propIds)
-        .eq("section", "checkin")
+        // "Leu" = permaneceu ao menos 5s na aba Chegada (mesma regra dos cards).
+        .eq("section", "checkin-lido")
         .limit(20000),
       codesProps.size
         ? context.supabase
             .from("guide_section_events")
-            .select("id, property_id, guest_name, guest_phone")
+            .select("id, property_id, guest_name, guest_phone, section")
             .in("property_id", Array.from(codesProps))
-            .eq("section", "senhas")
+            .in("section", ["senhas", "senhas:lock", "senhas:gate"])
             .limit(20000)
-        : Promise.resolve({ data: [] as Array<EventRow> }),
+        : Promise.resolve({ data: [] as Array<EventRow & { section: string }> }),
     ]);
 
     // Quem viu / quem não viu.
