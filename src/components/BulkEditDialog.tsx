@@ -232,6 +232,42 @@ const emptyState: State = { enabled: {}, values: {}, listsEnabled: {}, manual: [
 
 type FetchData = Awaited<ReturnType<typeof bulkFetchProperties>>;
 
+const ALL_FIELDS: FieldDef[] = TEXT_TABS.flatMap((t) => t.groups.flatMap((g) => g.fields ?? []));
+
+/**
+ * Pré-carrega o popup com o que já existe nos guias selecionados: campo
+ * preenchido em qualquer anúncio vem ativado e com o valor mais comum,
+ * para que o anfitrião veja (e possa limpar) a informação atual.
+ */
+function buildInitialState(d: FetchData): State {
+  const enabled: State["enabled"] = {};
+  const values: State["values"] = {};
+  for (const f of ALL_FIELDS) {
+    const counts = new Map<string, number>();
+    let filled = 0;
+    let sample: string | boolean | number | undefined;
+    for (const p of d.properties) {
+      const raw = (p as Record<string, unknown>)[f.key];
+      if (raw === null || raw === undefined || raw === "") continue;
+      if (f.kind === "boolean" && raw === false) continue;
+      filled += 1;
+      const k = String(raw);
+      counts.set(k, (counts.get(k) ?? 0) + 1);
+      if (sample === undefined) sample = raw as string | boolean | number;
+    }
+    if (filled === 0) continue;
+    let best = sample;
+    let bestN = -1;
+    for (const [k, n] of counts) {
+      if (n > bestN) { bestN = n; best = f.kind === "boolean" ? k === "true" : f.kind === "number" ? Number(k) : k; }
+    }
+    enabled[f.key] = true;
+    values[f.key] = best as string | boolean | number;
+  }
+  return { ...emptyState, enabled, values };
+}
+
+
 export function BulkEditDialog({
   open, onOpenChange, ids, onSaved,
 }: {
