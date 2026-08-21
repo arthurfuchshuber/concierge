@@ -1372,30 +1372,31 @@ function PropertyEditor() {
       <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
 
       <PageHeader
-        className="mb-4 sm:mb-5 pb-4 border-b border-border/60"
-        title={<span className="break-words line-clamp-2">{form.property.name || "Sem título"}</span>}
-        actions={
-          !isNew ? (
-            <div className="shrink-0 flex items-center gap-3">
-              <PresenceAvatars users={presence.users} />
-              <Link
-                to="/admin/properties/$id/acessos"
-                params={{ id }}
-                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-xs hover:bg-secondary transition-colors shrink-0"
-              >
-                <Shield className="size-3.5 shrink-0" /> Acessos
-              </Link>
-              <Link
-                to="/admin/properties/$id/conversas"
-                params={{ id }}
-                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-xs hover:bg-secondary transition-colors shrink-0"
-              >
-                <MessageSquare className="size-3.5 shrink-0" /> Conversas
-              </Link>
-            </div>
-          ) : null
-        }
+        className="mb-3"
+        title={<span className="block w-full break-words whitespace-normal">{form.property.name || "Sem título"}</span>}
       />
+      {!isNew ? (
+        <div className="mb-4 sm:mb-5 pb-4 border-b border-border/60 ds-scroll-x items-center gap-2">
+          <PresenceAvatars users={presence.users} />
+          <Link
+            to="/admin/properties/$id/acessos"
+            params={{ id }}
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-xs hover:bg-secondary transition-colors shrink-0"
+          >
+            <Shield className="size-3.5 shrink-0" /> Acessos
+          </Link>
+          <Link
+            to="/admin/properties/$id/conversas"
+            params={{ id }}
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-xs hover:bg-secondary transition-colors shrink-0"
+          >
+            <MessageSquare className="size-3.5 shrink-0" /> Conversas
+          </Link>
+        </div>
+      ) : (
+        <div className="mb-4 sm:mb-5 pb-4 border-b border-border/60" />
+      )}
+
 
 
       <Tabs value={step} onValueChange={setStep}>
