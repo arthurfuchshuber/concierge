@@ -1923,7 +1923,23 @@ function PropertyEditor() {
                 </div>
               );
             })}
+            <div className="ds-scroll-x gap-2 pt-1">
+              <button type="button" onClick={() => {
+                const defaults = buildDefaultFaqs(form.property);
+                if (defaults.length === 0) { toast.info("Preencha campos como horários, endereço, Wi-Fi ou contato para gerar perguntas."); return; }
+                setForm((f) => {
+                  const { merged, added } = mergeDefaultFaqs(f.faqs, defaults);
+                  if (added === 0) { toast.info("Todas as perguntas padrão já estão na sua FAQ."); return f; }
+                  toast.success(`${added} pergunta${added > 1 ? "s" : ""} gerada${added > 1 ? "s" : ""} a partir dos campos.`);
+                  return { ...f, faqs: merged };
+                });
+              }} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-background text-xs text-muted-foreground hover:text-foreground hover:border-accent/50 transition-colors shrink-0">
+                <Sparkles className="size-3.5" /> Gerar dos campos
+              </button>
+              <AddBtn onClick={() => setForm((f) => ({ ...f, faqs: [...f.faqs, { question: "", answer: "", tags: [] }] }))} />
+            </div>
           </Section>
+
 
           <Section id="host-faq" icon={UserRound} title="Contato do anfitrião" desc="Nome e WhatsApp para o hóspede te encontrar." collapsible>
             <div className="grid grid-cols-2 gap-3">
