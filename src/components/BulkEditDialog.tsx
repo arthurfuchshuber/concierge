@@ -279,6 +279,10 @@ function buildInitialState(d: FetchData): State {
       if (sample === undefined) sample = raw as string | boolean | number;
     }
     if (filled === 0) continue;
+    // Nunca pré-selecionar um valor arbitrário quando os anúncios possuem
+    // conteúdos diferentes. Em edição em massa isso fazia o valor mais comum
+    // sobrescrever endereço, links e outras informações específicas.
+    if (counts.size > 1) continue;
     let best = sample;
     let bestN = -1;
     for (const [k, n] of counts) {
