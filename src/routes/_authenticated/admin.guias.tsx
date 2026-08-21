@@ -998,24 +998,28 @@ function Dashboard() {
       ) : (
         (() => {
           const norm = (s?: string | null) => (s ?? "").toLowerCase().trim().replace(/\s+/g, " ");
+          // Agrupa pelo endereço escrito (fonte da verdade do card). Só cai para
+          // coordenadas quando o guia não tem endereço preenchido.
           const keyOf = (p: (typeof filtered)[number]) => {
+            const a = norm(p.address);
+            if (a) return `addr:${a}`;
             if (p.lat != null && p.lng != null) {
               return `geo:${Number(p.lat).toFixed(4)},${Number(p.lng).toFixed(4)}`;
             }
-            const a = norm(p.address);
-            return a ? `addr:${a}` : "none";
+            return "none";
           };
           const groups = new Map<string, { label: string; items: typeof filtered }>();
           for (const p of filtered) {
             const k = keyOf(p);
             if (!groups.has(k)) {
               groups.set(k, {
-                label: k === "none" ? "Sem endereço" : p.address || `${p.lat},${p.lng}`,
+                label: k === "none" ? "Sem endereço" : p.address || `${p.lat}, ${p.lng}`,
                 items: [],
               });
             }
             groups.get(k)!.items.push(p);
           }
+
           const groupList = Array.from(groups.entries());
           const allSelected = selected.size > 0 && selected.size === filtered.length;
           return (
@@ -1110,7 +1114,28 @@ function Dashboard() {
                       </span>
                     </button>
                     {expanded && (
+                      <>
+                      <div className="flex items-center gap-2.5 border-t border-border/60 bg-secondary/20 px-3 sm:px-4 py-2">
+                        <Checkbox
+                          checked={allInGroupSelected}
+                          onCheckedChange={(v) =>
+                            setSelected((s) => {
+                              const ns = new Set(s);
+                              if (v) groupIds.forEach((id) => ns.add(id));
+                              else groupIds.forEach((id) => ns.delete(id));
+                              return ns;
+                            })
+                          }
+                          className="shrink-0"
+                        />
+                        <span className="text-[11px] text-muted-foreground">
+                          {allInGroupSelected
+                            ? `Todos os ${groupIds.length} selecionados`
+                            : "Selecionar todos deste endereço"}
+                        </span>
+                      </div>
                       <ul className="divide-y divide-border/60 border-t border-border/60">
+
                         {grp.items.map((p) => {
                           const isSel = selected.has(p.id);
                           return (
@@ -1232,6 +1257,7 @@ function Dashboard() {
                           );
                         })}
                       </ul>
+                      </>
                     )}
                   </div>
                 );

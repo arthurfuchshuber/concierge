@@ -627,8 +627,8 @@ dd {
   overflow: hidden;
 }
 
-/* Barra de ações/filtros/abas: rola na horizontal, nunca quebra,
-   com esmaecimento sutil na borda indicando que há mais conteúdo. */
+/* Barra de ações/filtros/abas: rola na horizontal, nunca quebra.
+   Sem máscara/degradê nas laterais (pedido do cliente). */
 @utility ds-scroll-x {
   display: flex;
   align-items: center;
@@ -638,14 +638,7 @@ dd {
   scrollbar-width: none;
   -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
-  mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 20px), transparent 100%);
-  -webkit-mask-image: linear-gradient(
-    to right,
-    transparent 0,
-    #000 12px,
-    #000 calc(100% - 20px),
-    transparent 100%
-  );
+
 
   &::-webkit-scrollbar {
     display: none;
