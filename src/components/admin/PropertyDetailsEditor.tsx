@@ -175,6 +175,8 @@ export function PropertyDetailsEditor({ propertyId }: { propertyId: string }) {
         if (error) throw error;
         added.push(path);
       }
+      dirtyRef.current = true;
+      setLoaded(true);
       setImages((prev) => [...prev, ...added]);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro no upload");
@@ -189,6 +191,8 @@ export function PropertyDetailsEditor({ propertyId }: { propertyId: string }) {
     const { text: transcript } = await transcribeFn({
       data: { propertyId, audioBase64: base64, mimeType: audio.mime },
     });
+    dirtyRef.current = true;
+    setLoaded(true);
     setText((prev) => (prev.trim() ? `${prev.trim()}\n\n${transcript}` : transcript));
     toast.success("Áudio transcrito");
   }
