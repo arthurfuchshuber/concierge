@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ResponsiveDialog,
   ResponsiveDialogContent,
@@ -283,25 +283,38 @@ export function BulkEditDialog({
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<FetchData | null>(null);
   const [confirmMode, setConfirmMode] = useState<null | "ask">(null);
+  // Aba atual controlada: o popup precisa lembrar onde a pessoa parou mesmo
+  // que o componente pai re-renderize (refetch, troca de aba do navegador…).
+  const [tab, setTab] = useState<string>(TEXT_TABS[0]?.id ?? "house");
+
+  // `ids` é um array novo a cada render do pai — usar a chave estável evita
+  // recarregar (e resetar) o popup sem necessidade.
+  const idsKey = ids.join(",");
+  const loadedKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!open || ids.length === 0) return;
+    if (loadedKeyRef.current === idsKey) return;
+    loadedKeyRef.current = idsKey;
     setLoading(true);
     setData(null);
-    fetchFn({ data: { ids } })
+    fetchFn({ data: { ids: idsKey.split(",") } })
       .then((d) => {
         setData(d);
         setState(buildInitialState(d));
       })
       .catch(() => toast.error("Erro ao carregar dados dos guias"))
       .finally(() => setLoading(false));
-  }, [open, ids, fetchFn]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, idsKey]);
 
 
   function reset() {
     setState(emptyState);
     setData(null);
     setConfirmMode(null);
+    loadedKeyRef.current = null;
+    setTab(TEXT_TABS[0]?.id ?? "house");
   }
 
   function toggle(field: FieldKey, v: boolean) {
@@ -314,19 +327,30 @@ export function BulkEditDialog({
     setState((s) => ({ ...s, listsEnabled: { ...s.listsEnabled, [k]: v } }));
   }
 
-  // Preview: sumário de valores atuais de um campo entre os guias selecionados
-  function fieldSummary(key: FieldKey): { filled: number; empty: number; distinct: string[] } {
-    if (!data) return { filled: 0, empty: 0, distinct: [] };
-    const set = new Set<string>();
-    let filled = 0;
-    let empty = 0;
+  // Sumário dos valores atuais calculado UMA vez por carga de dados — antes
+  // era recalculado por campo a cada render, o que travava o popup.
+  const summaries = useMemo(() => {
+    const map = new Map<string, { filled: number; empty: number; distinct: string[] }>();
+    if (!data) return map;
     for (const p of data.properties) {
-      const v = (p as Record<string, unknown>)[key];
-      if (v === null || v === undefined || v === "") empty += 1;
-      else { filled += 1; set.add(String(v)); }
+      for (const [key, v] of Object.entries(p as Record<string, unknown>)) {
+        let e = map.get(key);
+        if (!e) { e = { filled: 0, empty: 0, distinct: [] }; map.set(key, e); }
+        if (v === null || v === undefined || v === "") e.empty += 1;
+        else {
+          e.filled += 1;
+          const s = String(v);
+          if (!e.distinct.includes(s)) e.distinct.push(s);
+        }
+      }
     }
-    return { filled, empty, distinct: Array.from(set) };
+    return map;
+  }, [data]);
+
+  function fieldSummary(key: FieldKey): { filled: number; empty: number; distinct: string[] } {
+    return summaries.get(key) ?? { filled: 0, empty: data?.properties.length ?? 0, distinct: [] };
   }
+
 
   function listSummary(k: ListKey): { withItems: number; empty: number } {
     if (!data) return { withItems: 0, empty: 0 };
@@ -428,7 +452,7 @@ export function BulkEditDialog({
             <Loader2 className="size-5 animate-spin" />
           </div>
         ) : (
-        <Tabs defaultValue="house" className="w-full min-w-0">
+        <Tabs value={tab} onValueChange={setTab} className="w-full min-w-0">
           <div className="-mx-1 overflow-x-auto pb-1">
             <TabsList className="inline-flex h-auto w-max gap-1">
               {TEXT_TABS.map((t) => (
@@ -462,11 +486,15 @@ export function BulkEditDialog({
                     collapsible
                     action={
                       activeCount > 0 ? (
-                        <span className="rounded-full bg-accent/15 text-accent-foreground border border-accent/40 px-2 py-0.5 text-[11px]">
-                          {activeCount} ativo{activeCount > 1 ? "s" : ""}
+                        <span
+                          title={`${activeCount} campo${activeCount > 1 ? "s" : ""} ativo${activeCount > 1 ? "s" : ""}`}
+                          className="size-5 rounded-full bg-primary/15 text-primary text-[10px] font-semibold grid place-items-center tabular-nums"
+                        >
+                          {activeCount}
                         </span>
                       ) : null
                     }
+
                   >
                   {(group.fields ?? []).map((f) => {
                     const enabled = !!state.enabled[f.key];
