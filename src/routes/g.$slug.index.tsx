@@ -3401,7 +3401,7 @@ function PostAccessOnboarding({
                 {lockCode && (
                   <OnboardingPasswordCard
                     icon="🔒"
-                    name="Fechadura"
+                    name={(lockLabel || "").trim() || "Fechadura"}
                     value={lockCode}
                     ready
                     requestUnlock={requestUnlock}
@@ -3426,7 +3426,7 @@ function PostAccessOnboarding({
                 {gateCode && (
                   <OnboardingLockedCard
                     icon="🚪"
-                    name="Portão da garagem"
+                    name={(gateLabel || "").trim() || "Portão da garagem"}
                     detail={
                       checkinTime ? `Libera junto com a fechadura, às ${checkinTime}` : "Libera junto com a fechadura"
                     }
@@ -3436,18 +3436,50 @@ function PostAccessOnboarding({
 
               <div className="rounded-[15px] border border-[#a855f7]/25 bg-[#a855f7]/10 p-3.5 flex items-start gap-2.5 mt-1 mb-4">
                 <span className="text-[14px] leading-none mt-0.5">🔐</span>
-                <p className="flex-1 text-[12.5px] leading-[1.5] text-foreground/85 [text-wrap:auto]">
+                <div className="flex-1 text-[12.5px] leading-[1.5] text-foreground/85 [text-wrap:auto] space-y-1.5">
+                  <p>
+                    <b className="text-foreground">Quando cada senha fica disponível:</b>
+                  </p>
+                  <p>
+                    • As senhas ficam liberadas para visualização a partir de{" "}
+                    <b className="text-foreground">24 horas antes do seu check-in</b>
+                    {checkinTime ? (
+                      <>
+                        {" "}
+                        (previsto para as <b className="text-foreground">{checkinTime}</b>)
+                      </>
+                    ) : null}
+                    , e deixam de ser exibidas assim que o check-out for concluído
+                    {checkoutTime ? (
+                      <>
+                        {" "}
+                        (às <b className="text-foreground">{checkoutTime}</b>)
+                      </>
+                    ) : null}
+                    .
+                  </p>
                   {hasAccessPin ? (
-                    <>
-                      Os valores ficam ocultos até você tocar em 👁 e confirmar o{" "}
-                      <b className="text-foreground">código enviado pelo anfitrião</b> — protege sua senha mesmo com o
-                      link em mãos de outra pessoa.
-                    </>
+                    <p>
+                      • O seu anfitrião cadastrou um{" "}
+                      <b className="text-foreground">código de visualização</b>: toque em 👁 e informe esse código para
+                      revelar cada valor. Se você ainda não o recebeu,{" "}
+                      <b className="text-foreground">solicite diretamente ao anfitrião</b>.
+                    </p>
                   ) : (
-                    <>Toque em 👁 pra revelar cada valor. Fica oculto até você pedir, mesmo sem código extra.</>
+                    <p>
+                      • Não há código de visualização neste imóvel: basta tocar em 👁 para revelar cada valor. Ele
+                      continua oculto até você pedir, protegendo a senha caso o link fique com outra pessoa.
+                    </p>
                   )}
-                </p>
+                  {gateCode ? (
+                    <p>
+                      • O <b className="text-foreground">{(gateLabel || "").trim() || "Portão da garagem"}</b> é liberado
+                      junto com a fechadura{checkinTime ? `, às ${checkinTime}` : ""}.
+                    </p>
+                  ) : null}
+                </div>
               </div>
+
 
               <div className="flex gap-2">
                 <button
