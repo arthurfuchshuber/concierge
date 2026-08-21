@@ -591,7 +591,7 @@ export function BulkEditDialog({
                 <div className="space-y-4">
                 {tab.groups.map((group) => {
                   const activeCount =
-                    (group.fields ?? []).filter((f) => state.enabled[f.key]).length +
+                    groupFields(group).filter((f) => state.enabled[f.key]).length +
                     (group.lists ?? []).filter((lk) => state.listsEnabled[lk]).length;
                   return (
                   <Section
@@ -613,51 +613,45 @@ export function BulkEditDialog({
                     }
 
                   >
-                  {(group.fields ?? []).map((f) => {
-                    const enabled = !!state.enabled[f.key];
-                    const value = state.values[f.key];
-                    const s2 = fieldSummary(f.key);
+                  {(group.subgroups ?? []).map((sg) => {
+                    const someOn = sg.fields.some((f) => state.enabled[f.key]);
                     return (
-                      <div key={f.key} className={`rounded-xl border p-3 transition-colors min-w-0 ${enabled ? "border-accent/50 bg-accent/5" : "border-border bg-card/40"}`}>
-                        <div className="flex items-center justify-between mb-2 gap-3">
-                          <div className="min-w-0 flex-1">
-                            <label className="text-sm font-medium truncate block">{f.label}</label>
-                            <div className={`text-[11px] mt-0.5 truncate ${enabled && (f.kind === "text" || f.kind === "textarea") && String(value ?? "").trim() === "" ? "text-destructive" : "text-muted-foreground"}`}>
-                              {enabled && (f.kind === "text" || f.kind === "textarea") && String(value ?? "").trim() === ""
-                                ? "Será removido dos guias selecionados"
-                                : <>
-                                    {s2.filled > 0 && s2.empty === 0 && s2.distinct.length === 1 && `Atual: ${s2.distinct[0]}`}
-                                    {s2.filled > 0 && s2.empty === 0 && s2.distinct.length > 1 && `${s2.filled} guias · ${s2.distinct.length} valores distintos`}
-                                    {s2.filled > 0 && s2.empty > 0 && `${s2.filled} preenchido${s2.filled > 1 ? "s" : ""} · ${s2.empty} vazio${s2.empty > 1 ? "s" : ""}`}
-                                    {s2.filled === 0 && `${s2.empty} guia${s2.empty > 1 ? "s" : ""} sem valor`}
-                                  </>}
+                      <div
+                        key={sg.id}
+                        className={`rounded-xl border p-3 transition-colors min-w-0 ${someOn ? "border-accent/50 bg-accent/5" : "border-border bg-card/40"}`}
+                      >
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold">{sg.title}</div>
+                            <div className="text-[11px] text-muted-foreground truncate">
+                              {someOn ? "Aplicando nos guias selecionados" : "Desligado — os valores atuais serão removidos ao salvar"}
                             </div>
-
                           </div>
-                          <Switch checked={enabled} onCheckedChange={(v) => toggle(f.key, v)} />
+                          <Switch
+                            checked={someOn}
+                            onCheckedChange={(v) => sg.fields.forEach((f) => toggle(f.key, v))}
+                          />
                         </div>
-                        {enabled && renderField(f, value, (v) => setValue(f.key, v))}
-                        {enabled && (f.kind === "text" || f.kind === "textarea") && (
-                          <div className="mt-2 flex items-center justify-between gap-2">
-                            <span className="text-[11px] text-muted-foreground truncate">
-                              {String(value ?? "").trim() === ""
-                                ? "Campo vazio: ao substituir em todos, o valor será removido."
-                                : "Deixe vazio para remover o valor."}
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 shrink-0 text-[11px]"
-                              onClick={() => setValue(f.key, "")}
-                            >
-                              <Trash2 className="size-3 mr-1" /> Limpar
-                            </Button>
-                          </div>
-                        )}
+                        <div className="divide-y divide-border/60">
+                          {sg.fields.map((f) => (
+                            <div key={f.key} className="py-2.5 first:pt-0 last:pb-0">
+                              {fieldBlock(f, true)}
+                            </div>
+                          ))}
+                        </div>
                       </div>
-
                     );
                   })}
+
+                  {(group.fields ?? []).map((f) => {
+                    const enabled = !!state.enabled[f.key];
+                    return (
+                      <div key={f.key} className={`rounded-xl border p-3 transition-colors min-w-0 ${enabled ? "border-accent/50 bg-accent/5" : "border-border bg-card/40"}`}>
+                        {fieldBlock(f, false)}
+                      </div>
+                    );
+                  })}
+
 
                   {(group.lists ?? []).map((lk) => {
                     const ls = listSummary(lk);
