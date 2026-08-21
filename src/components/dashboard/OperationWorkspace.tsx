@@ -455,9 +455,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     () => ciRows.filter((r) => r.status === "done" && (!r.guestCheckout || r.guestCheckout > todayISO)),
     [ciRows, todayISO],
   );
-  const checkinPendingRows = useMemo(() => ciRows.filter((r) => r.status === "pending"), [ciRows]);
+  const rawCheckinPendingRows = useMemo(() => ciRows.filter((r) => r.status === "pending"), [ciRows]);
   const checkoutPendingRows = useMemo(() => coRows.filter((r) => r.status === "pending"), [coRows]);
-  const tomorrowCheckinPendingRows = useMemo(
+  const rawTomorrowCheckinPendingRows = useMemo(
     () => (tomorrowCheckinListQ.data?.rows ?? []).filter((r) => r.status === "pending"),
     [tomorrowCheckinListQ.data?.rows],
   );
