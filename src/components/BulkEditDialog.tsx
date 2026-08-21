@@ -42,14 +42,23 @@ type FieldDef = { key: FieldKey; label: string; kind: FieldKind; placeholder?: s
 
 type ListKey = "manual" | "checkout" | "emergency" | "faqs";
 
+type SubGroup = { id: string; title: string; fields: FieldDef[] };
+
 type Group = {
   id: string;
   title: string;
   desc?: string;
   icon?: SectionIcon;
   fields?: FieldDef[];
+  subgroups?: SubGroup[];
   lists?: ListKey[];
 };
+
+/** Todos os campos de um quadrante (soltos + agrupados em sub-quadros). */
+function groupFields(g: Group): FieldDef[] {
+  return [...(g.fields ?? []), ...(g.subgroups ?? []).flatMap((s) => s.fields)];
+}
+
 
 /** Mesma organização (abas + quadrantes) do editor individual do guia. */
 const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
