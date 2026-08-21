@@ -2716,16 +2716,16 @@ function ArrivalCard({
                       ? "Reabrir (voltar para Pendente)"
                       : "Marcar como Concluído"
             }
-            className={`flex-1 min-w-0 h-9 box-border leading-none inline-flex items-center justify-center gap-2 px-3 text-[12.5px] font-semibold tracking-tight rounded-lg transition-all active:scale-[0.99] ${
+            className={`flex-1 min-w-0 h-9 max-h-9 min-h-9 self-center box-border leading-none inline-flex items-center justify-center gap-2 px-3 text-[12.5px] font-semibold tracking-tight rounded-lg transition-all active:scale-[0.99] ${
               cleaningBlock
                 ? "bg-orange-500/25 text-orange-700 dark:text-orange-400 border border-orange-500/50 cursor-not-allowed"
                 : blockCheck
                   ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/40 cursor-not-allowed"
                   : mode === "cleaning"
-                    ? "bg-gradient-to-b from-emerald-500 to-emerald-600 text-white hover:from-emerald-500 hover:to-emerald-700 shadow-sm shadow-emerald-600/25"
+                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
                     : done
                       ? "bg-secondary text-foreground/80 hover:bg-secondary/80"
-                      : "bg-gradient-to-b from-emerald-500 to-emerald-600 text-white hover:from-emerald-500 hover:to-emerald-700 shadow-sm shadow-emerald-600/25"
+                      : "bg-emerald-600 text-white hover:bg-emerald-700"
             }`}
           >
             <Check className="size-4 shrink-0" />
