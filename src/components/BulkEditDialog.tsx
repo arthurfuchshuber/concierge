@@ -431,7 +431,25 @@ export function BulkEditDialog({
                           <Switch checked={enabled} onCheckedChange={(v) => toggle(f.key, v)} />
                         </div>
                         {enabled && renderField(f, value, (v) => setValue(f.key, v))}
+                        {enabled && (f.kind === "text" || f.kind === "textarea") && (
+                          <div className="mt-2 flex items-center justify-between gap-2">
+                            <span className="text-[11px] text-muted-foreground truncate">
+                              {String(value ?? "").trim() === ""
+                                ? "Campo vazio: ao substituir em todos, o valor será removido."
+                                : "Deixe vazio para remover o valor."}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 shrink-0 text-[11px]"
+                              onClick={() => setValue(f.key, "")}
+                            >
+                              <Trash2 className="size-3 mr-1" /> Limpar
+                            </Button>
+                          </div>
+                        )}
                       </div>
+
                     );
                   })}
 
