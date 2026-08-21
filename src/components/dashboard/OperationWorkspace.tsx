@@ -1170,55 +1170,72 @@ function KanbanColumn({
 /** Limita a altura de uma lista em N cards INTEIROS — nunca corta um card ao
  * meio. Mede os itens de verdade e escolhe o maior corte que caiba na tela. */
 function useWholeCardsMaxHeight(visible: number, key: unknown) {
-  const ref = useRef<HTMLDivElement>(null);
+  // Callback ref em state: o conteúdo vive num portal (Dialog) e só monta
+  // quando abre — assim o cálculo dispara exatamente quando o nó aparece.
+  const [node, setNode] = useState<HTMLDivElement | null>(null);
   const [maxHeight, setMaxHeight] = useState<number | undefined>(undefined);
 
   useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
+    if (!node) {
+      setMaxHeight(undefined);
+      return;
+    }
     let raf = 0;
+    let tries = 0;
 
     const recalc = () => {
-      const node = ref.current;
-      if (!node) return;
-      const items = Array.from(node.querySelectorAll<HTMLElement>(":scope > ul > li"));
+      const ul = node.querySelector<HTMLElement>("ul");
+      const items = ul ? Array.from(ul.children) as HTMLElement[] : [];
       if (items.length === 0) {
         setMaxHeight(undefined);
+        // O diálogo anima ao abrir; tenta de novo nos primeiros frames.
+        if (tries++ < 20) raf = requestAnimationFrame(recalc);
         return;
       }
-      const top = node.getBoundingClientRect().top;
+      // offsetTop/offsetHeight não sofrem com o scale da animação de abertura.
+      const base = ul!.offsetTop;
       const PAD = 16; // padding inferior do contêiner
       const cap = Math.round(window.innerHeight * 0.7);
-      const bottoms = items.map((i) => Math.ceil(i.getBoundingClientRect().bottom - top) + PAD);
-      if (items.length <= visible && bottoms[bottoms.length - 1] <= cap) {
+      const bottoms = items.map((i) => i.offsetTop + i.offsetHeight - base + PAD);
+      const total = bottoms[bottoms.length - 1];
+      if (items.length <= visible && total <= cap) {
         setMaxHeight(undefined);
         return;
       }
-      const target = bottoms[Math.min(visible, bottoms.length) - 1];
-      // Se não couber na tela, recua até o último card que cabe por inteiro.
-      let height = target;
+      let height = bottoms[Math.min(visible, bottoms.length) - 1];
       if (height > cap) {
-        height = bottoms.find((b) => b > cap) === bottoms[0] ? cap : bottoms.filter((b) => b <= cap).pop() || cap;
+        // Recua até o último card que cabe por inteiro (ou o primeiro, cortado).
+        height = bottoms.filter((b) => b <= cap).pop() ?? cap;
       }
       setMaxHeight(height);
     };
 
-    recalc();
+    raf = requestAnimationFrame(recalc);
     const ro = new ResizeObserver(() => {
       cancelAnimationFrame(raf);
+      tries = 0;
       raf = requestAnimationFrame(recalc);
     });
-    for (const item of el.querySelectorAll("li")) ro.observe(item);
+    ro.observe(node);
+    for (const item of node.querySelectorAll("li")) ro.observe(item);
+    const mo = new MutationObserver(() => {
+      cancelAnimationFrame(raf);
+      tries = 0;
+      raf = requestAnimationFrame(recalc);
+    });
+    mo.observe(node, { childList: true, subtree: true });
     window.addEventListener("resize", recalc);
     return () => {
       ro.disconnect();
+      mo.disconnect();
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", recalc);
     };
-  }, [visible, key]);
+  }, [visible, key, node]);
 
-  return { ref, maxHeight };
+  return { ref: setNode, maxHeight };
 }
+
 
 function ColumnLoading() {
   return (
