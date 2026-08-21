@@ -601,7 +601,7 @@ export function BulkEditDialog({
                           <div className="min-w-0">
                             <div className="truncate text-sm font-semibold">{sg.title}</div>
                             <div className="text-[11px] text-muted-foreground truncate">
-                              {someOn ? "Aplicando nos guias selecionados" : "Desligado — os valores atuais serão removidos ao salvar"}
+                              {someOn ? "Ativo nos guias selecionados" : "Desligado — as informações serão removidas"}
                             </div>
                           </div>
                           <Switch
@@ -609,13 +609,15 @@ export function BulkEditDialog({
                             onCheckedChange={(v) => sg.fields.forEach((f) => toggle(f.key, v))}
                           />
                         </div>
-                        <div className="divide-y divide-border/60">
-                          {sg.fields.map((f) => (
-                            <div key={f.key} className="py-2.5 first:pt-0 last:pb-0">
-                              {fieldBlock(f, true)}
-                            </div>
-                          ))}
-                        </div>
+                        {someOn && (
+                          <div className="divide-y divide-border/60">
+                            {sg.fields.map((f) => (
+                              <div key={f.key} className="py-2.5 first:pt-0 last:pb-0">
+                                {fieldBlock(f, false)}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -624,10 +626,11 @@ export function BulkEditDialog({
                     const enabled = !!state.enabled[f.key];
                     return (
                       <div key={f.key} className={`rounded-xl border p-3 transition-colors min-w-0 ${enabled ? "border-accent/50 bg-accent/5" : "border-border bg-card/40"}`}>
-                        {fieldBlock(f, false)}
+                        {fieldBlock(f, true)}
                       </div>
                     );
                   })}
+
 
 
                   {(group.lists ?? []).map((lk) => {
