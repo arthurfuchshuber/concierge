@@ -850,16 +850,17 @@ function PropertyEditor() {
 
 
 
-  async function handleSave(overrides?: Partial<FormState["property"]>) {
+  async function handleSave(overrides?: Partial<FormState["property"]>, opts?: { silent?: boolean }) {
+    const silent = opts?.silent === true;
     if (gateOpen) {
-      if (!form.property.gate_code.trim()) { toast.error("Informe o código do portão ou desative essa opção."); return; }
-      if (!form.property.gate_label.trim()) { toast.error("Defina um nome para o acesso do portão."); return; }
+      if (!form.property.gate_code.trim()) { if (!silent) toast.error("Informe o código do portão ou desative essa opção."); return; }
+      if (!form.property.gate_label.trim()) { if (!silent) toast.error("Defina um nome para o acesso do portão."); return; }
     }
     if (lockOpen) {
-      if (!form.property.lock_code.trim()) { toast.error("Informe o código da fechadura ou desative essa opção."); return; }
-      if (!form.property.lock_label.trim()) { toast.error("Defina um nome para o acesso da fechadura."); return; }
+      if (!form.property.lock_code.trim()) { if (!silent) toast.error("Informe o código da fechadura ou desative essa opção."); return; }
+      if (!form.property.lock_label.trim()) { if (!silent) toast.error("Defina um nome para o acesso da fechadura."); return; }
     }
-    setSaving(true);
+    if (silent) setAutoSaving(true); else setSaving(true);
     try {
       // `overrides` existe para casos como "Criar guia": precisamos gravar
       // guide_created=true NA MESMA chamada de save, sem esperar um ciclo de
@@ -939,7 +940,7 @@ function PropertyEditor() {
         checkout: form.checkout.filter((m) => m.label),
       };
       const r = await save({ data: payload });
-      toast.success(isNew ? "Imóvel criado" : "Guia salvo");
+      if (!silent) toast.success(isNew ? "Imóvel criado" : "Guia salvo");
       dirtyRef.current = false;
       // Invalida caches para que o próximo mount reflita o estado salvo
       // (published, campos alterados, etc.) em vez de servir cache stale.
@@ -954,9 +955,10 @@ function PropertyEditor() {
       queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "stakeholder-detail" });
       if (isNew) navigate({ to: "/admin/properties/$id", params: { id: r.id } });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao salvar");
+      if (!silent) toast.error(e instanceof Error ? e.message : "Erro ao salvar");
+      else console.warn("[autosave] guia", e);
     } finally {
-      setSaving(false);
+      if (silent) setAutoSaving(false); else setSaving(false);
     }
   }
 
@@ -1014,6 +1016,28 @@ function PropertyEditor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.recommendations, step, isNew]);
 
+  // ---- Autosave global do editor ----
+  // Qualquer campo, chave ou botão do "Editar guia" grava sozinho ~1,2s depois
+  // da última alteração — sem depender do botão "Salvar" (que foi removido).
+  const globalSnapshotRef = useRef<string>("");
+  const globalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const formKey = JSON.stringify({
+    p: form.property, m: form.manual, e: form.emergency, f: form.faqs, c: form.checkout,
+  });
+  useEffect(() => {
+    if (!hydratedRef.current || isNew || readOnly || saving) { globalSnapshotRef.current = formKey; return; }
+    if (!globalSnapshotRef.current) { globalSnapshotRef.current = formKey; return; }
+    if (globalSnapshotRef.current === formKey) return;
+    if (globalTimerRef.current) clearTimeout(globalTimerRef.current);
+    globalTimerRef.current = setTimeout(() => {
+      globalSnapshotRef.current = formKey;
+      void handleSave(undefined, { silent: true });
+    }, 1200);
+    return () => { if (globalTimerRef.current) clearTimeout(globalTimerRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formKey, isNew, readOnly, saving]);
+
+
   if (!isNew && isLoading) {
     return <div className="max-w-4xl mx-auto px-6 py-10 text-sm text-muted-foreground">Carregando…</div>;
   }
@@ -1027,7 +1051,7 @@ function PropertyEditor() {
   // criação do imóvel (isNew) quanto na aba "A casa" do editor completo —
   // mesmo JSX, duas telas, sem duplicar campos/handlers.
   const renderPropertyTypeSection = () => (
-          <Section id="property-type" icon={Home} title="Tipo do imóvel" desc="Ajuda a organizar seus imóveis — as opções são totalmente editáveis." collapsible={false}>
+          <Section id="property-type" icon={Home} title="Tipo do imóvel" desc="Ajuda a organizar seus imóveis — as opções são totalmente editáveis." collapsible>
             <PropertyTypeSelect value={form.property.property_type_id} onChange={(v) => update("property_type_id", v)} />
           </Section>
   );
@@ -2161,14 +2185,7 @@ function PropertyEditor() {
             Próximo
             <ArrowLeft className="size-3.5 ml-1 rotate-180" />
           </Button>
-          <Button variant="ghost" className="min-w-[120px]" onClick={() => navigate({ to: "/admin/guias" })}>{readOnly ? "Voltar" : "Cancelar"}</Button>
-          {!readOnly && (
-            <Button className="min-w-[120px]" onClick={() => handleSave()} disabled={saving || !form.property.name}>
-              {saving ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
-              Salvar
-            </Button>
-          )}
-          {!readOnly && step === "recs" && !isNew && (
+          {!readOnly && !isNew && (
             <span className="basis-full text-center text-[11px] text-muted-foreground inline-flex items-center justify-center gap-1.5">
               {autoSaving ? (<><Loader2 className="size-3 animate-spin" /> Salvando…</>) : "Alterações salvas automaticamente"}
             </span>
