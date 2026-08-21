@@ -21,6 +21,8 @@ import {
 import { useServerFn } from "@tanstack/react-start";
 import { bulkUpdateProperties, bulkFetchProperties } from "@/lib/properties.functions";
 import { toast } from "sonner";
+import { useAutosave } from "@/hooks/useAutosave";
+import { AutosaveIndicator } from "@/components/ui/autosave-indicator";
 
 type FieldKey =
   | "checkin_time" | "checkin_time_max" | "checkin_note"
