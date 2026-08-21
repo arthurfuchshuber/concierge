@@ -314,6 +314,9 @@ export function BulkEditDialog({
   // Quais campos vieram preenchidos ao abrir: desligar a chave de um deles
   // significa "remover essa informação dos guias selecionados".
   const initialEnabledRef = useRef<Partial<Record<FieldKey, boolean>>>({});
+  // Só salvamos o que a pessoa realmente editou — assim campos com valores
+  // diferentes entre os guias nunca são sobrescritos por engano.
+  const dirtyRef = useRef<Set<FieldKey>>(new Set());
 
   function load(force = false) {
     if (ids.length === 0) return;
@@ -326,6 +329,7 @@ export function BulkEditDialog({
         setData(d);
         const init = buildInitialState(d);
         initialEnabledRef.current = { ...init.enabled };
+        dirtyRef.current = new Set();
         setState(init);
       })
       .catch(() => toast.error("Erro ao carregar dados dos guias"))
@@ -344,19 +348,23 @@ export function BulkEditDialog({
     setState(emptyState);
     setData(null);
     setConfirmMode(null);
+    dirtyRef.current = new Set();
     loadedKeyRef.current = null;
     setTab(TEXT_TABS[0]?.id ?? "house");
   }
 
   function toggle(field: FieldKey, v: boolean) {
+    dirtyRef.current.add(field);
     setState((s) => ({ ...s, enabled: { ...s.enabled, [field]: v } }));
   }
   function setValue(field: FieldKey, value: string | boolean | number) {
+    dirtyRef.current.add(field);
     setState((s) => ({ ...s, values: { ...s.values, [field]: value } }));
   }
   function toggleList(k: ListKey, v: boolean) {
     setState((s) => ({ ...s, listsEnabled: { ...s.listsEnabled, [k]: v } }));
   }
+
 
   // Sumário dos valores atuais calculado UMA vez por carga de dados — antes
   // era recalculado por campo a cada render, o que travava o popup.
