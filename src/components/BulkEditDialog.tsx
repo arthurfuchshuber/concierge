@@ -503,6 +503,54 @@ export function BulkEditDialog({
     }
   }
 
+  /** Conteúdo de um campo (cabeçalho + chave + input + limpar). */
+  function fieldBlock(f: FieldDef, bare: boolean) {
+    const enabled = !!state.enabled[f.key];
+    const value = state.values[f.key];
+    const s2 = fieldSummary(f.key);
+    const willRemove = !enabled && !!initialEnabledRef.current[f.key];
+    const emptyActive = enabled && (f.kind === "text" || f.kind === "textarea") && String(value ?? "").trim() === "";
+    return (
+      <div className={bare ? "min-w-0" : "min-w-0"}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <label className="text-sm font-medium truncate block">{f.label}</label>
+            <div className={`text-[11px] mt-0.5 truncate ${emptyActive || willRemove ? "text-destructive" : "text-muted-foreground"}`}>
+              {willRemove
+                ? "Será removido dos guias selecionados"
+                : emptyActive
+                  ? "Será removido dos guias selecionados"
+                  : <>
+                      {s2.filled > 0 && s2.empty === 0 && s2.distinct.length === 1 && `Atual: ${s2.distinct[0]}`}
+                      {s2.filled > 0 && s2.empty === 0 && s2.distinct.length > 1 && `${s2.filled} guias · ${s2.distinct.length} valores distintos`}
+                      {s2.filled > 0 && s2.empty > 0 && `${s2.filled} preenchido${s2.filled > 1 ? "s" : ""} · ${s2.empty} vazio${s2.empty > 1 ? "s" : ""}`}
+                      {s2.filled === 0 && `${s2.empty} guia${s2.empty > 1 ? "s" : ""} sem valor`}
+                    </>}
+            </div>
+          </div>
+          <Switch checked={enabled} onCheckedChange={(v) => toggle(f.key, v)} />
+        </div>
+        {enabled && <div className="mt-2">{renderField(f, value, (v) => setValue(f.key, v))}</div>}
+        {enabled && (f.kind === "text" || f.kind === "textarea") && (
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <span className="text-[11px] text-muted-foreground truncate">
+              {String(value ?? "").trim() === ""
+                ? "Campo vazio: ao substituir em todos, o valor será removido."
+                : "Deixe vazio para remover o valor."}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 shrink-0 text-[11px]"
+              onClick={() => setValue(f.key, "")}
+            >
+              <Trash2 className="size-3 mr-1" /> Limpar
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
 
   return (
