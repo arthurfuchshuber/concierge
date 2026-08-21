@@ -674,19 +674,28 @@ dd {
    interna na base. Sem exageros: apenas dá volume ao card.
    ============================================================ */
 @utility ds-3d {
+  border: 0 !important;
+  background-image: linear-gradient(
+    to bottom,
+    color-mix(in oklab, var(--foreground) 3%, transparent),
+    transparent 38%,
+    color-mix(in oklab, var(--foreground) 4%, transparent)
+  );
   box-shadow:
-    inset 0 1px 0 color-mix(in oklab, var(--foreground) 8%, transparent),
-    inset 0 -1px 0 color-mix(in oklab, var(--background) 60%, transparent),
-    0 1px 1px color-mix(in oklab, var(--foreground) 8%, transparent),
-    0 4px 10px -4px color-mix(in oklab, var(--foreground) 16%, transparent);
+    inset 0 1px 0 color-mix(in oklab, var(--background) 90%, white 10%),
+    inset 0 -2px 3px -1px color-mix(in oklab, var(--foreground) 12%, transparent),
+    0 1px 2px color-mix(in oklab, var(--foreground) 10%, transparent),
+    0 6px 14px -6px color-mix(in oklab, var(--foreground) 24%, transparent),
+    0 14px 28px -14px color-mix(in oklab, var(--foreground) 22%, transparent);
 }
 @utility ds-3d-hover {
   transition: box-shadow 200ms ease, transform 200ms ease;
 }
 .ds-3d-hover:hover {
   box-shadow:
-    inset 0 1px 0 color-mix(in oklab, var(--foreground) 10%, transparent),
-    0 2px 3px color-mix(in oklab, var(--foreground) 10%, transparent),
-    0 10px 20px -8px color-mix(in oklab, var(--foreground) 22%, transparent);
-  transform: translateY(-1px);
+    inset 0 1px 0 color-mix(in oklab, var(--background) 92%, white 12%),
+    inset 0 -2px 3px -1px color-mix(in oklab, var(--foreground) 14%, transparent),
+    0 3px 5px color-mix(in oklab, var(--foreground) 12%, transparent),
+    0 16px 30px -12px color-mix(in oklab, var(--foreground) 28%, transparent);
+  transform: translateY(-2px);
 }
