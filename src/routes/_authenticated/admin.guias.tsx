@@ -1257,6 +1257,7 @@ function Dashboard() {
                           );
                         })}
                       </ul>
+                      </>
                     )}
                   </div>
                 );
