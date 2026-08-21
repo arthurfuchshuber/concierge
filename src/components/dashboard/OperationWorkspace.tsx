@@ -744,7 +744,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               agora todos os status ficam visíveis ao mesmo tempo, e "puxar" um
               card de um status pro outro fica visual, não escondido atrás de um
               menu. */}
-          <section className="rounded-[0.3rem] bg-card p-4 sm:p-5 space-y-4 ds-3d">
+          <section className="rounded-none bg-transparent p-0 space-y-4">
             {/* Título "Quadro de operação" — redundante no mobile, onde as
                 próprias abas logo abaixo (Check-ins, Checkouts...) já deixam
                 claro do que se trata; mantido no desktop, onde a visão é de
@@ -2654,16 +2654,18 @@ function ArrivalCard({
         </div>
       )}
 
-      {/* Action row: ícones à esquerda; Copiar + Maps agrupados à direita */}
-      <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
+      {/* Action row: botão principal em largura total; Maps + menu à direita */}
+      <div className="mt-auto flex flex-nowrap items-center gap-2 pt-1">
         {mode === "done" ? (
           <span
             title="Esteira concluída"
             aria-label="Esteira concluída"
-            className="inline-flex items-center justify-center size-9 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30"
+            className="inline-flex flex-1 min-w-0 h-9 items-center justify-center gap-2 px-3 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 text-xs font-semibold"
           >
-            <CheckCircle2 className="size-4" />
+            <CheckCircle2 className="size-4 shrink-0" />
+            <span className="truncate">Concluído</span>
           </span>
+
         ) : (
           <button
             onClick={() => {
@@ -2710,7 +2712,7 @@ function ArrivalCard({
                       ? "Reabrir (voltar para Pendente)"
                       : "Marcar como Concluído"
             }
-            className={`size-9 grid place-items-center rounded-lg transition-colors ${
+            className={`flex-1 min-w-0 h-9 inline-flex items-center justify-center gap-2 px-3 text-xs font-semibold rounded-lg transition-colors ${
               cleaningBlock
                 ? "bg-orange-500/25 text-orange-700 dark:text-orange-400 border border-orange-500/50 cursor-not-allowed"
                 : blockCheck
@@ -2722,8 +2724,18 @@ function ArrivalCard({
                       : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-600/20"
             }`}
           >
-            <Check className="size-4" />
+            <Check className="size-4 shrink-0" />
+            <span className="truncate">
+              {mode === "cleaning"
+                ? "Limpeza concluída!"
+                : mode === "checkout"
+                  ? "Check-out realizado!"
+                  : done
+                    ? "Reabrir"
+                    : "Check-in realizado!"}
+            </span>
           </button>
+
         )}
 
         {onRevert && mode !== "checkin" && (
@@ -2747,13 +2759,13 @@ function ArrivalCard({
                   ? "Voltar para a etapa anterior (lista de Checkouts)"
                   : "Voltar para a etapa anterior (lista Em Limpeza)"
             }
-            className="size-9 grid place-items-center rounded-lg bg-secondary hover:bg-secondary/80 border border-border/60 transition-colors"
+            className="size-9 shrink-0 grid place-items-center rounded-lg bg-secondary hover:bg-secondary/80 border border-border/60 transition-colors"
           >
             <Undo2 className="size-4" />
           </button>
         )}
 
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="ml-auto flex shrink-0 items-center gap-1.5">
           {mapsHref && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
