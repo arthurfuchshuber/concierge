@@ -3195,6 +3195,15 @@ function PostAccessOnboarding({
       ] as Array<"intro" | "steps" | "passwords" | "final">,
     [hasStepsStage, hasPasswordsStage],
   );
+  /** Só citamos o que realmente existe cadastrado no guia deste imóvel. */
+  const stageWording =
+    hasStepsStage && hasPasswordsStage
+      ? "o passo a passo e as senhas"
+      : hasStepsStage
+        ? "o passo a passo da chegada"
+        : hasPasswordsStage
+          ? "as senhas de acesso"
+          : null;
   const [stepIndex, setStepIndex] = useState(0);
   const current = flow[Math.min(stepIndex, flow.length - 1)];
   const step = current === "intro" ? 0 : current === "final" ? 3 : 1;
@@ -3314,14 +3323,18 @@ function PostAccessOnboarding({
                 )}
               </div>
 
-              <div className="rounded-[15px] border border-[#a855f7]/35 bg-[#a855f7]/[0.08] p-3.5 flex items-start gap-2.5">
+              <div
+                className={cn(
+                  "rounded-[15px] border border-[#a855f7]/35 bg-[#a855f7]/[0.08] p-3.5 flex items-start gap-2.5",
+                  !stageWording && "hidden",
+                )}
+              >
                 <span aria-hidden className="text-[16px] leading-none mt-0.5">
                   🔑
                 </span>
                 <p className="flex-1 text-[12.5px] leading-[1.5] text-foreground/90 [text-wrap:auto]">
-                  Tudo que você precisa para entrar fica na aba{" "}
-                  <b className="font-bold text-foreground">Chegada</b>: o passo a passo e as senhas, liberados
-                  automaticamente no horário do seu check-in.
+                  Tudo que você precisa para entrar fica na aba <b className="font-bold text-foreground">Chegada</b>
+                  {stageWording ? `: ${stageWording}, liberados automaticamente no horário do seu check-in.` : "."}
                 </p>
               </div>
 
@@ -3460,8 +3473,12 @@ function PostAccessOnboarding({
               <DialogTitleFallback className="mb-1.5 text-[19px]">Tudo pronto, {firstName}!</DialogTitleFallback>
               <p className="text-[12.5px] leading-relaxed text-muted-foreground mb-5 max-w-[300px] mx-auto [text-wrap:auto]">
                 {!canAskCheckin
-                  ? "Você já sabe onde encontrar o passo a passo e as senhas quando chegar a hora."
-                  : "Você já sabe onde encontrar o passo a passo e as senhas. Conseguiu fazer o check-in sem problema?"}
+                  ? stageWording
+                    ? `Você já sabe onde encontrar ${stageWording} quando chegar a hora.`
+                    : "Seu acesso ao guia digital está liberado."
+                  : stageWording
+                    ? `Você já sabe onde encontrar ${stageWording}. Conseguiu fazer o check-in sem problema?`
+                    : "Conseguiu fazer o check-in sem problema?"}
               </p>
 
               <div className="space-y-2">
