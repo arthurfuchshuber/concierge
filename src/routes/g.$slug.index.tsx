@@ -1072,6 +1072,13 @@ function Guide({ data }: { data: GuideOk }) {
                               />
                             </p>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => window.dispatchEvent(new CustomEvent("guide-checkout-done"))}
+                            className={`mt-3 h-9 px-3.5 rounded-xl text-[12px] font-semibold transition-colors ${theme === "dark" ? "bg-amber-300/15 text-amber-100 hover:bg-amber-300/25" : "bg-amber-900/10 text-amber-950 hover:bg-amber-900/15"}`}
+                          >
+                            Já fiz o check-out ✓
+                          </button>
                         </div>
                       </div>
                     )}
