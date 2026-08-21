@@ -998,6 +998,8 @@ function Guide({ data }: { data: GuideOk }) {
         checkinInstructionsText={p.checkin_instructions ? String(p.checkin_instructions) : null}
         lockCode={p.lock_code ? String(p.lock_code) : null}
         gateCode={p.gate_code ? String(p.gate_code) : null}
+        lockLabel={(p.lock_label as string | null) ?? null}
+        gateLabel={(p.gate_label as string | null) ?? null}
         wifiPassword={p.wifi_password ? String(p.wifi_password) : null}
         wifiSsid={p.wifi_ssid ? String(p.wifi_ssid) : null}
         requestUnlock={requestUnlock}
