@@ -608,7 +608,8 @@ export function BulkEditDialog({
                 <Button variant="ghost" size="sm" onClick={() => setConfirmMode(null)} disabled={saving}>Voltar</Button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body,
         )}
       </ResponsiveDialogContent>
     </ResponsiveDialog>
