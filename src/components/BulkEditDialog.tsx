@@ -428,8 +428,8 @@ export function BulkEditDialog({
     try {
       const r = await apply({ data: { ids, patch, lists: Object.keys(lists).length ? lists : undefined, mode } });
       toast.success(`${r.updated} ${r.updated === 1 ? "guia atualizado" : "guias atualizados"}`);
-      reset();
-      onOpenChange(false);
+      // Volta para a tela de edição (não fecha o popup inteiro).
+      setConfirmMode(null);
       onSaved?.();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao atualizar");
@@ -437,6 +437,7 @@ export function BulkEditDialog({
       setSaving(false);
     }
   }
+
 
   return (
     <ResponsiveDialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
