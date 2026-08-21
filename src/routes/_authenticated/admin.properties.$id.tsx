@@ -191,6 +191,9 @@ function PropertyEditor() {
   const { id } = Route.useParams();
   const isNew = id === "new";
   const navigate = useNavigate();
+  // Detalhamento do imóvel já vem carregado em segundo plano: abrir a seção
+  // é instantâneo, sem "Carregando…".
+  usePrefetchPropertyDetails(isNew ? null : id);
   // Presença em tempo real: quem mais está nesta mesma tela agora, e o que
   // está digitando (piloto — ver usePresence.ts para estender a outras telas).
   const presence = usePresence(!isNew ? `property:${id}` : null);
