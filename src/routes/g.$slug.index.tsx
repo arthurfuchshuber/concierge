@@ -734,8 +734,13 @@ function Guide({ data }: { data: GuideOk }) {
   const hasCheckin = hasCheckinData && !stayCardsExpired && !checkoutConcluded;
   const hasSaidaData = !!(p.checkout_time || p.checkout_note || p.checkout_instructions);
   const hasSaida = hasSaidaData && !stayCardsExpired && !checkoutConcluded;
-  const hasResidencia = houseManual.length > 0;
-  const hasLocWifi = !hasResidencia && !!(p.address || p.maps_url || p.wifi_ssid || (p as any).wifi_password_set);
+  // Após o check-out concluído, TUDO que é do imóvel / da estadia some:
+  // manual da residência, localização, Wi-Fi, senhas, chegada e saída.
+  const hasResidencia = houseManual.length > 0 && !checkoutConcluded;
+  const hasLocWifi =
+    !hasResidencia &&
+    !checkoutConcluded &&
+    !!(p.address || p.maps_url || p.wifi_ssid || (p as any).wifi_password_set);
   const hasFaq = !!(p.host_name || p.host_phone) || data.emergency.length > 0 || data.faqs.length > 0;
   const hasExplore =
     (Array.isArray(data.recommendations) && data.recommendations.length > 0) ||
