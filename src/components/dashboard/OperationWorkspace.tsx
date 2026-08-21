@@ -1054,7 +1054,7 @@ function OperationShell({ view }: { view: OperationView }) {
             <Link
               key={t.view}
               to={t.to}
-              className={`flex-1 px-3 py-2.5 text-center text-xs font-semibold transition-colors ${
+              className={`flex-1 px-3 py-3.5 text-center text-sm font-semibold leading-none flex items-center justify-center min-h-[46px] transition-colors ${
                 active
                   ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
                   : "text-muted-foreground hover:text-foreground"
