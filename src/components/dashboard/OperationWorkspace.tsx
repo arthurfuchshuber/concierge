@@ -1184,23 +1184,29 @@ function useWholeCardsMaxHeight(visible: number, key: unknown) {
     let tries = 0;
 
     const recalc = () => {
-      const ul = node.querySelector<HTMLElement>("ul");
-      const items = ul ? Array.from(ul.children) as HTMLElement[] : [];
+      const items = Array.from(node.querySelectorAll<HTMLElement>("[data-whole-card]"));
       if (items.length === 0) {
         setMaxHeight(undefined);
         // O diálogo anima ao abrir; tenta de novo nos primeiros frames.
         if (tries++ < 20) raf = requestAnimationFrame(recalc);
         return;
       }
-      // offsetTop/offsetHeight não sofrem com o scale da animação de abertura.
-      const base = ul!.offsetTop;
+      // Mede na mesma coordenada absoluta para incluir qualquer gap ou título
+      // anterior ao item. A altura termina exatamente na borda inferior do
+      // card escolhido, sem depender do offsetParent de listas aninhadas.
+      const absoluteTop = (element: HTMLElement) => {
+        let top = 0;
+        let current: HTMLElement | null = element;
+        while (current) {
+          top += current.offsetTop;
+          current = current.offsetParent as HTMLElement | null;
+        }
+        return top;
+      };
+      const base = absoluteTop(node);
       const cap = Math.round(window.innerHeight * 0.7);
-      // O corte precisa terminar no pixel final do card-alvo. Somar o
-      // padding inferior aqui deixava uma janela de 16px depois do segundo
-      // card; como o terceiro já está dentro do mesmo <ul>, essa janela
-      // revelava o topo dele. O respiro continua existindo quando a lista
-      // termina naturalmente, mas listas roláveis são recortadas no card.
-      const bottoms = items.map((i) => i.offsetTop + i.offsetHeight - base);
+      const tops = items.map((i) => absoluteTop(i) - base);
+      const bottoms = items.map((i) => absoluteTop(i) + i.offsetHeight - base);
       const total = bottoms[bottoms.length - 1];
       if (items.length <= visible && total <= cap) {
         setMaxHeight(undefined);
@@ -1208,10 +1214,16 @@ function useWholeCardsMaxHeight(visible: number, key: unknown) {
       }
       let height = bottoms[Math.min(visible, bottoms.length) - 1];
       if (height > cap) {
-        // Recua até o último card que cabe por inteiro (ou o primeiro, cortado).
-        height = bottoms.filter((b) => b <= cap).pop() ?? cap;
+        // Recua somente para um card COMPLETO. Mesmo se o primeiro for mais
+        // alto que o limite visual, nunca o corta ao meio.
+        height = bottoms.filter((b) => b <= cap).pop() ?? bottoms[0];
       }
-      setMaxHeight(height);
+      const selectedIndex = bottoms.findIndex((bottom) => bottom === height);
+      const nextTop = tops[selectedIndex + 1];
+      // Reserva até 2px para que sombra/borda arredondada do último card não
+      // pareça cortada, mas sempre encerra antes do primeiro pixel do próximo.
+      const visualClearance = nextTop === undefined ? 0 : Math.max(0, Math.min(2, nextTop - height - 0.5));
+      setMaxHeight(Math.ceil(height + visualClearance));
     };
 
     raf = requestAnimationFrame(recalc);
@@ -1221,7 +1233,7 @@ function useWholeCardsMaxHeight(visible: number, key: unknown) {
       raf = requestAnimationFrame(recalc);
     });
     ro.observe(node);
-    for (const item of node.querySelectorAll("li")) ro.observe(item);
+    for (const item of node.querySelectorAll("[data-whole-card]")) ro.observe(item);
     const mo = new MutationObserver(() => {
       cancelAnimationFrame(raf);
       tries = 0;
@@ -1371,7 +1383,7 @@ function KpiCard({
         <div
           ref={list.ref}
           style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
-          className="sg-elegant-scroll max-h-[70vh] overflow-y-auto px-3 pb-4"
+          className="sg-elegant-scroll max-h-[70vh] overflow-y-auto px-3"
         >
           {loading ? (
             <div className="py-14 grid place-items-center text-muted-foreground">
@@ -1393,6 +1405,7 @@ function KpiCard({
                 return (
                   <li
                     key={r.logId}
+                    data-whole-card
                     className="group flex items-start gap-2 rounded-lg border border-border/50 bg-background/40 px-2.5 py-2 transition hover:border-border hover:bg-secondary/40"
                   >
                     <div
@@ -1487,6 +1500,7 @@ function FreePropertiesCard({
   onRefresh: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const list = useWholeCardsMaxHeight(2, `${open}:${properties.length}:${loading}`);
   return (
     <Dialog
       open={open}
@@ -1513,7 +1527,11 @@ function FreePropertiesCard({
         <DialogHeader className="px-5 pt-5 pb-3">
           <DialogTitle className="text-base font-display">Imóveis sem ninguém hoje</DialogTitle>
         </DialogHeader>
-        <div className="max-h-[70vh] overflow-y-auto px-4 pb-5">
+        <div
+          ref={list.ref}
+          style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
+          className="sg-elegant-scroll max-h-[70vh] overflow-y-auto px-4"
+        >
           {loading ? (
             <div className="py-10 grid place-items-center text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
@@ -1525,6 +1543,7 @@ function FreePropertiesCard({
               {properties.map((p) => (
                 <li
                   key={p.id}
+                  data-whole-card
                   className="rounded-lg border border-border/50 bg-background/40 px-3 py-2 text-sm truncate"
                 >
                   {p.name}
@@ -1998,7 +2017,7 @@ function GuestMarkGroup({ group, tone }: { group: GuestMark[]; tone: "ok" | "off
   const [open, setOpen] = useState(false);
   const [main, ...rest] = group;
   return (
-    <li className="flex items-start gap-1.5">
+    <li data-whole-card className="flex items-start gap-1.5">
       <span className={`mt-1 size-1.5 shrink-0 rounded-full ${tone === "ok" ? "bg-emerald-500" : "bg-rose-500"}`} />
       <span className="min-w-0">
         <span className="font-medium text-foreground/90">{main.name}</span>
@@ -2070,6 +2089,11 @@ function BarRow({
   /** Texto explicativo do que a métrica mede (ícone "i" ao lado do valor). */
   hint?: string;
 }) {
+  const [open, setOpen] = useState(false);
+  const list = useWholeCardsMaxHeight(
+    2,
+    `${open}:${breakdown?.viewed.length ?? 0}:${breakdown?.notViewed.length ?? 0}`,
+  );
   const track = (
     <div className="h-1 rounded-full bg-rose-500/60 overflow-hidden">
       <div
@@ -2098,7 +2122,7 @@ function BarRow({
   return (
     <div className="space-y-1.5">
       {header}
-      <Dialog>
+      <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
           <button
             type="button"
@@ -2123,7 +2147,11 @@ function BarRow({
             </div>
           </div>
         </DialogHeader>
-        <div className="max-h-[70vh] overflow-y-auto px-5 pb-5 space-y-4 text-sm">
+        <div
+          ref={list.ref}
+          style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
+          className="sg-elegant-scroll max-h-[70vh] overflow-y-auto px-5 space-y-4 text-sm"
+        >
           <div>
             <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-400">
               Viram ({breakdown.viewed.length})
