@@ -478,6 +478,45 @@ function Guide({ data }: { data: GuideOk }) {
   // dispositivo). Guiam a visibilidade das faixas, senhas e abas.
   const [checkinConcluded, setCheckinConcluded] = useState(false);
   const [checkoutConcluded, setCheckoutConcluded] = useState(false);
+  // Status marcado pelo ANFITRIÃO no Kanban da Operação (fonte compartilhada).
+  const [hostStatus, setHostStatus] = useState<{ checkinDone: boolean; checkoutDone: boolean }>({
+    checkinDone: false,
+    checkoutDone: false,
+  });
+  const fetchStayStatus = useServerFn(getGuideStayStatus);
+  const markStayStep = useServerFn(markGuideStayStep);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (isPreview) return;
+    const checkin = accessRec?.checkinDate;
+    if (!checkin) return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetchStayStatus({
+          data: {
+            slug,
+            guest_name: accessRec?.name ?? null,
+            checkin_date: checkin,
+            checkout_date: accessRec?.checkoutDate ?? null,
+          },
+        });
+        if (!cancelled && res) setHostStatus({ checkinDone: !!res.checkinDone, checkoutDone: !!res.checkoutDone });
+      } catch {
+        /* offline: mantém o último estado conhecido */
+      }
+    };
+    void load();
+    const id = window.setInterval(load, 60_000);
+    const onFocus = () => void load();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [slug, isPreview, accessRec?.name, accessRec?.checkinDate, accessRec?.checkoutDate, fetchStayStatus]);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const key = `guide-checkin-done:${slug}`;
@@ -493,17 +532,31 @@ function Guide({ data }: { data: GuideOk }) {
       return Date.now() >= start;
     };
     const evaluate = () => {
-      setCheckinConcluded(confirmed() || passedCheckinMoment());
-      setCheckoutConcluded(localStorage.getItem(outKey) === "1");
+      setCheckinConcluded(confirmed() || passedCheckinMoment() || hostStatus.checkinDone || hostStatus.checkoutDone);
+      setCheckoutConcluded(localStorage.getItem(outKey) === "1" || hostStatus.checkoutDone);
     };
     evaluate();
+    const syncHost = (kind: "checkin" | "checkout") => {
+      if (isPreview || !accessRec?.checkinDate) return;
+      void markStayStep({
+        data: {
+          slug,
+          kind,
+          guest_name: accessRec?.name ?? null,
+          checkin_date: accessRec.checkinDate,
+          checkout_date: accessRec?.checkoutDate ?? null,
+        },
+      }).catch(() => {});
+    };
     const onDone = () => {
       localStorage.setItem(key, "1");
       setCheckinConcluded(true);
+      syncHost("checkin");
     };
     const onCheckout = () => {
       localStorage.setItem(outKey, "1");
       setCheckoutConcluded(true);
+      syncHost("checkout");
     };
     window.addEventListener("guide-checkin-done", onDone as EventListener);
     window.addEventListener("guide-checkout-done", onCheckout as EventListener);
@@ -513,7 +566,18 @@ function Guide({ data }: { data: GuideOk }) {
       window.removeEventListener("guide-checkout-done", onCheckout as EventListener);
       window.clearInterval(id);
     };
-  }, [slug, accessRec?.checkinDate, p.checkin_time]);
+  }, [
+    slug,
+    accessRec?.checkinDate,
+    accessRec?.checkoutDate,
+    accessRec?.name,
+    p.checkin_time,
+    hostStatus.checkinDone,
+    hostStatus.checkoutDone,
+    isPreview,
+    markStayStep,
+  ]);
+
 
   // Informações sensíveis (Wi-Fi, senhas de acesso) permanecem disponíveis
   // dentro da página "Chegada" até as 15h00 do dia do check-out — ou até o
