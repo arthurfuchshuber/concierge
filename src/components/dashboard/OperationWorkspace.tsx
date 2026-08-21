@@ -1205,6 +1205,7 @@ function useWholeCardsMaxHeight(visible: number, key: unknown) {
       };
       const base = absoluteTop(node);
       const cap = Math.round(window.innerHeight * 0.7);
+      const tops = items.map((i) => absoluteTop(i) - base);
       const bottoms = items.map((i) => absoluteTop(i) + i.offsetHeight - base);
       const total = bottoms[bottoms.length - 1];
       if (items.length <= visible && total <= cap) {
@@ -1217,7 +1218,12 @@ function useWholeCardsMaxHeight(visible: number, key: unknown) {
         // alto que o limite visual, nunca o corta ao meio.
         height = bottoms.filter((b) => b <= cap).pop() ?? bottoms[0];
       }
-      setMaxHeight(Math.ceil(height));
+      const selectedIndex = bottoms.findIndex((bottom) => bottom === height);
+      const nextTop = tops[selectedIndex + 1];
+      // Reserva até 2px para que sombra/borda arredondada do último card não
+      // pareça cortada, mas sempre encerra antes do primeiro pixel do próximo.
+      const visualClearance = nextTop === undefined ? 0 : Math.max(0, Math.min(2, nextTop - height - 0.5));
+      setMaxHeight(Math.ceil(height + visualClearance));
     };
 
     raf = requestAnimationFrame(recalc);
