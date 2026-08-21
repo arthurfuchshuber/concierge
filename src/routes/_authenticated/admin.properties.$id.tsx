@@ -38,7 +38,7 @@ import { TimePicker } from "@/components/ui/time-picker";
 import { DateTimePicker } from "@/components/ui/date-picker";
 import { TagPicker, useTaxonomy, TAXONOMY_QUERY_KEY, NewCategoryDialog, NewTagDialog } from "@/components/admin/TagPicker";
 import { updatePoiCategory, reorderPoiCategories, deletePoiCategory } from "@/lib/poi-taxonomy.functions";
-import { PropertyDetailsEditor, DetailImages } from "@/components/admin/PropertyDetailsEditor";
+import { PropertyDetailsEditor, DetailImages, usePrefetchPropertyDetails } from "@/components/admin/PropertyDetailsEditor";
 import { PropertyTypeSelect } from "@/components/admin/PropertyTypeSelect";
 import { usePresence } from "@/hooks/usePresence";
 import { useRealtimeInvalidate } from "@/hooks/useRealtimeInvalidate";
@@ -191,6 +191,9 @@ function PropertyEditor() {
   const { id } = Route.useParams();
   const isNew = id === "new";
   const navigate = useNavigate();
+  // Detalhamento do imóvel já vem carregado em segundo plano: abrir a seção
+  // é instantâneo, sem "Carregando…".
+  usePrefetchPropertyDetails(isNew ? null : id);
   // Presença em tempo real: quem mais está nesta mesma tela agora, e o que
   // está digitando (piloto — ver usePresence.ts para estender a outras telas).
   const presence = usePresence(!isNew ? `property:${id}` : null);

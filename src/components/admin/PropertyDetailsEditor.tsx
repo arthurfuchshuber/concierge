@@ -63,6 +63,19 @@ export function DetailImages({ paths, onRemove }: { paths: string[]; onRemove?: 
  * Persiste em um único registro de `property_details`; registros antigos são
  * mesclados no texto e removidos ao salvar.
  */
+export function usePrefetchPropertyDetails(propertyId: string | null | undefined) {
+  const listFn = useServerFn(listPropertyDetails);
+  const qc = useQueryClient();
+  useEffect(() => {
+    if (!propertyId) return;
+    qc.prefetchQuery({
+      queryKey: ["property-details", propertyId],
+      queryFn: () => listFn({ data: { propertyId } }),
+      staleTime: 5 * 60_000,
+    });
+  }, [propertyId, qc, listFn]);
+}
+
 export function PropertyDetailsEditor({ propertyId }: { propertyId: string }) {
   const listFn = useServerFn(listPropertyDetails);
   const saveFn = useServerFn(savePropertyDetail);
@@ -77,9 +90,11 @@ export function PropertyDetailsEditor({ propertyId }: { propertyId: string }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data } = useQuery({
     queryKey: ["property-details", propertyId],
     queryFn: () => listFn({ data: { propertyId } }),
+    staleTime: 5 * 60_000,
+    gcTime: 30 * 60_000,
   });
 
   const details = data?.details ?? [];
@@ -179,12 +194,7 @@ export function PropertyDetailsEditor({ propertyId }: { propertyId: string }) {
         </p>
       </div>
 
-      {isLoading && !loaded ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" /> Carregando…
-        </div>
-      ) : (
-        <>
+      <>
           <textarea
             ref={taRef}
             value={text}
@@ -223,8 +233,7 @@ export function PropertyDetailsEditor({ propertyId }: { propertyId: string }) {
               <AutosaveIndicator status={autosave.status} />
             </div>
           </div>
-        </>
-      )}
+      </>
     </div>
   );
 }
