@@ -1371,31 +1371,32 @@ function PropertyEditor() {
       ) : null}
       <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
 
-      <PageHeader
-        className="mb-4 sm:mb-5 pb-4 border-b border-border/60"
-        title={<span className="break-words line-clamp-2">{form.property.name || "Sem título"}</span>}
-        actions={
-          !isNew ? (
-            <div className="shrink-0 flex items-center gap-3">
-              <PresenceAvatars users={presence.users} />
-              <Link
-                to="/admin/properties/$id/acessos"
-                params={{ id }}
-                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-xs hover:bg-secondary transition-colors shrink-0"
-              >
-                <Shield className="size-3.5 shrink-0" /> Acessos
-              </Link>
-              <Link
-                to="/admin/properties/$id/conversas"
-                params={{ id }}
-                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-xs hover:bg-secondary transition-colors shrink-0"
-              >
-                <MessageSquare className="size-3.5 shrink-0" /> Conversas
-              </Link>
-            </div>
-          ) : null
-        }
-      />
+      <header className="mb-3 min-w-0">
+        <h1 className="ds-page-title w-full break-words">{form.property.name || "Sem título"}</h1>
+      </header>
+
+      {!isNew ? (
+        <div className="mb-4 sm:mb-5 pb-4 border-b border-border/60 ds-scroll-x items-center gap-2">
+          <PresenceAvatars users={presence.users} />
+          <Link
+            to="/admin/properties/$id/acessos"
+            params={{ id }}
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-xs hover:bg-secondary transition-colors shrink-0"
+          >
+            <Shield className="size-3.5 shrink-0" /> Acessos
+          </Link>
+          <Link
+            to="/admin/properties/$id/conversas"
+            params={{ id }}
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-xs hover:bg-secondary transition-colors shrink-0"
+          >
+            <MessageSquare className="size-3.5 shrink-0" /> Conversas
+          </Link>
+        </div>
+      ) : (
+        <div className="mb-4 sm:mb-5 pb-4 border-b border-border/60" />
+      )}
+
 
 
       <Tabs value={step} onValueChange={setStep}>
@@ -1830,7 +1831,7 @@ function PropertyEditor() {
             </Field>
           </Section>
 
-          <Section id="checkout-list" icon={ClipboardCheck} title="Checklist de check-out" desc="O que o hóspede deve fazer antes de sair." collapsible action={<AddBtn onClick={() => setForm((f) => ({ ...f, checkout: [...f.checkout, { label: "" }] }))} />}>
+          <Section id="checkout-list" icon={ClipboardCheck} title="Checklist de check-out" desc="O que o hóspede deve fazer antes de sair." collapsible>
             {form.checkout.length === 0 ? (
               <EmptyHint text="Ex: trancar a porta, deixar a chave na mesa, fechar janelas." />
             ) : form.checkout.map((c, i) => (
@@ -1838,7 +1839,11 @@ function PropertyEditor() {
                 <Input placeholder="ex: Trancar a porta" value={c.label} maxLength={200} onChange={(e) => setForm((f) => ({ ...f, checkout: f.checkout.map((x, j) => j === i ? { label: e.target.value } : x) }))} />
               </ItemCard>
             ))}
+            <div className="pt-1">
+              <AddBtn onClick={() => setForm((f) => ({ ...f, checkout: [...f.checkout, { label: "" }] }))} />
+            </div>
           </Section>
+
 
           </SectionGroup>
         </TabsContent>
@@ -1847,7 +1852,7 @@ function PropertyEditor() {
         <TabsContent value="faq" className="space-y-4 mt-6">
           <SectionGroup>
 
-          <Section id="emergency" icon={Phone} title="Emergências" desc="Telefones úteis em caso de urgência." collapsible action={<AddBtn onClick={() => setForm((f) => ({ ...f, emergency: [...f.emergency, { label: "", number: "" }] }))} />}>
+          <Section id="emergency" icon={Phone} title="Emergências" desc="Telefones úteis em caso de urgência." collapsible>
             {form.emergency.length === 0 ? (
               <EmptyHint text="Adicione contatos como polícia, bombeiros, médico de plantão." />
             ) : form.emergency.map((m, i) => (
@@ -1858,25 +1863,13 @@ function PropertyEditor() {
                 </div>
               </ItemCard>
             ))}
+            <div className="pt-1">
+              <AddBtn onClick={() => setForm((f) => ({ ...f, emergency: [...f.emergency, { label: "", number: "" }] }))} />
+            </div>
           </Section>
 
-          <Section id="faqs" icon={HelpCircle} title="Perguntas frequentes" desc="Antecipe dúvidas comuns dos hóspedes." collapsible action={
-            <div className="flex items-center gap-1.5">
-              <button type="button" onClick={() => {
-                const defaults = buildDefaultFaqs(form.property);
-                if (defaults.length === 0) { toast.info("Preencha campos como horários, endereço, Wi-Fi ou contato para gerar perguntas."); return; }
-                setForm((f) => {
-                  const { merged, added } = mergeDefaultFaqs(f.faqs, defaults);
-                  if (added === 0) { toast.info("Todas as perguntas padrão já estão na sua FAQ."); return f; }
-                  toast.success(`${added} pergunta${added > 1 ? "s" : ""} gerada${added > 1 ? "s" : ""} a partir dos campos.`);
-                  return { ...f, faqs: merged };
-                });
-              }} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-background text-xs text-muted-foreground hover:text-foreground hover:border-accent/50 transition-colors">
-                <Sparkles className="size-3.5" /> Gerar dos campos
-              </button>
-              <AddBtn onClick={() => setForm((f) => ({ ...f, faqs: [...f.faqs, { question: "", answer: "", tags: [] }] }))} />
-            </div>
-          }>
+          <Section id="faqs" icon={HelpCircle} title="Perguntas frequentes" desc="Antecipe dúvidas comuns dos hóspedes." collapsible>
+
             {form.faqs.length === 0 ? (
               <EmptyHint text="Ex: posso fumar? tem estacionamento? aceita pets?" />
             ) : form.faqs.map((m, i) => {
@@ -1930,7 +1923,23 @@ function PropertyEditor() {
                 </div>
               );
             })}
+            <div className="ds-scroll-x gap-2 pt-1">
+              <button type="button" onClick={() => {
+                const defaults = buildDefaultFaqs(form.property);
+                if (defaults.length === 0) { toast.info("Preencha campos como horários, endereço, Wi-Fi ou contato para gerar perguntas."); return; }
+                setForm((f) => {
+                  const { merged, added } = mergeDefaultFaqs(f.faqs, defaults);
+                  if (added === 0) { toast.info("Todas as perguntas padrão já estão na sua FAQ."); return f; }
+                  toast.success(`${added} pergunta${added > 1 ? "s" : ""} gerada${added > 1 ? "s" : ""} a partir dos campos.`);
+                  return { ...f, faqs: merged };
+                });
+              }} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-background text-xs text-muted-foreground hover:text-foreground hover:border-accent/50 transition-colors shrink-0">
+                <Sparkles className="size-3.5" /> Gerar dos campos
+              </button>
+              <AddBtn onClick={() => setForm((f) => ({ ...f, faqs: [...f.faqs, { question: "", answer: "", tags: [] }] }))} />
+            </div>
           </Section>
+
 
           <Section id="host-faq" icon={UserRound} title="Contato do anfitrião" desc="Nome e WhatsApp para o hóspede te encontrar." collapsible>
             <div className="grid grid-cols-2 gap-3">
@@ -3552,7 +3561,7 @@ function Stepper({
             );
           })}
         </div>
-        <p className="text-[11px] font-medium text-foreground mt-3">
+        <p className="text-[11px] font-normal text-foreground mt-3">
           <span className="text-muted-foreground/70 tracking-[0.18em] uppercase mr-2">Passo {currentIdx + 1}/{steps.length}</span>
           {steps[currentIdx]?.label}
         </p>
@@ -3579,7 +3588,7 @@ function Stepper({
                     type="button"
                     onClick={() => onChange(s.value)}
                     className={[
-                      "group inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all border shrink-0",
+                      "group inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-normal whitespace-nowrap transition-all border shrink-0",
                       active
                         ? "bg-primary text-primary-foreground border-primary shadow-soft"
                         : done
