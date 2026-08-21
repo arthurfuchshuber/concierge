@@ -580,8 +580,12 @@ export function BulkEditDialog({
           </Button>
         </ResponsiveDialogFooter>
 
-        {confirmMode === "ask" && typeof document !== "undefined" && createPortal(
-          <div className="fixed inset-0 z-[300] grid place-items-center bg-black/60 p-4" onClick={() => !saving && setConfirmMode(null)}>
+        {confirmMode === "ask" && (
+          <div
+            className="absolute inset-0 z-[60] grid place-items-center bg-black/60 p-4"
+            style={{ pointerEvents: "auto" }}
+            onClick={() => !saving && setConfirmMode(null)}
+          >
             <div className="max-w-md w-full rounded-2xl border border-border bg-card p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
               <div className="text-lg font-medium">Como aplicar as informações?</div>
               <p className="text-sm text-muted-foreground">
@@ -608,9 +612,9 @@ export function BulkEditDialog({
                 <Button variant="ghost" size="sm" onClick={() => setConfirmMode(null)} disabled={saving}>Voltar</Button>
               </div>
             </div>
-          </div>,
-          document.body,
+          </div>
         )}
+
       </ResponsiveDialogContent>
     </ResponsiveDialog>
   );
