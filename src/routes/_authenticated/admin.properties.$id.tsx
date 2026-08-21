@@ -969,18 +969,18 @@ function PropertyEditor() {
       const r = await save({ data: payload });
       if (!silent) toast.success(isNew ? "Imóvel criado" : "Guia salvo");
       dirtyRef.current = false;
-      // Invalida caches para que o próximo mount reflita o estado salvo
-      // (published, campos alterados, etc.) em vez de servir cache stale.
-      queryClient.invalidateQueries({ queryKey: ["property", id] });
-      queryClient.invalidateQueries({ queryKey: ["my-properties"] });
+      // Em autosave (silent) NÃO invalidamos nada: refetch do guia inteiro a
+      // cada tecla era o que deixava a edição lenta. Só marcamos as queries
+      // como obsoletas (refetchType: "none"), então elas se atualizam no
+      // próximo mount/foco, sem travar quem está digitando.
+      const mode = silent ? ({ refetchType: "none" } as const) : ({} as const);
+      queryClient.invalidateQueries({ queryKey: ["property", id], ...mode });
+      queryClient.invalidateQueries({ queryKey: ["my-properties"], ...mode });
       // Bidirecional: a ficha do proprietário (Stakeholders) lê os mesmos
-      // campos direto da tabela "properties" — mas fica em cache próprio
-      // ("stakeholder-detail"). Sem isto, quem estiver com a ficha do
-      // proprietário aberta em outra aba só veria o nome/endereço/status
-      // novos depois de até 20s (o refetchInterval dela) ou reabrindo a
-      // ficha. Invalidando aqui, a atualização é imediata nos dois sentidos.
-      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "stakeholder-detail" });
+      // campos direto da tabela "properties" — mas fica em cache próprio.
+      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "stakeholder-detail", ...mode });
       if (isNew) navigate({ to: "/admin/properties/$id", params: { id: r.id } });
+
     } catch (e) {
       if (!silent) toast.error(e instanceof Error ? e.message : "Erro ao salvar");
       else console.warn("[autosave] guia", e);
