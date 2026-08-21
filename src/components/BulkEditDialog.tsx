@@ -477,12 +477,17 @@ export function BulkEditDialog({
                         <div className="flex items-center justify-between mb-2 gap-3">
                           <div className="min-w-0 flex-1">
                             <label className="text-sm font-medium truncate block">{f.label}</label>
-                            <div className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                              {s2.filled > 0 && s2.empty === 0 && s2.distinct.length === 1 && `Atual: ${s2.distinct[0]}`}
-                              {s2.filled > 0 && s2.empty === 0 && s2.distinct.length > 1 && `${s2.filled} guias · ${s2.distinct.length} valores distintos`}
-                              {s2.filled > 0 && s2.empty > 0 && `${s2.filled} preenchido${s2.filled > 1 ? "s" : ""} · ${s2.empty} vazio${s2.empty > 1 ? "s" : ""}`}
-                              {s2.filled === 0 && `${s2.empty} guia${s2.empty > 1 ? "s" : ""} sem valor`}
+                            <div className={`text-[11px] mt-0.5 truncate ${enabled && (f.kind === "text" || f.kind === "textarea") && String(value ?? "").trim() === "" ? "text-destructive" : "text-muted-foreground"}`}>
+                              {enabled && (f.kind === "text" || f.kind === "textarea") && String(value ?? "").trim() === ""
+                                ? "Será removido dos guias selecionados"
+                                : <>
+                                    {s2.filled > 0 && s2.empty === 0 && s2.distinct.length === 1 && `Atual: ${s2.distinct[0]}`}
+                                    {s2.filled > 0 && s2.empty === 0 && s2.distinct.length > 1 && `${s2.filled} guias · ${s2.distinct.length} valores distintos`}
+                                    {s2.filled > 0 && s2.empty > 0 && `${s2.filled} preenchido${s2.filled > 1 ? "s" : ""} · ${s2.empty} vazio${s2.empty > 1 ? "s" : ""}`}
+                                    {s2.filled === 0 && `${s2.empty} guia${s2.empty > 1 ? "s" : ""} sem valor`}
+                                  </>}
                             </div>
+
                           </div>
                           <Switch checked={enabled} onCheckedChange={(v) => toggle(f.key, v)} />
                         </div>
