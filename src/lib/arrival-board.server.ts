@@ -276,7 +276,12 @@ export async function buildArrivalRows(
         address: p.address,
         maps_url: p.maps_url,
         garage_maps_url: p.garage_maps_url,
-        hasPasswords: !!(p.wifi_password || p.lock_code || p.gate_code),
+        // Senha de ACESSO ao imóvel = fechadura/portão (Wi-Fi não conta aqui).
+        hasPasswords: !!(p.lock_code?.trim() || p.gate_code?.trim()),
+        accessCodes: [
+          ...(p.lock_code?.trim() ? (["lock"] as const) : []),
+          ...(p.gate_code?.trim() ? (["gate"] as const) : []),
+        ] as Array<"lock" | "gate">,
         checkin_time: p.checkin_time,
         checkin_time_max: p.checkin_time_max,
         checkout_time: p.checkout_time,
@@ -286,28 +291,68 @@ export async function buildArrivalRows(
     }
 
 
-    // Index section events by property_id + normalized guest identity
+    // Index section events by property_id + normalized guest identity.
+    // Casamos por chave estrita (nome+telefone) E por chave "solta" (só nome /
+    // só telefone), exatamente como as barras de engajamento do dashboard —
+    // caso contrário card e barra divergem para o mesmo hóspede.
     const eventKey = (pid: string, name: string | null, phone: string | null) =>
       `${pid}|${(name || "").trim().toLowerCase()}|${(phone || "").replace(/\D/g, "")}`;
-    const openedCheckinSet = new Set<string>();
-    const viewedPasswordsSet = new Set<string>();
+    const looseKey = (pid: string, name: string | null) => `${pid}|${(name || "").trim().toLowerCase()}`;
+    const phoneKey = (pid: string, phone: string | null) => {
+      const d = (phone || "").replace(/\D/g, "");
+      return d.length >= 8 ? `${pid}|${d.slice(-8)}` : null;
+    };
+
+    type SeenSets = { strict: Set<string>; loose: Set<string>; phones: Set<string> };
+    const newSeen = (): SeenSets => ({ strict: new Set(), loose: new Set(), phones: new Set() });
+    const addSeen = (set: SeenSets, pid: string, name: string | null, phone: string | null) => {
+      set.strict.add(eventKey(pid, name, phone));
+      if ((name || "").trim()) set.loose.add(looseKey(pid, name));
+      const pk = phoneKey(pid, phone);
+      if (pk) set.phones.add(pk);
+    };
+    const hasSeen = (set: SeenSets, pid: string, name: string | null, phone: string | null) => {
+      if (set.strict.has(eventKey(pid, name, phone))) return true;
+      if ((name || "").trim() && set.loose.has(looseKey(pid, name))) return true;
+      const pk = phoneKey(pid, phone);
+      return !!pk && set.phones.has(pk);
+    };
+
+    const openedCheckin = newSeen();
     // Abriu o guia = existe QUALQUER evento de navegação do hóspede.
-    const openedGuideSet = new Set<string>();
+    const openedGuide = newSeen();
     // Leu as instruções = permaneceu ao menos 5s na aba Chegada (evento
     // "checkin-lido", disparado pelo guia só depois desse tempo).
-    const readInstructionsSet = new Set<string>();
+    const readInstructions = newSeen();
+    // Senhas de ACESSO ao imóvel (fechadura/portão) — Wi-Fi não conta.
+    // Só marcamos como "viu" quando todas as senhas configuradas foram abertas.
+    const seenLock = newSeen();
+    const seenGate = newSeen();
+    const seenAnyPassword = newSeen();
     for (const ev of (sectionEvents ?? []) as Array<{
       property_id: string;
       section: string;
       guest_name: string | null;
       guest_phone: string | null;
     }>) {
-      const k = eventKey(ev.property_id, ev.guest_name, ev.guest_phone);
-      openedGuideSet.add(k);
-      if (ev.section === "checkin") openedCheckinSet.add(k);
-      else if (ev.section === "checkin-lido") readInstructionsSet.add(k);
-      else if (ev.section === "senhas") viewedPasswordsSet.add(k);
+      const args = [ev.property_id, ev.guest_name, ev.guest_phone] as const;
+      addSeen(openedGuide, ...args);
+      if (ev.section === "checkin") addSeen(openedCheckin, ...args);
+      else if (ev.section === "checkin-lido") addSeen(readInstructions, ...args);
+      else if (ev.section === "senhas:lock") { addSeen(seenLock, ...args); addSeen(seenAnyPassword, ...args); }
+      else if (ev.section === "senhas:gate") { addSeen(seenGate, ...args); addSeen(seenAnyPassword, ...args); }
+      else if (ev.section === "senhas") addSeen(seenAnyPassword, ...args);
     }
+
+    /** Viu TODAS as senhas de acesso configuradas no imóvel. */
+    const sawAllPasswords = (pid: string, name: string | null, phone: string | null) => {
+      const codes = propMap.get(pid)?.accessCodes ?? [];
+      if (codes.length === 0) return true;
+      // Registros antigos gravavam só "senhas" (sem detalhar qual). Nesses
+      // casos consideramos como visto para não reportar falso negativo.
+      if (codes.length === 1 && hasSeen(seenAnyPassword, pid, name, phone)) return true;
+      return codes.every((c) => hasSeen(c === "lock" ? seenLock : seenGate, pid, name, phone));
+    };
 
     type StatusRow = {
       log_id: string | null;
@@ -603,10 +648,10 @@ export async function buildArrivalRows(
         mapsUrl: p?.maps_url ?? null,
         garageMapsUrl: p?.garage_maps_url ?? null,
         hasPasswords: !!p?.hasPasswords,
-        openedCheckin: openedCheckinSet.has(evK),
-        openedGuide: openedGuideSet.has(evK),
-        readInstructions: readInstructionsSet.has(evK),
-        viewedPasswords: viewedPasswordsSet.has(evK),
+        openedCheckin: hasSeen(openedCheckin, l.property_id, l.guest_name, l.guest_phone),
+        openedGuide: hasSeen(openedGuide, l.property_id, l.guest_name, l.guest_phone),
+        readInstructions: hasSeen(readInstructions, l.property_id, l.guest_name, l.guest_phone),
+        viewedPasswords: sawAllPasswords(l.property_id, l.guest_name, l.guest_phone),
         guestName: l.guest_name,
         guestPhone: l.guest_phone,
         guestPhoneCountry: l.guest_phone_country,
@@ -684,10 +729,10 @@ export async function buildArrivalRows(
         mapsUrl: p?.maps_url ?? null,
         garageMapsUrl: p?.garage_maps_url ?? null,
         hasPasswords: !!p?.hasPasswords,
-        openedCheckin: matchedLog ? openedCheckinSet.has(evK) : false,
-        openedGuide: matchedLog ? openedGuideSet.has(evK) : false,
-        readInstructions: matchedLog ? readInstructionsSet.has(evK) : false,
-        viewedPasswords: matchedLog ? viewedPasswordsSet.has(evK) : false,
+        openedCheckin: matchedLog ? hasSeen(openedCheckin, matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
+        openedGuide: matchedLog ? hasSeen(openedGuide, matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
+        readInstructions: matchedLog ? hasSeen(readInstructions, matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
+        viewedPasswords: matchedLog ? sawAllPasswords(matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
         guestName: matchedLog?.guest_name ?? r.guest_hint ?? "Reserva Airbnb",
         guestPhone: matchedLog?.guest_phone ?? null,
         guestPhoneCountry: matchedLog?.guest_phone_country ?? null,
