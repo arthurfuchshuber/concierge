@@ -1586,21 +1586,13 @@ function OccupancyPanel({
           : "bg-transparent";
 
   return (
-    <section className="rounded-[0.3rem] bg-card shadow-sm">
-      <div className="flex items-center gap-3 px-4 sm:px-5 pt-4 pb-3">
-        <div className="min-w-0 flex-1">
-          <p className="ds-eyebrow">Ocupação</p>
-          <h3 className="ds-card-title flex items-center gap-2">
-            <CalendarCheck className="size-4 shrink-0 text-muted-foreground" />
-            <span className="truncate">Agenda dos imóveis</span>
-          </h3>
-        </div>
-        <span className="hidden shrink-0 text-[11px] tabular-nums text-muted-foreground sm:block">{rangeLabel}</span>
+    <section className="relative rounded-[0.3rem] bg-card shadow-sm">
+      <div className="flex items-center justify-end px-2 pt-2">
         <Popover>
           <PopoverTrigger asChild>
             <button
               type="button"
-              className="relative inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-secondary/50 px-3 text-xs font-medium text-foreground/80 transition-colors hover:bg-secondary"
+              className="relative inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-transparent px-3 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               <Filter className="size-3.5 opacity-70" /> Filtros
               {activeFilters > 0 ? (
@@ -1610,6 +1602,7 @@ function OccupancyPanel({
               ) : null}
             </button>
           </PopoverTrigger>
+
           <PopoverContent align="end" className="w-64 space-y-4 p-3" onOpenAutoFocus={(e) => e.preventDefault()}>
             {onStartChange ? (
               <div>
