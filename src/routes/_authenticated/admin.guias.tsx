@@ -998,24 +998,28 @@ function Dashboard() {
       ) : (
         (() => {
           const norm = (s?: string | null) => (s ?? "").toLowerCase().trim().replace(/\s+/g, " ");
+          // Agrupa pelo endereço escrito (fonte da verdade do card). Só cai para
+          // coordenadas quando o guia não tem endereço preenchido.
           const keyOf = (p: (typeof filtered)[number]) => {
+            const a = norm(p.address);
+            if (a) return `addr:${a}`;
             if (p.lat != null && p.lng != null) {
               return `geo:${Number(p.lat).toFixed(4)},${Number(p.lng).toFixed(4)}`;
             }
-            const a = norm(p.address);
-            return a ? `addr:${a}` : "none";
+            return "none";
           };
           const groups = new Map<string, { label: string; items: typeof filtered }>();
           for (const p of filtered) {
             const k = keyOf(p);
             if (!groups.has(k)) {
               groups.set(k, {
-                label: k === "none" ? "Sem endereço" : p.address || `${p.lat},${p.lng}`,
+                label: k === "none" ? "Sem endereço" : p.address || `${p.lat}, ${p.lng}`,
                 items: [],
               });
             }
             groups.get(k)!.items.push(p);
           }
+
           const groupList = Array.from(groups.entries());
           const allSelected = selected.size > 0 && selected.size === filtered.length;
           return (
