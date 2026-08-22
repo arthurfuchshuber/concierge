@@ -2366,8 +2366,12 @@ function ArrivalCard({
   const isPendingFill = row.pendingFill;
   // Janela permitida para a data prevista: da data original de check-in
   // (iCal quando existe) até 1 dia antes do check-out.
-  const predictedMinDate = row.ical.icalCheckin ?? row.guestCheckin;
-  const predictedMaxDate = addDaysISO(row.ical.icalCheckout ?? row.guestCheckout, -1) ?? null;
+  // Sem iCal, congelamos a data original na primeira renderização — senão ela
+  // acompanharia a data recém-escolhida e o campo voltaria a ficar em branco.
+  const originalCheckinRef = useRef(row.guestCheckin);
+  const originalCheckoutRef = useRef(row.guestCheckout);
+  const predictedMinDate = row.ical.icalCheckin ?? originalCheckinRef.current;
+  const predictedMaxDate = addDaysISO(row.ical.icalCheckout ?? originalCheckoutRef.current, -1) ?? null;
   const todayISO = todayISOSaoPaulo();
   const isOverdue = row.date < todayISO;
   const isFuture = row.date > todayISO;
@@ -2546,29 +2550,25 @@ function ArrivalCard({
                         Selecione o horário (30 em 30 min). A alteração reordena o kanban imediatamente.
                       </InfoHint>
                     </span>
-                    <span className="flex items-center gap-1.5 shrink-0">
-                       <span className="text-xs">
-                         <DateEditor
-                           value={kind === "checkout" ? (row.guestCheckout ?? row.guestCheckin) : row.guestCheckin}
-                           disabled={busy || isPendingFill}
-                           /* Campo em branco enquanto a data continuar sendo a original da reserva:
-                              ele só serve para registrar chegada em outro dia. */
-                           blankWhen={kind === "checkout" ? (row.ical.icalCheckout ?? row.guestCheckout ?? undefined) : predictedMinDate}
-                           placeholder="Data"
-                           min={
-                             kind === "checkout"
-                               ? addDaysISO(predictedMinDate, 1)
-                               : addDaysISO(predictedMinDate, 1)
-                           }
-                           max={kind === "checkout" ? undefined : (predictedMaxDate ?? undefined)}
-                           onChange={(v) =>
-                             onEditDates(row, kind === "checkout" ? { checkoutDate: v } : { checkinDate: v })
-                           }
-                         />
-                       </span>
-                      <span className="w-24 shrink-0">
-                        <TimeDropdown value={guestTime ?? null} disabled={busy} size="xs" onChange={(v) => onEditTime(row, v)} />
-                      </span>
+                    <span className="ml-auto flex items-center justify-end gap-3 shrink-0 text-xs font-medium">
+                      <DateEditor
+                        value={kind === "checkout" ? (row.guestCheckout ?? row.guestCheckin) : row.guestCheckin}
+                        disabled={busy || isPendingFill}
+                        /* Campo em branco enquanto a data continuar sendo a original da reserva:
+                           ele só serve para registrar chegada em outro dia. */
+                        blankWhen={
+                          kind === "checkout"
+                            ? (row.ical.icalCheckout ?? originalCheckoutRef.current ?? undefined)
+                            : predictedMinDate
+                        }
+                        placeholder="Data"
+                        min={addDaysISO(predictedMinDate, 1)}
+                        max={kind === "checkout" ? undefined : (predictedMaxDate ?? undefined)}
+                        onChange={(v) =>
+                          onEditDates(row, kind === "checkout" ? { checkoutDate: v } : { checkinDate: v })
+                        }
+                      />
+                      <TimeDropdown value={guestTime ?? null} disabled={busy} size="xs" onChange={(v) => onEditTime(row, v)} />
                     </span>
                   </div>
                 </div>
