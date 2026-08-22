@@ -2545,11 +2545,12 @@ function ArrivalCard({
       <Accordion
         type="single"
         collapsible
+        className="mt-1"
         value={expanded ? "details" : ""}
         onValueChange={(v) => onToggleExpanded?.(v === "details")}
       >
         <AccordionItem value="details" className="border-0">
-          <AccordionTrigger className="py-1.5 text-xs text-muted-foreground hover:no-underline">
+          <AccordionTrigger className="py-0 justify-start gap-1 text-xs text-muted-foreground hover:no-underline [&>svg]:h-3 [&>svg]:w-3">
             Detalhes da operação
           </AccordionTrigger>
           <AccordionContent className="pb-0">
