@@ -192,7 +192,7 @@ export async function buildArrivalRows(
         .in("id", propIds),
       context.supabase
         .from("guest_arrival_status")
-        .select("log_id, reservation_id, kind, status, note, arrival_time_override, muted_until, done_at, concluded_at")
+        .select("log_id, reservation_id, kind, status, note, arrival_time_override, arrival_date_override, muted_until, done_at, concluded_at")
         .in("property_id", propIds)
         .limit(5000),
       reservationsQuery.order(data.kind === "checkin" ? "checkin_date" : "checkout_date", { ascending: true }).limit(10000),
@@ -362,6 +362,7 @@ export async function buildArrivalRows(
       status: "pending" | "done";
       note: string | null;
       arrival_time_override: string | null;
+      arrival_date_override: string | null;
       muted_until: string | null;
       done_at: string | null;
       concluded_at: string | null;
@@ -391,6 +392,7 @@ export async function buildArrivalRows(
         status: s.status,
         note: s.note,
         arrival_time_override: s.arrival_time_override,
+        arrival_date_override: s.arrival_date_override,
         muted_until: s.muted_until,
         done_at: s.done_at,
         concluded_at: s.concluded_at,
@@ -676,6 +678,7 @@ export async function buildArrivalRows(
         note: s?.note ?? null,
         mutedUntil: s?.muted_until ?? null,
         arrivalTimeOverride: s?.arrival_time_override ?? null,
+        arrivalDateOverride: (s as { arrival_date_override?: string | null } | undefined)?.arrival_date_override ?? null,
         doneAt: s?.done_at ?? null,
         pendingFill: false,
         ical: forceIcal ?? { hasIcal, matched, icalCheckin, icalCheckout },
@@ -754,6 +757,7 @@ export async function buildArrivalRows(
         note: s?.note ?? null,
         mutedUntil: s?.muted_until ?? null,
         arrivalTimeOverride: s?.arrival_time_override ?? null,
+        arrivalDateOverride: (s as { arrival_date_override?: string | null } | undefined)?.arrival_date_override ?? null,
         doneAt: s?.done_at ?? null,
         pendingFill: !matchedLog,
         ical: { hasIcal: true, matched: true, icalCheckin: r.checkin_date, icalCheckout: r.checkout_date },

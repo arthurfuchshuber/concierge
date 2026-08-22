@@ -30,6 +30,8 @@ export type ArrivalRow = {
   status: "pending" | "done";
   note: string | null;
   arrivalTimeOverride: string | null;
+  /** Data prevista informada manualmente (chegada em dia diferente da reserva) */
+  arrivalDateOverride: string | null;
   /** ISO: até quando os alertas de atraso deste card estão silenciados */
   mutedUntil: string | null;
   doneAt: string | null;

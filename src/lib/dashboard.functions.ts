@@ -545,6 +545,11 @@ const UpsertInput = z
       .regex(/^\d{2}:\d{2}$/)
       .nullable()
       .optional(),
+    arrivalDateOverride: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .nullable()
+      .optional(),
     mutedUntil: z.string().datetime().nullable().optional(),
   })
   .refine((v) => !!v.logId || !!v.reservationId, { message: "Informe a reserva ou o registro do hóspede." });
@@ -582,6 +587,7 @@ export const upsertArrivalStatus = createServerFn({ method: "POST" })
       done_at?: string | null;
       note?: string | null;
       arrival_time_override?: string | null;
+      arrival_date_override?: string | null;
       muted_until?: string | null;
     } = {
       property_id: propertyId,
@@ -595,6 +601,7 @@ export const upsertArrivalStatus = createServerFn({ method: "POST" })
     }
     if (typeof data.note !== "undefined") patch.note = data.note;
     if (typeof data.arrivalTimeOverride !== "undefined") patch.arrival_time_override = data.arrivalTimeOverride;
+    if (typeof data.arrivalDateOverride !== "undefined") patch.arrival_date_override = data.arrivalDateOverride;
     if (typeof data.mutedUntil !== "undefined") patch.muted_until = data.mutedUntil;
 
 
@@ -1305,6 +1312,7 @@ export const listConcludedArrivals = createServerFn({ method: "GET" })
         status: "done",
         note: s.note,
         arrivalTimeOverride: s.arrival_time_override,
+        arrivalDateOverride: null,
         doneAt: s.done_at,
         pendingFill: false,
         ical: { hasIcal: !!res, matched: !!res, icalCheckin: null, icalCheckout: null },
