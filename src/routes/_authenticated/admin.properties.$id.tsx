@@ -1506,34 +1506,8 @@ function PropertyEditor() {
             <Field label="URL pública (slug)" hint="Aparece em /g/seu-slug">
               <Input value={form.property.slug} maxLength={60} onChange={(e) => update("slug", slugify(e.target.value))} />
             </Field>
-            <Field label="Tipo do guia" hint="Aparece abaixo do título no guia público.">
-              <EtiquetaSelect value={form.property.tagline} onChange={(v) => update("tagline", v)} />
-            </Field>
-
-            <div className="pt-3 mt-1 border-t border-border/60 space-y-3">
-              <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                <Palette className="size-3.5" /> Marca personalizada
-                {!canBrand && <span className="inline-flex items-center gap-1 text-[10px] text-amber-400/90 normal-case"><Lock className="size-3" /> Enterprise</span>}
-              </div>
-              {!canBrand && (
-                <p className="text-[11px] text-muted-foreground">
-                  Exclusivo do plano <strong>Enterprise</strong>. <Link to="/precos" className="underline font-medium">Ver planos</Link>.
-                </p>
-              )}
-              <Field label="Nome da marca">
-                <Input value={form.property.brand_name} maxLength={120} placeholder="Ex: Casa Maré Hospitality" onChange={(e) => update("brand_name", e.target.value)} disabled={!canBrand} />
-              </Field>
-              <Field label="Logomarca">
-                {canBrand ? (
-                  <div className="w-24">
-                    <ImageUpload value={form.property.brand_logo_url} folder="brand" aspect="square" placeholder="Logo" onChange={(v) => update("brand_logo_url", v)} />
-                  </div>
-                ) : (
-                  <Input value="" placeholder="Disponível em planos com marca própria" disabled />
-                )}
-              </Field>
-            </div>
           </Section>
+
 
           <Section id="gallery" icon={ImageIcon} title="Fotos da residência" desc="Até 4 fotos — a primeira será a capa." collapsible>
             <GalleryEditor
