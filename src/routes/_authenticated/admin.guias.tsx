@@ -1,6 +1,6 @@
 import { PhoneActionButton } from "@/components/PhoneActionButton";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Home, Compass } from "lucide-react";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Compass, Home } from "lucide-react";
 import { useSearch } from "@tanstack/react-router";
 import { useServerFn as useServerFnGuias } from "@tanstack/react-start";
 import { useQuery as useQueryGuias } from "@tanstack/react-query";
@@ -17,7 +17,8 @@ import {
   countAccountGuides,
 } from "@/lib/properties.functions";
 import { useMyPermissions } from "@/hooks/useMyPermissions";
-import { PageHeader, SectionTitle, ActionBar } from "@/components/ds/PageHeader";
+import { SectionTitle, ActionBar } from "@/components/ds/PageHeader";
+import { WorkspaceHeader } from "@/components/ds/WorkspaceHeader";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { LoadingState } from "@/components/ds/LoadingState";
 
@@ -122,18 +123,10 @@ function guideCompleteness(p: {
   return { score, label: "Incompleto", color: "bg-red-400" };
 }
 
-function GuiasTabsBar() {
-  return (
-    <TabsList className="mb-5">
-      <TabsTrigger value="imoveis">
-        <Home className="size-4" /> Guias de Imóveis
-      </TabsTrigger>
-      <TabsTrigger value="destinos">
-        <Compass className="size-4" /> Guias de Destinos
-      </TabsTrigger>
-    </TabsList>
-  );
-}
+const GUIA_TABS = [
+  { key: "imoveis", label: "Imóveis" },
+  { key: "destinos", label: "Destinos" },
+];
 
 function GuiasTabs() {
   const search = useSearch({ from: "/_authenticated/admin/guias" });
@@ -149,20 +142,27 @@ function GuiasTabs() {
         <Dashboard />
       </TabsContent>
       <TabsContent value="destinos" className="mt-0">
-        <div className="px-6 lg:px-10 py-24 max-w-[1440px] mx-auto w-full text-center">
-          <Compass className="size-8 mx-auto text-muted-foreground/60 mb-3" />
-          <p className="font-display text-2xl">Em construção...</p>
-          <p className="text-sm text-muted-foreground mt-1.5">
-            Em breve você poderá criar guias completos por destino.
-          </p>
-          <div className="flex justify-center mt-6">
-            <GuiasTabsBar />
+        <div className="px-6 lg:px-10 py-6 max-w-[1440px] mx-auto w-full">
+          <WorkspaceHeader
+            title="Guias"
+            subtitle="Seus imóveis e destinos publicados."
+            tabs={GUIA_TABS}
+            activeTab={tab}
+            onTabChange={(k) => navigate({ to: "/admin/guias", search: { tab: coerceGuiaTab(k) } })}
+          />
+          <div className="py-16 text-center">
+            <Compass className="size-8 mx-auto text-muted-foreground/60 mb-3" />
+            <p className="ds-section-title">Em construção...</p>
+            <p className="ds-page-subtitle mt-1.5">
+              Em breve você poderá criar guias completos por destino.
+            </p>
           </div>
         </div>
       </TabsContent>
     </Tabs>
   );
 }
+
 
 function Dashboard() {
   const list = useServerFn(listMyProperties);
@@ -462,178 +462,17 @@ function Dashboard() {
       )}
 
       {/* Welcome */}
-      <PageHeader
-        title={readOnly ? `Painel de ${impersonation?.name ?? ""}` : "Guias de Imóveis e Destinos"}
+      <WorkspaceHeader
+        title={readOnly ? `Painel de ${impersonation?.name ?? ""}` : "Guias"}
         subtitle={
           readOnly
             ? "Visualização apenas de leitura. Nenhuma alteração será salva."
-            : "Aqui está o resumo do seu painel hoje."
+            : "Seus imóveis e destinos publicados."
         }
-        className="mb-8"
+        tabs={GUIA_TABS}
+        activeTab="imoveis"
+        onTabChange={(k) => navigate({ to: "/admin/guias", search: { tab: coerceGuiaTab(k) } })}
       />
-
-      {/* Stat cards (collapsible) — apenas para o titular da conta */}
-      {canSeePlan && (
-        <div className="mb-10">
-          <button
-            type="button"
-            onClick={() => setStatCardsOpen((v) => !v)}
-            className="w-full flex items-center justify-between gap-2 px-4 py-2.5 ds-surface border border-border bg-card hover:bg-secondary/40 transition-colors mb-3"
-            aria-expanded={statCardsOpen}
-          >
-            <span className="text-sm font-medium text-foreground/80 flex items-center gap-2">
-              <CreditCard className="size-4 text-muted-foreground" />
-              Plano e uso ·{" "}
-              <span className="text-muted-foreground">
-                {planName} · {count}
-                {planLimit > 0 ? `/${planLimit >= 9999 ? "∞" : planLimit}` : ""}
-              </span>
-            </span>
-            <ChevronDown
-              className={`size-4 text-muted-foreground transition-transform ${statCardsOpen ? "rotate-180" : ""}`}
-            />
-          </button>
-
-          {/* Barra elegante de uso de guias */}
-          {planLimit > 0 && (
-            <div className="mb-3 px-1">
-              <div className="flex items-center justify-between text-[11px] mb-1.5">
-                <span className="uppercase tracking-[0.14em] text-muted-foreground font-medium">Uso de guias</span>
-                <span className="tabular-nums text-foreground/80">
-                  <span className="font-semibold text-foreground">{count}</span>
-                  <span className="text-muted-foreground"> / {planLimit >= 9999 ? "∞" : planLimit}</span>
-                </span>
-              </div>
-              <div className="relative h-2 rounded-full bg-secondary/60 overflow-hidden ring-1 ring-inset ring-border/40">
-                <div
-                  className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-accent/70 via-accent to-accent/90 shadow-[0_0_12px_-2px_oklch(from_var(--accent)_l_c_h/0.6)] transition-all duration-700 ease-out"
-                  style={{
-                    width: `${planLimit >= 9999 ? Math.min(100, (count / Math.max(count + 10, 20)) * 100) : pct}%`,
-                  }}
-                />
-              </div>
-            </div>
-          )}
-
-          {statCardsOpen && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Plano */}
-              <div className="ds-surface border border-border bg-card p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-muted-foreground">Seu Plano</span>
-                  <CreditCard className="size-4 text-muted-foreground" />
-                </div>
-                <div className="flex items-baseline gap-2 flex-wrap">
-                  <span className="text-2xl font-display">{planName}</span>
-                  {sub.isTrialing && (
-                    <span className="text-[10px] uppercase tracking-wider font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full">
-                      Trial
-                    </span>
-                  )}
-                  {sub.isPastDue && (
-                    <span className="text-[10px] uppercase tracking-wider font-semibold text-destructive bg-destructive/10 px-2 py-0.5 rounded-full">
-                      Pagamento falhou
-                    </span>
-                  )}
-                  {sub.cancelAtPeriodEnd && !sub.isPastDue && (
-                    <span className="text-[10px] uppercase tracking-wider font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">
-                      Cancelamento agendado
-                    </span>
-                  )}
-                  {sub.isManual && (
-                    <span className="text-[10px] uppercase tracking-wider font-semibold text-foreground/70 bg-secondary px-2 py-0.5 rounded-full">
-                      Contrato
-                    </span>
-                  )}
-                </div>
-                <div className="mt-3 flex items-baseline gap-2">
-                  <span className="text-lg font-semibold">{planPrice}</span>
-                  {(planConfig || hasCustomPrice) && <span className="text-xs text-muted-foreground">/mês</span>}
-                  {hasCustomPrice && (
-                    <span className="text-[10px] uppercase tracking-wider font-semibold text-accent">
-                      personalizado
-                    </span>
-                  )}
-                </div>
-                {(trialLabel || renewalLabel) && (
-                  <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                    {trialLabel && (
-                      <div>
-                        <dt className="text-muted-foreground">Trial até</dt>
-                        <dd className="font-medium tabular-nums">{trialLabel}</dd>
-                      </div>
-                    )}
-                    {renewalLabel && !sub.isTrialing && (
-                      <div>
-                        <dt className="text-muted-foreground">
-                          {sub.cancelAtPeriodEnd ? "Acesso até" : "Próxima renovação"}
-                        </dt>
-                        <dd className="font-medium tabular-nums">{renewalLabel}</dd>
-                      </div>
-                    )}
-                  </dl>
-                )}
-                <Link
-                  to={sub.plan ? "/admin/assinatura" : "/precos"}
-                  className="text-xs text-accent hover:underline mt-3 inline-block"
-                >
-                  {sub.plan ? "Gerenciar assinatura" : "Ver planos"} →
-                </Link>
-              </div>
-
-              {/* Uso */}
-              <div className="ds-surface border border-border bg-card p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-muted-foreground">Uso de guias</span>
-                  <BookOpen className="size-4 text-muted-foreground" />
-                </div>
-                <div className="text-2xl font-display">
-                  {count}{" "}
-                  <span className="text-sm text-muted-foreground font-sans">
-                    / {planLimit ? (planLimit >= 9999 ? "ilimitado" : planLimit) : "—"}
-                  </span>
-                  {sub.maxGuidesOverride != null && (
-                    <span className="ml-2 text-[10px] uppercase tracking-wider font-semibold text-accent align-middle">
-                      contrato
-                    </span>
-                  )}
-                </div>
-                <div className="mt-3 h-1.5 rounded-full bg-secondary overflow-hidden">
-                  <div className="h-full bg-accent transition-all" style={{ width: `${pct}%` }} />
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  {planLimit > 0
-                    ? planLimit >= 9999
-                      ? "Sem limite de guias"
-                      : `${remaining} guias restantes`
-                    : "Assine um plano para criar guias"}
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {canSeePlan && sub.isPastDue && (
-        <div className="mb-6 ds-surface border border-destructive/30 bg-destructive/5 p-4 flex items-start gap-3">
-          <AlertTriangle className="size-5 text-destructive shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-destructive">Pagamento falhou</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Atualize seu método de pagamento para evitar a suspensão do acesso.
-            </p>
-          </div>
-          <Link
-            to="/admin/assinatura"
-            search={{ checkout: undefined }}
-            className="text-xs font-medium px-3 py-1.5 rounded-full bg-destructive text-destructive-foreground hover:opacity-90"
-          >
-            Resolver
-          </Link>
-        </div>
-      )}
-
-      <GuiasTabsBar />
 
       {/* Guias section */}
       <div className="flex flex-col gap-4 mb-5">
