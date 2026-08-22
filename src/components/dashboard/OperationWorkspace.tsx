@@ -31,7 +31,6 @@ import {
   CheckCircle2,
   Undo2,
   Filter,
-  LayoutGrid,
   MoreVertical,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -745,17 +744,12 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               card de um status pro outro fica visual, não escondido atrás de um
               menu. */}
           <section className="rounded-none bg-transparent p-0 space-y-4">
-            {/* Título "Quadro de operação" — redundante no mobile, onde as
-                próprias abas logo abaixo (Check-ins, Checkouts...) já deixam
-                claro do que se trata; mantido no desktop, onde a visão é de
-                colunas lado a lado sem essa legenda textual. O filtro "Hoje"
-                também só aparece aqui no desktop — no mobile ele migra pra
+            {/* Sem título: as próprias abas/colunas já identificam o quadro. O
+                filtro "Hoje" fica à direita no desktop; no mobile ele migra pra
                 dentro da linha de abas, ver abaixo. */}
             <div className="hidden sm:flex items-center gap-3">
-              <h2 className="ds-section-title mb-0 flex items-center gap-2">
-                <LayoutGrid className="size-4.5 text-muted-foreground" /> Quadro de operação
-              </h2>
               <div className="ml-auto">
+
                 <RangeDropdown
                   value={range}
                   onChange={setRange}
@@ -1420,22 +1414,25 @@ function KpiCard({
                         )}
                       </div>
 
-                      {/* Período + código da reserva na mesma linha — igual ao card do Kanban */}
-                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] tabular-nums text-foreground/80">
+                      {/* Período — mesma fonte/cor do nome do hóspede, uma linha */}
+                      <div className="text-xs flex flex-wrap items-center gap-1.5 text-muted-foreground">
                         <span>{fmtDateBR(r.guestCheckin)}</span>
                         {r.guestCheckout && (
                           <>
-                            <span className="text-muted-foreground">→</span>
+                            <span>→</span>
                             <span>{fmtDateBR(r.guestCheckout)}</span>
                           </>
                         )}
-                        {r.reservationCode && (
-                          <span className="ds-meta inline-flex items-center gap-0.5">
-                            <span className="truncate max-w-[160px]">{r.reservationCode}</span>
-                            <CopyButton value={r.reservationCode} size={10} className="p-0.5" />
-                          </span>
-                        )}
                       </div>
+                      {/* Código da reserva — linha própria, sem fundo */}
+                      {r.reservationCode && (
+                        <div className="text-xs flex items-center gap-1 text-muted-foreground">
+                          <span>Reserva</span>
+                          <span className="truncate max-w-[160px]">{r.reservationCode}</span>
+                          <CopyButton value={r.reservationCode} size={10} className="p-0.5" />
+                        </div>
+                      )}
+
                       {/* Previsão de horário — campo largo, logo abaixo do código da reserva */}
                       <div className="mt-0.5 flex items-center gap-2">
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
@@ -2485,8 +2482,8 @@ function ArrivalCard({
             )}
           </div>
 
-          {/* Período + código da reserva na mesma linha — "17/08 → 21/08  HMSFBXFHYX" */}
-          <div className="mt-1 flex items-center gap-1.5 text-xs tabular-nums text-foreground/80 flex-wrap">
+          {/* Período — mesma fonte/cor do nome do hóspede, em linha própria */}
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
             <DateEditor
               value={row.guestCheckin}
               disabled={busy || isPendingFill}
@@ -2494,7 +2491,7 @@ function ArrivalCard({
             />
             {row.guestCheckout && (
               <>
-                <span className="text-muted-foreground">→</span>
+                <span>→</span>
                 <DateEditor
                   value={row.guestCheckout}
                   disabled={busy || isPendingFill}
@@ -2502,13 +2499,18 @@ function ArrivalCard({
                 />
               </>
             )}
-            {row.reservationCode && (isPendingFill || (row.guestName && row.guestName !== row.reservationCode)) && (
-              <span className="ds-meta inline-flex items-center gap-0.5 rounded-md bg-secondary px-1.5 py-0.5">
-                <span className="truncate max-w-[160px]">{row.reservationCode}</span>
-                <CopyButton value={row.reservationCode} size={10} className="p-0.5" />
-              </span>
-            )}
           </div>
+
+          {/* Código da reserva — linha própria, sem fundo */}
+          {row.reservationCode && (isPendingFill || (row.guestName && row.guestName !== row.reservationCode)) && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <span>Reserva</span>
+              <span className="truncate max-w-[160px]">{row.reservationCode}</span>
+              <CopyButton value={row.reservationCode} size={10} className="p-0.5" />
+            </div>
+          )}
+
+
 
           {/* Alerta de engajamento visível no próprio card (não só no tooltip) */}
           {mode !== "cleaning" && !isPendingFill && (
