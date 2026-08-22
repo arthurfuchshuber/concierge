@@ -8,6 +8,13 @@ const SectionGroupContext = React.createContext<{
   setOpenId: (id: string | null) => void;
 } | null>(null);
 
+const DensityContext = React.createContext(false);
+
+/** Aplica a formatação compacta (Design System) a todas as Sections filhas. */
+export function DenseSections({ children }: { children: React.ReactNode }) {
+  return <DensityContext.Provider value={true}>{children}</DensityContext.Provider>;
+}
+
 /** Agrupa Sections colapsáveis permitindo apenas uma aberta por vez. */
 export function SectionGroup({
   children,
@@ -45,6 +52,8 @@ export function Section({
   children: React.ReactNode;
 }) {
   const accent = tone === "accent";
+  const densityCtx = React.useContext(DensityContext);
+  dense = dense || densityCtx;
   const group = React.useContext(SectionGroupContext);
   const autoId = React.useId();
   const sid = id ?? autoId;
