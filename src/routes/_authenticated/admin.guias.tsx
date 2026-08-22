@@ -491,7 +491,7 @@ function Dashboard() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar por nome, endereço, cidade…"
-              className="h-9 w-full box-border rounded-none border-0 bg-secondary/50 pl-9 pr-8 text-xs font-medium leading-none text-foreground/80 placeholder:text-muted-foreground focus:outline-none focus:bg-secondary transition-colors"
+              className="h-9 w-full box-border rounded-none border-0 bg-secondary/50 pl-9 pr-8 text-xs font-normal leading-none text-foreground/80 placeholder:text-muted-foreground focus:outline-none focus:bg-secondary transition-colors"
             />
             {search && (
               <button
@@ -514,7 +514,7 @@ function Dashboard() {
                   aria-label="Ações da seleção"
                   title="Ações da seleção"
                 >
-                  <MoreHorizontal className="size-3.5 opacity-60" />
+                  <PenSquare className="size-3.5 opacity-60" />
                   <span className="hidden sm:inline">Ações</span>
                 </button>
               </DropdownMenuTrigger>
@@ -968,10 +968,11 @@ function Dashboard() {
                         className={`size-3.5 text-muted-foreground shrink-0 transition-transform duration-200 ${expanded ? "rotate-90" : ""}`}
                       />
                       <MapPin className="size-3.5 text-muted-foreground shrink-0" />
-                      <span className="text-[13px] font-medium truncate flex-1 tracking-tight">{grp.label}</span>
-                      <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/80 tabular-nums">
+                      <span className="text-[13px] font-normal leading-snug truncate flex-1">{grp.label}</span>
+                      <span className="text-[11px] font-normal text-muted-foreground tabular-nums shrink-0">
                         {grp.items.length} {grp.items.length === 1 ? "guia" : "guias"}
                       </span>
+
                       <span
                         role="button"
                         tabIndex={0}
@@ -1032,27 +1033,28 @@ function Dashboard() {
                                 onClick={() => navigate({ to: "/admin/properties/$id", params: { id: p.id } })}
                                 className="flex-1 min-w-0 text-left"
                               >
-                                <h3 className="ds-card-title leading-snug">
+                                <h3 className="text-[13px] font-normal leading-snug text-foreground truncate">
                                   {p.name}
                                 </h3>
-                                <div className="mt-1 flex items-center gap-1.5 ds-meta min-w-0">
-                                  <span className="inline-flex items-center gap-1 shrink-0 uppercase tracking-[0.12em]">
+                                <div className="mt-0.5 flex items-center gap-1.5 text-[11px] font-normal leading-snug text-muted-foreground min-w-0">
+                                  <span className="inline-flex items-center gap-1 shrink-0">
                                     {p.access_mode === "pin" ? (
-                                      <Lock className="size-2.5" />
+                                      <Lock className="size-3 opacity-60" />
                                     ) : (
-                                      <Globe className="size-2.5" />
+                                      <Globe className="size-3 opacity-60" />
                                     )}
                                     {p.access_mode === "pin" ? "PIN" : "Público"}
                                   </span>
                                   {!p.published && (
                                     <>
                                       <span className="text-muted-foreground/40">·</span>
-                                      <span className="uppercase tracking-[0.12em] text-yellow-600 dark:text-yellow-400">
+                                      <span className="text-yellow-600/90 dark:text-yellow-400/80">
                                         Rascunho
                                       </span>
                                     </>
                                   )}
                                 </div>
+
                               </button>
                               <Popover>
                                 <PopoverTrigger asChild>

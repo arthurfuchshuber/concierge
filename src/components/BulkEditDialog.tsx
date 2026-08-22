@@ -497,7 +497,7 @@ export function BulkEditDialog({
       <div className="min-w-0">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <label className="text-sm font-medium truncate block">{f.label}</label>
+            <label className="block truncate text-[13px] font-normal">{f.label}</label>
             <div className={`text-[11px] mt-0.5 truncate ${willRemove ? "text-destructive" : "text-muted-foreground"}`}>
               {willRemove
                 ? "Será removido dos guias selecionados"
@@ -525,8 +525,8 @@ export function BulkEditDialog({
       <ResponsiveDialogContent className="w-[calc(100vw-1.5rem)] sm:max-w-3xl max-h-[85vh] overflow-y-auto overflow-x-hidden">
         <>
         <ResponsiveDialogHeader>
-          <ResponsiveDialogTitle>Editar {ids.length} {ids.length === 1 ? "guia" : "guias"}</ResponsiveDialogTitle>
-          <ResponsiveDialogDescription>
+          <ResponsiveDialogTitle className="text-[15px] font-semibold tracking-tight">Editar {ids.length} {ids.length === 1 ? "guia" : "guias"}</ResponsiveDialogTitle>
+          <ResponsiveDialogDescription className="text-xs font-normal leading-relaxed">
             {loading
               ? "Carregando dados dos guias selecionados…"
               : "As informações atuais já aparecem preenchidas. Qualquer alteração é salva automaticamente nos guias selecionados."}
@@ -546,7 +546,7 @@ export function BulkEditDialog({
                 <TabsTrigger
                   key={t.id}
                   value={t.id}
-                  className="flex-1 min-h-[34px] whitespace-nowrap rounded-none px-3 text-sm font-normal shadow-none data-[state=active]:shadow-none data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#7C1AD8] data-[state=active]:to-[#E82DAE] data-[state=active]:text-white"
+                  className="flex-1 min-h-[34px] whitespace-nowrap rounded-none px-3 text-xs font-normal shadow-none data-[state=active]:shadow-none data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#7C1AD8] data-[state=active]:to-[#E82DAE] data-[state=active]:text-white"
                 >
                   {t.label}
                 </TabsTrigger>
@@ -599,7 +599,7 @@ export function BulkEditDialog({
                       >
                         <div className="mb-2 flex items-center justify-between gap-3">
                           <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold">{sg.title}</div>
+                            <div className="truncate text-[13px] font-medium">{sg.title}</div>
                             <div className="text-[11px] text-muted-foreground truncate">
                               {someOn ? "Ativo nos guias selecionados" : "Desligado — as informações serão removidas"}
                             </div>
