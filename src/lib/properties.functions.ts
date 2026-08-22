@@ -428,6 +428,24 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
     const patch: Record<string, unknown> = Object.fromEntries(
       Object.entries(data.patch).map(([k, v]) => [k, v === "" ? null : v]),
     );
+
+    // Publicar só é permitido com todos os campos obrigatórios preenchidos.
+    if (patch.published === true) {
+      const { PUBLISH_REQUIRED_COLUMNS, missingPublishFields, publishBlockMessage } = await import(
+        "@/lib/publish-requirements"
+      );
+      const cols = Array.from(new Set(["id", "name", ...PUBLISH_REQUIRED_COLUMNS])).join(",");
+      const chk = await sb.from("properties").select(cols).in("id", data.ids);
+      if (chk.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", chk.error);
+      for (const row of (chk.data ?? []) as unknown as Array<Record<string, unknown>>) {
+        const merged = { ...row, ...patch };
+        const missing = missingPublishFields(merged);
+        if (missing.length > 0) {
+          throw new Error(publishBlockMessage(missing, row.name as string | null));
+        }
+      }
+    }
+
     // O popup só envia os campos realmente editados naquele momento; nada é
     // gravado em lote sem interação direta do usuário.
 
