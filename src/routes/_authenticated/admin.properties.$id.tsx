@@ -1396,21 +1396,22 @@ function PropertyEditor() {
           <Link
             to="/admin/properties/$id/acessos"
             params={{ id }}
-            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-xs hover:bg-secondary transition-colors shrink-0"
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-[0.3rem] bg-secondary/50 text-xs font-normal hover:bg-secondary transition-colors shrink-0"
           >
             <Shield className="size-3.5 shrink-0" /> Acessos
           </Link>
           <Link
             to="/admin/properties/$id/conversas"
             params={{ id }}
-            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-xs hover:bg-secondary transition-colors shrink-0"
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-[0.3rem] bg-secondary/50 text-xs font-normal hover:bg-secondary transition-colors shrink-0"
           >
             <MessageSquare className="size-3.5 shrink-0" /> Conversas
           </Link>
         </div>
       ) : (
-        <div className="mb-4 sm:mb-5 pb-4 border-b border-border/60" />
+        <div className="mb-4" />
       )}
+
 
 
 
