@@ -19,6 +19,13 @@ import {
 import { useMyPermissions } from "@/hooks/useMyPermissions";
 
 import { WorkspaceHeader } from "@/components/ds/WorkspaceHeader";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+
 import { EmptyState } from "@/components/ds/EmptyState";
 import { LoadingState } from "@/components/ds/LoadingState";
 
@@ -498,6 +505,43 @@ function Dashboard() {
             )}
           </div>
 
+          {selected.size > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-none border-0 bg-secondary/50 px-3.5 text-xs font-normal leading-none text-foreground/80 hover:bg-secondary transition-colors"
+                  aria-label="Ações da seleção"
+                  title="Ações da seleção"
+                >
+                  <MoreHorizontal className="size-3.5 opacity-60" />
+                  <span className="hidden sm:inline">Ações</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem
+                  disabled={bulkPubBusy}
+                  onSelect={() => bulkTogglePublished(true)}
+                  className="text-xs font-normal"
+                >
+                  <Globe className="size-3.5 opacity-60" /> Publicar
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={bulkPubBusy}
+                  onSelect={() => bulkTogglePublished(false)}
+                  className="text-xs font-normal"
+                >
+                  <Lock className="size-3.5 opacity-60" /> Despublicar
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setBulkOpen(true)} className="text-xs font-normal">
+                  <PenSquare className="size-3.5 opacity-60" /> Editar
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
+
+
           <Popover>
             <PopoverTrigger asChild>
               <button
@@ -885,59 +929,25 @@ function Dashboard() {
                     else setSelected(new Set());
                   }}
                 />
-                <span className="text-xs text-muted-foreground min-w-0 truncate">
+                <span className="text-xs font-normal text-muted-foreground min-w-0 truncate">
                   {selected.size > 0
-                    ? `${selected.size} selec.`
+                    ? `${selected.size} ${selected.size === 1 ? "selecionado" : "selecionados"}`
                     : "Selecione para editar em massa"}
                 </span>
                 <div className="flex-1" />
-
                 {selected.size > 0 && (
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      type="button"
-                      disabled={bulkPubBusy}
-                      onClick={() => bulkTogglePublished(true)}
-                      title="Publicar selecionados"
-                      aria-label="Publicar selecionados"
-                      className="h-8 px-2 inline-flex items-center gap-1.5 bg-secondary/50 hover:bg-secondary text-xs font-medium text-foreground/80 hover:text-foreground transition-colors disabled:opacity-50"
-                    >
-                      <Globe className="size-3.5" />
-                      <span className="hidden sm:inline">Publicar</span>
-                    </button>
-                    <button
-                      type="button"
-                      disabled={bulkPubBusy}
-                      onClick={() => bulkTogglePublished(false)}
-                      title="Despublicar selecionados"
-                      aria-label="Despublicar selecionados"
-                      className="h-8 px-2 inline-flex items-center gap-1.5 bg-secondary/50 hover:bg-secondary text-xs font-medium text-foreground/80 hover:text-foreground transition-colors disabled:opacity-50"
-                    >
-                      <Lock className="size-3.5" />
-                      <span className="hidden sm:inline">Despublicar</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setBulkOpen(true)}
-                      title="Editar selecionados"
-                      aria-label="Editar selecionados"
-                      className="h-8 px-2 inline-flex items-center gap-1.5 bg-primary/15 hover:bg-primary/25 text-xs font-medium text-primary transition-colors"
-                    >
-                      <PenSquare className="size-3.5" />
-                      <span className="hidden sm:inline">Editar</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelected(new Set())}
-                      title="Limpar seleção"
-                      aria-label="Limpar seleção"
-                      className="size-8 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <X className="size-3.5" />
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelected(new Set())}
+                    title="Limpar seleção"
+                    aria-label="Limpar seleção"
+                    className="size-8 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                  >
+                    <X className="size-3.5" />
+                  </button>
                 )}
               </div>
+
 
 
               {groupList.map(([gk, grp]) => {
@@ -981,26 +991,8 @@ function Dashboard() {
                     </button>
                     {expanded && (
                       <>
-                      <div className="flex items-center gap-2.5 border-t border-border/60 bg-secondary/20 px-3 sm:px-4 py-2">
-                        <Checkbox
-                          checked={allInGroupSelected}
-                          onCheckedChange={(v) =>
-                            setSelected((s) => {
-                              const ns = new Set(s);
-                              if (v) groupIds.forEach((id) => ns.add(id));
-                              else groupIds.forEach((id) => ns.delete(id));
-                              return ns;
-                            })
-                          }
-                          className="shrink-0"
-                        />
-                        <span className="text-[11px] text-muted-foreground">
-                          {allInGroupSelected
-                            ? `Todos os ${groupIds.length} selecionados`
-                            : "Selecionar todos deste endereço"}
-                        </span>
-                      </div>
                       <ul className="divide-y divide-border/60 border-t border-border/60">
+
 
                         {grp.items.map((p) => {
                           const isSel = selected.has(p.id);
