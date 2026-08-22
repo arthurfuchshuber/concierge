@@ -514,7 +514,7 @@ function Dashboard() {
                   aria-label="Ações da seleção"
                   title="Ações da seleção"
                 >
-                  <MoreHorizontal className="size-3.5 opacity-60" />
+                  <PenSquare className="size-3.5 opacity-60" />
                   <span className="hidden sm:inline">Ações</span>
                 </button>
               </DropdownMenuTrigger>
