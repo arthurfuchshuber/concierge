@@ -492,6 +492,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       if (r.status === "pending") blocked.set(r.propertyId, "checkout");
       else if (r.status === "done" && !blocked.has(r.propertyId)) blocked.set(r.propertyId, "cleaning");
     }
+    // Imóvel com hóspede ainda "Em Estadia" também não libera novo check-in:
+    // a esteira é sequencial (chegada → estadia → saída → limpeza → concluído).
+    for (const r of stayRows) {
+      if (!blocked.has(r.propertyId)) blocked.set(r.propertyId, "checkout");
+    }
     // Checkouts antecipados (vindos da lista de amanhã) ficam em "Em Limpeza"
     // e não aparecem em coRows — sem isso o imóvel liberava check-in mesmo com
     // a limpeza da estadia anterior em aberto.
@@ -499,7 +504,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       if (!blocked.has(r.propertyId)) blocked.set(r.propertyId, "cleaning");
     }
     return blocked;
-  }, [coRows, cleaningRows]);
+  }, [coRows, cleaningRows, stayRows]);
+
 
   /**
    * Ordenação dos cards de chegada:
