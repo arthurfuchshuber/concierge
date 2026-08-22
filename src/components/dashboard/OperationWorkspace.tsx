@@ -493,8 +493,14 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       if (r.status === "pending") blocked.set(r.propertyId, "checkout");
       else if (r.status === "done" && !blocked.has(r.propertyId)) blocked.set(r.propertyId, "cleaning");
     }
+    // Checkouts antecipados (vindos da lista de amanhã) ficam em "Em Limpeza"
+    // e não aparecem em coRows — sem isso o imóvel liberava check-in mesmo com
+    // a limpeza da estadia anterior em aberto.
+    for (const r of cleaningRows) {
+      if (!blocked.has(r.propertyId)) blocked.set(r.propertyId, "cleaning");
+    }
     return blocked;
-  }, [coRows]);
+  }, [coRows, cleaningRows]);
 
   /**
    * Ordenação dos cards de chegada:
