@@ -743,28 +743,30 @@ function Dashboard() {
                   {p.tagline || `${p.city ?? ""}${p.country ? `, ${p.country}` : ""}`}
                 </p>
 
-                {(() => {
-                  const c = guideCompleteness(p as any);
-                  return (
-                    <div className="mt-2.5 flex items-center gap-2">
-                      <div className="flex-1 h-1 rounded-full bg-secondary overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${c.color}`}
-                          style={{ width: `${c.score}%` }}
-                        />
-                      </div>
-                      <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">{c.score}%</span>
-                    </div>
-                  );
-                })()}
-                <div className="flex items-center justify-end gap-1.5 mt-3">
+                <div className="mt-2 flex items-center gap-2">
+                  {(() => {
+                    const c = guideCompleteness(p as any);
+                    return (
+                      <>
+                        <div className="flex-1 min-w-0 h-1 rounded-full bg-secondary overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${c.color}`}
+                            style={{ width: `${c.score}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">{c.score}%</span>
+                      </>
+                    );
+                  })()}
+                  <div className="flex items-center justify-end gap-0.5 shrink-0">
+
                   <Popover>
                     <PopoverTrigger asChild>
                       <button
                         type="button"
                         title="Mais opções"
                         aria-label="Mais opções"
-                        className="size-9 inline-flex items-center justify-center rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                        className="size-7 inline-flex items-center justify-center rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
                       >
                         <MoreHorizontal className="size-4" />
                       </button>
@@ -813,7 +815,7 @@ function Dashboard() {
                     <AlertDialogTrigger asChild>
                       <button
                         title="Excluir"
-                        className="size-9 inline-flex items-center justify-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                        className="size-7 inline-flex items-center justify-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                         aria-label="Excluir"
                       >
                         <Trash2 className="size-3.5" />
@@ -837,7 +839,9 @@ function Dashboard() {
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
+                  </div>
                 </div>
+
               </div>
             </div>
           ))}
