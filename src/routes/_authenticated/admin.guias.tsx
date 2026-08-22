@@ -876,8 +876,9 @@ function Dashboard() {
           const allSelected = selected.size > 0 && selected.size === filtered.length;
           return (
             <div className="space-y-3">
-              <div className="ds-scroll-x items-center gap-2 px-1">
+              <div className="flex items-center gap-2 px-1 min-w-0">
                 <Checkbox
+                  className="shrink-0"
                   checked={allSelected}
                   onCheckedChange={(v) => {
                     if (v) setSelected(new Set(filtered.map((p) => p.id)));
@@ -886,45 +887,58 @@ function Dashboard() {
                 />
                 <span className="text-xs text-muted-foreground min-w-0 truncate">
                   {selected.size > 0
-                    ? `${selected.size} selecionado${selected.size > 1 ? "s" : ""}`
+                    ? `${selected.size} selec.`
                     : "Selecione para editar em massa"}
                 </span>
-                <div className="hidden sm:block flex-1" />
+                <div className="flex-1" />
 
                 {selected.size > 0 && (
-                  <>
+                  <div className="flex items-center gap-1 shrink-0">
                     <button
-                      onClick={() => setSelected(new Set())}
-                      className="text-xs text-muted-foreground hover:text-foreground"
-                    >
-                      Limpar
-                    </button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="rounded-full shrink-0"
+                      type="button"
                       disabled={bulkPubBusy}
                       onClick={() => bulkTogglePublished(true)}
-                      title="Publicar todos os selecionados"
+                      title="Publicar selecionados"
+                      aria-label="Publicar selecionados"
+                      className="h-8 px-2 inline-flex items-center gap-1.5 bg-secondary/50 hover:bg-secondary text-xs font-medium text-foreground/80 hover:text-foreground transition-colors disabled:opacity-50"
                     >
-                      <Globe className="size-3.5 mr-1.5" /> Publicar
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="rounded-full shrink-0"
+                      <Globe className="size-3.5" />
+                      <span className="hidden sm:inline">Publicar</span>
+                    </button>
+                    <button
+                      type="button"
                       disabled={bulkPubBusy}
                       onClick={() => bulkTogglePublished(false)}
-                      title="Despublicar todos os selecionados"
+                      title="Despublicar selecionados"
+                      aria-label="Despublicar selecionados"
+                      className="h-8 px-2 inline-flex items-center gap-1.5 bg-secondary/50 hover:bg-secondary text-xs font-medium text-foreground/80 hover:text-foreground transition-colors disabled:opacity-50"
                     >
-                      <Lock className="size-3.5 mr-1.5" /> Despublicar
-                    </Button>
-                    <Button size="sm" className="rounded-full shrink-0" onClick={() => setBulkOpen(true)}>
-                      <PenSquare className="size-3.5 mr-1.5" /> Editar selecionados
-                    </Button>
-                  </>
+                      <Lock className="size-3.5" />
+                      <span className="hidden sm:inline">Despublicar</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBulkOpen(true)}
+                      title="Editar selecionados"
+                      aria-label="Editar selecionados"
+                      className="h-8 px-2 inline-flex items-center gap-1.5 bg-primary/15 hover:bg-primary/25 text-xs font-medium text-primary transition-colors"
+                    >
+                      <PenSquare className="size-3.5" />
+                      <span className="hidden sm:inline">Editar</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelected(new Set())}
+                      title="Limpar seleção"
+                      aria-label="Limpar seleção"
+                      className="size-8 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </div>
                 )}
               </div>
+
 
               {groupList.map(([gk, grp]) => {
                 const expanded = expandedGroup === gk;
