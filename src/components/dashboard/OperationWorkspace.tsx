@@ -405,7 +405,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     advance.mutate({ ...target, from });
   }
 
-
   /**
    * Antecipar um card com data futura (ex.: "Checkouts amanhã") é uma ação
    * fora do fluxo normal — antes ela acontecia no primeiro clique e o card
@@ -416,7 +415,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     // O card já pede confirmação de antecipação de check-out; aqui só o
     // check-in em data futura precisa do diálogo do quadro.
     if (from === "checkin" && row.date > todayISO) {
-
       setConfirmAdvance({ row, from });
       return;
     }
@@ -508,7 +506,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     }
     return blocked;
   }, [coRows, cleaningRows, stayRows]);
-
 
   /**
    * Ordenação dos cards de chegada:
@@ -768,7 +765,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 dentro da linha de abas, ver abaixo. */}
             <div className="hidden sm:flex items-center gap-3">
               <div className="ml-auto">
-
                 <RangeDropdown
                   value={range}
                   onChange={setRange}
@@ -1456,7 +1452,6 @@ function KpiCard({
                           Previsão
                         </span>
                         <TimeDropdown value={time} size="xs" onChange={(v) => onEditTime(r, kind, v)} />
-
                       </div>
                       <EngagementFlags
                         openedGuide={r.openedGuide}
@@ -1544,16 +1539,13 @@ function EngagementAlertDropdown({ flags }: { flags: Array<{ icon: typeof Eye; l
         title="Ver alertas de engajamento"
       >
         <AlertTriangle className="size-3 shrink-0" />
-        Alerta de engajamento
+        Engajamento
         <ChevronDown className={`size-3 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
         <ul className="absolute left-0 top-full z-30 mt-1 min-w-[190px] space-y-1 rounded-lg border border-amber-500/25 bg-popover px-2 py-1.5 shadow-lg">
           {flags.map((f) => (
-            <li
-              key={f.label}
-              className="flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-400"
-            >
+            <li key={f.label} className="flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-400">
               <f.icon className="size-3 shrink-0" />
               <span className="min-w-0">{f.label}</span>
             </li>
@@ -1859,140 +1851,142 @@ function OccupancyPanel({
       </div>
 
       <section className="relative rounded-[0.3rem] border-0 bg-card ds-3d">
-      <div className="px-4 sm:px-5 pt-4 pb-5">
-        {loading ? (
-          <div className="py-10 grid place-items-center text-muted-foreground">
-            <Loader2 className="size-5 animate-spin" />
-          </div>
-        ) : properties.length === 0 ? (
-          <div className="py-8 text-center text-sm text-muted-foreground">Nenhum imóvel para exibir.</div>
-        ) : (
-          <>
-            <div ref={outerRef} className="w-full">
-              <div
-                ref={scrollRef}
-                style={{ scrollPaddingLeft: NAME_COL, width: viewportW, maxWidth: "100%" }}
-                className="sg-elegant-scroll max-h-[22rem] overflow-auto snap-x snap-mandatory"
-              >
-                <table
-                  className="table-fixed border-separate border-spacing-x-0 border-spacing-y-1 text-xs"
-                  style={{ width: NAME_COL + dayList.length * dayW, minWidth: NAME_COL + dayList.length * dayW }}
+        <div className="px-4 sm:px-5 pt-4 pb-5">
+          {loading ? (
+            <div className="py-10 grid place-items-center text-muted-foreground">
+              <Loader2 className="size-5 animate-spin" />
+            </div>
+          ) : properties.length === 0 ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">Nenhum imóvel para exibir.</div>
+          ) : (
+            <>
+              <div ref={outerRef} className="w-full">
+                <div
+                  ref={scrollRef}
+                  style={{ scrollPaddingLeft: NAME_COL, width: viewportW, maxWidth: "100%" }}
+                  className="sg-elegant-scroll max-h-[22rem] overflow-auto snap-x snap-mandatory"
                 >
-                  <thead>
-                    <tr>
-                      <th
-                        className="sticky left-0 top-0 z-20 bg-card pb-2 pr-3 text-left"
-                        style={{ width: NAME_COL, minWidth: NAME_COL }}
-                      >
-                        <span className="ds-eyebrow block pl-[10px]">Imóvel</span>
-                      </th>
-                      {dayList.map((d) => {
-                        const wd = new Date(`${d}T12:00:00Z`).toLocaleDateString("pt-BR", {
-                          weekday: "short",
-                          timeZone: "UTC",
-                        });
-                        const isToday = d === todayISO;
-                        return (
-                          <th
-                            key={d}
-                            style={{ width: dayW, minWidth: dayW }}
-                            className="sticky top-0 z-10 snap-start bg-card px-0 pb-2 font-medium tabular-nums"
-                          >
-                            <div
-                              className={`mx-auto flex w-full flex-col items-center rounded-md py-1 ${
-                                isToday ? "bg-primary/10 text-primary" : "text-muted-foreground"
-                              }`}
+                  <table
+                    className="table-fixed border-separate border-spacing-x-0 border-spacing-y-1 text-xs"
+                    style={{ width: NAME_COL + dayList.length * dayW, minWidth: NAME_COL + dayList.length * dayW }}
+                  >
+                    <thead>
+                      <tr>
+                        <th
+                          className="sticky left-0 top-0 z-20 bg-card pb-2 pr-3 text-left"
+                          style={{ width: NAME_COL, minWidth: NAME_COL }}
+                        >
+                          <span className="ds-eyebrow block pl-[10px]">Imóvel</span>
+                        </th>
+                        {dayList.map((d) => {
+                          const wd = new Date(`${d}T12:00:00Z`).toLocaleDateString("pt-BR", {
+                            weekday: "short",
+                            timeZone: "UTC",
+                          });
+                          const isToday = d === todayISO;
+                          return (
+                            <th
+                              key={d}
+                              style={{ width: dayW, minWidth: dayW }}
+                              className="sticky top-0 z-10 snap-start bg-card px-0 pb-2 font-medium tabular-nums"
                             >
-                              <span className="text-[9px] uppercase tracking-wide opacity-70">
-                                {wd.replace(".", "")}
-                              </span>
-                              <span className="text-[11px] font-semibold leading-tight">{d.slice(8, 10)}</span>
-                            </div>
-                          </th>
+                              <div
+                                className={`mx-auto flex w-full flex-col items-center rounded-md py-1 ${
+                                  isToday ? "bg-primary/10 text-primary" : "text-muted-foreground"
+                                }`}
+                              >
+                                <span className="text-[9px] uppercase tracking-wide opacity-70">
+                                  {wd.replace(".", "")}
+                                </span>
+                                <span className="text-[11px] font-semibold leading-tight">{d.slice(8, 10)}</span>
+                              </div>
+                            </th>
+                          );
+                        })}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleProperties.map((p) => {
+                        const halves = dayList.flatMap((d) => cellHalves(p.id, d));
+                        const occ = halves.map((h) => h !== "free");
+                        return (
+                          <tr key={p.id} className="group">
+                            <td
+                              className="sticky left-0 z-10 bg-card py-1 pr-3 align-middle"
+                              style={{ width: NAME_COL, minWidth: NAME_COL }}
+                            >
+                              <div className="min-w-0 max-w-full border-l-2 border-border/60 pl-2 group-hover:border-primary/50">
+                                {p.ownerName ? (
+                                  <div className="truncate text-[9.5px] font-semibold uppercase tracking-wide text-accent/80">
+                                    {p.ownerName}
+                                  </div>
+                                ) : null}
+                                <div className="truncate text-[11.5px] font-semibold leading-tight" title={p.name}>
+                                  {p.name}
+                                </div>
+                                {p.city ? (
+                                  <div className="truncate text-[10px] leading-tight text-muted-foreground">
+                                    {p.city}
+                                  </div>
+                                ) : null}
+                              </div>
+                            </td>
+                            {dayList.map((d, i) => {
+                              const a = halves[i * 2] as CellPart;
+                              const b = halves[i * 2 + 1] as CellPart;
+                              const labelOf = (s: CellPart) =>
+                                s === "in" ? "Check-in" : s === "out" ? "Checkout" : s === "busy" ? "Ocupado" : "Livre";
+                              const title =
+                                a === b
+                                  ? `${labelOf(a)} · ${fmtDateBR(d)}`
+                                  : `${labelOf(a)} → ${labelOf(b)} · ${fmtDateBR(d)}`;
+                              const idxA = i * 2;
+                              const idxB = i * 2 + 1;
+                              const round = (idx: number) =>
+                                [
+                                  occ[idx] && !occ[idx - 1] ? "rounded-l-full" : "",
+                                  occ[idx] && !occ[idx + 1] ? "rounded-r-full" : "",
+                                ].join(" ");
+                              return (
+                                <td
+                                  key={d}
+                                  style={{ width: dayW, minWidth: dayW }}
+                                  className="px-0 py-1 snap-start"
+                                  title={title}
+                                >
+                                  <div className="relative flex h-6 w-full items-center">
+                                    <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border/50" />
+                                    <div className={`relative z-10 h-full w-1/2 ${clsOf(a)} ${round(idxA)}`} />
+                                    <div className={`relative z-10 h-full w-1/2 ${clsOf(b)} ${round(idxB)}`} />
+                                  </div>
+                                </td>
+                              );
+                            })}
+                          </tr>
                         );
                       })}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibleProperties.map((p) => {
-                      const halves = dayList.flatMap((d) => cellHalves(p.id, d));
-                      const occ = halves.map((h) => h !== "free");
-                      return (
-                        <tr key={p.id} className="group">
-                          <td
-                            className="sticky left-0 z-10 bg-card py-1 pr-3 align-middle"
-                            style={{ width: NAME_COL, minWidth: NAME_COL }}
-                          >
-                            <div className="min-w-0 max-w-full border-l-2 border-border/60 pl-2 group-hover:border-primary/50">
-                              {p.ownerName ? (
-                                <div className="truncate text-[9.5px] font-semibold uppercase tracking-wide text-accent/80">
-                                  {p.ownerName}
-                                </div>
-                              ) : null}
-                              <div className="truncate text-[11.5px] font-semibold leading-tight" title={p.name}>
-                                {p.name}
-                              </div>
-                              {p.city ? (
-                                <div className="truncate text-[10px] leading-tight text-muted-foreground">{p.city}</div>
-                              ) : null}
-                            </div>
-                          </td>
-                          {dayList.map((d, i) => {
-                            const a = halves[i * 2] as CellPart;
-                            const b = halves[i * 2 + 1] as CellPart;
-                            const labelOf = (s: CellPart) =>
-                              s === "in" ? "Check-in" : s === "out" ? "Checkout" : s === "busy" ? "Ocupado" : "Livre";
-                            const title =
-                              a === b
-                                ? `${labelOf(a)} · ${fmtDateBR(d)}`
-                                : `${labelOf(a)} → ${labelOf(b)} · ${fmtDateBR(d)}`;
-                            const idxA = i * 2;
-                            const idxB = i * 2 + 1;
-                            const round = (idx: number) =>
-                              [
-                                occ[idx] && !occ[idx - 1] ? "rounded-l-full" : "",
-                                occ[idx] && !occ[idx + 1] ? "rounded-r-full" : "",
-                              ].join(" ");
-                            return (
-                              <td
-                                key={d}
-                                style={{ width: dayW, minWidth: dayW }}
-                                className="px-0 py-1 snap-start"
-                                title={title}
-                              >
-                                <div className="relative flex h-6 w-full items-center">
-                                  <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border/50" />
-                                  <div className={`relative z-10 h-full w-1/2 ${clsOf(a)} ${round(idxA)}`} />
-                                  <div className={`relative z-10 h-full w-1/2 ${clsOf(b)} ${round(idxB)}`} />
-                                </div>
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
 
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[10.5px] font-medium text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-4 rounded-full bg-emerald-500" /> Check-in
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-4 rounded-full bg-amber-500" /> Checkout
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-4 rounded-full bg-primary/35" /> Ocupado
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-px w-4 bg-border" /> Livre
-              </span>
-            </div>
-          </>
-        )}
-      </div>
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[10.5px] font-medium text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-4 rounded-full bg-emerald-500" /> Check-in
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-4 rounded-full bg-amber-500" /> Checkout
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-4 rounded-full bg-primary/35" /> Ocupado
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-px w-4 bg-border" /> Livre
+                </span>
+              </div>
+            </>
+          )}
+        </div>
       </section>
     </>
   );
@@ -2536,10 +2530,8 @@ function ArrivalCard({
               </>
             )}
           </div>
-
         </div>
       </div>
-
 
       {/* Detalhes operacionais — expansivo, começa recolhido e só um card por vez */}
       <Accordion
@@ -2600,7 +2592,6 @@ function ArrivalCard({
                   </div>
                 </div>
               )}
-
 
               {row.ical.hasIcal &&
                 !isPendingFill &&
@@ -2781,7 +2772,7 @@ function ArrivalCard({
                   : "Limpeza pendente neste imóvel"
                 : blockCheck
                   ? "Check-in em data futura"
-                : mode === "cleaning"
+                  : mode === "cleaning"
                     ? "Concluir limpeza"
                     : mode === "stay"
                       ? "Confirmar check-out"
@@ -2826,7 +2817,6 @@ function ArrivalCard({
                     ? "Reabrir"
                     : "Check-in realizado!"}
             </span>
-
           </button>
         )}
 
@@ -3052,7 +3042,6 @@ function TimeDropdown({
         >
           <span className={value ? "font-medium" : "font-normal text-muted-foreground"}>{value ?? "Horário"}</span>
           <ChevronDown className="size-3 opacity-50 shrink-0" />
-
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="max-h-64 overflow-y-auto min-w-[6rem] p-1">
