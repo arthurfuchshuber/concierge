@@ -1430,7 +1430,7 @@ function KpiCard({
                           </>
                         )}
                         {r.reservationCode && (
-                          <span className="ds-meta inline-flex items-center gap-0.5 rounded-md bg-secondary px-1.5 py-0.5">
+                          <span className="ds-meta inline-flex items-center gap-0.5">
                             <span className="truncate max-w-[160px]">{r.reservationCode}</span>
                             <CopyButton value={r.reservationCode} size={10} className="p-0.5" />
                           </span>
@@ -2510,8 +2510,19 @@ function ArrivalCard({
               </span>
             )}
           </div>
+
+          {/* Alerta de engajamento visível no próprio card (não só no tooltip) */}
+          {mode !== "cleaning" && !isPendingFill && (
+            <EngagementFlags
+              openedGuide={row.openedGuide}
+              readInstructions={row.readInstructions}
+              hasPasswords={row.hasPasswords}
+              viewedPasswords={row.viewedPasswords}
+            />
+          )}
         </div>
       </div>
+
 
       {/* Detalhes operacionais — expansivo, começa recolhido e só um card por vez */}
       <Accordion
@@ -2550,17 +2561,25 @@ function ArrivalCard({
                       </InfoHint>
                     </span>
                     <span className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-xs">
-                        <DateEditor
-                          value={kind === "checkout" ? (row.guestCheckout ?? row.guestCheckin) : row.guestCheckin}
-                          disabled={busy || isPendingFill}
-                          min={kind === "checkout" ? addDaysISO(predictedMinDate, 1) : predictedMinDate}
-                          max={kind === "checkout" ? undefined : (predictedMaxDate ?? undefined)}
-                          onChange={(v) =>
-                            onEditDates(row, kind === "checkout" ? { checkoutDate: v } : { checkinDate: v })
-                          }
-                        />
-                      </span>
+                       <span className="text-xs">
+                         <DateEditor
+                           value={kind === "checkout" ? (row.guestCheckout ?? row.guestCheckin) : row.guestCheckin}
+                           disabled={busy || isPendingFill}
+                           /* Campo em branco enquanto a data continuar sendo a original da reserva:
+                              ele só serve para registrar chegada em outro dia. */
+                           blankWhen={kind === "checkout" ? (row.ical.icalCheckout ?? row.guestCheckout ?? undefined) : predictedMinDate}
+                           placeholder="Selecionar"
+                           min={
+                             kind === "checkout"
+                               ? addDaysISO(predictedMinDate, 1)
+                               : addDaysISO(predictedMinDate, 1)
+                           }
+                           max={kind === "checkout" ? undefined : (predictedMaxDate ?? undefined)}
+                           onChange={(v) =>
+                             onEditDates(row, kind === "checkout" ? { checkoutDate: v } : { checkinDate: v })
+                           }
+                         />
+                       </span>
                       <span className="w-24 shrink-0">
                         <TimeDropdown value={guestTime ?? null} disabled={busy} onChange={(v) => onEditTime(row, v)} />
                       </span>
@@ -2569,16 +2588,6 @@ function ArrivalCard({
                 </div>
               )}
 
-              {/* Engagement — só mostra pendências (fatos negativos). */}
-              {mode !== "cleaning" && !isPendingFill && (
-                <EngagementFlags
-                  openedGuide={row.openedGuide}
-                  readInstructions={row.readInstructions}
-                  hasPasswords={row.hasPasswords}
-                  viewedPasswords={row.viewedPasswords}
-                  variant="pills"
-                />
-              )}
 
               {row.ical.hasIcal &&
                 !isPendingFill &&
@@ -2939,13 +2948,19 @@ function DateEditor({
   onChange,
   min,
   max,
+  blankWhen,
+  placeholder,
 }: {
   value: string;
   disabled: boolean;
   onChange: (v: string) => void;
   min?: string;
   max?: string;
+  /** Quando o valor for igual a esta data, o campo aparece em branco. */
+  blankWhen?: string;
+  placeholder?: string;
 }) {
+  const blank = !!blankWhen && value === blankWhen;
   return (
     <button
       type="button"
@@ -2955,13 +2970,13 @@ function DateEditor({
         if (input && typeof input.showPicker === "function") input.showPicker();
         else input?.focus();
       }}
-      className="relative inline-flex items-center cursor-pointer rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit"
+      className={`relative inline-flex items-center cursor-pointer rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit ${blank ? "text-muted-foreground" : ""}`}
       title="Clique para corrigir a data"
     >
-      <span className="tabular-nums">{fmtDateBR(value)}</span>
+      <span className="tabular-nums">{blank ? (placeholder ?? "—") : fmtDateBR(value)}</span>
       <input
         type="date"
-        value={value}
+        value={blank ? "" : value}
         disabled={disabled}
         min={min}
         max={max}
