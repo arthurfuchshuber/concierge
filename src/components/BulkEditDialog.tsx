@@ -63,28 +63,27 @@ function groupFields(g: Group): FieldDef[] {
 }
 
 
-/** Mesma organização (abas + quadrantes) do editor individual do guia. */
+/** Mesma organização (abas + quadrantes + ordem dos campos) do editor individual. */
 const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
   {
     id: "house", label: "A casa",
     groups: [
       {
         id: "address", title: "Endereço e localização", icon: MapPinned,
-        desc: "Endereço, links do Maps e orientações de chegada.",
+        desc: "Cole o link do Google Maps — o endereço é preenchido automaticamente.",
         fields: [
-          { key: "address", label: "Endereço completo", kind: "textarea" },
-          { key: "maps_url", label: "Link do Google Maps", kind: "text" },
-          { key: "garage_maps_url", label: "Link do Maps (garagem)", kind: "text" },
+          { key: "maps_url", label: "Link do Google Maps — Entrada principal", kind: "text" },
+          { key: "garage_maps_url", label: "Link do Google Maps — Garagem (opcional)", kind: "text" },
+          { key: "address", label: "Endereço", kind: "textarea" },
           { key: "city", label: "Cidade", kind: "text" },
-          { key: "state", label: "Estado", kind: "text" },
           { key: "country", label: "País", kind: "text" },
-          { key: "address_note", label: "Como chegar", kind: "textarea" },
+          { key: "address_note", label: "Observação sobre o endereço", kind: "textarea" },
         ],
       },
       {
         id: "house-rules", title: "Regras do espaço", icon: ClipboardCheck,
         desc: "Uma regra por linha — cada linha vira um item numerado no guia.",
-        fields: [{ key: "house_rules", label: "Regras do espaço", kind: "textarea" }],
+        fields: [{ key: "house_rules", label: "Regras (opcional)", kind: "textarea" }],
       },
       {
         id: "manual", title: "Manual da casa", icon: BookOpen,
@@ -95,8 +94,8 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
         id: "host-house", title: "Contato do anfitrião", icon: UserRound,
         desc: "Nome e WhatsApp para o hóspede te encontrar.",
         fields: [
-          { key: "host_name", label: "Nome do anfitrião", kind: "text" },
-          { key: "host_phone", label: "Telefone do anfitrião", kind: "text" },
+          { key: "host_name", label: "Nome", kind: "text" },
+          { key: "host_phone", label: "Telefone (WhatsApp)", kind: "text" },
         ],
       },
     ],
@@ -105,27 +104,13 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
     id: "guide", label: "O guia",
     groups: [
       {
-        id: "identity", title: "Identidade visual", icon: FileText,
-        desc: "Como o guia se apresenta e sua marca no rodapé.",
-        fields: [
-          { key: "brand_name", label: "Nome da marca", kind: "text" },
-          { key: "brand_logo_url", label: "URL do logo (https://)", kind: "text" },
-          { key: "guide_theme", label: "Tema do guia", kind: "theme" },
-        ],
-      },
-      {
         id: "access-mode", title: "Modo de acesso", icon: Shield,
         desc: "Quem pode visualizar este guia.",
         fields: [
-          { key: "published", label: "Publicado", kind: "boolean" },
-          { key: "access_mode", label: "Modo de acesso do guia", kind: "access_mode" },
-          { key: "pin_code", label: "PIN (quando modo = PIN)", kind: "text" },
+          { key: "access_mode", label: "Modo de acesso do Guia", kind: "access_mode" },
+          { key: "pin_code", label: "Código de acesso", kind: "text" },
           { key: "require_access_gate", label: "Exigir formulário de primeiro acesso", kind: "boolean" },
         ],
-      },
-      {
-        id: "language", title: "Idioma padrão", icon: Globe,
-        fields: [{ key: "default_language", label: "Idioma padrão", kind: "language" }],
       },
     ],
   },
@@ -135,15 +120,15 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
       {
         id: "checkin-instr", title: "Instruções de chegada", icon: DoorOpen,
         desc: "Passo a passo do check-in. Uma etapa por linha.",
-        fields: [{ key: "checkin_instructions", label: "Instruções de check-in", kind: "textarea" }],
+        fields: [{ key: "checkin_instructions", label: "Passo a passo (opcional)", kind: "textarea" }],
       },
       {
         id: "checkin-times", title: "Horários de check-in", icon: Clock,
         desc: "Janela de chegada.",
         fields: [
-          { key: "checkin_time", label: "Check-in a partir", kind: "text", placeholder: "15:00" },
-          { key: "checkin_time_max", label: "Check-in até", kind: "text", placeholder: "20:00" },
-          { key: "checkin_note", label: "Observação de check-in", kind: "textarea" },
+          { key: "checkin_time", label: "Check-in a partir de", kind: "text", placeholder: "15:00" },
+          { key: "checkin_time_max", label: "Check-in até", kind: "text", placeholder: "22:00" },
+          { key: "checkin_note", label: "Observação do check-in (opcional)", kind: "textarea" },
         ],
       },
       {
@@ -153,17 +138,17 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
           {
             id: "gate", title: "Portão",
             fields: [
-              { key: "gate_label", label: "Nome do portão", kind: "text" },
               { key: "gate_code", label: "Código do portão", kind: "text" },
-              { key: "gate_instructions", label: "Instruções do portão", kind: "textarea" },
+              { key: "gate_label", label: "Defina um nome", kind: "text" },
+              { key: "gate_instructions", label: "Passo a passo (opcional)", kind: "textarea" },
             ],
           },
           {
             id: "lock", title: "Fechadura",
             fields: [
-              { key: "lock_label", label: "Nome da fechadura", kind: "text" },
               { key: "lock_code", label: "Código da fechadura", kind: "text" },
-              { key: "lock_instructions", label: "Instruções da fechadura", kind: "textarea" },
+              { key: "lock_label", label: "Defina um nome", kind: "text" },
+              { key: "lock_instructions", label: "Passo a passo (opcional)", kind: "textarea" },
             ],
           },
         ],
@@ -176,8 +161,8 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
         id: "wifi", title: "Wi-Fi", icon: Wifi,
         desc: "Rede e senha exibidas no card de Wi-Fi do guia público.",
         fields: [
-          { key: "wifi_ssid", label: "Rede Wi-Fi", kind: "text" },
-          { key: "wifi_password", label: "Senha do Wi-Fi", kind: "text" },
+          { key: "wifi_ssid", label: "Rede (SSID)", kind: "text" },
+          { key: "wifi_password", label: "Senha", kind: "text" },
         ],
       },
       {
@@ -199,15 +184,15 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
       {
         id: "checkout-instr", title: "Instruções de saída", icon: LogOut,
         desc: "Passo a passo do check-out. Uma etapa por linha.",
-        fields: [{ key: "checkout_instructions", label: "Instruções de check-out", kind: "textarea" }],
+        fields: [{ key: "checkout_instructions", label: "Passo a passo (opcional)", kind: "textarea" }],
       },
       {
         id: "checkout-times", title: "Horários de check-out", icon: Clock,
         desc: "Janela de saída.",
         fields: [
+          { key: "checkout_time_min", label: "Check-out a partir de", kind: "text", placeholder: "08:00" },
           { key: "checkout_time", label: "Check-out até", kind: "text", placeholder: "11:00" },
-          { key: "checkout_time_min", label: "Check-out a partir", kind: "text" },
-          { key: "checkout_note", label: "Observação de check-out", kind: "textarea" },
+          { key: "checkout_note", label: "Observação do check-out (opcional)", kind: "textarea" },
         ],
       },
       {
@@ -234,14 +219,15 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
         id: "host-faq", title: "Contato do anfitrião", icon: UserRound,
         desc: "Nome e WhatsApp para o hóspede te encontrar.",
         fields: [
-          { key: "host_name", label: "Nome do anfitrião", kind: "text" },
-          { key: "host_phone", label: "Telefone do anfitrião", kind: "text" },
+          { key: "host_name", label: "Nome", kind: "text" },
+          { key: "host_phone", label: "Telefone (WhatsApp)", kind: "text" },
         ],
       },
     ],
   },
   { id: "recs", label: "Recomendações", groups: [] },
 ];
+
 
 
 type State = {
