@@ -927,46 +927,63 @@ function Dashboard() {
                     </div>
                   );
                 })()}
-                <div className="flex items-center gap-2 mt-3">
-                  <Link
-                    to="/admin/properties/$id"
-                    params={{ id: p.id }}
-                    className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-medium bg-secondary rounded-full py-2 hover:bg-secondary/70"
-                  >
-                    <Pencil className="size-3" /> Editar
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => setViewSlug(p.slug)}
-                    className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-medium bg-secondary rounded-full py-2 hover:bg-secondary/70"
-                  >
-                    <ExternalLink className="size-3" /> Ver
-                  </button>
-                  <button
-                    onClick={() => handleCopyLink(p.slug, p.id)}
-                    title="Copiar link público"
-                    aria-label="Copiar link público"
-                    className="p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {copiedId === p.id ? <Check className="size-3.5 text-accent" /> : <Link2 className="size-3.5" />}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDupTarget({ id: p.id, name: p.name });
-                      setDupCopies(1);
-                    }}
-                    title="Duplicar guia"
-                    aria-label="Duplicar guia"
-                    className="p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <Copy className="size-3.5" />
-                  </button>
+                <div className="flex items-center justify-end gap-1.5 mt-3">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        title="Mais opções"
+                        aria-label="Mais opções"
+                        className="size-9 inline-flex items-center justify-center rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <MoreHorizontal className="size-4" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-52 p-1.5">
+                      <Link
+                        to="/admin/properties/$id"
+                        params={{ id: p.id }}
+                        className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors"
+                      >
+                        <Pencil className="size-3.5 text-muted-foreground" /> Editar guia
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => setViewSlug(p.slug)}
+                        className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
+                      >
+                        <ExternalLink className="size-3.5 text-muted-foreground" /> Pré-visualizar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyLink(p.slug, p.id)}
+                        className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
+                      >
+                        {copiedId === p.id ? (
+                          <Check className="size-3.5 text-accent" />
+                        ) : (
+                          <Link2 className="size-3.5 text-muted-foreground" />
+                        )}
+                        {copiedId === p.id ? "Link copiado" : "Copiar link público"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDupTarget({ id: p.id, name: p.name });
+                          setDupCopies(1);
+                        }}
+                        className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
+                      >
+                        <Copy className="size-3.5 text-muted-foreground" /> Duplicar
+                      </button>
+                    </PopoverContent>
+                  </Popover>
+
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <button
                         title="Excluir"
-                        className="p-2 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                        className="size-9 inline-flex items-center justify-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                         aria-label="Excluir"
                       >
                         <Trash2 className="size-3.5" />
