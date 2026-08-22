@@ -1322,10 +1322,17 @@ function PropertyEditor() {
               <FieldTypingBadge typing={presence.typing["name"]} />
             </Section>
 
+            <Section id="new-tagline" icon={FileText} title="Tipo do guia" desc="Define o formato do guia que será criado para os hóspedes." collapsible={false}>
+              <Field label="Tipo do guia" required hint="Aparece abaixo do título no guia público.">
+                <EtiquetaSelect value={form.property.tagline} onChange={(v) => update("tagline", v)} />
+              </Field>
+            </Section>
+
             {renderPropertyTypeSection()}
             {renderAddressSection()}
             {renderAirbnbCalendarSection()}
             {renderHostContactSection()}
+
           </SectionGroup>
 
           <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-border/60">
