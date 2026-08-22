@@ -385,7 +385,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       const setStatus = (rows: ArrivalRow[], status: "pending" | "done") =>
         rows.map((r) => (r.logId === id ? { ...r, status } : r));
       if (from === "checkin") patchList("checkin", (rows) => setStatus(rows, "done"));
-      else if (from === "stay") patchList("checkin", (rows) => setStatus(rows, "pending"));
+      // "Em Estadia" → confirma o check-out: o card sai da lista de chegadas e
+      // passa a viver na esteira de saída/limpeza.
+      else if (from === "stay") patchList("checkin", (rows) => rows.filter((r) => r.logId !== id));
       else if (from === "checkout") patchList("checkout", (rows) => setStatus(rows, "done"));
       else if (from === "cleaning") patchList("checkout", (rows) => rows.filter((r) => r.logId !== id));
     },
@@ -400,12 +402,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     }
     setBusyRowId(row.logId);
     optimisticMove(row, from);
-    if (from === "stay") {
-      revert.mutate({ ...target, from });
-      return;
-    }
     advance.mutate({ ...target, from });
   }
+
 
   /**
    * Antecipar um card com data futura (ex.: "Checkouts amanhã") é uma ação
@@ -414,7 +413,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
    * confirmar, o card segue para o status correto (Em Limpeza).
    */
   function handleAdvance(row: ArrivalRow, from: "checkin" | "stay" | "checkout" | "cleaning") {
-    if ((from === "checkout" || from === "checkin") && row.date > todayISO) {
+    // O card já pede confirmação de antecipação de check-out; aqui só o
+    // check-in em data futura precisa do diálogo do quadro.
+    if (from === "checkin" && row.date > todayISO) {
+
       setConfirmAdvance({ row, from });
       return;
     }
@@ -493,6 +495,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       if (r.status === "pending") blocked.set(r.propertyId, "checkout");
       else if (r.status === "done" && !blocked.has(r.propertyId)) blocked.set(r.propertyId, "cleaning");
     }
+    // Imóvel com hóspede ainda "Em Estadia" também não libera novo check-in:
+    // a esteira é sequencial (chegada → estadia → saída → limpeza → concluído).
+    for (const r of stayRows) {
+      if (!blocked.has(r.propertyId)) blocked.set(r.propertyId, "checkout");
+    }
     // Checkouts antecipados (vindos da lista de amanhã) ficam em "Em Limpeza"
     // e não aparecem em coRows — sem isso o imóvel liberava check-in mesmo com
     // a limpeza da estadia anterior em aberto.
@@ -500,7 +507,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       if (!blocked.has(r.propertyId)) blocked.set(r.propertyId, "cleaning");
     }
     return blocked;
-  }, [coRows, cleaningRows]);
+  }, [coRows, cleaningRows, stayRows]);
+
 
   /**
    * Ordenação dos cards de chegada:
@@ -2382,7 +2390,7 @@ function ArrivalCard({
     !!guestTime && !!row.standardTime && !isTimeWithin(guestTime, row.standardTime, row.standardTimeMax);
 
   const done = row.status === "done";
-  const visualDone = done && mode !== "cleaning";
+  const visualDone = done && mode !== "cleaning" && mode !== "stay";
   const isPendingFill = row.pendingFill;
   // Janela permitida para a data prevista: da data original de check-in
   // (iCal quando existe) até 1 dia antes do check-out.
@@ -2772,11 +2780,13 @@ function ArrivalCard({
                   : "Limpeza pendente neste imóvel"
                 : blockCheck
                   ? "Check-in em data futura"
-                  : mode === "cleaning"
+                : mode === "cleaning"
                     ? "Concluir limpeza"
-                    : done
-                      ? "Reabrir (marcar pendente)"
-                      : "Marcar como concluído"
+                    : mode === "stay"
+                      ? "Confirmar check-out"
+                      : done
+                        ? "Reabrir (marcar pendente)"
+                        : "Marcar como concluído"
             }
             title={
               cleaningBlock
@@ -2787,16 +2797,18 @@ function ArrivalCard({
                   ? `Só é possível marcar a partir de ${fmtDateBR(row.date)}`
                   : mode === "cleaning"
                     ? "Concluir limpeza (finaliza a estadia)"
-                    : done
-                      ? "Reabrir (voltar para Pendente)"
-                      : "Marcar como Concluído"
+                    : mode === "stay"
+                      ? "Confirmar check-out (envia o card para Em Limpeza)"
+                      : done
+                        ? "Reabrir (voltar para Pendente)"
+                        : "Marcar como Concluído"
             }
             className={`flex-1 min-w-0 h-9 max-h-9 min-h-9 self-center box-border leading-none inline-flex items-center justify-center gap-2 px-3 text-[12.5px] font-semibold tracking-tight rounded-lg transition-all active:scale-[0.99] ${
               cleaningBlock
                 ? "bg-orange-500/25 text-orange-700 dark:text-orange-400 border border-orange-500/50 cursor-not-allowed"
                 : blockCheck
                   ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/40 cursor-not-allowed"
-                  : mode === "cleaning"
+                  : mode === "cleaning" || mode === "stay"
                     ? "bg-emerald-600 text-white hover:bg-emerald-700"
                     : done
                       ? "bg-secondary text-foreground/80 hover:bg-secondary/80"
@@ -2807,12 +2819,13 @@ function ArrivalCard({
             <span className="truncate">
               {mode === "cleaning"
                 ? "Limpeza concluída!"
-                : mode === "checkout"
+                : mode === "checkout" || mode === "stay"
                   ? "Check-out realizado!"
                   : done
                     ? "Reabrir"
                     : "Check-in realizado!"}
             </span>
+
           </button>
         )}
 
