@@ -2446,6 +2446,13 @@ function ArrivalCard({
           numa coluna estreita de Kanban; o nome já identifica o hóspede). */}
       <div className="flex items-center gap-3">
         <div className="flex-1 min-w-0">
+          {/* Código da reserva — acima do proprietário, alinhado à esquerda */}
+          {row.reservationCode && (isPendingFill || (row.guestName && row.guestName !== row.reservationCode)) && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <span className="truncate max-w-[160px]">{row.reservationCode}</span>
+              <CopyButton value={row.reservationCode} size={10} className="p-0.5" />
+            </div>
+          )}
           <OwnerLine
             name={row.ownerName}
             phone={row.ownerPhone}
