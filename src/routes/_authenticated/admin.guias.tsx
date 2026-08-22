@@ -766,7 +766,7 @@ function Dashboard() {
                         type="button"
                         title="Mais opções"
                         aria-label="Mais opções"
-                        className="size-9 inline-flex items-center justify-center rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                        className="size-7 inline-flex items-center justify-center rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
                       >
                         <MoreHorizontal className="size-4" />
                       </button>
@@ -815,7 +815,7 @@ function Dashboard() {
                     <AlertDialogTrigger asChild>
                       <button
                         title="Excluir"
-                        className="size-9 inline-flex items-center justify-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                        className="size-7 inline-flex items-center justify-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                         aria-label="Excluir"
                       >
                         <Trash2 className="size-3.5" />
