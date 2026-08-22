@@ -1503,16 +1503,40 @@ function EngagementFlags({
       </div>
     );
   }
+  return <EngagementAlertDropdown flags={flags} />;
+}
+
+/** Alertas agrupados num único acionador expansível (estilo "+N hóspedes"). */
+function EngagementAlertDropdown({ flags }: { flags: Array<{ icon: typeof Eye; label: string }> }) {
+  const [open, setOpen] = useState(false);
   return (
-    <div className="mt-1 flex flex-col gap-0.5">
-      {flags.map((f) => (
-        <div
-          key={f.label}
-          className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-semibold text-amber-600 dark:text-amber-400"
-        >
-          <f.icon className="size-3 shrink-0" /> {f.label}
-        </div>
-      ))}
+    <div className="relative mt-1">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        className="inline-flex items-center gap-1 border-0 bg-transparent p-0 text-[10px] uppercase tracking-wider font-semibold text-amber-600 dark:text-amber-400 hover:opacity-80"
+        title="Ver alertas de engajamento"
+      >
+        <AlertTriangle className="size-3 shrink-0" />
+        Alerta de engajamento
+        <ChevronDown className={`size-3 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <ul className="absolute left-0 top-full z-30 mt-1 min-w-[190px] space-y-1 rounded-lg border border-amber-500/25 bg-popover px-2 py-1.5 shadow-lg">
+          {flags.map((f) => (
+            <li
+              key={f.label}
+              className="flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-400"
+            >
+              <f.icon className="size-3 shrink-0" />
+              <span className="min-w-0">{f.label}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
