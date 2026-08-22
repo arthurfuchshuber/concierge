@@ -2488,8 +2488,8 @@ function ArrivalCard({
             )}
           </div>
 
-          {/* Período + código da reserva na mesma linha — "17/08 → 21/08  HMSFBXFHYX" */}
-          <div className="mt-1 flex items-center gap-1.5 text-xs tabular-nums text-foreground/80 flex-wrap">
+          {/* Período — mesma fonte/cor do nome do hóspede, em linha própria */}
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
             <DateEditor
               value={row.guestCheckin}
               disabled={busy || isPendingFill}
@@ -2497,7 +2497,7 @@ function ArrivalCard({
             />
             {row.guestCheckout && (
               <>
-                <span className="text-muted-foreground">→</span>
+                <span>→</span>
                 <DateEditor
                   value={row.guestCheckout}
                   disabled={busy || isPendingFill}
@@ -2505,13 +2505,18 @@ function ArrivalCard({
                 />
               </>
             )}
-            {row.reservationCode && (isPendingFill || (row.guestName && row.guestName !== row.reservationCode)) && (
-              <span className="ds-meta inline-flex items-center gap-0.5 rounded-md bg-secondary px-1.5 py-0.5">
-                <span className="truncate max-w-[160px]">{row.reservationCode}</span>
-                <CopyButton value={row.reservationCode} size={10} className="p-0.5" />
-              </span>
-            )}
           </div>
+
+          {/* Código da reserva — linha própria, sem fundo */}
+          {row.reservationCode && (isPendingFill || (row.guestName && row.guestName !== row.reservationCode)) && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <span>Reserva</span>
+              <span className="truncate max-w-[160px]">{row.reservationCode}</span>
+              <CopyButton value={row.reservationCode} size={10} className="p-0.5" />
+            </div>
+          )}
+
+
 
           {/* Alerta de engajamento visível no próprio card (não só no tooltip) */}
           {mode !== "cleaning" && !isPendingFill && (
