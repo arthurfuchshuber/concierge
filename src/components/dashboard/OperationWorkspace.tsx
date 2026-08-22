@@ -1430,7 +1430,7 @@ function KpiCard({
                           </>
                         )}
                         {r.reservationCode && (
-                          <span className="ds-meta inline-flex items-center gap-0.5 rounded-md bg-secondary px-1.5 py-0.5">
+                          <span className="ds-meta inline-flex items-center gap-0.5">
                             <span className="truncate max-w-[160px]">{r.reservationCode}</span>
                             <CopyButton value={r.reservationCode} size={10} className="p-0.5" />
                           </span>
