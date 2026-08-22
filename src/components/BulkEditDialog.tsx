@@ -540,13 +540,20 @@ export function BulkEditDialog({
           </div>
         ) : (
         <Tabs value={tab} onValueChange={setTab} className="w-full min-w-0">
-          <div className="-mx-1 overflow-x-auto pb-1">
-            <TabsList className="inline-flex h-auto w-max gap-1">
+          <div className="mb-5 -mx-1 overflow-x-auto">
+            <TabsList className="flex h-auto w-max min-w-full gap-0 rounded-[0.3rem] bg-foreground/5 p-0">
               {TEXT_TABS.map((t) => (
-                <TabsTrigger key={t.id} value={t.id} className="text-xs whitespace-nowrap">{t.label}</TabsTrigger>
+                <TabsTrigger
+                  key={t.id}
+                  value={t.id}
+                  className="flex-1 min-h-[34px] whitespace-nowrap rounded-none px-3 text-sm font-normal shadow-none data-[state=active]:shadow-none data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#7C1AD8] data-[state=active]:to-[#E82DAE] data-[state=active]:text-white"
+                >
+                  {t.label}
+                </TabsTrigger>
               ))}
             </TabsList>
           </div>
+
 
           {TEXT_TABS.map((tab) => (
             <TabsContent key={tab.id} value={tab.id} className="space-y-4 pt-4 min-w-0">
