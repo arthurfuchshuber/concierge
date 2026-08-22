@@ -385,7 +385,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       const setStatus = (rows: ArrivalRow[], status: "pending" | "done") =>
         rows.map((r) => (r.logId === id ? { ...r, status } : r));
       if (from === "checkin") patchList("checkin", (rows) => setStatus(rows, "done"));
-      else if (from === "stay") patchList("checkin", (rows) => setStatus(rows, "pending"));
+      // "Em Estadia" → confirma o check-out: o card sai da lista de chegadas e
+      // passa a viver na esteira de saída/limpeza.
+      else if (from === "stay") patchList("checkin", (rows) => rows.filter((r) => r.logId !== id));
       else if (from === "checkout") patchList("checkout", (rows) => setStatus(rows, "done"));
       else if (from === "cleaning") patchList("checkout", (rows) => rows.filter((r) => r.logId !== id));
     },
@@ -400,12 +402,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     }
     setBusyRowId(row.logId);
     optimisticMove(row, from);
-    if (from === "stay") {
-      revert.mutate({ ...target, from });
-      return;
-    }
     advance.mutate({ ...target, from });
   }
+
 
   /**
    * Antecipar um card com data futura (ex.: "Checkouts amanhã") é uma ação
