@@ -2550,17 +2550,25 @@ function ArrivalCard({
                       </InfoHint>
                     </span>
                     <span className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-xs">
-                        <DateEditor
-                          value={kind === "checkout" ? (row.guestCheckout ?? row.guestCheckin) : row.guestCheckin}
-                          disabled={busy || isPendingFill}
-                          min={kind === "checkout" ? addDaysISO(predictedMinDate, 1) : predictedMinDate}
-                          max={kind === "checkout" ? undefined : (predictedMaxDate ?? undefined)}
-                          onChange={(v) =>
-                            onEditDates(row, kind === "checkout" ? { checkoutDate: v } : { checkinDate: v })
-                          }
-                        />
-                      </span>
+                       <span className="text-xs">
+                         <DateEditor
+                           value={kind === "checkout" ? (row.guestCheckout ?? row.guestCheckin) : row.guestCheckin}
+                           disabled={busy || isPendingFill}
+                           /* Campo em branco enquanto a data continuar sendo a original da reserva:
+                              ele só serve para registrar chegada em outro dia. */
+                           blankWhen={kind === "checkout" ? (row.ical.icalCheckout ?? row.guestCheckout ?? undefined) : predictedMinDate}
+                           placeholder="Selecionar"
+                           min={
+                             kind === "checkout"
+                               ? addDaysISO(predictedMinDate, 1)
+                               : addDaysISO(predictedMinDate, 1)
+                           }
+                           max={kind === "checkout" ? undefined : (predictedMaxDate ?? undefined)}
+                           onChange={(v) =>
+                             onEditDates(row, kind === "checkout" ? { checkoutDate: v } : { checkinDate: v })
+                           }
+                         />
+                       </span>
                       <span className="w-24 shrink-0">
                         <TimeDropdown value={guestTime ?? null} disabled={busy} onChange={(v) => onEditTime(row, v)} />
                       </span>
