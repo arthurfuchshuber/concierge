@@ -498,6 +498,43 @@ function Dashboard() {
             )}
           </div>
 
+          {selected.size > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-none border-0 bg-secondary/50 px-3.5 text-xs font-normal leading-none text-foreground/80 hover:bg-secondary transition-colors"
+                  aria-label="Ações da seleção"
+                  title="Ações da seleção"
+                >
+                  <MoreHorizontal className="size-3.5 opacity-60" />
+                  <span className="hidden sm:inline">Ações</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem
+                  disabled={bulkPubBusy}
+                  onSelect={() => bulkTogglePublished(true)}
+                  className="text-xs font-normal"
+                >
+                  <Globe className="size-3.5 opacity-60" /> Publicar
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={bulkPubBusy}
+                  onSelect={() => bulkTogglePublished(false)}
+                  className="text-xs font-normal"
+                >
+                  <Lock className="size-3.5 opacity-60" /> Despublicar
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setBulkOpen(true)} className="text-xs font-normal">
+                  <PenSquare className="size-3.5 opacity-60" /> Editar
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
+
+
           <Popover>
             <PopoverTrigger asChild>
               <button
