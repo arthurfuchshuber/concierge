@@ -968,10 +968,11 @@ function Dashboard() {
                         className={`size-3.5 text-muted-foreground shrink-0 transition-transform duration-200 ${expanded ? "rotate-90" : ""}`}
                       />
                       <MapPin className="size-3.5 text-muted-foreground shrink-0" />
-                      <span className="text-[13px] font-medium truncate flex-1 tracking-tight">{grp.label}</span>
-                      <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/80 tabular-nums">
+                      <span className="text-[13px] font-normal leading-snug truncate flex-1">{grp.label}</span>
+                      <span className="text-[11px] font-normal text-muted-foreground tabular-nums shrink-0">
                         {grp.items.length} {grp.items.length === 1 ? "guia" : "guias"}
                       </span>
+
                       <span
                         role="button"
                         tabIndex={0}
