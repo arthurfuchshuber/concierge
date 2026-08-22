@@ -17,7 +17,7 @@ import {
   countAccountGuides,
 } from "@/lib/properties.functions";
 import { useMyPermissions } from "@/hooks/useMyPermissions";
-import { SectionTitle, ActionBar } from "@/components/ds/PageHeader";
+
 import { WorkspaceHeader } from "@/components/ds/WorkspaceHeader";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { LoadingState } from "@/components/ds/LoadingState";
@@ -142,7 +142,7 @@ function GuiasTabs() {
         <Dashboard />
       </TabsContent>
       <TabsContent value="destinos" className="mt-0">
-        <div className="px-6 lg:px-10 py-6 max-w-[1440px] mx-auto w-full">
+        <div className="px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full">
           <WorkspaceHeader
             title="Guias"
             subtitle="Seus imóveis e destinos publicados."
@@ -424,7 +424,7 @@ function Dashboard() {
   }
 
   return (
-    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-[1440px] mx-auto w-full">
+    <div className="px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full">
       {readOnly && (
         <div className="mb-6 rounded-md border border-accent/30 bg-accent/10 px-4 py-3 flex items-center gap-3">
           <Eye className="size-4 text-accent shrink-0" />
@@ -474,148 +474,138 @@ function Dashboard() {
         onTabChange={(k) => navigate({ to: "/admin/guias", search: { tab: coerceGuiaTab(k) } })}
       />
 
-      {/* Guias section */}
-      <div className="flex flex-col gap-4 mb-5">
-        <SectionTitle
-          actions={
-            <>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className="relative size-9 grid place-items-center rounded-full border border-border bg-card hover:bg-secondary/60 transition-colors shrink-0"
-                    aria-label="Filtros"
-                    title="Filtros"
-                  >
-                    <Filter className="size-4" />
-                    {(statusFilter !== "all" || accessFilter !== "all") && (
-                      <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-accent" />
-                    )}
-                  </button>
-                </PopoverTrigger>
-              <PopoverContent align="end" className="w-64 p-4 space-y-4">
-                <div>
-                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
-                    Status
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(
-                      [
-                        { v: "all", label: "Todos" },
-                        { v: "published", label: "Publicados" },
-                        { v: "draft", label: "Rascunhos" },
-                      ] as { v: StatusFilter; label: string }[]
-                    ).map((opt) => (
-                      <button
-                        key={opt.v}
-                        type="button"
-                        onClick={() => setStatusFilter(opt.v)}
-                        className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${statusFilter === opt.v ? "bg-foreground text-background border-foreground" : "bg-background border-border text-muted-foreground hover:border-foreground/40"}`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
-                    Acesso
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(
-                      [
-                        { v: "all", label: "Todos" },
-                        { v: "public", label: "Público" },
-                        { v: "pin", label: "PIN" },
-                      ] as { v: AccessFilter; label: string }[]
-                    ).map((opt) => (
-                      <button
-                        key={opt.v}
-                        type="button"
-                        onClick={() => setAccessFilter(opt.v)}
-                        className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${accessFilter === opt.v ? "bg-foreground text-background border-foreground" : "bg-background border-border text-muted-foreground hover:border-foreground/40"}`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                {hasActiveFilters && (
-                  <button
-                    type="button"
-                    onClick={clearFilters}
-                    className="w-full text-xs text-muted-foreground hover:text-foreground py-1.5 rounded-lg border border-border hover:bg-secondary/40"
-                  >
-                    Limpar filtros
-                  </button>
-                )}
-              </PopoverContent>
-              </Popover>
-              <div className="flex items-center gap-1 rounded-full border border-border p-1 bg-card shrink-0">
-                <button
-                  onClick={() => setView("grid")}
-                  className={`size-7 grid place-items-center rounded-full transition-colors ${view === "grid" ? "bg-secondary text-foreground" : "text-muted-foreground"}`}
-                  aria-label="Grade"
-                  title="Grade"
-                >
-                  <LayoutGrid className="size-3.5" />
-                </button>
-                <button
-                  onClick={() => setView("list")}
-                  className={`size-7 grid place-items-center rounded-full transition-colors ${view === "list" ? "bg-secondary text-foreground" : "text-muted-foreground"}`}
-                  aria-label="Lista"
-                  title="Lista"
-                >
-                  <List className="size-3.5" />
-                </button>
-              </div>
-              {!readOnly && canCreate && (
-                <button
-                  type="button"
-                  onClick={goCreate}
-                  disabled={reachedLimit || !sub.plan || noOwners}
-                  aria-label="Novo guia"
-                  title={
-                    !sub.plan
-                      ? "Assine um plano para criar guias"
-                      : noOwners
-                        ? "Cadastre um proprietário em Stakeholders antes de criar guias"
-                        : reachedLimit
-                          ? "Limite do seu plano atingido. Faça upgrade."
-                          : "Novo guia"
-                  }
-                  className="size-9 grid place-items-center rounded-full bg-secondary text-foreground border border-border hover:bg-secondary/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-                >
-                  <Plus className="size-4" />
-                </button>
-              )}
-            </>
-          }
-        >
-          Seus guias
-        </SectionTitle>
-
-        {data && data.length > 0 && (
-          <div className="relative">
-            <Search className="size-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-            <Input
+      {/* Barra de ações — mesmo padrão do filtro "Hoje"/"Filtros" da Operação:
+          altura 36px, cantos retos, fundo secondary/50, texto 12px. */}
+      <div className="flex flex-col gap-2 mb-5">
+        <div className="flex items-center gap-1.5">
+          <div className="relative flex-1 min-w-0">
+            <Search className="size-3.5 opacity-60 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar por nome, endereço, cidade…"
-              className="pl-9 pr-9 rounded-full"
+              className="h-9 w-full box-border rounded-none border-0 bg-secondary/50 pl-9 pr-8 text-xs font-medium leading-none text-foreground/80 placeholder:text-muted-foreground focus:outline-none focus:bg-secondary transition-colors"
             />
             {search && (
               <button
                 type="button"
                 onClick={() => setSearch("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 size-6 grid place-items-center rounded-full text-muted-foreground hover:bg-secondary"
+                className="absolute right-2 top-1/2 -translate-y-1/2 size-6 grid place-items-center rounded-none text-muted-foreground hover:text-foreground"
                 aria-label="Limpar busca"
               >
                 <X className="size-3.5" />
               </button>
             )}
           </div>
-        )}
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="relative h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-none border-0 bg-secondary/50 px-3.5 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
+                aria-label="Filtros"
+                title="Filtros"
+              >
+                <Filter className="size-3.5 opacity-60" />
+                <span className="hidden sm:inline">Filtros</span>
+                {(statusFilter !== "all" || accessFilter !== "all") && (
+                  <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-accent" />
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64 p-4 space-y-4">
+              <div>
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+                  Status
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {(
+                    [
+                      { v: "all", label: "Todos" },
+                      { v: "published", label: "Publicados" },
+                      { v: "draft", label: "Rascunhos" },
+                    ] as { v: StatusFilter; label: string }[]
+                  ).map((opt) => (
+                    <button
+                      key={opt.v}
+                      type="button"
+                      onClick={() => setStatusFilter(opt.v)}
+                      className={`px-3 py-1.5 rounded-none text-xs transition-colors ${statusFilter === opt.v ? "bg-foreground text-background" : "bg-secondary/50 text-muted-foreground hover:text-foreground"}`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+                  Acesso
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {(
+                    [
+                      { v: "all", label: "Todos" },
+                      { v: "public", label: "Público" },
+                      { v: "pin", label: "PIN" },
+                    ] as { v: AccessFilter; label: string }[]
+                  ).map((opt) => (
+                    <button
+                      key={opt.v}
+                      type="button"
+                      onClick={() => setAccessFilter(opt.v)}
+                      className={`px-3 py-1.5 rounded-none text-xs transition-colors ${accessFilter === opt.v ? "bg-foreground text-background" : "bg-secondary/50 text-muted-foreground hover:text-foreground"}`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="w-full text-xs text-muted-foreground hover:text-foreground py-1.5 rounded-none bg-secondary/50"
+                >
+                  Limpar filtros
+                </button>
+              )}
+            </PopoverContent>
+          </Popover>
+
+          {/* Visualização — um único botão que alterna grade/lista */}
+          <button
+            type="button"
+            onClick={() => setView(view === "grid" ? "list" : "grid")}
+            aria-label={view === "grid" ? "Ver em lista" : "Ver em grade"}
+            title={view === "grid" ? "Ver em lista" : "Ver em grade"}
+            className="h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-none border-0 bg-secondary/50 px-3.5 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
+          >
+            {view === "grid" ? <List className="size-3.5 opacity-60" /> : <LayoutGrid className="size-3.5 opacity-60" />}
+            <span className="hidden sm:inline">{view === "grid" ? "Lista" : "Grade"}</span>
+          </button>
+
+          {!readOnly && canCreate && (
+            <button
+              type="button"
+              onClick={goCreate}
+              disabled={reachedLimit || !sub.plan || noOwners}
+              aria-label="Novo guia"
+              title={
+                !sub.plan
+                  ? "Assine um plano para criar guias"
+                  : noOwners
+                    ? "Cadastre um proprietário em Stakeholders antes de criar guias"
+                    : reachedLimit
+                      ? "Limite do seu plano atingido. Faça upgrade."
+                      : "Novo guia"
+              }
+              className="h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-none border-0 bg-secondary/50 px-3.5 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Plus className="size-3.5 opacity-60" />
+              <span className="hidden sm:inline">Novo</span>
+            </button>
+          )}
+        </div>
 
         {data && data.length > 0 && hasActiveFilters && (
           <p className="ds-meta">
@@ -623,6 +613,7 @@ function Dashboard() {
           </p>
         )}
       </div>
+
 
       {isLoading ? (
         <LoadingState count={3} />
