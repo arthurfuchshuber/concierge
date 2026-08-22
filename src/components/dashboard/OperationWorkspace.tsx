@@ -2537,7 +2537,7 @@ function ArrivalCard({
       <Accordion
         type="single"
         collapsible
-        className="mt-1"
+        className="mt-0"
         value={expanded ? "details" : ""}
         onValueChange={(v) => onToggleExpanded?.(v === "details")}
       >
