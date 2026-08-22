@@ -665,7 +665,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               />
             </div>
 
-            {/* Em Limpeza — faixa fina logo abaixo dos pendentes (só quando houver 1+) */}
+            {/* Liberado para Limpeza — faixa fina logo abaixo dos pendentes (só quando houver 1+) */}
             {cleaningRows.length > 0 ? (
               // Sem o shimmer/glow âmbar (amber-mirror) — menos "colorido",
               // mais executivo; o card já sinaliza com o pontinho âmbar.
