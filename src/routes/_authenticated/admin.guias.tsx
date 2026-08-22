@@ -885,59 +885,25 @@ function Dashboard() {
                     else setSelected(new Set());
                   }}
                 />
-                <span className="text-xs text-muted-foreground min-w-0 truncate">
+                <span className="text-xs font-normal text-muted-foreground min-w-0 truncate">
                   {selected.size > 0
-                    ? `${selected.size} selec.`
+                    ? `${selected.size} ${selected.size === 1 ? "selecionado" : "selecionados"}`
                     : "Selecione para editar em massa"}
                 </span>
                 <div className="flex-1" />
-
                 {selected.size > 0 && (
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      type="button"
-                      disabled={bulkPubBusy}
-                      onClick={() => bulkTogglePublished(true)}
-                      title="Publicar selecionados"
-                      aria-label="Publicar selecionados"
-                      className="h-8 px-2 inline-flex items-center gap-1.5 bg-secondary/50 hover:bg-secondary text-xs font-medium text-foreground/80 hover:text-foreground transition-colors disabled:opacity-50"
-                    >
-                      <Globe className="size-3.5" />
-                      <span className="hidden sm:inline">Publicar</span>
-                    </button>
-                    <button
-                      type="button"
-                      disabled={bulkPubBusy}
-                      onClick={() => bulkTogglePublished(false)}
-                      title="Despublicar selecionados"
-                      aria-label="Despublicar selecionados"
-                      className="h-8 px-2 inline-flex items-center gap-1.5 bg-secondary/50 hover:bg-secondary text-xs font-medium text-foreground/80 hover:text-foreground transition-colors disabled:opacity-50"
-                    >
-                      <Lock className="size-3.5" />
-                      <span className="hidden sm:inline">Despublicar</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setBulkOpen(true)}
-                      title="Editar selecionados"
-                      aria-label="Editar selecionados"
-                      className="h-8 px-2 inline-flex items-center gap-1.5 bg-primary/15 hover:bg-primary/25 text-xs font-medium text-primary transition-colors"
-                    >
-                      <PenSquare className="size-3.5" />
-                      <span className="hidden sm:inline">Editar</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelected(new Set())}
-                      title="Limpar seleção"
-                      aria-label="Limpar seleção"
-                      className="size-8 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <X className="size-3.5" />
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelected(new Set())}
+                    title="Limpar seleção"
+                    aria-label="Limpar seleção"
+                    className="size-8 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                  >
+                    <X className="size-3.5" />
+                  </button>
                 )}
               </div>
+
 
 
               {groupList.map(([gk, grp]) => {
