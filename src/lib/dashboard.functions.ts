@@ -854,30 +854,12 @@ export const advanceArrival = createServerFn({ method: "POST" })
       }) as Array<{ log_id: string | null; reservation_id: string | null; status: string }>;
 
       if (others.length > 0) {
-        const logIds = others.map((r) => r.log_id).filter((v): v is string => !!v);
-        const resIds = others.map((r) => r.reservation_id).filter((v): v is string => !!v);
-        const dateByLog = new Map<string, string | null>();
-        const dateByRes = new Map<string, string | null>();
-        if (logIds.length > 0) {
-          const { data: logs } = await context.supabase
-            .from("guide_access_logs")
-            .select("id, checkout_date")
-            .in("id", logIds);
-          for (const l of (logs ?? []) as Array<{ id: string; checkout_date: string | null }>)
-            dateByLog.set(l.id, l.checkout_date);
-        }
-        if (resIds.length > 0) {
-          const { data: res } = await context.supabase
-            .from("property_reservations")
-            .select("id, checkout_date")
-            .in("id", resIds);
-          for (const r of (res ?? []) as Array<{ id: string; checkout_date: string | null }>)
-            dateByRes.set(r.id, r.checkout_date);
-        }
         // Qualquer estadia anterior ainda em aberto (hóspede no imóvel ou
         // limpeza não concluída) bloqueia o novo check-in — a esteira é
         // sequencial: chegada → estadia → saída → limpeza → concluído.
         const blocking = others[0];
+
+
 
         if (blocking) {
           throw new Error(
