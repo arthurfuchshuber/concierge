@@ -1844,7 +1844,8 @@ function OccupancyPanel({
         </Popover>
       </div>
 
-      <div className="px-4 sm:px-5 pb-5">
+      <section className="relative rounded-[0.3rem] border-0 bg-card ds-3d">
+      <div className="px-4 sm:px-5 pt-4 pb-5">
         {loading ? (
           <div className="py-10 grid place-items-center text-muted-foreground">
             <Loader2 className="size-5 animate-spin" />
