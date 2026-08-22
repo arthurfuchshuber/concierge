@@ -23,7 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Section, SectionGroup } from "@/components/editor/Section";
+import { Section, SectionGroup, DenseSections } from "@/components/editor/Section";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, ImagePlus, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Power, Phone, HelpCircle, Sun, Moon, Lock, MessageSquare, LogOut, ChevronDown, Ticket, RefreshCw, Copy, Share2, X, MoveRight, ClipboardList, Car, IdCard, NotebookPen } from "lucide-react";
@@ -1415,6 +1415,7 @@ function PropertyEditor() {
 
 
 
+      <DenseSections>
       <Tabs value={step} onValueChange={setStep}>
         <Stepper
           current={step}
@@ -2032,6 +2033,7 @@ function PropertyEditor() {
 
 
       </Tabs>
+      </DenseSections>
 
       <div aria-hidden="true" className="h-36 sm:h-32 lg:h-28" />
 
@@ -2237,12 +2239,12 @@ function PropertyEditor() {
 
 function Field({ label, hint, required, children }: { label: string; hint?: string; required?: boolean; children: React.ReactNode }) {
   return (
-    <div>
-      <Label className="text-xs font-medium text-foreground/80">
+    <div className="min-w-0">
+      <Label className="block truncate text-[13px] font-normal text-foreground">
         {label} {required && <span className="text-destructive">*</span>}
       </Label>
-      <div className="mt-1.5">{children}</div>
-      {hint && <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">{hint}</p>}
+      {hint && <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{hint}</p>}
+      <div className="mt-2">{children}</div>
     </div>
   );
 }
