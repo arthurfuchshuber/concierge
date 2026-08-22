@@ -685,9 +685,9 @@ export function BulkEditDialog({
 
 function ListToggle({ enabled, onChange, title, hint }: { enabled: boolean; onChange: (v: boolean) => void; title: string; hint: string }) {
   return (
-    <div className={`rounded-xl border p-3 flex items-center justify-between gap-3 min-w-0 ${enabled ? "border-accent/50 bg-accent/5" : "border-border bg-card/40"}`}>
+    <div className={`rounded-[0.3rem] border p-3 flex items-center justify-between gap-3 min-w-0 ${enabled ? "border-accent/50 bg-accent/5" : "border-border bg-card/40"}`}>
       <div className="min-w-0">
-        <div className="text-sm font-medium truncate">{title}</div>
+        <div className="truncate text-[13px] font-normal">{title}</div>
         <div className="text-[11px] text-muted-foreground truncate">{hint}</div>
       </div>
       <Switch checked={enabled} onCheckedChange={onChange} />
