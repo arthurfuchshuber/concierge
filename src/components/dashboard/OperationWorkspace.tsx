@@ -2370,6 +2370,10 @@ function ArrivalCard({
   const done = row.status === "done";
   const visualDone = done && mode !== "cleaning";
   const isPendingFill = row.pendingFill;
+  // Janela permitida para a data prevista: da data original de check-in
+  // (iCal quando existe) até 1 dia antes do check-out.
+  const predictedMinDate = row.ical.icalCheckin ?? row.guestCheckin;
+  const predictedMaxDate = addDaysISO(row.ical.icalCheckout ?? row.guestCheckout, -1) ?? null;
   const todayISO = todayISOSaoPaulo();
   const isOverdue = row.date < todayISO;
   const isFuture = row.date > todayISO;
