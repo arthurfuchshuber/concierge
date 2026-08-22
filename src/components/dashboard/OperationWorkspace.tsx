@@ -1384,6 +1384,12 @@ function KpiCard({
                       {r.pendingFill ? <UserPlus className="size-4" /> : initials}
                     </div>
                     <div className="min-w-0 flex-1">
+                      {r.reservationCode && (
+                        <div className="text-xs flex items-center gap-1 text-muted-foreground">
+                          <span className="truncate max-w-[160px]">{r.reservationCode}</span>
+                          <CopyButton value={r.reservationCode} size={10} className="p-0.5" />
+                        </div>
+                      )}
                       <OwnerLine
                         name={r.ownerName}
                         phone={r.ownerPhone}
