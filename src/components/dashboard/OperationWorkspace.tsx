@@ -1424,14 +1424,6 @@ function KpiCard({
                           </>
                         )}
                       </div>
-                      {/* Código da reserva — linha própria, sem fundo */}
-                      {r.reservationCode && (
-                        <div className="text-xs flex items-center gap-1 text-muted-foreground">
-                          <span>Reserva</span>
-                          <span className="truncate max-w-[160px]">{r.reservationCode}</span>
-                          <CopyButton value={r.reservationCode} size={10} className="p-0.5" />
-                        </div>
-                      )}
 
                       {/* Previsão de horário — campo largo, logo abaixo do código da reserva */}
                       <div className="mt-0.5 flex items-center gap-2">
