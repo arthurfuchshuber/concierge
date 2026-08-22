@@ -2387,7 +2387,7 @@ function ArrivalCard({
     !!guestTime && !!row.standardTime && !isTimeWithin(guestTime, row.standardTime, row.standardTimeMax);
 
   const done = row.status === "done";
-  const visualDone = done && mode !== "cleaning";
+  const visualDone = done && mode !== "cleaning" && mode !== "stay";
   const isPendingFill = row.pendingFill;
   // Janela permitida para a data prevista: da data original de check-in
   // (iCal quando existe) até 1 dia antes do check-out.
