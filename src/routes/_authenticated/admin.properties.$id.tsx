@@ -23,7 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Section, SectionGroup } from "@/components/editor/Section";
+import { Section, SectionGroup, DenseSections } from "@/components/editor/Section";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, ImagePlus, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Power, Phone, HelpCircle, Sun, Moon, Lock, MessageSquare, LogOut, ChevronDown, Ticket, RefreshCw, Copy, Share2, X, MoveRight, ClipboardList, Car, IdCard, NotebookPen } from "lucide-react";
@@ -1372,12 +1372,12 @@ function PropertyEditor() {
   }
 
   return (
-    <div className="px-6 lg:px-10 pt-8 lg:pt-10 max-w-[1440px] mx-auto w-full">
+    <div className="ds-dense-fields px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full">
       <Link to="/admin/guias" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
         <ArrowLeft className="size-3.5" /> Voltar
       </Link>
       {readOnly ? (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+        <div className="mb-4 flex items-center gap-2 rounded-[0.3rem] border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
           <Lock className="size-3.5 shrink-0" />
           Você tem acesso apenas para visualizar este guia. A edição está bloqueada.
         </div>
@@ -1386,32 +1386,36 @@ function PropertyEditor() {
 
       <header className="mb-3 min-w-0">
         <h1 className="ds-page-title w-full break-words">{form.property.name || "Sem título"}</h1>
+        <p className="ds-page-subtitle mt-1.5">Edite as informações do guia deste imóvel.</p>
       </header>
 
       {!isNew ? (
-        <div className="mb-4 sm:mb-5 pb-4 border-b border-border/60 ds-scroll-x items-center gap-2">
+        <div className="mb-4 ds-scroll-x items-center gap-2">
+
           <PresenceAvatars users={presence.users} />
           <Link
             to="/admin/properties/$id/acessos"
             params={{ id }}
-            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-xs hover:bg-secondary transition-colors shrink-0"
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-[0.3rem] bg-secondary/50 text-xs font-normal hover:bg-secondary transition-colors shrink-0"
           >
             <Shield className="size-3.5 shrink-0" /> Acessos
           </Link>
           <Link
             to="/admin/properties/$id/conversas"
             params={{ id }}
-            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-xs hover:bg-secondary transition-colors shrink-0"
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-[0.3rem] bg-secondary/50 text-xs font-normal hover:bg-secondary transition-colors shrink-0"
           >
             <MessageSquare className="size-3.5 shrink-0" /> Conversas
           </Link>
         </div>
       ) : (
-        <div className="mb-4 sm:mb-5 pb-4 border-b border-border/60" />
+        <div className="mb-4" />
       )}
 
 
 
+
+      <DenseSections>
       <Tabs value={step} onValueChange={setStep}>
         <Stepper
           current={step}
@@ -2029,6 +2033,7 @@ function PropertyEditor() {
 
 
       </Tabs>
+      </DenseSections>
 
       <div aria-hidden="true" className="h-36 sm:h-32 lg:h-28" />
 
@@ -2234,12 +2239,12 @@ function PropertyEditor() {
 
 function Field({ label, hint, required, children }: { label: string; hint?: string; required?: boolean; children: React.ReactNode }) {
   return (
-    <div>
-      <Label className="text-xs font-medium text-foreground/80">
+    <div className="min-w-0">
+      <Label className="block truncate text-[13px] font-normal text-foreground">
         {label} {required && <span className="text-destructive">*</span>}
       </Label>
-      <div className="mt-1.5">{children}</div>
-      {hint && <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">{hint}</p>}
+      {hint && <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{hint}</p>}
+      <div className="mt-2">{children}</div>
     </div>
   );
 }
@@ -3486,100 +3491,31 @@ function Stepper({
   current: string;
   onChange: (v: string) => void;
 }) {
-  const currentIdx = steps.findIndex((s) => s.value === current);
   return (
-    <div className="mb-6">
-      {/* Mobile: compact dot stepper */}
-      <div className="sm:hidden">
-        <div className="flex items-center gap-1.5">
-          {steps.map((s, i) => {
-            const done = i < currentIdx;
-            const active = i === currentIdx;
-            const Icon = s.icon;
-            return (
-              <div key={s.value} className="flex items-center gap-1.5 flex-1 last:flex-none">
-                <button
-                  type="button"
-                  onClick={() => onChange(s.value)}
-                  aria-label={s.label}
-                  className={[
-                    "grid place-items-center size-9 rounded-full shrink-0 transition-all border",
-                    active
-                      ? "bg-primary text-primary-foreground border-primary shadow-soft scale-110"
-                      : done
-                      ? "bg-accent text-accent-foreground border-accent"
-                      : "bg-background text-muted-foreground border-border",
-                  ].join(" ")}
-                >
-                  {done ? <Check className="size-4" strokeWidth={2.5} /> : <Icon className="size-4" strokeWidth={2} />}
-                </button>
-                {i < steps.length - 1 && (
-                  <span className={["h-px flex-1 min-w-3 transition-colors", i < currentIdx ? "bg-accent/50" : "bg-border"].join(" ")} />
-                )}
-              </div>
-            );
-          })}
-        </div>
-        <p className="text-[11px] font-normal text-foreground mt-3">
-          <span className="text-muted-foreground/70 tracking-[0.18em] uppercase mr-2">Passo {currentIdx + 1}/{steps.length}</span>
-          {steps[currentIdx]?.label}
-        </p>
-      </div>
-
-      {/* Desktop: full pill stepper */}
-      <div className="hidden sm:block">
-        <div
-          className="overflow-x-auto no-scrollbar -mx-2 px-2"
-          onWheel={(e) => {
-            if (e.deltaY !== 0 && e.deltaX === 0) {
-              e.currentTarget.scrollLeft += e.deltaY;
-            }
-          }}
-        >
-          <div className="flex items-center gap-1.5 min-w-max pr-2">
-            {steps.map((s, i) => {
-              const done = i < currentIdx;
-              const active = i === currentIdx;
-              const Icon = s.icon;
-              return (
-                <div key={s.value} className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => onChange(s.value)}
-                    className={[
-                      "group inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-normal whitespace-nowrap transition-all border shrink-0",
-                      active
-                        ? "bg-primary text-primary-foreground border-primary shadow-soft"
-                        : done
-                        ? "bg-accent/10 text-foreground border-accent/30 hover:bg-accent/15"
-                        : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground/30",
-                    ].join(" ")}
-                  >
-                    <span
-                      className={[
-                        "grid place-items-center size-5 rounded-full shrink-0",
-                        active ? "bg-primary-foreground/15" : done ? "bg-accent text-accent-foreground" : "bg-secondary",
-                      ].join(" ")}
-                    >
-                      {done ? <Check className="size-3" strokeWidth={2.5} /> : <Icon className="size-3" strokeWidth={2} />}
-                    </span>
-                    {s.label}
-                  </button>
-                  {i < steps.length - 1 && (
-                    <span className={["h-px w-4 lg:w-6 shrink-0 transition-colors", i < currentIdx ? "bg-accent/40" : "bg-border"].join(" ")} />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 font-semibold mt-3">
-          Passo {currentIdx + 1} de {steps.length}
-        </p>
-      </div>
+    <div className="mb-5 -mx-1 overflow-x-auto no-scrollbar">
+      <nav className="flex w-max min-w-full overflow-hidden rounded-[0.3rem] bg-foreground/5">
+        {steps.map((s) => {
+          const active = s.value === current;
+          return (
+            <button
+              key={s.value}
+              type="button"
+              onClick={() => onChange(s.value)}
+              className={`flex-1 whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold leading-none flex items-center justify-center gap-2 min-h-[46px] transition-colors ${
+                active
+                  ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {s.label}
+            </button>
+          );
+        })}
+      </nav>
     </div>
   );
 }
+
 
 function GalleryEditor({
   value,

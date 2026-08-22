@@ -684,3 +684,13 @@ dd {
   box-shadow: 0 2px 6px -2px color-mix(in oklab, var(--foreground) 12%, transparent);
 }
 
+
+/* Campos compactos do Design System (mesma formatação do popup de edição
+   em massa): usado no editor de guia para inputs, textareas e selects. */
+.ds-dense-fields :is(input, textarea, [role="combobox"], select) {
+  border-radius: 0.3rem;
+  font-size: 13px;
+}
+.ds-dense-fields :is(input:not([type="checkbox"]):not([type="radio"]), [role="combobox"], select) {
+  height: 2.25rem;
+}
