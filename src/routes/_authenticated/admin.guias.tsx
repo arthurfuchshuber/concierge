@@ -1032,27 +1032,28 @@ function Dashboard() {
                                 onClick={() => navigate({ to: "/admin/properties/$id", params: { id: p.id } })}
                                 className="flex-1 min-w-0 text-left"
                               >
-                                <h3 className="ds-card-title leading-snug">
+                                <h3 className="text-[13px] font-normal leading-snug text-foreground truncate">
                                   {p.name}
                                 </h3>
-                                <div className="mt-1 flex items-center gap-1.5 ds-meta min-w-0">
-                                  <span className="inline-flex items-center gap-1 shrink-0 uppercase tracking-[0.12em]">
+                                <div className="mt-0.5 flex items-center gap-1.5 text-[11px] font-normal leading-snug text-muted-foreground min-w-0">
+                                  <span className="inline-flex items-center gap-1 shrink-0">
                                     {p.access_mode === "pin" ? (
-                                      <Lock className="size-2.5" />
+                                      <Lock className="size-3 opacity-60" />
                                     ) : (
-                                      <Globe className="size-2.5" />
+                                      <Globe className="size-3 opacity-60" />
                                     )}
                                     {p.access_mode === "pin" ? "PIN" : "Público"}
                                   </span>
                                   {!p.published && (
                                     <>
                                       <span className="text-muted-foreground/40">·</span>
-                                      <span className="uppercase tracking-[0.12em] text-yellow-600 dark:text-yellow-400">
+                                      <span className="text-yellow-600/90 dark:text-yellow-400/80">
                                         Rascunho
                                       </span>
                                     </>
                                   )}
                                 </div>
+
                               </button>
                               <Popover>
                                 <PopoverTrigger asChild>
