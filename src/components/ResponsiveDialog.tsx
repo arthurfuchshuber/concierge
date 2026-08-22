@@ -76,16 +76,16 @@ export function ResponsiveDialogHeader({
   return <Comp className={cn(isMobile && "px-0 text-left", className)}>{children}</Comp>;
 }
 
-export function ResponsiveDialogTitle({ children }: { children: React.ReactNode }) {
+export function ResponsiveDialogTitle({ children, className }: { children: React.ReactNode; className?: string }) {
   const isMobile = useIsMobile();
   const Comp = isMobile ? DrawerTitle : DialogTitle;
-  return <Comp>{children}</Comp>;
+  return <Comp className={className}>{children}</Comp>;
 }
 
-export function ResponsiveDialogDescription({ children }: { children: React.ReactNode }) {
+export function ResponsiveDialogDescription({ children, className }: { children: React.ReactNode; className?: string }) {
   const isMobile = useIsMobile();
   const Comp = isMobile ? DrawerDescription : DialogDescription;
-  return <Comp>{children}</Comp>;
+  return <Comp className={className}>{children}</Comp>;
 }
 
 export function ResponsiveDialogFooter({

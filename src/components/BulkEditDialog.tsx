@@ -525,8 +525,8 @@ export function BulkEditDialog({
       <ResponsiveDialogContent className="w-[calc(100vw-1.5rem)] sm:max-w-3xl max-h-[85vh] overflow-y-auto overflow-x-hidden">
         <>
         <ResponsiveDialogHeader>
-          <ResponsiveDialogTitle>Editar {ids.length} {ids.length === 1 ? "guia" : "guias"}</ResponsiveDialogTitle>
-          <ResponsiveDialogDescription>
+          <ResponsiveDialogTitle className="text-[15px] font-semibold tracking-tight">Editar {ids.length} {ids.length === 1 ? "guia" : "guias"}</ResponsiveDialogTitle>
+          <ResponsiveDialogDescription className="text-xs font-normal leading-relaxed">
             {loading
               ? "Carregando dados dos guias selecionados…"
               : "As informações atuais já aparecem preenchidas. Qualquer alteração é salva automaticamente nos guias selecionados."}
@@ -546,7 +546,7 @@ export function BulkEditDialog({
                 <TabsTrigger
                   key={t.id}
                   value={t.id}
-                  className="flex-1 min-h-[34px] whitespace-nowrap rounded-none px-3 text-sm font-normal shadow-none data-[state=active]:shadow-none data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#7C1AD8] data-[state=active]:to-[#E82DAE] data-[state=active]:text-white"
+                  className="flex-1 min-h-[34px] whitespace-nowrap rounded-none px-3 text-xs font-normal shadow-none data-[state=active]:shadow-none data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#7C1AD8] data-[state=active]:to-[#E82DAE] data-[state=active]:text-white"
                 >
                   {t.label}
                 </TabsTrigger>
