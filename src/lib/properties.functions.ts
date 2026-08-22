@@ -428,6 +428,24 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
     const patch: Record<string, unknown> = Object.fromEntries(
       Object.entries(data.patch).map(([k, v]) => [k, v === "" ? null : v]),
     );
+
+    // Publicar só é permitido com todos os campos obrigatórios preenchidos.
+    if (patch.published === true) {
+      const { PUBLISH_REQUIRED_COLUMNS, missingPublishFields, publishBlockMessage } = await import(
+        "@/lib/publish-requirements"
+      );
+      const cols = Array.from(new Set(["id", "name", ...PUBLISH_REQUIRED_COLUMNS])).join(",");
+      const chk = await sb.from("properties").select(cols).in("id", data.ids);
+      if (chk.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", chk.error);
+      for (const row of (chk.data ?? []) as unknown as Array<Record<string, unknown>>) {
+        const merged = { ...row, ...patch };
+        const missing = missingPublishFields(merged);
+        if (missing.length > 0) {
+          throw new Error(publishBlockMessage(missing, row.name as string | null));
+        }
+      }
+    }
+
     // O popup só envia os campos realmente editados naquele momento; nada é
     // gravado em lote sem interação direta do usuário.
 
@@ -677,6 +695,17 @@ export const upsertProperty = createServerFn({ method: "POST" })
       propertyData.brand_name = null;
       propertyData.brand_logo_url = null;
     }
+
+    // Um guia só pode ficar publicado com todos os campos obrigatórios
+    // preenchidos. Aqui não bloqueamos o salvamento (o editor salva sozinho a
+    // cada alteração) — apenas mantemos o guia como rascunho até completar.
+    if (propertyData.published === true) {
+      const { missingPublishFields } = await import("@/lib/publish-requirements");
+      if (missingPublishFields(propertyData as Record<string, unknown>).length > 0) {
+        propertyData.published = false;
+      }
+    }
+
 
     // Quando o operador é membro atuando dentro de outra conta, valida a
     // permissão `library_edit` e escreve com o cliente admin (as policies

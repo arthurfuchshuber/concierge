@@ -26,7 +26,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Section, SectionGroup } from "@/components/editor/Section";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, ImagePlus, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Globe, Power, Phone, HelpCircle, Sun, Moon, Palette, Lock, MessageSquare, LogOut, ChevronDown, Ticket, RefreshCw, Copy, Share2, X, MoveRight, ClipboardList, Car, IdCard, NotebookPen } from "lucide-react";
+import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, ImagePlus, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Power, Phone, HelpCircle, Sun, Moon, Lock, MessageSquare, LogOut, ChevronDown, Ticket, RefreshCw, Copy, Share2, X, MoveRight, ClipboardList, Car, IdCard, NotebookPen } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ImageUpload } from "@/components/ImageUpload";
 import { MediaUpload, type MediaItem } from "@/components/MediaUpload";
@@ -1322,10 +1322,17 @@ function PropertyEditor() {
               <FieldTypingBadge typing={presence.typing["name"]} />
             </Section>
 
+            <Section id="new-tagline" icon={FileText} title="Tipo do guia" desc="Define o formato do guia que será criado para os hóspedes." collapsible={false}>
+              <Field label="Tipo do guia" required hint="Aparece abaixo do título no guia público.">
+                <EtiquetaSelect value={form.property.tagline} onChange={(v) => update("tagline", v)} />
+              </Field>
+            </Section>
+
             {renderPropertyTypeSection()}
             {renderAddressSection()}
             {renderAirbnbCalendarSection()}
             {renderHostContactSection()}
+
           </SectionGroup>
 
           <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-border/60">
@@ -1346,7 +1353,13 @@ function PropertyEditor() {
                   {saving ? <Loader2 className="size-4 animate-spin" /> : null}
                   <span className={saving ? "ml-1.5" : ""}>{saving ? "Salvando…" : "Salvar alterações"}</span>
                 </Button>
-                <Button className="min-w-[140px]" onClick={handleCreateGuide} disabled={saving || !form.property.name.trim()}>
+                <Button
+                  className="min-w-[140px]"
+                  onClick={handleCreateGuide}
+                  disabled={saving || !form.property.name.trim() || !form.property.tagline.trim()}
+                  title={!form.property.tagline.trim() ? "Selecione o tipo do guia para continuar" : undefined}
+                >
+
                   {saving ? <Loader2 className="size-4 animate-spin" /> : null}
                   <span className={saving ? "ml-1.5" : ""}>{saving ? "Criando…" : "Criar guia"}</span>
                 </Button>
@@ -1494,7 +1507,7 @@ function PropertyEditor() {
           </Section>
 
 
-          <Section id="identity" icon={FileText} title="Identidade visual" desc="Como o guia se apresenta e sua marca no rodapé." collapsible>
+          <Section id="identity" icon={FileText} title="Identidade visual" desc="Como o guia se apresenta para o hóspede." collapsible>
             <Field label="Nome do imóvel" required hint={`Máx. 80 caracteres — ${form.property.name.length}/80. Curto e memorável funciona melhor no cabeçalho do guia.`}>
               <Input value={form.property.name} maxLength={80} onChange={(e) => {
                 const v = e.target.value.slice(0, 80);
@@ -1506,34 +1519,8 @@ function PropertyEditor() {
             <Field label="URL pública (slug)" hint="Aparece em /g/seu-slug">
               <Input value={form.property.slug} maxLength={60} onChange={(e) => update("slug", slugify(e.target.value))} />
             </Field>
-            <Field label="Tipo do guia" hint="Aparece abaixo do título no guia público.">
-              <EtiquetaSelect value={form.property.tagline} onChange={(v) => update("tagline", v)} />
-            </Field>
-
-            <div className="pt-3 mt-1 border-t border-border/60 space-y-3">
-              <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                <Palette className="size-3.5" /> Marca personalizada
-                {!canBrand && <span className="inline-flex items-center gap-1 text-[10px] text-amber-400/90 normal-case"><Lock className="size-3" /> Enterprise</span>}
-              </div>
-              {!canBrand && (
-                <p className="text-[11px] text-muted-foreground">
-                  Exclusivo do plano <strong>Enterprise</strong>. <Link to="/precos" className="underline font-medium">Ver planos</Link>.
-                </p>
-              )}
-              <Field label="Nome da marca">
-                <Input value={form.property.brand_name} maxLength={120} placeholder="Ex: Casa Maré Hospitality" onChange={(e) => update("brand_name", e.target.value)} disabled={!canBrand} />
-              </Field>
-              <Field label="Logomarca">
-                {canBrand ? (
-                  <div className="w-24">
-                    <ImageUpload value={form.property.brand_logo_url} folder="brand" aspect="square" placeholder="Logo" onChange={(v) => update("brand_logo_url", v)} />
-                  </div>
-                ) : (
-                  <Input value="" placeholder="Disponível em planos com marca própria" disabled />
-                )}
-              </Field>
-            </div>
           </Section>
+
 
           <Section id="gallery" icon={ImageIcon} title="Fotos da residência" desc="Até 4 fotos — a primeira será a capa." collapsible>
             <GalleryEditor
@@ -1570,36 +1557,8 @@ function PropertyEditor() {
             )}
           </Section>
 
-          <Section id="language" icon={Globe} title="Idioma padrão" collapsible>
-            <div className="flex items-center gap-2">
-              {([{ v: "pt", label: "Português" }, { v: "en", label: "English" }] as const).map((o) => (
-                <button
-                  key={o.v}
-                  type="button"
-                  onClick={() => update("default_language", o.v)}
-                  className={cn(
-                    "px-4 py-2 rounded-full text-sm border transition-colors",
-                    form.property.default_language === o.v
-                      ? "bg-accent text-accent-foreground border-accent"
-                      : "border-border text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {o.label}
-                </button>
-              ))}
-            </div>
-          </Section>
 
-          <div className="flex items-center justify-between ds-surface bg-muted/40 px-4 py-3.5 border border-border/60">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span className={`inline-block size-2.5 rounded-full shrink-0 ${form.property.published ? "bg-emerald-500" : "bg-muted-foreground/50"}`} />
-              <div className="min-w-0">
-                <p className="text-sm font-medium leading-tight">Status do Guia</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{form.property.published ? "Ativo — acessível pelo link" : "Inativo — link público desabilitado"}</p>
-              </div>
-            </div>
-            <Switch checked={form.property.published} onCheckedChange={(v) => update("published", v)} />
-          </div>
+
 
           </SectionGroup>
         </TabsContent>
