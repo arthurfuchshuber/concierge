@@ -1494,7 +1494,7 @@ function PropertyEditor() {
           </Section>
 
 
-          <Section id="identity" icon={FileText} title="Identidade visual" desc="Como o guia se apresenta e sua marca no rodapé." collapsible>
+          <Section id="identity" icon={FileText} title="Identidade visual" desc="Como o guia se apresenta para o hóspede." collapsible>
             <Field label="Nome do imóvel" required hint={`Máx. 80 caracteres — ${form.property.name.length}/80. Curto e memorável funciona melhor no cabeçalho do guia.`}>
               <Input value={form.property.name} maxLength={80} onChange={(e) => {
                 const v = e.target.value.slice(0, 80);
