@@ -839,7 +839,9 @@ function Dashboard() {
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
+                  </div>
                 </div>
+
               </div>
             </div>
           ))}
