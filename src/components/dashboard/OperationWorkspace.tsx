@@ -2933,10 +2933,14 @@ function DateEditor({
   value,
   disabled,
   onChange,
+  min,
+  max,
 }: {
   value: string;
   disabled: boolean;
   onChange: (v: string) => void;
+  min?: string;
+  max?: string;
 }) {
   return (
     <button
@@ -2955,9 +2959,13 @@ function DateEditor({
         type="date"
         value={value}
         disabled={disabled}
+        min={min}
+        max={max}
         onChange={(e) => {
           const v = e.target.value;
           if (!v || v === value) return;
+          if (min && v < min) return;
+          if (max && v > max) return;
           onChange(v);
         }}
         onClick={(e) => e.stopPropagation()}
