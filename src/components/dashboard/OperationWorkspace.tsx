@@ -1766,15 +1766,17 @@ function OccupancyPanel({
     s === "in" ? "bg-emerald-500" : s === "out" ? "bg-amber-500" : s === "busy" ? "bg-primary/35" : "bg-transparent";
 
   return (
-    <section className="relative rounded-[0.3rem] border-0 bg-card ds-3d">
-      <div className="flex items-center justify-end px-2 pt-2">
+    <>
+      {/* Filtros ficam FORA do quadro, alinhados à direita — mesma posição,
+          altura e estilo do filtro "Hoje" do Kanban. */}
+      <div className="flex items-center justify-end pb-4">
         <Popover>
           <PopoverTrigger asChild>
             <button
               type="button"
-              className="relative inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-transparent px-3 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="relative h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-none border-0 bg-secondary/50 px-3.5 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
             >
-              <Filter className="size-3.5 opacity-70" /> Filtros
+              <Filter className="size-3.5 opacity-60" /> Filtros
               {activeFilters > 0 ? (
                 <span className="ml-0.5 grid size-4 place-items-center rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-[9px] font-semibold text-white">
                   {activeFilters}
@@ -1842,7 +1844,8 @@ function OccupancyPanel({
         </Popover>
       </div>
 
-      <div className="px-4 sm:px-5 pb-5">
+      <section className="relative rounded-[0.3rem] border-0 bg-card ds-3d">
+      <div className="px-4 sm:px-5 pt-4 pb-5">
         {loading ? (
           <div className="py-10 grid place-items-center text-muted-foreground">
             <Loader2 className="size-5 animate-spin" />
@@ -1976,7 +1979,8 @@ function OccupancyPanel({
           </>
         )}
       </div>
-    </section>
+      </section>
+    </>
   );
 }
 
@@ -2566,11 +2570,17 @@ function ArrivalCard({
                         value={row.arrivalDateOverride ?? ""}
                         disabled={busy || isPendingFill}
                         placeholder="Data"
-                        min={addDaysISO(predictedMinDate, 1)}
+                        min={predictedMinDate ?? undefined}
                         max={kind === "checkout" ? undefined : (predictedMaxDate ?? undefined)}
                         onChange={(v) => onEditPredictedDate?.(row, v)}
                       />
-                      <TimeDropdown value={guestTime ?? null} disabled={busy} size="xs" onChange={(v) => onEditTime(row, v)} />
+                      {/* Horário só depois da data: a ordem é data → horário. */}
+                      <TimeDropdown
+                        value={guestTime ?? null}
+                        disabled={busy || !row.arrivalDateOverride}
+                        size="xs"
+                        onChange={(v) => onEditTime(row, v)}
+                      />
                     </span>
                   </div>
                 </div>
