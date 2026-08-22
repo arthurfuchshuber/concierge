@@ -745,17 +745,12 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               card de um status pro outro fica visual, não escondido atrás de um
               menu. */}
           <section className="rounded-none bg-transparent p-0 space-y-4">
-            {/* Título "Quadro de operação" — redundante no mobile, onde as
-                próprias abas logo abaixo (Check-ins, Checkouts...) já deixam
-                claro do que se trata; mantido no desktop, onde a visão é de
-                colunas lado a lado sem essa legenda textual. O filtro "Hoje"
-                também só aparece aqui no desktop — no mobile ele migra pra
+            {/* Sem título: as próprias abas/colunas já identificam o quadro. O
+                filtro "Hoje" fica à direita no desktop; no mobile ele migra pra
                 dentro da linha de abas, ver abaixo. */}
             <div className="hidden sm:flex items-center gap-3">
-              <h2 className="ds-section-title mb-0 flex items-center gap-2">
-                <LayoutGrid className="size-4.5 text-muted-foreground" /> Quadro de operação
-              </h2>
               <div className="ml-auto">
+
                 <RangeDropdown
                   value={range}
                   onChange={setRange}
