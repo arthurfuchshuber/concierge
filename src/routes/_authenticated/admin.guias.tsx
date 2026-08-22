@@ -1,6 +1,6 @@
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { Compass } from "lucide-react";
+import { Compass, Home } from "lucide-react";
 import { useSearch } from "@tanstack/react-router";
 import { useServerFn as useServerFnGuias } from "@tanstack/react-start";
 import { useQuery as useQueryGuias } from "@tanstack/react-query";
