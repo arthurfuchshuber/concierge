@@ -305,6 +305,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     status?: "pending" | "done";
     note?: string | null;
     arrivalTimeOverride?: string | null;
+    arrivalDateOverride?: string | null;
   };
   const upsert = useMutation({
     mutationFn: (v: UpsertPayload) => upsertFn({ data: v }),
