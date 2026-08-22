@@ -874,11 +874,11 @@ export const advanceArrival = createServerFn({ method: "POST" })
           for (const r of (res ?? []) as Array<{ id: string; checkout_date: string | null }>)
             dateByRes.set(r.id, r.checkout_date);
         }
-        const blocking = others.find((r) => {
-          const d = (r.log_id ? dateByLog.get(r.log_id) : null) ?? (r.reservation_id ? dateByRes.get(r.reservation_id) : null);
-          // Sem data conhecida tratamos como em aberto (mais seguro).
-          return !d || d <= today;
-        });
+        // Qualquer estadia anterior ainda em aberto (hóspede no imóvel ou
+        // limpeza não concluída) bloqueia o novo check-in — a esteira é
+        // sequencial: chegada → estadia → saída → limpeza → concluído.
+        const blocking = others[0];
+
         if (blocking) {
           throw new Error(
             blocking.status === "done"
