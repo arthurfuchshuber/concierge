@@ -743,21 +743,23 @@ function Dashboard() {
                   {p.tagline || `${p.city ?? ""}${p.country ? `, ${p.country}` : ""}`}
                 </p>
 
-                {(() => {
-                  const c = guideCompleteness(p as any);
-                  return (
-                    <div className="mt-2.5 flex items-center gap-2">
-                      <div className="flex-1 h-1 rounded-full bg-secondary overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${c.color}`}
-                          style={{ width: `${c.score}%` }}
-                        />
-                      </div>
-                      <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">{c.score}%</span>
-                    </div>
-                  );
-                })()}
-                <div className="flex items-center justify-end gap-1.5 mt-3">
+                <div className="mt-2 flex items-center gap-2">
+                  {(() => {
+                    const c = guideCompleteness(p as any);
+                    return (
+                      <>
+                        <div className="flex-1 min-w-0 h-1 rounded-full bg-secondary overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${c.color}`}
+                            style={{ width: `${c.score}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">{c.score}%</span>
+                      </>
+                    );
+                  })()}
+                  <div className="flex items-center justify-end gap-0.5 shrink-0">
+
                   <Popover>
                     <PopoverTrigger asChild>
                       <button
