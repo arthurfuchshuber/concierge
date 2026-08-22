@@ -305,6 +305,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     status?: "pending" | "done";
     note?: string | null;
     arrivalTimeOverride?: string | null;
+    arrivalDateOverride?: string | null;
   };
   const upsert = useMutation({
     mutationFn: (v: UpsertPayload) => upsertFn({ data: v }),
@@ -589,6 +590,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       onEditDates: (row: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => {
         setBusyRowId(row.logId);
         updateDates.mutate({ logId: row.logId, ...dates });
+      },
+      onEditPredictedDate: (row: ArrivalRow, date: string | null) => {
+        setBusyRowId(row.logId);
+        upsert.mutate({ ...statusTarget(row), kind: colKind, arrivalDateOverride: date });
       },
       onEditTime: (row: ArrivalRow, time: string | null) => handleEditTime(row, colKind, time),
       busyRowId,
@@ -2233,6 +2238,7 @@ function ArrivalGroup({
   onNote,
   onEditDates,
   onEditTime,
+  onEditPredictedDate,
   busyRowId,
   muted,
   cleaningPendingPropIds,
@@ -2249,6 +2255,7 @@ function ArrivalGroup({
   onNote: (r: ArrivalRow, note: string | null) => void;
   onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
   onEditTime: (r: ArrivalRow, time: string | null) => void;
+  onEditPredictedDate?: (r: ArrivalRow, date: string | null) => void;
   /** Só o card em ação fica travado — o restante do quadro segue responsivo. */
   busyRowId?: string | null;
   muted?: boolean;
@@ -2284,6 +2291,7 @@ function ArrivalGroup({
           onNote={onNote}
           onEditDates={onEditDates}
           onEditTime={onEditTime}
+          onEditPredictedDate={onEditPredictedDate}
           busy={busyRowId === r.logId}
           expanded={openId === r.logId}
           onToggleExpanded={(open) => setOpenId(open ? r.logId : null)}
@@ -2306,6 +2314,7 @@ function ArrivalCard({
   onNote,
   onEditDates,
   onEditTime,
+  onEditPredictedDate,
   busy,
   expanded,
   onToggleExpanded,
@@ -2320,6 +2329,7 @@ function ArrivalCard({
   onNote: (r: ArrivalRow, note: string | null) => void;
   onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
   onEditTime: (r: ArrivalRow, time: string | null) => void;
+  onEditPredictedDate?: (r: ArrivalRow, date: string | null) => void;
   busy: boolean;
   expanded?: boolean;
   onToggleExpanded?: (open: boolean) => void;
@@ -2369,9 +2379,8 @@ function ArrivalCard({
   // Sem iCal, congelamos a data original na primeira renderização — senão ela
   // acompanharia a data recém-escolhida e o campo voltaria a ficar em branco.
   const originalCheckinRef = useRef(row.guestCheckin);
-  const originalCheckoutRef = useRef(row.guestCheckout);
   const predictedMinDate = row.ical.icalCheckin ?? originalCheckinRef.current;
-  const predictedMaxDate = addDaysISO(row.ical.icalCheckout ?? originalCheckoutRef.current, -1) ?? null;
+  const predictedMaxDate = addDaysISO(row.ical.icalCheckout ?? row.guestCheckout, -1) ?? null;
   const todayISO = todayISOSaoPaulo();
   const isOverdue = row.date < todayISO;
   const isFuture = row.date > todayISO;
@@ -2552,21 +2561,14 @@ function ArrivalCard({
                     </span>
                     <span className="ml-auto flex items-center justify-end gap-3 shrink-0 text-xs font-medium">
                       <DateEditor
-                        value={kind === "checkout" ? (row.guestCheckout ?? row.guestCheckin) : row.guestCheckin}
+                        /* Data prevista é um override próprio do card: fica em
+                           branco até alguém registrar chegada em outro dia. */
+                        value={row.arrivalDateOverride ?? ""}
                         disabled={busy || isPendingFill}
-                        /* Campo em branco enquanto a data continuar sendo a original da reserva:
-                           ele só serve para registrar chegada em outro dia. */
-                        blankWhen={
-                          kind === "checkout"
-                            ? (row.ical.icalCheckout ?? originalCheckoutRef.current ?? undefined)
-                            : predictedMinDate
-                        }
                         placeholder="Data"
                         min={addDaysISO(predictedMinDate, 1)}
                         max={kind === "checkout" ? undefined : (predictedMaxDate ?? undefined)}
-                        onChange={(v) =>
-                          onEditDates(row, kind === "checkout" ? { checkoutDate: v } : { checkinDate: v })
-                        }
+                        onChange={(v) => onEditPredictedDate?.(row, v)}
                       />
                       <TimeDropdown value={guestTime ?? null} disabled={busy} size="xs" onChange={(v) => onEditTime(row, v)} />
                     </span>
@@ -2956,7 +2958,7 @@ function DateEditor({
   blankWhen?: string;
   placeholder?: string;
 }) {
-  const blank = !!blankWhen && value === blankWhen;
+  const blank = !value || (!!blankWhen && value === blankWhen);
   return (
     <button
       type="button"
