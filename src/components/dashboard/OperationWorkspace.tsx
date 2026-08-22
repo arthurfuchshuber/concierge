@@ -1441,9 +1441,8 @@ function KpiCard({
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
                           Previsão
                         </span>
-                        <div className="min-w-[104px]">
-                          <TimeDropdown value={time} onChange={(v) => onEditTime(r, kind, v)} />
-                        </div>
+                        <TimeDropdown value={time} size="xs" onChange={(v) => onEditTime(r, kind, v)} />
+
                       </div>
                       <EngagementFlags
                         openedGuide={r.openedGuide}
