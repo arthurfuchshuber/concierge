@@ -671,7 +671,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               // mais executivo; o card já sinaliza com o pontinho âmbar.
               <div>
                 <KpiCard
-                  label="Em Limpeza"
+                  label="Liberado para Limpeza"
                   rows={cleaningRows}
                   icon={Sparkles}
                   tone="primary-soft"
