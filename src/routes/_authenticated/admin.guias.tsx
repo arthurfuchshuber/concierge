@@ -981,26 +981,8 @@ function Dashboard() {
                     </button>
                     {expanded && (
                       <>
-                      <div className="flex items-center gap-2.5 border-t border-border/60 bg-secondary/20 px-3 sm:px-4 py-2">
-                        <Checkbox
-                          checked={allInGroupSelected}
-                          onCheckedChange={(v) =>
-                            setSelected((s) => {
-                              const ns = new Set(s);
-                              if (v) groupIds.forEach((id) => ns.add(id));
-                              else groupIds.forEach((id) => ns.delete(id));
-                              return ns;
-                            })
-                          }
-                          className="shrink-0"
-                        />
-                        <span className="text-[11px] text-muted-foreground">
-                          {allInGroupSelected
-                            ? `Todos os ${groupIds.length} selecionados`
-                            : "Selecionar todos deste endereço"}
-                        </span>
-                      </div>
                       <ul className="divide-y divide-border/60 border-t border-border/60">
+
 
                         {grp.items.map((p) => {
                           const isSel = selected.has(p.id);
