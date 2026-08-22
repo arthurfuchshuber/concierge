@@ -2378,9 +2378,8 @@ function ArrivalCard({
   // Sem iCal, congelamos a data original na primeira renderização — senão ela
   // acompanharia a data recém-escolhida e o campo voltaria a ficar em branco.
   const originalCheckinRef = useRef(row.guestCheckin);
-  const originalCheckoutRef = useRef(row.guestCheckout);
   const predictedMinDate = row.ical.icalCheckin ?? originalCheckinRef.current;
-  const predictedMaxDate = addDaysISO(row.ical.icalCheckout ?? originalCheckoutRef.current, -1) ?? null;
+  const predictedMaxDate = addDaysISO(row.ical.icalCheckout ?? row.guestCheckout, -1) ?? null;
   const todayISO = todayISOSaoPaulo();
   const isOverdue = row.date < todayISO;
   const isFuture = row.date > todayISO;
@@ -2958,7 +2957,7 @@ function DateEditor({
   blankWhen?: string;
   placeholder?: string;
 }) {
-  const blank = !!blankWhen && value === blankWhen;
+  const blank = !value || (!!blankWhen && value === blankWhen);
   return (
     <button
       type="button"
