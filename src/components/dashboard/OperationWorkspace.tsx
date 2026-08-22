@@ -593,7 +593,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       },
       onEditTime: (row: ArrivalRow, time: string | null) => handleEditTime(row, colKind, time),
       busyRowId,
-      // Antes "Em Estadia"/"Em Limpeza" ficavam com opacity-70 (pra parecer
+      // Antes "Estadia"/"Limpeza" ficavam com opacity-70 (pra parecer
       // menos urgente) — só que isso também fazia o card parecer menos card,
       // sem o mesmo peso visual dos outros. Agora todos têm o mesmo layout.
       muted: false,
