@@ -2568,7 +2568,7 @@ function ArrivalCard({
                            /* Campo em branco enquanto a data continuar sendo a original da reserva:
                               ele só serve para registrar chegada em outro dia. */
                            blankWhen={kind === "checkout" ? (row.ical.icalCheckout ?? row.guestCheckout ?? undefined) : predictedMinDate}
-                           placeholder="Selecionar"
+                           placeholder="Data"
                            min={
                              kind === "checkout"
                                ? addDaysISO(predictedMinDate, 1)
@@ -3022,7 +3022,7 @@ function TimeDropdown({
           title={disabled ? "Indisponível" : "Selecionar horário previsto"}
           className={`inline-flex w-full items-center justify-between gap-1 tabular-nums rounded-md border border-border/60 bg-background/60 px-2 py-1 hover:text-primary hover:border-border focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit ${size === "xs" ? "text-xs" : "text-sm"}`}
         >
-          <span className="font-medium">{value ?? "—"}</span>
+          <span className={`font-medium ${value ? "" : "text-muted-foreground"}`}>{value ?? "Horário"}</span>
           <ChevronDown className="size-3 opacity-50" />
         </button>
       </DropdownMenuTrigger>
