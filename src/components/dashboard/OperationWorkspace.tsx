@@ -2366,8 +2366,12 @@ function ArrivalCard({
   const isPendingFill = row.pendingFill;
   // Janela permitida para a data prevista: da data original de check-in
   // (iCal quando existe) até 1 dia antes do check-out.
-  const predictedMinDate = row.ical.icalCheckin ?? row.guestCheckin;
-  const predictedMaxDate = addDaysISO(row.ical.icalCheckout ?? row.guestCheckout, -1) ?? null;
+  // Sem iCal, congelamos a data original na primeira renderização — senão ela
+  // acompanharia a data recém-escolhida e o campo voltaria a ficar em branco.
+  const originalCheckinRef = useRef(row.guestCheckin);
+  const originalCheckoutRef = useRef(row.guestCheckout);
+  const predictedMinDate = row.ical.icalCheckin ?? originalCheckinRef.current;
+  const predictedMaxDate = addDaysISO(row.ical.icalCheckout ?? originalCheckoutRef.current, -1) ?? null;
   const todayISO = todayISOSaoPaulo();
   const isOverdue = row.date < todayISO;
   const isFuture = row.date > todayISO;
