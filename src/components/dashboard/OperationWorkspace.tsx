@@ -2777,11 +2777,13 @@ function ArrivalCard({
                   : "Limpeza pendente neste imóvel"
                 : blockCheck
                   ? "Check-in em data futura"
-                  : mode === "cleaning"
+                : mode === "cleaning"
                     ? "Concluir limpeza"
-                    : done
-                      ? "Reabrir (marcar pendente)"
-                      : "Marcar como concluído"
+                    : mode === "stay"
+                      ? "Confirmar check-out"
+                      : done
+                        ? "Reabrir (marcar pendente)"
+                        : "Marcar como concluído"
             }
             title={
               cleaningBlock
@@ -2792,16 +2794,18 @@ function ArrivalCard({
                   ? `Só é possível marcar a partir de ${fmtDateBR(row.date)}`
                   : mode === "cleaning"
                     ? "Concluir limpeza (finaliza a estadia)"
-                    : done
-                      ? "Reabrir (voltar para Pendente)"
-                      : "Marcar como Concluído"
+                    : mode === "stay"
+                      ? "Confirmar check-out (envia o card para Em Limpeza)"
+                      : done
+                        ? "Reabrir (voltar para Pendente)"
+                        : "Marcar como Concluído"
             }
             className={`flex-1 min-w-0 h-9 max-h-9 min-h-9 self-center box-border leading-none inline-flex items-center justify-center gap-2 px-3 text-[12.5px] font-semibold tracking-tight rounded-lg transition-all active:scale-[0.99] ${
               cleaningBlock
                 ? "bg-orange-500/25 text-orange-700 dark:text-orange-400 border border-orange-500/50 cursor-not-allowed"
                 : blockCheck
                   ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/40 cursor-not-allowed"
-                  : mode === "cleaning"
+                  : mode === "cleaning" || mode === "stay"
                     ? "bg-emerald-600 text-white hover:bg-emerald-700"
                     : done
                       ? "bg-secondary text-foreground/80 hover:bg-secondary/80"
@@ -2812,12 +2816,13 @@ function ArrivalCard({
             <span className="truncate">
               {mode === "cleaning"
                 ? "Limpeza concluída!"
-                : mode === "checkout"
+                : mode === "checkout" || mode === "stay"
                   ? "Check-out realizado!"
                   : done
                     ? "Reabrir"
                     : "Check-in realizado!"}
             </span>
+
           </button>
         )}
 
