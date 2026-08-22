@@ -3020,10 +3020,11 @@ function TimeDropdown({
           disabled={disabled}
           onClick={(e) => e.stopPropagation()}
           title={disabled ? "Indisponível" : "Selecionar horário previsto"}
-          className={`inline-flex w-full items-center justify-between gap-1 tabular-nums rounded-md border border-border/60 bg-background/60 px-2 py-1 hover:text-primary hover:border-border focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit ${size === "xs" ? "text-xs" : "text-sm"}`}
+          className={`inline-flex w-auto items-center gap-1 tabular-nums rounded cursor-pointer bg-transparent border-0 p-0 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit ${size === "xs" ? "text-xs" : "text-sm"}`}
         >
           <span className={value ? "font-medium" : "font-normal text-muted-foreground"}>{value ?? "Horário"}</span>
-          <ChevronDown className="size-3 opacity-50" />
+          <ChevronDown className="size-3 opacity-50 shrink-0" />
+
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="max-h-64 overflow-y-auto min-w-[6rem] p-1">
