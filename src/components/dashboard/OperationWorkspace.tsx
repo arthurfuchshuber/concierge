@@ -2501,26 +2501,6 @@ function ArrivalCard({
             )}
           </div>
 
-          {/* Código da reserva — linha própria, sem fundo */}
-          {row.reservationCode && (isPendingFill || (row.guestName && row.guestName !== row.reservationCode)) && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <span>Reserva</span>
-              <span className="truncate max-w-[160px]">{row.reservationCode}</span>
-              <CopyButton value={row.reservationCode} size={10} className="p-0.5" />
-            </div>
-          )}
-
-
-
-          {/* Alerta de engajamento visível no próprio card (não só no tooltip) */}
-          {mode !== "cleaning" && !isPendingFill && (
-            <EngagementFlags
-              openedGuide={row.openedGuide}
-              readInstructions={row.readInstructions}
-              hasPasswords={row.hasPasswords}
-              viewedPasswords={row.viewedPasswords}
-            />
-          )}
         </div>
       </div>
 
