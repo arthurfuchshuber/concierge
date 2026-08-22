@@ -15,8 +15,8 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Section, SectionGroup, type SectionIcon } from "@/components/editor/Section";
 import {
-  Loader2, Plus, Trash2, MapPinned, ClipboardCheck, BookOpen, UserRound, FileText, Shield,
-  Globe, DoorOpen, Clock, KeyRound, Wifi, ClipboardList, LogOut, Phone, HelpCircle,
+  Loader2, Plus, Trash2, MapPinned, ClipboardCheck, BookOpen, UserRound, Shield,
+  DoorOpen, Clock, KeyRound, Wifi, ClipboardList, LogOut, Phone, HelpCircle,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { bulkUpdateProperties, bulkFetchProperties } from "@/lib/properties.functions";
@@ -382,16 +382,6 @@ export function BulkEditDialog({
   }
 
 
-  function listSummary(k: ListKey): { withItems: number; empty: number } {
-    if (!data) return { withItems: 0, empty: 0 };
-    const counts = data.listCounts[k];
-    let withItems = 0, empty = 0;
-    for (const p of data.properties) {
-      if ((counts[p.id] ?? 0) > 0) withItems += 1; else empty += 1;
-    }
-    return { withItems, empty };
-  }
-
   /** Campos que vieram preenchidos e foram desligados → serão removidos. */
   const removedFields = useMemo(() => {
     const out: FieldDef[] = [];
@@ -650,18 +640,6 @@ export function BulkEditDialog({
 
       </ResponsiveDialogContent>
     </ResponsiveDialog>
-  );
-}
-
-function ListToggle({ enabled, onChange, title, hint }: { enabled: boolean; onChange: (v: boolean) => void; title: string; hint: string }) {
-  return (
-    <div className={`rounded-[0.3rem] border p-3 flex items-center justify-between gap-3 min-w-0 ${enabled ? "border-accent/50 bg-accent/5" : "border-border bg-card/40"}`}>
-      <div className="min-w-0">
-        <div className="truncate text-[13px] font-normal">{title}</div>
-        <div className="text-[11px] text-muted-foreground truncate">{hint}</div>
-      </div>
-      <Switch checked={enabled} onCheckedChange={onChange} />
-    </div>
   );
 }
 
