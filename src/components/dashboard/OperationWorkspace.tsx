@@ -413,7 +413,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
    * confirmar, o card segue para o status correto (Em Limpeza).
    */
   function handleAdvance(row: ArrivalRow, from: "checkin" | "stay" | "checkout" | "cleaning") {
-    if ((from === "checkout" || from === "checkin") && row.date > todayISO) {
+    // O card já pede confirmação de antecipação de check-out; aqui só o
+    // check-in em data futura precisa do diálogo do quadro.
+    if (from === "checkin" && row.date > todayISO) {
+
       setConfirmAdvance({ row, from });
       return;
     }
