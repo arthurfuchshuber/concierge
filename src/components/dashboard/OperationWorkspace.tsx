@@ -2969,13 +2969,13 @@ function DateEditor({
         if (input && typeof input.showPicker === "function") input.showPicker();
         else input?.focus();
       }}
-      className="relative inline-flex items-center cursor-pointer rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit"
+      className={`relative inline-flex items-center cursor-pointer rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit ${blank ? "text-muted-foreground" : ""}`}
       title="Clique para corrigir a data"
     >
-      <span className="tabular-nums">{fmtDateBR(value)}</span>
+      <span className="tabular-nums">{blank ? (placeholder ?? "—") : fmtDateBR(value)}</span>
       <input
         type="date"
-        value={value}
+        value={blank ? "" : value}
         disabled={disabled}
         min={min}
         max={max}
