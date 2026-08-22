@@ -2588,16 +2588,6 @@ function ArrivalCard({
                 </div>
               )}
 
-              {/* Engagement — só mostra pendências (fatos negativos). */}
-              {mode !== "cleaning" && !isPendingFill && (
-                <EngagementFlags
-                  openedGuide={row.openedGuide}
-                  readInstructions={row.readInstructions}
-                  hasPasswords={row.hasPasswords}
-                  viewedPasswords={row.viewedPasswords}
-                  variant="pills"
-                />
-              )}
 
               {row.ical.hasIcal &&
                 !isPendingFill &&
