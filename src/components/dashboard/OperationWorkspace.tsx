@@ -2510,8 +2510,19 @@ function ArrivalCard({
               </span>
             )}
           </div>
+
+          {/* Alerta de engajamento visível no próprio card (não só no tooltip) */}
+          {mode !== "cleaning" && !isPendingFill && (
+            <EngagementFlags
+              openedGuide={row.openedGuide}
+              readInstructions={row.readInstructions}
+              hasPasswords={row.hasPasswords}
+              viewedPasswords={row.viewedPasswords}
+            />
+          )}
         </div>
       </div>
+
 
       {/* Detalhes operacionais — expansivo, começa recolhido e só um card por vez */}
       <Accordion
