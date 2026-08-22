@@ -17,7 +17,7 @@ import {
   countAccountGuides,
 } from "@/lib/properties.functions";
 import { useMyPermissions } from "@/hooks/useMyPermissions";
-import { SectionTitle, ActionBar } from "@/components/ds/PageHeader";
+
 import { WorkspaceHeader } from "@/components/ds/WorkspaceHeader";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { LoadingState } from "@/components/ds/LoadingState";
