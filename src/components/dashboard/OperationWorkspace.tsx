@@ -2947,13 +2947,19 @@ function DateEditor({
   onChange,
   min,
   max,
+  blankWhen,
+  placeholder,
 }: {
   value: string;
   disabled: boolean;
   onChange: (v: string) => void;
   min?: string;
   max?: string;
+  /** Quando o valor for igual a esta data, o campo aparece em branco. */
+  blankWhen?: string;
+  placeholder?: string;
 }) {
+  const blank = !!blankWhen && value === blankWhen;
   return (
     <button
       type="button"
