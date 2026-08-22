@@ -2543,7 +2543,7 @@ function ArrivalCard({
       >
         <AccordionItem value="details" className="border-0">
           <AccordionTrigger className="py-0 justify-start gap-1 text-xs text-muted-foreground hover:no-underline [&>svg]:h-3 [&>svg]:w-3">
-            Detalhes da operação
+            Detalhes operacionais
           </AccordionTrigger>
           <AccordionContent className="pb-0">
             <div className="flex flex-col gap-3 pt-1">
