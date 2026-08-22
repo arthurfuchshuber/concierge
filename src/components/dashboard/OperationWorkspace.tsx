@@ -2919,6 +2919,16 @@ function ArrivalCard({
   );
 }
 
+/** Soma dias a uma data ISO (YYYY-MM-DD), sem fuso. */
+function addDaysISO(iso: string | null | undefined, days: number): string | undefined {
+  if (!iso) return undefined;
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return undefined;
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
+}
+
 function DateEditor({
   value,
   disabled,
