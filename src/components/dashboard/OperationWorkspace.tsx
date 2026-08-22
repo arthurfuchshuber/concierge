@@ -2533,8 +2533,11 @@ function ArrivalCard({
         </div>
       </div>
 
-      {/* Detalhes operacionais — expansivo, começa recolhido e só um card por vez */}
+      {/* Detalhes operacionais + engajamento — mesmo espaçamento (zero) que
+          existe entre o nome do hóspede e o período. */}
+      <div className="-mt-2.5 flex flex-col">
       <Accordion
+
         type="single"
         collapsible
         className="mt-0"
