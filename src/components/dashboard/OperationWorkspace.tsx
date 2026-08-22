@@ -1420,22 +1420,25 @@ function KpiCard({
                         )}
                       </div>
 
-                      {/* Período + código da reserva na mesma linha — igual ao card do Kanban */}
-                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] tabular-nums text-foreground/80">
+                      {/* Período — mesma fonte/cor do nome do hóspede, uma linha */}
+                      <div className="text-xs flex flex-wrap items-center gap-1.5 text-muted-foreground">
                         <span>{fmtDateBR(r.guestCheckin)}</span>
                         {r.guestCheckout && (
                           <>
-                            <span className="text-muted-foreground">→</span>
+                            <span>→</span>
                             <span>{fmtDateBR(r.guestCheckout)}</span>
                           </>
                         )}
-                        {r.reservationCode && (
-                          <span className="ds-meta inline-flex items-center gap-0.5">
-                            <span className="truncate max-w-[160px]">{r.reservationCode}</span>
-                            <CopyButton value={r.reservationCode} size={10} className="p-0.5" />
-                          </span>
-                        )}
                       </div>
+                      {/* Código da reserva — linha própria, sem fundo */}
+                      {r.reservationCode && (
+                        <div className="text-xs flex items-center gap-1 text-muted-foreground">
+                          <span>Reserva</span>
+                          <span className="truncate max-w-[160px]">{r.reservationCode}</span>
+                          <CopyButton value={r.reservationCode} size={10} className="p-0.5" />
+                        </div>
+                      )}
+
                       {/* Previsão de horário — campo largo, logo abaixo do código da reserva */}
                       <div className="mt-0.5 flex items-center gap-2">
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
