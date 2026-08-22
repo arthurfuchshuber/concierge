@@ -1420,12 +1420,22 @@ function KpiCard({
                         )}
                       </div>
 
-                      {r.reservationCode && (
-                        <div className="mt-0.5 inline-flex items-center gap-0.5 text-[11px] text-muted-foreground font-normal tabular-nums">
-                          <span className="truncate max-w-[160px]">{r.reservationCode}</span>
-                          <CopyButton value={r.reservationCode} size={10} className="p-0.5" />
-                        </div>
-                      )}
+                      {/* Período + código da reserva na mesma linha — igual ao card do Kanban */}
+                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] tabular-nums text-foreground/80">
+                        <span>{fmtDateBR(r.guestCheckin)}</span>
+                        {r.guestCheckout && (
+                          <>
+                            <span className="text-muted-foreground">→</span>
+                            <span>{fmtDateBR(r.guestCheckout)}</span>
+                          </>
+                        )}
+                        {r.reservationCode && (
+                          <span className="ds-meta inline-flex items-center gap-0.5 rounded-md bg-secondary px-1.5 py-0.5">
+                            <span className="truncate max-w-[160px]">{r.reservationCode}</span>
+                            <CopyButton value={r.reservationCode} size={10} className="p-0.5" />
+                          </span>
+                        )}
+                      </div>
                       {/* Previsão de horário — campo largo, logo abaixo do código da reserva */}
                       <div className="mt-0.5 flex items-center gap-2">
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
