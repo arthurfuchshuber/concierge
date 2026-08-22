@@ -2675,6 +2675,8 @@ function ArrivalCard({
           viewedPasswords={row.viewedPasswords}
         />
       )}
+      </div>
+
 
       {row.note && !noteOpen && (
         <button
