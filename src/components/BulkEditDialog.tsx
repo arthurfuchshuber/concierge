@@ -553,9 +553,16 @@ export function BulkEditDialog({
               <SectionGroup>
                 <div className="space-y-4">
                 {tab.groups.map((group) => {
-                  const activeCount =
-                    groupFields(group).filter((f) => state.enabled[f.key]).length +
-                    (group.lists ?? []).filter((lk) => state.listsEnabled[lk]).length;
+                  const gFields = groupFields(group);
+                  const gLists = group.lists ?? [];
+                  // Uma única chave por bloco: liga/desliga o quadrante inteiro.
+                  const groupOn =
+                    gFields.some((f) => state.enabled[f.key]) ||
+                    gLists.some((lk) => state.listsEnabled[lk]);
+                  const setGroup = (v: boolean) => {
+                    gFields.forEach((f) => toggle(f.key, v));
+                    gLists.forEach((lk) => toggleList(lk, v));
+                  };
                   return (
                   <Section
                     key={group.id}
@@ -566,78 +573,55 @@ export function BulkEditDialog({
                     dense
                     collapsible
                     action={
-                      activeCount > 0 ? (
-                        <span
-                          title={`${activeCount} campo${activeCount > 1 ? "s" : ""} ativo${activeCount > 1 ? "s" : ""}`}
-                          className="size-5 rounded-full bg-primary/15 text-primary text-[10px] font-semibold grid place-items-center tabular-nums"
-                        >
-                          {activeCount}
-                        </span>
-                      ) : null
+                      <Switch
+                        checked={groupOn}
+                        onCheckedChange={setGroup}
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label={`Ativar ${group.title}`}
+                      />
                     }
 
                   >
-                  {(group.subgroups ?? []).map((sg) => {
-                    const someOn = sg.fields.some((f) => state.enabled[f.key]);
-                    return (
-                      <div
-                        key={sg.id}
-                        className={`rounded-[0.3rem] border p-3 transition-colors min-w-0 ${someOn ? "border-accent/50 bg-accent/5" : "border-border bg-card/40"}`}
-                      >
-                        <div className="mb-2 flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="truncate text-[13px] font-medium">{sg.title}</div>
-                            <div className="text-[11px] text-muted-foreground truncate">
-                              {someOn ? "Ativo nos guias selecionados" : "Desligado — as informações serão removidas"}
-                            </div>
+                  {!groupOn ? (
+                    <p className="text-[11px] text-muted-foreground">
+                      Desligado — nada deste bloco será alterado nos guias selecionados.
+                    </p>
+                  ) : (
+                  <>
+                  {(group.subgroups ?? []).map((sg) => (
+                    <div
+                      key={sg.id}
+                      className="rounded-[0.3rem] border border-border bg-card/40 p-3 min-w-0"
+                    >
+                      <div className="mb-2 truncate text-[13px] font-normal">{sg.title}</div>
+                      <div className="divide-y divide-border/60">
+                        {sg.fields.map((f) => (
+                          <div key={f.key} className="py-2.5 first:pt-0 last:pb-0">
+                            {fieldBlock(f, false)}
                           </div>
-                          <Switch
-                            checked={someOn}
-                            onCheckedChange={(v) => sg.fields.forEach((f) => toggle(f.key, v))}
-                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+
+                  {(group.fields ?? []).length > 0 && (
+                    <div className="rounded-[0.3rem] border border-border bg-card/40 p-3 min-w-0 divide-y divide-border/60">
+                      {(group.fields ?? []).map((f) => (
+                        <div key={f.key} className="py-2.5 first:pt-0 last:pb-0">
+                          {fieldBlock(f, false)}
                         </div>
-                        {someOn && (
-                          <div className="divide-y divide-border/60">
-                            {sg.fields.map((f) => (
-                              <div key={f.key} className="py-2.5 first:pt-0 last:pb-0">
-                                {fieldBlock(f, false)}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                      ))}
+                    </div>
+                  )}
 
-                  {(group.fields ?? []).map((f) => {
-                    const enabled = !!state.enabled[f.key];
-                    return (
-                      <div key={f.key} className={`rounded-[0.3rem] border p-3 transition-colors min-w-0 ${enabled ? "border-accent/50 bg-accent/5" : "border-border bg-card/40"}`}>
-                        {fieldBlock(f, true)}
-                      </div>
-                    );
-                  })}
+                  {gLists.map((lk) => (
+                    <div key={lk} className="min-w-0">
+                      {renderList(lk, state, setState)}
+                    </div>
+                  ))}
+                  </>
+                  )}
 
-
-
-                  {(group.lists ?? []).map((lk) => {
-                    const ls = listSummary(lk);
-                    const titles: Record<ListKey, string> = {
-                      manual: "Manual da casa", checkout: "Checklist de checkout",
-                      emergency: "Contatos de emergência", faqs: "Perguntas frequentes",
-                    };
-                    return (
-                      <div key={lk} className="min-w-0">
-                        <ListToggle
-                          enabled={!!state.listsEnabled[lk]}
-                          onChange={(v) => toggleList(lk, v)}
-                          title={titles[lk]}
-                          hint={`Atual: ${ls.withItems} guia${ls.withItems === 1 ? "" : "s"} com itens · ${ls.empty} sem itens.`}
-                        />
-                        {state.listsEnabled[lk] && renderList(lk, state, setState)}
-                      </div>
-                    );
-                  })}
                   </Section>
                   );
                 })}
