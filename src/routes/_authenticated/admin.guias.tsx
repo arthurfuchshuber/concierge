@@ -1,6 +1,6 @@
 import { PhoneActionButton } from "@/components/PhoneActionButton";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Home, Compass } from "lucide-react";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Compass } from "lucide-react";
 import { useSearch } from "@tanstack/react-router";
 import { useServerFn as useServerFnGuias } from "@tanstack/react-start";
 import { useQuery as useQueryGuias } from "@tanstack/react-query";
@@ -17,7 +17,8 @@ import {
   countAccountGuides,
 } from "@/lib/properties.functions";
 import { useMyPermissions } from "@/hooks/useMyPermissions";
-import { PageHeader, SectionTitle, ActionBar } from "@/components/ds/PageHeader";
+import { SectionTitle, ActionBar } from "@/components/ds/PageHeader";
+import { WorkspaceHeader } from "@/components/ds/WorkspaceHeader";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { LoadingState } from "@/components/ds/LoadingState";
 
