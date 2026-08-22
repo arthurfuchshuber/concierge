@@ -491,7 +491,7 @@ function Dashboard() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar por nome, endereço, cidade…"
-              className="h-9 w-full box-border rounded-none border-0 bg-secondary/50 pl-9 pr-8 text-xs font-medium leading-none text-foreground/80 placeholder:text-muted-foreground focus:outline-none focus:bg-secondary transition-colors"
+              className="h-9 w-full box-border rounded-none border-0 bg-secondary/50 pl-9 pr-8 text-xs font-normal leading-none text-foreground/80 placeholder:text-muted-foreground focus:outline-none focus:bg-secondary transition-colors"
             />
             {search && (
               <button

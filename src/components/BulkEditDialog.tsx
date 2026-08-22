@@ -497,7 +497,7 @@ export function BulkEditDialog({
       <div className="min-w-0">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <label className="text-sm font-medium truncate block">{f.label}</label>
+            <label className="block truncate text-[13px] font-normal">{f.label}</label>
             <div className={`text-[11px] mt-0.5 truncate ${willRemove ? "text-destructive" : "text-muted-foreground"}`}>
               {willRemove
                 ? "Será removido dos guias selecionados"
@@ -599,7 +599,7 @@ export function BulkEditDialog({
                       >
                         <div className="mb-2 flex items-center justify-between gap-3">
                           <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold">{sg.title}</div>
+                            <div className="truncate text-[13px] font-medium">{sg.title}</div>
                             <div className="text-[11px] text-muted-foreground truncate">
                               {someOn ? "Ativo nos guias selecionados" : "Desligado — as informações serão removidas"}
                             </div>
