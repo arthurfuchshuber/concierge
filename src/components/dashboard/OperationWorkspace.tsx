@@ -2570,11 +2570,17 @@ function ArrivalCard({
                         value={row.arrivalDateOverride ?? ""}
                         disabled={busy || isPendingFill}
                         placeholder="Data"
-                        min={addDaysISO(predictedMinDate, 1)}
+                        min={predictedMinDate ?? undefined}
                         max={kind === "checkout" ? undefined : (predictedMaxDate ?? undefined)}
                         onChange={(v) => onEditPredictedDate?.(row, v)}
                       />
-                      <TimeDropdown value={guestTime ?? null} disabled={busy} size="xs" onChange={(v) => onEditTime(row, v)} />
+                      {/* Horário só depois da data: a ordem é data → horário. */}
+                      <TimeDropdown
+                        value={guestTime ?? null}
+                        disabled={busy || !row.arrivalDateOverride}
+                        size="xs"
+                        onChange={(v) => onEditTime(row, v)}
+                      />
                     </span>
                   </div>
                 </div>
