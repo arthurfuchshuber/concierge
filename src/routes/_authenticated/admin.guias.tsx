@@ -122,18 +122,10 @@ function guideCompleteness(p: {
   return { score, label: "Incompleto", color: "bg-red-400" };
 }
 
-function GuiasTabsBar() {
-  return (
-    <TabsList className="mb-5">
-      <TabsTrigger value="imoveis">
-        <Home className="size-4" /> Guias de Imóveis
-      </TabsTrigger>
-      <TabsTrigger value="destinos">
-        <Compass className="size-4" /> Guias de Destinos
-      </TabsTrigger>
-    </TabsList>
-  );
-}
+const GUIA_TABS = [
+  { key: "imoveis", label: "Imóveis" },
+  { key: "destinos", label: "Destinos" },
+];
 
 function GuiasTabs() {
   const search = useSearch({ from: "/_authenticated/admin/guias" });
@@ -149,20 +141,27 @@ function GuiasTabs() {
         <Dashboard />
       </TabsContent>
       <TabsContent value="destinos" className="mt-0">
-        <div className="px-6 lg:px-10 py-24 max-w-[1440px] mx-auto w-full text-center">
-          <Compass className="size-8 mx-auto text-muted-foreground/60 mb-3" />
-          <p className="font-display text-2xl">Em construção...</p>
-          <p className="text-sm text-muted-foreground mt-1.5">
-            Em breve você poderá criar guias completos por destino.
-          </p>
-          <div className="flex justify-center mt-6">
-            <GuiasTabsBar />
+        <div className="px-6 lg:px-10 py-6 max-w-[1440px] mx-auto w-full">
+          <WorkspaceHeader
+            title="Guias"
+            subtitle="Seus imóveis e destinos publicados."
+            tabs={GUIA_TABS}
+            activeTab={tab}
+            onTabChange={(k) => navigate({ to: "/admin/guias", search: { tab: coerceGuiaTab(k) } })}
+          />
+          <div className="py-16 text-center">
+            <Compass className="size-8 mx-auto text-muted-foreground/60 mb-3" />
+            <p className="ds-section-title">Em construção...</p>
+            <p className="ds-page-subtitle mt-1.5">
+              Em breve você poderá criar guias completos por destino.
+            </p>
           </div>
         </div>
       </TabsContent>
     </Tabs>
   );
 }
+
 
 function Dashboard() {
   const list = useServerFn(listMyProperties);
