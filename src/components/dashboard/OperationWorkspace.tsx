@@ -1420,12 +1420,22 @@ function KpiCard({
                         )}
                       </div>
 
-                      {r.reservationCode && (
-                        <div className="mt-0.5 inline-flex items-center gap-0.5 text-[11px] text-muted-foreground font-normal tabular-nums">
-                          <span className="truncate max-w-[160px]">{r.reservationCode}</span>
-                          <CopyButton value={r.reservationCode} size={10} className="p-0.5" />
-                        </div>
-                      )}
+                      {/* Período + código da reserva na mesma linha — igual ao card do Kanban */}
+                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] tabular-nums text-foreground/80">
+                        <span>{fmtDateBR(r.guestCheckin)}</span>
+                        {r.guestCheckout && (
+                          <>
+                            <span className="text-muted-foreground">→</span>
+                            <span>{fmtDateBR(r.guestCheckout)}</span>
+                          </>
+                        )}
+                        {r.reservationCode && (
+                          <span className="ds-meta inline-flex items-center gap-0.5 rounded-md bg-secondary px-1.5 py-0.5">
+                            <span className="truncate max-w-[160px]">{r.reservationCode}</span>
+                            <CopyButton value={r.reservationCode} size={10} className="p-0.5" />
+                          </span>
+                        )}
+                      </div>
                       {/* Previsão de horário — campo largo, logo abaixo do código da reserva */}
                       <div className="mt-0.5 flex items-center gap-2">
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
@@ -1503,16 +1513,40 @@ function EngagementFlags({
       </div>
     );
   }
+  return <EngagementAlertDropdown flags={flags} />;
+}
+
+/** Alertas agrupados num único acionador expansível (estilo "+N hóspedes"). */
+function EngagementAlertDropdown({ flags }: { flags: Array<{ icon: typeof Eye; label: string }> }) {
+  const [open, setOpen] = useState(false);
   return (
-    <div className="mt-1 flex flex-col gap-0.5">
-      {flags.map((f) => (
-        <div
-          key={f.label}
-          className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-semibold text-amber-600 dark:text-amber-400"
-        >
-          <f.icon className="size-3 shrink-0" /> {f.label}
-        </div>
-      ))}
+    <div className="relative mt-1">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        className="inline-flex items-center gap-1 border-0 bg-transparent p-0 text-[10px] uppercase tracking-wider font-semibold text-amber-600 dark:text-amber-400 hover:opacity-80"
+        title="Ver alertas de engajamento"
+      >
+        <AlertTriangle className="size-3 shrink-0" />
+        Alerta de engajamento
+        <ChevronDown className={`size-3 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <ul className="absolute left-0 top-full z-30 mt-1 min-w-[190px] space-y-1 rounded-lg border border-amber-500/25 bg-popover px-2 py-1.5 shadow-lg">
+          {flags.map((f) => (
+            <li
+              key={f.label}
+              className="flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-400"
+            >
+              <f.icon className="size-3 shrink-0" />
+              <span className="min-w-0">{f.label}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -2336,6 +2370,10 @@ function ArrivalCard({
   const done = row.status === "done";
   const visualDone = done && mode !== "cleaning";
   const isPendingFill = row.pendingFill;
+  // Janela permitida para a data prevista: da data original de check-in
+  // (iCal quando existe) até 1 dia antes do check-out.
+  const predictedMinDate = row.ical.icalCheckin ?? row.guestCheckin;
+  const predictedMaxDate = addDaysISO(row.ical.icalCheckout ?? row.guestCheckout, -1) ?? null;
   const todayISO = todayISOSaoPaulo();
   const isOverdue = row.date < todayISO;
   const isFuture = row.date > todayISO;
@@ -2511,8 +2549,21 @@ function ArrivalCard({
                         Selecione o horário (30 em 30 min). A alteração reordena o kanban imediatamente.
                       </InfoHint>
                     </span>
-                    <span className="w-24 shrink-0">
-                      <TimeDropdown value={guestTime ?? null} disabled={busy} onChange={(v) => onEditTime(row, v)} />
+                    <span className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-xs">
+                        <DateEditor
+                          value={kind === "checkout" ? (row.guestCheckout ?? row.guestCheckin) : row.guestCheckin}
+                          disabled={busy || isPendingFill}
+                          min={kind === "checkout" ? addDaysISO(predictedMinDate, 1) : predictedMinDate}
+                          max={kind === "checkout" ? undefined : (predictedMaxDate ?? undefined)}
+                          onChange={(v) =>
+                            onEditDates(row, kind === "checkout" ? { checkoutDate: v } : { checkinDate: v })
+                          }
+                        />
+                      </span>
+                      <span className="w-24 shrink-0">
+                        <TimeDropdown value={guestTime ?? null} disabled={busy} onChange={(v) => onEditTime(row, v)} />
+                      </span>
                     </span>
                   </div>
                 </div>
@@ -2872,14 +2923,28 @@ function ArrivalCard({
   );
 }
 
+/** Soma dias a uma data ISO (YYYY-MM-DD), sem fuso. */
+function addDaysISO(iso: string | null | undefined, days: number): string | undefined {
+  if (!iso) return undefined;
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return undefined;
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
+}
+
 function DateEditor({
   value,
   disabled,
   onChange,
+  min,
+  max,
 }: {
   value: string;
   disabled: boolean;
   onChange: (v: string) => void;
+  min?: string;
+  max?: string;
 }) {
   return (
     <button
@@ -2898,9 +2963,13 @@ function DateEditor({
         type="date"
         value={value}
         disabled={disabled}
+        min={min}
+        max={max}
         onChange={(e) => {
           const v = e.target.value;
           if (!v || v === value) return;
+          if (min && v < min) return;
+          if (max && v > max) return;
           onChange(v);
         }}
         onClick={(e) => e.stopPropagation()}
