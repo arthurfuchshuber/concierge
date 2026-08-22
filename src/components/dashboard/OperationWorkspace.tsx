@@ -1979,7 +1979,8 @@ function OccupancyPanel({
           </>
         )}
       </div>
-    </section>
+      </section>
+    </>
   );
 }
 
