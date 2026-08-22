@@ -1372,12 +1372,12 @@ function PropertyEditor() {
   }
 
   return (
-    <div className="px-6 lg:px-10 pt-8 lg:pt-10 max-w-[1440px] mx-auto w-full">
+    <div className="ds-dense-fields px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full">
       <Link to="/admin/guias" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
         <ArrowLeft className="size-3.5" /> Voltar
       </Link>
       {readOnly ? (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+        <div className="mb-4 flex items-center gap-2 rounded-[0.3rem] border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
           <Lock className="size-3.5 shrink-0" />
           Você tem acesso apenas para visualizar este guia. A edição está bloqueada.
         </div>
@@ -1386,10 +1386,12 @@ function PropertyEditor() {
 
       <header className="mb-3 min-w-0">
         <h1 className="ds-page-title w-full break-words">{form.property.name || "Sem título"}</h1>
+        <p className="ds-page-subtitle mt-1.5">Edite as informações do guia deste imóvel.</p>
       </header>
 
       {!isNew ? (
-        <div className="mb-4 sm:mb-5 pb-4 border-b border-border/60 ds-scroll-x items-center gap-2">
+        <div className="mb-4 ds-scroll-x items-center gap-2">
+
           <PresenceAvatars users={presence.users} />
           <Link
             to="/admin/properties/$id/acessos"
