@@ -1353,7 +1353,13 @@ function PropertyEditor() {
                   {saving ? <Loader2 className="size-4 animate-spin" /> : null}
                   <span className={saving ? "ml-1.5" : ""}>{saving ? "Salvando…" : "Salvar alterações"}</span>
                 </Button>
-                <Button className="min-w-[140px]" onClick={handleCreateGuide} disabled={saving || !form.property.name.trim()}>
+                <Button
+                  className="min-w-[140px]"
+                  onClick={handleCreateGuide}
+                  disabled={saving || !form.property.name.trim() || !form.property.tagline.trim()}
+                  title={!form.property.tagline.trim() ? "Selecione o tipo do guia para continuar" : undefined}
+                >
+
                   {saving ? <Loader2 className="size-4 animate-spin" /> : null}
                   <span className={saving ? "ml-1.5" : ""}>{saving ? "Criando…" : "Criar guia"}</span>
                 </Button>
