@@ -15,8 +15,8 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Section, SectionGroup, type SectionIcon } from "@/components/editor/Section";
 import {
-  Loader2, Plus, Trash2, MapPinned, ClipboardCheck, BookOpen, UserRound, FileText, Shield,
-  Globe, DoorOpen, Clock, KeyRound, Wifi, ClipboardList, LogOut, Phone, HelpCircle,
+  Loader2, Plus, Trash2, MapPinned, ClipboardCheck, BookOpen, UserRound, Shield,
+  DoorOpen, Clock, KeyRound, Wifi, ClipboardList, LogOut, Phone, HelpCircle,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { bulkUpdateProperties, bulkFetchProperties } from "@/lib/properties.functions";
@@ -63,28 +63,27 @@ function groupFields(g: Group): FieldDef[] {
 }
 
 
-/** Mesma organização (abas + quadrantes) do editor individual do guia. */
+/** Mesma organização (abas + quadrantes + ordem dos campos) do editor individual. */
 const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
   {
     id: "house", label: "A casa",
     groups: [
       {
         id: "address", title: "Endereço e localização", icon: MapPinned,
-        desc: "Endereço, links do Maps e orientações de chegada.",
+        desc: "Cole o link do Google Maps — o endereço é preenchido automaticamente.",
         fields: [
-          { key: "address", label: "Endereço completo", kind: "textarea" },
-          { key: "maps_url", label: "Link do Google Maps", kind: "text" },
-          { key: "garage_maps_url", label: "Link do Maps (garagem)", kind: "text" },
+          { key: "maps_url", label: "Link do Google Maps — Entrada principal", kind: "text" },
+          { key: "garage_maps_url", label: "Link do Google Maps — Garagem (opcional)", kind: "text" },
+          { key: "address", label: "Endereço", kind: "textarea" },
           { key: "city", label: "Cidade", kind: "text" },
-          { key: "state", label: "Estado", kind: "text" },
           { key: "country", label: "País", kind: "text" },
-          { key: "address_note", label: "Como chegar", kind: "textarea" },
+          { key: "address_note", label: "Observação sobre o endereço", kind: "textarea" },
         ],
       },
       {
         id: "house-rules", title: "Regras do espaço", icon: ClipboardCheck,
         desc: "Uma regra por linha — cada linha vira um item numerado no guia.",
-        fields: [{ key: "house_rules", label: "Regras do espaço", kind: "textarea" }],
+        fields: [{ key: "house_rules", label: "Regras (opcional)", kind: "textarea" }],
       },
       {
         id: "manual", title: "Manual da casa", icon: BookOpen,
@@ -95,8 +94,8 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
         id: "host-house", title: "Contato do anfitrião", icon: UserRound,
         desc: "Nome e WhatsApp para o hóspede te encontrar.",
         fields: [
-          { key: "host_name", label: "Nome do anfitrião", kind: "text" },
-          { key: "host_phone", label: "Telefone do anfitrião", kind: "text" },
+          { key: "host_name", label: "Nome", kind: "text" },
+          { key: "host_phone", label: "Telefone (WhatsApp)", kind: "text" },
         ],
       },
     ],
@@ -105,27 +104,13 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
     id: "guide", label: "O guia",
     groups: [
       {
-        id: "identity", title: "Identidade visual", icon: FileText,
-        desc: "Como o guia se apresenta e sua marca no rodapé.",
-        fields: [
-          { key: "brand_name", label: "Nome da marca", kind: "text" },
-          { key: "brand_logo_url", label: "URL do logo (https://)", kind: "text" },
-          { key: "guide_theme", label: "Tema do guia", kind: "theme" },
-        ],
-      },
-      {
         id: "access-mode", title: "Modo de acesso", icon: Shield,
         desc: "Quem pode visualizar este guia.",
         fields: [
-          { key: "published", label: "Publicado", kind: "boolean" },
-          { key: "access_mode", label: "Modo de acesso do guia", kind: "access_mode" },
-          { key: "pin_code", label: "PIN (quando modo = PIN)", kind: "text" },
+          { key: "access_mode", label: "Modo de acesso do Guia", kind: "access_mode" },
+          { key: "pin_code", label: "Código de acesso", kind: "text" },
           { key: "require_access_gate", label: "Exigir formulário de primeiro acesso", kind: "boolean" },
         ],
-      },
-      {
-        id: "language", title: "Idioma padrão", icon: Globe,
-        fields: [{ key: "default_language", label: "Idioma padrão", kind: "language" }],
       },
     ],
   },
@@ -135,15 +120,15 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
       {
         id: "checkin-instr", title: "Instruções de chegada", icon: DoorOpen,
         desc: "Passo a passo do check-in. Uma etapa por linha.",
-        fields: [{ key: "checkin_instructions", label: "Instruções de check-in", kind: "textarea" }],
+        fields: [{ key: "checkin_instructions", label: "Passo a passo (opcional)", kind: "textarea" }],
       },
       {
         id: "checkin-times", title: "Horários de check-in", icon: Clock,
         desc: "Janela de chegada.",
         fields: [
-          { key: "checkin_time", label: "Check-in a partir", kind: "text", placeholder: "15:00" },
-          { key: "checkin_time_max", label: "Check-in até", kind: "text", placeholder: "20:00" },
-          { key: "checkin_note", label: "Observação de check-in", kind: "textarea" },
+          { key: "checkin_time", label: "Check-in a partir de", kind: "text", placeholder: "15:00" },
+          { key: "checkin_time_max", label: "Check-in até", kind: "text", placeholder: "22:00" },
+          { key: "checkin_note", label: "Observação do check-in (opcional)", kind: "textarea" },
         ],
       },
       {
@@ -153,17 +138,17 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
           {
             id: "gate", title: "Portão",
             fields: [
-              { key: "gate_label", label: "Nome do portão", kind: "text" },
               { key: "gate_code", label: "Código do portão", kind: "text" },
-              { key: "gate_instructions", label: "Instruções do portão", kind: "textarea" },
+              { key: "gate_label", label: "Defina um nome", kind: "text" },
+              { key: "gate_instructions", label: "Passo a passo (opcional)", kind: "textarea" },
             ],
           },
           {
             id: "lock", title: "Fechadura",
             fields: [
-              { key: "lock_label", label: "Nome da fechadura", kind: "text" },
               { key: "lock_code", label: "Código da fechadura", kind: "text" },
-              { key: "lock_instructions", label: "Instruções da fechadura", kind: "textarea" },
+              { key: "lock_label", label: "Defina um nome", kind: "text" },
+              { key: "lock_instructions", label: "Passo a passo (opcional)", kind: "textarea" },
             ],
           },
         ],
@@ -176,8 +161,8 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
         id: "wifi", title: "Wi-Fi", icon: Wifi,
         desc: "Rede e senha exibidas no card de Wi-Fi do guia público.",
         fields: [
-          { key: "wifi_ssid", label: "Rede Wi-Fi", kind: "text" },
-          { key: "wifi_password", label: "Senha do Wi-Fi", kind: "text" },
+          { key: "wifi_ssid", label: "Rede (SSID)", kind: "text" },
+          { key: "wifi_password", label: "Senha", kind: "text" },
         ],
       },
       {
@@ -199,15 +184,15 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
       {
         id: "checkout-instr", title: "Instruções de saída", icon: LogOut,
         desc: "Passo a passo do check-out. Uma etapa por linha.",
-        fields: [{ key: "checkout_instructions", label: "Instruções de check-out", kind: "textarea" }],
+        fields: [{ key: "checkout_instructions", label: "Passo a passo (opcional)", kind: "textarea" }],
       },
       {
         id: "checkout-times", title: "Horários de check-out", icon: Clock,
         desc: "Janela de saída.",
         fields: [
+          { key: "checkout_time_min", label: "Check-out a partir de", kind: "text", placeholder: "08:00" },
           { key: "checkout_time", label: "Check-out até", kind: "text", placeholder: "11:00" },
-          { key: "checkout_time_min", label: "Check-out a partir", kind: "text" },
-          { key: "checkout_note", label: "Observação de check-out", kind: "textarea" },
+          { key: "checkout_note", label: "Observação do check-out (opcional)", kind: "textarea" },
         ],
       },
       {
@@ -234,14 +219,15 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
         id: "host-faq", title: "Contato do anfitrião", icon: UserRound,
         desc: "Nome e WhatsApp para o hóspede te encontrar.",
         fields: [
-          { key: "host_name", label: "Nome do anfitrião", kind: "text" },
-          { key: "host_phone", label: "Telefone do anfitrião", kind: "text" },
+          { key: "host_name", label: "Nome", kind: "text" },
+          { key: "host_phone", label: "Telefone (WhatsApp)", kind: "text" },
         ],
       },
     ],
   },
   { id: "recs", label: "Recomendações", groups: [] },
 ];
+
 
 
 type State = {
@@ -395,16 +381,6 @@ export function BulkEditDialog({
     return summaries.get(key) ?? { filled: 0, empty: data?.properties.length ?? 0, distinct: [] };
   }
 
-
-  function listSummary(k: ListKey): { withItems: number; empty: number } {
-    if (!data) return { withItems: 0, empty: 0 };
-    const counts = data.listCounts[k];
-    let withItems = 0, empty = 0;
-    for (const p of data.properties) {
-      if ((counts[p.id] ?? 0) > 0) withItems += 1; else empty += 1;
-    }
-    return { withItems, empty };
-  }
 
   /** Campos que vieram preenchidos e foram desligados → serão removidos. */
   const removedFields = useMemo(() => {
@@ -567,9 +543,16 @@ export function BulkEditDialog({
               <SectionGroup>
                 <div className="space-y-4">
                 {tab.groups.map((group) => {
-                  const activeCount =
-                    groupFields(group).filter((f) => state.enabled[f.key]).length +
-                    (group.lists ?? []).filter((lk) => state.listsEnabled[lk]).length;
+                  const gFields = groupFields(group);
+                  const gLists = group.lists ?? [];
+                  // Uma única chave por bloco: liga/desliga o quadrante inteiro.
+                  const groupOn =
+                    gFields.some((f) => state.enabled[f.key]) ||
+                    gLists.some((lk) => state.listsEnabled[lk]);
+                  const setGroup = (v: boolean) => {
+                    gFields.forEach((f) => toggle(f.key, v));
+                    gLists.forEach((lk) => toggleList(lk, v));
+                  };
                   return (
                   <Section
                     key={group.id}
@@ -580,78 +563,55 @@ export function BulkEditDialog({
                     dense
                     collapsible
                     action={
-                      activeCount > 0 ? (
-                        <span
-                          title={`${activeCount} campo${activeCount > 1 ? "s" : ""} ativo${activeCount > 1 ? "s" : ""}`}
-                          className="size-5 rounded-full bg-primary/15 text-primary text-[10px] font-semibold grid place-items-center tabular-nums"
-                        >
-                          {activeCount}
-                        </span>
-                      ) : null
+                      <Switch
+                        checked={groupOn}
+                        onCheckedChange={setGroup}
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label={`Ativar ${group.title}`}
+                      />
                     }
 
                   >
-                  {(group.subgroups ?? []).map((sg) => {
-                    const someOn = sg.fields.some((f) => state.enabled[f.key]);
-                    return (
-                      <div
-                        key={sg.id}
-                        className={`rounded-[0.3rem] border p-3 transition-colors min-w-0 ${someOn ? "border-accent/50 bg-accent/5" : "border-border bg-card/40"}`}
-                      >
-                        <div className="mb-2 flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="truncate text-[13px] font-medium">{sg.title}</div>
-                            <div className="text-[11px] text-muted-foreground truncate">
-                              {someOn ? "Ativo nos guias selecionados" : "Desligado — as informações serão removidas"}
-                            </div>
+                  {!groupOn ? (
+                    <p className="text-[11px] text-muted-foreground">
+                      Desligado — nada deste bloco será alterado nos guias selecionados.
+                    </p>
+                  ) : (
+                  <>
+                  {(group.subgroups ?? []).map((sg) => (
+                    <div
+                      key={sg.id}
+                      className="rounded-[0.3rem] border border-border bg-card/40 p-3 min-w-0"
+                    >
+                      <div className="mb-2 truncate text-[13px] font-normal">{sg.title}</div>
+                      <div className="divide-y divide-border/60">
+                        {sg.fields.map((f) => (
+                          <div key={f.key} className="py-2.5 first:pt-0 last:pb-0">
+                            {fieldBlock(f, false)}
                           </div>
-                          <Switch
-                            checked={someOn}
-                            onCheckedChange={(v) => sg.fields.forEach((f) => toggle(f.key, v))}
-                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+
+                  {(group.fields ?? []).length > 0 && (
+                    <div className="rounded-[0.3rem] border border-border bg-card/40 p-3 min-w-0 divide-y divide-border/60">
+                      {(group.fields ?? []).map((f) => (
+                        <div key={f.key} className="py-2.5 first:pt-0 last:pb-0">
+                          {fieldBlock(f, false)}
                         </div>
-                        {someOn && (
-                          <div className="divide-y divide-border/60">
-                            {sg.fields.map((f) => (
-                              <div key={f.key} className="py-2.5 first:pt-0 last:pb-0">
-                                {fieldBlock(f, false)}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                      ))}
+                    </div>
+                  )}
 
-                  {(group.fields ?? []).map((f) => {
-                    const enabled = !!state.enabled[f.key];
-                    return (
-                      <div key={f.key} className={`rounded-[0.3rem] border p-3 transition-colors min-w-0 ${enabled ? "border-accent/50 bg-accent/5" : "border-border bg-card/40"}`}>
-                        {fieldBlock(f, true)}
-                      </div>
-                    );
-                  })}
+                  {gLists.map((lk) => (
+                    <div key={lk} className="min-w-0">
+                      {renderList(lk, state, setState)}
+                    </div>
+                  ))}
+                  </>
+                  )}
 
-
-
-                  {(group.lists ?? []).map((lk) => {
-                    const ls = listSummary(lk);
-                    const titles: Record<ListKey, string> = {
-                      manual: "Manual da casa", checkout: "Checklist de checkout",
-                      emergency: "Contatos de emergência", faqs: "Perguntas frequentes",
-                    };
-                    return (
-                      <div key={lk} className="min-w-0">
-                        <ListToggle
-                          enabled={!!state.listsEnabled[lk]}
-                          onChange={(v) => toggleList(lk, v)}
-                          title={titles[lk]}
-                          hint={`Atual: ${ls.withItems} guia${ls.withItems === 1 ? "" : "s"} com itens · ${ls.empty} sem itens.`}
-                        />
-                        {state.listsEnabled[lk] && renderList(lk, state, setState)}
-                      </div>
-                    );
-                  })}
                   </Section>
                   );
                 })}
@@ -680,18 +640,6 @@ export function BulkEditDialog({
 
       </ResponsiveDialogContent>
     </ResponsiveDialog>
-  );
-}
-
-function ListToggle({ enabled, onChange, title, hint }: { enabled: boolean; onChange: (v: boolean) => void; title: string; hint: string }) {
-  return (
-    <div className={`rounded-[0.3rem] border p-3 flex items-center justify-between gap-3 min-w-0 ${enabled ? "border-accent/50 bg-accent/5" : "border-border bg-card/40"}`}>
-      <div className="min-w-0">
-        <div className="truncate text-[13px] font-normal">{title}</div>
-        <div className="text-[11px] text-muted-foreground truncate">{hint}</div>
-      </div>
-      <Switch checked={enabled} onCheckedChange={onChange} />
-    </div>
   );
 }
 
