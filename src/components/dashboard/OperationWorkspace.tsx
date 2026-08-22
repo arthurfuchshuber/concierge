@@ -777,7 +777,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             <div className="sm:hidden space-y-3">
               <div className="space-y-2">
                 <div className="ds-scroll-x w-full min-w-0 gap-1.5 snap-x pb-1 -mx-1 px-1">
-
                   {(
                     [
                       { key: "checkin", label: "Check-ins", icon: CalendarCheck, count: counts.checkin },
@@ -827,7 +826,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   />
                 </div>
               </div>
-
 
               {mobileTab === "checkin" &&
                 (checkinListQ.isLoading ? (
@@ -936,7 +934,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
                 <KanbanColumn
                   onScroll={() => setExpandedByColumn((prev) => ({ ...prev, cleaning: null }))}
-                  title="Em Limpeza"
+                  title="Liberado para Limpeza"
                   icon={Sparkles}
                   count={counts.cleaning}
                   tone="violet"
@@ -1554,7 +1552,6 @@ function FreePropertiesCard({
             {loading ? "—" : properties.length}
           </div>
         </button>
-
       </DialogTrigger>
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-lg">
         <DialogHeader className="px-5 pt-5 pb-3">
@@ -2674,7 +2671,6 @@ function ArrivalCard({
             <CheckCircle2 className="size-4 shrink-0" />
             <span className="truncate">Concluído</span>
           </span>
-
         ) : (
           <button
             onClick={() => {
@@ -2744,7 +2740,6 @@ function ArrivalCard({
                     : "Check-in realizado!"}
             </span>
           </button>
-
         )}
 
         {onRevert && mode !== "checkin" && (
