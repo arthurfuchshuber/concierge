@@ -142,7 +142,7 @@ function GuiasTabs() {
         <Dashboard />
       </TabsContent>
       <TabsContent value="destinos" className="mt-0">
-        <div className="px-6 lg:px-10 py-6 max-w-[1440px] mx-auto w-full">
+        <div className="px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full">
           <WorkspaceHeader
             title="Guias"
             subtitle="Seus imóveis e destinos publicados."
