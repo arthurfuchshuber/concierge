@@ -558,7 +558,7 @@ export function BulkEditDialog({
           {TEXT_TABS.map((tab) => (
             <TabsContent key={tab.id} value={tab.id} className="space-y-4 pt-4 min-w-0">
               {tab.groups.length === 0 && (
-                <p className="rounded-xl border border-border bg-card/40 p-4 text-sm text-muted-foreground">
+                <p className="rounded-[0.3rem] border border-border bg-card/40 p-3 text-xs text-muted-foreground">
                   As recomendações são específicas de cada residência (endereço, distância e horários) e por isso
                   não podem ser aplicadas em massa. Edite-as no guia individual.
                 </p>
@@ -577,6 +577,7 @@ export function BulkEditDialog({
                     icon={group.icon}
                     title={group.title}
                     desc={group.desc}
+                    dense
                     collapsible
                     action={
                       activeCount > 0 ? (
@@ -595,7 +596,7 @@ export function BulkEditDialog({
                     return (
                       <div
                         key={sg.id}
-                        className={`rounded-xl border p-3 transition-colors min-w-0 ${someOn ? "border-accent/50 bg-accent/5" : "border-border bg-card/40"}`}
+                        className={`rounded-[0.3rem] border p-3 transition-colors min-w-0 ${someOn ? "border-accent/50 bg-accent/5" : "border-border bg-card/40"}`}
                       >
                         <div className="mb-2 flex items-center justify-between gap-3">
                           <div className="min-w-0">
@@ -625,7 +626,7 @@ export function BulkEditDialog({
                   {(group.fields ?? []).map((f) => {
                     const enabled = !!state.enabled[f.key];
                     return (
-                      <div key={f.key} className={`rounded-xl border p-3 transition-colors min-w-0 ${enabled ? "border-accent/50 bg-accent/5" : "border-border bg-card/40"}`}>
+                      <div key={f.key} className={`rounded-[0.3rem] border p-3 transition-colors min-w-0 ${enabled ? "border-accent/50 bg-accent/5" : "border-border bg-card/40"}`}>
                         {fieldBlock(f, true)}
                       </div>
                     );
@@ -684,9 +685,9 @@ export function BulkEditDialog({
 
 function ListToggle({ enabled, onChange, title, hint }: { enabled: boolean; onChange: (v: boolean) => void; title: string; hint: string }) {
   return (
-    <div className={`rounded-xl border p-3 flex items-center justify-between gap-3 min-w-0 ${enabled ? "border-accent/50 bg-accent/5" : "border-border bg-card/40"}`}>
+    <div className={`rounded-[0.3rem] border p-3 flex items-center justify-between gap-3 min-w-0 ${enabled ? "border-accent/50 bg-accent/5" : "border-border bg-card/40"}`}>
       <div className="min-w-0">
-        <div className="text-sm font-medium truncate">{title}</div>
+        <div className="truncate text-[13px] font-normal">{title}</div>
         <div className="text-[11px] text-muted-foreground truncate">{hint}</div>
       </div>
       <Switch checked={enabled} onCheckedChange={onChange} />
@@ -783,7 +784,7 @@ function renderList(k: ListKey, state: State, setState: React.Dispatch<React.Set
 
 function renderField(f: FieldDef, value: string | boolean | number | undefined, onChange: (v: string | boolean | number) => void) {
   if (f.kind === "textarea") {
-    return <Textarea value={(value as string) ?? ""} placeholder={f.placeholder} onChange={(e) => onChange(e.target.value)} rows={3} />;
+    return <Textarea value={(value as string) ?? ""} placeholder={f.placeholder} onChange={(e) => onChange(e.target.value)} rows={3} className="rounded-[0.3rem] text-[13px]" />;
   }
   if (f.kind === "theme") {
     return <Pills value={value as string} onChange={onChange} options={[["dark","Escuro"],["light","Claro"]]} />;
@@ -809,9 +810,9 @@ function renderField(f: FieldDef, value: string | boolean | number | undefined, 
     );
   }
   if (f.kind === "number") {
-    return <Input type="number" min={0} max={10} value={(value as number | undefined) ?? ""} onChange={(e) => onChange(parseInt(e.target.value, 10) || 0)} />;
+    return <Input type="number" min={0} max={10} value={(value as number | undefined) ?? ""} onChange={(e) => onChange(parseInt(e.target.value, 10) || 0)} className="h-9 rounded-[0.3rem] text-[13px]" />;
   }
-  return <Input value={(value as string) ?? ""} placeholder={f.placeholder} onChange={(e) => onChange(e.target.value)} />;
+  return <Input value={(value as string) ?? ""} placeholder={f.placeholder} onChange={(e) => onChange(e.target.value)} className="h-9 rounded-[0.3rem] text-[13px]" />;
 }
 
 function Pills({ value, onChange, options }: { value: string | undefined; onChange: (v: string) => void; options: [string, string][] }) {
@@ -819,7 +820,7 @@ function Pills({ value, onChange, options }: { value: string | undefined; onChan
     <div className="flex flex-wrap gap-2">
       {options.map(([v, label]) => (
         <button key={v} type="button" onClick={() => onChange(v)}
-          className={`px-3 py-1.5 rounded-full text-xs border ${value === v ? "bg-accent text-accent-foreground border-accent" : "border-border"}`}>
+          className={`h-8 inline-flex items-center px-3 rounded-[0.3rem] text-xs font-normal border ${value === v ? "bg-accent text-accent-foreground border-accent" : "border-border"}`}>
           {label}
         </button>
       ))}
