@@ -696,6 +696,17 @@ export const upsertProperty = createServerFn({ method: "POST" })
       propertyData.brand_logo_url = null;
     }
 
+    // Um guia só pode ficar publicado com todos os campos obrigatórios
+    // preenchidos. Aqui não bloqueamos o salvamento (o editor salva sozinho a
+    // cada alteração) — apenas mantemos o guia como rascunho até completar.
+    if (propertyData.published === true) {
+      const { missingPublishFields } = await import("@/lib/publish-requirements");
+      if (missingPublishFields(propertyData as Record<string, unknown>).length > 0) {
+        propertyData.published = false;
+      }
+    }
+
+
     // Quando o operador é membro atuando dentro de outra conta, valida a
     // permissão `library_edit` e escreve com o cliente admin (as policies
     // RLS de properties/child tables permitem apenas o titular ou admin).
