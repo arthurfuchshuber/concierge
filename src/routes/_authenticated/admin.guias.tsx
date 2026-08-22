@@ -19,6 +19,13 @@ import {
 import { useMyPermissions } from "@/hooks/useMyPermissions";
 
 import { WorkspaceHeader } from "@/components/ds/WorkspaceHeader";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+
 import { EmptyState } from "@/components/ds/EmptyState";
 import { LoadingState } from "@/components/ds/LoadingState";
 
