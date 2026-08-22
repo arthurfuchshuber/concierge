@@ -835,6 +835,59 @@ export const advanceArrival = createServerFn({ method: "POST" })
 
     // Bucket-aware progression.
     if (data.from === "checkin") {
+      // Trava operacional: não é possível dar check-in num imóvel que ainda
+      // tem a estadia anterior em aberto (checkout pendente ou limpeza não
+      // concluída). Isso já é bloqueado na tela, mas a tela só enxerga os
+      // cards do filtro atual — a regra precisa valer no servidor.
+      const { data: openCheckouts } = await context.supabase
+        .from("guest_arrival_status")
+        .select("log_id, reservation_id, status, concluded_at")
+        .eq("property_id", propertyId)
+        .eq("kind", "checkout")
+        .is("concluded_at", null);
+
+      const others = (openCheckouts ?? []).filter((r) => {
+        const row = r as { log_id: string | null; reservation_id: string | null };
+        if (data.logId && row.log_id === data.logId) return false;
+        if (data.reservationId && row.reservation_id === data.reservationId) return false;
+        return true;
+      }) as Array<{ log_id: string | null; reservation_id: string | null; status: string }>;
+
+      if (others.length > 0) {
+        const logIds = others.map((r) => r.log_id).filter((v): v is string => !!v);
+        const resIds = others.map((r) => r.reservation_id).filter((v): v is string => !!v);
+        const dateByLog = new Map<string, string | null>();
+        const dateByRes = new Map<string, string | null>();
+        if (logIds.length > 0) {
+          const { data: logs } = await context.supabase
+            .from("guide_access_logs")
+            .select("id, checkout_date")
+            .in("id", logIds);
+          for (const l of (logs ?? []) as Array<{ id: string; checkout_date: string | null }>)
+            dateByLog.set(l.id, l.checkout_date);
+        }
+        if (resIds.length > 0) {
+          const { data: res } = await context.supabase
+            .from("property_reservations")
+            .select("id, checkout_date")
+            .in("id", resIds);
+          for (const r of (res ?? []) as Array<{ id: string; checkout_date: string | null }>)
+            dateByRes.set(r.id, r.checkout_date);
+        }
+        const blocking = others.find((r) => {
+          const d = (r.log_id ? dateByLog.get(r.log_id) : null) ?? (r.reservation_id ? dateByRes.get(r.reservation_id) : null);
+          // Sem data conhecida tratamos como em aberto (mais seguro).
+          return !d || d <= today;
+        });
+        if (blocking) {
+          throw new Error(
+            blocking.status === "done"
+              ? "Este imóvel ainda está em limpeza. Conclua a limpeza da estadia anterior antes de liberar o check-in."
+              : "Este imóvel ainda tem um check-out pendente. Finalize a saída e a limpeza antes de liberar o check-in.",
+          );
+        }
+      }
+
       await upsertStatus("checkin", { status: "done", done_at: nowIso });
       // Só pula estadia/limpeza quando o checkout já ficou no PASSADO
       // (today > checkoutDate). Quando checkout é hoje, o hóspede ainda
