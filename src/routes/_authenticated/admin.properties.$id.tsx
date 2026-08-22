@@ -1570,36 +1570,8 @@ function PropertyEditor() {
             )}
           </Section>
 
-          <Section id="language" icon={Globe} title="Idioma padrão" collapsible>
-            <div className="flex items-center gap-2">
-              {([{ v: "pt", label: "Português" }, { v: "en", label: "English" }] as const).map((o) => (
-                <button
-                  key={o.v}
-                  type="button"
-                  onClick={() => update("default_language", o.v)}
-                  className={cn(
-                    "px-4 py-2 rounded-full text-sm border transition-colors",
-                    form.property.default_language === o.v
-                      ? "bg-accent text-accent-foreground border-accent"
-                      : "border-border text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {o.label}
-                </button>
-              ))}
-            </div>
-          </Section>
 
-          <div className="flex items-center justify-between ds-surface bg-muted/40 px-4 py-3.5 border border-border/60">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span className={`inline-block size-2.5 rounded-full shrink-0 ${form.property.published ? "bg-emerald-500" : "bg-muted-foreground/50"}`} />
-              <div className="min-w-0">
-                <p className="text-sm font-medium leading-tight">Status do Guia</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{form.property.published ? "Ativo — acessível pelo link" : "Inativo — link público desabilitado"}</p>
-              </div>
-            </div>
-            <Switch checked={form.property.published} onCheckedChange={(v) => update("published", v)} />
-          </div>
+
 
           </SectionGroup>
         </TabsContent>
