@@ -1384,6 +1384,12 @@ function KpiCard({
                       {r.pendingFill ? <UserPlus className="size-4" /> : initials}
                     </div>
                     <div className="min-w-0 flex-1">
+                      {r.reservationCode && (
+                        <div className="text-xs flex items-center gap-1 text-muted-foreground">
+                          <span className="truncate max-w-[160px]">{r.reservationCode}</span>
+                          <CopyButton value={r.reservationCode} size={10} className="p-0.5" />
+                        </div>
+                      )}
                       <OwnerLine
                         name={r.ownerName}
                         phone={r.ownerPhone}
@@ -1424,14 +1430,6 @@ function KpiCard({
                           </>
                         )}
                       </div>
-                      {/* Código da reserva — linha própria, sem fundo */}
-                      {r.reservationCode && (
-                        <div className="text-xs flex items-center gap-1 text-muted-foreground">
-                          <span>Reserva</span>
-                          <span className="truncate max-w-[160px]">{r.reservationCode}</span>
-                          <CopyButton value={r.reservationCode} size={10} className="p-0.5" />
-                        </div>
-                      )}
 
                       {/* Previsão de horário — campo largo, logo abaixo do código da reserva */}
                       <div className="mt-0.5 flex items-center gap-2">
@@ -2446,6 +2444,13 @@ function ArrivalCard({
           numa coluna estreita de Kanban; o nome já identifica o hóspede). */}
       <div className="flex items-center gap-3">
         <div className="flex-1 min-w-0">
+          {/* Código da reserva — acima do proprietário, alinhado à esquerda */}
+          {row.reservationCode && (isPendingFill || (row.guestName && row.guestName !== row.reservationCode)) && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <span className="truncate max-w-[160px]">{row.reservationCode}</span>
+              <CopyButton value={row.reservationCode} size={10} className="p-0.5" />
+            </div>
+          )}
           <OwnerLine
             name={row.ownerName}
             phone={row.ownerPhone}
@@ -2501,26 +2506,6 @@ function ArrivalCard({
             )}
           </div>
 
-          {/* Código da reserva — linha própria, sem fundo */}
-          {row.reservationCode && (isPendingFill || (row.guestName && row.guestName !== row.reservationCode)) && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <span>Reserva</span>
-              <span className="truncate max-w-[160px]">{row.reservationCode}</span>
-              <CopyButton value={row.reservationCode} size={10} className="p-0.5" />
-            </div>
-          )}
-
-
-
-          {/* Alerta de engajamento visível no próprio card (não só no tooltip) */}
-          {mode !== "cleaning" && !isPendingFill && (
-            <EngagementFlags
-              openedGuide={row.openedGuide}
-              readInstructions={row.readInstructions}
-              hasPasswords={row.hasPasswords}
-              viewedPasswords={row.viewedPasswords}
-            />
-          )}
         </div>
       </div>
 
@@ -2659,6 +2644,16 @@ function ArrivalCard({
           </AccordionContent>
         </AccordionItem>
       </Accordion>
+
+      {/* Alerta de engajamento visível no próprio card (não só no tooltip) */}
+      {mode !== "cleaning" && !isPendingFill && (
+        <EngagementFlags
+          openedGuide={row.openedGuide}
+          readInstructions={row.readInstructions}
+          hasPasswords={row.hasPasswords}
+          viewedPasswords={row.viewedPasswords}
+        />
+      )}
 
       {row.note && !noteOpen && (
         <button
