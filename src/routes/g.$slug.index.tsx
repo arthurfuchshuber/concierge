@@ -78,8 +78,13 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/g/$slug/")({
-  loader: async ({ params }) => {
-    const r = await getPublicGuide({ data: { slug: params.slug } });
+  validateSearch: (search: Record<string, unknown>) => ({
+    preview: typeof search["preview"] === "string" ? (search["preview"] as string) : undefined,
+    t: typeof search["t"] === "string" ? (search["t"] as string) : undefined,
+  }),
+  loaderDeps: ({ search }) => ({ t: search.t }),
+  loader: async ({ params, deps }) => {
+    const r = await getPublicGuide({ data: { slug: params.slug, previewToken: deps.t ?? null } });
     if (r.status === "moved") {
       throw redirect({ to: "/g/$slug", params: { slug: r.slug }, replace: true });
     }
