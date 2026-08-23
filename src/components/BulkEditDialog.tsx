@@ -340,6 +340,7 @@ export function BulkEditDialog({
   function reset() {
     setState(emptyState);
     setData(null);
+    setTargetIds([]);
     dirtyRef.current = new Set();
     loadedKeyRef.current = null;
     setTab(TEXT_TABS[0]?.id ?? "house");
