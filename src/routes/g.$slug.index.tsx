@@ -77,6 +77,23 @@ import { slugForTag, expandInfoTags, type GuideTagKey } from "@/lib/guide-tags";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
+// Identificador estável da sessão do hóspede usado na analítica do guia.
+// Sempre tem ao menos 8 caracteres — o servidor rejeita valores curtos como "anon".
+function getGuideSessionId(slug: string): string {
+  if (typeof window === "undefined") return "anon-ssr-session";
+  const key = `guide-chat-session:${slug}`;
+  const existing = localStorage.getItem(key);
+  if (existing && existing.length >= 8) return existing;
+  const generated = `anon-${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+  try {
+    localStorage.setItem(key, generated);
+  } catch {
+    /* storage indisponível */
+  }
+  return generated;
+}
+
+
 export const Route = createFileRoute("/g/$slug/")({
   validateSearch: (search: Record<string, unknown>): { preview?: string; t?: string } => ({
     ...(typeof search["preview"] === "string" ? { preview: search["preview"] as string } : {}),
@@ -398,7 +415,7 @@ function Guide({ data }: { data: GuideOk }) {
   function gotoSection(s: Section) {
     setSection(s);
     // Fire-and-forget analytics — never blocks navigation
-    const sid = typeof window !== "undefined" ? (localStorage.getItem(`guide-chat-session:${slug}`) ?? "anon") : "anon";
+    const sid = getGuideSessionId(slug);
     const pagePath = typeof window !== "undefined" ? window.location.pathname : null;
     trackEvent({
       data: {
@@ -441,7 +458,7 @@ function Guide({ data }: { data: GuideOk }) {
     if (section !== "checkin" || readInstructionsRef.current) return;
     const t = setTimeout(() => {
       readInstructionsRef.current = true;
-      const sid = typeof window !== "undefined" ? (localStorage.getItem(`guide-chat-session:${slug}`) ?? "anon") : "anon";
+      const sid = getGuideSessionId(slug);
       trackEvent({
         data: {
           slug,
@@ -692,7 +709,7 @@ function Guide({ data }: { data: GuideOk }) {
     if (kind === "wifi") return;
     if (passwordsTrackedRef.current.has(kind) || checkinLocked) return;
     passwordsTrackedRef.current.add(kind);
-    const sid = typeof window !== "undefined" ? (localStorage.getItem(`guide-chat-session:${slug}`) ?? "anon") : "anon";
+    const sid = getGuideSessionId(slug);
     const pagePath = typeof window !== "undefined" ? window.location.pathname : null;
     trackEvent({
       data: {
