@@ -304,6 +304,13 @@ export function BulkEditDialog({
   // Só salvamos o que a pessoa realmente editou — assim campos com valores
   // diferentes entre os guias nunca são sobrescritos por engano.
   const dirtyRef = useRef<Set<FieldKey>>(new Set());
+  // Versão de cada campo editado. Um save antigo nunca pode limpar a marca de
+  // uma alteração mais nova feita enquanto a requisição ainda estava rodando.
+  const fieldVersionRef = useRef<Partial<Record<FieldKey, number>>>({});
+  const editVersionRef = useRef(0);
+  // Serializa as gravações para impedir que uma resposta antiga sobrescreva a
+  // edição mais recente quando a conexão está lenta.
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   // Guias-alvo congelados no momento em que o popup carregou: se a seleção da
   // tela de trás mudar (ou for limpa) enquanto o popup está aberto, o
   // salvamento automático continua gravando nos guias certos.
@@ -323,6 +330,8 @@ export function BulkEditDialog({
         const init = buildInitialState(d);
         initialEnabledRef.current = { ...init.enabled };
         dirtyRef.current = new Set();
+         fieldVersionRef.current = {};
+         editVersionRef.current = 0;
         setState(init);
       })
       .catch(() => toast.error("Erro ao carregar dados dos guias"))
@@ -342,6 +351,8 @@ export function BulkEditDialog({
     setData(null);
     setTargetIds([]);
     dirtyRef.current = new Set();
+    fieldVersionRef.current = {};
+    editVersionRef.current = 0;
     loadedKeyRef.current = null;
     setTab(TEXT_TABS[0]?.id ?? "house");
   }
@@ -355,6 +366,8 @@ export function BulkEditDialog({
   }
   function setValue(field: FieldKey, value: string | boolean | number) {
     dirtyRef.current.add(field);
+    editVersionRef.current += 1;
+    fieldVersionRef.current[field] = editVersionRef.current;
     setState((s) => ({ ...s, values: { ...s.values, [field]: value } }));
   }
 
@@ -422,14 +435,16 @@ export function BulkEditDialog({
    * Salvamento automático (igual às outras telas): aplica nos guias
    * selecionados só o que foi editado agora, sobrescrevendo o valor.
    */
-  async function saveAuto() {
+  async function saveAuto(snapshot: State) {
     if (!data || targetIds.length === 0) return;
+    const dirtyAtStart = new Set(dirtyRef.current);
+    const versionsAtStart = { ...fieldVersionRef.current };
     const patch: Record<string, unknown> = {};
     for (const f of ALL_FIELDS) {
       // Só entra no patch o que a pessoa editou agora, neste popup.
-      if (!dirtyRef.current.has(f.key)) continue;
-      if (!state.enabled[f.key]) continue;
-      patch[f.key] = coerce(f, state.values[f.key]);
+      if (!dirtyAtStart.has(f.key)) continue;
+      if (!snapshot.enabled[f.key]) continue;
+      patch[f.key] = coerce(f, snapshot.values[f.key]);
     }
 
     // Bloco desligado = remover essas informações dos guias selecionados.
@@ -438,26 +453,34 @@ export function BulkEditDialog({
     }
 
     const lists: Record<string, unknown> = {};
-    if (state.listsEnabled.manual && state.manual.length)
-      lists.manual = state.manual.filter((m) => m.title.trim()).map((m) => ({
+    if (snapshot.listsEnabled.manual && snapshot.manual.length)
+      lists.manual = snapshot.manual.filter((m) => m.title.trim()).map((m) => ({
         title: m.title.trim(), description: m.description.trim() || null, body: m.body.trim() || null,
       }));
-    if (state.listsEnabled.emergency && state.emergency.length)
-      lists.emergency = state.emergency.filter((e) => e.label.trim() && e.number.trim())
+    if (snapshot.listsEnabled.emergency && snapshot.emergency.length)
+      lists.emergency = snapshot.emergency.filter((e) => e.label.trim() && e.number.trim())
         .map((e) => ({ label: e.label.trim(), number: e.number.trim() }));
-    if (state.listsEnabled.faqs && state.faqs.length)
-      lists.faqs = state.faqs.filter((f) => f.question.trim() && f.answer.trim()).map((f) => ({
+    if (snapshot.listsEnabled.faqs && snapshot.faqs.length)
+      lists.faqs = snapshot.faqs.filter((f) => f.question.trim() && f.answer.trim()).map((f) => ({
         question: f.question.trim(), answer: f.answer.trim(),
         tags: f.tags.split(",").map((t) => t.trim()).filter(Boolean),
       }));
-    if (state.listsEnabled.checkout && state.checkout.length)
-      lists.checkout = state.checkout.filter((c) => c.label.trim()).map((c) => ({ label: c.label.trim() }));
+    if (snapshot.listsEnabled.checkout && snapshot.checkout.length)
+      lists.checkout = snapshot.checkout.filter((c) => c.label.trim()).map((c) => ({ label: c.label.trim() }));
 
     if (Object.keys(patch).length === 0 && Object.keys(lists).length === 0) return;
 
     setSaving(true);
     try {
-      await apply({ data: { ids: targetIds, patch, lists: Object.keys(lists).length ? lists : undefined, mode: "overwrite" } });
+      let result: Awaited<ReturnType<typeof bulkUpdateProperties>> | undefined;
+      const queuedSave = saveQueueRef.current.then(async () => {
+        result = await apply({ data: { ids: targetIds, patch, lists: Object.keys(lists).length ? lists : undefined, mode: "overwrite" } });
+      });
+      saveQueueRef.current = queuedSave.catch(() => undefined);
+      await queuedSave;
+      if (!result || result.updated !== targetIds.length) {
+        throw new Error(`A alteração foi confirmada em ${result?.updated ?? 0} de ${targetIds.length} guias.`);
+      }
       // Mantém o preview do próprio popup sincronizado com o que acabou de
       // ser persistido. Antes, os campos controlados mostravam o valor novo,
       // mas os resumos/chaves continuavam baseados no snapshot da abertura.
@@ -473,11 +496,15 @@ export function BulkEditDialog({
             value !== null && value !== undefined && value !== "" && !(field.kind === "boolean" && value === false);
         }
       }
-      dirtyRef.current = new Set();
+      for (const key of dirtyAtStart) {
+        if (fieldVersionRef.current[key] !== versionsAtStart[key]) continue;
+        dirtyRef.current.delete(key);
+        delete fieldVersionRef.current[key];
+      }
       onSaved?.();
     } catch (err) {
       // Antes o erro passava batido e o indicador continuava dizendo "Salvo".
-      toast.error("Não foi possível salvar as alterações nos guias selecionados.");
+      toast.error(err instanceof Error ? err.message : "Não foi possível salvar as alterações nos guias selecionados.");
       throw err;
     } finally {
       setSaving(false);

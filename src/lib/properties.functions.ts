@@ -533,10 +533,16 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
           const items = (lists as Record<string, unknown[]>)[key];
           if (items === undefined) continue;
           if (data.mode === "fill-empty" && (listCounts[key]?.[id] ?? 0) > 0) continue;
-          await sb.from(table).delete().eq("property_id", id);
+          const deleted = await sb.from(table).delete().eq("property_id", id);
+          if (deleted.error) {
+            throw (await import("@/lib/db-errors.server")).safeDbError(table, deleted.error);
+          }
           if (items.length) {
             const rows = items.map((m, i) => ({ ...(m as object), property_id: id, position: i }));
-            await sb.from(table).insert(rows as never);
+            const inserted = await sb.from(table).insert(rows as never);
+            if (inserted.error) {
+              throw (await import("@/lib/db-errors.server")).safeDbError(table, inserted.error);
+            }
           }
           updatedSet.add(id);
         }
