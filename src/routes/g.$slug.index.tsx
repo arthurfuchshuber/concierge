@@ -78,9 +78,9 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/g/$slug/")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    preview: typeof search["preview"] === "string" ? (search["preview"] as string) : undefined,
-    t: typeof search["t"] === "string" ? (search["t"] as string) : undefined,
+  validateSearch: (search: Record<string, unknown>): { preview?: string; t?: string } => ({
+    ...(typeof search["preview"] === "string" ? { preview: search["preview"] as string } : {}),
+    ...(typeof search["t"] === "string" ? { t: search["t"] as string } : {}),
   }),
   loaderDeps: ({ search }) => ({ t: search.t }),
   loader: async ({ params, deps }) => {
