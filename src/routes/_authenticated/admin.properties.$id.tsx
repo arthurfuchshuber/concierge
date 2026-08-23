@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { useGuidePreviewUrl } from "@/hooks/useGuidePreviewUrl";
 import { useServerFn } from "@tanstack/react-start";
 import React, { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -1112,6 +1113,7 @@ function PropertyEditor() {
   const nearbyRecs = form.recommendations.filter((r) => r.scope === "nearby");
   const savedSlug = !isNew ? ((data?.property as Record<string, unknown> | undefined)?.slug as string | undefined) : undefined;
   const previewSlug = savedSlug || form.property.slug;
+  const previewUrl = useGuidePreviewUrl(previewOpen ? previewSlug : null);
 
   // Extraídos como funções para serem reaproveitados tanto na tela enxuta de
   // criação do imóvel (isNew) quanto na aba "A casa" do editor completo —
@@ -2171,7 +2173,7 @@ function PropertyEditor() {
                         </button>
                       </div>
                       <iframe
-                        src={`/g/${previewSlug}?preview=1`}
+                        src={previewUrl ?? "about:blank"}
                         title="Pré-visualização do guia"
                         className="w-full flex-1 border-0 bg-background"
                       />
@@ -2213,7 +2215,7 @@ function PropertyEditor() {
                     </div>
                   </div>
                   <iframe
-                    src={`/g/${previewSlug}?preview=1`}
+                    src={previewUrl ?? "about:blank"}
                     title="Pré-visualização do guia"
                     className="w-full flex-1 border-0 bg-background"
                   />
