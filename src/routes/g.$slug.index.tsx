@@ -468,12 +468,15 @@ function Guide({ data }: { data: GuideOk }) {
     const preview = new URLSearchParams(window.location.search).get("preview") === "1";
     if (preview) {
       const today = new Date().toISOString().slice(0, 10);
+      // Estadia fictícia em andamento (3 dias) — evita que o guia entre em
+      // estado de "dia do check-out" e esconda etapas durante a pré-visualização.
+      const inThree = new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10);
       setIsPreview(true);
       setAccessRec({
         name: "Hóspede de teste",
         code: "TESTE000",
         checkinDate: today,
-        checkoutDate: today,
+        checkoutDate: inThree,
         phone: null,
         phoneCountry: null,
       });
@@ -562,6 +565,13 @@ function Guide({ data }: { data: GuideOk }) {
       return Date.now() >= start;
     };
     const evaluate = () => {
+      // Pré-visualização do anfitrião: nada fica bloqueado por etapa. Mostramos
+      // todas as telas e informações preenchidas, sem exigir confirmações.
+      if (isPreview) {
+        setCheckinConcluded(true);
+        setCheckoutConcluded(false);
+        return;
+      }
       setCheckinConcluded(confirmed() || passedCheckinMoment() || hostStatus.checkinDone || hostStatus.checkoutDone);
       setCheckoutConcluded(localStorage.getItem(outKey) === "1" || hostStatus.checkoutDone);
     };
@@ -617,6 +627,7 @@ function Guide({ data }: { data: GuideOk }) {
     return m ? [Number(m[1]), Number(m[2])] : [fallbackH, 0];
   };
   const checkinLocked = (() => {
+    if (isPreview) return false;
     if (checkoutConcluded) return true;
     const now = Date.now();
     // Fim: horário configurado de check-out
@@ -652,6 +663,7 @@ function Guide({ data }: { data: GuideOk }) {
   // dia do check-out e até as 15h00 do mesmo dia — só depois do check-in
   // concluído e some quando o hóspede confirma a saída.
   const checkoutNoticeVisible = (() => {
+    if (isPreview) return !!(p.checkout_note || p.checkout_time);
     if (!checkinConcluded || checkoutConcluded) return false;
     if (!accessRec?.checkoutDate) return false;
     if (!p.checkout_note && !p.checkout_time) return false;
@@ -666,7 +678,8 @@ function Guide({ data }: { data: GuideOk }) {
 
   // Shared "access PIN unlock" state — once unlocked, all gated codes/Wi-Fi reveal.
   // The actual PIN never reaches the browser; only the boolean flags do.
-  const hasAccessPin = !!(p as any).hasAccessPin;
+  // No preview o anfitrião vê os códigos direto: o PIN de acesso não trava nada.
+  const hasAccessPin = !isPreview && !!(p as any).hasAccessPin;
   const initialUnlocked = !!(p as any).accessUnlocked;
   const [unlocked, setUnlocked] = useState(initialUnlocked);
   // Só registramos "viu a senha de acesso" quando o código foi de fato
@@ -761,6 +774,7 @@ function Guide({ data }: { data: GuideOk }) {
   // Card "Chegada/Saída" some 24h após a hora do check-in.
   // Mesmo assim, essas seções continuam acessíveis pela barra inferior.
   const stayCardsExpired = (() => {
+    if (isPreview) return false;
     if (!accessRec?.checkinDate) return false;
     const t = String(p.checkin_time ?? "15:00").match(/^(\d{1,2}):(\d{2})/);
     const hh = t ? Number(t[1]) : 15;
