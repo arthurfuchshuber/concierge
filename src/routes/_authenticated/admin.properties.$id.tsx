@@ -1523,7 +1523,34 @@ function PropertyEditor() {
             <Field label="URL pública (slug)" hint="Aparece em /g/seu-slug">
               <Input value={form.property.slug} maxLength={60} onChange={(e) => update("slug", slugify(e.target.value))} />
             </Field>
+            <Field label="Idioma padrão do guia" hint="Idioma usado nos textos automáticos do guia público.">
+              <Select value={form.property.default_language} onValueChange={(v) => update("default_language", v as "pt" | "en")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pt">Português</SelectItem>
+                  <SelectItem value="en">Inglês</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            {canBrand && (
+              <>
+                <Field label="Marca personalizada — Nome" hint="Substitui o nome exibido no cabeçalho do guia.">
+                  <Input value={form.property.brand_name} maxLength={60} onChange={(e) => update("brand_name", e.target.value)} />
+                </Field>
+                <Field label="Marca personalizada — Logo">
+                  <ImageUpload
+                    value={form.property.brand_logo_url}
+                    onChange={(url) => update("brand_logo_url", url)}
+                    folder="branding"
+                    aspect="video"
+                    placeholder="Enviar logo"
+                    className="max-w-[220px]"
+                  />
+                </Field>
+              </>
+            )}
           </Section>
+
 
 
           <Section id="gallery" icon={ImageIcon} title="Fotos da residência" desc="Até 4 fotos — a primeira será a capa." collapsible>
