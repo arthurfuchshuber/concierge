@@ -293,6 +293,11 @@ export function FloatingHandoffDock() {
             state.minimized ? "w-80 h-14" : enlarged ? "w-[820px] h-[76vh]" : "w-[520px] h-[560px]"
           }`}
           style={{ zIndex: 2147483000, pointerEvents: "auto" }}
+          // Impede que cliques no atendimento sejam lidos como "clique fora"
+          // por popups abertos atrás — antes, fechar o dock fechava tudo.
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onFocusCapture={(e) => e.stopPropagation()}
         >
           <div className="shrink-0 flex items-center justify-between gap-2 px-3 h-12 border-b border-border bg-secondary/40">
             <div className="flex items-center gap-2 min-w-0">
