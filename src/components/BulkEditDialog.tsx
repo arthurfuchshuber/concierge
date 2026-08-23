@@ -353,6 +353,7 @@ export function BulkEditDialog({
     dirtyRef.current = new Set();
     fieldVersionRef.current = {};
     editVersionRef.current = 0;
+    saveQueueRef.current = Promise.resolve();
     loadedKeyRef.current = null;
     setTab(TEXT_TABS[0]?.id ?? "house");
   }
@@ -472,14 +473,13 @@ export function BulkEditDialog({
 
     setSaving(true);
     try {
-      let result: { updated: number } | undefined;
-      const queuedSave = saveQueueRef.current.then(async () => {
-        result = await apply({ data: { ids: targetIds, patch, lists: Object.keys(lists).length ? lists : undefined, mode: "overwrite" } });
-      });
-      saveQueueRef.current = queuedSave.catch(() => undefined);
-      await queuedSave;
-      if (!result || result.updated !== targetIds.length) {
-        throw new Error(`A alteração foi confirmada em ${result?.updated ?? 0} de ${targetIds.length} guias.`);
+      const queuedSave = saveQueueRef.current.then(() =>
+        apply({ data: { ids: targetIds, patch, lists: Object.keys(lists).length ? lists : undefined, mode: "overwrite" } }),
+      );
+      saveQueueRef.current = queuedSave.then(() => undefined, () => undefined);
+      const result = await queuedSave;
+      if (result.updated !== targetIds.length) {
+        throw new Error(`A alteração foi confirmada em ${result.updated} de ${targetIds.length} guias.`);
       }
       // Mantém o preview do próprio popup sincronizado com o que acabou de
       // ser persistido. Antes, os campos controlados mostravam o valor novo,
@@ -512,6 +512,15 @@ export function BulkEditDialog({
   }
 
   const autosave = useAutosave(state, saveAuto, { enabled: open && !loading && !!data, delay: 1200 });
+
+  async function closeAfterSave() {
+    if (saving) return;
+    await autosave.flush();
+    await saveQueueRef.current;
+    if (dirtyRef.current.size > 0) return;
+    reset();
+    onOpenChange(false);
+  }
 
   /**
    * Campos dependentes só aparecem quando a coleta correspondente está
@@ -561,7 +570,13 @@ export function BulkEditDialog({
 
 
   return (
-    <ResponsiveDialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={(v) => {
+        if (v) onOpenChange(true);
+        else void closeAfterSave();
+      }}
+    >
       <ResponsiveDialogContent className="w-[calc(100vw-1.5rem)] sm:max-w-3xl max-h-[85vh] overflow-y-auto overflow-x-hidden">
         <>
         <ResponsiveDialogHeader>
@@ -692,7 +707,7 @@ export function BulkEditDialog({
             <AutosaveIndicator status={saving ? "saving" : autosave.status} />
           </div>
           <Button
-            onClick={async () => { await autosave.flush(); onOpenChange(false); }}
+            onClick={() => void closeAfterSave()}
             disabled={saving}
           >
             {saving && <Loader2 className="size-4 mr-1.5 animate-spin" />}
