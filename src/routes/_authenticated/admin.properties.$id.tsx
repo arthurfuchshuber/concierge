@@ -1525,7 +1525,6 @@ function PropertyEditor() {
             </Field>
           </Section>
 
-          </Section>
 
 
 
