@@ -670,7 +670,7 @@ export function BulkEditDialog({
                     </div>
                   ))}
                   </>
-                  )}
+
 
                   </Section>
                   );
