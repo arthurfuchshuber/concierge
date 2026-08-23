@@ -254,6 +254,8 @@ function buildInitialState(d: FetchData): State {
   const enabled: State["enabled"] = {};
   const values: State["values"] = {};
   for (const f of ALL_FIELDS) {
+    // Sem chaves: todo campo já nasce editável. Basta preencher (ou apagar).
+    enabled[f.key] = true;
     const distinct = new Set<string>();
     let filled = 0;
     let sample: string | boolean | number | undefined;
@@ -266,13 +268,14 @@ function buildInitialState(d: FetchData): State {
       if (sample === undefined) sample = raw as string | boolean | number;
     }
     if (filled === 0) continue;
-    enabled[f.key] = true;
     // Valores divergentes entre os guias: mostramos o campo vazio para não
     // sobrescrever informações específicas sem intenção.
     values[f.key] = distinct.size === 1 ? (sample as string | boolean | number) : (f.kind === "boolean" ? false : f.kind === "number" ? 0 : "");
   }
-  return { ...emptyState, enabled, values };
+  const listsEnabled: State["listsEnabled"] = { manual: true, emergency: true, faqs: true, checkout: true };
+  return { ...emptyState, enabled, values, listsEnabled };
 }
+
 
 
 
@@ -372,9 +375,6 @@ export function BulkEditDialog({
     setState((s) => ({ ...s, values: { ...s.values, [field]: value } }));
   }
 
-  function toggleList(k: ListKey, v: boolean) {
-    setState((s) => ({ ...s, listsEnabled: { ...s.listsEnabled, [k]: v } }));
-  }
 
 
   // Sumário dos valores atuais calculado UMA vez por carga de dados — antes
@@ -622,16 +622,7 @@ export function BulkEditDialog({
               <SectionGroup>
                 <div className="space-y-4">
                 {tab.groups.map((group) => {
-                  const gFields = groupFields(group);
                   const gLists = group.lists ?? [];
-                  // Uma única chave por bloco: liga/desliga o quadrante inteiro.
-                  const groupOn =
-                    gFields.some((f) => state.enabled[f.key]) ||
-                    gLists.some((lk) => state.listsEnabled[lk]);
-                  const setGroup = (v: boolean) => {
-                    gFields.forEach((f) => toggle(f.key, v));
-                    gLists.forEach((lk) => toggleList(lk, v));
-                  };
                   return (
                   <Section
                     key={group.id}
@@ -641,22 +632,9 @@ export function BulkEditDialog({
                     desc={group.desc}
                     dense
                     collapsible
-                    action={
-                      <Switch
-                        checked={groupOn}
-                        onCheckedChange={setGroup}
-                        onClick={(e) => e.stopPropagation()}
-                        aria-label={`Ativar ${group.title}`}
-                      />
-                    }
-
                   >
-                  {!groupOn ? (
-                    <p className="text-[11px] text-muted-foreground">
-                      Desligado — nada deste bloco será alterado nos guias selecionados.
-                    </p>
-                  ) : (
                   <>
+
                   {(group.subgroups ?? []).map((sg) => (
                     <div
                       key={sg.id}
@@ -689,7 +667,7 @@ export function BulkEditDialog({
                     </div>
                   ))}
                   </>
-                  )}
+
 
                   </Section>
                   );
