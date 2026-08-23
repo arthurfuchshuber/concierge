@@ -468,12 +468,15 @@ function Guide({ data }: { data: GuideOk }) {
     const preview = new URLSearchParams(window.location.search).get("preview") === "1";
     if (preview) {
       const today = new Date().toISOString().slice(0, 10);
+      // Estadia fictícia em andamento (3 dias) — evita que o guia entre em
+      // estado de "dia do check-out" e esconda etapas durante a pré-visualização.
+      const inThree = new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10);
       setIsPreview(true);
       setAccessRec({
         name: "Hóspede de teste",
         code: "TESTE000",
         checkinDate: today,
-        checkoutDate: today,
+        checkoutDate: inThree,
         phone: null,
         phoneCountry: null,
       });
