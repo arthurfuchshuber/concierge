@@ -335,10 +335,12 @@ export function BulkEditDialog({
   // Só salvamos o que a pessoa realmente editou — assim campos com valores
   // diferentes entre os guias nunca são sobrescritos por engano.
   const dirtyRef = useRef<Set<FieldKey>>(new Set());
+  const dirtyListsRef = useRef<Set<ListKey>>(new Set());
   // Versão de cada campo editado. Um save antigo nunca pode limpar a marca de
   // uma alteração mais nova feita enquanto a requisição ainda estava rodando.
   const fieldVersionRef = useRef<Partial<Record<FieldKey, number>>>({});
   const editVersionRef = useRef(0);
+  const listVersionRef = useRef<Partial<Record<ListKey, number>>>({});
   // Serializa as gravações para impedir que uma resposta antiga sobrescreva a
   // edição mais recente quando a conexão está lenta.
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
@@ -361,6 +363,7 @@ export function BulkEditDialog({
         const init = buildInitialState(d);
         initialEnabledRef.current = { ...init.enabled };
         dirtyRef.current = new Set();
+        dirtyListsRef.current = new Set();
          fieldVersionRef.current = {};
          editVersionRef.current = 0;
         setState(init);
@@ -382,8 +385,10 @@ export function BulkEditDialog({
     setData(null);
     setTargetIds([]);
     dirtyRef.current = new Set();
+    dirtyListsRef.current = new Set();
     fieldVersionRef.current = {};
     editVersionRef.current = 0;
+    listVersionRef.current = {};
     saveQueueRef.current = Promise.resolve();
     loadedKeyRef.current = null;
     setTab(TEXT_TABS[0]?.id ?? "house");
@@ -401,6 +406,11 @@ export function BulkEditDialog({
     editVersionRef.current += 1;
     fieldVersionRef.current[field] = editVersionRef.current;
     setState((s) => ({ ...s, values: { ...s.values, [field]: value } }));
+  }
+  function markListDirty(list: ListKey) {
+    dirtyListsRef.current.add(list);
+    editVersionRef.current += 1;
+    listVersionRef.current[list] = editVersionRef.current;
   }
 
 
@@ -467,7 +477,9 @@ export function BulkEditDialog({
   async function saveAuto(snapshot: State) {
     if (!data || targetIds.length === 0) return;
     const dirtyAtStart = new Set(dirtyRef.current);
+    const dirtyListsAtStart = new Set(dirtyListsRef.current);
     const versionsAtStart = { ...fieldVersionRef.current };
+    const listVersionsAtStart = { ...listVersionRef.current };
     const patch: Record<string, unknown> = {};
     for (const f of ALL_FIELDS) {
       // Só entra no patch o que a pessoa editou agora, neste popup.
@@ -482,19 +494,19 @@ export function BulkEditDialog({
     }
 
     const lists: Record<string, unknown> = {};
-    if (snapshot.listsEnabled.manual && snapshot.manual.length)
+    if (dirtyListsAtStart.has("manual"))
       lists.manual = snapshot.manual.filter((m) => m.title.trim()).map((m) => ({
         title: m.title.trim(), description: m.description.trim() || null, body: m.body.trim() || null,
       }));
-    if (snapshot.listsEnabled.emergency && snapshot.emergency.length)
+    if (dirtyListsAtStart.has("emergency"))
       lists.emergency = snapshot.emergency.filter((e) => e.label.trim() && e.number.trim())
         .map((e) => ({ label: e.label.trim(), number: e.number.trim() }));
-    if (snapshot.listsEnabled.faqs && snapshot.faqs.length)
+    if (dirtyListsAtStart.has("faqs"))
       lists.faqs = snapshot.faqs.filter((f) => f.question.trim() && f.answer.trim()).map((f) => ({
         question: f.question.trim(), answer: f.answer.trim(),
         tags: f.tags.split(",").map((t) => t.trim()).filter(Boolean),
       }));
-    if (snapshot.listsEnabled.checkout && snapshot.checkout.length)
+    if (dirtyListsAtStart.has("checkout"))
       lists.checkout = snapshot.checkout.filter((c) => c.label.trim()).map((c) => ({ label: c.label.trim() }));
 
     if (Object.keys(patch).length === 0 && Object.keys(lists).length === 0) return;
@@ -529,6 +541,11 @@ export function BulkEditDialog({
         dirtyRef.current.delete(key);
         delete fieldVersionRef.current[key];
       }
+      for (const key of dirtyListsAtStart) {
+        if (listVersionRef.current[key] !== listVersionsAtStart[key]) continue;
+        dirtyListsRef.current.delete(key);
+        delete listVersionRef.current[key];
+      }
       // O editor individual não pode abrir com um snapshot anterior e, pelo
       // autosave dele, gravar esse snapshot por cima da edição em massa.
       for (const propertyId of targetIds) {
@@ -551,7 +568,7 @@ export function BulkEditDialog({
     if (saving) return;
     const saved = await autosave.flush();
     await saveQueueRef.current;
-    if (!saved || dirtyRef.current.size > 0) return;
+    if (!saved || dirtyRef.current.size > 0 || dirtyListsRef.current.size > 0) return;
     reset();
     onOpenChange(false);
   }
@@ -697,7 +714,7 @@ export function BulkEditDialog({
 
                   {gLists.map((lk) => (
                     <div key={lk} className="min-w-0">
-                      {renderList(lk, state, setState)}
+                      {renderList(lk, state, setState, () => markListDirty(lk))}
                     </div>
                   ))}
                   </>
@@ -734,7 +751,7 @@ export function BulkEditDialog({
   );
 }
 
-function renderList(k: ListKey, state: State, setState: React.Dispatch<React.SetStateAction<State>>) {
+function renderList(k: ListKey, state: State, setState: React.Dispatch<React.SetStateAction<State>>, markDirty: () => void) {
   if (k === "manual") {
     return (
       <div className="space-y-2 mt-2">
@@ -742,18 +759,18 @@ function renderList(k: ListKey, state: State, setState: React.Dispatch<React.Set
           <div key={i} className="rounded-lg border border-border p-2 space-y-1.5">
             <div className="flex items-center gap-2">
               <Input value={m.title} placeholder="Título" className="h-8 text-sm"
-                onChange={(e) => setState((s) => ({ ...s, manual: s.manual.map((x, j) => j === i ? { ...x, title: e.target.value } : x) }))} />
-              <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => setState((s) => ({ ...s, manual: s.manual.filter((_, j) => j !== i) }))}>
+                onChange={(e) => { markDirty(); setState((s) => ({ ...s, manual: s.manual.map((x, j) => j === i ? { ...x, title: e.target.value } : x) })); }} />
+              <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => { markDirty(); setState((s) => ({ ...s, manual: s.manual.filter((_, j) => j !== i) })); }}>
                 <Trash2 className="size-3.5" />
               </Button>
             </div>
             <Input value={m.description} placeholder="Descrição curta (opcional)" className="h-8 text-xs"
-              onChange={(e) => setState((s) => ({ ...s, manual: s.manual.map((x, j) => j === i ? { ...x, description: e.target.value } : x) }))} />
+              onChange={(e) => { markDirty(); setState((s) => ({ ...s, manual: s.manual.map((x, j) => j === i ? { ...x, description: e.target.value } : x) })); }} />
             <Textarea value={m.body} placeholder="Instruções detalhadas (opcional)" rows={2} className="text-xs"
-              onChange={(e) => setState((s) => ({ ...s, manual: s.manual.map((x, j) => j === i ? { ...x, body: e.target.value } : x) }))} />
+              onChange={(e) => { markDirty(); setState((s) => ({ ...s, manual: s.manual.map((x, j) => j === i ? { ...x, body: e.target.value } : x) })); }} />
           </div>
         ))}
-        <Button variant="outline" size="sm" onClick={() => setState((s) => ({ ...s, manual: [...s.manual, { title: "", description: "", body: "" }] }))}>
+        <Button variant="outline" size="sm" onClick={() => { markDirty(); setState((s) => ({ ...s, manual: [...s.manual, { title: "", description: "", body: "" }] })); }}>
           <Plus className="size-3.5 mr-1" /> Adicionar item
         </Button>
       </div>
@@ -765,13 +782,13 @@ function renderList(k: ListKey, state: State, setState: React.Dispatch<React.Set
         {state.checkout.map((c, i) => (
           <div key={i} className="flex items-center gap-2">
             <Input value={c.label} placeholder="Ex.: Deixar as chaves na fechadura" className="h-8 text-sm"
-              onChange={(e) => setState((s) => ({ ...s, checkout: s.checkout.map((x, j) => j === i ? { label: e.target.value } : x) }))} />
-            <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => setState((s) => ({ ...s, checkout: s.checkout.filter((_, j) => j !== i) }))}>
+              onChange={(e) => { markDirty(); setState((s) => ({ ...s, checkout: s.checkout.map((x, j) => j === i ? { label: e.target.value } : x) })); }} />
+            <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => { markDirty(); setState((s) => ({ ...s, checkout: s.checkout.filter((_, j) => j !== i) })); }}>
               <Trash2 className="size-3.5" />
             </Button>
           </div>
         ))}
-        <Button variant="outline" size="sm" onClick={() => setState((s) => ({ ...s, checkout: [...s.checkout, { label: "" }] }))}>
+        <Button variant="outline" size="sm" onClick={() => { markDirty(); setState((s) => ({ ...s, checkout: [...s.checkout, { label: "" }] })); }}>
           <Plus className="size-3.5 mr-1" /> Adicionar item
         </Button>
       </div>
@@ -783,15 +800,15 @@ function renderList(k: ListKey, state: State, setState: React.Dispatch<React.Set
         {state.emergency.map((c, i) => (
           <div key={i} className="flex items-center gap-2">
             <Input value={c.label} placeholder="Ex.: SAMU" className="h-8 text-sm"
-              onChange={(e) => setState((s) => ({ ...s, emergency: s.emergency.map((x, j) => j === i ? { ...x, label: e.target.value } : x) }))} />
+              onChange={(e) => { markDirty(); setState((s) => ({ ...s, emergency: s.emergency.map((x, j) => j === i ? { ...x, label: e.target.value } : x) })); }} />
             <Input value={c.number} placeholder="Número" className="h-8 text-sm max-w-[160px]"
-              onChange={(e) => setState((s) => ({ ...s, emergency: s.emergency.map((x, j) => j === i ? { ...x, number: e.target.value } : x) }))} />
-            <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => setState((s) => ({ ...s, emergency: s.emergency.filter((_, j) => j !== i) }))}>
+              onChange={(e) => { markDirty(); setState((s) => ({ ...s, emergency: s.emergency.map((x, j) => j === i ? { ...x, number: e.target.value } : x) })); }} />
+            <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => { markDirty(); setState((s) => ({ ...s, emergency: s.emergency.filter((_, j) => j !== i) })); }}>
               <Trash2 className="size-3.5" />
             </Button>
           </div>
         ))}
-        <Button variant="outline" size="sm" onClick={() => setState((s) => ({ ...s, emergency: [...s.emergency, { label: "", number: "" }] }))}>
+        <Button variant="outline" size="sm" onClick={() => { markDirty(); setState((s) => ({ ...s, emergency: [...s.emergency, { label: "", number: "" }] })); }}>
           <Plus className="size-3.5 mr-1" /> Adicionar contato
         </Button>
       </div>
@@ -803,18 +820,18 @@ function renderList(k: ListKey, state: State, setState: React.Dispatch<React.Set
         <div key={i} className="rounded-lg border border-border p-2 space-y-1.5">
           <div className="flex items-center gap-2">
             <Input value={f.question} placeholder="Pergunta" className="h-8 text-sm"
-              onChange={(e) => setState((s) => ({ ...s, faqs: s.faqs.map((x, j) => j === i ? { ...x, question: e.target.value } : x) }))} />
-            <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => setState((s) => ({ ...s, faqs: s.faqs.filter((_, j) => j !== i) }))}>
+              onChange={(e) => { markDirty(); setState((s) => ({ ...s, faqs: s.faqs.map((x, j) => j === i ? { ...x, question: e.target.value } : x) })); }} />
+            <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => { markDirty(); setState((s) => ({ ...s, faqs: s.faqs.filter((_, j) => j !== i) })); }}>
               <Trash2 className="size-3.5" />
             </Button>
           </div>
           <Textarea value={f.answer} placeholder="Resposta" rows={2} className="text-xs"
-            onChange={(e) => setState((s) => ({ ...s, faqs: s.faqs.map((x, j) => j === i ? { ...x, answer: e.target.value } : x) }))} />
+            onChange={(e) => { markDirty(); setState((s) => ({ ...s, faqs: s.faqs.map((x, j) => j === i ? { ...x, answer: e.target.value } : x) })); }} />
           <Input value={f.tags} placeholder="Tags separadas por vírgula" className="h-7 text-[11px]"
-            onChange={(e) => setState((s) => ({ ...s, faqs: s.faqs.map((x, j) => j === i ? { ...x, tags: e.target.value } : x) }))} />
+            onChange={(e) => { markDirty(); setState((s) => ({ ...s, faqs: s.faqs.map((x, j) => j === i ? { ...x, tags: e.target.value } : x) })); }} />
         </div>
       ))}
-      <Button variant="outline" size="sm" onClick={() => setState((s) => ({ ...s, faqs: [...s.faqs, { question: "", answer: "", tags: "" }] }))}>
+      <Button variant="outline" size="sm" onClick={() => { markDirty(); setState((s) => ({ ...s, faqs: [...s.faqs, { question: "", answer: "", tags: "" }] })); }}>
         <Plus className="size-3.5 mr-1" /> Adicionar pergunta
       </Button>
     </div>
