@@ -31,11 +31,19 @@ export function useImpersonation() {
   const [state, setState] = useState<Impersonation>(() => read());
   useEffect(() => {
     const handler = () => setState(read());
+    // O evento nativo "storage" dispara para QUALQUER chave gravada no
+    // localStorage/sessionStorage por outra janela/iframe da mesma origem
+    // (ex.: o iframe de pré-visualização do guia gravando seu próprio
+    // token de sessão ou o id da conversa do chat). Filtramos pela chave
+    // para só reagir a uma troca real de conta impersonada.
+    const storageHandler = (e: StorageEvent) => {
+      if (e.key === KEY) handler();
+    };
     window.addEventListener(EVT, handler);
-    window.addEventListener("storage", handler);
+    window.addEventListener("storage", storageHandler);
     return () => {
       window.removeEventListener(EVT, handler);
-      window.removeEventListener("storage", handler);
+      window.removeEventListener("storage", storageHandler);
     };
   }, []);
   const clear = useCallback(() => setImpersonation(null), []);
@@ -66,11 +74,17 @@ export function useImpersonationQuerySync() {
         keys.forEach((k) => window.localStorage.removeItem(k));
       } catch { /* noop */ }
     };
+    // Mesmo motivo do useImpersonation acima: só limpar o cache do painel
+    // quando a chave que realmente muda é a de impersonação, não a cada
+    // escrita de storage feita por qualquer outra aba/iframe da origem.
+    const storageHandler = (e: StorageEvent) => {
+      if (e.key === KEY) handler();
+    };
     window.addEventListener(EVT, handler);
-    window.addEventListener("storage", handler);
+    window.addEventListener("storage", storageHandler);
     return () => {
       window.removeEventListener(EVT, handler);
-      window.removeEventListener("storage", handler);
+      window.removeEventListener("storage", storageHandler);
     };
   }, [queryClient]);
 }
