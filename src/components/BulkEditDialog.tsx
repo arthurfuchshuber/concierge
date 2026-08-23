@@ -494,20 +494,20 @@ export function BulkEditDialog({
     }
 
     const lists: Record<string, unknown> = {};
-    if (dirtyListsAtStart.has("manual"))
-      lists.manual = snapshot.manual.filter((m) => m.title.trim()).map((m) => ({
+    if (dirtyListsAtStart.has("manual") && (snapshot.manual.length === 0 || snapshot.manual.every((m) => m.title.trim())))
+      lists.manual = snapshot.manual.map((m) => ({
         title: m.title.trim(), description: m.description.trim() || null, body: m.body.trim() || null,
       }));
-    if (dirtyListsAtStart.has("emergency"))
-      lists.emergency = snapshot.emergency.filter((e) => e.label.trim() && e.number.trim())
+    if (dirtyListsAtStart.has("emergency") && (snapshot.emergency.length === 0 || snapshot.emergency.every((e) => e.label.trim() && e.number.trim())))
+      lists.emergency = snapshot.emergency
         .map((e) => ({ label: e.label.trim(), number: e.number.trim() }));
-    if (dirtyListsAtStart.has("faqs"))
-      lists.faqs = snapshot.faqs.filter((f) => f.question.trim() && f.answer.trim()).map((f) => ({
+    if (dirtyListsAtStart.has("faqs") && (snapshot.faqs.length === 0 || snapshot.faqs.every((f) => f.question.trim() && f.answer.trim())))
+      lists.faqs = snapshot.faqs.map((f) => ({
         question: f.question.trim(), answer: f.answer.trim(),
         tags: f.tags.split(",").map((t) => t.trim()).filter(Boolean),
       }));
-    if (dirtyListsAtStart.has("checkout"))
-      lists.checkout = snapshot.checkout.filter((c) => c.label.trim()).map((c) => ({ label: c.label.trim() }));
+    if (dirtyListsAtStart.has("checkout") && (snapshot.checkout.length === 0 || snapshot.checkout.every((c) => c.label.trim())))
+      lists.checkout = snapshot.checkout.map((c) => ({ label: c.label.trim() }));
 
     if (Object.keys(patch).length === 0 && Object.keys(lists).length === 0) return;
 
