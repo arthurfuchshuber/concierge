@@ -109,6 +109,8 @@ export function FloatingHandoffDock() {
   useEffect(() => { saveState(state); }, [state]);
 
   function onClosedButtonPointerDown(e: ReactPointerEvent<HTMLButtonElement>) {
+    // Evita que popups abertos atrás interpretem isso como "clique fora".
+    e.stopPropagation();
     if (e.pointerType === "mouse" && e.button !== 0) return;
     const button = e.currentTarget;
     const rect = button.getBoundingClientRect();
