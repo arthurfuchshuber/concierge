@@ -65,11 +65,11 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     }
 
 
-    if (prop.access_mode === "pin" && prop.pin_expires_at && new Date(prop.pin_expires_at) < new Date()) {
+    if (!isPreview && prop.access_mode === "pin" && prop.pin_expires_at && new Date(prop.pin_expires_at) < new Date()) {
       return { status: "expired" as const, propertyName: prop.name };
     }
 
-    if (prop.access_mode === "pin") {
+    if (!isPreview && prop.access_mode === "pin") {
       const cookie = getCookie(`sg-pin-${prop.id}`);
       if (cookie !== "ok") {
         return { status: "locked" as const, propertyName: prop.name, expiresAt: prop.pin_expires_at };
