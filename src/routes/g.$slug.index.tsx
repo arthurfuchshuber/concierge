@@ -660,6 +660,7 @@ function Guide({ data }: { data: GuideOk }) {
   // dia do check-out e até as 15h00 do mesmo dia — só depois do check-in
   // concluído e some quando o hóspede confirma a saída.
   const checkoutNoticeVisible = (() => {
+    if (isPreview) return !!(p.checkout_note || p.checkout_time);
     if (!checkinConcluded || checkoutConcluded) return false;
     if (!accessRec?.checkoutDate) return false;
     if (!p.checkout_note && !p.checkout_time) return false;
@@ -674,7 +675,8 @@ function Guide({ data }: { data: GuideOk }) {
 
   // Shared "access PIN unlock" state — once unlocked, all gated codes/Wi-Fi reveal.
   // The actual PIN never reaches the browser; only the boolean flags do.
-  const hasAccessPin = !!(p as any).hasAccessPin;
+  // No preview o anfitrião vê os códigos direto: o PIN de acesso não trava nada.
+  const hasAccessPin = !isPreview && !!(p as any).hasAccessPin;
   const initialUnlocked = !!(p as any).accessUnlocked;
   const [unlocked, setUnlocked] = useState(initialUnlocked);
   // Só registramos "viu a senha de acesso" quando o código foi de fato
