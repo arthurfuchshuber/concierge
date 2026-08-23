@@ -254,6 +254,8 @@ function buildInitialState(d: FetchData): State {
   const enabled: State["enabled"] = {};
   const values: State["values"] = {};
   for (const f of ALL_FIELDS) {
+    // Sem chaves: todo campo já nasce editável. Basta preencher (ou apagar).
+    enabled[f.key] = true;
     const distinct = new Set<string>();
     let filled = 0;
     let sample: string | boolean | number | undefined;
@@ -266,13 +268,14 @@ function buildInitialState(d: FetchData): State {
       if (sample === undefined) sample = raw as string | boolean | number;
     }
     if (filled === 0) continue;
-    enabled[f.key] = true;
     // Valores divergentes entre os guias: mostramos o campo vazio para não
     // sobrescrever informações específicas sem intenção.
     values[f.key] = distinct.size === 1 ? (sample as string | boolean | number) : (f.kind === "boolean" ? false : f.kind === "number" ? 0 : "");
   }
-  return { ...emptyState, enabled, values };
+  const listsEnabled: State["listsEnabled"] = { manual: true, emergency: true, faqs: true, checkout: true };
+  return { ...emptyState, enabled, values, listsEnabled };
 }
+
 
 
 
