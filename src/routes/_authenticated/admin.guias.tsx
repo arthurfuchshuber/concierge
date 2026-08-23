@@ -1193,7 +1193,6 @@ function Dashboard() {
         onOpenChange={setBulkOpen}
         ids={Array.from(selected)}
         onSaved={() => {
-          setSelected(new Set());
           refetch();
         }}
       />

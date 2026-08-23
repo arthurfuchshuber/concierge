@@ -458,6 +458,22 @@ export function BulkEditDialog({
     setSaving(true);
     try {
       await apply({ data: { ids: targetIds, patch, lists: Object.keys(lists).length ? lists : undefined, mode: "overwrite" } });
+      // Mantém o preview do próprio popup sincronizado com o que acabou de
+      // ser persistido. Antes, os campos controlados mostravam o valor novo,
+      // mas os resumos/chaves continuavam baseados no snapshot da abertura.
+      if (Object.keys(patch).length > 0) {
+        setData((current) => current ? {
+          ...current,
+          properties: current.properties.map((property) => ({ ...property, ...patch })),
+        } : current);
+        for (const [key, value] of Object.entries(patch)) {
+          const field = ALL_FIELDS.find((candidate) => candidate.key === key);
+          if (!field) continue;
+          initialEnabledRef.current[field.key] =
+            value !== null && value !== undefined && value !== "" && !(field.kind === "boolean" && value === false);
+        }
+      }
+      dirtyRef.current = new Set();
       onSaved?.();
     } catch (err) {
       // Antes o erro passava batido e o indicador continuava dizendo "Salvo".
