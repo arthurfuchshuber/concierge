@@ -522,7 +522,7 @@ export function BulkEditDialog({
       <ResponsiveDialogContent className="w-[calc(100vw-1.5rem)] sm:max-w-3xl max-h-[85vh] overflow-y-auto overflow-x-hidden">
         <>
         <ResponsiveDialogHeader>
-          <ResponsiveDialogTitle className="text-[15px] font-semibold tracking-tight">Editar {ids.length} {ids.length === 1 ? "guia" : "guias"}</ResponsiveDialogTitle>
+          <ResponsiveDialogTitle className="text-[15px] font-semibold tracking-tight">Editar {targetIds.length || ids.length} {(targetIds.length || ids.length) === 1 ? "guia" : "guias"}</ResponsiveDialogTitle>
           <ResponsiveDialogDescription className="text-xs font-normal leading-relaxed">
             {loading
               ? "Carregando dados dos guias selecionados…"
