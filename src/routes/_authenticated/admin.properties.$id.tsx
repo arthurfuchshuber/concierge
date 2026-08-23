@@ -290,6 +290,10 @@ function PropertyEditor() {
 
 
   const [form, setForm] = useState<FormState>(() => emptyForm());
+  const formRef = useRef(form);
+  formRef.current = form;
+  const editVersionRef = useRef(0);
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const hydratedRef = useRef(false);
   const suppressHydrationAutosaveRef = useRef(false);
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -562,6 +566,7 @@ function PropertyEditor() {
   const dirtyRef = useRef(false);
 
   function update<K extends keyof FormState["property"]>(key: K, value: FormState["property"][K]) {
+    editVersionRef.current += 1;
     dirtyRef.current = true;
     setForm((f) => ({ ...f, property: { ...f.property, [key]: value } }));
   }
@@ -891,15 +896,20 @@ function PropertyEditor() {
 
 
 
-  async function handleSave(overrides?: Partial<FormState["property"]>, opts?: { silent?: boolean }) {
+  async function handleSave(
+    overrides?: Partial<FormState["property"]>,
+    opts?: { silent?: boolean; snapshot?: FormState; editVersion?: number },
+  ) {
     const silent = opts?.silent === true;
-    if (gateOpen) {
-      if (!form.property.gate_code.trim()) { if (!silent) toast.error("Informe o código do portão ou desative essa opção."); return; }
-      if (!form.property.gate_label.trim()) { if (!silent) toast.error("Defina um nome para o acesso do portão."); return; }
+    const formToSave = opts?.snapshot ?? formRef.current;
+    const saveVersion = opts?.editVersion ?? editVersionRef.current;
+    if (!silent && gateOpen) {
+      if (!formToSave.property.gate_code.trim()) { toast.error("Informe o código do portão ou desative essa opção."); return; }
+      if (!formToSave.property.gate_label.trim()) { toast.error("Defina um nome para o acesso do portão."); return; }
     }
-    if (lockOpen) {
-      if (!form.property.lock_code.trim()) { if (!silent) toast.error("Informe o código da fechadura ou desative essa opção."); return; }
-      if (!form.property.lock_label.trim()) { if (!silent) toast.error("Defina um nome para o acesso da fechadura."); return; }
+    if (!silent && lockOpen) {
+      if (!formToSave.property.lock_code.trim()) { toast.error("Informe o código da fechadura ou desative essa opção."); return; }
+      if (!formToSave.property.lock_label.trim()) { toast.error("Defina um nome para o acesso da fechadura."); return; }
     }
     if (silent) setAutoSaving(true); else setSaving(true);
     try {
@@ -907,86 +917,88 @@ function PropertyEditor() {
       // guide_created=true NA MESMA chamada de save, sem esperar um ciclo de
       // render (setForm/update() é assíncrono — chamar handleSave logo depois
       // de um update() leria form.property desatualizado).
-      const propertySource = overrides ? { ...form.property, ...overrides } : form.property;
+      const propertySource = overrides ? { ...formToSave.property, ...overrides } : formToSave.property;
       const galleryImages = propertySource.gallery_images.filter((u) => u.trim()).slice(0, 4);
       const payload = {
         id: isNew ? null : id,
         ownerId: isNew ? (impersonation?.userId ?? null) : null,
         property: {
           ...propertySource,
-          slug: form.property.slug || slugify(form.property.name),
-          tagline: form.property.tagline || null,
-          hero_image_url: galleryImages[0] || form.property.hero_image_url || null,
+          slug: propertySource.slug || slugify(propertySource.name),
+          tagline: propertySource.tagline || null,
+          hero_image_url: galleryImages[0] || propertySource.hero_image_url || null,
           gallery_images: galleryImages,
           theme_images: {
-            checkin: form.property.theme_images.checkin || undefined,
-            residencia: form.property.theme_images.residencia || undefined,
-            faq: form.property.theme_images.faq || undefined,
-            explore: form.property.theme_images.explore || undefined,
+            checkin: propertySource.theme_images.checkin || undefined,
+            residencia: propertySource.theme_images.residencia || undefined,
+            faq: propertySource.theme_images.faq || undefined,
+            explore: propertySource.theme_images.explore || undefined,
           },
-          marketplace_links: form.property.marketplace_links
+          marketplace_links: propertySource.marketplace_links
             .map((m) => ({
               label: m.label.trim(),
               url: m.url.trim(),
               description: m.description.trim() || null,
             }))
             .filter((m) => m.label && m.url),
-          address: form.property.address || null,
-          maps_url: form.property.maps_url || null,
-          garage_maps_url: form.property.garage_maps_url || null,
-          city: form.property.city || null,
-          state: form.property.state || null,
-          country: form.property.country || null,
-          checkin_time: form.property.checkin_time || null,
-          checkin_time_max: form.property.checkin_time_max || null,
-          checkin_note: form.property.checkin_note || null,
-          checkout_time: form.property.checkout_time || null,
-          checkout_time_min: form.property.checkout_time_min || null,
-          checkout_note: form.property.checkout_note || null,
-          lock_code: form.property.lock_code || null,
-          lock_label: form.property.lock_code ? (form.property.lock_label.trim() || "Fechadura") : null,
-          gate_code: form.property.gate_code || null,
-          gate_label: form.property.gate_code ? (form.property.gate_label.trim() || "Portão") : null,
-          access_codes_pin: (form.property.gate_code || form.property.lock_code) ? (form.property.access_codes_pin.trim() || null) : null,
-          address_note: form.property.address_note || null,
-          checkin_instructions: form.property.checkin_instructions || null,
-          checkout_instructions: form.property.checkout_instructions || null,
-          house_rules: form.property.house_rules || null,
-          checkin_media: form.property.checkin_media,
-          gate_instructions: form.property.gate_code ? (form.property.gate_instructions || null) : null,
-          gate_media: form.property.gate_code ? form.property.gate_media : [],
-          gate_video_url: form.property.gate_code ? (form.property.gate_video_url || null) : null,
-          lock_instructions: form.property.lock_code ? (form.property.lock_instructions || null) : null,
-          lock_media: form.property.lock_code ? form.property.lock_media : [],
-          lock_video_url: form.property.lock_code ? (form.property.lock_video_url || null) : null,
-          wifi_ssid: form.property.wifi_ssid || null,
-          wifi_password: form.property.wifi_password || null,
-          host_name: form.property.host_name || null,
-          host_phone: form.property.host_phone || null,
-          brand_name: canBrand ? (form.property.brand_name || null) : null,
-          brand_logo_url: canBrand ? (form.property.brand_logo_url || null) : null,
+          address: propertySource.address || null,
+          maps_url: propertySource.maps_url || null,
+          garage_maps_url: propertySource.garage_maps_url || null,
+          city: propertySource.city || null,
+          state: propertySource.state || null,
+          country: propertySource.country || null,
+          checkin_time: propertySource.checkin_time || null,
+          checkin_time_max: propertySource.checkin_time_max || null,
+          checkin_note: propertySource.checkin_note || null,
+          checkout_time: propertySource.checkout_time || null,
+          checkout_time_min: propertySource.checkout_time_min || null,
+          checkout_note: propertySource.checkout_note || null,
+          lock_code: propertySource.lock_code || null,
+          lock_label: propertySource.lock_code ? (propertySource.lock_label.trim() || "Fechadura") : null,
+          gate_code: propertySource.gate_code || null,
+          gate_label: propertySource.gate_code ? (propertySource.gate_label.trim() || "Portão") : null,
+          access_codes_pin: (propertySource.gate_code || propertySource.lock_code) ? (propertySource.access_codes_pin.trim() || null) : null,
+          address_note: propertySource.address_note || null,
+          checkin_instructions: propertySource.checkin_instructions || null,
+          checkout_instructions: propertySource.checkout_instructions || null,
+          house_rules: propertySource.house_rules || null,
+          checkin_media: propertySource.checkin_media,
+          gate_instructions: propertySource.gate_code ? (propertySource.gate_instructions || null) : null,
+          gate_media: propertySource.gate_code ? propertySource.gate_media : [],
+          gate_video_url: propertySource.gate_code ? (propertySource.gate_video_url || null) : null,
+          lock_instructions: propertySource.lock_code ? (propertySource.lock_instructions || null) : null,
+          lock_media: propertySource.lock_code ? propertySource.lock_media : [],
+          lock_video_url: propertySource.lock_code ? (propertySource.lock_video_url || null) : null,
+          wifi_ssid: propertySource.wifi_ssid || null,
+          wifi_password: propertySource.wifi_password || null,
+          host_name: propertySource.host_name || null,
+          host_phone: propertySource.host_phone || null,
+          brand_name: canBrand ? (propertySource.brand_name || null) : null,
+          brand_logo_url: canBrand ? (propertySource.brand_logo_url || null) : null,
 
           // Guias de Check-In & Check-Out sempre exigem o formulário de
           // primeiro acesso — o campo fica bloqueado na interface.
           require_access_gate:
-            form.property.tagline === "Check-In & Check-Out" ? true : form.property.require_access_gate,
-          pin_code: form.property.access_mode === "pin" ? (form.property.pin_code || null) : null,
-          pin_expires_at: form.property.access_mode === "pin" && form.property.pin_expires_at
-            ? new Date(form.property.pin_expires_at).toISOString()
+            propertySource.tagline === "Check-In & Check-Out" ? true : propertySource.require_access_gate,
+          pin_code: propertySource.access_mode === "pin" ? (propertySource.pin_code || null) : null,
+          pin_expires_at: propertySource.access_mode === "pin" && propertySource.pin_expires_at
+            ? new Date(propertySource.pin_expires_at).toISOString()
             : null,
-          airbnb_listing_url: (form.property.airbnb_listing_url || airbnbUrl.trim() || null),
+          airbnb_listing_url: (propertySource.airbnb_listing_url || airbnbUrl.trim() || null),
         },
         // Apenas "Aqui pertinho" é por imóvel; "Pela cidade" mora em city_references.
         // Só persiste pontos vindos do Google (com place_id).
-        recommendations: form.recommendations.filter((r) => r.scope === "nearby" && r.place_id && r.name && r.name.trim().length > 0),
-        manual: form.manual.filter((m) => m.title),
-        emergency: form.emergency.filter((m) => m.label && m.number),
-        faqs: form.faqs.filter((m) => m.question && m.answer),
-        checkout: form.checkout.filter((m) => m.label),
+        recommendations: formToSave.recommendations.filter((r) => r.scope === "nearby" && r.place_id && r.name && r.name.trim().length > 0),
+        manual: formToSave.manual.filter((m) => m.title),
+        emergency: formToSave.emergency.filter((m) => m.label && m.number),
+        faqs: formToSave.faqs.filter((m) => m.question && m.answer),
+        checkout: formToSave.checkout.filter((m) => m.label),
       };
-      const r = await save({ data: payload });
+      const queuedSave = saveQueueRef.current.then(() => save({ data: payload }));
+      saveQueueRef.current = queuedSave.then(() => undefined, () => undefined);
+      const r = await queuedSave;
       if (!silent) toast.success(isNew ? "Imóvel criado" : "Guia salvo");
-      dirtyRef.current = false;
+      if (editVersionRef.current === saveVersion) dirtyRef.current = false;
       // Em autosave (silent) NÃO invalidamos nada: refetch do guia inteiro a
       // cada tecla era o que deixava a edição lenta. Só marcamos as queries
       // como obsoletas (refetchType: "none"), então elas se atualizam no
@@ -1081,7 +1093,11 @@ function PropertyEditor() {
     if (globalTimerRef.current) clearTimeout(globalTimerRef.current);
     globalTimerRef.current = setTimeout(() => {
       globalSnapshotRef.current = formKey;
-      void handleSave(undefined, { silent: true });
+      void handleSave(undefined, {
+        silent: true,
+        snapshot: formRef.current,
+        editVersion: editVersionRef.current,
+      });
     }, 350);
     return () => { if (globalTimerRef.current) clearTimeout(globalTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps

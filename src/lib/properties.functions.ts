@@ -759,11 +759,14 @@ export const upsertProperty = createServerFn({ method: "POST" })
     }
 
     if (propertyId) {
-      const { error } = await writeClient
+      const { data: updated, error } = await writeClient
         .from("properties")
         .update(propertyData)
-        .eq("id", propertyId);
+        .eq("id", propertyId)
+        .select("id")
+        .maybeSingle();
       if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
+      if (!updated) throw new Error("O guia não foi atualizado. Verifique sua permissão e tente novamente.");
     } else {
       await assertCanCreateGuide(supabase, userId, { ownerId: effectiveOwnerId });
       const { data: inserted, error } = await writeClient
