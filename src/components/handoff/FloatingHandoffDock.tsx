@@ -204,16 +204,20 @@ export function FloatingHandoffDock() {
     return () => { supabase.removeChannel(ch); };
   }, [allowed, qc]);
 
-  // Escuta mensagens do SW de push
+  // Escuta mensagens do SW de push.
+  // A janela só abre sozinha quando o push é de uma CONVERSA (hóspede) ou
+  // quando a pessoa clicou na notificação. Avisos operacionais do sistema
+  // (limpeza, esteira, alertas) apenas atualizam os dados em segundo plano.
   useEffect(() => {
     return listenToPushMessages((msg) => {
-      if (msg.type === "handoff-push" || msg.type === "handoff-focus") {
-        playBeep();
-        setState({ open: true, minimized: false });
-        if (msg.conversationId) setActiveId(msg.conversationId);
-        qc.invalidateQueries({ queryKey: ["handoff-pending-count"] });
-        qc.invalidateQueries({ queryKey: ["handoff-list"] });
-      }
+      if (msg.type !== "handoff-push" && msg.type !== "handoff-focus") return;
+      qc.invalidateQueries({ queryKey: ["handoff-pending-count"] });
+      qc.invalidateQueries({ queryKey: ["handoff-list"] });
+      const isConversation = !!msg.conversationId;
+      if (!isConversation && msg.type !== "handoff-focus") return;
+      playBeep();
+      setState({ open: true, minimized: false });
+      if (msg.conversationId) setActiveId(msg.conversationId);
     });
   }, [qc]);
 
