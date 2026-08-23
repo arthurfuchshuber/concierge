@@ -88,7 +88,7 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     const rawPin = (creds?.access_codes_pin ?? "").toString().trim();
     const hasAccessPin = rawPin.length > 0;
     const accessUnlocked = hasAccessPin
-      ? getCookie(`sg-accesscodes-${prop.id}`) === "ok"
+      ? isPreview || getCookie(`sg-accesscodes-${prop.id}`) === "ok"
       : true;
 
     // Strip the PIN out of the payload no matter what.
