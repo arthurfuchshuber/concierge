@@ -595,7 +595,7 @@ export function BulkEditDialog({
                     >
                       <div className="mb-2 truncate text-[13px] font-normal">{sg.title}</div>
                       <div className="divide-y divide-border/60">
-                        {sg.fields.map((f) => (
+                        {sg.fields.filter((f) => isFieldVisible(f.key)).map((f) => (
                           <div key={f.key} className="py-2.5 first:pt-0 last:pb-0">
                             {fieldBlock(f, false)}
                           </div>
