@@ -435,24 +435,24 @@ function Dashboard() {
   return (
     <div className="px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full">
       {readOnly && (
-        <div className="mb-6 rounded-md border border-accent/30 bg-accent/10 px-4 py-3 flex items-center gap-3">
-          <Eye className="size-4 text-accent shrink-0" />
-          <div className="flex-1 text-sm">
-            Visualizando o painel de <span className="font-semibold">{impersonation?.name ?? "—"}</span>
-            <span className="text-muted-foreground"> · somente leitura</span>
-          </div>
+        <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
+          <Eye className="size-3.5 text-accent shrink-0" />
+          <span className="flex-1 truncate">
+            Painel de <span className="font-medium text-foreground">{impersonation?.name ?? "—"}</span>
+          </span>
           <button
             type="button"
             onClick={() => {
               clearImpersonation();
               navigate({ to: "/admin/guias" });
             }}
-            className="text-xs px-3 py-1.5 rounded-md border border-border bg-background/60 hover:bg-secondary"
+            className="text-[11px] px-2.5 py-1 rounded-md border border-border bg-background/60 hover:bg-secondary"
           >
             Sair da visualização
           </button>
         </div>
       )}
+
       {noOwners && !readOnly && (
         <div className="mb-6 ds-surface border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm flex items-center gap-3">
           <AlertTriangle className="size-4 text-amber-500 shrink-0" />
@@ -475,8 +475,9 @@ function Dashboard() {
         title={readOnly ? `Painel de ${impersonation?.name ?? ""}` : "Guias"}
         subtitle={
           readOnly
-            ? "Visualização apenas de leitura. Nenhuma alteração será salva."
+            ? "Imóveis e destinos desta conta."
             : "Seus imóveis e destinos publicados."
+
         }
         tabs={GUIA_TABS}
         activeTab="imoveis"
