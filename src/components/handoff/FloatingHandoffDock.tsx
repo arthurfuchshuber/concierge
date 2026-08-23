@@ -395,7 +395,13 @@ export function FloatingHandoffDock() {
 
       {/* Widget mobile */}
       {state.open && (
-        <div className="lg:hidden fixed inset-0" style={{ zIndex: 2147483000, pointerEvents: "auto" }}>
+        <div
+          className="lg:hidden fixed inset-0"
+          style={{ zIndex: 2147483000, pointerEvents: "auto" }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onFocusCapture={(e) => e.stopPropagation()}
+        >
           <button
             type="button"
             className="absolute inset-0 bg-black/55 backdrop-blur-sm"
