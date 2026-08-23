@@ -2,7 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getCookie, setCookie } from "@tanstack/react-start/server";
 
-const SlugInput = z.object({ slug: z.string().regex(/^[a-z0-9-]{1,64}$/) });
+const SlugInput = z.object({
+  slug: z.string().regex(/^[a-z0-9-]{1,64}$/),
+  previewToken: z.string().max(300).optional().nullable(),
+});
 
 async function loadFullGuide(supabaseAdmin: typeof import("@/integrations/supabase/client.server").supabaseAdmin, propertyId: string) {
   const [manual, recs, emerg, faqs, checkout] = await Promise.all([
