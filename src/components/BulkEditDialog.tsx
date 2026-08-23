@@ -606,7 +606,7 @@ export function BulkEditDialog({
 
                   {(group.fields ?? []).length > 0 && (
                     <div className="rounded-[0.3rem] border border-border bg-card/40 p-3 min-w-0 divide-y divide-border/60">
-                      {(group.fields ?? []).map((f) => (
+                      {(group.fields ?? []).filter((f) => isFieldVisible(f.key)).map((f) => (
                         <div key={f.key} className="py-2.5 first:pt-0 last:pb-0">
                           {fieldBlock(f, false)}
                         </div>
