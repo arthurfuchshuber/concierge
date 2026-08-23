@@ -472,7 +472,7 @@ export function BulkEditDialog({
 
     setSaving(true);
     try {
-      let result: Awaited<ReturnType<typeof bulkUpdateProperties>> | undefined;
+      let result: { updated: number } | undefined;
       const queuedSave = saveQueueRef.current.then(async () => {
         result = await apply({ data: { ids: targetIds, patch, lists: Object.keys(lists).length ? lists : undefined, mode: "overwrite" } });
       });
