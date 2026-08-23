@@ -17,16 +17,15 @@ export function useGuidePreviewUrl(slug: string | null | undefined) {
       setUrl(null);
       return;
     }
-    setUrl(null);
+    // Mostra o guia imediatamente; o token (que libera rascunhos) chega depois.
+    setUrl(`/g/${slug}?preview=1`);
     createToken({ data: { slug } })
       .then((r) => {
-        if (!active) return;
-        const t = r?.token ? `&t=${encodeURIComponent(r.token)}` : "";
-        setUrl(`/g/${slug}?preview=1${t}`);
+        if (!active || !r?.token) return;
+        setUrl(`/g/${slug}?preview=1&t=${encodeURIComponent(r.token)}`);
       })
-      .catch(() => {
-        if (active) setUrl(`/g/${slug}?preview=1`);
-      });
+      .catch(() => {});
+
     return () => {
       active = false;
     };
