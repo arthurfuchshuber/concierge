@@ -304,6 +304,10 @@ export function BulkEditDialog({
   // Só salvamos o que a pessoa realmente editou — assim campos com valores
   // diferentes entre os guias nunca são sobrescritos por engano.
   const dirtyRef = useRef<Set<FieldKey>>(new Set());
+  // Guias-alvo congelados no momento em que o popup carregou: se a seleção da
+  // tela de trás mudar (ou for limpa) enquanto o popup está aberto, o
+  // salvamento automático continua gravando nos guias certos.
+  const [targetIds, setTargetIds] = useState<string[]>([]);
 
   function load(force = false) {
     if (ids.length === 0) return;
@@ -311,8 +315,10 @@ export function BulkEditDialog({
     loadedKeyRef.current = idsKey;
     setLoading(true);
     setData(null);
-    fetchFn({ data: { ids: idsKey.split(",") } })
+    const loadingIds = idsKey.split(",");
+    fetchFn({ data: { ids: loadingIds } })
       .then((d) => {
+        setTargetIds(loadingIds);
         setData(d);
         const init = buildInitialState(d);
         initialEnabledRef.current = { ...init.enabled };
