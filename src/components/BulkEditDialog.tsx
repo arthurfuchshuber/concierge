@@ -422,7 +422,7 @@ export function BulkEditDialog({
    * selecionados só o que foi editado agora, sobrescrevendo o valor.
    */
   async function saveAuto() {
-    if (!data || ids.length === 0) return;
+    if (!data || targetIds.length === 0) return;
     const patch: Record<string, unknown> = {};
     for (const f of ALL_FIELDS) {
       // Só entra no patch o que a pessoa editou agora, neste popup.
