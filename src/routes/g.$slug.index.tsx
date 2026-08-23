@@ -562,6 +562,13 @@ function Guide({ data }: { data: GuideOk }) {
       return Date.now() >= start;
     };
     const evaluate = () => {
+      // Pré-visualização do anfitrião: nada fica bloqueado por etapa. Mostramos
+      // todas as telas e informações preenchidas, sem exigir confirmações.
+      if (isPreview) {
+        setCheckinConcluded(true);
+        setCheckoutConcluded(false);
+        return;
+      }
       setCheckinConcluded(confirmed() || passedCheckinMoment() || hostStatus.checkinDone || hostStatus.checkoutDone);
       setCheckoutConcluded(localStorage.getItem(outKey) === "1" || hostStatus.checkoutDone);
     };
