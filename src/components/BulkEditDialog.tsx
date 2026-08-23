@@ -625,16 +625,7 @@ export function BulkEditDialog({
               <SectionGroup>
                 <div className="space-y-4">
                 {tab.groups.map((group) => {
-                  const gFields = groupFields(group);
                   const gLists = group.lists ?? [];
-                  // Uma única chave por bloco: liga/desliga o quadrante inteiro.
-                  const groupOn =
-                    gFields.some((f) => state.enabled[f.key]) ||
-                    gLists.some((lk) => state.listsEnabled[lk]);
-                  const setGroup = (v: boolean) => {
-                    gFields.forEach((f) => toggle(f.key, v));
-                    gLists.forEach((lk) => toggleList(lk, v));
-                  };
                   return (
                   <Section
                     key={group.id}
@@ -644,22 +635,9 @@ export function BulkEditDialog({
                     desc={group.desc}
                     dense
                     collapsible
-                    action={
-                      <Switch
-                        checked={groupOn}
-                        onCheckedChange={setGroup}
-                        onClick={(e) => e.stopPropagation()}
-                        aria-label={`Ativar ${group.title}`}
-                      />
-                    }
-
                   >
-                  {!groupOn ? (
-                    <p className="text-[11px] text-muted-foreground">
-                      Desligado — nada deste bloco será alterado nos guias selecionados.
-                    </p>
-                  ) : (
                   <>
+
                   {(group.subgroups ?? []).map((sg) => (
                     <div
                       key={sg.id}
