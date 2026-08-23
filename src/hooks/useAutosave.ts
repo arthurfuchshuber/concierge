@@ -68,8 +68,10 @@ export function useAutosave<T>(
     try {
       await onSaveRef.current(valueRef.current);
       setStatus("saved");
+      return true;
     } catch {
       setStatus("error");
+      return false;
     }
   }
 

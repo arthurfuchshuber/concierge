@@ -451,6 +451,7 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
 
     const patchKeys = Object.keys(patch);
     const updatedSet = new Set<string>();
+    const propertyUpdatedSet = new Set<string>();
 
     // Guarda os valores anteriores para permitir recuperação em caso de engano.
     if (patchKeys.length > 0) {
@@ -479,7 +480,14 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
           .in("id", data.ids)
           .select("id");
         if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
-        for (const r of rows ?? []) updatedSet.add((r as { id: string }).id);
+        for (const r of rows ?? []) {
+          const id = (r as { id: string }).id;
+          propertyUpdatedSet.add(id);
+          updatedSet.add(id);
+        }
+        if (propertyUpdatedSet.size !== data.ids.length) {
+          throw new Error(`Não foi possível confirmar a alteração em ${data.ids.length - propertyUpdatedSet.size} guia(s).`);
+        }
       } else {
         // fill-empty: por campo, aplica apenas onde o valor atual está vazio.
         const cq = await sb
@@ -497,7 +505,10 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
             .in("id", targetIds)
             .select("id");
           if (uErr) throw (await import("@/lib/db-errors.server")).safeDbError("properties", uErr);
-          for (const r of (uRows ?? []) as unknown as Array<{ id: string }>) updatedSet.add(r.id);
+          for (const r of (uRows ?? []) as unknown as Array<{ id: string }>) {
+            propertyUpdatedSet.add(r.id);
+            updatedSet.add(r.id);
+          }
         }
       }
     }
@@ -533,10 +544,16 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
           const items = (lists as Record<string, unknown[]>)[key];
           if (items === undefined) continue;
           if (data.mode === "fill-empty" && (listCounts[key]?.[id] ?? 0) > 0) continue;
-          await sb.from(table).delete().eq("property_id", id);
+          const deleted = await sb.from(table).delete().eq("property_id", id);
+          if (deleted.error) {
+            throw (await import("@/lib/db-errors.server")).safeDbError(table, deleted.error);
+          }
           if (items.length) {
             const rows = items.map((m, i) => ({ ...(m as object), property_id: id, position: i }));
-            await sb.from(table).insert(rows as never);
+            const inserted = await sb.from(table).insert(rows as never);
+            if (inserted.error) {
+              throw (await import("@/lib/db-errors.server")).safeDbError(table, inserted.error);
+            }
           }
           updatedSet.add(id);
         }
