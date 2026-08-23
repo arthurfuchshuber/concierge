@@ -456,8 +456,12 @@ export function BulkEditDialog({
 
     setSaving(true);
     try {
-      await apply({ data: { ids, patch, lists: Object.keys(lists).length ? lists : undefined, mode: "overwrite" } });
+      await apply({ data: { ids: targetIds, patch, lists: Object.keys(lists).length ? lists : undefined, mode: "overwrite" } });
       onSaved?.();
+    } catch (err) {
+      // Antes o erro passava batido e o indicador continuava dizendo "Salvo".
+      toast.error("Não foi possível salvar as alterações nos guias selecionados.");
+      throw err;
     } finally {
       setSaving(false);
     }
