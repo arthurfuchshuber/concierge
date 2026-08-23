@@ -19,6 +19,7 @@ import {
   DoorOpen, Clock, KeyRound, Wifi, ClipboardList, LogOut, Phone, HelpCircle,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
+import { useQueryClient } from "@tanstack/react-query";
 import { bulkUpdateProperties, bulkFetchProperties } from "@/lib/properties.functions";
 
 import { toast } from "sonner";
@@ -273,7 +274,33 @@ function buildInitialState(d: FetchData): State {
     values[f.key] = distinct.size === 1 ? (sample as string | boolean | number) : (f.kind === "boolean" ? false : f.kind === "number" ? 0 : "");
   }
   const listsEnabled: State["listsEnabled"] = { manual: true, emergency: true, faqs: true, checkout: true };
-  return { ...emptyState, enabled, values, listsEnabled };
+  const propertyIds = d.properties.map((property) => property.id);
+  const commonList = <T extends Record<string, unknown>, R>(
+    rows: T[],
+    map: (row: T) => R,
+  ): R[] => {
+    const byProperty = propertyIds.map((propertyId) => rows.filter((row) => row.property_id === propertyId).map(map));
+    const first = byProperty[0] ?? [];
+    return byProperty.every((items) => JSON.stringify(items) === JSON.stringify(first)) ? first : [];
+  };
+  const listItems = d.listItems;
+  return {
+    ...emptyState,
+    enabled,
+    values,
+    listsEnabled,
+    manual: commonList(listItems.manual, (row) => ({
+      title: String(row.title ?? ""), description: String(row.description ?? ""), body: String(row.body ?? ""),
+    })),
+    emergency: commonList(listItems.emergency, (row) => ({
+      label: String(row.label ?? ""), number: String(row.number ?? ""),
+    })),
+    faqs: commonList(listItems.faqs, (row) => ({
+      question: String(row.question ?? ""), answer: String(row.answer ?? ""),
+      tags: Array.isArray(row.tags) ? row.tags.join(", ") : "",
+    })),
+    checkout: commonList(listItems.checkout, (row) => ({ label: String(row.label ?? "") })),
+  };
 }
 
 
@@ -289,6 +316,7 @@ export function BulkEditDialog({
 }) {
   const apply = useServerFn(bulkUpdateProperties);
   const fetchFn = useServerFn(bulkFetchProperties);
+  const queryClient = useQueryClient();
   const [state, setState] = useState<State>(emptyState);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -500,6 +528,12 @@ export function BulkEditDialog({
         if (fieldVersionRef.current[key] !== versionsAtStart[key]) continue;
         dirtyRef.current.delete(key);
         delete fieldVersionRef.current[key];
+      }
+      // O editor individual não pode abrir com um snapshot anterior e, pelo
+      // autosave dele, gravar esse snapshot por cima da edição em massa.
+      for (const propertyId of targetIds) {
+        queryClient.removeQueries({ queryKey: ["property", propertyId], exact: true, type: "inactive" });
+        void queryClient.invalidateQueries({ queryKey: ["property", propertyId], exact: true });
       }
       onSaved?.();
     } catch (err) {

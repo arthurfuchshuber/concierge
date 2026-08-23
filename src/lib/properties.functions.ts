@@ -388,11 +388,14 @@ export const bulkFetchProperties = createServerFn({ method: "POST" })
     const rows = (q.data ?? []) as unknown as Array<{ id: string; name: string } & Record<string, string | number | boolean | null>>;
     const propIds = rows.map((r) => r.id);
     const [manual, emerg, faqs, checkout] = await Promise.all([
-      sb.from("property_manual_items").select("property_id").in("property_id", propIds),
-      sb.from("property_emergency_contacts").select("property_id").in("property_id", propIds),
-      sb.from("property_faqs").select("property_id").in("property_id", propIds),
-      sb.from("property_checkout_items").select("property_id").in("property_id", propIds),
+      sb.from("property_manual_items").select("property_id,title,description,body,position").in("property_id", propIds).order("position"),
+      sb.from("property_emergency_contacts").select("property_id,label,number,position").in("property_id", propIds).order("position"),
+      sb.from("property_faqs").select("property_id,question,answer,tags,position").in("property_id", propIds).order("position"),
+      sb.from("property_checkout_items").select("property_id,label,position").in("property_id", propIds).order("position"),
     ]);
+    for (const result of [manual, emerg, faqs, checkout]) {
+      if (result.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", result.error);
+    }
     function tally(arr: unknown): Record<string, number> {
       const m: Record<string, number> = {};
       for (const r of (arr as { property_id: string }[] | null) ?? [])
@@ -406,6 +409,12 @@ export const bulkFetchProperties = createServerFn({ method: "POST" })
         emergency: tally(emerg.data),
         faqs: tally(faqs.data),
         checkout: tally(checkout.data),
+      },
+      listItems: {
+        manual: manual.data ?? [],
+        emergency: emerg.data ?? [],
+        faqs: faqs.data ?? [],
+        checkout: checkout.data ?? [],
       },
     };
   });
