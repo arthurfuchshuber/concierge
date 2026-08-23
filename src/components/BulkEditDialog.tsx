@@ -464,7 +464,7 @@ export function BulkEditDialog({
       if (Object.keys(patch).length > 0) {
         setData((current) => current ? {
           ...current,
-          properties: current.properties.map((property) => ({ ...property, ...patch })),
+          properties: current.properties.map((property) => ({ ...property, ...patch }) as typeof property),
         } : current);
         for (const [key, value] of Object.entries(patch)) {
           const field = ALL_FIELDS.find((candidate) => candidate.key === key);
