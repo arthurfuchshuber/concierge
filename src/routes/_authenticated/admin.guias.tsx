@@ -475,8 +475,9 @@ function Dashboard() {
         title={readOnly ? `Painel de ${impersonation?.name ?? ""}` : "Guias"}
         subtitle={
           readOnly
-            ? "Visualização apenas de leitura. Nenhuma alteração será salva."
+            ? "Imóveis e destinos desta conta."
             : "Seus imóveis e destinos publicados."
+
         }
         tabs={GUIA_TABS}
         activeTab="imoveis"
