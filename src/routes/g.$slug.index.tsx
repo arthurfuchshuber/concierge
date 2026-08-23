@@ -771,6 +771,7 @@ function Guide({ data }: { data: GuideOk }) {
   // Card "Chegada/Saída" some 24h após a hora do check-in.
   // Mesmo assim, essas seções continuam acessíveis pela barra inferior.
   const stayCardsExpired = (() => {
+    if (isPreview) return false;
     if (!accessRec?.checkinDate) return false;
     const t = String(p.checkin_time ?? "15:00").match(/^(\d{1,2}):(\d{2})/);
     const hh = t ? Number(t[1]) : 15;
