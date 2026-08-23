@@ -2234,11 +2234,15 @@ function PropertyEditor() {
             variant="outline"
             className="h-10 min-w-[120px]"
             onClick={() => {
-              const order = ["basics", "access", "house", "recs", "extras"];
+              // Mesma ordem das abas do Stepper acima (house, guide, checkin,
+              // checkout, faq, recs) — antes esta lista estava desatualizada
+              // (basics/access/extras não existem mais como abas) e fazia
+              // "Próximo"/"Anterior" pularem direto para "Recomendações".
+              const order = ["house", "guide", "checkin", "checkout", "faq", "recs"];
               const i = order.indexOf(step);
               if (i > 0) setStep(order[i - 1]);
             }}
-            disabled={step === "basics"}
+            disabled={step === "house"}
           >
             <ArrowLeft className="size-3.5 mr-1" />
             Anterior
@@ -2247,11 +2251,11 @@ function PropertyEditor() {
             variant="outline"
             className="h-10 min-w-[120px]"
             onClick={() => {
-              const order = ["basics", "access", "house", "recs", "extras"];
+              const order = ["house", "guide", "checkin", "checkout", "faq", "recs"];
               const i = order.indexOf(step);
               if (i < order.length - 1) setStep(order[i + 1]);
             }}
-            disabled={step === "extras"}
+            disabled={step === "recs"}
           >
             Próximo
             <ArrowLeft className="size-3.5 ml-1 rotate-180" />
