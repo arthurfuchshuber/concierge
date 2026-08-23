@@ -188,7 +188,7 @@ function Dashboard() {
   // regra global de "admin SaaS = leitura". Se o admin também for membro ativo
   // desta conta, ele edita com as permissões que o titular concedeu.
   const accountsFn = useServerFn(listMyAccounts);
-  const { data: myAccountsData } = useQuery({
+  const { data: myAccountsData, isLoading: myAccountsLoading } = useQuery({
     queryKey: ["my-accounts-membership"],
     queryFn: () => accountsFn(),
     staleTime: 60_000,
@@ -198,7 +198,11 @@ function Dashboard() {
     (myAccountsData?.accounts ?? []).some((a: { ownerId: string }) => a.ownerId === impersonation.userId)
   );
   // Read-only apenas quando um admin SaaS acessa um cliente do qual NÃO é membro.
-  const readOnly = !!impersonation && isSaasAdmin && !isMemberOfImpersonated;
+  // Enquanto o vínculo ainda está carregando não mostramos nada (evita o aviso
+  // piscando por milissegundos em contas onde o usuário pode editar).
+  const readOnly =
+    !myAccountsLoading && !!myAccountsData && !!impersonation && isSaasAdmin && !isMemberOfImpersonated;
+
 
   // Permissão de criação de guias — vale para a conta inteira.
   const createAccess = useAccess("tenant.guias.imoveis.criar", "criar");
