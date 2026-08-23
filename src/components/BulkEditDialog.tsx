@@ -109,7 +109,6 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
         fields: [
           { key: "access_mode", label: "Modo de acesso do Guia", kind: "access_mode" },
           { key: "pin_code", label: "Código de acesso", kind: "text" },
-          { key: "require_access_gate", label: "Exigir formulário de primeiro acesso", kind: "boolean" },
         ],
       },
     ],
