@@ -624,6 +624,7 @@ function Guide({ data }: { data: GuideOk }) {
     return m ? [Number(m[1]), Number(m[2])] : [fallbackH, 0];
   };
   const checkinLocked = (() => {
+    if (isPreview) return false;
     if (checkoutConcluded) return true;
     const now = Date.now();
     // Fim: horário configurado de check-out
