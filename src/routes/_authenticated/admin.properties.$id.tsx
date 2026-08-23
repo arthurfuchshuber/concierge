@@ -291,6 +291,7 @@ function PropertyEditor() {
 
   const [form, setForm] = useState<FormState>(() => emptyForm());
   const hydratedRef = useRef(false);
+  const suppressHydrationAutosaveRef = useRef(false);
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRecsRef = useRef<string>("");
   const [autoSaving, setAutoSaving] = useState(false);
@@ -419,6 +420,7 @@ function PropertyEditor() {
     enrichedUrlRef.current = ((p.maps_url as string | null) ?? "").trim() || null;
     setGateOpen(!!(p.gate_code as string));
     setLockOpen(!!(p.lock_code as string));
+    suppressHydrationAutosaveRef.current = true;
     setForm({
       property: {
         name: (p.name as string) ?? "",
@@ -1068,6 +1070,11 @@ function PropertyEditor() {
     p: form.property, m: form.manual, e: form.emergency, f: form.faqs, c: form.checkout,
   });
   useEffect(() => {
+    if (suppressHydrationAutosaveRef.current) {
+      globalSnapshotRef.current = formKey;
+      suppressHydrationAutosaveRef.current = false;
+      return;
+    }
     if (!hydratedRef.current || isNew || readOnly || saving) { globalSnapshotRef.current = formKey; return; }
     if (!globalSnapshotRef.current) { globalSnapshotRef.current = formKey; return; }
     if (globalSnapshotRef.current === formKey) return;
