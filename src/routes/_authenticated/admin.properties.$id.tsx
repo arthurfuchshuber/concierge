@@ -964,6 +964,10 @@ function PropertyEditor() {
           brand_name: canBrand ? (form.property.brand_name || null) : null,
           brand_logo_url: canBrand ? (form.property.brand_logo_url || null) : null,
 
+          // Guias de Check-In & Check-Out sempre exigem o formulário de
+          // primeiro acesso — o campo fica bloqueado na interface.
+          require_access_gate:
+            form.property.tagline === "Check-In & Check-Out" ? true : form.property.require_access_gate,
           pin_code: form.property.access_mode === "pin" ? (form.property.pin_code || null) : null,
           pin_expires_at: form.property.access_mode === "pin" && form.property.pin_expires_at
             ? new Date(form.property.pin_expires_at).toISOString()
