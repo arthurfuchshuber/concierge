@@ -32,13 +32,16 @@ export const getPublicGuide = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => SlugInput.parse(i))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Pré-visualização do anfitrião: token assinado libera o guia mesmo em rascunho.
+    const { verifyGuidePreviewToken } = await import("@/lib/guide-preview.server");
+    const isPreview = await verifyGuidePreviewToken(data.slug, data.previewToken ?? null);
     // First fetch only access-control + display fields (no credentials, no pin_code).
-    const { data: prop, error } = await supabaseAdmin
+    let baseQuery = supabaseAdmin
       .from("properties")
       .select("id,owner_id,slug,name,tagline,hero_image_url,gallery_images,theme_images,marketplace_links,address,maps_url,garage_maps_url,lat,lng,city,state,country,checkin_time,checkin_time_max,checkin_note,checkout_time,checkout_time_min,checkout_note,address_note,checkin_instructions,checkout_instructions,checkin_media,house_rules,gate_instructions,gate_media,gate_video_url,lock_instructions,lock_media,lock_video_url,host_name,brand_name,brand_logo_url,access_mode,pin_expires_at,default_language,guide_theme,require_access_gate,collect_arrival_time,collect_vehicles,vehicles_max,collect_document,document_scope,published,created_at,updated_at")
-      .eq("slug", data.slug)
-      .eq("published", true)
-      .maybeSingle();
+      .eq("slug", data.slug);
+    if (!isPreview) baseQuery = baseQuery.eq("published", true);
+    const { data: prop, error } = await baseQuery.maybeSingle();
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
     if (!prop) {
       // Link antigo: o anfitrião renomeou o guia. Redirecionamos para o slug atual
