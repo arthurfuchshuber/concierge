@@ -3501,7 +3501,7 @@ function Stepper({
               key={s.value}
               type="button"
               onClick={() => onChange(s.value)}
-              className={`flex-1 whitespace-nowrap px-3 py-3.5 text-center text-sm font-semibold leading-none flex items-center justify-center gap-2 min-h-[46px] transition-colors ${
+              className={`flex-1 whitespace-nowrap px-3 py-2 text-center text-[13px] font-normal leading-none flex items-center justify-center gap-2 min-h-[34px] transition-colors ${
                 active
                   ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
                   : "text-muted-foreground hover:text-foreground"
