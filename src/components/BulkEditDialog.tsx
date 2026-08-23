@@ -459,6 +459,17 @@ export function BulkEditDialog({
 
   const autosave = useAutosave(state, saveAuto, { enabled: open && !loading && !!data, delay: 1200 });
 
+  /**
+   * Campos dependentes só aparecem quando a coleta correspondente está
+   * ativada (Opcional/Obrigatório).
+   */
+  function isFieldVisible(key: FieldKey): boolean {
+    const on = (v: unknown) => v === "optional" || v === "required";
+    if (key === "vehicles_max") return on(state.values.collect_vehicles);
+    if (key === "document_scope") return on(state.values.collect_document);
+    return true;
+  }
+
   /** Conteúdo de um campo. A chave fica apenas no bloco (ligar/desligar). */
   function fieldBlock(f: FieldDef, showSwitch: boolean) {
     const enabled = !!state.enabled[f.key];
