@@ -375,9 +375,6 @@ export function BulkEditDialog({
     setState((s) => ({ ...s, values: { ...s.values, [field]: value } }));
   }
 
-  function toggleList(k: ListKey, v: boolean) {
-    setState((s) => ({ ...s, listsEnabled: { ...s.listsEnabled, [k]: v } }));
-  }
 
 
   // Sumário dos valores atuais calculado UMA vez por carga de dados — antes
