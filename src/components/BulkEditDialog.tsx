@@ -515,9 +515,9 @@ export function BulkEditDialog({
 
   async function closeAfterSave() {
     if (saving) return;
-    await autosave.flush();
+    const saved = await autosave.flush();
     await saveQueueRef.current;
-    if (dirtyRef.current.size > 0) return;
+    if (!saved || dirtyRef.current.size > 0) return;
     reset();
     onOpenChange(false);
   }
