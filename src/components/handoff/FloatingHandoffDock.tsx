@@ -109,6 +109,8 @@ export function FloatingHandoffDock() {
   useEffect(() => { saveState(state); }, [state]);
 
   function onClosedButtonPointerDown(e: ReactPointerEvent<HTMLButtonElement>) {
+    // Evita que popups abertos atrás interpretem isso como "clique fora".
+    e.stopPropagation();
     if (e.pointerType === "mouse" && e.button !== 0) return;
     const button = e.currentTarget;
     const rect = button.getBoundingClientRect();
@@ -204,16 +206,20 @@ export function FloatingHandoffDock() {
     return () => { supabase.removeChannel(ch); };
   }, [allowed, qc]);
 
-  // Escuta mensagens do SW de push
+  // Escuta mensagens do SW de push.
+  // A janela só abre sozinha quando o push é de uma CONVERSA (hóspede) ou
+  // quando a pessoa clicou na notificação. Avisos operacionais do sistema
+  // (limpeza, esteira, alertas) apenas atualizam os dados em segundo plano.
   useEffect(() => {
     return listenToPushMessages((msg) => {
-      if (msg.type === "handoff-push" || msg.type === "handoff-focus") {
-        playBeep();
-        setState({ open: true, minimized: false });
-        if (msg.conversationId) setActiveId(msg.conversationId);
-        qc.invalidateQueries({ queryKey: ["handoff-pending-count"] });
-        qc.invalidateQueries({ queryKey: ["handoff-list"] });
-      }
+      if (msg.type !== "handoff-push" && msg.type !== "handoff-focus") return;
+      qc.invalidateQueries({ queryKey: ["handoff-pending-count"] });
+      qc.invalidateQueries({ queryKey: ["handoff-list"] });
+      const isConversation = !!msg.conversationId;
+      if (!isConversation && msg.type !== "handoff-focus") return;
+      playBeep();
+      setState({ open: true, minimized: false });
+      if (msg.conversationId) setActiveId(msg.conversationId);
     });
   }, [qc]);
 
@@ -289,6 +295,11 @@ export function FloatingHandoffDock() {
             state.minimized ? "w-80 h-14" : enlarged ? "w-[820px] h-[76vh]" : "w-[520px] h-[560px]"
           }`}
           style={{ zIndex: 2147483000, pointerEvents: "auto" }}
+          // Impede que cliques no atendimento sejam lidos como "clique fora"
+          // por popups abertos atrás — antes, fechar o dock fechava tudo.
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onFocusCapture={(e) => e.stopPropagation()}
         >
           <div className="shrink-0 flex items-center justify-between gap-2 px-3 h-12 border-b border-border bg-secondary/40">
             <div className="flex items-center gap-2 min-w-0">
@@ -386,7 +397,13 @@ export function FloatingHandoffDock() {
 
       {/* Widget mobile */}
       {state.open && (
-        <div className="lg:hidden fixed inset-0" style={{ zIndex: 2147483000, pointerEvents: "auto" }}>
+        <div
+          className="lg:hidden fixed inset-0"
+          style={{ zIndex: 2147483000, pointerEvents: "auto" }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onFocusCapture={(e) => e.stopPropagation()}
+        >
           <button
             type="button"
             className="absolute inset-0 bg-black/55 backdrop-blur-sm"

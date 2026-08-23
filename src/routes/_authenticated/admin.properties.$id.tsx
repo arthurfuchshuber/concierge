@@ -964,6 +964,10 @@ function PropertyEditor() {
           brand_name: canBrand ? (form.property.brand_name || null) : null,
           brand_logo_url: canBrand ? (form.property.brand_logo_url || null) : null,
 
+          // Guias de Check-In & Check-Out sempre exigem o formulário de
+          // primeiro acesso — o campo fica bloqueado na interface.
+          require_access_gate:
+            form.property.tagline === "Check-In & Check-Out" ? true : form.property.require_access_gate,
           pin_code: form.property.access_mode === "pin" ? (form.property.pin_code || null) : null,
           pin_expires_at: form.property.access_mode === "pin" && form.property.pin_expires_at
             ? new Date(form.property.pin_expires_at).toISOString()
@@ -1561,6 +1565,35 @@ function PropertyEditor() {
                 </Field>
               </div>
             )}
+
+            {/* Formulário de primeiro acesso: obrigatório em guias de
+                Check-In & Check-Out (bloqueado), editável nos demais tipos. */}
+            {(() => {
+              const gateLocked = form.property.tagline === "Check-In & Check-Out";
+              const gateOn = gateLocked || form.property.require_access_gate;
+              return (
+                <div className="flex items-center justify-between gap-3 ds-surface border border-border/60 bg-muted/40 px-3.5 py-2.5">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium leading-tight">Exigir formulário de primeiro acesso</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {gateLocked
+                        ? "Obrigatório para guias do tipo Check-In & Check-Out."
+                        : "O hóspede se identifica antes de ver o guia."}
+                    </p>
+                  </div>
+                  {gateLocked ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-muted-foreground font-semibold shrink-0">
+                      <Lock className="size-3" /> obrigatório
+                    </span>
+                  ) : (
+                    <Switch
+                      checked={gateOn}
+                      onCheckedChange={(v) => update("require_access_gate", v)}
+                    />
+                  )}
+                </div>
+              );
+            })()}
           </Section>
 
 

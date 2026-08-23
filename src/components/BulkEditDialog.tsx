@@ -109,7 +109,6 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
         fields: [
           { key: "access_mode", label: "Modo de acesso do Guia", kind: "access_mode" },
           { key: "pin_code", label: "Código de acesso", kind: "text" },
-          { key: "require_access_gate", label: "Exigir formulário de primeiro acesso", kind: "boolean" },
         ],
       },
     ],
@@ -305,6 +304,10 @@ export function BulkEditDialog({
   // Só salvamos o que a pessoa realmente editou — assim campos com valores
   // diferentes entre os guias nunca são sobrescritos por engano.
   const dirtyRef = useRef<Set<FieldKey>>(new Set());
+  // Guias-alvo congelados no momento em que o popup carregou: se a seleção da
+  // tela de trás mudar (ou for limpa) enquanto o popup está aberto, o
+  // salvamento automático continua gravando nos guias certos.
+  const [targetIds, setTargetIds] = useState<string[]>([]);
 
   function load(force = false) {
     if (ids.length === 0) return;
@@ -312,8 +315,10 @@ export function BulkEditDialog({
     loadedKeyRef.current = idsKey;
     setLoading(true);
     setData(null);
-    fetchFn({ data: { ids: idsKey.split(",") } })
+    const loadingIds = idsKey.split(",");
+    fetchFn({ data: { ids: loadingIds } })
       .then((d) => {
+        setTargetIds(loadingIds);
         setData(d);
         const init = buildInitialState(d);
         initialEnabledRef.current = { ...init.enabled };
@@ -335,6 +340,7 @@ export function BulkEditDialog({
   function reset() {
     setState(emptyState);
     setData(null);
+    setTargetIds([]);
     dirtyRef.current = new Set();
     loadedKeyRef.current = null;
     setTab(TEXT_TABS[0]?.id ?? "house");
@@ -417,7 +423,7 @@ export function BulkEditDialog({
    * selecionados só o que foi editado agora, sobrescrevendo o valor.
    */
   async function saveAuto() {
-    if (!data || ids.length === 0) return;
+    if (!data || targetIds.length === 0) return;
     const patch: Record<string, unknown> = {};
     for (const f of ALL_FIELDS) {
       // Só entra no patch o que a pessoa editou agora, neste popup.
@@ -451,14 +457,29 @@ export function BulkEditDialog({
 
     setSaving(true);
     try {
-      await apply({ data: { ids, patch, lists: Object.keys(lists).length ? lists : undefined, mode: "overwrite" } });
+      await apply({ data: { ids: targetIds, patch, lists: Object.keys(lists).length ? lists : undefined, mode: "overwrite" } });
       onSaved?.();
+    } catch (err) {
+      // Antes o erro passava batido e o indicador continuava dizendo "Salvo".
+      toast.error("Não foi possível salvar as alterações nos guias selecionados.");
+      throw err;
     } finally {
       setSaving(false);
     }
   }
 
   const autosave = useAutosave(state, saveAuto, { enabled: open && !loading && !!data, delay: 1200 });
+
+  /**
+   * Campos dependentes só aparecem quando a coleta correspondente está
+   * ativada (Opcional/Obrigatório).
+   */
+  function isFieldVisible(key: FieldKey): boolean {
+    const on = (v: unknown) => v === "optional" || v === "required";
+    if (key === "vehicles_max") return on(state.values.collect_vehicles);
+    if (key === "document_scope") return on(state.values.collect_document);
+    return true;
+  }
 
   /** Conteúdo de um campo. A chave fica apenas no bloco (ligar/desligar). */
   function fieldBlock(f: FieldDef, showSwitch: boolean) {
@@ -501,7 +522,7 @@ export function BulkEditDialog({
       <ResponsiveDialogContent className="w-[calc(100vw-1.5rem)] sm:max-w-3xl max-h-[85vh] overflow-y-auto overflow-x-hidden">
         <>
         <ResponsiveDialogHeader>
-          <ResponsiveDialogTitle className="text-[15px] font-semibold tracking-tight">Editar {ids.length} {ids.length === 1 ? "guia" : "guias"}</ResponsiveDialogTitle>
+          <ResponsiveDialogTitle className="text-[15px] font-semibold tracking-tight">Editar {targetIds.length || ids.length} {(targetIds.length || ids.length) === 1 ? "guia" : "guias"}</ResponsiveDialogTitle>
           <ResponsiveDialogDescription className="text-xs font-normal leading-relaxed">
             {loading
               ? "Carregando dados dos guias selecionados…"
@@ -585,7 +606,7 @@ export function BulkEditDialog({
                     >
                       <div className="mb-2 truncate text-[13px] font-normal">{sg.title}</div>
                       <div className="divide-y divide-border/60">
-                        {sg.fields.map((f) => (
+                        {sg.fields.filter((f) => isFieldVisible(f.key)).map((f) => (
                           <div key={f.key} className="py-2.5 first:pt-0 last:pb-0">
                             {fieldBlock(f, false)}
                           </div>
@@ -596,7 +617,7 @@ export function BulkEditDialog({
 
                   {(group.fields ?? []).length > 0 && (
                     <div className="rounded-[0.3rem] border border-border bg-card/40 p-3 min-w-0 divide-y divide-border/60">
-                      {(group.fields ?? []).map((f) => (
+                      {(group.fields ?? []).filter((f) => isFieldVisible(f.key)).map((f) => (
                         <div key={f.key} className="py-2.5 first:pt-0 last:pb-0">
                           {fieldBlock(f, false)}
                         </div>
