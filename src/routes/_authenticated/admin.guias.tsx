@@ -6,6 +6,7 @@ import { useServerFn as useServerFnGuias } from "@tanstack/react-start";
 import { useQuery as useQueryGuias } from "@tanstack/react-query";
 import { countPropertyOwners } from "@/lib/stakeholders.functions";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useGuidePreviewUrl } from "@/hooks/useGuidePreviewUrl";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -216,6 +217,7 @@ function Dashboard() {
   const [statCardsOpen, setStatCardsOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [viewSlug, setViewSlug] = useState<string | null>(null);
+  const viewPreviewUrl = useGuidePreviewUrl(viewSlug);
   const [previewMode, setPreviewMode] = useState<"mobile" | "desktop" | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -1266,7 +1268,7 @@ function Dashboard() {
                     {previewMode === "mobile" ? "Mobile" : "Navegador"}
                   </button>
                   <a
-                    href={`/g/${viewSlug}`}
+                    href={viewPreviewUrl ?? `/g/${viewSlug}`}
                     target="_blank"
                     rel="noreferrer"
                     aria-label="Abrir em nova aba"
@@ -1285,7 +1287,7 @@ function Dashboard() {
                 </div>
               </div>
               <iframe
-                src={`/g/${viewSlug}?preview=1`}
+                src={viewPreviewUrl ?? "about:blank"}
                 title="Pré-visualização do guia"
                 className="w-full flex-1 border-0 bg-background"
               />
