@@ -696,15 +696,29 @@ export const upsertProperty = createServerFn({ method: "POST" })
       propertyData.brand_logo_url = null;
     }
 
-    // Um guia só pode ficar publicado com todos os campos obrigatórios
-    // preenchidos. Aqui não bloqueamos o salvamento (o editor salva sozinho a
-    // cada alteração) — apenas mantemos o guia como rascunho até completar.
+    // Um guia só pode *passar* a publicado com todos os campos obrigatórios
+    // preenchidos. Um guia que já está publicado nunca é despublicado em
+    // silêncio por um salvamento comum (isso derrubaria o link público sem
+    // nenhum aviso ao anfitrião) — despublicar é sempre uma ação explícita.
     if (propertyData.published === true) {
-      const { missingPublishFields } = await import("@/lib/publish-requirements");
-      if (missingPublishFields(propertyData as Record<string, unknown>).length > 0) {
-        propertyData.published = false;
+      let alreadyPublished = false;
+      if (propertyId) {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: current } = await supabaseAdmin
+          .from("properties")
+          .select("published")
+          .eq("id", propertyId)
+          .maybeSingle();
+        alreadyPublished = current?.published === true;
+      }
+      if (!alreadyPublished) {
+        const { missingPublishFields } = await import("@/lib/publish-requirements");
+        if (missingPublishFields(propertyData as Record<string, unknown>).length > 0) {
+          propertyData.published = false;
+        }
       }
     }
+
 
 
     // Quando o operador é membro atuando dentro de outra conta, valida a
