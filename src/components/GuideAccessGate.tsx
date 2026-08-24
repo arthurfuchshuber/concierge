@@ -437,8 +437,18 @@ export function GuideAccessGate({
       toast.error("Informe seu nome completo.");
       return false;
     }
+    if (codeGateActive) {
+      if (codeCheck.state === "checking") {
+        toast.error("Aguarde a validação do código da reserva.");
+        return false;
+      }
+      if (codeCheck.state !== "valid") {
+        toast.error("Informe um código de reserva ativo do Airbnb.");
+        return false;
+      }
+    }
     if (!range?.from || !range?.to) {
-      toast.error("Selecione o período da viagem.");
+      toast.error(codeGateActive ? "Valide o código da reserva." : "Selecione o período da viagem.");
       return false;
     }
     if (!phone || !isValidPhoneNumber(phone)) {
@@ -514,7 +524,8 @@ export function GuideAccessGate({
           slug,
           property_id: propertyId,
           guest_name: titleCaseName(name),
-          reservation_code: requireReservationCode && code.trim() ? code.trim() : null,
+          reservation_code:
+            codeGateActive || requireReservationCode ? code.trim().toUpperCase() || null : null,
           checkin_date: checkinDate,
           checkout_date: checkoutDate,
 
@@ -546,7 +557,7 @@ export function GuideAccessGate({
       }
       const rec: AccessRecord = {
         name: name.trim(),
-        code: requireReservationCode && code.trim() ? code.trim() : null,
+        code: codeGateActive || requireReservationCode ? code.trim().toUpperCase() || null : null,
         checkinDate,
         checkoutDate,
         phone: phone ?? null,
@@ -671,7 +682,54 @@ export function GuideAccessGate({
                   />
                 </FieldShell>
 
+                {codeGateActive && (
+                  <>
+                    <FieldShell icon={<span className="text-[15px] leading-none">🔑</span>}>
+                      <Label htmlFor="reservation-code" className="sr-only">
+                        Código da reserva
+                      </Label>
+                      <Input
+                        id="reservation-code"
+                        value={code}
+                        onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                        maxLength={40}
+                        required
+                        autoComplete="off"
+                        spellCheck={false}
+                        className="h-[46px] rounded-[12px] pl-10 pr-10 text-[14px] font-semibold tracking-[0.08em] bg-transparent border-transparent focus-visible:ring-0 focus-visible:border-transparent"
+                        placeholder="Código da reserva (ex.: HMABC1234)"
+                      />
+                      {codeCheck.state === "checking" && (
+                        <Loader2 className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />
+                      )}
+                      {codeCheck.state === "valid" && (
+                        <CheckCircle2 className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 size-4 text-emerald-400" />
+                      )}
+                      {codeCheck.state === "invalid" && (
+                        <X className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 size-4 text-amber-400" />
+                      )}
+                    </FieldShell>
+                    {codeCheck.state === "invalid" && (
+                      <div className="flex items-start gap-2 rounded-[14px] border border-amber-500/35 bg-amber-500/[0.08] px-3.5 py-2.5 text-[12.5px] text-amber-300">
+                        <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+                        <span>
+                          {codeCheck.reason === "expired"
+                            ? "Esta reserva já terminou — o acesso ao guia não está mais disponível."
+                            : "Não encontramos uma reserva ativa com este código. Confira o código no seu app do Airbnb."}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )}
+
                 <div className="grid grid-cols-2 gap-2.5">
+                  {codeGateActive ? (
+                    <RangeButton
+                      label="Chegada"
+                      value={range?.from ? format(range.from, "dd MMM", { locale: ptBR }) : "—"}
+                      locked
+                    />
+                  ) : (
                   <RangeButton
                     themeClass={themeClass}
                     label="Chegada"
@@ -699,6 +757,7 @@ export function GuideAccessGate({
                       />
                     }
                   />
+                  )}
                   <RangeButton
                     label="Saída"
                     value={range?.to ? format(range.to, "dd MMM", { locale: ptBR }) : "—"}
