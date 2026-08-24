@@ -630,10 +630,16 @@ function PropertyEditor() {
     setGeneratingNearbyRecs(true);
     try {
       const r = await enrich({ data: { mapsUrl: form.property.maps_url, propertyId: id !== "new" ? id : undefined } });
+      if (r.recommendations_skipped) {
+        toast.info(r.skip_reason ?? "Recomendações vinculadas: nada novo foi inserido.");
+        return;
+      }
       const existing = new Set(form.recommendations.map((x) => x.place_id).filter((x): x is string => !!x));
       const incoming = r.recommendations
         .filter((rec) => rec.scope === "nearby")
+        .filter((rec) => (rec.distance_meters ?? 0) <= 2000)
         .filter((rec) => !rec.place_id || !existing.has(rec.place_id))
+
         .map((rec) => ({
           scope: rec.scope,
           type: rec.type,
