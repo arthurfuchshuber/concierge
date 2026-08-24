@@ -145,7 +145,13 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
       // Notification failure never blocks guest access
     }
 
-    return { ok: true as const, checkin_time: prop.checkin_time as string | null };
+    return {
+      ok: true as const,
+      checkin_time: prop.checkin_time as string | null,
+      checkin_date: data.checkin_date,
+      checkout_date: data.checkout_date ?? null,
+    };
+
   });
 
 const CheckReservationInput = z.object({
