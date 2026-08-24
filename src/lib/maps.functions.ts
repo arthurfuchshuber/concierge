@@ -71,7 +71,51 @@ type EnrichResult = {
   hero_image_url: string | null;
   gallery_images: string[];
   recommendations: PlaceItem[];
+  // Quando true, as recomendações "pertinho" NÃO foram geradas porque o
+  // imóvel já possui recomendações plugadas (grupo com outro guia, pacote
+  // Sigma ou curadoria manual). Nunca inserimos novos pontos nesse caso.
+  recommendations_skipped: boolean;
+  skip_reason: string | null;
 };
+
+// Detecta se o imóvel tem qualquer tipo de "link" de recomendações:
+// - membro de um grupo de referências compartilhado com outro guia
+// - pacote de cidade do Sigma ativado
+// - referências da cidade curadas manualmente / pelo Sigma no escopo do imóvel
+async function detectLinkedRecommendations(propertyId: string): Promise<string | null> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  const { data: member } = await supabaseAdmin
+    .from("city_reference_group_members")
+    .select("group_id")
+    .eq("property_id", propertyId)
+    .maybeSingle();
+  const groupId = (member as { group_id: string | null } | null)?.group_id ?? null;
+  if (groupId) return "Este imóvel compartilha as recomendações com outro guia (grupo vinculado).";
+
+  const { data: prop } = await supabaseAdmin
+    .from("properties")
+    .select("sigma_pack_activated_at, sigma_pack_city_key")
+    .eq("id", propertyId)
+    .maybeSingle();
+  const p = prop as { sigma_pack_activated_at: string | null; sigma_pack_city_key: string | null } | null;
+  if (p?.sigma_pack_activated_at || p?.sigma_pack_city_key) {
+    return "Este imóvel usa o pacote de recomendações do Sigma.";
+  }
+
+  const { data: refs } = await supabaseAdmin
+    .from("city_references")
+    .select("source")
+    .eq("property_id", propertyId)
+    .limit(200);
+  const curated = ((refs ?? []) as Array<{ source: string | null }>).some((r) =>
+    ["manual", "sigma", "admin", "curated"].includes((r.source ?? "").toLowerCase()),
+  );
+  if (curated) return "Este imóvel já tem recomendações curadas manualmente/pelo Sigma.";
+
+  return null;
+}
+
 
 // `placesTypes` é o filtro enviado ao Places (includedTypes/includedType).
 // `acceptedPrimaryTypes` é o que validamos no resultado — Google às vezes devolve
@@ -618,16 +662,33 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       }
     }
 
-    // Regra global: mínimo 150 avaliações + rating ≥ 4.0 + primaryType deve
-    // bater com a categoria. Recomendações do GUIA são SOMENTE "pertinho":
-    // até 1,5km OU até 20 minutos a pé (≈1,6km a 80 m/min). Lugares city-wide
-    // ficam em city_references, exibidos na seção "Na Cidade" do guia.
-    const MIN_RATING = 3.8;
-    const MIN_REVIEWS_GLOBAL = 20;   // permissivo para pertinho — captura ref locais
+    // Trava dura: havendo QUALQUER vínculo de recomendações (grupo com outro
+    // guia, pacote Sigma ou curadoria manual), não geramos nem inserimos
+    // nenhum ponto novo — apenas devolvemos os dados de endereço/imagens.
+    if (data.propertyId) {
+      const linkReason = await detectLinkedRecommendations(data.propertyId);
+      if (linkReason) {
+        return {
+          address, lat: coords.lat, lng: coords.lng, city, country, state,
+          tagline, hero_image_url, gallery_images,
+          recommendations: [],
+          recommendations_skipped: true,
+          skip_reason: linkReason,
+        };
+      }
+    }
+
+    // Curadoria original: mínimo 150 avaliações + rating ≥ 4.0 + primaryType
+    // deve bater com a categoria. Recomendações do GUIA são SOMENTE
+    // "pertinho": no máximo 2km do imóvel. Lugares city-wide ficam em
+    // city_references, exibidos na seção "Na Cidade" do guia.
+    const MIN_RATING = 4.0;
+    const MIN_REVIEWS_GLOBAL = 150;  // curadoria: só pontos consolidados
     const MAX_PER_TYPE = 500;       // sem limite prático — Google text/nearby retornam até 20 por busca
-    const PERTINHO_MAX_M = 2500;     // filtro de exibição: até 2,5km (~30min a pé)
-    const NEARBY_RADIUS_M = 3000;    // busca além do limite para garantir cobertura
-    const NEARBY_TEXT_RADIUS_M = 4000;
+    const PERTINHO_MAX_M = 2000;     // limite rígido: 2km do imóvel
+    const NEARBY_RADIUS_M = 2000;
+    const NEARBY_TEXT_RADIUS_M = 2000;
+
 
     // Usa o classificador global (com BLOCKED_PRIMARY_TYPES) — definido mais abaixo.
     // Hotéis/agências/eventos/lojas são descartados mesmo quando aparecem no Nearby.
@@ -742,20 +803,28 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     // "Recomendações da Cidade" (city_references) e exibidos no guia em
     // aba/categoria própria — sem misturar com o "pertinho da residência".
 
-    // Dupla checagem: se o cliente informou o propertyId, buscamos as recomendações
-    // já cadastradas em escopo "city" e removemos daqui qualquer coincidência
-    // (por place_id ou nome normalizado) — evita replicar pontos que o hóspede
-    // já veria em "Pela cidade", inclusive quando vindos do Sigma Concierge.
+    // Dupla checagem: se o cliente informou o propertyId, removemos daqui
+    // qualquer coincidência (por place_id ou nome normalizado) com o que já
+    // existe em "Pela cidade" (property_recommendations scope=city) e em
+    // city_references do escopo do imóvel — inclusive itens do Sigma.
     let filtered = recommendations;
     if (data.propertyId) {
-      const { data: cityRows } = await context.supabase
-        .from("property_recommendations")
-        .select("place_id, name")
-        .eq("property_id", data.propertyId)
-        .eq("scope", "city");
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const [{ data: cityRows }, { data: refRows }] = await Promise.all([
+        context.supabase
+          .from("property_recommendations")
+          .select("place_id, name")
+          .eq("property_id", data.propertyId)
+          .eq("scope", "city"),
+        supabaseAdmin
+          .from("city_references")
+          .select("place_id, name")
+          .eq("property_id", data.propertyId)
+          .limit(1000),
+      ]);
       const cityPlaceIds = new Set<string>();
       const cityNames = new Set<string>();
-      for (const r of (cityRows ?? []) as Array<{ place_id: string | null; name: string | null }>) {
+      for (const r of ([...(cityRows ?? []), ...(refRows ?? [])] as Array<{ place_id: string | null; name: string | null }>)) {
         if (r.place_id) cityPlaceIds.add(r.place_id);
         if (r.name) cityNames.add(normalizeName(r.name));
       }
@@ -786,7 +855,10 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       hero_image_url,
       gallery_images,
       recommendations: filtered,
+      recommendations_skipped: false,
+      skip_reason: null,
     };
+
   });
 
 // ============= Sincronização automática com Google =============

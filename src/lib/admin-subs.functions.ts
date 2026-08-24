@@ -348,6 +348,24 @@ export const adminUpdateSubscription = createServerFn({ method: "POST" })
       if (error) throw new Error("Erro ao criar assinatura manual");
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabaseAdmin.from("audit_logs" as never) as any).insert({
+      user_id: context.userId,
+      user_email: (context as { claims?: { email?: string } }).claims?.email ?? null,
+      action: "subscription.updated",
+      entity_type: "subscriptions",
+      entity_id: data.userId,
+      metadata: {
+        plan: data.plan,
+        status: data.status,
+        environment: data.environment,
+        customPriceCents: data.customPriceCents,
+        billingPaused: data.billingPaused,
+        cancelAtPeriodEnd: data.cancelAtPeriodEnd,
+        maxGuidesOverride: data.maxGuidesOverride,
+      },
+    });
+
     return { ok: true };
   });
 
@@ -439,6 +457,16 @@ export const adminApplyCustomTrial = createServerFn({ method: "POST" })
       })
       .eq("id", sub.id);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabaseAdmin.from("audit_logs" as never) as any).insert({
+      user_id: context.userId,
+      user_email: (context as { claims?: { email?: string } }).claims?.email ?? null,
+      action: "subscription.trial_applied",
+      entity_type: "subscriptions",
+      entity_id: data.userId,
+      metadata: { trialEndsAt: data.trialEndsAt, paused: !!isFuture },
+    });
+
     return { ok: true, paused: !!isFuture, resumeAt: resumeAt?.toISOString() ?? null };
   });
 
@@ -496,6 +524,21 @@ export const adminUpdateCustomerProfile = createServerFn({ method: "POST" })
       }
       throw new Error("Não foi possível atualizar os dados do cliente.");
     }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabaseAdmin.from("audit_logs" as never) as any).insert({
+      user_id: context.userId,
+      user_email: (context as { claims?: { email?: string } }).claims?.email ?? null,
+      action: "customer.profile_updated",
+      entity_type: "profiles",
+      entity_id: data.userId,
+      metadata: {
+        fullNameChanged: data.fullName !== undefined,
+        cpfChanged: data.cpf !== undefined,
+        phoneChanged: data.phone !== undefined,
+      },
+    });
+
     return { ok: true };
   });
 
@@ -932,6 +975,31 @@ export const adminDeleteCustomer = createServerFn({ method: "POST" })
     const { data: props } = await supabaseAdmin
       .from("properties").select("id").eq("owner_id", data.userId);
     const propertyIds = (props ?? []).map((p: { id: string }) => p.id);
+
+    // Registro de auditoria ANTES de qualquer exclusão: esta é a operação
+    // administrativa mais destrutiva do painel (apaga a conta inteira e
+    // todos os dados vinculados, de forma irreversível) e não deixava
+    // nenhum rastro de quem a executou. Pior: a limpeza logo abaixo remove
+    // os audit_logs do PRÓPRIO cliente excluído (entrada "audit_logs"/
+    // "user_id" em OWNER_SCOPED_TABLES) — então, sem gravar isto antes,
+    // nem esse rastro restava. Gravado com user_id = admin que executou a
+    // ação (não o cliente excluído), por isso sobrevive à limpeza a seguir.
+    let targetEmail: string | null = null;
+    try {
+      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(data.userId);
+      targetEmail = authUser?.user?.email ?? null;
+    } catch (e) {
+      console.warn("[adminDeleteCustomer] getUserById falhou:", e);
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabaseAdmin.from("audit_logs" as never) as any).insert({
+      user_id: context.userId,
+      user_email: (context as { claims?: { email?: string } }).claims?.email ?? null,
+      action: "customer.deleted",
+      entity_type: "profiles",
+      entity_id: data.userId,
+      metadata: { targetEmail, propertiesDeleted: propertyIds.length },
+    });
 
     // 2) Registros vinculados ao dono/tenant.
     for (const [table, column] of OWNER_SCOPED_TABLES) {

@@ -32,6 +32,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { ImageUpload } from "@/components/ImageUpload";
 import { MediaUpload, type MediaItem } from "@/components/MediaUpload";
 import { EtiquetaSelect, ETIQUETA_OPTIONS } from "@/components/EtiquetaSelect";
+import { ETIQUETA_CHECKIN_CHECKOUT } from "@/lib/publish-requirements";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -630,10 +631,16 @@ function PropertyEditor() {
     setGeneratingNearbyRecs(true);
     try {
       const r = await enrich({ data: { mapsUrl: form.property.maps_url, propertyId: id !== "new" ? id : undefined } });
+      if (r.recommendations_skipped) {
+        toast.info(r.skip_reason ?? "Recomendações vinculadas: nada novo foi inserido.");
+        return;
+      }
       const existing = new Set(form.recommendations.map((x) => x.place_id).filter((x): x is string => !!x));
       const incoming = r.recommendations
         .filter((rec) => rec.scope === "nearby")
+        .filter((rec) => (rec.distance_meters ?? 0) <= 2000)
         .filter((rec) => !rec.place_id || !existing.has(rec.place_id))
+
         .map((rec) => ({
           scope: rec.scope,
           type: rec.type,
@@ -690,33 +697,42 @@ function PropertyEditor() {
           gallery_images: f.property.gallery_images.length ? f.property.gallery_images : (r.gallery_images ?? []).slice(0, 4),
         },
         // Mantém apenas "Aqui pertinho" no form; "Pela cidade" é compartilhado.
-        recommendations: [
-          ...f.recommendations.filter((x) => x.scope === "nearby"),
-          ...r.recommendations.filter((rec) => rec.scope === "nearby").map((rec) => ({
-            scope: rec.scope,
-            type: rec.type,
-            name: rec.name,
-            category: rec.category,
-            rating: rec.rating,
-            user_ratings_total: rec.user_ratings_total,
-            distance_text: rec.distance_text,
-            distance_meters: rec.distance_meters,
-            drive_minutes: rec.drive_minutes,
-            walk_minutes: rec.walk_minutes,
-            opening_hours: rec.opening_hours,
-            image_url: rec.image_url,
-            maps_url: rec.maps_url,
-            place_id: rec.place_id,
-            note: rec.note,
-          })),
-        ],
+        // Se houver vínculo (Sigma/outro guia), nada novo é inserido.
+        recommendations: r.recommendations_skipped
+          ? f.recommendations
+          : [
+            ...f.recommendations.filter((x) => x.scope === "nearby"),
+            ...r.recommendations
+              .filter((rec) => rec.scope === "nearby" && (rec.distance_meters ?? 0) <= 2000)
+              .map((rec) => ({
+                scope: rec.scope,
+                type: rec.type,
+                name: rec.name,
+                category: rec.category,
+                rating: rec.rating,
+                user_ratings_total: rec.user_ratings_total,
+                distance_text: rec.distance_text,
+                distance_meters: rec.distance_meters,
+                drive_minutes: rec.drive_minutes,
+                walk_minutes: rec.walk_minutes,
+                opening_hours: rec.opening_hours,
+                image_url: rec.image_url,
+                maps_url: rec.maps_url,
+                place_id: rec.place_id,
+                note: rec.note,
+              })),
+          ],
       }));
       const nearby = r.recommendations.filter((x) => x.scope === "nearby").length;
       const extras: string[] = [];
       if (r.tagline) extras.push("descrição");
       if (r.hero_image_url) extras.push("foto de capa");
       const extraStr = extras.length ? ` · ${extras.join(" + ")}` : "";
-      toast.success(`Preenchido! ${nearby} arredores${extraStr}`);
+      if (r.recommendations_skipped) {
+        toast.info(r.skip_reason ?? "Recomendações vinculadas: mantivemos as atuais e não inserimos novas.");
+      } else {
+        toast.success(`Preenchido! ${nearby} arredores${extraStr}`);
+      }
 
       const cityForGeneration = (r.city || form.property.city).trim();
       // Só bloqueamos a regeração automática quando alguma recomendação da
@@ -733,7 +749,8 @@ function PropertyEditor() {
           !item.property_id ||
           ["manual", "sigma", "admin", "curated"].includes((item.source ?? "").toLowerCase()),
       );
-      if (cityForGeneration && !hasLinkedCityRefs) {
+      if (cityForGeneration && !hasLinkedCityRefs && !r.recommendations_skipped) {
+
 
         void (async () => {
           try {
@@ -980,7 +997,7 @@ function PropertyEditor() {
           // Guias de Check-In & Check-Out sempre exigem o formulário de
           // primeiro acesso — o campo fica bloqueado na interface.
           require_access_gate:
-            propertySource.tagline === "Check-In & Check-Out" ? true : propertySource.require_access_gate,
+            propertySource.tagline === ETIQUETA_CHECKIN_CHECKOUT ? true : propertySource.require_access_gate,
           pin_code: propertySource.access_mode === "pin" ? (propertySource.pin_code || null) : null,
           pin_expires_at: propertySource.access_mode === "pin" && propertySource.pin_expires_at
             ? new Date(propertySource.pin_expires_at).toISOString()
@@ -1152,16 +1169,6 @@ function PropertyEditor() {
 
   const renderAirbnbCalendarSection = () => (
           <Section id="airbnb-calendar" icon={RefreshCw} title="Calendário e reservas (Airbnb)" desc="Sincronize para habilitar dashboard, calendário e kanban — funciona mesmo sem publicar um guia." collapsible>
-            {!canAirbnb && (
-              <div className="mb-3 ds-surface border border-border bg-secondary/40 p-3 text-xs text-muted-foreground flex items-start gap-2">
-                <Lock className="size-3.5 shrink-0 mt-0.5" />
-                <span>
-                  Sincronização automática é exclusiva dos planos <strong>Pro</strong>, <strong>Business</strong> e <strong>Enterprise</strong>. Faça upgrade em{" "}
-                  <Link to="/precos" className="underline font-medium">Planos</Link>.
-                </span>
-              </div>
-            )}
-
             {isNew && (
               <div className="mb-3 ds-surface border border-border bg-muted/30 p-3 text-xs text-muted-foreground flex items-start gap-2">
                 <Clock className="size-3.5 shrink-0 mt-0.5" />
@@ -1169,11 +1176,18 @@ function PropertyEditor() {
               </div>
             )}
 
-            <Field label="URL do calendário Airbnb" hint="No Airbnb: Anúncio → Calendário → Disponibilidade → Exportar calendário. Sincroniza a cada 30 minutos.">
+            <Field
+              label="URL do calendário Airbnb"
+              required={form.property.tagline === ETIQUETA_CHECKIN_CHECKOUT}
+              hint={
+                form.property.tagline === ETIQUETA_CHECKIN_CHECKOUT
+                  ? "Obrigatório para publicar guias do tipo Check-In & Check-Out. No Airbnb: Anúncio → Calendário → Disponibilidade → Exportar calendário. Sincroniza a cada 30 minutos."
+                  : "No Airbnb: Anúncio → Calendário → Disponibilidade → Exportar calendário. Sincroniza a cada 30 minutos."
+              }
+            >
               <div className="flex gap-2">
                 <Input
                   value={form.property.airbnb_ical_url ?? ""}
-                  disabled={!canAirbnb}
                   onChange={(e) => {
                     const next = e.target.value.trim() || null;
                     const prev = form.property.airbnb_ical_url;
@@ -1184,7 +1198,7 @@ function PropertyEditor() {
                   onBlur={() => presence.broadcastFieldBlur("airbnb_ical_url")}
                   placeholder="https://www.airbnb.com/calendar/ical/12345.ics?s=..."
                 />
-                <Button onClick={handleSyncIcal} disabled={syncingIcal || isNew || !canAirbnb || !(form.property.airbnb_ical_url ?? "").trim()} variant="secondary" className="shrink-0" title={isNew ? "Salve o imóvel antes de sincronizar" : "Sincronizar agora"}>
+                <Button onClick={handleSyncIcal} disabled={syncingIcal || isNew || !(form.property.airbnb_ical_url ?? "").trim()} variant="secondary" className="shrink-0" title={isNew ? "Salve o imóvel antes de sincronizar" : "Sincronizar agora"}>
                   {syncingIcal ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
                   <span className="ml-1.5 hidden sm:inline">{syncingIcal ? "Sincronizando…" : "Sincronizar"}</span>
                 </Button>
@@ -1594,7 +1608,7 @@ function PropertyEditor() {
             {/* Formulário de primeiro acesso: obrigatório em guias de
                 Check-In & Check-Out (bloqueado), editável nos demais tipos. */}
             {(() => {
-              const gateLocked = form.property.tagline === "Check-In & Check-Out";
+              const gateLocked = form.property.tagline === ETIQUETA_CHECKIN_CHECKOUT;
               const gateOn = gateLocked || form.property.require_access_gate;
               return (
                 <div className="flex items-center justify-between gap-3 ds-surface border border-border/60 bg-muted/40 px-3.5 py-2.5">

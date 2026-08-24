@@ -4668,6 +4668,8 @@ function PinDialog({
           lock_code: res.lock_code,
           gate_code: res.gate_code,
         });
+      } else if ((res as any)?.reason === "window_closed") {
+        toast.error("Este código ainda não está liberado ou a estadia já foi encerrada. Confira com o anfitrião.");
       } else {
         toast.error("Senha incorreta. Confira com o anfitrião.");
       }

@@ -19,6 +19,11 @@ export type DefaultFaqInput = {
   host_phone?: string | null;
   checkin_instructions?: string | null;
   checkout_instructions?: string | null;
+  // Quando preenchido, o anfitrião optou por exigir um PIN extra ("Código
+  // para visualizar as senhas de acesso") antes de revelar Wi-Fi/portão/
+  // fechadura no guia público. As FAQs abaixo respeitam essa mesma proteção
+  // em vez de embutir o valor literal em texto puro.
+  access_codes_pin?: string | null;
 };
 
 export type DefaultFaqItem = {
@@ -31,6 +36,14 @@ const t = (v?: string | null) => (typeof v === "string" ? v.trim() : "");
 
 export function buildDefaultFaqs(p: DefaultFaqInput): DefaultFaqItem[] {
   const out: DefaultFaqItem[] = [];
+  // Quando há um PIN extra protegendo os códigos de acesso, as FAQs de
+  // Wi-Fi/portão/fechadura não podem repetir o segredo em texto puro — isso
+  // abriria um caminho paralelo que ignora essa proteção. Nesse caso, a FAQ
+  // só orienta onde encontrar a informação (seção "Senhas de acesso" do
+  // guia, mesma exigência de PIN). Sem PIN configurado, essas senhas já
+  // aparecem sem restrição em outras partes do guia, então mantê-las na FAQ
+  // não abre nenhuma exceção.
+  const accessGated = t(p.access_codes_pin).length > 0;
 
   // Check-in time
   const ciMin = t(p.checkin_time);
@@ -82,12 +95,21 @@ export function buildDefaultFaqs(p: DefaultFaqInput): DefaultFaqItem[] {
   const ssid = t(p.wifi_ssid);
   const pass = t(p.wifi_password);
   if (ssid || pass) {
-    const lines: string[] = [];
-    if (ssid) lines.push(`Rede: ${ssid}`);
-    if (pass) lines.push(`Senha: ${pass}`);
+    let answer: string;
+    if (accessGated && pass) {
+      // Rede pode aparecer (não é segredo por si só); a senha não.
+      answer = ssid
+        ? `Rede: ${ssid}\nA senha fica na seção "Senhas de acesso" do guia, protegida pelo código que você recebeu do anfitrião.`
+        : `A senha do Wi-Fi fica na seção "Senhas de acesso" do guia, protegida pelo código que você recebeu do anfitrião.`;
+    } else {
+      const lines: string[] = [];
+      if (ssid) lines.push(`Rede: ${ssid}`);
+      if (pass) lines.push(`Senha: ${pass}`);
+      answer = lines.join("\n");
+    }
     out.push({
       question: "Qual é a senha do Wi-Fi?",
-      answer: lines.join("\n"),
+      answer,
       tags: ["residencia"],
     });
   }
@@ -97,7 +119,9 @@ export function buildDefaultFaqs(p: DefaultFaqInput): DefaultFaqItem[] {
   if (gate) {
     out.push({
       question: "Qual é o código do portão?",
-      answer: `O código do portão é ${gate}.`,
+      answer: accessGated
+        ? `O código do portão fica na seção "Senhas de acesso" do guia, protegida pelo código que você recebeu do anfitrião.`
+        : `O código do portão é ${gate}.`,
       tags: ["chegada"],
     });
   }
@@ -107,7 +131,9 @@ export function buildDefaultFaqs(p: DefaultFaqInput): DefaultFaqItem[] {
   if (lock) {
     out.push({
       question: "Qual é o código da fechadura?",
-      answer: `O código da fechadura é ${lock}.`,
+      answer: accessGated
+        ? `O código da fechadura fica na seção "Senhas de acesso" do guia, protegida pelo código que você recebeu do anfitrião.`
+        : `O código da fechadura é ${lock}.`,
       tags: ["chegada"],
     });
   }

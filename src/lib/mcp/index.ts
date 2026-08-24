@@ -13,7 +13,7 @@ export default defineMcp({
   title: "Concierge",
   version: "0.1.0",
   instructions:
-    "Tools to inspect your Concierge properties (guest guides) and recent guest activity. Use list_properties to discover guides, get_property for full details, and recent_guide_events to see live guest navigation.",
+    "Tools to inspect your Concierge properties (guest guides) and recent guest activity. Use list_properties to discover guides, get_property for guide content and settings (does not include Wi-Fi/gate/lock/PIN access codes), and recent_guide_events to see live guest navigation.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated",

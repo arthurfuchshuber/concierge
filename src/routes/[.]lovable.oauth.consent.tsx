@@ -94,8 +94,10 @@ function Consent() {
         </div>
         <h1 className="font-display text-2xl">Conectar {clientName}</h1>
         <p className="text-sm text-muted-foreground mt-2">
-          Isso permite que <strong>{clientName}</strong> acesse os dados do seu ConciergeIA
-          (seus guias e a atividade dos hóspedes) em seu nome.
+          Isso permite que <strong>{clientName}</strong> acesse, em seu nome, o conteúdo e as
+          configurações dos seus guias e a atividade recente dos hóspedes. Isso <strong>não inclui</strong>{" "}
+          senha do Wi-Fi, códigos de portão/fechadura nem o código de acesso do guia — esses dados
+          nunca são compartilhados com apps conectados.
         </p>
         {error && (
           <p role="alert" className="mt-4 text-sm text-destructive">

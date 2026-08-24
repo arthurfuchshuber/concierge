@@ -1,7 +1,8 @@
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { ETIQUETA_CHECKIN_CHECKOUT } from "@/lib/publish-requirements";
 
 export const ETIQUETA_OPTIONS = [
-  "Check-In & Check-Out",
+  ETIQUETA_CHECKIN_CHECKOUT,
   "Recomendações Locais",
   "Informações do Espaço",
 ] as const;

@@ -87,9 +87,31 @@ export const getPublicGuide = createServerFn({ method: "POST" })
 
     const rawPin = (creds?.access_codes_pin ?? "").toString().trim();
     const hasAccessPin = rawPin.length > 0;
-    const accessUnlocked = hasAccessPin
+    let accessUnlocked = hasAccessPin
       ? isPreview || getCookie(`sg-accesscodes-${prop.id}`) === "ok"
       : true;
+    // A liberação por cookie acima só confirma que o PIN já foi validado
+    // alguma vez nas últimas 24h (maxAge do cookie) — não que "agora" ainda
+    // está dentro da janela de liberação do código (24h antes do check-in
+    // até o check-out), que é a mesma regra já aplicada no agente de IA
+    // (pinReleaseAt em src/lib/ai/context.server.ts). Revalidamos aqui contra
+    // os dados reais de reserva do imóvel para fechar esse mesmo código fora
+    // da janela mesmo com cookie válido (ex.: pouco antes do check-out).
+    if (hasAccessPin && !isPreview && accessUnlocked) {
+      const { propertyTimeZone, todayInTZ } = await import("@/lib/property-timezone");
+      const { resolveAccessPinWindow } = await import("@/lib/access-pin-window.server");
+      const tz = propertyTimeZone(prop.city as string | null, prop.country as string | null);
+      const today = todayInTZ(tz);
+      const win = await resolveAccessPinWindow(
+        supabaseAdmin,
+        prop.id as string,
+        tz,
+        (prop as any).checkin_time,
+        (prop as any).checkout_time,
+        today,
+      );
+      if (win.hasData && !win.released) accessUnlocked = false;
+    }
 
     // Strip the PIN out of the payload no matter what.
     const { access_codes_pin: _omit, wifi_password, lock_code, gate_code, ...credsPublic } = (creds ?? {}) as Record<string, unknown> & {
@@ -157,7 +179,7 @@ export const submitAccessPin = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: prop, error } = await supabaseAdmin
       .from("properties")
-      .select("id, access_codes_pin, wifi_password, lock_code, gate_code")
+      .select("id, access_codes_pin, wifi_password, lock_code, gate_code, city, country, checkin_time, checkout_time")
       .eq("slug", data.slug)
       .eq("published", true)
       .maybeSingle();
@@ -166,6 +188,25 @@ export const submitAccessPin = createServerFn({ method: "POST" })
     const stored = ((prop as any).access_codes_pin ?? "").toString().trim();
     if (!stored) return { ok: false as const, reason: "not_required" };
     if (stored !== data.pin.trim()) return { ok: false as const, reason: "wrong" };
+    // Mesma janela de liberação aplicada em getPublicGuide (ver comentário
+    // lá e em src/lib/access-pin-window.server.ts): PIN correto não basta se
+    // a reserva vigente do imóvel já passou do check-out, ou ainda não
+    // chegou nas 24h que antecedem o check-in.
+    {
+      const { propertyTimeZone, todayInTZ } = await import("@/lib/property-timezone");
+      const { resolveAccessPinWindow } = await import("@/lib/access-pin-window.server");
+      const tz = propertyTimeZone((prop as any).city ?? null, (prop as any).country ?? null);
+      const today = todayInTZ(tz);
+      const win = await resolveAccessPinWindow(
+        supabaseAdmin,
+        prop.id as string,
+        tz,
+        (prop as any).checkin_time,
+        (prop as any).checkout_time,
+        today,
+      );
+      if (win.hasData && !win.released) return { ok: false as const, reason: "window_closed" };
+    }
     setCookie(`sg-accesscodes-${prop.id}`, "ok", {
       httpOnly: true,
       secure: true,

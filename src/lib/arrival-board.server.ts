@@ -35,6 +35,15 @@ function addDaysISO(iso: string, n: number): string {
 function isPlaceholderGuest(name: string | null | undefined): boolean {
   return (name ?? "").trim().toLowerCase() === "hóspede pendente";
 }
+// Janela máxima para manter um check-in/checkout atrasado visível (evita
+// reimportar histórico antigo, mas nunca "some" com pendências recentes).
+// Movida para o escopo do módulo (era local a buildArrivalRows) para poder
+// ser usada também como piso das queries "hoje" abaixo — sem isso, o piso
+// de data ficava em 1970-01-01 e, combinado com LIMIT + ordenação
+// ascendente, contas com muito histórico podiam ter os check-ins/checkouts
+// de HOJE descartados silenciosamente pela query antes mesmo de chegar à
+// filtragem por esta mesma janela.
+const OVERDUE_WINDOW_DAYS = 30;
 function isRealReservation(row: { status?: string | null; raw_summary?: string | null }): boolean {
   const status = (row.status ?? "").toLowerCase();
   const summary = (row.raw_summary ?? "").toLowerCase();
@@ -104,10 +113,17 @@ export async function buildArrivalRows(
       from = today;
       to = null;
     }
-    // Para o filtro "Hoje", trazemos todos os atrasados (sem limite) para que
-    // cards pendentes anteriores continuem visíveis com alerta.
+    // Para o filtro "Hoje", trazemos também os atrasados para que cards
+    // pendentes anteriores continuem visíveis com alerta — mas limitados à
+    // mesma janela de OVERDUE_WINDOW_DAYS que decide se um atraso ainda é
+    // mostrado (withinOverdueWindow, mais abaixo). Piso em 1970-01-01 aqui
+    // não mudava o resultado final (linhas mais antigas que a janela já
+    // eram descartadas depois), só fazia a query trazer histórico que nunca
+    // seria usado — e, combinado com ordenação ascendente + LIMIT, podia
+    // empurrar os check-ins/checkouts de HOJE para fora da página de 500/
+    // 10000 linhas em contas com muito histórico.
     if (data.range === "today") {
-      from = "1970-01-01";
+      from = addDaysISO(today, -OVERDUE_WINDOW_DAYS);
     }
 
     if (data.kind === "checkin" && data.range === "today") {
@@ -178,6 +194,18 @@ export async function buildArrivalRows(
       // reservas de dias anteriores que ainda não foram concluídas.
       if (data.range === "tomorrow") {
         reservationsQuery = reservationsQuery.gte("checkout_date", reservationWindowStart);
+      } else if (data.range === "today") {
+        // Sem NENHUM filtro de data aqui, esta query buscava todo o
+        // histórico de reservas do Airbnb (source='airbnb' nunca é apagado
+        // por sync, cresce pela vida útil da conta), ordenada de forma
+        // ascendente e limitada a 10000 linhas — em uma conta madura com
+        // muito histórico, os checkouts de HOJE podiam ficar fora das
+        // 10000 linhas mais antigas devolvidas. Aplicamos a mesma janela de
+        // OVERDUE_WINDOW_DAYS usada para decidir se um atraso ainda aparece
+        // (withinOverdueWindow) — reservas mais antigas que isso já eram
+        // descartadas depois de qualquer forma, então isto não muda o que é
+        // exibido, só garante que os checkouts recentes cabem no LIMIT.
+        reservationsQuery = reservationsQuery.gte("checkout_date", addDaysISO(today, -OVERDUE_WINDOW_DAYS));
       }
       if (reservationWindowEnd) reservationsQuery = reservationsQuery.lte("checkout_date", reservationWindowEnd);
     }
@@ -458,9 +486,8 @@ export async function buildArrivalRows(
       return !!checkoutDate && checkinDate <= today && checkoutDate > today;
     }
 
-    // Janela máxima para manter um check-in atrasado visível (evita reimportar
-    // histórico antigo, mas nunca "some" com pendências recentes).
-    const OVERDUE_WINDOW_DAYS = 30;
+    // OVERDUE_WINDOW_DAYS agora é constante de módulo (topo do arquivo) —
+    // também usada como piso das queries "hoje", ver buildArrivalRows acima.
     function withinOverdueWindow(checkinDate: string): boolean {
       return checkinDate >= addDaysISO(today, -OVERDUE_WINDOW_DAYS);
     }

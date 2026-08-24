@@ -185,7 +185,7 @@ export function GuideAccessGate({
   const loadAvailability = useServerFn(getGuideCalendarAvailability);
   const [step, setStep] = useState<1 | 2>(1);
   const [name, setName] = useState(prefill?.name ?? "");
-  const [code, setCode] = useState(prefill?.code ?? "");
+  const [code] = useState(prefill?.code ?? "");
   const [range, setRange] = useState<{ from?: Date; to?: Date } | undefined>(() => {
     const from = prefill?.checkinDate ? dateFromISODate(prefill.checkinDate) : null;
     const to = prefill?.checkoutDate ? dateFromISODate(prefill.checkoutDate) : null;
@@ -383,10 +383,6 @@ export function GuideAccessGate({
     }
     if (!phone || !isValidPhoneNumber(phone)) {
       toast.error("Informe um telefone válido.");
-      return false;
-    }
-    if (requireReservationCode && !code.trim()) {
-      toast.error("Informe o código da reserva.");
       return false;
     }
     if (resCheck.state === "checking") {
@@ -666,18 +662,6 @@ export function GuideAccessGate({
 
                 {reservationBanner}
 
-                {requireReservationCode && (
-                  <FieldShell>
-                    <Input
-                      value={code}
-                      onChange={(e) => setCode(e.target.value)}
-                      maxLength={100}
-                      required
-                      className="h-[46px] rounded-[12px] px-3 text-[14px] bg-transparent border-transparent focus-visible:ring-0"
-                      placeholder="Código da reserva"
-                    />
-                  </FieldShell>
-                )}
 
                 <div className="pt-1">
                   <PrimaryButton loading={loading}>{hasOptionals ? "Continuar →" : "Acessar guia →"}</PrimaryButton>

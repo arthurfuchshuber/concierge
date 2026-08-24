@@ -12,6 +12,10 @@ import {
   checkIsAdmin,
   type AdminCustomerRow,
 } from "@/lib/admin-subs.functions";
+import {
+  getTenantMigrationStatus,
+  setTenantMigrationMode,
+} from "@/lib/permissions/permission.migration.functions";
 
 import {
   adminCreateEnterpriseSubscription,
@@ -930,6 +934,8 @@ function EditDialog({
               rows={3}
             />
           </div>
+
+          <PermissionEngineSection tenantId={customer.userId} />
         </div>
 
         <DialogFooter>
@@ -1017,6 +1023,115 @@ function ApplyCustomTrialButton({
       {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Calendar className="size-3.5" />}
       Aplicar ao Paddle
     </Button>
+  );
+}
+
+// Modo do motor de permissões (FASE 3.8): a máquina de estados já existia
+// (legacy → monitoring → enforced → completed) mas nenhuma tela chamava as
+// transições, então nenhuma conta nunca saía de "legacy" (novo motor rodando
+// só para diagnóstico, nunca bloqueando de verdade). Este bloco é a primeira
+// tela a operar essas transições — sempre um passo por vez, com o mesmo
+// aviso de risco (divergências/atribuições) que já existia no relatório de
+// migração, só que agora visível antes de o admin confirmar.
+const MIGRATION_MODE_LABEL: Record<string, string> = {
+  legacy: "Legado",
+  monitoring: "Monitorando",
+  enforced: "Bloqueando",
+  completed: "Concluído",
+};
+
+const NEXT_STEP: Record<string, { mode: "legacy" | "monitoring" | "enforced" | "completed"; label: string; tone: "default" | "outline" }[]> = {
+  legacy: [{ mode: "monitoring", label: "Ativar monitoramento", tone: "default" }],
+  monitoring: [
+    { mode: "enforced", label: "Ativar bloqueio", tone: "default" },
+    { mode: "legacy", label: "Voltar para legado", tone: "outline" },
+  ],
+  enforced: [
+    { mode: "completed", label: "Concluir migração", tone: "default" },
+    { mode: "monitoring", label: "Voltar para monitoramento", tone: "outline" },
+  ],
+  completed: [{ mode: "enforced", label: "Voltar para bloqueio", tone: "outline" }],
+};
+
+function PermissionEngineSection({ tenantId }: { tenantId: string }) {
+  const statusFn = useServerFn(getTenantMigrationStatus);
+  const setModeFn = useServerFn(setTenantMigrationMode);
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+
+  const query = useQuery({
+    queryKey: ["tenant-migration-status", tenantId],
+    queryFn: () => statusFn({ data: { tenantId } }),
+  });
+
+  const mode = query.data?.status.status ?? "legacy";
+  const divergenceCount = query.data?.divergenceCount ?? 0;
+  const assignmentsCount = query.data?.assignmentsCount ?? 0;
+  const steps = NEXT_STEP[mode] ?? [];
+
+  async function handleTransition(target: "legacy" | "monitoring" | "enforced" | "completed", label: string) {
+    if (target === "enforced") {
+      const warn =
+        assignmentsCount === 0
+          ? "Esta conta ainda não tem nenhuma permissão atribuída na árvore nova — ativar o bloqueio agora pode tirar o acesso da equipe inteira. "
+          : divergenceCount > 0
+            ? `Foram registradas ${divergenceCount} divergência(s) entre o motor antigo e o novo para esta conta — ativar o bloqueio agora pode negar acessos que hoje funcionam. `
+            : "";
+      if (!confirm(`${warn}Confirma "${label}" para esta conta?`)) return;
+    } else if (!confirm(`Confirma "${label}" para esta conta?`)) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await setModeFn({ data: { tenantId, mode: target } });
+      toast.success(`Motor de permissões: ${label.toLowerCase()}.`);
+      qc.invalidateQueries({ queryKey: ["tenant-migration-status", tenantId] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao mudar o modo do motor de permissões");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-1.5 sm:col-span-2 rounded-xl border border-border bg-muted/30 p-3">
+      <Label className="flex items-center justify-between">
+        <span className="inline-flex items-center gap-1.5">
+          <Shield className="size-3.5" /> Motor de permissões (novo)
+        </span>
+        {query.isLoading ? (
+          <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+        ) : (
+          <span className="text-xs font-semibold">{MIGRATION_MODE_LABEL[mode] ?? mode}</span>
+        )}
+      </Label>
+      <p className="text-xs text-muted-foreground">
+        Controla se a árvore granular de permissões já bloqueia de verdade para esta conta, ou só
+        observa em paralelo ao modelo atual. Avance um passo por vez.
+        {!query.isLoading && (
+          <>
+            {" "}
+            {assignmentsCount} permissão(ões) atribuída(s)
+            {divergenceCount > 0 ? `, ${divergenceCount} divergência(s) registrada(s).` : "."}
+          </>
+        )}
+      </p>
+      <div className="flex flex-wrap gap-2 pt-1">
+        {steps.map((s) => (
+          <Button
+            key={s.mode}
+            type="button"
+            size="sm"
+            variant={s.tone}
+            disabled={busy || query.isLoading}
+            onClick={() => handleTransition(s.mode, s.label)}
+          >
+            {busy ? <Loader2 className="size-3.5 mr-1 animate-spin" /> : null}
+            {s.label}
+          </Button>
+        ))}
+      </div>
+    </div>
   );
 }
 

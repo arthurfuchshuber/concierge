@@ -46,7 +46,13 @@ export const Route = createFileRoute("/api/public/cron/proactive-concierge")({
             await computeOperationalMetrics({ supabase: supabaseAdmin, tenantId, days: 1 });
           }
 
-          return Response.json({ ok: true, scan, tenantsMeasured: tenantIds.length });
+          // Envio real das ações de baixa autonomia já aprovadas pelo motor
+          // (welcome/checkout/silent-guest) — antes desta correção, ficavam
+          // aprovadas para sempre sem nunca chegar ao hóspede.
+          const { sendApprovedProactiveActions } = await import("@/lib/ai/agents/proactive/sender.server");
+          const send = await sendApprovedProactiveActions({ supabase: supabaseAdmin, limit: 200 });
+
+          return Response.json({ ok: true, scan, send, tenantsMeasured: tenantIds.length });
         } catch (err) {
           console.error("[cron] proactive-concierge falhou", err);
           return Response.json({ ok: false, error: String(err) }, { status: 500 });
