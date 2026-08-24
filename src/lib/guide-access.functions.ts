@@ -72,7 +72,7 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
       data.checkout_date = found.checkout_date;
     }
 
-    if (hasIcal) {
+    if (hasIcal && !requiresCode) {
       const { ensurePropertyIcalFresh } = await import("@/lib/airbnb-ical.server");
       await ensurePropertyIcalFresh(
         prop.id,
