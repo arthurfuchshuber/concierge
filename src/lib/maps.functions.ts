@@ -803,20 +803,28 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     // "Recomendações da Cidade" (city_references) e exibidos no guia em
     // aba/categoria própria — sem misturar com o "pertinho da residência".
 
-    // Dupla checagem: se o cliente informou o propertyId, buscamos as recomendações
-    // já cadastradas em escopo "city" e removemos daqui qualquer coincidência
-    // (por place_id ou nome normalizado) — evita replicar pontos que o hóspede
-    // já veria em "Pela cidade", inclusive quando vindos do Sigma Concierge.
+    // Dupla checagem: se o cliente informou o propertyId, removemos daqui
+    // qualquer coincidência (por place_id ou nome normalizado) com o que já
+    // existe em "Pela cidade" (property_recommendations scope=city) e em
+    // city_references do escopo do imóvel — inclusive itens do Sigma.
     let filtered = recommendations;
     if (data.propertyId) {
-      const { data: cityRows } = await context.supabase
-        .from("property_recommendations")
-        .select("place_id, name")
-        .eq("property_id", data.propertyId)
-        .eq("scope", "city");
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const [{ data: cityRows }, { data: refRows }] = await Promise.all([
+        context.supabase
+          .from("property_recommendations")
+          .select("place_id, name")
+          .eq("property_id", data.propertyId)
+          .eq("scope", "city"),
+        supabaseAdmin
+          .from("city_references")
+          .select("place_id, name")
+          .eq("property_id", data.propertyId)
+          .limit(1000),
+      ]);
       const cityPlaceIds = new Set<string>();
       const cityNames = new Set<string>();
-      for (const r of (cityRows ?? []) as Array<{ place_id: string | null; name: string | null }>) {
+      for (const r of ([...(cityRows ?? []), ...(refRows ?? [])] as Array<{ place_id: string | null; name: string | null }>)) {
         if (r.place_id) cityPlaceIds.add(r.place_id);
         if (r.name) cityNames.add(normalizeName(r.name));
       }
@@ -847,7 +855,10 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       hero_image_url,
       gallery_images,
       recommendations: filtered,
+      recommendations_skipped: false,
+      skip_reason: null,
     };
+
   });
 
 // ============= Sincronização automática com Google =============
