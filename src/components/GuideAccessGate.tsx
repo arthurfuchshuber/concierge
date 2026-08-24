@@ -148,6 +148,10 @@ type Props = {
   propertyId: string;
   propertyName: string;
   requireReservationCode: boolean;
+  /** Guia do tipo "Check-In & Check-Out": exige o código da reserva do
+   * Airbnb, validado ao vivo, e preenche o período automaticamente. */
+  reservationCodeGate?: boolean;
+
   collection?: CollectionConfig;
   onUnlock: (rec: AccessRecord) => void;
   theme?: "dark" | "light";
