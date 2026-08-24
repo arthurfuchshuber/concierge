@@ -185,7 +185,7 @@ export function GuideAccessGate({
   const loadAvailability = useServerFn(getGuideCalendarAvailability);
   const [step, setStep] = useState<1 | 2>(1);
   const [name, setName] = useState(prefill?.name ?? "");
-  const [code, setCode] = useState(prefill?.code ?? "");
+  const [code] = useState(prefill?.code ?? "");
   const [range, setRange] = useState<{ from?: Date; to?: Date } | undefined>(() => {
     const from = prefill?.checkinDate ? dateFromISODate(prefill.checkinDate) : null;
     const to = prefill?.checkoutDate ? dateFromISODate(prefill.checkoutDate) : null;
