@@ -44,7 +44,7 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const propQuery = supabaseAdmin
       .from("properties")
-      .select("id, checkin_time, airbnb_ical_url, airbnb_ical_last_sync_at")
+      .select("id, checkin_time, tagline, airbnb_ical_url, airbnb_ical_last_sync_at")
       .eq("slug", data.slug)
       .eq("published", true);
     const { data: prop, error: propErr } = data.property_id
@@ -55,6 +55,23 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
 
     const hasIcal = !!((prop as { airbnb_ical_url?: string | null }).airbnb_ical_url ?? "").trim();
     let icalReservationCode: string | null = null;
+
+    // Guias do tipo "Check-In & Check-Out" com calendário: o código da reserva
+    // é obrigatório e validado ao vivo contra o iCal do Airbnb. As datas do
+    // acesso passam a vir da própria reserva, nunca da escolha do hóspede.
+    const { ETIQUETA_CHECKIN_CHECKOUT } = await import("@/lib/publish-requirements");
+    const requiresCode =
+      hasIcal && ((prop as { tagline?: string | null }).tagline ?? "").trim() === ETIQUETA_CHECKIN_CHECKOUT;
+    if (requiresCode) {
+      const codeRaw = (data.reservation_code ?? "").trim();
+      if (!codeRaw) return { ok: false as const, reason: "code_required" };
+      const found = await lookupReservationByCode(data.slug, data.property_id, codeRaw);
+      if (!found.ok) return { ok: false as const, reason: found.reason };
+      icalReservationCode = codeRaw.toUpperCase();
+      data.checkin_date = found.checkin_date;
+      data.checkout_date = found.checkout_date;
+    }
+
     if (hasIcal) {
       const { ensurePropertyIcalFresh } = await import("@/lib/airbnb-ical.server");
       await ensurePropertyIcalFresh(
