@@ -662,16 +662,33 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       }
     }
 
-    // Regra global: mínimo 150 avaliações + rating ≥ 4.0 + primaryType deve
-    // bater com a categoria. Recomendações do GUIA são SOMENTE "pertinho":
-    // até 1,5km OU até 20 minutos a pé (≈1,6km a 80 m/min). Lugares city-wide
-    // ficam em city_references, exibidos na seção "Na Cidade" do guia.
-    const MIN_RATING = 3.8;
-    const MIN_REVIEWS_GLOBAL = 20;   // permissivo para pertinho — captura ref locais
+    // Trava dura: havendo QUALQUER vínculo de recomendações (grupo com outro
+    // guia, pacote Sigma ou curadoria manual), não geramos nem inserimos
+    // nenhum ponto novo — apenas devolvemos os dados de endereço/imagens.
+    if (data.propertyId) {
+      const linkReason = await detectLinkedRecommendations(data.propertyId);
+      if (linkReason) {
+        return {
+          address, lat: coords.lat, lng: coords.lng, city, country, state,
+          tagline, hero_image_url, gallery_images,
+          recommendations: [],
+          recommendations_skipped: true,
+          skip_reason: linkReason,
+        };
+      }
+    }
+
+    // Curadoria original: mínimo 150 avaliações + rating ≥ 4.0 + primaryType
+    // deve bater com a categoria. Recomendações do GUIA são SOMENTE
+    // "pertinho": no máximo 2km do imóvel. Lugares city-wide ficam em
+    // city_references, exibidos na seção "Na Cidade" do guia.
+    const MIN_RATING = 4.0;
+    const MIN_REVIEWS_GLOBAL = 150;  // curadoria: só pontos consolidados
     const MAX_PER_TYPE = 500;       // sem limite prático — Google text/nearby retornam até 20 por busca
-    const PERTINHO_MAX_M = 2500;     // filtro de exibição: até 2,5km (~30min a pé)
-    const NEARBY_RADIUS_M = 3000;    // busca além do limite para garantir cobertura
-    const NEARBY_TEXT_RADIUS_M = 4000;
+    const PERTINHO_MAX_M = 2000;     // limite rígido: 2km do imóvel
+    const NEARBY_RADIUS_M = 2000;
+    const NEARBY_TEXT_RADIUS_M = 2000;
+
 
     // Usa o classificador global (com BLOCKED_PRIMARY_TYPES) — definido mais abaixo.
     // Hotéis/agências/eventos/lojas são descartados mesmo quando aparecem no Nearby.
