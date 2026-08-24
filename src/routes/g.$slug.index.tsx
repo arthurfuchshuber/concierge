@@ -3,7 +3,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getPublicGuide, submitPin, submitAccessPin } from "@/lib/guide.functions";
-import { getGuideStayStatus, markGuideStayStep } from "@/lib/guide-access.functions";
+import { getGuideStayStatus, markGuideStayStep, validateGuideReservationCode } from "@/lib/guide-access.functions";
+import { ETIQUETA_CHECKIN_CHECKOUT } from "@/lib/publish-requirements";
 import { trackGuideEvent } from "@/lib/guide-analytics.functions";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -518,6 +519,39 @@ function Guide({ data }: { data: GuideOk }) {
     setGateReady(true);
   }, [slug]);
   const needsGate = gateReady && !accessRec && !isPreview;
+
+  // Revalidação contínua da reserva: se o código deixar de existir/ficar
+  // ativo no calendário do Airbnb (cancelamento, alteração de datas ou
+  // checkout), o acesso é derrubado imediatamente para todos os aparelhos
+  // que entraram com aquela reserva.
+  const revalidateCode = useServerFn(validateGuideReservationCode);
+  useEffect(() => {
+    if (isPreview || !reservationCodeGate) return;
+    const codeValue = accessRec?.code?.trim();
+    if (!codeValue) return;
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const r = await revalidateCode({ data: { slug, property_id: p.id, code: codeValue } });
+        if (cancelled || r.ok) return;
+        clearAccessRecord(slug);
+        setAccessRec(null);
+        toast.error("Sua reserva não está mais ativa. O acesso a este guia foi encerrado.");
+      } catch {
+        /* rede instável: mantém o acesso e tenta de novo no próximo ciclo */
+      }
+    };
+    void check();
+    const id = setInterval(check, 5 * 60 * 1000);
+    const onFocus = () => void check();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [isPreview, reservationCodeGate, accessRec?.code, slug, p.id, revalidateCode]);
+
   // Enquanto o estado real ainda não foi decidido (gateReady === false), a
   // página de fundo fica coberta — nunca "pisca" a home por trás do
   // formulário ou do onboarding, em nenhuma etapa.
