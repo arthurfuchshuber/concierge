@@ -385,10 +385,6 @@ export function GuideAccessGate({
       toast.error("Informe um telefone válido.");
       return false;
     }
-    if (requireReservationCode && !code.trim()) {
-      toast.error("Informe o código da reserva.");
-      return false;
-    }
     if (resCheck.state === "checking") {
       toast.error("Aguarde a validação das datas com a reserva do Airbnb.");
       return false;
