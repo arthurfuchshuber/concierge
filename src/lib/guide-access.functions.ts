@@ -392,3 +392,104 @@ export const markGuideStayStep = createServerFn({ method: "POST" })
     if (error) return { ok: false as const };
     return { ok: true as const };
   });
+
+/* ------------------------------------------------------------------ *
+ * Validação do código da reserva (Airbnb) — guias "Check-In & Check-Out"
+ *
+ * O hóspede digita o código (HMxxxxxxx) e o sistema consulta o iCal do
+ * imóvel na hora: se a reserva estiver ativa, devolvemos as datas para
+ * preencher o período automaticamente; se sumir/cancelar depois, o mesmo
+ * endpoint passa a responder "inativa" e o guia derruba o acesso.
+ * ------------------------------------------------------------------ */
+
+const ReservationCodeInput = z.object({
+  slug: z.string().regex(/^[a-z0-9-]{1,64}$/),
+  property_id: z.string().uuid().optional(),
+  code: z.string().trim().min(4).max(40),
+});
+
+type ReservationLookup =
+  | { ok: true; checkin_date: string; checkout_date: string }
+  | { ok: false; reason: "not_found" | "no_ical" | "inactive" | "expired" };
+
+async function lookupReservationByCode(
+  slug: string,
+  propertyId: string | undefined,
+  rawCode: string,
+): Promise<ReservationLookup> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const propQuery = supabaseAdmin
+    .from("properties")
+    .select("id, airbnb_ical_url, airbnb_ical_last_sync_at")
+    .eq("slug", slug)
+    .eq("published", true);
+  const { data: prop } = propertyId ? await propQuery.eq("id", propertyId).maybeSingle() : await propQuery.maybeSingle();
+  if (!prop) return { ok: false, reason: "not_found" };
+  const icalUrl = ((prop as { airbnb_ical_url?: string | null }).airbnb_ical_url ?? "").trim();
+  if (!icalUrl) return { ok: false, reason: "no_ical" };
+
+  const { ensurePropertyIcalFresh } = await import("@/lib/airbnb-ical.server");
+  await ensurePropertyIcalFresh(
+    prop.id,
+    icalUrl,
+    (prop as { airbnb_ical_last_sync_at?: string | null }).airbnb_ical_last_sync_at,
+  );
+
+  const code = rawCode.trim().toUpperCase();
+  const { data: rows } = await supabaseAdmin
+    .from("property_reservations")
+    .select("checkin_date, checkout_date, raw_summary, status, guest_hint")
+    .eq("property_id", prop.id)
+    .eq("source", "airbnb")
+    .ilike("guest_hint", code)
+    .limit(20);
+
+  const list = (rows ?? []) as Array<{
+    checkin_date: string;
+    checkout_date: string;
+    raw_summary: string | null;
+    status: string | null;
+  }>;
+  if (list.length === 0) return { ok: false, reason: "inactive" };
+
+  const { isRealReservation, operationalTodayISO } = await import("@/lib/reservations.server");
+  const active = list.filter((r) => isRealReservation(r));
+  if (active.length === 0) return { ok: false, reason: "inactive" };
+
+  const today = operationalTodayISO();
+  const current = active.find((r) => r.checkout_date >= today);
+  if (!current) return { ok: false, reason: "expired" };
+
+  return { ok: true, checkin_date: current.checkin_date, checkout_date: current.checkout_date };
+}
+
+/** Valida o código digitado no formulário de primeiro acesso. */
+export const validateGuideReservationCode = createServerFn({ method: "POST" })
+  .inputValidator((i: unknown) => ReservationCodeInput.parse(i))
+  .handler(async ({ data }) => {
+    const { allowPublicRate, clientIpFrom } = await import("@/lib/public-rate-limit.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
+    if (!allowPublicRate(`guide-res-code:${clientIpFrom(getRequest())}`, 15, 60_000)) {
+      throw new Error("Muitas tentativas. Aguarde um instante e tente novamente.");
+    }
+    return await lookupReservationByCode(data.slug, data.property_id, data.code);
+  });
+
+/**
+ * Revalidação contínua: o guia consulta este endpoint periodicamente e,
+ * quando a reserva deixa de estar ativa no Airbnb, derruba o acesso.
+ */
+export const getReservationLiveStatus = createServerFn({ method: "POST" })
+  .inputValidator((i: unknown) => ReservationCodeInput.parse(i))
+  .handler(async ({ data }) => {
+    const { allowPublicRate, clientIpFrom } = await import("@/lib/public-rate-limit.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
+    if (!allowPublicRate(`guide-res-status:${clientIpFrom(getRequest())}`, 60, 60_000)) {
+      // Sob rate-limit não derrubamos ninguém: apenas dizemos "desconhecido".
+      return { active: null as boolean | null };
+    }
+    const res = await lookupReservationByCode(data.slug, data.property_id, data.code);
+    if (res.ok) return { active: true as boolean | null, checkout_date: res.checkout_date };
+    if (res.reason === "no_ical" || res.reason === "not_found") return { active: null as boolean | null };
+    return { active: false as boolean | null, reason: res.reason };
+  });
