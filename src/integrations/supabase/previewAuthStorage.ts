@@ -15,28 +15,7 @@ export function brokeredPreviewStorage() {
         ?? host.match(new RegExp('^(' + UUID + ')(?=[.-])', 'i'))?.[1])
     : undefined;
   const framed = window.parent && window.parent !== window;
-  if (!framed) return localStorage;
-  if (!projectId) {
-    // Framed na própria origem (ex.: o iframe de "Pré-visualizar" do painel
-    // admin abrindo /g/:slug) fora das zonas de preview do Lovable. Aqui NÃO
-    // podemos cair no localStorage: ele é compartilhado com a aba pai (mesma
-    // origem), e um segundo cliente Supabase com autoRefreshToken ativo lendo
-    // e girando o mesmo refresh token derruba a sessão de quem abriu o preview.
-    // O guia público não depende de sessão Supabase (acesso é por PIN/token
-    // assinado), então basta um storage isolado e não persistente.
-    const mem = new Map<string, string>();
-    return {
-      getItem: (key: string) => Promise.resolve(mem.has(key) ? (mem.get(key) as string) : null),
-      setItem: (key: string, value: string) => {
-        mem.set(key, value);
-        return Promise.resolve();
-      },
-      removeItem: (key: string) => {
-        mem.delete(key);
-        return Promise.resolve();
-      },
-    };
-  }
+  if (!projectId || !framed) return localStorage;
 
   // Post only to the real editor ancestor, validated as a Lovable origin, so the
   // session token can never reach an untrusted embedder.
