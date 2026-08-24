@@ -445,6 +445,10 @@ function Guide({ data }: { data: GuideOk }) {
   // Identification gate is ALWAYS shown on first access (per host requirement).
   // The reservation code is only required when "exigir identificação do hóspede" is enabled.
   const gateEnabled = !!p.require_access_gate;
+  // Guias do tipo "Check-In & Check-Out": o acesso depende de um código de
+  // reserva ativo no Airbnb, revalidado continuamente enquanto o hóspede usa
+  // o guia (reserva cancelada = acesso derrubado na hora).
+  const reservationCodeGate = String((p as { tagline?: string | null }).tagline ?? "").trim() === ETIQUETA_CHECKIN_CHECKOUT;
   // Modo "preview" para admin do SaaS dentro do iframe (?preview=1): pula o gate
   // e mostra o conteúdo do guia diretamente, sem exigir preenchimento.
   const [isPreview, setIsPreview] = useState(false);
@@ -984,6 +988,7 @@ function Guide({ data }: { data: GuideOk }) {
           propertyId={p.id as string}
           propertyName={p.name as string}
           requireReservationCode={gateEnabled}
+          reservationCodeGate={reservationCodeGate}
           collection={{
             arrivalTime:
               ((p as unknown as { collect_arrival_time?: string }).collect_arrival_time as
