@@ -666,18 +666,6 @@ export function GuideAccessGate({
 
                 {reservationBanner}
 
-                {requireReservationCode && (
-                  <FieldShell>
-                    <Input
-                      value={code}
-                      onChange={(e) => setCode(e.target.value)}
-                      maxLength={100}
-                      required
-                      className="h-[46px] rounded-[12px] px-3 text-[14px] bg-transparent border-transparent focus-visible:ring-0"
-                      placeholder="Código da reserva"
-                    />
-                  </FieldShell>
-                )}
 
                 <div className="pt-1">
                   <PrimaryButton loading={loading}>{hasOptionals ? "Continuar →" : "Acessar guia →"}</PrimaryButton>
