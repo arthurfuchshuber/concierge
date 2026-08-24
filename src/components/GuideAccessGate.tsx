@@ -174,6 +174,7 @@ export function GuideAccessGate({
   propertyId,
   propertyName,
   requireReservationCode,
+  reservationCodeGate = false,
   collection,
   onUnlock,
   theme = "dark",
@@ -187,9 +188,17 @@ export function GuideAccessGate({
   const submit = useServerFn(recordGuideAccess);
   const checkReservation = useServerFn(checkReservationBySlug);
   const loadAvailability = useServerFn(getGuideCalendarAvailability);
+  const validateCode = useServerFn(validateGuideReservationCode);
   const [step, setStep] = useState<1 | 2>(1);
   const [name, setName] = useState(prefill?.name ?? "");
-  const [code] = useState(prefill?.code ?? "");
+  const [code, setCode] = useState(prefill?.code ?? "");
+  const [codeCheck, setCodeCheck] = useState<
+    | { state: "idle" }
+    | { state: "checking" }
+    | { state: "valid"; checkin: string; checkout: string }
+    | { state: "invalid"; reason: string }
+  >({ state: "idle" });
+
   const [range, setRange] = useState<{ from?: Date; to?: Date } | undefined>(() => {
     const from = prefill?.checkinDate ? dateFromISODate(prefill.checkinDate) : null;
     const to = prefill?.checkoutDate ? dateFromISODate(prefill.checkoutDate) : null;
