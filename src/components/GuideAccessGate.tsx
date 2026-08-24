@@ -266,6 +266,48 @@ export function GuideAccessGate({
     };
   }, [slug, propertyId, loadAvailability]);
 
+  // Guia "Check-In & Check-Out" com calendário conectado: o código da reserva
+  // é a chave de entrada — o período deixa de ser selecionável e passa a ser
+  // preenchido pela própria reserva validada no Airbnb.
+  const codeGateActive =
+    reservationCodeGate && calendarAvailability.state === "ready" && calendarAvailability.hasIcal;
+
+  // Valida o código digitado (debounce) direto contra o iCal.
+  useEffect(() => {
+    if (!codeGateActive) return;
+    const raw = code.trim().toUpperCase();
+    if (raw.length < 4) {
+      setCodeCheck({ state: "idle" });
+      return;
+    }
+    let cancelled = false;
+    setCodeCheck({ state: "checking" });
+    const t = setTimeout(() => {
+      validateCode({ data: { slug, property_id: propertyId, code: raw } })
+        .then((r) => {
+          if (cancelled) return;
+          if (r.ok) {
+            setCodeCheck({ state: "valid", checkin: r.checkin_date, checkout: r.checkout_date });
+            setRange({
+              from: dateFromISODate(r.checkin_date) ?? undefined,
+              to: dateFromISODate(r.checkout_date) ?? undefined,
+            });
+          } else {
+            setCodeCheck({ state: "invalid", reason: r.reason });
+            setRange(undefined);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setCodeCheck({ state: "invalid", reason: "not_found" });
+        });
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [code, codeGateActive, slug, propertyId, validateCode]);
+
+
   // Map every real reservation check-in date → its check-out date. Blocks,
   // checkout dates and intermediate dates are ignored on purpose: the guest
   // chooses only the arrival day, and the iCal pair fills the departure.
