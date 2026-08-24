@@ -696,7 +696,7 @@ export function GuideAccessGate({
                         required
                         autoComplete="off"
                         spellCheck={false}
-                        className="h-[46px] rounded-[12px] pl-10 pr-10 text-[14px] font-semibold tracking-[0.08em] bg-transparent border-transparent focus-visible:ring-0 focus-visible:border-transparent"
+                        className="h-[46px] rounded-[12px] pl-10 pr-10 text-[14px] font-medium bg-transparent border-transparent focus-visible:ring-0 focus-visible:border-transparent"
                         placeholder="Código da reserva (ex.: HMABC1234)"
                       />
                       {codeCheck.state === "checking" && (
