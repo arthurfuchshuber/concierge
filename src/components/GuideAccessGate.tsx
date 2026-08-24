@@ -1,7 +1,12 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { zonedTimeToUtc } from "@/lib/property-timezone";
 import { useServerFn } from "@tanstack/react-start";
-import { recordGuideAccess, checkReservationBySlug, getGuideCalendarAvailability } from "@/lib/guide-access.functions";
+import {
+  recordGuideAccess,
+  checkReservationBySlug,
+  getGuideCalendarAvailability,
+  validateGuideReservationCode,
+} from "@/lib/guide-access.functions";
 import { BottomNav } from "@/components/guide/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -148,6 +153,10 @@ type Props = {
   propertyId: string;
   propertyName: string;
   requireReservationCode: boolean;
+  /** Guia do tipo "Check-In & Check-Out": exige o código da reserva do
+   * Airbnb, validado ao vivo, e preenche o período automaticamente. */
+  reservationCodeGate?: boolean;
+
   collection?: CollectionConfig;
   onUnlock: (rec: AccessRecord) => void;
   theme?: "dark" | "light";
@@ -170,6 +179,7 @@ export function GuideAccessGate({
   propertyId,
   propertyName,
   requireReservationCode,
+  reservationCodeGate = false,
   collection,
   onUnlock,
   theme = "dark",
@@ -183,9 +193,17 @@ export function GuideAccessGate({
   const submit = useServerFn(recordGuideAccess);
   const checkReservation = useServerFn(checkReservationBySlug);
   const loadAvailability = useServerFn(getGuideCalendarAvailability);
+  const validateCode = useServerFn(validateGuideReservationCode);
   const [step, setStep] = useState<1 | 2>(1);
   const [name, setName] = useState(prefill?.name ?? "");
-  const [code] = useState(prefill?.code ?? "");
+  const [code, setCode] = useState(prefill?.code ?? "");
+  const [codeCheck, setCodeCheck] = useState<
+    | { state: "idle" }
+    | { state: "checking" }
+    | { state: "valid"; checkin: string; checkout: string }
+    | { state: "invalid"; reason: string }
+  >({ state: "idle" });
+
   const [range, setRange] = useState<{ from?: Date; to?: Date } | undefined>(() => {
     const from = prefill?.checkinDate ? dateFromISODate(prefill.checkinDate) : null;
     const to = prefill?.checkoutDate ? dateFromISODate(prefill.checkoutDate) : null;
@@ -247,6 +265,48 @@ export function GuideAccessGate({
       cancelled = true;
     };
   }, [slug, propertyId, loadAvailability]);
+
+  // Guia "Check-In & Check-Out" com calendário conectado: o código da reserva
+  // é a chave de entrada — o período deixa de ser selecionável e passa a ser
+  // preenchido pela própria reserva validada no Airbnb.
+  const codeGateActive =
+    reservationCodeGate && calendarAvailability.state === "ready" && calendarAvailability.hasIcal;
+
+  // Valida o código digitado (debounce) direto contra o iCal.
+  useEffect(() => {
+    if (!codeGateActive) return;
+    const raw = code.trim().toUpperCase();
+    if (raw.length < 4) {
+      setCodeCheck({ state: "idle" });
+      return;
+    }
+    let cancelled = false;
+    setCodeCheck({ state: "checking" });
+    const t = setTimeout(() => {
+      validateCode({ data: { slug, property_id: propertyId, code: raw } })
+        .then((r) => {
+          if (cancelled) return;
+          if (r.ok) {
+            setCodeCheck({ state: "valid", checkin: r.checkin_date, checkout: r.checkout_date });
+            setRange({
+              from: dateFromISODate(r.checkin_date) ?? undefined,
+              to: dateFromISODate(r.checkout_date) ?? undefined,
+            });
+          } else {
+            setCodeCheck({ state: "invalid", reason: r.reason });
+            setRange(undefined);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setCodeCheck({ state: "invalid", reason: "not_found" });
+        });
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [code, codeGateActive, slug, propertyId, validateCode]);
+
 
   // Map every real reservation check-in date → its check-out date. Blocks,
   // checkout dates and intermediate dates are ignored on purpose: the guest
@@ -377,8 +437,18 @@ export function GuideAccessGate({
       toast.error("Informe seu nome completo.");
       return false;
     }
+    if (codeGateActive) {
+      if (codeCheck.state === "checking") {
+        toast.error("Aguarde a validação do código da reserva.");
+        return false;
+      }
+      if (codeCheck.state !== "valid") {
+        toast.error("Informe um código de reserva ativo do Airbnb.");
+        return false;
+      }
+    }
     if (!range?.from || !range?.to) {
-      toast.error("Selecione o período da viagem.");
+      toast.error(codeGateActive ? "Valide o código da reserva." : "Selecione o período da viagem.");
       return false;
     }
     if (!phone || !isValidPhoneNumber(phone)) {
@@ -454,7 +524,8 @@ export function GuideAccessGate({
           slug,
           property_id: propertyId,
           guest_name: titleCaseName(name),
-          reservation_code: requireReservationCode && code.trim() ? code.trim() : null,
+          reservation_code:
+            codeGateActive || requireReservationCode ? code.trim().toUpperCase() || null : null,
           checkin_date: checkinDate,
           checkout_date: checkoutDate,
 
@@ -486,7 +557,7 @@ export function GuideAccessGate({
       }
       const rec: AccessRecord = {
         name: name.trim(),
-        code: requireReservationCode && code.trim() ? code.trim() : null,
+        code: codeGateActive || requireReservationCode ? code.trim().toUpperCase() || null : null,
         checkinDate,
         checkoutDate,
         phone: phone ?? null,
@@ -611,7 +682,54 @@ export function GuideAccessGate({
                   />
                 </FieldShell>
 
+                {codeGateActive && (
+                  <>
+                    <FieldShell icon={<span className="text-[15px] leading-none">🔑</span>}>
+                      <Label htmlFor="reservation-code" className="sr-only">
+                        Código da reserva
+                      </Label>
+                      <Input
+                        id="reservation-code"
+                        value={code}
+                        onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                        maxLength={40}
+                        required
+                        autoComplete="off"
+                        spellCheck={false}
+                        className="h-[46px] rounded-[12px] pl-10 pr-10 text-[14px] font-semibold tracking-[0.08em] bg-transparent border-transparent focus-visible:ring-0 focus-visible:border-transparent"
+                        placeholder="Código da reserva (ex.: HMABC1234)"
+                      />
+                      {codeCheck.state === "checking" && (
+                        <Loader2 className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />
+                      )}
+                      {codeCheck.state === "valid" && (
+                        <CheckCircle2 className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 size-4 text-emerald-400" />
+                      )}
+                      {codeCheck.state === "invalid" && (
+                        <X className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 size-4 text-amber-400" />
+                      )}
+                    </FieldShell>
+                    {codeCheck.state === "invalid" && (
+                      <div className="flex items-start gap-2 rounded-[14px] border border-amber-500/35 bg-amber-500/[0.08] px-3.5 py-2.5 text-[12.5px] text-amber-300">
+                        <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+                        <span>
+                          {codeCheck.reason === "expired"
+                            ? "Esta reserva já terminou — o acesso ao guia não está mais disponível."
+                            : "Não encontramos uma reserva ativa com este código. Confira o código no seu app do Airbnb."}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )}
+
                 <div className="grid grid-cols-2 gap-2.5">
+                  {codeGateActive ? (
+                    <RangeButton
+                      label="Chegada"
+                      value={range?.from ? format(range.from, "dd MMM", { locale: ptBR }) : "—"}
+                      locked
+                    />
+                  ) : (
                   <RangeButton
                     themeClass={themeClass}
                     label="Chegada"
@@ -639,6 +757,7 @@ export function GuideAccessGate({
                       />
                     }
                   />
+                  )}
                   <RangeButton
                     label="Saída"
                     value={range?.to ? format(range.to, "dd MMM", { locale: ptBR }) : "—"}
