@@ -71,7 +71,51 @@ type EnrichResult = {
   hero_image_url: string | null;
   gallery_images: string[];
   recommendations: PlaceItem[];
+  // Quando true, as recomendações "pertinho" NÃO foram geradas porque o
+  // imóvel já possui recomendações plugadas (grupo com outro guia, pacote
+  // Sigma ou curadoria manual). Nunca inserimos novos pontos nesse caso.
+  recommendations_skipped: boolean;
+  skip_reason: string | null;
 };
+
+// Detecta se o imóvel tem qualquer tipo de "link" de recomendações:
+// - membro de um grupo de referências compartilhado com outro guia
+// - pacote de cidade do Sigma ativado
+// - referências da cidade curadas manualmente / pelo Sigma no escopo do imóvel
+async function detectLinkedRecommendations(propertyId: string): Promise<string | null> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  const { data: member } = await supabaseAdmin
+    .from("city_reference_group_members")
+    .select("group_id")
+    .eq("property_id", propertyId)
+    .maybeSingle();
+  const groupId = (member as { group_id: string | null } | null)?.group_id ?? null;
+  if (groupId) return "Este imóvel compartilha as recomendações com outro guia (grupo vinculado).";
+
+  const { data: prop } = await supabaseAdmin
+    .from("properties")
+    .select("sigma_pack_activated_at, sigma_pack_city_key")
+    .eq("id", propertyId)
+    .maybeSingle();
+  const p = prop as { sigma_pack_activated_at: string | null; sigma_pack_city_key: string | null } | null;
+  if (p?.sigma_pack_activated_at || p?.sigma_pack_city_key) {
+    return "Este imóvel usa o pacote de recomendações do Sigma.";
+  }
+
+  const { data: refs } = await supabaseAdmin
+    .from("city_references")
+    .select("source")
+    .eq("property_id", propertyId)
+    .limit(200);
+  const curated = ((refs ?? []) as Array<{ source: string | null }>).some((r) =>
+    ["manual", "sigma", "admin", "curated"].includes((r.source ?? "").toLowerCase()),
+  );
+  if (curated) return "Este imóvel já tem recomendações curadas manualmente/pelo Sigma.";
+
+  return null;
+}
+
 
 // `placesTypes` é o filtro enviado ao Places (includedTypes/includedType).
 // `acceptedPrimaryTypes` é o que validamos no resultado — Google às vezes devolve
