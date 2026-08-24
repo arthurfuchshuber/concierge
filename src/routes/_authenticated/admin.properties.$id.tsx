@@ -630,10 +630,16 @@ function PropertyEditor() {
     setGeneratingNearbyRecs(true);
     try {
       const r = await enrich({ data: { mapsUrl: form.property.maps_url, propertyId: id !== "new" ? id : undefined } });
+      if (r.recommendations_skipped) {
+        toast.info(r.skip_reason ?? "Recomendações vinculadas: nada novo foi inserido.");
+        return;
+      }
       const existing = new Set(form.recommendations.map((x) => x.place_id).filter((x): x is string => !!x));
       const incoming = r.recommendations
         .filter((rec) => rec.scope === "nearby")
+        .filter((rec) => (rec.distance_meters ?? 0) <= 2000)
         .filter((rec) => !rec.place_id || !existing.has(rec.place_id))
+
         .map((rec) => ({
           scope: rec.scope,
           type: rec.type,
@@ -690,33 +696,42 @@ function PropertyEditor() {
           gallery_images: f.property.gallery_images.length ? f.property.gallery_images : (r.gallery_images ?? []).slice(0, 4),
         },
         // Mantém apenas "Aqui pertinho" no form; "Pela cidade" é compartilhado.
-        recommendations: [
-          ...f.recommendations.filter((x) => x.scope === "nearby"),
-          ...r.recommendations.filter((rec) => rec.scope === "nearby").map((rec) => ({
-            scope: rec.scope,
-            type: rec.type,
-            name: rec.name,
-            category: rec.category,
-            rating: rec.rating,
-            user_ratings_total: rec.user_ratings_total,
-            distance_text: rec.distance_text,
-            distance_meters: rec.distance_meters,
-            drive_minutes: rec.drive_minutes,
-            walk_minutes: rec.walk_minutes,
-            opening_hours: rec.opening_hours,
-            image_url: rec.image_url,
-            maps_url: rec.maps_url,
-            place_id: rec.place_id,
-            note: rec.note,
-          })),
-        ],
+        // Se houver vínculo (Sigma/outro guia), nada novo é inserido.
+        recommendations: r.recommendations_skipped
+          ? f.recommendations
+          : [
+            ...f.recommendations.filter((x) => x.scope === "nearby"),
+            ...r.recommendations
+              .filter((rec) => rec.scope === "nearby" && (rec.distance_meters ?? 0) <= 2000)
+              .map((rec) => ({
+                scope: rec.scope,
+                type: rec.type,
+                name: rec.name,
+                category: rec.category,
+                rating: rec.rating,
+                user_ratings_total: rec.user_ratings_total,
+                distance_text: rec.distance_text,
+                distance_meters: rec.distance_meters,
+                drive_minutes: rec.drive_minutes,
+                walk_minutes: rec.walk_minutes,
+                opening_hours: rec.opening_hours,
+                image_url: rec.image_url,
+                maps_url: rec.maps_url,
+                place_id: rec.place_id,
+                note: rec.note,
+              })),
+          ],
       }));
       const nearby = r.recommendations.filter((x) => x.scope === "nearby").length;
       const extras: string[] = [];
       if (r.tagline) extras.push("descrição");
       if (r.hero_image_url) extras.push("foto de capa");
       const extraStr = extras.length ? ` · ${extras.join(" + ")}` : "";
-      toast.success(`Preenchido! ${nearby} arredores${extraStr}`);
+      if (r.recommendations_skipped) {
+        toast.info(r.skip_reason ?? "Recomendações vinculadas: mantivemos as atuais e não inserimos novas.");
+      } else {
+        toast.success(`Preenchido! ${nearby} arredores${extraStr}`);
+      }
 
       const cityForGeneration = (r.city || form.property.city).trim();
       // Só bloqueamos a regeração automática quando alguma recomendação da
@@ -733,7 +748,8 @@ function PropertyEditor() {
           !item.property_id ||
           ["manual", "sigma", "admin", "curated"].includes((item.source ?? "").toLowerCase()),
       );
-      if (cityForGeneration && !hasLinkedCityRefs) {
+      if (cityForGeneration && !hasLinkedCityRefs && !r.recommendations_skipped) {
+
 
         void (async () => {
           try {
