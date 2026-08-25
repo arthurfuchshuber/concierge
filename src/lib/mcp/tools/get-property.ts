@@ -58,16 +58,17 @@ export default defineTool({
     const { data, error } = await q.maybeSingle();
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
     if (!data) return { content: [{ type: "text", text: "Not found" }], isError: true };
+    const row = data as unknown as Record<string, unknown>;
     // Segunda query, mínima, só para saber se cada segredo está preenchido —
     // nunca devolve o valor em si.
     const { data: secretFlags } = await supabase
       .from("properties")
       .select("wifi_password,gate_code,lock_code,access_codes_pin,pin_code")
-      .eq("id", (data as { id: string }).id)
+      .eq("id", row.id as string)
       .maybeSingle();
     const sf = (secretFlags ?? {}) as Record<string, unknown>;
     const withFlags = {
-      ...data,
+      ...row,
       wifi_password_set: !!String(sf.wifi_password ?? "").trim(),
       gate_code_set: !!String(sf.gate_code ?? "").trim(),
       lock_code_set: !!String(sf.lock_code ?? "").trim(),

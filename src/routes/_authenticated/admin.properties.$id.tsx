@@ -8,6 +8,7 @@ import { getMyProperty, upsertProperty, listMyProperties } from "@/lib/propertie
 import { buildDefaultFaqs, mergeDefaultFaqs } from "@/lib/default-faqs";
 import { enrichFromMapsLink, searchPlacesForRec, refreshRecommendationsFromGoogle, type PlaceSearchResult } from "@/lib/maps.functions";
 import { generateCityReferences, listCityReferences, addManualCityReference, updateCityReference, bulkDeleteCityReferences } from "@/lib/city-references.functions";
+import { listActivePropertyOwnersForSelect } from "@/lib/stakeholders.functions";
 import { importFromAirbnb } from "@/lib/airbnb.functions";
 import { syncPropertyAirbnbIcal, listPropertyReservations } from "@/lib/airbnb-ical.functions";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -149,6 +150,9 @@ type FormState = {
     airbnb_listing_url: string | null;
     property_type_id: string | null;
     guide_created: boolean;
+    /** Proprietário (property_owners) — regra: sem imóvel vinculado a um
+     * proprietário cadastrado, sem guia. */
+    owner_contact_id: string | null;
   };
   manual: { title: string; description: string; body: string; images: string[] }[];
   emergency: { label: string; number: string }[];
@@ -164,13 +168,13 @@ function emptyForm(): FormState {
       theme_images: { checkin: "", residencia: "", faq: "", explore: "" },
       marketplace_links: [],
       address: "", maps_url: "", garage_maps_url: "",
-      lat: null, lng: null, city: "", state: "", country: "", checkin_time: "15:00", checkin_time_max: "", checkin_note: "", checkout_time: "11:00", checkout_time_min: "", checkout_note: "",
+      lat: null, lng: null, city: "", state: "", country: "BR", checkin_time: "15:00", checkin_time_max: "", checkin_note: "", checkout_time: "11:00", checkout_time_min: "", checkout_note: "",
       lock_code: "", lock_label: "Fechadura", gate_code: "", gate_label: "Portão", access_codes_pin: "", address_note: "", checkin_instructions: "", checkout_instructions: "", house_rules: "", checkin_media: [], gate_instructions: "", gate_media: [], gate_video_url: "", lock_instructions: "", lock_media: [], lock_video_url: "", wifi_ssid: "", wifi_password: "",
       host_name: "", host_phone: "", brand_name: "", brand_logo_url: "", access_mode: "public", pin_code: "", pin_expires_at: "",
       default_language: "pt", guide_theme: "dark", published: true, require_access_gate: false,
       collect_arrival_time: "off", collect_vehicles: "off", vehicles_max: 2, collect_document: "off", document_scope: "main",
       airbnb_ical_url: null, airbnb_ical_url_2: null, airbnb_ical_last_sync_at: null, airbnb_ical_last_error: null, airbnb_listing_url: null,
-      property_type_id: null, guide_created: false,
+      property_type_id: null, guide_created: false, owner_contact_id: null,
     },
     manual: [],
     emergency: [{ label: "Polícia", number: "190" }, { label: "Bombeiros / SAMU", number: "192" }],
@@ -187,6 +191,24 @@ function slugify(s: string) {
 
 function isEtiqueta(value: string) {
   return (ETIQUETA_OPTIONS as readonly string[]).includes(value);
+}
+
+/**
+ * Campos obrigatórios da aba "A casa" (dados básicos do imóvel): tipo do
+ * imóvel, endereço completo e calendário do Airbnb. Compartilhado entre a
+ * tela "Novo imóvel", a trava de informações pendentes e o "Salvar" do
+ * editor completo — sempre a mesma lista, em todo lugar que salva o imóvel.
+ * Proprietário é validado à parte (não é um campo de "A casa").
+ */
+function missingRequiredHouseFields(p: FormState["property"]): string[] {
+  const missing: string[] = [];
+  if (!p.property_type_id) missing.push("Tipo do imóvel");
+  if (!p.maps_url.trim()) missing.push("Link do Google Maps (entrada principal)");
+  if (!p.address.trim()) missing.push("Endereço");
+  if (!p.city.trim()) missing.push("Cidade");
+  if (!p.country.trim()) missing.push("País");
+  if (!(p.airbnb_ical_url ?? "").trim()) missing.push("URL do calendário Airbnb");
+  return missing;
 }
 
 function PropertyEditor() {
@@ -288,6 +310,16 @@ function PropertyEditor() {
     enabled: !isNew,
   });
   const sigmaLocked = !!sigmaState?.active_city_key;
+
+  // Proprietários ativos da conta — para o seletor obrigatório de vínculo
+  // do imóvel (regra: sem imóvel vinculado a um proprietário, sem guia).
+  const listOwnersFn = useServerFn(listActivePropertyOwnersForSelect);
+  const { data: ownersData, isLoading: ownersLoading } = useQuery({
+    queryKey: ["property-owners-select"],
+    queryFn: () => listOwnersFn(),
+    staleTime: 30_000,
+  });
+  const propertyOwnerOptions = ownersData?.owners ?? [];
 
 
 
@@ -512,6 +544,7 @@ function PropertyEditor() {
         airbnb_listing_url: ((p as Record<string, unknown>).airbnb_listing_url as string | null) ?? null,
         property_type_id: ((p as Record<string, unknown>).property_type_id as string | null) ?? null,
         guide_created: ((p as Record<string, unknown>).guide_created as boolean) ?? false,
+        owner_contact_id: ((p as Record<string, unknown>).owner_contact_id as string | null) ?? null,
       },
       manual: (data.manual ?? []).map((m: Record<string, unknown>) => ({
         title: (m.title as string) ?? "",
@@ -929,6 +962,20 @@ function PropertyEditor() {
       if (!formToSave.property.lock_code.trim()) { toast.error("Informe o código da fechadura ou desative essa opção."); return; }
       if (!formToSave.property.lock_label.trim()) { toast.error("Defina um nome para o acesso da fechadura."); return; }
     }
+    // Regra: "sem imóvel [completo, vinculado a um proprietário], sem guia".
+    // Só em salvamentos explícitos (não no autosave silencioso) — igual ao
+    // padrão já usado acima para portão/fechadura: o autosave nunca trava por
+    // causa de um campo obrigatório que a pessoa ainda não chegou a preencher
+    // enquanto edita outra parte do formulário.
+    if (!silent) {
+      if (!formToSave.property.name.trim()) { toast.error("Informe o nome do imóvel."); return; }
+      if (!formToSave.property.owner_contact_id) { toast.error("Selecione um proprietário para este imóvel."); return; }
+      const missing = missingRequiredHouseFields(formToSave.property);
+      if (missing.length > 0) {
+        toast.error(`Preencha antes de salvar: ${missing.join(", ")}.`);
+        return;
+      }
+    }
     if (silent) setAutoSaving(true); else setSaving(true);
     try {
       // `overrides` existe para casos como "Criar guia": precisamos gravar
@@ -1122,21 +1169,31 @@ function PropertyEditor() {
   }, [formKey, isNew, readOnly, saving]);
 
 
+  // Precisa ser calculado e chamado ANTES do "return" de carregamento abaixo:
+  // hooks não podem ser condicionais. Chamar useGuidePreviewUrl depois do
+  // early-return fazia a 1ª renderização (isLoading=true, sem este hook)
+  // divergir da renderização seguinte (isLoading=false, com o hook) — o
+  // React derruba o componente com "Rendered more hooks than during the
+  // previous render", que é exatamente o erro genérico visto ao abrir
+  // "Editar guia" pela primeira vez (e que some ao clicar em "Tentar de novo",
+  // pois a 2ª tentativa já reaproveita os dados em cache e nunca passa pelo
+  // estado isLoading=true).
+  const savedSlug = !isNew ? ((data?.property as Record<string, unknown> | undefined)?.slug as string | undefined) : undefined;
+  const previewSlug = savedSlug || form.property.slug;
+  const previewUrl = useGuidePreviewUrl(previewOpen ? previewSlug : null);
+
   if (!isNew && isLoading) {
     return <div className="max-w-4xl mx-auto px-6 py-10 text-sm text-muted-foreground">Carregando…</div>;
   }
 
 
   const nearbyRecs = form.recommendations.filter((r) => r.scope === "nearby");
-  const savedSlug = !isNew ? ((data?.property as Record<string, unknown> | undefined)?.slug as string | undefined) : undefined;
-  const previewSlug = savedSlug || form.property.slug;
-  const previewUrl = useGuidePreviewUrl(previewOpen ? previewSlug : null);
 
   // Extraídos como funções para serem reaproveitados tanto na tela enxuta de
   // criação do imóvel (isNew) quanto na aba "A casa" do editor completo —
   // mesmo JSX, duas telas, sem duplicar campos/handlers.
   const renderPropertyTypeSection = () => (
-          <Section id="property-type" icon={Home} title="Tipo do imóvel" desc="Ajuda a organizar seus imóveis — as opções são totalmente editáveis." collapsible>
+          <Section id="property-type" icon={Home} title="Tipo do imóvel" desc="Obrigatório. Ajuda a organizar seus imóveis — as opções são totalmente editáveis." collapsible>
             <PropertyTypeSelect value={form.property.property_type_id} onChange={(v) => update("property_type_id", v)} />
           </Section>
   );
@@ -1154,12 +1211,12 @@ function PropertyEditor() {
             <Field label="Link do Google Maps — Garagem (opcional)" hint="Aparece como um segundo botão de localização no guia.">
               <Input value={form.property.garage_maps_url} onChange={(e) => update("garage_maps_url", e.target.value)} placeholder="https://maps.app.goo.gl/..." />
             </Field>
-            <Field label="Endereço">
+            <Field label="Endereço" required>
               <Input value={form.property.address} onChange={(e) => update("address", e.target.value)} />
             </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Cidade"><Input value={form.property.city} onChange={(e) => update("city", e.target.value)} /></Field>
-              <Field label="País"><Input value={form.property.country} onChange={(e) => update("country", e.target.value)} /></Field>
+              <Field label="Cidade" required><Input value={form.property.city} onChange={(e) => update("city", e.target.value)} /></Field>
+              <Field label="País" required><Input value={form.property.country} onChange={(e) => update("country", e.target.value)} /></Field>
             </div>
             <Field label="Observação sobre o endereço" hint="Ponto de referência, instruções para o motorista, etc.">
               <Textarea value={form.property.address_note} maxLength={1000} onChange={(e) => update("address_note", e.target.value)} />
@@ -1178,11 +1235,11 @@ function PropertyEditor() {
 
             <Field
               label="URL do calendário Airbnb"
-              required={form.property.tagline === ETIQUETA_CHECKIN_CHECKOUT}
+              required
               hint={
                 form.property.tagline === ETIQUETA_CHECKIN_CHECKOUT
-                  ? "Obrigatório para publicar guias do tipo Check-In & Check-Out. No Airbnb: Anúncio → Calendário → Disponibilidade → Exportar calendário. Sincroniza a cada 30 minutos."
-                  : "No Airbnb: Anúncio → Calendário → Disponibilidade → Exportar calendário. Sincroniza a cada 30 minutos."
+                  ? "Obrigatório para criar o imóvel e para publicar guias do tipo Check-In & Check-Out. No Airbnb: Anúncio → Calendário → Disponibilidade → Exportar calendário. Sincroniza a cada 30 minutos."
+                  : "Obrigatório para criar o imóvel. No Airbnb: Anúncio → Calendário → Disponibilidade → Exportar calendário. Sincroniza a cada 30 minutos."
               }
             >
               <div className="flex gap-2">
@@ -1296,6 +1353,85 @@ function PropertyEditor() {
           </Section>
   );
 
+  // Proprietário (property_owners) — regra: sem imóvel vinculado a um
+  // proprietário cadastrado, sem guia. Compartilhado entre a tela "Novo
+  // imóvel", a trava de informações pendentes e a aba "A casa".
+  const renderOwnerSection = () => (
+          <Section id="owner" icon={UserRound} title="Proprietário" desc="A quem este imóvel pertence — obrigatório." collapsible={false}>
+            <Field label="Proprietário" required>
+              <Select
+                value={form.property.owner_contact_id ?? ""}
+                onValueChange={(v) => update("owner_contact_id", v || null)}
+                disabled={ownersLoading || propertyOwnerOptions.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={ownersLoading ? "Carregando…" : "Selecione um proprietário"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {propertyOwnerOptions.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {propertyOwnerOptions.length === 0 && !ownersLoading && (
+                <p className="mt-1.5 text-xs text-amber-500">
+                  Nenhum proprietário cadastrado.{" "}
+                  <Link to="/admin/stakeholders" search={{ tab: "proprietarios" as const }} className="underline underline-offset-2">
+                    Cadastre um em Stakeholders
+                  </Link>{" "}
+                  antes de continuar.
+                </p>
+              )}
+            </Field>
+          </Section>
+  );
+
+  const renderHouseRulesSection = () => (
+          <Section id="house-rules" icon={ClipboardCheck} title="Regras do espaço" desc="Uma regra por linha — cada linha vira um item numerado no guia." collapsible>
+            <Field label="Regras (opcional)" hint="Uma regra por linha. Linhas em branco são ignoradas.">
+              <TagMentionTextarea items={tagItems} value={form.property.house_rules} maxLength={3000} rows={6} onChange={(e) => update("house_rules", e.target.value)} placeholder={"Não é permitido fumar dentro do imóvel.\nFestas e eventos não são permitidos.\nRespeite o silêncio das 22h às 8h."} />
+            </Field>
+          </Section>
+  );
+
+  const renderManualSection = () => (
+          <Section id="manual" icon={BookOpen} title="Manual da casa" desc="Instruções de equipamentos e funcionamento." collapsible>
+            {isNew ? (
+              <EmptyHint text="Salve o imóvel primeiro para adicionar itens do manual (as fotos precisam de um imóvel já salvo)." />
+            ) : (
+              <>
+                {form.manual.length === 0 ? (
+                  <EmptyHint text="Nenhum item ainda. Adicione instruções para ar-condicionado, TV, fechadura, etc." />
+                ) : form.manual.map((m, i) => (
+                  <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, manual: f.manual.filter((_, j) => j !== i) }))}>
+                    <Input placeholder="Título (ex: Ar-condicionado)" value={m.title} maxLength={120} onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, title: e.target.value } : x) }))} />
+                    <Input placeholder="Descrição curta" value={m.description} maxLength={300} onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, description: e.target.value } : x) }))} />
+                    <TagMentionTextarea items={tagItems} placeholder="Instruções detalhadas" value={m.body} maxLength={4000} onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, body: e.target.value } : x) }))} />
+                    <ManualItemImages
+                      images={m.images}
+                      propertyId={id}
+                      onChange={(next) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => (j === i ? { ...x, images: next } : x)) }))}
+                    />
+                  </ItemCard>
+                ))}
+                <div className="pt-1">
+                  <AddBtn onClick={() => setForm((f) => ({ ...f, manual: [...f.manual, { title: "", description: "", body: "", images: [] }] }))} />
+                </div>
+              </>
+            )}
+          </Section>
+  );
+
+  const renderPropertyDetailsSection = () => (
+          <Section id="property-details" icon={NotebookPen} title="Detalhamento do Imóvel" desc="Base de conhecimento livre: micro detalhes que a IA usa e que não aparecem no guia." collapsible>
+            {isNew ? (
+              <EmptyHint text="Salve o imóvel primeiro para começar o detalhamento." />
+            ) : (
+              <PropertyDetailsEditor propertyId={id} />
+            )}
+          </Section>
+  );
+
   // ================= INFORMAÇÕES DO IMÓVEL =================
   // Antes, um imóvel novo abria direto os 6 steps inteiros do editor de guia
   // (A casa, O guia, Checkin, Checkout, FAQ & Contatos, Recomendações) — a
@@ -1310,10 +1446,57 @@ function PropertyEditor() {
   // os MESMOS da aba "A casa" do editor completo (mesmo form.property, mesmas
   // funções render*Section) — não existem em duplicidade, então qualquer
   // alteração feita aqui ou lá é a mesma informação, sempre.
+  // Trava: "sem imóvel [completo, vinculado a um proprietário], sem guia".
+  // Cobre também imóveis já existentes (de antes desta regra) que ficaram sem
+  // proprietário e/ou sem os dados básicos obrigatórios (tipo, endereço
+  // completo, calendário Airbnb) — bloqueia qualquer edição, mesmo de um guia
+  // já publicado, até completar. Só se aplica depois que o guia já foi criado
+  // (`guide_created`): antes disso, é a própria tela enxuta "Novo imóvel" —
+  // logo abaixo — que já pede e valida esses mesmos campos.
+  const missingHouseFields = form.property.guide_created ? missingRequiredHouseFields(form.property) : [];
+  const needsRequiredHouseInfo = !isNew && form.property.guide_created && missingHouseFields.length > 0;
+
+  if (needsRequiredHouseInfo) {
+    async function handleCompleteHouseInfo() {
+      await handleSave();
+    }
+    return (
+      <div className="px-6 lg:px-10 pt-8 lg:pt-10 max-w-3xl mx-auto w-full">
+        <Link to="/admin/guias" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
+          <ArrowLeft className="size-3.5" /> Voltar
+        </Link>
+        <PageHeader
+          className="mb-6 pb-4 border-b border-border/60"
+          title="Complete as informações do imóvel"
+          subtitle={`"${form.property.name || "Este imóvel"}" está com informações obrigatórias pendentes: ${missingHouseFields.join(", ")}. Complete para continuar editando.`}
+          actions={<PresenceAvatars users={presence.users} />}
+        />
+        <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
+          <SectionGroup>
+            {renderOwnerSection()}
+            {renderPropertyTypeSection()}
+            {renderAddressSection()}
+            {renderAirbnbCalendarSection()}
+          </SectionGroup>
+          <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-border/60">
+            <Button className="min-w-[140px]" onClick={handleCompleteHouseInfo} disabled={saving}>
+              {saving ? <Loader2 className="size-4 animate-spin" /> : null}
+              <span className={saving ? "ml-1.5" : ""}>{saving ? "Salvando…" : "Salvar e continuar"}</span>
+            </Button>
+          </div>
+        </fieldset>
+      </div>
+    );
+  }
+
   const showLeanInfoScreen = isNew || !form.property.guide_created;
 
   if (showLeanInfoScreen) {
     async function handleCreateGuide() {
+      if (!form.property.tagline.trim()) {
+        toast.error("Selecione o tipo do guia para continuar.");
+        return;
+      }
       // Passamos o override direto pro handleSave em vez de chamar update()
       // antes: update() é assíncrono (setForm), e handleSave rodando logo em
       // seguida leria form.property ainda com guide_created=false.
@@ -1339,7 +1522,7 @@ function PropertyEditor() {
           }
           subtitle={
             isNew
-              ? "Só o essencial para cadastrar a residência. O guia para hóspedes, checkin, checkout, FAQ e recomendações ficam disponíveis depois de criado — não são obrigatórios."
+              ? "Os dados básicos da residência (proprietário, tipo, endereço e calendário Airbnb são obrigatórios). O guia para hóspedes, checkin, checkout, FAQ e recomendações ficam disponíveis depois de criado — não são obrigatórios."
               : "Este imóvel ainda não tem um guia para hóspedes. Você pode continuar usando dashboard, calendário e kanban só com essas informações, ou criar o guia quando quiser."
           }
           actions={<PresenceAvatars users={presence.users} />}
@@ -1347,6 +1530,8 @@ function PropertyEditor() {
 
         <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
           <SectionGroup>
+            {renderOwnerSection()}
+
             <Section id="new-name" icon={Home} title="Nome do imóvel" desc="Como você identifica essa residência internamente." collapsible={false}>
               <Field label="Nome" required>
                 <Input
@@ -1374,6 +1559,9 @@ function PropertyEditor() {
             {renderPropertyTypeSection()}
             {renderAddressSection()}
             {renderAirbnbCalendarSection()}
+            {renderHouseRulesSection()}
+            {renderManualSection()}
+            {renderPropertyDetailsSection()}
             {renderHostContactSection()}
 
           </SectionGroup>
@@ -1386,21 +1574,24 @@ function PropertyEditor() {
               Cancelar
             </Link>
             {isNew ? (
-              <Button className="min-w-[140px]" onClick={() => handleSave()} disabled={saving || !form.property.name.trim()}>
+              <Button
+                className="min-w-[140px]"
+                onClick={() => handleSave()}
+                disabled={saving}
+              >
                 {saving ? <Loader2 className="size-4 animate-spin" /> : null}
                 <span className={saving ? "ml-1.5" : ""}>{saving ? "Criando…" : "Criar imóvel"}</span>
               </Button>
             ) : (
               <>
-                <Button variant="secondary" className="min-w-[140px]" onClick={() => handleSave()} disabled={saving || !form.property.name.trim()}>
+                <Button variant="secondary" className="min-w-[140px]" onClick={() => handleSave()} disabled={saving}>
                   {saving ? <Loader2 className="size-4 animate-spin" /> : null}
                   <span className={saving ? "ml-1.5" : ""}>{saving ? "Salvando…" : "Salvar alterações"}</span>
                 </Button>
                 <Button
                   className="min-w-[140px]"
                   onClick={handleCreateGuide}
-                  disabled={saving || !form.property.name.trim() || !form.property.tagline.trim()}
-                  title={!form.property.tagline.trim() ? "Selecione o tipo do guia para continuar" : undefined}
+                  disabled={saving}
                 >
 
                   {saving ? <Loader2 className="size-4 animate-spin" /> : null}
@@ -1478,6 +1669,9 @@ function PropertyEditor() {
         <TabsContent value="house" className="space-y-4 mt-6">
           <SectionGroup>
 
+          {renderOwnerSection()}
+
+
           {renderPropertyTypeSection()}
 
 
@@ -1487,39 +1681,11 @@ function PropertyEditor() {
           {renderAirbnbCalendarSection()}
 
 
-          <Section id="house-rules" icon={ClipboardCheck} title="Regras do espaço" desc="Uma regra por linha — cada linha vira um item numerado no guia." collapsible>
-            <Field label="Regras (opcional)" hint="Uma regra por linha. Linhas em branco são ignoradas.">
-              <TagMentionTextarea items={tagItems} value={form.property.house_rules} maxLength={3000} rows={6} onChange={(e) => update("house_rules", e.target.value)} placeholder={"Não é permitido fumar dentro do imóvel.\nFestas e eventos não são permitidos.\nRespeite o silêncio das 22h às 8h."} />
-            </Field>
-          </Section>
+          {renderHouseRulesSection()}
 
-          <Section id="manual" icon={BookOpen} title="Manual da casa" desc="Instruções de equipamentos e funcionamento." collapsible>
-            {form.manual.length === 0 ? (
-              <EmptyHint text="Nenhum item ainda. Adicione instruções para ar-condicionado, TV, fechadura, etc." />
-            ) : form.manual.map((m, i) => (
-              <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, manual: f.manual.filter((_, j) => j !== i) }))}>
-                <Input placeholder="Título (ex: Ar-condicionado)" value={m.title} maxLength={120} onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, title: e.target.value } : x) }))} />
-                <Input placeholder="Descrição curta" value={m.description} maxLength={300} onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, description: e.target.value } : x) }))} />
-                <TagMentionTextarea items={tagItems} placeholder="Instruções detalhadas" value={m.body} maxLength={4000} onChange={(e) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => j === i ? { ...x, body: e.target.value } : x) }))} />
-                <ManualItemImages
-                  images={m.images}
-                  propertyId={id}
-                  onChange={(next) => setForm((f) => ({ ...f, manual: f.manual.map((x, j) => (j === i ? { ...x, images: next } : x)) }))}
-                />
-              </ItemCard>
-            ))}
-            <div className="pt-1">
-              <AddBtn onClick={() => setForm((f) => ({ ...f, manual: [...f.manual, { title: "", description: "", body: "", images: [] }] }))} />
-            </div>
-          </Section>
+          {renderManualSection()}
 
-          <Section id="property-details" icon={NotebookPen} title="Detalhamento do Imóvel" desc="Base de conhecimento livre: micro detalhes que a IA usa e que não aparecem no guia." collapsible>
-            {isNew ? (
-              <EmptyHint text="Salve o guia primeiro para começar o detalhamento do imóvel." />
-            ) : (
-              <PropertyDetailsEditor propertyId={id} />
-            )}
-          </Section>
+          {renderPropertyDetailsSection()}
 
           {renderHostContactSection()}
 

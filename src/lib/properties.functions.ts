@@ -152,6 +152,10 @@ const PropertyInput = z.object({
   airbnb_listing_url: HttpsUrl,
   property_type_id: z.string().uuid().optional().nullable(),
   guide_created: z.boolean().default(false),
+  // Proprietário (property_owners) ao qual este imóvel pertence — regra:
+  // "sem imóvel [vinculado a um proprietário], sem guia". Validado no
+  // handler de upsertProperty (ver checagem abaixo).
+  owner_contact_id: z.string().uuid().optional().nullable(),
 });
 
 
@@ -722,6 +726,31 @@ export const upsertProperty = createServerFn({ method: "POST" })
       propertyData.brand_logo_url = null;
     }
 
+    // Regra: "sem imóvel [vinculado a um proprietário cadastrado], sem guia".
+    // Trava no backend (além do gate na UI) para que nenhum caminho — direto
+    // por aqui, futuros botões, etc. — consiga salvar um imóvel órfão.
+    if (!propertyData.owner_contact_id) {
+      throw new Error(
+        "Este imóvel precisa estar vinculado a um proprietário. Selecione um proprietário cadastrado em Stakeholders → Proprietários antes de salvar.",
+      );
+    }
+    {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: ownerRow, error: ownerErr } = await supabaseAdmin
+        .from("property_owners")
+        .select("id")
+        .eq("id", propertyData.owner_contact_id)
+        .eq("account_owner_id", effectiveOwnerId)
+        .eq("status", "active")
+        .maybeSingle();
+      if (ownerErr) throw new Error("Não foi possível validar o proprietário selecionado.");
+      if (!ownerRow) {
+        throw new Error(
+          "Proprietário inválido ou não pertence a esta conta. Selecione um proprietário cadastrado em Stakeholders → Proprietários.",
+        );
+      }
+    }
+
     // Um guia só pode *passar* a publicado com todos os campos obrigatórios
     // preenchidos. Um guia que já está publicado nunca é despublicado em
     // silêncio por um salvamento comum (isso derrubaria o link público sem
@@ -964,6 +993,13 @@ export const duplicateProperty = createServerFn({ method: "POST" })
       .maybeSingle();
     if (srcErr) throw (await import("@/lib/db-errors.server")).safeDbError("properties", srcErr);
     if (!src) throw new Error("Guia de origem não encontrado.");
+    // Regra: "sem imóvel [vinculado a um proprietário], sem guia" — a cópia
+    // herda o mesmo proprietário do original, então o original precisa ter um.
+    if (!(src as { owner_contact_id?: string | null }).owner_contact_id) {
+      throw new Error(
+        "Vincule um proprietário a este imóvel antes de duplicá-lo (abra o imóvel e vincule em Stakeholders → Proprietários).",
+      );
+    }
     const sourceOwnerId = (src as { owner_id: string }).owner_id;
 
     // Plan gate — usa o plano do DONO da propriedade fonte (para membros de equipe).

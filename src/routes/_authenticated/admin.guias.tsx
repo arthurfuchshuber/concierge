@@ -707,7 +707,18 @@ function Dashboard() {
                 </div>
               ))}
             </div>
-            <Button className="mt-5 rounded-full" onClick={goCreate} disabled={!sub.plan}>
+            <Button
+              className="mt-5 rounded-full"
+              onClick={goCreate}
+              disabled={!sub.plan || noOwners}
+              title={
+                !sub.plan
+                  ? "Assine um plano para criar guias"
+                  : noOwners
+                    ? "Cadastre um proprietário em Stakeholders antes de criar guias"
+                    : undefined
+              }
+            >
               <Plus className="size-4 mr-1.5" /> Criar meu primeiro guia
             </Button>
           </div>

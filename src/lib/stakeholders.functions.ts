@@ -537,6 +537,29 @@ export const countPropertyOwners = createServerFn({ method: "GET" })
     return { count: count ?? 0 };
   });
 
+// Lista enxuta de proprietários ativos, para o seletor obrigatório na
+// criação/edição de imóvel (sem imóvel vinculado a um proprietário, sem guia).
+export const listActivePropertyOwnersForSelect = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId);
+    const { data, error } = await supabase
+      .from("property_owners")
+      .select("id, name, trade_name")
+      .eq("account_owner_id", accountId)
+      .eq("status", "active")
+      .order("name", { ascending: true });
+    if (error) throw new Error(error.message);
+    return {
+      owners: (data ?? []).map((o) => ({
+        id: o.id as string,
+        name: (o.trade_name as string | null) || (o.name as string),
+      })),
+    };
+  });
+
 /**
  * Situação do cadastro com a data informada pelo usuário.
  * - "canceled" com data futura vira "canceling" (amarelo) e só é confirmado depois.
