@@ -1667,7 +1667,6 @@ function OccupancyPanel({
   const MOBILE_DAYS = 5;
   const MIN_DAY_W = 38; // largura mínima por coluna no desktop
   const outerRef = useRef<HTMLDivElement | null>(null);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
   const [dayW, setDayW] = useState(40);
   const [visibleDays, setVisibleDays] = useState(MOBILE_DAYS);
   const dotSize = Math.max(18, Math.min(28, dayW - 6));
@@ -1736,6 +1735,12 @@ function OccupancyPanel({
       );
   }, [properties, ownerFilter, cityFilter]);
 
+  // Mostra no máximo 5 imóveis SEM cortar nenhuma linha ao meio — mesma
+  // lógica de "N itens inteiros" já usada nas listas do Kanban
+  // (useWholeCardsMaxHeight): mede a altura real de cada linha e trava o
+  // quadro exatamente no fim da 5ª, sobrando scroll pro resto.
+  const list = useWholeCardsMaxHeight(5, `${visibleProperties.length}:${loading}:${dayW}`);
+
   const startChanged = !!defaultStart && start !== defaultStart;
   const activeFilters = (ownerFilter ? 1 : 0) + (cityFilter ? 1 : 0) + (startChanged ? 1 : 0);
 
@@ -1781,8 +1786,10 @@ function OccupancyPanel({
   return (
     <>
       {/* Filtros ficam FORA do quadro, alinhados à direita — mesma posição,
-          altura e estilo do filtro "Hoje" do Kanban. */}
-      <div className="flex items-center justify-end pb-4">
+          altura e estilo do filtro "Hoje" do Kanban. Espaçamento até o
+          quadro do calendário igual ao espaçamento entre os cards da
+          página (gap-1.5/space-y-1.5 = 6px), não um valor à parte. */}
+      <div className="flex items-center justify-end pb-1.5">
         <Popover>
           <PopoverTrigger asChild>
             <button
@@ -1869,8 +1876,13 @@ function OccupancyPanel({
             <>
               <div ref={outerRef} className="w-full">
                 <div
-                  ref={scrollRef}
-                  style={{ scrollPaddingLeft: NAME_COL, width: viewportW, maxWidth: "100%" }}
+                  ref={list.ref}
+                  style={{
+                    scrollPaddingLeft: NAME_COL,
+                    width: viewportW,
+                    maxWidth: "100%",
+                    ...(list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : {}),
+                  }}
                   className="sg-elegant-scroll max-h-[22rem] overflow-auto snap-x snap-mandatory"
                 >
                   <table
@@ -1917,7 +1929,7 @@ function OccupancyPanel({
                         const halves = dayList.flatMap((d) => cellHalves(p.id, d));
                         const occ = halves.map((h) => h !== "free");
                         return (
-                          <tr key={p.id} className="group">
+                          <tr key={p.id} data-whole-card className="group">
                             <td
                               className="sticky left-0 z-10 bg-card py-1 pr-3 align-middle"
                               style={{ width: NAME_COL, minWidth: NAME_COL }}
@@ -2401,7 +2413,17 @@ function ArrivalCard({
   const predictedMinDate = row.ical.icalCheckin ?? originalCheckinRef.current;
   const predictedMaxDate = addDaysISO(row.ical.icalCheckout ?? row.guestCheckout, -1) ?? null;
   const todayISO = todayISOSaoPaulo();
-  const isOverdue = row.date < todayISO;
+  // "Atrasado" só faz sentido pra uma ação ainda PENDENTE cuja data já
+  // passou (ex.: check-in que devia ter acontecido ontem e ninguém marcou).
+  // Uma vez concluída (row.status === "done"), a data no passado é só
+  // histórico — em "Em Estadia" o check-in sempre tem data passada (é assim
+  // que o hóspede está hospedado agora) e isso não é atraso nenhum. Sem essa
+  // checagem, todo card que entrava em "Em Estadia" (ou "Em Limpeza", que
+  // também segue "ativo" com status done) ficava marcado como atrasado pra
+  // sempre, mesmo já concluído. "Data futura" continua podendo aparecer
+  // mesmo já concluído (ex.: check-in antecipado pra uma data que ainda não
+  // chegou) — esse comportamento não muda.
+  const isOverdue = row.date < todayISO && !done;
   const isFuture = row.date > todayISO;
   const blockReason = kind === "checkin" && !done && !isFuture ? (cleaningBlocked ?? null) : null;
   const cleaningBlock = blockReason !== null;

@@ -181,7 +181,9 @@ function bodyByCity(counts: Map<string, number>, suffix: string): string {
  *  2. 07h — quantos check-ins ocorrem hoje
  *  3. a cada 30min — check-outs atrasados (passou do horário oficial, sem "check")
  *  4. a cada 1h após o horário de check-in — check-ins ainda pendentes
- *  5. atraso grave (check-out +2h / check-in +3h) vira alerta crítico — e nesse
+ *  5. a cada 2h (em hora cheia), o dia todo — cards "Em Limpeza" ainda sem
+ *     confirmação, independentemente de horário de checkin/checkout.
+ *  6. atraso grave (check-out +2h / check-in +3h) vira alerta crítico — e nesse
  *     caso o aviso "normal" correspondente NÃO é enviado (evita push duplicado).
  */
 export async function runOpsPushScan(admin: Admin, now = new Date()) {
@@ -189,10 +191,14 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
   const today = t.date;
   const { buildArrivalRows } = await import("@/lib/arrival-board.server");
 
+  // SEM filtro de `published`: essa varredura precisa enxergar EXATAMENTE os
+  // mesmos imóveis que aparecem no Kanban/Dashboard operacional, que não
+  // filtra por publicação do guia (um imóvel duplicado nasce com
+  // published=false, e um imóvel pode ficar despublicado temporariamente
+  // durante uma edição — em nenhum dos dois casos ele para de operar).
   const { data: propsRaw } = await admin
     .from("properties")
-    .select("id, owner_id, name, city, checkin_time, checkout_time")
-    .eq("published", true);
+    .select("id, owner_id, name, city, checkin_time, checkout_time");
   const props = (propsRaw ?? []) as PropRow[];
   if (props.length === 0) return { ownersNotified: 0, notifications: 0 };
 
@@ -211,7 +217,14 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
   let notifications = 0;
   const owners = new Set<string>();
 
-  for (const [ownerId, ownerProps] of propsByOwner) {
+  // Proprietários são processados em PARALELO (não mais um por vez, em
+  // sequência): cada um é totalmente independente (própria query, próprio
+  // dedupe), e a varredura roda em contas com muitos proprietários — a
+  // versão sequencial somava o tempo de todo mundo e estourava o timeout de
+  // 5s do pg_net (chamada do cron via net.http_post), fazendo o cron
+  // "desistir" antes do fim mesmo com o endpoint funcionando normalmente.
+  await Promise.all(
+    Array.from(propsByOwner.entries()).map(async ([ownerId, ownerProps]) => {
     const propById = new Map(ownerProps.map((p) => [p.id, p]));
     const propIds = ownerProps.map((p) => p.id);
 
@@ -356,8 +369,25 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
         data: { url, tag: "ops-checkins-pending" },
       });
     }
-  }
 
+    // 5. a cada 2h (em hora cheia) — cards "Em Limpeza" (checkout já
+    // confirmado, faxina ainda sem "concluir"), o dia todo, sem depender de
+    // horário de checkin/checkout — mesma lista "Liberado para Limpeza" do
+    // Kanban: checkoutToday.rows com status "done" (buildArrivalRows já
+    // exclui o que tem concluded_at, ou seja, já saiu de "Em Limpeza").
+    const cleaningPendingRows = checkoutToday.rows.filter((r) => r.status === "done" && !isMuted(r));
+    if (cleaningPendingRows.length > 0 && t.hour % 2 === 0 && t.minute < 30) {
+      const byCity = new Map<string, number>();
+      for (const r of cleaningPendingRows) tally(byCity, cityOf(r.propertyId, r.propertyName));
+      const n = cleaningPendingRows.length;
+      await fire("cleaning-pending", `cleaning-pending:${ownerId}:${slotHour}`, {
+        title: `🧹 ${n} ${plural(n, "imóvel em limpeza", "imóveis em limpeza")}`,
+        body: bodyByCity(byCity, "Ainda sem confirmação de limpeza concluída."),
+        data: { url, tag: "ops-cleaning-pending" },
+      });
+    }
+    }),
+  );
 
   return {
     ownersNotified: owners.size,
