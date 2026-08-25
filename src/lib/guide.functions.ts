@@ -131,7 +131,9 @@ export const getPublicGuide = createServerFn({ method: "POST" })
       gate_code_set: !!(gate_code && String(gate_code).trim()),
     };
 
-    const safeProp = { ...prop, ...credsPublic, ...protectedCodes, ...setFlags, hasAccessPin, accessUnlocked };
+    // owner_id é uso interno (plano/dono) e nunca deve chegar ao hóspede.
+    const { owner_id: _ownerId, ...propPublic } = prop as Record<string, unknown>;
+    const safeProp = { ...propPublic, ...credsPublic, ...protectedCodes, ...setFlags, hasAccessPin, accessUnlocked };
     const children = await loadFullGuide(supabaseAdmin, prop.id);
     const { signPropertyImages } = await import("@/lib/storage.server");
     const signedProp = await signPropertyImages(supabaseAdmin, safeProp);
