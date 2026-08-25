@@ -42,7 +42,7 @@
       {
         "name": "get_property",
         "title": "Get property details",
-        "description": "Fetch full details for one property (guide) owned by the signed-in user. Accepts either the id (UUID) or the slug.",
+        "description": "Fetch details for one property (guide) owned by the signed-in user — guide content and settings only. Does NOT return physical access codes (Wi-Fi password, gate/lock codes, access PIN); use the *_set booleans to check whether they're configured. Accepts either the id (UUID) or the slug.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
