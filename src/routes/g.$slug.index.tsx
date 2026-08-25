@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getPublicGuide, submitPin, submitAccessPin } from "@/lib/guide.functions";
-import { getGuideStayStatus, markGuideStayStep, validateGuideReservationCode } from "@/lib/guide-access.functions";
+import { getGuideStayStatus, markGuideStayStep, getReservationLiveStatus } from "@/lib/guide-access.functions";
 import { ETIQUETA_CHECKIN_CHECKOUT } from "@/lib/publish-requirements";
 import { trackGuideEvent } from "@/lib/guide-analytics.functions";
 import { useI18n } from "@/lib/i18n";
@@ -524,7 +524,7 @@ function Guide({ data }: { data: GuideOk }) {
   // ativo no calendário do Airbnb (cancelamento, alteração de datas ou
   // checkout), o acesso é derrubado imediatamente para todos os aparelhos
   // que entraram com aquela reserva.
-  const revalidateCode = useServerFn(validateGuideReservationCode);
+  const revalidateCode = useServerFn(getReservationLiveStatus);
   useEffect(() => {
     if (isPreview || !reservationCodeGate) return;
     const codeValue = accessRec?.code?.trim();
@@ -533,7 +533,9 @@ function Guide({ data }: { data: GuideOk }) {
     const check = async () => {
       try {
         const r = await revalidateCode({ data: { slug, property_id: p.id, code: codeValue } });
-        if (cancelled || r.ok) return;
+        // active === null ⇒ estado desconhecido (sem iCal, imóvel indisponível
+        // no momento, rate-limit): nunca derruba o hóspede.
+        if (cancelled || r.active !== false) return;
         clearAccessRecord(slug);
         setAccessRec(null);
         toast.error("Sua reserva não está mais ativa. O acesso a este guia foi encerrado.");
