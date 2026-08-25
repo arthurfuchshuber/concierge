@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getPublicGuide, submitPin, submitAccessPin } from "@/lib/guide.functions";
-import { getGuideStayStatus, markGuideStayStep, validateGuideReservationCode } from "@/lib/guide-access.functions";
+import { getGuideStayStatus, markGuideStayStep, getReservationLiveStatus } from "@/lib/guide-access.functions";
 import { ETIQUETA_CHECKIN_CHECKOUT } from "@/lib/publish-requirements";
 import { trackGuideEvent } from "@/lib/guide-analytics.functions";
 import { useI18n } from "@/lib/i18n";
