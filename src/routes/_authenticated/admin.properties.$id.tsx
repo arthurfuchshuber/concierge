@@ -3,7 +3,8 @@ import { useGuidePreviewUrl } from "@/hooks/useGuidePreviewUrl";
 import { useServerFn } from "@tanstack/react-start";
 import React, { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getMyProperty, upsertProperty, listMyProperties } from "@/lib/properties.functions";
+import { getMyProperty, upsertProperty, listMyProperties, transferPropertyOwner } from "@/lib/properties.functions";
+import { missingRequiredHouseFields } from "@/lib/property-house-fields";
 
 import { buildDefaultFaqs, mergeDefaultFaqs } from "@/lib/default-faqs";
 import { enrichFromMapsLink, searchPlacesForRec, refreshRecommendationsFromGoogle, type PlaceSearchResult } from "@/lib/maps.functions";
@@ -28,7 +29,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Section, SectionGroup, DenseSections } from "@/components/editor/Section";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, ImagePlus, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Power, Phone, HelpCircle, Sun, Moon, Lock, MessageSquare, LogOut, ChevronDown, Ticket, RefreshCw, Copy, Share2, X, MoveRight, ClipboardList, Car, IdCard, NotebookPen } from "lucide-react";
+import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, ImagePlus, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Power, Phone, HelpCircle, Sun, Moon, Lock, MessageSquare, LogOut, ChevronDown, Ticket, RefreshCw, Copy, Share2, X, MoveRight, ClipboardList, Car, IdCard, NotebookPen, ArrowLeftRight } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ImageUpload } from "@/components/ImageUpload";
 import { MediaUpload, type MediaItem } from "@/components/MediaUpload";
@@ -193,23 +194,10 @@ function isEtiqueta(value: string) {
   return (ETIQUETA_OPTIONS as readonly string[]).includes(value);
 }
 
-/**
- * Campos obrigatórios da aba "A casa" (dados básicos do imóvel): tipo do
- * imóvel, endereço completo e calendário do Airbnb. Compartilhado entre a
- * tela "Novo imóvel", a trava de informações pendentes e o "Salvar" do
- * editor completo — sempre a mesma lista, em todo lugar que salva o imóvel.
- * Proprietário é validado à parte (não é um campo de "A casa").
- */
-function missingRequiredHouseFields(p: FormState["property"]): string[] {
-  const missing: string[] = [];
-  if (!p.property_type_id) missing.push("Tipo do imóvel");
-  if (!p.maps_url.trim()) missing.push("Link do Google Maps (entrada principal)");
-  if (!p.address.trim()) missing.push("Endereço");
-  if (!p.city.trim()) missing.push("Cidade");
-  if (!p.country.trim()) missing.push("País");
-  if (!(p.airbnb_ical_url ?? "").trim()) missing.push("URL do calendário Airbnb");
-  return missing;
-}
+// missingRequiredHouseFields agora vive em "@/lib/property-house-fields" —
+// compartilhada também com PropertyQuickEditDialog (popup de edição rápida
+// dentro do Proprietário em Stakeholders), para as duas telas nunca mais
+// divergirem sobre quais campos são obrigatórios.
 
 function PropertyEditor() {
   const { id } = Route.useParams();
@@ -320,6 +308,31 @@ function PropertyEditor() {
     staleTime: 30_000,
   });
   const propertyOwnerOptions = ownersData?.owners ?? [];
+  const currentOwnerName = propertyOwnerOptions.find((o) => o.id === form.property.owner_contact_id)?.name;
+
+  // Transferência deliberada de proprietário — uma vez vinculado, o campo
+  // "Proprietário" fica travado (não é mais um <Select> livre) e só pode
+  // mudar através deste fluxo dedicado, com confirmação explícita.
+  const transferOwnerFn = useServerFn(transferPropertyOwner);
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferTargetId, setTransferTargetId] = useState<string>("");
+  const [transferring, setTransferring] = useState(false);
+  async function handleConfirmTransfer() {
+    if (!transferTargetId || isNew) return;
+    setTransferring(true);
+    try {
+      await transferOwnerFn({ data: { propertyId: id, newOwnerContactId: transferTargetId } });
+      update("owner_contact_id", transferTargetId);
+      await queryClient.invalidateQueries({ queryKey: ["properties"] });
+      toast.success("Proprietário transferido com sucesso.");
+      setTransferOpen(false);
+      setTransferTargetId("");
+    } catch (e) {
+      toast.error(friendlyErrorMessage(e, "Não foi possível transferir o proprietário."));
+    } finally {
+      setTransferring(false);
+    }
+  }
 
 
 
@@ -1356,35 +1369,89 @@ function PropertyEditor() {
   // Proprietário (property_owners) — regra: sem imóvel vinculado a um
   // proprietário cadastrado, sem guia. Compartilhado entre a tela "Novo
   // imóvel", a trava de informações pendentes e a aba "A casa".
-  const renderOwnerSection = () => (
-          <Section id="owner" icon={UserRound} title="Proprietário" desc="A quem este imóvel pertence — obrigatório." collapsible={false}>
-            <Field label="Proprietário" required>
-              <Select
-                value={form.property.owner_contact_id ?? ""}
-                onValueChange={(v) => update("owner_contact_id", v || null)}
-                disabled={ownersLoading || propertyOwnerOptions.length === 0}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={ownersLoading ? "Carregando…" : "Selecione um proprietário"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {propertyOwnerOptions.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {propertyOwnerOptions.length === 0 && !ownersLoading && (
-                <p className="mt-1.5 text-xs text-amber-500">
-                  Nenhum proprietário cadastrado.{" "}
-                  <Link to="/admin/stakeholders" search={{ tab: "proprietarios" as const }} className="underline underline-offset-2">
-                    Cadastre um em Stakeholders
-                  </Link>{" "}
-                  antes de continuar.
+  const renderOwnerSection = () => {
+    const hasOwner = !isNew && !!form.property.owner_contact_id;
+    return (
+          <Section id="owner" icon={UserRound} title="Proprietário" desc="A quem este imóvel pertence — obrigatório." collapsible>
+            {hasOwner ? (
+              <Field label="Proprietário">
+                <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/30 px-3 py-2.5">
+                  <span className="inline-flex items-center gap-2 text-sm min-w-0">
+                    <Lock className="size-3.5 shrink-0 text-muted-foreground" />
+                    <span className="truncate">{currentOwnerName ?? "Proprietário vinculado"}</span>
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    disabled={readOnly}
+                    onClick={() => { setTransferTargetId(""); setTransferOpen(true); }}
+                  >
+                    <ArrowLeftRight className="size-3.5 mr-1.5" /> Transferir
+                  </Button>
+                </div>
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  O proprietário só pode ser alterado através do botão "Transferir", com confirmação.
                 </p>
-              )}
-            </Field>
+              </Field>
+            ) : (
+              <Field label="Proprietário" required>
+                <Select
+                  value={form.property.owner_contact_id ?? ""}
+                  onValueChange={(v) => update("owner_contact_id", v || null)}
+                  disabled={ownersLoading || propertyOwnerOptions.length === 0}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={ownersLoading ? "Carregando…" : "Selecione um proprietário"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {propertyOwnerOptions.map((o) => (
+                      <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {propertyOwnerOptions.length === 0 && !ownersLoading && (
+                  <p className="mt-1.5 text-xs text-amber-500">
+                    Nenhum proprietário cadastrado.{" "}
+                    <Link to="/admin/stakeholders" search={{ tab: "proprietarios" as const }} className="underline underline-offset-2">
+                      Cadastre um em Stakeholders
+                    </Link>{" "}
+                    antes de continuar.
+                  </p>
+                )}
+              </Field>
+            )}
+            <Dialog open={transferOpen} onOpenChange={(o) => { if (!transferring) setTransferOpen(o); }}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Transferir proprietário</DialogTitle>
+                </DialogHeader>
+                <p className="text-sm text-muted-foreground">
+                  Escolha o novo proprietário para <strong>{form.property.name || "este imóvel"}</strong>. O proprietário atual ({currentOwnerName ?? "vinculado"}) perde o vínculo com este imóvel.
+                </p>
+                <Select value={transferTargetId} onValueChange={setTransferTargetId} disabled={ownersLoading || transferring}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={ownersLoading ? "Carregando…" : "Selecione o novo proprietário"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {propertyOwnerOptions.filter((o) => o.id !== form.property.owner_contact_id).map((o) => (
+                      <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <Button type="button" variant="outline" disabled={transferring} onClick={() => setTransferOpen(false)}>Cancelar</Button>
+                  <Button type="button" disabled={!transferTargetId || transferring} onClick={handleConfirmTransfer}>
+                    {transferring ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
+                    Confirmar transferência
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </Section>
-  );
+    );
+  };
 
   const renderHouseRulesSection = () => (
           <Section id="house-rules" icon={ClipboardCheck} title="Regras do espaço" desc="Uma regra por linha — cada linha vira um item numerado no guia." collapsible>
@@ -1453,8 +1520,10 @@ function PropertyEditor() {
   // já publicado, até completar. Só se aplica depois que o guia já foi criado
   // (`guide_created`): antes disso, é a própria tela enxuta "Novo imóvel" —
   // logo abaixo — que já pede e valida esses mesmos campos.
+  const missingOwner = !isNew && !form.property.owner_contact_id;
   const missingHouseFields = form.property.guide_created ? missingRequiredHouseFields(form.property) : [];
-  const needsRequiredHouseInfo = !isNew && form.property.guide_created && missingHouseFields.length > 0;
+  const allMissingRequiredFields = [...(missingOwner ? ["Proprietário"] : []), ...missingHouseFields];
+  const needsRequiredHouseInfo = !isNew && form.property.guide_created && (missingOwner || missingHouseFields.length > 0);
 
   if (needsRequiredHouseInfo) {
     async function handleCompleteHouseInfo() {
@@ -1468,7 +1537,7 @@ function PropertyEditor() {
         <PageHeader
           className="mb-6 pb-4 border-b border-border/60"
           title="Complete as informações do imóvel"
-          subtitle={`"${form.property.name || "Este imóvel"}" está com informações obrigatórias pendentes: ${missingHouseFields.join(", ")}. Complete para continuar editando.`}
+          subtitle={`"${form.property.name || "Este imóvel"}" está com informações obrigatórias pendentes: ${allMissingRequiredFields.join(", ")}. Complete para continuar editando.`}
           actions={<PresenceAvatars users={presence.users} />}
         />
         <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">

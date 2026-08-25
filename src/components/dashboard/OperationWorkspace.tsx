@@ -156,7 +156,11 @@ function InfoHint({ title, children }: { title: string; children: React.ReactNod
   );
 }
 
-export type OperationView = "resumo" | "kanban" | "calendario";
+// O calendário de ocupação (antes uma aba própria, "calendario") passou a
+// viver dentro do "resumo" (Dashboard) — ver <OccupancyPanel> logo abaixo
+// dos cards, no bloco "view === 'resumo'". A rota /admin/dashboard/calendario
+// agora só redireciona pra lá; não existe mais uma tela própria pra ela.
+export type OperationView = "resumo" | "kanban";
 
 export function OperationWorkspace({ view }: { view: OperationView }) {
   const engFn = useServerFn(getGuideEngagement);
@@ -701,7 +705,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               </div>
             ) : null}
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5">
+            <div className="grid grid-cols-2 gap-1.5">
               <KpiCard
                 label="Check-ins amanhã"
                 rows={tomorrowCheckinPendingRows}
@@ -726,6 +730,17 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 onEditTime={handleEditTime}
                 onAdvance={(r) => handleAdvance(r, "checkout")}
               />
+            </div>
+          </section>
+
+          {/* Engajamento do guia — volta a aparecer aqui embaixo, sempre, em
+              largura total (mobile e desktop). Versão discreta, sem cabeçalho. */}
+          {renderEngagementPanel("")}
+
+          {/* Estadia / Imóveis livres — abaixo do quadrante de Engajamento
+              (que só aparece quando há dados de visualização/códigos). */}
+          <section className="space-y-1.5">
+            <div className="grid grid-cols-2 gap-1.5">
               <KpiCard
                 label="Em Estadia"
                 rows={stayRows}
@@ -746,9 +761,19 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             </div>
           </section>
 
-          {/* Engajamento do guia — volta a aparecer aqui embaixo, sempre, em
-              largura total (mobile e desktop). Versão discreta, sem cabeçalho. */}
-          {renderEngagementPanel("")}
+          {/* Calendário de ocupação (com o botão "Filtros") — a aba própria
+              "Calendário" foi removida; este quadro é agora o único lugar
+              onde ele existe, ao final do Dashboard. */}
+          <OccupancyPanel
+            loading={occupancyQ.isLoading}
+            start={occupancyQ.data?.start ?? agendaStart}
+            days={occupancyQ.data?.days ?? 21}
+            properties={occupancyQ.data?.properties ?? []}
+            stays={occupancyQ.data?.stays ?? []}
+            checkedInPropertyIds={checkedInPropertyIds}
+            onStartChange={setAgendaStart}
+            defaultStart={todayISO}
+          />
         </>
       ) : null}
 
@@ -980,22 +1005,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         </>
       ) : null}
 
-      {view === "calendario" ? (
-        <>
-          {/* Agenda macro de ocupação — abaixo do quadro, como no mockup. */}
-          <OccupancyPanel
-            loading={occupancyQ.isLoading}
-            start={occupancyQ.data?.start ?? agendaStart}
-            days={occupancyQ.data?.days ?? 21}
-            properties={occupancyQ.data?.properties ?? []}
-            stays={occupancyQ.data?.stays ?? []}
-            checkedInPropertyIds={checkedInPropertyIds}
-            onStartChange={setAgendaStart}
-            defaultStart={todayISO}
-          />
-        </>
-      ) : null}
-
       <ConfirmActionDialog
         open={!!confirmAdvance}
         onOpenChange={(v) => {
@@ -1030,18 +1039,16 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   );
 }
 
-/* --------- Cabeçalho compartilhado das 3 telas de operação --------- */
+/* --------- Cabeçalho compartilhado das telas de operação --------- */
 
 const OPERATION_TABS = [
   { view: "resumo" as const, label: "Dashboard", to: "/admin/dashboard" },
   { view: "kanban" as const, label: "Kanban", to: "/admin/dashboard/kanban" },
-  { view: "calendario" as const, label: "Calendário", to: "/admin/dashboard/calendario" },
 ];
 
 const OPERATION_COPY: Record<OperationView, { title: string; subtitle: string }> = {
   resumo: { title: "Operação", subtitle: "Sua rotina diária: check-ins, checkouts e senhas." },
   kanban: { title: "Kanban", subtitle: "Cada reserva na etapa em que ela realmente está." },
-  calendario: { title: "Calendário", subtitle: "Ocupação dos imóveis dia a dia." },
 };
 
 function OperationShell({ view }: { view: OperationView }) {
@@ -1053,7 +1060,7 @@ function OperationShell({ view }: { view: OperationView }) {
         <p className="ds-page-subtitle mt-1.5">{copy.subtitle}</p>
       </div>
 
-      {/* Segmented control — Dashboard / Kanban / Calendário (largura da página) */}
+      {/* Segmented control — Dashboard / Kanban (largura da página) */}
       <nav className="mb-5 flex w-full overflow-hidden rounded-[0.3rem] bg-foreground/5">
         {OPERATION_TABS.map((t) => {
           const active = t.view === view;

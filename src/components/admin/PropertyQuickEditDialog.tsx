@@ -4,7 +4,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
   Loader2,
-  Sparkles,
   RefreshCw,
   Trash2,
   Home,
@@ -15,6 +14,8 @@ import {
   UserRound,
   Plus,
   ChevronDown,
+  Lock,
+  ArrowLeftRight,
 } from "lucide-react";
 import {
   ResponsiveDialog,
@@ -27,15 +28,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Section, SectionGroup } from "@/components/editor/Section";
-import { getPropertyForQuickEdit, upsertProperty } from "@/lib/properties.functions";
+import { getPropertyForQuickEdit, upsertProperty, transferPropertyOwner } from "@/lib/properties.functions";
 import { syncPropertyAirbnbIcal, listPropertyReservations } from "@/lib/airbnb-ical.functions";
 import { enrichFromMapsLink } from "@/lib/maps.functions";
+import { listActivePropertyOwnersForSelect } from "@/lib/stakeholders.functions";
+import { missingRequiredHouseFields } from "@/lib/property-house-fields";
 import { PropertyTypeSelect } from "@/components/admin/PropertyTypeSelect";
 import { PropertyDetailsEditor } from "@/components/admin/PropertyDetailsEditor";
 import { useRealtimeInvalidate } from "@/hooks/useRealtimeInvalidate";
 import { useAutosave } from "@/hooks/useAutosave";
 import { AutosaveIndicator } from "@/components/ui/autosave-indicator";
+import { friendlyErrorMessage } from "@/lib/friendly-error";
 
 
 function Field({
@@ -68,6 +74,14 @@ function EmptyHint({ text }: { text: string }) {
   );
 }
 
+function AddBtn({ onClick }: { onClick: () => void }) {
+  return (
+    <Button size="sm" variant="outline" onClick={onClick} className="shrink-0 rounded-full text-xs">
+      <Plus className="size-3.5" /> Adicionar
+    </Button>
+  );
+}
+
 function ItemCard({ children, onRemove }: { children: React.ReactNode; onRemove: () => void }) {
   return (
     <div className="group bg-background border border-border/60 rounded-xl p-3.5 pr-10 space-y-2.5 relative hover:border-border transition-colors">
@@ -92,6 +106,7 @@ type ManualItem = { title: string; description: string; body: string; images: st
 
 type Edited = {
   name: string;
+  owner_contact_id: string | null;
   property_type_id: string | null;
   maps_url: string;
   garage_maps_url: string;
@@ -109,9 +124,12 @@ type Edited = {
 
 /**
  * Edição do imóvel em popup — espelho EXATO da aba "A casa" do editor
- * completo: mesmas seções, mesma ordem, mesmos campos (tipo, endereço,
- * calendário Airbnb, regras do espaço, manual da casa, detalhamento do
- * imóvel e contato do anfitrião).
+ * completo: mesmas seções, mesma ordem, mesmos campos (proprietário, tipo,
+ * endereço, calendário Airbnb, regras do espaço, manual da casa,
+ * detalhamento do imóvel e contato do anfitrião), incluindo a mesma
+ * validação de campos obrigatórios (missingRequiredHouseFields,
+ * compartilhada com admin.properties.$id.tsx) e a mesma trava do campo
+ * Proprietário (só muda via "Transferir", nunca por edição direta).
  *
  * Carrega via getPropertyForQuickEdit (SEM assinar imagens) e reenvia o
  * restante do imóvel (fotos, checkin, checkout, FAQ, recomendações) intacto.
@@ -131,12 +149,25 @@ export function PropertyQuickEditDialog({
   const syncFn = useServerFn(syncPropertyAirbnbIcal);
   const enrichFn = useServerFn(enrichFromMapsLink);
   const reservationsFn = useServerFn(listPropertyReservations);
+  const listOwnersFn = useServerFn(listActivePropertyOwnersForSelect);
+  const transferOwnerFn = useServerFn(transferPropertyOwner);
 
   const { data, isLoading } = useQuery({
     queryKey: ["property-quick-edit", propertyId],
     queryFn: () => fetchFn({ data: { id: propertyId } }),
     enabled: open,
   });
+
+  // Proprietários ativos da conta — mesmo seletor/trava usados na aba "A
+  // casa" do editor completo (regra: sem imóvel vinculado a um proprietário
+  // cadastrado, sem guia; e, uma vez vinculado, só muda via "Transferir").
+  const { data: ownersData, isLoading: ownersLoading } = useQuery({
+    queryKey: ["property-owners-select"],
+    queryFn: () => listOwnersFn(),
+    enabled: open,
+    staleTime: 30_000,
+  });
+  const propertyOwnerOptions = ownersData?.owners ?? [];
 
   const reservationsQuery = useQuery({
     queryKey: ["property-reservations", propertyId],
@@ -150,10 +181,36 @@ export function PropertyQuickEditDialog({
   const [syncing, setSyncing] = useState(false);
   const [enriching, setEnriching] = useState(false);
   const [showIcal2, setShowIcal2] = useState(false);
+  const enrichedUrlRef = useRef<string | null>(null);
   // Mesma proteção aplicada na tela cheia do imóvel: se há edição local não
   // salva, um refetch (seja por Realtime, seja pelo React Query) não pode
   // sobrescrever silenciosamente o que a pessoa está digitando neste popup.
   const dirtyRef = useRef(false);
+
+  // Transferência deliberada de proprietário — mesmo fluxo da aba "A casa":
+  // uma vez vinculado, o campo fica travado e só muda por aqui, com
+  // confirmação explícita (nunca por edição direta do Select).
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferTargetId, setTransferTargetId] = useState<string>("");
+  const [transferring, setTransferring] = useState(false);
+  const currentOwnerName = propertyOwnerOptions.find((o) => o.id === edited?.owner_contact_id)?.name;
+  async function handleConfirmTransfer() {
+    if (!transferTargetId) return;
+    setTransferring(true);
+    try {
+      await transferOwnerFn({ data: { propertyId, newOwnerContactId: transferTargetId } });
+      upd("owner_contact_id", transferTargetId);
+      qc.invalidateQueries({ queryKey: ["property", propertyId] });
+      qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === "stakeholder-detail" });
+      toast.success("Proprietário transferido com sucesso.");
+      setTransferOpen(false);
+      setTransferTargetId("");
+    } catch (e) {
+      toast.error(friendlyErrorMessage(e, "Não foi possível transferir o proprietário."));
+    } finally {
+      setTransferring(false);
+    }
+  }
 
   // Instantâneo pra quem tiver este popup aberto enquanto o mesmo imóvel é
   // alterado em outro lugar (tela cheia, outro usuário, etc.) — sem isto, o
@@ -183,6 +240,7 @@ export function PropertyQuickEditDialog({
     const p = data.property as Record<string, unknown>;
     setEdited({
       name: (p.name as string) ?? "",
+      owner_contact_id: (p.owner_contact_id as string | null) ?? null,
       property_type_id: (p.property_type_id as string | null) ?? null,
       maps_url: (p.maps_url as string) ?? "",
       garage_maps_url: (p.garage_maps_url as string) ?? "",
@@ -205,6 +263,9 @@ export function PropertyQuickEditDialog({
         images: Array.isArray(m.images) ? (m.images as string[]) : [],
       })),
     );
+    // Não dispara o auto-preenchimento de endereço pra um link que já veio
+    // preenchido do banco — só quando a pessoa cola/edita um link novo.
+    enrichedUrlRef.current = ((p.maps_url as string) ?? "").trim() || null;
     dirtyRef.current = false;
   }, [data]);
 
@@ -243,6 +304,22 @@ export function PropertyQuickEditDialog({
     }
   }
 
+  // Auto-preenchimento: dispara sozinho assim que um link válido do Maps é
+  // colado/digitado — mesmo comportamento da aba "A casa" do editor completo
+  // (sem botão manual de "Auto-preencher").
+  useEffect(() => {
+    const url = (edited?.maps_url || "").trim();
+    if (!url || !/^https?:\/\/\S+$/i.test(url) || !/(google\.[a-z.]+\/maps|maps\.app\.goo\.gl|goo\.gl\/maps)/i.test(url)) return;
+    if (enrichedUrlRef.current === url) return;
+    if (enriching) return;
+    const t = setTimeout(() => {
+      enrichedUrlRef.current = url;
+      void handleEnrich();
+    }, 250);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [edited?.maps_url, enriching]);
+
   async function handleSync() {
     if (!edited?.airbnb_ical_url?.trim()) {
       toast.error("Cole a URL do calendário Airbnb antes.");
@@ -270,9 +347,23 @@ export function PropertyQuickEditDialog({
   async function persist(opts?: { silent?: boolean }) {
     const silent = opts?.silent ?? false;
     if (!edited || !data) return;
-    if (!edited.name.trim()) {
-      if (!silent) toast.error("Informe o nome do imóvel.");
-      return;
+    if (!silent) {
+      // Mesma validação (mesma mensagem, mesma lista de campos) do "Salvar"
+      // da aba "A casa" no editor completo — as duas telas nunca podem
+      // divergir sobre o que é obrigatório.
+      if (!edited.name.trim()) {
+        toast.error("Informe o nome do imóvel.");
+        return;
+      }
+      if (!edited.owner_contact_id) {
+        toast.error("Selecione um proprietário para este imóvel.");
+        return;
+      }
+      const missing = missingRequiredHouseFields(edited);
+      if (missing.length > 0) {
+        toast.error(`Preencha antes de salvar: ${missing.join(", ")}.`);
+        return;
+      }
     }
     if (!silent) setSaving(true);
     try {
@@ -286,6 +377,7 @@ export function PropertyQuickEditDialog({
           ...(raw as Record<string, unknown>),
           name: edited.name.trim(),
           slug: (raw.slug as string) || slugify(edited.name),
+          owner_contact_id: edited.owner_contact_id,
           property_type_id: edited.property_type_id,
           maps_url: edited.maps_url || null,
           garage_maps_url: edited.garage_maps_url || null,
@@ -372,35 +464,106 @@ export function PropertyQuickEditDialog({
         ) : (
           <>
             <SectionGroup>
+              <Section id="owner" icon={UserRound} title="Proprietário" desc="A quem este imóvel pertence — obrigatório." collapsible>
+                {edited.owner_contact_id ? (
+                  <Field label="Proprietário">
+                    <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/30 px-3 py-2.5">
+                      <span className="inline-flex items-center gap-2 text-sm min-w-0">
+                        <Lock className="size-3.5 shrink-0 text-muted-foreground" />
+                        <span className="truncate">{currentOwnerName ?? "Proprietário vinculado"}</span>
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => { setTransferTargetId(""); setTransferOpen(true); }}
+                      >
+                        <ArrowLeftRight className="size-3.5 mr-1.5" /> Transferir
+                      </Button>
+                    </div>
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      O proprietário só pode ser alterado através do botão "Transferir", com confirmação.
+                    </p>
+                  </Field>
+                ) : (
+                  <Field label="Proprietário" required>
+                    <Select
+                      value={edited.owner_contact_id ?? ""}
+                      onValueChange={(v) => upd("owner_contact_id", v || null)}
+                      disabled={ownersLoading || propertyOwnerOptions.length === 0}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={ownersLoading ? "Carregando…" : "Selecione um proprietário"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {propertyOwnerOptions.map((o) => (
+                          <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {propertyOwnerOptions.length === 0 && !ownersLoading && (
+                      <p className="mt-1.5 text-xs text-amber-500">Nenhum proprietário cadastrado. Cadastre um em Stakeholders antes de continuar.</p>
+                    )}
+                  </Field>
+                )}
+                <Dialog open={transferOpen} onOpenChange={(o) => { if (!transferring) setTransferOpen(o); }}>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Transferir proprietário</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-muted-foreground">
+                      Escolha o novo proprietário para <strong>{edited.name || "este imóvel"}</strong>. O proprietário atual ({currentOwnerName ?? "vinculado"}) perde o vínculo com este imóvel.
+                    </p>
+                    <Select value={transferTargetId} onValueChange={setTransferTargetId} disabled={ownersLoading || transferring}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={ownersLoading ? "Carregando…" : "Selecione o novo proprietário"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {propertyOwnerOptions.filter((o) => o.id !== edited.owner_contact_id).map((o) => (
+                          <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex items-center justify-end gap-2 pt-2">
+                      <Button type="button" variant="outline" disabled={transferring} onClick={() => setTransferOpen(false)}>Cancelar</Button>
+                      <Button type="button" disabled={!transferTargetId || transferring} onClick={handleConfirmTransfer}>
+                        {transferring ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
+                        Confirmar transferência
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </Section>
+
               <Section id="qe-name" icon={Home} title="Nome do imóvel" desc="Como você identifica essa residência internamente." collapsible>
                 <Field label="Nome" required>
                   <Input value={edited.name} maxLength={80} onChange={(e) => upd("name", e.target.value)} />
                 </Field>
               </Section>
 
-              <Section id="property-type" icon={Home} title="Tipo do imóvel" desc="Ajuda a organizar seus imóveis — as opções são totalmente editáveis." collapsible>
+              <Section id="property-type" icon={Home} title="Tipo do imóvel" desc="Obrigatório. Ajuda a organizar seus imóveis — as opções são totalmente editáveis." collapsible>
                 <PropertyTypeSelect value={edited.property_type_id} onChange={(v) => upd("property_type_id", v)} />
               </Section>
 
-              <Section id="address" icon={MapPinned} title="Endereço e localização" desc="Cole o link do Google Maps e use Auto-preencher." collapsible>
+              <Section id="address" icon={MapPinned} title="Endereço e localização" desc="Cole o link do Google Maps — o endereço é preenchido automaticamente." collapsible>
                 <Field label="Link do Google Maps — Entrada principal" required>
-                  <div className="flex gap-2">
-                    <Input value={edited.maps_url} onChange={(e) => upd("maps_url", e.target.value)} placeholder="https://maps.app.goo.gl/..." />
-                    <Button onClick={handleEnrich} disabled={enriching} variant="secondary" className="shrink-0">
-                      {enriching ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-                      <span className="ml-1.5 hidden sm:inline">{enriching ? "Buscando…" : "Auto-preencher"}</span>
-                    </Button>
-                  </div>
+                  <Input value={edited.maps_url} onChange={(e) => upd("maps_url", e.target.value)} placeholder="https://maps.app.goo.gl/..." />
+                  {enriching && (
+                    <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Loader2 className="size-3.5 animate-spin" /> Buscando endereço…
+                    </p>
+                  )}
                 </Field>
                 <Field label="Link do Google Maps — Garagem (opcional)" hint="Aparece como um segundo botão de localização no guia.">
                   <Input value={edited.garage_maps_url} onChange={(e) => upd("garage_maps_url", e.target.value)} placeholder="https://maps.app.goo.gl/..." />
                 </Field>
-                <Field label="Endereço">
+                <Field label="Endereço" required>
                   <Input value={edited.address} onChange={(e) => upd("address", e.target.value)} />
                 </Field>
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Cidade"><Input value={edited.city} onChange={(e) => upd("city", e.target.value)} /></Field>
-                  <Field label="País"><Input value={edited.country} onChange={(e) => upd("country", e.target.value)} /></Field>
+                  <Field label="Cidade" required><Input value={edited.city} onChange={(e) => upd("city", e.target.value)} /></Field>
+                  <Field label="País" required><Input value={edited.country} onChange={(e) => upd("country", e.target.value)} /></Field>
                 </div>
                 <Field label="Observação sobre o endereço" hint="Ponto de referência, instruções para o motorista, etc.">
                   <Textarea value={edited.address_note} maxLength={1000} onChange={(e) => upd("address_note", e.target.value)} />
@@ -408,7 +571,7 @@ export function PropertyQuickEditDialog({
               </Section>
 
               <Section id="airbnb-calendar" icon={RefreshCw} title="Calendário e reservas (Airbnb)" desc="Sincronize para habilitar dashboard, calendário e kanban — funciona mesmo sem publicar um guia." collapsible>
-                <Field label="URL do calendário Airbnb" hint="No Airbnb: Anúncio → Calendário → Disponibilidade → Exportar calendário. Sincroniza a cada 30 minutos.">
+                <Field label="URL do calendário Airbnb" required hint="Obrigatório. No Airbnb: Anúncio → Calendário → Disponibilidade → Exportar calendário. Sincroniza a cada 30 minutos.">
                   <div className="flex gap-2">
                     <Input
                       value={edited.airbnb_ical_url ?? ""}
@@ -510,16 +673,6 @@ export function PropertyQuickEditDialog({
                 title="Manual da casa"
                 desc="Instruções de equipamentos e funcionamento."
                 collapsible
-                action={
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="shrink-0 h-8 rounded-full text-xs"
-                    onClick={() => setManual((m) => [...m, { title: "", description: "", body: "", images: [] }])}
-                  >
-                    <Plus className="size-3.5" /> Adicionar
-                  </Button>
-                }
               >
                 {manual.length === 0 ? (
                   <EmptyHint text="Nenhum item ainda. Adicione instruções para ar-condicionado, TV, fechadura, etc." />
@@ -547,6 +700,9 @@ export function PropertyQuickEditDialog({
                     </ItemCard>
                   ))
                 )}
+                <div className="pt-1">
+                  <AddBtn onClick={() => setManual((m) => [...m, { title: "", description: "", body: "", images: [] }])} />
+                </div>
               </Section>
 
               <Section id="property-details" icon={NotebookPen} title="Detalhamento do Imóvel" desc="Base de conhecimento livre: micro detalhes que a IA usa e que não aparecem no guia." collapsible>

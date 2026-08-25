@@ -1,21 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { OperationWorkspace } from "@/components/dashboard/OperationWorkspace";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
+// O calendário de ocupação deixou de ser uma aba própria e passou a viver
+// dentro da página "Dashboard" (final da tela, com o mesmo botão "Filtros").
+// Esta rota continua existindo só para não quebrar links/favoritos antigos —
+// quem cair aqui é levado direto pro Dashboard.
 export const Route = createFileRoute("/_authenticated/admin/dashboard/calendario")({
-  head: () => ({
-    meta: [
-      { title: "Calendário de ocupação — ConciergeIA" },
-      {
-        name: "description",
-        content: "Agenda de ocupação dos imóveis dia a dia, com chegadas, saídas e limpezas.",
-      },
-      { property: "og:title", content: "Calendário de ocupação — ConciergeIA" },
-      { property: "og:description", content: "Ocupação dos imóveis dia a dia." },
-    ],
-  }),
-  component: DashboardCalendario,
+  beforeLoad: async () => {
+    throw redirect({ to: "/admin/dashboard" });
+  },
 });
-
-function DashboardCalendario() {
-  return <OperationWorkspace view="calendario" />;
-}

@@ -866,6 +866,76 @@ export const upsertProperty = createServerFn({ method: "POST" })
   });
 
 
+/**
+ * Transferência DELIBERADA do proprietário (property_owners) de um imóvel —
+ * a ÚNICA forma de trocar quem é o dono depois que o imóvel já está
+ * vinculado a alguém. Uma vez definido, o campo fica travado no formulário
+ * normal (tela do imóvel, popup de edição rápida) — só este endpoint, com
+ * confirmação explícita, pode mudar o vínculo. Registra em audit_logs.
+ */
+export const transferPropertyOwner = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z.object({
+      propertyId: z.string().uuid(),
+      newOwnerContactId: z.string().uuid(),
+    }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(context.userId, "imoveis.editor.write", { propertyId: data.propertyId });
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: prop, error: propErr } = await supabaseAdmin
+      .from("properties")
+      .select("id, owner_id, owner_contact_id, name")
+      .eq("id", data.propertyId)
+      .maybeSingle();
+    if (propErr) throw (await import("@/lib/db-errors.server")).safeDbError("properties", propErr);
+    if (!prop) throw new Error("Imóvel não encontrado.");
+    const previousOwnerContactId = (prop as { owner_contact_id: string | null }).owner_contact_id;
+
+    const { data: newOwner, error: ownerErr } = await supabaseAdmin
+      .from("property_owners")
+      .select("id, name")
+      .eq("id", data.newOwnerContactId)
+      .eq("account_owner_id", (prop as { owner_id: string }).owner_id)
+      .eq("status", "active")
+      .maybeSingle();
+    if (ownerErr) throw new Error("Não foi possível validar o novo proprietário.");
+    if (!newOwner) {
+      throw new Error(
+        "Proprietário inválido ou não pertence a esta conta. Selecione um proprietário cadastrado em Stakeholders → Proprietários.",
+      );
+    }
+    if (previousOwnerContactId === data.newOwnerContactId) {
+      return { ok: true };
+    }
+
+    const { error: updErr } = await supabaseAdmin
+      .from("properties")
+      .update({ owner_contact_id: data.newOwnerContactId })
+      .eq("id", data.propertyId);
+    if (updErr) throw (await import("@/lib/db-errors.server")).safeDbError("properties", updErr);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabaseAdmin.from("audit_logs" as never) as any).insert({
+      user_id: context.userId,
+      user_email: (context as { claims?: { email?: string } }).claims?.email ?? null,
+      action: "property.owner_transferred",
+      entity_type: "properties",
+      entity_id: data.propertyId,
+      metadata: {
+        propertyName: (prop as { name: string }).name,
+        previousOwnerContactId,
+        newOwnerContactId: data.newOwnerContactId,
+        newOwnerName: (newOwner as { name: string }).name,
+      },
+    }).catch(() => { /* auditoria nunca bloqueia a transferência */ });
+
+    return { ok: true };
+  });
+
 export const deleteProperty = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({ id: z.string().uuid() }).parse(i))
