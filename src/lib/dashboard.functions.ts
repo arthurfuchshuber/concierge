@@ -1055,6 +1055,9 @@ export type OccupancyStay = {
   checkin: string;
   checkout: string | null;
   guest: string | null;
+  // Check-in já confirmado (guest_arrival_status kind="checkin" status="done")?
+  // Usado só pra colorir a agenda: pendente = azul claro, confirmado = verde.
+  checkinDone: boolean;
 };
 
 export const getOccupancyBoard = createServerFn({ method: "GET" })
@@ -1083,11 +1086,11 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
     const { syncStaleIcals } = await import("@/lib/arrival-board.server");
     await syncStaleIcals(context.supabase as never, propIds);
 
-    const [{ data: props }, { data: reservations }, { data: logs }] = await Promise.all([
+    const [{ data: props }, { data: reservations }, { data: logs }, { data: checkinStatuses }] = await Promise.all([
       context.supabase.from("properties").select("id, name, city, owner_contact_id").in("id", propIds).order("name"),
       context.supabase
         .from("property_reservations")
-        .select("property_id, checkin_date, checkout_date, guest_hint, status, raw_summary")
+        .select("id, property_id, checkin_date, checkout_date, guest_hint, status, raw_summary")
         .in("property_id", propIds)
         .eq("source", "airbnb")
         .lte("checkin_date", end)
@@ -1095,12 +1098,33 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
         .limit(5000),
       context.supabase
         .from("guide_access_logs")
-        .select("property_id, checkin_date, checkout_date, guest_name, reservation_code")
+        .select("id, property_id, checkin_date, checkout_date, guest_name, reservation_code")
         .in("property_id", propIds)
         .lte("checkin_date", end)
         .gte("checkout_date", start)
         .limit(5000),
+      // Status de check-in (pendente/confirmado) — usado só pra colorir a
+      // agenda (azul claro = pendente, verde = confirmado), mesma lógica do
+      // Kanban/getDashboardKpis.
+      context.supabase
+        .from("guest_arrival_status")
+        .select("log_id, reservation_id, status")
+        .eq("kind", "checkin")
+        .in("property_id", propIds)
+        .limit(5000),
     ]);
+
+    const doneCheckinRes = new Set<string>();
+    const doneCheckinLog = new Set<string>();
+    for (const s of (checkinStatuses ?? []) as Array<{
+      log_id: string | null;
+      reservation_id: string | null;
+      status: string;
+    }>) {
+      if (s.status !== "done") continue;
+      if (s.reservation_id) doneCheckinRes.add(s.reservation_id);
+      if (s.log_id) doneCheckinLog.add(s.log_id);
+    }
 
     const normalizeCode = (s: string | null | undefined): string | null => {
       if (!s) return null;
@@ -1109,6 +1133,7 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
     };
 
     const logRows = ((logs ?? []) as Array<{
+      id: string;
       property_id: string;
       checkin_date: string;
       checkout_date: string | null;
@@ -1118,6 +1143,7 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
 
     const stays: OccupancyStay[] = [];
     const reservationRows = ((reservations ?? []) as Array<{
+      id: string;
       property_id: string;
       checkin_date: string;
       checkout_date: string | null;
@@ -1148,6 +1174,7 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
         checkin: r.checkin_date,
         checkout: r.checkout_date,
         guest: match?.guest_name ?? r.guest_hint,
+        checkinDone: doneCheckinRes.has(r.id) || (!!match && doneCheckinLog.has(match.id)),
       });
     }
 
@@ -1167,6 +1194,7 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
         checkin: l.checkin_date,
         checkout: l.checkout_date,
         guest: l.guest_name,
+        checkinDone: doneCheckinLog.has(l.id),
       });
     }
 

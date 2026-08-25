@@ -665,7 +665,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 onRefresh={() => checkinListQ.refetch()}
                 kind="checkin"
                 rangeLabel={rangeLabel[range]}
-                shadowTone="emerald"
+                // Azul claro enquanto houver pendência, verde quando zerar —
+                // mesmo tom "in"/"in-pending" usado no calendário.
+                shadowTone={checkinPendingRows.length > 0 ? "sky" : "emerald"}
                 onEditTime={handleEditTime}
                 onAdvance={(r) => handleAdvance(r, "checkin")}
               />
@@ -678,7 +680,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 onRefresh={() => checkoutListQ.refetch()}
                 kind="checkout"
                 rangeLabel={rangeLabel[range]}
-                shadowTone="amber"
+                // Laranja (mesmo tom do "out" no calendário) enquanto houver
+                // pendência, verde quando zerar.
+                shadowTone={checkoutPendingRows.length > 0 ? "amber" : "emerald"}
                 onEditTime={handleEditTime}
                 onAdvance={(r) => handleAdvance(r, "checkout")}
               />
@@ -1286,7 +1290,7 @@ function KpiCard({
   onRefresh: () => void;
   kind: "checkin" | "checkout";
   rangeLabel: string;
-  shadowTone?: "emerald" | "amber";
+  shadowTone?: "emerald" | "amber" | "sky";
   onEditTime: (row: ArrivalRow, kind: "checkin" | "checkout", time: string | null) => void;
   /** Avança o card na esteira direto pelo popup do indicador. */
   onAdvance?: (row: ArrivalRow) => void;
@@ -1301,13 +1305,21 @@ function KpiCard({
       ? "text-emerald-600 dark:text-emerald-400"
       : shadowTone === "amber"
         ? "text-amber-600 dark:text-amber-400"
-        : valueTone;
+        : shadowTone === "sky"
+          ? "text-sky-600 dark:text-sky-400"
+          : valueTone;
   // Refinamento executivo (só nesta página): removido o glow colorido
   // (shadow grande em rgba emerald/amber) — mantém a sombra neutra e fina
   // que já era usada nos cards sem cor, pra reduzir o "volume" visual.
   const shadowClass = "ds-3d ds-3d-hover";
   const dotClass =
-    shadowTone === "emerald" ? "bg-emerald-500" : shadowTone === "amber" ? "bg-amber-500" : "bg-muted-foreground/50";
+    shadowTone === "emerald"
+      ? "bg-emerald-500"
+      : shadowTone === "amber"
+        ? "bg-amber-500"
+        : shadowTone === "sky"
+          ? "bg-sky-400"
+          : "bg-muted-foreground/50";
 
   return (
     <Dialog
@@ -1355,12 +1367,12 @@ function KpiCard({
 
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-lg border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
         <div
-          className={`absolute inset-x-0 top-0 h-px ${shadowTone === "emerald" ? "bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" : shadowTone === "amber" ? "bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" : "bg-gradient-to-r from-transparent via-primary/50 to-transparent"}`}
+          className={`absolute inset-x-0 top-0 h-px ${shadowTone === "emerald" ? "bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" : shadowTone === "amber" ? "bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" : shadowTone === "sky" ? "bg-gradient-to-r from-transparent via-sky-400/60 to-transparent" : "bg-gradient-to-r from-transparent via-primary/50 to-transparent"}`}
         />
         <DialogHeader className="px-5 pt-5 pb-4">
           <div className="flex items-center gap-3">
             <div
-              className={`grid place-items-center size-10 rounded-xl ${shadowTone === "emerald" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : shadowTone === "amber" ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : "bg-accent/10 text-accent"}`}
+              className={`grid place-items-center size-10 rounded-xl ${shadowTone === "emerald" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : shadowTone === "amber" ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : shadowTone === "sky" ? "bg-sky-400/10 text-sky-600 dark:text-sky-400" : "bg-accent/10 text-accent"}`}
             >
               <Icon className="size-5" />
             </div>
@@ -1575,6 +1587,9 @@ function FreePropertiesCard({
 }) {
   const [open, setOpen] = useState(false);
   const list = useWholeCardsMaxHeight(2, `${open}:${properties.length}:${loading}`);
+  // Vermelho claro quando há imóvel livre (chama atenção pra ociosidade);
+  // sem cor especial quando zero.
+  const hasFree = properties.length > 0;
   return (
     <Dialog
       open={open}
@@ -1589,12 +1604,14 @@ function FreePropertiesCard({
           className="w-full h-full rounded-[0.3rem] border-0 bg-card px-3.5 py-5 min-h-[96px] flex flex-col justify-between text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ds-3d ds-3d-hover"
         >
           <div className="flex items-center gap-2 ds-eyebrow min-w-0">
-            <Home className="size-3.5 shrink-0" />
+            <Home className={`size-3.5 shrink-0 ${hasFree ? "text-red-500" : ""}`} />
             <span className="min-w-0 flex-1 truncate leading-none" title="Imóveis livres">
               Imóveis livres
             </span>
           </div>
-          <div className="text-[24px] sm:text-[26px] font-display font-bold mt-1.5 tabular-nums leading-none text-foreground">
+          <div
+            className={`text-[24px] sm:text-[26px] font-display font-bold mt-1.5 tabular-nums leading-none ${hasFree ? "text-red-500 dark:text-red-400" : "text-foreground"}`}
+          >
             {loading ? "—" : properties.length}
           </div>
         </button>
@@ -1649,7 +1666,13 @@ function OccupancyPanel({
   start: string;
   days: number;
   properties: Array<{ id: string; name: string; city: string | null; ownerName?: string | null }>;
-  stays: Array<{ propertyId: string; checkin: string; checkout: string | null; guest: string | null }>;
+  stays: Array<{
+    propertyId: string;
+    checkin: string;
+    checkout: string | null;
+    guest: string | null;
+    checkinDone: boolean;
+  }>;
   checkedInPropertyIds: Set<string>;
   onStartChange?: (v: string) => void;
   defaultStart?: string;
@@ -1745,16 +1768,21 @@ function OccupancyPanel({
   const activeFilters = (ownerFilter ? 1 : 0) + (cityFilter ? 1 : 0) + (startChanged ? 1 : 0);
 
   const byProperty = useMemo(() => {
-    const map = new Map<string, Array<{ checkin: string; checkout: string | null; guest: string | null }>>();
+    const map = new Map<
+      string,
+      Array<{ checkin: string; checkout: string | null; guest: string | null; checkinDone: boolean }>
+    >();
     for (const s of stays) {
       const arr = map.get(s.propertyId) ?? [];
-      arr.push({ checkin: s.checkin, checkout: s.checkout, guest: s.guest });
+      arr.push({ checkin: s.checkin, checkout: s.checkout, guest: s.guest, checkinDone: s.checkinDone });
       map.set(s.propertyId, arr);
     }
     return map;
   }, [stays]);
 
-  type CellPart = "in" | "out" | "busy" | "free";
+  // "in" = check-in confirmado (verde) · "in-pending" = check-in ainda não
+  // confirmado (azul claro) — mesma cor do card "Check-ins Pendentes".
+  type CellPart = "in" | "in-pending" | "out" | "busy" | "free";
 
   /**
    * Cada dia é dividido em duas metades (manhã = saída, tarde = entrada),
@@ -1764,16 +1792,20 @@ function OccupancyPanel({
   function cellHalves(propertyId: string, day: string): [CellPart, CellPart] {
     const list = byProperty.get(propertyId) ?? [];
     const hasOut = list.some((s) => s.checkout === day);
-    const hasIn = list.some((s) => s.checkin === day);
+    const inStay = list.find((s) => s.checkin === day);
     const through = list.some((s) => s.checkin < day && (s.checkout ?? s.checkin) > day);
 
     const first: CellPart = hasOut ? "out" : through ? "busy" : "free";
     // Depois que o check-in é marcado como concluído, a metade da tarde passa
     // a ser "ocupado" — a metade da manhã (checkout) permanece como estava.
-    const second: CellPart = hasIn
+    // Enquanto o check-in ainda não foi confirmado, fica em azul claro
+    // ("in-pending"); assim que confirmado, vira verde ("in").
+    const second: CellPart = inStay
       ? day === todayISO && checkedInPropertyIds.has(propertyId)
         ? "busy"
-        : "in"
+        : inStay.checkinDone
+          ? "in"
+          : "in-pending"
       : through
         ? "busy"
         : "free";
@@ -1781,7 +1813,15 @@ function OccupancyPanel({
   }
 
   const clsOf = (s: CellPart) =>
-    s === "in" ? "bg-emerald-500" : s === "out" ? "bg-amber-500" : s === "busy" ? "bg-primary/35" : "bg-transparent";
+    s === "in"
+      ? "bg-emerald-500"
+      : s === "in-pending"
+        ? "bg-sky-400"
+        : s === "out"
+          ? "bg-amber-500"
+          : s === "busy"
+            ? "bg-primary/35"
+            : "bg-transparent";
 
   return (
     <>
@@ -1954,7 +1994,15 @@ function OccupancyPanel({
                               const a = halves[i * 2] as CellPart;
                               const b = halves[i * 2 + 1] as CellPart;
                               const labelOf = (s: CellPart) =>
-                                s === "in" ? "Check-in" : s === "out" ? "Checkout" : s === "busy" ? "Ocupado" : "Livre";
+                                s === "in"
+                                  ? "Check-in confirmado"
+                                  : s === "in-pending"
+                                    ? "Check-in pendente"
+                                    : s === "out"
+                                      ? "Checkout"
+                                      : s === "busy"
+                                        ? "Ocupado"
+                                        : "Livre";
                               const title =
                                 a === b
                                   ? `${labelOf(a)} · ${fmtDateBR(d)}`
@@ -1991,7 +2039,10 @@ function OccupancyPanel({
 
               <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[10.5px] font-medium text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2 w-4 rounded-full bg-emerald-500" /> Check-in
+                  <span className="h-2 w-4 rounded-full bg-emerald-500" /> Check-in confirmado
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-4 rounded-full bg-sky-400" /> Check-in pendente
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                   <span className="h-2 w-4 rounded-full bg-amber-500" /> Checkout
