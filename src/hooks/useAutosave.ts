@@ -51,7 +51,10 @@ export function useAutosave<T>(
       try {
         await onSaveRef.current(valueRef.current);
         setStatus("saved");
-      } catch {
+      } catch (e) {
+        // Loga o motivo real da falha — sem isso, "Falha ao salvar" na tela
+        // não dava nenhuma pista de qual campo/validação travou o autosave.
+        console.warn("[autosave]", e);
         setStatus("error");
       }
     }, delay);
@@ -69,7 +72,8 @@ export function useAutosave<T>(
       await onSaveRef.current(valueRef.current);
       setStatus("saved");
       return true;
-    } catch {
+    } catch (e) {
+      console.warn("[autosave]", e);
       setStatus("error");
       return false;
     }

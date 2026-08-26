@@ -124,7 +124,8 @@ type Edited = {
   host_phone: string;
   cleaning_price_normal_cents: number | null;
   cleaning_price_full_cents: number | null;
-  cleaning_duration_minutes: number | null;
+  cleaning_duration_normal_minutes: number | null;
+  cleaning_duration_full_minutes: number | null;
 };
 
 /**
@@ -263,7 +264,8 @@ export function PropertyQuickEditDialog({
       host_phone: (p.host_phone as string) ?? "",
       cleaning_price_normal_cents: (p.cleaning_price_normal_cents as number | null) ?? null,
       cleaning_price_full_cents: (p.cleaning_price_full_cents as number | null) ?? null,
-      cleaning_duration_minutes: (p.cleaning_duration_minutes as number | null) ?? null,
+      cleaning_duration_normal_minutes: (p.cleaning_duration_normal_minutes as number | null) ?? null,
+      cleaning_duration_full_minutes: (p.cleaning_duration_full_minutes as number | null) ?? null,
     });
     setManual(
       ((data.manual ?? []) as Array<Record<string, unknown>>).map((m) => ({
@@ -416,7 +418,8 @@ export function PropertyQuickEditDialog({
           host_phone: edited.host_phone || null,
           cleaning_price_normal_cents: edited.cleaning_price_normal_cents,
           cleaning_price_full_cents: edited.cleaning_price_full_cents,
-          cleaning_duration_minutes: edited.cleaning_duration_minutes,
+          cleaning_duration_normal_minutes: edited.cleaning_duration_normal_minutes,
+          cleaning_duration_full_minutes: edited.cleaning_duration_full_minutes,
         },
         manual: manual
           .filter((m) => m.title.trim())
@@ -576,46 +579,86 @@ export function PropertyQuickEditDialog({
                 desc="Valores fixos cobrados e o período estimado de cada tipo de limpeza deste imóvel."
                 collapsible
               >
-                {/* Desktop: os 3 campos lado a lado pra economizar espaço;
-                    mobile mantém os 2 valores lado a lado e "Período
-                    estimado" numa linha própria — igual à aba "A casa". */}
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                  <Field label="Limpeza normal (R$)" hint="Valor fixo cobrado por uma limpeza normal deste imóvel.">
-                    <MoneyInput
-                      cents={edited.cleaning_price_normal_cents}
-                      onChange={(c) => upd("cleaning_price_normal_cents", c)}
-                    />
-                  </Field>
-                  <Field label="Limpeza completa (R$)" hint="Valor fixo cobrado por uma limpeza completa deste imóvel.">
-                    <MoneyInput
-                      cents={edited.cleaning_price_full_cents}
-                      onChange={(c) => upd("cleaning_price_full_cents", c)}
-                    />
-                  </Field>
-                  <div className="col-span-2 lg:col-span-1">
-                    <Field label="Período estimado" hint="Tempo estimado para a limpeza deste imóvel, em intervalos de 30 minutos.">
-                      <Select
-                        value={edited.cleaning_duration_minutes != null ? String(edited.cleaning_duration_minutes) : ""}
-                        onValueChange={(v) => upd("cleaning_duration_minutes", v ? Number(v) : null)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o período" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <div className="grid grid-cols-4 gap-1 p-1">
-                            {CLEANING_DURATION_OPTIONS.map((o) => (
-                              <SelectItem
-                                key={o.value}
-                                value={String(o.value)}
-                                className="justify-center rounded-md px-2 py-1.5 text-center tabular-nums"
-                              >
-                                {o.label}
-                              </SelectItem>
-                            ))}
-                          </div>
-                        </SelectContent>
-                      </Select>
-                    </Field>
+                {/* Cada tipo de limpeza (normal / completa) tem seu próprio
+                    prazo — agrupados lado a lado. Desktop: os 2 grupos um ao
+                    lado do outro pra economizar espaço; mobile empilha —
+                    igual à aba "A casa". */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  <div className="rounded-[0.3rem] border border-border/60 bg-background/40 p-3">
+                    <p className="mb-2.5 text-xs font-medium text-foreground/70">Limpeza normal</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Valor (R$)" hint="Valor fixo cobrado por uma limpeza normal deste imóvel.">
+                        <MoneyInput
+                          cents={edited.cleaning_price_normal_cents}
+                          onChange={(c) => upd("cleaning_price_normal_cents", c)}
+                        />
+                      </Field>
+                      <Field label="Prazo estimado" hint="Em intervalos de 30 minutos.">
+                        <Select
+                          value={
+                            edited.cleaning_duration_normal_minutes != null
+                              ? String(edited.cleaning_duration_normal_minutes)
+                              : ""
+                          }
+                          onValueChange={(v) => upd("cleaning_duration_normal_minutes", v ? Number(v) : null)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <div className="grid grid-cols-4 gap-1 p-1">
+                              {CLEANING_DURATION_OPTIONS.map((o) => (
+                                <SelectItem
+                                  key={o.value}
+                                  value={String(o.value)}
+                                  className="justify-center rounded-md px-2 py-1.5 text-center tabular-nums"
+                                >
+                                  {o.label}
+                                </SelectItem>
+                              ))}
+                            </div>
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                    </div>
+                  </div>
+                  <div className="rounded-[0.3rem] border border-border/60 bg-background/40 p-3">
+                    <p className="mb-2.5 text-xs font-medium text-foreground/70">Limpeza completa</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Valor (R$)" hint="Valor fixo cobrado por uma limpeza completa deste imóvel.">
+                        <MoneyInput
+                          cents={edited.cleaning_price_full_cents}
+                          onChange={(c) => upd("cleaning_price_full_cents", c)}
+                        />
+                      </Field>
+                      <Field label="Prazo estimado" hint="Em intervalos de 30 minutos.">
+                        <Select
+                          value={
+                            edited.cleaning_duration_full_minutes != null
+                              ? String(edited.cleaning_duration_full_minutes)
+                              : ""
+                          }
+                          onValueChange={(v) => upd("cleaning_duration_full_minutes", v ? Number(v) : null)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <div className="grid grid-cols-4 gap-1 p-1">
+                              {CLEANING_DURATION_OPTIONS.map((o) => (
+                                <SelectItem
+                                  key={o.value}
+                                  value={String(o.value)}
+                                  className="justify-center rounded-md px-2 py-1.5 text-center tabular-nums"
+                                >
+                                  {o.label}
+                                </SelectItem>
+                              ))}
+                            </div>
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                    </div>
                   </div>
                 </div>
               </Section>

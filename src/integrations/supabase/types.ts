@@ -3373,6 +3373,8 @@ export type Database = {
           checkout_time_min: string | null
           city: string | null
           cleaning_duration_minutes: number | null
+          cleaning_duration_normal_minutes: number | null
+          cleaning_duration_full_minutes: number | null
           cleaning_price_full_cents: number | null
           cleaning_price_normal_cents: number | null
           collect_arrival_time: string
@@ -3449,6 +3451,8 @@ export type Database = {
           checkout_time_min?: string | null
           city?: string | null
           cleaning_duration_minutes?: number | null
+          cleaning_duration_normal_minutes?: number | null
+          cleaning_duration_full_minutes?: number | null
           cleaning_price_full_cents?: number | null
           cleaning_price_normal_cents?: number | null
           collect_arrival_time?: string
@@ -3525,6 +3529,8 @@ export type Database = {
           checkout_time_min?: string | null
           city?: string | null
           cleaning_duration_minutes?: number | null
+          cleaning_duration_normal_minutes?: number | null
+          cleaning_duration_full_minutes?: number | null
           cleaning_price_full_cents?: number | null
           cleaning_price_normal_cents?: number | null
           collect_arrival_time?: string

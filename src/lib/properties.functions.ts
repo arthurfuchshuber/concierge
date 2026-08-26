@@ -159,10 +159,12 @@ const PropertyInput = z.object({
   // Valores fixos de limpeza (em centavos) e período estimado (em minutos,
   // múltiplos de 30) — quadrante exclusivo "Custos e Duração da Limpeza",
   // separado da Identificação do imóvel. Opcionais: nem todo imóvel tem
-  // valor/tempo combinado ainda.
+  // valor/tempo combinado ainda. Cada tipo de limpeza tem seu próprio
+  // prazo estimado (uma completa costuma levar mais tempo que uma normal).
   cleaning_price_normal_cents: z.number().int().min(0).max(100_000_00).optional().nullable(),
   cleaning_price_full_cents: z.number().int().min(0).max(100_000_00).optional().nullable(),
-  cleaning_duration_minutes: z.number().int().min(30).max(480).multipleOf(30).optional().nullable(),
+  cleaning_duration_normal_minutes: z.number().int().min(30).max(480).multipleOf(30).optional().nullable(),
+  cleaning_duration_full_minutes: z.number().int().min(30).max(480).multipleOf(30).optional().nullable(),
 });
 
 

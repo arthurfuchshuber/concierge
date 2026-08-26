@@ -159,8 +159,11 @@ type FormState = {
      * Custos de Limpeza", junto com Proprietário e Tipo do imóvel. */
     cleaning_price_normal_cents: number | null;
     cleaning_price_full_cents: number | null;
-    /** Período estimado de limpeza (minutos, múltiplos de 30). */
-    cleaning_duration_minutes: number | null;
+    /** Período estimado de cada tipo de limpeza (minutos, múltiplos de 30) —
+     * cada tipo tem seu próprio prazo, já que uma limpeza completa costuma
+     * levar mais tempo que uma normal. */
+    cleaning_duration_normal_minutes: number | null;
+    cleaning_duration_full_minutes: number | null;
   };
   manual: { title: string; description: string; body: string; images: string[] }[];
   emergency: { label: string; number: string }[];
@@ -183,7 +186,8 @@ function emptyForm(): FormState {
       collect_arrival_time: "off", collect_vehicles: "off", vehicles_max: 2, collect_document: "off", document_scope: "main",
       airbnb_ical_url: null, airbnb_ical_url_2: null, airbnb_ical_last_sync_at: null, airbnb_ical_last_error: null, airbnb_listing_url: null,
       property_type_id: null, guide_created: false, owner_contact_id: null,
-      cleaning_price_normal_cents: null, cleaning_price_full_cents: null, cleaning_duration_minutes: null,
+      cleaning_price_normal_cents: null, cleaning_price_full_cents: null,
+      cleaning_duration_normal_minutes: null, cleaning_duration_full_minutes: null,
     },
     manual: [],
     emergency: [{ label: "Polícia", number: "190" }, { label: "Bombeiros / SAMU", number: "192" }],
@@ -570,7 +574,8 @@ function PropertyEditor() {
         owner_contact_id: ((p as Record<string, unknown>).owner_contact_id as string | null) ?? null,
         cleaning_price_normal_cents: ((p as Record<string, unknown>).cleaning_price_normal_cents as number | null) ?? null,
         cleaning_price_full_cents: ((p as Record<string, unknown>).cleaning_price_full_cents as number | null) ?? null,
-        cleaning_duration_minutes: ((p as Record<string, unknown>).cleaning_duration_minutes as number | null) ?? null,
+        cleaning_duration_normal_minutes: ((p as Record<string, unknown>).cleaning_duration_normal_minutes as number | null) ?? null,
+        cleaning_duration_full_minutes: ((p as Record<string, unknown>).cleaning_duration_full_minutes as number | null) ?? null,
       },
       manual: (data.manual ?? []).map((m: Record<string, unknown>) => ({
         title: (m.title as string) ?? "",
@@ -1255,49 +1260,90 @@ function PropertyEditor() {
       desc="Valores fixos cobrados e o período estimado de cada tipo de limpeza deste imóvel."
       collapsible
     >
-      {/* Desktop: os 3 campos lado a lado pra economizar espaço; mobile
-          mantém os 2 valores lado a lado e "Período estimado" numa linha
-          própria (era assim antes — só o desktop ganhou a 3ª coluna). */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-        <Field label="Limpeza normal (R$)" hint="Valor fixo cobrado por uma limpeza normal deste imóvel.">
-          <MoneyInput
-            cents={form.property.cleaning_price_normal_cents}
-            onChange={(c) => update("cleaning_price_normal_cents", c)}
-          />
-        </Field>
-        <Field label="Limpeza completa (R$)" hint="Valor fixo cobrado por uma limpeza completa deste imóvel.">
-          <MoneyInput
-            cents={form.property.cleaning_price_full_cents}
-            onChange={(c) => update("cleaning_price_full_cents", c)}
-          />
-        </Field>
-        <div className="col-span-2 lg:col-span-1">
-          <Field label="Período estimado" hint="Tempo estimado para a limpeza deste imóvel, em intervalos de 30 minutos.">
-            <Select
-              value={form.property.cleaning_duration_minutes != null ? String(form.property.cleaning_duration_minutes) : ""}
-              onValueChange={(v) => update("cleaning_duration_minutes", v ? Number(v) : null)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o período" />
-              </SelectTrigger>
-              {/* Grade de 4 colunas em vez de lista longa — as 16 opções
-                  (30min a 8h) cabem inteiras sem rolagem, muito mais rápido
-                  de escanear do que uma lista vertical de 16 linhas. */}
-              <SelectContent>
-                <div className="grid grid-cols-4 gap-1 p-1">
-                  {CLEANING_DURATION_OPTIONS.map((o) => (
-                    <SelectItem
-                      key={o.value}
-                      value={String(o.value)}
-                      className="justify-center rounded-md px-2 py-1.5 text-center tabular-nums"
-                    >
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </div>
-              </SelectContent>
-            </Select>
-          </Field>
+      {/* Cada tipo de limpeza (normal / completa) tem seu próprio prazo —
+          uma limpeza completa costuma levar mais tempo que uma normal, então
+          o valor e o prazo de cada tipo ficam agrupados lado a lado. No
+          desktop os 2 grupos ficam um ao lado do outro pra economizar
+          espaço; no mobile cada grupo ocupa sua própria linha. */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <div className="rounded-[0.3rem] border border-border/60 bg-background/40 p-3">
+          <p className="mb-2.5 text-xs font-medium text-foreground/70">Limpeza normal</p>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Valor (R$)" hint="Valor fixo cobrado por uma limpeza normal deste imóvel.">
+              <MoneyInput
+                cents={form.property.cleaning_price_normal_cents}
+                onChange={(c) => update("cleaning_price_normal_cents", c)}
+              />
+            </Field>
+            <Field label="Prazo estimado" hint="Em intervalos de 30 minutos.">
+              <Select
+                value={
+                  form.property.cleaning_duration_normal_minutes != null
+                    ? String(form.property.cleaning_duration_normal_minutes)
+                    : ""
+                }
+                onValueChange={(v) => update("cleaning_duration_normal_minutes", v ? Number(v) : null)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                {/* Grade de 4 colunas em vez de lista longa — as 16 opções
+                    (30min a 8h) cabem inteiras sem rolagem, muito mais rápido
+                    de escanear do que uma lista vertical de 16 linhas. */}
+                <SelectContent>
+                  <div className="grid grid-cols-4 gap-1 p-1">
+                    {CLEANING_DURATION_OPTIONS.map((o) => (
+                      <SelectItem
+                        key={o.value}
+                        value={String(o.value)}
+                        className="justify-center rounded-md px-2 py-1.5 text-center tabular-nums"
+                      >
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </div>
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
+        </div>
+        <div className="rounded-[0.3rem] border border-border/60 bg-background/40 p-3">
+          <p className="mb-2.5 text-xs font-medium text-foreground/70">Limpeza completa</p>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Valor (R$)" hint="Valor fixo cobrado por uma limpeza completa deste imóvel.">
+              <MoneyInput
+                cents={form.property.cleaning_price_full_cents}
+                onChange={(c) => update("cleaning_price_full_cents", c)}
+              />
+            </Field>
+            <Field label="Prazo estimado" hint="Em intervalos de 30 minutos.">
+              <Select
+                value={
+                  form.property.cleaning_duration_full_minutes != null
+                    ? String(form.property.cleaning_duration_full_minutes)
+                    : ""
+                }
+                onValueChange={(v) => update("cleaning_duration_full_minutes", v ? Number(v) : null)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  <div className="grid grid-cols-4 gap-1 p-1">
+                    {CLEANING_DURATION_OPTIONS.map((o) => (
+                      <SelectItem
+                        key={o.value}
+                        value={String(o.value)}
+                        className="justify-center rounded-md px-2 py-1.5 text-center tabular-nums"
+                      >
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </div>
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
         </div>
       </div>
     </Section>
