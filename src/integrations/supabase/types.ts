@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -3372,9 +3372,9 @@ export type Database = {
           checkout_time: string | null
           checkout_time_min: string | null
           city: string | null
+          cleaning_duration_full_minutes: number | null
           cleaning_duration_minutes: number | null
           cleaning_duration_normal_minutes: number | null
-          cleaning_duration_full_minutes: number | null
           cleaning_price_full_cents: number | null
           cleaning_price_normal_cents: number | null
           collect_arrival_time: string
@@ -3450,9 +3450,9 @@ export type Database = {
           checkout_time?: string | null
           checkout_time_min?: string | null
           city?: string | null
+          cleaning_duration_full_minutes?: number | null
           cleaning_duration_minutes?: number | null
           cleaning_duration_normal_minutes?: number | null
-          cleaning_duration_full_minutes?: number | null
           cleaning_price_full_cents?: number | null
           cleaning_price_normal_cents?: number | null
           collect_arrival_time?: string
@@ -3528,9 +3528,9 @@ export type Database = {
           checkout_time?: string | null
           checkout_time_min?: string | null
           city?: string | null
+          cleaning_duration_full_minutes?: number | null
           cleaning_duration_minutes?: number | null
           cleaning_duration_normal_minutes?: number | null
-          cleaning_duration_full_minutes?: number | null
           cleaning_price_full_cents?: number | null
           cleaning_price_normal_cents?: number | null
           collect_arrival_time?: string
