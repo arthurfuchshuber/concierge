@@ -2200,7 +2200,18 @@ function OccupancyPanel({
         scrollbarWRef.current = measureScrollbarWidth();
       }
       const usable = w - NAME_COL_BASE - scrollbarWRef.current;
-      const isDesktop = w >= 768;
+      // 1024px pra bater exatamente com o breakpoint `lg:` do Tailwind — é o
+      // MESMO breakpoint que este card usa pra virar `lg:col-span-4` (linha
+      // do grid ~2320 abaixo). Antes usava 768px aqui, um valor DIFERENTE do
+      // breakpoint real do layout: numa largura entre 768 e 1024 (tablet, ou
+      // uma pré-visualização "mobile" mais larga), o grid de fora ainda tratava
+      // a página como mobile (o card ocupa a largura toda, bem mais que
+      // 768px), mas ESTE cálculo achava que já era desktop e tentava encaixar
+      // o máximo de colunas de 38px que coubessem — muito mais que os 5 dias
+      // pensados pra tela pequena, com cada coluna minúscula e a sobra de
+      // arredondamento inchando a coluna do nome a ponto de invadir
+      // visualmente o espaço dos primeiros dias.
+      const isDesktop = w >= 1024;
       const count = isDesktop ? Math.max(1, Math.min(days, Math.floor(usable / MIN_DAY_W))) : MOBILE_DAYS;
       // Regra original: nome fixo (+ sobra) + N colunas INTEIRAS preenchendo
       // 100% da largura disponível — nunca deixar sobra vazia (barra cinza)
