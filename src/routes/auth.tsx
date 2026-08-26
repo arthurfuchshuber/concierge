@@ -172,7 +172,12 @@ function AuthPage() {
             <img src={conciergeLogo} alt="ConciergeIA" className="size-14 object-contain" />
           </div>
 
-          <h1 className="font-display text-[26px] sm:text-3xl text-black text-balance whitespace-nowrap">
+          {/* Sem whitespace-nowrap: num celular estreito (~360px) com o card
+              padded em p-8, "Bem-vindo de volta" em fonte de destaque podia
+              ficar maior que o espaço disponível e cortar na margem direita.
+              text-balance já deixa a quebra de linha (quando necessária)
+              visualmente equilibrada. */}
+          <h1 className="font-display text-[26px] sm:text-3xl text-black text-balance">
             {mode === "signin" ? "Bem-vindo de volta" : "Crie sua conta"}
           </h1>
 

@@ -892,7 +892,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 depois dos filtros (pedido explícito); no desktop voltam pra
                 posição de sempre, logo após o Engajamento, sem se misturar
                 com a linha dos filtros. */}
-            <div className="order-8 lg:order-7 col-span-1">
+            <div className="order-9 lg:order-7 col-span-1">
               <StatDisplayCard
                 label="Limpezas Realizadas"
                 value={cleaningStatsQ.data?.cleaningsDone ?? 0}
@@ -900,7 +900,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 loading={cleaningStatsQ.isLoading}
               />
             </div>
-            <div className="order-9 lg:order-8 col-span-1">
+            <div className="order-10 lg:order-8 col-span-1">
               <StatDisplayCard
                 label="Custo Total Limpeza"
                 value={centsToBRL(cleaningStatsQ.data?.totalCents ?? 0)}
@@ -909,7 +909,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               />
             </div>
 
-            <div className="order-11 lg:order-9 col-span-1">
+            <div className="order-12 lg:order-9 col-span-1">
               <KpiCard
                 label="Em Estadia"
                 rows={stayRows}
@@ -923,7 +923,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 onAdvance={(r) => handleAdvance(r, "stay")}
               />
             </div>
-            <div className="order-12 lg:order-10 col-span-1">
+            <div className="order-13 lg:order-10 col-span-1">
               <FreePropertiesCard
                 loading={occupancyQ.isLoading}
                 properties={freeProperties}
@@ -935,52 +935,52 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 Proprietário (busca + seleção múltipla). Afetam a agenda de
                 ocupação E os 2 cards de limpeza (pedido explícito). Ficam de
                 volta na posição original: numa linha própria, logo acima do
-                calendário, sem entrar na grade dos KPIs — no mobile aparecem
-                antes de Limpezas/Custo (pedido explícito); no desktop ficam
-                só acima do calendário, sem mexer na ordem dos demais cards.
-                Período+Cidade somados ocupam a largura de 1 card;
-                Proprietário sozinho ocupa a largura de outro card — mesma
-                grade de 4 colunas usada pelos KPIs, então a largura bate
-                exatamente. */}
-            <div className="order-7 lg:order-11 col-span-2 lg:col-span-4">
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <PeriodRangeFilterButton value={periodRange} onChange={setPeriodRange} />
-                  <MultiSelectFilterButton
-                    label="Cidade"
-                    icon={MapPin}
-                    options={cityOptions}
-                    selected={cityFilters}
-                    onChange={setCityFilters}
-                  />
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <MultiSelectFilterButton
-                    label="Proprietário"
-                    icon={User}
-                    options={ownerOptions}
-                    selected={ownerFilters}
-                    onChange={setOwnerFilters}
-                  />
-                  <button
-                    type="button"
-                    disabled={!hasCustomFilters}
-                    onClick={clearAllFilters}
-                    title="Limpar filtros e voltar para hoje"
-                    aria-label="Limpar filtros e voltar para hoje"
-                    className={`${FILTER_BUTTON_CLASS} w-9 justify-center px-0 disabled:opacity-40 disabled:pointer-events-none`}
-                  >
-                    <RotateCcw className="size-3.5" />
-                  </button>
-                </div>
-              </div>
+                calendário, sem entrar numa grade ANINHADA (isso já causou
+                incompatibilidade de "gap" com a grade real — os 2 blocos
+                abaixo são itens de PRIMEIRO NÍVEL da MESMA grade que
+                Limpezas/Custo, então largura e espaçamento batem
+                EXATAMENTE, por construção, sem precisar recalcular nada.
+                No mobile aparecem antes de Limpezas/Custo (pedido
+                explícito); no desktop ficam só acima do calendário, sem
+                mexer na ordem dos demais cards — como consequência de
+                estarem na mesma grade de 4 colunas, o bloco 1 cai
+                naturalmente alinhado sob "Limpezas Realizadas" e o bloco 2
+                sob "Custo Total Limpeza". */}
+            <div className="order-7 lg:order-11 col-span-1 min-w-0 flex flex-wrap items-center gap-2">
+              <PeriodRangeFilterButton value={periodRange} onChange={setPeriodRange} />
+              <MultiSelectFilterButton
+                label="Cidade"
+                icon={MapPin}
+                options={cityOptions}
+                selected={cityFilters}
+                onChange={setCityFilters}
+              />
+            </div>
+            <div className="order-8 lg:order-12 col-span-1 min-w-0 flex flex-wrap items-center gap-2">
+              <MultiSelectFilterButton
+                label="Proprietário"
+                icon={User}
+                options={ownerOptions}
+                selected={ownerFilters}
+                onChange={setOwnerFilters}
+              />
+              <button
+                type="button"
+                disabled={!hasCustomFilters}
+                onClick={clearAllFilters}
+                title="Limpar filtros e voltar para hoje"
+                aria-label="Limpar filtros e voltar para hoje"
+                className={`${FILTER_BUTTON_CLASS} w-9 justify-center px-0 disabled:opacity-40 disabled:pointer-events-none`}
+              >
+                <RotateCcw className="size-3.5" />
+              </button>
             </div>
 
             {/* Calendário de ocupação — no mobile aparece antes de "Em
                 Estadia"/"Imóveis livres" (pedido explícito, já assim antes
                 dos filtros existirem); no desktop segue por último, como
                 sempre foi, logo abaixo da linha de filtros. */}
-            <div className="order-10 lg:order-12 col-span-2 lg:col-span-4">
+            <div className="order-11 lg:order-13 col-span-2 lg:col-span-4">
               <OccupancyPanel
                 loading={occupancyQ.isLoading}
                 start={occupancyQ.data?.start ?? occStart}
@@ -2128,15 +2128,20 @@ function OccupancyPanel({
    * Desktop: o máximo de dias inteiros que couber na largura do quadrante,
    * sem nunca cortar a bolinha do último dia.
    */
-  const NAME_COL = 130;
+  const NAME_COL_BASE = 130;
   const MOBILE_DAYS = 5;
   const MIN_DAY_W = 38; // largura mínima por coluna no desktop
   const outerRef = useRef<HTMLDivElement | null>(null);
   const [dayW, setDayW] = useState(40);
   const [visibleDays, setVisibleDays] = useState(MOBILE_DAYS);
+  // Largura da coluna do nome — normalmente NAME_COL_BASE, mas cresce pra
+  // absorver a sobra do arredondamento (usable/count nem sempre é um número
+  // inteiro exato). Sem isso, essa sobra virava um espaço vazio (ou uma
+  // coluna de dia cortada pela metade) na margem direita do quadrante.
+  const [nameColW, setNameColW] = useState(NAME_COL_BASE);
   const dotSize = Math.max(18, Math.min(28, dayW - 6));
   // largura exata do "visor": nome + N colunas inteiras (sem sobra de coluna cortada)
-  const viewportW = NAME_COL + visibleDays * dayW;
+  const viewportW = nameColW + visibleDays * dayW;
 
   useEffect(() => {
     const el = outerRef.current;
@@ -2144,14 +2149,20 @@ function OccupancyPanel({
     const update = () => {
       const w = el.clientWidth;
       if (!w) return;
-      const usable = w - NAME_COL;
+      const usable = w - NAME_COL_BASE;
       const isDesktop = w >= 768;
       const count = isDesktop ? Math.max(1, Math.min(days, Math.floor(usable / MIN_DAY_W))) : MOBILE_DAYS;
+      // Regra original: nome fixo (+ sobra) + N colunas INTEIRAS preenchendo
+      // 100% da largura disponível — nunca deixar sobra vazia (barra cinza)
+      // nem cortar coluna alguma na margem direita. A sobra do
+      // arredondamento (usable não dividido perfeitamente por `count`) vai
+      // pra coluna do NOME em vez de ficar de fora — é ela que cresce,
+      // nunca uma coluna de dia cortada.
+      const baseDayW = Math.max(MIN_DAY_W, Math.floor(usable / count));
+      const leftover = Math.max(0, usable - baseDayW * count);
       setVisibleDays(count);
-      // Regra original: nome fixo + N colunas INTEIRAS preenchendo 100% da
-      // largura disponível — nunca deixar sobra vazia (barra cinza) nem
-      // cortar coluna alguma.
-      setDayW(Math.max(MIN_DAY_W, Math.floor(usable / count)));
+      setDayW(baseDayW);
+      setNameColW(NAME_COL_BASE + leftover);
     };
 
     update();
@@ -2264,7 +2275,7 @@ function OccupancyPanel({
                 <div
                   ref={list.ref}
                   style={{
-                    scrollPaddingLeft: NAME_COL,
+                    scrollPaddingLeft: nameColW,
                     width: viewportW,
                     maxWidth: "100%",
                     ...(list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : {}),
@@ -2273,13 +2284,13 @@ function OccupancyPanel({
                 >
                   <table
                     className="table-fixed border-separate border-spacing-x-0 border-spacing-y-1 text-xs"
-                    style={{ width: NAME_COL + dayList.length * dayW, minWidth: NAME_COL + dayList.length * dayW }}
+                    style={{ width: nameColW + dayList.length * dayW, minWidth: nameColW + dayList.length * dayW }}
                   >
                     <thead>
                       <tr>
                         <th
                           className="sticky left-0 top-0 z-20 bg-card pb-2 pr-3 text-left"
-                          style={{ width: NAME_COL, minWidth: NAME_COL }}
+                          style={{ width: nameColW, minWidth: nameColW }}
                         >
                           <span className="ds-eyebrow block pl-[10px]">Imóvel</span>
                         </th>
@@ -2318,7 +2329,7 @@ function OccupancyPanel({
                           <tr key={p.id} data-whole-card className="group">
                             <td
                               className="sticky left-0 z-10 bg-card py-1 pr-3 align-middle"
-                              style={{ width: NAME_COL, minWidth: NAME_COL }}
+                              style={{ width: nameColW, minWidth: nameColW }}
                             >
                               <div className="min-w-0 max-w-full border-l-2 border-border/60 pl-2 group-hover:border-primary/50">
                                 {p.ownerName ? (

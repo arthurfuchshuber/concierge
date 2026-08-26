@@ -30,7 +30,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Section, SectionGroup, DenseSections } from "@/components/editor/Section";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, ImagePlus, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Power, Phone, HelpCircle, Sun, Moon, Lock, MessageSquare, LogOut, ChevronDown, Ticket, RefreshCw, Copy, Share2, X, MoveRight, ClipboardList, Car, IdCard, NotebookPen, ArrowLeftRight } from "lucide-react";
+import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, ImagePlus, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Power, Phone, HelpCircle, Sun, Moon, Lock, MessageSquare, LogOut, ChevronDown, Ticket, RefreshCw, Copy, Share2, X, MoveRight, ClipboardList, Car, IdCard, NotebookPen, ArrowLeftRight, AlertTriangle } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ImageUpload } from "@/components/ImageUpload";
 import { MediaUpload, type MediaItem } from "@/components/MediaUpload";
@@ -1667,42 +1667,22 @@ function PropertyEditor() {
   const allMissingRequiredFields = [...(missingOwner ? ["Proprietário"] : []), ...missingHouseFields];
   const needsRequiredHouseInfo = !isNew && form.property.guide_created && (missingOwner || missingHouseFields.length > 0);
 
-  if (needsRequiredHouseInfo) {
-    async function handleCompleteHouseInfo() {
-      await handleSave();
+  // Antes, este bloco tinha um `return` aqui com uma tela separada ("Complete
+  // as informações do imóvel"), com um layout completamente diferente do
+  // editor completo (sem Stepper, sem Acessos/Conversas, sem rodapé de
+  // autosave). Isso fazia "Editar guia" de um imóvel com pendências parecer
+  // outro sistema. Mantemos a MESMA trava (ninguém edita o guia sem antes
+  // completar Proprietário/Tipo/Endereço/Calendário) mas replicando o visual:
+  // a pessoa cai na mesma tela do editor completo, só que travada na aba
+  // "A casa" (as outras 5 abas ficam visíveis porém bloqueadas, com cadeado)
+  // até os campos obrigatórios serem preenchidos. Ver useEffect abaixo e a
+  // prop `lockedValues` do <Stepper>.
+  useEffect(() => {
+    if (needsRequiredHouseInfo && step !== "house") {
+      setStep("house");
     }
-    return (
-      <div className="px-6 lg:px-10 pt-8 lg:pt-10 max-w-3xl mx-auto w-full">
-        <Link to="/admin/guias" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
-          <ArrowLeft className="size-3.5" /> Voltar
-        </Link>
-        <PageHeader
-          className="mb-6 pb-4 border-b border-border/60"
-          title="Complete as informações do imóvel"
-          subtitle={`"${form.property.name || "Este imóvel"}" está com informações obrigatórias pendentes: ${allMissingRequiredFields.join(", ")}. Complete para continuar editando.`}
-          actions={<PresenceAvatars users={presence.users} />}
-        />
-        <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
-          <SectionGroup>
-            <Section id="owner" icon={UserRound} title="Proprietário" desc="A quem este imóvel pertence — obrigatório." collapsible>
-              {renderOwnerFields()}
-            </Section>
-            <Section id="property-type" icon={Home} title="Tipo do imóvel" desc="Obrigatório. Ajuda a organizar seus imóveis — as opções são totalmente editáveis." collapsible>
-              {renderPropertyTypeFields()}
-            </Section>
-            {renderAddressSection()}
-            {renderAirbnbCalendarSection()}
-          </SectionGroup>
-          <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-border/60">
-            <Button className="min-w-[140px]" onClick={handleCompleteHouseInfo} disabled={saving}>
-              {saving ? <Loader2 className="size-4 animate-spin" /> : null}
-              <span className={saving ? "ml-1.5" : ""}>{saving ? "Salvando…" : "Salvar e continuar"}</span>
-            </Button>
-          </div>
-        </fieldset>
-      </div>
-    );
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsRequiredHouseInfo, step]);
 
   const showLeanInfoScreen = isNew || !form.property.guide_created;
 
@@ -1881,12 +1861,23 @@ function PropertyEditor() {
             { value: "faq", label: "FAQ & Contatos", icon: LifeBuoy },
             { value: "recs", label: "Recomendações", icon: Compass },
           ]}
+          lockedValues={needsRequiredHouseInfo ? ["guide", "checkin", "checkout", "faq", "recs"] : undefined}
         />
 
 
         {/* ================= A CASA ================= */}
         <TabsContent value="house" className="space-y-4 mt-6">
           <SectionGroup>
+
+          {needsRequiredHouseInfo ? (
+            <div className="flex items-start gap-2 rounded-[0.3rem] border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
+              <span>
+                Complete as informações obrigatórias pendentes ({allMissingRequiredFields.join(", ")}) para
+                desbloquear as demais abas do guia.
+              </span>
+            </div>
+          ) : null}
 
           {renderIdentitySection()}
 
@@ -2654,7 +2645,7 @@ function PropertyEditor() {
               const i = order.indexOf(step);
               if (i < order.length - 1) setStep(order[i + 1]);
             }}
-            disabled={step === "recs"}
+            disabled={step === "recs" || (needsRequiredHouseInfo && step === "house")}
           >
             Próximo
             <ArrowLeft className="size-3.5 ml-1 rotate-180" />
@@ -3949,33 +3940,46 @@ function Stepper({
   steps,
   current,
   onChange,
+  lockedValues,
 }: {
   steps: { value: string; label: string; icon: React.ComponentType<{ className?: string; strokeWidth?: number }> }[];
   current: string;
   onChange: (v: string) => void;
+  // Abas visíveis mas ainda não liberadas (ex.: guia com dados obrigatórios
+  // pendentes) — aparecem com cadeado e não respondem a clique.
+  lockedValues?: string[];
 }) {
   return (
-    <div className="mb-5 -mx-1 overflow-x-auto no-scrollbar">
-      <nav className="flex w-max min-w-full overflow-hidden rounded-[0.3rem] bg-foreground/5">
-        {steps.map((s) => {
-          const active = s.value === current;
-          return (
-            <button
-              key={s.value}
-              type="button"
-              onClick={() => onChange(s.value)}
-              className={`flex-1 whitespace-nowrap px-3 py-2 text-center text-[13px] font-normal leading-none flex items-center justify-center gap-2 min-h-[34px] transition-colors ${
-                active
-                  ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
+    // Mesmo padrão de "barra que rola na horizontal e nunca corta a última
+    // aba" usado no resto do sistema (ds-scroll-x): os itens mantêm o
+    // tamanho natural (flex: none) e a barra inteira rola por baixo, em vez
+    // de tentar espremer tudo (flex-1) num container de largura fixa — era
+    // isso que fazia "Recomendações" ficar cortada em telas estreitas.
+    <nav className="ds-scroll-x mb-5 -mx-1 px-1 gap-1 rounded-[0.3rem] bg-foreground/5 p-1">
+      {steps.map((s) => {
+        const active = s.value === current;
+        const locked = lockedValues?.includes(s.value) ?? false;
+        return (
+          <button
+            key={s.value}
+            type="button"
+            disabled={locked}
+            onClick={() => !locked && onChange(s.value)}
+            title={locked ? "Complete as informações obrigatórias em \"A casa\" para desbloquear" : undefined}
+            className={`whitespace-nowrap px-3 py-2 text-center text-[13px] font-normal leading-none flex items-center justify-center gap-1.5 min-h-[34px] rounded-[0.25rem] transition-colors ${
+              active
+                ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
+                : locked
+                  ? "text-muted-foreground/40 cursor-not-allowed"
                   : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {s.label}
-            </button>
-          );
-        })}
-      </nav>
-    </div>
+            }`}
+          >
+            {locked ? <Lock className="size-3" /> : null}
+            {s.label}
+          </button>
+        );
+      })}
+    </nav>
   );
 }
 

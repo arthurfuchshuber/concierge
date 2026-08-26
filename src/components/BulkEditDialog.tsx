@@ -646,19 +646,22 @@ export function BulkEditDialog({
           </div>
         ) : (
         <Tabs value={tab} onValueChange={setTab} className="w-full min-w-0">
-          <div className="mb-5 -mx-1 overflow-x-auto">
-            <TabsList className="flex h-auto w-max min-w-full gap-0 rounded-[0.3rem] bg-foreground/5 p-0">
-              {TEXT_TABS.map((t) => (
-                <TabsTrigger
-                  key={t.id}
-                  value={t.id}
-                  className="flex-1 min-h-[34px] whitespace-nowrap rounded-none px-3 text-xs font-normal shadow-none data-[state=active]:shadow-none data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#7C1AD8] data-[state=active]:to-[#E82DAE] data-[state=active]:text-white"
-                >
-                  {t.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </div>
+          {/* Mesmo padrão usado no resto do sistema (ds-scroll-x): os itens
+              mantêm o tamanho natural (flex: none) e a barra inteira rola por
+              baixo em telas estreitas, em vez de espremer tudo (flex-1) num
+              container de largura fixa (w-max) — isso cortava a última aba
+              em celulares mais estreitos. */}
+          <TabsList className="ds-scroll-x mb-5 -mx-1 px-1 h-auto gap-0 rounded-[0.3rem] bg-foreground/5 p-0">
+            {TEXT_TABS.map((t) => (
+              <TabsTrigger
+                key={t.id}
+                value={t.id}
+                className="min-h-[34px] whitespace-nowrap rounded-none px-3 text-xs font-normal shadow-none data-[state=active]:shadow-none data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#7C1AD8] data-[state=active]:to-[#E82DAE] data-[state=active]:text-white"
+              >
+                {t.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
 
           {TEXT_TABS.map((tab) => (
