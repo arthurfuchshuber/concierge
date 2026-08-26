@@ -536,12 +536,10 @@ export function PropertyQuickEditDialog({
                 </Dialog>
               </Section>
 
-              <Section id="qe-name" icon={Home} title="Nome do imóvel" desc="Como você identifica essa residência internamente." collapsible>
-                <Field label="Nome" required>
-                  <Input value={edited.name} maxLength={80} onChange={(e) => upd("name", e.target.value)} />
-                </Field>
-              </Section>
-
+              {/* "Nome do imóvel" NÃO faz parte da aba "A casa" do editor
+                  completo (fica na aba "O guia" → Identidade visual, ou na
+                  tela de criação) — removido daqui pra este popup continuar
+                  sendo um espelho exato de "A casa", campo a campo. */}
               <Section id="property-type" icon={Home} title="Tipo do imóvel" desc="Obrigatório. Ajuda a organizar seus imóveis — as opções são totalmente editáveis." collapsible>
                 <PropertyTypeSelect value={edited.property_type_id} onChange={(v) => upd("property_type_id", v)} />
               </Section>

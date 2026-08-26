@@ -183,16 +183,20 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const [mobileTab, setMobileTab] = useState<BoardMode>("checkin");
   // Largura das colunas do Kanban (desktop) — calculada de verdade a partir
   // do espaço disponível, não um número fixo. Cabe quantas colunas couberem
-  // numa largura mínima confortável (240px), e essas colunas esticam pra
-  // preencher o espaço TODO, sem sobrar vão nem cortar a próxima coluna pela
-  // metade — reage ao recolher/expandir o menu lateral e a mudanças de tela.
+  // numa largura mínima confortável, e essas colunas esticam pra preencher o
+  // espaço TODO, sem sobrar vão nem cortar a próxima coluna pela metade —
+  // reage ao recolher/expandir o menu lateral e a mudanças de tela.
+  // Mínima elevada de 240px para 320px (240 + 1/3 dela) — com 240px os cards
+  // ficavam espremidos quando cabiam 5 colunas lado a lado; agora, se não
+  // houver espaço pras 5 nessa largura, menos colunas aparecem (com scroll
+  // horizontal), mas nenhuma fica mais estreita que 320px.
   const kanbanRowRef = useRef<HTMLDivElement>(null);
-  const [kanbanColWidth, setKanbanColWidth] = useState(262);
+  const [kanbanColWidth, setKanbanColWidth] = useState(320);
   useLayoutEffect(() => {
     const el = kanbanRowRef.current;
     if (!el) return;
     const GAP = 12; // gap-3
-    const MIN_COL = 240;
+    const MIN_COL = 320;
     const TOTAL_COLS = 5;
     function recalc() {
       const containerWidth = el!.clientWidth;
@@ -627,10 +631,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // verdade — os dois pontos de chamada leem o mesmo engQ/range do
   // componente pai, então nunca ficam dessincronizados entre si.
   function renderEngagementPanel(wrapperClassName: string) {
-    // Só aparece quando existe informação de visualização; sem dados, some.
-    const hasData = (engQ.data?.checkinsInPeriod ?? 0) > 0 || (engQ.data?.checkinsWithCodes ?? 0) > 0;
-    if (!engQ.isLoading && !hasData) return null;
-
+    // Sempre visível — quando não há reserva com check-in no período, o
+    // próprio EngagementBars mostra uma mensagem de estado vazio em vez de
+    // sumir o quadrante inteiro.
     return (
       <section className={`rounded-[0.3rem] border-0 bg-card p-4 sm:p-5 ds-3d ${wrapperClassName}`}>
         <EngagementBars
@@ -1046,12 +1049,12 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 /* --------- Cabeçalho compartilhado das telas de operação --------- */
 
 const OPERATION_TABS = [
-  { view: "resumo" as const, label: "Dashboard", to: "/admin/dashboard" },
-  { view: "kanban" as const, label: "Kanban", to: "/admin/dashboard/kanban" },
+  { view: "resumo" as const, label: "Operacional", to: "/admin/dashboard" },
+  { view: "kanban" as const, label: "Quadro Kanban", to: "/admin/dashboard/kanban" },
 ];
 
 const OPERATION_COPY: Record<OperationView, { title: string; subtitle: string }> = {
-  resumo: { title: "Operação", subtitle: "Sua rotina diária: check-ins, checkouts e senhas." },
+  resumo: { title: "Dashboard Operacional", subtitle: "Sua rotina diária: check-ins, checkouts e senhas." },
   kanban: { title: "Kanban", subtitle: "Cada reserva na etapa em que ela realmente está." },
 };
 
@@ -1604,7 +1607,9 @@ function FreePropertiesCard({
           className="w-full h-full rounded-[0.3rem] border-0 bg-card px-3.5 py-5 min-h-[96px] flex flex-col justify-between text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ds-3d ds-3d-hover"
         >
           <div className="flex items-center gap-2 ds-eyebrow min-w-0">
-            <Home className={`size-3.5 shrink-0 ${hasFree ? "text-red-500" : ""}`} />
+            {/* Ícone neutro (mesma cor do texto do rótulo) — só o número
+                grande é que muda de cor conforme o estado. */}
+            <Home className="size-3.5 shrink-0" />
             <span className="min-w-0 flex-1 truncate leading-none" title="Imóveis livres">
               Imóveis livres
             </span>
@@ -1826,10 +1831,11 @@ function OccupancyPanel({
   return (
     <>
       {/* Filtros ficam FORA do quadro, alinhados à direita — mesma posição,
-          altura e estilo do filtro "Hoje" do Kanban. Espaçamento até o
-          quadro do calendário igual ao espaçamento entre os cards da
-          página (gap-1.5/space-y-1.5 = 6px), não um valor à parte. */}
-      <div className="flex items-center justify-end pb-1.5">
+          altura e estilo do filtro "Hoje" do Kanban. Sem padding próprio: o
+          espaçamento acima E abaixo já vem do space-y-1.5 do container pai
+          (mesmos 6px entre todos os cards da página) — um pb-1.5 aqui somaria
+          com essa margem e dobraria o vão até o quadro do calendário. */}
+      <div className="flex items-center justify-end">
         <Popover>
           <PopoverTrigger asChild>
             <button
@@ -1947,7 +1953,7 @@ function OccupancyPanel({
                             <th
                               key={d}
                               style={{ width: dayW, minWidth: dayW }}
-                              className="sticky top-0 z-10 snap-start bg-card px-0 pb-2 font-medium tabular-nums"
+                              className="sticky top-0 z-20 snap-start bg-card px-0 pb-2 font-medium tabular-nums"
                             >
                               <div
                                 className={`mx-auto flex w-full flex-col items-center rounded-md py-1 ${
@@ -2021,10 +2027,17 @@ function OccupancyPanel({
                                   className="px-0 py-1 snap-start"
                                   title={title}
                                 >
+                                  {/* Sem z-index explícito aqui: como os cabeçalhos
+                                      "sticky" (topo/nome) usam z positivo, ficam
+                                      sempre acima por padrão — antes as bolinhas
+                                      coloridas tinham o MESMO z-10 dos cabeçalhos,
+                                      e ao rolar a tela (empate de z-index resolvido
+                                      pela ordem no DOM) elas passavam por cima dos
+                                      dias fixos no topo. */}
                                   <div className="relative flex h-6 w-full items-center">
                                     <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border/50" />
-                                    <div className={`relative z-10 h-full w-1/2 ${clsOf(a)} ${round(idxA)}`} />
-                                    <div className={`relative z-10 h-full w-1/2 ${clsOf(b)} ${round(idxB)}`} />
+                                    <div className={`relative h-full w-1/2 ${clsOf(a)} ${round(idxA)}`} />
+                                    <div className={`relative h-full w-1/2 ${clsOf(b)} ${round(idxB)}`} />
                                   </div>
                                 </td>
                               );
@@ -2122,6 +2135,13 @@ function EngagementBars({
     );
   const checkinViewed = checkinBreakdown?.viewed.length ?? 0;
   const codesViewed = codesBreakdown?.viewed.length ?? 0;
+  if (checkins === 0 && checkinsWithCodes === 0) {
+    return (
+      <div className="py-6 text-center text-sm text-muted-foreground">
+        Não há reserva pendente de visualização.
+      </div>
+    );
+  }
   return (
     <div className="relative space-y-1.5">
       {checkins > 0 && (

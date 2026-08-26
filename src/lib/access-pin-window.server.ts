@@ -68,24 +68,29 @@ export async function resolveAccessPinWindow(
   checkoutTime: unknown,
   today: string,
 ): Promise<AccessPinWindowResult> {
-  const from = addDaysISO(today, -2);
-  const to = addDaysISO(today, 2);
+  // Importante: filtrar apenas por `checkin_date` deixava de fora a estadia
+  // EM ANDAMENTO quando ela é mais longa que 2 dias (o check-in já ficou para
+  // trás), enquanto uma reserva futura próxima entrava na lista e fechava o
+  // código para quem já está hospedado. Filtramos por sobreposição real:
+  // check-in até today+2 e check-out a partir de today-1.
+  const fromCheckout = addDaysISO(today, -1);
+  const toCheckin = addDaysISO(today, 2);
 
   const [{ data: logRows }, { data: resRows }] = await Promise.all([
     supabaseAdmin
       .from("guide_access_logs")
       .select("guest_name, checkin_date, checkout_date")
       .eq("property_id", propertyId)
-      .gte("checkin_date", from)
-      .lte("checkin_date", to)
+      .lte("checkin_date", toCheckin)
+      .or(`checkout_date.gte.${fromCheckout},checkout_date.is.null`)
       .limit(200),
     supabaseAdmin
       .from("property_reservations")
       .select("checkin_date, checkout_date")
       .eq("property_id", propertyId)
       .eq("source", "airbnb")
-      .gte("checkin_date", from)
-      .lte("checkin_date", to)
+      .lte("checkin_date", toCheckin)
+      .or(`checkout_date.gte.${fromCheckout},checkout_date.is.null`)
       .limit(200),
   ]);
 
