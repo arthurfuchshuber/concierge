@@ -49,19 +49,33 @@ export function ResponsiveDialog({
 export function ResponsiveDialogContent({
   className,
   children,
+  scrollable = true,
 }: {
   className?: string;
   children: React.ReactNode;
+  /**
+   * true (padrão, comportamento inalterado): o conteúdo inteiro (cabeçalho +
+   * corpo + rodapé) rola como um bloco único — é preciso descer até o fim
+   * para alcançar o rodapé.
+   * false: o próprio conteúdo controla o scroll internamente (ex.: cabeçalho
+   * e rodapé fixos, só a área do meio rola) — use quando o rodapé precisa
+   * ficar sempre visível na tela.
+   */
+  scrollable?: boolean;
 }) {
   const isMobile = useIsMobile();
   if (isMobile) {
     return (
       <DrawerContent className={cn("max-h-[92dvh] px-4 pb-[max(1rem,env(safe-area-inset-bottom))]", className)}>
-        <div className="overflow-y-auto">{children}</div>
+        {scrollable ? <div className="overflow-y-auto">{children}</div> : children}
       </DrawerContent>
     );
   }
-  return <DialogContent className={className}>{children}</DialogContent>;
+  return (
+    <DialogContent className={cn(!scrollable && "p-0 sm:p-0 gap-0 overflow-y-hidden flex flex-col", className)}>
+      {children}
+    </DialogContent>
+  );
 }
 
 export function ResponsiveDialogHeader({

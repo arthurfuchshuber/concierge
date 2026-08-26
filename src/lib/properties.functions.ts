@@ -816,13 +816,22 @@ export const upsertProperty = createServerFn({ method: "POST" })
       );
     }
     {
+      // Só valida que o proprietário existe e pertence à MESMA conta — não
+      // exige mais status "active". Um guia continua editável/salvável (aqui
+      // e no autosave silencioso) não importa o status do proprietário
+      // vinculado (active/canceling/canceled): travar o salvamento inteiro do
+      // guia por causa disso já causou "Falha ao salvar" em campos sem
+      // nenhuma relação com o proprietário assim que o cadastro dele mudava
+      // de status. Só "canceled" (status terminal) some da listagem dos
+      // painéis operacionais (Dashboard/Kanban/Calendário) — ver
+      // excludeCanceledOwnerProperties em dashboard.functions.ts — mas o guia
+      // em si continua existindo, editável e visível em "Guias".
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: ownerRow, error: ownerErr } = await supabaseAdmin
         .from("property_owners")
         .select("id")
         .eq("id", propertyData.owner_contact_id)
         .eq("account_owner_id", effectiveOwnerId)
-        .eq("status", "active")
         .maybeSingle();
       if (ownerErr) throw new Error("Não foi possível validar o proprietário selecionado.");
       if (!ownerRow) {

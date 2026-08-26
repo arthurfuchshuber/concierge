@@ -49,6 +49,47 @@ function isRealReservation(row: { status?: string | null; raw_summary?: string |
   return true;
 }
 
+/**
+ * Some proprietário com cadastro CANCELADO (status "canceled" em
+ * property_owners — diferente de "canceling", que ainda é um vínculo válido
+ * em uso) some destes painéis operacionais (Dashboard/Kanban/Calendário),
+ * embora o imóvel continue existindo e editável normalmente em "Guias".
+ * Só o status terminal esconde; "canceling" continua aparecendo.
+ */
+async function excludeCanceledOwnerProperties(
+  supabase: {
+    from: (t: string) => unknown;
+  },
+  rows: Array<{ id: string; owner_contact_id: string | null }>,
+  ids: string[],
+): Promise<string[]> {
+  const idSet = new Set(ids);
+  const ownerByProp = new Map(rows.filter((r) => idSet.has(r.id)).map((r) => [r.id, r.owner_contact_id]));
+  const ownerIds = Array.from(new Set(Array.from(ownerByProp.values()).filter((v): v is string => !!v)));
+  if (ownerIds.length === 0) return ids;
+  const { data: canceledOwners } = await (
+    supabase as unknown as {
+      from: (t: string) => {
+        select: (s: string) => {
+          in: (c: string, v: string[]) => {
+            eq: (c: string, v: string) => Promise<{ data: Array<{ id: string }> | null }>;
+          };
+        };
+      };
+    }
+  )
+    .from("property_owners")
+    .select("id")
+    .in("id", ownerIds)
+    .eq("status", "canceled");
+  const canceledSet = new Set((canceledOwners ?? []).map((r) => r.id));
+  if (canceledSet.size === 0) return ids;
+  return ids.filter((pid) => {
+    const oid = ownerByProp.get(pid);
+    return !oid || !canceledSet.has(oid);
+  });
+}
+
 async function accessiblePropertyIds(
   supabase: {
     from: (t: string) => unknown;
@@ -70,19 +111,22 @@ async function accessiblePropertyIds(
     supabase as unknown as {
       from: (t: string) => {
         select: (s: string) => {
-          eq: (c: string, v: string) => Promise<{ data: Array<{ id: string }> | null }>;
-        } & Promise<{ data: Array<{ id: string }> | null }>;
+          eq: (c: string, v: string) => Promise<{ data: Array<{ id: string; owner_contact_id: string | null }> | null }>;
+        } & Promise<{ data: Array<{ id: string; owner_contact_id: string | null }> | null }>;
       };
     }
   )
     .from("properties")
-    .select("id");
+    .select("id, owner_contact_id");
   const { data } = authorizedOwnerId ? await query.eq("owner_id", authorizedOwnerId) : await query;
-  const ids = (data ?? []).map((r) => r.id);
-  if (!userId) return ids;
-  // Recorte por residências atendidas: sem vínculo, o membro não vê nada.
-  const { filterVisiblePropertyIds } = await import("@/lib/permissions/property-scope.server");
-  return await filterVisiblePropertyIds(userId, ids);
+  const rows = data ?? [];
+  let ids = rows.map((r) => r.id);
+  if (userId) {
+    // Recorte por residências atendidas: sem vínculo, o membro não vê nada.
+    const { filterVisiblePropertyIds } = await import("@/lib/permissions/property-scope.server");
+    ids = await filterVisiblePropertyIds(userId, ids);
+  }
+  return await excludeCanceledOwnerProperties(supabase, rows, ids);
 }
 
 

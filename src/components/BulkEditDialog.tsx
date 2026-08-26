@@ -775,8 +775,13 @@ export function BulkEditDialog({
         else requestClose();
       }}
     >
-      <ResponsiveDialogContent className="w-[calc(100vw-1.5rem)] sm:max-w-3xl max-h-[85vh] overflow-y-auto overflow-x-hidden">
+      <ResponsiveDialogContent
+        className="w-[calc(100vw-1.5rem)] sm:max-w-3xl max-h-[85vh] overflow-x-hidden"
+        scrollable={false}
+      >
         <>
+        {/* Cabeçalho fixo — não rola junto com o conteúdo. */}
+        <div className="shrink-0 px-5 pt-5 sm:px-6 sm:pt-6">
         <ResponsiveDialogHeader>
           <ResponsiveDialogTitle className="text-[15px] font-semibold tracking-tight">Editar {targetIds.length || ids.length} {(targetIds.length || ids.length) === 1 ? "guia" : "guias"}</ResponsiveDialogTitle>
           <ResponsiveDialogDescription className="text-xs font-normal leading-relaxed">
@@ -785,8 +790,11 @@ export function BulkEditDialog({
               : "As informações atuais já aparecem preenchidas. Qualquer alteração é salva automaticamente nos guias selecionados."}
           </ResponsiveDialogDescription>
         </ResponsiveDialogHeader>
+        </div>
 
-
+        {/* Só essa área central rola — cabeçalho e rodapé ficam sempre
+            visíveis, sem precisar descer até o fim do conteúdo. */}
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-5 sm:px-6">
         {loading ? (
           <div className="py-10 grid place-items-center text-muted-foreground">
             <Loader2 className="size-5 animate-spin" />
@@ -880,22 +888,30 @@ export function BulkEditDialog({
           ))}
         </Tabs>
         )}
+        <div className="h-4" aria-hidden />
+        </div>
 
-        <ResponsiveDialogFooter>
+        {/* Rodapé fixo — só aparece o botão de salvar quando há algo para
+            salvar; "Fechar" fica sempre disponível para sair do popup. */}
+        <div className="shrink-0 px-5 pb-5 sm:px-6 sm:pb-6">
+        <ResponsiveDialogFooter className="items-center">
           <div className="mr-auto flex items-center gap-2">
             <AutosaveIndicator status={saveStatus} errorMessage={saveError} />
             {saveStatus === "idle" && isDirty && (
               <span className="text-[11px] text-muted-foreground">Alterações não salvas</span>
             )}
           </div>
-          <Button variant="outline" onClick={requestClose} disabled={saving}>
+          <Button variant="outline" onClick={requestClose} disabled={saving} className="h-9">
             Fechar
           </Button>
-          <Button onClick={handleSaveClick} disabled={saving || !isDirty}>
-            {saving && <Loader2 className="size-4 mr-1.5 animate-spin" />}
-            Salvar alterações
-          </Button>
+          {(isDirty || saving) && (
+            <Button onClick={handleSaveClick} disabled={saving || !isDirty} className="h-9">
+              {saving && <Loader2 className="size-4 mr-1.5 animate-spin" />}
+              Salvar alterações
+            </Button>
+          )}
         </ResponsiveDialogFooter>
+        </div>
         </>
 
         <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
