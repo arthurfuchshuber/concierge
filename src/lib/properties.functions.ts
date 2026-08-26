@@ -345,6 +345,20 @@ const BulkPatch = z.object({
   vehicles_max: z.number().int().min(0).max(10).optional(),
   collect_document: z.enum(["off", "optional", "required"]).optional(),
   document_scope: z.enum(["main", "all"]).optional(),
+  // Identificação do imóvel
+  property_type_id: z.string().uuid().optional(),
+  // Proprietário: normalmente travado (só via "Transferir", com confirmação
+  // explícita) — liberado aqui a pedido explícito do cliente para a edição em
+  // massa. A validação de que o proprietário pertence à conta de CADA imóvel
+  // selecionado roda no handler abaixo, não fica só a cargo do zod.
+  owner_contact_id: z.string().uuid().optional(),
+  // Custos e Duração da Limpeza — nullable: "sem valor definido" é um estado
+  // válido (mesma semântica do editor individual), então o campo pode ser
+  // explicitamente limpo em vez de forçar 0.
+  cleaning_price_normal_cents: z.number().int().min(0).max(100_000_00).nullable().optional(),
+  cleaning_price_full_cents: z.number().int().min(0).max(100_000_00).nullable().optional(),
+  cleaning_duration_normal_minutes: z.number().int().min(30).max(480).multipleOf(30).nullable().optional(),
+  cleaning_duration_full_minutes: z.number().int().min(30).max(480).multipleOf(30).nullable().optional(),
 }).strict();
 
 /**
@@ -378,6 +392,12 @@ const BulkListsInput = z.object({
   checkout: z.array(z.object({
     label: z.string().min(1).max(200),
   })).max(40).optional(),
+  // Detalhamento do Imóvel: bulk edit só cobre título + texto (sem
+  // imagens/áudio — mesma simplificação já aplicada ao Manual da casa acima).
+  property_details: z.array(z.object({
+    title: z.string().max(160).optional().nullable(),
+    content: z.string().max(40000),
+  })).max(60).optional(),
 }).strict();
 
 // Retorna o conteúdo atual dos guias selecionados para exibir preview
@@ -400,13 +420,14 @@ export const bulkFetchProperties = createServerFn({ method: "POST" })
     if (q.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", q.error);
     const rows = (q.data ?? []) as unknown as Array<{ id: string; name: string } & Record<string, string | number | boolean | null>>;
     const propIds = rows.map((r) => r.id);
-    const [manual, emerg, faqs, checkout] = await Promise.all([
+    const [manual, emerg, faqs, checkout, details] = await Promise.all([
       sb.from("property_manual_items").select("property_id,title,description,body,position").in("property_id", propIds).order("position"),
       sb.from("property_emergency_contacts").select("property_id,label,number,position").in("property_id", propIds).order("position"),
       sb.from("property_faqs").select("property_id,question,answer,tags,position").in("property_id", propIds).order("position"),
       sb.from("property_checkout_items").select("property_id,label,position").in("property_id", propIds).order("position"),
+      sb.from("property_details").select("property_id,title,content,position").in("property_id", propIds).order("position"),
     ]);
-    for (const result of [manual, emerg, faqs, checkout]) {
+    for (const result of [manual, emerg, faqs, checkout, details]) {
       if (result.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", result.error);
     }
     function tally(arr: unknown): Record<string, number> {
@@ -422,12 +443,14 @@ export const bulkFetchProperties = createServerFn({ method: "POST" })
         emergency: tally(emerg.data),
         faqs: tally(faqs.data),
         checkout: tally(checkout.data),
+        property_details: tally(details.data),
       },
       listItems: {
         manual: manual.data ?? [],
         emergency: emerg.data ?? [],
         faqs: faqs.data ?? [],
         checkout: checkout.data ?? [],
+        property_details: details.data ?? [],
       },
     };
   });
@@ -450,6 +473,32 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
     const patch: Record<string, unknown> = Object.fromEntries(
       Object.entries(data.patch).map(([k, v]) => [k, v === "" ? null : v]),
     );
+
+    // Proprietário: normalmente só muda via "Transferir" (fluxo dedicado, com
+    // confirmação explícita) — liberado na edição em massa a pedido do
+    // cliente, mas continua validando que o proprietário escolhido pertence à
+    // MESMA conta de cada imóvel selecionado. Sem isso, seria possível
+    // vincular imóveis à conta errada por engano num lote grande.
+    if (typeof patch.owner_contact_id === "string") {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const targets = await sb.from("properties").select("id, owner_id").in("id", data.ids);
+      if (targets.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", targets.error);
+      const accountOwnerIds = Array.from(
+        new Set((targets.data ?? []).map((r) => (r as { owner_id: string }).owner_id)),
+      );
+      const { data: ownerRow, error: ownerErr } = await supabaseAdmin
+        .from("property_owners")
+        .select("id, account_owner_id")
+        .eq("id", patch.owner_contact_id)
+        .eq("status", "active")
+        .maybeSingle();
+      if (ownerErr) throw new Error("Não foi possível validar o proprietário selecionado.");
+      if (!ownerRow || accountOwnerIds.some((oid) => oid !== (ownerRow as { account_owner_id: string }).account_owner_id)) {
+        throw new Error(
+          "Proprietário inválido ou não pertence à conta de um ou mais guias selecionados. Selecione um proprietário cadastrado em Stakeholders → Proprietários.",
+        );
+      }
+    }
 
     // Publicar só é permitido com todos os campos obrigatórios preenchidos.
     if (patch.published === true) {
@@ -549,6 +598,7 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
           ["emergency", "property_emergency_contacts"],
           ["faqs", "property_faqs"],
           ["checkout", "property_checkout_items"],
+          ["property_details", "property_details"],
         ] as const;
         for (const [key, table] of tables) {
           const { data: rows } = await sb.from(table).select("property_id").in("property_id", data.ids);
@@ -562,7 +612,23 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
         ["emergency", "property_emergency_contacts"],
         ["faqs", "property_faqs"],
         ["checkout", "property_checkout_items"],
+        ["property_details", "property_details"],
       ] as const;
+
+      // "Detalhamento do Imóvel" exige owner_id (NOT NULL) em cada linha —
+      // diferente das outras listas. Busca o dono de cada imóvel só quando
+      // essa lista realmente veio no payload.
+      const ownerIdByProperty: Record<string, string> = {};
+      if ((lists as Record<string, unknown[]>).property_details !== undefined) {
+        const { data: ownerRows, error: ownerRowsErr } = await sb
+          .from("properties")
+          .select("id, owner_id")
+          .in("id", data.ids);
+        if (ownerRowsErr) throw (await import("@/lib/db-errors.server")).safeDbError("properties", ownerRowsErr);
+        for (const r of (ownerRows ?? []) as unknown as Array<{ id: string; owner_id: string }>) {
+          ownerIdByProperty[r.id] = r.owner_id;
+        }
+      }
 
       for (const id of data.ids) {
         for (const [key, table] of listMap) {
@@ -574,7 +640,10 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
             throw (await import("@/lib/db-errors.server")).safeDbError(table, deleted.error);
           }
           if (items.length) {
-            const rows = items.map((m, i) => ({ ...(m as object), property_id: id, position: i }));
+            const rows = items.map((m, i) => {
+              const base = { ...(m as object), property_id: id, position: i };
+              return key === "property_details" ? { ...base, owner_id: ownerIdByProperty[id] } : base;
+            });
             const inserted = await sb.from(table).insert(rows as never);
             if (inserted.error) {
               throw (await import("@/lib/db-errors.server")).safeDbError(table, inserted.error);

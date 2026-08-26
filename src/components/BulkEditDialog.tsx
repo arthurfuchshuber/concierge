@@ -13,18 +13,38 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter,
+  AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import { Section, SectionGroup, type SectionIcon } from "@/components/editor/Section";
+import { MoneyInput } from "@/components/ui/money-input";
+import { PropertyTypeSelect } from "@/components/admin/PropertyTypeSelect";
 import {
   Loader2, Plus, Trash2, MapPinned, ClipboardCheck, BookOpen, UserRound, Shield,
   DoorOpen, Clock, KeyRound, Wifi, ClipboardList, LogOut, Phone, HelpCircle,
+  Home, Sparkles, NotebookPen, AlertTriangle,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { bulkUpdateProperties, bulkFetchProperties } from "@/lib/properties.functions";
+import { listActivePropertyOwnersForSelect } from "@/lib/stakeholders.functions";
 
 import { toast } from "sonner";
-import { useAutosave } from "@/hooks/useAutosave";
+import type { AutosaveStatus } from "@/hooks/useAutosave";
 import { AutosaveIndicator } from "@/components/ui/autosave-indicator";
+
+// 30min, 1h, 1h30 ... até 8h — mesma escala usada no editor individual
+// (admin.properties.$id.tsx), duplicada aqui de propósito: é um array puro,
+// sem lógica, e evita acoplar os dois arquivos por um detalhe tão pequeno.
+const CLEANING_DURATION_OPTIONS = Array.from({ length: 16 }, (_, i) => {
+  const minutes = (i + 1) * 30;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  const label = h === 0 ? `${m}min` : m === 0 ? `${h}h` : `${h}h${m}`;
+  return { value: minutes, label };
+});
 
 type FieldKey =
   | "checkin_time" | "checkin_time_max" | "checkin_note"
@@ -39,12 +59,17 @@ type FieldKey =
   | "default_language" | "published"
   | "access_mode" | "pin_code" | "require_access_gate"
   | "collect_arrival_time" | "collect_vehicles" | "vehicles_max"
-  | "collect_document" | "document_scope";
+  | "collect_document" | "document_scope"
+  | "property_type_id" | "owner_contact_id"
+  | "cleaning_price_normal_cents" | "cleaning_price_full_cents"
+  | "cleaning_duration_normal_minutes" | "cleaning_duration_full_minutes";
 
-type FieldKind = "text" | "textarea" | "theme" | "language" | "access_mode" | "boolean" | "collect" | "docscope" | "number";
+type FieldKind =
+  | "text" | "textarea" | "theme" | "language" | "access_mode" | "boolean" | "collect" | "docscope" | "number"
+  | "select_owner" | "select_property_type" | "money" | "duration";
 type FieldDef = { key: FieldKey; label: string; kind: FieldKind; placeholder?: string };
 
-type ListKey = "manual" | "checkout" | "emergency" | "faqs";
+type ListKey = "manual" | "checkout" | "emergency" | "faqs" | "property_details";
 
 type SubGroup = { id: string; title: string; fields: FieldDef[] };
 
@@ -69,6 +94,29 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
   {
     id: "house", label: "A casa",
     groups: [
+      // Mesma ordem de quadrantes da aba "A casa" do editor individual
+      // (admin.properties.$id.tsx) — precisa ser espelho fiel. "Calendário e
+      // reservas (Airbnb)" fica de fora de propósito: cada imóvel tem seu
+      // PRÓPRIO link de iCal, e aplicar o mesmo link em vários guias de uma
+      // vez quebraria a sincronização de reservas de todos eles.
+      {
+        id: "identity", title: "Identificação do Imóvel", icon: Home,
+        desc: "Proprietário e tipo do imóvel.",
+        fields: [
+          { key: "owner_contact_id", label: "Proprietário", kind: "select_owner" },
+          { key: "property_type_id", label: "Tipo do imóvel", kind: "select_property_type" },
+        ],
+      },
+      {
+        id: "cleaning", title: "Custos e Duração da Limpeza", icon: Sparkles,
+        desc: "Valores fixos cobrados e o período estimado de cada tipo de limpeza.",
+        fields: [
+          { key: "cleaning_price_normal_cents", label: "Valor (R$) — Limpeza normal", kind: "money" },
+          { key: "cleaning_duration_normal_minutes", label: "Prazo estimado — Limpeza normal", kind: "duration" },
+          { key: "cleaning_price_full_cents", label: "Valor (R$) — Limpeza completa", kind: "money" },
+          { key: "cleaning_duration_full_minutes", label: "Prazo estimado — Limpeza completa", kind: "duration" },
+        ],
+      },
       {
         id: "address", title: "Endereço e localização", icon: MapPinned,
         desc: "Cole o link do Google Maps — o endereço é preenchido automaticamente.",
@@ -90,6 +138,11 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
         id: "manual", title: "Manual da casa", icon: BookOpen,
         desc: "Instruções de equipamentos e funcionamento.",
         lists: ["manual"],
+      },
+      {
+        id: "property-details", title: "Detalhamento do Imóvel", icon: NotebookPen,
+        desc: "Base de conhecimento livre: micro detalhes que a IA usa e que não aparecem no guia.",
+        lists: ["property_details"],
       },
       {
         id: "host-house", title: "Contato do anfitrião", icon: UserRound,
@@ -232,15 +285,19 @@ const TEXT_TABS: { id: string; label: string; groups: Group[] }[] = [
 
 type State = {
   enabled: Partial<Record<FieldKey, boolean>>;
-  values: Partial<Record<FieldKey, string | boolean | number>>;
+  values: Partial<Record<FieldKey, string | boolean | number | null>>;
   listsEnabled: Partial<Record<ListKey, boolean>>;
   manual: Array<{ title: string; description: string; body: string }>;
   emergency: Array<{ label: string; number: string }>;
   faqs: Array<{ question: string; answer: string; tags: string }>;
   checkout: Array<{ label: string }>;
+  property_details: Array<{ title: string; content: string }>;
 };
 
-const emptyState: State = { enabled: {}, values: {}, listsEnabled: {}, manual: [], emergency: [], faqs: [], checkout: [] };
+const emptyState: State = {
+  enabled: {}, values: {}, listsEnabled: {},
+  manual: [], emergency: [], faqs: [], checkout: [], property_details: [],
+};
 
 type FetchData = Awaited<ReturnType<typeof bulkFetchProperties>>;
 
@@ -269,11 +326,17 @@ function buildInitialState(d: FetchData): State {
       if (sample === undefined) sample = raw as string | boolean | number;
     }
     if (filled === 0) continue;
-    // Valores divergentes entre os guias: mostramos o campo vazio para não
-    // sobrescrever informações específicas sem intenção.
-    values[f.key] = distinct.size === 1 ? (sample as string | boolean | number) : (f.kind === "boolean" ? false : f.kind === "number" ? 0 : "");
+    // Valores divergentes entre os guias: mostramos o campo vazio (ou nulo,
+    // pros campos de dinheiro/duração) para não sobrescrever informações
+    // específicas sem intenção — só grava de fato o que a pessoa preencher.
+    values[f.key] = distinct.size === 1
+      ? (sample as string | boolean | number)
+      : f.kind === "boolean" ? false
+      : f.kind === "number" ? 0
+      : f.kind === "money" || f.kind === "duration" ? null
+      : "";
   }
-  const listsEnabled: State["listsEnabled"] = { manual: true, emergency: true, faqs: true, checkout: true };
+  const listsEnabled: State["listsEnabled"] = { manual: true, emergency: true, faqs: true, checkout: true, property_details: true };
   const propertyIds = d.properties.map((property) => property.id);
   const commonList = <T extends Record<string, unknown>, R>(
     rows: T[],
@@ -300,6 +363,9 @@ function buildInitialState(d: FetchData): State {
       tags: Array.isArray(row.tags) ? row.tags.join(", ") : "",
     })),
     checkout: commonList(listItems.checkout, (row) => ({ label: String(row.label ?? "") })),
+    property_details: commonList(listItems.property_details, (row) => ({
+      title: String(row.title ?? ""), content: String(row.content ?? ""),
+    })),
   };
 }
 
@@ -321,6 +387,26 @@ export function BulkEditDialog({
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<FetchData | null>(null);
+
+  // Proprietários ativos da conta, pro seletor do quadrante "Identificação
+  // do Imóvel" — mesma fonte usada no editor individual.
+  const listOwnersFn = useServerFn(listActivePropertyOwnersForSelect);
+  const { data: ownersData } = useQuery({
+    queryKey: ["property-owners-select"],
+    queryFn: () => listOwnersFn(),
+    staleTime: 30_000,
+  });
+  const ownerOptions = ownersData?.owners ?? [];
+
+  // Sem salvamento automático de propósito: uma edição em massa afeta vários
+  // guias de uma vez, então só grava quando a pessoa clica em "Salvar
+  // alterações" — com uma confirmação explícita antes de aplicar.
+  const [isDirty, setIsDirty] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<AutosaveStatus>("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmSummary, setConfirmSummary] = useState<{ fields: number; lists: number } | null>(null);
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   // Aba atual controlada: o popup precisa lembrar onde a pessoa parou mesmo
   // que o componente pai re-renderize (refetch, troca de aba do navegador…).
   const [tab, setTab] = useState<string>(TEXT_TABS[0]?.id ?? "house");
@@ -367,6 +453,9 @@ export function BulkEditDialog({
          fieldVersionRef.current = {};
          editVersionRef.current = 0;
         setState(init);
+        setIsDirty(false);
+        setSaveStatus("idle");
+        setSaveError(null);
       })
       .catch(() => toast.error("Erro ao carregar dados dos guias"))
       .finally(() => setLoading(false));
@@ -392,6 +481,9 @@ export function BulkEditDialog({
     saveQueueRef.current = Promise.resolve();
     loadedKeyRef.current = null;
     setTab(TEXT_TABS[0]?.id ?? "house");
+    setIsDirty(false);
+    setSaveStatus("idle");
+    setSaveError(null);
   }
 
   // Ligar a chave NÃO propaga valor nenhum: ela só habilita a edição (e,
@@ -399,18 +491,24 @@ export function BulkEditDialog({
   // bloco copiava o valor de um imóvel para todos os outros selecionados.
   function toggle(field: FieldKey, v: boolean) {
     if (!v) dirtyRef.current.delete(field);
+    setIsDirty(true);
+    setSaveStatus("idle");
     setState((s) => ({ ...s, enabled: { ...s.enabled, [field]: v } }));
   }
-  function setValue(field: FieldKey, value: string | boolean | number) {
+  function setValue(field: FieldKey, value: string | boolean | number | null) {
     dirtyRef.current.add(field);
     editVersionRef.current += 1;
     fieldVersionRef.current[field] = editVersionRef.current;
+    setIsDirty(true);
+    setSaveStatus("idle");
     setState((s) => ({ ...s, values: { ...s.values, [field]: value } }));
   }
   function markListDirty(list: ListKey) {
     dirtyListsRef.current.add(list);
     editVersionRef.current += 1;
     listVersionRef.current[list] = editVersionRef.current;
+    setIsDirty(true);
+    setSaveStatus("idle");
   }
 
 
@@ -459,7 +557,7 @@ export function BulkEditDialog({
 
 
 
-  function coerce(f: FieldDef, v: string | boolean | number | undefined): unknown {
+  function coerce(f: FieldDef, v: string | boolean | number | null | undefined): unknown {
     if (f.kind === "boolean") return v === true;
     if (f.kind === "theme") return v === "light" ? "light" : "dark";
     if (f.kind === "language") return v === "en" ? "en" : "pt";
@@ -467,7 +565,11 @@ export function BulkEditDialog({
     if (f.kind === "collect") return v === "required" ? "required" : v === "optional" ? "optional" : "off";
     if (f.kind === "docscope") return v === "all" ? "all" : "main";
     if (f.kind === "number") return typeof v === "number" ? v : parseInt(String(v ?? "0"), 10) || 0;
-    return v === undefined ? "" : v;
+    // Dinheiro/duração: "sem valor" é um estado válido (ex.: limpeza sem
+    // preço combinado ainda) — ao contrário de "number", aqui vazio vira
+    // null de verdade, não 0.
+    if (f.kind === "money" || f.kind === "duration") return typeof v === "number" ? v : null;
+    return v === undefined || v === null ? "" : v;
   }
 
   /**
@@ -508,6 +610,10 @@ export function BulkEditDialog({
       }));
     if (dirtyListsAtStart.has("checkout") && (snapshot.checkout.length === 0 || snapshot.checkout.every((c) => c.label.trim())))
       lists.checkout = snapshot.checkout.map((c) => ({ label: c.label.trim() }));
+    if (dirtyListsAtStart.has("property_details") && (snapshot.property_details.length === 0 || snapshot.property_details.every((pd) => pd.content.trim())))
+      lists.property_details = snapshot.property_details.map((pd) => ({
+        title: pd.title.trim() || null, content: pd.content.trim(),
+      }));
 
     if (Object.keys(patch).length === 0 && Object.keys(lists).length === 0) return;
 
@@ -562,13 +668,47 @@ export function BulkEditDialog({
     }
   }
 
-  const autosave = useAutosave(state, saveAuto, { enabled: open && !loading && !!data, delay: 1200 });
+  /**
+   * "Salvar alterações": só dispara depois da confirmação explícita no
+   * AlertDialog — sem salvamento automático. Uma edição em massa aplica a
+   * MESMA alteração em vários guias de uma vez (SÓ os campos/listas
+   * realmente editados neste popup; valores divergentes entre os guias
+   * viram vazio até a pessoa preencher — nunca ficam sobrescritos sem
+   * intenção), então merece um passo deliberado antes de gravar de verdade.
+   */
+  function handleSaveClick() {
+    if (saving || !isDirty) return;
+    setConfirmSummary({ fields: dirtyRef.current.size, lists: dirtyListsRef.current.size });
+    setConfirmOpen(true);
+  }
 
-  async function closeAfterSave() {
+  async function confirmAndSave() {
+    setConfirmOpen(false);
+    setSaveStatus("saving");
+    setSaveError(null);
+    try {
+      await saveAuto(state);
+      await saveQueueRef.current;
+      setSaveStatus("saved");
+      setIsDirty(dirtyRef.current.size > 0 || dirtyListsRef.current.size > 0);
+    } catch (e) {
+      setSaveStatus("error");
+      setSaveError(e instanceof Error ? e.message : "Erro desconhecido");
+    }
+  }
+
+  function requestClose() {
     if (saving) return;
-    const saved = await autosave.flush();
-    await saveQueueRef.current;
-    if (!saved || dirtyRef.current.size > 0 || dirtyListsRef.current.size > 0) return;
+    if (isDirty) {
+      setDiscardConfirmOpen(true);
+      return;
+    }
+    reset();
+    onOpenChange(false);
+  }
+
+  function confirmDiscardAndClose() {
+    setDiscardConfirmOpen(false);
     reset();
     onOpenChange(false);
   }
@@ -611,7 +751,14 @@ export function BulkEditDialog({
           {showSwitch && <Switch checked={enabled} onCheckedChange={(v) => toggle(f.key, v)} />}
         </div>
         {(!showSwitch || enabled) && (
-          <div className="mt-2">{renderField(f, value, (v) => setValue(f.key, v))}</div>
+          <div className="mt-2">{renderField(f, value, (v) => setValue(f.key, v), ownerOptions)}</div>
+        )}
+        {f.key === "owner_contact_id" && (
+          <p className="mt-1.5 flex items-start gap-1.5 text-[11px] text-amber-600 dark:text-amber-400">
+            <AlertTriangle className="size-3 shrink-0 mt-0.5" />
+            Troca o proprietário vinculado diretamente nos guias selecionados, sem o fluxo de confirmação de
+            "Transferir" usado no editor individual. Confira a seleção antes de salvar.
+          </p>
         )}
       </div>
     );
@@ -625,7 +772,7 @@ export function BulkEditDialog({
       open={open}
       onOpenChange={(v) => {
         if (v) onOpenChange(true);
-        else void closeAfterSave();
+        else requestClose();
       }}
     >
       <ResponsiveDialogContent className="w-[calc(100vw-1.5rem)] sm:max-w-3xl max-h-[85vh] overflow-y-auto overflow-x-hidden">
@@ -736,18 +883,55 @@ export function BulkEditDialog({
 
         <ResponsiveDialogFooter>
           <div className="mr-auto flex items-center gap-2">
-            <AutosaveIndicator status={saving ? "saving" : autosave.status} />
+            <AutosaveIndicator status={saveStatus} errorMessage={saveError} />
+            {saveStatus === "idle" && isDirty && (
+              <span className="text-[11px] text-muted-foreground">Alterações não salvas</span>
+            )}
           </div>
-          <Button
-            onClick={() => void closeAfterSave()}
-            disabled={saving}
-          >
+          <Button variant="outline" onClick={requestClose} disabled={saving}>
+            Fechar
+          </Button>
+          <Button onClick={handleSaveClick} disabled={saving || !isDirty}>
             {saving && <Loader2 className="size-4 mr-1.5 animate-spin" />}
-            Concluir
+            Salvar alterações
           </Button>
         </ResponsiveDialogFooter>
         </>
 
+        <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar alteração em massa</AlertDialogTitle>
+              <AlertDialogDescription>
+                Isso vai sobrescrever {confirmSummary?.fields ?? 0} campo{(confirmSummary?.fields ?? 0) === 1 ? "" : "s"} e{" "}
+                {confirmSummary?.lists ?? 0} lista{(confirmSummary?.lists ?? 0) === 1 ? "" : "s"} em{" "}
+                {targetIds.length} guia{targetIds.length === 1 ? "" : "s"} selecionado{targetIds.length === 1 ? "" : "s"},
+                eliminando qualquer conteúdo atual desses campos/listas e colocando só o valor que está sendo salvo agora.
+                Guias com valores divergentes entre si também serão igualados. Essa ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={() => void confirmAndSave()}>Confirmar e salvar</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={discardConfirmOpen} onOpenChange={setDiscardConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Descartar alterações não salvas?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Você editou campos que ainda não foram salvos. Fechar agora descarta essas alterações — elas não
+                afetarão os guias selecionados.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Continuar editando</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDiscardAndClose}>Descartar e fechar</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
       </ResponsiveDialogContent>
     </ResponsiveDialog>
@@ -817,31 +1001,60 @@ function renderList(k: ListKey, state: State, setState: React.Dispatch<React.Set
       </div>
     );
   }
+  if (k === "faqs") {
+    return (
+      <div className="space-y-2 mt-2">
+        {state.faqs.map((f, i) => (
+          <div key={i} className="rounded-lg border border-border p-2 space-y-1.5">
+            <div className="flex items-center gap-2">
+              <Input value={f.question} placeholder="Pergunta" className="h-8 text-sm"
+                onChange={(e) => { markDirty(); setState((s) => ({ ...s, faqs: s.faqs.map((x, j) => j === i ? { ...x, question: e.target.value } : x) })); }} />
+              <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => { markDirty(); setState((s) => ({ ...s, faqs: s.faqs.filter((_, j) => j !== i) })); }}>
+                <Trash2 className="size-3.5" />
+              </Button>
+            </div>
+            <Textarea value={f.answer} placeholder="Resposta" rows={2} className="text-xs"
+              onChange={(e) => { markDirty(); setState((s) => ({ ...s, faqs: s.faqs.map((x, j) => j === i ? { ...x, answer: e.target.value } : x) })); }} />
+            <Input value={f.tags} placeholder="Tags separadas por vírgula" className="h-7 text-[11px]"
+              onChange={(e) => { markDirty(); setState((s) => ({ ...s, faqs: s.faqs.map((x, j) => j === i ? { ...x, tags: e.target.value } : x) })); }} />
+          </div>
+        ))}
+        <Button variant="outline" size="sm" onClick={() => { markDirty(); setState((s) => ({ ...s, faqs: [...s.faqs, { question: "", answer: "", tags: "" }] })); }}>
+          <Plus className="size-3.5 mr-1" /> Adicionar pergunta
+        </Button>
+      </div>
+    );
+  }
+  // property_details: mesma simplificação do Manual da casa — só título +
+  // conteúdo (sem imagens/áudio, que são específicos de cada imóvel).
   return (
     <div className="space-y-2 mt-2">
-      {state.faqs.map((f, i) => (
+      {state.property_details.map((d, i) => (
         <div key={i} className="rounded-lg border border-border p-2 space-y-1.5">
           <div className="flex items-center gap-2">
-            <Input value={f.question} placeholder="Pergunta" className="h-8 text-sm"
-              onChange={(e) => { markDirty(); setState((s) => ({ ...s, faqs: s.faqs.map((x, j) => j === i ? { ...x, question: e.target.value } : x) })); }} />
-            <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => { markDirty(); setState((s) => ({ ...s, faqs: s.faqs.filter((_, j) => j !== i) })); }}>
+            <Input value={d.title} placeholder="Título (opcional)" className="h-8 text-sm"
+              onChange={(e) => { markDirty(); setState((s) => ({ ...s, property_details: s.property_details.map((x, j) => j === i ? { ...x, title: e.target.value } : x) })); }} />
+            <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => { markDirty(); setState((s) => ({ ...s, property_details: s.property_details.filter((_, j) => j !== i) })); }}>
               <Trash2 className="size-3.5" />
             </Button>
           </div>
-          <Textarea value={f.answer} placeholder="Resposta" rows={2} className="text-xs"
-            onChange={(e) => { markDirty(); setState((s) => ({ ...s, faqs: s.faqs.map((x, j) => j === i ? { ...x, answer: e.target.value } : x) })); }} />
-          <Input value={f.tags} placeholder="Tags separadas por vírgula" className="h-7 text-[11px]"
-            onChange={(e) => { markDirty(); setState((s) => ({ ...s, faqs: s.faqs.map((x, j) => j === i ? { ...x, tags: e.target.value } : x) })); }} />
+          <Textarea value={d.content} placeholder="Conteúdo — micro detalhes que a IA usa" rows={3} className="text-xs"
+            onChange={(e) => { markDirty(); setState((s) => ({ ...s, property_details: s.property_details.map((x, j) => j === i ? { ...x, content: e.target.value } : x) })); }} />
         </div>
       ))}
-      <Button variant="outline" size="sm" onClick={() => { markDirty(); setState((s) => ({ ...s, faqs: [...s.faqs, { question: "", answer: "", tags: "" }] })); }}>
-        <Plus className="size-3.5 mr-1" /> Adicionar pergunta
+      <Button variant="outline" size="sm" onClick={() => { markDirty(); setState((s) => ({ ...s, property_details: [...s.property_details, { title: "", content: "" }] })); }}>
+        <Plus className="size-3.5 mr-1" /> Adicionar item
       </Button>
     </div>
   );
 }
 
-function renderField(f: FieldDef, value: string | boolean | number | undefined, onChange: (v: string | boolean | number) => void) {
+function renderField(
+  f: FieldDef,
+  value: string | boolean | number | null | undefined,
+  onChange: (v: string | boolean | number | null) => void,
+  ownerOptions?: { id: string; name: string }[],
+) {
   if (f.kind === "textarea") {
     return <Textarea value={(value as string) ?? ""} placeholder={f.placeholder} onChange={(e) => onChange(e.target.value)} rows={3} className="rounded-[0.3rem] text-[13px]" />;
   }
@@ -870,6 +1083,45 @@ function renderField(f: FieldDef, value: string | boolean | number | undefined, 
   }
   if (f.kind === "number") {
     return <Input type="number" min={0} max={10} value={(value as number | undefined) ?? ""} onChange={(e) => onChange(parseInt(e.target.value, 10) || 0)} className="h-9 rounded-[0.3rem] text-[13px]" />;
+  }
+  if (f.kind === "money") {
+    return <MoneyInput cents={(value as number | null | undefined) ?? null} onChange={(c) => onChange(c)} />;
+  }
+  if (f.kind === "duration") {
+    const dValue = value != null ? String(value) : "";
+    return (
+      <Select value={dValue} onValueChange={(v) => onChange(v ? Number(v) : null)}>
+        <SelectTrigger>
+          <SelectValue placeholder="Selecione" />
+        </SelectTrigger>
+        <SelectContent>
+          <div className="grid grid-cols-4 gap-1 p-1">
+            {CLEANING_DURATION_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={String(o.value)} className="justify-center rounded-md px-2 py-1.5 text-center tabular-nums">
+                {o.label}
+              </SelectItem>
+            ))}
+          </div>
+        </SelectContent>
+      </Select>
+    );
+  }
+  if (f.kind === "select_owner") {
+    return (
+      <Select value={(value as string) || undefined} onValueChange={(v) => onChange(v)} disabled={!ownerOptions?.length}>
+        <SelectTrigger>
+          <SelectValue placeholder={ownerOptions?.length ? "Selecione um proprietário" : "Carregando…"} />
+        </SelectTrigger>
+        <SelectContent>
+          {(ownerOptions ?? []).map((o) => (
+            <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
+  }
+  if (f.kind === "select_property_type") {
+    return <PropertyTypeSelect value={(value as string) || null} onChange={onChange} />;
   }
   return <Input value={(value as string) ?? ""} placeholder={f.placeholder} onChange={(e) => onChange(e.target.value)} className="h-9 rounded-[0.3rem] text-[13px]" />;
 }
