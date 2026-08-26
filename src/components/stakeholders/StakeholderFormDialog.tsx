@@ -35,6 +35,9 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { MaskedInput, stripMask } from "@/components/inputs/MaskedInput";
+import { usePresence } from "@/hooks/usePresence";
+import { PresenceAvatars } from "@/components/presence/PresenceAvatars";
+import { FieldTypingBadge } from "@/components/presence/FieldTypingBadge";
 import { getStakeholderAccess, createStakeholderProvisionalAccess } from "@/lib/stakeholder-access.functions";
 import { inviteTeamMember, revokeTeamInvite, removeTeamMember } from "@/lib/team.functions";
 import { saveStakeholder } from "@/lib/stakeholders.functions";
@@ -155,6 +158,10 @@ export function StakeholderFormDialog({
   const [systemAccess, setSystemAccess] = useState(false);
   const [provisionalPwd, setProvisionalPwd] = useState("");
   const [showPwd, setShowPwd] = useState(false);
+
+  // Presença em tempo real: só existe sala pra registros já salvos (com id) —
+  // um cadastro novo, ainda sem id, não tem o que outra pessoa acompanhar.
+  const presence = usePresence(form.id ? `stakeholder:${form.id}` : null);
 
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim());
@@ -378,9 +385,12 @@ export function StakeholderFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[calc(100vw-1.5rem)] max-w-2xl overflow-x-hidden">
         <DialogHeader>
-          <DialogTitle className="font-display text-2xl capitalize">
-            {form.id ? `Editar ${singular}` : `Novo ${singular}`}
-          </DialogTitle>
+          <div className="flex items-center justify-between gap-3">
+            <DialogTitle className="font-display text-2xl capitalize">
+              {form.id ? `Editar ${singular}` : `Novo ${singular}`}
+            </DialogTitle>
+            <PresenceAvatars users={presence.users} />
+          </div>
           <DialogDescription>CNPJ e CEP preenchem os dados automaticamente.</DialogDescription>
         </DialogHeader>
 
@@ -430,24 +440,34 @@ export function StakeholderFormDialog({
                 onChange={(e) => {
                   set({ name: e.target.value });
                   clearError("name");
+                  presence.broadcastTyping("name", e.target.value);
                 }}
+                onBlur={() => presence.broadcastFieldBlur("name")}
                 className={errors.name ? "border-destructive" : ""}
               />
               {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
+              <FieldTypingBadge typing={presence.typing["name"]} />
             </div>
 
-            <MaskedInput
-              label={`${isPJ ? "CNPJ" : "CPF"}${req}`}
-              mask={isPJ ? "00.000.000/0000-00" : "000.000.000-00"}
-              placeholder={isPJ ? "00.000.000/0000-00" : "000.000.000-00"}
-              value={form.doc}
-              onValueChange={(raw) => {
-                set({ doc: raw });
-                clearError("doc");
-              }}
-              onBlur={handleDocBlur}
-              error={errors.doc}
-            />
+            <div className="min-w-0">
+              <MaskedInput
+                label={`${isPJ ? "CNPJ" : "CPF"}${req}`}
+                mask={isPJ ? "00.000.000/0000-00" : "000.000.000-00"}
+                placeholder={isPJ ? "00.000.000/0000-00" : "000.000.000-00"}
+                value={form.doc}
+                onValueChange={(raw) => {
+                  set({ doc: raw });
+                  clearError("doc");
+                  presence.broadcastTyping("doc", raw);
+                }}
+                onBlur={() => {
+                  presence.broadcastFieldBlur("doc");
+                  void handleDocBlur();
+                }}
+                error={errors.doc}
+              />
+              <FieldTypingBadge typing={presence.typing["doc"]} />
+            </div>
 
             {isPJ ? (
               <div className="space-y-1.5">
@@ -459,12 +479,15 @@ export function StakeholderFormDialog({
                   onChange={(e) => {
                     set({ trade_name: e.target.value });
                     clearError("trade_name");
+                    presence.broadcastTyping("trade_name", e.target.value);
                   }}
+                  onBlur={() => presence.broadcastFieldBlur("trade_name")}
                   className={errors.trade_name ? "border-destructive" : ""}
                 />
                 {errors.trade_name && (
                   <p className="text-xs text-destructive">{errors.trade_name}</p>
                 )}
+                <FieldTypingBadge typing={presence.typing["trade_name"]} />
               </div>
             ) : (
               <div className="space-y-1.5">
@@ -477,12 +500,15 @@ export function StakeholderFormDialog({
                   onChange={(e) => {
                     set({ birth_date: e.target.value });
                     clearError("birth_date");
+                    presence.broadcastTyping("birth_date", e.target.value);
                   }}
+                  onBlur={() => presence.broadcastFieldBlur("birth_date")}
                   className={errors.birth_date ? "border-destructive" : ""}
                 />
                 {errors.birth_date && (
                   <p className="text-xs text-destructive">{errors.birth_date}</p>
                 )}
+                <FieldTypingBadge typing={presence.typing["birth_date"]} />
               </div>
             )}
 
@@ -504,7 +530,11 @@ export function StakeholderFormDialog({
               <Label className="text-xs text-muted-foreground">Situação</Label>
               <Select
                 value={form.status}
-                onValueChange={(v) => set({ status: v as "active" | "inactive" })}
+                onValueChange={(v) => {
+                  set({ status: v as "active" | "inactive" });
+                  presence.broadcastTyping("status", v === "active" ? "Ativo" : "Inativo");
+                }}
+                onOpenChange={(o) => !o && presence.broadcastFieldBlur("status")}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -514,24 +544,30 @@ export function StakeholderFormDialog({
                   <SelectItem value="inactive">Inativo</SelectItem>
                 </SelectContent>
               </Select>
+              <FieldTypingBadge typing={presence.typing["status"]} />
             </div>
           </div>
 
           <SectionDivider label="Contato" />
 
           <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
-            <MaskedInput
-              label={`Telefone / WhatsApp${req}`}
-              mask="(00) 00000-0000"
-              placeholder="(00) 00000-0000"
-              value={form.phone}
-              onValueChange={(raw) => {
-                set({ phone: raw });
-                clearError("phone");
-              }}
-              error={errors.phone}
-              hint={form.phone ? formatBRPhone(form.phone) : undefined}
-            />
+            <div className="min-w-0">
+              <MaskedInput
+                label={`Telefone / WhatsApp${req}`}
+                mask="(00) 00000-0000"
+                placeholder="(00) 00000-0000"
+                value={form.phone}
+                onValueChange={(raw) => {
+                  set({ phone: raw });
+                  clearError("phone");
+                  presence.broadcastTyping("phone", raw);
+                }}
+                onBlur={() => presence.broadcastFieldBlur("phone")}
+                error={errors.phone}
+                hint={form.phone ? formatBRPhone(form.phone) : undefined}
+              />
+              <FieldTypingBadge typing={presence.typing["phone"]} />
+            </div>
 
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
@@ -545,12 +581,16 @@ export function StakeholderFormDialog({
                 inputMode="email"
                 autoComplete="email"
                 onChange={(e) => {
-                  set({ email: e.target.value.replace(/\s+/g, "").toLowerCase() });
+                  const v = e.target.value.replace(/\s+/g, "").toLowerCase();
+                  set({ email: v });
                   clearError("email");
+                  presence.broadcastTyping("email", v);
                 }}
+                onBlur={() => presence.broadcastFieldBlur("email")}
                 className={errors.email ? "border-destructive" : ""}
               />
               {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+              <FieldTypingBadge typing={presence.typing["email"]} />
             </div>
           </div>
 
@@ -633,18 +673,23 @@ export function StakeholderFormDialog({
           <SectionDivider label="Endereço" busy={loadingCep} />
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 [&>*]:min-w-0">
-            <MaskedInput
-              className="min-w-0"
-              label={`CEP${req}`}
-              mask="00000-000"
-              placeholder="00000-000"
-              value={form.cep}
-              onValueChange={(raw) => {
-                clearError("cep");
-                void handleCep(raw);
-              }}
-              error={errors.cep}
-            />
+            <div className="min-w-0">
+              <MaskedInput
+                className="min-w-0"
+                label={`CEP${req}`}
+                mask="00000-000"
+                placeholder="00000-000"
+                value={form.cep}
+                onValueChange={(raw) => {
+                  clearError("cep");
+                  presence.broadcastTyping("cep", raw);
+                  void handleCep(raw);
+                }}
+                onBlur={() => presence.broadcastFieldBlur("cep")}
+                error={errors.cep}
+              />
+              <FieldTypingBadge typing={presence.typing["cep"]} />
+            </div>
             <div className="col-span-2">
               <AddressAutocomplete
                 label={`Logradouro${req}`}
@@ -684,10 +729,13 @@ export function StakeholderFormDialog({
                 onChange={(e) => {
                   set({ district: e.target.value });
                   clearError("district");
+                  presence.broadcastTyping("district", e.target.value);
                 }}
+                onBlur={() => presence.broadcastFieldBlur("district")}
                 className={errors.district ? "border-destructive" : ""}
               />
               {errors.district && <p className="text-xs text-destructive">{errors.district}</p>}
+              <FieldTypingBadge typing={presence.typing["district"]} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
@@ -700,10 +748,13 @@ export function StakeholderFormDialog({
                 onChange={(e) => {
                   set({ city: e.target.value });
                   clearError("city");
+                  presence.broadcastTyping("city", e.target.value);
                 }}
+                onBlur={() => presence.broadcastFieldBlur("city")}
                 className={errors.city ? "border-destructive" : ""}
               />
               {errors.city && <p className="text-xs text-destructive">{errors.city}</p>}
+              <FieldTypingBadge typing={presence.typing["city"]} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Estado{req}</Label>
@@ -712,12 +763,16 @@ export function StakeholderFormDialog({
                 placeholder="UF"
                 value={form.state}
                 onChange={(e) => {
-                  set({ state: e.target.value.toUpperCase() });
+                  const v = e.target.value.toUpperCase();
+                  set({ state: v });
                   clearError("state");
+                  presence.broadcastTyping("state", v);
                 }}
+                onBlur={() => presence.broadcastFieldBlur("state")}
                 className={errors.state ? "border-destructive" : ""}
               />
               {errors.state && <p className="text-xs text-destructive">{errors.state}</p>}
+              <FieldTypingBadge typing={presence.typing["state"]} />
             </div>
 
           </div>
@@ -731,8 +786,13 @@ export function StakeholderFormDialog({
               maxLength={4000}
               placeholder={`Observações sobre o ${singular}...`}
               value={form.notes}
-              onChange={(e) => set({ notes: e.target.value })}
+              onChange={(e) => {
+                set({ notes: e.target.value });
+                presence.broadcastTyping("notes", e.target.value);
+              }}
+              onBlur={() => presence.broadcastFieldBlur("notes")}
             />
+            <FieldTypingBadge typing={presence.typing["notes"]} />
           </div>
         </div>
 

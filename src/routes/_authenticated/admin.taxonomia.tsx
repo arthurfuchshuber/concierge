@@ -38,6 +38,9 @@ import {
 import { ArrowLeft, ChevronDown, Lock, Pencil, Plus, Trash2, Loader2 } from "lucide-react";
 import { PageHeader, ActionBar } from "@/components/ds/PageHeader";
 import { toast } from "sonner";
+import { usePresence } from "@/hooks/usePresence";
+import { PresenceAvatars } from "@/components/presence/PresenceAvatars";
+import { FieldTypingBadge } from "@/components/presence/FieldTypingBadge";
 
 export const Route = createFileRoute("/_authenticated/admin/taxonomia")({
   component: TaxonomyPage,
@@ -312,11 +315,26 @@ function EditCategoryDialog({ cat, onClose, onSave, onDelete }: {
 }) {
   const [label, setLabel] = useState(cat.label);
   const [saving, setSaving] = useState(false);
+  const presence = usePresence(`poi-category:${cat.id}`);
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>Editar categoria</DialogTitle></DialogHeader>
-        <Input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={60} />
+        <DialogHeader>
+          <div className="flex items-center justify-between gap-3">
+            <DialogTitle>Editar categoria</DialogTitle>
+            <PresenceAvatars users={presence.users} />
+          </div>
+        </DialogHeader>
+        <Input
+          value={label}
+          onChange={(e) => {
+            setLabel(e.target.value);
+            presence.broadcastTyping("label", e.target.value);
+          }}
+          onBlur={() => presence.broadcastFieldBlur("label")}
+          maxLength={60}
+        />
+        <FieldTypingBadge typing={presence.typing["label"]} />
         {cat.is_protected && (
           <p className="ds-meta flex gap-1.5 items-start">
             <Lock className="size-3 mt-0.5" /> Categoria padrão — pode renomear, não pode excluir.
@@ -353,23 +371,46 @@ function EditTagDialog({ tag, categories, onClose, onSave, onDelete }: {
   const [variants, setVariants] = useState(tag.query_variants.join(", "));
   const [minR, setMinR] = useState(tag.min_reviews);
   const [saving, setSaving] = useState(false);
+  const presence = usePresence(`poi-tag:${tag.id}`);
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-md">
-        <DialogHeader><DialogTitle>Editar tag</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <div className="flex items-center justify-between gap-3">
+            <DialogTitle>Editar tag</DialogTitle>
+            <PresenceAvatars users={presence.users} />
+          </div>
+        </DialogHeader>
         <div className="space-y-3">
           <div>
             <Label className="ds-meta">Nome</Label>
-            <Input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={60} />
+            <Input
+              value={label}
+              onChange={(e) => {
+                setLabel(e.target.value);
+                presence.broadcastTyping("label", e.target.value);
+              }}
+              onBlur={() => presence.broadcastFieldBlur("label")}
+              maxLength={60}
+            />
+            <FieldTypingBadge typing={presence.typing["label"]} />
           </div>
           <div>
             <Label className="ds-meta">Categoria</Label>
-            <Select value={catId} onValueChange={setCatId}>
+            <Select
+              value={catId}
+              onValueChange={(v) => {
+                setCatId(v);
+                presence.broadcastTyping("category_id", categories.find((c) => c.id === v)?.label ?? v);
+              }}
+              onOpenChange={(open) => !open && presence.broadcastFieldBlur("category_id")}
+            >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}
               </SelectContent>
             </Select>
+            <FieldTypingBadge typing={presence.typing["category_id"]} />
           </div>
           <button type="button" onClick={() => setShowAi(!showAi)} className="ds-meta underline">
             {showAi ? "Ocultar" : "Mostrar"} mapeamento avançado (IA)
@@ -377,10 +418,56 @@ function EditTagDialog({ tag, categories, onClose, onSave, onDelete }: {
           {showAi && (
             <div className="space-y-2 border-l-2 border-border pl-3">
               <p className="ds-meta">A IA usa esses dados para classificar pontos automaticamente nesta tag durante "Gerar com IA".</p>
-              <Input value={primary} onChange={(e) => setPrimary(e.target.value)} placeholder="Primary types (vírgula)" />
-              <Input value={places} onChange={(e) => setPlaces(e.target.value)} placeholder="Places types (vírgula)" />
-              <Input value={variants} onChange={(e) => setVariants(e.target.value)} placeholder="Variantes de busca (vírgula)" />
-              <Input type="number" value={minR} onChange={(e) => setMinR(Number(e.target.value) || 0)} placeholder="Mínimo de avaliações" />
+              <div>
+                <Input
+                  value={primary}
+                  onChange={(e) => {
+                    setPrimary(e.target.value);
+                    presence.broadcastTyping("accepted_primary_types", e.target.value);
+                  }}
+                  onBlur={() => presence.broadcastFieldBlur("accepted_primary_types")}
+                  placeholder="Primary types (vírgula)"
+                />
+                <FieldTypingBadge typing={presence.typing["accepted_primary_types"]} />
+              </div>
+              <div>
+                <Input
+                  value={places}
+                  onChange={(e) => {
+                    setPlaces(e.target.value);
+                    presence.broadcastTyping("places_types", e.target.value);
+                  }}
+                  onBlur={() => presence.broadcastFieldBlur("places_types")}
+                  placeholder="Places types (vírgula)"
+                />
+                <FieldTypingBadge typing={presence.typing["places_types"]} />
+              </div>
+              <div>
+                <Input
+                  value={variants}
+                  onChange={(e) => {
+                    setVariants(e.target.value);
+                    presence.broadcastTyping("query_variants", e.target.value);
+                  }}
+                  onBlur={() => presence.broadcastFieldBlur("query_variants")}
+                  placeholder="Variantes de busca (vírgula)"
+                />
+                <FieldTypingBadge typing={presence.typing["query_variants"]} />
+              </div>
+              <div>
+                <Input
+                  type="number"
+                  value={minR}
+                  onChange={(e) => {
+                    const v = Number(e.target.value) || 0;
+                    setMinR(v);
+                    presence.broadcastTyping("min_reviews", String(v));
+                  }}
+                  onBlur={() => presence.broadcastFieldBlur("min_reviews")}
+                  placeholder="Mínimo de avaliações"
+                />
+                <FieldTypingBadge typing={presence.typing["min_reviews"]} />
+              </div>
             </div>
           )}
           {tag.is_protected && (

@@ -19,7 +19,7 @@ import { POIMetricsBadge } from "@/components/POIMetricsBadge";
 import { getPropertyPoiCounts, getMarketplaceClicks } from "@/lib/poi-engagement.functions";
 
 import { Input } from "@/components/ui/input";
-import { MoneyInput } from "@/components/ui/money-input";
+import { MoneyInput, centsToReaisInput } from "@/components/ui/money-input";
 import { Textarea } from "@/components/ui/textarea";
 import { TagMentionTextarea, type TagMentionItem } from "@/components/tags/TagMentionTextarea";
 import { slugForTag } from "@/lib/guide-tags";
@@ -360,6 +360,12 @@ function PropertyEditor() {
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRecsRef = useRef<string>("");
   const [autoSaving, setAutoSaving] = useState(false);
+  // Antes, um erro no autosave silencioso só ia pro console.warn — a pessoa
+  // via "Alterações salvas automaticamente" mesmo quando a alteração NÃO
+  // tinha sido salva, sem nenhum jeito de saber (ou de eu diagnosticar,
+  // pedindo pra ela olhar o console). Agora qualquer falha aparece no
+  // rodapé, com a mensagem real do erro ao passar o mouse.
+  const [autoSaveError, setAutoSaveError] = useState<string | null>(null);
   const [step, setStepRaw] = useState<string>(() => {
     if (typeof window === "undefined") return "house";
     const raw = window.location.hash.replace("#tab-", "");
@@ -1094,6 +1100,7 @@ function PropertyEditor() {
       saveQueueRef.current = queuedSave.then(() => undefined, () => undefined);
       const r = await queuedSave;
       if (!silent) toast.success(isNew ? "Imóvel criado" : "Guia salvo");
+      setAutoSaveError(null);
       if (editVersionRef.current === saveVersion) dirtyRef.current = false;
       // Em autosave (silent) NÃO invalidamos nada: refetch do guia inteiro a
       // cada tecla era o que deixava a edição lenta. Só marcamos as queries
@@ -1108,8 +1115,12 @@ function PropertyEditor() {
       if (isNew) navigate({ to: "/admin/properties/$id", params: { id: r.id } });
 
     } catch (e) {
-      if (!silent) toast.error(e instanceof Error ? e.message : "Erro ao salvar");
-      else console.warn("[autosave] guia", e);
+      const msg = e instanceof Error ? e.message : "Erro ao salvar";
+      if (!silent) toast.error(msg);
+      else {
+        console.warn("[autosave] guia", e);
+        setAutoSaveError(msg);
+      }
     } finally {
       if (silent) setAutoSaving(false); else setSaving(false);
     }
@@ -1156,8 +1167,10 @@ function PropertyEditor() {
         };
         await save({ data: payload });
         lastSavedRecsRef.current = snapshot;
+        setAutoSaveError(null);
       } catch (e) {
         console.warn("[autosave] recs", e);
+        setAutoSaveError(e instanceof Error ? e.message : "Erro ao salvar");
       } finally {
         setAutoSaving(false);
       }
@@ -1268,81 +1281,124 @@ function PropertyEditor() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <div className="rounded-[0.3rem] border border-border/60 bg-background/40 p-3">
           <p className="mb-2.5 text-xs font-medium text-foreground/70">Limpeza normal</p>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Valor (R$)" hint="Valor fixo cobrado por uma limpeza normal deste imóvel.">
-              <MoneyInput
-                cents={form.property.cleaning_price_normal_cents}
-                onChange={(c) => update("cleaning_price_normal_cents", c)}
-              />
-            </Field>
-            <Field label="Prazo estimado" hint="Em intervalos de 30 minutos.">
-              <Select
-                value={
-                  form.property.cleaning_duration_normal_minutes != null
-                    ? String(form.property.cleaning_duration_normal_minutes)
-                    : ""
-                }
-                onValueChange={(v) => update("cleaning_duration_normal_minutes", v ? Number(v) : null)}
+          {/* items-start (não stretch) + hintClassName nos dois Fields: sem
+              isso, a legenda de 2 linhas de "Valor (R$)" empurrava o campo
+              de valor mais pra baixo que o dropdown de "Prazo estimado"
+              (legenda de 1 linha só) — título alinhava com título, mas o
+              campo preenchível de cada um ficava numa altura diferente. */}
+          <div className="grid grid-cols-2 gap-3 items-start">
+            <div className="min-w-0">
+              <Field
+                label="Valor (R$)"
+                hint="Valor fixo cobrado por uma limpeza normal deste imóvel."
+                hintClassName="min-h-[30px]"
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                {/* Grade de 4 colunas em vez de lista longa — as 16 opções
-                    (30min a 8h) cabem inteiras sem rolagem, muito mais rápido
-                    de escanear do que uma lista vertical de 16 linhas. */}
-                <SelectContent>
-                  <div className="grid grid-cols-4 gap-1 p-1">
-                    {CLEANING_DURATION_OPTIONS.map((o) => (
-                      <SelectItem
-                        key={o.value}
-                        value={String(o.value)}
-                        className="justify-center rounded-md px-2 py-1.5 text-center tabular-nums"
-                      >
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </div>
-                </SelectContent>
-              </Select>
-            </Field>
+                <MoneyInput
+                  cents={form.property.cleaning_price_normal_cents}
+                  onChange={(c) => {
+                    update("cleaning_price_normal_cents", c);
+                    presence.broadcastTyping("cleaning_price_normal_cents", centsToReaisInput(c));
+                  }}
+                  onBlur={() => presence.broadcastFieldBlur("cleaning_price_normal_cents")}
+                />
+              </Field>
+              <FieldTypingBadge typing={presence.typing["cleaning_price_normal_cents"]} />
+            </div>
+            <div className="min-w-0">
+              <Field label="Prazo estimado" hint="Em intervalos de 30 minutos." hintClassName="min-h-[30px]">
+                <Select
+                  value={
+                    form.property.cleaning_duration_normal_minutes != null
+                      ? String(form.property.cleaning_duration_normal_minutes)
+                      : ""
+                  }
+                  onValueChange={(v) => {
+                    update("cleaning_duration_normal_minutes", v ? Number(v) : null);
+                    const opt = CLEANING_DURATION_OPTIONS.find((o) => String(o.value) === v);
+                    presence.broadcastTyping("cleaning_duration_normal_minutes", opt?.label ?? "");
+                  }}
+                  onOpenChange={(open) => !open && presence.broadcastFieldBlur("cleaning_duration_normal_minutes")}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  {/* Grade de 4 colunas em vez de lista longa — as 16 opções
+                      (30min a 8h) cabem inteiras sem rolagem, muito mais rápido
+                      de escanear do que uma lista vertical de 16 linhas. */}
+                  <SelectContent>
+                    <div className="grid grid-cols-4 gap-1 p-1">
+                      {CLEANING_DURATION_OPTIONS.map((o) => (
+                        <SelectItem
+                          key={o.value}
+                          value={String(o.value)}
+                          className="justify-center rounded-md px-2 py-1.5 text-center tabular-nums"
+                        >
+                          {o.label}
+                        </SelectItem>
+                      ))}
+                    </div>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <FieldTypingBadge typing={presence.typing["cleaning_duration_normal_minutes"]} />
+            </div>
           </div>
         </div>
         <div className="rounded-[0.3rem] border border-border/60 bg-background/40 p-3">
           <p className="mb-2.5 text-xs font-medium text-foreground/70">Limpeza completa</p>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Valor (R$)" hint="Valor fixo cobrado por uma limpeza completa deste imóvel.">
-              <MoneyInput
-                cents={form.property.cleaning_price_full_cents}
-                onChange={(c) => update("cleaning_price_full_cents", c)}
-              />
-            </Field>
-            <Field label="Prazo estimado" hint="Em intervalos de 30 minutos.">
-              <Select
-                value={
-                  form.property.cleaning_duration_full_minutes != null
-                    ? String(form.property.cleaning_duration_full_minutes)
-                    : ""
-                }
-                onValueChange={(v) => update("cleaning_duration_full_minutes", v ? Number(v) : null)}
+          <div className="grid grid-cols-2 gap-3 items-start">
+            <div className="min-w-0">
+              <Field
+                label="Valor (R$)"
+                hint="Valor fixo cobrado por uma limpeza completa deste imóvel."
+                hintClassName="min-h-[30px]"
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <div className="grid grid-cols-4 gap-1 p-1">
-                    {CLEANING_DURATION_OPTIONS.map((o) => (
-                      <SelectItem
-                        key={o.value}
-                        value={String(o.value)}
-                        className="justify-center rounded-md px-2 py-1.5 text-center tabular-nums"
-                      >
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </div>
-                </SelectContent>
-              </Select>
-            </Field>
+                <MoneyInput
+                  cents={form.property.cleaning_price_full_cents}
+                  onChange={(c) => {
+                    update("cleaning_price_full_cents", c);
+                    presence.broadcastTyping("cleaning_price_full_cents", centsToReaisInput(c));
+                  }}
+                  onBlur={() => presence.broadcastFieldBlur("cleaning_price_full_cents")}
+                />
+              </Field>
+              <FieldTypingBadge typing={presence.typing["cleaning_price_full_cents"]} />
+            </div>
+            <div className="min-w-0">
+              <Field label="Prazo estimado" hint="Em intervalos de 30 minutos." hintClassName="min-h-[30px]">
+                <Select
+                  value={
+                    form.property.cleaning_duration_full_minutes != null
+                      ? String(form.property.cleaning_duration_full_minutes)
+                      : ""
+                  }
+                  onValueChange={(v) => {
+                    update("cleaning_duration_full_minutes", v ? Number(v) : null);
+                    const opt = CLEANING_DURATION_OPTIONS.find((o) => String(o.value) === v);
+                    presence.broadcastTyping("cleaning_duration_full_minutes", opt?.label ?? "");
+                  }}
+                  onOpenChange={(open) => !open && presence.broadcastFieldBlur("cleaning_duration_full_minutes")}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <div className="grid grid-cols-4 gap-1 p-1">
+                      {CLEANING_DURATION_OPTIONS.map((o) => (
+                        <SelectItem
+                          key={o.value}
+                          value={String(o.value)}
+                          className="justify-center rounded-md px-2 py-1.5 text-center tabular-nums"
+                        >
+                          {o.label}
+                        </SelectItem>
+                      ))}
+                    </div>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <FieldTypingBadge typing={presence.typing["cleaning_duration_full_minutes"]} />
+            </div>
           </div>
         </div>
       </div>
@@ -1636,7 +1692,7 @@ function PropertyEditor() {
             {isNew ? (
               <EmptyHint text="Salve o imóvel primeiro para começar o detalhamento." />
             ) : (
-              <PropertyDetailsEditor propertyId={id} />
+              <PropertyDetailsEditor propertyId={id} presence={presence} />
             )}
           </Section>
   );
@@ -2651,8 +2707,26 @@ function PropertyEditor() {
             <ArrowLeft className="size-3.5 ml-1 rotate-180" />
           </Button>
           {!readOnly && !isNew && (
-            <span className="basis-full text-center text-[11px] text-muted-foreground inline-flex items-center justify-center gap-1.5">
-              {autoSaving ? (<><Loader2 className="size-3 animate-spin" /> Salvando…</>) : "Alterações salvas automaticamente"}
+            <span
+              className={`basis-full text-center text-[11px] inline-flex items-center justify-center gap-1.5 ${
+                autoSaveError ? "text-destructive" : "text-muted-foreground"
+              }`}
+              // Passe o mouse aqui pra ver o motivo real de uma falha — sem
+              // isso, "Falha ao salvar" sozinho não dava nenhuma pista do
+              // que travou o autosave desta página.
+              title={autoSaveError ?? undefined}
+            >
+              {autoSaving ? (
+                <>
+                  <Loader2 className="size-3 animate-spin" /> Salvando…
+                </>
+              ) : autoSaveError ? (
+                <>
+                  <AlertTriangle className="size-3" /> Falha ao salvar — passe o mouse aqui pra ver o motivo
+                </>
+              ) : (
+                "Alterações salvas automaticamente"
+              )}
             </span>
           )}
 
@@ -2691,13 +2765,31 @@ function PropertyEditor() {
 
 
 
-function Field({ label, hint, required, children }: { label: string; hint?: string; required?: boolean; children: React.ReactNode }) {
+function Field({
+  label,
+  hint,
+  hintClassName,
+  required,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  // Opcional: reserva uma altura mínima pra legenda (hint), pra quando este
+  // Field fica lado a lado com outro Field cujo hint tem um número
+  // DIFERENTE de linhas — sem isso, o campo com legenda mais curta "subia"
+  // e ficava desalinhado com o campo vizinho (título com título, mas campo
+  // preenchível cada um numa altura diferente). Só é preciso passar isso
+  // quando dois Fields precisam ficar emparelhados lado a lado.
+  hintClassName?: string;
+  required?: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <div className="min-w-0">
       <Label className="block truncate text-[13px] font-normal text-foreground">
         {label} {required && <span className="text-destructive">*</span>}
       </Label>
-      {hint && <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{hint}</p>}
+      {hint && <p className={cn("text-[11px] text-muted-foreground mt-0.5 leading-snug", hintClassName)}>{hint}</p>}
       <div className="mt-2">{children}</div>
     </div>
   );

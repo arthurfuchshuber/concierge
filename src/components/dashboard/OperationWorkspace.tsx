@@ -35,7 +35,7 @@ import {
   Banknote,
   CalendarRange,
   User,
-  RotateCcw,
+  Eraser,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, parse, isValid, differenceInCalendarDays } from "date-fns";
@@ -972,15 +972,23 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 selected={ownerFilters}
                 onChange={setOwnerFilters}
               />
+              {/* Só o ícone, sem o "quadrante" (fundo/borda/sombra) dos
+                  outros botões de filtro — pedido explícito: a borracha
+                  precisa ficar bem visível mas solta, não dentro de uma
+                  caixa igual às dos filtros ao lado. Limpa TUDO (período,
+                  cidade, proprietário) e devolve o calendário pro dia atual
+                  — `clearAllFilters` já faz isso: com `periodRange` voltando
+                  a null, `occStart` volta a ser "hoje" e `occDays` volta a
+                  21 (ver mais acima, onde os dois são calculados). */}
               <button
                 type="button"
                 disabled={!hasCustomFilters}
                 onClick={clearAllFilters}
                 title="Limpar filtros e voltar para hoje"
                 aria-label="Limpar filtros e voltar para hoje"
-                className={`${FILTER_BUTTON_CLASS} w-9 justify-center px-0 disabled:opacity-40 disabled:pointer-events-none`}
+                className="inline-flex size-9 shrink-0 items-center justify-center rounded-[0.3rem] text-foreground/70 transition-colors hover:text-foreground hover:bg-secondary/40 disabled:opacity-40 disabled:pointer-events-none"
               >
-                <RotateCcw className="size-3.5" />
+                <Eraser className="size-4" />
               </button>
             </div>
 

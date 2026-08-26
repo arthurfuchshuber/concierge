@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { AutosaveIndicator } from "@/components/ui/autosave-indicator";
 import { useAutosave } from "@/hooks/useAutosave";
 import { AudioRecorderButton } from "@/components/handoff/AudioRecorderButton";
+import { usePresence } from "@/hooks/usePresence";
+import { FieldTypingBadge } from "@/components/presence/FieldTypingBadge";
 import {
   listPropertyDetails,
   savePropertyDetail,
@@ -76,7 +78,16 @@ export function usePrefetchPropertyDetails(propertyId: string | null | undefined
   }, [propertyId, qc, listFn]);
 }
 
-export function PropertyDetailsEditor({ propertyId }: { propertyId: string }) {
+export function PropertyDetailsEditor({
+  propertyId,
+  presence,
+}: {
+  propertyId: string;
+  // Opcional: quando o chamador (tela cheia ou popup de edição rápida) já
+  // tem uma sessão de presença aberta para o imóvel, ela é reaproveitada
+  // aqui — mesma roomKey, mesmo canal — em vez de criar uma nova.
+  presence?: ReturnType<typeof usePresence>;
+}) {
   const listFn = useServerFn(listPropertyDetails);
   const saveFn = useServerFn(savePropertyDetail);
   const deleteFn = useServerFn(deletePropertyDetail);
@@ -231,10 +242,13 @@ export function PropertyDetailsEditor({ propertyId }: { propertyId: string }) {
               dirtyRef.current = true;
               setLoaded(true);
               setText(e.target.value);
+              presence?.broadcastTyping("property_details_text", e.target.value);
             }}
+            onBlur={() => presence?.broadcastFieldBlur("property_details_text")}
             placeholder="Ex: O aquecedor da piscina fica no armário externo à direita; leva cerca de 40 minutos para aquecer. A fechadura da porta dos fundos emperra quando chove — basta puxar e girar…"
             className="w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm leading-relaxed outline-none focus:border-primary/60 focus:ring-0 overflow-hidden"
           />
+          {presence && <FieldTypingBadge typing={presence.typing["property_details_text"]} />}
 
           <input
             ref={fileRef}

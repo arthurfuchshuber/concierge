@@ -27,7 +27,7 @@ import {
 } from "@/components/ResponsiveDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MoneyInput } from "@/components/ui/money-input";
+import { MoneyInput, centsToReaisInput } from "@/components/ui/money-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
@@ -41,6 +41,9 @@ import { missingRequiredHouseFields } from "@/lib/property-house-fields";
 import { PropertyTypeSelect } from "@/components/admin/PropertyTypeSelect";
 import { PropertyDetailsEditor } from "@/components/admin/PropertyDetailsEditor";
 import { useRealtimeInvalidate } from "@/hooks/useRealtimeInvalidate";
+import { usePresence } from "@/hooks/usePresence";
+import { PresenceAvatars } from "@/components/presence/PresenceAvatars";
+import { FieldTypingBadge } from "@/components/presence/FieldTypingBadge";
 import { useAutosave } from "@/hooks/useAutosave";
 import { AutosaveIndicator } from "@/components/ui/autosave-indicator";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
@@ -159,6 +162,12 @@ export function PropertyQuickEditDialog({
   const reservationsFn = useServerFn(listPropertyReservations);
   const listOwnersFn = useServerFn(listActivePropertyOwnersForSelect);
   const transferOwnerFn = useServerFn(transferPropertyOwner);
+
+  // Presença em tempo real: este popup edita o MESMO registro que a aba "A
+  // casa" do editor completo, então usa a mesma roomKey — quem tiver as duas
+  // telas abertas enxerga a digitação da outra em tempo real. Sempre um
+  // imóvel já existente (nunca "new") quando este popup abre.
+  const presence = usePresence(`property:${propertyId}`);
 
   const { data, isLoading } = useQuery({
     queryKey: ["property-quick-edit", propertyId],
@@ -480,7 +489,10 @@ export function PropertyQuickEditDialog({
     <ResponsiveDialog open={open} onOpenChange={onOpenChange}>
       <ResponsiveDialogContent className="w-[calc(100vw-2rem)] sm:max-w-3xl max-h-[88vh] overflow-y-auto">
         <ResponsiveDialogHeader>
-          <ResponsiveDialogTitle>Editar imóvel</ResponsiveDialogTitle>
+          <div className="flex items-center justify-between gap-3">
+            <ResponsiveDialogTitle>Editar imóvel</ResponsiveDialogTitle>
+            <PresenceAvatars users={presence.users} />
+          </div>
           <ResponsiveDialogDescription>
             Mesma tela da aba "A casa" do editor completo. Para checkin, checkout, FAQ e recomendações, abra o guia.
           </ResponsiveDialogDescription>
@@ -519,7 +531,12 @@ export function PropertyQuickEditDialog({
                   <Field label="Proprietário" required>
                     <Select
                       value={edited.owner_contact_id ?? ""}
-                      onValueChange={(v) => upd("owner_contact_id", v || null)}
+                      onValueChange={(v) => {
+                        upd("owner_contact_id", v || null);
+                        const opt = propertyOwnerOptions.find((o) => o.id === v);
+                        presence.broadcastTyping("owner_contact_id", opt?.name ?? "");
+                      }}
+                      onOpenChange={(open) => !open && presence.broadcastFieldBlur("owner_contact_id")}
                       disabled={ownersLoading || propertyOwnerOptions.length === 0}
                     >
                       <SelectTrigger>
@@ -534,6 +551,7 @@ export function PropertyQuickEditDialog({
                     {propertyOwnerOptions.length === 0 && !ownersLoading && (
                       <p className="mt-1.5 text-xs text-amber-500">Nenhum proprietário cadastrado. Cadastre um em Stakeholders antes de continuar.</p>
                     )}
+                    <FieldTypingBadge typing={presence.typing["owner_contact_id"]} />
                   </Field>
                 )}
                 <Dialog open={transferOpen} onOpenChange={(o) => { if (!transferring) setTransferOpen(o); }}>
@@ -544,7 +562,16 @@ export function PropertyQuickEditDialog({
                     <p className="text-sm text-muted-foreground">
                       Escolha o novo proprietário para <strong>{edited.name || "este imóvel"}</strong>. O proprietário atual ({currentOwnerName ?? "vinculado"}) perde o vínculo com este imóvel.
                     </p>
-                    <Select value={transferTargetId} onValueChange={setTransferTargetId} disabled={ownersLoading || transferring}>
+                    <Select
+                      value={transferTargetId}
+                      onValueChange={(v) => {
+                        setTransferTargetId(v);
+                        const opt = propertyOwnerOptions.find((o) => o.id === v);
+                        presence.broadcastTyping("owner_contact_id", opt?.name ?? "");
+                      }}
+                      onOpenChange={(open) => !open && presence.broadcastFieldBlur("owner_contact_id")}
+                      disabled={ownersLoading || transferring}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder={ownersLoading ? "Carregando…" : "Selecione o novo proprietário"} />
                       </SelectTrigger>
@@ -554,6 +581,7 @@ export function PropertyQuickEditDialog({
                         ))}
                       </SelectContent>
                     </Select>
+                    <FieldTypingBadge typing={presence.typing["owner_contact_id"]} />
                     <div className="flex items-center justify-end gap-2 pt-2">
                       <Button type="button" variant="outline" disabled={transferring} onClick={() => setTransferOpen(false)}>Cancelar</Button>
                       <Button type="button" disabled={!transferTargetId || transferring} onClick={handleConfirmTransfer}>
@@ -587,77 +615,107 @@ export function PropertyQuickEditDialog({
                   <div className="rounded-[0.3rem] border border-border/60 bg-background/40 p-3">
                     <p className="mb-2.5 text-xs font-medium text-foreground/70">Limpeza normal</p>
                     <div className="grid grid-cols-2 gap-3">
-                      <Field label="Valor (R$)" hint="Valor fixo cobrado por uma limpeza normal deste imóvel.">
-                        <MoneyInput
-                          cents={edited.cleaning_price_normal_cents}
-                          onChange={(c) => upd("cleaning_price_normal_cents", c)}
-                        />
-                      </Field>
-                      <Field label="Prazo estimado" hint="Em intervalos de 30 minutos.">
-                        <Select
-                          value={
-                            edited.cleaning_duration_normal_minutes != null
-                              ? String(edited.cleaning_duration_normal_minutes)
-                              : ""
-                          }
-                          onValueChange={(v) => upd("cleaning_duration_normal_minutes", v ? Number(v) : null)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <div className="grid grid-cols-4 gap-1 p-1">
-                              {CLEANING_DURATION_OPTIONS.map((o) => (
-                                <SelectItem
-                                  key={o.value}
-                                  value={String(o.value)}
-                                  className="justify-center rounded-md px-2 py-1.5 text-center tabular-nums"
-                                >
-                                  {o.label}
-                                </SelectItem>
-                              ))}
-                            </div>
-                          </SelectContent>
-                        </Select>
-                      </Field>
+                      <div>
+                        <Field label="Valor (R$)" hint="Valor fixo cobrado por uma limpeza normal deste imóvel.">
+                          <MoneyInput
+                            cents={edited.cleaning_price_normal_cents}
+                            onChange={(c) => {
+                              upd("cleaning_price_normal_cents", c);
+                              presence.broadcastTyping("cleaning_price_normal_cents", centsToReaisInput(c));
+                            }}
+                            onBlur={() => presence.broadcastFieldBlur("cleaning_price_normal_cents")}
+                          />
+                        </Field>
+                        <FieldTypingBadge typing={presence.typing["cleaning_price_normal_cents"]} />
+                      </div>
+                      <div>
+                        <Field label="Prazo estimado" hint="Em intervalos de 30 minutos.">
+                          <Select
+                            value={
+                              edited.cleaning_duration_normal_minutes != null
+                                ? String(edited.cleaning_duration_normal_minutes)
+                                : ""
+                            }
+                            onValueChange={(v) => {
+                              upd("cleaning_duration_normal_minutes", v ? Number(v) : null);
+                              const opt = CLEANING_DURATION_OPTIONS.find((o) => String(o.value) === v);
+                              presence.broadcastTyping("cleaning_duration_normal_minutes", opt?.label ?? "");
+                            }}
+                            onOpenChange={(open) => !open && presence.broadcastFieldBlur("cleaning_duration_normal_minutes")}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <div className="grid grid-cols-4 gap-1 p-1">
+                                {CLEANING_DURATION_OPTIONS.map((o) => (
+                                  <SelectItem
+                                    key={o.value}
+                                    value={String(o.value)}
+                                    className="justify-center rounded-md px-2 py-1.5 text-center tabular-nums"
+                                  >
+                                    {o.label}
+                                  </SelectItem>
+                                ))}
+                              </div>
+                            </SelectContent>
+                          </Select>
+                        </Field>
+                        <FieldTypingBadge typing={presence.typing["cleaning_duration_normal_minutes"]} />
+                      </div>
                     </div>
                   </div>
                   <div className="rounded-[0.3rem] border border-border/60 bg-background/40 p-3">
                     <p className="mb-2.5 text-xs font-medium text-foreground/70">Limpeza completa</p>
                     <div className="grid grid-cols-2 gap-3">
-                      <Field label="Valor (R$)" hint="Valor fixo cobrado por uma limpeza completa deste imóvel.">
-                        <MoneyInput
-                          cents={edited.cleaning_price_full_cents}
-                          onChange={(c) => upd("cleaning_price_full_cents", c)}
-                        />
-                      </Field>
-                      <Field label="Prazo estimado" hint="Em intervalos de 30 minutos.">
-                        <Select
-                          value={
-                            edited.cleaning_duration_full_minutes != null
-                              ? String(edited.cleaning_duration_full_minutes)
-                              : ""
-                          }
-                          onValueChange={(v) => upd("cleaning_duration_full_minutes", v ? Number(v) : null)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <div className="grid grid-cols-4 gap-1 p-1">
-                              {CLEANING_DURATION_OPTIONS.map((o) => (
-                                <SelectItem
-                                  key={o.value}
-                                  value={String(o.value)}
-                                  className="justify-center rounded-md px-2 py-1.5 text-center tabular-nums"
-                                >
-                                  {o.label}
-                                </SelectItem>
-                              ))}
-                            </div>
-                          </SelectContent>
-                        </Select>
-                      </Field>
+                      <div>
+                        <Field label="Valor (R$)" hint="Valor fixo cobrado por uma limpeza completa deste imóvel.">
+                          <MoneyInput
+                            cents={edited.cleaning_price_full_cents}
+                            onChange={(c) => {
+                              upd("cleaning_price_full_cents", c);
+                              presence.broadcastTyping("cleaning_price_full_cents", centsToReaisInput(c));
+                            }}
+                            onBlur={() => presence.broadcastFieldBlur("cleaning_price_full_cents")}
+                          />
+                        </Field>
+                        <FieldTypingBadge typing={presence.typing["cleaning_price_full_cents"]} />
+                      </div>
+                      <div>
+                        <Field label="Prazo estimado" hint="Em intervalos de 30 minutos.">
+                          <Select
+                            value={
+                              edited.cleaning_duration_full_minutes != null
+                                ? String(edited.cleaning_duration_full_minutes)
+                                : ""
+                            }
+                            onValueChange={(v) => {
+                              upd("cleaning_duration_full_minutes", v ? Number(v) : null);
+                              const opt = CLEANING_DURATION_OPTIONS.find((o) => String(o.value) === v);
+                              presence.broadcastTyping("cleaning_duration_full_minutes", opt?.label ?? "");
+                            }}
+                            onOpenChange={(open) => !open && presence.broadcastFieldBlur("cleaning_duration_full_minutes")}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <div className="grid grid-cols-4 gap-1 p-1">
+                                {CLEANING_DURATION_OPTIONS.map((o) => (
+                                  <SelectItem
+                                    key={o.value}
+                                    value={String(o.value)}
+                                    className="justify-center rounded-md px-2 py-1.5 text-center tabular-nums"
+                                  >
+                                    {o.label}
+                                  </SelectItem>
+                                ))}
+                              </div>
+                            </SelectContent>
+                          </Select>
+                        </Field>
+                        <FieldTypingBadge typing={presence.typing["cleaning_duration_full_minutes"]} />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -665,26 +723,85 @@ export function PropertyQuickEditDialog({
 
               <Section id="address" icon={MapPinned} title="Endereço e localização" desc="Cole o link do Google Maps — o endereço é preenchido automaticamente." collapsible>
                 <Field label="Link do Google Maps — Entrada principal" required>
-                  <Input value={edited.maps_url} onChange={(e) => upd("maps_url", e.target.value)} placeholder="https://maps.app.goo.gl/..." />
+                  <Input
+                    value={edited.maps_url}
+                    onChange={(e) => {
+                      upd("maps_url", e.target.value);
+                      presence.broadcastTyping("maps_url", e.target.value);
+                    }}
+                    onBlur={() => presence.broadcastFieldBlur("maps_url")}
+                    placeholder="https://maps.app.goo.gl/..."
+                  />
                   {enriching && (
                     <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                       <Loader2 className="size-3.5 animate-spin" /> Buscando endereço…
                     </p>
                   )}
                 </Field>
+                <FieldTypingBadge typing={presence.typing["maps_url"]} />
                 <Field label="Link do Google Maps — Garagem (opcional)" hint="Aparece como um segundo botão de localização no guia.">
-                  <Input value={edited.garage_maps_url} onChange={(e) => upd("garage_maps_url", e.target.value)} placeholder="https://maps.app.goo.gl/..." />
+                  <Input
+                    value={edited.garage_maps_url}
+                    onChange={(e) => {
+                      upd("garage_maps_url", e.target.value);
+                      presence.broadcastTyping("garage_maps_url", e.target.value);
+                    }}
+                    onBlur={() => presence.broadcastFieldBlur("garage_maps_url")}
+                    placeholder="https://maps.app.goo.gl/..."
+                  />
                 </Field>
+                <FieldTypingBadge typing={presence.typing["garage_maps_url"]} />
                 <Field label="Endereço" required>
-                  <Input value={edited.address} onChange={(e) => upd("address", e.target.value)} />
+                  <Input
+                    value={edited.address}
+                    onChange={(e) => {
+                      upd("address", e.target.value);
+                      presence.broadcastTyping("address", e.target.value);
+                    }}
+                    onBlur={() => presence.broadcastFieldBlur("address")}
+                  />
                 </Field>
+                <FieldTypingBadge typing={presence.typing["address"]} />
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Cidade" required><Input value={edited.city} onChange={(e) => upd("city", e.target.value)} /></Field>
-                  <Field label="País" required><Input value={edited.country} onChange={(e) => upd("country", e.target.value)} /></Field>
+                  <div>
+                    <Field label="Cidade" required>
+                      <Input
+                        value={edited.city}
+                        onChange={(e) => {
+                          upd("city", e.target.value);
+                          presence.broadcastTyping("city", e.target.value);
+                        }}
+                        onBlur={() => presence.broadcastFieldBlur("city")}
+                      />
+                    </Field>
+                    <FieldTypingBadge typing={presence.typing["city"]} />
+                  </div>
+                  <div>
+                    <Field label="País" required>
+                      <Input
+                        value={edited.country}
+                        onChange={(e) => {
+                          upd("country", e.target.value);
+                          presence.broadcastTyping("country", e.target.value);
+                        }}
+                        onBlur={() => presence.broadcastFieldBlur("country")}
+                      />
+                    </Field>
+                    <FieldTypingBadge typing={presence.typing["country"]} />
+                  </div>
                 </div>
                 <Field label="Observação sobre o endereço" hint="Ponto de referência, instruções para o motorista, etc.">
-                  <Textarea value={edited.address_note} maxLength={1000} onChange={(e) => upd("address_note", e.target.value)} />
+                  <Textarea
+                    value={edited.address_note}
+                    maxLength={1000}
+                    onChange={(e) => {
+                      upd("address_note", e.target.value);
+                      presence.broadcastTyping("address_note", e.target.value);
+                    }}
+                    onBlur={() => presence.broadcastFieldBlur("address_note")}
+                  />
                 </Field>
+                <FieldTypingBadge typing={presence.typing["address_note"]} />
               </Section>
 
               <Section id="airbnb-calendar" icon={RefreshCw} title="Calendário e reservas (Airbnb)" desc="Sincronize para habilitar dashboard, calendário e kanban — funciona mesmo sem publicar um guia." collapsible>
@@ -692,7 +809,11 @@ export function PropertyQuickEditDialog({
                   <div className="flex gap-2">
                     <Input
                       value={edited.airbnb_ical_url ?? ""}
-                      onChange={(e) => upd("airbnb_ical_url", e.target.value.trim() || null)}
+                      onChange={(e) => {
+                        upd("airbnb_ical_url", e.target.value.trim() || null);
+                        presence.broadcastTyping("airbnb_ical_url", e.target.value);
+                      }}
+                      onBlur={() => presence.broadcastFieldBlur("airbnb_ical_url")}
                       placeholder="https://www.airbnb.com/calendar/ical/12345.ics?s=..."
                     />
                     <Button onClick={handleSync} disabled={syncing || !edited.airbnb_ical_url?.trim()} variant="secondary" className="shrink-0">
@@ -712,13 +833,18 @@ export function PropertyQuickEditDialog({
                     </Button>
                   </div>
                 </Field>
+                <FieldTypingBadge typing={presence.typing["airbnb_ical_url"]} />
 
                 {showIcal2 || (edited.airbnb_ical_url_2 ?? "").trim() ? (
                   <Field label="2º calendário (outro anúncio do mesmo imóvel)" hint="Use quando o imóvel tem mais de um anúncio no Airbnb. As reservas dos dois calendários são unificadas.">
                     <div className="flex gap-2">
                       <Input
                         value={edited.airbnb_ical_url_2 ?? ""}
-                        onChange={(e) => upd("airbnb_ical_url_2", e.target.value.trim() || null)}
+                        onChange={(e) => {
+                          upd("airbnb_ical_url_2", e.target.value.trim() || null);
+                          presence.broadcastTyping("airbnb_ical_url_2", e.target.value);
+                        }}
+                        onBlur={() => presence.broadcastFieldBlur("airbnb_ical_url_2")}
                         placeholder="https://www.airbnb.com/calendar/ical/67890.ics?s=..."
                       />
                       <Button onClick={handleSync} disabled={syncing || !(edited.airbnb_ical_url_2 ?? "").trim()} variant="secondary" className="shrink-0">
@@ -736,6 +862,7 @@ export function PropertyQuickEditDialog({
                         <Trash2 className="size-4" />
                       </Button>
                     </div>
+                    <FieldTypingBadge typing={presence.typing["airbnb_ical_url_2"]} />
                   </Field>
                 ) : (
                   <div className="flex justify-end">
@@ -778,10 +905,15 @@ export function PropertyQuickEditDialog({
                     value={edited.house_rules}
                     maxLength={3000}
                     rows={6}
-                    onChange={(e) => upd("house_rules", e.target.value)}
+                    onChange={(e) => {
+                      upd("house_rules", e.target.value);
+                      presence.broadcastTyping("house_rules", e.target.value);
+                    }}
+                    onBlur={() => presence.broadcastFieldBlur("house_rules")}
                     placeholder={"Não é permitido fumar dentro do imóvel.\nFestas e eventos não são permitidos.\nRespeite o silêncio das 22h às 8h."}
                   />
                 </Field>
+                <FieldTypingBadge typing={presence.typing["house_rules"]} />
               </Section>
 
               <Section
@@ -823,13 +955,39 @@ export function PropertyQuickEditDialog({
               </Section>
 
               <Section id="property-details" icon={NotebookPen} title="Detalhamento do Imóvel" desc="Base de conhecimento livre: micro detalhes que a IA usa e que não aparecem no guia." collapsible>
-                <PropertyDetailsEditor propertyId={propertyId} />
+                <PropertyDetailsEditor propertyId={propertyId} presence={presence} />
               </Section>
 
               <Section id="host-house" icon={UserRound} title="Contato do anfitrião" desc="Nome e WhatsApp para o hóspede te encontrar." collapsible>
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Nome"><Input value={edited.host_name} maxLength={120} onChange={(e) => upd("host_name", e.target.value)} /></Field>
-                  <Field label="Telefone (WhatsApp)"><Input value={edited.host_phone} maxLength={40} onChange={(e) => upd("host_phone", e.target.value)} /></Field>
+                  <div>
+                    <Field label="Nome">
+                      <Input
+                        value={edited.host_name}
+                        maxLength={120}
+                        onChange={(e) => {
+                          upd("host_name", e.target.value);
+                          presence.broadcastTyping("host_name", e.target.value);
+                        }}
+                        onBlur={() => presence.broadcastFieldBlur("host_name")}
+                      />
+                    </Field>
+                    <FieldTypingBadge typing={presence.typing["host_name"]} />
+                  </div>
+                  <div>
+                    <Field label="Telefone (WhatsApp)">
+                      <Input
+                        value={edited.host_phone}
+                        maxLength={40}
+                        onChange={(e) => {
+                          upd("host_phone", e.target.value);
+                          presence.broadcastTyping("host_phone", e.target.value);
+                        }}
+                        onBlur={() => presence.broadcastFieldBlur("host_phone")}
+                      />
+                    </Field>
+                    <FieldTypingBadge typing={presence.typing["host_phone"]} />
+                  </div>
                 </div>
               </Section>
             </SectionGroup>

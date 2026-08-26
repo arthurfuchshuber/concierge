@@ -19,6 +19,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { usePresence } from "@/hooks/usePresence";
+import { PresenceAvatars } from "@/components/presence/PresenceAvatars";
+import { FieldTypingBadge } from "@/components/presence/FieldTypingBadge";
 import {
   listGlobalInsights,
   saveGlobalInsight,
@@ -154,6 +157,9 @@ function GlobalTab() {
   const saveFn = useServerFn(saveGlobalInsight);
   const [form, setForm] = useState<typeof EMPTY_INSIGHT | null>(null);
   const [saving, setSaving] = useState(false);
+  // Insight novo/não salvo ainda não tem id — desliga a presença pra este
+  // render (usePresence aceita null) até que o registro exista de verdade.
+  const presence = usePresence(form?.id ? `insight:${form.id}` : null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["saas-global-insights"],
@@ -225,34 +231,78 @@ function GlobalTab() {
 
       <Dialog open={!!form} onOpenChange={(o) => !o && setForm(null)}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>{form?.id ? "Editar insight" : "Novo insight global"}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <div className="flex items-center justify-between gap-3">
+              <DialogTitle>{form?.id ? "Editar insight" : "Novo insight global"}</DialogTitle>
+              <PresenceAvatars users={presence.users} />
+            </div>
+          </DialogHeader>
           {form && (
             <div className="space-y-3">
               <div className="space-y-1.5">
                 <Label>Título</Label>
-                <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+                <Input
+                  value={form.title}
+                  onChange={(e) => {
+                    setForm({ ...form, title: e.target.value });
+                    presence.broadcastTyping("title", e.target.value);
+                  }}
+                  onBlur={() => presence.broadcastFieldBlur("title")}
+                />
+                <FieldTypingBadge typing={presence.typing["title"]} />
               </div>
               <div className="space-y-1.5">
                 <Label>Insight</Label>
-                <Textarea rows={6} value={form.insight} onChange={(e) => setForm({ ...form, insight: e.target.value })} />
+                <Textarea
+                  rows={6}
+                  value={form.insight}
+                  onChange={(e) => {
+                    setForm({ ...form, insight: e.target.value });
+                    presence.broadcastTyping("insight", e.target.value);
+                  }}
+                  onBlur={() => presence.broadcastFieldBlur("insight")}
+                />
+                <FieldTypingBadge typing={presence.typing["insight"]} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label>Categoria</Label>
-                  <Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+                  <Input
+                    value={form.category}
+                    onChange={(e) => {
+                      setForm({ ...form, category: e.target.value });
+                      presence.broadcastTyping("category", e.target.value);
+                    }}
+                    onBlur={() => presence.broadcastFieldBlur("category")}
+                  />
+                  <FieldTypingBadge typing={presence.typing["category"]} />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Confiança (0-1)</Label>
                   <Input
                     type="number" step="0.05" min={0} max={1}
                     value={form.confidence}
-                    onChange={(e) => setForm({ ...form, confidence: Number(e.target.value) || 0 })}
+                    onChange={(e) => {
+                      const next = Number(e.target.value) || 0;
+                      setForm({ ...form, confidence: next });
+                      presence.broadcastTyping("confidence", String(next));
+                    }}
+                    onBlur={() => presence.broadcastFieldBlur("confidence")}
                   />
+                  <FieldTypingBadge typing={presence.typing["confidence"]} />
                 </div>
               </div>
               <div className="space-y-1.5">
                 <Label>Impacto estimado</Label>
-                <Input value={form.impactEstimate} onChange={(e) => setForm({ ...form, impactEstimate: e.target.value })} />
+                <Input
+                  value={form.impactEstimate}
+                  onChange={(e) => {
+                    setForm({ ...form, impactEstimate: e.target.value });
+                    presence.broadcastTyping("impactEstimate", e.target.value);
+                  }}
+                  onBlur={() => presence.broadcastFieldBlur("impactEstimate")}
+                />
+                <FieldTypingBadge typing={presence.typing["impactEstimate"]} />
               </div>
             </div>
           )}

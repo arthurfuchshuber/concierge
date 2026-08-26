@@ -29,11 +29,15 @@ export function parseReaisInputToCents(raw: string): number | null {
 export function MoneyInput({
   cents,
   onChange,
+  onBlur,
   placeholder,
   disabled,
 }: {
   cents: number | null;
   onChange: (cents: number | null) => void;
+  // Opcional: dispara ALÉM da reformatação interna do campo (ex.: pra avisar
+  // presença em tempo real que a pessoa parou de editar este campo).
+  onBlur?: () => void;
   placeholder?: string;
   disabled?: boolean;
 }) {
@@ -66,6 +70,7 @@ export function MoneyInput({
       onBlur={() => {
         // Normaliza a exibição ("1" -> "1,00") só ao sair do campo.
         setText(centsToReaisInput(lastEmittedCents.current));
+        onBlur?.();
       }}
     />
   );

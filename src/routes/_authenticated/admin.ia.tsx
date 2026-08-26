@@ -27,6 +27,9 @@ import {
 import { listLearningQueue, reviewLearningCandidate } from "@/lib/ai-learning.functions";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { PageHeader } from "@/components/ds/PageHeader";
+import { usePresence } from "@/hooks/usePresence";
+import { PresenceAvatars } from "@/components/presence/PresenceAvatars";
+import { FieldTypingBadge } from "@/components/presence/FieldTypingBadge";
 
 export const Route = createFileRoute("/_authenticated/admin/ia")({
   head: () => ({
@@ -144,6 +147,11 @@ function KnowledgeTab({ openNewSignal }: { openNewSignal: number }) {
   const [saving, setSaving] = useState(false);
   const { impersonation } = useImpersonation();
   const tenantId = impersonation?.userId;
+  // Presença em tempo real: item de conhecimento já salvo tem id (sala
+  // compartilhada entre quem estiver editando o mesmo registro); um item
+  // novo/não salvo ainda não tem id, então usa null (desliga presença sem
+  // quebrar o render).
+  const presence = usePresence(form?.id ? `ia-knowledge:${form.id}` : null);
   const lastSignal = useRef(openNewSignal);
   useEffect(() => {
     if (openNewSignal !== lastSignal.current) {
@@ -243,26 +251,50 @@ function KnowledgeTab({ openNewSignal }: { openNewSignal: number }) {
       <Dialog open={!!form} onOpenChange={(o) => !o && setForm(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{form?.id ? "Editar conhecimento" : "Novo conhecimento"}</DialogTitle>
+            <div className="flex items-center justify-between gap-3">
+              <DialogTitle>{form?.id ? "Editar conhecimento" : "Novo conhecimento"}</DialogTitle>
+              <PresenceAvatars users={presence.users} />
+            </div>
           </DialogHeader>
           {form && (
             <div className="space-y-3">
               <div className="space-y-1.5">
                 <Label>Título</Label>
-                <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+                <Input
+                  value={form.title}
+                  onChange={(e) => {
+                    setForm({ ...form, title: e.target.value });
+                    presence.broadcastTyping("title", e.target.value);
+                  }}
+                  onBlur={() => presence.broadcastFieldBlur("title")}
+                />
+                <FieldTypingBadge typing={presence.typing["title"]} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label>Categoria</Label>
-                  <Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+                  <Input
+                    value={form.category}
+                    onChange={(e) => {
+                      setForm({ ...form, category: e.target.value });
+                      presence.broadcastTyping("category", e.target.value);
+                    }}
+                    onBlur={() => presence.broadcastFieldBlur("category")}
+                  />
+                  <FieldTypingBadge typing={presence.typing["category"]} />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Abrangência</Label>
                   <Select
                     value={form.knowledgeScope}
-                    onValueChange={(v) =>
-                      setForm({ ...form, knowledgeScope: v as "TENANT_KNOWLEDGE" | "PORTFOLIO_KNOWLEDGE" })
-                    }
+                    onValueChange={(v) => {
+                      setForm({ ...form, knowledgeScope: v as "TENANT_KNOWLEDGE" | "PORTFOLIO_KNOWLEDGE" });
+                      presence.broadcastTyping(
+                        "knowledgeScope",
+                        v === "PORTFOLIO_KNOWLEDGE" ? "Carteira de imóveis" : "Toda a empresa",
+                      );
+                    }}
+                    onOpenChange={(open) => !open && presence.broadcastFieldBlur("knowledgeScope")}
                   >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -270,6 +302,7 @@ function KnowledgeTab({ openNewSignal }: { openNewSignal: number }) {
                       <SelectItem value="PORTFOLIO_KNOWLEDGE">Carteira de imóveis</SelectItem>
                     </SelectContent>
                   </Select>
+                  <FieldTypingBadge typing={presence.typing["knowledgeScope"]} />
                 </div>
               </div>
               <div className="space-y-1.5">
@@ -277,9 +310,14 @@ function KnowledgeTab({ openNewSignal }: { openNewSignal: number }) {
                 <Textarea
                   rows={7}
                   value={form.content}
-                  onChange={(e) => setForm({ ...form, content: e.target.value })}
+                  onChange={(e) => {
+                    setForm({ ...form, content: e.target.value });
+                    presence.broadcastTyping("content", e.target.value);
+                  }}
+                  onBlur={() => presence.broadcastFieldBlur("content")}
                   placeholder="Ex.: check-in antecipado só é liberado após confirmação da limpeza."
                 />
+                <FieldTypingBadge typing={presence.typing["content"]} />
               </div>
               <div className="space-y-1.5">
                 <Label>Prioridade (1 = máxima)</Label>
@@ -288,8 +326,14 @@ function KnowledgeTab({ openNewSignal }: { openNewSignal: number }) {
                   min={1}
                   max={5}
                   value={form.priority}
-                  onChange={(e) => setForm({ ...form, priority: Number(e.target.value) || 3 })}
+                  onChange={(e) => {
+                    const next = Number(e.target.value) || 3;
+                    setForm({ ...form, priority: next });
+                    presence.broadcastTyping("priority", String(next));
+                  }}
+                  onBlur={() => presence.broadcastFieldBlur("priority")}
                 />
+                <FieldTypingBadge typing={presence.typing["priority"]} />
               </div>
             </div>
           )}
