@@ -197,6 +197,46 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
     };
   });
 
+// ----- Estatísticas de limpeza (cards "Limpezas Realizadas" / "Custo Total Limpeza") -----
+// Escopo "Hoje" (fuso de São Paulo), reinicia diariamente — mesmo padrão dos
+// outros KPIs "tempo real" do dashboard. Conta limpezas concluídas
+// (guest_arrival_status.kind="checkout" com cleaning_type preenchido) cujo
+// "concluded_at" caiu dentro do dia de hoje, e soma o snapshot de preço
+// gravado no momento da conclusão de cada uma.
+
+export const getCleaningStats = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => ScopeInput.parse(i) ?? {})
+  .handler(async ({ data, context }) => {
+    const propIds = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null, context.userId);
+    if (propIds.length === 0) {
+      return { cleaningsDone: 0, totalCents: 0 };
+    }
+    const today = todayISO();
+    const tomorrow = addDaysISO(today, 1);
+    // Brasil não observa mais horário de verão (abolido em 2019) — São Paulo
+    // é sempre UTC-3, então "hoje 00:00 SP" = "hoje 03:00 UTC".
+    const rangeStart = `${today}T03:00:00.000Z`;
+    const rangeEnd = `${tomorrow}T03:00:00.000Z`;
+
+    const { data: rows, error } = await context.supabase
+      .from("guest_arrival_status")
+      .select("cleaning_type, cleaning_price_cents, concluded_at")
+      .in("property_id", propIds)
+      .eq("kind", "checkout")
+      .not("cleaning_type", "is", null)
+      .gte("concluded_at", rangeStart)
+      .lt("concluded_at", rangeEnd)
+      .limit(5000);
+    if (error) throw new Error(error.message);
+
+    type Row = { cleaning_type: string | null; cleaning_price_cents: number | null; concluded_at: string | null };
+    const list = (rows ?? []) as Row[];
+    const cleaningsDone = list.length;
+    const totalCents = list.reduce((sum, r) => sum + (r.cleaning_price_cents ?? 0), 0);
+    return { cleaningsDone, totalCents };
+  });
+
 // ----- Engagement -----
 
 type EventRow = { property_id: string; guest_name: string | null; guest_phone: string | null };
@@ -751,6 +791,11 @@ const AdvanceInput = z
     logId: z.string().uuid().optional(),
     reservationId: z.string().uuid().optional(),
     from: z.enum(["checkin", "stay", "checkout", "cleaning"]),
+    // Tipo de limpeza escolhido pela pessoa no momento em que conclui a
+    // faxina (pergunta feita na hora do avanço "cleaning" → "Concluído").
+    // Opcional para não quebrar chamadas antigas/outros "from"; quando
+    // ausente no avanço de limpeza, cai no fallback "normal".
+    cleaningType: z.enum(["normal", "completa"]).optional(),
   })
   .refine((v) => !!v.logId || !!v.reservationId, { message: "Informe a reserva ou o registro do hóspede." });
 
@@ -798,6 +843,8 @@ export const advanceArrival = createServerFn({ method: "POST" })
         status?: "pending" | "done";
         done_at?: string | null;
         concluded_at?: string | null;
+        cleaning_type?: "normal" | "completa" | null;
+        cleaning_price_cents?: number | null;
       },
     ) {
       const body: {
@@ -808,6 +855,8 @@ export const advanceArrival = createServerFn({ method: "POST" })
         status?: "pending" | "done";
         done_at?: string | null;
         concluded_at?: string | null;
+        cleaning_type?: "normal" | "completa" | null;
+        cleaning_price_cents?: number | null;
       } = { property_id: propertyId!, kind, ...patch };
       if (data.logId) body.log_id = data.logId;
       if (data.reservationId) body.reservation_id = data.reservationId;
@@ -894,7 +943,29 @@ export const advanceArrival = createServerFn({ method: "POST" })
       // Em Limpeza → conclude the stay (hidden from all kanbans).
       // status:'done' evita que um upsert-insert (sem linha prévia) grave
       // 'pending' e faça o card reaparecer em Checkouts.
-      await upsertStatus("checkout", { status: "done", done_at: nowIso, concluded_at: nowIso });
+      //
+      // Snapshot do tipo/valor de limpeza: a pessoa é questionada na tela no
+      // momento do avanço sobre qual limpeza foi realizada (normal/completa).
+      // Gravamos o preço vigente do imóvel NAQUELE momento — se o valor
+      // configurado mudar depois, os totais já registrados não se alteram.
+      const cleaningType = data.cleaningType ?? "normal";
+      const { data: propPrices } = await context.supabase
+        .from("properties")
+        .select("cleaning_price_normal_cents, cleaning_price_full_cents")
+        .eq("id", propertyId)
+        .maybeSingle();
+      const cleaningPriceCents =
+        cleaningType === "completa"
+          ? ((propPrices as { cleaning_price_full_cents: number | null } | null)?.cleaning_price_full_cents ?? null)
+          : ((propPrices as { cleaning_price_normal_cents: number | null } | null)?.cleaning_price_normal_cents ?? null);
+
+      await upsertStatus("checkout", {
+        status: "done",
+        done_at: nowIso,
+        concluded_at: nowIso,
+        cleaning_type: cleaningType,
+        cleaning_price_cents: cleaningPriceCents,
+      });
       await upsertStatus("checkin", { status: "done", concluded_at: nowIso });
     }
 

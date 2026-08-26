@@ -16,6 +16,7 @@ import {
   ChevronDown,
   Lock,
   ArrowLeftRight,
+  Sparkles,
 } from "lucide-react";
 import {
   ResponsiveDialog,
@@ -120,16 +121,21 @@ type Edited = {
   airbnb_ical_url_2: string | null;
   host_name: string;
   host_phone: string;
+  cleaning_price_normal_cents: number | null;
+  cleaning_price_full_cents: number | null;
+  cleaning_duration_minutes: number | null;
 };
 
 /**
  * Edição do imóvel em popup — espelho EXATO da aba "A casa" do editor
- * completo: mesmas seções, mesma ordem, mesmos campos (proprietário, tipo,
- * endereço, calendário Airbnb, regras do espaço, manual da casa,
- * detalhamento do imóvel e contato do anfitrião), incluindo a mesma
- * validação de campos obrigatórios (missingRequiredHouseFields,
- * compartilhada com admin.properties.$id.tsx) e a mesma trava do campo
- * Proprietário (só muda via "Transferir", nunca por edição direta).
+ * completo: mesmas seções, mesma ordem, mesmos campos ("Identificação do
+ * Imóvel" com proprietário + tipo, "Custos e Duração da Limpeza" com os
+ * valores fixos e o período estimado, endereço, calendário Airbnb, regras do
+ * espaço, manual da casa, detalhamento do imóvel e contato do anfitrião),
+ * incluindo a mesma validação de campos obrigatórios
+ * (missingRequiredHouseFields, compartilhada com admin.properties.$id.tsx) e
+ * a mesma trava do campo Proprietário (só muda via "Transferir", nunca por
+ * edição direta).
  *
  * Carrega via getPropertyForQuickEdit (SEM assinar imagens) e reenvia o
  * restante do imóvel (fotos, checkin, checkout, FAQ, recomendações) intacto.
@@ -254,6 +260,9 @@ export function PropertyQuickEditDialog({
       airbnb_ical_url_2: (p.airbnb_ical_url_2 as string | null) ?? null,
       host_name: (p.host_name as string) ?? "",
       host_phone: (p.host_phone as string) ?? "",
+      cleaning_price_normal_cents: (p.cleaning_price_normal_cents as number | null) ?? null,
+      cleaning_price_full_cents: (p.cleaning_price_full_cents as number | null) ?? null,
+      cleaning_duration_minutes: (p.cleaning_duration_minutes as number | null) ?? null,
     });
     setManual(
       ((data.manual ?? []) as Array<Record<string, unknown>>).map((m) => ({
@@ -273,6 +282,27 @@ export function PropertyQuickEditDialog({
     dirtyRef.current = true;
     setEdited((e) => (e ? { ...e, [key]: value } : e));
   }
+
+  // Valores fixos de limpeza (R$) — armazenados em centavos, mesma
+  // convenção de dinheiro já usada em prestadores de serviço
+  // (hourly_rate_cents). Mesma conversão usada na aba "A casa".
+  function centsToReaisInput(cents: number | null): string {
+    return cents == null ? "" : (cents / 100).toFixed(2);
+  }
+  function parseReaisInputToCents(raw: string): number | null {
+    if (raw.trim() === "") return null;
+    const n = Number(raw.replace(",", "."));
+    if (!Number.isFinite(n) || n < 0) return null;
+    return Math.round(n * 100);
+  }
+  // 30min, 1h, 1h30 ... até 8h — mesmas opções da aba "A casa".
+  const CLEANING_DURATION_OPTIONS = Array.from({ length: 16 }, (_, i) => {
+    const minutes = (i + 1) * 30;
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    const label = h === 0 ? `${m}min` : m === 0 ? `${h}h` : `${h}h${m}`;
+    return { value: minutes, label };
+  });
 
   const lastSyncAt = (data?.property as Record<string, unknown> | undefined)?.airbnb_ical_last_sync_at as string | null | undefined;
   const lastSyncError = (data?.property as Record<string, unknown> | undefined)?.airbnb_ical_last_error as string | null | undefined;
@@ -391,6 +421,9 @@ export function PropertyQuickEditDialog({
           airbnb_ical_url_2: edited.airbnb_ical_url_2 || null,
           host_name: edited.host_name || null,
           host_phone: edited.host_phone || null,
+          cleaning_price_normal_cents: edited.cleaning_price_normal_cents,
+          cleaning_price_full_cents: edited.cleaning_price_full_cents,
+          cleaning_duration_minutes: edited.cleaning_duration_minutes,
         },
         manual: manual
           .filter((m) => m.title.trim())
@@ -464,7 +497,7 @@ export function PropertyQuickEditDialog({
         ) : (
           <>
             <SectionGroup>
-              <Section id="owner" icon={UserRound} title="Proprietário" desc="A quem este imóvel pertence — obrigatório." collapsible>
+              <Section id="identity" icon={Home} title="Identificação do Imóvel" desc="Proprietário e tipo do imóvel." collapsible>
                 {edited.owner_contact_id ? (
                   <Field label="Proprietário">
                     <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/30 px-3 py-2.5">
@@ -534,14 +567,61 @@ export function PropertyQuickEditDialog({
                     </div>
                   </DialogContent>
                 </Dialog>
+
+                <PropertyTypeSelect value={edited.property_type_id} onChange={(v) => upd("property_type_id", v)} />
               </Section>
 
               {/* "Nome do imóvel" NÃO faz parte da aba "A casa" do editor
                   completo (fica na aba "O guia" → Identidade visual, ou na
                   tela de criação) — removido daqui pra este popup continuar
                   sendo um espelho exato de "A casa", campo a campo. */}
-              <Section id="property-type" icon={Home} title="Tipo do imóvel" desc="Obrigatório. Ajuda a organizar seus imóveis — as opções são totalmente editáveis." collapsible>
-                <PropertyTypeSelect value={edited.property_type_id} onChange={(v) => upd("property_type_id", v)} />
+
+              <Section
+                id="cleaning"
+                icon={Sparkles}
+                title="Custos e Duração da Limpeza"
+                desc="Valores fixos cobrados e o período estimado de cada tipo de limpeza deste imóvel."
+                collapsible
+              >
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Limpeza normal (R$)" hint="Valor fixo cobrado por uma limpeza normal deste imóvel.">
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      step="0.01"
+                      placeholder="0,00"
+                      value={centsToReaisInput(edited.cleaning_price_normal_cents)}
+                      onChange={(e) => upd("cleaning_price_normal_cents", parseReaisInputToCents(e.target.value))}
+                    />
+                  </Field>
+                  <Field label="Limpeza completa (R$)" hint="Valor fixo cobrado por uma limpeza completa deste imóvel.">
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      step="0.01"
+                      placeholder="0,00"
+                      value={centsToReaisInput(edited.cleaning_price_full_cents)}
+                      onChange={(e) => upd("cleaning_price_full_cents", parseReaisInputToCents(e.target.value))}
+                    />
+                  </Field>
+                </div>
+                <Field label="Período estimado" hint="Tempo estimado para a limpeza deste imóvel, em intervalos de 30 minutos.">
+                  <Select
+                    value={edited.cleaning_duration_minutes != null ? String(edited.cleaning_duration_minutes) : ""}
+                    onValueChange={(v) => upd("cleaning_duration_minutes", v ? Number(v) : null)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o período" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CLEANING_DURATION_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
               </Section>
 
               <Section id="address" icon={MapPinned} title="Endereço e localização" desc="Cole o link do Google Maps — o endereço é preenchido automaticamente." collapsible>

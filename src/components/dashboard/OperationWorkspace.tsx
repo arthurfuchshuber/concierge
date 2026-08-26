@@ -32,11 +32,13 @@ import {
   Undo2,
   Filter,
   MoreVertical,
+  Banknote,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/CopyButton";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -60,6 +62,7 @@ import {
   revertArrival,
   listConcludedArrivals,
   getOccupancyBoard,
+  getCleaningStats,
   type ArrivalRow,
 } from "@/lib/dashboard.functions";
 import { useImpersonation } from "@/hooks/useImpersonation";
@@ -129,6 +132,11 @@ function todayISOSaoPaulo(): string {
   return `${pick("year")}-${pick("month")}-${pick("day")}`;
 }
 
+/** Centavos → "R$ X,XX" (mesma convenção usada para hourly_rate_cents). */
+function centsToBRL(cents: number): string {
+  return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
 /* ---------- Info tooltip ---------- */
 function InfoHint({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -175,6 +183,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
   const concludedFn = useServerFn(listConcludedArrivals);
   const occupancyFn = useServerFn(getOccupancyBoard);
+  const cleaningStatsFn = useServerFn(getCleaningStats);
 
   const [range, setRange] = useState<"today" | "tomorrow" | "7d" | "all">("today");
   // Qual coluna do Kanban está ativa no mobile (lá o quadro vira abas — não
@@ -231,6 +240,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     row: ArrivalRow;
     from: "checkin" | "stay" | "checkout" | "cleaning";
   } | null>(null);
+  // Pergunta obrigatória ao concluir uma limpeza: qual tipo foi realizado
+  // (normal/completa) — feita no momento do avanço, nunca configurada antes.
+  // O valor escolhido é gravado (snapshot do preço vigente do imóvel) e
+  // alimenta os cards "Limpezas Realizadas"/"Custo Total Limpeza".
+  const [cleaningTypePrompt, setCleaningTypePrompt] = useState<{ row: ArrivalRow } | null>(null);
   // Engagement window follows the kanban range: tomorrow/all map to 7d/30d.
   const engRange: "today" | "tomorrow" | "7d" | "30d" =
     range === "today" ? "today" : range === "tomorrow" ? "tomorrow" : range === "all" ? "30d" : "7d";
@@ -280,6 +294,14 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     staleTime: 60_000,
     placeholderData: keepPreviousData,
   });
+  // "Hoje" (fuso de São Paulo), reinicia diariamente — mesmo padrão dos
+  // demais KPIs "tempo real" (ver getCleaningStats em dashboard.functions.ts).
+  const cleaningStatsQ = useQuery({
+    queryKey: ["dash-cleaning-stats", activeOwnerId ?? "self"],
+    queryFn: () => cleaningStatsFn({ data: { ownerId: activeOwnerId } }),
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+  });
 
   // Uma única rotina de recarga, com "debounce": evita disparar 4-5 requisições
   // seguidas (mutação + eventos em tempo real) — o que deixava o app lento no celular.
@@ -291,7 +313,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         qc.invalidateQueries({
           predicate: (q) => {
             const k = q.queryKey[0];
-            return k === "dash-list" || k === "dash-kpis" || k === "dash-eng" || k === "dash-occupancy";
+            return (
+              k === "dash-list" ||
+              k === "dash-kpis" ||
+              k === "dash-eng" ||
+              k === "dash-occupancy" ||
+              k === "dash-cleaning-stats"
+            );
           },
           refetchType: "active",
         });
@@ -325,8 +353,12 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   });
 
   const advance = useMutation({
-    mutationFn: (v: { logId?: string; reservationId?: string; from: "checkin" | "stay" | "checkout" | "cleaning" }) =>
-      advanceFn({ data: v }),
+    mutationFn: (v: {
+      logId?: string;
+      reservationId?: string;
+      from: "checkin" | "stay" | "checkout" | "cleaning";
+      cleaningType?: "normal" | "completa";
+    }) => advanceFn({ data: v }),
     onSuccess: () => {
       refreshDashboard();
     },
@@ -402,7 +434,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     [patchList],
   );
 
-  function runAdvance(row: ArrivalRow, from: "checkin" | "stay" | "checkout" | "cleaning") {
+  function runAdvance(
+    row: ArrivalRow,
+    from: "checkin" | "stay" | "checkout" | "cleaning",
+    cleaningType?: "normal" | "completa",
+  ) {
     const target = statusTarget(row);
     if (!target.logId && !target.reservationId) {
       toast.error("Não foi possível identificar esse card. Atualize a página e tente novamente.");
@@ -410,7 +446,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     }
     setBusyRowId(row.logId);
     optimisticMove(row, from);
-    advance.mutate({ ...target, from });
+    advance.mutate({ ...target, from, ...(cleaningType ? { cleaningType } : {}) });
   }
 
   /**
@@ -420,6 +456,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
    * confirmar, o card segue para o status correto (Em Limpeza).
    */
   function handleAdvance(row: ArrivalRow, from: "checkin" | "stay" | "checkout" | "cleaning") {
+    // Concluir uma limpeza sempre pergunta qual tipo foi realizado (normal ou
+    // completa) — a escolha é feita NESTE momento, nunca antes, e alimenta o
+    // snapshot de preço gravado no servidor.
+    if (from === "cleaning") {
+      setCleaningTypePrompt({ row });
+      return;
+    }
     // O card já pede confirmação de antecipação de check-out; aqui só o
     // check-in em data futura precisa do diálogo do quadro.
     if (from === "checkin" && row.date > todayISO) {
@@ -631,9 +674,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // verdade — os dois pontos de chamada leem o mesmo engQ/range do
   // componente pai, então nunca ficam dessincronizados entre si.
   function renderEngagementPanel(wrapperClassName: string) {
-    // Sempre visível — quando não há reserva com check-in no período, o
-    // próprio EngagementBars mostra uma mensagem de estado vazio em vez de
-    // sumir o quadrante inteiro.
+    // Só aparece quando existe informação de visualização; sem dados, some.
+    const hasData = (engQ.data?.checkinsInPeriod ?? 0) > 0 || (engQ.data?.checkinsWithCodes ?? 0) > 0;
+    if (!engQ.isLoading && !hasData) return null;
+
     return (
       <section className={`rounded-[0.3rem] border-0 bg-card p-4 sm:p-5 ds-3d ${wrapperClassName}`}>
         <EngagementBars
@@ -655,10 +699,19 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
       {view === "resumo" ? (
         <>
-          {/* KPIs — mesmo espaçamento de 6px do cabeçalho acima, replicado para
-              linha↔linha, linha↔card e card↔card em toda a página. */}
-          <section className="space-y-1.5">
-            <div className="grid grid-cols-2 gap-1.5">
+          {/* Grade única dos KPIs — a ordem visual diverge entre mobile e
+              desktop (pedido explícito), então cada card carrega sua própria
+              posição via classes "order" (mobile) e "lg:order" (desktop) em
+              vez de duplicar o JSX.
+              Mobile (grid-cols-2): pendentes → amanhã → liberado p/ limpeza →
+              engajamento → limpezas realizadas → custo total → calendário →
+              em estadia → imóveis livres.
+              Desktop (lg:grid-cols-4): os 4 cards de pendentes/amanhã numa
+              única linha → liberado p/ limpeza → engajamento → limpezas
+              realizadas, custo total, em estadia e imóveis livres na linha
+              seguinte → calendário por último (posição inalterada). */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5">
+            <div className="order-1 lg:order-1">
               <KpiCard
                 label="Check-ins Pendentes"
                 rows={checkinPendingRows}
@@ -674,6 +727,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 onEditTime={handleEditTime}
                 onAdvance={(r) => handleAdvance(r, "checkin")}
               />
+            </div>
+            <div className="order-2 lg:order-2">
               <KpiCard
                 label="Checkouts Pendentes"
                 rows={checkoutPendingRows}
@@ -690,12 +745,40 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 onAdvance={(r) => handleAdvance(r, "checkout")}
               />
             </div>
+            <div className="order-3 lg:order-3">
+              <KpiCard
+                label="Check-ins amanhã"
+                rows={tomorrowCheckinPendingRows}
+                icon={CalendarCheck}
+                tone="primary-soft"
+                loading={tomorrowCheckinListQ.isLoading}
+                onRefresh={() => tomorrowCheckinListQ.refetch()}
+                kind="checkin"
+                rangeLabel="Amanhã"
+                onEditTime={handleEditTime}
+                onAdvance={(r) => handleAdvance(r, "checkin")}
+              />
+            </div>
+            <div className="order-4 lg:order-4">
+              <KpiCard
+                label="Checkouts amanhã"
+                rows={tomorrowCheckoutPendingRows}
+                icon={CalendarX}
+                tone="primary-soft"
+                loading={tomorrowCheckoutListQ.isLoading}
+                onRefresh={() => tomorrowCheckoutListQ.refetch()}
+                kind="checkout"
+                rangeLabel="Amanhã"
+                onEditTime={handleEditTime}
+                onAdvance={(r) => handleAdvance(r, "checkout")}
+              />
+            </div>
 
-            {/* Liberado para Limpeza — faixa fina logo abaixo dos pendentes (só quando houver 1+) */}
+            {/* Liberado para Limpeza — faixa fina, largura total (só quando houver 1+) */}
             {cleaningRows.length > 0 ? (
               // Sem o shimmer/glow âmbar (amber-mirror) — menos "colorido",
               // mais executivo; o card já sinaliza com o pontinho âmbar.
-              <div>
+              <div className="order-5 lg:order-5 col-span-2 lg:col-span-4">
                 <KpiCard
                   label="Liberado para Limpeza"
                   rows={cleaningRows}
@@ -712,42 +795,43 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               </div>
             ) : null}
 
-            <div className="grid grid-cols-2 gap-1.5">
-              <KpiCard
-                label="Check-ins amanhã"
-                rows={tomorrowCheckinPendingRows}
-                icon={CalendarCheck}
-                tone="primary-soft"
-                loading={tomorrowCheckinListQ.isLoading}
-                onRefresh={() => tomorrowCheckinListQ.refetch()}
-                kind="checkin"
-                rangeLabel="Amanhã"
-                onEditTime={handleEditTime}
-                onAdvance={(r) => handleAdvance(r, "checkin")}
-              />
-              <KpiCard
-                label="Checkouts amanhã"
-                rows={tomorrowCheckoutPendingRows}
-                icon={CalendarX}
-                tone="primary-soft"
-                loading={tomorrowCheckoutListQ.isLoading}
-                onRefresh={() => tomorrowCheckoutListQ.refetch()}
-                kind="checkout"
-                rangeLabel="Amanhã"
-                onEditTime={handleEditTime}
-                onAdvance={(r) => handleAdvance(r, "checkout")}
+            {/* Engajamento do guia — largura total, some quando não há dados. */}
+            {renderEngagementPanel("order-6 lg:order-6 col-span-2 lg:col-span-4")}
+
+            <div className="order-7 lg:order-7">
+              <StatDisplayCard
+                label="Limpezas Realizadas"
+                value={cleaningStatsQ.data?.cleaningsDone ?? 0}
+                icon={CheckCircle2}
+                loading={cleaningStatsQ.isLoading}
               />
             </div>
-          </section>
+            <div className="order-8 lg:order-8">
+              <StatDisplayCard
+                label="Custo Total Limpeza"
+                value={centsToBRL(cleaningStatsQ.data?.totalCents ?? 0)}
+                icon={Banknote}
+                loading={cleaningStatsQ.isLoading}
+              />
+            </div>
 
-          {/* Engajamento do guia — volta a aparecer aqui embaixo, sempre, em
-              largura total (mobile e desktop). Versão discreta, sem cabeçalho. */}
-          {renderEngagementPanel("")}
+            {/* Calendário de ocupação (com o botão "Filtros") — no mobile
+                aparece antes de "Em Estadia"/"Imóveis livres" (pedido
+                explícito); no desktop segue por último, como sempre foi. */}
+            <div className="order-9 lg:order-11 col-span-2 lg:col-span-4">
+              <OccupancyPanel
+                loading={occupancyQ.isLoading}
+                start={occupancyQ.data?.start ?? agendaStart}
+                days={occupancyQ.data?.days ?? 21}
+                properties={occupancyQ.data?.properties ?? []}
+                stays={occupancyQ.data?.stays ?? []}
+                checkedInPropertyIds={checkedInPropertyIds}
+                onStartChange={setAgendaStart}
+                defaultStart={todayISO}
+              />
+            </div>
 
-          {/* Estadia / Imóveis livres — abaixo do quadrante de Engajamento
-              (que só aparece quando há dados de visualização/códigos). */}
-          <section className="space-y-1.5">
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="order-10 lg:order-9">
               <KpiCard
                 label="Em Estadia"
                 rows={stayRows}
@@ -760,27 +844,15 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 onEditTime={handleEditTime}
                 onAdvance={(r) => handleAdvance(r, "stay")}
               />
+            </div>
+            <div className="order-11 lg:order-10">
               <FreePropertiesCard
                 loading={occupancyQ.isLoading}
                 properties={freeProperties}
                 onRefresh={() => occupancyQ.refetch()}
               />
             </div>
-          </section>
-
-          {/* Calendário de ocupação (com o botão "Filtros") — a aba própria
-              "Calendário" foi removida; este quadro é agora o único lugar
-              onde ele existe, ao final do Dashboard. */}
-          <OccupancyPanel
-            loading={occupancyQ.isLoading}
-            start={occupancyQ.data?.start ?? agendaStart}
-            days={occupancyQ.data?.days ?? 21}
-            properties={occupancyQ.data?.properties ?? []}
-            stays={occupancyQ.data?.stays ?? []}
-            checkedInPropertyIds={checkedInPropertyIds}
-            onStartChange={setAgendaStart}
-            defaultStart={todayISO}
-          />
+          </div>
         </>
       ) : null}
 
@@ -1042,6 +1114,56 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           setConfirmAdvance(null);
         }}
       />
+
+      {/* Pergunta obrigatória ao concluir a limpeza: qual tipo foi realizado.
+          Sem essa escolha o card não avança — precisa saber o valor a
+          registrar (ver getCleaningStats/advanceArrival). */}
+      <Dialog
+        open={!!cleaningTypePrompt}
+        onOpenChange={(v) => {
+          if (!v) setCleaningTypePrompt(null);
+        }}
+      >
+        <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base font-display">Qual limpeza foi realizada?</DialogTitle>
+          </DialogHeader>
+          <div className="text-sm text-muted-foreground -mt-2">
+            {cleaningTypePrompt ? (
+              <>
+                Confirme o tipo de limpeza concluída em{" "}
+                <strong className="text-foreground">
+                  {cleaningTypePrompt.row.propertyName ?? cleaningTypePrompt.row.guestName}
+                </strong>
+                .
+              </>
+            ) : null}
+          </div>
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-auto py-3 flex-col gap-0.5"
+              onClick={() => {
+                if (cleaningTypePrompt) runAdvance(cleaningTypePrompt.row, "cleaning", "normal");
+                setCleaningTypePrompt(null);
+              }}
+            >
+              <span className="font-medium">Limpeza normal</span>
+            </Button>
+            <Button
+              type="button"
+              className="h-auto py-3 flex-col gap-0.5"
+              onClick={() => {
+                if (cleaningTypePrompt) runAdvance(cleaningTypePrompt.row, "cleaning", "completa");
+                setCleaningTypePrompt(null);
+              }}
+            >
+              <span className="font-medium">Limpeza completa</span>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1055,7 +1177,7 @@ const OPERATION_TABS = [
 
 const OPERATION_COPY: Record<OperationView, { title: string; subtitle: string }> = {
   resumo: { title: "Dashboard Operacional", subtitle: "Sua rotina diária: check-ins, checkouts e senhas." },
-  kanban: { title: "Kanban", subtitle: "Cada reserva na etapa em que ela realmente está." },
+  kanban: { title: "Kanban Operacional", subtitle: "Cada reserva na etapa em que ela realmente está." },
 };
 
 function OperationShell({ view }: { view: OperationView }) {
@@ -1656,6 +1778,37 @@ function FreePropertiesCard({
   );
 }
 
+/**
+ * Card de estatística pura (sem lista/detalhe por trás) — usado para
+ * "Limpezas Realizadas" e "Custo Total Limpeza". Mesmo visual dos KpiCards,
+ * mas não abre popup: é só um número agregado, "Hoje" (fuso de São Paulo).
+ */
+function StatDisplayCard({
+  label,
+  value,
+  icon: Icon,
+  loading,
+}: {
+  label: string;
+  value: string | number;
+  icon: React.ElementType;
+  loading: boolean;
+}) {
+  return (
+    <div className="w-full h-full rounded-[0.3rem] border-0 bg-card px-3.5 py-5 min-h-[96px] flex flex-col justify-between ds-3d">
+      <div className="flex items-center gap-2 ds-eyebrow min-w-0">
+        <Icon className="size-3.5 shrink-0" />
+        <span className="min-w-0 flex-1 truncate leading-none" title={label}>
+          {label}
+        </span>
+      </div>
+      <div className="text-[24px] sm:text-[26px] font-display font-bold mt-1.5 tabular-nums leading-none text-foreground">
+        {loading ? "—" : value}
+      </div>
+    </div>
+  );
+}
+
 /** Agenda macro: ocupação de todos os imóveis nos próximos dias. */
 function OccupancyPanel({
   loading,
@@ -2135,13 +2288,6 @@ function EngagementBars({
     );
   const checkinViewed = checkinBreakdown?.viewed.length ?? 0;
   const codesViewed = codesBreakdown?.viewed.length ?? 0;
-  if (checkins === 0 && checkinsWithCodes === 0) {
-    return (
-      <div className="py-6 text-center text-sm text-muted-foreground">
-        Não há reserva pendente de visualização.
-      </div>
-    );
-  }
   return (
     <div className="relative space-y-1.5">
       {checkins > 0 && (

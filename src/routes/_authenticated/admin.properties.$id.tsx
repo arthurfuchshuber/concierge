@@ -154,6 +154,12 @@ type FormState = {
     /** Proprietário (property_owners) — regra: sem imóvel vinculado a um
      * proprietário cadastrado, sem guia. */
     owner_contact_id: string | null;
+    /** Valores fixos de limpeza (centavos) — quadrante "Identificação e
+     * Custos de Limpeza", junto com Proprietário e Tipo do imóvel. */
+    cleaning_price_normal_cents: number | null;
+    cleaning_price_full_cents: number | null;
+    /** Período estimado de limpeza (minutos, múltiplos de 30). */
+    cleaning_duration_minutes: number | null;
   };
   manual: { title: string; description: string; body: string; images: string[] }[];
   emergency: { label: string; number: string }[];
@@ -176,6 +182,7 @@ function emptyForm(): FormState {
       collect_arrival_time: "off", collect_vehicles: "off", vehicles_max: 2, collect_document: "off", document_scope: "main",
       airbnb_ical_url: null, airbnb_ical_url_2: null, airbnb_ical_last_sync_at: null, airbnb_ical_last_error: null, airbnb_listing_url: null,
       property_type_id: null, guide_created: false, owner_contact_id: null,
+      cleaning_price_normal_cents: null, cleaning_price_full_cents: null, cleaning_duration_minutes: null,
     },
     manual: [],
     emergency: [{ label: "Polícia", number: "190" }, { label: "Bombeiros / SAMU", number: "192" }],
@@ -558,6 +565,9 @@ function PropertyEditor() {
         property_type_id: ((p as Record<string, unknown>).property_type_id as string | null) ?? null,
         guide_created: ((p as Record<string, unknown>).guide_created as boolean) ?? false,
         owner_contact_id: ((p as Record<string, unknown>).owner_contact_id as string | null) ?? null,
+        cleaning_price_normal_cents: ((p as Record<string, unknown>).cleaning_price_normal_cents as number | null) ?? null,
+        cleaning_price_full_cents: ((p as Record<string, unknown>).cleaning_price_full_cents as number | null) ?? null,
+        cleaning_duration_minutes: ((p as Record<string, unknown>).cleaning_duration_minutes as number | null) ?? null,
       },
       manual: (data.manual ?? []).map((m: Record<string, unknown>) => ({
         title: (m.title as string) ?? "",
@@ -1205,10 +1215,88 @@ function PropertyEditor() {
   // Extraídos como funções para serem reaproveitados tanto na tela enxuta de
   // criação do imóvel (isNew) quanto na aba "A casa" do editor completo —
   // mesmo JSX, duas telas, sem duplicar campos/handlers.
-  const renderPropertyTypeSection = () => (
-          <Section id="property-type" icon={Home} title="Tipo do imóvel" desc="Obrigatório. Ajuda a organizar seus imóveis — as opções são totalmente editáveis." collapsible>
-            <PropertyTypeSelect value={form.property.property_type_id} onChange={(v) => update("property_type_id", v)} />
-          </Section>
+  // Idem: só o conteúdo, sem <Section> — mesma razão do renderOwnerFields.
+  const renderPropertyTypeFields = () => (
+    <PropertyTypeSelect value={form.property.property_type_id} onChange={(v) => update("property_type_id", v)} />
+  );
+
+  // Quadrante "Identificação do Imóvel": Proprietário + Tipo do imóvel —
+  // antes eram dois cards separados; unificados a pedido num só.
+  const renderIdentitySection = () => (
+    <Section id="identity" icon={Home} title="Identificação do Imóvel" desc="Proprietário e tipo do imóvel." collapsible>
+      {renderOwnerFields()}
+      {renderPropertyTypeFields()}
+    </Section>
+  );
+
+  // Quadrante EXCLUSIVO de limpeza: valores fixos (R$, armazenados em
+  // centavos — mesma convenção de dinheiro já usada em prestadores de
+  // serviço via hourly_rate_cents) + período estimado (minutos, múltiplos de
+  // 30). Separado da Identificação do imóvel a pedido.
+  const centsToReaisInput = (cents: number | null) => (cents == null ? "" : (cents / 100).toFixed(2));
+  const parseReaisInputToCents = (raw: string): number | null => {
+    if (raw.trim() === "") return null;
+    const n = Number(raw.replace(",", "."));
+    if (!Number.isFinite(n) || n < 0) return null;
+    return Math.round(n * 100);
+  };
+  // 30min, 1h, 1h30 ... até 8h — cobre da limpeza rápida à faxina completa de
+  // uma casa grande, sempre em passos de meia hora.
+  const CLEANING_DURATION_OPTIONS = Array.from({ length: 16 }, (_, i) => {
+    const minutes = (i + 1) * 30;
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    const label = h === 0 ? `${m}min` : m === 0 ? `${h}h` : `${h}h${m}`;
+    return { value: minutes, label };
+  });
+  const renderCleaningSection = () => (
+    <Section
+      id="cleaning"
+      icon={Sparkles}
+      title="Custos e Duração da Limpeza"
+      desc="Valores fixos cobrados e o período estimado de cada tipo de limpeza deste imóvel."
+      collapsible
+    >
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Limpeza normal (R$)" hint="Valor fixo cobrado por uma limpeza normal deste imóvel.">
+          <Input
+            type="number"
+            inputMode="decimal"
+            min={0}
+            step="0.01"
+            placeholder="0,00"
+            value={centsToReaisInput(form.property.cleaning_price_normal_cents)}
+            onChange={(e) => update("cleaning_price_normal_cents", parseReaisInputToCents(e.target.value))}
+          />
+        </Field>
+        <Field label="Limpeza completa (R$)" hint="Valor fixo cobrado por uma limpeza completa deste imóvel.">
+          <Input
+            type="number"
+            inputMode="decimal"
+            min={0}
+            step="0.01"
+            placeholder="0,00"
+            value={centsToReaisInput(form.property.cleaning_price_full_cents)}
+            onChange={(e) => update("cleaning_price_full_cents", parseReaisInputToCents(e.target.value))}
+          />
+        </Field>
+      </div>
+      <Field label="Período estimado" hint="Tempo estimado para a limpeza deste imóvel, em intervalos de 30 minutos.">
+        <Select
+          value={form.property.cleaning_duration_minutes != null ? String(form.property.cleaning_duration_minutes) : ""}
+          onValueChange={(v) => update("cleaning_duration_minutes", v ? Number(v) : null)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Selecione o período" />
+          </SelectTrigger>
+          <SelectContent>
+            {CLEANING_DURATION_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
+    </Section>
   );
 
   const renderAddressSection = () => (
@@ -1368,11 +1456,15 @@ function PropertyEditor() {
 
   // Proprietário (property_owners) — regra: sem imóvel vinculado a um
   // proprietário cadastrado, sem guia. Compartilhado entre a tela "Novo
-  // imóvel", a trava de informações pendentes e a aba "A casa".
-  const renderOwnerSection = () => {
+  // imóvel", a trava de informações pendentes e a aba "A casa". Retorna só o
+  // CONTEÚDO (sem <Section> em volta) — quem chama decide como agrupar: nas
+  // telas "Novo imóvel"/trava continua em sua própria seção; na aba "A casa"
+  // entra junto com Tipo do imóvel no quadrante "Identificação e Custos de
+  // Limpeza".
+  const renderOwnerFields = () => {
     const hasOwner = !isNew && !!form.property.owner_contact_id;
     return (
-          <Section id="owner" icon={UserRound} title="Proprietário" desc="A quem este imóvel pertence — obrigatório." collapsible>
+          <>
             {hasOwner ? (
               <Field label="Proprietário">
                 <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/30 px-3 py-2.5">
@@ -1449,7 +1541,7 @@ function PropertyEditor() {
                 </div>
               </DialogContent>
             </Dialog>
-          </Section>
+          </>
     );
   };
 
@@ -1542,8 +1634,12 @@ function PropertyEditor() {
         />
         <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
           <SectionGroup>
-            {renderOwnerSection()}
-            {renderPropertyTypeSection()}
+            <Section id="owner" icon={UserRound} title="Proprietário" desc="A quem este imóvel pertence — obrigatório." collapsible>
+              {renderOwnerFields()}
+            </Section>
+            <Section id="property-type" icon={Home} title="Tipo do imóvel" desc="Obrigatório. Ajuda a organizar seus imóveis — as opções são totalmente editáveis." collapsible>
+              {renderPropertyTypeFields()}
+            </Section>
             {renderAddressSection()}
             {renderAirbnbCalendarSection()}
           </SectionGroup>
@@ -1599,7 +1695,9 @@ function PropertyEditor() {
 
         <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
           <SectionGroup>
-            {renderOwnerSection()}
+            <Section id="owner" icon={UserRound} title="Proprietário" desc="A quem este imóvel pertence — obrigatório." collapsible>
+              {renderOwnerFields()}
+            </Section>
 
             <Section id="new-name" icon={Home} title="Nome do imóvel" desc="Como você identifica essa residência internamente." collapsible={false}>
               <Field label="Nome" required>
@@ -1625,7 +1723,9 @@ function PropertyEditor() {
               </Field>
             </Section>
 
-            {renderPropertyTypeSection()}
+            <Section id="property-type" icon={Home} title="Tipo do imóvel" desc="Obrigatório. Ajuda a organizar seus imóveis — as opções são totalmente editáveis." collapsible>
+              {renderPropertyTypeFields()}
+            </Section>
             {renderAddressSection()}
             {renderAirbnbCalendarSection()}
             {renderHouseRulesSection()}
@@ -1738,10 +1838,10 @@ function PropertyEditor() {
         <TabsContent value="house" className="space-y-4 mt-6">
           <SectionGroup>
 
-          {renderOwnerSection()}
+          {renderIdentitySection()}
 
 
-          {renderPropertyTypeSection()}
+          {renderCleaningSection()}
 
 
           {renderAddressSection()}

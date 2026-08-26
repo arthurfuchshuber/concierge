@@ -156,6 +156,13 @@ const PropertyInput = z.object({
   // "sem imóvel [vinculado a um proprietário], sem guia". Validado no
   // handler de upsertProperty (ver checagem abaixo).
   owner_contact_id: z.string().uuid().optional().nullable(),
+  // Valores fixos de limpeza (em centavos) e período estimado (em minutos,
+  // múltiplos de 30) — quadrante exclusivo "Custos e Duração da Limpeza",
+  // separado da Identificação do imóvel. Opcionais: nem todo imóvel tem
+  // valor/tempo combinado ainda.
+  cleaning_price_normal_cents: z.number().int().min(0).max(100_000_00).optional().nullable(),
+  cleaning_price_full_cents: z.number().int().min(0).max(100_000_00).optional().nullable(),
+  cleaning_duration_minutes: z.number().int().min(30).max(480).multipleOf(30).optional().nullable(),
 });
 
 
