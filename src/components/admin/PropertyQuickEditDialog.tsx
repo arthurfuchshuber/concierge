@@ -835,7 +835,7 @@ export function PropertyQuickEditDialog({
             </SectionGroup>
 
             <div className="flex items-center justify-end gap-3 pt-4 mt-2 border-t border-border/60">
-              <AutosaveIndicator status={autosave.status} />
+              <AutosaveIndicator status={autosave.status} errorMessage={autosave.lastError} />
               <Button
                 variant="outline"
                 onClick={async () => {

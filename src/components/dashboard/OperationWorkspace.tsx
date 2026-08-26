@@ -888,48 +888,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             {/* Engajamento do guia — largura total, some quando não há dados. */}
             {renderEngagementPanel("order-6 lg:order-6 col-span-2 lg:col-span-4")}
 
-            {/* Filtros — Período (calendário de início e fim), Cidade e
-                Proprietário (busca + seleção múltipla). Afetam a agenda de
-                ocupação E os 2 cards de limpeza logo abaixo (pedido
-                explícito). Período fica sozinho na própria linha; Cidade +
-                Proprietário dividem a linha 50/50, exatamente como os cards
-                de limpeza logo abaixo — mesma grade, então as bordas
-                alinham entre uma linha e outra. */}
-            <div className="order-7 col-span-2 lg:col-span-4 flex items-center justify-between gap-2">
-              <PeriodRangeFilterButton value={periodRange} onChange={setPeriodRange} />
-              <button
-                type="button"
-                disabled={!hasCustomFilters}
-                onClick={clearAllFilters}
-                title="Limpar filtros e voltar para hoje"
-                aria-label="Limpar filtros e voltar para hoje"
-                className={`${FILTER_BUTTON_CLASS} w-9 justify-center px-0 disabled:opacity-40 disabled:pointer-events-none`}
-              >
-                <RotateCcw className="size-3.5" />
-              </button>
-            </div>
-            <div className="order-8 col-span-1 flex lg:items-center">
-              <MultiSelectFilterButton
-                label="Cidade"
-                icon={MapPin}
-                options={cityOptions}
-                selected={cityFilters}
-                onChange={setCityFilters}
-                className="w-full justify-start"
-              />
-            </div>
-            <div className="order-9 col-span-1 flex lg:items-center">
-              <MultiSelectFilterButton
-                label="Proprietário"
-                icon={User}
-                options={ownerOptions}
-                selected={ownerFilters}
-                onChange={setOwnerFilters}
-                className="w-full justify-start"
-              />
-            </div>
-
-            <div className="order-10">
+            {/* Limpezas Realizadas / Custo Total — no mobile ficam logo
+                depois dos filtros (pedido explícito); no desktop voltam pra
+                posição de sempre, logo após o Engajamento, sem se misturar
+                com a linha dos filtros. */}
+            <div className="order-8 lg:order-7 col-span-1">
               <StatDisplayCard
                 label="Limpezas Realizadas"
                 value={cleaningStatsQ.data?.cleaningsDone ?? 0}
@@ -937,7 +900,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 loading={cleaningStatsQ.isLoading}
               />
             </div>
-            <div className="order-[11]">
+            <div className="order-9 lg:order-8 col-span-1">
               <StatDisplayCard
                 label="Custo Total Limpeza"
                 value={centsToBRL(cleaningStatsQ.data?.totalCents ?? 0)}
@@ -946,21 +909,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               />
             </div>
 
-            {/* Calendário de ocupação — no mobile aparece antes de "Em
-                Estadia"/"Imóveis livres" (pedido explícito); no desktop
-                segue por último, como sempre foi. */}
-            <div className="order-[12] lg:order-[14] col-span-2 lg:col-span-4">
-              <OccupancyPanel
-                loading={occupancyQ.isLoading}
-                start={occupancyQ.data?.start ?? occStart}
-                days={occupancyQ.data?.days ?? occDays}
-                properties={filteredOccupancyProperties}
-                stays={occupancyQ.data?.stays ?? []}
-                checkedInPropertyIds={checkedInPropertyIds}
-              />
-            </div>
-
-            <div className="order-[13] lg:order-[12]">
+            <div className="order-11 lg:order-9 col-span-1">
               <KpiCard
                 label="Em Estadia"
                 rows={stayRows}
@@ -974,11 +923,71 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 onAdvance={(r) => handleAdvance(r, "stay")}
               />
             </div>
-            <div className="order-[14] lg:order-[13]">
+            <div className="order-12 lg:order-10 col-span-1">
               <FreePropertiesCard
                 loading={occupancyQ.isLoading}
                 properties={freeProperties}
                 onRefresh={() => occupancyQ.refetch()}
+              />
+            </div>
+
+            {/* Filtros — Período (calendário de início e fim), Cidade e
+                Proprietário (busca + seleção múltipla). Afetam a agenda de
+                ocupação E os 2 cards de limpeza (pedido explícito). Ficam de
+                volta na posição original: numa linha própria, logo acima do
+                calendário, sem entrar na grade dos KPIs — no mobile aparecem
+                antes de Limpezas/Custo (pedido explícito); no desktop ficam
+                só acima do calendário, sem mexer na ordem dos demais cards.
+                Período+Cidade somados ocupam a largura de 1 card;
+                Proprietário sozinho ocupa a largura de outro card — mesma
+                grade de 4 colunas usada pelos KPIs, então a largura bate
+                exatamente. */}
+            <div className="order-7 lg:order-11 col-span-2 lg:col-span-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <PeriodRangeFilterButton value={periodRange} onChange={setPeriodRange} />
+                  <MultiSelectFilterButton
+                    label="Cidade"
+                    icon={MapPin}
+                    options={cityOptions}
+                    selected={cityFilters}
+                    onChange={setCityFilters}
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <MultiSelectFilterButton
+                    label="Proprietário"
+                    icon={User}
+                    options={ownerOptions}
+                    selected={ownerFilters}
+                    onChange={setOwnerFilters}
+                  />
+                  <button
+                    type="button"
+                    disabled={!hasCustomFilters}
+                    onClick={clearAllFilters}
+                    title="Limpar filtros e voltar para hoje"
+                    aria-label="Limpar filtros e voltar para hoje"
+                    className={`${FILTER_BUTTON_CLASS} w-9 justify-center px-0 disabled:opacity-40 disabled:pointer-events-none`}
+                  >
+                    <RotateCcw className="size-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Calendário de ocupação — no mobile aparece antes de "Em
+                Estadia"/"Imóveis livres" (pedido explícito, já assim antes
+                dos filtros existirem); no desktop segue por último, como
+                sempre foi, logo abaixo da linha de filtros. */}
+            <div className="order-10 lg:order-12 col-span-2 lg:col-span-4">
+              <OccupancyPanel
+                loading={occupancyQ.isLoading}
+                start={occupancyQ.data?.start ?? occStart}
+                days={occupancyQ.data?.days ?? occDays}
+                properties={filteredOccupancyProperties}
+                stays={occupancyQ.data?.stays ?? []}
+                checkedInPropertyIds={checkedInPropertyIds}
               />
             </div>
           </div>

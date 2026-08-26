@@ -18,6 +18,9 @@ export function useAutosave<T>(
   const delay = options?.delay ?? 300;
   const enabled = options?.enabled ?? true;
   const [status, setStatus] = useState<AutosaveStatus>("idle");
+  // Guarda a mensagem real do último erro — sem isso, "Falha ao salvar" na
+  // tela não dava nenhuma pista de qual campo/validação travou o autosave.
+  const [lastError, setLastError] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const valueRef = useRef(value);
   const firstRunRef = useRef(true);
@@ -51,10 +54,11 @@ export function useAutosave<T>(
       try {
         await onSaveRef.current(valueRef.current);
         setStatus("saved");
+        setLastError(null);
       } catch (e) {
-        // Loga o motivo real da falha — sem isso, "Falha ao salvar" na tela
-        // não dava nenhuma pista de qual campo/validação travou o autosave.
+        const msg = e instanceof Error ? e.message : "Erro desconhecido";
         console.warn("[autosave]", e);
+        setLastError(msg);
         setStatus("error");
       }
     }, delay);
@@ -71,13 +75,16 @@ export function useAutosave<T>(
     try {
       await onSaveRef.current(valueRef.current);
       setStatus("saved");
+      setLastError(null);
       return true;
     } catch (e) {
+      const msg = e instanceof Error ? e.message : "Erro desconhecido";
       console.warn("[autosave]", e);
+      setLastError(msg);
       setStatus("error");
       return false;
     }
   }
 
-  return { status, flush };
+  return { status, lastError, flush };
 }

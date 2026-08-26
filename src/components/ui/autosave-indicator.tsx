@@ -1,7 +1,7 @@
 import { Check, Loader2, AlertTriangle } from "lucide-react";
 import type { AutosaveStatus } from "@/hooks/useAutosave";
 
-export function AutosaveIndicator({ status }: { status: AutosaveStatus }) {
+export function AutosaveIndicator({ status, errorMessage }: { status: AutosaveStatus; errorMessage?: string | null }) {
   if (status === "idle") return null;
   if (status === "saving") {
     return (
@@ -12,7 +12,12 @@ export function AutosaveIndicator({ status }: { status: AutosaveStatus }) {
   }
   if (status === "error") {
     return (
-      <span className="inline-flex items-center gap-1.5 text-[11px] text-destructive">
+      <span
+        className="inline-flex items-center gap-1.5 text-[11px] text-destructive"
+        // Passe o mouse por cima pra ver o motivo real — sem isso, "Falha ao
+        // salvar" sozinho não dava nenhuma pista do que travou o autosave.
+        title={errorMessage || "Motivo não identificado — veja o console do navegador."}
+      >
         <AlertTriangle className="size-3" /> Falha ao salvar
       </span>
     );
