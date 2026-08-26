@@ -477,15 +477,18 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
     if (patchKeys.length > 0) {
       const before = await sb.from("properties").select(["id", ...patchKeys].join(",")).in("id", data.ids);
       if (!before.error && before.data) {
-        await sb.from("audit_logs").insert({
+        // audit_logs é escrito apenas via service role (RLS sem policy de INSERT).
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        await (supabaseAdmin.from("audit_logs" as never) as any).insert({
           user_id: context.userId,
           action: "properties.bulk_edit.snapshot",
           entity_type: "properties",
           entity_id: data.ids[0]!,
-          metadata: { before: before.data, fields: patchKeys, ids: data.ids } as never,
-        } as never);
+          metadata: { before: before.data, fields: patchKeys, ids: data.ids },
+        });
       }
     }
+
 
 
     function isEmpty(v: unknown): boolean {
