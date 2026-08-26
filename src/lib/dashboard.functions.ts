@@ -198,26 +198,41 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
   });
 
 // ----- Estatísticas de limpeza (cards "Limpezas Realizadas" / "Custo Total Limpeza") -----
-// Escopo "Hoje" (fuso de São Paulo), reinicia diariamente — mesmo padrão dos
-// outros KPIs "tempo real" do dashboard. Conta limpezas concluídas
-// (guest_arrival_status.kind="checkout" com cleaning_type preenchido) cujo
-// "concluded_at" caiu dentro do dia de hoje, e soma o snapshot de preço
-// gravado no momento da conclusão de cada uma.
+// Padrão "Hoje" (fuso de São Paulo), reinicia diariamente — mesmo padrão dos
+// outros KPIs "tempo real" do dashboard — mas aceita um período e uma lista
+// de imóveis explícitos: os filtros de Período/Proprietário/Cidade do
+// dashboard também recalculam estes 2 cards, não só a agenda de ocupação.
+// Conta limpezas concluídas (guest_arrival_status.kind="checkout" com
+// cleaning_type preenchido) cujo "concluded_at" caiu dentro do intervalo, e
+// soma o snapshot de preço gravado no momento da conclusão de cada uma.
+const CleaningStatsInput = z.object({
+  ownerId: z.string().uuid().nullable().optional(),
+  // ids já resolvidos no cliente a partir do filtro de Proprietário/Cidade
+  // (ver ownerOptions/cityOptions em OperationWorkspace) — ausente quando
+  // nenhum dos dois filtros está ativo (aí conta todos os imóveis acessíveis).
+  propertyIds: z.array(z.string().uuid()).optional(),
+  rangeStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  rangeEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
 
 export const getCleaningStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => ScopeInput.parse(i) ?? {})
+  .inputValidator((i: unknown) => CleaningStatsInput.parse(i ?? {}))
   .handler(async ({ data, context }) => {
-    const propIds = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null, context.userId);
+    let propIds = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null, context.userId);
+    if (data.propertyIds && data.propertyIds.length > 0) {
+      const allowed = new Set(data.propertyIds);
+      propIds = propIds.filter((id) => allowed.has(id));
+    }
     if (propIds.length === 0) {
       return { cleaningsDone: 0, totalCents: 0 };
     }
-    const today = todayISO();
-    const tomorrow = addDaysISO(today, 1);
+    const day0 = data.rangeStart ?? todayISO();
+    const day1 = data.rangeEnd ?? day0;
     // Brasil não observa mais horário de verão (abolido em 2019) — São Paulo
-    // é sempre UTC-3, então "hoje 00:00 SP" = "hoje 03:00 UTC".
-    const rangeStart = `${today}T03:00:00.000Z`;
-    const rangeEnd = `${tomorrow}T03:00:00.000Z`;
+    // é sempre UTC-3, então "dia 00:00 SP" = "dia 03:00 UTC".
+    const rangeStart = `${day0}T03:00:00.000Z`;
+    const rangeEnd = `${addDaysISO(day1, 1)}T03:00:00.000Z`;
 
     const { data: rows, error } = await context.supabase
       .from("guest_arrival_status")

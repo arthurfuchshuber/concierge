@@ -19,6 +19,7 @@ import { POIMetricsBadge } from "@/components/POIMetricsBadge";
 import { getPropertyPoiCounts, getMarketplaceClicks } from "@/lib/poi-engagement.functions";
 
 import { Input } from "@/components/ui/input";
+import { MoneyInput } from "@/components/ui/money-input";
 import { Textarea } from "@/components/ui/textarea";
 import { TagMentionTextarea, type TagMentionItem } from "@/components/tags/TagMentionTextarea";
 import { slugForTag } from "@/lib/guide-tags";
@@ -1234,14 +1235,9 @@ function PropertyEditor() {
   // Quadrante EXCLUSIVO de limpeza: valores fixos (R$, armazenados em
   // centavos — mesma convenção de dinheiro já usada em prestadores de
   // serviço via hourly_rate_cents) + período estimado (minutos, múltiplos de
-  // 30). Separado da Identificação do imóvel a pedido.
-  const centsToReaisInput = (cents: number | null) => (cents == null ? "" : (cents / 100).toFixed(2));
-  const parseReaisInputToCents = (raw: string): number | null => {
-    if (raw.trim() === "") return null;
-    const n = Number(raw.replace(",", "."));
-    if (!Number.isFinite(n) || n < 0) return null;
-    return Math.round(n * 100);
-  };
+  // 30). Separado da Identificação do imóvel a pedido. Os helpers de
+  // formatação/parsing agora vivem em <MoneyInput> (components/ui/money-input)
+  // — digitação livre, sem reformatar a cada tecla (ver comentário lá).
   // 30min, 1h, 1h30 ... até 8h — cobre da limpeza rápida à faxina completa de
   // uma casa grande, sempre em passos de meia hora.
   const CLEANING_DURATION_OPTIONS = Array.from({ length: 16 }, (_, i) => {
@@ -1259,45 +1255,51 @@ function PropertyEditor() {
       desc="Valores fixos cobrados e o período estimado de cada tipo de limpeza deste imóvel."
       collapsible
     >
-      <div className="grid grid-cols-2 gap-3">
+      {/* Desktop: os 3 campos lado a lado pra economizar espaço; mobile
+          mantém os 2 valores lado a lado e "Período estimado" numa linha
+          própria (era assim antes — só o desktop ganhou a 3ª coluna). */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         <Field label="Limpeza normal (R$)" hint="Valor fixo cobrado por uma limpeza normal deste imóvel.">
-          <Input
-            type="number"
-            inputMode="decimal"
-            min={0}
-            step="0.01"
-            placeholder="0,00"
-            value={centsToReaisInput(form.property.cleaning_price_normal_cents)}
-            onChange={(e) => update("cleaning_price_normal_cents", parseReaisInputToCents(e.target.value))}
+          <MoneyInput
+            cents={form.property.cleaning_price_normal_cents}
+            onChange={(c) => update("cleaning_price_normal_cents", c)}
           />
         </Field>
         <Field label="Limpeza completa (R$)" hint="Valor fixo cobrado por uma limpeza completa deste imóvel.">
-          <Input
-            type="number"
-            inputMode="decimal"
-            min={0}
-            step="0.01"
-            placeholder="0,00"
-            value={centsToReaisInput(form.property.cleaning_price_full_cents)}
-            onChange={(e) => update("cleaning_price_full_cents", parseReaisInputToCents(e.target.value))}
+          <MoneyInput
+            cents={form.property.cleaning_price_full_cents}
+            onChange={(c) => update("cleaning_price_full_cents", c)}
           />
         </Field>
+        <div className="col-span-2 lg:col-span-1">
+          <Field label="Período estimado" hint="Tempo estimado para a limpeza deste imóvel, em intervalos de 30 minutos.">
+            <Select
+              value={form.property.cleaning_duration_minutes != null ? String(form.property.cleaning_duration_minutes) : ""}
+              onValueChange={(v) => update("cleaning_duration_minutes", v ? Number(v) : null)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o período" />
+              </SelectTrigger>
+              {/* Grade de 4 colunas em vez de lista longa — as 16 opções
+                  (30min a 8h) cabem inteiras sem rolagem, muito mais rápido
+                  de escanear do que uma lista vertical de 16 linhas. */}
+              <SelectContent>
+                <div className="grid grid-cols-4 gap-1 p-1">
+                  {CLEANING_DURATION_OPTIONS.map((o) => (
+                    <SelectItem
+                      key={o.value}
+                      value={String(o.value)}
+                      className="justify-center rounded-md px-2 py-1.5 text-center tabular-nums"
+                    >
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </div>
+              </SelectContent>
+            </Select>
+          </Field>
+        </div>
       </div>
-      <Field label="Período estimado" hint="Tempo estimado para a limpeza deste imóvel, em intervalos de 30 minutos.">
-        <Select
-          value={form.property.cleaning_duration_minutes != null ? String(form.property.cleaning_duration_minutes) : ""}
-          onValueChange={(v) => update("cleaning_duration_minutes", v ? Number(v) : null)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Selecione o período" />
-          </SelectTrigger>
-          <SelectContent>
-            {CLEANING_DURATION_OPTIONS.map((o) => (
-              <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Field>
     </Section>
   );
 

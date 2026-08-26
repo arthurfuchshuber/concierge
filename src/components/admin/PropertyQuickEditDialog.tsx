@@ -27,6 +27,7 @@ import {
 } from "@/components/ResponsiveDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MoneyInput } from "@/components/ui/money-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
@@ -283,18 +284,10 @@ export function PropertyQuickEditDialog({
     setEdited((e) => (e ? { ...e, [key]: value } : e));
   }
 
-  // Valores fixos de limpeza (R$) — armazenados em centavos, mesma
-  // convenção de dinheiro já usada em prestadores de serviço
-  // (hourly_rate_cents). Mesma conversão usada na aba "A casa".
-  function centsToReaisInput(cents: number | null): string {
-    return cents == null ? "" : (cents / 100).toFixed(2);
-  }
-  function parseReaisInputToCents(raw: string): number | null {
-    if (raw.trim() === "") return null;
-    const n = Number(raw.replace(",", "."));
-    if (!Number.isFinite(n) || n < 0) return null;
-    return Math.round(n * 100);
-  }
+  // Valores fixos de limpeza (R$) — os helpers de formatação/parsing agora
+  // vivem em <MoneyInput> (components/ui/money-input), que permite
+  // digitação livre sem reformatar a cada tecla. Mesma conversão da aba
+  // "A casa".
   // 30min, 1h, 1h30 ... até 8h — mesmas opções da aba "A casa".
   const CLEANING_DURATION_OPTIONS = Array.from({ length: 16 }, (_, i) => {
     const minutes = (i + 1) * 30;
@@ -583,45 +576,48 @@ export function PropertyQuickEditDialog({
                 desc="Valores fixos cobrados e o período estimado de cada tipo de limpeza deste imóvel."
                 collapsible
               >
-                <div className="grid grid-cols-2 gap-3">
+                {/* Desktop: os 3 campos lado a lado pra economizar espaço;
+                    mobile mantém os 2 valores lado a lado e "Período
+                    estimado" numa linha própria — igual à aba "A casa". */}
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                   <Field label="Limpeza normal (R$)" hint="Valor fixo cobrado por uma limpeza normal deste imóvel.">
-                    <Input
-                      type="number"
-                      inputMode="decimal"
-                      min={0}
-                      step="0.01"
-                      placeholder="0,00"
-                      value={centsToReaisInput(edited.cleaning_price_normal_cents)}
-                      onChange={(e) => upd("cleaning_price_normal_cents", parseReaisInputToCents(e.target.value))}
+                    <MoneyInput
+                      cents={edited.cleaning_price_normal_cents}
+                      onChange={(c) => upd("cleaning_price_normal_cents", c)}
                     />
                   </Field>
                   <Field label="Limpeza completa (R$)" hint="Valor fixo cobrado por uma limpeza completa deste imóvel.">
-                    <Input
-                      type="number"
-                      inputMode="decimal"
-                      min={0}
-                      step="0.01"
-                      placeholder="0,00"
-                      value={centsToReaisInput(edited.cleaning_price_full_cents)}
-                      onChange={(e) => upd("cleaning_price_full_cents", parseReaisInputToCents(e.target.value))}
+                    <MoneyInput
+                      cents={edited.cleaning_price_full_cents}
+                      onChange={(c) => upd("cleaning_price_full_cents", c)}
                     />
                   </Field>
+                  <div className="col-span-2 lg:col-span-1">
+                    <Field label="Período estimado" hint="Tempo estimado para a limpeza deste imóvel, em intervalos de 30 minutos.">
+                      <Select
+                        value={edited.cleaning_duration_minutes != null ? String(edited.cleaning_duration_minutes) : ""}
+                        onValueChange={(v) => upd("cleaning_duration_minutes", v ? Number(v) : null)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o período" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <div className="grid grid-cols-4 gap-1 p-1">
+                            {CLEANING_DURATION_OPTIONS.map((o) => (
+                              <SelectItem
+                                key={o.value}
+                                value={String(o.value)}
+                                className="justify-center rounded-md px-2 py-1.5 text-center tabular-nums"
+                              >
+                                {o.label}
+                              </SelectItem>
+                            ))}
+                          </div>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  </div>
                 </div>
-                <Field label="Período estimado" hint="Tempo estimado para a limpeza deste imóvel, em intervalos de 30 minutos.">
-                  <Select
-                    value={edited.cleaning_duration_minutes != null ? String(edited.cleaning_duration_minutes) : ""}
-                    onValueChange={(v) => upd("cleaning_duration_minutes", v ? Number(v) : null)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o período" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CLEANING_DURATION_OPTIONS.map((o) => (
-                        <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
               </Section>
 
               <Section id="address" icon={MapPinned} title="Endereço e localização" desc="Cole o link do Google Maps — o endereço é preenchido automaticamente." collapsible>

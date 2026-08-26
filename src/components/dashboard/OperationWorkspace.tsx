@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tansta
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 import {
   CalendarCheck,
   CalendarX,
@@ -34,12 +35,19 @@ import {
   Banknote,
   CalendarRange,
   User,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
+import { format, parse, isValid, differenceInCalendarDays } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import type { DateRange } from "react-day-picker";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Calendar as RangeCalendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import { CopyButton } from "@/components/CopyButton";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -131,6 +139,19 @@ function todayISOSaoPaulo(): string {
   }).formatToParts(new Date());
   const pick = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
   return `${pick("year")}-${pick("month")}-${pick("day")}`;
+}
+
+/**
+ * ISO "YYYY-MM-DD" → Date ao meio-dia LOCAL (não UTC) — evita cair no dia
+ * errado perto da meia-noite dependendo do fuso do navegador. Mesma
+ * convenção já usada alhures neste arquivo (ex.: `${row.date}T12:00:00`).
+ */
+function parseISODateLocal(iso: string): Date {
+  return new Date(`${iso}T12:00:00`);
+}
+/** Date (fuso local) → ISO "YYYY-MM-DD". */
+function dateToISOLocal(d: Date): string {
+  return format(d, "yyyy-MM-dd");
 }
 
 /** Centavos → "R$ X,XX" (mesma convenção usada para hourly_rate_cents). */
@@ -288,18 +309,86 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     staleTime: 30_000,
     placeholderData: keepPreviousData,
   });
-  const [agendaStart, setAgendaStart] = useState<string>(todayISOSaoPaulo);
+  // Filtros de Período/Proprietário/Cidade — controlam TANTO a agenda de
+  // ocupação quanto os cards "Limpezas Realizadas"/"Custo Total Limpeza"
+  // logo acima dela (pedido explícito: os filtros afetam os dois). Sem
+  // período escolhido (null), cada um usa seu próprio padrão: a agenda
+  // mostra os 21 dias a partir de hoje (como sempre foi) e os cards de
+  // limpeza somam só "Hoje" (mesmo padrão "tempo real" dos outros KPIs) —
+  // só divergem quando o usuário escolhe um período explícito, aí os dois
+  // passam a usar exatamente o intervalo escolhido.
+  const [periodRange, setPeriodRange] = useState<{ start: string; end: string } | null>(null);
+  const [ownerFilters, setOwnerFilters] = useState<string[]>([]);
+  const [cityFilters, setCityFilters] = useState<string[]>([]);
+  const hasCustomFilters = !!periodRange || ownerFilters.length > 0 || cityFilters.length > 0;
+  function clearAllFilters() {
+    setPeriodRange(null);
+    setOwnerFilters([]);
+    setCityFilters([]);
+  }
+
+  const occStart = periodRange?.start ?? todayISOSaoPaulo();
+  const occDays = periodRange
+    ? Math.min(90, Math.max(3, differenceInCalendarDays(parseISODateLocal(periodRange.end), parseISODateLocal(periodRange.start)) + 1))
+    : 21;
   const occupancyQ = useQuery({
-    queryKey: ["dash-occupancy", activeOwnerId ?? "self", agendaStart],
-    queryFn: () => occupancyFn({ data: { ownerId: activeOwnerId, days: 21, start: agendaStart } }),
+    queryKey: ["dash-occupancy", activeOwnerId ?? "self", occStart, occDays],
+    queryFn: () => occupancyFn({ data: { ownerId: activeOwnerId, days: occDays, start: occStart } }),
     staleTime: 60_000,
     placeholderData: keepPreviousData,
   });
-  // "Hoje" (fuso de São Paulo), reinicia diariamente — mesmo padrão dos
-  // demais KPIs "tempo real" (ver getCleaningStats em dashboard.functions.ts).
+
+  // Propriedades (id/nome/cidade/proprietário) já vêm da própria agenda —
+  // reaproveitadas aqui pra montar as opções dos filtros e resolver quais
+  // property_id batem com Proprietário/Cidade selecionados (pra filtrar
+  // tanto a tabela da agenda quanto os cards de limpeza abaixo).
+  const occupancyProperties: Array<{ id: string; name: string; city: string | null; ownerName?: string | null }> =
+    occupancyQ.data?.properties ?? [];
+  const ownerOptions = useMemo(() => {
+    const names: string[] = occupancyProperties
+      .map((p) => p.ownerName)
+      .filter((v): v is string => !!v);
+    return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [occupancyProperties]);
+  const cityOptions = useMemo(() => {
+    const names: string[] = occupancyProperties.map((p) => p.city).filter((v): v is string => !!v);
+    return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [occupancyProperties]);
+  const matchesOwnerCity = useCallback(
+    (p: { ownerName?: string | null; city?: string | null }) =>
+      (ownerFilters.length === 0 || (p.ownerName && ownerFilters.includes(p.ownerName))) &&
+      (cityFilters.length === 0 || (p.city && cityFilters.includes(p.city))),
+    [ownerFilters, cityFilters],
+  );
+  const filteredOccupancyProperties = useMemo(
+    () => occupancyProperties.filter(matchesOwnerCity),
+    [occupancyProperties, matchesOwnerCity],
+  );
+  // ids que batem com Proprietário/Cidade — só enviado ao servidor quando
+  // algum desses 2 filtros está ativo (sem filtro, o servidor já usa todos
+  // os imóveis acessíveis da conta, sem precisar listar id por id).
+  const cleaningStatsPropertyIds = useMemo(
+    () => (ownerFilters.length > 0 || cityFilters.length > 0 ? filteredOccupancyProperties.map((p) => p.id) : undefined),
+    [ownerFilters, cityFilters, filteredOccupancyProperties],
+  );
+  const cleaningStatsRange = periodRange ?? { start: todayISOSaoPaulo(), end: todayISOSaoPaulo() };
   const cleaningStatsQ = useQuery({
-    queryKey: ["dash-cleaning-stats", activeOwnerId ?? "self"],
-    queryFn: () => cleaningStatsFn({ data: { ownerId: activeOwnerId } }),
+    queryKey: [
+      "dash-cleaning-stats",
+      activeOwnerId ?? "self",
+      cleaningStatsRange.start,
+      cleaningStatsRange.end,
+      cleaningStatsPropertyIds?.join(",") ?? "",
+    ],
+    queryFn: () =>
+      cleaningStatsFn({
+        data: {
+          ownerId: activeOwnerId,
+          rangeStart: cleaningStatsRange.start,
+          rangeEnd: cleaningStatsRange.end,
+          propertyIds: cleaningStatsPropertyIds,
+        },
+      }),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
   });
@@ -799,10 +888,48 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             {/* Engajamento do guia — largura total, some quando não há dados. */}
             {renderEngagementPanel("order-6 lg:order-6 col-span-2 lg:col-span-4")}
 
-            {/* Desktop: este par (Limpezas Realizadas/Custo Total) agora vem
-                DEPOIS de Em Estadia/Imóveis Livres — ordem invertida a
-                pedido. Mobile mantém a ordem original (antes do calendário). */}
-            <div className="order-7 lg:order-9">
+            {/* Filtros — Período (calendário de início e fim), Cidade e
+                Proprietário (busca + seleção múltipla). Afetam a agenda de
+                ocupação E os 2 cards de limpeza logo abaixo (pedido
+                explícito). Período fica sozinho na própria linha; Cidade +
+                Proprietário dividem a linha 50/50, exatamente como os cards
+                de limpeza logo abaixo — mesma grade, então as bordas
+                alinham entre uma linha e outra. */}
+            <div className="order-7 col-span-2 lg:col-span-4 flex items-center justify-between gap-2">
+              <PeriodRangeFilterButton value={periodRange} onChange={setPeriodRange} />
+              <button
+                type="button"
+                disabled={!hasCustomFilters}
+                onClick={clearAllFilters}
+                title="Limpar filtros e voltar para hoje"
+                aria-label="Limpar filtros e voltar para hoje"
+                className={`${FILTER_BUTTON_CLASS} w-9 justify-center px-0 disabled:opacity-40 disabled:pointer-events-none`}
+              >
+                <RotateCcw className="size-3.5" />
+              </button>
+            </div>
+            <div className="order-8 col-span-1 flex lg:items-center">
+              <MultiSelectFilterButton
+                label="Cidade"
+                icon={MapPin}
+                options={cityOptions}
+                selected={cityFilters}
+                onChange={setCityFilters}
+                className="w-full justify-start"
+              />
+            </div>
+            <div className="order-9 col-span-1 flex lg:items-center">
+              <MultiSelectFilterButton
+                label="Proprietário"
+                icon={User}
+                options={ownerOptions}
+                selected={ownerFilters}
+                onChange={setOwnerFilters}
+                className="w-full justify-start"
+              />
+            </div>
+
+            <div className="order-10">
               <StatDisplayCard
                 label="Limpezas Realizadas"
                 value={cleaningStatsQ.data?.cleaningsDone ?? 0}
@@ -810,7 +937,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 loading={cleaningStatsQ.isLoading}
               />
             </div>
-            <div className="order-8 lg:order-10">
+            <div className="order-[11]">
               <StatDisplayCard
                 label="Custo Total Limpeza"
                 value={centsToBRL(cleaningStatsQ.data?.totalCents ?? 0)}
@@ -819,27 +946,21 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               />
             </div>
 
-            {/* Calendário de ocupação (com o botão "Filtros") — no mobile
-                aparece antes de "Em Estadia"/"Imóveis livres" (pedido
-                explícito); no desktop segue por último, como sempre foi. */}
-            {/* space-y-1.5: OccupancyPanel devolve um Fragment (Filtros +
-                calendário como irmãos) — sem essa classe no pai direto, os
-                dois ficam colados (o espaçamento do Fragment depende do
-                pai, ver comentário dentro de OccupancyPanel). */}
-            <div className="order-9 lg:order-11 col-span-2 lg:col-span-4 space-y-1.5">
+            {/* Calendário de ocupação — no mobile aparece antes de "Em
+                Estadia"/"Imóveis livres" (pedido explícito); no desktop
+                segue por último, como sempre foi. */}
+            <div className="order-[12] lg:order-[14] col-span-2 lg:col-span-4">
               <OccupancyPanel
                 loading={occupancyQ.isLoading}
-                start={occupancyQ.data?.start ?? agendaStart}
-                days={occupancyQ.data?.days ?? 21}
-                properties={occupancyQ.data?.properties ?? []}
+                start={occupancyQ.data?.start ?? occStart}
+                days={occupancyQ.data?.days ?? occDays}
+                properties={filteredOccupancyProperties}
                 stays={occupancyQ.data?.stays ?? []}
                 checkedInPropertyIds={checkedInPropertyIds}
-                onStartChange={setAgendaStart}
-                defaultStart={todayISO}
               />
             </div>
 
-            <div className="order-10 lg:order-7">
+            <div className="order-[13] lg:order-[12]">
               <KpiCard
                 label="Em Estadia"
                 rows={stayRows}
@@ -853,7 +974,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 onAdvance={(r) => handleAdvance(r, "stay")}
               />
             </div>
-            <div className="order-11 lg:order-8">
+            <div className="order-[14] lg:order-[13]">
               <FreePropertiesCard
                 loading={occupancyQ.isLoading}
                 properties={freeProperties}
@@ -1822,7 +1943,156 @@ function StatDisplayCard({
   );
 }
 
-/** Agenda macro: ocupação de todos os imóveis nos próximos dias. */
+// Formatação ÚNICA compartilhada pelos botões de filtro (Período/Cidade/
+// Proprietário + o ícone de "limpar"). bg-card (não bg-secondary, que
+// destoava da cor padrão dos outros quadrantes da página) + a mesma sombra
+// sutil (ds-3d) usada em todos os outros cards.
+const FILTER_BUTTON_CLASS =
+  "relative h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-[0.3rem] border-0 bg-card ds-3d px-3.5 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary/50 transition-colors";
+const FILTER_DOT = (
+  <span className="ml-0.5 size-1.5 shrink-0 rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE]" />
+);
+
+/** Filtro de período — calendário de início E fim (substitui o antigo campo de uma data só). */
+function PeriodRangeFilterButton({
+  value,
+  onChange,
+}: {
+  value: { start: string; end: string } | null;
+  onChange: (next: { start: string; end: string } | null) => void;
+}) {
+  const [draft, setDraft] = useState<DateRange | undefined>(
+    value ? { from: parseISODateLocal(value.start), to: parseISODateLocal(value.end) } : undefined,
+  );
+  // Resincroniza o rascunho quando o valor muda por FORA deste popover (ex.:
+  // o ícone de "limpar filtros" ao lado, que volta tudo pro dia atual).
+  useEffect(() => {
+    setDraft(value ? { from: parseISODateLocal(value.start), to: parseISODateLocal(value.end) } : undefined);
+  }, [value]);
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button type="button" className={FILTER_BUTTON_CLASS}>
+          <CalendarRange className="size-3.5 opacity-60" />
+          Período
+          {value ? FILTER_DOT : null}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-auto p-3" onOpenAutoFocus={(e) => e.preventDefault()}>
+        <RangeCalendar
+          mode="range"
+          numberOfMonths={1}
+          locale={ptBR}
+          selected={draft}
+          onSelect={(nextRange) => {
+            setDraft(nextRange);
+            // Só propaga pro resto da página (agenda + cards de limpeza)
+            // quando o intervalo estiver completo (início E fim) — o
+            // primeiro clique sozinho ainda não é um período válido.
+            if (nextRange?.from && nextRange?.to) {
+              onChange({ start: dateToISOLocal(nextRange.from), end: dateToISOLocal(nextRange.to) });
+            }
+          }}
+        />
+        <div className="mt-1 flex items-center justify-between gap-2 border-t border-border pt-2">
+          <span className="text-[11px] text-muted-foreground">
+            {draft?.from ? format(draft.from, "dd/MM", { locale: ptBR }) : "Início"}
+            {" – "}
+            {draft?.to ? format(draft.to, "dd/MM", { locale: ptBR }) : "Fim"}
+          </span>
+          <button
+            type="button"
+            className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
+            onClick={() => {
+              setDraft(undefined);
+              onChange(null);
+            }}
+          >
+            Limpar
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/**
+ * Filtro de seleção múltipla com busca (Cidade/Proprietário) — campo de
+ * texto pra digitar, checkbox por item, "selecionar todos" e "limpar".
+ */
+function MultiSelectFilterButton({
+  label,
+  icon: Icon,
+  options,
+  selected,
+  onChange,
+  className,
+}: {
+  label: string;
+  icon: React.ElementType;
+  options: string[];
+  selected: string[];
+  onChange: (next: string[]) => void;
+  className?: string;
+}) {
+  function toggle(o: string) {
+    onChange(selected.includes(o) ? selected.filter((s) => s !== o) : [...selected, o]);
+  }
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button type="button" className={cn(FILTER_BUTTON_CLASS, className)}>
+          <Icon className="size-3.5 opacity-60 shrink-0" />
+          <span className="truncate">{label}</span>
+          {selected.length > 0 ? FILTER_DOT : null}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-64 p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
+        <Command>
+          <CommandInput placeholder={`Buscar ${label.toLowerCase()}...`} />
+          <div className="flex items-center justify-between gap-2 border-b border-border px-2 py-1.5">
+            <button
+              type="button"
+              className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
+              onClick={() => onChange(options)}
+            >
+              Selecionar todos
+            </button>
+            <button
+              type="button"
+              className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
+              onClick={() => onChange([])}
+            >
+              Limpar
+            </button>
+          </div>
+          <CommandList>
+            <CommandEmpty>Nenhum resultado.</CommandEmpty>
+            <CommandGroup>
+              {options.map((o) => (
+                <CommandItem key={o} value={o} onSelect={() => toggle(o)} className="cursor-pointer gap-2">
+                  <Checkbox checked={selected.includes(o)} className="pointer-events-none" />
+                  <span className="truncate">{o}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/**
+ * Agenda macro: ocupação de todos os imóveis nos próximos dias.
+ *
+ * Os filtros de Período/Proprietário/Cidade não vivem mais aqui — foram
+ * extraídos pro OperationWorkspace (o pai), porque agora eles também
+ * precisam afetar os cards "Limpezas Realizadas"/"Custo Total Limpeza",
+ * que são irmãos deste painel, não filhos dele. Este componente recebe
+ * `properties` JÁ filtrada e só desenha a agenda.
+ */
 function OccupancyPanel({
   loading,
   start,
@@ -1830,8 +2100,6 @@ function OccupancyPanel({
   properties,
   stays,
   checkedInPropertyIds,
-  onStartChange,
-  defaultStart,
 }: {
   loading: boolean;
   start: string;
@@ -1845,13 +2113,7 @@ function OccupancyPanel({
     checkinDone: boolean;
   }>;
   checkedInPropertyIds: Set<string>;
-  onStartChange?: (v: string) => void;
-  defaultStart?: string;
 }) {
-  const [ownerFilter, setOwnerFilter] = useState<string>("");
-
-  const [cityFilter, setCityFilter] = useState<string>("");
-
   /**
    * Mobile: exatamente 5 dias inteiros no visor.
    * Desktop: o máximo de dias inteiros que couber na largura do quadrante,
@@ -1877,9 +2139,10 @@ function OccupancyPanel({
       const isDesktop = w >= 768;
       const count = isDesktop ? Math.max(1, Math.min(days, Math.floor(usable / MIN_DAY_W))) : MOBILE_DAYS;
       setVisibleDays(count);
-      // Colunas compactas: nunca mais largas que 46px (desktop) / 40px (mobile).
-      const maxW = isDesktop ? 46 : 40;
-      setDayW(Math.min(maxW, Math.max(MIN_DAY_W, Math.floor(usable / count))));
+      // Regra original: nome fixo + N colunas INTEIRAS preenchendo 100% da
+      // largura disponível — nunca deixar sobra vazia (barra cinza) nem
+      // cortar coluna alguma.
+      setDayW(Math.max(MIN_DAY_W, Math.floor(usable / count)));
     };
 
     update();
@@ -1901,25 +2164,11 @@ function OccupancyPanel({
     return out;
   }, [start, days]);
 
-  const owners = useMemo(
-    () =>
-      [...new Set(properties.map((p) => p.ownerName).filter((o): o is string => !!o))].sort((a, b) =>
-        a.localeCompare(b, "pt-BR"),
-      ),
-    [properties],
-  );
-  const cities = useMemo(
-    () =>
-      [...new Set(properties.map((p) => p.city).filter((c): c is string => !!c))].sort((a, b) =>
-        a.localeCompare(b, "pt-BR"),
-      ),
-    [properties],
-  );
-
+  // Proprietário/Cidade já vêm filtrados do pai — aqui só ordena pra
+  // exibição (proprietário → nome → cidade), igual antes.
   const visibleProperties = useMemo(() => {
     const cmp = (a: string, b: string) => a.localeCompare(b, "pt-BR", { sensitivity: "base" });
     return properties
-      .filter((p) => (!ownerFilter || p.ownerName === ownerFilter) && (!cityFilter || p.city === cityFilter))
       .slice()
       .sort(
         (a, b) =>
@@ -1927,16 +2176,13 @@ function OccupancyPanel({
           cmp(a.name, b.name) ||
           cmp(a.city ?? "zzz", b.city ?? "zzz"),
       );
-  }, [properties, ownerFilter, cityFilter]);
+  }, [properties]);
 
   // Mostra no máximo 5 imóveis SEM cortar nenhuma linha ao meio — mesma
   // lógica de "N itens inteiros" já usada nas listas do Kanban
   // (useWholeCardsMaxHeight): mede a altura real de cada linha e trava o
   // quadro exatamente no fim da 5ª, sobrando scroll pro resto.
   const list = useWholeCardsMaxHeight(5, `${visibleProperties.length}:${loading}:${dayW}`);
-
-  const startChanged = !!defaultStart && start !== defaultStart;
-  const activeFilters = (ownerFilter ? 1 : 0) + (cityFilter ? 1 : 0) + (startChanged ? 1 : 0);
 
   const byProperty = useMemo(() => {
     const map = new Map<
@@ -1994,112 +2240,7 @@ function OccupancyPanel({
             ? "bg-primary/35"
             : "bg-transparent";
 
-  // Formatação ÚNICA compartilhada pelos 3 botões de filtro — antes viviam
-  // todos dentro de um único botão "Filtros"; agora cada um é seu próprio
-  // botão (mesma altura/estilo do antigo "Filtros"), ocupando o espaço vazio
-  // ao lado. O ponto colorido substitui o contador: aqui cada botão só tem
-  // dois estados (ativo/inativo), não faz sentido mostrar "1".
-  const filterButtonClass =
-    "relative h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-none border-0 bg-secondary/50 px-3.5 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors";
-  const filterDot = (
-    <span className="ml-0.5 size-1.5 shrink-0 rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE]" />
-  );
-
   return (
-    <>
-      {/* Os 3 filtros (Período/Proprietário/Cidade) — antes viviam dentro de
-          um único popover "Filtros"; agora cada um é seu próprio botão,
-          preenchendo o espaço vazio ao lado. Mesma altura/estilo dos demais
-          botões da página. Sem padding próprio: o espaçamento acima E abaixo
-          já vem do space-y-1.5 do container pai (mesmos 6px entre todos os
-          cards da página) — um pb-1.5 aqui somaria com essa margem e
-          dobraria o vão até o quadro do calendário. */}
-      <div className="flex flex-wrap items-center gap-2">
-        {onStartChange ? (
-          <Popover>
-            <PopoverTrigger asChild>
-              <button type="button" className={filterButtonClass}>
-                <CalendarRange className="size-3.5 opacity-60" /> Período
-                {startChanged ? filterDot : null}
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-56 p-3" onOpenAutoFocus={(e) => e.preventDefault()}>
-              <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-                Início do período ({days} dias)
-              </p>
-              <input
-                type="date"
-                value={start}
-                onChange={(e) => e.target.value && onStartChange(e.target.value)}
-                className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs tabular-nums"
-              />
-            </PopoverContent>
-          </Popover>
-        ) : null}
-
-        <Popover>
-          <PopoverTrigger asChild>
-            <button type="button" className={filterButtonClass}>
-              <User className="size-3.5 opacity-60" /> Proprietário
-              {ownerFilter ? filterDot : null}
-            </button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-56 p-3" onOpenAutoFocus={(e) => e.preventDefault()}>
-            <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">Proprietário</p>
-            <select
-              value={ownerFilter}
-              onChange={(e) => setOwnerFilter(e.target.value)}
-              className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
-            >
-              <option value="">Todos</option>
-              {owners.map((o) => (
-                <option key={o} value={o}>
-                  {o}
-                </option>
-              ))}
-            </select>
-          </PopoverContent>
-        </Popover>
-
-        <Popover>
-          <PopoverTrigger asChild>
-            <button type="button" className={filterButtonClass}>
-              <MapPin className="size-3.5 opacity-60" /> Cidade
-              {cityFilter ? filterDot : null}
-            </button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-56 p-3" onOpenAutoFocus={(e) => e.preventDefault()}>
-            <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">Cidade</p>
-            <select
-              value={cityFilter}
-              onChange={(e) => setCityFilter(e.target.value)}
-              className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
-            >
-              <option value="">Todas</option>
-              {cities.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </PopoverContent>
-        </Popover>
-
-        {activeFilters > 0 ? (
-          <button
-            type="button"
-            onClick={() => {
-              setOwnerFilter("");
-              setCityFilter("");
-              if (defaultStart && onStartChange) onStartChange(defaultStart);
-            }}
-            className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
-          >
-            Limpar filtros
-          </button>
-        ) : null}
-      </div>
-
       <section className="relative rounded-[0.3rem] border-0 bg-card ds-3d">
         <div className="px-4 sm:px-5 pt-4 pb-5">
           {loading ? (
@@ -2261,7 +2402,6 @@ function OccupancyPanel({
           )}
         </div>
       </section>
-    </>
   );
 }
 
