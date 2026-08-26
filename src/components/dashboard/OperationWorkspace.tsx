@@ -946,7 +946,15 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 estarem na mesma grade de 4 colunas, o bloco 1 cai
                 naturalmente alinhado sob "Limpezas Realizadas" e o bloco 2
                 sob "Custo Total Limpeza". */}
-            <div className="order-7 lg:order-11 col-span-1 min-w-0 flex flex-wrap items-center gap-2">
+            {/* grid (não flex) de propósito: um <button> é filho DIRETO do
+                grid item aqui (Popover/PopoverTrigger asChild não desenham
+                elemento próprio), então o "stretch" padrão do grid estica
+                cada botão pra preencher sua célula — sem isso (flex sem
+                flex-1) os botões ficavam do tamanho do próprio texto,
+                alinhados à esquerda, sobrando um vão vazio até a borda da
+                coluna (era isso que deixava "Cidade"/"Proprietário" com
+                largura errada mesmo já na coluna certa). */}
+            <div className="order-7 lg:order-11 col-span-1 min-w-0 grid grid-cols-2 gap-2">
               <PeriodRangeFilterButton value={periodRange} onChange={setPeriodRange} />
               <MultiSelectFilterButton
                 label="Cidade"
@@ -956,7 +964,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 onChange={setCityFilters}
               />
             </div>
-            <div className="order-8 lg:order-12 col-span-1 min-w-0 flex flex-wrap items-center gap-2">
+            <div className="order-8 lg:order-12 col-span-1 min-w-0 grid grid-cols-[1fr_auto] gap-2">
               <MultiSelectFilterButton
                 label="Proprietário"
                 icon={User}
@@ -1443,6 +1451,31 @@ function KanbanColumn({
       </div>
     </div>
   );
+}
+
+// Mede a largura real da scrollbar vertical do navegador (0 em iOS/Android
+// e na maioria dos WebViews mobile, que usam scrollbar "overlay" sem
+// reservar espaço; alguns pixels em navegadores desktop/emulação com
+// scrollbar clássica). Truque padrão: um <div> escondido com overflow:scroll
+// — a diferença entre a largura de fora e a de dentro É a scrollbar.
+let cachedScrollbarWidth: number | null = null;
+function measureScrollbarWidth(): number {
+  if (cachedScrollbarWidth !== null) return cachedScrollbarWidth;
+  if (typeof document === "undefined") return 0;
+  const outer = document.createElement("div");
+  outer.style.visibility = "hidden";
+  outer.style.position = "absolute";
+  outer.style.top = "-9999px";
+  outer.style.width = "100px";
+  outer.style.overflow = "scroll";
+  const inner = document.createElement("div");
+  inner.style.width = "100%";
+  outer.appendChild(inner);
+  document.body.appendChild(outer);
+  const width = outer.offsetWidth - inner.clientWidth;
+  outer.parentNode?.removeChild(outer);
+  cachedScrollbarWidth = width;
+  return width;
 }
 
 /** Limita a altura de uma lista em N cards INTEIROS — nunca corta um card ao
@@ -2132,6 +2165,7 @@ function OccupancyPanel({
   const MOBILE_DAYS = 5;
   const MIN_DAY_W = 38; // largura mínima por coluna no desktop
   const outerRef = useRef<HTMLDivElement | null>(null);
+  const scrollbarWRef = useRef<number | null>(null);
   const [dayW, setDayW] = useState(40);
   const [visibleDays, setVisibleDays] = useState(MOBILE_DAYS);
   // Largura da coluna do nome — normalmente NAME_COL_BASE, mas cresce pra
@@ -2149,7 +2183,23 @@ function OccupancyPanel({
     const update = () => {
       const w = el.clientWidth;
       if (!w) return;
-      const usable = w - NAME_COL_BASE;
+      // A largura era medida no wrapper de FORA (`outerRef`), que não tem
+      // scrollbar própria — mas quando há mais de 5 imóveis, o painel de
+      // baixo (o mesmo elemento que rola os dias na horizontal) também rola
+      // na vertical e ganha uma scrollbar real, que come uma fatia da
+      // largura horizontal disponível. Sem descontar essa fatia aqui, o
+      // cálculo achava que sobrava mais espaço do que realmente sobra depois
+      // da scrollbar — cortando a última coluna de dia e, em alguns
+      // navegadores, deixando a barra de dias "assentar" fora da posição 0,
+      // empurrando o dia de hoje pra debaixo da coluna (fixa) dos nomes.
+      // Medida uma vez só (o valor não muda em runtime) e sempre descontada,
+      // mesmo quando a scrollbar não aparece — a sobra vai pra coluna do
+      // nome, igual a qualquer outra sobra de arredondamento, então nunca
+      // cria espaço em branco de verdade.
+      if (scrollbarWRef.current === null) {
+        scrollbarWRef.current = measureScrollbarWidth();
+      }
+      const usable = w - NAME_COL_BASE - scrollbarWRef.current;
       const isDesktop = w >= 768;
       const count = isDesktop ? Math.max(1, Math.min(days, Math.floor(usable / MIN_DAY_W))) : MOBILE_DAYS;
       // Regra original: nome fixo (+ sobra) + N colunas INTEIRAS preenchendo
