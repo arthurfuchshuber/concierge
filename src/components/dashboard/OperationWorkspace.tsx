@@ -30,9 +30,10 @@ import {
   BedDouble,
   CheckCircle2,
   Undo2,
-  Filter,
   MoreVertical,
   Banknote,
+  CalendarRange,
+  User,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -798,7 +799,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             {/* Engajamento do guia — largura total, some quando não há dados. */}
             {renderEngagementPanel("order-6 lg:order-6 col-span-2 lg:col-span-4")}
 
-            <div className="order-7 lg:order-7">
+            {/* Desktop: este par (Limpezas Realizadas/Custo Total) agora vem
+                DEPOIS de Em Estadia/Imóveis Livres — ordem invertida a
+                pedido. Mobile mantém a ordem original (antes do calendário). */}
+            <div className="order-7 lg:order-9">
               <StatDisplayCard
                 label="Limpezas Realizadas"
                 value={cleaningStatsQ.data?.cleaningsDone ?? 0}
@@ -806,7 +810,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 loading={cleaningStatsQ.isLoading}
               />
             </div>
-            <div className="order-8 lg:order-8">
+            <div className="order-8 lg:order-10">
               <StatDisplayCard
                 label="Custo Total Limpeza"
                 value={centsToBRL(cleaningStatsQ.data?.totalCents ?? 0)}
@@ -818,7 +822,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             {/* Calendário de ocupação (com o botão "Filtros") — no mobile
                 aparece antes de "Em Estadia"/"Imóveis livres" (pedido
                 explícito); no desktop segue por último, como sempre foi. */}
-            <div className="order-9 lg:order-11 col-span-2 lg:col-span-4">
+            {/* space-y-1.5: OccupancyPanel devolve um Fragment (Filtros +
+                calendário como irmãos) — sem essa classe no pai direto, os
+                dois ficam colados (o espaçamento do Fragment depende do
+                pai, ver comentário dentro de OccupancyPanel). */}
+            <div className="order-9 lg:order-11 col-span-2 lg:col-span-4 space-y-1.5">
               <OccupancyPanel
                 loading={occupancyQ.isLoading}
                 start={occupancyQ.data?.start ?? agendaStart}
@@ -831,7 +839,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               />
             </div>
 
-            <div className="order-10 lg:order-9">
+            <div className="order-10 lg:order-7">
               <KpiCard
                 label="Em Estadia"
                 rows={stayRows}
@@ -845,7 +853,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 onAdvance={(r) => handleAdvance(r, "stay")}
               />
             </div>
-            <div className="order-11 lg:order-10">
+            <div className="order-11 lg:order-8">
               <FreePropertiesCard
                 loading={occupancyQ.isLoading}
                 properties={freeProperties}
@@ -853,6 +861,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               />
             </div>
           </div>
+
+          {/* Espaço extra abaixo do último card (mesmo tom de 6px usado entre
+              todos os outros) — sem isso, no mobile os últimos cards ficavam
+              colados na barra de navegação inferior fixa. */}
+          <div className="h-1.5" />
         </>
       ) : null}
 
@@ -1981,86 +1994,110 @@ function OccupancyPanel({
             ? "bg-primary/35"
             : "bg-transparent";
 
+  // Formatação ÚNICA compartilhada pelos 3 botões de filtro — antes viviam
+  // todos dentro de um único botão "Filtros"; agora cada um é seu próprio
+  // botão (mesma altura/estilo do antigo "Filtros"), ocupando o espaço vazio
+  // ao lado. O ponto colorido substitui o contador: aqui cada botão só tem
+  // dois estados (ativo/inativo), não faz sentido mostrar "1".
+  const filterButtonClass =
+    "relative h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-none border-0 bg-secondary/50 px-3.5 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors";
+  const filterDot = (
+    <span className="ml-0.5 size-1.5 shrink-0 rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE]" />
+  );
+
   return (
     <>
-      {/* Filtros ficam FORA do quadro, alinhados à direita — mesma posição,
-          altura e estilo do filtro "Hoje" do Kanban. Sem padding próprio: o
-          espaçamento acima E abaixo já vem do space-y-1.5 do container pai
-          (mesmos 6px entre todos os cards da página) — um pb-1.5 aqui somaria
-          com essa margem e dobraria o vão até o quadro do calendário. */}
-      <div className="flex items-center justify-end">
+      {/* Os 3 filtros (Período/Proprietário/Cidade) — antes viviam dentro de
+          um único popover "Filtros"; agora cada um é seu próprio botão,
+          preenchendo o espaço vazio ao lado. Mesma altura/estilo dos demais
+          botões da página. Sem padding próprio: o espaçamento acima E abaixo
+          já vem do space-y-1.5 do container pai (mesmos 6px entre todos os
+          cards da página) — um pb-1.5 aqui somaria com essa margem e
+          dobraria o vão até o quadro do calendário. */}
+      <div className="flex flex-wrap items-center gap-2">
+        {onStartChange ? (
+          <Popover>
+            <PopoverTrigger asChild>
+              <button type="button" className={filterButtonClass}>
+                <CalendarRange className="size-3.5 opacity-60" /> Período
+                {startChanged ? filterDot : null}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-56 p-3" onOpenAutoFocus={(e) => e.preventDefault()}>
+              <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                Início do período ({days} dias)
+              </p>
+              <input
+                type="date"
+                value={start}
+                onChange={(e) => e.target.value && onStartChange(e.target.value)}
+                className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs tabular-nums"
+              />
+            </PopoverContent>
+          </Popover>
+        ) : null}
+
         <Popover>
           <PopoverTrigger asChild>
-            <button
-              type="button"
-              className="relative h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-none border-0 bg-secondary/50 px-3.5 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
-            >
-              <Filter className="size-3.5 opacity-60" /> Filtros
-              {activeFilters > 0 ? (
-                <span className="ml-0.5 grid size-4 place-items-center rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-[9px] font-semibold text-white">
-                  {activeFilters}
-                </span>
-              ) : null}
+            <button type="button" className={filterButtonClass}>
+              <User className="size-3.5 opacity-60" /> Proprietário
+              {ownerFilter ? filterDot : null}
             </button>
           </PopoverTrigger>
-
-          <PopoverContent align="end" className="w-64 space-y-4 p-3" onOpenAutoFocus={(e) => e.preventDefault()}>
-            {onStartChange ? (
-              <div>
-                <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-                  Início do período ({days} dias)
-                </p>
-                <input
-                  type="date"
-                  value={start}
-                  onChange={(e) => e.target.value && onStartChange(e.target.value)}
-                  className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs tabular-nums"
-                />
-              </div>
-            ) : null}
-            <div>
-              <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">Proprietário</p>
-              <select
-                value={ownerFilter}
-                onChange={(e) => setOwnerFilter(e.target.value)}
-                className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
-              >
-                <option value="">Todos</option>
-                {owners.map((o) => (
-                  <option key={o} value={o}>
-                    {o}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">Cidade</p>
-              <select
-                value={cityFilter}
-                onChange={(e) => setCityFilter(e.target.value)}
-                className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
-              >
-                <option value="">Todas</option>
-                {cities.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setOwnerFilter("");
-                setCityFilter("");
-                if (defaultStart && onStartChange) onStartChange(defaultStart);
-              }}
-              className="w-full rounded-md border border-border px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-muted/60"
+          <PopoverContent align="start" className="w-56 p-3" onOpenAutoFocus={(e) => e.preventDefault()}>
+            <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">Proprietário</p>
+            <select
+              value={ownerFilter}
+              onChange={(e) => setOwnerFilter(e.target.value)}
+              className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
             >
-              Limpar filtros
-            </button>
+              <option value="">Todos</option>
+              {owners.map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
+            </select>
           </PopoverContent>
         </Popover>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <button type="button" className={filterButtonClass}>
+              <MapPin className="size-3.5 opacity-60" /> Cidade
+              {cityFilter ? filterDot : null}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-56 p-3" onOpenAutoFocus={(e) => e.preventDefault()}>
+            <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">Cidade</p>
+            <select
+              value={cityFilter}
+              onChange={(e) => setCityFilter(e.target.value)}
+              className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
+            >
+              <option value="">Todas</option>
+              {cities.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </PopoverContent>
+        </Popover>
+
+        {activeFilters > 0 ? (
+          <button
+            type="button"
+            onClick={() => {
+              setOwnerFilter("");
+              setCityFilter("");
+              if (defaultStart && onStartChange) onStartChange(defaultStart);
+            }}
+            className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
+          >
+            Limpar filtros
+          </button>
+        ) : null}
       </div>
 
       <section className="relative rounded-[0.3rem] border-0 bg-card ds-3d">
