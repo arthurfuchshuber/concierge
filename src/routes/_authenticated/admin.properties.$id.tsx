@@ -315,7 +315,7 @@ function PropertyEditor() {
     staleTime: 30_000,
   });
   const propertyOwnerOptions = ownersData?.owners ?? [];
-  const currentOwnerName = propertyOwnerOptions.find((o) => o.id === form.property.owner_contact_id)?.name;
+
 
   // Transferência deliberada de proprietário — uma vez vinculado, o campo
   // "Proprietário" fica travado (não é mais um <Select> livre) e só pode
