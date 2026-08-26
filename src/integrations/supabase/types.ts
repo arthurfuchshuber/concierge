@@ -2374,6 +2374,8 @@ export type Database = {
         Row: {
           arrival_date_override: string | null
           arrival_time_override: string | null
+          cleaning_price_cents: number | null
+          cleaning_type: string | null
           concluded_at: string | null
           created_at: string
           done_at: string | null
@@ -2390,6 +2392,8 @@ export type Database = {
         Insert: {
           arrival_date_override?: string | null
           arrival_time_override?: string | null
+          cleaning_price_cents?: number | null
+          cleaning_type?: string | null
           concluded_at?: string | null
           created_at?: string
           done_at?: string | null
@@ -2406,6 +2410,8 @@ export type Database = {
         Update: {
           arrival_date_override?: string | null
           arrival_time_override?: string | null
+          cleaning_price_cents?: number | null
+          cleaning_type?: string | null
           concluded_at?: string | null
           created_at?: string
           done_at?: string | null
@@ -3366,6 +3372,9 @@ export type Database = {
           checkout_time: string | null
           checkout_time_min: string | null
           city: string | null
+          cleaning_duration_minutes: number | null
+          cleaning_price_full_cents: number | null
+          cleaning_price_normal_cents: number | null
           collect_arrival_time: string
           collect_document: string
           collect_vehicles: string
@@ -3439,6 +3448,9 @@ export type Database = {
           checkout_time?: string | null
           checkout_time_min?: string | null
           city?: string | null
+          cleaning_duration_minutes?: number | null
+          cleaning_price_full_cents?: number | null
+          cleaning_price_normal_cents?: number | null
           collect_arrival_time?: string
           collect_document?: string
           collect_vehicles?: string
@@ -3512,6 +3524,9 @@ export type Database = {
           checkout_time?: string | null
           checkout_time_min?: string | null
           city?: string | null
+          cleaning_duration_minutes?: number | null
+          cleaning_price_full_cents?: number | null
+          cleaning_price_normal_cents?: number | null
           collect_arrival_time?: string
           collect_document?: string
           collect_vehicles?: string
