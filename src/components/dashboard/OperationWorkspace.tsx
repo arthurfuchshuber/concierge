@@ -2172,6 +2172,9 @@ function OccupancyPanel({
   const NAME_COL_BASE = 130;
   const MOBILE_DAYS = 5;
   const MIN_DAY_W = 38; // largura mínima por coluna no desktop
+  // Recolhido por padrão — reduz a poluição visual da tela; a pessoa expande
+  // quando quiser ver a agenda.
+  const [open, setOpen] = useState(false);
   const outerRef = useRef<HTMLDivElement | null>(null);
   const scrollbarWRef = useRef<number | null>(null);
   const [dayW, setDayW] = useState(40);
@@ -2238,7 +2241,10 @@ function OccupancyPanel({
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [days]);
+    // `open` também entra nas deps: recolhido por padrão, este nó nem existe
+    // (`el` fica null e o efeito sai cedo) até a pessoa expandir — precisa
+    // rodar de novo nesse momento pra medir a largura real pela 1ª vez.
+  }, [days, open]);
 
   const todayISO = todayISOSaoPaulo();
 
@@ -2331,7 +2337,24 @@ function OccupancyPanel({
 
   return (
       <section className="relative rounded-[0.3rem] border-0 bg-card ds-3d">
-        <div className="px-4 sm:px-5 pt-4 pb-5">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          className="flex w-full items-center gap-2.5 px-4 sm:px-5 py-3.5 text-left"
+        >
+          <span className="grid size-7 shrink-0 place-items-center rounded-[0.3rem] bg-muted text-foreground/70">
+            <CalendarRange className="size-3.5" strokeWidth={2} />
+          </span>
+          <span className="min-w-0 flex-1 truncate text-[13px] font-medium leading-snug text-foreground">
+            Calendário de ocupação
+          </span>
+          <ChevronDown
+            className={`size-3.5 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+          />
+        </button>
+        {open && (
+        <div className="border-t border-border/50 px-4 sm:px-5 pt-4 pb-5">
           {loading ? (
             <div className="py-10 grid place-items-center text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
@@ -2490,6 +2513,7 @@ function OccupancyPanel({
             </>
           )}
         </div>
+        )}
       </section>
   );
 }
@@ -2664,42 +2688,47 @@ function BarRow({
     2,
     `${open}:${breakdown?.viewed.length ?? 0}:${breakdown?.notViewed.length ?? 0}`,
   );
-  const track = (
-    <div className="h-1 rounded-full bg-rose-500/60 overflow-hidden">
+  // Barrinha compacta (largura fixa) à ESQUERDA da frase, em vez da barra de
+  // largura total que ficava numa linha própria abaixo do texto — a linha
+  // toda cabe numa altura só, deixando o quadrante bem mais compacto.
+  const bar = (
+    <div className="h-1.5 w-8 sm:w-10 shrink-0 rounded-full bg-rose-500/60 overflow-hidden">
       <div
         className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-[width] duration-700"
         style={{ width: `${pct}%` }}
       />
     </div>
   );
-  const header = (
-    <div className="flex items-center justify-between gap-2 text-sm">
-      <span className="font-medium truncate whitespace-nowrap min-w-0">{label}</span>
-      <span className="tabular-nums text-muted-foreground text-xs whitespace-nowrap shrink-0 inline-flex items-center gap-1">
-        {value} de {total}
-        {hint ? <InfoHint title={label}>{hint}</InfoHint> : null}
-      </span>
-    </div>
+  const labelBlock = (
+    <span className="inline-flex min-w-0 flex-1 items-center gap-2.5">
+      {bar}
+      <span className="truncate font-medium">{label}</span>
+    </span>
+  );
+  const valueBlock = (
+    <span className="tabular-nums text-muted-foreground text-xs whitespace-nowrap shrink-0 inline-flex items-center gap-1">
+      {value} de {total}
+      {hint ? <InfoHint title={label}>{hint}</InfoHint> : null}
+    </span>
   );
   if (!breakdown) {
     return (
-      <div className="space-y-1.5">
-        {header}
-        {track}
+      <div className="flex items-center gap-2 text-sm">
+        {labelBlock}
+        {valueBlock}
       </div>
     );
   }
   return (
-    <div className="space-y-1.5">
-      {header}
+    <div className="flex items-center gap-2 text-sm">
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
           <button
             type="button"
             aria-label={`Detalhes: ${label}`}
-            className="w-full text-left rounded-lg transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring px-1 -mx-1 py-1"
+            className="flex min-w-0 flex-1 items-center rounded-lg text-left transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring px-1 -mx-1 py-1"
           >
-            {track}
+            {labelBlock}
           </button>
         </DialogTrigger>
         <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-lg border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
@@ -2737,6 +2766,7 @@ function BarRow({
           </div>
         </DialogContent>
       </Dialog>
+      {valueBlock}
     </div>
   );
 }
