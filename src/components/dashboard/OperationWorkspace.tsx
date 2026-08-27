@@ -2579,7 +2579,18 @@ function EngagementBars({
   const checkinViewed = checkinBreakdown?.viewed.length ?? 0;
   const codesViewed = codesBreakdown?.viewed.length ?? 0;
   return (
-    <div className="relative space-y-1.5">
+    // Grade de 3 colunas (barrinha | frase | valor) compartilhada pelas duas
+    // linhas. A barrinha volta a ficar na 1ª coluna, à esquerda da frase — só
+    // que agora com largura FIXA (mesma nas duas linhas, por definição, já
+    // que é a mesma coluna da grade — não depende mais do quanto sobra de
+    // espaço). Como a 1ª coluna sai sempre com a mesma largura, a 2ª coluna
+    // (frase) também começa sempre no mesmo X nas duas linhas — é assim que
+    // as duas barrinhas batem e as duas frases alinham à esquerda ao mesmo
+    // tempo, sem precisar medir nada via JS.
+    <div
+      className="relative grid items-center gap-x-2.5 gap-y-1.5 text-sm"
+      style={{ gridTemplateColumns: "2.5rem auto auto" }}
+    >
       {checkins > 0 && (
         <BarRow
           label="Viram instruções de check-in"
@@ -2688,50 +2699,46 @@ function BarRow({
     2,
     `${open}:${breakdown?.viewed.length ?? 0}:${breakdown?.notViewed.length ?? 0}`,
   );
-  // Barrinha à ESQUERDA da frase (em vez da barra de largura total numa
-  // linha própria abaixo do texto — mais compacto). A frase fica com
-  // tamanho fixo (nunca quebra linha nem trunca) e a barrinha ocupa TODO o
-  // espaço que sobrar entre ela e o "X de Y" — cresce/encolhe sozinha
-  // conforme a largura da tela do aparelho (flex-1), em vez de uma largura
-  // fixa em pixels.
-  const bar = (
-    <div className="h-1.5 min-w-6 flex-1 rounded-full bg-rose-500/60 overflow-hidden">
+  // Cada BarRow devolve um FRAGMENT com 3 itens soltos, na ordem barrinha →
+  // frase → valor — sem <div> envolvendo — assim eles caem como filhos
+  // DIRETOS da grade de 3 colunas do EngagementBars (ver comentário lá): é
+  // a grade (1ª coluna de largura fixa), e não este componente, quem faz a
+  // barrinha bater na mesma largura e a frase começar sempre no mesmo X
+  // entre as duas linhas.
+  const barCell = (
+    <div className="h-1.5 w-full rounded-full bg-rose-500/60 overflow-hidden">
       <div
         className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-[width] duration-700"
         style={{ width: `${pct}%` }}
       />
     </div>
   );
-  const labelBlock = (
-    <span className="flex min-w-0 flex-1 items-center gap-2.5">
-      {bar}
-      <span className="shrink-0 whitespace-nowrap font-medium">{label}</span>
-    </span>
-  );
-  const valueBlock = (
-    <span className="tabular-nums text-muted-foreground text-xs whitespace-nowrap shrink-0 inline-flex items-center gap-1">
+  const valueCell = (
+    <span className="tabular-nums text-muted-foreground text-xs whitespace-nowrap inline-flex items-center gap-1">
       {value} de {total}
       {hint ? <InfoHint title={label}>{hint}</InfoHint> : null}
     </span>
   );
   if (!breakdown) {
     return (
-      <div className="flex items-center gap-2 text-sm">
-        {labelBlock}
-        {valueBlock}
-      </div>
+      <>
+        {barCell}
+        <span className="whitespace-nowrap font-medium">{label}</span>
+        {valueCell}
+      </>
     );
   }
   return (
-    <div className="flex items-center gap-2 text-sm">
+    <>
+      {barCell}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
           <button
             type="button"
             aria-label={`Detalhes: ${label}`}
-            className="flex min-w-0 flex-1 items-center rounded-lg text-left transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring px-1 -mx-1 py-1"
+            className="whitespace-nowrap rounded-lg px-1 -mx-1 py-0.5 text-left font-medium transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            {labelBlock}
+            {label}
           </button>
         </DialogTrigger>
         <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-lg border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
@@ -2769,8 +2776,8 @@ function BarRow({
           </div>
         </DialogContent>
       </Dialog>
-      {valueBlock}
-    </div>
+      {valueCell}
+    </>
   );
 }
 
