@@ -2688,11 +2688,14 @@ function BarRow({
     2,
     `${open}:${breakdown?.viewed.length ?? 0}:${breakdown?.notViewed.length ?? 0}`,
   );
-  // Barrinha compacta (largura fixa) à ESQUERDA da frase, em vez da barra de
-  // largura total que ficava numa linha própria abaixo do texto — a linha
-  // toda cabe numa altura só, deixando o quadrante bem mais compacto.
+  // Barrinha à ESQUERDA da frase (em vez da barra de largura total numa
+  // linha própria abaixo do texto — mais compacto). A frase fica com
+  // tamanho fixo (nunca quebra linha nem trunca) e a barrinha ocupa TODO o
+  // espaço que sobrar entre ela e o "X de Y" — cresce/encolhe sozinha
+  // conforme a largura da tela do aparelho (flex-1), em vez de uma largura
+  // fixa em pixels.
   const bar = (
-    <div className="h-1.5 w-8 sm:w-10 shrink-0 rounded-full bg-rose-500/60 overflow-hidden">
+    <div className="h-1.5 min-w-6 flex-1 rounded-full bg-rose-500/60 overflow-hidden">
       <div
         className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-[width] duration-700"
         style={{ width: `${pct}%` }}
@@ -2700,9 +2703,9 @@ function BarRow({
     </div>
   );
   const labelBlock = (
-    <span className="inline-flex min-w-0 flex-1 items-center gap-2.5">
+    <span className="flex min-w-0 flex-1 items-center gap-2.5">
       {bar}
-      <span className="truncate font-medium">{label}</span>
+      <span className="shrink-0 whitespace-nowrap font-medium">{label}</span>
     </span>
   );
   const valueBlock = (
