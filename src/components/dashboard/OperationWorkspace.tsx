@@ -771,8 +771,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const engagementAccentBar = (
     <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-purple-500 to-pink-500" />
   );
-  const engagementEyebrowClass =
-    "flex items-center gap-1.5 text-[10px] font-normal uppercase tracking-[0.14em] text-purple-600 dark:text-purple-300";
   function renderEngagementTop() {
     const hasData = (engQ.data?.checkinsInPeriod ?? 0) > 0 || (engQ.data?.checkinsWithCodes ?? 0) > 0;
     if (!engQ.isLoading && !hasData) return null;
@@ -798,10 +796,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           style={{ backgroundImage: engagementCardBg }}
         >
           {engagementAccentBar}
-          <div className={`mb-2.5 ${engagementEyebrowClass}`}>
-            <TrendingUp className="size-3" />
-            Engajamento
-          </div>
           <EngagementBars
             loading={loading}
             checkins={checkins}
@@ -813,10 +807,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
         {/* Desktop: 2 cards separados, um por métrica, lado a lado. */}
         <div className="hidden lg:block">
-          <div className={`mb-1.5 pl-0.5 ${engagementEyebrowClass}`}>
-            <TrendingUp className="size-3" />
-            Engajamento dos hóspedes
-          </div>
           {loading ? (
             <div
               className="relative overflow-hidden rounded-lg border border-purple-300/30 bg-card py-6 text-center text-sm text-muted-foreground shadow-[0_8px_24px_-12px_rgba(168,85,247,0.35)]"
