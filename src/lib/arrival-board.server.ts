@@ -464,6 +464,16 @@ export async function buildArrivalRows(
       return codes.every((c) => hasSeen(c === "lock" ? seenLock : seenGate, pid, name, phone));
     };
 
+    // Engajamento é sempre avaliado no GRUPO da reserva (hóspede principal +
+    // adicionais): basta um deles ter lido/visto. É a mesma base usada pelas
+    // barras do topo do dashboard — sem isso, card e barra divergiam quando o
+    // hóspede que abriu o guia não era o "principal".
+    type Person = { name: string | null; phone: string | null };
+    const groupSeen = (set: SeenSets, pid: string, people: Person[]) =>
+      people.some((p) => hasSeen(set, pid, p.name, p.phone));
+    const groupSawAllPasswords = (pid: string, people: Person[]) =>
+      people.some((p) => sawAllPasswords(pid, p.name, p.phone));
+
     type StatusRow = {
       log_id: string | null;
       reservation_id: string | null;
@@ -659,6 +669,7 @@ export async function buildArrivalRows(
       extras: (typeof uniqueLogs)[number][] = [],
     ): ArrivalRow | null {
       const p = propMap.get(l.property_id);
+      const logGroupPeople: Person[] = [l, ...extras].map((g) => ({ name: g.guest_name, phone: g.guest_phone }));
       const s = statusMap.get(l.id);
       if (s?.concluded_at) return null;
       const date = data.kind === "checkin" ? l.checkin_date : (l.checkout_date ?? l.checkin_date);
@@ -714,10 +725,10 @@ export async function buildArrivalRows(
         mapsUrl: p?.maps_url ?? null,
         garageMapsUrl: p?.garage_maps_url ?? null,
         hasPasswords: !!p?.hasPasswords,
-        openedCheckin: hasSeen(openedCheckin, l.property_id, l.guest_name, l.guest_phone),
-        openedGuide: hasSeen(openedGuide, l.property_id, l.guest_name, l.guest_phone),
-        readInstructions: hasSeen(readInstructions, l.property_id, l.guest_name, l.guest_phone),
-        viewedPasswords: sawAllPasswords(l.property_id, l.guest_name, l.guest_phone),
+        openedCheckin: groupSeen(openedCheckin, l.property_id, logGroupPeople),
+        openedGuide: groupSeen(openedGuide, l.property_id, logGroupPeople),
+        readInstructions: groupSeen(readInstructions, l.property_id, logGroupPeople),
+        viewedPasswords: groupSawAllPasswords(l.property_id, logGroupPeople),
         guestName: l.guest_name,
         guestPhone: l.guest_phone,
         guestPhoneCountry: l.guest_phone_country,
@@ -763,6 +774,9 @@ export async function buildArrivalRows(
       extras: (typeof uniqueLogs)[number][] = [],
     ): ArrivalRow | null {
       const p = propMap.get(r.property_id);
+      const resGroupPeople: Person[] = [matchedLog, ...extras]
+        .filter((g): g is (typeof uniqueLogs)[number] => !!g)
+        .map((g) => ({ name: g.guest_name, phone: g.guest_phone }));
       const legacy = placeholderStatus.get(placeholderKey(r.property_id, r.checkin_date, r.checkout_date, data.kind));
       const logStatus = matchedLog ? statusMap.get(matchedLog.id) : undefined;
       const s = reservationStatusMap.get(r.id) ?? legacy ?? logStatus;
@@ -795,10 +809,10 @@ export async function buildArrivalRows(
         mapsUrl: p?.maps_url ?? null,
         garageMapsUrl: p?.garage_maps_url ?? null,
         hasPasswords: !!p?.hasPasswords,
-        openedCheckin: matchedLog ? hasSeen(openedCheckin, matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
-        openedGuide: matchedLog ? hasSeen(openedGuide, matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
-        readInstructions: matchedLog ? hasSeen(readInstructions, matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
-        viewedPasswords: matchedLog ? sawAllPasswords(matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
+        openedCheckin: groupSeen(openedCheckin, r.property_id, resGroupPeople),
+        openedGuide: groupSeen(openedGuide, r.property_id, resGroupPeople),
+        readInstructions: groupSeen(readInstructions, r.property_id, resGroupPeople),
+        viewedPasswords: matchedLog ? groupSawAllPasswords(r.property_id, resGroupPeople) : false,
         guestName: matchedLog?.guest_name ?? r.guest_hint ?? "Reserva Airbnb",
         guestPhone: matchedLog?.guest_phone ?? null,
         guestPhoneCountry: matchedLog?.guest_phone_country ?? null,

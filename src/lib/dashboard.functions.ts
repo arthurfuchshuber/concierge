@@ -402,7 +402,11 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     const uniqueLogs = dedupeFormLogs(allLogs);
 
     // Uma entrada por check-in PENDENTE do período (mesma base usada no contador).
-    type Entry = { property_id: string; name: string; phone: string | null; time: string | null };
+    // `people` = TODOS os hóspedes da mesma reserva (principal + adicionais):
+    // o card do Kanban considera o grupo inteiro, então a barra precisa usar
+    // exatamente a mesma base para não divergir do tooltip do card.
+    type Person = { name: string | null; phone: string | null };
+    type Entry = { property_id: string; name: string; phone: string | null; time: string | null; people: Person[] };
     const entries: Entry[] = [];
 
     for (const r of (reservations ?? []) as Array<{
@@ -415,20 +419,24 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       guest_hint: string | null;
     }>) {
       if (!icalProps.has(r.property_id) || !isRealReservation(r)) continue;
-      const matched: LogRow | null =
+      const group =
         r.checkin_date && r.checkout_date
           ? findLogsForReservation(
               uniqueLogs,
               { property_id: r.property_id, checkin_date: r.checkin_date, checkout_date: r.checkout_date, guest_hint: r.guest_hint },
               "checkin",
-            ).primary
-          : null;
+            )
+          : { primary: null as LogRow | null, extras: [] as LogRow[] };
+      const matched: LogRow | null = group.primary;
       if (doneReservations.has(r.id) || (matched && doneLogs.has(matched.id))) continue;
       entries.push({
         property_id: r.property_id,
         name: (matched?.guest_name || "").trim() || "Hóspede pendente",
         phone: matched?.guest_phone ?? null,
         time: matched?.guest_arrival_time ?? null,
+        people: [matched, ...group.extras]
+          .filter((l): l is LogRow => !!l)
+          .map((l) => ({ name: l.guest_name, phone: l.guest_phone })),
       });
     }
 
@@ -445,6 +453,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         name: (l.guest_name || "").trim() || "Hóspede pendente",
         phone: l.guest_phone,
         time: l.guest_arrival_time ?? null,
+        people: [{ name: l.guest_name, phone: l.guest_phone }],
       });
     }
 
@@ -567,9 +576,16 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
           owner: ownerByProp.get(e.property_id) || "",
           time: e.time ?? null,
         };
+        // Grupo da reserva: basta UM hóspede da reserva ter visto (mesma regra
+        // do card/tooltip do Kanban).
+        const people = e.people.length > 0 ? e.people : [{ name: e.name, phone: e.phone }];
         const hit =
           e.name !== "Hóspede pendente" &&
-          (hitFn ? hitFn(e.property_id, e.name, e.phone) : seenHas(seen, e.property_id, e.name, e.phone));
+          people.some((p) =>
+            hitFn
+              ? hitFn(e.property_id, (p.name || "").trim(), p.phone)
+              : seenHas(seen, e.property_id, (p.name || "").trim(), p.phone),
+          );
         (hit ? viewed : notViewed).push({ mark, propertyId: e.property_id });
       }
       // Mesma ordenação dos cards do Kanban: horário previsto (mais cedo
