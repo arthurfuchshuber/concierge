@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { requireMemberPermission } from "@/lib/member-permissions.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   emptyHandoffListResult,
@@ -14,30 +13,6 @@ import {
   type HandoffListResult,
 } from "@/lib/handoff.schemas";
 
-// Resolve the owner_id of the property behind a conversation, then enforce chat_respond.
-async function requireChatRespondForConversation(
-  supabase: SupabaseClient,
-  userId: string,
-  conversationId: string,
-  knownOwnerId?: string | null,
-): Promise<void> {
-  let ownerId = knownOwnerId;
-  if (ownerId === undefined) {
-    const { data: conv } = await supabase
-      .from("property_chat_conversations")
-      .select("property_id, properties:property_id(owner_id)")
-      .eq("id", conversationId)
-      .maybeSingle();
-    ownerId = (conv?.properties as { owner_id?: string } | null)?.owner_id;
-  }
-  if (!ownerId) return; // conversa órfã: deixa a RLS decidir
-  // O atendimento humano é recurso de plano pago: validamos aqui (caminho de
-  // escrita) e não só na consulta de UI, senão o dono da conta contornaria o
-  // bloqueio chamando a função direto.
-  const { assertFeature } = await import("@/lib/plan-guard.server");
-  await assertFeature(supabase, userId, "humanHandoff", { ownerId });
-  await requireMemberPermission(supabase, userId, ownerId, "chat_respond");
-}
 
 
 // -------- List conversations for the current user (filtered by queue) --------
@@ -751,7 +726,7 @@ export const claimHandoffConversation = createServerFn({ method: "POST" })
   .inputValidator(parseHandoffConversationInput)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    await requireChatRespondForConversation(supabase, userId, data.conversationId);
+    await (await import("@/lib/handoff-guard.server")).requireChatRespondForConversation(supabase, userId, data.conversationId);
 
     // Assumir sempre é permitido — se já pertence a outro, registra uma nota interna
     // avisando quem assumiu. A confirmação (popup) é feita no cliente.
@@ -939,7 +914,7 @@ export const reopenHandoffConversation = createServerFn({ method: "POST" })
   .inputValidator(parseHandoffConversationInput)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    await requireChatRespondForConversation(supabase, userId, data.conversationId);
+    await (await import("@/lib/handoff-guard.server")).requireChatRespondForConversation(supabase, userId, data.conversationId);
     const { error } = await supabase
       .from("property_chat_conversations")
       .update({
@@ -982,7 +957,7 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
     const propRow = Array.isArray(joinedProperties) ? (joinedProperties[0] ?? null) : joinedProperties;
     const ownerId = (propRow?.owner_id as string | undefined) ?? null;
 
-    await requireChatRespondForConversation(supabase, userId, data.conversationId, ownerId);
+    await (await import("@/lib/handoff-guard.server")).requireChatRespondForConversation(supabase, userId, data.conversationId, ownerId);
 
     if (cur?.assigned_to && cur.assigned_to !== userId) {
       throw new Error("Esta conversa está sendo atendida por outro membro. Solicite acesso ou peça uma transferência.");
@@ -1118,7 +1093,7 @@ export const editHandoffMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    await requireChatRespondForConversation(supabase, userId, data.conversationId);
+    await (await import("@/lib/handoff-guard.server")).requireChatRespondForConversation(supabase, userId, data.conversationId);
 
     const { data: msg } = await supabase
       .from("property_chat_messages")
@@ -1161,7 +1136,7 @@ export const deleteHandoffMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    await requireChatRespondForConversation(supabase, userId, data.conversationId);
+    await (await import("@/lib/handoff-guard.server")).requireChatRespondForConversation(supabase, userId, data.conversationId);
     const { data: msg } = await supabase
       .from("property_chat_messages")
       .select("id, sender_type, conversation_id")
