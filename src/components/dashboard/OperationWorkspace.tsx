@@ -50,7 +50,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import { CopyButton } from "@/components/CopyButton";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -3182,7 +3181,10 @@ function ArrivalCard({
           {/* Período — logo abaixo do código da reserva e acima do
               proprietário (pedido explícito). Cor em contraste com o fundo:
               amarelo no tema escuro, laranja escuro no tema claro — não é
-              mais a mesma cor do nome do hóspede. */}
+              mais a mesma cor do nome do hóspede. À direita, na mesma linha,
+              o horário padrão de check-in do imóvel (ex.: "15:00 – 23:00"),
+              em branco/foreground — pedido explícito, posição exata do
+              print do usuário. */}
           <div className="flex items-center gap-1.5 text-xs flex-wrap text-orange-700 dark:text-yellow-400">
             <DateEditor
               value={row.guestCheckin}
@@ -3199,6 +3201,7 @@ function ArrivalCard({
                 />
               </>
             )}
+            {stdWindow && <span className="ml-auto tabular-nums text-foreground">{stdWindow}</span>}
           </div>
 
           <OwnerLine
@@ -3239,148 +3242,50 @@ function ArrivalCard({
         </div>
       </div>
 
-      {/* Detalhes operacionais + engajamento — mesmo espaçamento (zero) que
-          existe entre o nome do hóspede e o período. */}
-      <div className="-mt-2.5 flex flex-col">
-      <Accordion
+      {/* Previsto — fixo, sem acordeon (mesmo espaçamento (zero) que existe
+          entre o nome do hóspede e o período). */}
+      <div className="-mt-2.5 flex flex-col gap-3">
+        {mode !== "cleaning" && (
+          <div
+            className={`flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs ${divergent ? "bg-amber-500/10 border border-amber-500/30" : "bg-background/50 border border-border/40"}`}
+          >
+            <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
+              Previsto
+              <InfoHint title="Horário previsto">
+                Selecione o horário (30 em 30 min). A alteração reordena o kanban imediatamente.
+              </InfoHint>
+            </span>
+            <span className="ml-auto flex items-center justify-end gap-3 shrink-0 text-xs font-medium">
+              <DateEditor
+                /* Data prevista é um override próprio do card: fica em
+                   branco até alguém registrar chegada em outro dia. */
+                value={row.arrivalDateOverride ?? ""}
+                disabled={busy || isPendingFill}
+                placeholder="Data"
+                min={predictedMinDate ?? undefined}
+                max={kind === "checkout" ? undefined : (predictedMaxDate ?? undefined)}
+                onChange={(v) => onEditPredictedDate?.(row, v)}
+              />
+              {/* Horário só depois da data: a ordem é data → horário. */}
+              <TimeDropdown
+                value={guestTime ?? null}
+                disabled={busy || !row.arrivalDateOverride}
+                size="xs"
+                onChange={(v) => onEditTime(row, v)}
+              />
+            </span>
+          </div>
+        )}
 
-        type="single"
-        collapsible
-        className="mt-0"
-        value={expanded ? "details" : ""}
-        onValueChange={(v) => onToggleExpanded?.(v === "details")}
-      >
-        <AccordionItem value="details" className="border-0">
-          <AccordionTrigger className="py-0 justify-start gap-1 text-xs text-muted-foreground hover:no-underline [&>svg]:h-3 [&>svg]:w-3">
-            Detalhes operacionais
-          </AccordionTrigger>
-          <AccordionContent className="pb-0">
-            <div className="flex flex-col gap-3 pt-1">
-              {/* Padrão / Previsto — cada um em uma linha só, rótulo à
-                  esquerda e valor à direita, bem mais compacto que os dois
-                  quadrados empilhados de antes. */}
-              {mode !== "cleaning" && (
-                <div className="flex flex-col gap-1.5 text-xs">
-                  <div className="flex items-center justify-between gap-2 rounded-lg bg-background/50 border border-border/40 px-2.5 py-1.5">
-                    <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
-                      Padrão
-                      <InfoHint title="Horário padrão">
-                        Janela configurada na propriedade. Base para detectar divergências.
-                      </InfoHint>
-                    </span>
-                    <span className="tabular-nums font-medium truncate">{stdWindow ?? "—"}</span>
-                  </div>
-                  <div
-                    className={`flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 ${divergent ? "bg-amber-500/10 border border-amber-500/30" : "bg-background/50 border border-border/40"}`}
-                  >
-                    <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
-                      Previsto
-                      <InfoHint title="Horário previsto">
-                        Selecione o horário (30 em 30 min). A alteração reordena o kanban imediatamente.
-                      </InfoHint>
-                    </span>
-                    <span className="ml-auto flex items-center justify-end gap-3 shrink-0 text-xs font-medium">
-                      <DateEditor
-                        /* Data prevista é um override próprio do card: fica em
-                           branco até alguém registrar chegada em outro dia. */
-                        value={row.arrivalDateOverride ?? ""}
-                        disabled={busy || isPendingFill}
-                        placeholder="Data"
-                        min={predictedMinDate ?? undefined}
-                        max={kind === "checkout" ? undefined : (predictedMaxDate ?? undefined)}
-                        onChange={(v) => onEditPredictedDate?.(row, v)}
-                      />
-                      {/* Horário só depois da data: a ordem é data → horário. */}
-                      <TimeDropdown
-                        value={guestTime ?? null}
-                        disabled={busy || !row.arrivalDateOverride}
-                        size="xs"
-                        onChange={(v) => onEditTime(row, v)}
-                      />
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {row.ical.hasIcal &&
-                !isPendingFill &&
-                (() => {
-                  const gIn = row.guestCheckin;
-                  const gOut = row.guestCheckout;
-                  const iIn = row.ical.icalCheckin;
-                  const iOut = row.ical.icalCheckout;
-                  const anyDivergent = row.ical.matched && ((iIn && iIn !== gIn) || (iOut && gOut && iOut !== gOut));
-                  if (!anyDivergent && row.ical.matched) {
-                    return (
-                      <div className="w-full text-xs rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-2 py-1.5 flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
-                        <CheckCircle2 className="size-3.5 shrink-0" />
-                        <span>Confirmado via Airbnb</span>
-                      </div>
-                    );
-                  }
-                  const fmtRange = (a: string | null, b: string | null) =>
-                    `${a ? fmtDateBR(a) : "?"} a ${b ? fmtDateBR(b) : "?"}`;
-                  return (
-                    <div className="w-full text-xs rounded-lg px-2 py-1.5 flex items-start gap-2 bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/40">
-                      <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
-                      <div className="min-w-0 flex-1 leading-snug">
-                        {anyDivergent ? (
-                          <>
-                            <div className="font-semibold">Data Divergente Hóspede-Airbnb</div>
-                            <div className="tabular-nums">Informada: {fmtRange(gIn, gOut)}</div>
-                            <div className="tabular-nums">Correta: {fmtRange(iIn, iOut)}</div>
-                          </>
-                        ) : (
-                          <div>Sem reserva correspondente no iCal Airbnb</div>
-                        )}
-                      </div>
-                      {anyDivergent && (
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() =>
-                            onEditDates(row, {
-                              ...(iIn && iIn !== gIn ? { checkinDate: iIn } : {}),
-                              ...(iOut && gOut && iOut !== gOut ? { checkoutDate: iOut } : {}),
-                            })
-                          }
-                          className="text-xs underline underline-offset-2 hover:no-underline shrink-0 mt-0.5"
-                        >
-                          Usar Airbnb
-                        </button>
-                      )}
-                    </div>
-                  );
-                })()}
-
-              {divergent && !isPendingFill && !done && (
-                <div className="w-full text-xs rounded-lg bg-amber-500/10 border border-amber-500/30 px-2 py-1.5 flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-1.5">
-                    <AlertTriangle className="size-3.5" /> Horário divergente do padrão
-                  </span>
-                  <button
-                    onClick={() => onSyncIcal(row)}
-                    className="text-xs underline underline-offset-2 hover:no-underline"
-                    disabled={busy}
-                  >
-                    Alinhar
-                  </button>
-                </div>
-              )}
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
-
-      {/* Alerta de engajamento visível no próprio card (não só no tooltip) */}
-      {mode !== "cleaning" && !isPendingFill && (
-        <EngagementFlags
-          openedGuide={row.openedGuide}
-          readInstructions={row.readInstructions}
-          hasPasswords={row.hasPasswords}
-          viewedPasswords={row.viewedPasswords}
-        />
-      )}
+        {/* Alerta de engajamento visível no próprio card (não só no tooltip) */}
+        {mode !== "cleaning" && !isPendingFill && (
+          <EngagementFlags
+            openedGuide={row.openedGuide}
+            readInstructions={row.readInstructions}
+            hasPasswords={row.hasPasswords}
+            viewedPasswords={row.viewedPasswords}
+          />
+        )}
       </div>
 
 
