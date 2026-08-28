@@ -464,6 +464,16 @@ export async function buildArrivalRows(
       return codes.every((c) => hasSeen(c === "lock" ? seenLock : seenGate, pid, name, phone));
     };
 
+    // Engajamento é sempre avaliado no GRUPO da reserva (hóspede principal +
+    // adicionais): basta um deles ter lido/visto. É a mesma base usada pelas
+    // barras do topo do dashboard — sem isso, card e barra divergiam quando o
+    // hóspede que abriu o guia não era o "principal".
+    type Person = { name: string | null; phone: string | null };
+    const groupSeen = (set: SeenSets, pid: string, people: Person[]) =>
+      people.some((p) => hasSeen(set, pid, p.name, p.phone));
+    const groupSawAllPasswords = (pid: string, people: Person[]) =>
+      people.some((p) => sawAllPasswords(pid, p.name, p.phone));
+
     type StatusRow = {
       log_id: string | null;
       reservation_id: string | null;
