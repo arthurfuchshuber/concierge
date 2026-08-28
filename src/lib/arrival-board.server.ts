@@ -774,6 +774,9 @@ export async function buildArrivalRows(
       extras: (typeof uniqueLogs)[number][] = [],
     ): ArrivalRow | null {
       const p = propMap.get(r.property_id);
+      const resGroupPeople: Person[] = [matchedLog, ...extras]
+        .filter((g): g is (typeof uniqueLogs)[number] => !!g)
+        .map((g) => ({ name: g.guest_name, phone: g.guest_phone }));
       const legacy = placeholderStatus.get(placeholderKey(r.property_id, r.checkin_date, r.checkout_date, data.kind));
       const logStatus = matchedLog ? statusMap.get(matchedLog.id) : undefined;
       const s = reservationStatusMap.get(r.id) ?? legacy ?? logStatus;
