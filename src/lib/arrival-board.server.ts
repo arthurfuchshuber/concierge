@@ -306,12 +306,30 @@ export async function buildArrivalRows(
         .limit(5000),
       reservationsQuery.order(data.kind === "checkin" ? "checkin_date" : "checkout_date", { ascending: true }).limit(10000),
       uniqueLogs.length > 0
-        ? context.supabase
-            .from("guide_section_events")
-            .select("property_id, section, guest_name, guest_phone")
-            .in("property_id", propIds)
-            .in("section", ["home", "checkin", "checkin-lido", "senhas", "senhas:lock", "senhas:gate", "saida", "residencia", "faq", "explorar"])
-            .limit(5000)
+        ? (async () => {
+            // IMPORTANTE: o Data API corta a resposta em 1000 linhas mesmo com
+            // .limit() maior. Como buscamos VÁRIAS seções de uma vez (a maioria
+            // são eventos de navegação), seções raras como "checkin-lido"
+            // caíam fora do corte e o card mostrava "não leu as instruções"
+            // enquanto a barra do topo (que consulta só essa seção) dizia o
+            // contrário. Paginamos para trazer tudo.
+            type Ev = { property_id: string; section: string; guest_name: string | null; guest_phone: string | null };
+            const all: Ev[] = [];
+            const PAGE = 1000;
+            for (let page = 0; page < 30; page++) {
+              const { data: chunk } = await context.supabase
+                .from("guide_section_events")
+                .select("property_id, section, guest_name, guest_phone, created_at")
+                .in("property_id", propIds)
+                .in("section", ["home", "checkin", "checkin-lido", "senhas", "senhas:lock", "senhas:gate", "saida", "residencia", "faq", "explorar"])
+                .order("created_at", { ascending: false })
+                .range(page * PAGE, page * PAGE + PAGE - 1);
+              const rows = (chunk ?? []) as Ev[];
+              all.push(...rows);
+              if (rows.length < PAGE) break;
+            }
+            return { data: all };
+          })()
         : Promise.resolve({
             data: [] as Array<{
               property_id: string;
