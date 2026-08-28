@@ -1874,22 +1874,23 @@ function EngagementFlags({
 function EngagementAlertDropdown({ flags }: { flags: Array<{ icon: typeof Eye; label: string }> }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="relative mt-1">
+    <div className="relative">
+      {/* Badge fica sobre a borda superior do card (pedido explícito) — por
+          isso precisa de fundo próprio, sem a seta de expandir. */}
       <button
         type="button"
         onClick={(e) => {
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="inline-flex items-center gap-1 border-0 bg-transparent p-0 text-[10px] uppercase tracking-wider font-semibold text-amber-600 dark:text-amber-400 hover:opacity-80"
+        className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/15 dark:bg-amber-500/20 px-2 py-0.5 text-[10px] uppercase tracking-wider font-semibold text-amber-700 dark:text-amber-400 shadow-sm hover:bg-amber-500/25 transition-colors"
         title="Ver alertas de engajamento"
       >
         <AlertTriangle className="size-3 shrink-0" />
         Engajamento
-        <ChevronDown className={`size-3 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <ul className="absolute left-0 top-full z-30 mt-1 min-w-[190px] space-y-1 rounded-lg border border-amber-500/25 bg-popover px-2 py-1.5 shadow-lg">
+        <ul className="absolute right-0 top-full z-30 mt-1 min-w-[190px] space-y-1 rounded-lg border border-amber-500/25 bg-popover px-2 py-1.5 shadow-lg">
           {flags.map((f) => (
             <li key={f.label} className="flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-400">
               <f.icon className="size-3 shrink-0" />
@@ -3144,7 +3145,7 @@ function ArrivalCard({
       // aparece dentro de um popup de indicador (KpiCard) — inofensivo aqui
       // no Kanban, que não usa esse hook.
       data-whole-card
-      className={`group relative snap-start flex flex-col rounded-[0.3rem] bg-secondary/70 hover:bg-secondary/90 p-3 gap-2.5 transition-colors ${
+      className={`group relative snap-start flex flex-col rounded-none bg-secondary/70 hover:bg-secondary/90 p-3 gap-2.5 transition-colors ${
         isOverdue && !visualDone
           ? "border-l-[3px] border-l-red-500"
           : isFuture && !visualDone
@@ -3152,6 +3153,19 @@ function ArrivalCard({
             : ""
       }`}
     >
+      {/* Alerta de engajamento — badge fixo no topo do card, cortando a
+          borda superior (pedido explícito), sem a seta de expandir. */}
+      {mode !== "cleaning" && !isPendingFill && (
+        <div className="absolute -top-2.5 right-3 z-10">
+          <EngagementFlags
+            openedGuide={row.openedGuide}
+            readInstructions={row.readInstructions}
+            hasPasswords={row.hasPasswords}
+            viewedPasswords={row.viewedPasswords}
+          />
+        </div>
+      )}
+
       {(isOverdue || isFuture) && !visualDone && (
         <div className="flex items-center gap-1.5">
           <span
@@ -3243,50 +3257,40 @@ function ArrivalCard({
       </div>
 
       {/* Previsto — fixo, sem acordeon (mesmo espaçamento (zero) que existe
-          entre o nome do hóspede e o período). */}
-      <div className="-mt-2.5 flex flex-col gap-3">
-        {mode !== "cleaning" && (
-          <div
-            className={`flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs ${divergent ? "bg-amber-500/10 border border-amber-500/30" : "bg-background/50 border border-border/40"}`}
-          >
-            <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
-              Previsto
-              <InfoHint title="Horário previsto">
-                Selecione o horário (30 em 30 min). A alteração reordena o kanban imediatamente.
-              </InfoHint>
-            </span>
-            <span className="ml-auto flex items-center justify-end gap-3 shrink-0 text-xs font-medium">
-              <DateEditor
-                /* Data prevista é um override próprio do card: fica em
-                   branco até alguém registrar chegada em outro dia. */
-                value={row.arrivalDateOverride ?? ""}
-                disabled={busy || isPendingFill}
-                placeholder="Data"
-                min={predictedMinDate ?? undefined}
-                max={kind === "checkout" ? undefined : (predictedMaxDate ?? undefined)}
-                onChange={(v) => onEditPredictedDate?.(row, v)}
-              />
-              {/* Horário só depois da data: a ordem é data → horário. */}
-              <TimeDropdown
-                value={guestTime ?? null}
-                disabled={busy || !row.arrivalDateOverride}
-                size="xs"
-                onChange={(v) => onEditTime(row, v)}
-              />
-            </span>
-          </div>
-        )}
-
-        {/* Alerta de engajamento visível no próprio card (não só no tooltip) */}
-        {mode !== "cleaning" && !isPendingFill && (
-          <EngagementFlags
-            openedGuide={row.openedGuide}
-            readInstructions={row.readInstructions}
-            hasPasswords={row.hasPasswords}
-            viewedPasswords={row.viewedPasswords}
-          />
-        )}
-      </div>
+          entre o nome do hóspede e o período). O alerta de engajamento saiu
+          daqui (agora é o badge fixo no topo do card, ver acima) — assim não
+          sobra espaço vazio entre este campo e o botão de check-in. */}
+      {mode !== "cleaning" && (
+        <div
+          className={`-mt-2.5 flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs ${divergent ? "bg-amber-500/10 border border-amber-500/30" : "bg-background/50 border border-border/40"}`}
+        >
+          <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
+            Previsto
+            <InfoHint title="Horário previsto">
+              Selecione o horário (30 em 30 min). A alteração reordena o kanban imediatamente.
+            </InfoHint>
+          </span>
+          <span className="ml-auto flex items-center justify-end gap-3 shrink-0 text-xs font-medium">
+            <DateEditor
+              /* Data prevista é um override próprio do card: fica em
+                 branco até alguém registrar chegada em outro dia. */
+              value={row.arrivalDateOverride ?? ""}
+              disabled={busy || isPendingFill}
+              placeholder="Data"
+              min={predictedMinDate ?? undefined}
+              max={kind === "checkout" ? undefined : (predictedMaxDate ?? undefined)}
+              onChange={(v) => onEditPredictedDate?.(row, v)}
+            />
+            {/* Horário só depois da data: a ordem é data → horário. */}
+            <TimeDropdown
+              value={guestTime ?? null}
+              disabled={busy || !row.arrivalDateOverride}
+              size="xs"
+              onChange={(v) => onEditTime(row, v)}
+            />
+          </span>
+        </div>
+      )}
 
 
       {row.note && !noteOpen && (
