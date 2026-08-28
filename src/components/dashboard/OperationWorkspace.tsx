@@ -329,7 +329,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
   const occStart = periodRange?.start ?? todayISOSaoPaulo();
   const occDays = periodRange
-    ? Math.min(90, Math.max(3, differenceInCalendarDays(parseISODateLocal(periodRange.end), parseISODateLocal(periodRange.start)) + 1))
+    ? Math.min(
+        90,
+        Math.max(
+          3,
+          differenceInCalendarDays(parseISODateLocal(periodRange.end), parseISODateLocal(periodRange.start)) + 1,
+        ),
+      )
     : 21;
   const occupancyQ = useQuery({
     queryKey: ["dash-occupancy", activeOwnerId ?? "self", occStart, occDays],
@@ -345,9 +351,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const occupancyProperties: Array<{ id: string; name: string; city: string | null; ownerName?: string | null }> =
     occupancyQ.data?.properties ?? [];
   const ownerOptions = useMemo(() => {
-    const names: string[] = occupancyProperties
-      .map((p) => p.ownerName)
-      .filter((v): v is string => !!v);
+    const names: string[] = occupancyProperties.map((p) => p.ownerName).filter((v): v is string => !!v);
     return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [occupancyProperties]);
   const cityOptions = useMemo(() => {
@@ -368,7 +372,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // algum desses 2 filtros está ativo (sem filtro, o servidor já usa todos
   // os imóveis acessíveis da conta, sem precisar listar id por id).
   const cleaningStatsPropertyIds = useMemo(
-    () => (ownerFilters.length > 0 || cityFilters.length > 0 ? filteredOccupancyProperties.map((p) => p.id) : undefined),
+    () =>
+      ownerFilters.length > 0 || cityFilters.length > 0 ? filteredOccupancyProperties.map((p) => p.id) : undefined,
     [ownerFilters, cityFilters, filteredOccupancyProperties],
   );
   const cleaningStatsRange = periodRange ?? { start: todayISOSaoPaulo(), end: todayISOSaoPaulo() };
@@ -775,7 +780,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const engagementCardBg =
     "radial-gradient(120% 140% at 0% 0%, rgba(168,85,247,0.16), transparent 55%), radial-gradient(120% 140% at 100% 100%, rgba(236,72,153,0.12), transparent 55%)";
   const engagementAccentBar = (
-    <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-purple-500 to-pink-500" />
+    <span
+      aria-hidden="true"
+      className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-purple-500 to-pink-500"
+    />
   );
   function renderEngagementTop() {
     const hasData = (engQ.data?.checkinsInPeriod ?? 0) > 0 || (engQ.data?.checkinsWithCodes ?? 0) > 0;
@@ -2355,24 +2363,24 @@ function OccupancyPanel({
             : "bg-transparent";
 
   return (
-      <section className="relative rounded-[0.3rem] border-0 bg-card ds-3d">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-          className="flex w-full items-center gap-2.5 px-4 sm:px-5 py-3.5 text-left"
-        >
-          <span className="grid size-7 shrink-0 place-items-center rounded-[0.3rem] bg-muted text-foreground/70">
-            <CalendarRange className="size-3.5" strokeWidth={2} />
-          </span>
-          <span className="min-w-0 flex-1 truncate text-[13px] font-medium leading-snug text-foreground">
-            Calendário de ocupação
-          </span>
-          <ChevronDown
-            className={`size-3.5 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
-          />
-        </button>
-        {open && (
+    <section className="relative rounded-[0.3rem] border-0 bg-card ds-3d">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-2.5 px-4 sm:px-5 py-3.5 text-left"
+      >
+        <span className="grid size-7 shrink-0 place-items-center rounded-[0.3rem] bg-muted text-foreground/70">
+          <CalendarRange className="size-3.5" strokeWidth={2} />
+        </span>
+        <span className="min-w-0 flex-1 truncate text-[13px] font-medium leading-snug text-foreground">
+          Calendário de ocupação
+        </span>
+        <ChevronDown
+          className={`size-3.5 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && (
         <div className="border-t border-border/50 px-4 sm:px-5 pt-4 pb-5">
           {loading ? (
             <div className="py-10 grid place-items-center text-muted-foreground">
@@ -2532,8 +2540,8 @@ function OccupancyPanel({
             </>
           )}
         </div>
-        )}
-      </section>
+      )}
+    </section>
   );
 }
 
@@ -2691,7 +2699,10 @@ function EngagementCard({
           "radial-gradient(120% 140% at 0% 0%, rgba(168,85,247,0.16), transparent 55%), radial-gradient(120% 140% at 100% 100%, rgba(236,72,153,0.12), transparent 55%)",
       }}
     >
-      <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-purple-500 to-pink-500" />
+      <span
+        aria-hidden="true"
+        className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-purple-500 to-pink-500"
+      />
       <div className="mb-2 flex items-center justify-between gap-2">
         {labelEl}
         <span className="grid size-[22px] shrink-0 place-items-center rounded-md bg-purple-500/15 text-purple-600 dark:text-purple-300">
@@ -3242,147 +3253,145 @@ function ArrivalCard({
       {/* Detalhes operacionais + engajamento — mesmo espaçamento (zero) que
           existe entre o nome do hóspede e o período. */}
       <div className="-mt-2.5 flex flex-col">
-      <Accordion
-
-        type="single"
-        collapsible
-        className="mt-0"
-        value={expanded ? "details" : ""}
-        onValueChange={(v) => onToggleExpanded?.(v === "details")}
-      >
-        <AccordionItem value="details" className="border-0">
-          <AccordionTrigger className="py-0 justify-start gap-1 text-xs text-muted-foreground hover:no-underline [&>svg]:h-3 [&>svg]:w-3">
-            Detalhes operacionais
-          </AccordionTrigger>
-          <AccordionContent className="pb-0">
-            <div className="flex flex-col gap-3 pt-1">
-              {/* Padrão / Previsto — cada um em uma linha só, rótulo à
+        <Accordion
+          type="single"
+          collapsible
+          className="mt-0"
+          value={expanded ? "details" : ""}
+          onValueChange={(v) => onToggleExpanded?.(v === "details")}
+        >
+          <AccordionItem value="details" className="border-0">
+            <AccordionTrigger className="py-0 justify-start gap-1 text-xs text-muted-foreground hover:no-underline [&>svg]:h-3 [&>svg]:w-3">
+              Detalhes operacionais
+            </AccordionTrigger>
+            <AccordionContent className="pb-0">
+              <div className="flex flex-col gap-3 pt-1">
+                {/* Padrão / Previsto — cada um em uma linha só, rótulo à
                   esquerda e valor à direita, bem mais compacto que os dois
                   quadrados empilhados de antes. */}
-              {mode !== "cleaning" && (
-                <div className="flex flex-col gap-1.5 text-xs">
-                  <div className="flex items-center justify-between gap-2 rounded-lg bg-background/50 border border-border/40 px-2.5 py-1.5">
-                    <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
-                      Padrão
-                      <InfoHint title="Horário padrão">
-                        Janela configurada na propriedade. Base para detectar divergências.
-                      </InfoHint>
-                    </span>
-                    <span className="tabular-nums font-medium truncate">{stdWindow ?? "—"}</span>
-                  </div>
-                  <div
-                    className={`flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 ${divergent ? "bg-amber-500/10 border border-amber-500/30" : "bg-background/50 border border-border/40"}`}
-                  >
-                    <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
-                      Previsto
-                      <InfoHint title="Horário previsto">
-                        Selecione o horário (30 em 30 min). A alteração reordena o kanban imediatamente.
-                      </InfoHint>
-                    </span>
-                    <span className="ml-auto flex items-center justify-end gap-3 shrink-0 text-xs font-medium">
-                      <DateEditor
-                        /* Data prevista é um override próprio do card: fica em
+                {mode !== "cleaning" && (
+                  <div className="flex flex-col gap-1.5 text-xs">
+                    <div className="flex items-center justify-between gap-2 rounded-lg bg-background/50 border border-border/40 px-2.5 py-1.5">
+                      <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
+                        Padrão
+                        <InfoHint title="Horário padrão">
+                          Janela configurada na propriedade. Base para detectar divergências.
+                        </InfoHint>
+                      </span>
+                      <span className="tabular-nums font-medium truncate">{stdWindow ?? "—"}</span>
+                    </div>
+                    <div
+                      className={`flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 ${divergent ? "bg-amber-500/10 border border-amber-500/30" : "bg-background/50 border border-border/40"}`}
+                    >
+                      <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
+                        Previsto
+                        <InfoHint title="Horário previsto">
+                          Selecione o horário (30 em 30 min). A alteração reordena o kanban imediatamente.
+                        </InfoHint>
+                      </span>
+                      <span className="ml-auto flex items-center justify-end gap-3 shrink-0 text-xs font-medium">
+                        <DateEditor
+                          /* Data prevista é um override próprio do card: fica em
                            branco até alguém registrar chegada em outro dia. */
-                        value={row.arrivalDateOverride ?? ""}
-                        disabled={busy || isPendingFill}
-                        placeholder="Data"
-                        min={predictedMinDate ?? undefined}
-                        max={kind === "checkout" ? undefined : (predictedMaxDate ?? undefined)}
-                        onChange={(v) => onEditPredictedDate?.(row, v)}
-                      />
-                      {/* Horário só depois da data: a ordem é data → horário. */}
-                      <TimeDropdown
-                        value={guestTime ?? null}
-                        disabled={busy || !row.arrivalDateOverride}
-                        size="xs"
-                        onChange={(v) => onEditTime(row, v)}
-                      />
-                    </span>
+                          value={row.arrivalDateOverride ?? ""}
+                          disabled={busy || isPendingFill}
+                          placeholder="Data"
+                          min={predictedMinDate ?? undefined}
+                          max={kind === "checkout" ? undefined : (predictedMaxDate ?? undefined)}
+                          onChange={(v) => onEditPredictedDate?.(row, v)}
+                        />
+                        {/* Horário só depois da data: a ordem é data → horário. */}
+                        <TimeDropdown
+                          value={guestTime ?? null}
+                          disabled={busy || !row.arrivalDateOverride}
+                          size="xs"
+                          onChange={(v) => onEditTime(row, v)}
+                        />
+                      </span>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {row.ical.hasIcal &&
-                !isPendingFill &&
-                (() => {
-                  const gIn = row.guestCheckin;
-                  const gOut = row.guestCheckout;
-                  const iIn = row.ical.icalCheckin;
-                  const iOut = row.ical.icalCheckout;
-                  const anyDivergent = row.ical.matched && ((iIn && iIn !== gIn) || (iOut && gOut && iOut !== gOut));
-                  if (!anyDivergent && row.ical.matched) {
+                {row.ical.hasIcal &&
+                  !isPendingFill &&
+                  (() => {
+                    const gIn = row.guestCheckin;
+                    const gOut = row.guestCheckout;
+                    const iIn = row.ical.icalCheckin;
+                    const iOut = row.ical.icalCheckout;
+                    const anyDivergent = row.ical.matched && ((iIn && iIn !== gIn) || (iOut && gOut && iOut !== gOut));
+                    if (!anyDivergent && row.ical.matched) {
+                      return (
+                        <div className="w-full text-xs rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-2 py-1.5 flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+                          <CheckCircle2 className="size-3.5 shrink-0" />
+                          <span>Confirmado via Airbnb</span>
+                        </div>
+                      );
+                    }
+                    const fmtRange = (a: string | null, b: string | null) =>
+                      `${a ? fmtDateBR(a) : "?"} a ${b ? fmtDateBR(b) : "?"}`;
                     return (
-                      <div className="w-full text-xs rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-2 py-1.5 flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
-                        <CheckCircle2 className="size-3.5 shrink-0" />
-                        <span>Confirmado via Airbnb</span>
-                      </div>
-                    );
-                  }
-                  const fmtRange = (a: string | null, b: string | null) =>
-                    `${a ? fmtDateBR(a) : "?"} a ${b ? fmtDateBR(b) : "?"}`;
-                  return (
-                    <div className="w-full text-xs rounded-lg px-2 py-1.5 flex items-start gap-2 bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/40">
-                      <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
-                      <div className="min-w-0 flex-1 leading-snug">
-                        {anyDivergent ? (
-                          <>
-                            <div className="font-semibold">Data Divergente Hóspede-Airbnb</div>
-                            <div className="tabular-nums">Informada: {fmtRange(gIn, gOut)}</div>
-                            <div className="tabular-nums">Correta: {fmtRange(iIn, iOut)}</div>
-                          </>
-                        ) : (
-                          <div>Sem reserva correspondente no iCal Airbnb</div>
+                      <div className="w-full text-xs rounded-lg px-2 py-1.5 flex items-start gap-2 bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/40">
+                        <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
+                        <div className="min-w-0 flex-1 leading-snug">
+                          {anyDivergent ? (
+                            <>
+                              <div className="font-semibold">Data Divergente Hóspede-Airbnb</div>
+                              <div className="tabular-nums">Informada: {fmtRange(gIn, gOut)}</div>
+                              <div className="tabular-nums">Correta: {fmtRange(iIn, iOut)}</div>
+                            </>
+                          ) : (
+                            <div>Sem reserva correspondente no iCal Airbnb</div>
+                          )}
+                        </div>
+                        {anyDivergent && (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() =>
+                              onEditDates(row, {
+                                ...(iIn && iIn !== gIn ? { checkinDate: iIn } : {}),
+                                ...(iOut && gOut && iOut !== gOut ? { checkoutDate: iOut } : {}),
+                              })
+                            }
+                            className="text-xs underline underline-offset-2 hover:no-underline shrink-0 mt-0.5"
+                          >
+                            Usar Airbnb
+                          </button>
                         )}
                       </div>
-                      {anyDivergent && (
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() =>
-                            onEditDates(row, {
-                              ...(iIn && iIn !== gIn ? { checkinDate: iIn } : {}),
-                              ...(iOut && gOut && iOut !== gOut ? { checkoutDate: iOut } : {}),
-                            })
-                          }
-                          className="text-xs underline underline-offset-2 hover:no-underline shrink-0 mt-0.5"
-                        >
-                          Usar Airbnb
-                        </button>
-                      )}
-                    </div>
-                  );
-                })()}
+                    );
+                  })()}
 
-              {divergent && !isPendingFill && !done && (
-                <div className="w-full text-xs rounded-lg bg-amber-500/10 border border-amber-500/30 px-2 py-1.5 flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-1.5">
-                    <AlertTriangle className="size-3.5" /> Horário divergente do padrão
-                  </span>
-                  <button
-                    onClick={() => onSyncIcal(row)}
-                    className="text-xs underline underline-offset-2 hover:no-underline"
-                    disabled={busy}
-                  >
-                    Alinhar
-                  </button>
-                </div>
-              )}
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+                {divergent && !isPendingFill && !done && (
+                  <div className="w-full text-xs rounded-lg bg-amber-500/10 border border-amber-500/30 px-2 py-1.5 flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5">
+                      <AlertTriangle className="size-3.5" /> Horário divergente do padrão
+                    </span>
+                    <button
+                      onClick={() => onSyncIcal(row)}
+                      className="text-xs underline underline-offset-2 hover:no-underline"
+                      disabled={busy}
+                    >
+                      Alinhar
+                    </button>
+                  </div>
+                )}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
 
-      {/* Alerta de engajamento visível no próprio card (não só no tooltip) */}
-      {mode !== "cleaning" && !isPendingFill && (
-        <EngagementFlags
-          openedGuide={row.openedGuide}
-          readInstructions={row.readInstructions}
-          hasPasswords={row.hasPasswords}
-          viewedPasswords={row.viewedPasswords}
-        />
-      )}
+        {/* Alerta de engajamento visível no próprio card (não só no tooltip) */}
+        {mode !== "cleaning" && !isPendingFill && (
+          <EngagementFlags
+            openedGuide={row.openedGuide}
+            readInstructions={row.readInstructions}
+            hasPasswords={row.hasPasswords}
+            viewedPasswords={row.viewedPasswords}
+          />
+        )}
       </div>
-
 
       {row.note && !noteOpen && (
         <button
@@ -3526,7 +3535,7 @@ function ArrivalCard({
                   ? "Check-out realizado!"
                   : done
                     ? "Reabrir"
-                    : "Check-in realizado!"}
+                    : "Confirmar o check-in!"}
             </span>
           </button>
         )}
