@@ -669,6 +669,7 @@ export async function buildArrivalRows(
       extras: (typeof uniqueLogs)[number][] = [],
     ): ArrivalRow | null {
       const p = propMap.get(l.property_id);
+      const logGroupPeople: Person[] = [l, ...extras].map((g) => ({ name: g.guest_name, phone: g.guest_phone }));
       const s = statusMap.get(l.id);
       if (s?.concluded_at) return null;
       const date = data.kind === "checkin" ? l.checkin_date : (l.checkout_date ?? l.checkin_date);
