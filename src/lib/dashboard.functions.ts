@@ -471,22 +471,31 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
 
     // Aberturas por seção — sem janela de tempo: o hóspede costuma abrir o guia
     // dias antes do check-in, então filtrar por created_at zerava o engajamento.
-    const [{ data: evs }, { data: codeEvs }] = await Promise.all([
-      context.supabase
-        .from("guide_section_events")
-        .select("id, property_id, guest_name, guest_phone")
-        .in("property_id", propIds)
-        // "Leu" = permaneceu ao menos 5s na aba Chegada (mesma regra dos cards).
-        .eq("section", "checkin-lido")
-        .limit(20000),
+    // O Data API corta em 1000 linhas mesmo com .limit() maior — paginamos
+    // para a barra nunca divergir dos cards por truncamento.
+    const fetchAllEvents = async (props: string[], sections: string[]) => {
+      const out: Array<EventRow & { section?: string }> = [];
+      const PAGE = 1000;
+      for (let page = 0; page < 30; page++) {
+        const { data: chunk } = await context.supabase
+          .from("guide_section_events")
+          .select("id, property_id, guest_name, guest_phone, section, created_at")
+          .in("property_id", props)
+          .in("section", sections)
+          .order("created_at", { ascending: false })
+          .range(page * PAGE, page * PAGE + PAGE - 1);
+        const rows = (chunk ?? []) as Array<EventRow & { section?: string }>;
+        out.push(...rows);
+        if (rows.length < PAGE) break;
+      }
+      return out;
+    };
+    const [evs, codeEvs] = await Promise.all([
+      // "Leu" = permaneceu ao menos 5s na aba Chegada (mesma regra dos cards).
+      fetchAllEvents(propIds, ["checkin-lido"]),
       codesProps.size
-        ? context.supabase
-            .from("guide_section_events")
-            .select("id, property_id, guest_name, guest_phone, section")
-            .in("property_id", Array.from(codesProps))
-            .in("section", ["senhas", "senhas:lock", "senhas:gate"])
-            .limit(20000)
-        : Promise.resolve({ data: [] as Array<EventRow & { section: string }> }),
+        ? fetchAllEvents(Array.from(codesProps), ["senhas", "senhas:lock", "senhas:gate"])
+        : Promise.resolve([] as Array<EventRow & { section?: string }>),
     ]);
 
     // Quem viu / quem não viu.
