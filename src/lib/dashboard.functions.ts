@@ -576,9 +576,16 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
           owner: ownerByProp.get(e.property_id) || "",
           time: e.time ?? null,
         };
+        // Grupo da reserva: basta UM hóspede da reserva ter visto (mesma regra
+        // do card/tooltip do Kanban).
+        const people = e.people.length > 0 ? e.people : [{ name: e.name, phone: e.phone }];
         const hit =
           e.name !== "Hóspede pendente" &&
-          (hitFn ? hitFn(e.property_id, e.name, e.phone) : seenHas(seen, e.property_id, e.name, e.phone));
+          people.some((p) =>
+            hitFn
+              ? hitFn(e.property_id, (p.name || "").trim(), p.phone)
+              : seenHas(seen, e.property_id, (p.name || "").trim(), p.phone),
+          );
         (hit ? viewed : notViewed).push({ mark, propertyId: e.property_id });
       }
       // Mesma ordenação dos cards do Kanban: horário previsto (mais cedo
