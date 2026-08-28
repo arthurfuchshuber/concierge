@@ -402,11 +402,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     const uniqueLogs = dedupeFormLogs(allLogs);
 
     // Uma entrada por check-in PENDENTE do período (mesma base usada no contador).
-    // `people` = TODOS os hóspedes da mesma reserva (principal + adicionais):
-    // o card do Kanban considera o grupo inteiro, então a barra precisa usar
-    // exatamente a mesma base para não divergir do tooltip do card.
-    type Person = { name: string | null; phone: string | null };
-    type Entry = { property_id: string; name: string; phone: string | null; time: string | null; people: Person[] };
+    type Entry = { property_id: string; name: string; phone: string | null; time: string | null };
     const entries: Entry[] = [];
 
     for (const r of (reservations ?? []) as Array<{
@@ -419,24 +415,20 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       guest_hint: string | null;
     }>) {
       if (!icalProps.has(r.property_id) || !isRealReservation(r)) continue;
-      const group =
+      const matched: LogRow | null =
         r.checkin_date && r.checkout_date
           ? findLogsForReservation(
               uniqueLogs,
               { property_id: r.property_id, checkin_date: r.checkin_date, checkout_date: r.checkout_date, guest_hint: r.guest_hint },
               "checkin",
-            )
-          : { primary: null as LogRow | null, extras: [] as LogRow[] };
-      const matched: LogRow | null = group.primary;
+            ).primary
+          : null;
       if (doneReservations.has(r.id) || (matched && doneLogs.has(matched.id))) continue;
       entries.push({
         property_id: r.property_id,
         name: (matched?.guest_name || "").trim() || "Hóspede pendente",
         phone: matched?.guest_phone ?? null,
         time: matched?.guest_arrival_time ?? null,
-        people: [matched, ...group.extras]
-          .filter((l): l is LogRow => !!l)
-          .map((l) => ({ name: l.guest_name, phone: l.guest_phone })),
       });
     }
 
@@ -453,7 +445,6 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         name: (l.guest_name || "").trim() || "Hóspede pendente",
         phone: l.guest_phone,
         time: l.guest_arrival_time ?? null,
-        people: [{ name: l.guest_name, phone: l.guest_phone }],
       });
     }
 
@@ -471,31 +462,22 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
 
     // Aberturas por seção — sem janela de tempo: o hóspede costuma abrir o guia
     // dias antes do check-in, então filtrar por created_at zerava o engajamento.
-    // O Data API corta em 1000 linhas mesmo com .limit() maior — paginamos
-    // para a barra nunca divergir dos cards por truncamento.
-    const fetchAllEvents = async (props: string[], sections: string[]) => {
-      const out: Array<EventRow & { section?: string }> = [];
-      const PAGE = 1000;
-      for (let page = 0; page < 30; page++) {
-        const { data: chunk } = await context.supabase
-          .from("guide_section_events")
-          .select("id, property_id, guest_name, guest_phone, section, created_at")
-          .in("property_id", props)
-          .in("section", sections)
-          .order("created_at", { ascending: false })
-          .range(page * PAGE, page * PAGE + PAGE - 1);
-        const rows = (chunk ?? []) as Array<EventRow & { section?: string }>;
-        out.push(...rows);
-        if (rows.length < PAGE) break;
-      }
-      return out;
-    };
-    const [evs, codeEvs] = await Promise.all([
-      // "Leu" = permaneceu ao menos 5s na aba Chegada (mesma regra dos cards).
-      fetchAllEvents(propIds, ["checkin-lido"]),
+    const [{ data: evs }, { data: codeEvs }] = await Promise.all([
+      context.supabase
+        .from("guide_section_events")
+        .select("id, property_id, guest_name, guest_phone")
+        .in("property_id", propIds)
+        // "Leu" = permaneceu ao menos 5s na aba Chegada (mesma regra dos cards).
+        .eq("section", "checkin-lido")
+        .limit(20000),
       codesProps.size
-        ? fetchAllEvents(Array.from(codesProps), ["senhas", "senhas:lock", "senhas:gate"])
-        : Promise.resolve([] as Array<EventRow & { section?: string }>),
+        ? context.supabase
+            .from("guide_section_events")
+            .select("id, property_id, guest_name, guest_phone, section")
+            .in("property_id", Array.from(codesProps))
+            .in("section", ["senhas", "senhas:lock", "senhas:gate"])
+            .limit(20000)
+        : Promise.resolve({ data: [] as Array<EventRow & { section: string }> }),
     ]);
 
     // Quem viu / quem não viu.
@@ -585,16 +567,9 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
           owner: ownerByProp.get(e.property_id) || "",
           time: e.time ?? null,
         };
-        // Grupo da reserva: basta UM hóspede da reserva ter visto (mesma regra
-        // do card/tooltip do Kanban).
-        const people = e.people.length > 0 ? e.people : [{ name: e.name, phone: e.phone }];
         const hit =
           e.name !== "Hóspede pendente" &&
-          people.some((p) =>
-            hitFn
-              ? hitFn(e.property_id, (p.name || "").trim(), p.phone)
-              : seenHas(seen, e.property_id, (p.name || "").trim(), p.phone),
-          );
+          (hitFn ? hitFn(e.property_id, e.name, e.phone) : seenHas(seen, e.property_id, e.name, e.phone));
         (hit ? viewed : notViewed).push({ mark, propertyId: e.property_id });
       }
       // Mesma ordenação dos cards do Kanban: horário previsto (mais cedo

@@ -888,14 +888,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 tone="primary"
                 loading={checkinListQ.isLoading}
                 onRefresh={() => checkinListQ.refetch()}
-                kind="checkin"
                 rangeLabel={rangeLabel[range]}
                 // Azul claro enquanto houver pendência, verde quando zerar —
                 // mesmo tom "in"/"in-pending" usado no calendário.
                 shadowTone={checkinPendingRows.length > 0 ? "sky" : "emerald"}
-                onEditTime={handleEditTime}
-                onAdvance={(r) => handleAdvance(r, "checkin")}
-                blockedPropertyIds={cleaningPendingPropIds}
+                cardProps={arrivalGroupPropsFor("checkin", checkinPendingRows)}
               />
             </div>
             <div className="order-2 lg:order-2">
@@ -906,13 +903,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 tone="primary"
                 loading={checkoutListQ.isLoading}
                 onRefresh={() => checkoutListQ.refetch()}
-                kind="checkout"
                 rangeLabel={rangeLabel[range]}
                 // Laranja (mesmo tom do "out" no calendário) enquanto houver
                 // pendência, verde quando zerar.
                 shadowTone={checkoutPendingRows.length > 0 ? "amber" : "emerald"}
-                onEditTime={handleEditTime}
-                onAdvance={(r) => handleAdvance(r, "checkout")}
+                cardProps={arrivalGroupPropsFor("checkout", checkoutPendingRows)}
               />
             </div>
             <div className="order-3 lg:order-3">
@@ -923,11 +918,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 tone="primary-soft"
                 loading={tomorrowCheckinListQ.isLoading}
                 onRefresh={() => tomorrowCheckinListQ.refetch()}
-                kind="checkin"
                 rangeLabel="Amanhã"
-                onEditTime={handleEditTime}
-                onAdvance={(r) => handleAdvance(r, "checkin")}
-                blockedPropertyIds={cleaningPendingPropIds}
+                cardProps={arrivalGroupPropsFor("checkin", tomorrowCheckinPendingRows)}
               />
             </div>
             <div className="order-4 lg:order-4">
@@ -938,10 +930,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 tone="primary-soft"
                 loading={tomorrowCheckoutListQ.isLoading}
                 onRefresh={() => tomorrowCheckoutListQ.refetch()}
-                kind="checkout"
                 rangeLabel="Amanhã"
-                onEditTime={handleEditTime}
-                onAdvance={(r) => handleAdvance(r, "checkout")}
+                cardProps={arrivalGroupPropsFor("checkout", tomorrowCheckoutPendingRows)}
               />
             </div>
 
@@ -957,12 +947,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   tone="primary-soft"
                   loading={checkoutListQ.isLoading}
                   onRefresh={() => checkoutListQ.refetch()}
-                  kind="checkout"
                   rangeLabel={rangeLabel[range]}
-                  onEditTime={handleEditTime}
-                  onAdvance={(r) => handleAdvance(r, "cleaning")}
                   compact
                   highlight="amber"
+                  cardProps={arrivalGroupPropsFor("cleaning", cleaningRows)}
                 />
               </div>
             ) : null}
@@ -997,10 +985,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 tone="primary-soft"
                 loading={checkinListQ.isLoading}
                 onRefresh={() => checkinListQ.refetch()}
-                kind="checkin"
                 rangeLabel={rangeLabel[range]}
-                onEditTime={handleEditTime}
-                onAdvance={(r) => handleAdvance(r, "stay")}
+                cardProps={arrivalGroupPropsFor("stay", stayRows)}
               />
             </div>
             <div className="order-13 lg:order-10 col-span-1">
@@ -1044,19 +1030,21 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 onChange={setCityFilters}
               />
             </div>
-            <div className="order-8 lg:order-12 col-span-1 min-w-0 grid grid-cols-[1fr_auto] gap-2">
+            {/* Pedido explícito: "Proprietário" sozinho precisa ter a MESMA
+                largura da coluna (igual ao card "Custo Total Limpeza") — a
+                borracha pode ficar PARA FORA dessa largura. No mobile (2
+                colunas) não há espaço sobrando à direita, então a borracha
+                continua dentro do grid normal (grid-cols-[1fr_auto]); só no
+                desktop o container vira "block/relative" e a borracha some
+                do fluxo do grid, virando um botão absoluto colado logo à
+                direita da coluna (left-full = começa onde a coluna termina). */}
+            <div className="order-8 lg:order-12 col-span-1 min-w-0 grid grid-cols-[1fr_auto] gap-2 lg:block lg:relative">
               <MultiSelectFilterButton
                 label="Proprietário"
                 icon={User}
                 options={ownerOptions}
                 selected={ownerFilters}
                 onChange={setOwnerFilters}
-                // Pedido explícito: esse botão precisa preencher toda a
-                // largura da sua coluna (mesma largura do card "Custo Total
-                // Limpeza", já que ambos são col-span-1 da MESMA grade) — sem
-                // isso, FILTER_BUTTON_CLASS é inline-flex/shrink-0 (tamanho
-                // do próprio conteúdo), então sobrava um vão vazio até a
-                // borda da coluna.
                 className="w-full"
               />
               {/* Só o ícone, sem o "quadrante" (fundo/borda/sombra) dos
@@ -1073,7 +1061,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 onClick={clearAllFilters}
                 title="Limpar filtros e voltar para hoje"
                 aria-label="Limpar filtros e voltar para hoje"
-                className="inline-flex size-9 shrink-0 items-center justify-center rounded-[0.3rem] text-foreground/70 transition-colors hover:text-foreground hover:bg-secondary/40 disabled:opacity-40 disabled:pointer-events-none"
+                className="inline-flex size-9 shrink-0 items-center justify-center rounded-[0.3rem] text-foreground/70 transition-colors hover:text-foreground hover:bg-secondary/40 disabled:opacity-40 disabled:pointer-events-none lg:absolute lg:left-full lg:top-0 lg:ml-2"
               >
                 <Eraser className="size-4" />
               </button>
@@ -1087,8 +1075,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 (col-span-2, alinhado sob "Limpezas Realizadas" + "Custo
                 Total Limpeza"), não mais a largura cheia da grade — no
                 mobile não muda (segue col-span-2 = largura cheia da grade
-                de 2 colunas). */}
-            <div className="order-11 lg:order-13 col-span-2 lg:col-span-2">
+                de 2 colunas). `lg:col-start-1` é o que FORÇA a nova linha:
+                sem isso, como só as colunas 1-2 da linha dos filtros estavam
+                ocupadas, o auto-placement do grid enfiava o calendário nas
+                colunas 3-4 dessa MESMA linha (ao lado dos filtros, não
+                embaixo) — com `col-start-1` ele só cabe numa linha onde a
+                coluna 1 esteja livre, ou seja, a linha seguinte. */}
+            <div className="order-11 lg:order-13 col-span-2 lg:col-start-1 lg:col-span-2">
               <OccupancyPanel
                 loading={occupancyQ.isLoading}
                 start={occupancyQ.data?.start ?? occStart}
@@ -1676,14 +1669,11 @@ function KpiCard({
   tone,
   loading,
   onRefresh,
-  kind,
   rangeLabel,
   shadowTone,
-  onEditTime,
-  onAdvance,
   compact,
   highlight,
-  blockedPropertyIds,
+  cardProps,
 }: {
   label: string;
   rows: ArrivalRow[];
@@ -1691,23 +1681,21 @@ function KpiCard({
   tone: "primary" | "primary-soft";
   loading: boolean;
   onRefresh: () => void;
-  kind: "checkin" | "checkout";
   rangeLabel: string;
   shadowTone?: "emerald" | "amber" | "sky";
-  onEditTime: (row: ArrivalRow, kind: "checkin" | "checkout", time: string | null) => void;
-  /** Avança o card na esteira direto pelo popup do indicador. */
-  onAdvance?: (row: ArrivalRow) => void;
   /** Faixa fina (largura total) em vez de card quadrado. */
   compact?: boolean;
   /** Destaque visual opt-in (só usado hoje por "Liberado para Limpeza"): borda +
    * gradiente âmbar + acento lateral + ícone em caixinha, sem negrito.
    * Não afeta nenhum outro uso do KpiCard (compact ou não). */
   highlight?: "amber";
-  /** Mesmo mapa usado no Kanban (cleaningPendingPropIds): imóveis cujo
-   * check-out/limpeza anterior ainda não foi concluído. Só relevante para
-   * kind === "checkin" — bloqueia o botão "Marcar como concluído" no popup,
-   * pelo mesmo racional já aplicado nos cards do Kanban. */
-  blockedPropertyIds?: Map<string, "checkout" | "cleaning">;
+  /** Pedido explícito: os cards dentro do popup precisam ficar IDÊNTICOS ao
+   * card do Kanban — em vez de manter uma segunda implementação (que já
+   * divergiu do Kanban antes, ver o bug do bloqueio de check-in), o popup
+   * agora renderiza o MESMO <ArrivalGroup>/<ArrivalCard> do Kanban, com os
+   * MESMOS handlers. Vem de arrivalGroupPropsFor(colMode, rows) — a mesma
+   * função que já alimenta as colunas do Kanban. */
+  cardProps: Omit<React.ComponentProps<typeof ArrivalGroup>, "title">;
 }) {
   const [open, setOpen] = useState(false);
   const list = useWholeCardsMaxHeight(2, `${open}:${rows.length}:${loading}`);
@@ -1833,144 +1821,9 @@ function KpiCard({
           ) : rows.length === 0 ? (
             <div className="py-12 text-center text-sm text-muted-foreground">Nenhum registro no período.</div>
           ) : (
-            <ul className="space-y-1.5">
-              {rows.map((r) => {
-                const time = r.arrivalTimeOverride ?? r.guestArrivalTime ?? null;
-                const initials =
-                  (r.guestName || "?")
-                    .split(/\s+/)
-                    .filter(Boolean)
-                    .slice(0, 2)
-                    .map((s) => s[0]?.toUpperCase() ?? "")
-                    .join("") || "?";
-                return (
-                  <li
-                    key={r.logId}
-                    data-whole-card
-                    className="group flex items-start gap-2 rounded-lg border border-border/50 bg-background/40 px-2.5 py-2 transition hover:border-border hover:bg-secondary/40"
-                  >
-                    <div
-                      className={`grid place-items-center size-8 rounded-full text-xs font-semibold shrink-0 ${r.pendingFill ? "bg-muted text-muted-foreground" : "bg-accent/10 text-accent"}`}
-                    >
-                      {r.pendingFill ? <UserPlus className="size-4" /> : initials}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      {r.reservationCode && (
-                        <div className="text-xs flex items-center gap-1 text-muted-foreground">
-                          <span className="truncate max-w-[160px]">{r.reservationCode}</span>
-                          <CopyButton value={r.reservationCode} size={10} className="p-0.5" />
-                        </div>
-                      )}
-                      <OwnerLine
-                        name={r.ownerName}
-                        phone={r.ownerPhone}
-                        country={r.ownerPhoneCountry}
-                        phonePosition="adjacent"
-                      />
-                      <div
-                        className="text-sm font-semibold leading-tight truncate text-foreground"
-                        title={r.propertyName ?? undefined}
-                      >
-                        {r.propertyName ?? "Sem nome"}
-                      </div>
-
-                      <div
-                        className={`text-xs flex items-center gap-1 mt-0.5 ${r.pendingFill || !r.guestName || r.guestName === r.reservationCode ? "text-orange-500 font-medium" : "text-muted-foreground"}`}
-                      >
-                        {r.pendingFill || !r.guestName || r.guestName === r.reservationCode ? (
-                          <>
-                            <UserPlus className="size-3 shrink-0" />
-                            <span className="truncate">Hóspede Pendente</span>
-                          </>
-                        ) : (
-                          <>
-                            <ExtraGuests guests={r.additionalGuests ?? []} />
-                            <span className="min-w-0 truncate">{r.guestName}</span>
-                            <PhoneLink phone={r.guestPhone} country={r.guestPhoneCountry} />
-                          </>
-                        )}
-                      </div>
-
-                      {/* Período — mesma fonte/cor do nome do hóspede, uma linha */}
-                      <div className="text-xs flex flex-wrap items-center gap-1.5 text-muted-foreground">
-                        <span>{fmtDateBR(r.guestCheckin)}</span>
-                        {r.guestCheckout && (
-                          <>
-                            <span>→</span>
-                            <span>{fmtDateBR(r.guestCheckout)}</span>
-                          </>
-                        )}
-                      </div>
-
-                      {/* Previsão de horário — campo largo, logo abaixo do código da reserva */}
-                      <div className="mt-0.5 flex items-center gap-2">
-                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
-                          Previsão
-                        </span>
-                        <TimeDropdown value={time} size="xs" onChange={(v) => onEditTime(r, kind, v)} />
-                      </div>
-                      <EngagementFlags
-                        openedGuide={r.openedGuide}
-                        readInstructions={r.readInstructions}
-                        hasPasswords={r.hasPasswords}
-                        viewedPasswords={r.viewedPasswords}
-                      />
-                    </div>
-                    {onAdvance &&
-                      (() => {
-                        // Mesmo racional do Kanban (cleaningPendingPropIds /
-                        // cleaningBlock): check-in de imóvel cujo check-out ou
-                        // limpeza anteriores ainda não foram concluídos fica
-                        // bloqueado aqui também, em vez de permitir "pular a
-                        // fila" pelo popup do indicador.
-                        const blockReason =
-                          kind === "checkin" ? (blockedPropertyIds?.get(r.propertyId) ?? null) : null;
-                        if (blockReason) {
-                          const msg =
-                            blockReason === "checkout"
-                              ? "Hóspede anterior ainda não fez check-out. Conclua o check-out e a limpeza para liberar o novo check-in."
-                              : "Limpeza deste imóvel ainda não foi concluída. Finalize a limpeza para liberar o check-in.";
-                          return (
-                            <div className="self-end shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => toast.warning(msg)}
-                                disabled
-                                title={
-                                  blockReason === "checkout"
-                                    ? "Check-out anterior pendente — limpeza precisa ser concluída antes de liberar o check-in"
-                                    : "Limpeza ainda em andamento — check-in bloqueado"
-                                }
-                                aria-label={
-                                  blockReason === "checkout"
-                                    ? "Check-out anterior pendente neste imóvel"
-                                    : "Limpeza pendente neste imóvel"
-                                }
-                                className="size-8 grid place-items-center rounded-lg bg-orange-500/25 text-orange-700 dark:text-orange-400 border border-orange-500/50 cursor-not-allowed"
-                              >
-                                <Check className="size-4" />
-                              </button>
-                            </div>
-                          );
-                        }
-                        return (
-                          <div className="self-end shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => onAdvance(r)}
-                              title="Marcar como concluído"
-                              aria-label="Marcar como concluído"
-                              className="size-8 grid place-items-center rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
-                            >
-                              <Check className="size-4" />
-                            </button>
-                          </div>
-                        );
-                      })()}
-                  </li>
-                );
-              })}
-            </ul>
+            <div className="pb-3">
+              <ArrivalGroup title="" {...cardProps} />
+            </div>
           )}
         </div>
       </DialogContent>
@@ -3288,6 +3141,10 @@ function ArrivalCard({
 
   return (
     <div
+      // data-whole-card: usado pelo useWholeCardsMaxHeight quando este card
+      // aparece dentro de um popup de indicador (KpiCard) — inofensivo aqui
+      // no Kanban, que não usa esse hook.
+      data-whole-card
       className={`group relative snap-start flex flex-col rounded-[0.3rem] bg-secondary/70 hover:bg-secondary/90 p-3 gap-2.5 transition-colors ${
         isOverdue && !visualDone
           ? "border-l-[3px] border-l-red-500"
