@@ -954,6 +954,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   onEditTime={handleEditTime}
                   onAdvance={(r) => handleAdvance(r, "cleaning")}
                   compact
+                  highlight="amber"
                 />
               </div>
             ) : null}
@@ -1661,6 +1662,7 @@ function KpiCard({
   onEditTime,
   onAdvance,
   compact,
+  highlight,
 }: {
   label: string;
   rows: ArrivalRow[];
@@ -1676,6 +1678,10 @@ function KpiCard({
   onAdvance?: (row: ArrivalRow) => void;
   /** Faixa fina (largura total) em vez de card quadrado. */
   compact?: boolean;
+  /** Destaque visual opt-in (só usado hoje por "Liberado para Limpeza"): borda +
+   * gradiente âmbar + acento lateral + ícone em caixinha, sem negrito.
+   * Não afeta nenhum outro uso do KpiCard (compact ou não). */
+  highlight?: "amber";
 }) {
   const [open, setOpen] = useState(false);
   const list = useWholeCardsMaxHeight(2, `${open}:${rows.length}:${loading}`);
@@ -1711,16 +1717,41 @@ function KpiCard({
     >
       <DialogTrigger asChild>
         {compact ? (
-          <button
-            type="button"
-            className={`w-full flex items-center gap-2 rounded-[0.3rem] border-0 bg-card px-3.5 py-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
-          >
-            <Icon className={`size-3.5 shrink-0 ${dotClass.replace("bg-", "text-")}`} />
-            <span className="ds-eyebrow truncate">{label}</span>
-            <span className={`ml-auto text-base font-display tabular-nums ${valueColor}`}>
-              {loading ? "—" : rows.length}
-            </span>
-          </button>
+          highlight === "amber" ? (
+            <button
+              type="button"
+              className="relative w-full overflow-hidden flex items-center gap-2.5 rounded-lg border border-amber-300/30 bg-card px-3.5 py-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 shadow-[0_8px_24px_-12px_rgba(245,158,11,0.30)]"
+              style={{
+                backgroundImage:
+                  "radial-gradient(120% 160% at 0% 0%, rgba(245,158,11,0.16), transparent 55%), radial-gradient(120% 160% at 100% 100%, rgba(245,158,11,0.08), transparent 55%)",
+              }}
+            >
+              <span
+                aria-hidden="true"
+                className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-amber-500 to-amber-300"
+              />
+              <span className="grid size-6 shrink-0 place-items-center rounded-md bg-amber-500/15 text-amber-500">
+                <Icon className="size-[13px]" strokeWidth={2.5} />
+              </span>
+              <span className="min-w-0 truncate text-[10.5px] font-normal uppercase tracking-[0.08em] leading-[1.2] text-foreground">
+                {label}
+              </span>
+              <span className="ml-auto shrink-0 text-base font-normal tabular-nums text-foreground">
+                {loading ? "—" : rows.length}
+              </span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className={`w-full flex items-center gap-2 rounded-[0.3rem] border-0 bg-card px-3.5 py-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+            >
+              <Icon className={`size-3.5 shrink-0 ${dotClass.replace("bg-", "text-")}`} />
+              <span className="ds-eyebrow truncate">{label}</span>
+              <span className={`ml-auto text-base font-display tabular-nums ${valueColor}`}>
+                {loading ? "—" : rows.length}
+              </span>
+            </button>
+          )
         ) : (
           <button
             type="button"
