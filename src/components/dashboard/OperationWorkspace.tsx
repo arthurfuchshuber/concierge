@@ -650,8 +650,12 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
   /**
    * Ordenação dos cards de chegada:
-   * 1) horário previsto de chegada (mais cedo primeiro; sem horário vai por último)
-   * 2) imóveis já liberados para check-in acima (sem checkout/limpeza pendente)
+   * 1) imóveis já liberados para check-in acima de qualquer um ainda com
+   *    checkout/limpeza pendente — bloqueado NUNCA compete por horário, fica
+   *    sempre abaixo dos liberados (mesmo racional do botão bloqueado no
+   *    Kanban: enquanto o imóvel não libera, o check-in nem entra na
+   *    "disputa" de prioridade).
+   * 2) horário previsto de chegada (mais cedo primeiro; sem horário vai por último)
    * 3) proprietário A→Z
    * 4) nome do anúncio A→Z
    */
@@ -662,11 +666,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       const time = (r: ArrivalRow) => r.arrivalTimeOverride ?? r.guestArrivalTime ?? null;
       const blockedRank = (r: ArrivalRow) => (cleaningPendingPropIds.has(r.propertyId) ? 1 : 0);
       return [...rows].sort((a, b) => {
+        const rankDiff = blockedRank(a) - blockedRank(b);
+        if (rankDiff !== 0) return rankDiff;
         const ta = time(a);
         const tb = time(b);
         if (ta && tb && ta !== tb) return ta.localeCompare(tb);
         if (!!ta !== !!tb) return ta ? -1 : 1;
-        return blockedRank(a) - blockedRank(b) || txt(a.ownerName, b.ownerName) || txt(a.propertyName, b.propertyName);
+        return txt(a.ownerName, b.ownerName) || txt(a.propertyName, b.propertyName);
       });
     },
     [cleaningPendingPropIds],
@@ -889,6 +895,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 shadowTone={checkinPendingRows.length > 0 ? "sky" : "emerald"}
                 onEditTime={handleEditTime}
                 onAdvance={(r) => handleAdvance(r, "checkin")}
+                blockedPropertyIds={cleaningPendingPropIds}
               />
             </div>
             <div className="order-2 lg:order-2">
@@ -920,6 +927,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 rangeLabel="Amanhã"
                 onEditTime={handleEditTime}
                 onAdvance={(r) => handleAdvance(r, "checkin")}
+                blockedPropertyIds={cleaningPendingPropIds}
               />
             </div>
             <div className="order-4 lg:order-4">
@@ -1043,6 +1051,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 options={ownerOptions}
                 selected={ownerFilters}
                 onChange={setOwnerFilters}
+                // Pedido explícito: esse botão precisa preencher toda a
+                // largura da sua coluna (mesma largura do card "Custo Total
+                // Limpeza", já que ambos são col-span-1 da MESMA grade) — sem
+                // isso, FILTER_BUTTON_CLASS é inline-flex/shrink-0 (tamanho
+                // do próprio conteúdo), então sobrava um vão vazio até a
+                // borda da coluna.
+                className="w-full"
               />
               {/* Só o ícone, sem o "quadrante" (fundo/borda/sombra) dos
                   outros botões de filtro — pedido explícito: a borracha
@@ -1067,8 +1082,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             {/* Calendário de ocupação — no mobile aparece antes de "Em
                 Estadia"/"Imóveis livres" (pedido explícito, já assim antes
                 dos filtros existirem); no desktop segue por último, como
-                sempre foi, logo abaixo da linha de filtros. */}
-            <div className="order-11 lg:order-13 col-span-2 lg:col-span-4">
+                sempre foi, logo abaixo da linha de filtros. Pedido explícito:
+                no desktop, a mesma largura dos 2 blocos de filtro somados
+                (col-span-2, alinhado sob "Limpezas Realizadas" + "Custo
+                Total Limpeza"), não mais a largura cheia da grade — no
+                mobile não muda (segue col-span-2 = largura cheia da grade
+                de 2 colunas). */}
+            <div className="order-11 lg:order-13 col-span-2 lg:col-span-2">
               <OccupancyPanel
                 loading={occupancyQ.isLoading}
                 start={occupancyQ.data?.start ?? occStart}
@@ -1663,6 +1683,7 @@ function KpiCard({
   onAdvance,
   compact,
   highlight,
+  blockedPropertyIds,
 }: {
   label: string;
   rows: ArrivalRow[];
@@ -1682,6 +1703,11 @@ function KpiCard({
    * gradiente âmbar + acento lateral + ícone em caixinha, sem negrito.
    * Não afeta nenhum outro uso do KpiCard (compact ou não). */
   highlight?: "amber";
+  /** Mesmo mapa usado no Kanban (cleaningPendingPropIds): imóveis cujo
+   * check-out/limpeza anterior ainda não foi concluído. Só relevante para
+   * kind === "checkin" — bloqueia o botão "Marcar como concluído" no popup,
+   * pelo mesmo racional já aplicado nos cards do Kanban. */
+  blockedPropertyIds?: Map<string, "checkout" | "cleaning">;
 }) {
   const [open, setOpen] = useState(false);
   const list = useWholeCardsMaxHeight(2, `${open}:${rows.length}:${loading}`);
@@ -1890,19 +1916,57 @@ function KpiCard({
                         viewedPasswords={r.viewedPasswords}
                       />
                     </div>
-                    {onAdvance && (
-                      <div className="self-end shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => onAdvance(r)}
-                          title="Marcar como concluído"
-                          aria-label="Marcar como concluído"
-                          className="size-8 grid place-items-center rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
-                        >
-                          <Check className="size-4" />
-                        </button>
-                      </div>
-                    )}
+                    {onAdvance &&
+                      (() => {
+                        // Mesmo racional do Kanban (cleaningPendingPropIds /
+                        // cleaningBlock): check-in de imóvel cujo check-out ou
+                        // limpeza anteriores ainda não foram concluídos fica
+                        // bloqueado aqui também, em vez de permitir "pular a
+                        // fila" pelo popup do indicador.
+                        const blockReason =
+                          kind === "checkin" ? (blockedPropertyIds?.get(r.propertyId) ?? null) : null;
+                        if (blockReason) {
+                          const msg =
+                            blockReason === "checkout"
+                              ? "Hóspede anterior ainda não fez check-out. Conclua o check-out e a limpeza para liberar o novo check-in."
+                              : "Limpeza deste imóvel ainda não foi concluída. Finalize a limpeza para liberar o check-in.";
+                          return (
+                            <div className="self-end shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => toast.warning(msg)}
+                                disabled
+                                title={
+                                  blockReason === "checkout"
+                                    ? "Check-out anterior pendente — limpeza precisa ser concluída antes de liberar o check-in"
+                                    : "Limpeza ainda em andamento — check-in bloqueado"
+                                }
+                                aria-label={
+                                  blockReason === "checkout"
+                                    ? "Check-out anterior pendente neste imóvel"
+                                    : "Limpeza pendente neste imóvel"
+                                }
+                                className="size-8 grid place-items-center rounded-lg bg-orange-500/25 text-orange-700 dark:text-orange-400 border border-orange-500/50 cursor-not-allowed"
+                              >
+                                <Check className="size-4" />
+                              </button>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="self-end shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => onAdvance(r)}
+                              title="Marcar como concluído"
+                              aria-label="Marcar como concluído"
+                              className="size-8 grid place-items-center rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                            >
+                              <Check className="size-4" />
+                            </button>
+                          </div>
+                        );
+                      })()}
                   </li>
                 );
               })}
@@ -2878,7 +2942,14 @@ function EngagementBreakdownDialog({
   trigger: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const list = useWholeCardsMaxHeight(2, `${open}:${breakdown.viewed.length}:${breakdown.notViewed.length}`);
+  // Mesmo racional dos quadrantes de check-in/check-out (useWholeCardsMaxHeight):
+  // mostra sempre cards INTEIROS, nunca corta um no meio. Como aqui existem 2
+  // listas independentes (quem viu / quem não viu), cada uma precisa da sua
+  // própria medição — antes as duas dividiam uma única altura, então a lista
+  // de "quem viu" sozinha já esgotava o limite de 2 cards e "não viram" nunca
+  // chegava a aparecer (ficava escondida abaixo do scroll sem o usuário notar).
+  const viewedList = useWholeCardsMaxHeight(2, `${open}:${breakdown.viewed.length}`);
+  const notViewedList = useWholeCardsMaxHeight(2, `${open}:${breakdown.notViewed.length}`);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
@@ -2897,22 +2968,30 @@ function EngagementBreakdownDialog({
             </div>
           </div>
         </DialogHeader>
-        <div
-          ref={list.ref}
-          style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
-          className="sg-elegant-scroll max-h-[70vh] overflow-y-auto px-5 space-y-4 text-sm"
-        >
+        <div className="max-h-[70vh] overflow-y-auto px-5 pb-5 space-y-4 text-sm">
           <div>
             <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-400">
               Viram ({breakdown.viewed.length})
             </div>
-            <GuestMarkList items={breakdown.viewed} tone="ok" />
+            <div
+              ref={viewedList.ref}
+              style={viewedList.maxHeight !== undefined ? { maxHeight: viewedList.maxHeight } : undefined}
+              className="sg-elegant-scroll overflow-y-auto pr-0.5"
+            >
+              <GuestMarkList items={breakdown.viewed} tone="ok" />
+            </div>
           </div>
           <div>
             <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-rose-600 dark:text-rose-400">
               Não viram ({breakdown.notViewed.length})
             </div>
-            <GuestMarkList items={breakdown.notViewed} tone="off" />
+            <div
+              ref={notViewedList.ref}
+              style={notViewedList.maxHeight !== undefined ? { maxHeight: notViewedList.maxHeight } : undefined}
+              className="sg-elegant-scroll overflow-y-auto pr-0.5"
+            >
+              <GuestMarkList items={breakdown.notViewed} tone="off" />
+            </div>
           </div>
         </div>
       </DialogContent>
@@ -3242,6 +3321,29 @@ function ArrivalCard({
               <CopyButton value={row.reservationCode} size={10} className="p-0.5" />
             </div>
           )}
+
+          {/* Período — logo abaixo do código da reserva e acima do
+              proprietário (pedido explícito). Cor em contraste com o fundo:
+              amarelo no tema escuro, laranja escuro no tema claro — não é
+              mais a mesma cor do nome do hóspede. */}
+          <div className="flex items-center gap-1.5 text-xs flex-wrap text-orange-700 dark:text-yellow-400">
+            <DateEditor
+              value={row.guestCheckin}
+              disabled={busy || isPendingFill}
+              onChange={(v) => onEditDates(row, { checkinDate: v })}
+            />
+            {row.guestCheckout && (
+              <>
+                <span>→</span>
+                <DateEditor
+                  value={row.guestCheckout}
+                  disabled={busy || isPendingFill}
+                  onChange={(v) => onEditDates(row, { checkoutDate: v })}
+                />
+              </>
+            )}
+          </div>
+
           <OwnerLine
             name={row.ownerName}
             phone={row.ownerPhone}
@@ -3275,25 +3377,6 @@ function ArrivalCard({
                 <span className="min-w-0 truncate">{row.guestName}</span>
                 <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
               </span>
-            )}
-          </div>
-
-          {/* Período — mesma fonte/cor do nome do hóspede, em linha própria */}
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
-            <DateEditor
-              value={row.guestCheckin}
-              disabled={busy || isPendingFill}
-              onChange={(v) => onEditDates(row, { checkinDate: v })}
-            />
-            {row.guestCheckout && (
-              <>
-                <span>→</span>
-                <DateEditor
-                  value={row.guestCheckout}
-                  disabled={busy || isPendingFill}
-                  onChange={(v) => onEditDates(row, { checkoutDate: v })}
-                />
-              </>
             )}
           </div>
         </div>
