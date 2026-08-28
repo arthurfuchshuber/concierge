@@ -306,12 +306,30 @@ export async function buildArrivalRows(
         .limit(5000),
       reservationsQuery.order(data.kind === "checkin" ? "checkin_date" : "checkout_date", { ascending: true }).limit(10000),
       uniqueLogs.length > 0
-        ? context.supabase
-            .from("guide_section_events")
-            .select("property_id, section, guest_name, guest_phone")
-            .in("property_id", propIds)
-            .in("section", ["home", "checkin", "checkin-lido", "senhas", "senhas:lock", "senhas:gate", "saida", "residencia", "faq", "explorar"])
-            .limit(5000)
+        ? (async () => {
+            // IMPORTANTE: o Data API corta a resposta em 1000 linhas mesmo com
+            // .limit() maior. Como buscamos VÁRIAS seções de uma vez (a maioria
+            // são eventos de navegação), seções raras como "checkin-lido"
+            // caíam fora do corte e o card mostrava "não leu as instruções"
+            // enquanto a barra do topo (que consulta só essa seção) dizia o
+            // contrário. Paginamos para trazer tudo.
+            type Ev = { property_id: string; section: string; guest_name: string | null; guest_phone: string | null };
+            const all: Ev[] = [];
+            const PAGE = 1000;
+            for (let page = 0; page < 30; page++) {
+              const { data: chunk } = await context.supabase
+                .from("guide_section_events")
+                .select("property_id, section, guest_name, guest_phone, created_at")
+                .in("property_id", propIds)
+                .in("section", ["home", "checkin", "checkin-lido", "senhas", "senhas:lock", "senhas:gate", "saida", "residencia", "faq", "explorar"])
+                .order("created_at", { ascending: false })
+                .range(page * PAGE, page * PAGE + PAGE - 1);
+              const rows = (chunk ?? []) as Ev[];
+              all.push(...rows);
+              if (rows.length < PAGE) break;
+            }
+            return { data: all };
+          })()
         : Promise.resolve({
             data: [] as Array<{
               property_id: string;
@@ -463,6 +481,16 @@ export async function buildArrivalRows(
       if (codes.length === 1 && hasSeen(seenAnyPassword, pid, name, phone)) return true;
       return codes.every((c) => hasSeen(c === "lock" ? seenLock : seenGate, pid, name, phone));
     };
+
+    // Engajamento é sempre avaliado no GRUPO da reserva (hóspede principal +
+    // adicionais): basta um deles ter lido/visto. É a mesma base usada pelas
+    // barras do topo do dashboard — sem isso, card e barra divergiam quando o
+    // hóspede que abriu o guia não era o "principal".
+    type Person = { name: string | null; phone: string | null };
+    const groupSeen = (set: SeenSets, pid: string, people: Person[]) =>
+      people.some((p) => hasSeen(set, pid, p.name, p.phone));
+    const groupSawAllPasswords = (pid: string, people: Person[]) =>
+      people.some((p) => sawAllPasswords(pid, p.name, p.phone));
 
     type StatusRow = {
       log_id: string | null;
@@ -659,6 +687,7 @@ export async function buildArrivalRows(
       extras: (typeof uniqueLogs)[number][] = [],
     ): ArrivalRow | null {
       const p = propMap.get(l.property_id);
+      const logGroupPeople: Person[] = [l, ...extras].map((g) => ({ name: g.guest_name, phone: g.guest_phone }));
       const s = statusMap.get(l.id);
       if (s?.concluded_at) return null;
       const date = data.kind === "checkin" ? l.checkin_date : (l.checkout_date ?? l.checkin_date);
@@ -714,10 +743,10 @@ export async function buildArrivalRows(
         mapsUrl: p?.maps_url ?? null,
         garageMapsUrl: p?.garage_maps_url ?? null,
         hasPasswords: !!p?.hasPasswords,
-        openedCheckin: hasSeen(openedCheckin, l.property_id, l.guest_name, l.guest_phone),
-        openedGuide: hasSeen(openedGuide, l.property_id, l.guest_name, l.guest_phone),
-        readInstructions: hasSeen(readInstructions, l.property_id, l.guest_name, l.guest_phone),
-        viewedPasswords: sawAllPasswords(l.property_id, l.guest_name, l.guest_phone),
+        openedCheckin: groupSeen(openedCheckin, l.property_id, logGroupPeople),
+        openedGuide: groupSeen(openedGuide, l.property_id, logGroupPeople),
+        readInstructions: groupSeen(readInstructions, l.property_id, logGroupPeople),
+        viewedPasswords: groupSawAllPasswords(l.property_id, logGroupPeople),
         guestName: l.guest_name,
         guestPhone: l.guest_phone,
         guestPhoneCountry: l.guest_phone_country,
@@ -763,6 +792,9 @@ export async function buildArrivalRows(
       extras: (typeof uniqueLogs)[number][] = [],
     ): ArrivalRow | null {
       const p = propMap.get(r.property_id);
+      const resGroupPeople: Person[] = [matchedLog, ...extras]
+        .filter((g): g is (typeof uniqueLogs)[number] => !!g)
+        .map((g) => ({ name: g.guest_name, phone: g.guest_phone }));
       const legacy = placeholderStatus.get(placeholderKey(r.property_id, r.checkin_date, r.checkout_date, data.kind));
       const logStatus = matchedLog ? statusMap.get(matchedLog.id) : undefined;
       const s = reservationStatusMap.get(r.id) ?? legacy ?? logStatus;
@@ -795,10 +827,10 @@ export async function buildArrivalRows(
         mapsUrl: p?.maps_url ?? null,
         garageMapsUrl: p?.garage_maps_url ?? null,
         hasPasswords: !!p?.hasPasswords,
-        openedCheckin: matchedLog ? hasSeen(openedCheckin, matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
-        openedGuide: matchedLog ? hasSeen(openedGuide, matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
-        readInstructions: matchedLog ? hasSeen(readInstructions, matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
-        viewedPasswords: matchedLog ? sawAllPasswords(matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
+        openedCheckin: groupSeen(openedCheckin, r.property_id, resGroupPeople),
+        openedGuide: groupSeen(openedGuide, r.property_id, resGroupPeople),
+        readInstructions: groupSeen(readInstructions, r.property_id, resGroupPeople),
+        viewedPasswords: matchedLog ? groupSawAllPasswords(r.property_id, resGroupPeople) : false,
         guestName: matchedLog?.guest_name ?? r.guest_hint ?? "Reserva Airbnb",
         guestPhone: matchedLog?.guest_phone ?? null,
         guestPhoneCountry: matchedLog?.guest_phone_country ?? null,
