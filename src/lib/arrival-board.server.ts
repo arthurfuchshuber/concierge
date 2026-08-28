@@ -54,6 +54,94 @@ function isRealReservation(row: { status?: string | null; raw_summary?: string |
   return true;
 }
 
+export type ArrivalLogRow = {
+  id: string;
+  property_id: string;
+  guest_name: string | null;
+  guest_phone: string | null;
+  checkin_date: string;
+  checkout_date: string | null;
+  reservation_code: string | null;
+  created_at: string;
+};
+
+/**
+ * Dedupe apenas submissões repetidas do MESMO formulário para a MESMA
+ * estadia (nunca mescla reservas back-to-back na mesma unidade — checkout
+ * faz parte da identidade, pois um hóspede pode sair no mesmo dia que outro
+ * entra). Compartilhado entre o Kanban (buildArrivalRows) e o agregado de
+ * engajamento do Dashboard (getGuideEngagement) para que os dois nunca
+ * "casem" hóspedes diferentes com a mesma reserva.
+ */
+export function dedupeFormLogs<T extends ArrivalLogRow>(logs: T[]): T[] {
+  const dedupMap = new Map<string, T>();
+  for (const l of logs) {
+    const key = `${l.property_id}|${(l.guest_name || "").trim().toLowerCase()}|${(l.guest_phone || "").replace(/\D/g, "")}|${l.checkin_date}|${l.checkout_date ?? ""}|${l.reservation_code ?? ""}`;
+    const prev = dedupMap.get(key);
+    if (!prev || new Date(l.created_at) > new Date(prev.created_at)) dedupMap.set(key, l);
+  }
+  return Array.from(dedupMap.values());
+}
+
+export function normalizeReservationCode(s: string | null | undefined): string | null {
+  if (!s) return null;
+  const m = String(s).match(/HM[A-Z0-9]{6,}/i);
+  return m ? m[0].toUpperCase() : null;
+}
+
+/**
+ * Retorna todos os logs que representam hóspedes da MESMA reserva iCal
+ * (primário + acompanhantes). Ordenados por prioridade (código HM bate mais
+ * forte que datas), o primeiro vira o hóspede exibido; os demais ficam como
+ * acompanhantes. Usada tanto pelo Kanban (buildArrivalRows) quanto pelo
+ * agregado de engajamento do Dashboard (getGuideEngagement) — é o que
+ * garante que os dois concordem sobre QUAL hóspede pertence a qual reserva
+ * (antes, o Dashboard usava um casamento mais simples e podia atribuir a
+ * reserva a um hóspede diferente do que aparece no card do Kanban).
+ */
+export function findLogsForReservation<T extends ArrivalLogRow>(
+  uniqueLogs: T[],
+  r: { property_id: string; checkin_date: string; checkout_date: string | null; guest_hint?: string | null },
+  kind: "checkin" | "checkout",
+): { primary: T | null; extras: T[] } {
+  const resCode = normalizeReservationCode(r.guest_hint);
+  const matched: T[] = [];
+  const seen = new Set<string>();
+  const push = (l: T) => {
+    if (seen.has(l.id)) return;
+    seen.add(l.id);
+    matched.push(l);
+  };
+  if (resCode) {
+    for (const l of uniqueLogs) {
+      if (l.property_id !== r.property_id) continue;
+      if (normalizeReservationCode(l.reservation_code) === resCode) push(l);
+    }
+  }
+  // Datas exatas — só quando é seguro (mesma trava do antigo findBest).
+  for (const l of uniqueLogs) {
+    if (l.property_id !== r.property_id) continue;
+    if (l.checkin_date !== r.checkin_date || l.checkout_date !== r.checkout_date) continue;
+    const logCode = normalizeReservationCode(l.reservation_code);
+    if (resCode && logCode && logCode !== resCode) continue;
+    if (resCode && !logCode && kind === "checkin") continue;
+    push(l);
+  }
+  if (matched.length === 0) return { primary: null, extras: [] };
+  // Ordena: com código HM primeiro, depois datas exatas, depois created_at asc
+  // (hóspede principal = o PRIMEIRO que acessou o guia desta reserva).
+  matched.sort((a, b) => {
+    const aCode = resCode && normalizeReservationCode(a.reservation_code) === resCode ? 1 : 0;
+    const bCode = resCode && normalizeReservationCode(b.reservation_code) === resCode ? 1 : 0;
+    if (aCode !== bCode) return bCode - aCode;
+    const aExact = a.checkin_date === r.checkin_date && a.checkout_date === r.checkout_date ? 1 : 0;
+    const bExact = b.checkin_date === r.checkin_date && b.checkout_date === r.checkout_date ? 1 : 0;
+    if (aExact !== bExact) return bExact - aExact;
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  });
+  return { primary: matched[0], extras: matched.slice(1) };
+}
+
 /**
  * Ressincroniza iCals desatualizados (>10min) para que qualquer superfície
  * (Kanban, KPIs, calendário de ocupação) leia sempre a reserva mais recente.
@@ -155,16 +243,9 @@ export async function buildArrivalRows(
     }>;
     const placeholderLogs = rawLogs.filter((l) => isPlaceholderGuest(l.guest_name));
     const formLogs = rawLogs.filter((l) => !isPlaceholderGuest(l.guest_name));
-    // Dedupe only truly repeated form submissions for the same stay. Never merge
-    // adjacent back-to-back reservations in the same unit: checkout is part of
-    // the identity, because one guest can leave on the same day another enters.
-    const dedupMap = new Map<string, (typeof rawLogs)[number]>();
-    for (const l of formLogs) {
-      const key = `${l.property_id}|${(l.guest_name || "").trim().toLowerCase()}|${(l.guest_phone || "").replace(/\D/g, "")}|${l.checkin_date}|${l.checkout_date ?? ""}|${l.reservation_code ?? ""}`;
-      const prev = dedupMap.get(key);
-      if (!prev || new Date(l.created_at) > new Date(prev.created_at)) dedupMap.set(key, l);
-    }
-    const uniqueLogs = Array.from(dedupMap.values());
+    // Dedupe only truly repeated form submissions for the same stay (helper
+    // compartilhado com getGuideEngagement — ver dedupeFormLogs acima).
+    const uniqueLogs = dedupeFormLogs(formLogs);
 
     const reservationWindowStart = data.range === "tomorrow" ? addDaysISO(today, 1) : today;
     const reservationWindowEnd =
@@ -499,7 +580,7 @@ export async function buildArrivalRows(
       if (checkinDoneReservations.has(r.id)) return true;
       const legacy = placeholderStatus.get(placeholderKey(r.property_id, r.checkin_date, r.checkout_date, "checkin"));
       if (legacy && (legacy.status === "done" || !!legacy.done_at)) return true;
-      const { primary, extras } = findLogsForReservation(r);
+      const { primary, extras } = findLogsForReservation(uniqueLogs, r, data.kind);
       return [primary, ...extras].some((l) => logCheckinDone(l?.id));
     }
 
@@ -537,55 +618,11 @@ export async function buildArrivalRows(
     }
 
 
-    function normalizeCode(s: string | null | undefined): string | null {
-      if (!s) return null;
-      const m = String(s).match(/HM[A-Z0-9]{6,}/i);
-      return m ? m[0].toUpperCase() : null;
-    }
-    // Retorna todos os logs que representam hóspedes da MESMA reserva iCal
-    // (primário + acompanhantes). Ordenados por prioridade (código HM bate mais
-    // forte que datas), o primeiro vira o hóspede exibido; os demais ficam como
-    // "additionalGuests" no mesmo card — grupos que digitaram o formulário no
-    // mesmo período para a mesma residência.
-    function findLogsForReservation(r: ReservationRow): { primary: (typeof uniqueLogs)[number] | null; extras: (typeof uniqueLogs)[number][] } {
-      const resCode = normalizeCode(r.guest_hint);
-      const matched: (typeof uniqueLogs)[number][] = [];
-      const seen = new Set<string>();
-      const push = (l: (typeof uniqueLogs)[number]) => {
-        if (seen.has(l.id)) return;
-        seen.add(l.id);
-        matched.push(l);
-      };
-      if (resCode) {
-        for (const l of uniqueLogs) {
-          if (l.property_id !== r.property_id) continue;
-          if (normalizeCode(l.reservation_code) === resCode) push(l);
-        }
-      }
-      // Datas exatas — só quando é seguro (mesma trava do antigo findBest).
-      for (const l of uniqueLogs) {
-        if (l.property_id !== r.property_id) continue;
-        if (l.checkin_date !== r.checkin_date || l.checkout_date !== r.checkout_date) continue;
-        const logCode = normalizeCode(l.reservation_code);
-        if (resCode && logCode && logCode !== resCode) continue;
-        if (resCode && !logCode && data.kind === "checkin") continue;
-        push(l);
-      }
-      if (matched.length === 0) return { primary: null, extras: [] };
-      // Ordena: com código HM primeiro, depois datas exatas, depois created_at desc.
-      matched.sort((a, b) => {
-        const aCode = resCode && normalizeCode(a.reservation_code) === resCode ? 1 : 0;
-        const bCode = resCode && normalizeCode(b.reservation_code) === resCode ? 1 : 0;
-        if (aCode !== bCode) return bCode - aCode;
-        const aExact = a.checkin_date === r.checkin_date && a.checkout_date === r.checkout_date ? 1 : 0;
-        const bExact = b.checkin_date === r.checkin_date && b.checkout_date === r.checkout_date ? 1 : 0;
-        if (aExact !== bExact) return bExact - aExact;
-        // Hóspede principal = o PRIMEIRO que acessou o guia desta reserva.
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      });
-      return { primary: matched[0], extras: matched.slice(1) };
-    }
-
+    // normalizeCode/findLogsForReservation agora são as funções exportadas no
+    // topo do arquivo (normalizeReservationCode/findLogsForReservation) —
+    // compartilhadas com getGuideEngagement (dashboard.functions.ts) para que
+    // os dois nunca "casem" hóspedes diferentes com a mesma reserva.
+    const normalizeCode = normalizeReservationCode;
 
     const nowHM = nowHHMMSaoPaulo();
     // Auto-distribuição APENAS na importação: quando uma reserva/registro é
@@ -806,7 +843,7 @@ export async function buildArrivalRows(
     for (const r of _filtered) {
       const p = propMap.get(r.property_id);
       if (!p?.airbnb_ical_url) continue;
-      const { primary: matchedLog, extras } = findLogsForReservation(r);
+      const { primary: matchedLog, extras } = findLogsForReservation(uniqueLogs, r, data.kind);
       if (matchedLog) usedLogIds.add(matchedLog.id);
       for (const e of extras) usedLogIds.add(e.id);
       const row = rowFromReservation(r, matchedLog, extras);

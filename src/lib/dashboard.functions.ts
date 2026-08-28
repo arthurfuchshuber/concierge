@@ -339,7 +339,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         .in("id", propIds),
       context.supabase
         .from("property_reservations")
-        .select("id, property_id, checkin_date, checkout_date, status, raw_summary")
+        .select("id, property_id, checkin_date, checkout_date, status, raw_summary, guest_hint")
         .in("property_id", propIds)
         .eq("source", "airbnb")
         .gte("checkin_date", from)
@@ -348,7 +348,9 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         .limit(5000),
       context.supabase
         .from("guide_access_logs")
-        .select("id, property_id, guest_name, guest_phone, guest_arrival_time, checkin_date")
+        .select(
+          "id, property_id, guest_name, guest_phone, guest_arrival_time, checkin_date, checkout_date, reservation_code, created_at",
+        )
         .in("property_id", propIds)
         .gte("checkin_date", from)
         .lte("checkin_date", to)
@@ -385,33 +387,42 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       guest_name: string | null;
       guest_phone: string | null;
       guest_arrival_time?: string | null;
-      checkin_date: string | null;
+      checkin_date: string;
+      checkout_date: string | null;
+      reservation_code: string | null;
+      created_at: string;
     };
     const allLogs = ((logs ?? []) as LogRow[]).filter((r) => !isPlaceholderGuest(r.guest_name));
+    // Casamento reserva→hóspede (código HM + datas), a MESMA lógica usada
+    // pelo Kanban (import dinâmico: arrival-board.server é server-only) —
+    // sem isso, este agregado podia atribuir a reserva a um hóspede diferente
+    // do que aparece no card, fazendo a barra do topo do Dashboard divergir
+    // do "ENGAJAMENTO" mostrado no card daquele check-in.
+    const { dedupeFormLogs, findLogsForReservation } = await import("@/lib/arrival-board.server");
+    const uniqueLogs = dedupeFormLogs(allLogs);
 
     // Uma entrada por check-in PENDENTE do período (mesma base usada no contador).
     type Entry = { property_id: string; name: string; phone: string | null; time: string | null };
     const entries: Entry[] = [];
-    const usedLog = new Set<number>();
 
     for (const r of (reservations ?? []) as Array<{
       id: string;
       property_id: string;
       checkin_date: string | null;
+      checkout_date: string | null;
       status: string | null;
       raw_summary: string | null;
+      guest_hint: string | null;
     }>) {
       if (!icalProps.has(r.property_id) || !isRealReservation(r)) continue;
-      let matched: LogRow | null = null;
-      for (let i = 0; i < allLogs.length; i++) {
-        if (usedLog.has(i)) continue;
-        const l = allLogs[i];
-        if (l.property_id !== r.property_id) continue;
-        if (l.checkin_date && r.checkin_date && l.checkin_date !== r.checkin_date) continue;
-        usedLog.add(i);
-        matched = l;
-        break;
-      }
+      const matched: LogRow | null =
+        r.checkin_date && r.checkout_date
+          ? findLogsForReservation(
+              uniqueLogs,
+              { property_id: r.property_id, checkin_date: r.checkin_date, checkout_date: r.checkout_date, guest_hint: r.guest_hint },
+              "checkin",
+            ).primary
+          : null;
       if (doneReservations.has(r.id) || (matched && doneLogs.has(matched.id))) continue;
       entries.push({
         property_id: r.property_id,

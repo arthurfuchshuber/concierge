@@ -759,25 +759,104 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     };
   }
 
-  // Extraído como função pra poder aparecer em dois lugares diferentes (ao
-  // lado dos pendentes no desktop, embaixo no mobile) sem duplicar o JSX de
-  // verdade — os dois pontos de chamada leem o mesmo engQ/range do
-  // componente pai, então nunca ficam dessincronizados entre si.
-  function renderEngagementPanel(wrapperClassName: string) {
-    // Só aparece quando existe informação de visualização; sem dados, some.
+  // Painel de engajamento, agora no TOPO da página (antes dos cards de
+  // check-ins/checkouts) — mesmo tratamento visual do mockup aprovado
+  // (borda + gradiente radial roxo/rosa + acento lateral + rótulo com
+  // ícone), só sem negrito nas frases. Some quando não há dado, igual já
+  // era. No mobile continua sendo 1 card só com as 2 métricas juntas
+  // (EngagementBars não muda por dentro) — só reposicionado. No desktop
+  // quebra em 2 cards, um por métrica, lado a lado.
+  const engagementCardBg =
+    "radial-gradient(120% 140% at 0% 0%, rgba(168,85,247,0.16), transparent 55%), radial-gradient(120% 140% at 100% 100%, rgba(236,72,153,0.12), transparent 55%)";
+  const engagementAccentBar = (
+    <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-purple-500 to-pink-500" />
+  );
+  const engagementEyebrowClass =
+    "flex items-center gap-1.5 text-[10px] font-normal uppercase tracking-[0.14em] text-purple-600 dark:text-purple-300";
+  function renderEngagementTop() {
     const hasData = (engQ.data?.checkinsInPeriod ?? 0) > 0 || (engQ.data?.checkinsWithCodes ?? 0) > 0;
     if (!engQ.isLoading && !hasData) return null;
 
+    const loading = engQ.isLoading;
+    const pctOf = (num: number, total: number) => Math.min(100, Math.round((num / Math.max(total, 1)) * 100));
+    const checkins = engQ.data?.checkinsInPeriod ?? 0;
+    const checkinsWithCodes = engQ.data?.checkinsWithCodes ?? 0;
+    const checkinBreakdown = engQ.data?.checkinBreakdown;
+    const codesBreakdown = engQ.data?.codesBreakdown;
+    const checkinViewed = checkinBreakdown?.viewed.length ?? 0;
+    const codesViewed = codesBreakdown?.viewed.length ?? 0;
+    const showCheckin = checkins > 0;
+    const showCodes = checkinsWithCodes > 0;
+
     return (
-      <section className={`rounded-[0.3rem] border-0 bg-card p-4 sm:p-5 ds-3d ${wrapperClassName}`}>
-        <EngagementBars
-          loading={engQ.isLoading}
-          checkins={engQ.data?.checkinsInPeriod ?? 0}
-          checkinsWithCodes={engQ.data?.checkinsWithCodes ?? 0}
-          checkinBreakdown={engQ.data?.checkinBreakdown}
-          codesBreakdown={engQ.data?.codesBreakdown}
-        />
-      </section>
+      <>
+        {/* Mobile: 1 card só, as 2 métricas juntas — estrutura interna
+            idêntica à de sempre (EngagementBars não muda), só reposicionado
+            pro topo e com o destaque do mockup. */}
+        <div
+          className="lg:hidden relative overflow-hidden rounded-lg border border-purple-300/30 bg-card p-4 shadow-[0_8px_24px_-12px_rgba(168,85,247,0.35)]"
+          style={{ backgroundImage: engagementCardBg }}
+        >
+          {engagementAccentBar}
+          <div className={`mb-2.5 ${engagementEyebrowClass}`}>
+            <TrendingUp className="size-3" />
+            Engajamento
+          </div>
+          <EngagementBars
+            loading={loading}
+            checkins={checkins}
+            checkinsWithCodes={checkinsWithCodes}
+            checkinBreakdown={checkinBreakdown}
+            codesBreakdown={codesBreakdown}
+          />
+        </div>
+
+        {/* Desktop: 2 cards separados, um por métrica, lado a lado. */}
+        <div className="hidden lg:block">
+          <div className={`mb-1.5 pl-0.5 ${engagementEyebrowClass}`}>
+            <TrendingUp className="size-3" />
+            Engajamento dos hóspedes
+          </div>
+          {loading ? (
+            <div
+              className="relative overflow-hidden rounded-lg border border-purple-300/30 bg-card py-6 text-center text-sm text-muted-foreground shadow-[0_8px_24px_-12px_rgba(168,85,247,0.35)]"
+              style={{ backgroundImage: engagementCardBg }}
+            >
+              {engagementAccentBar}
+              <Loader2 className="size-4 inline animate-spin" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-4 gap-1.5">
+              {showCheckin && (
+                <div className={showCodes ? "col-span-2" : "col-span-4"}>
+                  <EngagementCard
+                    icon={ListChecks}
+                    label="Viram instruções de check-in"
+                    value={checkinViewed}
+                    total={checkins}
+                    pct={pctOf(checkinViewed, checkins)}
+                    breakdown={checkinBreakdown}
+                    hint='Hóspedes com check-in no período que já abriram as "Instruções" apresentadas na sessão "Chegada" pelo menos uma vez.'
+                  />
+                </div>
+              )}
+              {showCodes && (
+                <div className={showCheckin ? "col-span-2" : "col-span-4"}>
+                  <EngagementCard
+                    icon={KeyRound}
+                    label="Viram senha de acesso"
+                    value={codesViewed}
+                    total={checkinsWithCodes}
+                    pct={pctOf(codesViewed, checkinsWithCodes)}
+                    breakdown={codesBreakdown}
+                    hint="Hóspedes com check-in no período que já visualizaram as senhas de acesso no guia pelo menos uma vez."
+                  />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </>
     );
   }
 
@@ -789,17 +868,21 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
       {view === "resumo" ? (
         <>
+          {/* Engajamento do guia — fica no topo, antes de tudo (pedido
+              explícito), com destaque. Ver renderEngagementTop acima. */}
+          {renderEngagementTop()}
+
           {/* Grade única dos KPIs — a ordem visual diverge entre mobile e
               desktop (pedido explícito), então cada card carrega sua própria
               posição via classes "order" (mobile) e "lg:order" (desktop) em
               vez de duplicar o JSX.
               Mobile (grid-cols-2): pendentes → amanhã → liberado p/ limpeza →
-              engajamento → limpezas realizadas → custo total → calendário →
-              em estadia → imóveis livres.
+              limpezas realizadas → custo total → calendário → em estadia →
+              imóveis livres.
               Desktop (lg:grid-cols-4): os 4 cards de pendentes/amanhã numa
-              única linha → liberado p/ limpeza → engajamento → limpezas
-              realizadas, custo total, em estadia e imóveis livres na linha
-              seguinte → calendário por último (posição inalterada). */}
+              única linha → liberado p/ limpeza → limpezas realizadas, custo
+              total, em estadia e imóveis livres na linha seguinte →
+              calendário por último (posição inalterada). */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5">
             <div className="order-1 lg:order-1">
               <KpiCard
@@ -885,13 +968,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               </div>
             ) : null}
 
-            {/* Engajamento do guia — largura total, some quando não há dados. */}
-            {renderEngagementPanel("order-6 lg:order-6 col-span-2 lg:col-span-4")}
-
             {/* Limpezas Realizadas / Custo Total — no mobile ficam logo
                 depois dos filtros (pedido explícito); no desktop voltam pra
-                posição de sempre, logo após o Engajamento, sem se misturar
-                com a linha dos filtros. */}
+                posição de sempre, logo após "Liberado para Limpeza", sem se
+                misturar com a linha dos filtros. (O Engajamento saiu dessa
+                grade — agora fica no topo da página, ver renderEngagementTop.) */}
             <div className="order-9 lg:order-7 col-span-1">
               <StatDisplayCard
                 label="Limpezas Realizadas"
@@ -2579,17 +2660,21 @@ function EngagementBars({
   const checkinViewed = checkinBreakdown?.viewed.length ?? 0;
   const codesViewed = codesBreakdown?.viewed.length ?? 0;
   return (
-    // Grade de 3 colunas (barrinha | frase | valor) compartilhada pelas duas
-    // linhas. A barrinha volta a ficar na 1ª coluna, à esquerda da frase — só
-    // que agora com largura FIXA (mesma nas duas linhas, por definição, já
-    // que é a mesma coluna da grade — não depende mais do quanto sobra de
-    // espaço). Como a 1ª coluna sai sempre com a mesma largura, a 2ª coluna
-    // (frase) também começa sempre no mesmo X nas duas linhas — é assim que
-    // as duas barrinhas batem e as duas frases alinham à esquerda ao mesmo
-    // tempo, sem precisar medir nada via JS.
+    // Grade de 4 colunas (barrinha | frase | espaço flexível | valor)
+    // compartilhada pelas duas linhas. A barrinha fica na 1ª coluna, com
+    // largura FIXA (mesma nas duas linhas, por definição, já que é a mesma
+    // coluna da grade). A 2ª coluna (frase) usa "max-content" — do tamanho
+    // exato do texto, SEM esticar — para que a 2ª coluna comece sempre no
+    // mesmo X nas duas linhas sem sobrar espaço vazio depois da frase (com
+    // "auto" simples, sem nenhuma coluna "1fr", a grade estica as colunas
+    // "auto" para preencher o espaço livre do quadrante — é o que abria um
+    // vão enorme entre a frase e o valor). A 3ª coluna ("1fr") absorve TODO
+    // o espaço livre, empurrando a 4ª coluna (valor) para a borda direita do
+    // quadrante — é assim que o "X de Y" fica sempre alinhado à direita,
+    // não importa a largura do quadrante.
     <div
       className="relative grid items-center gap-x-2.5 gap-y-1.5 text-sm"
-      style={{ gridTemplateColumns: "2.5rem auto auto" }}
+      style={{ gridTemplateColumns: "2.5rem max-content 1fr max-content" }}
     >
       {checkins > 0 && (
         <BarRow
@@ -2613,6 +2698,81 @@ function EngagementBars({
           hint={"Hóspedes com check-in no período que já visualizaram as senhas de acesso no guia pelo menos uma vez."}
         />
       )}
+    </div>
+  );
+}
+
+/**
+ * Card individual do Engajamento (desktop) — exatamente o tratamento visual
+ * do mockup aprovado (borda + fundo com gradiente radial roxo/rosa + acento
+ * lateral + ícone em caixinha + valor em destaque), só sem negrito nas
+ * frases (pedido explícito).
+ */
+function EngagementCard({
+  icon: Icon,
+  label,
+  value,
+  total,
+  pct,
+  breakdown,
+  hint,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: number;
+  total: number;
+  pct: number;
+  breakdown?: Breakdown;
+  hint?: string;
+}) {
+  const labelEl = breakdown ? (
+    <EngagementBreakdownDialog
+      label={label}
+      value={value}
+      total={total}
+      breakdown={breakdown}
+      trigger={
+        <button
+          type="button"
+          aria-label={`Detalhes: ${label}`}
+          className="min-w-0 truncate rounded px-1 -mx-1 py-0.5 text-left text-[13px] font-normal text-foreground transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {label}
+        </button>
+      }
+    />
+  ) : (
+    <span className="min-w-0 truncate text-[13px] font-normal text-foreground">{label}</span>
+  );
+
+  return (
+    <div
+      className="relative h-full overflow-hidden rounded-lg border border-purple-300/30 bg-card px-3.5 py-3 shadow-[0_8px_24px_-12px_rgba(168,85,247,0.35)]"
+      style={{
+        backgroundImage:
+          "radial-gradient(120% 140% at 0% 0%, rgba(168,85,247,0.16), transparent 55%), radial-gradient(120% 140% at 100% 100%, rgba(236,72,153,0.12), transparent 55%)",
+      }}
+    >
+      <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-purple-500 to-pink-500" />
+      <div className="mb-2 flex items-center justify-between gap-2">
+        {labelEl}
+        <span className="grid size-[22px] shrink-0 place-items-center rounded-md bg-purple-500/15 text-purple-600 dark:text-purple-300">
+          <Icon className="size-3" strokeWidth={2.5} />
+        </span>
+      </div>
+      <div className="mb-2 flex items-baseline gap-1.5">
+        <span className="text-[22px] font-normal leading-none tabular-nums text-foreground">{value}</span>
+        <span className="text-xs font-normal text-muted-foreground inline-flex items-center gap-1">
+          de {total} ({pct}%)
+          {hint ? <InfoHint title={label}>{hint}</InfoHint> : null}
+        </span>
+      </div>
+      <div className="h-1.5 w-full rounded-full bg-rose-500/60 overflow-hidden">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-[width] duration-700"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
     </div>
   );
 }
@@ -2678,6 +2838,67 @@ function GuestMarkList({ items, tone }: { items: GuestMark[]; tone: "ok" | "off"
   );
 }
 
+/**
+ * Dialog de detalhe (quem viu / quem não viu) — extraído do BarRow original
+ * pra poder ser reaproveitado também pelo EngagementCard (cards separados do
+ * desktop), sem duplicar esse JSX nos dois lugares.
+ */
+function EngagementBreakdownDialog({
+  label,
+  value,
+  total,
+  breakdown,
+  trigger,
+}: {
+  label: string;
+  value: number;
+  total: number;
+  breakdown: Breakdown;
+  trigger: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const list = useWholeCardsMaxHeight(2, `${open}:${breakdown.viewed.length}:${breakdown.notViewed.length}`);
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-lg border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" />
+        <DialogHeader className="px-5 pt-5 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="grid place-items-center size-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <TrendingUp className="size-5" />
+            </div>
+            <div className="min-w-0">
+              <DialogTitle className="text-base font-display leading-tight">{label}</DialogTitle>
+              <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground mt-0.5">
+                {value} de {total} check-ins
+              </div>
+            </div>
+          </div>
+        </DialogHeader>
+        <div
+          ref={list.ref}
+          style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
+          className="sg-elegant-scroll max-h-[70vh] overflow-y-auto px-5 space-y-4 text-sm"
+        >
+          <div>
+            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-400">
+              Viram ({breakdown.viewed.length})
+            </div>
+            <GuestMarkList items={breakdown.viewed} tone="ok" />
+          </div>
+          <div>
+            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-rose-600 dark:text-rose-400">
+              Não viram ({breakdown.notViewed.length})
+            </div>
+            <GuestMarkList items={breakdown.notViewed} tone="off" />
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function BarRow({
   label,
   value,
@@ -2694,11 +2915,6 @@ function BarRow({
   /** Texto explicativo do que a métrica mede (ícone "i" ao lado do valor). */
   hint?: string;
 }) {
-  const [open, setOpen] = useState(false);
-  const list = useWholeCardsMaxHeight(
-    2,
-    `${open}:${breakdown?.viewed.length ?? 0}:${breakdown?.notViewed.length ?? 0}`,
-  );
   // Cada BarRow devolve um FRAGMENT com 3 itens soltos, na ordem barrinha →
   // frase → valor — sem <div> envolvendo — assim eles caem como filhos
   // DIRETOS da grade de 3 colunas do EngagementBars (ver comentário lá): é
@@ -2719,11 +2935,17 @@ function BarRow({
       {hint ? <InfoHint title={label}>{hint}</InfoHint> : null}
     </span>
   );
+  // Espaçador vazio — 3ª coluna ("1fr") da grade em EngagementBars. Sem ele,
+  // a grade não teria um item nessa coluna para "abrir espaço" antes do
+  // valor, e o valor acabaria colado logo após a frase em vez de encostado
+  // na borda direita do quadrante.
+  const spacerCell = <span aria-hidden="true" />;
   if (!breakdown) {
     return (
       <>
         {barCell}
         <span className="whitespace-nowrap font-medium">{label}</span>
+        {spacerCell}
         {valueCell}
       </>
     );
@@ -2731,8 +2953,12 @@ function BarRow({
   return (
     <>
       {barCell}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
+      <EngagementBreakdownDialog
+        label={label}
+        value={value}
+        total={total}
+        breakdown={breakdown}
+        trigger={
           <button
             type="button"
             aria-label={`Detalhes: ${label}`}
@@ -2740,42 +2966,9 @@ function BarRow({
           >
             {label}
           </button>
-        </DialogTrigger>
-        <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-lg border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" />
-          <DialogHeader className="px-5 pt-5 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="grid place-items-center size-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                <TrendingUp className="size-5" />
-              </div>
-              <div className="min-w-0">
-                <DialogTitle className="text-base font-display leading-tight">{label}</DialogTitle>
-                <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground mt-0.5">
-                  {value} de {total} check-ins
-                </div>
-              </div>
-            </div>
-          </DialogHeader>
-          <div
-            ref={list.ref}
-            style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
-            className="sg-elegant-scroll max-h-[70vh] overflow-y-auto px-5 space-y-4 text-sm"
-          >
-            <div>
-              <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-400">
-                Viram ({breakdown.viewed.length})
-              </div>
-              <GuestMarkList items={breakdown.viewed} tone="ok" />
-            </div>
-            <div>
-              <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-rose-600 dark:text-rose-400">
-                Não viram ({breakdown.notViewed.length})
-              </div>
-              <GuestMarkList items={breakdown.notViewed} tone="off" />
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+        }
+      />
+      {spacerCell}
       {valueCell}
     </>
   );
