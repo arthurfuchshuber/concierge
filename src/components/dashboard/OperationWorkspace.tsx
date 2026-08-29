@@ -1779,8 +1779,10 @@ function KpiCard({
             </div>
 
             <div
+              // Pedido explícito: fonte um pouco menor que antes nos cards
+              // numéricos da página Operacional — mantendo o negrito.
               className={`font-display font-bold mt-1.5 tabular-nums leading-none ${valueColor} ${
-                shadowTone ? "text-[26px] sm:text-[28px]" : "text-[24px] sm:text-[26px]"
+                shadowTone ? "text-[22px] sm:text-[24px]" : "text-[20px] sm:text-[22px]"
               }`}
             >
               {loading ? "—" : rows.length}
@@ -2005,7 +2007,8 @@ function StatDisplayCard({
           {label}
         </span>
       </div>
-      <div className="text-[24px] sm:text-[26px] font-display font-bold mt-1.5 tabular-nums leading-none text-foreground">
+      {/* Mesmo ajuste dos KpiCards: fonte um pouco menor, negrito mantido. */}
+      <div className="text-[20px] sm:text-[22px] font-display font-bold mt-1.5 tabular-nums leading-none text-foreground">
         {loading ? "—" : value}
       </div>
     </div>
@@ -2360,11 +2363,11 @@ function OccupancyPanel({
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
-          className="flex w-full items-center gap-2.5 px-4 sm:px-5 py-3.5 text-left"
+          // Pedido explícito: sem fundo no ícone, alinhado à esquerda igual
+          // ao ícone do card "Limpezas Realizadas" (mesmo padding px-3.5).
+          className="flex w-full items-center gap-2 px-3.5 py-3.5 text-left"
         >
-          <span className="grid size-7 shrink-0 place-items-center rounded-[0.3rem] bg-muted text-foreground/70">
-            <CalendarRange className="size-3.5" strokeWidth={2} />
-          </span>
+          <CalendarRange className="size-3.5 shrink-0 text-foreground/70" strokeWidth={2} />
           <span className="min-w-0 flex-1 truncate text-[13px] font-medium leading-snug text-foreground">
             Calendário de ocupação
           </span>
@@ -3218,7 +3221,15 @@ function ArrivalCard({
                 />
               </>
             )}
-            {stdWindow && <span className="ml-auto tabular-nums text-foreground">{stdWindow}</span>}
+            {stdWindow && (
+              // Mesma fonte do período (text-xs, tabular-nums, peso normal) —
+              // só a cor muda pra branco/foreground — com um hífen separando
+              // o período do horário (pedido explícito).
+              <span className="ml-auto flex items-center gap-1 text-xs font-normal tabular-nums text-foreground">
+                <span aria-hidden="true">-</span>
+                {stdWindow}
+              </span>
+            )}
           </div>
 
           <OwnerLine
