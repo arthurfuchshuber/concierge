@@ -295,7 +295,7 @@ export async function buildArrivalRows(
       context.supabase
         .from("properties")
         .select(
-          "id, name, address, owner_contact_id, maps_url, garage_maps_url, wifi_password, lock_code, gate_code, checkin_time, checkin_time_max, checkout_time, checkout_time_min, airbnb_ical_url, cleaning_price_normal_cents, cleaning_price_full_cents",
+          "id, name, address, owner_contact_id, maps_url, garage_maps_url, lat, lng, wifi_password, lock_code, gate_code, checkin_time, checkin_time_max, checkout_time, checkout_time_min, airbnb_ical_url, cleaning_price_normal_cents, cleaning_price_full_cents",
         )
 
         .in("id", propIds),
@@ -354,6 +354,8 @@ export async function buildArrivalRows(
         address: string | null;
         maps_url: string | null;
         garage_maps_url: string | null;
+        lat: number | null;
+        lng: number | null;
         hasPasswords: boolean;
         accessCodes: Array<"lock" | "gate">;
         checkin_time: string | null;
@@ -372,6 +374,8 @@ export async function buildArrivalRows(
       owner_contact_id: string | null;
       maps_url: string | null;
       garage_maps_url: string | null;
+      lat: number | null;
+      lng: number | null;
       wifi_password: string | null;
       lock_code: string | null;
       gate_code: string | null;
@@ -391,6 +395,8 @@ export async function buildArrivalRows(
         address: p.address,
         maps_url: p.maps_url,
         garage_maps_url: p.garage_maps_url,
+        lat: p.lat,
+        lng: p.lng,
         // Senha de ACESSO ao imóvel = fechadura/portão (Wi-Fi não conta aqui).
         hasPasswords: !!(p.lock_code?.trim() || p.gate_code?.trim()),
         accessCodes: [
@@ -720,6 +726,8 @@ export async function buildArrivalRows(
         propertyAddress: p?.address ?? null,
         mapsUrl: p?.maps_url ?? null,
         garageMapsUrl: p?.garage_maps_url ?? null,
+        lat: p?.lat ?? null,
+        lng: p?.lng ?? null,
         hasPasswords: !!p?.hasPasswords,
         openedCheckin: hasSeen(openedCheckin, l.property_id, l.guest_name, l.guest_phone),
         openedGuide: hasSeen(openedGuide, l.property_id, l.guest_name, l.guest_phone),
@@ -803,6 +811,8 @@ export async function buildArrivalRows(
         propertyAddress: p?.address ?? null,
         mapsUrl: p?.maps_url ?? null,
         garageMapsUrl: p?.garage_maps_url ?? null,
+        lat: p?.lat ?? null,
+        lng: p?.lng ?? null,
         hasPasswords: !!p?.hasPasswords,
         openedCheckin: matchedLog ? hasSeen(openedCheckin, matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
         openedGuide: matchedLog ? hasSeen(openedGuide, matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,

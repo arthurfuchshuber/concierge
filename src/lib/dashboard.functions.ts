@@ -1594,7 +1594,7 @@ export const listConcludedArrivals = createServerFn({ method: "GET" })
     const resIds = rowsIn.map((r) => r.reservation_id).filter((v): v is string => !!v);
 
     const [{ data: props }, logsRes, resRes] = await Promise.all([
-      context.supabase.from("properties").select("id, name, address, owner_contact_id, maps_url, garage_maps_url").in("id", propIds),
+      context.supabase.from("properties").select("id, name, address, owner_contact_id, maps_url, garage_maps_url, lat, lng").in("id", propIds),
       logIds.length
         ? context.supabase
             .from("guide_access_logs")
@@ -1616,6 +1616,8 @@ export const listConcludedArrivals = createServerFn({ method: "GET" })
       owner_contact_id: string | null;
       maps_url: string | null;
       garage_maps_url: string | null;
+      lat: number | null;
+      lng: number | null;
     }>;
     const ownerIds = Array.from(new Set(propArr.map((p) => p.owner_contact_id).filter((v): v is string => !!v)));
     const ownerNameById = new Map<string, string>();
@@ -1663,6 +1665,8 @@ export const listConcludedArrivals = createServerFn({ method: "GET" })
         propertyAddress: p?.address ?? null,
         mapsUrl: p?.maps_url ?? null,
         garageMapsUrl: p?.garage_maps_url ?? null,
+        lat: p?.lat ?? null,
+        lng: p?.lng ?? null,
         hasPasswords: false,
         openedCheckin: true,
         openedGuide: true,

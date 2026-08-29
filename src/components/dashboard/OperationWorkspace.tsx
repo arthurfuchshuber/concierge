@@ -181,6 +181,153 @@ function centsToBRL(cents: number): string {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+/* ---------- Ordenação de checkouts (pedido explícito) ---------- */
+
+/** Distância em metros entre duas coordenadas (fórmula de haversine). */
+function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const R = 6371000;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(Math.min(1, h)));
+}
+
+/**
+ * Mapa `propriedade|data` → horário previsto do check-in daquele dia (ou
+ * `null` se houver check-in sem horário definido) — usado só pra decidir se
+ * um checkout "cruza" com uma chegada no mesmo imóvel no mesmo dia (giro).
+ * Quando há mais de um check-in no mesmo imóvel/dia (raro), fica o mais cedo.
+ */
+function buildSameDayCheckinLookup(checkinRowSources: ArrivalRow[][]): Map<string, string | null> {
+  const map = new Map<string, string | null>();
+  for (const rows of checkinRowSources) {
+    for (const r of rows) {
+      const key = `${r.propertyId}|${r.date}`;
+      const t = r.arrivalTimeOverride ?? r.guestArrivalTime ?? null;
+      if (!map.has(key)) {
+        map.set(key, t);
+      } else {
+        const cur = map.get(key) ?? null;
+        if (t && (!cur || t < cur)) map.set(key, t);
+      }
+    }
+  }
+  return map;
+}
+
+/** "Próximo" pra fins de agrupamento por endereço (regra 4) — imóveis a até
+ * essa distância entram no mesmo cluster (cobre com folga o caso de mesmo
+ * endereço/condomínio). */
+const PROXIMITY_CLUSTER_METERS = 150;
+
+/**
+ * Agrupa os itens de um grupo empatado por proximidade (lat/lng) — pedido
+ * explícito: "se tem 3 imóveis no mesmo endereço, eles precisam ser
+ * mostrados juntos", e os clusters MAIORES vêm antes dos menores ("maior
+ * quantidade de imóveis próximos para a menor quantidade"). Dentro de cada
+ * cluster, os itens são encadeados pelo vizinho mais próximo (rota curta).
+ * Imóveis sem coordenada cadastrada não competem nesse critério; ficam ao
+ * final do grupo, na ordem que já tinham.
+ */
+function clusterByProximity(group: ArrivalRow[]): ArrivalRow[] {
+  if (group.length <= 2) return group;
+  const withCoords = group.filter((r) => r.lat != null && r.lng != null);
+  const withoutCoords = group.filter((r) => r.lat == null || r.lng == null);
+  if (withCoords.length <= 1) return group;
+
+  // Agrupamento por limiar fixo (ligação simples): um imóvel entra no
+  // primeiro cluster em que tiver algum vizinho dentro de PROXIMITY_CLUSTER_METERS.
+  const clusters: ArrivalRow[][] = [];
+  for (const r of withCoords) {
+    const target = clusters.find((c) =>
+      c.some(
+        (m) =>
+          haversineMeters({ lat: m.lat as number, lng: m.lng as number }, { lat: r.lat as number, lng: r.lng as number }) <=
+          PROXIMITY_CLUSTER_METERS,
+      ),
+    );
+    if (target) target.push(r);
+    else clusters.push([r]);
+  }
+
+  // Maior cluster primeiro (pedido explícito); empate de tamanho mantém a
+  // ordem em que os clusters surgiram.
+  clusters.sort((a, b) => b.length - a.length);
+
+  const chainCluster = (c: ArrivalRow[]): ArrivalRow[] => {
+    if (c.length <= 2) return c;
+    const remaining = [...c];
+    const chain: ArrivalRow[] = [remaining.shift() as ArrivalRow];
+    while (remaining.length > 0) {
+      const last = chain[chain.length - 1];
+      let bestIdx = 0;
+      let bestDist = Infinity;
+      for (let k = 0; k < remaining.length; k++) {
+        const cand = remaining[k];
+        const d = haversineMeters({ lat: last.lat as number, lng: last.lng as number }, { lat: cand.lat as number, lng: cand.lng as number });
+        if (d < bestDist) {
+          bestDist = d;
+          bestIdx = k;
+        }
+      }
+      chain.push(remaining.splice(bestIdx, 1)[0]);
+    }
+    return chain;
+  };
+
+  return [...clusters.flatMap(chainCluster), ...withoutCoords];
+}
+
+/**
+ * Ordenação dos checkouts (pedido explícito), em ordem de prioridade:
+ * 1) imóvel com check-in previsto no MESMO dia (giro) sobe pro topo;
+ * 2) dentro do giro, pelo horário previsto do check-in que está chegando
+ *    (mais cedo primeiro);
+ * 3) o que sobrar (inclusive quem não tem giro) pelo horário previsto do
+ *    próprio checkout (mais cedo primeiro);
+ * 4) o que ainda estiver empatado, por proximidade de endereço — agrupado
+ *    em clusters de imóveis próximos, do MAIOR cluster para o menor.
+ * `checkinRowSources` recebe TODAS as fontes de check-in relevantes pro
+ * mesmo período das linhas de checkout (não só as pendentes: um giro conta
+ * mesmo que o check-in já tenha sido marcado feito).
+ */
+function sortCheckoutRows(rows: ArrivalRow[], checkinRowSources: ArrivalRow[][]): ArrivalRow[] {
+  const sameDayCheckin = buildSameDayCheckinLookup(checkinRowSources);
+  const ownTime = (r: ArrivalRow) => r.arrivalTimeOverride ?? r.guestArrivalTime ?? null;
+  const turnoverKey = (r: ArrivalRow) => `${r.propertyId}|${r.date}`;
+  const hasTurnover = (r: ArrivalRow) => sameDayCheckin.has(turnoverKey(r));
+  const turnoverTime = (r: ArrivalRow) => sameDayCheckin.get(turnoverKey(r)) ?? null;
+  const compareTimes = (ta: string | null, tb: string | null) => {
+    if (ta === tb) return 0;
+    if (!ta) return 1;
+    if (!tb) return -1;
+    return ta.localeCompare(tb);
+  };
+  const cmp = (a: ArrivalRow, b: ArrivalRow) => {
+    const ga = hasTurnover(a) ? 0 : 1;
+    const gb = hasTurnover(b) ? 0 : 1;
+    if (ga !== gb) return ga - gb;
+    if (ga === 0) {
+      const c = compareTimes(turnoverTime(a), turnoverTime(b));
+      if (c !== 0) return c;
+    }
+    return compareTimes(ownTime(a), ownTime(b));
+  };
+  const sorted = [...rows].sort(cmp);
+  const result: ArrivalRow[] = [];
+  let i = 0;
+  while (i < sorted.length) {
+    let j = i + 1;
+    while (j < sorted.length && cmp(sorted[i], sorted[j]) === 0) j++;
+    result.push(...clusterByProximity(sorted.slice(i, j)));
+    i = j;
+  }
+  return result;
+}
+
 /* ---------- Info tooltip ---------- */
 function InfoHint({ title, children }: { title?: string; children: React.ReactNode }) {
   return (
@@ -289,10 +436,9 @@ function ScreenshotButton({
       disabled={busy}
       title="Tirar um print"
       aria-label="Tirar um print"
-      className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-secondary/30 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors disabled:opacity-50"
+      className="inline-flex items-center justify-center rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors disabled:opacity-50"
     >
       {busy ? <Loader2 className="size-3 animate-spin" /> : <Camera className="size-3" />}
-      Print
     </button>
   );
 }
@@ -765,14 +911,30 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     [ciRows, todayISO],
   );
   const rawCheckinPendingRows = useMemo(() => ciRows.filter((r) => r.status === "pending"), [ciRows]);
-  const checkoutPendingRows = useMemo(() => coRows.filter((r) => r.status === "pending"), [coRows]);
+  // Fonte de check-ins pro critério de "giro" (regras 1-2 da ordenação de
+  // checkouts) — TODOS os check-ins do período (pendentes ou já feitos: o
+  // giro conta mesmo que o check-in já tenha sido marcado), cobrindo tanto o
+  // período do `range` atual quanto amanhã (usado pelos checkouts antecipados
+  // de "Em Limpeza").
+  const turnoverCheckinSources = useMemo(
+    () => [ciRows, tomorrowCheckinListQ.data?.rows ?? []],
+    [ciRows, tomorrowCheckinListQ.data?.rows],
+  );
+  const checkoutPendingRows = useMemo(
+    () => sortCheckoutRows(coRows.filter((r) => r.status === "pending"), turnoverCheckinSources),
+    [coRows, turnoverCheckinSources],
+  );
   const rawTomorrowCheckinPendingRows = useMemo(
     () => (tomorrowCheckinListQ.data?.rows ?? []).filter((r) => r.status === "pending"),
     [tomorrowCheckinListQ.data?.rows],
   );
   const tomorrowCheckoutPendingRows = useMemo(
-    () => (tomorrowCheckoutListQ.data?.rows ?? []).filter((r) => r.status === "pending"),
-    [tomorrowCheckoutListQ.data?.rows],
+    () =>
+      sortCheckoutRows(
+        (tomorrowCheckoutListQ.data?.rows ?? []).filter((r) => r.status === "pending"),
+        turnoverCheckinSources,
+      ),
+    [tomorrowCheckoutListQ.data?.rows, turnoverCheckinSources],
   );
   /**
    * "Em Limpeza" precisa incluir também o checkout ANTECIPADO de um card de
@@ -783,8 +945,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     const done = coRows.filter((r) => r.status === "done");
     const seen = new Set(done.map((r) => r.logId));
     const early = (tomorrowCheckoutListQ.data?.rows ?? []).filter((r) => r.status === "done" && !seen.has(r.logId));
-    return [...done, ...early];
-  }, [coRows, tomorrowCheckoutListQ.data?.rows]);
+    return sortCheckoutRows([...done, ...early], turnoverCheckinSources);
+  }, [coRows, tomorrowCheckoutListQ.data?.rows, turnoverCheckinSources]);
 
   const concludedRows = concludedQ.data?.rows ?? [];
   // Imóveis com check-out pendente OU limpeza em andamento bloqueiam novos
@@ -911,14 +1073,19 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   );
   const kanbanCheckoutPendingRows = useMemo(
     () =>
-      kanbanCoRowsAll.filter(
-        (r) =>
-          r.status === "pending" &&
-          matchesKanbanOwnerCity(r) &&
-          r.date >= kanbanPeriodStart &&
-          r.date <= kanbanPeriodEnd,
+      sortCheckoutRows(
+        kanbanCoRowsAll.filter(
+          (r) =>
+            r.status === "pending" &&
+            matchesKanbanOwnerCity(r) &&
+            r.date >= kanbanPeriodStart &&
+            r.date <= kanbanPeriodEnd,
+        ),
+        // "all" range já cobre o período inteiro — inclusive giros com
+        // check-in fora da janela filtrada no momento.
+        [kanbanCiRowsAll],
       ),
-    [kanbanCoRowsAll, matchesKanbanOwnerCity, kanbanPeriodStart, kanbanPeriodEnd],
+    [kanbanCoRowsAll, matchesKanbanOwnerCity, kanbanPeriodStart, kanbanPeriodEnd, kanbanCiRowsAll],
   );
   // "Em Estadia" é sobre quem está hospedado AGORA — o período filtra pela
   // SOBREPOSIÇÃO da estadia com o intervalo escolhido (não só a data de
@@ -1946,9 +2113,10 @@ function useWholeCardsMaxHeight(visible: number, key: unknown) {
       }
       const selectedIndex = bottoms.findIndex((bottom) => bottom === height);
       const nextTop = tops[selectedIndex + 1];
-      // Reserva até 2px para que sombra/borda arredondada do último card não
-      // pareça cortada, mas sempre encerra antes do primeiro pixel do próximo.
-      const visualClearance = nextTop === undefined ? 0 : Math.max(0, Math.min(2, nextTop - height - 0.5));
+      // Reserva uma folga visível (pedido explícito: não pode parecer que o
+      // último card foi cortado rente à borda do popup), mas sempre encerra
+      // antes do primeiro pixel do próximo card — nunca revela uma tira dele.
+      const visualClearance = nextTop === undefined ? 0 : Math.max(0, Math.min(14, nextTop - height - 0.5));
       setMaxHeight(Math.ceil(height + visualClearance));
     };
 
@@ -2133,7 +2301,7 @@ function KpiCard({
         <div
           className={`absolute inset-x-0 top-0 h-px ${shadowTone === "emerald" ? "bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" : shadowTone === "amber" ? "bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" : shadowTone === "sky" ? "bg-gradient-to-r from-transparent via-sky-400/60 to-transparent" : "bg-gradient-to-r from-transparent via-primary/50 to-transparent"}`}
         />
-        <DialogHeader className="px-5 pt-5 pb-4">
+        <DialogHeader className="px-5 pt-5 pb-3">
           <div className="flex items-center gap-3">
             <div
               className={`grid place-items-center size-10 rounded-xl ${shadowTone === "emerald" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : shadowTone === "amber" ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : shadowTone === "sky" ? "bg-sky-400/10 text-sky-600 dark:text-sky-400" : "bg-accent/10 text-accent"}`}
@@ -2169,7 +2337,7 @@ function KpiCard({
           ) : rows.length === 0 ? (
             <div className="py-12 text-center text-sm text-muted-foreground">Nenhum registro no período.</div>
           ) : (
-            <div className="pt-4 pb-3">
+            <div className="pb-3">
               <ArrivalGroup title="" {...cardProps} compact={listMode === "list"} />
             </div>
           )}
@@ -4255,6 +4423,28 @@ function ArrivalCard({
     window.open(mapsHref, "_blank", "noopener,noreferrer");
   };
 
+  // Botão "voltar para a etapa anterior" — no modo Completo é um botão
+  // próprio na fileira de ações; no modo Lista (pedido explícito) vive
+  // dentro do menu "⋮" em vez de ocupar mais um ícone.
+  const canRevert = !!onRevert && mode !== "checkin";
+  const showRevertButton = canRevert && !compact;
+  const showRevertMenuItem = canRevert && compact;
+  const revertConfirmLabel =
+    mode === "stay" || mode === "checkout"
+      ? "Desfazer o check-in e voltar este card para a lista de Check-ins?"
+      : mode === "cleaning"
+        ? "Desfazer o check-out e voltar este card para a lista de Checkouts?"
+        : "Reabrir esta estadia e voltar o card para a lista Em Limpeza?";
+  const revertTitle =
+    mode === "stay" || mode === "checkout"
+      ? "Voltar para a etapa anterior (lista de Check-ins)"
+      : mode === "cleaning"
+        ? "Voltar para a etapa anterior (lista de Checkouts)"
+        : "Voltar para a etapa anterior (lista Em Limpeza)";
+  const handleRevertClick = () => {
+    if (window.confirm(revertConfirmLabel)) onRevert?.(row);
+  };
+
   // Confirmação quando o check acontece fora do horário/data comum da esteira.
   const [confirmMsg, setConfirmMsg] = useState<string | null>(null);
   function earlyCheckMessage(): string | null {
@@ -4693,30 +4883,20 @@ function ArrivalCard({
           </button>
         )}
 
-        {onRevert && mode !== "checkin" && (
+        {/* No modo "Lista" (pedido explícito) o botão de voltar some da
+            fileira de ações e passa a viver dentro do menu "⋮" — reduz mais
+            um ícone da largura sem perder a função (ver showRevertButton /
+            revertTitle / handleRevertClick, calculados mais abaixo). */}
+        {showRevertButton && (
           <button
             type="button"
-            onClick={() => {
-              const label =
-                mode === "stay" || mode === "checkout"
-                  ? "Desfazer o check-in e voltar este card para a lista de Check-ins?"
-                  : mode === "cleaning"
-                    ? "Desfazer o check-out e voltar este card para a lista de Checkouts?"
-                    : "Reabrir esta estadia e voltar o card para a lista Em Limpeza?";
-              if (window.confirm(label)) onRevert(row);
-            }}
+            onClick={handleRevertClick}
             disabled={busy}
             aria-label="Voltar para a etapa anterior"
-            title={
-              mode === "stay" || mode === "checkout"
-                ? "Voltar para a etapa anterior (lista de Check-ins)"
-                : mode === "cleaning"
-                  ? "Voltar para a etapa anterior (lista de Checkouts)"
-                  : "Voltar para a etapa anterior (lista Em Limpeza)"
-            }
-            className={`shrink-0 grid place-items-center rounded-lg bg-secondary hover:bg-secondary/80 border border-border/60 transition-colors ${compact ? "size-6" : "size-9"}`}
+            title={revertTitle}
+            className="shrink-0 grid place-items-center rounded-lg bg-secondary hover:bg-secondary/80 border border-border/60 transition-colors size-9"
           >
-            <Undo2 className={compact ? "size-3.5" : "size-4"} />
+            <Undo2 className="size-4" />
           </button>
         )}
 
@@ -4768,6 +4948,11 @@ function ArrivalCard({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-[13rem]">
+              {showRevertMenuItem && (
+                <DropdownMenuItem onClick={handleRevertClick} disabled={busy}>
+                  <Undo2 className="size-3.5 shrink-0" /> {revertTitle}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={() => setNoteOpen((v) => !v)}>
                 <StickyNote className="size-3.5 shrink-0" /> {row.note ? "Editar nota" : "Adicionar nota"}
               </DropdownMenuItem>

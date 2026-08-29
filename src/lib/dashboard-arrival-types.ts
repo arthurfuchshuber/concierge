@@ -10,6 +10,10 @@ export type ArrivalRow = {
   propertyAddress: string | null;
   mapsUrl: string | null;
   garageMapsUrl: string | null;
+  /** Coordenadas do imóvel (quando cadastradas) — usadas só pra desempate por
+   * proximidade na ordenação dos checkouts (regra 4, pedido explícito). */
+  lat: number | null;
+  lng: number | null;
 
   hasPasswords: boolean;
   openedCheckin: boolean;
