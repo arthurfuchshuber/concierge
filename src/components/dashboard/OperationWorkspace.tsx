@@ -3394,6 +3394,72 @@ function ArrivalCard({
         </div>
       )}
 
+      {/* Alertas de conferência com o Airbnb (iCal) — divergência de datas,
+          reserva não encontrada e horário fora da janela padrão, com correção
+          em um clique. */}
+      {mode !== "cleaning" && !isPendingFill && (() => {
+        const iIn = row.ical.icalCheckin;
+        const iOut = row.ical.icalCheckout;
+        const dateMismatch =
+          row.ical.hasIcal &&
+          row.ical.matched &&
+          !!iIn &&
+          (iIn !== row.guestCheckin || (!!iOut && !!row.guestCheckout && iOut !== row.guestCheckout));
+        if (!row.ical.hasIcal) return null;
+        return (
+          <div className="flex flex-col gap-1.5">
+            {!row.ical.matched ? (
+              <div className="flex items-center gap-1.5 rounded-none border border-red-500/30 bg-red-500/10 px-2.5 py-1.5 text-[11px] text-red-700 dark:text-red-400">
+                <AlertTriangle className="size-3 shrink-0" />
+                <span className="min-w-0">Sem reserva correspondente no iCal</span>
+              </div>
+            ) : dateMismatch ? (
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-none border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-700 dark:text-amber-400">
+                <span className="inline-flex items-center gap-1 font-medium">
+                  <AlertTriangle className="size-3 shrink-0" />
+                  Data Divergente Hóspede-Airbnb
+                </span>
+                <span className="tabular-nums">
+                  Informada: {fmtDateBR(row.guestCheckin)}
+                  {row.guestCheckout ? ` → ${fmtDateBR(row.guestCheckout)}` : ""} · Correta: {fmtDateBR(iIn)}
+                  {iOut ? ` → ${fmtDateBR(iOut)}` : ""}
+                </span>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => onEditDates(row, { checkinDate: iIn, ...(iOut ? { checkoutDate: iOut } : {}) })}
+                  className="ml-auto rounded-md border border-amber-500/40 px-2 py-0.5 font-semibold hover:bg-amber-500/20 disabled:opacity-50"
+                >
+                  Usar Airbnb
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 px-0.5 text-[11px] text-emerald-700 dark:text-emerald-400">
+                <CheckCircle2 className="size-3 shrink-0" />
+                <span>Confirmado via Airbnb</span>
+              </div>
+            )}
+
+            {divergent && (
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-none border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-700 dark:text-amber-400">
+                <span className="inline-flex items-center gap-1">
+                  <AlertTriangle className="size-3 shrink-0" />
+                  Horário divergente do padrão{stdWindow ? ` (${stdWindow})` : ""}
+                </span>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => onSyncIcal(row)}
+                  className="ml-auto rounded-md border border-amber-500/40 px-2 py-0.5 font-semibold hover:bg-amber-500/20 disabled:opacity-50"
+                >
+                  Alinhar
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
 
       {row.note && !noteOpen && (
         <button
