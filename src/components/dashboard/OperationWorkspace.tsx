@@ -38,6 +38,8 @@ import {
   User,
   Eraser,
   Filter,
+  ChevronRight,
+  ChevronLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, parse, isValid, differenceInCalendarDays } from "date-fns";
@@ -2223,6 +2225,13 @@ function MultiSelectFilterButton({
  * (periodRange/cityFilters/ownerFilters) continua vivendo no pai
  * (OperationWorkspace), porque também afeta os cards de limpeza acima —
  * este componente só desenha o painel e delega toda mudança pro pai.
+ *
+ * Layout escolhido pelo usuário entre 3 mockups (Opção C — "lista →
+ * detalhe"): abre num resumo enxuto de 1 linha por filtro (com o valor
+ * atual à direita); tocar numa linha entra no editor daquele filtro
+ * específico, com "‹ Filtros" pra voltar. Pedido explícito: o editor de
+ * "Período" é o MESMO calendário padrão (completo) que já era usado no
+ * antigo botão "Período" sozinho — não uma versão reduzida.
  */
 function CalendarFiltersButton({
   periodRange,
@@ -2247,6 +2256,8 @@ function CalendarFiltersButton({
   hasCustomFilters: boolean;
   onClearAll: () => void;
 }) {
+  type Screen = "root" | "period" | "city" | "owner";
+  const [screen, setScreen] = useState<Screen>("root");
   const [draft, setDraft] = useState<DateRange | undefined>(
     periodRange ? { from: parseISODateLocal(periodRange.start), to: parseISODateLocal(periodRange.end) } : undefined,
   );
@@ -2260,12 +2271,46 @@ function CalendarFiltersButton({
     onChange(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
   }
 
+  const periodLabel = periodRange
+    ? `${format(parseISODateLocal(periodRange.start), "dd/MM", { locale: ptBR })} – ${format(parseISODateLocal(periodRange.end), "dd/MM", { locale: ptBR })}`
+    : "Todos";
+  const cityLabel =
+    cityFilters.length === 0 ? "Todas" : cityFilters.length === 1 ? cityFilters[0] : `${cityFilters.length} selecionadas`;
+  const ownerLabel =
+    ownerFilters.length === 0
+      ? "Todos"
+      : ownerFilters.length === 1
+        ? ownerFilters[0]
+        : `${ownerFilters.length} selecionados`;
+
+  function BackRow({ label }: { label: string }) {
+    return (
+      <button
+        type="button"
+        onClick={() => setScreen("root")}
+        className="flex w-full items-center gap-1.5 border-b border-border px-3 py-2.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ChevronLeft className="size-3.5" />
+        {label}
+      </button>
+    );
+  }
+
   return (
-    <Popover>
+    <Popover
+      onOpenChange={(open) => {
+        // Sempre reabre no resumo — ninguém espera "continuar de onde
+        // parou" dentro de um editor específico da última vez.
+        if (!open) setScreen("root");
+      }}
+    >
       <PopoverTrigger asChild>
+        {/* Pedido explícito: sem "quadrante" (fundo/borda) — igual ao
+            tratamento da borracha de limpar filtros, só ícone + texto
+            soltos, sem caixinha ao redor. */}
         <button
           type="button"
-          className="relative h-8 shrink-0 inline-flex items-center gap-1.5 rounded-[0.3rem] border-0 bg-secondary/50 px-3 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
+          className="relative h-8 shrink-0 inline-flex items-center gap-1.5 rounded-[0.3rem] border-0 bg-transparent px-1.5 text-xs font-medium leading-none text-foreground/70 hover:text-foreground hover:bg-secondary/40 transition-colors"
         >
           <Filter className="size-3.5 opacity-60" />
           Filtros
@@ -2274,135 +2319,184 @@ function CalendarFiltersButton({
       </PopoverTrigger>
       <PopoverContent
         align="end"
-        className="w-72 p-0 max-h-[min(28rem,70vh)] overflow-y-auto"
+        className="w-64 p-0 max-h-[min(28rem,70vh)] overflow-y-auto"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <div className="p-3 border-b border-border space-y-2">
-          <p className="text-[11px] font-medium text-muted-foreground">Período</p>
-          <RangeCalendar
-            mode="range"
-            numberOfMonths={1}
-            locale={ptBR}
-            selected={draft}
-            onSelect={(nextRange) => {
-              setDraft(nextRange);
-              // Só propaga quando o intervalo estiver completo (início E
-              // fim) — o primeiro clique sozinho ainda não é um período
-              // válido.
-              if (nextRange?.from && nextRange?.to) {
-                onPeriodRangeChange({ start: dateToISOLocal(nextRange.from), end: dateToISOLocal(nextRange.to) });
-              }
-            }}
-            className="p-0"
-          />
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] text-muted-foreground">
-              {draft?.from ? format(draft.from, "dd/MM", { locale: ptBR }) : "Início"}
-              {" – "}
-              {draft?.to ? format(draft.to, "dd/MM", { locale: ptBR }) : "Fim"}
-            </span>
+        {screen === "root" ? (
+          <>
+            <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-border">
+              <span className="text-[11px] font-semibold text-foreground">Filtros</span>
+              <button
+                type="button"
+                disabled={!hasCustomFilters}
+                onClick={onClearAll}
+                className="text-[11px] font-medium text-foreground/70 transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+              >
+                Limpar tudo
+              </button>
+            </div>
             <button
               type="button"
-              className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
-              onClick={() => {
-                setDraft(undefined);
-                onPeriodRangeChange(null);
-              }}
+              onClick={() => setScreen("period")}
+              className="flex w-full items-center justify-between gap-2 border-b border-border px-3 py-2.5 text-left transition-colors hover:bg-secondary/30"
             >
-              Limpar
+              <span className="text-xs font-medium">Período</span>
+              <span className="flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
+                <span className="truncate max-w-[7rem]">{periodLabel}</span>
+                <ChevronRight className="size-3.5 shrink-0 opacity-60" />
+              </span>
             </button>
-          </div>
-        </div>
+            <button
+              type="button"
+              onClick={() => setScreen("city")}
+              className="flex w-full items-center justify-between gap-2 border-b border-border px-3 py-2.5 text-left transition-colors hover:bg-secondary/30"
+            >
+              <span className="text-xs font-medium">Cidade</span>
+              <span className="flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
+                <span className="truncate max-w-[7rem]">{cityLabel}</span>
+                <ChevronRight className="size-3.5 shrink-0 opacity-60" />
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setScreen("owner")}
+              className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors hover:bg-secondary/30"
+            >
+              <span className="text-xs font-medium">Proprietário</span>
+              <span className="flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
+                <span className="truncate max-w-[7rem]">{ownerLabel}</span>
+                <ChevronRight className="size-3.5 shrink-0 opacity-60" />
+              </span>
+            </button>
+          </>
+        ) : null}
 
-        <div className="border-b border-border">
-          <p className="px-3 pt-3 pb-1 text-[11px] font-medium text-muted-foreground">Cidade</p>
-          <Command>
-            <CommandInput placeholder="Buscar cidade..." />
-            <div className="flex items-center justify-between gap-2 border-b border-border px-2 py-1.5">
-              <button
-                type="button"
-                className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
-                onClick={() => onCityFiltersChange(cityOptions)}
-              >
-                Selecionar todos
-              </button>
-              <button
-                type="button"
-                className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
-                onClick={() => onCityFiltersChange([])}
-              >
-                Limpar
-              </button>
+        {screen === "period" ? (
+          <>
+            <BackRow label="Filtros" />
+            <div className="p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-medium text-muted-foreground">Período</p>
+                <button
+                  type="button"
+                  className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
+                  onClick={() => {
+                    setDraft(undefined);
+                    onPeriodRangeChange(null);
+                  }}
+                >
+                  Limpar
+                </button>
+              </div>
+              {/* Calendário padrão (completo) — o MESMO componente/config
+                  (mode="range", 1 mês) que já era usado no antigo botão
+                  "Período" sozinho, não uma versão reduzida. */}
+              <RangeCalendar
+                mode="range"
+                numberOfMonths={1}
+                locale={ptBR}
+                selected={draft}
+                onSelect={(nextRange) => {
+                  setDraft(nextRange);
+                  // Só propaga quando o intervalo estiver completo (início E
+                  // fim) — o primeiro clique sozinho ainda não é um período
+                  // válido.
+                  if (nextRange?.from && nextRange?.to) {
+                    onPeriodRangeChange({ start: dateToISOLocal(nextRange.from), end: dateToISOLocal(nextRange.to) });
+                  }
+                }}
+                className="p-0"
+              />
+              <div className="text-center text-[11px] text-muted-foreground">
+                {draft?.from ? format(draft.from, "dd/MM", { locale: ptBR }) : "Início"}
+                {" – "}
+                {draft?.to ? format(draft.to, "dd/MM", { locale: ptBR }) : "Fim"}
+              </div>
             </div>
-            <CommandList className="max-h-32">
-              <CommandEmpty>Nenhum resultado.</CommandEmpty>
-              <CommandGroup>
-                {cityOptions.map((o) => (
-                  <CommandItem
-                    key={o}
-                    value={o}
-                    onSelect={() => toggle(cityFilters, o, onCityFiltersChange)}
-                    className="cursor-pointer gap-2"
-                  >
-                    <Checkbox checked={cityFilters.includes(o)} className="pointer-events-none" />
-                    <span className="truncate">{o}</span>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </div>
+          </>
+        ) : null}
 
-        <div className="border-b border-border">
-          <p className="px-3 pt-3 pb-1 text-[11px] font-medium text-muted-foreground">Proprietário</p>
-          <Command>
-            <CommandInput placeholder="Buscar proprietário..." />
-            <div className="flex items-center justify-between gap-2 border-b border-border px-2 py-1.5">
-              <button
-                type="button"
-                className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
-                onClick={() => onOwnerFiltersChange(ownerOptions)}
-              >
-                Selecionar todos
-              </button>
-              <button
-                type="button"
-                className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
-                onClick={() => onOwnerFiltersChange([])}
-              >
-                Limpar
-              </button>
-            </div>
-            <CommandList className="max-h-32">
-              <CommandEmpty>Nenhum resultado.</CommandEmpty>
-              <CommandGroup>
-                {ownerOptions.map((o) => (
-                  <CommandItem
-                    key={o}
-                    value={o}
-                    onSelect={() => toggle(ownerFilters, o, onOwnerFiltersChange)}
-                    className="cursor-pointer gap-2"
-                  >
-                    <Checkbox checked={ownerFilters.includes(o)} className="pointer-events-none" />
-                    <span className="truncate">{o}</span>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </div>
+        {screen === "city" ? (
+          <>
+            <BackRow label="Filtros" />
+            <Command>
+              <CommandInput placeholder="Buscar cidade..." />
+              <div className="flex items-center justify-between gap-2 border-b border-border px-2 py-1.5">
+                <button
+                  type="button"
+                  className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
+                  onClick={() => onCityFiltersChange(cityOptions)}
+                >
+                  Selecionar todos
+                </button>
+                <button
+                  type="button"
+                  className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
+                  onClick={() => onCityFiltersChange([])}
+                >
+                  Limpar
+                </button>
+              </div>
+              <CommandList className="max-h-52">
+                <CommandEmpty>Nenhum resultado.</CommandEmpty>
+                <CommandGroup>
+                  {cityOptions.map((o) => (
+                    <CommandItem
+                      key={o}
+                      value={o}
+                      onSelect={() => toggle(cityFilters, o, onCityFiltersChange)}
+                      className="cursor-pointer gap-2"
+                    >
+                      <Checkbox checked={cityFilters.includes(o)} className="pointer-events-none" />
+                      <span className="truncate">{o}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </>
+        ) : null}
 
-        <div className="flex items-center justify-end p-2">
-          <button
-            type="button"
-            disabled={!hasCustomFilters}
-            onClick={onClearAll}
-            className="inline-flex items-center gap-1.5 text-[11px] font-medium text-foreground/70 hover:text-foreground disabled:opacity-40 disabled:pointer-events-none transition-colors"
-          >
-            <Eraser className="size-3.5" />
-            Limpar todos os filtros
-          </button>
-        </div>
+        {screen === "owner" ? (
+          <>
+            <BackRow label="Filtros" />
+            <Command>
+              <CommandInput placeholder="Buscar proprietário..." />
+              <div className="flex items-center justify-between gap-2 border-b border-border px-2 py-1.5">
+                <button
+                  type="button"
+                  className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
+                  onClick={() => onOwnerFiltersChange(ownerOptions)}
+                >
+                  Selecionar todos
+                </button>
+                <button
+                  type="button"
+                  className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
+                  onClick={() => onOwnerFiltersChange([])}
+                >
+                  Limpar
+                </button>
+              </div>
+              <CommandList className="max-h-52">
+                <CommandEmpty>Nenhum resultado.</CommandEmpty>
+                <CommandGroup>
+                  {ownerOptions.map((o) => (
+                    <CommandItem
+                      key={o}
+                      value={o}
+                      onSelect={() => toggle(ownerFilters, o, onOwnerFiltersChange)}
+                      className="cursor-pointer gap-2"
+                    >
+                      <Checkbox checked={ownerFilters.includes(o)} className="pointer-events-none" />
+                      <span className="truncate">{o}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </>
+        ) : null}
       </PopoverContent>
     </Popover>
   );
