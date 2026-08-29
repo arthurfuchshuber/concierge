@@ -563,6 +563,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
   function handleEditTime(row: ArrivalRow, k: "checkin" | "checkout", time: string | null) {
     setBusyRowId(row.logId);
+    // Otimista: o campo já mostra o novo horário na hora — o servidor só
+    // confirma em segundo plano (mesmo racional do optimisticMove acima).
+    patchList(k, (rows: ArrivalRow[]) =>
+      rows.map((r) => (r.logId === row.logId ? { ...r, arrivalTimeOverride: time } : r)),
+    );
     upsert.mutate({ ...statusTarget(row), kind: k, arrivalTimeOverride: time });
   }
 
@@ -750,9 +755,29 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       },
       onEditPredictedDate: (row: ArrivalRow, date: string | null) => {
         setBusyRowId(row.logId);
+        // Otimista, mesmo racional do handleEditTime/optimisticMove.
+        patchList(colKind, (rows: ArrivalRow[]) =>
+          rows.map((r) => (r.logId === row.logId ? { ...r, arrivalDateOverride: date } : r)),
+        );
         upsert.mutate({ ...statusTarget(row), kind: colKind, arrivalDateOverride: date });
       },
       onEditTime: (row: ArrivalRow, time: string | null) => handleEditTime(row, colKind, time),
+      // Limpa os dois campos (Data + Horário previstos) de uma vez —
+      // botão só aparece quando pelo menos um dos dois estiver preenchido.
+      onClearPredicted: (row: ArrivalRow) => {
+        setBusyRowId(row.logId);
+        patchList(colKind, (rows: ArrivalRow[]) =>
+          rows.map((r) =>
+            r.logId === row.logId ? { ...r, arrivalDateOverride: null, arrivalTimeOverride: null } : r,
+          ),
+        );
+        upsert.mutate({
+          ...statusTarget(row),
+          kind: colKind,
+          arrivalDateOverride: null,
+          arrivalTimeOverride: null,
+        });
+      },
       busyRowId,
       // Antes "Estadia"/"Limpeza" ficavam com opacity-70 (pra parecer
       // menos urgente) — só que isso também fazia o card parecer menos card,
@@ -2942,6 +2967,7 @@ function ArrivalGroup({
   onEditDates,
   onEditTime,
   onEditPredictedDate,
+  onClearPredicted,
   busyRowId,
   muted,
   cleaningPendingPropIds,
@@ -2959,6 +2985,8 @@ function ArrivalGroup({
   onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
   onEditTime: (r: ArrivalRow, time: string | null) => void;
   onEditPredictedDate?: (r: ArrivalRow, date: string | null) => void;
+  /** Limpa Data + Horário previstos de uma vez (botão de limpar). */
+  onClearPredicted?: (r: ArrivalRow) => void;
   /** Só o card em ação fica travado — o restante do quadro segue responsivo. */
   busyRowId?: string | null;
   muted?: boolean;
@@ -2998,6 +3026,7 @@ function ArrivalGroup({
           onEditDates={onEditDates}
           onEditTime={onEditTime}
           onEditPredictedDate={onEditPredictedDate}
+          onClearPredicted={onClearPredicted}
           busy={busyRowId === r.logId}
           expanded={openId === r.logId}
           onToggleExpanded={(open) => setOpenId(open ? r.logId : null)}
@@ -3021,6 +3050,7 @@ function ArrivalCard({
   onEditDates,
   onEditTime,
   onEditPredictedDate,
+  onClearPredicted,
   busy,
   expanded,
   onToggleExpanded,
@@ -3036,6 +3066,8 @@ function ArrivalCard({
   onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
   onEditTime: (r: ArrivalRow, time: string | null) => void;
   onEditPredictedDate?: (r: ArrivalRow, date: string | null) => void;
+  /** Limpa Data + Horário previstos de uma vez (botão de limpar). */
+  onClearPredicted?: (r: ArrivalRow) => void;
   busy: boolean;
   expanded?: boolean;
   onToggleExpanded?: (open: boolean) => void;
@@ -3285,6 +3317,23 @@ function ArrivalCard({
             </InfoHint>
           </span>
           <span className="ml-auto flex items-center justify-end gap-3 shrink-0 text-xs font-medium">
+            {/* Limpa Data + Horário previstos de uma vez — só aparece quando
+                pelo menos um dos dois estiver preenchido (pedido explícito). */}
+            {(row.arrivalDateOverride || row.arrivalTimeOverride) && onClearPredicted && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClearPredicted(row);
+                }}
+                disabled={busy}
+                title="Limpar data e horário previstos"
+                aria-label="Limpar data e horário previstos"
+                className="inline-flex items-center justify-center rounded text-muted-foreground/70 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Eraser className="size-3" />
+              </button>
+            )}
             <DateEditor
               /* Data prevista é um override próprio do card: fica em
                  branco até alguém registrar chegada em outro dia. */
