@@ -162,13 +162,13 @@ function centsToBRL(cents: number): string {
 }
 
 /* ---------- Info tooltip ---------- */
-function InfoHint({ title, children }: { title: string; children: React.ReactNode }) {
+function InfoHint({ title, children }: { title?: string; children: React.ReactNode }) {
   return (
     <Popover>
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label={`Sobre: ${title}`}
+          aria-label={title ? `Sobre: ${title}` : "Mais informações"}
           onClick={(e) => e.stopPropagation()}
           className="inline-flex size-5 items-center justify-center rounded-full text-current/60 hover:text-current transition-colors opacity-70 hover:opacity-100"
         >
@@ -181,7 +181,9 @@ function InfoHint({ title, children }: { title: string; children: React.ReactNod
         sideOffset={6}
         className="w-64 max-w-[calc(100vw-2rem)] rounded-lg border-border/70 bg-popover/95 backdrop-blur p-3 text-xs leading-relaxed shadow-xl"
       >
-        <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">{title}</div>
+        {title && (
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">{title}</div>
+        )}
         <div className="text-foreground/90">{children}</div>
       </PopoverContent>
     </Popover>
@@ -3714,6 +3716,26 @@ function ArrivalCard({
           ? `${row.standardTime} – ${row.standardTimeMax}`
           : row.standardTime
         : null;
+  // Mesma informação do stdWindow acima, mas em frase — usada só no tooltip
+  // "i" do campo Previsto (pedido explícito): "entre X e Y" quando há os dois
+  // horários, "a partir de X" quando só há o inicial, "até Y" quando só há o
+  // final.
+  const stdWindowPhrase =
+    kind === "checkout"
+      ? row.standardTime && row.standardTimeMax
+        ? `entre ${row.standardTimeMax} e ${row.standardTime}`
+        : row.standardTime
+          ? `até ${row.standardTime}`
+          : row.standardTimeMax
+            ? `a partir de ${row.standardTimeMax}`
+            : null
+      : row.standardTime
+        ? row.standardTimeMax
+          ? `entre ${row.standardTime} e ${row.standardTimeMax}`
+          : `a partir de ${row.standardTime}`
+        : row.standardTimeMax
+          ? `até ${row.standardTimeMax}`
+          : null;
   const divergent =
     !!guestTime && !!row.standardTime && !isTimeWithin(guestTime, row.standardTime, row.standardTimeMax);
 
@@ -3886,11 +3908,12 @@ function ArrivalCard({
                   <span className="truncate">{row.reservationCode}</span>
                 </button>
               ) : (
-                <span className="truncate">{row.guestName}</span>
+                <span className="truncate uppercase">{row.guestName}</span>
               )
             ) : (
               <span className="inline-flex min-w-0 items-center gap-1.5">
-                <span className="min-w-0 truncate">{row.guestName}</span>
+                {/* Pedido explícito: nome do hóspede SEMPRE em maiúsculo nos cards. */}
+                <span className="min-w-0 truncate uppercase">{row.guestName}</span>
                 <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
                 {/* Pedido explícito: o "+N" (outros hóspedes) fica à direita
                     do ícone do chat, não mais antes do nome. */}
@@ -3960,10 +3983,11 @@ function ArrivalCard({
           <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
             Previsto {kind === "checkout" ? "Checkout" : "Check-in"}
             {/* Margem de horário — saiu da tela (pedido explícito) e virou
-                tooltip, com o texto de acordo com check-in ou checkout. */}
-            <InfoHint title={`Horário padrão de ${kind === "checkout" ? "checkout" : "check-in"}`}>
-              {stdWindow
-                ? `O horário padrão de ${kind === "checkout" ? "checkout" : "check-in"} deste imóvel é ${stdWindow}.`
+                tooltip, com o texto de acordo com check-in ou checkout.
+                Sem título no tooltip (pedido explícito) — só a frase. */}
+            <InfoHint>
+              {stdWindowPhrase
+                ? `O horário padrão de ${kind === "checkout" ? "checkout" : "check-in"} deste imóvel é ${stdWindowPhrase}.`
                 : `Este imóvel não tem horário padrão de ${kind === "checkout" ? "checkout" : "check-in"} configurado.`}
             </InfoHint>
           </span>
@@ -3994,6 +4018,11 @@ function ArrivalCard({
               min={predictedMinDate ?? undefined}
               max={kind === "checkout" ? undefined : (predictedMaxDate ?? undefined)}
               onChange={(v) => onEditPredictedDate?.(row, v)}
+              // Mesma fonte do rótulo "Previsto Check-in/Checkout" (pedido
+              // explícito) — a cor continua branca quando preenchido, pois
+              // vem do texto ambiente; só o placeholder segue cinza (herdado
+              // do botão, ver "blank" acima).
+              valueClassName="text-[10px] uppercase tracking-wider font-normal"
             />
             {/* Horário só depois da data: a ordem é data → horário. */}
             <TimeDropdown
@@ -4373,6 +4402,7 @@ function DateEditor({
   max,
   blankWhen,
   placeholder,
+  valueClassName,
 }: {
   value: string;
   disabled: boolean;
@@ -4382,6 +4412,9 @@ function DateEditor({
   /** Quando o valor for igual a esta data, o campo aparece em branco. */
   blankWhen?: string;
   placeholder?: string;
+  /** Classes extras pro texto do valor — usado quando este campo precisa
+      seguir a fonte de um rótulo específico (ex.: linha "Previsto"). */
+  valueClassName?: string;
 }) {
   const blank = !value || (!!blankWhen && value === blankWhen);
   return (
@@ -4396,7 +4429,7 @@ function DateEditor({
       className={`relative inline-flex items-center cursor-pointer rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit ${blank ? "text-muted-foreground" : ""}`}
       title="Clique para corrigir a data"
     >
-      <span className="tabular-nums">{blank ? (placeholder ?? "—") : fmtDateBR(value)}</span>
+      <span className={`tabular-nums ${valueClassName ?? ""}`}>{blank ? (placeholder ?? "—") : fmtDateBR(value)}</span>
       <input
         type="date"
         value={blank ? "" : value}
@@ -4443,9 +4476,14 @@ function TimeDropdown({
           disabled={disabled}
           onClick={(e) => e.stopPropagation()}
           title={disabled ? "Indisponível" : "Selecionar horário previsto"}
-          className={`inline-flex w-auto items-center gap-1 tabular-nums rounded cursor-pointer bg-transparent border-0 p-0 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit ${size === "xs" ? "text-xs" : "text-sm"}`}
+          className={`inline-flex w-auto items-center gap-1 tabular-nums rounded cursor-pointer bg-transparent border-0 p-0 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit ${size === "xs" ? "text-[10px] uppercase tracking-wider" : "text-sm"}`}
         >
-          <span className={value ? "font-medium" : "font-normal text-muted-foreground"}>{value ?? "Horário"}</span>
+          {/* Mesma fonte do rótulo "Previsto Check-in/Checkout" (pedido
+              explícito), mas mantendo a cor branca/foreground quando há
+              valor selecionado — só o placeholder continua cinza. */}
+          <span className={value ? "font-normal text-foreground" : "font-normal text-muted-foreground"}>
+            {value ?? "Horário"}
+          </span>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="max-h-64 overflow-y-auto min-w-[6rem] p-1">
