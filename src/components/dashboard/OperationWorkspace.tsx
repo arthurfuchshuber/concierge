@@ -3266,9 +3266,11 @@ function ArrivalCard({
             )}
             {stdWindow && (
               // Mesma fonte do período (text-xs, tabular-nums, peso normal) —
-              // só a cor muda pra branco/foreground — com um hífen separando
-              // o período do horário (pedido explícito).
-              <span className="ml-auto flex items-center gap-1 text-xs font-normal tabular-nums text-foreground">
+              // só a cor muda pra branco/foreground — logo em seguida ao
+              // período (sem ml-auto empurrando pra ponta direita, que
+              // deixava um vão grande nos popups mais largos), com um hífen
+              // separando os dois (pedido explícito).
+              <span className="flex items-center gap-1 text-xs font-normal tabular-nums text-foreground">
                 <span aria-hidden="true">-</span>
                 {stdWindow}
               </span>
