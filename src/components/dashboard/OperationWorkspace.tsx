@@ -3101,11 +3101,24 @@ function ArrivalCard({
   });
 
   const guestTime = row.arrivalTimeOverride ?? row.guestArrivalTime;
-  const stdWindow = row.standardTime
-    ? row.standardTimeMax
-      ? `${row.standardTime} – ${row.standardTimeMax}`
+  // Horário padrão exibido ao lado do período. No check-in, standardTime é o
+  // início e standardTimeMax o fim ("15:00 – 23:00"). No checkout os campos
+  // são invertidos (standardTime = horário limite / checkout_time,
+  // standardTimeMax = horário de abertura / checkout_time_min) — pedido
+  // explícito: quando não há horário "a partir de" configurado, mostra
+  // "ATÉ <horário limite>" em vez do horário limite sozinho.
+  const stdWindow =
+    kind === "checkout"
+      ? row.standardTime && row.standardTimeMax
+        ? `${row.standardTimeMax} – ${row.standardTime}`
+        : row.standardTime
+          ? `ATÉ ${row.standardTime}`
+          : (row.standardTimeMax ?? null)
       : row.standardTime
-    : null;
+        ? row.standardTimeMax
+          ? `${row.standardTime} – ${row.standardTimeMax}`
+          : row.standardTime
+        : null;
   const divergent =
     !!guestTime && !!row.standardTime && !isTimeWithin(guestTime, row.standardTime, row.standardTimeMax);
 
