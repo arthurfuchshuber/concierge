@@ -462,23 +462,18 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
 
     // Aberturas por seção — sem janela de tempo: o hóspede costuma abrir o guia
     // dias antes do check-in, então filtrar por created_at zerava o engajamento.
-    const [{ data: evs }, { data: codeEvs }] = await Promise.all([
-      context.supabase
-        .from("guide_section_events")
-        .select("id, property_id, guest_name, guest_phone")
-        .in("property_id", propIds)
-        // "Leu" = permaneceu ao menos 5s na aba Chegada (mesma regra dos cards).
-        .eq("section", "checkin-lido")
-        .limit(20000),
-      codesProps.size
-        ? context.supabase
-            .from("guide_section_events")
-            .select("id, property_id, guest_name, guest_phone, section")
-            .in("property_id", Array.from(codesProps))
-            .in("section", ["senhas", "senhas:lock", "senhas:gate"])
-            .limit(20000)
-        : Promise.resolve({ data: [] as Array<EventRow & { section: string }> }),
+    const { fetchEngagementSectionEvents } = await import("@/lib/engagement-events.server");
+    const engagementEvents = await fetchEngagementSectionEvents(context.supabase, propIds, [
+      "checkin-lido",
+      "senhas",
+      "senhas:lock",
+      "senhas:gate",
     ]);
+    // "Leu" = permaneceu ao menos 5s na aba Chegada (mesma regra dos cards).
+    const evs = engagementEvents.filter((event) => event.section === "checkin-lido");
+    const codeEvs = engagementEvents.filter((event) =>
+      event.section === "senhas" || event.section === "senhas:lock" || event.section === "senhas:gate",
+    );
 
     // Quem viu / quem não viu.
     const propRows = (props ?? []) as Array<{ id: string; name?: string | null; owner_contact_id?: string | null }>;
@@ -522,7 +517,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     const checkinSeen = seenSets(evs as EventRow[] | null);
     // Senhas: só conta como "viu" quem abriu TODAS as senhas de acesso
     // configuradas no imóvel (fechadura e/ou portão). Wi-Fi não entra.
-    const codeEvRows = (codeEvs ?? []) as Array<EventRow & { section?: string }>;
+    const codeEvRows = codeEvs as Array<EventRow & { section?: string }>;
     const codesSeen = seenSets(codeEvRows);
     const lockSeen = seenSets(codeEvRows.filter((e) => e.section === "senhas:lock"));
     const gateSeen = seenSets(codeEvRows.filter((e) => e.section === "senhas:gate"));
