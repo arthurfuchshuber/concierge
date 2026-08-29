@@ -52,7 +52,6 @@ import { Button } from "@/components/ui/button";
 import { Calendar as RangeCalendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
-import { CopyButton } from "@/components/CopyButton";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import {
   DropdownMenu,
@@ -2432,7 +2431,7 @@ function CalendarFiltersButton({
           className="relative h-8 shrink-0 inline-flex items-center gap-1.5 rounded-[0.3rem] border-0 bg-transparent px-1.5 text-xs font-medium leading-none text-foreground/70 hover:text-foreground transition-colors"
         >
           <Filter className="size-3.5 opacity-60" />
-          Filtros
+          FILTROS
           {hasCustomFilters ? FILTER_DOT : null}
         </button>
       </PopoverTrigger>
@@ -3783,6 +3782,18 @@ function ArrivalCard({
       toast.error("Não foi possível copiar.");
     }
   };
+  // Código da reserva agora é clicável (sem o botão "copiar" ao lado,
+  // pedido explícito) — mesmo texto de confirmação do antigo CopyButton.
+  const copyReservationCode = async (e: React.MouseEvent, code: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    try {
+      await navigator.clipboard.writeText(code);
+      toast.success("Código copiado");
+    } catch {
+      toast.error("Não foi possível copiar");
+    }
+  };
   // "Abrir App": deixa o próprio sistema oferecer os apps instalados no
   // celular (Google Maps, Waze, Uber, 99 etc.) via o share sheet nativo —
   // pedido explícito, substitui o antigo "Abrir o Google Maps" fixo.
@@ -3854,12 +3865,52 @@ function ArrivalCard({
           numa coluna estreita de Kanban; o nome já identifica o hóspede). */}
       <div className="flex items-center gap-3">
         <div className="flex-1 min-w-0">
-          {/* Código da reserva — acima do proprietário, alinhado à esquerda */}
+          {/* Nome do hóspede — movido para cima do código da reserva
+              (pedido explícito), sem alterar o conteúdo da linha. */}
+          <div
+            className={`text-xs flex items-center gap-1 ${isPendingFill ? "text-orange-500 font-medium" : "text-muted-foreground"}`}
+          >
+            {isPendingFill ? (
+              <>
+                <UserPlus className="size-3 shrink-0" />
+                <span className="truncate">Hóspede Pendente</span>
+              </>
+            ) : !row.guestName || row.guestName === row.reservationCode ? (
+              row.reservationCode ? (
+                <button
+                  type="button"
+                  onClick={(e) => copyReservationCode(e, row.reservationCode as string)}
+                  title="Copiar código da reserva"
+                  className="inline-flex items-center gap-1 min-w-0 hover:text-foreground transition-colors"
+                >
+                  <span className="truncate">{row.reservationCode}</span>
+                </button>
+              ) : (
+                <span className="truncate">{row.guestName}</span>
+              )
+            ) : (
+              <span className="inline-flex min-w-0 items-center gap-1.5">
+                <span className="min-w-0 truncate">{row.guestName}</span>
+                <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
+                {/* Pedido explícito: o "+N" (outros hóspedes) fica à direita
+                    do ícone do chat, não mais antes do nome. */}
+                <ExtraGuests guests={row.additionalGuests ?? []} />
+              </span>
+            )}
+          </div>
+
+          {/* Código da reserva — acima do proprietário, alinhado à esquerda.
+              Clicável para copiar; sem o botão "copiar" ao lado (pedido
+              explícito). */}
           {row.reservationCode && (isPendingFill || (row.guestName && row.guestName !== row.reservationCode)) && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <button
+              type="button"
+              onClick={(e) => copyReservationCode(e, row.reservationCode as string)}
+              title="Copiar código da reserva"
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
               <span className="truncate max-w-[160px]">{row.reservationCode}</span>
-              <CopyButton value={row.reservationCode} size={10} className="p-0.5" />
-            </div>
+            </button>
           )}
 
           {/* Período — logo abaixo do código da reserva e acima do
@@ -3867,8 +3918,7 @@ function ArrivalCard({
               "Atrasado"/"Data futura" (removidas), a cor do próprio período
               agora comunica o status: checkout = laranja; checkin pendente =
               azul; checkin confirmado (Em Estadia) = verde; atrasado = vermelho
-              (sobrepõe as outras cores). À direita, na mesma linha, o horário
-              padrão do imóvel, em branco/foreground. */}
+              (sobrepõe as outras cores). */}
           <div className={`flex items-center gap-1.5 text-xs flex-wrap ${periodoColorClass}`}>
             <DateEditor
               value={row.guestCheckin}
@@ -3885,14 +3935,6 @@ function ArrivalCard({
                 />
               </>
             )}
-            {stdWindow && (
-              // Mesma fonte do período (text-xs, tabular-nums, peso normal) —
-              // só a cor muda pra branco/foreground — logo em seguida ao
-              // período (sem ml-auto empurrando pra ponta direita), entre
-              // parênteses em vez do hífen (pedido explícito): "... (15:00 –
-              // 23:00)" ou "... (ATÉ 11:00)" no checkout.
-              <span className="text-xs font-normal tabular-nums text-foreground">({stdWindow})</span>
-            )}
           </div>
 
           <OwnerLine
@@ -3903,34 +3945,6 @@ function ArrivalCard({
           />
           <div className="ds-card-title truncate" title={row.propertyName ?? undefined}>
             {row.propertyName ?? "Sem nome"}
-          </div>
-
-          <div
-            className={`text-xs flex items-center gap-1 ${isPendingFill ? "text-orange-500 font-medium" : "text-muted-foreground"}`}
-          >
-            {isPendingFill ? (
-              <>
-                <UserPlus className="size-3 shrink-0" />
-                <span className="truncate">Hóspede Pendente</span>
-              </>
-            ) : !row.guestName || row.guestName === row.reservationCode ? (
-              row.reservationCode ? (
-                <span className="inline-flex items-center gap-1 min-w-0">
-                  <span className="truncate">{row.reservationCode}</span>
-                  <CopyButton value={row.reservationCode} size={10} className="p-0.5" />
-                </span>
-              ) : (
-                <span className="truncate">{row.guestName}</span>
-              )
-            ) : (
-              <span className="inline-flex min-w-0 items-center gap-1.5">
-                <span className="min-w-0 truncate">{row.guestName}</span>
-                <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
-                {/* Pedido explícito: o "+N" (outros hóspedes) fica à direita
-                    do ícone do chat, não mais antes do nome. */}
-                <ExtraGuests guests={row.additionalGuests ?? []} />
-              </span>
-            )}
           </div>
         </div>
       </div>
@@ -3944,10 +3958,14 @@ function ArrivalCard({
           className={`-mt-2.5 flex items-center justify-between gap-2 rounded-none px-2.5 py-1.5 text-xs ${divergent ? "bg-amber-500/10 border border-amber-500/30" : "bg-background/50 border border-border/40"}`}
         >
           <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
-            Previsto
-            <InfoHint title="Horário previsto">
-              Selecione o horário (30 em 30 min). A alteração reordena o kanban imediatamente.
-            </InfoHint>
+            Previsto {kind === "checkout" ? "Checkout" : "Check-in"}
+            {stdWindow && (
+              // Movido do lado direito do período para cá (pedido explícito),
+              // sem alterar a formatação original.
+              <span className="text-xs font-normal tabular-nums text-foreground normal-case tracking-normal">
+                ({stdWindow})
+              </span>
+            )}
           </span>
           <span className="ml-auto flex items-center justify-end gap-3 shrink-0 text-xs font-medium">
             {/* Limpa Data + Horário previstos de uma vez — só aparece quando
