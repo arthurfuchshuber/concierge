@@ -2926,7 +2926,10 @@ function EngagementBreakdownDialog({
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-lg border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" />
-        <DialogHeader className="px-5 pt-5 pb-1">
+        <DialogHeader className="px-5 pt-5 pb-1 pr-14">
+          {/* pr-14 no header: reserva espaço pro botão "X" de fechar do Dialog
+              (absolute right-4 top-4, size-8), que senão fica por cima do
+              badge de percentual quando o título é curto. */}
           <div className="flex items-center justify-between gap-3">
             <DialogTitle className="min-w-0 truncate text-base font-display leading-tight">{label}</DialogTitle>
             <span className="shrink-0 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
