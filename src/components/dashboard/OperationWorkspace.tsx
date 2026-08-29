@@ -3267,13 +3267,10 @@ function ArrivalCard({
             {stdWindow && (
               // Mesma fonte do período (text-xs, tabular-nums, peso normal) —
               // só a cor muda pra branco/foreground — logo em seguida ao
-              // período (sem ml-auto empurrando pra ponta direita, que
-              // deixava um vão grande nos popups mais largos), com um hífen
-              // separando os dois (pedido explícito).
-              <span className="flex items-center gap-1 text-xs font-normal tabular-nums text-foreground">
-                <span aria-hidden="true">-</span>
-                {stdWindow}
-              </span>
+              // período (sem ml-auto empurrando pra ponta direita), entre
+              // parênteses em vez do hífen (pedido explícito): "... (15:00 –
+              // 23:00)" ou "... (ATÉ 11:00)" no checkout.
+              <span className="text-xs font-normal tabular-nums text-foreground">({stdWindow})</span>
             )}
           </div>
 
