@@ -57,12 +57,13 @@ import {
   LayoutList,
   LayoutGrid,
   Navigation,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, parse, isValid, differenceInCalendarDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
-import { toPng } from "html-to-image";
+import { toBlob } from "html-to-image";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -218,19 +219,18 @@ function buildSameDayCheckinLookup(checkinRowSources: ArrivalRow[][]): Map<strin
   return map;
 }
 
-/** "Próximo" pra fins de agrupamento por endereço (regra 4) — imóveis a até
- * essa distância entram no mesmo cluster (cobre com folga o caso de mesmo
- * endereço/condomínio). */
-const PROXIMITY_CLUSTER_METERS = 150;
-
 /**
- * Agrupa os itens de um grupo empatado por proximidade (lat/lng) — pedido
- * explícito: "se tem 3 imóveis no mesmo endereço, eles precisam ser
- * mostrados juntos", e os clusters MAIORES vêm antes dos menores ("maior
- * quantidade de imóveis próximos para a menor quantidade"). Dentro de cada
- * cluster, os itens são encadeados pelo vizinho mais próximo (rota curta).
- * Imóveis sem coordenada cadastrada não competem nesse critério; ficam ao
- * final do grupo, na ordem que já tinham.
+ * Encadeia os itens de um grupo empatado pelo vizinho mais próximo (rota
+ * curta): parte do primeiro item do grupo e, a cada passo, escolhe entre os
+ * restantes aquele que está mais perto do ÚLTIMO item já encadeado — não do
+ * primeiro. Pedido explícito, com exemplo real: "casa da Patrícia" → o
+ * próximo deve ser quem está mais perto DELA (ex.: "casa do Arthur"), e o
+ * seguinte, mais perto do Arthur (ex.: "studio da Eliete") — não uma
+ * propriedade distante só porque pertence a um grupo com mais unidades
+ * (ex.: vários "studios do Clayton" longe dali). Isso também garante que
+ * imóveis no mesmo endereço apareçam juntos (distância ~0 = sempre o
+ * próximo escolhido). Imóveis sem coordenada cadastrada não competem nesse
+ * critério; ficam ao final do grupo, na ordem que já tinham.
  */
 function clusterByProximity(group: ArrivalRow[]): ArrivalRow[] {
   if (group.length <= 2) return group;
@@ -238,47 +238,23 @@ function clusterByProximity(group: ArrivalRow[]): ArrivalRow[] {
   const withoutCoords = group.filter((r) => r.lat == null || r.lng == null);
   if (withCoords.length <= 1) return group;
 
-  // Agrupamento por limiar fixo (ligação simples): um imóvel entra no
-  // primeiro cluster em que tiver algum vizinho dentro de PROXIMITY_CLUSTER_METERS.
-  const clusters: ArrivalRow[][] = [];
-  for (const r of withCoords) {
-    const target = clusters.find((c) =>
-      c.some(
-        (m) =>
-          haversineMeters({ lat: m.lat as number, lng: m.lng as number }, { lat: r.lat as number, lng: r.lng as number }) <=
-          PROXIMITY_CLUSTER_METERS,
-      ),
-    );
-    if (target) target.push(r);
-    else clusters.push([r]);
-  }
-
-  // Maior cluster primeiro (pedido explícito); empate de tamanho mantém a
-  // ordem em que os clusters surgiram.
-  clusters.sort((a, b) => b.length - a.length);
-
-  const chainCluster = (c: ArrivalRow[]): ArrivalRow[] => {
-    if (c.length <= 2) return c;
-    const remaining = [...c];
-    const chain: ArrivalRow[] = [remaining.shift() as ArrivalRow];
-    while (remaining.length > 0) {
-      const last = chain[chain.length - 1];
-      let bestIdx = 0;
-      let bestDist = Infinity;
-      for (let k = 0; k < remaining.length; k++) {
-        const cand = remaining[k];
-        const d = haversineMeters({ lat: last.lat as number, lng: last.lng as number }, { lat: cand.lat as number, lng: cand.lng as number });
-        if (d < bestDist) {
-          bestDist = d;
-          bestIdx = k;
-        }
+  const remaining = [...withCoords];
+  const chain: ArrivalRow[] = [remaining.shift() as ArrivalRow];
+  while (remaining.length > 0) {
+    const last = chain[chain.length - 1];
+    let bestIdx = 0;
+    let bestDist = Infinity;
+    for (let k = 0; k < remaining.length; k++) {
+      const cand = remaining[k];
+      const d = haversineMeters({ lat: last.lat as number, lng: last.lng as number }, { lat: cand.lat as number, lng: cand.lng as number });
+      if (d < bestDist) {
+        bestDist = d;
+        bestIdx = k;
       }
-      chain.push(remaining.splice(bestIdx, 1)[0]);
     }
-    return chain;
-  };
-
-  return [...clusters.flatMap(chainCluster), ...withoutCoords];
+    chain.push(remaining.splice(bestIdx, 1)[0]);
+  }
+  return [...chain, ...withoutCoords];
 }
 
 /**
@@ -288,8 +264,9 @@ function clusterByProximity(group: ArrivalRow[]): ArrivalRow[] {
  *    (mais cedo primeiro);
  * 3) o que sobrar (inclusive quem não tem giro) pelo horário previsto do
  *    próprio checkout (mais cedo primeiro);
- * 4) o que ainda estiver empatado, por proximidade de endereço — agrupado
- *    em clusters de imóveis próximos, do MAIOR cluster para o menor.
+ * 4) o que ainda estiver empatado, por proximidade de endereço — encadeado
+ *    pelo vizinho mais próximo do ÚLTIMO imóvel já ordenado (rota curta),
+ *    não pelo tamanho do grupo de imóveis vizinhos.
  * `checkinRowSources` recebe TODAS as fontes de check-in relevantes pro
  * mesmo período das linhas de checkout (não só as pendentes: um giro conta
  * mesmo que o check-in já tenha sido marcado feito).
@@ -371,11 +348,13 @@ function ViewModeToggle({
   onChange: (v: "full" | "list") => void;
 }) {
   return (
-    <div className="inline-flex items-center rounded-md border border-border/60 bg-secondary/30 p-0.5 text-[11px]">
+    // Mesma curva padrão (0.3rem) usada nos demais cards/quadrantes do app
+    // (pedido explícito) — antes era rounded-md (6px), destoando do resto.
+    <div className="inline-flex items-center rounded-[0.3rem] border border-border/60 bg-secondary/30 p-0.5 text-[11px]">
       <button
         type="button"
         onClick={() => onChange("full")}
-        className={`inline-flex items-center gap-1 rounded-[5px] px-2 py-1 transition-colors ${
+        className={`inline-flex items-center gap-1 rounded-[0.2rem] px-2 py-1 transition-colors ${
           value === "full" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
         }`}
       >
@@ -385,7 +364,7 @@ function ViewModeToggle({
       <button
         type="button"
         onClick={() => onChange("list")}
-        className={`inline-flex items-center gap-1 rounded-[5px] px-2 py-1 transition-colors ${
+        className={`inline-flex items-center gap-1 rounded-[0.2rem] px-2 py-1 transition-colors ${
           value === "list" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
         }`}
       >
@@ -398,7 +377,9 @@ function ViewModeToggle({
 
 /**
  * Botão "tirar um print" (pedido explícito) — captura o container apontado
- * por `targetRef` como PNG e dispara o download. Usa `html-to-image`
+ * por `targetRef` como PNG. Ao clicar, abre um menu com duas opções:
+ * "Salvar Imagem" (baixa o PNG) e "Copiar Imagem" (vai pra área de
+ * transferência, pra colar direto em outro lugar). Usa `html-to-image`
  * (já não existia nenhuma lib de captura no projeto).
  */
 function ScreenshotButton({
@@ -409,37 +390,73 @@ function ScreenshotButton({
   fileName: string;
 }) {
   const [busy, setBusy] = useState(false);
-  const handleClick = useCallback(async () => {
+  const captureBlob = useCallback(async (): Promise<Blob | null> => {
     const node = targetRef.current;
-    if (!node || busy) return;
+    if (!node) return null;
+    return await toBlob(node, {
+      cacheBust: true,
+      pixelRatio: 2,
+      backgroundColor: getComputedStyle(document.body).backgroundColor || "#0a0a0a",
+    });
+  }, [targetRef]);
+  const handleSave = useCallback(async () => {
+    if (busy) return;
     setBusy(true);
     try {
-      const dataUrl = await toPng(node, {
-        cacheBust: true,
-        pixelRatio: 2,
-        backgroundColor: getComputedStyle(document.body).backgroundColor || "#0a0a0a",
-      });
+      const blob = await captureBlob();
+      if (!blob) throw new Error("sem conteúdo");
+      const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.download = `${fileName}.png`;
-      link.href = dataUrl;
+      link.href = url;
       link.click();
+      URL.revokeObjectURL(url);
     } catch {
-      toast.error("Não foi possível gerar o print. Tente novamente.");
+      toast.error("Não foi possível salvar a imagem. Tente novamente.");
     } finally {
       setBusy(false);
     }
-  }, [targetRef, fileName, busy]);
+  }, [captureBlob, fileName, busy]);
+  const handleCopy = useCallback(async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const blob = await captureBlob();
+      if (!blob) throw new Error("sem conteúdo");
+      if (typeof ClipboardItem === "undefined" || !navigator.clipboard?.write) {
+        throw new Error("Área de transferência não suportada");
+      }
+      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+      toast.success("Imagem copiada — já pode colar em outro lugar.");
+    } catch {
+      toast.error("Não foi possível copiar a imagem. Tente 'Salvar Imagem'.");
+    } finally {
+      setBusy(false);
+    }
+  }, [captureBlob, busy]);
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      disabled={busy}
-      title="Tirar um print"
-      aria-label="Tirar um print"
-      className="inline-flex items-center justify-center rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors disabled:opacity-50"
-    >
-      {busy ? <Loader2 className="size-3 animate-spin" /> : <Camera className="size-3" />}
-    </button>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          disabled={busy}
+          title="Tirar um print"
+          aria-label="Tirar um print"
+          // Mesma curva padrão (0.3rem) do quadrante Completo/Lista ao lado.
+          className="inline-flex items-center justify-center rounded-[0.3rem] border border-border/60 bg-secondary/30 p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors disabled:opacity-50"
+        >
+          {busy ? <Loader2 className="size-3 animate-spin" /> : <Camera className="size-3" />}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-[10rem]">
+        <DropdownMenuItem onClick={handleSave}>
+          <Download className="size-3.5 shrink-0" /> Salvar Imagem
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleCopy}>
+          <Copy className="size-3.5 shrink-0" /> Copiar Imagem
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -1047,6 +1064,70 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     [ownerFilters, cityFilters, propertyCityById],
   );
 
+  /**
+   * "Limpeza Prevista 7d" (pedido explícito) — diferente do histórico
+   * (`getCleaningStats`, baseado em `concluded_at`), aqui a base são os
+   * CHECKOUTS AGENDADOS (ainda pendentes) pros próximos 7 dias: cada
+   * checkout previsto vira uma limpeza esperada naquele dia. Reaproveita a
+   * mesma lista/lógica de "Checkouts" (iCal, gating etc.) via `listFn`, só
+   * que com `range: "7d"` (hoje → hoje+6).
+   * Custo: como o tipo de limpeza (normal/completa) só é escolhido na hora
+   * de concluir, o valor aqui é uma ESTIMATIVA usando o preço da limpeza
+   * normal de cada imóvel (pedido explícito) — nunca um valor fechado.
+   */
+  const cleaningForecastListQ = useQuery({
+    queryKey: ["dash-list", "checkout", "7d-forecast", activeOwnerId ?? "self"],
+    queryFn: () => listFn({ data: { kind: "checkout", range: "7d", ownerId: activeOwnerId } }),
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+    enabled: view === "limpeza",
+  });
+  const cleaningForecast = useMemo(() => {
+    const today = todayISOSaoPaulo();
+    const daily: CleaningDailyPoint[] = Array.from({ length: 7 }, (_, i) => ({
+      date: addDaysISO(today, i) ?? today,
+      count: 0,
+      totalCents: 0,
+    }));
+    const dailyByDate = new Map(daily.map((p) => [p.date, p]));
+    const lastDate = daily[daily.length - 1]?.date ?? today;
+    const rows = (cleaningForecastListQ.data?.rows ?? []).filter(
+      (r) => r.status === "pending" && r.date >= today && r.date <= lastDate && matchesKanbanOwnerCity(r),
+    );
+    const byProperty = new Map<string, CleaningBreakdownItem>();
+    for (const r of rows) {
+      const estimate = r.cleaningPriceNormalCents ?? 0;
+      const point = dailyByDate.get(r.date);
+      if (point) {
+        point.count += 1;
+        point.totalCents += estimate;
+      }
+      const cur = byProperty.get(r.propertyId) ?? {
+        propertyId: r.propertyId,
+        propertyName: r.propertyName ?? "Imóvel",
+        ownerName: r.ownerName ?? null,
+        propertyAddress: r.propertyAddress ?? null,
+        mapsUrl: r.mapsUrl ?? null,
+        garageMapsUrl: r.garageMapsUrl ?? null,
+        count: 0,
+        totalCents: 0,
+      };
+      cur.count += 1;
+      cur.totalCents += estimate;
+      byProperty.set(r.propertyId, cur);
+    }
+    const breakdown = Array.from(byProperty.values()).sort(
+      (a, b) => b.count - a.count || a.propertyName.localeCompare(b.propertyName, "pt-BR"),
+    );
+    return {
+      daily,
+      breakdown,
+      cleaningsExpected: rows.length,
+      estimatedTotalCents: rows.reduce((sum: number, r: ArrivalRow) => sum + (r.cleaningPriceNormalCents ?? 0), 0),
+    };
+  }, [cleaningForecastListQ.data?.rows, matchesKanbanOwnerCity]);
+  const [forecastOpen, setForecastOpen] = useState(false);
+
   // Sem período escolhido, mantém o padrão de "hoje" (mesma convenção já
   // usada pela agenda/cards de limpeza quando nenhum período é escolhido).
   // O período usado é sempre o da PRÓPRIA reserva (`row.date` já é a data
@@ -1502,6 +1583,20 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             />
           </div>
 
+          {/* Botão central (pedido explícito): abre a previsão de limpeza dos
+              próximos 7 dias, baseada nos checkouts já agendados — separado
+              do histórico que já vinha logo abaixo. */}
+          <div className="flex justify-center mt-1.5">
+            <button
+              type="button"
+              onClick={() => setForecastOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/[0.08] px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary hover:bg-primary/[0.14] transition-colors"
+            >
+              <Sparkles className="size-3.5" />
+              Tendência 7D
+            </button>
+          </div>
+
           {/* Cards de limpeza — mais métricas chegam aqui conforme forem
               implementadas. */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5 mt-1.5">
@@ -1511,8 +1606,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 value={cleaningStatsQ.data?.cleaningsDone ?? 0}
                 icon={CheckCircle2}
                 loading={cleaningStatsQ.isLoading}
-                breakdown={cleaningStatsQ.data?.breakdown}
-                sparkline={{ data: cleaningTrendQ.data?.daily ?? [], metric: "count", color: CLEANING_COUNT_COLOR }}
               />
             </div>
             <div className="col-span-1">
@@ -1521,8 +1614,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 value={centsToBRL(cleaningStatsQ.data?.totalCents ?? 0)}
                 icon={Banknote}
                 loading={cleaningStatsQ.isLoading}
-                breakdown={cleaningStatsQ.data?.breakdown}
-                sparkline={{ data: cleaningTrendQ.data?.daily ?? [], metric: "totalCents", color: CLEANING_COST_COLOR }}
               />
             </div>
           </div>
@@ -1537,6 +1628,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           <div className="mt-1.5">
             <CleaningTopProperties items={cleaningTrendQ.data?.breakdown} loading={cleaningTrendQ.isLoading} />
           </div>
+
+          <CleaningForecastDialog
+            open={forecastOpen}
+            onOpenChange={setForecastOpen}
+            data={cleaningForecast}
+            loading={cleaningForecastListQ.isLoading}
+          />
 
           <div className="h-1.5" />
         </>
@@ -2317,8 +2415,8 @@ function KpiCard({
           </div>
           {rows.length > 0 && (
             <div className="flex items-center justify-end gap-1.5 mt-3">
-              <ViewModeToggle value={listMode} onChange={setListMode} />
               <ScreenshotButton targetRef={screenshotRef} fileName={`${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`} />
+              <ViewModeToggle value={listMode} onChange={setListMode} />
             </div>
           )}
         </DialogHeader>
@@ -2510,12 +2608,12 @@ function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdo
   return (
     <>
       <div className="mb-1 text-foreground/90">Imóveis que entram nesta conta:</div>
-      <div className="flex items-center justify-between gap-1.5 mb-1.5">
-        <ViewModeToggle value={listMode} onChange={setListMode} />
+      <div className="flex items-center justify-end gap-1.5 mb-1.5">
         <ScreenshotButton
           targetRef={screenshotRef}
           fileName={`${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-imoveis`}
         />
+        <ViewModeToggle value={listMode} onChange={setListMode} />
       </div>
       <ul ref={screenshotRef} className="max-h-48 space-y-1 overflow-y-auto bg-popover">
         {breakdown.map((item) => {
@@ -2772,6 +2870,61 @@ function CleaningTopProperties({ items, loading }: { items: CleaningBreakdownIte
         </ul>
       )}
     </div>
+  );
+}
+
+/**
+ * "Limpeza Prevista 7d" (pedido explícito) — mesma linguagem visual dos
+ * gráficos de histórico logo acima, só que olhando pra FRENTE: baseado nos
+ * checkouts já agendados pros próximos 7 dias (hoje → hoje+6), não em
+ * limpezas já concluídas. O custo é uma ESTIMATIVA (preço da limpeza
+ * normal de cada imóvel — o tipo real só é escolhido na hora de concluir).
+ */
+function CleaningForecastDialog({
+  open,
+  onOpenChange,
+  data,
+  loading,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  data: { daily: CleaningDailyPoint[]; breakdown: CleaningBreakdownItem[]; cleaningsExpected: number; estimatedTotalCents: number };
+  loading: boolean;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-2xl p-0 overflow-hidden rounded-lg border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+        <DialogHeader className="px-5 pt-5 pb-3">
+          <div className="flex items-center gap-3">
+            <div className="grid place-items-center size-10 rounded-xl bg-primary/10 text-primary">
+              <Sparkles className="size-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <DialogTitle className="text-base font-display leading-tight truncate">Limpeza Prevista 7d</DialogTitle>
+              <div className="ds-meta mt-0.5">Previsão de limpezas e custo estimado para os próximos 7 dias, com base nos checkouts já agendados.</div>
+            </div>
+          </div>
+        </DialogHeader>
+        <div className="sg-elegant-scroll max-h-[75vh] overflow-y-auto px-5 pb-5">
+          <div className="grid grid-cols-2 gap-1.5">
+            <StatDisplayCard label="Limpezas Previstas" value={data.cleaningsExpected} icon={CheckCircle2} loading={loading} />
+            <StatDisplayCard label="Custo Estimado" value={centsToBRL(data.estimatedTotalCents)} icon={Banknote} loading={loading} />
+          </div>
+          <div className="text-[10.5px] text-muted-foreground mt-1.5">
+            Custo estimado com o preço da limpeza normal de cada imóvel — o tipo real (normal ou completa) só é definido na hora de concluir a
+            limpeza.
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-1.5 mt-2.5">
+            <CleaningDailyBarChart data={data.daily} loading={loading} />
+            <CleaningDailyAreaChart data={data.daily} loading={loading} />
+          </div>
+          <div className="mt-1.5 pb-1">
+            <CleaningTopProperties items={data.breakdown} loading={loading} />
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
