@@ -24,6 +24,8 @@ import {
   UserPlus,
   MapPin,
   Link as LinkIcon,
+  Copy,
+  Share2,
   KeyRound,
   Eye,
   ListChecks,
@@ -3178,6 +3180,31 @@ function ArrivalCard({
       toast.error("Não foi possível copiar.");
     }
   };
+  const copyAddress = async () => {
+    if (!row.propertyAddress) return;
+    try {
+      await navigator.clipboard.writeText(row.propertyAddress);
+      toast.success("Endereço copiado.");
+    } catch {
+      toast.error("Não foi possível copiar.");
+    }
+  };
+  // "Abrir App": deixa o próprio sistema oferecer os apps instalados no
+  // celular (Google Maps, Waze, Uber, 99 etc.) via o share sheet nativo —
+  // pedido explícito, substitui o antigo "Abrir o Google Maps" fixo.
+  // Sem suporte a Web Share (ex.: desktop), cai de volta pro Google Maps.
+  const openWithApp = () => {
+    if (!mapsHref) return;
+    if (typeof navigator.share === "function") {
+      navigator
+        .share({ title: row.propertyName ?? "Endereço", text: row.propertyAddress ?? undefined, url: mapsHref })
+        .catch(() => {
+          // Cancelado pelo usuário ou não suportado neste contexto — sem fallback forçado.
+        });
+      return;
+    }
+    window.open(mapsHref, "_blank", "noopener,noreferrer");
+  };
 
   // Confirmação quando o check acontece fora do horário/data comum da esteira.
   const [confirmMsg, setConfirmMsg] = useState<string | null>(null);
@@ -3303,9 +3330,11 @@ function ArrivalCard({
               )
             ) : (
               <span className="inline-flex min-w-0 items-center gap-1.5">
-                <ExtraGuests guests={row.additionalGuests ?? []} />
                 <span className="min-w-0 truncate">{row.guestName}</span>
                 <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
+                {/* Pedido explícito: o "+N" (outros hóspedes) fica à direita
+                    do ícone do chat, não mais antes do nome. */}
+                <ExtraGuests guests={row.additionalGuests ?? []} />
               </span>
             )}
           </div>
@@ -3557,8 +3586,11 @@ function ArrivalCard({
                 <DropdownMenuItem onClick={copyLink} disabled={!copyText}>
                   <LinkIcon className="size-3.5 shrink-0" /> Copiar Link do Maps
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => window.open(mapsHref, "_blank", "noopener,noreferrer")}>
-                  <MapPin className="size-3.5 shrink-0" /> Abrir o Google Maps
+                <DropdownMenuItem onClick={copyAddress} disabled={!row.propertyAddress}>
+                  <Copy className="size-3.5 shrink-0" /> Copiar Endereço
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={openWithApp}>
+                  <Share2 className="size-3.5 shrink-0" /> Abrir App
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
