@@ -1514,7 +1514,7 @@ function KanbanColumn({
       }
       const first = cards[0].getBoundingClientRect();
       const third = cards[2].getBoundingClientRect();
-      const PADDING_Y = 20; // p-2.5 em cima + embaixo
+      const PADDING_Y = 30; // pt-5 (20px, dá espaço pro badge de engajamento que corta a borda do card) + pb-2.5 (10px)
       setMaxHeight(Math.ceil(third.bottom - first.top) + PADDING_Y);
     }
 
@@ -1537,7 +1537,7 @@ function KanbanColumn({
         ref={bodyRef}
         onScroll={onScroll}
         style={maxHeight !== undefined ? { maxHeight } : undefined}
-        className="flex-1 min-h-0 overflow-y-auto snap-y snap-mandatory p-2.5 space-y-1.5"
+        className="flex-1 min-h-0 overflow-y-auto snap-y snap-mandatory pt-5 px-2.5 pb-2.5 space-y-1.5"
       >
         {children}
       </div>
@@ -1820,7 +1820,7 @@ function KpiCard({
           ) : rows.length === 0 ? (
             <div className="py-12 text-center text-sm text-muted-foreground">Nenhum registro no período.</div>
           ) : (
-            <div className="pb-3">
+            <div className="pt-4 pb-3">
               <ArrivalGroup title="" {...cardProps} />
             </div>
           )}
@@ -2978,7 +2978,10 @@ function ArrivalGroup({
   // se espremerem em várias colunas dentro de uma coluna de ~220px.
   if (rows.length === 0) return null;
   return (
-    <div className={`flex flex-col gap-1.5 ${muted ? "opacity-70" : ""}`}>
+    // gap maior que o "gap-1.5" de antes: dá espaço pro badge de engajamento
+    // (fixo no topo de cada card, cortando a borda) sem sobrepor o card
+    // anterior.
+    <div className={`flex flex-col gap-4 ${muted ? "opacity-70" : ""}`}>
       {rows.map((r) => (
         <ArrivalCard
           key={r.logId}
@@ -3262,7 +3265,7 @@ function ArrivalCard({
           sobra espaço vazio entre este campo e o botão de check-in. */}
       {mode !== "cleaning" && (
         <div
-          className={`-mt-2.5 flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs ${divergent ? "bg-amber-500/10 border border-amber-500/30" : "bg-background/50 border border-border/40"}`}
+          className={`-mt-2.5 flex items-center justify-between gap-2 rounded-none px-2.5 py-1.5 text-xs ${divergent ? "bg-amber-500/10 border border-amber-500/30" : "bg-background/50 border border-border/40"}`}
         >
           <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
             Previsto
@@ -3661,7 +3664,6 @@ function TimeDropdown({
           className={`inline-flex w-auto items-center gap-1 tabular-nums rounded cursor-pointer bg-transparent border-0 p-0 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit ${size === "xs" ? "text-xs" : "text-sm"}`}
         >
           <span className={value ? "font-medium" : "font-normal text-muted-foreground"}>{value ?? "Horário"}</span>
-          <ChevronDown className="size-3 opacity-50 shrink-0" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="max-h-64 overflow-y-auto min-w-[6rem] p-1">
