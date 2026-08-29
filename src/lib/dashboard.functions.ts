@@ -249,6 +249,18 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
 // Conta limpezas concluídas (guest_arrival_status.kind="checkout" com
 // cleaning_type preenchido) cujo "concluded_at" caiu dentro do intervalo, e
 // soma o snapshot de preço gravado no momento da conclusão de cada uma.
+export type CleaningBreakdownItem = {
+  propertyId: string;
+  propertyName: string;
+  ownerName: string | null;
+  propertyAddress: string | null;
+  mapsUrl: string | null;
+  garageMapsUrl: string | null;
+  count: number;
+  totalCents: number;
+};
+export type CleaningDailyPoint = { date: string; count: number; totalCents: number };
+
 const CleaningStatsInput = z.object({
   ownerId: z.string().uuid().nullable().optional(),
   // ids já resolvidos no cliente a partir do filtro de Proprietário/Cidade
@@ -268,11 +280,18 @@ export const getCleaningStats = createServerFn({ method: "GET" })
       const allowed = new Set(data.propertyIds);
       propIds = propIds.filter((id) => allowed.has(id));
     }
-    if (propIds.length === 0) {
-      return { cleaningsDone: 0, totalCents: 0 };
-    }
     const day0 = data.rangeStart ?? todayISO();
     const day1 = data.rangeEnd ?? day0;
+    // Lista de dias do intervalo, pré-preenchida com zero — assim o gráfico
+    // de tendência mostra todo dia do período, mesmo os sem limpeza.
+    const emptyDaily: CleaningDailyPoint[] = [];
+    for (let d = day0; d <= day1; d = addDaysISO(d, 1)) {
+      emptyDaily.push({ date: d, count: 0, totalCents: 0 });
+      if (emptyDaily.length > 366) break; // segurança: nunca itera indefinidamente
+    }
+    if (propIds.length === 0) {
+      return { cleaningsDone: 0, totalCents: 0, breakdown: [] as CleaningBreakdownItem[], daily: emptyDaily };
+    }
     // Brasil não observa mais horário de verão (abolido em 2019) — São Paulo
     // é sempre UTC-3, então "dia 00:00 SP" = "dia 03:00 UTC".
     const rangeStart = `${day0}T03:00:00.000Z`;
@@ -280,7 +299,7 @@ export const getCleaningStats = createServerFn({ method: "GET" })
 
     const { data: rows, error } = await context.supabase
       .from("guest_arrival_status")
-      .select("cleaning_type, cleaning_price_cents, concluded_at")
+      .select("property_id, cleaning_type, cleaning_price_cents, concluded_at")
       .in("property_id", propIds)
       .eq("kind", "checkout")
       .not("cleaning_type", "is", null)
@@ -289,11 +308,85 @@ export const getCleaningStats = createServerFn({ method: "GET" })
       .limit(5000);
     if (error) throw new Error(error.message);
 
-    type Row = { cleaning_type: string | null; cleaning_price_cents: number | null; concluded_at: string | null };
+    type Row = {
+      property_id: string;
+      cleaning_type: string | null;
+      cleaning_price_cents: number | null;
+      concluded_at: string | null;
+    };
     const list = (rows ?? []) as Row[];
     const cleaningsDone = list.length;
     const totalCents = list.reduce((sum, r) => sum + (r.cleaning_price_cents ?? 0), 0);
-    return { cleaningsDone, totalCents };
+
+    // Série diária (gráficos "Limpezas por dia"/"Custo total por dia") — cada
+    // registro cai no dia local (SP, UTC-3) do momento em que foi concluído.
+    const dailyByDate = new Map(emptyDaily.map((p) => [p.date, p]));
+    for (const r of list) {
+      if (!r.concluded_at) continue;
+      const localDate = new Date(new Date(r.concluded_at).getTime() - 3 * 3600_000).toISOString().slice(0, 10);
+      const point = dailyByDate.get(localDate);
+      if (point) {
+        point.count += 1;
+        point.totalCents += r.cleaning_price_cents ?? 0;
+      }
+    }
+    const daily = Array.from(dailyByDate.values());
+
+    // Detalhe por imóvel — alimenta o tooltip "quais imóveis foram
+    // executados" nos cards "Limpezas Realizadas"/"Custo Total Limpeza"
+    // (mesmo padrão do tooltip de engajamento) e o ranking "Top imóveis".
+    const byProperty = new Map<string, { count: number; cents: number }>();
+    for (const r of list) {
+      const cur = byProperty.get(r.property_id) ?? { count: 0, cents: 0 };
+      cur.count += 1;
+      cur.cents += r.cleaning_price_cents ?? 0;
+      byProperty.set(r.property_id, cur);
+    }
+    let breakdown: CleaningBreakdownItem[] = [];
+    if (byProperty.size > 0) {
+      const { data: props } = await context.supabase
+        .from("properties")
+        .select("id, name, address, maps_url, garage_maps_url, owner_contact_id")
+        .in("id", Array.from(byProperty.keys()));
+      type PropRow = {
+        id: string;
+        name: string | null;
+        address: string | null;
+        maps_url: string | null;
+        garage_maps_url: string | null;
+        owner_contact_id: string | null;
+      };
+      const propArr = (props ?? []) as PropRow[];
+      const propById = new Map(propArr.map((p) => [p.id, p]));
+      const ownerIds = Array.from(new Set(propArr.map((p) => p.owner_contact_id).filter((v): v is string => !!v)));
+      const ownerNameById = new Map<string, string>();
+      if (ownerIds.length > 0) {
+        const { data: owners } = await context.supabase
+          .from("property_owners")
+          .select("id, name, trade_name")
+          .in("id", ownerIds);
+        for (const o of (owners ?? []) as Array<{ id: string; name: string | null; trade_name: string | null }>) {
+          const label = (o.trade_name || o.name || "").trim();
+          if (label) ownerNameById.set(o.id, label);
+        }
+      }
+      breakdown = Array.from(byProperty.entries())
+        .map(([propertyId, v]) => {
+          const p = propById.get(propertyId);
+          return {
+            propertyId,
+            propertyName: p?.name ?? "Imóvel",
+            ownerName: p?.owner_contact_id ? (ownerNameById.get(p.owner_contact_id) ?? null) : null,
+            propertyAddress: p?.address ?? null,
+            mapsUrl: p?.maps_url ?? null,
+            garageMapsUrl: p?.garage_maps_url ?? null,
+            count: v.count,
+            totalCents: v.cents,
+          };
+        })
+        .sort((a, b) => b.count - a.count || a.propertyName.localeCompare(b.propertyName, "pt-BR"));
+    }
+    return { cleaningsDone, totalCents, breakdown, daily };
   });
 
 // ----- Engagement -----

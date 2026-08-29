@@ -6,6 +6,19 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  AreaChart,
+  Area,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+} from "recharts";
+import {
   CalendarCheck,
   CalendarX,
   LogIn,
@@ -40,11 +53,16 @@ import {
   Filter,
   ChevronRight,
   ChevronLeft,
+  Camera,
+  LayoutList,
+  LayoutGrid,
+  Navigation,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, parse, isValid, differenceInCalendarDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
+import { toPng } from "html-to-image";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -75,6 +93,8 @@ import {
   getOccupancyBoard,
   getCleaningStats,
   type ArrivalRow,
+  type CleaningBreakdownItem,
+  type CleaningDailyPoint,
 } from "@/lib/dashboard.functions";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { ConfirmActionDialog } from "@/components/permissions/ConfirmActionDialog";
@@ -187,6 +207,93 @@ function InfoHint({ title, children }: { title?: string; children: React.ReactNo
         <div className="text-foreground/90">{children}</div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+/**
+ * Alterna "Completo" / "Lista" — pedido explícito para facilitar a
+ * visualização dentro dos popups de card (4 KPIs do Dashboard) e do
+ * tooltip "quais imóveis" da Limpeza. Puramente visual: quem controla o
+ * estado é o componente pai (via `value`/`onChange`).
+ */
+function ViewModeToggle({
+  value,
+  onChange,
+}: {
+  value: "full" | "list";
+  onChange: (v: "full" | "list") => void;
+}) {
+  return (
+    <div className="inline-flex items-center rounded-md border border-border/60 bg-secondary/30 p-0.5 text-[11px]">
+      <button
+        type="button"
+        onClick={() => onChange("full")}
+        className={`inline-flex items-center gap-1 rounded-[5px] px-2 py-1 transition-colors ${
+          value === "full" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+        }`}
+      >
+        <LayoutGrid className="size-3" />
+        Completo
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange("list")}
+        className={`inline-flex items-center gap-1 rounded-[5px] px-2 py-1 transition-colors ${
+          value === "list" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+        }`}
+      >
+        <LayoutList className="size-3" />
+        Lista
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Botão "tirar um print" (pedido explícito) — captura o container apontado
+ * por `targetRef` como PNG e dispara o download. Usa `html-to-image`
+ * (já não existia nenhuma lib de captura no projeto).
+ */
+function ScreenshotButton({
+  targetRef,
+  fileName,
+}: {
+  targetRef: React.RefObject<HTMLElement | null>;
+  fileName: string;
+}) {
+  const [busy, setBusy] = useState(false);
+  const handleClick = useCallback(async () => {
+    const node = targetRef.current;
+    if (!node || busy) return;
+    setBusy(true);
+    try {
+      const dataUrl = await toPng(node, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: getComputedStyle(document.body).backgroundColor || "#0a0a0a",
+      });
+      const link = document.createElement("a");
+      link.download = `${fileName}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch {
+      toast.error("Não foi possível gerar o print. Tente novamente.");
+    } finally {
+      setBusy(false);
+    }
+  }, [targetRef, fileName, busy]);
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={busy}
+      title="Tirar um print"
+      aria-label="Tirar um print"
+      className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-secondary/30 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors disabled:opacity-50"
+    >
+      {busy ? <Loader2 className="size-3 animate-spin" /> : <Camera className="size-3" />}
+      Print
+    </button>
   );
 }
 
@@ -417,6 +524,37 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       }),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
+  });
+  // Gráficos da aba Limpeza (pedido explícito): usam o MESMO endpoint acima,
+  // mas com uma janela própria — os cards de estatística mostram "Hoje" por
+  // padrão (número em tempo real), enquanto os gráficos de tendência
+  // precisam de vários dias pra fazer sentido. Sem período customizado, cai
+  // nos últimos 7 dias; com período escolhido, os dois passam a usar
+  // exatamente o mesmo intervalo (mesmo racional do cleaningStatsRange).
+  const cleaningTrendRange = periodRange ?? {
+    start: addDaysISO(todayISOSaoPaulo(), -6) ?? todayISOSaoPaulo(),
+    end: todayISOSaoPaulo(),
+  };
+  const cleaningTrendQ = useQuery({
+    queryKey: [
+      "dash-cleaning-stats",
+      activeOwnerId ?? "self",
+      cleaningTrendRange.start,
+      cleaningTrendRange.end,
+      cleaningStatsPropertyIds?.join(",") ?? "",
+    ],
+    queryFn: () =>
+      cleaningStatsFn({
+        data: {
+          ownerId: activeOwnerId,
+          rangeStart: cleaningTrendRange.start,
+          rangeEnd: cleaningTrendRange.end,
+          propertyIds: cleaningStatsPropertyIds,
+        },
+      }),
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+    enabled: view === "limpeza",
   });
 
   // Uma única rotina de recarga, com "debounce": evita disparar 4-5 requisições
@@ -1206,6 +1344,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 value={cleaningStatsQ.data?.cleaningsDone ?? 0}
                 icon={CheckCircle2}
                 loading={cleaningStatsQ.isLoading}
+                breakdown={cleaningStatsQ.data?.breakdown}
+                sparkline={{ data: cleaningTrendQ.data?.daily ?? [], metric: "count", color: CLEANING_COUNT_COLOR }}
               />
             </div>
             <div className="col-span-1">
@@ -1214,8 +1354,21 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 value={centsToBRL(cleaningStatsQ.data?.totalCents ?? 0)}
                 icon={Banknote}
                 loading={cleaningStatsQ.isLoading}
+                breakdown={cleaningStatsQ.data?.breakdown}
+                sparkline={{ data: cleaningTrendQ.data?.daily ?? [], metric: "totalCents", color: CLEANING_COST_COLOR }}
               />
             </div>
+          </div>
+
+          {/* Gráficos de tendência (pedido explícito, combinando as opções A
+              e C dos mockups aprovados) — sem mexer no layout dos cards
+              acima, só adicionando estes logo abaixo. */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-1.5 mt-1.5">
+            <CleaningDailyBarChart data={cleaningTrendQ.data?.daily} loading={cleaningTrendQ.isLoading} />
+            <CleaningDailyAreaChart data={cleaningTrendQ.data?.daily} loading={cleaningTrendQ.isLoading} />
+          </div>
+          <div className="mt-1.5">
+            <CleaningTopProperties items={cleaningTrendQ.data?.breakdown} loading={cleaningTrendQ.isLoading} />
           </div>
 
           <div className="h-1.5" />
@@ -1873,7 +2026,12 @@ function KpiCard({
   cardProps: Omit<React.ComponentProps<typeof ArrivalGroup>, "title">;
 }) {
   const [open, setOpen] = useState(false);
-  const list = useWholeCardsMaxHeight(2, `${open}:${rows.length}:${loading}`);
+  // Modo "Lista" (pedido explícito) — só afeta o conteúdo do popup, não o
+  // gatilho (compact/highlight) do card em si, que já usa a prop `compact`
+  // pra outra coisa (faixa fina vs. quadrado).
+  const [listMode, setListMode] = useState<"full" | "list">("full");
+  const list = useWholeCardsMaxHeight(2, `${open}:${rows.length}:${loading}:${listMode}`);
+  const screenshotRef = useRef<HTMLDivElement | null>(null);
   const valueTone = tone === "primary" ? "text-accent" : "text-foreground";
   const valueColor =
     shadowTone === "emerald"
@@ -1982,16 +2140,25 @@ function KpiCard({
             >
               <Icon className="size-5" />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <DialogTitle className="text-base font-display leading-tight truncate">{label}</DialogTitle>
               <div className="ds-meta mt-0.5">
                 {rangeLabel} · {rows.length} {rows.length === 1 ? "hóspede" : "hóspedes"}
               </div>
             </div>
           </div>
+          {rows.length > 0 && (
+            <div className="flex items-center justify-end gap-1.5 mt-3">
+              <ViewModeToggle value={listMode} onChange={setListMode} />
+              <ScreenshotButton targetRef={screenshotRef} fileName={`${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`} />
+            </div>
+          )}
         </DialogHeader>
         <div
-          ref={list.ref}
+          ref={(el) => {
+            list.ref(el);
+            screenshotRef.current = el;
+          }}
           style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
           className="sg-elegant-scroll max-h-[70vh] overflow-y-auto px-3"
         >
@@ -2003,7 +2170,7 @@ function KpiCard({
             <div className="py-12 text-center text-sm text-muted-foreground">Nenhum registro no período.</div>
           ) : (
             <div className="pt-4 pb-3">
-              <ArrivalGroup title="" {...cardProps} />
+              <ArrivalGroup title="" {...cardProps} compact={listMode === "list"} />
             </div>
           )}
         </div>
@@ -2164,20 +2331,94 @@ function FreePropertiesCard({
 }
 
 /**
+ * Conteúdo do tooltip "quais imóveis" (Limpezas Realizadas / Custo Total
+ * Limpeza). Pedido explícito: também ganha o alternador Completo/Lista e o
+ * botão de print — no modo Lista mostra só proprietário + imóvel + um
+ * atalho pro mapa (bem pequeno).
+ */
+function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdown: CleaningBreakdownItem[] }) {
+  const [listMode, setListMode] = useState<"full" | "list">("full");
+  const screenshotRef = useRef<HTMLUListElement | null>(null);
+  return (
+    <>
+      <div className="mb-1 text-foreground/90">Imóveis que entram nesta conta:</div>
+      <div className="flex items-center justify-between gap-1.5 mb-1.5">
+        <ViewModeToggle value={listMode} onChange={setListMode} />
+        <ScreenshotButton
+          targetRef={screenshotRef}
+          fileName={`${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-imoveis`}
+        />
+      </div>
+      <ul ref={screenshotRef} className="max-h-48 space-y-1 overflow-y-auto bg-popover">
+        {breakdown.map((item) => {
+          const mapsHref = item.mapsUrl || item.garageMapsUrl;
+          return (
+            <li key={item.propertyId} className="flex items-center justify-between gap-2 py-0.5">
+              {listMode === "list" ? (
+                <span className="min-w-0 truncate">
+                  <span className="text-muted-foreground">{item.ownerName ?? "Sem proprietário"}</span>
+                  <span className="text-foreground/60"> · </span>
+                  <span className="text-foreground">{item.propertyName}</span>
+                </span>
+              ) : (
+                <span className="min-w-0 truncate">
+                  <span className="block truncate">{item.propertyName}</span>
+                  {item.ownerName && (
+                    <span className="block truncate text-[10px] text-muted-foreground">{item.ownerName}</span>
+                  )}
+                </span>
+              )}
+              <span className="shrink-0 flex items-center gap-1.5">
+                {listMode === "full" && (
+                  <span className="tabular-nums text-muted-foreground">
+                    {item.count}× · {centsToBRL(item.totalCents)}
+                  </span>
+                )}
+                {mapsHref && (
+                  <a
+                    href={mapsHref}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    title="Ver no mapa"
+                    aria-label="Ver no mapa"
+                    className="grid place-items-center size-5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+                  >
+                    <Navigation className="size-3" />
+                  </a>
+                )}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </>
+  );
+}
+
+/**
  * Card de estatística pura (sem lista/detalhe por trás) — usado para
  * "Limpezas Realizadas" e "Custo Total Limpeza". Mesmo visual dos KpiCards,
  * mas não abre popup: é só um número agregado, "Hoje" (fuso de São Paulo).
+ * Quando `breakdown` vem preenchido, mostra o mesmo tooltip "i" usado na
+ * visualização de engajamento, listando quais imóveis entraram na conta.
  */
 function StatDisplayCard({
   label,
   value,
   icon: Icon,
   loading,
+  breakdown,
+  sparkline,
 }: {
   label: string;
   value: string | number;
   icon: React.ElementType;
   loading: boolean;
+  breakdown?: CleaningBreakdownItem[];
+  /** Mini gráfico de tendência (pedido explícito: sem percentual comparativo por
+      enquanto, só a linha). */
+  sparkline?: { data: CleaningDailyPoint[]; metric: "count" | "totalCents"; color: string };
 }) {
   return (
     <div className="w-full h-full rounded-[0.3rem] border-0 bg-card px-3.5 py-5 min-h-[96px] flex flex-col justify-between ds-3d">
@@ -2186,11 +2427,182 @@ function StatDisplayCard({
         <span className="min-w-0 flex-1 truncate leading-none" title={label}>
           {label}
         </span>
+        {breakdown && breakdown.length > 0 && (
+          <InfoHint title={label}>
+            <CleaningBreakdownContent label={label} breakdown={breakdown} />
+          </InfoHint>
+        )}
       </div>
-      {/* Mesmo ajuste dos KpiCards: fonte um pouco menor, negrito mantido. */}
-      <div className="text-[20px] sm:text-[22px] font-display font-bold mt-1.5 tabular-nums leading-none text-foreground">
-        {loading ? "—" : value}
+      <div className="flex items-end justify-between gap-2 mt-1.5">
+        {/* Mesmo ajuste dos KpiCards: fonte um pouco menor, negrito mantido. */}
+        <div className="text-[20px] sm:text-[22px] font-display font-bold tabular-nums leading-none text-foreground">
+          {loading ? "—" : value}
+        </div>
+        {sparkline && sparkline.data.length > 1 && !loading && (
+          <div className="h-5 w-16 shrink-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={sparkline.data} margin={{ top: 2, right: 1, left: 1, bottom: 2 }}>
+                <Line
+                  type="monotone"
+                  dataKey={sparkline.metric}
+                  stroke={sparkline.color}
+                  strokeWidth={2}
+                  dot={false}
+                  isAnimationActive={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+/** Cor consistente com a identidade já usada pra "limpeza" no resto do app
+    (aba/coluna do Kanban) e para custo/dinheiro (mesmo tom âmbar do destaque
+    "Liberado para Limpeza"). */
+const CLEANING_COUNT_COLOR = "#38bdf8"; // sky-400
+const CLEANING_COST_COLOR = "#d97706"; // amber-600
+
+function CleaningDailyBarChart({ data, loading }: { data: CleaningDailyPoint[] | undefined; loading: boolean }) {
+  return (
+    <div className="w-full rounded-[0.3rem] border-0 bg-card px-3.5 py-3.5 ds-3d">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <span className="ds-eyebrow">Limpezas por dia</span>
+        <span className="text-[10px] text-muted-foreground">{data && data.length > 0 ? `${data.length} dias` : ""}</span>
+      </div>
+      <div className="h-32">
+        {loading || !data || data.length === 0 ? (
+          <div className="h-full grid place-items-center text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+              <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" vertical={false} />
+              <XAxis
+                dataKey="date"
+                tickFormatter={(v: string) => {
+                  const [, m, d] = v.split("-");
+                  return `${d}/${m}`;
+                }}
+                tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                tickLine={false}
+                axisLine={false}
+                minTickGap={16}
+              />
+              <YAxis tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} width={28} allowDecimals={false} />
+              <RechartsTooltip
+                contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid var(--border)", background: "var(--popover)", color: "var(--popover-foreground)" }}
+                labelFormatter={(v: unknown) => fmtDateBR(String(v))}
+                formatter={(value: number) => [`${value}`, "Limpezas"]}
+                cursor={{ fill: "var(--muted)", opacity: 0.3 }}
+              />
+              <Bar dataKey="count" fill={CLEANING_COUNT_COLOR} radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={false} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CleaningDailyAreaChart({ data, loading }: { data: CleaningDailyPoint[] | undefined; loading: boolean }) {
+  return (
+    <div className="w-full rounded-[0.3rem] border-0 bg-card px-3.5 py-3.5 ds-3d">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <span className="ds-eyebrow">Custo total por dia</span>
+        <span className="text-[10px] text-muted-foreground">{data && data.length > 0 ? `${data.length} dias` : ""}</span>
+      </div>
+      <div className="h-32">
+        {loading || !data || data.length === 0 ? (
+          <div className="h-full grid place-items-center text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={data} margin={{ top: 4, right: 4, left: -12, bottom: 0 }}>
+              <defs>
+                <linearGradient id="cleaningCostArea" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stopColor={CLEANING_COST_COLOR} stopOpacity={0.35} />
+                  <stop offset="100%" stopColor={CLEANING_COST_COLOR} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" vertical={false} />
+              <XAxis
+                dataKey="date"
+                tickFormatter={(v: string) => {
+                  const [, m, d] = v.split("-");
+                  return `${d}/${m}`;
+                }}
+                tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                tickLine={false}
+                axisLine={false}
+                minTickGap={16}
+              />
+              <YAxis
+                tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                tickLine={false}
+                axisLine={false}
+                width={40}
+                tickFormatter={(v: number) => centsToBRL(v)}
+              />
+              <RechartsTooltip
+                contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid var(--border)", background: "var(--popover)", color: "var(--popover-foreground)" }}
+                labelFormatter={(v: unknown) => fmtDateBR(String(v))}
+                formatter={(value: number) => [centsToBRL(value), "Custo"]}
+                cursor={{ stroke: "var(--border)" }}
+              />
+              <Area
+                type="monotone"
+                dataKey="totalCents"
+                stroke={CLEANING_COST_COLOR}
+                strokeWidth={2}
+                fill="url(#cleaningCostArea)"
+                isAnimationActive={false}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CleaningTopProperties({ items, loading }: { items: CleaningBreakdownItem[] | undefined; loading: boolean }) {
+  const top = (items ?? []).slice(0, 6);
+  const maxCount = Math.max(1, ...top.map((i) => i.count));
+  return (
+    <div className="w-full rounded-[0.3rem] border-0 bg-card px-3.5 py-3.5 ds-3d">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <span className="ds-eyebrow">Top imóveis</span>
+        <span className="text-[10px] text-muted-foreground">nº de limpezas</span>
+      </div>
+      {loading ? (
+        <div className="py-6 grid place-items-center text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+        </div>
+      ) : top.length === 0 ? (
+        <div className="py-6 text-center text-xs text-muted-foreground">Nenhuma limpeza no período.</div>
+      ) : (
+        <ul className="space-y-1.5">
+          {top.map((item) => (
+            <li key={item.propertyId} className="flex items-center gap-2">
+              <span className="w-20 shrink-0 truncate text-[10.5px] text-foreground" title={item.propertyName}>
+                {item.propertyName}
+              </span>
+              <span className="h-2 flex-1 rounded-full bg-muted/50 overflow-hidden">
+                <span
+                  className="block h-full rounded-full"
+                  style={{ width: `${(item.count / maxCount) * 100}%`, backgroundColor: CLEANING_COUNT_COLOR }}
+                />
+              </span>
+              <span className="w-9 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground">{item.count}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -3570,6 +3982,7 @@ function ArrivalGroup({
   cleaningPendingPropIds,
   expandedId: expandedIdProp,
   onExpandedChange,
+  compact,
 }: {
   title: string;
   rows: ArrivalRow[];
@@ -3593,6 +4006,8 @@ function ArrivalGroup({
    * volta pro estado local de sempre. */
   expandedId?: string | null;
   onExpandedChange?: (id: string | null) => void;
+  /** Modo "Lista" (pedido explícito) — repassado pra cada ArrivalCard. */
+  compact?: boolean;
 }) {
   // Somente UM card pode ficar com o quadro de detalhes aberto por vez.
   const [localOpenId, setLocalOpenId] = useState<string | null>(null);
@@ -3628,6 +4043,7 @@ function ArrivalGroup({
           expanded={openId === r.logId}
           onToggleExpanded={(open) => setOpenId(open ? r.logId : null)}
           cleaningBlocked={mode === "checkin" ? (cleaningPendingPropIds?.get(r.propertyId) ?? null) : null}
+          compact={compact}
         />
       ))}
     </div>
@@ -3652,6 +4068,7 @@ function ArrivalCard({
   expanded,
   onToggleExpanded,
   cleaningBlocked,
+  compact,
 }: {
   row: ArrivalRow;
   kind: "checkin" | "checkout";
@@ -3669,6 +4086,11 @@ function ArrivalCard({
   expanded?: boolean;
   onToggleExpanded?: (open: boolean) => void;
   cleaningBlocked?: "checkout" | "cleaning" | null;
+  /** Modo "Lista" (pedido explícito): mostra só proprietário, imóvel e os
+      botões de ação (bem menores) — some com nome do hóspede, código,
+      período, previsto e alertas de iCal. Reaproveita o mesmo card e os
+      mesmos handlers; só a apresentação muda. */
+  compact?: boolean;
 }) {
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState(row.note ?? "");
@@ -3871,8 +4293,9 @@ function ArrivalCard({
       }`}
     >
       {/* Alerta de engajamento — badge fixo no topo do card, cortando a
-          borda superior (pedido explícito), sem a seta de expandir. */}
-      {mode !== "cleaning" && !isPendingFill && (
+          borda superior (pedido explícito), sem a seta de expandir. Some no
+          modo "Lista" (pedido explícito: só proprietário/imóvel/botões). */}
+      {!compact && mode !== "cleaning" && !isPendingFill && (
         <div className="absolute -top-2.5 right-3 z-10">
           <EngagementFlags
             openedGuide={row.openedGuide}
@@ -3884,81 +4307,87 @@ function ArrivalCard({
       )}
 
       {/* Header: nome + imóvel + data — sem avatar (ocupava espaço demais
-          numa coluna estreita de Kanban; o nome já identifica o hóspede). */}
+          numa coluna estreita de Kanban; o nome já identifica o hóspede).
+          No modo "Lista" só o proprietário e o imóvel ficam (pedido
+          explícito) — nome do hóspede, código e período somem. */}
       <div className="flex items-center gap-3">
         <div className="flex-1 min-w-0">
-          {/* Nome do hóspede — movido para cima do código da reserva
-              (pedido explícito), sem alterar o conteúdo da linha. */}
-          <div
-            className={`text-xs flex items-center gap-1 ${isPendingFill ? "text-orange-500 font-medium" : "text-muted-foreground"}`}
-          >
-            {isPendingFill ? (
-              <>
-                <UserPlus className="size-3 shrink-0" />
-                <span className="truncate">Hóspede Pendente</span>
-              </>
-            ) : !row.guestName || row.guestName === row.reservationCode ? (
-              row.reservationCode ? (
+          {!compact && (
+            <>
+              {/* Nome do hóspede — movido para cima do código da reserva
+                  (pedido explícito), sem alterar o conteúdo da linha. */}
+              <div
+                className={`text-xs flex items-center gap-1 ${isPendingFill ? "text-orange-500 font-medium" : "text-muted-foreground"}`}
+              >
+                {isPendingFill ? (
+                  <>
+                    <UserPlus className="size-3 shrink-0" />
+                    <span className="truncate">Hóspede Pendente</span>
+                  </>
+                ) : !row.guestName || row.guestName === row.reservationCode ? (
+                  row.reservationCode ? (
+                    <button
+                      type="button"
+                      onClick={(e) => copyReservationCode(e, row.reservationCode as string)}
+                      title="Copiar código da reserva"
+                      className="inline-flex items-center gap-1 min-w-0 hover:text-foreground transition-colors"
+                    >
+                      <span className="truncate">{row.reservationCode}</span>
+                    </button>
+                  ) : (
+                    <span className="truncate uppercase">{row.guestName}</span>
+                  )
+                ) : (
+                  <span className="inline-flex min-w-0 items-center gap-1.5">
+                    {/* Pedido explícito: nome do hóspede SEMPRE em maiúsculo nos cards. */}
+                    <span className="min-w-0 truncate uppercase">{row.guestName}</span>
+                    <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
+                    {/* Pedido explícito: o "+N" (outros hóspedes) fica à direita
+                        do ícone do chat, não mais antes do nome. */}
+                    <ExtraGuests guests={row.additionalGuests ?? []} />
+                  </span>
+                )}
+              </div>
+
+              {/* Código da reserva — acima do proprietário, alinhado à esquerda.
+                  Clicável para copiar; sem o botão "copiar" ao lado (pedido
+                  explícito). */}
+              {row.reservationCode && (isPendingFill || (row.guestName && row.guestName !== row.reservationCode)) && (
                 <button
                   type="button"
                   onClick={(e) => copyReservationCode(e, row.reservationCode as string)}
                   title="Copiar código da reserva"
-                  className="inline-flex items-center gap-1 min-w-0 hover:text-foreground transition-colors"
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  <span className="truncate">{row.reservationCode}</span>
+                  <span className="truncate max-w-[160px]">{row.reservationCode}</span>
                 </button>
-              ) : (
-                <span className="truncate uppercase">{row.guestName}</span>
-              )
-            ) : (
-              <span className="inline-flex min-w-0 items-center gap-1.5">
-                {/* Pedido explícito: nome do hóspede SEMPRE em maiúsculo nos cards. */}
-                <span className="min-w-0 truncate uppercase">{row.guestName}</span>
-                <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
-                {/* Pedido explícito: o "+N" (outros hóspedes) fica à direita
-                    do ícone do chat, não mais antes do nome. */}
-                <ExtraGuests guests={row.additionalGuests ?? []} />
-              </span>
-            )}
-          </div>
+              )}
 
-          {/* Código da reserva — acima do proprietário, alinhado à esquerda.
-              Clicável para copiar; sem o botão "copiar" ao lado (pedido
-              explícito). */}
-          {row.reservationCode && (isPendingFill || (row.guestName && row.guestName !== row.reservationCode)) && (
-            <button
-              type="button"
-              onClick={(e) => copyReservationCode(e, row.reservationCode as string)}
-              title="Copiar código da reserva"
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <span className="truncate max-w-[160px]">{row.reservationCode}</span>
-            </button>
-          )}
-
-          {/* Período — logo abaixo do código da reserva e acima do
-              proprietário (pedido explícito). Em vez das etiquetas
-              "Atrasado"/"Data futura" (removidas), a cor do próprio período
-              agora comunica o status: checkout = laranja; checkin pendente =
-              azul; checkin confirmado (Em Estadia) = verde; atrasado = vermelho
-              (sobrepõe as outras cores). */}
-          <div className={`flex items-center gap-1.5 text-xs flex-wrap ${periodoColorClass}`}>
-            <DateEditor
-              value={row.guestCheckin}
-              disabled={busy || isPendingFill}
-              onChange={(v) => onEditDates(row, { checkinDate: v })}
-            />
-            {row.guestCheckout && (
-              <>
-                <span>→</span>
+              {/* Período — logo abaixo do código da reserva e acima do
+                  proprietário (pedido explícito). Em vez das etiquetas
+                  "Atrasado"/"Data futura" (removidas), a cor do próprio período
+                  agora comunica o status: checkout = laranja; checkin pendente =
+                  azul; checkin confirmado (Em Estadia) = verde; atrasado = vermelho
+                  (sobrepõe as outras cores). */}
+              <div className={`flex items-center gap-1.5 text-xs flex-wrap ${periodoColorClass}`}>
                 <DateEditor
-                  value={row.guestCheckout}
+                  value={row.guestCheckin}
                   disabled={busy || isPendingFill}
-                  onChange={(v) => onEditDates(row, { checkoutDate: v })}
+                  onChange={(v) => onEditDates(row, { checkinDate: v })}
                 />
-              </>
-            )}
-          </div>
+                {row.guestCheckout && (
+                  <>
+                    <span>→</span>
+                    <DateEditor
+                      value={row.guestCheckout}
+                      disabled={busy || isPendingFill}
+                      onChange={(v) => onEditDates(row, { checkoutDate: v })}
+                    />
+                  </>
+                )}
+              </div>
+            </>
+          )}
 
           <OwnerLine
             name={row.ownerName}
@@ -3975,10 +4404,14 @@ function ArrivalCard({
       {/* Previsto — fixo, sem acordeon (mesmo espaçamento (zero) que existe
           entre o nome do hóspede e o período). O alerta de engajamento saiu
           daqui (agora é o badge fixo no topo do card, ver acima) — assim não
-          sobra espaço vazio entre este campo e o botão de check-in. */}
-      {mode !== "cleaning" && (
+          sobra espaço vazio entre este campo e o botão de check-in.
+          -mx-3 (cancela o p-3 do card) + px-3 (readiciona por dentro): a
+          faixa de fundo agora corta o card de fora a fora (pedido
+          explícito) e o texto continua alinhado com o nome do imóvel.
+          Some inteira no modo "Lista" (pedido explícito). */}
+      {!compact && mode !== "cleaning" && (
         <div
-          className={`-mt-2.5 flex items-center justify-between gap-2 rounded-none px-2.5 py-1.5 text-xs ${divergent ? "bg-amber-500/10 border border-amber-500/30" : "bg-background/50 border border-border/40"}`}
+          className={`-mt-2.5 -mx-3 flex items-center justify-between gap-2 rounded-none px-3 py-1.5 text-xs ${divergent ? "bg-amber-500/10 border-y border-amber-500/30" : "bg-background/50 border-y border-border/40"}`}
         >
           <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
             Previsto {kind === "checkout" ? "Checkout" : "Check-in"}
@@ -4037,8 +4470,8 @@ function ArrivalCard({
 
       {/* Alertas de conferência com o Airbnb (iCal) — divergência de datas,
           reserva não encontrada e horário fora da janela padrão, com correção
-          em um clique. */}
-      {mode !== "cleaning" && !isPendingFill && (() => {
+          em um clique. Some no modo "Lista" (pedido explícito). */}
+      {!compact && mode !== "cleaning" && !isPendingFill && (() => {
         const iIn = row.ical.icalCheckin;
         const iOut = row.ical.icalCheckout;
         const dateMismatch =
@@ -4165,16 +4598,19 @@ function ArrivalCard({
         </div>
       )}
 
-      {/* Action row: botão principal em largura total; Maps + menu à direita */}
-      <div className="mt-auto flex flex-nowrap items-center gap-2 pt-1">
+      {/* Action row: botão principal em largura total; Maps + menu à direita.
+          No modo "Lista" (pedido explícito), os 3 botões encolhem ao máximo
+          (altura/ícone reduzidos) sem deixar de funcionar — mesmos handlers,
+          só o texto do botão principal some (fica só o ícone, com title). */}
+      <div className={`mt-auto flex flex-nowrap items-center gap-2 ${compact ? "" : "pt-1"}`}>
         {mode === "done" ? (
           <span
             title="Esteira concluída"
             aria-label="Esteira concluída"
-            className="inline-flex flex-1 min-w-0 h-9 items-center justify-center gap-2 px-3 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 text-xs font-semibold"
+            className={`inline-flex flex-1 min-w-0 items-center justify-center gap-2 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 font-semibold ${compact ? "h-6 px-2 text-[10.5px]" : "h-9 px-3 text-xs"}`}
           >
-            <CheckCircle2 className="size-4 shrink-0" />
-            <span className="truncate">Concluído</span>
+            <CheckCircle2 className={compact ? "size-3 shrink-0" : "size-4 shrink-0"} />
+            {!compact && <span className="truncate">Concluído</span>}
           </span>
         ) : (
           <button
@@ -4226,7 +4662,9 @@ function ArrivalCard({
                         ? "Reabrir (voltar para Pendente)"
                         : "Marcar como Concluído"
             }
-            className={`flex-1 min-w-0 h-9 max-h-9 min-h-9 self-center box-border leading-none inline-flex items-center justify-center gap-2 px-3 text-[12.5px] font-semibold tracking-tight rounded-lg transition-all active:scale-[0.99] ${
+            className={`flex-1 min-w-0 self-center box-border leading-none inline-flex items-center justify-center gap-2 font-semibold tracking-tight rounded-lg transition-all active:scale-[0.99] ${
+              compact ? "h-6 max-h-6 min-h-6 px-2 text-[10.5px]" : "h-9 max-h-9 min-h-9 px-3 text-[12.5px]"
+            } ${
               cleaningBlock
                 ? "bg-orange-500/25 text-orange-700 dark:text-orange-400 border border-orange-500/50 cursor-not-allowed"
                 : blockCheck
@@ -4238,16 +4676,20 @@ function ArrivalCard({
                       : "bg-emerald-600 text-white hover:bg-emerald-700"
             }`}
           >
-            <Check className="size-4 shrink-0" />
-            <span className="truncate">
-              {mode === "cleaning"
-                ? "Limpeza concluída!"
-                : mode === "checkout" || mode === "stay"
-                  ? "Check-out realizado!"
-                  : done
-                    ? "Reabrir"
-                    : "Check-in realizado!"}
-            </span>
+            <Check className={compact ? "size-3 shrink-0" : "size-4 shrink-0"} />
+            {/* Modo "Lista": só o ícone, sem o texto (o title do botão acima
+                já descreve a ação pra leitor de tela/tooltip nativo). */}
+            {!compact && (
+              <span className="truncate">
+                {mode === "cleaning"
+                  ? "Limpeza concluída!"
+                  : mode === "checkout" || mode === "stay"
+                    ? "Check-out realizado!"
+                    : done
+                      ? "Reabrir"
+                      : "Check-in realizado!"}
+              </span>
+            )}
           </button>
         )}
 
@@ -4272,9 +4714,9 @@ function ArrivalCard({
                   ? "Voltar para a etapa anterior (lista de Checkouts)"
                   : "Voltar para a etapa anterior (lista Em Limpeza)"
             }
-            className="size-9 shrink-0 grid place-items-center rounded-lg bg-secondary hover:bg-secondary/80 border border-border/60 transition-colors"
+            className={`shrink-0 grid place-items-center rounded-lg bg-secondary hover:bg-secondary/80 border border-border/60 transition-colors ${compact ? "size-6" : "size-9"}`}
           >
-            <Undo2 className="size-4" />
+            <Undo2 className={compact ? "size-3.5" : "size-4"} />
           </button>
         )}
 
@@ -4286,9 +4728,9 @@ function ArrivalCard({
                   type="button"
                   aria-label="Opções do Maps"
                   title={row.garageMapsUrl ? "Garagem no Maps" : "Endereço no Maps"}
-                  className="size-9 grid place-items-center rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08]"
+                  className={`grid place-items-center rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08] ${compact ? "size-6" : "size-9"}`}
                 >
-                  <MapPin className="size-4" />
+                  <MapPin className={compact ? "size-3.5" : "size-4"} />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-[12rem]">
@@ -4316,13 +4758,13 @@ function ArrivalCard({
                 type="button"
                 aria-label="Mais opções"
                 title="Nota interna e alertas"
-                className={`size-9 grid place-items-center rounded-lg border ${
+                className={`grid place-items-center rounded-lg border ${compact ? "size-6" : "size-9"} ${
                   isMutedNow
                     ? "bg-amber-500/15 border-amber-500/50 text-amber-600 dark:text-amber-400"
                     : "bg-background/60 border-border/50 hover:bg-primary/[0.08]"
                 }`}
               >
-                <MoreVertical className="size-4" />
+                <MoreVertical className={compact ? "size-3.5" : "size-4"} />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-[13rem]">
