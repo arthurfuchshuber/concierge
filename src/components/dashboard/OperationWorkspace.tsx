@@ -37,6 +37,7 @@ import {
   CalendarRange,
   User,
   Eraser,
+  Filter,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, parse, isValid, differenceInCalendarDays } from "date-fns";
@@ -897,19 +898,21 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               desktop (pedido explícito), então cada card carrega sua própria
               posição via classes "order" (mobile) e "lg:order" (desktop) em
               vez de duplicar o JSX.
-              Mobile (grid-cols-2): pendentes → amanhã → filtros (período,
-              cidade, proprietário, limpar) → liberado p/ limpeza →
-              calendário → em estadia → imóveis livres. Pedido explícito:
-              "Liberado para Limpeza" saiu de cima dos filtros e passou pra
-              baixo deles, ficando no mesmo "nível"/largura do botão "limpar
-              filtros" — o destaque âmbar (compact + `highlight="amber"`) foi
-              MANTIDO, só a posição mudou. "Limpezas Realizadas"/"Custo Total
-              Limpeza" se mudaram pra aba própria "Limpeza" (não aparecem
-              mais aqui).
+              Pedido explícito (mais recente): os botões de filtro (Período,
+              Cidade, Proprietário, limpar) saíram desta grade — viraram UM
+              botão só (`CalendarFiltersButton`), ao lado do título
+              "Calendário de ocupação" (ver dentro de `OccupancyPanel`
+              abaixo). Isso também resolveu o pedido de trocar a ordem de
+              "Em Estadia"/"Imóveis livres" com o calendário: agora o
+              calendário vem ANTES desses dois cards, não depois.
+              Mobile (grid-cols-2): pendentes → amanhã → liberado p/ limpeza
+              → calendário → em estadia → imóveis livres. "Liberado para
+              Limpeza" mantém o destaque âmbar (compact + `highlight="amber"`).
+              "Limpezas Realizadas"/"Custo Total Limpeza" se mudaram pra aba
+              própria "Limpeza" (não aparecem mais aqui).
               Desktop (lg:grid-cols-4): os 4 cards de pendentes/amanhã numa
-              única linha → filtros → liberado p/ limpeza (faixa cheia) → em
-              estadia e imóveis livres na linha seguinte → calendário por
-              último. */}
+              única linha → liberado p/ limpeza (faixa cheia) → calendário →
+              em estadia e imóveis livres na linha seguinte. */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5">
             <div className="order-1 lg:order-1">
               <KpiCard
@@ -966,107 +969,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               />
             </div>
 
-            {/* "Limpezas Realizadas" e "Custo Total Limpeza" se mudaram pra
-                aba própria "Limpeza" (pedido explícito) — ver
-                view === "limpeza" mais abaixo. */}
-            <div className="order-8 lg:order-8 col-span-1">
-              <KpiCard
-                label="Em Estadia"
-                rows={stayRows}
-                icon={BedDouble}
-                tone="primary-soft"
-                loading={checkinListQ.isLoading}
-                onRefresh={() => checkinListQ.refetch()}
-                rangeLabel={rangeLabel[range]}
-                cardProps={arrivalGroupPropsFor("stay", stayRows)}
-              />
-            </div>
-            <div className="order-9 lg:order-9 col-span-1">
-              <FreePropertiesCard
-                loading={occupancyQ.isLoading}
-                properties={freeProperties}
-                onRefresh={() => occupancyQ.refetch()}
-              />
-            </div>
-
-            {/* Filtros — Período (calendário de início e fim), Cidade e
-                Proprietário (busca + seleção múltipla). Afetam a agenda de
-                ocupação abaixo (os 2 cards de limpeza que estes filtros
-                também controlavam se mudaram pra aba própria "Limpeza", que
-                tem sua própria cópia destes mesmos filtros — ver
-                view === "limpeza"). Ficam numa linha própria, logo acima do
-                calendário, sem entrar numa grade ANINHADA (isso já causou
-                incompatibilidade de "gap" com a grade real — os 2 blocos
-                abaixo são itens de PRIMEIRO NÍVEL da MESMA grade, então
-                largura e espaçamento batem EXATAMENTE com os demais cards,
-                por construção, sem precisar recalcular nada). No mobile
-                aparecem logo depois dos 4 KPIs do topo; no desktop ficam só
-                acima de "Liberado para Limpeza"/calendário, sem mexer na
-                ordem dos demais cards. */}
-            {/* grid (não flex) de propósito: um <button> é filho DIRETO do
-                grid item aqui (Popover/PopoverTrigger asChild não desenham
-                elemento próprio), então o "stretch" padrão do grid estica
-                cada botão pra preencher sua célula — sem isso (flex sem
-                flex-1) os botões ficavam do tamanho do próprio texto,
-                alinhados à esquerda, sobrando um vão vazio até a borda da
-                coluna (era isso que deixava "Cidade"/"Proprietário" com
-                largura errada mesmo já na coluna certa). */}
-            <div className="order-5 lg:order-5 col-span-1 min-w-0 grid grid-cols-2 gap-2">
-              <PeriodRangeFilterButton value={periodRange} onChange={setPeriodRange} />
-              <MultiSelectFilterButton
-                label="Cidade"
-                icon={MapPin}
-                options={cityOptions}
-                selected={cityFilters}
-                onChange={setCityFilters}
-              />
-            </div>
-            {/* Pedido explícito: "Proprietário" sozinho precisa ter a MESMA
-                largura de uma coluna da grade (igual aos outros cards desta
-                grade) — a borracha pode ficar PARA FORA dessa largura. No mobile (2
-                colunas) não há espaço sobrando à direita, então a borracha
-                continua dentro do grid normal (grid-cols-[1fr_auto]); só no
-                desktop o container vira "block/relative" e a borracha some
-                do fluxo do grid, virando um botão absoluto colado logo à
-                direita da coluna (left-full = começa onde a coluna termina). */}
-            <div className="order-6 lg:order-6 col-span-1 min-w-0 grid grid-cols-[1fr_auto] gap-2 lg:block lg:relative">
-              <MultiSelectFilterButton
-                label="Proprietário"
-                icon={User}
-                options={ownerOptions}
-                selected={ownerFilters}
-                onChange={setOwnerFilters}
-                className="w-full"
-              />
-              {/* Só o ícone, sem o "quadrante" (fundo/borda/sombra) dos
-                  outros botões de filtro — pedido explícito: a borracha
-                  precisa ficar bem visível mas solta, não dentro de uma
-                  caixa igual às dos filtros ao lado. Limpa TUDO (período,
-                  cidade, proprietário) e devolve o calendário pro dia atual
-                  — `clearAllFilters` já faz isso: com `periodRange` voltando
-                  a null, `occStart` volta a ser "hoje" e `occDays` volta a
-                  21 (ver mais acima, onde os dois são calculados). */}
-              <button
-                type="button"
-                disabled={!hasCustomFilters}
-                onClick={clearAllFilters}
-                title="Limpar filtros e voltar para hoje"
-                aria-label="Limpar filtros e voltar para hoje"
-                className="inline-flex size-9 shrink-0 items-center justify-center rounded-[0.3rem] text-foreground/70 transition-colors hover:text-foreground hover:bg-secondary/40 disabled:opacity-40 disabled:pointer-events-none lg:absolute lg:left-full lg:top-0 lg:ml-2"
-              >
-                <Eraser className="size-4" />
-              </button>
-            </div>
-
             {/* Liberado para Limpeza — faixa fina, largura total (só quando
                 houver 1+), mantendo o destaque âmbar (borda + gradiente +
-                acento lateral). Pedido explícito: só a POSIÇÃO mudou — agora
-                fica LOGO DEPOIS da linha de filtros, no mesmo "nível"/largura
-                do botão "limpar filtros" (antes ficava colado nos 4 KPIs do
-                topo) — o destaque visual em si foi mantido, não fazia parte
-                do pedido de reposicionamento. */}
+                acento lateral). Fica logo depois dos 4 KPIs do topo. */}
             {cleaningRows.length > 0 ? (
-              <div className="order-7 lg:order-7 col-span-2 lg:col-span-4">
+              <div className="order-5 lg:order-5 col-span-2 lg:col-span-4">
                 <KpiCard
                   label="Liberado para Limpeza"
                   rows={cleaningRows}
@@ -1082,21 +989,18 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               </div>
             ) : null}
 
-            {/* Calendário de ocupação — no mobile aparece antes de "Em
-                Estadia"/"Imóveis livres" (pedido explícito, já assim antes
-                dos filtros existirem); no desktop segue por último, como
-                sempre foi, logo abaixo da linha de filtros. Pedido explícito:
-                no desktop, a mesma largura dos 2 blocos de filtro somados
-                (col-span-2, alinhado sob as 2 primeiras colunas da grade),
-                não mais a largura cheia da grade — no
-                mobile não muda (segue col-span-2 = largura cheia da grade
-                de 2 colunas). `lg:col-start-1` é o que FORÇA a nova linha:
-                sem isso, como só as colunas 1-2 da linha dos filtros estavam
-                ocupadas, o auto-placement do grid enfiava o calendário nas
-                colunas 3-4 dessa MESMA linha (ao lado dos filtros, não
-                embaixo) — com `col-start-1` ele só cabe numa linha onde a
-                coluna 1 esteja livre, ou seja, a linha seguinte. */}
-            <div className="order-10 lg:order-10 col-span-2 lg:col-start-1 lg:col-span-2">
+            {/* Calendário de ocupação — pedido explícito: agora vem ANTES de
+                "Em Estadia"/"Imóveis livres" (antes vinha depois). Os
+                filtros (Período/Cidade/Proprietário/limpar) não ficam mais
+                numa linha própria aqui — viraram o botão único
+                `CalendarFiltersButton` dentro do cabeçalho do próprio
+                `OccupancyPanel`, ao lado do título. No desktop, largura de
+                2 colunas (`lg:col-span-2`); `lg:col-start-1` garante que ele
+                sempre abre uma linha nova própria (cols 3-4 dessa linha
+                ficam livres para nada, já que não há mais nenhum outro item
+                com esse mesmo order). No mobile não muda (col-span-2 =
+                largura cheia da grade de 2 colunas). */}
+            <div className="order-6 lg:order-6 col-span-2 lg:col-start-1 lg:col-span-2">
               <OccupancyPanel
                 loading={occupancyQ.isLoading}
                 start={occupancyQ.data?.start ?? occStart}
@@ -1104,6 +1008,42 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 properties={filteredOccupancyProperties}
                 stays={occupancyQ.data?.stays ?? []}
                 checkedInPropertyIds={checkedInPropertyIds}
+                periodRange={periodRange}
+                onPeriodRangeChange={setPeriodRange}
+                cityFilters={cityFilters}
+                onCityFiltersChange={setCityFilters}
+                cityOptions={cityOptions}
+                ownerFilters={ownerFilters}
+                onOwnerFiltersChange={setOwnerFilters}
+                ownerOptions={ownerOptions}
+                hasCustomFilters={hasCustomFilters}
+                onClearAllFilters={clearAllFilters}
+              />
+            </div>
+
+            {/* "Limpezas Realizadas" e "Custo Total Limpeza" se mudaram pra
+                aba própria "Limpeza" (pedido explícito) — ver
+                view === "limpeza" mais abaixo. Pedido explícito: agora vêm
+                DEPOIS do calendário (antes vinham antes) — `lg:col-start-1`
+                em "Em Estadia" força os dois pra uma linha nova própria,
+                mesma técnica usada acima pelo calendário. */}
+            <div className="order-7 lg:order-7 col-span-1 lg:col-start-1">
+              <KpiCard
+                label="Em Estadia"
+                rows={stayRows}
+                icon={BedDouble}
+                tone="primary-soft"
+                loading={checkinListQ.isLoading}
+                onRefresh={() => checkinListQ.refetch()}
+                rangeLabel={rangeLabel[range]}
+                cardProps={arrivalGroupPropsFor("stay", stayRows)}
+              />
+            </div>
+            <div className="order-8 lg:order-8 col-span-1">
+              <FreePropertiesCard
+                loading={occupancyQ.isLoading}
+                properties={freeProperties}
+                onRefresh={() => occupancyQ.refetch()}
               />
             </div>
           </div>
@@ -1531,7 +1471,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
 const OPERATION_TABS = [
   { view: "resumo" as const, label: "Operacional", to: "/admin/dashboard" },
-  { view: "kanban" as const, label: "Quadro Kanban", to: "/admin/dashboard/kanban" },
+  { view: "kanban" as const, label: "Kanban", to: "/admin/dashboard/kanban" },
   { view: "limpeza" as const, label: "Limpeza", to: "/admin/dashboard/limpeza" },
 ];
 
@@ -2275,13 +2215,209 @@ function MultiSelectFilterButton({
 }
 
 /**
+ * Botão único que reúne Período + Cidade + Proprietário + "limpar todos" num
+ * só painel — pedido explícito: no Dashboard, os 3 botões de filtro (que
+ * antes ficavam numa linha própria acima do calendário) viraram só ESTE
+ * botão, ao lado do título "Calendário de ocupação" (mesma ideia do botão
+ * único "Hoje/Amanhã/7 dias/Todos" da visão Kanban). O estado
+ * (periodRange/cityFilters/ownerFilters) continua vivendo no pai
+ * (OperationWorkspace), porque também afeta os cards de limpeza acima —
+ * este componente só desenha o painel e delega toda mudança pro pai.
+ */
+function CalendarFiltersButton({
+  periodRange,
+  onPeriodRangeChange,
+  cityFilters,
+  onCityFiltersChange,
+  cityOptions,
+  ownerFilters,
+  onOwnerFiltersChange,
+  ownerOptions,
+  hasCustomFilters,
+  onClearAll,
+}: {
+  periodRange: { start: string; end: string } | null;
+  onPeriodRangeChange: (next: { start: string; end: string } | null) => void;
+  cityFilters: string[];
+  onCityFiltersChange: (next: string[]) => void;
+  cityOptions: string[];
+  ownerFilters: string[];
+  onOwnerFiltersChange: (next: string[]) => void;
+  ownerOptions: string[];
+  hasCustomFilters: boolean;
+  onClearAll: () => void;
+}) {
+  const [draft, setDraft] = useState<DateRange | undefined>(
+    periodRange ? { from: parseISODateLocal(periodRange.start), to: parseISODateLocal(periodRange.end) } : undefined,
+  );
+  // Resincroniza quando o valor muda por FORA deste popover (ex.: "limpar
+  // todos os filtros" no rodapé, ou o botão de limpar de outro lugar).
+  useEffect(() => {
+    setDraft(periodRange ? { from: parseISODateLocal(periodRange.start), to: parseISODateLocal(periodRange.end) } : undefined);
+  }, [periodRange]);
+
+  function toggle(list: string[], value: string, onChange: (next: string[]) => void) {
+    onChange(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
+  }
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="relative h-8 shrink-0 inline-flex items-center gap-1.5 rounded-[0.3rem] border-0 bg-secondary/50 px-3 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
+        >
+          <Filter className="size-3.5 opacity-60" />
+          Filtros
+          {hasCustomFilters ? FILTER_DOT : null}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="w-72 p-0 max-h-[min(28rem,70vh)] overflow-y-auto"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <div className="p-3 border-b border-border space-y-2">
+          <p className="text-[11px] font-medium text-muted-foreground">Período</p>
+          <RangeCalendar
+            mode="range"
+            numberOfMonths={1}
+            locale={ptBR}
+            selected={draft}
+            onSelect={(nextRange) => {
+              setDraft(nextRange);
+              // Só propaga quando o intervalo estiver completo (início E
+              // fim) — o primeiro clique sozinho ainda não é um período
+              // válido.
+              if (nextRange?.from && nextRange?.to) {
+                onPeriodRangeChange({ start: dateToISOLocal(nextRange.from), end: dateToISOLocal(nextRange.to) });
+              }
+            }}
+            className="p-0"
+          />
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] text-muted-foreground">
+              {draft?.from ? format(draft.from, "dd/MM", { locale: ptBR }) : "Início"}
+              {" – "}
+              {draft?.to ? format(draft.to, "dd/MM", { locale: ptBR }) : "Fim"}
+            </span>
+            <button
+              type="button"
+              className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
+              onClick={() => {
+                setDraft(undefined);
+                onPeriodRangeChange(null);
+              }}
+            >
+              Limpar
+            </button>
+          </div>
+        </div>
+
+        <div className="border-b border-border">
+          <p className="px-3 pt-3 pb-1 text-[11px] font-medium text-muted-foreground">Cidade</p>
+          <Command>
+            <CommandInput placeholder="Buscar cidade..." />
+            <div className="flex items-center justify-between gap-2 border-b border-border px-2 py-1.5">
+              <button
+                type="button"
+                className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
+                onClick={() => onCityFiltersChange(cityOptions)}
+              >
+                Selecionar todos
+              </button>
+              <button
+                type="button"
+                className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
+                onClick={() => onCityFiltersChange([])}
+              >
+                Limpar
+              </button>
+            </div>
+            <CommandList className="max-h-32">
+              <CommandEmpty>Nenhum resultado.</CommandEmpty>
+              <CommandGroup>
+                {cityOptions.map((o) => (
+                  <CommandItem
+                    key={o}
+                    value={o}
+                    onSelect={() => toggle(cityFilters, o, onCityFiltersChange)}
+                    className="cursor-pointer gap-2"
+                  >
+                    <Checkbox checked={cityFilters.includes(o)} className="pointer-events-none" />
+                    <span className="truncate">{o}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </div>
+
+        <div className="border-b border-border">
+          <p className="px-3 pt-3 pb-1 text-[11px] font-medium text-muted-foreground">Proprietário</p>
+          <Command>
+            <CommandInput placeholder="Buscar proprietário..." />
+            <div className="flex items-center justify-between gap-2 border-b border-border px-2 py-1.5">
+              <button
+                type="button"
+                className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
+                onClick={() => onOwnerFiltersChange(ownerOptions)}
+              >
+                Selecionar todos
+              </button>
+              <button
+                type="button"
+                className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
+                onClick={() => onOwnerFiltersChange([])}
+              >
+                Limpar
+              </button>
+            </div>
+            <CommandList className="max-h-32">
+              <CommandEmpty>Nenhum resultado.</CommandEmpty>
+              <CommandGroup>
+                {ownerOptions.map((o) => (
+                  <CommandItem
+                    key={o}
+                    value={o}
+                    onSelect={() => toggle(ownerFilters, o, onOwnerFiltersChange)}
+                    className="cursor-pointer gap-2"
+                  >
+                    <Checkbox checked={ownerFilters.includes(o)} className="pointer-events-none" />
+                    <span className="truncate">{o}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </div>
+
+        <div className="flex items-center justify-end p-2">
+          <button
+            type="button"
+            disabled={!hasCustomFilters}
+            onClick={onClearAll}
+            className="inline-flex items-center gap-1.5 text-[11px] font-medium text-foreground/70 hover:text-foreground disabled:opacity-40 disabled:pointer-events-none transition-colors"
+          >
+            <Eraser className="size-3.5" />
+            Limpar todos os filtros
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/**
  * Agenda macro: ocupação de todos os imóveis nos próximos dias.
  *
- * Os filtros de Período/Proprietário/Cidade não vivem mais aqui — foram
- * extraídos pro OperationWorkspace (o pai), porque agora eles também
- * precisam afetar os cards "Limpezas Realizadas"/"Custo Total Limpeza",
- * que são irmãos deste painel, não filhos dele. Este componente recebe
- * `properties` JÁ filtrada e só desenha a agenda.
+ * Os filtros de Período/Proprietário/Cidade não vivem mais aqui como
+ * botões separados — viraram um botão único (`CalendarFiltersButton`, ao
+ * lado do título) dentro do cabeçalho deste painel. O ESTADO continua
+ * vivendo no OperationWorkspace (o pai), porque também precisa afetar os
+ * cards "Limpezas Realizadas"/"Custo Total Limpeza" (que são irmãos deste
+ * painel, na aba "Limpeza") — por isso os valores/opções e os callbacks de
+ * mudança chegam tudo via props. `properties` já chega FILTRADA.
  */
 function OccupancyPanel({
   loading,
@@ -2290,6 +2426,16 @@ function OccupancyPanel({
   properties,
   stays,
   checkedInPropertyIds,
+  periodRange,
+  onPeriodRangeChange,
+  cityFilters,
+  onCityFiltersChange,
+  cityOptions,
+  ownerFilters,
+  onOwnerFiltersChange,
+  ownerOptions,
+  hasCustomFilters,
+  onClearAllFilters,
 }: {
   loading: boolean;
   start: string;
@@ -2304,6 +2450,21 @@ function OccupancyPanel({
     checkoutDone: boolean;
   }>;
   checkedInPropertyIds: Set<string>;
+  /** Pedido explícito: os filtros (Período/Cidade/Proprietário) que antes
+   * ficavam numa linha própria acima deste card viraram um botão único
+   * (`CalendarFiltersButton`) dentro do cabeçalho, ao lado do título — por
+   * isso o estado/opções continuam vindo do pai (`OperationWorkspace`),
+   * que é quem também usa esses mesmos filtros pros cards de limpeza. */
+  periodRange: { start: string; end: string } | null;
+  onPeriodRangeChange: (next: { start: string; end: string } | null) => void;
+  cityFilters: string[];
+  onCityFiltersChange: (next: string[]) => void;
+  cityOptions: string[];
+  ownerFilters: string[];
+  onOwnerFiltersChange: (next: string[]) => void;
+  ownerOptions: string[];
+  hasCustomFilters: boolean;
+  onClearAllFilters: () => void;
 }) {
   /**
    * Mobile: exatamente 5 dias inteiros no visor.
@@ -2535,22 +2696,51 @@ function OccupancyPanel({
 
   return (
       <section className="relative rounded-[0.3rem] border-0 bg-card ds-3d">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-          // Pedido explícito: sem fundo no ícone, alinhado à esquerda igual
-          // ao ícone do card "Limpezas Realizadas" (mesmo padding px-3.5).
-          className="flex w-full items-center gap-2 px-3.5 py-3.5 text-left"
-        >
-          <CalendarRange className="size-3.5 shrink-0 text-foreground/70" strokeWidth={2} />
-          <span className="min-w-0 flex-1 truncate text-[13px] font-medium leading-snug text-foreground">
-            Calendário de ocupação
-          </span>
-          <ChevronDown
-            className={`size-3.5 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+        {/* Pedido explícito: o botão único de filtros (Período/Cidade/
+            Proprietário/limpar) fica AO LADO do título, entre o texto e a
+            setinha de expandir/recolher — por isso o cabeçalho deixou de
+            ser um único <button> cobrindo a linha toda e virou uma
+            <div> com dois botões independentes (título+ícone / filtros),
+            mais a setinha por último. Clicar no título OU na setinha
+            expande/recolhe; clicar no botão de filtros não. */}
+        <div className="flex w-full items-center gap-2 px-3.5 py-3.5 text-left">
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            // Pedido explícito: sem fundo no ícone, alinhado à esquerda igual
+            // ao ícone do card "Limpezas Realizadas" (mesmo padding px-3.5).
+            className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          >
+            <CalendarRange className="size-3.5 shrink-0 text-foreground/70" strokeWidth={2} />
+            <span className="min-w-0 flex-1 truncate text-[13px] font-medium leading-snug text-foreground">
+              Calendário de ocupação
+            </span>
+          </button>
+          <CalendarFiltersButton
+            periodRange={periodRange}
+            onPeriodRangeChange={onPeriodRangeChange}
+            cityFilters={cityFilters}
+            onCityFiltersChange={onCityFiltersChange}
+            cityOptions={cityOptions}
+            ownerFilters={ownerFilters}
+            onOwnerFiltersChange={onOwnerFiltersChange}
+            ownerOptions={ownerOptions}
+            hasCustomFilters={hasCustomFilters}
+            onClearAll={onClearAllFilters}
           />
-        </button>
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            aria-label={open ? "Recolher calendário de ocupação" : "Expandir calendário de ocupação"}
+            className="shrink-0 p-0.5"
+          >
+            <ChevronDown
+              className={`size-3.5 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+            />
+          </button>
+        </div>
         {open && (
         <div className="border-t border-border/50 px-4 sm:px-5 pt-4 pb-5">
           {loading ? (
