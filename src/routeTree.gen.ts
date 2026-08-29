@@ -80,7 +80,6 @@ import { Route as ApiPublicCronEvaluationSuiteRouteImport } from './routes/api/p
 import { Route as ApiPublicCronConversationRemindersRouteImport } from './routes/api/public/cron.conversation-reminders'
 import { Route as AuthenticatedAdminRecomendacoesSigmaCityKeyRouteImport } from './routes/_authenticated/admin.recomendacoes-sigma.$cityKey'
 import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_authenticated/admin.properties.$id'
-import { Route as AuthenticatedAdminDashboardLimpezaRouteImport } from './routes/_authenticated/admin.dashboard.limpeza'
 import { Route as AuthenticatedAdminDashboardKanbanRouteImport } from './routes/_authenticated/admin.dashboard.kanban'
 import { Route as AuthenticatedAdminDashboardCalendarioRouteImport } from './routes/_authenticated/admin.dashboard.calendario'
 import { Route as AuthenticatedAdminCidadesCityKeyRouteImport } from './routes/_authenticated/admin.cidades.$cityKey'
@@ -479,12 +478,6 @@ const AuthenticatedAdminPropertiesIdRoute =
     path: '/properties/$id',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
-const AuthenticatedAdminDashboardLimpezaRoute =
-  AuthenticatedAdminDashboardLimpezaRouteImport.update({
-    id: '/limpeza',
-    path: '/limpeza',
-    getParentRoute: () => AuthenticatedAdminDashboardRoute,
-  } as any)
 const AuthenticatedAdminDashboardKanbanRoute =
   AuthenticatedAdminDashboardKanbanRouteImport.update({
     id: '/kanban',
@@ -567,7 +560,6 @@ export interface FileRoutesByFullPath {
   '/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
   '/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
   '/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
-  '/admin/dashboard/limpeza': typeof AuthenticatedAdminDashboardLimpezaRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
@@ -642,7 +634,6 @@ export interface FileRoutesByTo {
   '/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
   '/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
   '/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
-  '/admin/dashboard/limpeza': typeof AuthenticatedAdminDashboardLimpezaRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
@@ -722,7 +713,6 @@ export interface FileRoutesById {
   '/_authenticated/admin/cidades/$cityKey': typeof AuthenticatedAdminCidadesCityKeyRoute
   '/_authenticated/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
   '/_authenticated/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
-  '/_authenticated/admin/dashboard/limpeza': typeof AuthenticatedAdminDashboardLimpezaRoute
   '/_authenticated/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/_authenticated/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
@@ -802,7 +792,6 @@ export interface FileRouteTypes {
     | '/admin/cidades/$cityKey'
     | '/admin/dashboard/calendario'
     | '/admin/dashboard/kanban'
-    | '/admin/dashboard/limpeza'
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/conversation-reminders'
@@ -877,7 +866,6 @@ export interface FileRouteTypes {
     | '/admin/cidades/$cityKey'
     | '/admin/dashboard/calendario'
     | '/admin/dashboard/kanban'
-    | '/admin/dashboard/limpeza'
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/conversation-reminders'
@@ -956,7 +944,6 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/cidades/$cityKey'
     | '/_authenticated/admin/dashboard/calendario'
     | '/_authenticated/admin/dashboard/kanban'
-    | '/_authenticated/admin/dashboard/limpeza'
     | '/_authenticated/admin/properties/$id'
     | '/_authenticated/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/conversation-reminders'
@@ -1533,13 +1520,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminPropertiesIdRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
-    '/_authenticated/admin/dashboard/limpeza': {
-      id: '/_authenticated/admin/dashboard/limpeza'
-      path: '/limpeza'
-      fullPath: '/admin/dashboard/limpeza'
-      preLoaderRoute: typeof AuthenticatedAdminDashboardLimpezaRouteImport
-      parentRoute: typeof AuthenticatedAdminDashboardRoute
-    }
     '/_authenticated/admin/dashboard/kanban': {
       id: '/_authenticated/admin/dashboard/kanban'
       path: '/kanban'
@@ -1581,7 +1561,6 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedAdminDashboardRouteChildren {
   AuthenticatedAdminDashboardCalendarioRoute: typeof AuthenticatedAdminDashboardCalendarioRoute
   AuthenticatedAdminDashboardKanbanRoute: typeof AuthenticatedAdminDashboardKanbanRoute
-  AuthenticatedAdminDashboardLimpezaRoute: typeof AuthenticatedAdminDashboardLimpezaRoute
   AuthenticatedAdminDashboardIndexRoute: typeof AuthenticatedAdminDashboardIndexRoute
 }
 
@@ -1591,8 +1570,6 @@ const AuthenticatedAdminDashboardRouteChildren: AuthenticatedAdminDashboardRoute
       AuthenticatedAdminDashboardCalendarioRoute,
     AuthenticatedAdminDashboardKanbanRoute:
       AuthenticatedAdminDashboardKanbanRoute,
-    AuthenticatedAdminDashboardLimpezaRoute:
-      AuthenticatedAdminDashboardLimpezaRoute,
     AuthenticatedAdminDashboardIndexRoute:
       AuthenticatedAdminDashboardIndexRoute,
   }

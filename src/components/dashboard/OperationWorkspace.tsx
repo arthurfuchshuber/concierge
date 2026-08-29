@@ -3959,13 +3959,13 @@ function ArrivalCard({
         >
           <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
             Previsto {kind === "checkout" ? "Checkout" : "Check-in"}
-            {stdWindow && (
-              // Movido do lado direito do período para cá (pedido explícito),
-              // sem alterar a formatação original.
-              <span className="text-xs font-normal tabular-nums text-foreground normal-case tracking-normal">
-                ({stdWindow})
-              </span>
-            )}
+            {/* Margem de horário — saiu da tela (pedido explícito) e virou
+                tooltip, com o texto de acordo com check-in ou checkout. */}
+            <InfoHint title={`Horário padrão de ${kind === "checkout" ? "checkout" : "check-in"}`}>
+              {stdWindow
+                ? `O horário padrão de ${kind === "checkout" ? "checkout" : "check-in"} deste imóvel é ${stdWindow}.`
+                : `Este imóvel não tem horário padrão de ${kind === "checkout" ? "checkout" : "check-in"} configurado.`}
+            </InfoHint>
           </span>
           <span className="ml-auto flex items-center justify-end gap-3 shrink-0 text-xs font-medium">
             {/* Limpa Data + Horário previstos de uma vez — só aparece quando
