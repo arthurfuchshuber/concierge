@@ -901,10 +901,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               cidade, proprietário, limpar) → liberado p/ limpeza →
               calendário → em estadia → imóveis livres. Pedido explícito:
               "Liberado para Limpeza" saiu de cima dos filtros e passou pra
-              baixo deles, e também perdeu o destaque âmbar (compact sem
-              `highlight`) — agora é um "botão" padrão, igual aos demais
-              cards desta grade. "Limpezas Realizadas"/"Custo Total Limpeza"
-              se mudaram pra aba própria "Limpeza" (não aparecem mais aqui).
+              baixo deles, ficando no mesmo "nível"/largura do botão "limpar
+              filtros" — o destaque âmbar (compact + `highlight="amber"`) foi
+              MANTIDO, só a posição mudou. "Limpezas Realizadas"/"Custo Total
+              Limpeza" se mudaram pra aba própria "Limpeza" (não aparecem
+              mais aqui).
               Desktop (lg:grid-cols-4): os 4 cards de pendentes/amanhã numa
               única linha → filtros → liberado p/ limpeza (faixa cheia) → em
               estadia e imóveis livres na linha seguinte → calendário por
@@ -1058,10 +1059,12 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             </div>
 
             {/* Liberado para Limpeza — faixa fina, largura total (só quando
-                houver 1+). Pedido explícito: agora fica LOGO DEPOIS da linha
-                de filtros (antes ficava colado nos 4 KPIs do topo) e sem o
-                destaque âmbar — `compact` sem `highlight` já renderiza no
-                mesmo estilo "padrão" dos outros cards desta grade. */}
+                houver 1+), mantendo o destaque âmbar (borda + gradiente +
+                acento lateral). Pedido explícito: só a POSIÇÃO mudou — agora
+                fica LOGO DEPOIS da linha de filtros, no mesmo "nível"/largura
+                do botão "limpar filtros" (antes ficava colado nos 4 KPIs do
+                topo) — o destaque visual em si foi mantido, não fazia parte
+                do pedido de reposicionamento. */}
             {cleaningRows.length > 0 ? (
               <div className="order-7 lg:order-7 col-span-2 lg:col-span-4">
                 <KpiCard
@@ -1073,6 +1076,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   onRefresh={() => checkoutListQ.refetch()}
                   rangeLabel={rangeLabel[range]}
                   compact
+                  highlight="amber"
                   cardProps={arrivalGroupPropsFor("cleaning", cleaningRows)}
                 />
               </div>
