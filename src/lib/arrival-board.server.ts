@@ -295,7 +295,7 @@ export async function buildArrivalRows(
       context.supabase
         .from("properties")
         .select(
-          "id, name, address, owner_contact_id, maps_url, garage_maps_url, wifi_password, lock_code, gate_code, checkin_time, checkin_time_max, checkout_time, checkout_time_min, airbnb_ical_url",
+          "id, name, address, owner_contact_id, maps_url, garage_maps_url, wifi_password, lock_code, gate_code, checkin_time, checkin_time_max, checkout_time, checkout_time_min, airbnb_ical_url, cleaning_price_normal_cents, cleaning_price_full_cents",
         )
 
         .in("id", propIds),
@@ -361,6 +361,8 @@ export async function buildArrivalRows(
         checkout_time: string | null;
         checkout_time_min: string | null;
         airbnb_ical_url: string | null;
+        cleaning_price_normal_cents: number | null;
+        cleaning_price_full_cents: number | null;
       }
     >();
     for (const p of (props ?? []) as Array<{
@@ -378,6 +380,8 @@ export async function buildArrivalRows(
       checkout_time: string | null;
       checkout_time_min: string | null;
       airbnb_ical_url: string | null;
+      cleaning_price_normal_cents: number | null;
+      cleaning_price_full_cents: number | null;
     }>) {
       propMap.set(p.id, {
         name: p.name,
@@ -398,6 +402,8 @@ export async function buildArrivalRows(
         checkout_time: p.checkout_time,
         checkout_time_min: p.checkout_time_min,
         airbnb_ical_url: p.airbnb_ical_url,
+        cleaning_price_normal_cents: p.cleaning_price_normal_cents,
+        cleaning_price_full_cents: p.cleaning_price_full_cents,
       });
     }
 
@@ -725,6 +731,8 @@ export async function buildArrivalRows(
         guestArrivalTime: l.guest_arrival_time,
         standardTime: data.kind === "checkin" ? (p?.checkin_time ?? null) : (p?.checkout_time ?? null),
         standardTimeMax: data.kind === "checkin" ? (p?.checkin_time_max ?? null) : (p?.checkout_time_min ?? null),
+        cleaningPriceNormalCents: p?.cleaning_price_normal_cents ?? null,
+        cleaningPriceFullCents: p?.cleaning_price_full_cents ?? null,
         date,
         guestCheckin: l.checkin_date,
         guestCheckout: l.checkout_date ?? null,
@@ -806,6 +814,8 @@ export async function buildArrivalRows(
         guestArrivalTime: matchedLog?.guest_arrival_time ?? null,
         standardTime: data.kind === "checkin" ? (p?.checkin_time ?? null) : (p?.checkout_time ?? null),
         standardTimeMax: data.kind === "checkin" ? (p?.checkin_time_max ?? null) : (p?.checkout_time_min ?? null),
+        cleaningPriceNormalCents: p?.cleaning_price_normal_cents ?? null,
+        cleaningPriceFullCents: p?.cleaning_price_full_cents ?? null,
         date,
         guestCheckin: r.checkin_date,
         guestCheckout: r.checkout_date,

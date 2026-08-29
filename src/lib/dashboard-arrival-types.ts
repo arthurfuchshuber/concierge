@@ -22,6 +22,12 @@ export type ArrivalRow = {
   guestArrivalTime: string | null; // HH:mm informado pelo hóspede
   standardTime: string | null; // horário padrão da propriedade
   standardTimeMax: string | null;
+  /** Preço vigente da limpeza normal/completa do imóvel, em centavos — usado
+   * só pra decidir quais opções aparecem no diálogo "Qual limpeza foi
+   * realizada?" (uma opção sem preço configurado, ou com preço 0, não
+   * aparece). */
+  cleaningPriceNormalCents: number | null;
+  cleaningPriceFullCents: number | null;
   date: string; // data prevista (checkin ou checkout)
   guestCheckin: string;
   guestCheckout: string | null;

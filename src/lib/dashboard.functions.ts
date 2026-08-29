@@ -1581,6 +1581,8 @@ export const listConcludedArrivals = createServerFn({ method: "GET" })
         guestArrivalTime: (log?.["guest_arrival_time"] as string) ?? null,
         standardTime: null,
         standardTimeMax: null,
+        cleaningPriceNormalCents: null,
+        cleaningPriceFullCents: null,
         date: checkout ?? checkin,
         guestCheckin: checkin,
         guestCheckout: checkout,

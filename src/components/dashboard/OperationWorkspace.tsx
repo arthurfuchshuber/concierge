@@ -1458,29 +1458,65 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               </>
             ) : null}
           </div>
-          <div className="grid grid-cols-2 gap-2 pt-1">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-auto py-3 flex-col gap-0.5"
-              onClick={() => {
-                if (cleaningTypePrompt) runAdvance(cleaningTypePrompt.row, "cleaning", "normal");
-                setCleaningTypePrompt(null);
-              }}
-            >
-              <span className="font-medium">Limpeza normal</span>
-            </Button>
-            <Button
-              type="button"
-              className="h-auto py-3 flex-col gap-0.5"
-              onClick={() => {
-                if (cleaningTypePrompt) runAdvance(cleaningTypePrompt.row, "cleaning", "completa");
-                setCleaningTypePrompt(null);
-              }}
-            >
-              <span className="font-medium">Limpeza completa</span>
-            </Button>
-          </div>
+          {(() => {
+            const row = cleaningTypePrompt?.row;
+            if (!row) return null;
+            // Pedido explícito: só mostra a opção "normal"/"completa" quando o
+            // imóvel tem um preço configurado ACIMA de 0 para aquele tipo —
+            // preço em branco ou igual a zero não aparece como opção.
+            const hasNormal = (row.cleaningPriceNormalCents ?? 0) > 0;
+            const hasCompleta = (row.cleaningPriceFullCents ?? 0) > 0;
+            const showBoth = hasNormal && hasCompleta;
+            if (!hasNormal && !hasCompleta) {
+              // Nenhum dos dois preços está configurado — sem valor pra
+              // diferenciar, não faz sentido perguntar o tipo. Conclui direto
+              // (mesmo fallback que o servidor já usa quando nenhum tipo é
+              // enviado), pra não travar a esteira do imóvel.
+              return (
+                <div className="pt-1">
+                  <Button
+                    type="button"
+                    className="h-auto w-full py-3"
+                    onClick={() => {
+                      runAdvance(row, "cleaning");
+                      setCleaningTypePrompt(null);
+                    }}
+                  >
+                    <span className="font-medium">Concluir limpeza</span>
+                  </Button>
+                </div>
+              );
+            }
+            return (
+              <div className={`grid gap-2 pt-1 ${showBoth ? "grid-cols-2" : "grid-cols-1"}`}>
+                {hasNormal && (
+                  <Button
+                    type="button"
+                    variant={showBoth ? "outline" : "default"}
+                    className="h-auto py-3 flex-col gap-0.5"
+                    onClick={() => {
+                      runAdvance(row, "cleaning", "normal");
+                      setCleaningTypePrompt(null);
+                    }}
+                  >
+                    <span className="font-medium">Limpeza normal</span>
+                  </Button>
+                )}
+                {hasCompleta && (
+                  <Button
+                    type="button"
+                    className="h-auto py-3 flex-col gap-0.5"
+                    onClick={() => {
+                      runAdvance(row, "cleaning", "completa");
+                      setCleaningTypePrompt(null);
+                    }}
+                  >
+                    <span className="font-medium">Limpeza completa</span>
+                  </Button>
+                )}
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>
