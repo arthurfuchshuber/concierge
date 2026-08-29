@@ -291,7 +291,7 @@ export async function buildArrivalRows(
       if (reservationWindowEnd) reservationsQuery = reservationsQuery.lte("checkout_date", reservationWindowEnd);
     }
 
-    const [{ data: props }, { data: statuses }, { data: reservations }, { data: sectionEvents }] = await Promise.all([
+    const [{ data: props }, { data: statuses }, { data: reservations }, sectionEvents] = await Promise.all([
       context.supabase
         .from("properties")
         .select(
@@ -306,20 +306,21 @@ export async function buildArrivalRows(
         .limit(5000),
       reservationsQuery.order(data.kind === "checkin" ? "checkin_date" : "checkout_date", { ascending: true }).limit(10000),
       uniqueLogs.length > 0
-        ? context.supabase
-            .from("guide_section_events")
-            .select("property_id, section, guest_name, guest_phone")
-            .in("property_id", propIds)
-            .in("section", ["home", "checkin", "checkin-lido", "senhas", "senhas:lock", "senhas:gate", "saida", "residencia", "faq", "explorar"])
-            .limit(5000)
-        : Promise.resolve({
-            data: [] as Array<{
-              property_id: string;
-              section: string;
-              guest_name: string | null;
-              guest_phone: string | null;
-            }>,
-          }),
+        ? import("@/lib/engagement-events.server").then(({ fetchEngagementSectionEvents }) =>
+            fetchEngagementSectionEvents(context.supabase, propIds, [
+              "home",
+              "checkin",
+              "checkin-lido",
+              "senhas",
+              "senhas:lock",
+              "senhas:gate",
+              "saida",
+              "residencia",
+              "faq",
+              "explorar",
+            ]),
+          )
+        : Promise.resolve([]),
     ]);
 
     const ownerIdsForProps = Array.from(
@@ -439,7 +440,7 @@ export async function buildArrivalRows(
     const seenLock = newSeen();
     const seenGate = newSeen();
     const seenAnyPassword = newSeen();
-    for (const ev of (sectionEvents ?? []) as Array<{
+    for (const ev of sectionEvents as Array<{
       property_id: string;
       section: string;
       guest_name: string | null;

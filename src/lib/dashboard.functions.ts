@@ -462,23 +462,18 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
 
     // Aberturas por seção — sem janela de tempo: o hóspede costuma abrir o guia
     // dias antes do check-in, então filtrar por created_at zerava o engajamento.
-    const [{ data: evs }, { data: codeEvs }] = await Promise.all([
-      context.supabase
-        .from("guide_section_events")
-        .select("id, property_id, guest_name, guest_phone")
-        .in("property_id", propIds)
-        // "Leu" = permaneceu ao menos 5s na aba Chegada (mesma regra dos cards).
-        .eq("section", "checkin-lido")
-        .limit(20000),
-      codesProps.size
-        ? context.supabase
-            .from("guide_section_events")
-            .select("id, property_id, guest_name, guest_phone, section")
-            .in("property_id", Array.from(codesProps))
-            .in("section", ["senhas", "senhas:lock", "senhas:gate"])
-            .limit(20000)
-        : Promise.resolve({ data: [] as Array<EventRow & { section: string }> }),
+    const { fetchEngagementSectionEvents } = await import("@/lib/engagement-events.server");
+    const engagementEvents = await fetchEngagementSectionEvents(context.supabase, propIds, [
+      "checkin-lido",
+      "senhas",
+      "senhas:lock",
+      "senhas:gate",
     ]);
+    // "Leu" = permaneceu ao menos 5s na aba Chegada (mesma regra dos cards).
+    const evs = engagementEvents.filter((event) => event.section === "checkin-lido");
+    const codeEvs = engagementEvents.filter((event) =>
+      event.section === "senhas" || event.section === "senhas:lock" || event.section === "senhas:gate",
+    );
 
     // Quem viu / quem não viu.
     const propRows = (props ?? []) as Array<{ id: string; name?: string | null; owner_contact_id?: string | null }>;
@@ -522,7 +517,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     const checkinSeen = seenSets(evs as EventRow[] | null);
     // Senhas: só conta como "viu" quem abriu TODAS as senhas de acesso
     // configuradas no imóvel (fechadura e/ou portão). Wi-Fi não entra.
-    const codeEvRows = (codeEvs ?? []) as Array<EventRow & { section?: string }>;
+    const codeEvRows = codeEvs as Array<EventRow & { section?: string }>;
     const codesSeen = seenSets(codeEvRows);
     const lockSeen = seenSets(codeEvRows.filter((e) => e.section === "senhas:lock"));
     const gateSeen = seenSets(codeEvRows.filter((e) => e.section === "senhas:gate"));
@@ -1199,6 +1194,8 @@ export type OccupancyStay = {
   // Check-in já confirmado (guest_arrival_status kind="checkin" status="done")?
   // Usado só pra colorir a agenda: pendente = azul claro, confirmado = verde.
   checkinDone: boolean;
+  // Mesma ideia para o checkout (guest_arrival_status kind="checkout" status="done").
+  checkoutDone: boolean;
 };
 
 export const getOccupancyBoard = createServerFn({ method: "GET" })
@@ -1227,7 +1224,13 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
     const { syncStaleIcals } = await import("@/lib/arrival-board.server");
     await syncStaleIcals(context.supabase as never, propIds);
 
-    const [{ data: props }, { data: reservations }, { data: logs }, { data: checkinStatuses }] = await Promise.all([
+    const [
+      { data: props },
+      { data: reservations },
+      { data: logs },
+      { data: checkinStatuses },
+      { data: checkoutStatuses },
+    ] = await Promise.all([
       context.supabase.from("properties").select("id, name, city, owner_contact_id").in("id", propIds).order("name"),
       context.supabase
         .from("property_reservations")
@@ -1253,6 +1256,14 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
         .eq("kind", "checkin")
         .in("property_id", propIds)
         .limit(5000),
+      // Status de checkout (pendente/confirmado) — mesma ideia, agora também
+      // usado pra colorir a agenda com os 3 estados de checkout.
+      context.supabase
+        .from("guest_arrival_status")
+        .select("log_id, reservation_id, status")
+        .eq("kind", "checkout")
+        .in("property_id", propIds)
+        .limit(5000),
     ]);
 
     const doneCheckinRes = new Set<string>();
@@ -1265,6 +1276,18 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
       if (s.status !== "done") continue;
       if (s.reservation_id) doneCheckinRes.add(s.reservation_id);
       if (s.log_id) doneCheckinLog.add(s.log_id);
+    }
+
+    const doneCheckoutRes = new Set<string>();
+    const doneCheckoutLog = new Set<string>();
+    for (const s of (checkoutStatuses ?? []) as Array<{
+      log_id: string | null;
+      reservation_id: string | null;
+      status: string;
+    }>) {
+      if (s.status !== "done") continue;
+      if (s.reservation_id) doneCheckoutRes.add(s.reservation_id);
+      if (s.log_id) doneCheckoutLog.add(s.log_id);
     }
 
     const normalizeCode = (s: string | null | undefined): string | null => {
@@ -1316,6 +1339,7 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
         checkout: r.checkout_date,
         guest: match?.guest_name ?? r.guest_hint,
         checkinDone: doneCheckinRes.has(r.id) || (!!match && doneCheckinLog.has(match.id)),
+        checkoutDone: doneCheckoutRes.has(r.id) || (!!match && doneCheckoutLog.has(match.id)),
       });
     }
 
@@ -1336,6 +1360,7 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
         checkout: l.checkout_date,
         guest: l.guest_name,
         checkinDone: doneCheckinLog.has(l.id),
+        checkoutDone: doneCheckoutLog.has(l.id),
       });
     }
 

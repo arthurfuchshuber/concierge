@@ -17,7 +17,6 @@ import {
   Home,
   Info,
   Sparkles,
-  TrendingUp,
   Bell,
   BellOff,
   ChevronDown,
@@ -2210,6 +2209,7 @@ function OccupancyPanel({
     checkout: string | null;
     guest: string | null;
     checkinDone: boolean;
+    checkoutDone: boolean;
   }>;
   checkedInPropertyIds: Set<string>;
 }) {
@@ -2331,19 +2331,33 @@ function OccupancyPanel({
   const byProperty = useMemo(() => {
     const map = new Map<
       string,
-      Array<{ checkin: string; checkout: string | null; guest: string | null; checkinDone: boolean }>
+      Array<{
+        checkin: string;
+        checkout: string | null;
+        guest: string | null;
+        checkinDone: boolean;
+        checkoutDone: boolean;
+      }>
     >();
     for (const s of stays) {
       const arr = map.get(s.propertyId) ?? [];
-      arr.push({ checkin: s.checkin, checkout: s.checkout, guest: s.guest, checkinDone: s.checkinDone });
+      arr.push({
+        checkin: s.checkin,
+        checkout: s.checkout,
+        guest: s.guest,
+        checkinDone: s.checkinDone,
+        checkoutDone: s.checkoutDone,
+      });
       map.set(s.propertyId, arr);
     }
     return map;
   }, [stays]);
 
   // "in" = check-in confirmado (verde) · "in-pending" = check-in ainda não
-  // confirmado (azul claro) — mesma cor do card "Check-ins Pendentes".
-  type CellPart = "in" | "in-pending" | "out" | "busy" | "free";
+  // confirmado (azul claro) · "in-late" = data de check-in já passou sem
+  // confirmação (vermelho) — mesma regra do `isOverdue` dos cards do Kanban.
+  // Idem para o checkout: "out-pending"/"out-done"/"out-late".
+  type CellPart = "in" | "in-pending" | "in-late" | "out-pending" | "out-done" | "out-late" | "busy" | "free";
 
   /**
    * Cada dia é dividido em duas metades (manhã = saída, tarde = entrada),
@@ -2352,21 +2366,31 @@ function OccupancyPanel({
    */
   function cellHalves(propertyId: string, day: string): [CellPart, CellPart] {
     const list = byProperty.get(propertyId) ?? [];
-    const hasOut = list.some((s) => s.checkout === day);
+    const outStay = list.find((s) => s.checkout === day);
     const inStay = list.find((s) => s.checkin === day);
     const through = list.some((s) => s.checkin < day && (s.checkout ?? s.checkin) > day);
 
-    const first: CellPart = hasOut ? "out" : through ? "busy" : "free";
+    // "Atrasado" = a data do checkout/check-in já passou e ainda não foi
+    // confirmado — mesma regra do card (`row.date < todayISO && !done`).
+    const first: CellPart = outStay
+      ? day < todayISO && !outStay.checkoutDone
+        ? "out-late"
+        : outStay.checkoutDone
+          ? "out-done"
+          : "out-pending"
+      : through
+        ? "busy"
+        : "free";
     // Depois que o check-in é marcado como concluído, a metade da tarde passa
     // a ser "ocupado" — a metade da manhã (checkout) permanece como estava.
-    // Enquanto o check-in ainda não foi confirmado, fica em azul claro
-    // ("in-pending"); assim que confirmado, vira verde ("in").
     const second: CellPart = inStay
       ? day === todayISO && checkedInPropertyIds.has(propertyId)
         ? "busy"
-        : inStay.checkinDone
-          ? "in"
-          : "in-pending"
+        : day < todayISO && !inStay.checkinDone
+          ? "in-late"
+          : inStay.checkinDone
+            ? "in"
+            : "in-pending"
       : through
         ? "busy"
         : "free";
@@ -2378,11 +2402,44 @@ function OccupancyPanel({
       ? "bg-emerald-500"
       : s === "in-pending"
         ? "bg-sky-400"
-        : s === "out"
-          ? "bg-amber-500"
-          : s === "busy"
-            ? "bg-primary/35"
-            : "bg-transparent";
+        : s === "in-late"
+          ? "bg-red-500"
+          : s === "out-pending"
+            ? "bg-amber-400"
+            : s === "out-done"
+              ? "bg-orange-600"
+              : s === "out-late"
+                ? "bg-red-500"
+                : s === "busy"
+                  ? "bg-primary/35"
+                  : "bg-transparent";
+
+  // Legenda: só entram os estados que realmente aparecem no recorte atual do
+  // calendário (imóveis + dias filtrados) — pedido explícito pra não poluir
+  // a legenda com status que não têm nenhuma ocorrência na tela.
+  const LEGEND_ITEMS: Array<{ state: CellPart; label: string }> = [
+    { state: "out-pending", label: "Checkout Pendente" },
+    { state: "out-done", label: "Checkout Confirmado" },
+    { state: "out-late", label: "Checkout Atrasado" },
+    { state: "in-pending", label: "Check-In Pendente" },
+    { state: "in", label: "Check-In Confirmado" },
+    { state: "in-late", label: "Check-In Atrasado" },
+    { state: "busy", label: "Ocupado" },
+    { state: "free", label: "Livre" },
+  ];
+
+  const presentStates = useMemo(() => {
+    const set = new Set<CellPart>();
+    for (const p of visibleProperties) {
+      for (const d of dayList) {
+        const [a, b] = cellHalves(p.id, d);
+        set.add(a);
+        set.add(b);
+      }
+    }
+    return set;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleProperties, dayList, byProperty, checkedInPropertyIds, todayISO]);
 
   return (
       <section className="relative rounded-[0.3rem] border-0 bg-card ds-3d">
@@ -2496,11 +2553,17 @@ function OccupancyPanel({
                                   ? "Check-in confirmado"
                                   : s === "in-pending"
                                     ? "Check-in pendente"
-                                    : s === "out"
-                                      ? "Checkout"
-                                      : s === "busy"
-                                        ? "Ocupado"
-                                        : "Livre";
+                                    : s === "in-late"
+                                      ? "Check-in atrasado"
+                                      : s === "out-pending"
+                                        ? "Checkout pendente"
+                                        : s === "out-done"
+                                          ? "Checkout confirmado"
+                                          : s === "out-late"
+                                            ? "Checkout atrasado"
+                                            : s === "busy"
+                                              ? "Ocupado"
+                                              : "Livre";
                               const title =
                                 a === b
                                   ? `${labelOf(a)} · ${fmtDateBR(d)}`
@@ -2543,21 +2606,16 @@ function OccupancyPanel({
               </div>
 
               <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[10.5px] font-medium text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2 w-4 rounded-full bg-emerald-500" /> Check-in confirmado
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2 w-4 rounded-full bg-sky-400" /> Check-in pendente
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2 w-4 rounded-full bg-amber-500" /> Checkout
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2 w-4 rounded-full bg-primary/35" /> Ocupado
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="h-px w-4 bg-border" /> Livre
-                </span>
+                {LEGEND_ITEMS.filter((item) => presentStates.has(item.state)).map((item) => (
+                  <span key={item.state} className="inline-flex items-center gap-1.5">
+                    {item.state === "free" ? (
+                      <span className="h-px w-4 bg-border" />
+                    ) : (
+                      <span className={`h-2 w-4 rounded-full ${clsOf(item.state)}`} />
+                    )}
+                    {item.label}
+                  </span>
+                ))}
               </div>
             </>
           )}
@@ -2745,47 +2803,65 @@ function EngagementCard({
   );
 }
 
-/** Mesma lógica dos cards: hóspede principal (1º a acessar) + "+N" expansível. */
+/**
+ * Mesma lógica dos cards: hóspede principal (1º a acessar) + "+N" expansível.
+ * Layout em "linha-cartão" com avatar de iniciais (redesign aprovado do
+ * tooltip de engajamento — Opção C: abas "Viram"/"Não viram" + linhas mais
+ * espaçadas).
+ */
 function GuestMarkGroup({ group, tone }: { group: GuestMark[]; tone: "ok" | "off" }) {
   const [open, setOpen] = useState(false);
   const [main, ...rest] = group;
+  const initial = (main.name.trim()[0] ?? "?").toUpperCase();
   return (
-    <li data-whole-card className="flex items-start gap-1.5">
-      <span className={`mt-1 size-1.5 shrink-0 rounded-full ${tone === "ok" ? "bg-emerald-500" : "bg-rose-500"}`} />
-      <span className="min-w-0">
-        <span className="font-medium text-foreground/90">{main.name}</span>
-        {main.property ? <span className="text-muted-foreground"> · {main.property}</span> : null}
+    <li data-whole-card className="rounded-lg bg-muted/30 px-2.5 py-2">
+      <div className="flex items-center gap-2.5">
+        <span
+          className={`grid size-7 shrink-0 place-items-center rounded-full text-[11px] font-bold ${
+            tone === "ok"
+              ? "bg-emerald-500/15 text-emerald-600 shadow-[inset_0_0_0_1.5px_rgba(16,185,129,0.4)] dark:text-emerald-400"
+              : "bg-rose-500/15 text-rose-600 shadow-[inset_0_0_0_1.5px_rgba(244,63,94,0.4)] dark:text-rose-400"
+          }`}
+        >
+          {initial}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[12.5px] font-semibold text-foreground/90">{main.name}</span>
+          {main.property ? (
+            <span className="block truncate text-[10.5px] text-muted-foreground">{main.property}</span>
+          ) : null}
+        </span>
         {rest.length > 0 && (
-          <>
-            {" "}
-            <button
-              type="button"
-              onClick={() => setOpen((v) => !v)}
-              className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-secondary/50 px-1.5 py-0.5 align-middle text-[11px] font-medium text-muted-foreground transition hover:border-border hover:text-foreground"
-              title={`${rest.length} outro(s) hóspede(s) nesta reserva`}
-            >
-              +{rest.length}
-              <ChevronDown className={`size-3 transition-transform ${open ? "rotate-180" : ""}`} />
-            </button>
-            {open && (
-              <ul className="mt-1 space-y-0.5 rounded-lg border border-border/50 bg-background/60 px-2 py-1.5">
-                {rest.map((g, i) => (
-                  <li key={`${g.name}-${i}`} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                    <span className="size-1 shrink-0 rounded-full bg-muted-foreground/60" />
-                    <span className="min-w-0 truncate">{g.name}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </>
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border/60 bg-secondary/50 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground transition hover:border-border hover:text-foreground"
+            title={`${rest.length} outro(s) hóspede(s) nesta reserva`}
+          >
+            +{rest.length}
+            <ChevronDown className={`size-3 transition-transform ${open ? "rotate-180" : ""}`} />
+          </button>
         )}
-      </span>
+      </div>
+      {open && rest.length > 0 && (
+        <ul className="ml-9 mt-1.5 space-y-0.5 rounded-lg border border-border/50 bg-background/60 px-2 py-1.5">
+          {rest.map((g, i) => (
+            <li key={`${g.name}-${i}`} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <span className="size-1 shrink-0 rounded-full bg-muted-foreground/60" />
+              <span className="min-w-0 truncate">{g.name}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </li>
   );
 }
 
 function GuestMarkList({ items, tone }: { items: GuestMark[]; tone: "ok" | "off" }) {
-  if (items.length === 0) return <div className="text-muted-foreground text-[11px]">Ninguém</div>;
+  if (items.length === 0)
+    return (
+      <div className="rounded-lg bg-muted/20 px-3 py-4 text-center text-[11px] text-muted-foreground">Ninguém</div>
+    );
   const groups: GuestMark[][] = [];
   const index = new Map<string, number>();
   for (const it of items) {
@@ -2797,11 +2873,13 @@ function GuestMarkList({ items, tone }: { items: GuestMark[]; tone: "ok" | "off"
     } else groups[at].push(it);
   }
   return (
-    <ul className="space-y-0.5">
+    <ul className="space-y-1.5">
       {groups.slice(0, 12).map((g, i) => (
         <GuestMarkGroup key={`${g[0].name}-${i}`} group={g} tone={tone} />
       ))}
-      {groups.length > 12 && <li className="text-muted-foreground text-[11px]">+{groups.length - 12} outros</li>}
+      {groups.length > 12 && (
+        <li className="text-center text-[11px] text-muted-foreground">+{groups.length - 12} outros</li>
+      )}
     </ul>
   );
 }
@@ -2810,6 +2888,11 @@ function GuestMarkList({ items, tone }: { items: GuestMark[]; tone: "ok" | "off"
  * Dialog de detalhe (quem viu / quem não viu) — extraído do BarRow original
  * pra poder ser reaproveitado também pelo EngagementCard (cards separados do
  * desktop), sem duplicar esse JSX nos dois lugares.
+ */
+/**
+ * Redesign aprovado (Opção C): abas "Viram"/"Não viram" em vez das 2 listas
+ * empilhadas — só um grupo por vez, com mais respiro por linha (avatar de
+ * iniciais + nome + imóvel), melhor pra quando a lista de hóspedes cresce.
  */
 function EngagementBreakdownDialog({
   label,
@@ -2825,57 +2908,63 @@ function EngagementBreakdownDialog({
   trigger: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<"viewed" | "notViewed">("viewed");
+  // Sempre volta pra aba "Viram" ao reabrir — evita ficar preso numa aba de
+  // uma consulta anterior (ex.: outro imóvel/período com "Não viram" vazio).
+  useEffect(() => {
+    if (open) setTab("viewed");
+  }, [open]);
+  const pct = Math.min(100, Math.round((value / Math.max(total, 1)) * 100));
+  const activeItems = tab === "viewed" ? breakdown.viewed : breakdown.notViewed;
   // Mesmo racional dos quadrantes de check-in/check-out (useWholeCardsMaxHeight):
-  // mostra sempre cards INTEIROS, nunca corta um no meio. Como aqui existem 2
-  // listas independentes (quem viu / quem não viu), cada uma precisa da sua
-  // própria medição — antes as duas dividiam uma única altura, então a lista
-  // de "quem viu" sozinha já esgotava o limite de 2 cards e "não viram" nunca
-  // chegava a aparecer (ficava escondida abaixo do scroll sem o usuário notar).
-  const viewedList = useWholeCardsMaxHeight(2, `${open}:${breakdown.viewed.length}`);
-  const notViewedList = useWholeCardsMaxHeight(2, `${open}:${breakdown.notViewed.length}`);
+  // mostra sempre cards INTEIROS, nunca corta um no meio. Como agora só 1
+  // lista ocupa o espaço por vez (abas), cabem mais itens inteiros do que
+  // antes, quando as 2 listas dividiam a mesma altura.
+  const list = useWholeCardsMaxHeight(5, `${open}:${tab}:${activeItems.length}`);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-lg border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" />
-        <DialogHeader className="px-5 pt-5 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="grid place-items-center size-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-              <TrendingUp className="size-5" />
-            </div>
-            <div className="min-w-0">
-              <DialogTitle className="text-base font-display leading-tight">{label}</DialogTitle>
-              <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground mt-0.5">
-                {value} de {total} check-ins
-              </div>
-            </div>
+        <DialogHeader className="px-5 pt-5 pb-1">
+          <div className="flex items-center justify-between gap-3">
+            <DialogTitle className="min-w-0 truncate text-base font-display leading-tight">{label}</DialogTitle>
+            <span className="shrink-0 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+              {pct}%
+            </span>
+          </div>
+          <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground mt-0.5">
+            {value} de {total} check-ins
           </div>
         </DialogHeader>
-        <div className="max-h-[70vh] overflow-y-auto px-5 pb-5 space-y-4 text-sm">
-          <div>
-            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-400">
-              Viram ({breakdown.viewed.length})
-            </div>
-            <div
-              ref={viewedList.ref}
-              style={viewedList.maxHeight !== undefined ? { maxHeight: viewedList.maxHeight } : undefined}
-              className="sg-elegant-scroll overflow-y-auto pr-0.5"
-            >
-              <GuestMarkList items={breakdown.viewed} tone="ok" />
-            </div>
-          </div>
-          <div>
-            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-rose-600 dark:text-rose-400">
-              Não viram ({breakdown.notViewed.length})
-            </div>
-            <div
-              ref={notViewedList.ref}
-              style={notViewedList.maxHeight !== undefined ? { maxHeight: notViewedList.maxHeight } : undefined}
-              className="sg-elegant-scroll overflow-y-auto pr-0.5"
-            >
-              <GuestMarkList items={breakdown.notViewed} tone="off" />
-            </div>
-          </div>
+
+        <div className="mx-5 mt-3.5 flex gap-1 rounded-lg bg-muted/40 p-1">
+          <button
+            type="button"
+            onClick={() => setTab("viewed")}
+            className={`flex-1 rounded-md py-1.5 text-[11.5px] font-semibold transition-colors ${
+              tab === "viewed" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Viram ({breakdown.viewed.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("notViewed")}
+            className={`flex-1 rounded-md py-1.5 text-[11.5px] font-semibold transition-colors ${
+              tab === "notViewed" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Não viram ({breakdown.notViewed.length})
+          </button>
+        </div>
+
+        <div
+          ref={list.ref}
+          style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
+          className="sg-elegant-scroll overflow-y-auto px-5 pb-5 pt-3"
+        >
+          <GuestMarkList items={activeItems} tone={tab === "viewed" ? "ok" : "off"} />
         </div>
       </DialogContent>
     </Dialog>
@@ -3393,6 +3482,74 @@ function ArrivalCard({
           </span>
         </div>
       )}
+
+      {/* Alertas de conferência com o Airbnb (iCal) — divergência de datas,
+          reserva não encontrada e horário fora da janela padrão, com correção
+          em um clique. */}
+      {mode !== "cleaning" && !isPendingFill && (() => {
+        const iIn = row.ical.icalCheckin;
+        const iOut = row.ical.icalCheckout;
+        const dateMismatch =
+          row.ical.hasIcal &&
+          row.ical.matched &&
+          !!iIn &&
+          (iIn !== row.guestCheckin || (!!iOut && !!row.guestCheckout && iOut !== row.guestCheckout));
+        if (!row.ical.hasIcal) return null;
+        const noMatch = !row.ical.matched;
+        // Pedido explícito: quando está tudo certo (reserva encontrada e
+        // datas batendo) não mostra mais nenhum aviso — a antiga linha
+        // "Confirmado via Airbnb" foi removida pra otimizar espaço nos
+        // cards. Os alertas acionáveis abaixo continuam aparecendo
+        // normalmente quando há algo a corrigir.
+        if (!noMatch && !dateMismatch && !divergent) return null;
+        return (
+          <div className="flex flex-col gap-1.5">
+            {noMatch ? (
+              <div className="flex items-center gap-1.5 rounded-none border border-red-500/30 bg-red-500/10 px-2.5 py-1.5 text-[11px] text-red-700 dark:text-red-400">
+                <AlertTriangle className="size-3 shrink-0" />
+                <span className="min-w-0">Sem reserva correspondente no iCal</span>
+              </div>
+            ) : dateMismatch ? (
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-none border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-700 dark:text-amber-400">
+                <span className="inline-flex items-center gap-1 font-medium">
+                  <AlertTriangle className="size-3 shrink-0" />
+                  Data Divergente Hóspede-Airbnb
+                </span>
+                <span className="tabular-nums">
+                  Informada: {fmtDateBR(row.guestCheckin)}
+                  {row.guestCheckout ? ` → ${fmtDateBR(row.guestCheckout)}` : ""} · Correta: {fmtDateBR(iIn)}
+                  {iOut ? ` → ${fmtDateBR(iOut)}` : ""}
+                </span>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => onEditDates(row, { checkinDate: iIn, ...(iOut ? { checkoutDate: iOut } : {}) })}
+                  className="ml-auto rounded-md border border-amber-500/40 px-2 py-0.5 font-semibold hover:bg-amber-500/20 disabled:opacity-50"
+                >
+                  Usar Airbnb
+                </button>
+              </div>
+            ) : null}
+
+            {divergent && (
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-none border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-700 dark:text-amber-400">
+                <span className="inline-flex items-center gap-1">
+                  <AlertTriangle className="size-3 shrink-0" />
+                  Horário divergente do padrão{stdWindow ? ` (${stdWindow})` : ""}
+                </span>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => onSyncIcal(row)}
+                  className="ml-auto rounded-md border border-amber-500/40 px-2 py-0.5 font-semibold hover:bg-amber-500/20 disabled:opacity-50"
+                >
+                  Alinhar
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
 
       {row.note && !noteOpen && (
