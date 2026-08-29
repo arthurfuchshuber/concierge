@@ -1284,7 +1284,15 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                       <button
                         key={t.key}
                         type="button"
-                        onClick={() => setMobileTab(t.key)}
+                        onClick={(e) => {
+                          setMobileTab(t.key);
+                          // Regra "anti-corte": ao selecionar uma aba, ela
+                          // precisa ficar totalmente visível — sem isso, uma
+                          // aba no meio/fim da lista (ex.: "Limpeza") podia
+                          // continuar parcialmente cortada na borda da tela
+                          // mesmo depois de virar a aba ativa.
+                          e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
+                        }}
                         className={`h-9 box-border shrink-0 snap-start inline-flex items-center gap-1.5 rounded-none border-0 border-b-2 bg-transparent px-3.5 text-xs font-medium leading-none whitespace-nowrap transition-colors ${
                           active ? `${toneByKey[t.key]} border-b-current` : "border-b-transparent text-muted-foreground"
                         }`}
@@ -2430,6 +2438,7 @@ function CalendarFiltersButton({
       </PopoverTrigger>
       <PopoverContent
         align="end"
+        collisionPadding={12}
         className="w-64 p-0 max-h-[min(28rem,70vh)] overflow-y-auto"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
@@ -2438,15 +2447,16 @@ function CalendarFiltersButton({
             {/* Pedido explícito: sem o texto "Filtros" aqui dentro (o
                 tooltip já abre a partir de um botão com esse nome, repetir
                 era redundante) — só o link "Limpar" (sem "tudo"), alinhado à
-                direita, numa cor cinza NEUTRA que muda com o tema (clara no
-                escuro, escura no claro) em vez de uma variação do
-                foreground. */}
-            <div className="flex items-center justify-end gap-2 px-3 py-2.5 border-b border-border">
+                esquerda (mesma coluna dos rótulos Período/Cidade/
+                Proprietário abaixo), usando text-foreground/70 (igual ao
+                gatilho "Filtros") em vez de text-muted-foreground, que
+                ficava escuro demais no tema escuro. */}
+            <div className="flex items-center justify-start gap-2 px-3 py-2.5 border-b border-border">
               <button
                 type="button"
                 disabled={!hasCustomFilters}
                 onClick={onClearAll}
-                className="text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                className="text-[11px] font-medium text-foreground/70 transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
               >
                 Limpar
               </button>
