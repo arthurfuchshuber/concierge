@@ -45,7 +45,8 @@ export function PhoneActionButton({ phone, country, className, size = 14 }: Prop
           title={label}
           aria-label={`Contato ${label}`}
           className={cn(
-            "inline-flex shrink-0 items-center justify-center rounded-full bg-emerald-500/12 p-1.5 text-emerald-600 transition hover:bg-emerald-500/25 dark:text-emerald-400",
+            // Pedido explícito: sem fundo — só o ícone em verde.
+            "inline-flex shrink-0 items-center justify-center rounded-full p-1.5 text-emerald-600 transition hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300",
             className,
           )}
         >

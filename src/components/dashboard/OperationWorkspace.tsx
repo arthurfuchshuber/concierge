@@ -3145,6 +3145,18 @@ function ArrivalCard({
   // chegou) — esse comportamento não muda.
   const isOverdue = row.date < todayISO && !done;
   const isFuture = row.date > todayISO;
+  // Cor do período — substitui as antigas etiquetas "Atrasado"/"Data
+  // futura" (removidas a pedido): atrasado sobrepõe qualquer outra cor;
+  // fora isso, checkout é laranja, checkin confirmado (Em Estadia) é verde
+  // e checkin pendente é azul.
+  const periodoColorClass =
+    isOverdue && !visualDone
+      ? "text-red-800 dark:text-red-400"
+      : kind === "checkout"
+        ? "text-orange-600 dark:text-orange-400"
+        : done
+          ? "text-emerald-700 dark:text-emerald-300"
+          : "text-sky-700 dark:text-sky-300";
   const blockReason = kind === "checkin" && !done && !isFuture ? (cleaningBlocked ?? null) : null;
   const cleaningBlock = blockReason !== null;
   const blockCheck = (kind === "checkin" && !done && isFuture) || cleaningBlock;
@@ -3217,20 +3229,6 @@ function ArrivalCard({
         </div>
       )}
 
-      {(isOverdue || isFuture) && !visualDone && (
-        <div className="flex items-center gap-1.5">
-          <span
-            className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-              isOverdue
-                ? "bg-red-500/15 text-red-600 dark:text-red-400"
-                : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-            }`}
-          >
-            <AlertTriangle className="size-2.5" /> {isOverdue ? "Atrasado" : "Data futura"}
-          </span>
-        </div>
-      )}
-
       {/* Header: nome + imóvel + data — sem avatar (ocupava espaço demais
           numa coluna estreita de Kanban; o nome já identifica o hóspede). */}
       <div className="flex items-center gap-3">
@@ -3244,13 +3242,13 @@ function ArrivalCard({
           )}
 
           {/* Período — logo abaixo do código da reserva e acima do
-              proprietário (pedido explícito). Cor em contraste com o fundo:
-              amarelo no tema escuro, laranja escuro no tema claro — não é
-              mais a mesma cor do nome do hóspede. À direita, na mesma linha,
-              o horário padrão de check-in do imóvel (ex.: "15:00 – 23:00"),
-              em branco/foreground — pedido explícito, posição exata do
-              print do usuário. */}
-          <div className="flex items-center gap-1.5 text-xs flex-wrap text-orange-700 dark:text-yellow-400">
+              proprietário (pedido explícito). Em vez das etiquetas
+              "Atrasado"/"Data futura" (removidas), a cor do próprio período
+              agora comunica o status: checkout = laranja; checkin pendente =
+              azul; checkin confirmado (Em Estadia) = verde; atrasado = vermelho
+              (sobrepõe as outras cores). À direita, na mesma linha, o horário
+              padrão do imóvel, em branco/foreground. */}
+          <div className={`flex items-center gap-1.5 text-xs flex-wrap ${periodoColorClass}`}>
             <DateEditor
               value={row.guestCheckin}
               disabled={busy || isPendingFill}
