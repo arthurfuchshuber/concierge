@@ -306,6 +306,28 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     staleTime: 30_000,
     placeholderData: keepPreviousData,
   });
+  // Pedido explícito: no Kanban, o antigo seletor "Hoje/Amanhã/7 dias/Todos"
+  // virou o mesmo botão "Filtros" (Período/Cidade/Proprietário) do
+  // Dashboard/Limpeza — só que aqui ele filtra as LISTAS do próprio quadro,
+  // não o `range` acima (que continua fixo em "hoje" e só alimenta os
+  // cards do Dashboard, como confirmado explicitamente — o Dashboard deve
+  // manter só as informações que já estão nos cards, sem o seletor).
+  // Por isso o Kanban busca TODAS as reservas (sem janela de tempo) e
+  // filtra no cliente por período/cidade/proprietário mais abaixo.
+  const kanbanCheckinListQ = useQuery({
+    queryKey: ["dash-list", "checkin", "all", activeOwnerId ?? "self", "kanban-filtros"],
+    queryFn: () => listFn({ data: { kind: "checkin", range: "all", ownerId: activeOwnerId } }),
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+    enabled: view === "kanban",
+  });
+  const kanbanCheckoutListQ = useQuery({
+    queryKey: ["dash-list", "checkout", "all", activeOwnerId ?? "self", "kanban-filtros"],
+    queryFn: () => listFn({ data: { kind: "checkout", range: "all", ownerId: activeOwnerId } }),
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+    enabled: view === "kanban",
+  });
   const concludedQ = useQuery({
     queryKey: ["dash-list", "concluded", activeOwnerId ?? "self"],
     queryFn: () => concludedFn({ data: { ownerId: activeOwnerId } }),
@@ -626,13 +648,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   }, [coRows, tomorrowCheckoutListQ.data?.rows]);
 
   const concludedRows = concludedQ.data?.rows ?? [];
-  const counts = {
-    checkin: rawCheckinPendingRows.length,
-    checkout: checkoutPendingRows.length,
-    stay: stayRows.length,
-    cleaning: cleaningRows.length,
-    done: concludedRows.length,
-  };
   // Imóveis com check-out pendente OU limpeza em andamento bloqueiam novos
   // check-ins até serem concluídos (evita liberar hóspede em imóvel ainda
   // ocupado pelo hóspede anterior ou ainda sujo).
@@ -704,6 +719,105 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     () => new Set(ciRows.filter((r) => r.status === "done" && r.guestCheckin === todayISO).map((r) => r.propertyId)),
     [ciRows, todayISO],
   );
+
+  /**
+   * Listas do Kanban, filtradas pelo botão "Filtros" (Período/Cidade/
+   * Proprietário) — ver kanbanCheckinListQ/kanbanCheckoutListQ acima.
+   * `cleaningPendingPropIds` (bloqueio de check-in) continua vindo do
+   * `coRows`/`stayRows` de HOJE, de propósito: reflete o estado ATUAL do
+   * imóvel, não deve mudar só porque a pessoa navegou pra outro período no
+   * Kanban.
+   */
+  const propertyCityById = useMemo(() => {
+    const map = new Map<string, string | null>();
+    for (const p of occupancyProperties) map.set(p.id, p.city ?? null);
+    return map;
+  }, [occupancyProperties]);
+
+  const matchesKanbanOwnerCity = useCallback(
+    (r: ArrivalRow) => {
+      if (ownerFilters.length > 0 && !(r.ownerName && ownerFilters.includes(r.ownerName))) return false;
+      if (cityFilters.length > 0) {
+        const city = propertyCityById.get(r.propertyId);
+        if (!city || !cityFilters.includes(city)) return false;
+      }
+      return true;
+    },
+    [ownerFilters, cityFilters, propertyCityById],
+  );
+
+  // Sem período escolhido, mantém o padrão de "hoje" (mesma convenção já
+  // usada pela agenda/cards de limpeza quando nenhum período é escolhido).
+  // O período usado é sempre o da PRÓPRIA reserva (`row.date` já é a data
+  // de check-in/checkout relevante pra cada lista), nunca a data em que o
+  // registro foi criado ou editado.
+  const kanbanPeriodStart = periodRange?.start ?? todayISO;
+  const kanbanPeriodEnd = periodRange?.end ?? todayISO;
+
+  const kanbanCiRowsAll = kanbanCheckinListQ.data?.rows ?? [];
+  const kanbanCoRowsAll = kanbanCheckoutListQ.data?.rows ?? [];
+
+  const kanbanCheckinPendingRows = useMemo(
+    () =>
+      sortCheckinRows(
+        kanbanCiRowsAll.filter(
+          (r) =>
+            r.status === "pending" &&
+            matchesKanbanOwnerCity(r) &&
+            r.date >= kanbanPeriodStart &&
+            r.date <= kanbanPeriodEnd,
+        ),
+      ),
+    [kanbanCiRowsAll, matchesKanbanOwnerCity, kanbanPeriodStart, kanbanPeriodEnd, sortCheckinRows],
+  );
+  const kanbanCheckoutPendingRows = useMemo(
+    () =>
+      kanbanCoRowsAll.filter(
+        (r) =>
+          r.status === "pending" &&
+          matchesKanbanOwnerCity(r) &&
+          r.date >= kanbanPeriodStart &&
+          r.date <= kanbanPeriodEnd,
+      ),
+    [kanbanCoRowsAll, matchesKanbanOwnerCity, kanbanPeriodStart, kanbanPeriodEnd],
+  );
+  // "Em Estadia" é sobre quem está hospedado AGORA — o período filtra pela
+  // SOBREPOSIÇÃO da estadia com o intervalo escolhido (não só a data de
+  // check-in), senão um período futuro nunca mostraria quem já está
+  // hospedado desde antes.
+  const kanbanStayRows = useMemo(
+    () =>
+      kanbanCiRowsAll.filter(
+        (r) =>
+          r.status === "done" &&
+          (!r.guestCheckout || r.guestCheckout > todayISO) &&
+          matchesKanbanOwnerCity(r) &&
+          r.guestCheckin <= kanbanPeriodEnd &&
+          (r.guestCheckout ?? r.guestCheckin) >= kanbanPeriodStart,
+      ),
+    [kanbanCiRowsAll, matchesKanbanOwnerCity, kanbanPeriodStart, kanbanPeriodEnd, todayISO],
+  );
+  const kanbanCleaningRows = useMemo(
+    () =>
+      kanbanCoRowsAll.filter(
+        (r) => r.status === "done" && matchesKanbanOwnerCity(r) && r.date >= kanbanPeriodStart && r.date <= kanbanPeriodEnd,
+      ),
+    [kanbanCoRowsAll, matchesKanbanOwnerCity, kanbanPeriodStart, kanbanPeriodEnd],
+  );
+  // "Concluídos" nunca foi limitado por Hoje/Amanhã/7 dias/Todos (a busca de
+  // concluídos já ignorava esse seletor antes) — só ganha os filtros de
+  // Cidade/Proprietário agora, mantendo o mesmo comportamento de período.
+  const kanbanConcludedRows = useMemo(
+    () => concludedRows.filter(matchesKanbanOwnerCity),
+    [concludedRows, matchesKanbanOwnerCity],
+  );
+  const kanbanCounts = {
+    checkin: kanbanCheckinPendingRows.length,
+    checkout: kanbanCheckoutPendingRows.length,
+    stay: kanbanStayRows.length,
+    cleaning: kanbanCleaningRows.length,
+    done: kanbanConcludedRows.length,
+  };
 
   const rangeLabel: Record<typeof range, string> = {
     today: "Hoje",
@@ -1062,38 +1176,24 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           {/* Aba nova (pedido explícito): "Limpezas Realizadas" e "Custo
               Total Limpeza" saíram do Dashboard e vieram morar aqui, junto
               com as próximas métricas de limpeza que ainda vamos adicionar.
-              Os filtros abaixo são uma CÓPIA independente dos mesmos filtros
-              do Dashboard (mesmos componentes/estado — período, cidade,
-              proprietário — só que aqui só afetam os cards desta aba). */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-            <PeriodRangeFilterButton value={periodRange} onChange={setPeriodRange} />
-            <MultiSelectFilterButton
-              label="Cidade"
-              icon={MapPin}
-              options={cityOptions}
-              selected={cityFilters}
-              onChange={setCityFilters}
+              Pedido explícito (mais recente): os 3 botões de filtro
+              separados (que já eram uma cópia independente dos do
+              Dashboard) viraram o MESMO botão único `CalendarFiltersButton`
+              usado lá — mesmo estado (período/cidade/proprietário), só que
+              aqui só afeta os cards desta aba. */}
+          <div className="flex justify-start">
+            <CalendarFiltersButton
+              periodRange={periodRange}
+              onPeriodRangeChange={setPeriodRange}
+              cityFilters={cityFilters}
+              onCityFiltersChange={setCityFilters}
+              cityOptions={cityOptions}
+              ownerFilters={ownerFilters}
+              onOwnerFiltersChange={setOwnerFilters}
+              ownerOptions={ownerOptions}
+              hasCustomFilters={hasCustomFilters}
+              onClearAll={clearAllFilters}
             />
-            <div className="col-span-2 lg:col-span-1 min-w-0 grid grid-cols-[1fr_auto] gap-2">
-              <MultiSelectFilterButton
-                label="Proprietário"
-                icon={User}
-                options={ownerOptions}
-                selected={ownerFilters}
-                onChange={setOwnerFilters}
-                className="w-full"
-              />
-              <button
-                type="button"
-                disabled={!hasCustomFilters}
-                onClick={clearAllFilters}
-                title="Limpar filtros"
-                aria-label="Limpar filtros"
-                className="inline-flex size-9 shrink-0 items-center justify-center rounded-[0.3rem] text-foreground/70 transition-colors hover:text-foreground hover:bg-secondary/40 disabled:opacity-40 disabled:pointer-events-none"
-              >
-                <Eraser className="size-4" />
-              </button>
-            </div>
           </div>
 
           {/* Cards de limpeza — mais métricas chegam aqui conforme forem
@@ -1129,20 +1229,25 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               card de um status pro outro fica visual, não escondido atrás de um
               menu. */}
           <section className="rounded-none bg-transparent p-0 space-y-4">
-            {/* Sem título: as próprias abas/colunas já identificam o quadro. O
-                filtro "Hoje" fica à direita no desktop; no mobile ele migra pra
-                dentro da linha de abas, ver abaixo. */}
+            {/* Sem título: as próprias abas/colunas já identificam o quadro.
+                Pedido explícito: o antigo dropdown "Hoje/Amanhã/7 dias/Todos"
+                foi substituído pelo mesmo botão "Filtros" (Período/Cidade/
+                Proprietário) do Dashboard/Limpeza — fica à direita no
+                desktop; no mobile ele migra pra dentro da linha de abas, ver
+                abaixo. */}
             <div className="hidden sm:flex items-center gap-3">
               <div className="ml-auto">
-                <RangeDropdown
-                  value={range}
-                  onChange={setRange}
-                  options={[
-                    ["today", "Hoje"],
-                    ["tomorrow", "Amanhã"],
-                    ["7d", "7 dias"],
-                    ["all", "Todos"],
-                  ]}
+                <CalendarFiltersButton
+                  periodRange={periodRange}
+                  onPeriodRangeChange={setPeriodRange}
+                  cityFilters={cityFilters}
+                  onCityFiltersChange={setCityFilters}
+                  cityOptions={cityOptions}
+                  ownerFilters={ownerFilters}
+                  onOwnerFiltersChange={setOwnerFilters}
+                  ownerOptions={ownerOptions}
+                  hasCustomFilters={hasCustomFilters}
+                  onClearAll={clearAllFilters}
                 />
               </div>
             </div>
@@ -1150,18 +1255,18 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             {/* Mobile: abas roláveis, uma coluna ativa por vez — 5 colunas lado a
                 lado não cabem numa tela estreita. O item ativo usa sempre o
                 gradiente da marca (mesmo tratamento de toda aba/badge ativo do
-                app), não uma cor diferente por aba. O filtro "Hoje" fica fixo
-                no fim dessa mesma linha, não numa linha própria acima. */}
+                app), não uma cor diferente por aba. O botão "Filtros" fica
+                fixo no fim dessa mesma linha, não numa linha própria acima. */}
             <div className="sm:hidden space-y-3">
               <div className="space-y-2">
                 <div className="ds-scroll-x w-full min-w-0 gap-1.5 snap-x pb-1 -mx-1 px-1">
                   {(
                     [
-                      { key: "checkin", label: "Check-ins", icon: CalendarCheck, count: counts.checkin },
-                      { key: "checkout", label: "Checkouts", icon: CalendarX, count: counts.checkout },
-                      { key: "stay", label: "Estadia", icon: BedDouble, count: counts.stay },
-                      { key: "cleaning", label: "Limpeza", icon: Sparkles, count: counts.cleaning },
-                      { key: "done", label: "Concluídos", icon: CheckCircle2, count: counts.done },
+                      { key: "checkin", label: "Check-ins", icon: CalendarCheck, count: kanbanCounts.checkin },
+                      { key: "checkout", label: "Checkouts", icon: CalendarX, count: kanbanCounts.checkout },
+                      { key: "stay", label: "Estadia", icon: BedDouble, count: kanbanCounts.stay },
+                      { key: "cleaning", label: "Limpeza", icon: Sparkles, count: kanbanCounts.cleaning },
+                      { key: "done", label: "Concluídos", icon: CheckCircle2, count: kanbanCounts.done },
                     ] as const
                   ).map((t) => {
                     const Icon = t.icon;
@@ -1192,58 +1297,60 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   })}
                 </div>
                 <div className="flex justify-start">
-                  <RangeDropdown
-                    value={range}
-                    onChange={setRange}
-                    options={[
-                      ["today", "Hoje"],
-                      ["tomorrow", "Amanhã"],
-                      ["7d", "7 dias"],
-                      ["all", "Todos"],
-                    ]}
+                  <CalendarFiltersButton
+                    periodRange={periodRange}
+                    onPeriodRangeChange={setPeriodRange}
+                    cityFilters={cityFilters}
+                    onCityFiltersChange={setCityFilters}
+                    cityOptions={cityOptions}
+                    ownerFilters={ownerFilters}
+                    onOwnerFiltersChange={setOwnerFilters}
+                    ownerOptions={ownerOptions}
+                    hasCustomFilters={hasCustomFilters}
+                    onClearAll={clearAllFilters}
                   />
                 </div>
               </div>
 
               {mobileTab === "checkin" &&
-                (checkinListQ.isLoading ? (
+                (kanbanCheckinListQ.isLoading ? (
                   <ColumnLoading />
-                ) : checkinPendingRows.length === 0 ? (
+                ) : kanbanCheckinPendingRows.length === 0 ? (
                   <ColumnEmpty />
                 ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("checkin", checkinPendingRows)} />
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("checkin", kanbanCheckinPendingRows)} />
                 ))}
               {mobileTab === "checkout" &&
-                (checkoutListQ.isLoading ? (
+                (kanbanCheckoutListQ.isLoading ? (
                   <ColumnLoading />
-                ) : checkoutPendingRows.length === 0 ? (
+                ) : kanbanCheckoutPendingRows.length === 0 ? (
                   <ColumnEmpty />
                 ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("checkout", checkoutPendingRows)} />
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("checkout", kanbanCheckoutPendingRows)} />
                 ))}
               {mobileTab === "stay" &&
-                (checkinListQ.isLoading ? (
+                (kanbanCheckinListQ.isLoading ? (
                   <ColumnLoading />
-                ) : stayRows.length === 0 ? (
+                ) : kanbanStayRows.length === 0 ? (
                   <ColumnEmpty />
                 ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", stayRows)} />
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", kanbanStayRows)} />
                 ))}
               {mobileTab === "cleaning" &&
-                (checkoutListQ.isLoading ? (
+                (kanbanCheckoutListQ.isLoading ? (
                   <ColumnLoading />
-                ) : cleaningRows.length === 0 ? (
+                ) : kanbanCleaningRows.length === 0 ? (
                   <ColumnEmpty />
                 ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", cleaningRows)} />
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", kanbanCleaningRows)} />
                 ))}
               {mobileTab === "done" &&
                 (concludedQ.isLoading ? (
                   <ColumnLoading />
-                ) : concludedRows.length === 0 ? (
+                ) : kanbanConcludedRows.length === 0 ? (
                   <ColumnEmpty />
                 ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("done", concludedRows)} />
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("done", kanbanConcludedRows)} />
                 ))}
             </div>
 
@@ -1260,15 +1367,15 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   onScroll={() => setExpandedByColumn((prev) => ({ ...prev, checkin: null }))}
                   title="Check-ins"
                   icon={CalendarCheck}
-                  count={counts.checkin}
+                  count={kanbanCounts.checkin}
                   tone="emerald"
                 >
-                  {checkinListQ.isLoading ? (
+                  {kanbanCheckinListQ.isLoading ? (
                     <ColumnLoading />
-                  ) : checkinPendingRows.length === 0 ? (
+                  ) : kanbanCheckinPendingRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("checkin", checkinPendingRows)} />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("checkin", kanbanCheckinPendingRows)} />
                   )}
                 </KanbanColumn>
               </div>
@@ -1278,15 +1385,15 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   onScroll={() => setExpandedByColumn((prev) => ({ ...prev, checkout: null }))}
                   title="Checkouts"
                   icon={CalendarX}
-                  count={counts.checkout}
+                  count={kanbanCounts.checkout}
                   tone="amber"
                 >
-                  {checkoutListQ.isLoading ? (
+                  {kanbanCheckoutListQ.isLoading ? (
                     <ColumnLoading />
-                  ) : checkoutPendingRows.length === 0 ? (
+                  ) : kanbanCheckoutPendingRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("checkout", checkoutPendingRows)} />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("checkout", kanbanCheckoutPendingRows)} />
                   )}
                 </KanbanColumn>
               </div>
@@ -1296,15 +1403,15 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   onScroll={() => setExpandedByColumn((prev) => ({ ...prev, stay: null }))}
                   title="Em Estadia"
                   icon={BedDouble}
-                  count={counts.stay}
+                  count={kanbanCounts.stay}
                   tone="sky"
                 >
-                  {checkinListQ.isLoading ? (
+                  {kanbanCheckinListQ.isLoading ? (
                     <ColumnLoading />
-                  ) : stayRows.length === 0 ? (
+                  ) : kanbanStayRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", stayRows)} />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", kanbanStayRows)} />
                   )}
                 </KanbanColumn>
               </div>
@@ -1314,15 +1421,15 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   onScroll={() => setExpandedByColumn((prev) => ({ ...prev, cleaning: null }))}
                   title="Liberado para Limpeza"
                   icon={Sparkles}
-                  count={counts.cleaning}
+                  count={kanbanCounts.cleaning}
                   tone="violet"
                 >
-                  {checkoutListQ.isLoading ? (
+                  {kanbanCheckoutListQ.isLoading ? (
                     <ColumnLoading />
-                  ) : cleaningRows.length === 0 ? (
+                  ) : kanbanCleaningRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", cleaningRows)} />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", kanbanCleaningRows)} />
                   )}
                 </KanbanColumn>
               </div>
@@ -1332,15 +1439,15 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   onScroll={() => setExpandedByColumn((prev) => ({ ...prev, done: null }))}
                   title="Concluídos"
                   icon={CheckCircle2}
-                  count={counts.done}
+                  count={kanbanCounts.done}
                   tone="zinc"
                 >
                   {concludedQ.isLoading ? (
                     <ColumnLoading />
-                  ) : concludedRows.length === 0 ? (
+                  ) : kanbanConcludedRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("done", concludedRows)} />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("done", kanbanConcludedRows)} />
                   )}
                 </KanbanColumn>
               </div>
@@ -1793,7 +1900,11 @@ function KpiCard({
           highlight === "amber" ? (
             <button
               type="button"
-              className="relative w-full overflow-hidden flex items-center gap-2.5 rounded-lg border border-amber-300/30 bg-card px-3.5 py-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 shadow-[0_8px_24px_-12px_rgba(245,158,11,0.30)]"
+              // Pedido explícito: arredondamento igual ao dos demais cards
+              // (`rounded-[0.3rem]`, não o `rounded-lg` mais arredondado que
+              // estava aqui) — só o raio das pontas mudou, resto do
+              // destaque âmbar (borda/gradiente/acento) continua igual.
+              className="relative w-full overflow-hidden flex items-center gap-2.5 rounded-[0.3rem] border border-amber-300/30 bg-card px-3.5 py-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 shadow-[0_8px_24px_-12px_rgba(245,158,11,0.30)]"
               style={{
                 backgroundImage:
                   "radial-gradient(120% 160% at 0% 0%, rgba(245,158,11,0.16), transparent 55%), radial-gradient(120% 160% at 100% 100%, rgba(245,158,11,0.08), transparent 55%)",
@@ -2307,10 +2418,10 @@ function CalendarFiltersButton({
       <PopoverTrigger asChild>
         {/* Pedido explícito: sem "quadrante" (fundo/borda) — igual ao
             tratamento da borracha de limpar filtros, só ícone + texto
-            soltos, sem caixinha ao redor. */}
+            soltos, sem caixinha ao redor, e SEM fundo nem no hover. */}
         <button
           type="button"
-          className="relative h-8 shrink-0 inline-flex items-center gap-1.5 rounded-[0.3rem] border-0 bg-transparent px-1.5 text-xs font-medium leading-none text-foreground/70 hover:text-foreground hover:bg-secondary/40 transition-colors"
+          className="relative h-8 shrink-0 inline-flex items-center gap-1.5 rounded-[0.3rem] border-0 bg-transparent px-1.5 text-xs font-medium leading-none text-foreground/70 hover:text-foreground transition-colors"
         >
           <Filter className="size-3.5 opacity-60" />
           Filtros
@@ -2324,15 +2435,20 @@ function CalendarFiltersButton({
       >
         {screen === "root" ? (
           <>
-            <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-border">
-              <span className="text-[11px] font-semibold text-foreground">Filtros</span>
+            {/* Pedido explícito: sem o texto "Filtros" aqui dentro (o
+                tooltip já abre a partir de um botão com esse nome, repetir
+                era redundante) — só o link "Limpar" (sem "tudo"), alinhado à
+                direita, numa cor cinza NEUTRA que muda com o tema (clara no
+                escuro, escura no claro) em vez de uma variação do
+                foreground. */}
+            <div className="flex items-center justify-end gap-2 px-3 py-2.5 border-b border-border">
               <button
                 type="button"
                 disabled={!hasCustomFilters}
                 onClick={onClearAll}
-                className="text-[11px] font-medium text-foreground/70 transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                className="text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
               >
-                Limpar tudo
+                Limpar
               </button>
             </div>
             <button
