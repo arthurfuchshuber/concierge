@@ -710,11 +710,38 @@ export const upsertArrivalStatus = createServerFn({ method: "POST" })
     if (typeof data.mutedUntil !== "undefined") patch.muted_until = data.mutedUntil;
 
 
-    // Upsert atômico direto no banco — em vez de "buscar se existe, depois
-    // decidir insert ou update" (que tinha uma janela de corrida real: dois
+    // Upsert atômico direto no banco quando só 1 identificador está
+    // disponível (o caso mais comum) — em vez de "buscar se existe, depois
+    // decidir insert ou update", que tinha uma janela de corrida real: dois
     // cliques quase simultâneos podiam os dois "não encontrar" a linha
-    // existente e os dois tentarem inserir, criando duplicata). O onConflict
-    // aponta pro índice único certo conforme o identificador disponível.
+    // existente e os dois tentarem inserir, criando duplicata.
+    //
+    // Quando os DOIS identificadores estão disponíveis (reserva iCal já
+    // casada com um log de acesso), um upsert atômico mirando só UM
+    // onConflict não é seguro: a linha já pode existir criada ANTES do
+    // casamento, com só um dos dois IDs setado — mirar só reservation_id
+    // (ou só log_id) não encontra essa linha e tenta inserir de novo,
+    // violando a constraint única do OUTRO identificador. Foi exatamente
+    // isso que causou o erro real "duplicate key value violates unique
+    // constraint guest_arrival_status_log_id_kind_key" ao concluir uma
+    // limpeza. Nesse caso (só quando os dois IDs coexistem) vale a consulta
+    // extra pra buscar por QUALQUER um dos dois antes de decidir.
+    if (data.logId && data.reservationId) {
+      const { data: existing, error: findErr } = await context.supabase
+        .from("guest_arrival_status")
+        .select("id")
+        .eq("kind", data.kind)
+        .or(`log_id.eq.${data.logId},reservation_id.eq.${data.reservationId}`)
+        .limit(1);
+      if (findErr) throw new Error(findErr.message);
+      const existingId = (existing?.[0] as { id: string } | undefined)?.id;
+      const { error } = existingId
+        ? await context.supabase.from("guest_arrival_status").update(patch).eq("id", existingId)
+        : await context.supabase.from("guest_arrival_status").insert(patch);
+      if (error) throw new Error(error.message);
+      return { ok: true };
+    }
+
     const { error } = data.reservationId
       ? await context.supabase
           .from("guest_arrival_status")
@@ -926,9 +953,30 @@ export const advanceArrival = createServerFn({ method: "POST" })
       if (data.logId) body.log_id = data.logId;
       if (data.reservationId) body.reservation_id = data.reservationId;
 
-      // Upsert atômico (ver upsertArrivalStatus acima para o motivo: "buscar
-      // depois decidir" tinha uma janela real de corrida entre dois cliques
-      // quase simultâneos, podendo criar linhas duplicadas).
+      // Ver upsertArrivalStatus (mais acima neste arquivo) para a explicação
+      // completa: upsert atômico quando só 1 identificador existe (evita a
+      // janela de corrida de "buscar depois decidir" entre 2 cliques quase
+      // simultâneos); quando os DOIS coexistem (reserva iCal já casada com
+      // um log), busca por QUALQUER um dos dois antes de decidir — um
+      // onConflict só não é seguro nesse caso (bug real: "duplicate key
+      // value violates unique constraint guest_arrival_status_log_id_kind_key"
+      // ao concluir limpeza de um card já casado com log + reserva).
+      if (data.logId && data.reservationId) {
+        const { data: existing, error: findErr } = await context.supabase
+          .from("guest_arrival_status")
+          .select("id")
+          .eq("kind", kind)
+          .or(`log_id.eq.${data.logId},reservation_id.eq.${data.reservationId}`)
+          .limit(1);
+        if (findErr) throw new Error(findErr.message);
+        const existingId = (existing?.[0] as { id: string } | undefined)?.id;
+        const { error } = existingId
+          ? await context.supabase.from("guest_arrival_status").update(body).eq("id", existingId)
+          : await context.supabase.from("guest_arrival_status").insert(body);
+        if (error) throw new Error(error.message);
+        return;
+      }
+
       const { error } = data.reservationId
         ? await context.supabase
             .from("guest_arrival_status")

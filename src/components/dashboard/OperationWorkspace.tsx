@@ -190,7 +190,7 @@ function InfoHint({ title, children }: { title: string; children: React.ReactNod
 // viver dentro do "resumo" (Dashboard) — ver <OccupancyPanel> logo abaixo
 // dos cards, no bloco "view === 'resumo'". A rota /admin/dashboard/calendario
 // agora só redireciona pra lá; não existe mais uma tela própria pra ela.
-export type OperationView = "resumo" | "kanban";
+export type OperationView = "resumo" | "kanban" | "limpeza";
 
 export function OperationWorkspace({ view }: { view: OperationView }) {
   const engFn = useServerFn(getGuideEngagement);
@@ -897,13 +897,18 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               desktop (pedido explícito), então cada card carrega sua própria
               posição via classes "order" (mobile) e "lg:order" (desktop) em
               vez de duplicar o JSX.
-              Mobile (grid-cols-2): pendentes → amanhã → liberado p/ limpeza →
-              limpezas realizadas → custo total → calendário → em estadia →
-              imóveis livres.
+              Mobile (grid-cols-2): pendentes → amanhã → filtros (período,
+              cidade, proprietário, limpar) → liberado p/ limpeza →
+              calendário → em estadia → imóveis livres. Pedido explícito:
+              "Liberado para Limpeza" saiu de cima dos filtros e passou pra
+              baixo deles, e também perdeu o destaque âmbar (compact sem
+              `highlight`) — agora é um "botão" padrão, igual aos demais
+              cards desta grade. "Limpezas Realizadas"/"Custo Total Limpeza"
+              se mudaram pra aba própria "Limpeza" (não aparecem mais aqui).
               Desktop (lg:grid-cols-4): os 4 cards de pendentes/amanhã numa
-              única linha → liberado p/ limpeza → limpezas realizadas, custo
-              total, em estadia e imóveis livres na linha seguinte →
-              calendário por último (posição inalterada). */}
+              única linha → filtros → liberado p/ limpeza (faixa cheia) → em
+              estadia e imóveis livres na linha seguinte → calendário por
+              último. */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5">
             <div className="order-1 lg:order-1">
               <KpiCard
@@ -960,49 +965,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               />
             </div>
 
-            {/* Liberado para Limpeza — faixa fina, largura total (só quando houver 1+) */}
-            {cleaningRows.length > 0 ? (
-              // Sem o shimmer/glow âmbar (amber-mirror) — menos "colorido",
-              // mais executivo; o card já sinaliza com o pontinho âmbar.
-              <div className="order-5 lg:order-5 col-span-2 lg:col-span-4">
-                <KpiCard
-                  label="Liberado para Limpeza"
-                  rows={cleaningRows}
-                  icon={Sparkles}
-                  tone="primary-soft"
-                  loading={checkoutListQ.isLoading}
-                  onRefresh={() => checkoutListQ.refetch()}
-                  rangeLabel={rangeLabel[range]}
-                  compact
-                  highlight="amber"
-                  cardProps={arrivalGroupPropsFor("cleaning", cleaningRows)}
-                />
-              </div>
-            ) : null}
-
-            {/* Limpezas Realizadas / Custo Total — no mobile ficam logo
-                depois dos filtros (pedido explícito); no desktop voltam pra
-                posição de sempre, logo após "Liberado para Limpeza", sem se
-                misturar com a linha dos filtros. (O Engajamento saiu dessa
-                grade — agora fica no topo da página, ver renderEngagementTop.) */}
-            <div className="order-9 lg:order-7 col-span-1">
-              <StatDisplayCard
-                label="Limpezas Realizadas"
-                value={cleaningStatsQ.data?.cleaningsDone ?? 0}
-                icon={CheckCircle2}
-                loading={cleaningStatsQ.isLoading}
-              />
-            </div>
-            <div className="order-10 lg:order-8 col-span-1">
-              <StatDisplayCard
-                label="Custo Total Limpeza"
-                value={centsToBRL(cleaningStatsQ.data?.totalCents ?? 0)}
-                icon={Banknote}
-                loading={cleaningStatsQ.isLoading}
-              />
-            </div>
-
-            <div className="order-12 lg:order-9 col-span-1">
+            {/* "Limpezas Realizadas" e "Custo Total Limpeza" se mudaram pra
+                aba própria "Limpeza" (pedido explícito) — ver
+                view === "limpeza" mais abaixo. */}
+            <div className="order-8 lg:order-8 col-span-1">
               <KpiCard
                 label="Em Estadia"
                 rows={stayRows}
@@ -1014,7 +980,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 cardProps={arrivalGroupPropsFor("stay", stayRows)}
               />
             </div>
-            <div className="order-13 lg:order-10 col-span-1">
+            <div className="order-9 lg:order-9 col-span-1">
               <FreePropertiesCard
                 loading={occupancyQ.isLoading}
                 properties={freeProperties}
@@ -1024,19 +990,18 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
             {/* Filtros — Período (calendário de início e fim), Cidade e
                 Proprietário (busca + seleção múltipla). Afetam a agenda de
-                ocupação E os 2 cards de limpeza (pedido explícito). Ficam de
-                volta na posição original: numa linha própria, logo acima do
+                ocupação abaixo (os 2 cards de limpeza que estes filtros
+                também controlavam se mudaram pra aba própria "Limpeza", que
+                tem sua própria cópia destes mesmos filtros — ver
+                view === "limpeza"). Ficam numa linha própria, logo acima do
                 calendário, sem entrar numa grade ANINHADA (isso já causou
                 incompatibilidade de "gap" com a grade real — os 2 blocos
-                abaixo são itens de PRIMEIRO NÍVEL da MESMA grade que
-                Limpezas/Custo, então largura e espaçamento batem
-                EXATAMENTE, por construção, sem precisar recalcular nada.
-                No mobile aparecem antes de Limpezas/Custo (pedido
-                explícito); no desktop ficam só acima do calendário, sem
-                mexer na ordem dos demais cards — como consequência de
-                estarem na mesma grade de 4 colunas, o bloco 1 cai
-                naturalmente alinhado sob "Limpezas Realizadas" e o bloco 2
-                sob "Custo Total Limpeza". */}
+                abaixo são itens de PRIMEIRO NÍVEL da MESMA grade, então
+                largura e espaçamento batem EXATAMENTE com os demais cards,
+                por construção, sem precisar recalcular nada). No mobile
+                aparecem logo depois dos 4 KPIs do topo; no desktop ficam só
+                acima de "Liberado para Limpeza"/calendário, sem mexer na
+                ordem dos demais cards. */}
             {/* grid (não flex) de propósito: um <button> é filho DIRETO do
                 grid item aqui (Popover/PopoverTrigger asChild não desenham
                 elemento próprio), então o "stretch" padrão do grid estica
@@ -1045,7 +1010,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 alinhados à esquerda, sobrando um vão vazio até a borda da
                 coluna (era isso que deixava "Cidade"/"Proprietário" com
                 largura errada mesmo já na coluna certa). */}
-            <div className="order-7 lg:order-11 col-span-1 min-w-0 grid grid-cols-2 gap-2">
+            <div className="order-5 lg:order-5 col-span-1 min-w-0 grid grid-cols-2 gap-2">
               <PeriodRangeFilterButton value={periodRange} onChange={setPeriodRange} />
               <MultiSelectFilterButton
                 label="Cidade"
@@ -1056,14 +1021,14 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               />
             </div>
             {/* Pedido explícito: "Proprietário" sozinho precisa ter a MESMA
-                largura da coluna (igual ao card "Custo Total Limpeza") — a
-                borracha pode ficar PARA FORA dessa largura. No mobile (2
+                largura de uma coluna da grade (igual aos outros cards desta
+                grade) — a borracha pode ficar PARA FORA dessa largura. No mobile (2
                 colunas) não há espaço sobrando à direita, então a borracha
                 continua dentro do grid normal (grid-cols-[1fr_auto]); só no
                 desktop o container vira "block/relative" e a borracha some
                 do fluxo do grid, virando um botão absoluto colado logo à
                 direita da coluna (left-full = começa onde a coluna termina). */}
-            <div className="order-8 lg:order-12 col-span-1 min-w-0 grid grid-cols-[1fr_auto] gap-2 lg:block lg:relative">
+            <div className="order-6 lg:order-6 col-span-1 min-w-0 grid grid-cols-[1fr_auto] gap-2 lg:block lg:relative">
               <MultiSelectFilterButton
                 label="Proprietário"
                 icon={User}
@@ -1092,13 +1057,34 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               </button>
             </div>
 
+            {/* Liberado para Limpeza — faixa fina, largura total (só quando
+                houver 1+). Pedido explícito: agora fica LOGO DEPOIS da linha
+                de filtros (antes ficava colado nos 4 KPIs do topo) e sem o
+                destaque âmbar — `compact` sem `highlight` já renderiza no
+                mesmo estilo "padrão" dos outros cards desta grade. */}
+            {cleaningRows.length > 0 ? (
+              <div className="order-7 lg:order-7 col-span-2 lg:col-span-4">
+                <KpiCard
+                  label="Liberado para Limpeza"
+                  rows={cleaningRows}
+                  icon={Sparkles}
+                  tone="primary-soft"
+                  loading={checkoutListQ.isLoading}
+                  onRefresh={() => checkoutListQ.refetch()}
+                  rangeLabel={rangeLabel[range]}
+                  compact
+                  cardProps={arrivalGroupPropsFor("cleaning", cleaningRows)}
+                />
+              </div>
+            ) : null}
+
             {/* Calendário de ocupação — no mobile aparece antes de "Em
                 Estadia"/"Imóveis livres" (pedido explícito, já assim antes
                 dos filtros existirem); no desktop segue por último, como
                 sempre foi, logo abaixo da linha de filtros. Pedido explícito:
                 no desktop, a mesma largura dos 2 blocos de filtro somados
-                (col-span-2, alinhado sob "Limpezas Realizadas" + "Custo
-                Total Limpeza"), não mais a largura cheia da grade — no
+                (col-span-2, alinhado sob as 2 primeiras colunas da grade),
+                não mais a largura cheia da grade — no
                 mobile não muda (segue col-span-2 = largura cheia da grade
                 de 2 colunas). `lg:col-start-1` é o que FORÇA a nova linha:
                 sem isso, como só as colunas 1-2 da linha dos filtros estavam
@@ -1106,7 +1092,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 colunas 3-4 dessa MESMA linha (ao lado dos filtros, não
                 embaixo) — com `col-start-1` ele só cabe numa linha onde a
                 coluna 1 esteja livre, ou seja, a linha seguinte. */}
-            <div className="order-11 lg:order-13 col-span-2 lg:col-start-1 lg:col-span-2">
+            <div className="order-10 lg:order-10 col-span-2 lg:col-start-1 lg:col-span-2">
               <OccupancyPanel
                 loading={occupancyQ.isLoading}
                 start={occupancyQ.data?.start ?? occStart}
@@ -1121,6 +1107,70 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           {/* Espaço extra abaixo do último card (mesmo tom de 6px usado entre
               todos os outros) — sem isso, no mobile os últimos cards ficavam
               colados na barra de navegação inferior fixa. */}
+          <div className="h-1.5" />
+        </>
+      ) : null}
+
+      {view === "limpeza" ? (
+        <>
+          {/* Aba nova (pedido explícito): "Limpezas Realizadas" e "Custo
+              Total Limpeza" saíram do Dashboard e vieram morar aqui, junto
+              com as próximas métricas de limpeza que ainda vamos adicionar.
+              Os filtros abaixo são uma CÓPIA independente dos mesmos filtros
+              do Dashboard (mesmos componentes/estado — período, cidade,
+              proprietário — só que aqui só afetam os cards desta aba). */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+            <PeriodRangeFilterButton value={periodRange} onChange={setPeriodRange} />
+            <MultiSelectFilterButton
+              label="Cidade"
+              icon={MapPin}
+              options={cityOptions}
+              selected={cityFilters}
+              onChange={setCityFilters}
+            />
+            <div className="col-span-2 lg:col-span-1 min-w-0 grid grid-cols-[1fr_auto] gap-2">
+              <MultiSelectFilterButton
+                label="Proprietário"
+                icon={User}
+                options={ownerOptions}
+                selected={ownerFilters}
+                onChange={setOwnerFilters}
+                className="w-full"
+              />
+              <button
+                type="button"
+                disabled={!hasCustomFilters}
+                onClick={clearAllFilters}
+                title="Limpar filtros"
+                aria-label="Limpar filtros"
+                className="inline-flex size-9 shrink-0 items-center justify-center rounded-[0.3rem] text-foreground/70 transition-colors hover:text-foreground hover:bg-secondary/40 disabled:opacity-40 disabled:pointer-events-none"
+              >
+                <Eraser className="size-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Cards de limpeza — mais métricas chegam aqui conforme forem
+              implementadas. */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5 mt-1.5">
+            <div className="col-span-1">
+              <StatDisplayCard
+                label="Limpezas Realizadas"
+                value={cleaningStatsQ.data?.cleaningsDone ?? 0}
+                icon={CheckCircle2}
+                loading={cleaningStatsQ.isLoading}
+              />
+            </div>
+            <div className="col-span-1">
+              <StatDisplayCard
+                label="Custo Total Limpeza"
+                value={centsToBRL(cleaningStatsQ.data?.totalCents ?? 0)}
+                icon={Banknote}
+                loading={cleaningStatsQ.isLoading}
+              />
+            </div>
+          </div>
+
           <div className="h-1.5" />
         </>
       ) : null}
@@ -1442,11 +1492,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 const OPERATION_TABS = [
   { view: "resumo" as const, label: "Operacional", to: "/admin/dashboard" },
   { view: "kanban" as const, label: "Quadro Kanban", to: "/admin/dashboard/kanban" },
+  { view: "limpeza" as const, label: "Limpeza", to: "/admin/dashboard/limpeza" },
 ];
 
 const OPERATION_COPY: Record<OperationView, { title: string; subtitle: string }> = {
   resumo: { title: "Dashboard Operacional", subtitle: "Sua rotina diária: check-ins, checkouts e senhas." },
   kanban: { title: "Kanban Operacional", subtitle: "Cada reserva na etapa em que ela realmente está." },
+  limpeza: { title: "Limpeza", subtitle: "Histórico e custos das limpezas realizadas." },
 };
 
 function OperationShell({ view }: { view: OperationView }) {
