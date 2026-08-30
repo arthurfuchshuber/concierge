@@ -5041,6 +5041,10 @@ export type Database = {
         Args: { _ids: string[]; _outcome?: string }
         Returns: undefined
       }
+      can_access_stakeholder_data: {
+        Args: { _owner_id: string; _user_id: string }
+        Returns: boolean
+      }
       can_read_permission_catalog: {
         Args: { _user_id: string }
         Returns: boolean
