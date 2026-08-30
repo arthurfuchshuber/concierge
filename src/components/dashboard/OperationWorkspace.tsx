@@ -58,6 +58,7 @@ import {
   LayoutGrid,
   Navigation,
   Download,
+  Repeat,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, parse, isValid, differenceInCalendarDays } from "date-fns";
@@ -71,6 +72,17 @@ import { Button } from "@/components/ui/button";
 import { Calendar as RangeCalendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
+import { MoneyInput } from "@/components/ui/money-input";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import {
   DropdownMenu,
@@ -1177,6 +1189,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       showInCleaning: boolean;
       propertyId?: string | null;
       ownerContactId?: string | null;
+      amountSpentCents?: number | null;
+      recurrenceDays?: number | null;
     }) => createTaskFn({ data: { ownerId: activeOwnerId, ...v } }),
     onSuccess: () => {
       invalidateTasks();
@@ -1185,16 +1199,63 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao criar pendência."),
   });
   const setTaskStatusMutation = useMutation({
-    mutationFn: (v: { taskId: string; status: "pending" | "done" | "canceled" }) => setTaskStatusFn({ data: v }),
+    mutationFn: (v: {
+      taskId: string;
+      status: "pending" | "done" | "canceled";
+      amountSpentCents?: number | null;
+    }) => setTaskStatusFn({ data: v }),
     onSuccess: invalidateTasks,
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar pendência."),
   });
   const toggleCleaningTaskMutation = useMutation({
-    mutationFn: (v: { taskId: string; logId?: string | null; reservationId?: string | null }) =>
-      toggleCleaningFn({ data: v }),
+    mutationFn: (v: {
+      taskId: string;
+      logId?: string | null;
+      reservationId?: string | null;
+      amountSpentCents?: number | null;
+    }) => toggleCleaningFn({ data: v }),
     onSuccess: invalidateTasks,
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar checklist."),
   });
+  // Pergunta "teve gasto?" ao concluir uma pendência sem valor informado —
+  // pedido explícito: só interrompe quando o valor está em branco (se já
+  // tinha um valor, concluir não pergunta nada de novo).
+  type ExpensePromptState =
+    | { kind: "status"; task: TaskRow }
+    | { kind: "cleaning"; task: TaskRow; row: ArrivalRow };
+  const [expensePrompt, setExpensePrompt] = useState<ExpensePromptState | null>(null);
+  const [expenseHasCost, setExpenseHasCost] = useState(false);
+  const [expenseCents, setExpenseCents] = useState<number | null>(null);
+  function closeExpensePrompt() {
+    setExpensePrompt(null);
+    setExpenseHasCost(false);
+    setExpenseCents(null);
+  }
+  function confirmExpensePrompt() {
+    if (!expensePrompt) return;
+    const amountSpentCents = expenseHasCost ? expenseCents : null;
+    if (expensePrompt.kind === "status") {
+      setTaskStatusMutation.mutate({ taskId: expensePrompt.task.id, status: "done", amountSpentCents });
+    } else {
+      toggleCleaningTaskMutation.mutate({
+        taskId: expensePrompt.task.id,
+        logId: expensePrompt.row.logId,
+        reservationId: expensePrompt.row.reservationId,
+        amountSpentCents,
+      });
+    }
+    closeExpensePrompt();
+  }
+  function requestSetTaskStatus(taskId: string, status: "pending" | "done" | "canceled") {
+    if (status === "done") {
+      const task = (tasksQ.data?.tasks ?? []).find((t) => t.id === taskId);
+      if (task && task.amountSpentCents == null) {
+        setExpensePrompt({ kind: "status", task });
+        return;
+      }
+    }
+    setTaskStatusMutation.mutate({ taskId, status });
+  }
 
   // Sem período escolhido, mantém o padrão de "hoje" (mesma convenção já
   // usada pela agenda/cards de limpeza quando nenhum período é escolhido).
@@ -1317,10 +1378,27 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   function handleToggleCleaningTask(task: TaskRow, row: ArrivalRow) {
     if (task.logId || task.reservationId) {
       // Pontual: o próprio status da pendência representa esta estadia.
+      const willComplete = task.status !== "done";
+      if (willComplete && task.amountSpentCents == null) {
+        setExpensePrompt({ kind: "status", task });
+        return;
+      }
       setTaskStatusMutation.mutate({ taskId: task.id, status: task.status === "done" ? "pending" : "done" });
     } else {
       // Recorrente: marca só esta ocorrência (log/reserva do card) — a
       // pendência em si continua ativa e volta pendente na próxima limpeza.
+      // Cada ocorrência é nova, então sempre pergunta o gasto ao MARCAR
+      // (nunca ao desmarcar, que só remove o registro).
+      const completions = cleaningTasksData.completions;
+      const already = completions.some(
+        (c) =>
+          c.taskId === task.id &&
+          ((row.logId && c.logId === row.logId) || (row.reservationId && c.reservationId === row.reservationId)),
+      );
+      if (!already) {
+        setExpensePrompt({ kind: "cleaning", task, row });
+        return;
+      }
       toggleCleaningTaskMutation.mutate({ taskId: task.id, logId: row.logId, reservationId: row.reservationId });
     }
   }
@@ -2017,8 +2095,55 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               guestNameForTask={guestNameForTask}
               onCreate={(v) => createTaskMutation.mutateAsync(v)}
               creating={createTaskMutation.isPending}
-              onSetStatus={(taskId, status) => setTaskStatusMutation.mutate({ taskId, status })}
+              onSetStatus={requestSetTaskStatus}
             />
+
+            <AlertDialog open={!!expensePrompt} onOpenChange={(v) => !v && closeExpensePrompt()}>
+              <AlertDialogContent className="sm:max-w-sm">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Teve gasto nessa tarefa?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    "{expensePrompt?.task.title}" não tem um valor registrado. Quer anotar quanto foi gasto?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setExpenseHasCost(false)}
+                    className={`flex-1 text-xs font-semibold py-2 rounded-lg border transition-colors ${
+                      !expenseHasCost ? "border-foreground/30 bg-secondary" : "border-border text-muted-foreground"
+                    }`}
+                  >
+                    Não
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExpenseHasCost(true)}
+                    className={`flex-1 text-xs font-semibold py-2 rounded-lg border transition-colors ${
+                      expenseHasCost
+                        ? "border-transparent text-white bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE]"
+                        : "border-border text-muted-foreground"
+                    }`}
+                  >
+                    Sim, teve gasto
+                  </button>
+                </div>
+                {expenseHasCost && (
+                  <div>
+                    <label className="text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground mb-1 block">
+                      Valor gasto
+                    </label>
+                    <MoneyInput cents={expenseCents} onChange={setExpenseCents} placeholder="0,00" />
+                  </div>
+                )}
+                <AlertDialogFooter>
+                  <AlertDialogCancel onClick={closeExpensePrompt}>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={confirmExpensePrompt}>
+                    {expenseHasCost ? "Salvar e concluir" : "Concluir"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </section>
         </>
       ) : null}
@@ -3158,6 +3283,8 @@ function TasksDialog({
     showInCleaning: boolean;
     propertyId?: string | null;
     ownerContactId?: string | null;
+    amountSpentCents?: number | null;
+    recurrenceDays?: number | null;
   }) => Promise<{ id: string }>;
   creating: boolean;
   onSetStatus: (taskId: string, status: "pending" | "done" | "canceled") => void;
@@ -3201,7 +3328,28 @@ function TasksDialog({
   const [showInCleaning, setShowInCleaning] = useState(false);
   const [propertyId, setPropertyId] = useState<string>("");
   const [ownerContactId, setOwnerContactId] = useState<string>("");
+  const [amountSpentCents, setAmountSpentCents] = useState<number | null>(null);
+  const [recurrenceOn, setRecurrenceOn] = useState(false);
+  const [recurrenceDays, setRecurrenceDays] = useState(30);
+  const [titleComboOpen, setTitleComboOpen] = useState(false);
+  const [dueDatePopoverOpen, setDueDatePopoverOpen] = useState(false);
   const linkMissing = !propertyId && !ownerContactId;
+
+  // Sugestões de título — os mais repetidos nesta conta, sem precisar de
+  // uma consulta nova (já temos "tasks" carregado). O campo continua livre:
+  // isto é só um atalho.
+  const titleSuggestions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const t of tasks) {
+      const key = t.title.trim();
+      if (!key) continue;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "pt-BR"))
+      .slice(0, 8)
+      .map(([t]) => t);
+  }, [tasks]);
 
   function resetForm() {
     setTitle("");
@@ -3212,6 +3360,9 @@ function TasksDialog({
     setShowInCleaning(false);
     setPropertyId("");
     setOwnerContactId("");
+    setAmountSpentCents(null);
+    setRecurrenceOn(false);
+    setRecurrenceDays(30);
   }
 
   async function handleSubmit() {
@@ -3233,6 +3384,8 @@ function TasksDialog({
         showInCleaning,
         propertyId: propertyId || null,
         ownerContactId: ownerContactId || null,
+        amountSpentCents,
+        recurrenceDays: recurrenceOn ? recurrenceDays : null,
       });
       resetForm();
       setShowForm(false);
@@ -3292,13 +3445,50 @@ function TasksDialog({
 
         {showForm ? (
           <div className="px-5 pb-5 space-y-2.5">
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Título da pendência"
-              maxLength={200}
-              className="w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm"
-            />
+            <Popover open={titleComboOpen} onOpenChange={setTitleComboOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-between gap-2 rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm text-left"
+                >
+                  <span className={`truncate ${title ? "" : "text-muted-foreground"}`}>
+                    {title || "Título da pendência"}
+                  </span>
+                  <ChevronDown className="size-3.5 text-muted-foreground shrink-0" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="p-0" style={{ width: "var(--radix-popover-trigger-width)" }}>
+                <Command>
+                  <CommandInput
+                    value={title}
+                    onValueChange={setTitle}
+                    placeholder="Digite ou escolha um título…"
+                    maxLength={200}
+                  />
+                  <CommandList className="max-h-40">
+                    {titleSuggestions.length === 0 ? (
+                      <CommandEmpty>Digite um título.</CommandEmpty>
+                    ) : (
+                      <CommandGroup heading="Já usados">
+                        {titleSuggestions.map((s) => (
+                          <CommandItem
+                            key={s}
+                            value={s}
+                            onSelect={() => {
+                              setTitle(s);
+                              setTitleComboOpen(false);
+                            }}
+                            className="cursor-pointer"
+                          >
+                            <span className="truncate">{s}</span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    )}
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -3334,7 +3524,20 @@ function TasksDialog({
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <Select value={propertyId || "none"} onValueChange={(v) => setPropertyId(v === "none" ? "" : v)}>
+              <Select
+                value={propertyId || "none"}
+                onValueChange={(v) => {
+                  const id = v === "none" ? "" : v;
+                  setPropertyId(id);
+                  // Pedido explícito: escolher o imóvel já auto-seleciona o
+                  // proprietário cadastrado dele (quando existir) — o
+                  // usuário ainda pode trocar depois, se quiser.
+                  if (id) {
+                    const prop = linkProperties.find((p) => p.id === id);
+                    if (prop?.ownerContactId) setOwnerContactId(prop.ownerContactId);
+                  }
+                }}
+              >
                 <SelectTrigger className="h-8 text-xs">
                   <SelectValue placeholder="Imóvel" />
                 </SelectTrigger>
@@ -3366,12 +3569,81 @@ function TasksDialog({
                 Vincule a um imóvel e/ou a um proprietário (obrigatório).
               </p>
             )}
-            <input
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs"
-            />
+            <div className="grid grid-cols-2 gap-2">
+              <Popover open={dueDatePopoverOpen} onOpenChange={setDueDatePopoverOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className={`h-[42px] w-full rounded-lg border bg-background px-2.5 text-left ${
+                      dueDate ? "border-[#a855f7]/60" : "border-border"
+                    }`}
+                  >
+                    <span className="text-[9px] uppercase tracking-wide text-muted-foreground font-semibold block">
+                      Prazo
+                    </span>
+                    <span className="text-xs font-semibold">{dueDate ? fmtDateBR(dueDate) : "Sem prazo"}</span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-auto p-0">
+                  <RangeCalendar
+                    mode="single"
+                    locale={ptBR}
+                    selected={dueDate ? parseISODateLocal(dueDate) : undefined}
+                    onSelect={(d) => {
+                      setDueDate(d ? dateToISOLocal(d) : "");
+                      setDueDatePopoverOpen(false);
+                    }}
+                    className="p-3"
+                  />
+                  {dueDate && (
+                    <div className="border-t border-border p-2">
+                      <button
+                        type="button"
+                        className="w-full text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2"
+                        onClick={() => {
+                          setDueDate("");
+                          setDueDatePopoverOpen(false);
+                        }}
+                      >
+                        Remover prazo
+                      </button>
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
+              <div className="h-[42px] rounded-lg border border-border bg-background px-2.5 flex flex-col justify-center">
+                <span className="text-[9px] uppercase tracking-wide text-muted-foreground font-semibold block">
+                  Valor (opcional)
+                </span>
+                <MoneyInput
+                  cents={amountSpentCents}
+                  onChange={setAmountSpentCents}
+                  placeholder="0,00"
+                />
+              </div>
+            </div>
+            {!showInCleaning && (
+              <div className="rounded-lg border border-border px-2.5 py-1.5 space-y-1.5">
+                <label className="flex items-center gap-2 text-xs cursor-pointer">
+                  <Checkbox checked={recurrenceOn} onCheckedChange={(v) => setRecurrenceOn(!!v)} />
+                  <Repeat className="size-3.5 text-muted-foreground" />
+                  Repetir esta pendência
+                </label>
+                {recurrenceOn && (
+                  <div className="flex items-center gap-1.5 pl-6 text-xs text-muted-foreground">
+                    <span>a cada</span>
+                    <input
+                      type="number"
+                      min={1}
+                      value={recurrenceDays}
+                      onChange={(e) => setRecurrenceDays(Math.max(1, Number(e.target.value) || 1))}
+                      className="w-14 rounded-md border border-border bg-background px-1.5 py-1 text-xs text-center"
+                    />
+                    <span>dias</span>
+                  </div>
+                )}
+              </div>
+            )}
             <label className="flex items-center gap-2 text-xs cursor-pointer">
               <Checkbox checked={showInCleaning} onCheckedChange={(v) => setShowInCleaning(!!v)} />
               Aparece no checklist do card de Limpeza
@@ -3435,6 +3707,12 @@ function TasksDialog({
                               {t.dueDate && (
                                 <span className={late ? "text-rose-500 font-semibold" : ""}>
                                   · {late ? "Atrasada" : fmtDateBR(t.dueDate)}
+                                </span>
+                              )}
+                              {t.amountSpentCents != null && <span>· {centsToBRL(t.amountSpentCents)}</span>}
+                              {t.recurrenceDays != null && (
+                                <span className="inline-flex items-center gap-0.5">
+                                  · <Repeat className="size-2.5" /> {t.recurrenceDays}d
                                 </span>
                               )}
                             </div>

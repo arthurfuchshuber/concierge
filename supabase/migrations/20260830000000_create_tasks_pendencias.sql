@@ -14,6 +14,13 @@
 --     numa limpeza específica não fecha a pendência pra sempre: fica
 --     registrado em task_completions, e ela "volta" pendente na próxima
 --     limpeza (pedido explícito).
+--
+-- Isolamento entre contas: uma pendência pode carregar até 4 vínculos
+-- diferentes (imóvel, proprietário, log de acesso, reserva). Cada um deles
+-- é validado INDIVIDUALMENTE contra a conta autenticada — não basta UM dos
+-- vínculos ser válido pra linha inteira passar (isso permitiria "pendurar"
+-- um vínculo de outro tenant/imóvel/proprietário numa pendência que também
+-- tem um vínculo válido). Ver função task_link_visible() abaixo.
 -- ============================================================
 
 CREATE TABLE public.tasks (
@@ -54,56 +61,57 @@ REVOKE ALL ON public.tasks FROM anon;
 
 ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 
--- Mesma regra de acesso já usada em guest_arrival_status (imóvel) e
--- property_owners (proprietário) — uma pendência é visível quando o
--- usuário tem acesso a QUALQUER um dos dois vínculos que ela carregar.
-CREATE POLICY "tasks_select_access" ON public.tasks FOR SELECT TO authenticated
-  USING (
-    (property_id IS NOT NULL AND public.user_can_access_property(auth.uid(), property_id))
-    OR (owner_contact_id IS NOT NULL AND EXISTS (
+-- ------------------------------------------------------------
+-- Função de autorização única — TODOS os vínculos preenchidos numa
+-- pendência precisam, cada um, pertencer a uma conta que _user_id
+-- administra ou integra. NULL nunca "passa por padrão": um vínculo só é
+-- ignorado na checagem quando ele mesmo é NULL na linha.
+-- ------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.task_link_visible(
+  _user_id uuid,
+  _property_id uuid,
+  _owner_contact_id uuid,
+  _log_id uuid,
+  _reservation_id uuid
+)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT
+    -- mesma regra do "vínculo obrigatório" da tabela, reforçada aqui pra
+    -- nunca depender só da CHECK constraint.
+    (_property_id IS NOT NULL OR _owner_contact_id IS NOT NULL)
+    AND (_property_id IS NULL OR public.user_can_access_property(_user_id, _property_id))
+    AND (_owner_contact_id IS NULL OR EXISTS (
       SELECT 1 FROM public.property_owners po
-      WHERE po.id = owner_contact_id
-        AND (po.account_owner_id = auth.uid() OR public.is_account_member(auth.uid(), po.account_owner_id))
+      WHERE po.id = _owner_contact_id
+        AND (po.account_owner_id = _user_id OR public.is_account_member(_user_id, po.account_owner_id))
     ))
-  );
+    -- log_id/reservation_id têm imóvel próprio (podem, em tese, divergir do
+    -- property_id gravado na pendência) — cada um valida seu PRÓPRIO imóvel.
+    AND (_log_id IS NULL OR EXISTS (
+      SELECT 1 FROM public.guide_access_logs l
+      WHERE l.id = _log_id AND public.user_can_access_property(_user_id, l.property_id)
+    ))
+    AND (_reservation_id IS NULL OR EXISTS (
+      SELECT 1 FROM public.property_reservations r
+      WHERE r.id = _reservation_id AND public.user_can_access_property(_user_id, r.property_id)
+    ));
+$$;
+
+CREATE POLICY "tasks_select_access" ON public.tasks FOR SELECT TO authenticated
+  USING (public.task_link_visible(auth.uid(), property_id, owner_contact_id, log_id, reservation_id));
 
 CREATE POLICY "tasks_insert_access" ON public.tasks FOR INSERT TO authenticated
-  WITH CHECK (
-    (property_id IS NOT NULL AND public.user_can_access_property(auth.uid(), property_id))
-    OR (owner_contact_id IS NOT NULL AND EXISTS (
-      SELECT 1 FROM public.property_owners po
-      WHERE po.id = owner_contact_id
-        AND (po.account_owner_id = auth.uid() OR public.is_account_member(auth.uid(), po.account_owner_id))
-    ))
-  );
+  WITH CHECK (public.task_link_visible(auth.uid(), property_id, owner_contact_id, log_id, reservation_id));
 
 CREATE POLICY "tasks_update_access" ON public.tasks FOR UPDATE TO authenticated
-  USING (
-    (property_id IS NOT NULL AND public.user_can_access_property(auth.uid(), property_id))
-    OR (owner_contact_id IS NOT NULL AND EXISTS (
-      SELECT 1 FROM public.property_owners po
-      WHERE po.id = owner_contact_id
-        AND (po.account_owner_id = auth.uid() OR public.is_account_member(auth.uid(), po.account_owner_id))
-    ))
-  )
-  WITH CHECK (
-    (property_id IS NOT NULL AND public.user_can_access_property(auth.uid(), property_id))
-    OR (owner_contact_id IS NOT NULL AND EXISTS (
-      SELECT 1 FROM public.property_owners po
-      WHERE po.id = owner_contact_id
-        AND (po.account_owner_id = auth.uid() OR public.is_account_member(auth.uid(), po.account_owner_id))
-    ))
-  );
+  USING (public.task_link_visible(auth.uid(), property_id, owner_contact_id, log_id, reservation_id))
+  WITH CHECK (public.task_link_visible(auth.uid(), property_id, owner_contact_id, log_id, reservation_id));
 
 CREATE POLICY "tasks_delete_access" ON public.tasks FOR DELETE TO authenticated
-  USING (
-    (property_id IS NOT NULL AND public.user_can_access_property(auth.uid(), property_id))
-    OR (owner_contact_id IS NOT NULL AND EXISTS (
-      SELECT 1 FROM public.property_owners po
-      WHERE po.id = owner_contact_id
-        AND (po.account_owner_id = auth.uid() OR public.is_account_member(auth.uid(), po.account_owner_id))
-    ))
-  );
+  USING (public.task_link_visible(auth.uid(), property_id, owner_contact_id, log_id, reservation_id));
 
 CREATE TRIGGER tasks_touch BEFORE UPDATE ON public.tasks
   FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
@@ -145,44 +153,43 @@ REVOKE ALL ON public.task_completions FROM anon;
 
 ALTER TABLE public.task_completions ENABLE ROW LEVEL SECURITY;
 
+-- Reautoriza a pendência-mãe pelos MESMOS vínculos dela (task_link_visible,
+-- não uma simples "a linha existe" — uma função SECURITY DEFINER lê a
+-- tabela sem passar pela RLS dela, então "EXISTS (SELECT 1 FROM tasks...)"
+-- sozinho enxergaria pendências de QUALQUER conta) e, à parte, valida o
+-- log/reserva desta ocorrência específica contra o imóvel dele.
+CREATE OR REPLACE FUNCTION public.task_completion_visible(
+  _user_id uuid,
+  _task_id uuid,
+  _log_id uuid,
+  _reservation_id uuid
+)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT
+    (_log_id IS NOT NULL OR _reservation_id IS NOT NULL)
+    AND EXISTS (
+      SELECT 1 FROM public.tasks t
+      WHERE t.id = _task_id
+        AND public.task_link_visible(_user_id, t.property_id, t.owner_contact_id, t.log_id, t.reservation_id)
+    )
+    AND (_log_id IS NULL OR EXISTS (
+      SELECT 1 FROM public.guide_access_logs l
+      WHERE l.id = _log_id AND public.user_can_access_property(_user_id, l.property_id)
+    ))
+    AND (_reservation_id IS NULL OR EXISTS (
+      SELECT 1 FROM public.property_reservations r
+      WHERE r.id = _reservation_id AND public.user_can_access_property(_user_id, r.property_id)
+    ));
+$$;
+
 CREATE POLICY "task_completions_select_access" ON public.task_completions FOR SELECT TO authenticated
-  USING (EXISTS (
-    SELECT 1 FROM public.tasks t
-    WHERE t.id = task_id
-      AND (
-        (t.property_id IS NOT NULL AND public.user_can_access_property(auth.uid(), t.property_id))
-        OR (t.owner_contact_id IS NOT NULL AND EXISTS (
-          SELECT 1 FROM public.property_owners po
-          WHERE po.id = t.owner_contact_id
-            AND (po.account_owner_id = auth.uid() OR public.is_account_member(auth.uid(), po.account_owner_id))
-        ))
-      )
-  ));
+  USING (public.task_completion_visible(auth.uid(), task_id, log_id, reservation_id));
 
 CREATE POLICY "task_completions_insert_access" ON public.task_completions FOR INSERT TO authenticated
-  WITH CHECK (EXISTS (
-    SELECT 1 FROM public.tasks t
-    WHERE t.id = task_id
-      AND (
-        (t.property_id IS NOT NULL AND public.user_can_access_property(auth.uid(), t.property_id))
-        OR (t.owner_contact_id IS NOT NULL AND EXISTS (
-          SELECT 1 FROM public.property_owners po
-          WHERE po.id = t.owner_contact_id
-            AND (po.account_owner_id = auth.uid() OR public.is_account_member(auth.uid(), po.account_owner_id))
-        ))
-      )
-  ));
+  WITH CHECK (public.task_completion_visible(auth.uid(), task_id, log_id, reservation_id));
 
 CREATE POLICY "task_completions_delete_access" ON public.task_completions FOR DELETE TO authenticated
-  USING (EXISTS (
-    SELECT 1 FROM public.tasks t
-    WHERE t.id = task_id
-      AND (
-        (t.property_id IS NOT NULL AND public.user_can_access_property(auth.uid(), t.property_id))
-        OR (t.owner_contact_id IS NOT NULL AND EXISTS (
-          SELECT 1 FROM public.property_owners po
-          WHERE po.id = t.owner_contact_id
-            AND (po.account_owner_id = auth.uid() OR public.is_account_member(auth.uid(), po.account_owner_id))
-        ))
-      )
-  ));
+  USING (public.task_completion_visible(auth.uid(), task_id, log_id, reservation_id));

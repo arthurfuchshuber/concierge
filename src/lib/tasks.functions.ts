@@ -115,7 +115,7 @@ export const listTasks = createServerFn({ method: "GET" })
     let query = db
       .from("tasks")
       .select(
-        "id, title, description, category, priority, due_date, show_in_cleaning, status, completed_at, created_at, property_id, owner_contact_id, log_id, reservation_id",
+        "id, title, description, category, priority, due_date, show_in_cleaning, status, completed_at, created_at, property_id, owner_contact_id, log_id, reservation_id, amount_spent_cents, recurrence_days",
       )
       .eq("account_owner_id", accountOwnerId)
       .in("status", ["pending", "done"])
@@ -140,6 +140,8 @@ export const listTasks = createServerFn({ method: "GET" })
       owner_contact_id: string | null;
       log_id: string | null;
       reservation_id: string | null;
+      amount_spent_cents: number | null;
+      recurrence_days: number | null;
     }>;
 
     // Nomes de imóvel/proprietário em 2 buscas em lote (mesma técnica do
@@ -194,6 +196,8 @@ export const listTasks = createServerFn({ method: "GET" })
         ownerName: effectiveOwnerId ? (ownerNameById.get(effectiveOwnerId) ?? null) : null,
         logId: r.log_id,
         reservationId: r.reservation_id,
+        amountSpentCents: r.amount_spent_cents,
+        recurrenceDays: r.recurrence_days,
       };
     });
 
@@ -206,12 +210,22 @@ export const listTasks = createServerFn({ method: "GET" })
       const since = `${addDaysISO(todayISO(), -7)}T00:00:00.000Z`;
       const { data: compRows } = await db
         .from("task_completions")
-        .select("task_id, log_id, reservation_id")
+        .select("task_id, log_id, reservation_id, amount_spent_cents")
         .in("task_id", recurringIds)
         .gte("completed_at", since);
-      completions = ((compRows ?? []) as Array<{ task_id: string; log_id: string | null; reservation_id: string | null }>).map(
-        (c) => ({ taskId: c.task_id, logId: c.log_id, reservationId: c.reservation_id }),
-      );
+      completions = (
+        (compRows ?? []) as Array<{
+          task_id: string;
+          log_id: string | null;
+          reservation_id: string | null;
+          amount_spent_cents: number | null;
+        }>
+      ).map((c) => ({
+        taskId: c.task_id,
+        logId: c.log_id,
+        reservationId: c.reservation_id,
+        amountSpentCents: c.amount_spent_cents,
+      }));
     }
 
     return { tasks, completions };
@@ -238,6 +252,8 @@ const CreateTaskInput = z
     ownerContactId: z.string().uuid().nullable().optional(),
     logId: z.string().uuid().nullable().optional(),
     reservationId: z.string().uuid().nullable().optional(),
+    amountSpentCents: z.number().int().min(0).nullable().optional(),
+    recurrenceDays: z.number().int().min(1).nullable().optional(),
   })
   .refine((v) => !!v.propertyId || !!v.ownerContactId, {
     message: "Vincule a pendência a um imóvel ou a um proprietário.",
@@ -268,6 +284,8 @@ export const createTask = createServerFn({ method: "POST" })
         priority: data.priority,
         due_date: data.dueDate ?? null,
         show_in_cleaning: data.showInCleaning,
+        amount_spent_cents: data.amountSpentCents ?? null,
+        recurrence_days: data.recurrenceDays ?? null,
         created_by: context.userId,
       })
       .select("id")
@@ -281,6 +299,9 @@ export const createTask = createServerFn({ method: "POST" })
 const SetTaskStatusInput = z.object({
   taskId: z.string().uuid(),
   status: z.enum(["pending", "done", "canceled"]),
+  /** Só relevante ao concluir ("done") uma pendência que ainda não tinha
+   * valor — ver diálogo "teve gasto nessa tarefa?" na UI. */
+  amountSpentCents: z.number().int().min(0).nullable().optional(),
 });
 
 export const setTaskStatus = createServerFn({ method: "POST" })
@@ -288,13 +309,34 @@ export const setTaskStatus = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => SetTaskStatusInput.parse(i))
   .handler(async ({ data, context }) => {
     const db = context.supabase as unknown as AnyClient;
-    const { error } = await db
-      .from("tasks")
-      .update({
-        status: data.status,
-        completed_at: data.status === "done" ? new Date().toISOString() : null,
-      })
-      .eq("id", data.taskId);
+    const patch: Record<string, unknown> = {
+      status: data.status,
+      completed_at: data.status === "done" ? new Date().toISOString() : null,
+    };
+    if (data.amountSpentCents !== undefined) patch.amount_spent_cents = data.amountSpentCents;
+
+    if (data.status === "done") {
+      // Pendência com recorrência em dias: o ciclo não "fecha pra sempre" —
+      // volta pendente sozinha com um novo prazo N dias à frente (pedido
+      // explícito, ex.: "trocar filtro a cada 90 dias").
+      const { data: row, error: readErr } = await db
+        .from("tasks")
+        .select("recurrence_days")
+        .eq("id", data.taskId)
+        .single();
+      if (readErr) throw new Error("Pendência não encontrada ou sem acesso.");
+      const recurrenceDays = (row as { recurrence_days: number | null } | null)?.recurrence_days ?? null;
+      if (recurrenceDays) {
+        const next = new Date();
+        next.setDate(next.getDate() + recurrenceDays);
+        patch.status = "pending";
+        patch.due_date = next.toISOString().slice(0, 10);
+        // completed_at continua marcado (registra a última conclusão), só o
+        // status/prazo é que avançam pro próximo ciclo automaticamente.
+      }
+    }
+
+    const { error } = await db.from("tasks").update(patch).eq("id", data.taskId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -308,6 +350,9 @@ const ToggleCleaningInput = z
     taskId: z.string().uuid(),
     logId: z.string().uuid().nullable().optional(),
     reservationId: z.string().uuid().nullable().optional(),
+    /** Só usado ao MARCAR (nunca ao desmarcar) — gasto desta ocorrência
+     * específica, quando a pendência não tinha valor padrão definido. */
+    amountSpentCents: z.number().int().min(0).nullable().optional(),
   })
   .refine((v) => !!v.logId || !!v.reservationId, { message: "Informe a estadia (log ou reserva)." });
 
@@ -336,6 +381,7 @@ export const toggleCleaningCompletion = createServerFn({ method: "POST" })
       task_id: data.taskId,
       log_id: data.logId ?? null,
       reservation_id: data.reservationId ?? null,
+      amount_spent_cents: data.amountSpentCents ?? null,
       completed_by: context.userId,
     });
     if (error) throw new Error(error.message);

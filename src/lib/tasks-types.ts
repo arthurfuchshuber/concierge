@@ -32,6 +32,14 @@ export type TaskRow = {
    * dois, é "recorrente" (permanente do imóvel/proprietário). */
   logId: string | null;
   reservationId: string | null;
+  /** Gasto (em centavos) da pendência — pontuais e as com recurrenceDays
+   * guardam aqui; recorrentes-por-limpeza guardam por ocorrência em
+   * TaskCompletion.amountSpentCents. */
+  amountSpentCents: number | null;
+  /** Repetição por tempo (independente do modelo "recorrente por limpeza"):
+   * ao concluir, a pendência volta pendente com um novo prazo N dias à
+   * frente, em vez de ficar marcada como feita pra sempre. */
+  recurrenceDays: number | null;
 };
 
 /** Uma marca de "feito" pra uma pendência RECORRENTE numa limpeza
@@ -41,6 +49,7 @@ export type TaskCompletion = {
   taskId: string;
   logId: string | null;
   reservationId: string | null;
+  amountSpentCents: number | null;
 };
 
 export type TaskLinkProperty = {
