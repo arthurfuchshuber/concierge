@@ -1676,7 +1676,18 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 fixo no fim dessa mesma linha, não numa linha própria acima. */}
             <div className="sm:hidden space-y-3">
               <div className="space-y-2">
-                <div className="ds-scroll-x w-full min-w-0 gap-1.5 snap-x pb-1 -mx-1 px-1">
+                <div
+                  // scroll-px-3.5 (14px) = os mesmos 10px de margem da página
+                  // (px-2.5 no mobile) + os 4px do próprio px-1 desta barra —
+                  // sem isso, ao selecionar uma aba perto do fim o
+                  // `scrollIntoView` colava o botão rente na borda da tela
+                  // (0px), enquanto a 1ª aba (que nunca precisa rolar) ficava
+                  // com a margem cheia. Mesma regra de "scroll-padding" já
+                  // usada no calendário de ocupação (scrollPaddingLeft), só
+                  // que aqui nos dois lados — pedido explícito: as duas pontas
+                  // com o mesmo espaçamento da borda da tela.
+                  className="ds-scroll-x w-full min-w-0 gap-1.5 snap-x scroll-px-3.5 pb-1 -mx-1 px-1"
+                >
                   {(
                     [
                       { key: "checkin", label: "Check-ins", icon: CalendarCheck, count: kanbanCounts.checkin },
@@ -2397,7 +2408,7 @@ function KpiCard({
         <div
           className={`absolute inset-x-0 top-0 h-px ${shadowTone === "emerald" ? "bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" : shadowTone === "amber" ? "bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" : shadowTone === "sky" ? "bg-gradient-to-r from-transparent via-sky-400/60 to-transparent" : "bg-gradient-to-r from-transparent via-primary/50 to-transparent"}`}
         />
-        <DialogHeader className="px-5 pt-5 pb-3">
+        <DialogHeader className="px-5 pt-5 pb-0">
           <div className="flex items-center gap-3">
             <div
               className={`grid place-items-center size-10 rounded-xl ${shadowTone === "emerald" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : shadowTone === "amber" ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : shadowTone === "sky" ? "bg-sky-400/10 text-sky-600 dark:text-sky-400" : "bg-accent/10 text-accent"}`}
@@ -2418,13 +2429,20 @@ function KpiCard({
             </div>
           )}
         </DialogHeader>
+        {/* pt-3 aqui (em vez do pb-3 que o header tinha antes) — mesmo
+            espaçamento visual entre os botões e o 1º card, mas agora essa
+            "folga" fica DENTRO da área rolável (px-3 pt-3), que é onde o
+            navegador realmente clipa o overflow. Isso dá espaço pro badge de
+            engajamento (absolute -top-2.5, cortando a borda do 1º card) sem
+            cortar a etiqueta — pedido explícito: etiqueta nunca cortada, sem
+            alterar o espaçamento visível. */}
         <div
           ref={(el) => {
             list.ref(el);
             screenshotRef.current = el;
           }}
           style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
-          className="sg-elegant-scroll max-h-[70vh] overflow-y-auto px-3"
+          className="sg-elegant-scroll max-h-[70vh] overflow-y-auto px-3 pt-3"
         >
           {loading ? (
             <div className="py-14 grid place-items-center text-muted-foreground">
