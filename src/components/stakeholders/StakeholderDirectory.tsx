@@ -303,7 +303,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
           title={`Nenhum ${labelSingular.toLowerCase()} cadastrado`}
           description={q ? `Nenhum resultado para "${q}". Tente outro termo ou limpe os filtros.` : `Cadastre seu primeiro ${labelSingular.toLowerCase()} para começar.`}
           action={
-            <Button onClick={openNew} variant="outline" className="rounded-full">
+            <Button onClick={openNew} variant="outline" className="rounded-none">
               <Plus className="size-4 mr-1.5" /> Cadastrar {labelSingular.toLowerCase()}
             </Button>
           }
@@ -555,7 +555,7 @@ function StakeholderCard({
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
           aria-label="Excluir"
           title="Excluir"
-          className="size-9 shrink-0 inline-flex items-center justify-center rounded-full border border-border hover:bg-destructive/10 hover:text-destructive transition-colors"
+          className="size-9 shrink-0 inline-flex items-center justify-center rounded-none border-0 bg-secondary/50 text-foreground/80 hover:bg-destructive/10 hover:text-destructive transition-colors"
         >
           <Trash2 className="size-3.5" />
         </button>
