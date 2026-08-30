@@ -186,59 +186,119 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
     { key: "inactive", label: "Inativos", test: (r) => effectiveStatus(r.status, r.status_changed_at) === "inactive" },
   ];
 
+  const STATUS_OPTIONS: Array<{ v: string; label: string }> = [
+    { v: "all", label: "Todos" },
+    { v: "active", label: "Ativos" },
+    { v: "signature", label: "Assinatura" },
+    { v: "contract", label: "Contrato" },
+    { v: "documentation", label: "Documentação" },
+    { v: "paused", label: "Pausados" },
+    { v: "canceling", label: "Cancelando" },
+    { v: "canceled", label: "Cancelados" },
+    { v: "inactive", label: "Inativos" },
+  ];
+
   return (
-    <div className="space-y-5">
-      {/* Toolbar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="relative flex-1 min-w-0 sm:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input
+    <div>
+      {/* Barra de ações — mesmo padrão de Operação/Guias:
+          altura 36px, cantos retos, fundo secondary/50, texto 12px. */}
+      <div className="flex flex-col gap-2 mb-5">
+        <div className="flex items-center gap-1.5">
+          <div className="relative flex-1 min-w-0">
+            <Search className="size-3.5 opacity-60 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder={`Buscar ${labelSingular.toLowerCase()}...`}
-              className="pl-9 rounded-full"
+              placeholder={`Buscar ${labelSingular.toLowerCase()}, cidade, documento…`}
+              className="h-9 w-full box-border rounded-none border-0 bg-secondary/50 pl-9 pr-8 text-xs font-normal leading-none text-foreground/80 placeholder:text-muted-foreground focus:outline-none focus:bg-secondary transition-colors"
             />
+            {q && (
+              <button
+                type="button"
+                onClick={() => setQ("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 size-6 grid place-items-center rounded-none text-muted-foreground hover:text-foreground"
+                aria-label="Limpar busca"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
           </div>
-          <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
-            <SelectTrigger className="w-[140px] rounded-full shrink-0">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="active">Ativos</SelectItem>
-              <SelectItem value="signature">Assinatura</SelectItem>
-              <SelectItem value="contract">Contrato</SelectItem>
-              <SelectItem value="documentation">Documentação</SelectItem>
-              <SelectItem value="paused">Pausados</SelectItem>
-              <SelectItem value="canceling">Cancelando</SelectItem>
-              <SelectItem value="canceled">Cancelados</SelectItem>
-              <SelectItem value="inactive">Inativos</SelectItem>
-            </SelectContent>
-          </Select>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="relative h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-none border-0 bg-secondary/50 px-3.5 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
+                aria-label="Filtros"
+                title="Filtros"
+              >
+                <Filter className="size-3.5 opacity-60" />
+                <span className="hidden sm:inline">Filtros</span>
+                {status !== "all" && (
+                  <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-accent" />
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64 p-4 space-y-4">
+              <div>
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+                  Situação
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {STATUS_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.v}
+                      type="button"
+                      onClick={() => setStatus(opt.v)}
+                      className={`px-3 py-1.5 rounded-none text-xs transition-colors ${status === opt.v ? "bg-foreground text-background" : "bg-secondary/50 text-muted-foreground hover:text-foreground"}`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {status !== "all" && (
+                <button
+                  type="button"
+                  onClick={() => setStatus("all")}
+                  className="w-full text-xs text-muted-foreground hover:text-foreground py-1.5 rounded-none bg-secondary/50"
+                >
+                  Limpar filtros
+                </button>
+              )}
+            </PopoverContent>
+          </Popover>
+
+          <button
+            type="button"
+            onClick={() => setView(view === "list" ? "kanban" : "list")}
+            aria-label={view === "list" ? "Ver em kanban" : "Ver em lista"}
+            title={view === "list" ? "Ver em kanban" : "Ver em lista"}
+            className="h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-none border-0 bg-secondary/50 px-3.5 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
+          >
+            {view === "list" ? <Columns3 className="size-3.5 opacity-60" /> : <LayoutList className="size-3.5 opacity-60" />}
+            <span className="hidden sm:inline">{view === "list" ? "Kanban" : "Lista"}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={openNew}
+            aria-label={`Novo ${labelSingular.toLowerCase()}`}
+            title={`Novo ${labelSingular.toLowerCase()}`}
+            className="h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-none border-0 bg-secondary/50 px-3.5 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
+          >
+            <Plus className="size-3.5 opacity-60" />
+            <span className="hidden sm:inline">Novo</span>
+          </button>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center rounded-full border border-border bg-card p-0.5">
-            <button
-              type="button"
-              onClick={() => setView("list")}
-              className={`px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5 transition-colors ${view === "list" ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              <LayoutList className="size-3.5" /> Lista
-            </button>
-            <button
-              type="button"
-              onClick={() => setView("kanban")}
-              className={`px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5 transition-colors ${view === "kanban" ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              <Columns3 className="size-3.5" /> Kanban
-            </button>
-          </div>
-          <Button onClick={openNew} className="rounded-full">
-            <Plus className="size-4 mr-1.5" /> Novo
-          </Button>
-        </div>
+
+        {rows.length > 0 && (q.trim() || status !== "all") && (
+          <p className="ds-meta">
+            Mostrando {filtered.length} de {rows.length} cadastro{rows.length > 1 ? "s" : ""}
+          </p>
+        )}
       </div>
+
 
       {isLoading ? (
         <LoadingListState count={4} />
