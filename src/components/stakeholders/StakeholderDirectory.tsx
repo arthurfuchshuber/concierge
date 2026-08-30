@@ -445,7 +445,7 @@ function StakeholderCard({
   return (
     <div
       onClick={onOpen}
-      className="group cursor-pointer ds-surface border border-border bg-card p-4 hover:border-primary/40 hover:shadow-[0_8px_30px_-12px_hsl(var(--primary)/0.35)] transition-all"
+      className="group cursor-pointer ds-surface border border-border bg-card p-4 hover:border-foreground/30 hover:shadow-elevated transition-all"
     >
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
         <p className="ds-card-title truncate leading-tight min-w-0">{row.trade_name || row.name}</p>
@@ -539,14 +539,14 @@ function StakeholderCard({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onEdit(); }}
-          className="h-9 flex-1 inline-flex items-center justify-center gap-1.5 rounded-full border border-border text-sm font-medium hover:bg-secondary transition-colors"
+          className="h-9 flex-1 inline-flex items-center justify-center gap-1.5 rounded-none border-0 bg-secondary/50 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
         >
           <Pencil className="size-3.5" /> Editar
         </button>
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onOpen(); }}
-          className="h-9 flex-1 inline-flex items-center justify-center gap-1.5 rounded-full border border-border text-sm font-medium hover:bg-secondary transition-colors"
+          className="h-9 flex-1 inline-flex items-center justify-center gap-1.5 rounded-none border-0 bg-secondary/50 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
         >
           Ver detalhes
         </button>
