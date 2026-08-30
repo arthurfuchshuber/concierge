@@ -2293,7 +2293,7 @@ function KpiCard({
   // Modo "Lista" (pedido explícito) — só afeta o conteúdo do popup, não o
   // gatilho (compact/highlight) do card em si, que já usa a prop `compact`
   // pra outra coisa (faixa fina vs. quadrado).
-  const [listMode, setListMode] = useState<"full" | "list">("full");
+  const [listMode, setListMode] = useState<"full" | "list">("list");
   const list = useWholeCardsMaxHeight(2, `${open}:${rows.length}:${loading}:${listMode}`);
   const screenshotRef = useRef<HTMLDivElement | null>(null);
   const valueTone = tone === "primary" ? "text-accent" : "text-foreground";
@@ -2601,7 +2601,7 @@ function FreePropertiesCard({
  * atalho pro mapa (bem pequeno).
  */
 function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdown: CleaningBreakdownItem[] }) {
-  const [listMode, setListMode] = useState<"full" | "list">("full");
+  const [listMode, setListMode] = useState<"full" | "list">("list");
   const screenshotRef = useRef<HTMLUListElement | null>(null);
   return (
     <>
@@ -2809,8 +2809,12 @@ function CleaningDailyAreaChart({ data, loading }: { data: CleaningDailyPoint[] 
                 tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
                 tickLine={false}
                 axisLine={false}
-                width={40}
-                tickFormatter={(v: number) => centsToBRL(v)}
+                width={46}
+                // Formato compacto (sem centavos) — o valor cheio (com
+                // centavos) já aparece no tooltip ao passar o mouse. O
+                // "R$ 1.234,00" completo não cabia na largura do eixo e
+                // ficava cortado, mostrando só ",00" em toda linha.
+                tickFormatter={(v: number) => `R$${Math.round(v / 100).toLocaleString("pt-BR")}`}
               />
               <RechartsTooltip
                 contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid var(--border)", background: "var(--popover)", color: "var(--popover-foreground)" }}
@@ -2835,12 +2839,12 @@ function CleaningDailyAreaChart({ data, loading }: { data: CleaningDailyPoint[] 
 }
 
 function CleaningTopProperties({ items, loading }: { items: CleaningBreakdownItem[] | undefined; loading: boolean }) {
-  const top = (items ?? []).slice(0, 6);
+  const top = (items ?? []).slice(0, 5);
   const maxCount = Math.max(1, ...top.map((i) => i.count));
   return (
     <div className="w-full rounded-[0.3rem] border-0 bg-card px-3.5 py-3.5 ds-3d">
       <div className="flex items-center justify-between gap-2 mb-2">
-        <span className="ds-eyebrow">Top imóveis</span>
+        <span className="ds-eyebrow">Top 5 imóveis</span>
         <span className="text-[10px] text-muted-foreground">nº de limpezas</span>
       </div>
       {loading ? (
@@ -2892,38 +2896,44 @@ function CleaningForecastDialog({
   // Pedido explícito: nada de modal "tela cheia" nem cabeçalho com avatar
   // colorido (estilo dos popups de KPI) — o título/subtítulo visíveis usam
   // exatamente as mesmas classes (`ds-page-title`/`ds-page-subtitle`) da
-  // página "Limpeza" de verdade, e o modal fica no tratamento PADRÃO do
-  // <DialogContent> (o mesmo já usado alhures no app: cantos bem
-  // arredondados, margem generosa em toda volta, rola inteiro como bloco
-  // único em vez de uma área interna própria).
+  // página "Limpeza" de verdade. A área rolável usa no máximo 70% da tela
+  // e a MESMA regra "anti-corte" dos popups de card (useWholeCardsMaxHeight):
+  // nunca corta um bloco (cards, gráfico ou ranking) ao meio, e sempre deixa
+  // uma folga visível antes da borda do modal.
+  const scroll = useWholeCardsMaxHeight(99, `${open}:${loading}:${data.daily.length}:${data.breakdown.length}`);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="w-[calc(100vw-2.5rem)] sm:w-full sm:max-w-lg p-0 overflow-hidden rounded-lg border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
         {/* Título/descrição "de verdade" pro leitor de tela — o cabeçalho
             visível abaixo é só texto puro, sem papel semântico próprio. */}
         <DialogTitle className="sr-only">Limpeza Prevista 7d</DialogTitle>
         <DialogDescription className="sr-only">
-          Previsão de limpezas e custo estimado para os próximos 7 dias, com base nos checkouts já agendados.
+          Previsão de limpezas para os próximos 7 dias, com base nos checkouts já agendados.
         </DialogDescription>
-        <div>
+        <div className="px-5 pt-5 pb-3">
           <h2 className="ds-page-title truncate">Limpeza Prevista 7d</h2>
-          <p className="ds-page-subtitle mt-1.5">
-            Previsão de limpezas e custo estimado para os próximos 7 dias, com base nos checkouts já agendados.
-          </p>
+          {/* No máximo 1 linha (pedido explícito). */}
+          <p className="ds-page-subtitle mt-1.5 truncate">Previsão para os próximos 7 dias, com base nos checkouts já agendados.</p>
         </div>
-        <div className="grid grid-cols-2 gap-1.5">
-          <StatDisplayCard label="Limpezas Previstas" value={data.cleaningsExpected} icon={CheckCircle2} loading={loading} />
-          <StatDisplayCard label="Custo Estimado" value={centsToBRL(data.estimatedTotalCents)} icon={Banknote} loading={loading} />
+        <div
+          ref={scroll.ref}
+          style={scroll.maxHeight !== undefined ? { maxHeight: scroll.maxHeight } : undefined}
+          className="sg-elegant-scroll max-h-[70vh] overflow-y-auto px-5 pb-5 space-y-1.5"
+        >
+          <div data-whole-card className="grid grid-cols-2 gap-1.5">
+            <StatDisplayCard label="Limpezas Previstas" value={data.cleaningsExpected} icon={CheckCircle2} loading={loading} />
+            <StatDisplayCard label="Custo Estimado" value={centsToBRL(data.estimatedTotalCents)} icon={Banknote} loading={loading} />
+          </div>
+          <div data-whole-card>
+            <CleaningDailyBarChart data={data.daily} loading={loading} />
+          </div>
+          <div data-whole-card>
+            <CleaningDailyAreaChart data={data.daily} loading={loading} />
+          </div>
+          <div data-whole-card>
+            <CleaningTopProperties items={data.breakdown} loading={loading} />
+          </div>
         </div>
-        <p className="text-[10.5px] text-muted-foreground -mt-2">
-          Custo estimado com o preço da limpeza normal de cada imóvel — o tipo real (normal ou completa) só é definido na hora de concluir a
-          limpeza.
-        </p>
-        <div className="grid grid-cols-1 gap-1.5">
-          <CleaningDailyBarChart data={data.daily} loading={loading} />
-          <CleaningDailyAreaChart data={data.daily} loading={loading} />
-        </div>
-        <CleaningTopProperties items={data.breakdown} loading={loading} />
       </DialogContent>
     </Dialog>
   );
