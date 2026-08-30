@@ -597,19 +597,21 @@ export async function buildArrivalRows(
       return [primary, ...extras].some((l) => logCheckinDone(l?.id));
     }
 
-    // Regra da esteira: uma reserva só pode aparecer em UM estágio, mas a
-    // passagem de Check-ins para Checkouts/Em Limpeza SÓ acontece depois do
-    // check manual. Enquanto o check-in estiver pendente, o card fica retido em
-    // Check-ins (como atrasado), mesmo que a data de checkout já tenha chegado.
+    // Regra da esteira: uma reserva só pode aparecer em UM estágio. Enquanto a
+    // estadia ainda não terminou, o card fica retido em Check-ins (como
+    // atrasado) até o check manual. Mas quando o DIA DO CHECKOUT já chegou, a
+    // estadia acabou fisicamente e o card precisa migrar para Checkouts mesmo
+    // sem o check-in ter sido marcado — caso contrário a saída do dia some do
+    // painel.
     function belongsToCheckoutStage(
       checkinDate: string,
       checkoutDate: string | null,
-      checkinDone: boolean,
+      _checkinDone: boolean,
     ): boolean {
       if (!checkoutDate) return false;
-      if (!checkinDone) return false;
       return checkinDate <= today && checkoutDate <= today;
     }
+
 
     function reservationInRange(r: ReservationRow): boolean {
       const resCheckinDone = data.kind === "checkin" ? reservationCheckinDone(r) : false;
@@ -919,11 +921,16 @@ export async function buildArrivalRows(
             const resExplicitlyPending = !!(r.reservationId && checkinPendingReservations.has(r.reservationId));
             if (data.range === "tomorrow") return true;
             const vDone = virtualCheckinDone(r);
+            // O dia do checkout já chegou (ou passou) e a estadia começou: a
+            // saída é real e precisa aparecer, mesmo sem check-in marcado.
+            const stayEnded = !!(r.guestCheckout && r.guestCheckout <= today && r.guestCheckin && r.guestCheckin <= today);
+            if (stayEnded) return true;
             // Estadia com check-in no passado (ou hoje após o horário padrão) já
             // está em curso fisicamente — o card precisa aparecer em Checkouts
             // mesmo que exista um status de check-in "pending" legado.
             if (!logDone && !resDone && !vDone && (logExplicitlyPending || resExplicitlyPending)) return false;
             return logDone || resDone || vDone;
+
           })
         : rows;
     function isBetterOperationalRow(candidate: ArrivalRow, current: ArrivalRow): boolean {

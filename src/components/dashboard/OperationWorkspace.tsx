@@ -396,30 +396,154 @@ function ViewModeToggle({
   );
 }
 
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function nowLabelBR(): string {
+  const now = new Date();
+  const date = now.toLocaleDateString("pt-BR");
+  const time = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  return `${date} · ${time}`;
+}
+
+/**
+ * Monta, fora da tela (position: fixed + offset negativo — nunca
+ * display:none, que impediria a medição/captura), o layout "comprovante"
+ * usado no print das listas de hóspedes (pedido explícito): largura sempre
+ * fixa, uma linha compacta por hóspede (em vez do card grande da tela),
+ * com um cabeçalho e um rodapé de recibo. Reaproveita as mesmas classes
+ * Tailwind/tokens do resto do app — não é um estilo à parte.
+ */
+function buildReceiptNode(title: string, rows: ArrivalRow[]): HTMLDivElement {
+  const RECEIPT_WIDTH = 340;
+  const container = document.createElement("div");
+  container.className = "bg-card border border-border/60 rounded-lg overflow-hidden text-foreground";
+  container.style.position = "fixed";
+  container.style.left = "-99999px";
+  container.style.top = "0";
+  container.style.width = `${RECEIPT_WIDTH}px`;
+  container.style.fontFamily = getComputedStyle(document.body).fontFamily;
+
+  const head = document.createElement("div");
+  head.className = "text-center px-3.5 py-2.5 border-b border-dashed border-border/60";
+  head.innerHTML = `
+    <div class="text-xs font-extrabold uppercase tracking-wide">${escapeHtml(title)}</div>
+    <div class="text-[9.5px] text-muted-foreground mt-0.5">${escapeHtml(nowLabelBR())} · ${rows.length} ${rows.length === 1 ? "hóspede" : "hóspedes"}</div>
+  `;
+  container.appendChild(head);
+
+  for (const row of rows) {
+    const done = row.status === "done";
+    const dotClass = done ? "bg-emerald-500" : "bg-amber-800";
+    const tagClass = done ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-800/15 text-amber-700";
+    const guestLabel =
+      row.guestName && row.guestName !== row.reservationCode ? row.guestName : (row.reservationCode ?? "Hóspede");
+    const dates = row.guestCheckin
+      ? `${fmtDateBR(row.guestCheckin)}${row.guestCheckout ? ` → ${fmtDateBR(row.guestCheckout)}` : ""}`
+      : fmtDateBR(row.date);
+    const line = document.createElement("div");
+    line.className = "flex items-start gap-2 px-3.5 py-2 border-b border-border/40 last:border-b-0";
+    line.innerHTML = `
+      <span class="mt-1 size-1.5 rounded-full shrink-0 ${dotClass}"></span>
+      <div class="min-w-0 flex-1">
+        <div class="text-[11px] font-bold uppercase truncate">${escapeHtml(guestLabel)}</div>
+        <div class="text-[10.5px] text-muted-foreground truncate">${escapeHtml(row.propertyName ?? "Sem imóvel")}</div>
+        <div class="text-[9px] text-muted-foreground mt-0.5 flex gap-1.5 flex-wrap">
+          ${row.reservationCode ? `<span>${escapeHtml(row.reservationCode)}</span><span>·</span>` : ""}
+          <span>${escapeHtml(dates)}</span>
+        </div>
+      </div>
+      <span class="shrink-0 text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${tagClass}">${done ? "Concluído" : "Pendente"}</span>
+    `;
+    container.appendChild(line);
+  }
+
+  const foot = document.createElement("div");
+  foot.className = "text-center px-3.5 py-2 border-t border-dashed border-border/60 text-[9px] text-muted-foreground";
+  foot.textContent = "Gerado pelo painel · SigmaGuide";
+  container.appendChild(foot);
+
+  return container;
+}
+
 /**
  * Botão "tirar um print" (pedido explícito) — captura o container apontado
  * por `targetRef` como PNG. Ao clicar, abre um menu com duas opções:
  * "Salvar Imagem" (baixa o PNG) e "Copiar Imagem" (vai pra área de
  * transferência, pra colar direto em outro lugar). Usa `html-to-image`
  * (já não existia nenhuma lib de captura no projeto).
+ *
+ * Quando `receiptRows` é passado (listas de hóspedes), o print NÃO captura
+ * o card grande da tela — monta o layout "comprovante" compacto (pedido
+ * explícito) num node à parte, fora da tela, só pra gerar a imagem; a tela
+ * do usuário continua com os cards normais, clicáveis. Sem `receiptRows`
+ * (ex.: lista de imóveis do tooltip de Limpeza), continua capturando o
+ * `targetRef` como antes.
  */
 function ScreenshotButton({
   targetRef,
   fileName,
+  receiptRows,
+  receiptTitle,
 }: {
   targetRef: React.RefObject<HTMLElement | null>;
   fileName: string;
+  receiptRows?: ArrivalRow[];
+  receiptTitle?: string;
 }) {
   const [busy, setBusy] = useState(false);
   const captureBlob = useCallback(async (): Promise<Blob | null> => {
+    if (receiptRows) {
+      const node = buildReceiptNode(receiptTitle ?? "Lista", receiptRows);
+      document.body.appendChild(node);
+      try {
+        const fullWidth = node.scrollWidth;
+        const fullHeight = node.scrollHeight;
+        return await toBlob(node, {
+          cacheBust: true,
+          pixelRatio: 2,
+          backgroundColor: getComputedStyle(document.body).backgroundColor || "#0a0a0a",
+          width: fullWidth,
+          height: fullHeight,
+          canvasWidth: fullWidth,
+          canvasHeight: fullHeight,
+        });
+      } finally {
+        node.remove();
+      }
+    }
     const node = targetRef.current;
     if (!node) return null;
+    // Pedido explícito: o print precisa sair "como um comprovante bancário"
+    // — TODOS os cards, não só o que cabe na tela. O alvo é sempre um
+    // container com scroll (overflow-y-auto + max-height); html-to-image
+    // clona o node e renderiza usando o TAMANHO ATUAL dele, então sem isto
+    // o print sairia cortado igual ao que já aparece na tela. `width`/
+    // `height`/`style` abaixo são aplicados só no clone offscreen usado pra
+    // gerar a imagem — a tela real do usuário não pisca nem muda.
+    const fullWidth = node.scrollWidth;
+    const fullHeight = node.scrollHeight;
     return await toBlob(node, {
       cacheBust: true,
       pixelRatio: 2,
       backgroundColor: getComputedStyle(document.body).backgroundColor || "#0a0a0a",
+      width: fullWidth,
+      height: fullHeight,
+      canvasWidth: fullWidth,
+      canvasHeight: fullHeight,
+      style: {
+        maxHeight: "none",
+        height: `${fullHeight}px`,
+        width: `${fullWidth}px`,
+        overflow: "visible",
+      },
     });
-  }, [targetRef]);
+  }, [targetRef, receiptRows, receiptTitle]);
   const handleSave = useCallback(async () => {
     if (busy) return;
     setBusy(true);
@@ -980,15 +1104,26 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     [tomorrowCheckoutListQ.data?.rows, turnoverCheckinSources],
   );
   /**
-   * "Em Limpeza" precisa incluir também o checkout ANTECIPADO de um card de
-   * amanhã: ele sai da lista de amanhã (deixa de ser pendente) e, sem isso,
-   * não apareceria em lugar nenhum.
+   * "Fila de Limpeza" precisa incluir também o checkout ANTECIPADO de um
+   * card de amanhã: ele sai da lista de amanhã (deixa de ser pendente) e,
+   * sem isso, não apareceria em lugar nenhum.
+   *
+   * Pedido explícito (mesmo ajuste já feito no quadrante do Kanban): a faixa
+   * espelha TODOS os checkouts do período, não só os já liberados — quem
+   * ainda não fez check-out aparece também, bloqueado (ver `awaitingCheckout`
+   * no ArrivalCard). Bloqueado nunca compete com quem já está liberado, por
+   * isso vem sempre DEPOIS na lista (mesmo racional de sempre).
    */
   const cleaningRows = useMemo(() => {
     const done = coRows.filter((r) => r.status === "done");
     const seen = new Set(done.map((r) => r.logId));
     const early = (tomorrowCheckoutListQ.data?.rows ?? []).filter((r) => r.status === "done" && !seen.has(r.logId));
-    return sortCheckoutRows([...done, ...early], turnoverCheckinSources);
+    const released = sortCheckoutRows([...done, ...early], turnoverCheckinSources);
+    const awaiting = sortCheckoutRows(
+      coRows.filter((r) => r.status === "pending"),
+      turnoverCheckinSources,
+    );
+    return [...released, ...awaiting];
   }, [coRows, tomorrowCheckoutListQ.data?.rows, turnoverCheckinSources]);
 
   const concludedRows = concludedQ.data?.rows ?? [];
@@ -1313,13 +1448,25 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       ),
     [kanbanCiRowsAll, matchesKanbanOwnerCity, kanbanPeriodStart, kanbanPeriodEnd, todayISO],
   );
-  const kanbanCleaningRows = useMemo(
-    () =>
-      kanbanCoRowsAll.filter(
-        (r) => r.status === "done" && matchesKanbanOwnerCity(r) && r.date >= kanbanPeriodStart && r.date <= kanbanPeriodEnd,
-      ),
-    [kanbanCoRowsAll, matchesKanbanOwnerCity, kanbanPeriodStart, kanbanPeriodEnd],
-  );
+  // Pedido explícito: a coluna espelha TODOS os checkouts do período, não só
+  // os já liberados — quem ainda não fez check-out aparece aqui também
+  // (bloqueado, ver `awaitingCheckout` no ArrivalCard), pra dar visibilidade
+  // do que está por vir. Ordenação: mesmo racional já usado no resto do
+  // Kanban (ex.: sortCheckinRows/cleaningPendingPropIds) — bloqueado nunca
+  // compete por horário/giro com quem já está liberado, então primeiro TODOS
+  // os liberados (na ordem de sempre, via sortCheckoutRows) e só depois os
+  // que ainda aguardam check-out (mesma ordenação interna, só que atrás).
+  const kanbanCleaningRows = useMemo(() => {
+    const inWindow = kanbanCoRowsAll.filter(
+      (r) => matchesKanbanOwnerCity(r) && r.date >= kanbanPeriodStart && r.date <= kanbanPeriodEnd,
+    );
+    const released = inWindow.filter((r) => r.status === "done");
+    const awaitingCheckout = inWindow.filter((r) => r.status !== "done");
+    return [
+      ...sortCheckoutRows(released, [kanbanCiRowsAll]),
+      ...sortCheckoutRows(awaitingCheckout, [kanbanCiRowsAll]),
+    ];
+  }, [kanbanCoRowsAll, matchesKanbanOwnerCity, kanbanPeriodStart, kanbanPeriodEnd, kanbanCiRowsAll]);
   // "Concluídos" nunca foi limitado por Hoje/Amanhã/7 dias/Todos (a busca de
   // concluídos já ignorava esse seletor antes) — só ganha os filtros de
   // Cidade/Proprietário agora, mantendo o mesmo comportamento de período.
@@ -1666,13 +1813,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               />
             </div>
 
-            {/* Liberado para Limpeza — faixa fina, largura total (só quando
-                houver 1+), mantendo o destaque âmbar (borda + gradiente +
-                acento lateral). Fica logo depois dos 4 KPIs do topo. */}
+            {/* Fila de Limpeza — faixa fina, largura total (só quando houver
+                1+), mantendo o destaque âmbar (borda + gradiente + acento
+                lateral). Fica logo depois dos 4 KPIs do topo. */}
             {cleaningRows.length > 0 ? (
               <div className="order-5 lg:order-5 col-span-2 lg:col-span-4">
                 <KpiCard
-                  label="Liberado para Limpeza"
+                  label="Fila de Limpeza"
                   rows={cleaningRows}
                   icon={Sparkles}
                   tone="primary-soft"
@@ -1888,7 +2035,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                       { key: "checkin", label: "Check-ins", icon: CalendarCheck, count: kanbanCounts.checkin },
                       { key: "checkout", label: "Checkouts", icon: CalendarX, count: kanbanCounts.checkout },
                       { key: "stay", label: "Estadia", icon: BedDouble, count: kanbanCounts.stay },
-                      { key: "cleaning", label: "Limpeza", icon: Sparkles, count: kanbanCounts.cleaning },
+                      { key: "cleaning", label: "Fila", icon: Sparkles, count: kanbanCounts.cleaning },
                       { key: "done", label: "Concluídos", icon: CheckCircle2, count: kanbanCounts.done },
                     ] as const
                   ).map((t) => {
@@ -2051,7 +2198,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
                 <KanbanColumn
                   onScroll={() => setExpandedByColumn((prev) => ({ ...prev, cleaning: null }))}
-                  title="Liberado para Limpeza"
+                  title="Fila de Limpeza"
                   icon={Sparkles}
                   count={kanbanCounts.cleaning}
                   tone="violet"
@@ -2396,7 +2543,7 @@ function KanbanColumn({
         ref={bodyRef}
         onScroll={onScroll}
         style={maxHeight !== undefined ? { maxHeight } : undefined}
-        className="flex-1 min-h-0 overflow-y-auto snap-y snap-mandatory pt-5 px-2.5 pb-2.5 space-y-1.5"
+        className="sg-elegant-scroll flex-1 min-h-0 overflow-y-auto snap-y snap-mandatory pt-5 px-2.5 pb-2.5 space-y-1.5"
       >
         {children}
       </div>
@@ -2544,7 +2691,7 @@ function KpiCard({
   shadowTone?: "emerald" | "amber" | "sky";
   /** Faixa fina (largura total) em vez de card quadrado. */
   compact?: boolean;
-  /** Destaque visual opt-in (só usado hoje por "Liberado para Limpeza"): borda +
+  /** Destaque visual opt-in (só usado hoje por "Fila de Limpeza"): borda +
    * gradiente âmbar + acento lateral + ícone em caixinha, sem negrito.
    * Não afeta nenhum outro uso do KpiCard (compact ou não). */
   highlight?: "amber";
@@ -2680,7 +2827,12 @@ function KpiCard({
           </div>
           {rows.length > 0 && (
             <div className="flex items-center justify-end gap-1.5 mt-3">
-              <ScreenshotButton targetRef={screenshotRef} fileName={`${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`} />
+              <ScreenshotButton
+                targetRef={screenshotRef}
+                fileName={`${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                receiptRows={rows}
+                receiptTitle={label}
+              />
               <ViewModeToggle value={listMode} onChange={setListMode} />
             </div>
           )}
@@ -2887,7 +3039,7 @@ function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdo
         />
         <ViewModeToggle value={listMode} onChange={setListMode} />
       </div>
-      <ul ref={screenshotRef} className="max-h-48 space-y-1 overflow-y-auto bg-popover">
+      <ul ref={screenshotRef} className="sg-elegant-scroll max-h-48 space-y-1 overflow-y-auto bg-popover">
         {breakdown.map((item) => {
           const mapsHref = item.mapsUrl || item.garageMapsUrl;
           return (
@@ -2999,7 +3151,7 @@ function StatDisplayCard({
 
 /** Cor consistente com a identidade já usada pra "limpeza" no resto do app
     (aba/coluna do Kanban) e para custo/dinheiro (mesmo tom âmbar do destaque
-    "Liberado para Limpeza"). */
+    "Fila de Limpeza"). */
 const CLEANING_COUNT_COLOR = "#38bdf8"; // sky-400
 const CLEANING_COST_COLOR = "#d97706"; // amber-600
 
@@ -3465,7 +3617,7 @@ function TasksDialog({
                     placeholder="Digite ou escolha um título…"
                     maxLength={200}
                   />
-                  <CommandList className="max-h-40">
+                  <CommandList className="sg-elegant-scroll max-h-40">
                     {titleSuggestions.length === 0 ? (
                       <CommandEmpty>Digite um título.</CommandEmpty>
                     ) : (
@@ -3875,7 +4027,7 @@ function MultiSelectFilterButton({
               Limpar
             </button>
           </div>
-          <CommandList>
+          <CommandList className="sg-elegant-scroll">
             <CommandEmpty>Nenhum resultado.</CommandEmpty>
             <CommandGroup>
               {options.map((o) => (
@@ -3996,7 +4148,7 @@ function CalendarFiltersButton({
       <PopoverContent
         align="end"
         collisionPadding={12}
-        className="w-64 p-0 max-h-[min(28rem,70vh)] overflow-y-auto"
+        className="sg-elegant-scroll w-64 p-0 max-h-[min(28rem,70vh)] overflow-y-auto"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         {screen === "root" ? (
@@ -4120,7 +4272,7 @@ function CalendarFiltersButton({
                   Limpar
                 </button>
               </div>
-              <CommandList className="max-h-52">
+              <CommandList className="sg-elegant-scroll max-h-52">
                 <CommandEmpty>Nenhum resultado.</CommandEmpty>
                 <CommandGroup>
                   {cityOptions.map((o) => (
@@ -4161,7 +4313,7 @@ function CalendarFiltersButton({
                   Limpar
                 </button>
               </div>
-              <CommandList className="max-h-52">
+              <CommandList className="sg-elegant-scroll max-h-52">
                 <CommandEmpty>Nenhum resultado.</CommandEmpty>
                 <CommandGroup>
                   {ownerOptions.map((o) => (
@@ -5345,6 +5497,11 @@ function ArrivalCard({
 
   const done = row.status === "done";
   const visualDone = done && mode !== "cleaning" && mode !== "stay";
+  // Pedido explícito: a coluna de Limpeza agora espelha TODOS os checkouts
+  // do período, não só os já liberados — os que ainda aguardam o check-out
+  // do hóspede aparecem aqui também, mas bloqueados (mesmo racional dos
+  // outros bloqueios do Kanban: nunca competem com quem já está liberado).
+  const awaitingCheckout = mode === "cleaning" && !done;
   const isPendingFill = row.pendingFill;
   // Janela permitida para a data prevista: da data original de check-in
   // (iCal quando existe) até 1 dia antes do check-out.
@@ -5440,7 +5597,9 @@ function ArrivalCard({
   // Botão "voltar para a etapa anterior" — no modo Completo é um botão
   // próprio na fileira de ações; no modo Lista (pedido explícito) vive
   // dentro do menu "⋮" em vez de ocupar mais um ícone.
-  const canRevert = !!onRevert && mode !== "checkin";
+  // Um card "aguardando check-out" (mirror do checkout ainda não confirmado)
+  // não tem o que desfazer aqui — ele nem chegou a virar limpeza de verdade.
+  const canRevert = !!onRevert && mode !== "checkin" && !awaitingCheckout;
   const showRevertButton = canRevert && !compact;
   const showRevertMenuItem = canRevert && compact;
   const revertConfirmLabel =
@@ -5851,6 +6010,10 @@ function ArrivalCard({
         ) : (
           <button
             onClick={() => {
+              if (awaitingCheckout) {
+                toast.warning("Hóspede ainda não fez check-out. A limpeza libera assim que o check-out for confirmado.");
+                return;
+              }
               if (cleaningBlock) {
                 const msg =
                   blockReason === "checkout"
@@ -5867,49 +6030,55 @@ function ArrivalCard({
               }
               runMark();
             }}
-            disabled={busy || blockCheck}
+            disabled={busy || blockCheck || awaitingCheckout}
             aria-label={
-              cleaningBlock
-                ? blockReason === "checkout"
-                  ? "Check-out anterior pendente neste imóvel"
-                  : "Limpeza pendente neste imóvel"
-                : blockCheck
-                  ? "Check-in em data futura"
-                  : mode === "cleaning"
-                    ? "Concluir limpeza"
-                    : mode === "stay"
-                      ? "Confirmar check-out"
-                      : done
-                        ? "Reabrir (marcar pendente)"
-                        : "Marcar como concluído"
+              awaitingCheckout
+                ? "Aguardando check-out do hóspede"
+                : cleaningBlock
+                  ? blockReason === "checkout"
+                    ? "Check-out anterior pendente neste imóvel"
+                    : "Limpeza pendente neste imóvel"
+                  : blockCheck
+                    ? "Check-in em data futura"
+                    : mode === "cleaning"
+                      ? "Concluir limpeza"
+                      : mode === "stay"
+                        ? "Confirmar check-out"
+                        : done
+                          ? "Reabrir (marcar pendente)"
+                          : "Marcar como concluído"
             }
             title={
-              cleaningBlock
-                ? blockReason === "checkout"
-                  ? "Check-out anterior pendente — limpeza precisa ser concluída antes de liberar o check-in"
-                  : "Limpeza ainda em andamento — check-in bloqueado"
-                : blockCheck
-                  ? `Só é possível marcar a partir de ${fmtDateBR(row.date)}`
-                  : mode === "cleaning"
-                    ? "Concluir limpeza (finaliza a estadia)"
-                    : mode === "stay"
-                      ? "Confirmar check-out (envia o card para Em Limpeza)"
-                      : done
-                        ? "Reabrir (voltar para Pendente)"
-                        : "Marcar como Concluído"
+              awaitingCheckout
+                ? "Check-out ainda não confirmado — a limpeza só pode ser marcada depois que o hóspede sair"
+                : cleaningBlock
+                  ? blockReason === "checkout"
+                    ? "Check-out anterior pendente — limpeza precisa ser concluída antes de liberar o check-in"
+                    : "Limpeza ainda em andamento — check-in bloqueado"
+                  : blockCheck
+                    ? `Só é possível marcar a partir de ${fmtDateBR(row.date)}`
+                    : mode === "cleaning"
+                      ? "Concluir limpeza (finaliza a estadia)"
+                      : mode === "stay"
+                        ? "Confirmar check-out (envia o card para Em Limpeza)"
+                        : done
+                          ? "Reabrir (voltar para Pendente)"
+                          : "Marcar como Concluído"
             }
             className={`flex-1 min-w-0 self-center box-border leading-none inline-flex items-center justify-center gap-2 font-semibold tracking-tight rounded-lg transition-all active:scale-[0.99] ${
               compact ? "h-6 max-h-6 min-h-6 px-2 text-[10.5px]" : "h-9 max-h-9 min-h-9 px-3 text-[12.5px]"
             } ${
-              cleaningBlock
-                ? "bg-orange-500/25 text-orange-700 dark:text-orange-400 border border-orange-500/50 cursor-not-allowed"
-                : blockCheck
-                  ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/40 cursor-not-allowed"
-                  : mode === "cleaning" || mode === "stay"
-                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                    : done
-                      ? "bg-secondary text-foreground/80 hover:bg-secondary/80"
-                      : "bg-emerald-600 text-white hover:bg-emerald-700"
+              awaitingCheckout
+                ? "bg-amber-900/20 text-amber-800 dark:text-amber-600 border border-amber-800/40 cursor-not-allowed"
+                : cleaningBlock
+                  ? "bg-orange-500/25 text-orange-700 dark:text-orange-400 border border-orange-500/50 cursor-not-allowed"
+                  : blockCheck
+                    ? "bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/40 cursor-not-allowed"
+                    : mode === "cleaning" || mode === "stay"
+                      ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                      : done
+                        ? "bg-secondary text-foreground/80 hover:bg-secondary/80"
+                        : "bg-emerald-600 text-white hover:bg-emerald-700"
             }`}
           >
             <Check className={compact ? "size-3 shrink-0" : "size-4 shrink-0"} />
@@ -5917,13 +6086,15 @@ function ArrivalCard({
                 já descreve a ação pra leitor de tela/tooltip nativo). */}
             {!compact && (
               <span className="truncate">
-                {mode === "cleaning"
-                  ? "Limpeza concluída!"
-                  : mode === "checkout" || mode === "stay"
-                    ? "Check-out realizado!"
-                    : done
-                      ? "Reabrir"
-                      : "Check-in realizado!"}
+                {awaitingCheckout
+                  ? "Aguardando check-out"
+                  : mode === "cleaning"
+                    ? "Concluir limpeza!"
+                    : mode === "checkout" || mode === "stay"
+                      ? "Check-out realizado!"
+                      : done
+                        ? "Reabrir"
+                        : "Check-in realizado!"}
               </span>
             )}
           </button>
@@ -6011,7 +6182,7 @@ function ArrivalCard({
                   <DropdownMenuSubTrigger>
                     <BellOff className="size-3.5 shrink-0" /> Silenciar notificações
                   </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent className="max-h-72 overflow-y-auto min-w-[10rem]">
+                  <DropdownMenuSubContent className="sg-elegant-scroll max-h-72 overflow-y-auto min-w-[10rem]">
                     {Array.from({ length: 24 }, (_, i) => i + 1).map((h) => (
                       <DropdownMenuItem key={h} onClick={() => mute.mutate(h)}>
                         <BellOff className="size-3.5 shrink-0" /> Por {h}h
@@ -6159,7 +6330,7 @@ function TimeDropdown({
           </span>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="max-h-64 overflow-y-auto min-w-[6rem] p-1">
+      <DropdownMenuContent align="end" className="sg-elegant-scroll max-h-64 overflow-y-auto min-w-[6rem] p-1">
         {value && (
           <DropdownMenuItem
             onClick={(e) => {
