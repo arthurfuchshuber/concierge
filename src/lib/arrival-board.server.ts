@@ -921,11 +921,16 @@ export async function buildArrivalRows(
             const resExplicitlyPending = !!(r.reservationId && checkinPendingReservations.has(r.reservationId));
             if (data.range === "tomorrow") return true;
             const vDone = virtualCheckinDone(r);
+            // O dia do checkout já chegou (ou passou) e a estadia começou: a
+            // saída é real e precisa aparecer, mesmo sem check-in marcado.
+            const stayEnded = !!(r.guestCheckout && r.guestCheckout <= today && r.guestCheckin && r.guestCheckin <= today);
+            if (stayEnded) return true;
             // Estadia com check-in no passado (ou hoje após o horário padrão) já
             // está em curso fisicamente — o card precisa aparecer em Checkouts
             // mesmo que exista um status de check-in "pending" legado.
             if (!logDone && !resDone && !vDone && (logExplicitlyPending || resExplicitlyPending)) return false;
             return logDone || resDone || vDone;
+
           })
         : rows;
     function isBetterOperationalRow(candidate: ArrivalRow, current: ArrivalRow): boolean {
