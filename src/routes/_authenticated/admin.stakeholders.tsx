@@ -1,5 +1,4 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
-import { Building2, Users, Wrench } from "lucide-react";
 import { StakeholderDirectory } from "@/components/stakeholders/StakeholderDirectory";
 import { WorkspaceHeader, type WorkspaceTab } from "@/components/ds/WorkspaceHeader";
 import { HospedesPage } from "@/components/admin-pages/HospedesPage";
@@ -11,39 +10,15 @@ function coerceTab(v: unknown): Tab {
 }
 
 const TABS: WorkspaceTab[] = [
-  {
-    key: "proprietarios",
-    label: (
-      <>
-        <Building2 className="size-4 shrink-0" />
-        <span className="truncate">Proprietários</span>
-      </>
-    ),
-  },
-  {
-    key: "hospedes",
-    label: (
-      <>
-        <Users className="size-4 shrink-0" />
-        <span className="truncate">Hóspedes</span>
-      </>
-    ),
-  },
-  {
-    key: "prestadores",
-    label: (
-      <>
-        <Wrench className="size-4 shrink-0" />
-        <span className="truncate">Prestadores</span>
-      </>
-    ),
-  },
+  { key: "proprietarios", label: "Proprietários" },
+  { key: "hospedes", label: "Hóspedes" },
+  { key: "prestadores", label: "Prestadores" },
 ];
 
 const SUBTITLES: Record<Tab, string> = {
-  proprietarios: "Cadastro, situação contratual e residências de cada proprietário.",
-  hospedes: "Todos os dados enviados pelos hóspedes ao abrirem o guia.",
-  prestadores: "Equipe de limpeza, manutenção e demais parceiros da operação.",
+  proprietarios: "Proprietários, hóspedes e prestadores da operação.",
+  hospedes: "Dados enviados pelos hóspedes ao abrirem o guia.",
+  prestadores: "Limpeza, manutenção e parceiros da operação.",
 };
 
 export const Route = createFileRoute("/_authenticated/admin/stakeholders")({
