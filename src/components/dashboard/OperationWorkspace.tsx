@@ -97,6 +97,15 @@ import {
   type CleaningBreakdownItem,
   type CleaningDailyPoint,
 } from "@/lib/dashboard.functions";
+import {
+  listTaskLinkOptions,
+  listTasks,
+  createTask,
+  setTaskStatus,
+  toggleCleaningCompletion,
+} from "@/lib/tasks.functions";
+import type { TaskRow, TaskCompletion, TaskLinkProperty, TaskLinkOwner, TaskCategory, TaskPriority } from "@/lib/tasks-types";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { ConfirmActionDialog } from "@/components/permissions/ConfirmActionDialog";
 
@@ -480,6 +489,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const concludedFn = useServerFn(listConcludedArrivals);
   const occupancyFn = useServerFn(getOccupancyBoard);
   const cleaningStatsFn = useServerFn(getCleaningStats);
+  const taskLinkOptionsFn = useServerFn(listTaskLinkOptions);
+  const listTasksFn = useServerFn(listTasks);
+  const createTaskFn = useServerFn(createTask);
+  const setTaskStatusFn = useServerFn(setTaskStatus);
+  const toggleCleaningFn = useServerFn(toggleCleaningCompletion);
 
   const [range, setRange] = useState<"today" | "tomorrow" | "7d" | "all">("today");
   // Qual coluna do Kanban está ativa no mobile (lá o quadro vira abas — não
@@ -1128,6 +1142,60 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   }, [cleaningForecastListQ.data?.rows, matchesKanbanOwnerCity]);
   const [forecastOpen, setForecastOpen] = useState(false);
 
+  // ---------------------------------------------------------------------
+  // Tarefas/Pendências — botão "PENDÊNCIAS" (Kanban, ao lado de "Filtros")
+  // + checklist no card de Limpeza. Uma única query serve os dois usos:
+  // o dialog usa a lista inteira; o checklist do card filtra client-side
+  // pelas marcadas "aparece na limpeza".
+  // ---------------------------------------------------------------------
+  const [pendenciasOpen, setPendenciasOpen] = useState(false);
+  const tasksQ = useQuery({
+    queryKey: ["dash-tasks", activeOwnerId ?? "self"],
+    queryFn: () => listTasksFn({ data: { ownerId: activeOwnerId } }),
+    staleTime: 15_000,
+  });
+  const openTasksCount = useMemo(
+    () => (tasksQ.data?.tasks ?? []).filter((t) => t.status === "pending").length,
+    [tasksQ.data],
+  );
+  const taskLinkOptionsQ = useQuery({
+    queryKey: ["dash-task-link-options", activeOwnerId ?? "self"],
+    queryFn: () => taskLinkOptionsFn({ data: { ownerId: activeOwnerId } }),
+    staleTime: 60_000,
+    enabled: pendenciasOpen,
+  });
+  const invalidateTasks = useCallback(() => {
+    qc.invalidateQueries({ queryKey: ["dash-tasks", activeOwnerId ?? "self"] });
+  }, [qc, activeOwnerId]);
+  const createTaskMutation = useMutation({
+    mutationFn: (v: {
+      title: string;
+      description?: string | null;
+      category: TaskCategory;
+      priority: TaskPriority;
+      dueDate?: string | null;
+      showInCleaning: boolean;
+      propertyId?: string | null;
+      ownerContactId?: string | null;
+    }) => createTaskFn({ data: { ownerId: activeOwnerId, ...v } }),
+    onSuccess: () => {
+      invalidateTasks();
+      toast.success("Pendência criada.");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao criar pendência."),
+  });
+  const setTaskStatusMutation = useMutation({
+    mutationFn: (v: { taskId: string; status: "pending" | "done" | "canceled" }) => setTaskStatusFn({ data: v }),
+    onSuccess: invalidateTasks,
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar pendência."),
+  });
+  const toggleCleaningTaskMutation = useMutation({
+    mutationFn: (v: { taskId: string; logId?: string | null; reservationId?: string | null }) =>
+      toggleCleaningFn({ data: v }),
+    onSuccess: invalidateTasks,
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar checklist."),
+  });
+
   // Sem período escolhido, mantém o padrão de "hoje" (mesma convenção já
   // usada pela agenda/cards de limpeza quando nenhum período é escolhido).
   // O período usado é sempre o da PRÓPRIA reserva (`row.date` já é a data
@@ -1213,6 +1281,50 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     all: "Todos",
   };
 
+  // Nome do hóspede de uma pendência "pontual" (vinculada a log/reserva) —
+  // as pendências não guardam o nome, então cruzamos com as listas de
+  // chegadas/saídas já carregadas no Kanban (best-effort: some se nenhuma
+  // dessas listas tiver aquele log/reserva no momento).
+  const guestNameByStayRef = useMemo(() => {
+    const map = new Map<string, string>();
+    const sources: ArrivalRow[][] = [
+      kanbanCiRowsAll,
+      kanbanCoRowsAll,
+      concludedRows,
+      tomorrowCheckinPendingRows,
+      tomorrowCheckoutPendingRows,
+    ];
+    for (const rows of sources) {
+      for (const r of rows) {
+        if (r.logId) map.set(`log:${r.logId}`, r.guestName || "Hóspede");
+        if (r.reservationId) map.set(`res:${r.reservationId}`, r.guestName || "Hóspede");
+      }
+    }
+    return map;
+  }, [kanbanCiRowsAll, kanbanCoRowsAll, concludedRows, tomorrowCheckinPendingRows, tomorrowCheckoutPendingRows]);
+  function guestNameForTask(t: TaskRow): string {
+    if (t.logId) return guestNameByStayRef.get(`log:${t.logId}`) ?? "Hóspede";
+    if (t.reservationId) return guestNameByStayRef.get(`res:${t.reservationId}`) ?? "Hóspede";
+    return "Hóspede";
+  }
+  // Tarefas que aparecem no checklist do card de Limpeza — repassadas pra
+  // ArrivalGroup/ArrivalCard só quando colMode === "cleaning" (única coluna
+  // que usa isso; as outras ignoram por completo).
+  const cleaningTasksData = useMemo(
+    () => ({ tasks: tasksQ.data?.tasks ?? [], completions: tasksQ.data?.completions ?? [] }),
+    [tasksQ.data],
+  );
+  function handleToggleCleaningTask(task: TaskRow, row: ArrivalRow) {
+    if (task.logId || task.reservationId) {
+      // Pontual: o próprio status da pendência representa esta estadia.
+      setTaskStatusMutation.mutate({ taskId: task.id, status: task.status === "done" ? "pending" : "done" });
+    } else {
+      // Recorrente: marca só esta ocorrência (log/reserva do card) — a
+      // pendência em si continua ativa e volta pendente na próxima limpeza.
+      toggleCleaningTaskMutation.mutate({ taskId: task.id, logId: row.logId, reservationId: row.reservationId });
+    }
+  }
+
   function arrivalGroupPropsFor(colMode: BoardMode, rows: ArrivalRow[]) {
     const colKind: "checkin" | "checkout" =
       colMode === "checkout" || colMode === "cleaning" || colMode === "done" ? "checkout" : "checkin";
@@ -1291,6 +1403,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       cleaningPendingPropIds,
       expandedId: expandedByColumn[colMode],
       onExpandedChange: (id: string | null) => setExpandedByColumn((prev) => ({ ...prev, [colMode]: id })),
+      // Checklist de pendências — só a coluna de Limpeza usa isso de fato
+      // (ArrivalCard ignora fora do modo "cleaning").
+      cleaningTasks: colMode === "cleaning" ? cleaningTasksData : undefined,
+      onToggleCleaningTask: colMode === "cleaning" ? handleToggleCleaningTask : undefined,
     };
   }
 
@@ -1653,7 +1769,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 desktop; no mobile ele migra pra dentro da linha de abas, ver
                 abaixo. */}
             <div className="hidden sm:flex items-center gap-3">
-              <div className="ml-auto">
+              <div className="ml-auto flex items-center gap-1">
                 <CalendarFiltersButton
                   periodRange={periodRange}
                   onPeriodRangeChange={setPeriodRange}
@@ -1666,6 +1782,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   hasCustomFilters={hasCustomFilters}
                   onClearAll={clearAllFilters}
                 />
+                <PendenciasButton count={openTasksCount} onClick={() => setPendenciasOpen(true)} />
               </div>
             </div>
 
@@ -1732,7 +1849,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     );
                   })}
                 </div>
-                <div className="flex justify-start">
+                <div className="flex items-center gap-1">
                   <CalendarFiltersButton
                     periodRange={periodRange}
                     onPeriodRangeChange={setPeriodRange}
@@ -1745,6 +1862,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     hasCustomFilters={hasCustomFilters}
                     onClearAll={clearAllFilters}
                   />
+                  <PendenciasButton count={openTasksCount} onClick={() => setPendenciasOpen(true)} />
                 </div>
               </div>
 
@@ -1888,6 +2006,19 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 </KanbanColumn>
               </div>
             </div>
+
+            <TasksDialog
+              open={pendenciasOpen}
+              onOpenChange={setPendenciasOpen}
+              tasks={tasksQ.data?.tasks ?? []}
+              loading={tasksQ.isLoading}
+              linkProperties={taskLinkOptionsQ.data?.properties ?? []}
+              linkOwners={taskLinkOptionsQ.data?.owners ?? []}
+              guestNameForTask={guestNameForTask}
+              onCreate={(v) => createTaskMutation.mutateAsync(v)}
+              creating={createTaskMutation.isPending}
+              onSetStatus={(taskId, status) => setTaskStatusMutation.mutate({ taskId, status })}
+            />
           </section>
         </>
       ) : null}
@@ -2952,6 +3083,391 @@ function CleaningForecastDialog({
             <CleaningTopProperties items={data.breakdown} loading={loading} />
           </div>
         </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Botão "PENDÊNCIAS" — mesmo formato/alinhamento do "FILTROS" ao lado
+// (pedido explícito, mesmo tratamento já dado ao "TENDÊNCIA 7D" da Limpeza).
+function PendenciasButton({ count, onClick }: { count: number; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="relative h-8 shrink-0 inline-flex items-center gap-1.5 rounded-[0.3rem] border-0 bg-transparent px-1.5 text-xs font-medium leading-none text-foreground/70 hover:text-foreground transition-colors"
+    >
+      <ListChecks className="size-3.5 opacity-60" />
+      PENDÊNCIAS
+      {count > 0 && (
+        <span className="absolute -top-1 -right-1.5 min-w-[15px] h-[15px] px-[3px] rounded-full bg-rose-500 text-white text-[9px] font-bold leading-[15px] text-center">
+          {count}
+        </span>
+      )}
+    </button>
+  );
+}
+
+const TASK_CATEGORY_LABEL: Record<TaskCategory, string> = {
+  maintenance: "Manutenção",
+  financial: "Financeiro",
+  guest_request: "Solicitação do hóspede",
+  purchase: "Compra",
+  inspection: "Vistoria",
+  cleaning: "Limpeza",
+  other: "Outro",
+};
+const TASK_PRIORITY_LABEL: Record<TaskPriority, string> = { low: "Baixa", medium: "Média", high: "Alta" };
+const TASK_PRIORITY_DOT: Record<TaskPriority, string> = {
+  low: "bg-emerald-500",
+  medium: "bg-amber-500",
+  high: "bg-rose-500",
+};
+
+type TaskGroupBy = "owner" | "property" | "guest";
+
+/** Dialog "PENDÊNCIAS" do Kanban — 3 agrupamentos (Por Proprietário / Por
+ * Imóvel / Imóvel + Hóspede) + formulário de criação. Toda pendência é
+ * obrigatoriamente vinculada a um imóvel e/ou a um proprietário (pedido
+ * explícito) — nunca solta. */
+function TasksDialog({
+  open,
+  onOpenChange,
+  tasks,
+  loading,
+  linkProperties,
+  linkOwners,
+  guestNameForTask,
+  onCreate,
+  creating,
+  onSetStatus,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  tasks: TaskRow[];
+  loading: boolean;
+  linkProperties: TaskLinkProperty[];
+  linkOwners: TaskLinkOwner[];
+  guestNameForTask: (t: TaskRow) => string;
+  onCreate: (v: {
+    title: string;
+    description?: string | null;
+    category: TaskCategory;
+    priority: TaskPriority;
+    dueDate?: string | null;
+    showInCleaning: boolean;
+    propertyId?: string | null;
+    ownerContactId?: string | null;
+  }) => Promise<{ id: string }>;
+  creating: boolean;
+  onSetStatus: (taskId: string, status: "pending" | "done" | "canceled") => void;
+}) {
+  const [groupBy, setGroupBy] = useState<TaskGroupBy>("owner");
+  const [showForm, setShowForm] = useState(false);
+  const scroll = useWholeCardsMaxHeight(99, `${open}:${loading}:${tasks.length}:${groupBy}:${showForm}`);
+  const todayISO = todayISOSaoPaulo();
+
+  const activeTasks = useMemo(() => tasks.filter((t) => t.status !== "canceled"), [tasks]);
+
+  type Group = { key: string; label: string; items: TaskRow[] };
+  const groups = useMemo<Group[]>(() => {
+    const map = new Map<string, Group>();
+    for (const t of activeTasks) {
+      if (groupBy === "guest") {
+        if (!t.logId && !t.reservationId) continue;
+        const label = `${t.propertyName ?? "Sem imóvel"} · ${guestNameForTask(t)}`;
+        const key = `${t.propertyId ?? "?"}:${t.logId ?? t.reservationId}`;
+        if (!map.has(key)) map.set(key, { key, label, items: [] });
+        map.get(key)!.items.push(t);
+      } else if (groupBy === "property") {
+        if (!t.propertyName) continue;
+        if (!map.has(t.propertyName)) map.set(t.propertyName, { key: t.propertyName, label: t.propertyName, items: [] });
+        map.get(t.propertyName)!.items.push(t);
+      } else {
+        if (!t.ownerName) continue;
+        if (!map.has(t.ownerName)) map.set(t.ownerName, { key: t.ownerName, label: t.ownerName, items: [] });
+        map.get(t.ownerName)!.items.push(t);
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+  }, [activeTasks, groupBy, guestNameForTask]);
+
+  // ----- Formulário de criação -----
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState<TaskCategory>("other");
+  const [priority, setPriority] = useState<TaskPriority>("medium");
+  const [dueDate, setDueDate] = useState("");
+  const [showInCleaning, setShowInCleaning] = useState(false);
+  const [propertyId, setPropertyId] = useState<string>("");
+  const [ownerContactId, setOwnerContactId] = useState<string>("");
+  const linkMissing = !propertyId && !ownerContactId;
+
+  function resetForm() {
+    setTitle("");
+    setDescription("");
+    setCategory("other");
+    setPriority("medium");
+    setDueDate("");
+    setShowInCleaning(false);
+    setPropertyId("");
+    setOwnerContactId("");
+  }
+
+  async function handleSubmit() {
+    if (!title.trim()) {
+      toast.error("Dê um título pra pendência.");
+      return;
+    }
+    if (linkMissing) {
+      toast.error("Vincule a um imóvel ou a um proprietário.");
+      return;
+    }
+    try {
+      await onCreate({
+        title: title.trim(),
+        description: description.trim() || null,
+        category,
+        priority,
+        dueDate: dueDate || null,
+        showInCleaning,
+        propertyId: propertyId || null,
+        ownerContactId: ownerContactId || null,
+      });
+      resetForm();
+      setShowForm(false);
+    } catch {
+      // erro já mostrado via toast no onError da mutation
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[calc(100vw-2.5rem)] sm:w-full sm:max-w-lg p-0 overflow-hidden rounded-lg border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
+        <DialogTitle className="sr-only">Pendências</DialogTitle>
+        <DialogDescription className="sr-only">
+          Tarefas e pendências vinculadas a imóveis e proprietários.
+        </DialogDescription>
+        <div className="px-5 pt-5 pb-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <h2 className="ds-page-title truncate">Pendências</h2>
+              <p className="ds-page-subtitle mt-1.5 truncate">
+                {activeTasks.length} {activeTasks.length === 1 ? "aberta" : "abertas"}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowForm((v) => !v)}
+              className="shrink-0 h-8 inline-flex items-center gap-1.5 rounded-[0.3rem] px-2.5 text-xs font-semibold text-white bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] transition-opacity hover:opacity-90"
+            >
+              {showForm ? <ChevronRight className="size-3.5 rotate-90" /> : <UserPlus className="size-3.5" />}
+              Nova
+            </button>
+          </div>
+
+          {!showForm && (
+            <div className="flex gap-1 mt-3 bg-foreground/5 p-1 rounded-[0.3rem]">
+              {(
+                [
+                  { key: "owner", label: "Por Proprietário" },
+                  { key: "property", label: "Por Imóvel" },
+                  { key: "guest", label: "Imóvel + Hóspede" },
+                ] as const
+              ).map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setGroupBy(t.key)}
+                  className={`flex-1 text-center text-[11px] font-semibold py-1.5 rounded-[0.2rem] transition-colors ${
+                    groupBy === t.key ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {showForm ? (
+          <div className="px-5 pb-5 space-y-2.5">
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Título da pendência"
+              maxLength={200}
+              className="w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm"
+            />
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+              maxLength={1000}
+              placeholder="Descrição (opcional)"
+              className="w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs"
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <Select value={category} onValueChange={(v) => setCategory(v as TaskCategory)}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(TASK_CATEGORY_LABEL) as TaskCategory[]).map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {TASK_CATEGORY_LABEL[c]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={priority} onValueChange={(v) => setPriority(v as TaskPriority)}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(TASK_PRIORITY_LABEL) as TaskPriority[]).map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {TASK_PRIORITY_LABEL[p]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Select value={propertyId || "none"} onValueChange={(v) => setPropertyId(v === "none" ? "" : v)}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Imóvel" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum imóvel</SelectItem>
+                  {linkProperties.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={ownerContactId || "none"} onValueChange={(v) => setOwnerContactId(v === "none" ? "" : v)}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Proprietário" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum proprietário</SelectItem>
+                  {linkOwners.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>
+                      {o.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {linkMissing && (
+              <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                Vincule a um imóvel e/ou a um proprietário (obrigatório).
+              </p>
+            )}
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs"
+            />
+            <label className="flex items-center gap-2 text-xs cursor-pointer">
+              <Checkbox checked={showInCleaning} onCheckedChange={(v) => setShowInCleaning(!!v)} />
+              Aparece no checklist do card de Limpeza
+            </label>
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  resetForm();
+                  setShowForm(false);
+                }}
+                className="text-xs px-2 py-1.5 rounded-md hover:bg-secondary"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={creating}
+                className="text-xs font-semibold px-3 py-1.5 rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white disabled:opacity-60"
+              >
+                {creating ? "Criando…" : "Criar pendência"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div
+            ref={scroll.ref}
+            style={scroll.maxHeight !== undefined ? { maxHeight: scroll.maxHeight } : undefined}
+            className="sg-elegant-scroll max-h-[70vh] overflow-y-auto px-5 pb-5 space-y-3"
+          >
+            {loading ? (
+              <div className="py-12 grid place-items-center text-muted-foreground">
+                <Loader2 className="size-5 animate-spin" />
+              </div>
+            ) : groups.length === 0 ? (
+              <div className="py-10 text-center text-sm text-muted-foreground">Nenhuma pendência por aqui.</div>
+            ) : (
+              groups.map((g) => (
+                <div key={g.key} data-whole-card>
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <span className="text-xs font-bold text-pink-500 dark:text-pink-400 truncate">{g.label}</span>
+                    <span className="text-[10px] text-muted-foreground shrink-0">
+                      {g.items.length} {g.items.length === 1 ? "pendência" : "pendências"}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {g.items.map((t) => {
+                      const isPontual = !!(t.logId || t.reservationId);
+                      const late = !!t.dueDate && t.dueDate < todayISO && t.status === "pending";
+                      return (
+                        <div key={t.id} className="flex items-start gap-2 rounded-lg bg-secondary/40 px-2.5 py-2">
+                          <span className={`mt-1 size-1.5 rounded-full shrink-0 ${TASK_PRIORITY_DOT[t.priority]}`} />
+                          <div className="min-w-0 flex-1">
+                            <div className={`text-xs font-semibold leading-snug ${t.status === "done" ? "line-through text-muted-foreground" : ""}`}>
+                              {t.title}
+                            </div>
+                            <div className="text-[10.5px] text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                              <span>{TASK_CATEGORY_LABEL[t.category]}</span>
+                              {groupBy !== "property" && t.propertyName && <span>· {t.propertyName}</span>}
+                              {t.dueDate && (
+                                <span className={late ? "text-rose-500 font-semibold" : ""}>
+                                  · {late ? "Atrasada" : fmtDateBR(t.dueDate)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {isPontual && (
+                              <button
+                                type="button"
+                                onClick={() => onSetStatus(t.id, t.status === "done" ? "pending" : "done")}
+                                title={t.status === "done" ? "Reabrir" : "Concluir"}
+                                className="size-6 grid place-items-center rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground"
+                              >
+                                {t.status === "done" ? <Undo2 className="size-3.5" /> : <Check className="size-3.5" />}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => onSetStatus(t.id, "canceled")}
+                              title="Arquivar"
+                              className="size-6 grid place-items-center rounded-md hover:bg-secondary text-muted-foreground hover:text-rose-500"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -4333,6 +4849,8 @@ function ArrivalGroup({
   expandedId: expandedIdProp,
   onExpandedChange,
   compact,
+  cleaningTasks,
+  onToggleCleaningTask,
 }: {
   title: string;
   rows: ArrivalRow[];
@@ -4358,6 +4876,10 @@ function ArrivalGroup({
   onExpandedChange?: (id: string | null) => void;
   /** Modo "Lista" (pedido explícito) — repassado pra cada ArrivalCard. */
   compact?: boolean;
+  /** Pendências pra exibir como checklist no card (só a coluna de Limpeza
+   * repassa isso — ver arrivalGroupPropsFor). */
+  cleaningTasks?: { tasks: TaskRow[]; completions: TaskCompletion[] };
+  onToggleCleaningTask?: (task: TaskRow, row: ArrivalRow) => void;
 }) {
   // Somente UM card pode ficar com o quadro de detalhes aberto por vez.
   const [localOpenId, setLocalOpenId] = useState<string | null>(null);
@@ -4394,6 +4916,8 @@ function ArrivalGroup({
           onToggleExpanded={(open) => setOpenId(open ? r.logId : null)}
           cleaningBlocked={mode === "checkin" ? (cleaningPendingPropIds?.get(r.propertyId) ?? null) : null}
           compact={compact}
+          cleaningTasks={cleaningTasks}
+          onToggleCleaningTask={onToggleCleaningTask}
         />
       ))}
     </div>
@@ -4419,6 +4943,8 @@ function ArrivalCard({
   onToggleExpanded,
   cleaningBlocked,
   compact,
+  cleaningTasks,
+  onToggleCleaningTask,
 }: {
   row: ArrivalRow;
   kind: "checkin" | "checkout";
@@ -4441,6 +4967,9 @@ function ArrivalCard({
       período, previsto e alertas de iCal. Reaproveita o mesmo card e os
       mesmos handlers; só a apresentação muda. */
   compact?: boolean;
+  /** Checklist de pendências (só no modo "cleaning" — ver mais abaixo). */
+  cleaningTasks?: { tasks: TaskRow[]; completions: TaskCompletion[] };
+  onToggleCleaningTask?: (task: TaskRow, row: ArrivalRow) => void;
 }) {
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState(row.note ?? "");
@@ -4468,6 +4997,31 @@ function ArrivalCard({
     },
     onError: () => toast.error("Não foi possível alterar o silenciamento."),
   });
+
+  // Checklist de pendências desta limpeza — só no modo "cleaning". Pontual
+  // (log/reserva na própria pendência): o "feito" é o status da pendência.
+  // Recorrente (sem log/reserva, permanente do imóvel): o "feito" é uma
+  // marca separada (task_completions) pra ESTA ocorrência — a pendência
+  // continua ativa e volta pendente na próxima limpeza.
+  const cleaningChecklist = useMemo(() => {
+    if (mode !== "cleaning" || !cleaningTasks) return [];
+    const completedHere = new Set(
+      cleaningTasks.completions
+        .filter(
+          (c) =>
+            (!!row.logId && c.logId === row.logId) || (!!row.reservationId && c.reservationId === row.reservationId),
+        )
+        .map((c) => c.taskId),
+    );
+    return cleaningTasks.tasks
+      .filter((t) => t.showInCleaning && t.status !== "canceled")
+      .filter((t) =>
+        t.logId || t.reservationId
+          ? (!!t.logId && t.logId === row.logId) || (!!t.reservationId && !!row.reservationId && t.reservationId === row.reservationId)
+          : t.propertyId === row.propertyId,
+      )
+      .map((t) => ({ task: t, done: t.logId || t.reservationId ? t.status === "done" : completedHere.has(t.id) }));
+  }, [mode, cleaningTasks, row.logId, row.reservationId, row.propertyId]);
 
   const guestTime = row.arrivalTimeOverride ?? row.guestArrivalTime;
   // Horário padrão exibido ao lado do período. No check-in, standardTime é o
@@ -4969,6 +5523,36 @@ function ArrivalCard({
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Checklist de pendências desta limpeza — só aparece quando existe
+          pelo menos 1 pendência marcada "aparece na limpeza" pra este
+          imóvel/estadia (pedido explícito). */}
+      {cleaningChecklist.length > 0 && (
+        <div className="rounded-lg border border-sky-400/25 bg-sky-400/[0.06] px-2.5 py-2 space-y-1.5">
+          <div className="flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-wider text-sky-500 dark:text-sky-400">
+            <span>Checklist desta limpeza</span>
+            <span className="tabular-nums opacity-80">
+              {cleaningChecklist.filter((c) => c.done).length}/{cleaningChecklist.length}
+            </span>
+          </div>
+          {cleaningChecklist.map(({ task, done: taskDone }) => (
+            <label
+              key={task.id}
+              className="flex items-start gap-2 cursor-pointer"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Checkbox
+                checked={taskDone}
+                onCheckedChange={() => onToggleCleaningTask?.(task, row)}
+                className="mt-0.5 shrink-0"
+              />
+              <span className={`text-xs leading-snug ${taskDone ? "text-muted-foreground line-through" : ""}`}>
+                {task.title}
+              </span>
+            </label>
+          ))}
         </div>
       )}
 

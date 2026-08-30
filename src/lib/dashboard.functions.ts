@@ -90,7 +90,7 @@ async function excludeCanceledOwnerProperties(
   });
 }
 
-async function accessiblePropertyIds(
+export async function accessiblePropertyIds(
   supabase: {
     from: (t: string) => unknown;
   },
