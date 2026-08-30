@@ -66,7 +66,7 @@ import type { DateRange } from "react-day-picker";
 import { toBlob } from "html-to-image";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Calendar as RangeCalendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -1568,7 +1568,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               Dashboard) viraram o MESMO botão único `CalendarFiltersButton`
               usado lá — mesmo estado (período/cidade/proprietário), só que
               aqui só afeta os cards desta aba. */}
-          <div className="flex justify-start">
+          <div className="flex justify-start items-center gap-1">
             <CalendarFiltersButton
               periodRange={periodRange}
               onPeriodRangeChange={setPeriodRange}
@@ -1581,19 +1581,17 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               hasCustomFilters={hasCustomFilters}
               onClearAll={clearAllFilters}
             />
-          </div>
-
-          {/* Botão central (pedido explícito): abre a previsão de limpeza dos
-              próximos 7 dias, baseada nos checkouts já agendados — separado
-              do histórico que já vinha logo abaixo. */}
-          <div className="flex justify-center mt-1.5">
+            {/* Abre a previsão de limpeza dos próximos 7 dias, baseada nos
+                checkouts já agendados. Pedido explícito: mesmo
+                formato/alinhamento do botão "Filtros" ao lado — sem
+                quadrante (fundo/borda), só ícone + texto soltos. */}
             <button
               type="button"
               onClick={() => setForecastOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/[0.08] px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary hover:bg-primary/[0.14] transition-colors"
+              className="relative h-8 shrink-0 inline-flex items-center gap-1.5 rounded-[0.3rem] border-0 bg-transparent px-1.5 text-xs font-medium leading-none text-foreground/70 hover:text-foreground transition-colors"
             >
-              <Sparkles className="size-3.5" />
-              Tendência 7D
+              <Sparkles className="size-3.5 opacity-60" />
+              TENDÊNCIA 7D
             </button>
           </div>
 
@@ -2891,38 +2889,41 @@ function CleaningForecastDialog({
   data: { daily: CleaningDailyPoint[]; breakdown: CleaningBreakdownItem[]; cleaningsExpected: number; estimatedTotalCents: number };
   loading: boolean;
 }) {
+  // Pedido explícito: nada de modal "tela cheia" nem cabeçalho com avatar
+  // colorido (estilo dos popups de KPI) — o título/subtítulo visíveis usam
+  // exatamente as mesmas classes (`ds-page-title`/`ds-page-subtitle`) da
+  // página "Limpeza" de verdade, e o modal fica no tratamento PADRÃO do
+  // <DialogContent> (o mesmo já usado alhures no app: cantos bem
+  // arredondados, margem generosa em toda volta, rola inteiro como bloco
+  // único em vez de uma área interna própria).
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-2xl p-0 overflow-hidden rounded-lg border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-        <DialogHeader className="px-5 pt-5 pb-3">
-          <div className="flex items-center gap-3">
-            <div className="grid place-items-center size-10 rounded-xl bg-primary/10 text-primary">
-              <Sparkles className="size-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <DialogTitle className="text-base font-display leading-tight truncate">Limpeza Prevista 7d</DialogTitle>
-              <div className="ds-meta mt-0.5">Previsão de limpezas e custo estimado para os próximos 7 dias, com base nos checkouts já agendados.</div>
-            </div>
-          </div>
-        </DialogHeader>
-        <div className="sg-elegant-scroll max-h-[75vh] overflow-y-auto px-5 pb-5">
-          <div className="grid grid-cols-2 gap-1.5">
-            <StatDisplayCard label="Limpezas Previstas" value={data.cleaningsExpected} icon={CheckCircle2} loading={loading} />
-            <StatDisplayCard label="Custo Estimado" value={centsToBRL(data.estimatedTotalCents)} icon={Banknote} loading={loading} />
-          </div>
-          <div className="text-[10.5px] text-muted-foreground mt-1.5">
-            Custo estimado com o preço da limpeza normal de cada imóvel — o tipo real (normal ou completa) só é definido na hora de concluir a
-            limpeza.
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-1.5 mt-2.5">
-            <CleaningDailyBarChart data={data.daily} loading={loading} />
-            <CleaningDailyAreaChart data={data.daily} loading={loading} />
-          </div>
-          <div className="mt-1.5 pb-1">
-            <CleaningTopProperties items={data.breakdown} loading={loading} />
-          </div>
+      <DialogContent className="sm:max-w-lg">
+        {/* Título/descrição "de verdade" pro leitor de tela — o cabeçalho
+            visível abaixo é só texto puro, sem papel semântico próprio. */}
+        <DialogTitle className="sr-only">Limpeza Prevista 7d</DialogTitle>
+        <DialogDescription className="sr-only">
+          Previsão de limpezas e custo estimado para os próximos 7 dias, com base nos checkouts já agendados.
+        </DialogDescription>
+        <div>
+          <h2 className="ds-page-title truncate">Limpeza Prevista 7d</h2>
+          <p className="ds-page-subtitle mt-1.5">
+            Previsão de limpezas e custo estimado para os próximos 7 dias, com base nos checkouts já agendados.
+          </p>
         </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          <StatDisplayCard label="Limpezas Previstas" value={data.cleaningsExpected} icon={CheckCircle2} loading={loading} />
+          <StatDisplayCard label="Custo Estimado" value={centsToBRL(data.estimatedTotalCents)} icon={Banknote} loading={loading} />
+        </div>
+        <p className="text-[10.5px] text-muted-foreground -mt-2">
+          Custo estimado com o preço da limpeza normal de cada imóvel — o tipo real (normal ou completa) só é definido na hora de concluir a
+          limpeza.
+        </p>
+        <div className="grid grid-cols-1 gap-1.5">
+          <CleaningDailyBarChart data={data.daily} loading={loading} />
+          <CleaningDailyAreaChart data={data.daily} loading={loading} />
+        </div>
+        <CleaningTopProperties items={data.breakdown} loading={loading} />
       </DialogContent>
     </Dialog>
   );
@@ -4751,8 +4752,10 @@ function ArrivalCard({
           -mx-3 (cancela o p-3 do card) + px-3 (readiciona por dentro): a
           faixa de fundo agora corta o card de fora a fora (pedido
           explícito) e o texto continua alinhado com o nome do imóvel.
-          Some inteira no modo "Lista" (pedido explícito). */}
-      {!compact && mode !== "cleaning" && (
+          No modo "Lista" só aparece quando já tem algo preenchido (data
+          e/ou horário previstos) — pedido explícito; sem isso continua
+          escondida, igual antes. */}
+      {mode !== "cleaning" && (!compact || !!(row.arrivalDateOverride || guestTime)) && (
         <div
           className={`-mt-2.5 -mx-3 flex items-center justify-between gap-2 rounded-none px-3 py-1.5 text-xs ${divergent ? "bg-amber-500/10 border-y border-amber-500/30" : "bg-background/50 border-y border-border/40"}`}
         >
