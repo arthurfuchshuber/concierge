@@ -63,6 +63,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
   const [view, setView] = useState<"list" | "kanban">("list");
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
+  const [cityFilter, setCityFilter] = useState<string>("all");
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<StakeholderFormValues>(emptyStakeholderForm);
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -106,12 +107,19 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
     const term = q.trim().toLowerCase();
     return rows.filter((r) => {
       if (status !== "all" && effectiveStatus(r.status, r.status_changed_at) !== status) return false;
+      if (cityFilter !== "all" && r.city !== cityFilter) return false;
       if (!term) return true;
       return [r.name, r.trade_name, r.email, r.phone, r.city, r.doc]
         .filter(Boolean)
         .some((v: string) => String(v).toLowerCase().includes(term));
     });
-  }, [rows, q, status]);
+  }, [rows, q, status, cityFilter]);
+
+  const cityOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of rows) if (r.city) set.add(String(r.city));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [rows]);
 
   const pendingByStakeholder = useMemo(() => {
     const map = new Map<string, number>();
@@ -227,7 +235,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
               >
                 <Filter className="size-3.5 opacity-60" />
                 <span className="hidden sm:inline">Filtros</span>
-                {status !== "all" && (
+                {(status !== "all" || cityFilter !== "all") && (
                   <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-accent" />
                 )}
               </button>
@@ -235,7 +243,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
             <PopoverContent align="end" className="w-64 p-4 space-y-4">
               <div>
                 <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
-                  Situação
+                  Status contratual
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {STATUS_OPTIONS.map((opt) => (
@@ -250,10 +258,32 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
                   ))}
                 </div>
               </div>
-              {status !== "all" && (
+
+              <div>
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+                  Cidade
+                </div>
+                <select
+                  value={cityFilter}
+                  onChange={(e) => setCityFilter(e.target.value)}
+                  className="h-9 w-full rounded-none border-0 bg-secondary/50 px-3 text-xs text-foreground/80 focus:outline-none focus:bg-secondary transition-colors"
+                >
+                  <option value="all">Todas</option>
+                  {cityOptions.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {(status !== "all" || cityFilter !== "all") && (
                 <button
                   type="button"
-                  onClick={() => setStatus("all")}
+                  onClick={() => {
+                    setStatus("all");
+                    setCityFilter("all");
+                  }}
                   className="w-full text-xs text-muted-foreground hover:text-foreground py-1.5 rounded-none bg-secondary/50"
                 >
                   Limpar filtros
@@ -285,7 +315,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
           </button>
         </div>
 
-        {rows.length > 0 && (q.trim() || status !== "all") && (
+        {rows.length > 0 && (q.trim() || status !== "all" || cityFilter !== "all") && (
           <p className="ds-meta">
             Mostrando {filtered.length} de {rows.length} cadastro{rows.length > 1 ? "s" : ""}
           </p>
@@ -441,7 +471,7 @@ function StakeholderCard({
       {/* Linha mais compacta possível: nome (+ ícone do WhatsApp colado a ele)
           no canto esquerdo, situação no canto direito — como sempre foi.
           Cidade/UF empilha logo abaixo do nome. */}
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-1 min-w-0">
           <p className="ds-card-title truncate leading-tight min-w-0">{row.trade_name || row.name}</p>
           {row.phone && (
@@ -481,17 +511,19 @@ function StakeholderCard({
       <div className="mt-3 flex items-center gap-1.5">
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); onEdit(); }}
-          className="h-9 flex-1 inline-flex items-center justify-center gap-1.5 rounded-none border-0 bg-secondary/50 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
-        >
-          <Pencil className="size-3.5" /> Editar
-        </button>
-        <button
-          type="button"
           onClick={(e) => { e.stopPropagation(); onOpen(); }}
           className="h-9 flex-1 inline-flex items-center justify-center gap-1.5 rounded-none border-0 bg-secondary/50 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
         >
           Ver detalhes
+        </button>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onEdit(); }}
+          aria-label="Editar"
+          title="Editar"
+          className="size-9 shrink-0 inline-flex items-center justify-center rounded-none border-0 bg-secondary/50 text-foreground/80 hover:bg-secondary transition-colors"
+        >
+          <Pencil className="size-3.5" />
         </button>
         <button
           type="button"

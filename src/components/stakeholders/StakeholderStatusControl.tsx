@@ -17,6 +17,7 @@ import { setStakeholderStatus } from "@/lib/stakeholders.functions";
 import {
   effectiveStatus,
   isFutureDate,
+  statusChip,
   statusDateLabel,
   statusDot,
   statusLabel,
@@ -137,7 +138,7 @@ export function StakeholderStatusControl({
             <button
               type="button"
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1.5 text-[11px] font-medium text-foreground/80 hover:text-foreground transition-colors"
+              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-opacity hover:opacity-80 ${statusChip(eff)}`}
             >
               <span className={`size-1.5 shrink-0 rounded-full ${statusDot(eff)}`} />
               {statusLabel(eff)}
