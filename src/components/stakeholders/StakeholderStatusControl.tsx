@@ -141,7 +141,6 @@ export function StakeholderStatusControl({
             >
               <span className={`size-1.5 shrink-0 rounded-full ${statusDot(eff)}`} />
               {statusLabel(eff)}
-              <ChevronDown className="size-2.5 opacity-60" />
             </button>
           )}
         </DropdownMenuTrigger>

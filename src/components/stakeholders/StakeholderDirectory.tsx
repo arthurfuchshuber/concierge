@@ -438,34 +438,39 @@ function StakeholderCard({
       onClick={onOpen}
       className="group cursor-pointer ds-surface border border-border bg-card p-4 hover:border-foreground/30 hover:shadow-elevated transition-all"
     >
-      {/* Linha mais compacta possível: nome + ícone do WhatsApp ficam sempre
-          aqui em cima; situação e cidade/UF empilham logo abaixo do nome. */}
+      {/* Linha mais compacta possível: nome (+ ícone do WhatsApp colado a ele)
+          no canto esquerdo, situação no canto direito — como sempre foi.
+          Cidade/UF empilha logo abaixo do nome. */}
       <div className="flex items-start justify-between gap-3">
-        <p className="ds-card-title truncate leading-tight min-w-0">{row.trade_name || row.name}</p>
-        {row.phone && (
-          <a
-            href={`https://wa.me/55${String(row.phone).replace(/\D/g, "")}`}
-            target="_blank"
-            rel="noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            aria-label="Conversar no WhatsApp"
-            title="Conversar no WhatsApp"
-            className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 transition-colors"
-          >
-            <MessageCircle className="size-3.5" />
-          </a>
-        )}
+        <div className="flex items-center gap-1 min-w-0">
+          <p className="ds-card-title truncate leading-tight min-w-0">{row.trade_name || row.name}</p>
+          {row.phone && (
+            <a
+              href={`https://wa.me/55${String(row.phone).replace(/\D/g, "")}`}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              aria-label="Conversar no WhatsApp"
+              title="Conversar no WhatsApp"
+              className="inline-flex size-5 shrink-0 items-center justify-center text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 transition-colors"
+            >
+              <MessageCircle className="size-3.5" />
+            </a>
+          )}
+        </div>
+        <div className="shrink-0">
+          <StakeholderStatusControl
+            kind={kind}
+            id={row.id}
+            accountOwnerId={accountOwnerId}
+            status={row.status}
+            statusChangedAt={row.status_changed_at}
+            variant="compact"
+          />
+        </div>
       </div>
 
-      <div className="mt-1.5 flex flex-col gap-1">
-        <StakeholderStatusControl
-          kind={kind}
-          id={row.id}
-          accountOwnerId={accountOwnerId}
-          status={row.status}
-          statusChangedAt={row.status_changed_at}
-          variant="compact"
-        />
+      <div className="mt-1.5">
         {cityUf && (
           <p className="ds-meta flex items-center gap-1.5">
             <MapPin className="size-3 shrink-0 text-muted-foreground" /> {cityUf}
