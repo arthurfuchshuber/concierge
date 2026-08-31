@@ -465,7 +465,7 @@ function StakeholderCard({
   return (
     <div
       onClick={onOpen}
-      className="group cursor-pointer ds-surface border border-border bg-card p-4 hover:border-foreground/30 hover:shadow-elevated transition-all"
+      className="group cursor-pointer ds-surface border border-border bg-card p-4 min-w-0 hover:border-foreground/30 hover:shadow-elevated transition-all"
     >
       {/* Linha mais compacta possível: nome (+ ícone do WhatsApp colado a ele)
           no canto esquerdo, situação no canto direito — como sempre foi.
@@ -477,12 +477,17 @@ function StakeholderCard({
           (status) fica com largura natural (auto), como sempre foi. */}
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
         <div className="flex items-center gap-1 min-w-0">
-          <p
+          {/* span, não <p>: existe uma regra global (styles.css) que aplica
+              text-wrap:pretty a todo <p>, e essa regra vence o white-space:nowrap
+              do ds-card-title mesmo com maior especificidade — é um CSS layer
+              (Tailwind) sendo sobreposto por uma regra sem layer. Span não é
+              afetado por aquela regra, então o truncate funciona de verdade. */}
+          <span
             className="ds-card-title truncate leading-tight min-w-0"
             title={row.trade_name || row.name}
           >
             {row.trade_name || row.name}
-          </p>
+          </span>
           {row.phone && (
             <a
               href={`https://wa.me/55${String(row.phone).replace(/\D/g, "")}`}
