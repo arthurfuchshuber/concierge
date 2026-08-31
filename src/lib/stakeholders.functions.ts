@@ -619,9 +619,20 @@ export const setStakeholderStatus = createServerFn({ method: "POST" })
       stored = "active";
     }
 
+    // Cancelamento (agendado ou imediato) define a "data final" da vigência:
+    // a partir do momento em que a pessoa escolhe quando o cancelamento
+    // acontece, o card já deve mostrar "Vigência: início → aquela data" em
+    // vez de "→ momento" — não só depois que o cancelamento vira definitivo.
+    const patch: Record<string, unknown> = { status: stored, status_changed_at: when.toISOString() };
+    if (data.status === "canceled") {
+      patch.contract_end = /^\d{4}-\d{2}-\d{2}$/.test(data.changed_at)
+        ? data.changed_at
+        : when.toISOString().slice(0, 10);
+    }
+
     const { error } = await supabase
       .from(TABLE[data.kind])
-      .update({ status: stored, status_changed_at: when.toISOString() } as never)
+      .update(patch as never)
       .eq("id", data.id)
       .eq("account_owner_id", accountId);
     if (error) throw new Error(error.message);
@@ -722,9 +733,17 @@ export const resolveScheduledCancellation = createServerFn({ method: "POST" })
     const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId);
     const nowIso = new Date().toISOString();
 
+    // "Cancelou definitivamente": contract_end já foi gravado quando o
+    // cancelamento foi agendado (setStakeholderStatus) — não mexe aqui.
+    // "Revertido para Ativo": o cancelamento não vai mais acontecer, então a
+    // vigência volta a não ter fim definido ("→ momento") até que alguém
+    // grave uma nova data manualmente.
+    const patch: Record<string, unknown> = { status: data.outcome, status_changed_at: nowIso };
+    if (data.outcome === "active") patch.contract_end = null;
+
     const { error } = await supabase
       .from(TABLE[data.kind])
-      .update({ status: data.outcome, status_changed_at: nowIso } as never)
+      .update(patch as never)
       .eq("id", data.id)
       .eq("account_owner_id", accountId)
       .eq("status", "canceling");

@@ -1563,12 +1563,29 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
 
 // ----- Concluídos: cards que já percorreram toda a esteira -----
 
+// Igual ao ScopeInput, só que com um campo de busca a mais: por padrão a
+// lista de Concluídos só traz os 200 mais recentes (evita carregar a conta
+// inteira sempre que a tela abre) — só que, numa operação com muitas
+// limpezas por dia, um card concluído há mais tempo simplesmente some da
+// lista sem nenhum aviso, mesmo estando lá no banco. Quando `q` vem
+// preenchido, soltamos esse limite (até um teto bem mais folgado) e
+// filtramos por hóspede/imóvel/proprietário/código da reserva, pra sempre
+// ser possível achar um card específico e usar o "Desfazer".
+const ConcludedInput = z
+  .object({
+    ownerId: z.string().uuid().nullable().optional(),
+    q: z.string().trim().max(120).optional(),
+  })
+  .optional();
+
 export const listConcludedArrivals = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => ScopeInput.parse(i))
+  .inputValidator((i: unknown) => ConcludedInput.parse(i))
   .handler(async ({ data, context }): Promise<{ rows: ArrivalRow[] }> => {
     const propIds = await accessiblePropertyIds(context.supabase as never, data?.ownerId ?? null, context.userId);
     if (propIds.length === 0) return { rows: [] };
+
+    const searching = !!data?.q && data.q.trim().length > 0;
 
     const { data: statuses } = await context.supabase
       .from("guest_arrival_status")
@@ -1577,7 +1594,7 @@ export const listConcludedArrivals = createServerFn({ method: "GET" })
       .eq("kind", "checkout")
       .not("concluded_at", "is", null)
       .order("concluded_at", { ascending: false })
-      .limit(200);
+      .limit(searching ? 3000 : 200);
 
     const rowsIn = (statuses ?? []) as Array<{
       log_id: string | null;
@@ -1696,5 +1713,18 @@ export const listConcludedArrivals = createServerFn({ method: "GET" })
         concludedAt: s.concluded_at,
       });
     }
-    return { rows: out };
+
+    if (!searching) return { rows: out };
+
+    // Busca (sem acento, sem caixa) por hóspede, imóvel, proprietário ou
+    // código da reserva — só entra em ação quando `q` vem preenchido, então
+    // não muda em nada o comportamento padrão da tela.
+    const { normalize } = await import("@/lib/clicksign.server");
+    const term = normalize(data!.q);
+    const filtered = out.filter((r) =>
+      [r.guestName, r.propertyName, r.ownerName, r.reservationCode].some(
+        (v) => v && normalize(v).includes(term),
+      ),
+    );
+    return { rows: filtered };
   });

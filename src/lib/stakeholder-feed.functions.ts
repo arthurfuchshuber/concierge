@@ -20,7 +20,15 @@ export type StakeholderFeedDocument = {
   source: "clicksign";
   name: string;
   status: string | null;
+  // Mantido por compatibilidade — mesma prioridade de antes (finished_at,
+  // senão synced_at), só que agora o card não usa mais só isso: ver
+  // `finishedAt`/`syncedAt` abaixo, que separam "assinatura concluída" de
+  // "só importado" — o `at` sozinho fazia o documento PARECER assinado
+  // mesmo quando só tinha sido importado (synced_at mascarado de data de
+  // assinatura), o que escondia exatamente por que a Vigência não puxava.
   at: string | null;
+  finishedAt: string | null;
+  syncedAt: string | null;
   urlSigned: string | null;
   urlOriginal: string | null;
   signers: Array<{ name?: string; email?: string; status?: string }>;
@@ -89,6 +97,8 @@ export const getStakeholderIntegrationFeed = createServerFn({ method: "POST" })
       name: (d.name as string) ?? "Documento",
       status: (d.status as string) ?? null,
       at: ((d.finished_at as string) ?? (d.synced_at as string)) ?? null,
+      finishedAt: (d.finished_at as string) ?? null,
+      syncedAt: (d.synced_at as string) ?? null,
       urlSigned: (d.url_signed as string) ?? null,
       urlOriginal: (d.url_original as string) ?? null,
       signers: Array.isArray(d.signers) ? (d.signers as StakeholderFeedDocument["signers"]) : [],

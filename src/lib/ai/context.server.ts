@@ -199,8 +199,40 @@ export async function buildAgentContext(params: {
           : stayPhase === "post_checkout"
             ? "A estadia já terminou: não sugira programas locais como se ele estivesse hospedado."
             : "O hóspede está na estadia: sugestões para hoje/agora são apropriadas.";
+
+      // No dia do check-in, mas ainda antes do horário oficial de liberação,
+      // um relato de "dificuldade para entrar" NÃO é incidente operacional —
+      // é simplesmente cedo demais. Calculado aqui, não deixado para o modelo
+      // estimar por conta própria (mesmo racional já usado abaixo para a
+      // liberação do PIN do guia): garante que a resposta nunca dependa da
+      // aritmética de horário sair certa na cabeça da IA.
+      let checkinTimingNote = "";
+      if (!checkinDone && stayPhase === "checkin_day") {
+        const now = new Date();
+        const releaseAt = localMoment(ci, tz, p.checkin_time, 15);
+        const minutesToRelease = Math.round((releaseAt.getTime() - now.getTime()) / 60000);
+        const [rh, rm] = parseHm(p.checkin_time, 15);
+        const releaseLabel = `${String(rh).padStart(2, "0")}:${String(rm).padStart(2, "0")}`;
+        if (minutesToRelease > 30) {
+          const h = Math.floor(minutesToRelease / 60);
+          const m = minutesToRelease % 60;
+          const faltam = h > 0 ? `${h}h${m > 0 ? ` ${m}min` : ""}` : `${m} min`;
+          checkinTimingNote =
+            `\nCheck-in ainda NÃO liberado hoje: horário oficial é ${releaseLabel}, faltam ${faltam}. Isso NÃO é ` +
+            "incidente operacional — se o hóspede disser que está com dificuldade, não conseguiu entrar ou já chegou, " +
+            "NÃO acione request_human_handoff e NÃO diga que avisou a equipe só por causa do horário. Em uma frase, " +
+            `diga que o check-in começa às ${releaseLabel} e pergunte se ele combinou antecipação com a equipe com antecedência.`;
+        } else if (minutesToRelease > 0) {
+          checkinTimingNote =
+            `\nCheck-in libera em ${minutesToRelease} min (às ${releaseLabel}). Se o hóspede relatar dificuldade agora, ainda ` +
+            "não é incidente — oriente aguardar esses minutos finais antes de qualquer escalonamento.";
+        } else {
+          checkinTimingNote = `\nCheck-in já liberado desde ${releaseLabel}. A partir de agora, dificuldade real para entrar é incidente operacional normal (ver seção de escalonamento).`;
+        }
+      }
+
       lines.push(
-        `\n## Dados de estadia informados no acesso ao guia\nHóspede: ${log.guest_name}\nHoje: ${fmt(today)}\nCheck-in: ${fmt(ci)}${co ? `\nCheck-out: ${fmt(co)}` : ""}\nCheck-in concluído: ${checkinDone ? "sim" : "não"}\nCheck-out concluído: ${checkoutDone ? "sim" : "não"}\nFase da estadia: ${stayPhase}\n${phaseNote}`,
+        `\n## Dados de estadia informados no acesso ao guia\nHóspede: ${log.guest_name}\nHoje: ${fmt(today)}\nCheck-in: ${fmt(ci)}${co ? `\nCheck-out: ${fmt(co)}` : ""}\nCheck-in concluído: ${checkinDone ? "sim" : "não"}\nCheck-out concluído: ${checkoutDone ? "sim" : "não"}\nFase da estadia: ${stayPhase}\n${phaseNote}${checkinTimingNote}`,
       );
     }
 

@@ -878,9 +878,19 @@ export function StakeholderDetailSheet({
                   <li key={d.id} className="flex items-start justify-between gap-3 px-4 py-3">
                     <div className="min-w-0">
                       <p className="ds-card-title truncate">{d.name}</p>
+                      {/* Antes mostrava só uma data (finished_at OU synced_at,
+                          sem rótulo) — parecia "assinado em tal data" mesmo
+                          quando era só a data de IMPORTAÇÃO, com a assinatura
+                          ainda pendente. É exatamente essa confusão que fazia
+                          a Vigência parecer "travada" sem explicação: aqui
+                          embaixo fica claro qual dos dois é. */}
                       <p className="ds-meta">
                         {d.status ?? "—"}
-                        {d.at ? ` · ${fmt(d.at)}` : ""}
+                        {d.finishedAt
+                          ? ` · Assinatura concluída em ${fmt(d.finishedAt)}`
+                          : d.syncedAt
+                            ? ` · Importado em ${fmt(d.syncedAt)} (assinatura ainda não concluída)`
+                            : ""}
                         {d.signers.length > 0 ? ` · ${d.signers.length} signatários` : ""}
                       </p>
                     </div>

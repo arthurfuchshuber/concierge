@@ -19,6 +19,8 @@ import {
   Tooltip as RechartsTooltip,
 } from "recharts";
 import {
+  Search,
+  X,
   CalendarCheck,
   CalendarX,
   LogIn,
@@ -749,9 +751,21 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     placeholderData: keepPreviousData,
     enabled: view === "kanban",
   });
+  // Busca de "Concluídos": por padrão o servidor só devolve os 200 cards
+  // concluídos mais recentes (evita varrer a conta inteira sempre que a tela
+  // abre). Isso faz um card concluído há mais tempo (ex.: um check dado por
+  // engano, há dias) sumir da coluna sem aviso nenhum, mesmo continuando no
+  // banco — daí essa busca: com um termo digitado, o servidor solta o limite
+  // e procura por hóspede/imóvel/proprietário/código em tudo.
+  const [concludedSearch, setConcludedSearch] = useState("");
+  const [concludedSearchDebounced, setConcludedSearchDebounced] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setConcludedSearchDebounced(concludedSearch.trim()), 300);
+    return () => clearTimeout(t);
+  }, [concludedSearch]);
   const concludedQ = useQuery({
-    queryKey: ["dash-list", "concluded", activeOwnerId ?? "self"],
-    queryFn: () => concludedFn({ data: { ownerId: activeOwnerId } }),
+    queryKey: ["dash-list", "concluded", activeOwnerId ?? "self", concludedSearchDebounced],
+    queryFn: () => concludedFn({ data: { ownerId: activeOwnerId, q: concludedSearchDebounced || undefined } }),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
   });
@@ -2221,10 +2235,37 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   count={kanbanCounts.done}
                   tone="zinc"
                 >
+                  {/* Fora do limite padrão de 200 mais recentes: um card
+                      concluído há mais tempo (ex.: um check dado por engano)
+                      pode não estar nos 200 últimos e simplesmente não
+                      aparecer — a busca soltra esse limite no servidor. */}
+                  <div className="relative sticky top-0 z-10 -mt-0.5 mb-1">
+                    <Search className="size-3.5 opacity-60 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      value={concludedSearch}
+                      onChange={(e) => setConcludedSearch(e.target.value)}
+                      placeholder="Buscar em concluídos…"
+                      className="h-8 w-full box-border rounded-none border-0 bg-secondary/60 pl-8 pr-7 text-xs font-normal leading-none text-foreground/80 placeholder:text-muted-foreground focus:outline-none focus:bg-secondary transition-colors"
+                    />
+                    {concludedSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setConcludedSearch("")}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 size-5 grid place-items-center rounded-none text-muted-foreground hover:text-foreground"
+                        aria-label="Limpar busca"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    )}
+                  </div>
                   {concludedQ.isLoading ? (
                     <ColumnLoading />
                   ) : kanbanConcludedRows.length === 0 ? (
-                    <ColumnEmpty />
+                    concludedSearch ? (
+                      <p className="ds-meta px-1 py-6 text-center">Nenhum resultado para "{concludedSearch}".</p>
+                    ) : (
+                      <ColumnEmpty />
+                    )
                   ) : (
                     <ArrivalGroup title="" {...arrivalGroupPropsFor("done", kanbanConcludedRows)} />
                   )}
