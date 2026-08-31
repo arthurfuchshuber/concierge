@@ -42,7 +42,7 @@ import {
   type StakeholderFormValues,
 } from "./StakeholderFormDialog";
 import { PROVIDER_CATEGORIES, type StakeholderKind } from "./constants";
-import { effectiveStatus } from "@/lib/stakeholder-status";
+import { effectiveStatus, statusText } from "@/lib/stakeholder-status";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { LoadingListState } from "@/components/ds/LoadingState";
 import { useImpersonation } from "@/hooks/useImpersonation";
