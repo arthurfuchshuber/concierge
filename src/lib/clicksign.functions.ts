@@ -657,6 +657,12 @@ export const refreshClicksignStakeholderData = createServerFn({ method: "POST" }
 
     let contractStartFilled = 0;
     let contractStartOverwritten = 0;
+    // Diagnóstico: quantos dos cadastros vinculados têm ALGUM documento com
+    // assinatura concluída (finished_at). Se isso ficar em 0, o problema não
+    // é vínculo (já sabemos que há vínculo — "scanned" > 0) e sim que os
+    // documentos vinculados ainda não têm assinatura marcada como concluída
+    // no ClickSign (ou o campo não está vindo preenchido da API).
+    let withAnySignedDoc = 0;
     const contractStartConflicts: Array<{
       kind: "owner" | "provider";
       id: string;
@@ -678,6 +684,7 @@ export const refreshClicksignStakeholderData = createServerFn({ method: "POST" }
 
       try {
         const cs = await fillContractStartFromClicksign(supabase, userId, t.kind, t.id, data.overwriteContractStart);
+        if (cs.signedDocs > 0) withAnySignedDoc += 1;
         if (cs.status === "filled") contractStartFilled += 1;
         else if (cs.status === "overwritten") contractStartOverwritten += 1;
         else if (cs.status === "conflict") {
@@ -696,5 +703,6 @@ export const refreshClicksignStakeholderData = createServerFn({ method: "POST" }
       contractStartFilled,
       contractStartOverwritten,
       contractStartConflicts,
+      withAnySignedDoc,
     };
   });

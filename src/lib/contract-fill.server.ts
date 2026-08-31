@@ -141,19 +141,23 @@ async function earliestSignedAt(
   userId: string,
   kind: "owner" | "provider",
   id: string,
-): Promise<string | null> {
+): Promise<{ suggested: string | null; linkedDocs: number; signedDocs: number }> {
+  // Traz TODOS os documentos vinculados (não só os já assinados) para dar um
+  // diagnóstico útil: se nada for preenchido, dá pra saber se é porque não
+  // há documento nenhum vinculado, ou porque há documento(s) mas nenhum com
+  // assinatura concluída ainda (finished_at vazio = ainda em andamento).
   const { data } = await supabase
     .from("clicksign_documents")
     .select("finished_at")
     .eq("account_owner_id", userId)
     .eq("stakeholder_type", kind)
-    .eq("stakeholder_id", id)
-    .not("finished_at", "is", null)
-    .order("finished_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-  const at = (data?.finished_at as string | undefined) ?? null;
-  return at ? at.slice(0, 10) : null;
+    .eq("stakeholder_id", id);
+  const rows = data ?? [];
+  const signed = rows
+    .map((r) => r.finished_at as string | null)
+    .filter((v): v is string => Boolean(v))
+    .sort();
+  return { suggested: signed[0] ? signed[0].slice(0, 10) : null, linkedDocs: rows.length, signedDocs: signed.length };
 }
 
 /**
@@ -173,10 +177,12 @@ export async function fillContractStartFromClicksign(
   name: string | null;
   current: string | null;
   suggested: string | null;
+  linkedDocs: number;
+  signedDocs: number;
 }> {
   const table = kind === "provider" ? "service_providers" : "property_owners";
-  const suggested = await earliestSignedAt(supabase, userId, kind, id);
-  if (!suggested) return { status: "unchanged", name: null, current: null, suggested: null };
+  const { suggested, linkedDocs, signedDocs } = await earliestSignedAt(supabase, userId, kind, id);
+  if (!suggested) return { status: "unchanged", name: null, current: null, suggested: null, linkedDocs, signedDocs };
 
   const { data: row } = await supabase
     .from(table)
@@ -184,18 +190,18 @@ export async function fillContractStartFromClicksign(
     .eq("id", id)
     .eq("account_owner_id", userId)
     .maybeSingle();
-  if (!row) return { status: "unchanged", name: null, current: null, suggested };
+  if (!row) return { status: "unchanged", name: null, current: null, suggested, linkedDocs, signedDocs };
 
   const name = ((row as Record<string, unknown>)["trade_name"] as string) || ((row as Record<string, unknown>)["name"] as string) || null;
   const current = ((row as Record<string, unknown>)["contract_start"] as string | null) ?? null;
 
   if (!current) {
     await supabase.from(table).update({ contract_start: suggested }).eq("id", id).eq("account_owner_id", userId);
-    return { status: "filled", name, current: null, suggested };
+    return { status: "filled", name, current: null, suggested, linkedDocs, signedDocs };
   }
-  if (current === suggested) return { status: "unchanged", name, current, suggested };
-  if (!overwrite) return { status: "conflict", name, current, suggested };
+  if (current === suggested) return { status: "unchanged", name, current, suggested, linkedDocs, signedDocs };
+  if (!overwrite) return { status: "conflict", name, current, suggested, linkedDocs, signedDocs };
 
   await supabase.from(table).update({ contract_start: suggested }).eq("id", id).eq("account_owner_id", userId);
-  return { status: "overwritten", name, current, suggested };
+  return { status: "overwritten", name, current, suggested, linkedDocs, signedDocs };
 }

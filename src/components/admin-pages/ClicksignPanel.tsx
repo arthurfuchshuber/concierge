@@ -102,6 +102,12 @@ export function ClicksignPanel({ accountOwnerId = null, readOnly = false }: { ac
         toast.info(
           "Nenhum cadastro está vinculado a um contrato do ClickSign ainda. Rode \"Importar contratos\" primeiro.",
         );
+      } else if (r.withAnySignedDoc === 0) {
+        // Diagnóstico: há vínculo, mas nenhum documento vinculado tem
+        // assinatura marcada como concluída no ClickSign (finished_at vazio).
+        toast.info(
+          `${r.scanned} cadastro(s) vinculados, mas nenhum documento deles está com assinatura concluída no ClickSign ainda (ou o campo de conclusão não veio preenchido da API).`,
+        );
       } else {
         toast.info(`${r.scanned} cadastro(s) vinculados verificados — nenhum tinha dado novo para preencher.`);
       }
