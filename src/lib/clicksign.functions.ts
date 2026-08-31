@@ -551,9 +551,17 @@ export const extractClicksignPartyData = createServerFn({ method: "POST" })
  * "Atualizar Dados": varre todos os cadastros vinculados a contratos ClickSign
  * e preenche APENAS os campos que estiverem vazios.
  */
+const REFRESH_STAKEHOLDER_DATA_INPUT = z.object({
+  // Quando true, aplica a data do ClickSign mesmo em cadastros cuja "Início
+  // do contrato" já foi definida manualmente com um valor diferente. Só deve
+  // vir true depois que a própria pessoa confirmar isso na tela.
+  overwriteContractStart: z.boolean().default(false),
+});
+
 export const refreshClicksignStakeholderData = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((raw) => REFRESH_STAKEHOLDER_DATA_INPUT.parse(raw ?? {}))
+  .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
 
     const { data: docs } = await supabase
@@ -574,10 +582,20 @@ export const refreshClicksignStakeholderData = createServerFn({ method: "POST" }
       targets.push({ kind, id });
     }
 
-    const { fillFromContract } = await import("@/lib/contract-fill.server");
+    const { fillFromContract, fillContractStartFromClicksign } = await import("@/lib/contract-fill.server");
     let updated = 0;
     let failed = 0;
     const fields = new Set<string>();
+
+    let contractStartFilled = 0;
+    let contractStartOverwritten = 0;
+    const contractStartConflicts: Array<{
+      kind: "owner" | "provider";
+      id: string;
+      name: string | null;
+      current: string | null;
+      suggested: string | null;
+    }> = [];
 
     for (const t of targets.slice(0, 40)) {
       try {
@@ -589,7 +607,26 @@ export const refreshClicksignStakeholderData = createServerFn({ method: "POST" }
       } catch {
         failed += 1;
       }
+
+      try {
+        const cs = await fillContractStartFromClicksign(supabase, userId, t.kind, t.id, data.overwriteContractStart);
+        if (cs.status === "filled") contractStartFilled += 1;
+        else if (cs.status === "overwritten") contractStartOverwritten += 1;
+        else if (cs.status === "conflict") {
+          contractStartConflicts.push({ kind: t.kind, id: t.id, name: cs.name, current: cs.current, suggested: cs.suggested });
+        }
+      } catch {
+        /* não bloqueia o restante da sincronização */
+      }
     }
 
-    return { scanned: targets.length, updated, failed, fields: Array.from(fields) };
+    return {
+      scanned: targets.length,
+      updated,
+      failed,
+      fields: Array.from(fields),
+      contractStartFilled,
+      contractStartOverwritten,
+      contractStartConflicts,
+    };
   });

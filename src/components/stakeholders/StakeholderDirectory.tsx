@@ -472,7 +472,12 @@ function StakeholderCard({
           Cidade/UF empilha logo abaixo do nome. */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-1 min-w-0">
-          <p className="ds-card-title truncate leading-tight min-w-0">{row.trade_name || row.name}</p>
+          <p
+            className="ds-card-title truncate leading-tight min-w-0"
+            title={row.trade_name || row.name}
+          >
+            {row.trade_name || row.name}
+          </p>
           {row.phone && (
             <a
               href={`https://wa.me/55${String(row.phone).replace(/\D/g, "")}`}
@@ -505,8 +510,11 @@ function StakeholderCard({
             <MapPin className="size-3 shrink-0 text-muted-foreground" /> {cityUf}
           </p>
         )}
-        {row.contract_start && <p className="ds-meta">Início {fmtDateBR(row.contract_start)}</p>}
-        {row.contract_end && <p className="ds-meta">Fim {fmtDateBR(row.contract_end)}</p>}
+        {row.contract_start && (
+          <p className="ds-meta">
+            Vigência: {fmtDateBR(row.contract_start)} → {row.contract_end ? fmtDateBR(row.contract_end) : "momento"}
+          </p>
+        )}
       </div>
 
       <div className="mt-3 flex items-center gap-1.5">

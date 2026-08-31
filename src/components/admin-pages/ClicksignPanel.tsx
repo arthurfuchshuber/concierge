@@ -43,6 +43,10 @@ import {
 } from "@/lib/clicksign.functions";
 import { ClicksignImportDialog } from "@/components/admin-pages/ClicksignImportDialog";
 import { ClicksignDisconnectDialog } from "@/components/admin-pages/ClicksignDisconnectDialog";
+import {
+  ClicksignContractStartConflictDialog,
+  type ClicksignContractStartConflict,
+} from "@/components/admin-pages/ClicksignContractStartConflictDialog";
 
 const VINCULO: Record<string, string> = {
   owner: "Proprietário",
@@ -62,6 +66,7 @@ export function ClicksignPanel({ accountOwnerId = null, readOnly = false }: { ac
   const [token, setToken] = useState("");
   const [importOpen, setImportOpen] = useState(false);
   const [disconnectOpen, setDisconnectOpen] = useState(false);
+  const [contractStartConflicts, setContractStartConflicts] = useState<ClicksignContractStartConflict[]>([]);
   const [showSecret, setShowSecret] = useState(false);
   const [secret, setSecret] = useState("");
   // Apenas um quadrante aberto por vez; todos recolhidos ao abrir.
@@ -75,14 +80,27 @@ export function ClicksignPanel({ accountOwnerId = null, readOnly = false }: { ac
   const connected = !!cfg.data?.hasToken;
 
   const refreshData = useMutation({
-    mutationFn: () => refreshDataFn(),
+    mutationFn: (overwriteContractStart: boolean) => refreshDataFn({ data: { overwriteContractStart } }),
     onSuccess: (r) => {
-      if (r.updated > 0) {
-        toast.success(`${r.updated} cadastro(s) atualizado(s) com dados dos contratos.`);
+      const extras: string[] = [];
+      if (r.contractStartFilled > 0) {
+        extras.push(`${r.contractStartFilled} com início de vigência preenchido pela assinatura do ClickSign`);
+      }
+      if (r.contractStartOverwritten > 0) {
+        extras.push(`${r.contractStartOverwritten} com início de vigência atualizado`);
+      }
+      if (r.updated > 0 || extras.length > 0) {
+        const parts = [r.updated > 0 ? `${r.updated} cadastro(s) atualizado(s) com dados dos contratos` : null, ...extras].filter(
+          Boolean,
+        );
+        toast.success(parts.join(" · "));
       } else {
         toast.info("Nenhum campo vazio para preencher nos cadastros vinculados.");
       }
       if (r.failed > 0) toast.warning(`${r.failed} contrato(s) não puderam ser lidos.`);
+      if (r.contractStartConflicts.length > 0) {
+        setContractStartConflicts(r.contractStartConflicts);
+      }
       qc.invalidateQueries({ queryKey: ["stakeholders"] });
     },
     onError: (e: unknown) =>
@@ -371,7 +389,7 @@ export function ClicksignPanel({ accountOwnerId = null, readOnly = false }: { ac
             size="sm"
             variant="outline"
             className="h-8 shrink-0 rounded-full text-xs"
-            onClick={() => refreshData.mutate()}
+            onClick={() => refreshData.mutate(false)}
             disabled={refreshData.isPending}
           >
             {refreshData.isPending ? (
@@ -414,6 +432,19 @@ export function ClicksignPanel({ accountOwnerId = null, readOnly = false }: { ac
           </DropdownMenu>
         )}
       </div>
+
+      <ClicksignContractStartConflictDialog
+        open={contractStartConflicts.length > 0}
+        onOpenChange={(next) => {
+          if (!next) setContractStartConflicts([]);
+        }}
+        conflicts={contractStartConflicts}
+        pending={refreshData.isPending}
+        onConfirm={() => {
+          setContractStartConflicts([]);
+          refreshData.mutate(true);
+        }}
+      />
 
       <ClicksignImportDialog open={importOpen} onOpenChange={setImportOpen} />
       <ClicksignDisconnectDialog

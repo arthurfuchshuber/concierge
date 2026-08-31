@@ -129,3 +129,73 @@ export async function fillFromContract(
 
   return { filled, docName: (doc["name"] as string) ?? null };
 }
+
+/**
+ * Data (yyyy-mm-dd) do primeiro documento assinado no ClickSign vinculado a
+ * este cadastro. Quando há mais de um documento (contrato, aditivo, termo…),
+ * usamos sempre o mais antigo já concluído — é o que mais se aproxima do
+ * início real da vigência.
+ */
+async function earliestSignedAt(
+  supabase: SupabaseClient,
+  userId: string,
+  kind: "owner" | "provider",
+  id: string,
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("clicksign_documents")
+    .select("finished_at")
+    .eq("account_owner_id", userId)
+    .eq("stakeholder_type", kind)
+    .eq("stakeholder_id", id)
+    .not("finished_at", "is", null)
+    .order("finished_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  const at = (data?.finished_at as string | undefined) ?? null;
+  return at ? at.slice(0, 10) : null;
+}
+
+/**
+ * Preenche a "Início do contrato" com a data do primeiro documento assinado
+ * no ClickSign. Nunca sobrescreve um valor já existente por conta própria —
+ * se o cadastro já tem uma data diferente, isso vira um "conflito" e só é
+ * resolvido se quem acionou a sincronização pedir explicitamente (`overwrite`).
+ */
+export async function fillContractStartFromClicksign(
+  supabase: SupabaseClient,
+  userId: string,
+  kind: "owner" | "provider",
+  id: string,
+  overwrite: boolean,
+): Promise<{
+  status: "filled" | "overwritten" | "conflict" | "unchanged";
+  name: string | null;
+  current: string | null;
+  suggested: string | null;
+}> {
+  const table = kind === "provider" ? "service_providers" : "property_owners";
+  const suggested = await earliestSignedAt(supabase, userId, kind, id);
+  if (!suggested) return { status: "unchanged", name: null, current: null, suggested: null };
+
+  const { data: row } = await supabase
+    .from(table)
+    .select("contract_start, name, trade_name")
+    .eq("id", id)
+    .eq("account_owner_id", userId)
+    .maybeSingle();
+  if (!row) return { status: "unchanged", name: null, current: null, suggested };
+
+  const name = ((row as Record<string, unknown>)["trade_name"] as string) || ((row as Record<string, unknown>)["name"] as string) || null;
+  const current = ((row as Record<string, unknown>)["contract_start"] as string | null) ?? null;
+
+  if (!current) {
+    await supabase.from(table).update({ contract_start: suggested }).eq("id", id).eq("account_owner_id", userId);
+    return { status: "filled", name, current: null, suggested };
+  }
+  if (current === suggested) return { status: "unchanged", name, current, suggested };
+  if (!overwrite) return { status: "conflict", name, current, suggested };
+
+  await supabase.from(table).update({ contract_start: suggested }).eq("id", id).eq("account_owner_id", userId);
+  return { status: "overwritten", name, current, suggested };
+}
