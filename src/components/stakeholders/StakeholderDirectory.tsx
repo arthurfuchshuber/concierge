@@ -519,7 +519,11 @@ function StakeholderCard({
           </p>
         )}
         {row.contract_start && (
-          <p className={`ds-meta font-medium ${statusText(effectiveStatus(row.status, row.status_changed_at))}`}>
+          <p
+            className={`text-[12px] font-medium leading-[1.45] ${statusText(
+              effectiveStatus(row.status, row.status_changed_at),
+            )}`}
+          >
             {fmtDateBR(row.contract_start)} → {row.contract_end ? fmtDateBR(row.contract_end) : "momento"}
           </p>
         )}
