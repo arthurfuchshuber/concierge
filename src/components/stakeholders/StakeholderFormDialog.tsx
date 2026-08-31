@@ -65,6 +65,8 @@ export type StakeholderFormValues = {
   state: string;
   notes: string;
   status: "active" | "inactive";
+  contract_start: string;
+  contract_end: string;
 };
 
 export const emptyStakeholderForm: StakeholderFormValues = {
@@ -85,6 +87,8 @@ export const emptyStakeholderForm: StakeholderFormValues = {
   state: "",
   notes: "",
   status: "active",
+  contract_start: "",
+  contract_end: "",
 };
 
 export function rowToStakeholderForm(row: Record<string, any>): StakeholderFormValues {
@@ -110,6 +114,8 @@ export function rowToStakeholderForm(row: Record<string, any>): StakeholderFormV
     state: row.state ?? "",
     notes: row.notes ?? "",
     status: (row.status as "active" | "inactive") ?? "active",
+    contract_start: row.contract_start ?? "",
+    contract_end: row.contract_end ?? "",
   };
 }
 
@@ -328,6 +334,8 @@ export function StakeholderFormDialog({
           state: form.state.trim().toUpperCase() || null,
           notes: form.notes.trim() || null,
           status: form.status,
+          contract_start: form.contract_start || null,
+          contract_end: form.contract_end || null,
         },
       });
       // Acesso ao sistema: mesmo fluxo de convite dos membros da equipe.
@@ -545,6 +553,38 @@ export function StakeholderFormDialog({
                 </SelectContent>
               </Select>
               <FieldTypingBadge typing={presence.typing["status"]} />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <Calendar className="size-3.5" /> Início do contrato
+              </Label>
+              <Input
+                type="date"
+                value={form.contract_start}
+                onChange={(e) => {
+                  set({ contract_start: e.target.value });
+                  presence.broadcastTyping("contract_start", e.target.value);
+                }}
+                onBlur={() => presence.broadcastFieldBlur("contract_start")}
+              />
+              <FieldTypingBadge typing={presence.typing["contract_start"]} />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <Calendar className="size-3.5" /> Fim do contrato (se houver)
+              </Label>
+              <Input
+                type="date"
+                value={form.contract_end}
+                onChange={(e) => {
+                  set({ contract_end: e.target.value });
+                  presence.broadcastTyping("contract_end", e.target.value);
+                }}
+                onBlur={() => presence.broadcastFieldBlur("contract_end")}
+              />
+              <FieldTypingBadge typing={presence.typing["contract_end"]} />
             </div>
           </div>
 

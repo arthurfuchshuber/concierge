@@ -77,6 +77,8 @@ const SaveInput = z.object({
   state: z.string().trim().max(60).optional().nullable(),
   notes: z.string().trim().max(4000).optional().nullable(),
   status: z.enum(["active", "inactive", "paused", "canceled"]).default("active"),
+  contract_start: z.string().trim().max(20).optional().nullable(),
+  contract_end: z.string().trim().max(20).optional().nullable(),
 });
 
 function onlyDigits(v?: string | null) {

@@ -34,6 +34,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { listStakeholders, deleteStakeholder } from "@/lib/stakeholders.functions";
 import { StakeholderDetailSheet } from "./StakeholderDetailSheet";
 import { StakeholderStatusControl } from "./StakeholderStatusControl";
+import { MultiSelectFilterField } from "@/components/ui/multi-select-filter";
 import {
   StakeholderFormDialog,
   emptyStakeholderForm,
@@ -51,6 +52,16 @@ export type { StakeholderKind };
 
 type Row = Record<string, any>;
 
+// Mesmo formato de data usado no card do hóspede ("Check-in dd/mm/aaaa").
+function fmtDateBR(d: string) {
+  try {
+    const [y, m, day] = d.split("-");
+    return `${day}/${m}/${y}`;
+  } catch {
+    return d;
+  }
+}
+
 
 export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
   const isMobile = useIsMobile();
@@ -62,8 +73,8 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
 
   const [view, setView] = useState<"list" | "kanban">("list");
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState<string>("all");
-  const [cityFilter, setCityFilter] = useState<string>("all");
+  const [statusFilters, setStatusFilters] = useState<string[]>([]);
+  const [cityFilters, setCityFilters] = useState<string[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<StakeholderFormValues>(emptyStakeholderForm);
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -106,19 +117,23 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     return rows.filter((r) => {
-      if (status !== "all" && effectiveStatus(r.status, r.status_changed_at) !== status) return false;
-      if (cityFilter !== "all" && r.city !== cityFilter) return false;
+      if (statusFilters.length > 0 && !statusFilters.includes(effectiveStatus(r.status, r.status_changed_at))) {
+        return false;
+      }
+      if (cityFilters.length > 0 && !cityFilters.includes(String(r.city ?? ""))) return false;
       if (!term) return true;
       return [r.name, r.trade_name, r.email, r.phone, r.city, r.doc]
         .filter(Boolean)
         .some((v: string) => String(v).toLowerCase().includes(term));
     });
-  }, [rows, q, status, cityFilter]);
+  }, [rows, q, statusFilters, cityFilters]);
 
   const cityOptions = useMemo(() => {
     const set = new Set<string>();
     for (const r of rows) if (r.city) set.add(String(r.city));
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+    return Array.from(set)
+      .sort((a, b) => a.localeCompare(b, "pt-BR"))
+      .map((c) => ({ value: c, label: c }));
   }, [rows]);
 
   const pendingByStakeholder = useMemo(() => {
@@ -187,16 +202,15 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
     { key: "inactive", label: "Inativos", test: (r) => effectiveStatus(r.status, r.status_changed_at) === "inactive" },
   ];
 
-  const STATUS_OPTIONS: Array<{ v: string; label: string }> = [
-    { v: "all", label: "Todos" },
-    { v: "active", label: "Ativos" },
-    { v: "signature", label: "Assinatura" },
-    { v: "contract", label: "Contrato" },
-    { v: "documentation", label: "Documentação" },
-    { v: "paused", label: "Pausados" },
-    { v: "canceling", label: "Cancelando" },
-    { v: "canceled", label: "Cancelados" },
-    { v: "inactive", label: "Inativos" },
+  const STATUS_FILTER_OPTIONS: Array<{ value: string; label: string }> = [
+    { value: "active", label: "Ativos" },
+    { value: "signature", label: "Assinatura" },
+    { value: "contract", label: "Contrato" },
+    { value: "documentation", label: "Documentação" },
+    { value: "paused", label: "Pausados" },
+    { value: "canceling", label: "Cancelando" },
+    { value: "canceled", label: "Cancelados" },
+    { value: "inactive", label: "Inativos" },
   ];
 
   return (
@@ -235,60 +249,45 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
               >
                 <Filter className="size-3.5 opacity-60" />
                 <span className="hidden sm:inline">Filtros</span>
-                {(status !== "all" || cityFilter !== "all") && (
+                {(statusFilters.length > 0 || cityFilters.length > 0) && (
                   <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-accent" />
                 )}
               </button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-64 p-4 space-y-4">
-              <div>
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
-                  Status contratual
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {STATUS_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.v}
-                      type="button"
-                      onClick={() => setStatus(opt.v)}
-                      className={`px-3 py-1.5 rounded-none text-xs transition-colors ${status === opt.v ? "bg-foreground text-background" : "bg-secondary/50 text-muted-foreground hover:text-foreground"}`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
+            <PopoverContent align="end" className="w-80 p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="ds-eyebrow">Filtros</span>
+                {(statusFilters.length > 0 || cityFilters.length > 0) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStatusFilters([]);
+                      setCityFilters([]);
+                    }}
+                    className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Limpar tudo
+                  </button>
+                )}
               </div>
 
-              <div>
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
-                  Cidade
-                </div>
-                <select
-                  value={cityFilter}
-                  onChange={(e) => setCityFilter(e.target.value)}
-                  className="h-9 w-full rounded-none border-0 bg-secondary/50 px-3 text-xs text-foreground/80 focus:outline-none focus:bg-secondary transition-colors"
-                >
-                  <option value="all">Todas</option>
-                  {cityOptions.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <MultiSelectFilterField
+                label="Status contratual"
+                options={STATUS_FILTER_OPTIONS}
+                selected={statusFilters}
+                onChange={setStatusFilters}
+                searchPlaceholder="Buscar situação…"
+                emptyLabel="Nenhuma situação encontrada."
+              />
 
-              {(status !== "all" || cityFilter !== "all") && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStatus("all");
-                    setCityFilter("all");
-                  }}
-                  className="w-full text-xs text-muted-foreground hover:text-foreground py-1.5 rounded-none bg-secondary/50"
-                >
-                  Limpar filtros
-                </button>
-              )}
+              <MultiSelectFilterField
+                label="Cidade"
+                options={cityOptions}
+                selected={cityFilters}
+                onChange={setCityFilters}
+                searchPlaceholder="Buscar cidade…"
+                emptyLabel="Nenhuma cidade cadastrada."
+              />
             </PopoverContent>
           </Popover>
 
@@ -315,7 +314,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
           </button>
         </div>
 
-        {rows.length > 0 && (q.trim() || status !== "all" || cityFilter !== "all") && (
+        {rows.length > 0 && (q.trim() || statusFilters.length > 0 || cityFilters.length > 0) && (
           <p className="ds-meta">
             Mostrando {filtered.length} de {rows.length} cadastro{rows.length > 1 ? "s" : ""}
           </p>
@@ -500,12 +499,14 @@ function StakeholderCard({
         </div>
       </div>
 
-      <div className="mt-1.5">
+      <div className="mt-1.5 space-y-0.5">
         {cityUf && (
           <p className="ds-meta flex items-center gap-1.5">
             <MapPin className="size-3 shrink-0 text-muted-foreground" /> {cityUf}
           </p>
         )}
+        {row.contract_start && <p className="ds-meta">Início {fmtDateBR(row.contract_start)}</p>}
+        {row.contract_end && <p className="ds-meta">Fim {fmtDateBR(row.contract_end)}</p>}
       </div>
 
       <div className="mt-3 flex items-center gap-1.5">
