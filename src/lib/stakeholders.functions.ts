@@ -198,6 +198,21 @@ export const saveStakeholder = createServerFn({ method: "POST" })
       cep: onlyDigits(rest.cep) || null,
       account_owner_id: accountId,
     };
+
+    // Cidade/UF são conferíveis online (CEP na BrasilAPI, endereço no
+    // OpenStreetMap). Se vierem vazias, completamos automaticamente em vez de
+    // deixar o card sem localização.
+    if (!String(payload["city"] ?? "").trim() || !String(payload["state"] ?? "").trim()) {
+      const { enrichAddress } = await import("@/lib/geo-enrich.server");
+      const found = await enrichAddress({
+        cep: payload["cep"] as string | null,
+        address: payload["address"] as string | null,
+        district: payload["district"] as string | null,
+        city: payload["city"] as string | null,
+        state: payload["state"] as string | null,
+      });
+      Object.assign(payload, found);
+    }
     if (kind === "provider") {
       const list = (categories ?? []).filter(Boolean);
       payload.categories = list;
