@@ -2034,8 +2034,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     [
                       { key: "checkin", label: "Check-ins", icon: CalendarCheck, count: kanbanCounts.checkin },
                       { key: "checkout", label: "Checkouts", icon: CalendarX, count: kanbanCounts.checkout },
+                      { key: "cleaning", label: "Fila Limpeza", icon: Sparkles, count: kanbanCounts.cleaning },
                       { key: "stay", label: "Estadia", icon: BedDouble, count: kanbanCounts.stay },
-                      { key: "cleaning", label: "Fila", icon: Sparkles, count: kanbanCounts.cleaning },
                       { key: "done", label: "Concluídos", icon: CheckCircle2, count: kanbanCounts.done },
                     ] as const
                   ).map((t) => {
@@ -2179,24 +2179,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
               <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
                 <KanbanColumn
-                  onScroll={() => setExpandedByColumn((prev) => ({ ...prev, stay: null }))}
-                  title="Em Estadia"
-                  icon={BedDouble}
-                  count={kanbanCounts.stay}
-                  tone="sky"
-                >
-                  {kanbanCheckinListQ.isLoading ? (
-                    <ColumnLoading />
-                  ) : kanbanStayRows.length === 0 ? (
-                    <ColumnEmpty />
-                  ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", kanbanStayRows)} />
-                  )}
-                </KanbanColumn>
-              </div>
-
-              <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
-                <KanbanColumn
                   onScroll={() => setExpandedByColumn((prev) => ({ ...prev, cleaning: null }))}
                   title="Fila de Limpeza"
                   icon={Sparkles}
@@ -2209,6 +2191,24 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     <ColumnEmpty />
                   ) : (
                     <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", kanbanCleaningRows)} />
+                  )}
+                </KanbanColumn>
+              </div>
+
+              <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
+                <KanbanColumn
+                  onScroll={() => setExpandedByColumn((prev) => ({ ...prev, stay: null }))}
+                  title="Em Estadia"
+                  icon={BedDouble}
+                  count={kanbanCounts.stay}
+                  tone="sky"
+                >
+                  {kanbanCheckinListQ.isLoading ? (
+                    <ColumnLoading />
+                  ) : kanbanStayRows.length === 0 ? (
+                    <ColumnEmpty />
+                  ) : (
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", kanbanStayRows)} />
                   )}
                 </KanbanColumn>
               </div>
