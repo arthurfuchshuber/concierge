@@ -4004,6 +4004,8 @@ export type Database = {
           birth_date: string | null
           cep: string | null
           city: string | null
+          contract_end: string | null
+          contract_start: string | null
           created_at: string
           created_by: string | null
           created_via: string
@@ -4029,6 +4031,8 @@ export type Database = {
           birth_date?: string | null
           cep?: string | null
           city?: string | null
+          contract_end?: string | null
+          contract_start?: string | null
           created_at?: string
           created_by?: string | null
           created_via?: string
@@ -4054,6 +4058,8 @@ export type Database = {
           birth_date?: string | null
           cep?: string | null
           city?: string | null
+          contract_end?: string | null
+          contract_start?: string | null
           created_at?: string
           created_by?: string | null
           created_via?: string
@@ -4345,6 +4351,8 @@ export type Database = {
           category: string
           cep: string | null
           city: string | null
+          contract_end: string | null
+          contract_start: string | null
           created_at: string
           created_by: string | null
           created_via: string
@@ -4374,6 +4382,8 @@ export type Database = {
           category?: string
           cep?: string | null
           city?: string | null
+          contract_end?: string | null
+          contract_start?: string | null
           created_at?: string
           created_by?: string | null
           created_via?: string
@@ -4403,6 +4413,8 @@ export type Database = {
           category?: string
           cep?: string | null
           city?: string | null
+          contract_end?: string | null
+          contract_start?: string | null
           created_at?: string
           created_by?: string | null
           created_via?: string
