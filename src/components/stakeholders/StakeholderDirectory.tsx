@@ -42,7 +42,7 @@ import {
   type StakeholderFormValues,
 } from "./StakeholderFormDialog";
 import { PROVIDER_CATEGORIES, type StakeholderKind } from "./constants";
-import { effectiveStatus } from "@/lib/stakeholder-status";
+import { effectiveStatus, statusText } from "@/lib/stakeholder-status";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { LoadingListState } from "@/components/ds/LoadingState";
 import { useImpersonation } from "@/hooks/useImpersonation";
@@ -519,8 +519,12 @@ function StakeholderCard({
           </p>
         )}
         {row.contract_start && (
-          <p className="ds-meta">
-            Vigência: {fmtDateBR(row.contract_start)} → {row.contract_end ? fmtDateBR(row.contract_end) : "momento"}
+          <p
+            className={`text-[12px] font-medium leading-[1.45] ${statusText(
+              effectiveStatus(row.status, row.status_changed_at),
+            )}`}
+          >
+            {fmtDateBR(row.contract_start)} → {row.contract_end ? fmtDateBR(row.contract_end) : "momento"}
           </p>
         )}
       </div>

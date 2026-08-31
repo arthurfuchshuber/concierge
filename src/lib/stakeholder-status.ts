@@ -142,3 +142,19 @@ export function statusDateLabel(iso: string): string {
   const prefix = isFutureDate(d) ? "a partir de" : "desde";
   return `${prefix} ${d.toLocaleDateString("pt-BR")}`;
 }
+
+/** Apenas a cor do texto — usada em metadados que acompanham o status (ex.: vigência). */
+export const STATUS_TEXT: Record<string, string> = {
+  active: "text-emerald-600 dark:text-emerald-400",
+  documentation: "text-amber-600 dark:text-amber-400",
+  contract: "text-amber-600 dark:text-amber-400",
+  signature: "text-amber-600 dark:text-amber-400",
+  paused: "text-amber-600 dark:text-amber-400",
+  canceling: "text-yellow-600 dark:text-yellow-400",
+  canceled: "text-destructive",
+  inactive: "text-muted-foreground",
+};
+
+export function statusText(status: string | null | undefined): string {
+  return STATUS_TEXT[String(status ?? "inactive")] ?? STATUS_TEXT.inactive;
+}
