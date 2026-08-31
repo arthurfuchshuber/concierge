@@ -66,6 +66,17 @@ function fmt(iso: string) {
   }
 }
 
+// Mesmo formato "dd/mm/aaaa" usado no card da listagem (fmtDateBR).
+function fmtDateBR(d: string | null | undefined) {
+  if (!d) return "—";
+  try {
+    const [y, m, day] = d.split("-");
+    return `${day}/${m}/${y}`;
+  } catch {
+    return d;
+  }
+}
+
 
 
 
@@ -120,10 +131,19 @@ export function StakeholderDetailSheet({
     setExtracting(true);
     try {
       const res = await extractFn({ data: { kind, id } });
-      if (res.updated > 0) {
-        toast.success(`Dados preenchidos a partir do contrato: ${res.fields.join(", ")}.`);
+      const parts: string[] = [];
+      if (res.updated > 0) parts.push(`Dados extraídos do contrato: ${res.fields.join(", ")}`);
+      if (res.contractStart?.status === "filled") {
+        parts.push(`Início do contrato definido como ${fmtDateBR(res.contractStart.suggested)}`);
+      }
+      if (parts.length > 0) {
+        toast.success(`${parts.join(". ")}.`);
         qc.invalidateQueries({ queryKey });
         qc.invalidateQueries({ queryKey: ["stakeholders", kind] });
+      } else if (res.contractStart?.status === "conflict") {
+        toast.info(
+          `O ClickSign sugere início de contrato em ${fmtDateBR(res.contractStart.suggested)}, diferente da data já cadastrada (${fmtDateBR(res.contractStart.current)}). Resolva em Configurações → Integrações → ClickSign → Atualizar Dados.`,
+        );
       } else {
         toast.info("Nada novo encontrado no quadro CONTRATANTE do contrato.");
       }

@@ -509,8 +509,15 @@ export const extractClicksignPartyData = createServerFn({ method: "POST" })
       patch["phone_country"] = "55";
     }
 
+    // Início do contrato — sempre a partir do primeiro documento já assinado
+    // (não necessariamente este, se houver mais de um). Nunca sobrescreve um
+    // valor manual: se já houver uma data diferente, isso vira um "conflito"
+    // resolvido depois em Integrações > ClickSign > Atualizar Dados.
+    const { fillContractStartFromClicksign } = await import("@/lib/contract-fill.server");
+    const contractStart = await fillContractStartFromClicksign(supabase, userId, data.kind, data.id, false);
+
     if (Object.keys(patch).length === 0) {
-      return { updated: 0, fields: [] as string[], found: party };
+      return { updated: 0, fields: [] as string[], found: party, contractStart };
     }
 
     const { error } = await supabase
@@ -544,7 +551,7 @@ export const extractClicksignPartyData = createServerFn({ method: "POST" })
       created_by: userId,
     });
 
-    return { updated: filled.length, fields: filled, found: party };
+    return { updated: filled.length, fields: filled, found: party, contractStart };
   });
 
 /**
