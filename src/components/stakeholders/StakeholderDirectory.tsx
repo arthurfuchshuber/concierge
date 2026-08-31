@@ -518,15 +518,21 @@ function StakeholderCard({
             <MapPin className="size-3 shrink-0 text-muted-foreground" /> {cityUf}
           </p>
         )}
-        {row.contract_start && (
-          <p
-            className={`text-[12px] font-medium leading-[1.45] ${statusText(
-              effectiveStatus(row.status, row.status_changed_at),
-            )}`}
-          >
-            {fmtDateBR(row.contract_start)} → {row.contract_end ? fmtDateBR(row.contract_end) : "momento"}
-          </p>
-        )}
+        {row.contract_start && (() => {
+          const eff = effectiveStatus(row.status, row.status_changed_at);
+          // Cancelado/Cancelando sem data final preenchida à mão: a data em que
+          // o cancelamento foi (ou será) efetivado é o fim real da vigência —
+          // mostrar "momento" nesses casos era enganoso.
+          const endsOnStatus = eff === "canceled" || eff === "canceling";
+          const end =
+            row.contract_end ??
+            (endsOnStatus && row.status_changed_at ? String(row.status_changed_at).slice(0, 10) : null);
+          return (
+            <p className={`text-[12px] font-medium leading-[1.45] ${statusText(eff)}`}>
+              {fmtDateBR(row.contract_start)} → {end ? fmtDateBR(end) : "momento"}
+            </p>
+          );
+        })()}
       </div>
 
       <div className="mt-3 flex items-center gap-1.5">
