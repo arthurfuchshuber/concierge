@@ -96,8 +96,14 @@ export function ClicksignPanel({ accountOwnerId = null, readOnly = false }: { ac
           Boolean,
         );
         toast.success(parts.join(" · "));
+      } else if (r.scanned === 0) {
+        // Diagnóstico: nenhum cadastro tem sequer um contrato vinculado —
+        // o problema está em "Importar contratos" (vínculo), não aqui.
+        toast.info(
+          "Nenhum cadastro está vinculado a um contrato do ClickSign ainda. Rode \"Importar contratos\" primeiro.",
+        );
       } else {
-        toast.info("Nenhum campo vazio para preencher nos cadastros vinculados.");
+        toast.info(`${r.scanned} cadastro(s) vinculados verificados — nenhum tinha dado novo para preencher.`);
       }
       if (r.failed > 0) toast.warning(`${r.failed} contrato(s) não puderam ser lidos.`);
       if (r.contractStartConflicts.length > 0) {

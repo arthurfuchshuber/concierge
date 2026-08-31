@@ -470,10 +470,15 @@ function StakeholderCard({
       {/* Linha mais compacta possível: nome (+ ícone do WhatsApp colado a ele)
           no canto esquerdo, situação no canto direito — como sempre foi.
           Cidade/UF empilha logo abaixo do nome. */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-1 min-w-0">
+      <div className="flex items-center justify-between gap-3 min-w-0">
+        {/* flex-1 + min-w-0: força este bloco a assumir só o espaço restante
+            (não o espaço que o nome "quer" ter), que é o que de fato aciona
+            o corte com reticências no filho abaixo — sem isso, num flex row
+            o item tende a manter a largura do próprio conteúdo e o nome
+            longo quebra linha em vez de truncar. */}
+        <div className="flex flex-1 items-center gap-1 min-w-0 overflow-hidden">
           <p
-            className="ds-card-title truncate leading-tight min-w-0"
+            className="ds-card-title truncate leading-tight min-w-0 flex-1 basis-auto"
             title={row.trade_name || row.name}
           >
             {row.trade_name || row.name}

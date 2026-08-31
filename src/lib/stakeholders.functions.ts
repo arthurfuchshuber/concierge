@@ -29,6 +29,10 @@ export const listStakeholders = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
     const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.accountOwnerId);
+    // Garante que estágios e cancelamentos vencidos já apareçam promovidos
+    // (Ativo / Cancelado definitivo) mesmo que ninguém tenha aberto o popup
+    // de confirmação — a própria listagem se autocorrige a cada carregamento.
+    await promoteDueStages(supabase, accountId);
     const { data: rows, error } = await supabase
       .from(TABLE[data.kind])
       .select("*")
@@ -288,6 +292,7 @@ export const getStakeholderDetail = createServerFn({ method: "GET" })
     await enforce(userId, "stakeholders.read", { resource: data.id });
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
     const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.accountOwnerId);
+    await promoteDueStages(supabase, accountId);
     const [{ data: row }, { data: events }, { data: activities }] = await Promise.all([
       supabase.from(TABLE[data.kind]).select("*").eq("id", data.id).eq("account_owner_id", accountId).maybeSingle(),
       supabase
@@ -598,10 +603,15 @@ export const setStakeholderStatus = createServerFn({ method: "POST" })
     );
     if (Number.isNaN(when.getTime())) throw new Error("Data inválida.");
 
-    const { statusLabel, isFutureDate } = await import("@/lib/stakeholder-status");
+    const { statusLabel, isFutureDate, isTodayOrFutureDate } = await import("@/lib/stakeholder-status");
     const future = isFutureDate(when);
     let stored: string = data.status;
-    if (data.status === "canceled" && future) stored = "canceling";
+    // O dia marcado para o cancelamento continua vigente por inteiro — por
+    // isso usamos "hoje ou futuro" aqui (não só "futuro"): agendar para hoje
+    // ainda precisa passar pelo estado "Cancelando", nunca virar "Cancelado"
+    // na hora. Só se torna definitivo a partir do dia seguinte (promoção
+    // automática em `promoteDueStages`) ou por confirmação humana no popup.
+    if (data.status === "canceled" && isTodayOrFutureDate(when)) stored = "canceling";
     if (
       (data.status === "documentation" || data.status === "contract" || data.status === "signature") &&
       !future
@@ -641,6 +651,24 @@ async function promoteDueStages(supabase: SupabaseClient, accountId: string) {
         .eq("account_owner_id", accountId)
         .in("status", ["documentation", "contract", "signature"])
         .lte("status_changed_at", nowIso),
+    ),
+  );
+
+  // Cancelamento agendado: o dia marcado continua "Cancelando" (vigente) até
+  // o fim — inclusive já com o popup de confirmação disponível. Só quando
+  // esse dia passa por completo (viramos o dia seguinte) é que o
+  // cancelamento se torna definitivo por conta própria, mesmo que ninguém
+  // tenha respondido ao popup.
+  const todayMidnight = new Date();
+  todayMidnight.setHours(0, 0, 0, 0);
+  await Promise.all(
+    (["property_owners", "service_providers"] as const).map((t) =>
+      supabase
+        .from(t)
+        .update({ status: "canceled" } as never)
+        .eq("account_owner_id", accountId)
+        .eq("status", "canceling")
+        .lt("status_changed_at", todayMidnight.toISOString()),
     ),
   );
 }

@@ -65,15 +65,17 @@ export const STATUS_CHIP: Record<string, string> = {
 };
 
 /**
- * Situação exibida: "Cancelado" com data futura é, na prática, "Cancelando"
- * (amarelo) até a confirmação humana na data agendada.
+ * Situação exibida: "Cancelado" com data futura — ou marcada para hoje — é,
+ * na prática, "Cancelando" (amarelo) até a confirmação humana ou até o fim
+ * do próprio dia marcado. O dia do cancelamento continua vigente por
+ * inteiro; só a partir do dia seguinte a situação passa a ser definitiva.
  */
 export function effectiveStatus(
   status: string | null | undefined,
   changedAt?: string | null,
 ): string {
   const s = String(status ?? "inactive");
-  if (s === "canceled" && changedAt && isFutureDate(changedAt)) return "canceling";
+  if (s === "canceled" && changedAt && isTodayOrFutureDate(changedAt)) return "canceling";
   return s;
 }
 
@@ -114,6 +116,23 @@ export function isFutureDate(value: string | Date): boolean {
   const target = new Date(d);
   target.setHours(0, 0, 0, 0);
   return target.getTime() > today.getTime();
+}
+
+/**
+ * Data é hoje ou está no futuro (comparando por dia). Diferente de
+ * `isFutureDate` (que trata "hoje" como já chegado), esta é usada
+ * especificamente para cancelamento agendado: o próprio dia marcado ainda
+ * precisa contar como "não passou" — só deixa de ser true a partir do dia
+ * seguinte, quando o cancelamento passa a ser definitivo.
+ */
+export function isTodayOrFutureDate(value: string | Date): boolean {
+  const d = typeof value === "string" ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T12:00:00` : value) : value;
+  if (Number.isNaN(d.getTime())) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(d);
+  target.setHours(0, 0, 0, 0);
+  return target.getTime() >= today.getTime();
 }
 
 /** "a partir de 31/08/2026" quando a mudança ainda vai acontecer; "desde …" caso contrário. */
