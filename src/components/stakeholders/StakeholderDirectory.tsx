@@ -16,10 +16,6 @@ import {
   Pencil,
   Home,
   MessageCircle,
-<<<<<<< HEAD
-=======
-  StickyNote,
->>>>>>> 14b949a0c80dfe78399dc5ac53d978f58d34f7c6
   Filter,
   X,
 } from "lucide-react";
