@@ -11,17 +11,15 @@ import {
   Columns3,
   Building2,
   Wrench,
-  Mail,
-  Phone,
   MapPin,
   Trash2,
   Pencil,
   Home,
   MessageCircle,
-  StickyNote,
+  Filter,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -31,16 +29,11 @@ import {
 } from "@/components/ui/dialog";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { listStakeholders, deleteStakeholder } from "@/lib/stakeholders.functions";
 import { StakeholderDetailSheet } from "./StakeholderDetailSheet";
+import { StakeholderStatusControl } from "./StakeholderStatusControl";
 import {
   StakeholderFormDialog,
   emptyStakeholderForm,
@@ -48,7 +41,7 @@ import {
   type StakeholderFormValues,
 } from "./StakeholderFormDialog";
 import { PROVIDER_CATEGORIES, type StakeholderKind } from "./constants";
-import { statusLabel, statusChip, effectiveStatus } from "@/lib/stakeholder-status";
+import { effectiveStatus } from "@/lib/stakeholder-status";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { LoadingListState } from "@/components/ds/LoadingState";
 import { useImpersonation } from "@/hooks/useImpersonation";
@@ -186,59 +179,119 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
     { key: "inactive", label: "Inativos", test: (r) => effectiveStatus(r.status, r.status_changed_at) === "inactive" },
   ];
 
+  const STATUS_OPTIONS: Array<{ v: string; label: string }> = [
+    { v: "all", label: "Todos" },
+    { v: "active", label: "Ativos" },
+    { v: "signature", label: "Assinatura" },
+    { v: "contract", label: "Contrato" },
+    { v: "documentation", label: "Documentação" },
+    { v: "paused", label: "Pausados" },
+    { v: "canceling", label: "Cancelando" },
+    { v: "canceled", label: "Cancelados" },
+    { v: "inactive", label: "Inativos" },
+  ];
+
   return (
-    <div className="space-y-5">
-      {/* Toolbar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="relative flex-1 min-w-0 sm:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input
+    <div>
+      {/* Barra de ações — mesmo padrão de Operação/Guias:
+          altura 36px, cantos retos, fundo secondary/50, texto 12px. */}
+      <div className="flex flex-col gap-2 mb-5">
+        <div className="flex items-center gap-1.5">
+          <div className="relative flex-1 min-w-0">
+            <Search className="size-3.5 opacity-60 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder={`Buscar ${labelSingular.toLowerCase()}...`}
-              className="pl-9 rounded-full"
+              placeholder={`Buscar ${labelSingular.toLowerCase()}, cidade, documento…`}
+              className="h-9 w-full box-border rounded-none border-0 bg-secondary/50 pl-9 pr-8 text-xs font-normal leading-none text-foreground/80 placeholder:text-muted-foreground focus:outline-none focus:bg-secondary transition-colors"
             />
+            {q && (
+              <button
+                type="button"
+                onClick={() => setQ("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 size-6 grid place-items-center rounded-none text-muted-foreground hover:text-foreground"
+                aria-label="Limpar busca"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
           </div>
-          <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
-            <SelectTrigger className="w-[140px] rounded-full shrink-0">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="active">Ativos</SelectItem>
-              <SelectItem value="signature">Assinatura</SelectItem>
-              <SelectItem value="contract">Contrato</SelectItem>
-              <SelectItem value="documentation">Documentação</SelectItem>
-              <SelectItem value="paused">Pausados</SelectItem>
-              <SelectItem value="canceling">Cancelando</SelectItem>
-              <SelectItem value="canceled">Cancelados</SelectItem>
-              <SelectItem value="inactive">Inativos</SelectItem>
-            </SelectContent>
-          </Select>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="relative h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-none border-0 bg-secondary/50 px-3.5 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
+                aria-label="Filtros"
+                title="Filtros"
+              >
+                <Filter className="size-3.5 opacity-60" />
+                <span className="hidden sm:inline">Filtros</span>
+                {status !== "all" && (
+                  <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-accent" />
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64 p-4 space-y-4">
+              <div>
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+                  Situação
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {STATUS_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.v}
+                      type="button"
+                      onClick={() => setStatus(opt.v)}
+                      className={`px-3 py-1.5 rounded-none text-xs transition-colors ${status === opt.v ? "bg-foreground text-background" : "bg-secondary/50 text-muted-foreground hover:text-foreground"}`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {status !== "all" && (
+                <button
+                  type="button"
+                  onClick={() => setStatus("all")}
+                  className="w-full text-xs text-muted-foreground hover:text-foreground py-1.5 rounded-none bg-secondary/50"
+                >
+                  Limpar filtros
+                </button>
+              )}
+            </PopoverContent>
+          </Popover>
+
+          <button
+            type="button"
+            onClick={() => setView(view === "list" ? "kanban" : "list")}
+            aria-label={view === "list" ? "Ver em kanban" : "Ver em lista"}
+            title={view === "list" ? "Ver em kanban" : "Ver em lista"}
+            className="h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-none border-0 bg-secondary/50 px-3.5 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
+          >
+            {view === "list" ? <Columns3 className="size-3.5 opacity-60" /> : <LayoutList className="size-3.5 opacity-60" />}
+            <span className="hidden sm:inline">{view === "list" ? "Kanban" : "Lista"}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={openNew}
+            aria-label={`Novo ${labelSingular.toLowerCase()}`}
+            title={`Novo ${labelSingular.toLowerCase()}`}
+            className="h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-none border-0 bg-secondary/50 px-3.5 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
+          >
+            <Plus className="size-3.5 opacity-60" />
+            <span className="hidden sm:inline">Novo</span>
+          </button>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center rounded-full border border-border bg-card p-0.5">
-            <button
-              type="button"
-              onClick={() => setView("list")}
-              className={`px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5 transition-colors ${view === "list" ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              <LayoutList className="size-3.5" /> Lista
-            </button>
-            <button
-              type="button"
-              onClick={() => setView("kanban")}
-              className={`px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5 transition-colors ${view === "kanban" ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              <Columns3 className="size-3.5" /> Kanban
-            </button>
-          </div>
-          <Button onClick={openNew} className="rounded-full">
-            <Plus className="size-4 mr-1.5" /> Novo
-          </Button>
-        </div>
+
+        {rows.length > 0 && (q.trim() || status !== "all") && (
+          <p className="ds-meta">
+            Mostrando {filtered.length} de {rows.length} cadastro{rows.length > 1 ? "s" : ""}
+          </p>
+        )}
       </div>
+
 
       {isLoading ? (
         <LoadingListState count={4} />
@@ -248,7 +301,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
           title={`Nenhum ${labelSingular.toLowerCase()} cadastrado`}
           description={q ? `Nenhum resultado para "${q}". Tente outro termo ou limpe os filtros.` : `Cadastre seu primeiro ${labelSingular.toLowerCase()} para começar.`}
           action={
-            <Button onClick={openNew} variant="outline" className="rounded-full">
+            <Button onClick={openNew} variant="outline" className="rounded-none">
               <Plus className="size-4 mr-1.5" /> Cadastrar {labelSingular.toLowerCase()}
             </Button>
           }
@@ -260,7 +313,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
               key={r.id}
               row={r}
               kind={kind}
-              pending={pendingByStakeholder.get(r.id) ?? 0}
+              accountOwnerId={activeAccountId}
               onOpen={() => setDetailId(r.id)}
               onEdit={() => openEdit(r)}
               onDelete={() => remove(r.id)}
@@ -283,8 +336,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
                       key={r.id}
                       row={r}
                       kind={kind}
-                      compact
-                      pending={pendingByStakeholder.get(r.id) ?? 0}
+                      accountOwnerId={activeAccountId}
                       onOpen={() => setDetailId(r.id)}
                       onEdit={() => openEdit(r)}
                       onDelete={() => remove(r.id)}
@@ -368,130 +420,71 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
 function StakeholderCard({
   row,
   kind,
-  pending,
-  compact,
+  accountOwnerId,
   onOpen,
   onEdit,
   onDelete,
 }: {
   row: Row;
   kind: StakeholderKind;
-  pending: number;
-  compact?: boolean;
+  accountOwnerId?: string | null;
   onOpen: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const categoryLabel =
-    kind === "provider"
-      ? PROVIDER_CATEGORIES.find((c) => c.value === row.category)?.label ?? "Outros"
-      : null;
   const cityUf = [row.city, row.state].filter(Boolean).join("/");
   return (
     <div
       onClick={onOpen}
-      className="group cursor-pointer ds-surface border border-border bg-card p-4 hover:border-primary/40 hover:shadow-[0_8px_30px_-12px_hsl(var(--primary)/0.35)] transition-all"
+      className="group cursor-pointer ds-surface border border-border bg-card p-4 hover:border-foreground/30 hover:shadow-elevated transition-all"
     >
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+      {/* Linha mais compacta possível: nome + ícone do WhatsApp ficam sempre
+          aqui em cima; situação e cidade/UF empilham logo abaixo do nome. */}
+      <div className="flex items-start justify-between gap-3">
         <p className="ds-card-title truncate leading-tight min-w-0">{row.trade_name || row.name}</p>
-        <div className="flex items-center gap-1 shrink-0">
-          {pending > 0 && (
-            <span className="rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[10px] px-2 py-0.5 tabular-nums">
-              {pending}
-            </span>
-          )}
-          {categoryLabel && (
-            <span className="rounded-full bg-accent/10 text-accent text-[10px] px-2 py-0.5 whitespace-nowrap">
-              {categoryLabel}
-            </span>
-          )}
-          <span className={`rounded-full text-[10px] px-2 py-0.5 whitespace-nowrap ${statusChip(effectiveStatus(row.status, row.status_changed_at))}`}>
-            {statusLabel(effectiveStatus(row.status, row.status_changed_at))}
-          </span>
-        </div>
+        {row.phone && (
+          <a
+            href={`https://wa.me/55${String(row.phone).replace(/\D/g, "")}`}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            aria-label="Conversar no WhatsApp"
+            title="Conversar no WhatsApp"
+            className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 transition-colors"
+          >
+            <MessageCircle className="size-3.5" />
+          </a>
+        )}
       </div>
 
-      {!compact && (
-        <>
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            {row.doc && (
-              <div className="min-w-0">
-                <p className="ds-eyebrow text-muted-foreground">CPF/CNPJ</p>
-                <p className="ds-body truncate mt-0.5">{row.doc}</p>
-              </div>
-            )}
-            {cityUf && (
-              <div className="min-w-0">
-                <p className="ds-eyebrow text-muted-foreground">Cidade/UF</p>
-                <p className="ds-body truncate mt-0.5 flex items-center gap-1.5">
-                  <MapPin className="size-3 shrink-0 text-muted-foreground" /> {cityUf}
-                </p>
-              </div>
-            )}
-            {kind === "provider" && row.hourly_rate_cents ? (
-              <div className="min-w-0">
-                <p className="ds-eyebrow text-muted-foreground">Valor/hora</p>
-                <p className="ds-body truncate mt-0.5">
-                  {(row.hourly_rate_cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                </p>
-              </div>
-            ) : null}
-          </div>
-
-          {(row.phone || row.email) && (
-            <div className="mt-3 min-w-0">
-              <p className="ds-eyebrow text-muted-foreground">Contato</p>
-              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-                {row.phone && (
-                  <span className="ds-body inline-flex items-center gap-1.5 min-w-0">
-                    <Phone className="size-3 shrink-0 text-muted-foreground" />
-                    <span className="truncate">{row.phone}</span>
-                    <a
-                      href={`https://wa.me/55${String(row.phone).replace(/\D/g, "")}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      aria-label="Conversar no WhatsApp"
-                      title="Conversar no WhatsApp"
-                      className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 transition-colors"
-                    >
-                      <MessageCircle className="size-3.5" />
-                    </a>
-                  </span>
-                )}
-                {row.phone && row.email && <span className="ds-meta">·</span>}
-                {row.email && (
-                  <span className="ds-body inline-flex items-center gap-1.5 min-w-0 truncate">
-                    <Mail className="size-3 shrink-0 text-muted-foreground" /> {row.email}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {row.notes && (
-            <div className="mt-3 ds-surface bg-secondary/40 border border-border/50 px-3 py-2.5">
-              <p className="ds-body text-muted-foreground flex items-start gap-2 line-clamp-2">
-                <StickyNote className="size-3.5 shrink-0 mt-0.5 text-muted-foreground" />
-                <span>{row.notes}</span>
-              </p>
-            </div>
-          )}
-        </>
-      )}
+      <div className="mt-1.5 flex flex-col gap-1">
+        <StakeholderStatusControl
+          kind={kind}
+          id={row.id}
+          accountOwnerId={accountOwnerId}
+          status={row.status}
+          statusChangedAt={row.status_changed_at}
+          variant="compact"
+        />
+        {cityUf && (
+          <p className="ds-meta flex items-center gap-1.5">
+            <MapPin className="size-3 shrink-0 text-muted-foreground" /> {cityUf}
+          </p>
+        )}
+      </div>
 
       <div className="mt-3 flex items-center gap-1.5">
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onEdit(); }}
-          className="h-9 flex-1 inline-flex items-center justify-center gap-1.5 rounded-full border border-border text-sm font-medium hover:bg-secondary transition-colors"
+          className="h-9 flex-1 inline-flex items-center justify-center gap-1.5 rounded-none border-0 bg-secondary/50 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
         >
           <Pencil className="size-3.5" /> Editar
         </button>
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onOpen(); }}
-          className="h-9 flex-1 inline-flex items-center justify-center gap-1.5 rounded-full border border-border text-sm font-medium hover:bg-secondary transition-colors"
+          className="h-9 flex-1 inline-flex items-center justify-center gap-1.5 rounded-none border-0 bg-secondary/50 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
         >
           Ver detalhes
         </button>
@@ -500,7 +493,7 @@ function StakeholderCard({
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
           aria-label="Excluir"
           title="Excluir"
-          className="size-9 shrink-0 inline-flex items-center justify-center rounded-full border border-border hover:bg-destructive/10 hover:text-destructive transition-colors"
+          className="size-9 shrink-0 inline-flex items-center justify-center rounded-none border-0 bg-secondary/50 text-foreground/80 hover:bg-destructive/10 hover:text-destructive transition-colors"
         >
           <Trash2 className="size-3.5" />
         </button>

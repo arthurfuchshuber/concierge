@@ -89,6 +89,22 @@ export function statusChip(status: string | null | undefined): string {
   return STATUS_CHIP[String(status ?? "inactive")] ?? STATUS_CHIP.inactive;
 }
 
+/** Ponto de cor sólido — usado no card compacto da listagem. */
+export const STATUS_DOT: Record<string, string> = {
+  active: "bg-emerald-500",
+  documentation: "bg-amber-500",
+  contract: "bg-amber-500",
+  signature: "bg-amber-500",
+  paused: "bg-amber-500",
+  canceling: "bg-yellow-500",
+  canceled: "bg-destructive",
+  inactive: "bg-muted-foreground/50",
+};
+
+export function statusDot(status: string | null | undefined): string {
+  return STATUS_DOT[String(status ?? "inactive")] ?? STATUS_DOT.inactive;
+}
+
 /** Data está no futuro (comparando por dia). */
 export function isFutureDate(value: string | Date): boolean {
   const d = typeof value === "string" ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T12:00:00` : value) : value;

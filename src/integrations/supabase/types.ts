@@ -4842,6 +4842,125 @@ export type Database = {
         }
         Relationships: []
       }
+      task_completions: {
+        Row: {
+          amount_spent_cents: number | null
+          completed_at: string
+          completed_by: string | null
+          id: string
+          log_id: string | null
+          reservation_id: string | null
+          task_id: string
+        }
+        Insert: {
+          amount_spent_cents?: number | null
+          completed_at?: string
+          completed_by?: string | null
+          id?: string
+          log_id?: string | null
+          reservation_id?: string | null
+          task_id: string
+        }
+        Update: {
+          amount_spent_cents?: number | null
+          completed_at?: string
+          completed_by?: string | null
+          id?: string
+          log_id?: string | null
+          reservation_id?: string | null
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_completions_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          account_owner_id: string
+          amount_spent_cents: number | null
+          category: string
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          log_id: string | null
+          owner_contact_id: string | null
+          priority: string
+          property_id: string | null
+          recurrence_days: number | null
+          reservation_id: string | null
+          show_in_cleaning: boolean
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          account_owner_id: string
+          amount_spent_cents?: number | null
+          category?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          log_id?: string | null
+          owner_contact_id?: string | null
+          priority?: string
+          property_id?: string | null
+          recurrence_days?: number | null
+          reservation_id?: string | null
+          show_in_cleaning?: boolean
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          account_owner_id?: string
+          amount_spent_cents?: number | null
+          category?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          log_id?: string | null
+          owner_contact_id?: string | null
+          priority?: string
+          property_id?: string | null
+          recurrence_days?: number | null
+          reservation_id?: string | null
+          show_in_cleaning?: boolean
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_owner_contact_id_fkey"
+            columns: ["owner_contact_id"]
+            isOneToOne: false
+            referencedRelation: "property_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -4921,6 +5040,10 @@ export type Database = {
       bump_memory_usage: {
         Args: { _ids: string[]; _outcome?: string }
         Returns: undefined
+      }
+      can_access_stakeholder_data: {
+        Args: { _owner_id: string; _user_id: string }
+        Returns: boolean
       }
       can_read_permission_catalog: {
         Args: { _user_id: string }

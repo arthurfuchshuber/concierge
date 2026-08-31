@@ -27,7 +27,6 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -35,20 +34,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { formatTaxId, formatIntlPhone, toWhatsappNumber } from "@/lib/masks";
 import {
   getStakeholderDetail,
   addStakeholderNote,
   linkPropertyToOwner,
-  setStakeholderStatus,
 } from "@/lib/stakeholders.functions";
 import { getStakeholderIntegrationFeed } from "@/lib/stakeholder-feed.functions";
 import { getStakeholderSystemTrail } from "@/lib/stakeholder-trail.functions";
@@ -63,13 +54,7 @@ import { PropertyQuickEditDialog } from "@/components/admin/PropertyQuickEditDia
 import { useRealtimeInvalidate } from "@/hooks/useRealtimeInvalidate";
 import type { StakeholderKind } from "./StakeholderDirectory";
 import { EmptyState } from "@/components/ds/EmptyState";
-import {
-  statusLabel,
-  statusStyle,
-  statusDateLabel,
-  isFutureDate,
-  effectiveStatus,
-} from "@/lib/stakeholder-status";
+import { StakeholderStatusControl } from "./StakeholderStatusControl";
 
 type PreviewTarget = { name: string; url?: string | null; docId?: string } | null;
 
@@ -81,21 +66,6 @@ function fmt(iso: string) {
   }
 }
 
-
-type StatusValue =
-  | "active"
-  | "documentation"
-  | "contract"
-  | "signature"
-  | "paused"
-  | "canceled";
-type StageValue = "documentation" | "contract" | "signature";
-
-const STAGE_OPTIONS: Array<{ value: StageValue; label: string; hint: string }> = [
-  { value: "signature", label: "Assinatura", hint: "O contrato já foi enviado" },
-  { value: "contract", label: "Contrato", hint: "Contrato pendente de envio" },
-  { value: "documentation", label: "Documentação", hint: "Cliente pendente de documentação" },
-];
 
 
 
@@ -123,11 +93,6 @@ export function StakeholderDetailSheet({
   const [editingPropertyId, setEditingPropertyId] = useState<string | null>(null);
   const [transferPropertyId, setTransferPropertyId] = useState<string | null>(null);
   const [transferTargetId, setTransferTargetId] = useState<string>("");
-  const [statusDraft, setStatusDraft] = useState<{
-    status: StatusValue;
-    date: string;
-    stage: StageValue | null;
-  } | null>(null);
   // Dados pessoais sempre começam recolhidos ao abrir a ficha.
   const [dataOpen, setDataOpen] = useState(false);
 
@@ -149,40 +114,7 @@ export function StakeholderDetailSheet({
     enabled: kind === "provider",
   });
 
-  const statusFn = useServerFn(setStakeholderStatus);
   const extractFn = useServerFn(extractClicksignPartyData);
-
-  function openStatusDialog(status: StatusValue) {
-    setStatusDraft({ status, date: new Date().toISOString().slice(0, 10), stage: null });
-  }
-
-  // "Ativo" com data futura exige escolher o estágio real (Assinatura/Contrato/Documentação).
-  const needsStage =
-    !!statusDraft &&
-    statusDraft.status === "active" &&
-    !!statusDraft.date &&
-    isFutureDate(statusDraft.date) &&
-    !statusDraft.stage;
-
-  async function confirmStatus() {
-    if (!statusDraft || needsStage) return;
-    setBusy(true);
-    try {
-      const finalStatus =
-        statusDraft.status === "active" && statusDraft.stage ? statusDraft.stage : statusDraft.status;
-      await statusFn({ data: { kind, id, accountOwnerId, status: finalStatus, changed_at: statusDraft.date } });
-      setStatusDraft(null);
-      qc.invalidateQueries({ queryKey });
-      qc.invalidateQueries({ queryKey: ["stakeholders", kind] });
-      qc.invalidateQueries({ queryKey: ["pending-cancellations"] });
-      toast.success("Situação atualizada.");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Não foi possível alterar a situação.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
 
   async function runExtract() {
     setExtracting(true);
@@ -457,29 +389,15 @@ export function StakeholderDetailSheet({
               {displayName}
             </h2>
             <div className="mt-2 ds-scroll-x items-center gap-1.5">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] transition hover:opacity-80 ${statusStyle(effectiveStatus(row.status, row.status_changed_at))}`}
-                  >
-                    {statusLabel(effectiveStatus(row.status, row.status_changed_at))}
-                    <ChevronDown className="size-3" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  {(["active", "documentation", "contract", "signature", "paused", "canceled"] as const).map((s) => (
-                    <DropdownMenuItem key={s} onSelect={() => openStatusDialog(s)}>
-                      {statusLabel(s)}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              {row.status_changed_at && (
-                <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground">
-                  {statusDateLabel(String(row.status_changed_at))}
-                </span>
-              )}
+              <StakeholderStatusControl
+                kind={kind}
+                id={id}
+                accountOwnerId={accountOwnerId}
+                status={row.status}
+                statusChangedAt={row.status_changed_at}
+                variant="pill"
+                invalidateQueryKeys={[queryKey]}
+              />
 
               <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground uppercase">
                 {String(row.person_type ?? "pf")}
@@ -966,74 +884,6 @@ export function StakeholderDetailSheet({
       </Tabs>
 
       <DocPreviewDialog doc={preview} onClose={() => setPreview(null)} />
-
-      <Dialog open={!!statusDraft} onOpenChange={(o) => !o && setStatusDraft(null)}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>
-              Marcar como {statusDraft ? statusLabel(statusDraft.status) : ""}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="status-date">Data da alteração</Label>
-            <Input
-              id="status-date"
-              type="date"
-              value={statusDraft?.date ?? ""}
-              onChange={(e) =>
-                setStatusDraft((d) => (d ? { ...d, date: e.target.value, stage: null } : d))
-              }
-            />
-            <p className="text-xs text-muted-foreground">
-              Pode ser uma data futura, se a mudança ainda vai acontecer.
-            </p>
-          </div>
-
-          {statusDraft?.status === "active" && statusDraft.date && isFutureDate(statusDraft.date) && (
-            <div className="space-y-2 rounded-lg border border-border bg-secondary/30 p-3">
-              <p className="text-xs text-foreground">
-                A data é futura. Qual a situação real do cliente até lá?
-              </p>
-              <div className="space-y-1.5">
-                {STAGE_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() =>
-                      setStatusDraft((d) => (d ? { ...d, stage: opt.value } : d))
-                    }
-                    className={`w-full text-left rounded-md border px-3 py-2 transition ${
-                      statusDraft.stage === opt.value
-                        ? "border-amber-500/50 bg-amber-500/10"
-                        : "border-border hover:bg-secondary/60"
-                    }`}
-                  >
-                    <div className="text-xs font-medium">{opt.label}</div>
-                    <div className="ds-meta">{opt.hint}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {statusDraft?.status === "canceled" && statusDraft.date && isFutureDate(statusDraft.date) && (
-            <p className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-[11px] text-yellow-600 dark:text-yellow-400">
-              O cadastro ficará como <strong>Cancelando</strong> até a data informada. Nesse dia, a
-              equipe será consultada para confirmar o cancelamento ou reverter para Ativo.
-            </p>
-          )}
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={() => setStatusDraft(null)}>
-              Cancelar
-            </Button>
-            <Button onClick={confirmStatus} disabled={busy || !statusDraft?.date || needsStage}>
-              {busy && <Loader2 className="size-3.5 mr-1.5 animate-spin" />}
-              Confirmar
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
     </div>
   );

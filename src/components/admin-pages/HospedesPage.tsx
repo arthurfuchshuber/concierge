@@ -140,13 +140,13 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
       )}
 
 
-      <div className="mb-4 relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+      <div className="mb-5 relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 opacity-60 text-muted-foreground" />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Buscar por nome, guia, telefone, placa, documento…"
-          className="w-full pl-9 pr-3 h-10 rounded-lg border border-border bg-surface text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+          className="h-9 w-full box-border rounded-none border-0 bg-secondary/50 pl-9 pr-3 text-xs font-normal leading-none text-foreground/80 placeholder:text-muted-foreground focus:outline-none focus:bg-secondary transition-colors"
         />
       </div>
 
@@ -264,7 +264,7 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
                             reservationCode: r.reservation_code,
                             guestName: r.guest_name,
                           })}
-                          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700"
+                          className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-none bg-emerald-600 text-white text-xs font-medium leading-none hover:bg-emerald-700 transition-colors"
                           title="Abrir chat (WhatsApp integrado, quando configurado)"
                         >
                           <MessageCircle className="size-3.5" /> <span>Falar com hóspede</span>
@@ -272,7 +272,7 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
                         <button
                           type="button"
                           onClick={() => openSend(r)}
-                          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90"
+                          className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-none bg-secondary/50 text-foreground/80 text-xs font-medium leading-none hover:bg-secondary transition-colors"
                         >
                           <Mail className="size-3.5" /> Enviar para portaria
                         </button>
@@ -308,12 +308,12 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
               <button
                 type="button"
                 onClick={() => setSendOpen(null)}
-                className="h-9 px-3 rounded-lg text-xs text-muted-foreground hover:text-foreground"
+                className="h-9 px-3.5 rounded-none text-xs text-muted-foreground hover:text-foreground"
               >Cancelar</button>
               <button
                 type="button"
                 onClick={confirmSend}
-                className="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 inline-flex items-center gap-1.5"
+                className="h-9 px-4 rounded-none bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 inline-flex items-center gap-1.5"
               ><Mail className="size-3.5" /> Abrir email</button>
             </div>
             <p className="text-[10px] text-muted-foreground mt-3">

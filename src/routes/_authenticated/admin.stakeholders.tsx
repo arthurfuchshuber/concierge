@@ -1,8 +1,6 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Building2, Users, Wrench } from "lucide-react";
 import { StakeholderDirectory } from "@/components/stakeholders/StakeholderDirectory";
-import { PageHeader } from "@/components/ds/PageHeader";
+import { WorkspaceHeader, type WorkspaceTab } from "@/components/ds/WorkspaceHeader";
 import { HospedesPage } from "@/components/admin-pages/HospedesPage";
 
 type Tab = "proprietarios" | "hospedes" | "prestadores";
@@ -11,7 +9,33 @@ function coerceTab(v: unknown): Tab {
   return v === "hospedes" || v === "prestadores" ? v : "proprietarios";
 }
 
+const TABS: WorkspaceTab[] = [
+  { key: "proprietarios", label: "Proprietários" },
+  { key: "hospedes", label: "Hóspedes" },
+  { key: "prestadores", label: "Prestadores" },
+];
+
+const SUBTITLES: Record<Tab, string> = {
+  proprietarios: "Proprietários, hóspedes e prestadores da operação.",
+  hospedes: "Dados enviados pelos hóspedes ao abrirem o guia.",
+  prestadores: "Limpeza, manutenção e parceiros da operação.",
+};
+
 export const Route = createFileRoute("/_authenticated/admin/stakeholders")({
+  head: () => ({
+    meta: [
+      { title: "Stakeholders — ConciergeIA" },
+      {
+        name: "description",
+        content: "Proprietários, hóspedes e prestadores da sua operação em um só lugar.",
+      },
+      { property: "og:title", content: "Stakeholders — ConciergeIA" },
+      {
+        property: "og:description",
+        content: "Cadastro e acompanhamento de proprietários, hóspedes e prestadores.",
+      },
+    ],
+  }),
   validateSearch: (s: Record<string, unknown>): { tab?: Tab } =>
     s.tab === "hospedes" || s.tab === "prestadores" ? { tab: s.tab } : {},
   component: StakeholdersPage,
@@ -23,43 +47,20 @@ function StakeholdersPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen">
-      <div className="px-6 lg:px-10 pt-8 lg:pt-10 pb-2 max-w-[1440px] mx-auto w-full">
-        <PageHeader
-          title="Stakeholders"
-          subtitle="Proprietários, hóspedes e prestadores da sua operação em um só lugar."
-        />
-      </div>
-      <Tabs
-        value={tab}
-        onValueChange={(v) => navigate({ to: "/admin/stakeholders", search: { tab: coerceTab(v) } })}
-        className="w-full"
-      >
-        <div className="px-6 lg:px-10 max-w-[1440px] mx-auto w-full">
-          <TabsList>
-            <TabsTrigger value="proprietarios">
-              <Building2 className="size-4" /> Proprietários
-            </TabsTrigger>
-            <TabsTrigger value="hospedes">
-              <Users className="size-4" /> Hóspedes
-            </TabsTrigger>
-            <TabsTrigger value="prestadores">
-              <Wrench className="size-4" /> Prestadores
-            </TabsTrigger>
-          </TabsList>
-        </div>
-        <div className="px-6 lg:px-10 max-w-[1440px] mx-auto w-full pt-6 pb-16">
-          <TabsContent value="proprietarios" className="mt-0">
-            <StakeholderDirectory kind="owner" />
-          </TabsContent>
-          <TabsContent value="hospedes" className="mt-0">
-            <HospedesPage embedded />
-          </TabsContent>
-          <TabsContent value="prestadores" className="mt-0">
-            <StakeholderDirectory kind="provider" />
-          </TabsContent>
-        </div>
-      </Tabs>
+    <div className="px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full">
+      <WorkspaceHeader
+        title="Stakeholders"
+        subtitle={SUBTITLES[tab]}
+        tabs={TABS}
+        activeTab={tab}
+        onTabChange={(k) =>
+          navigate({ to: "/admin/stakeholders", search: { tab: coerceTab(k) } })
+        }
+      />
+
+      {tab === "proprietarios" && <StakeholderDirectory kind="owner" />}
+      {tab === "hospedes" && <HospedesPage embedded />}
+      {tab === "prestadores" && <StakeholderDirectory kind="provider" />}
     </div>
   );
 }
