@@ -192,9 +192,17 @@ export const disconnectMyClicksign = createServerFn({ method: "POST" })
     return { ok: true, purged: data.purge };
   });
 
+const SYNC_INPUT = z.object({
+  // Quando true, aplica a data do ClickSign mesmo em cadastros cuja "Início
+  // do contrato" já foi definida manualmente com um valor diferente. Só deve
+  // vir true depois que a própria pessoa confirmar isso na tela.
+  overwriteContractStart: z.boolean().default(false),
+});
+
 export const syncMyClicksignDocuments = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((raw) => SYNC_INPUT.parse(raw ?? {}))
+  .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
     await enforce(userId, "integracoes.write", { });
@@ -263,6 +271,14 @@ export const syncMyClicksignDocuments = createServerFn({ method: "POST" })
     let updated = 0;
     let linked = 0;
 
+    // Cadastros tocados nesta sincronização (documento novo/atualizado e
+    // vinculado a um proprietário ou prestador) — no final, tentamos extrair
+    // os dados do contrato (endereço, documento etc.) e o início de vigência
+    // de cada um, exatamente como o botão "Atualizar Dados" já fazia. Assim
+    // "Importar contratos" já deixa o cadastro atualizado, sem precisar de
+    // um segundo clique.
+    const touched = new Map<string, { kind: "owner" | "provider"; id: string }>();
+
     for (const { csDoc, signers } of docs) {
       const key = String(csDoc["key"]);
       const filename = (csDoc["filename"] as string) ?? (csDoc["path"] as string) ?? "Documento ClickSign";
@@ -295,8 +311,9 @@ export const syncMyClicksignDocuments = createServerFn({ method: "POST" })
         }
       }
       if (stakeholderType) linked++;
-
-
+      if ((stakeholderType === "owner" || stakeholderType === "provider") && stakeholderId) {
+        touched.set(`${stakeholderType}:${stakeholderId}`, { kind: stakeholderType, id: stakeholderId });
+      }
 
       const downloads = (csDoc["downloads"] as Record<string, unknown> | undefined) ?? {};
       const payload = {
@@ -367,7 +384,51 @@ export const syncMyClicksignDocuments = createServerFn({ method: "POST" })
       last_error: null,
     }).eq("owner_id", userId).eq("provider", "clicksign");
 
-    return { inserted, updated, linked, total: docs.length };
+    // 3. Preenche os cadastros vinculados nesta sincronização: campos vazios
+    // (endereço, documento etc.) e o início de vigência a partir do primeiro
+    // documento assinado — nunca sobrescrevendo um valor já definido, a
+    // menos que a pessoa confirme (mesma regra do botão "Atualizar Dados").
+    const { fillFromContract, fillContractStartFromClicksign } = await import("@/lib/contract-fill.server");
+    let dataFilled = 0;
+    let contractStartFilled = 0;
+    let contractStartOverwritten = 0;
+    const contractStartConflicts: Array<{
+      kind: "owner" | "provider";
+      id: string;
+      name: string | null;
+      current: string | null;
+      suggested: string | null;
+    }> = [];
+
+    for (const t of Array.from(touched.values()).slice(0, 60)) {
+      try {
+        const r = await fillFromContract(supabase, userId, t.kind, t.id);
+        if (r.filled.length) dataFilled += 1;
+      } catch {
+        /* documento sem arquivo legível — não bloqueia o restante */
+      }
+      try {
+        const csr = await fillContractStartFromClicksign(supabase, userId, t.kind, t.id, data.overwriteContractStart);
+        if (csr.status === "filled") contractStartFilled += 1;
+        else if (csr.status === "overwritten") contractStartOverwritten += 1;
+        else if (csr.status === "conflict") {
+          contractStartConflicts.push({ kind: t.kind, id: t.id, name: csr.name, current: csr.current, suggested: csr.suggested });
+        }
+      } catch {
+        /* não bloqueia o restante */
+      }
+    }
+
+    return {
+      inserted,
+      updated,
+      linked,
+      total: docs.length,
+      dataFilled,
+      contractStartFilled,
+      contractStartOverwritten,
+      contractStartConflicts,
+    };
   });
 
 export const listMyClicksignDocuments = createServerFn({ method: "GET" })

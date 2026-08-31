@@ -67,6 +67,8 @@ export function ClicksignPanel({ accountOwnerId = null, readOnly = false }: { ac
   const [importOpen, setImportOpen] = useState(false);
   const [disconnectOpen, setDisconnectOpen] = useState(false);
   const [contractStartConflicts, setContractStartConflicts] = useState<ClicksignContractStartConflict[]>([]);
+  // De qual ação vieram os conflitos — decide o que reexecutar com overwrite=true.
+  const [contractStartConflictSource, setContractStartConflictSource] = useState<"sync" | "refresh" | null>(null);
   const [showSecret, setShowSecret] = useState(false);
   const [secret, setSecret] = useState("");
   // Apenas um quadrante aberto por vez; todos recolhidos ao abrir.
@@ -100,6 +102,7 @@ export function ClicksignPanel({ accountOwnerId = null, readOnly = false }: { ac
       if (r.failed > 0) toast.warning(`${r.failed} contrato(s) não puderam ser lidos.`);
       if (r.contractStartConflicts.length > 0) {
         setContractStartConflicts(r.contractStartConflicts);
+        setContractStartConflictSource("refresh");
       }
       qc.invalidateQueries({ queryKey: ["stakeholders"] });
     },
@@ -150,11 +153,24 @@ export function ClicksignPanel({ accountOwnerId = null, readOnly = false }: { ac
 
 
   const sync = useMutation({
-    mutationFn: async () => syncFn(),
+    mutationFn: (overwriteContractStart: boolean) => syncFn({ data: { overwriteContractStart } }),
     onSuccess: (r) => {
-      toast.success(`${r.total} contratos importados — ${r.linked} vinculados a cadastros.`);
+      const extras: string[] = [];
+      if (r.dataFilled > 0) extras.push(`${r.dataFilled} cadastro(s) com dados do contrato preenchidos`);
+      if (r.contractStartFilled > 0) {
+        extras.push(`${r.contractStartFilled} com início de vigência preenchido pela assinatura do ClickSign`);
+      }
+      if (r.contractStartOverwritten > 0) extras.push(`${r.contractStartOverwritten} com início de vigência atualizado`);
+      toast.success(
+        [`${r.total} contratos importados — ${r.linked} vinculados a cadastros`, ...extras].join(" · "),
+      );
+      if (r.contractStartConflicts.length > 0) {
+        setContractStartConflicts(r.contractStartConflicts);
+        setContractStartConflictSource("sync");
+      }
       qc.invalidateQueries({ queryKey: ["clicksign-docs"] });
       qc.invalidateQueries({ queryKey: ["clicksign-config"] });
+      qc.invalidateQueries({ queryKey: ["stakeholders"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -410,7 +426,7 @@ export function ClicksignPanel({ accountOwnerId = null, readOnly = false }: { ac
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-52">
-              <DropdownMenuItem onSelect={() => sync.mutate()} disabled={sync.isPending}>
+              <DropdownMenuItem onSelect={() => sync.mutate(false)} disabled={sync.isPending}>
                 {sync.isPending ? (
                   <Loader2 className="mr-2 size-3.5 animate-spin" />
                 ) : (
@@ -439,10 +455,11 @@ export function ClicksignPanel({ accountOwnerId = null, readOnly = false }: { ac
           if (!next) setContractStartConflicts([]);
         }}
         conflicts={contractStartConflicts}
-        pending={refreshData.isPending}
+        pending={contractStartConflictSource === "sync" ? sync.isPending : refreshData.isPending}
         onConfirm={() => {
           setContractStartConflicts([]);
-          refreshData.mutate(true);
+          if (contractStartConflictSource === "sync") sync.mutate(true);
+          else refreshData.mutate(true);
         }}
       />
 
