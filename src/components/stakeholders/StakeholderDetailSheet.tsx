@@ -588,7 +588,7 @@ export function StakeholderDetailSheet({
 
       <Tabs defaultValue="visao">
         <TabsList className="ds-segmented h-auto !rounded-[0.3rem] border-0 bg-foreground/5 p-0">
-          <TabsTrigger className={SEG_TAB} value="visao">Visão Geral</TabsTrigger>
+          <TabsTrigger className={SEG_TAB} value="visao">Timeline</TabsTrigger>
           {kind === "owner" && <TabsTrigger className={SEG_TAB} value="imoveis">Imóveis</TabsTrigger>}
           <TabsTrigger className={SEG_TAB} value="financeiro">Financeiro</TabsTrigger>
           <TabsTrigger className={SEG_TAB} value="documentos">Documentos</TabsTrigger>
