@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
-import type { DateRange } from "react-day-picker";
 import {
   Dialog,
   DialogContent,
@@ -46,7 +45,7 @@ import { getStakeholderAccess, createStakeholderProvisionalAccess } from "@/lib/
 import { inviteTeamMember, revokeTeamInvite, removeTeamMember } from "@/lib/team.functions";
 import { saveStakeholder } from "@/lib/stakeholders.functions";
 import { lookupCnpj } from "@/lib/br-lookup.functions";
-import { isValidCPF, isValidCNPJ, formatBRPhone } from "@/lib/masks";
+import { isValidCPF, isValidCNPJ } from "@/lib/masks";
 import { type StakeholderKind } from "./constants";
 import { CategoryPicker } from "./CategoryPicker";
 import { AddressAutocomplete } from "./AddressAutocomplete";
@@ -554,7 +553,7 @@ export function StakeholderFormDialog({
           </div>
           )}
 
-          <FormSection label="Dados cadastrais" busy={checkingCnpj} defaultOpen>
+          <FormSection label="Dados cadastrais" busy={checkingCnpj} {...sectionProps("dados")}>
 
             <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
 
@@ -716,7 +715,7 @@ export function StakeholderFormDialog({
           </FormSection>
 
 
-          <FormSection label="Contato" defaultOpen>
+          <FormSection label="Contato" {...sectionProps("contato")}>
 
             <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
 
@@ -733,7 +732,6 @@ export function StakeholderFormDialog({
                 }}
                 onBlur={() => presence.broadcastFieldBlur("phone")}
                 error={errors.phone}
-                hint={form.phone ? formatBRPhone(form.phone) : undefined}
               />
               <FieldTypingBadge typing={presence.typing["phone"]} />
             </div>
@@ -765,7 +763,7 @@ export function StakeholderFormDialog({
           </FormSection>
 
 
-          <FormSection label="Acesso ao sistema">
+          <FormSection label="Acesso ao sistema" {...sectionProps("acesso")}>
             <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
             <label className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
               <span className="ds-body min-w-0 font-semibold">Permitir acesso ao sistema</span>
@@ -832,7 +830,7 @@ export function StakeholderFormDialog({
             </div>
           </FormSection>
 
-          <FormSection label="Endereço" busy={loadingCep}>
+          <FormSection label="Endereço" busy={loadingCep} {...sectionProps("endereco")}>
 
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 [&>*]:min-w-0">
@@ -944,7 +942,7 @@ export function StakeholderFormDialog({
             </div>
           </FormSection>
 
-          <FormSection label="Extras">
+          <FormSection label="Extras" {...sectionProps("extras")}>
 
 
             <div className="space-y-1.5">
