@@ -1,5 +1,5 @@
 import { PhoneActionButton } from "@/components/PhoneActionButton";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Link } from "@tanstack/react-router";
@@ -43,7 +43,7 @@ import {
 } from "@/lib/stakeholders.functions";
 import { getStakeholderIntegrationFeed } from "@/lib/stakeholder-feed.functions";
 import { getStakeholderSystemTrail } from "@/lib/stakeholder-trail.functions";
-import { getClicksignDocumentUrl, extractClicksignPartyData } from "@/lib/clicksign.functions";
+import { getClicksignDocumentFile, extractClicksignPartyData } from "@/lib/clicksign.functions";
 import { CopyButton } from "@/components/CopyButton";
 import { getStakeholderAccess } from "@/lib/stakeholder-access.functions";
 import { UserAccess } from "@/components/admin-pages/PermissionCenterPage";
