@@ -307,6 +307,7 @@ export function StakeholderFormDialog({
     setProvisionalPwd("");
     setShowPwd(false);
     setDocLocked(Boolean(stripMask((initial ?? emptyStakeholderForm).doc)));
+    setOpenSection(null);
 
     lastCep.current = "";
   }, [open, initial]);
