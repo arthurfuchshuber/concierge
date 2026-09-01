@@ -162,6 +162,8 @@ export function StakeholderFormDialog({
   const [systemAccess, setSystemAccess] = useState(false);
   const [provisionalPwd, setProvisionalPwd] = useState("");
   const [showPwd, setShowPwd] = useState(false);
+  /** CPF/CNPJ trava depois de validado; o botão "Alterar" libera de novo. */
+  const [docLocked, setDocLocked] = useState(false);
 
   // Presença em tempo real: só existe sala pra registros já salvos (com id) —
   // um cadastro novo, ainda sem id, não tem o que outra pessoa acompanhar.
@@ -192,6 +194,7 @@ export function StakeholderFormDialog({
     setSystemAccess(false);
     setProvisionalPwd("");
     setShowPwd(false);
+    setDocLocked(Boolean(stripMask((initial ?? emptyStakeholderForm).doc)));
 
     lastCep.current = "";
   }, [open, initial]);
@@ -218,6 +221,7 @@ export function StakeholderFormDialog({
     if (!isPJ) {
       if (d.length !== 11) return setErrors((p) => ({ ...p, doc: "CPF incompleto" }));
       if (!isValidCPF(d)) return setErrors((p) => ({ ...p, doc: "CPF inválido" }));
+      setDocLocked(true);
       return clearError("doc");
     }
     if (d.length !== 14) return setErrors((p) => ({ ...p, doc: "CNPJ incompleto" }));
@@ -245,6 +249,7 @@ export function StakeholderFormDialog({
         city: res.data!.cidade || p.city,
         state: res.data!.estado || p.state,
       }));
+      setDocLocked(true);
       toast.success("Dados preenchidos pela Receita Federal.");
     } finally {
       setCheckingCnpj(false);
@@ -472,12 +477,22 @@ export function StakeholderFormDialog({
                   clearError("doc");
                   presence.broadcastTyping("doc", raw);
                 }}
+                readOnly={docLocked}
                 onBlur={() => {
                   presence.broadcastFieldBlur("doc");
                   void handleDocBlur();
                 }}
                 error={errors.doc}
               />
+              {docLocked && (
+                <button
+                  type="button"
+                  onClick={() => setDocLocked(false)}
+                  className="ds-meta mt-1 underline underline-offset-2 hover:text-foreground"
+                >
+                  Alterar {isPJ ? "CNPJ" : "CPF"}
+                </button>
+              )}
               <FieldTypingBadge typing={presence.typing["doc"]} />
             </div>
 
