@@ -57,7 +57,7 @@ export function AddressAutocomplete({
 
   return (
     <div className="space-y-1.5 min-w-0" ref={boxRef}>
-      <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+      <Label className="ds-meta flex items-center gap-1.5">
         <Home className="size-3.5" /> {label}
         {loading && <Loader2 className="size-3 animate-spin text-primary" />}
       </Label>
@@ -75,7 +75,7 @@ export function AddressAutocomplete({
           className={`w-full ${error ? "border-destructive" : ""}`}
         />
         {open && items.length > 0 && (
-          <ul className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-border bg-popover shadow-lg">
+          <ul className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-border bg-popover shadow-lg">
             {items.map((s, i) => (
               <li key={`${s.label}-${i}`}>
                 <button
@@ -85,7 +85,7 @@ export function AddressAutocomplete({
                     onPick(s);
                     setOpen(false);
                   }}
-                  className="block w-full px-3 py-2 text-left text-xs leading-snug hover:bg-secondary"
+                  className="block w-full px-3 py-2 text-left text-[13px] leading-snug hover:bg-secondary"
                 >
                   {s.label}
                 </button>
@@ -94,7 +94,7 @@ export function AddressAutocomplete({
           </ul>
         )}
       </div>
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <p className="ds-meta text-destructive">{error}</p>}
     </div>
   );
 }
