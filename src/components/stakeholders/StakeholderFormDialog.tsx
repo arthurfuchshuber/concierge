@@ -119,13 +119,37 @@ export function rowToStakeholderForm(row: Record<string, any>): StakeholderFormV
   };
 }
 
-/** Título de seção do formulário (Sora 700 15px, alinhado à esquerda). */
-function SectionTitle({ label, busy }: { label: string; busy?: boolean }) {
+/** Seção expansível do formulário — compacta a altura total do diálogo. */
+function FormSection({
+  label,
+  busy,
+  defaultOpen = false,
+  children,
+}: {
+  label: string;
+  busy?: boolean;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
-    <h3 className="ds-section-title mb-6 flex items-center gap-1.5">
-      {label}
-      {busy && <Loader2 className="size-3 animate-spin text-primary" />}
-    </h3>
+    <section className="rounded-lg border border-border/60">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-2.5 text-left"
+      >
+        <span className="ds-section-title flex min-w-0 items-center gap-1.5">
+          <span className="truncate">{label}</span>
+          {busy && <Loader2 className="size-3 shrink-0 animate-spin text-primary" />}
+        </span>
+        <ChevronDown
+          className={`size-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && <div className="border-t border-border/40 px-3 py-3">{children}</div>}
+    </section>
   );
 }
 
