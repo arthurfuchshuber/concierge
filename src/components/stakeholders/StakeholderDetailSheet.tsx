@@ -1,5 +1,5 @@
 import { PhoneActionButton } from "@/components/PhoneActionButton";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Link } from "@tanstack/react-router";
@@ -43,7 +43,7 @@ import {
 } from "@/lib/stakeholders.functions";
 import { getStakeholderIntegrationFeed } from "@/lib/stakeholder-feed.functions";
 import { getStakeholderSystemTrail } from "@/lib/stakeholder-trail.functions";
-import { getClicksignDocumentUrl, extractClicksignPartyData } from "@/lib/clicksign.functions";
+import { getClicksignDocumentFile, extractClicksignPartyData } from "@/lib/clicksign.functions";
 import { CopyButton } from "@/components/CopyButton";
 import { getStakeholderAccess } from "@/lib/stakeholder-access.functions";
 import { UserAccess } from "@/components/admin-pages/PermissionCenterPage";
@@ -588,7 +588,7 @@ export function StakeholderDetailSheet({
 
       <Tabs defaultValue="visao">
         <TabsList className="ds-segmented h-auto !rounded-[0.3rem] border-0 bg-foreground/5 p-0">
-          <TabsTrigger className={SEG_TAB} value="visao">Visão Geral</TabsTrigger>
+          <TabsTrigger className={SEG_TAB} value="visao">Timeline</TabsTrigger>
           {kind === "owner" && <TabsTrigger className={SEG_TAB} value="imoveis">Imóveis</TabsTrigger>}
           <TabsTrigger className={SEG_TAB} value="financeiro">Financeiro</TabsTrigger>
           <TabsTrigger className={SEG_TAB} value="documentos">Documentos</TabsTrigger>
@@ -974,14 +974,32 @@ function DocPreviewDialog({
   doc: PreviewTarget;
   onClose: () => void;
 }) {
-  const urlFn = useServerFn(getClicksignDocumentUrl);
+  const fileFn = useServerFn(getClicksignDocumentFile);
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["clicksign-doc-url", doc?.docId],
-    queryFn: () => urlFn({ data: { id: doc!.docId! } }),
+    queryKey: ["clicksign-doc-file", doc?.docId],
+    queryFn: () => fileFn({ data: { id: doc!.docId! } }),
     enabled: !!doc?.docId,
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
+    retry: false,
   });
-  const url = doc?.docId ? data?.url ?? null : doc?.url ?? null;
+
+  // O PDF é servido como blob local: o link assinado do ClickSign vem como
+  // anexo e é bloqueado dentro do visualizador embutido.
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!data?.base64) {
+      setBlobUrl(null);
+      return;
+    }
+    const bin = atob(data.base64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const u = URL.createObjectURL(new Blob([bytes], { type: data.contentType || "application/pdf" }));
+    setBlobUrl(u);
+    return () => URL.revokeObjectURL(u);
+  }, [data?.base64, data?.contentType]);
+
+  const url = doc?.docId ? blobUrl : doc?.url ?? null;
 
   return (
     <Dialog open={!!doc} onOpenChange={(o) => !o && onClose()}>

@@ -53,8 +53,9 @@ export function PhoneActionButton({ phone, country, className, size = 14, showNu
             className,
           )}
         >
-          <MessageCircle style={{ width: size, height: size }} />
+          {/* Com o número visível, o ícone fica à DIREITA do número. */}
           {showNumber && <span className="text-sm text-foreground">{label}</span>}
+          <MessageCircle style={{ width: size, height: size }} />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-40" onClick={(e) => e.stopPropagation()}>
