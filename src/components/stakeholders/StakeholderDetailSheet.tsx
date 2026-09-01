@@ -321,6 +321,7 @@ export function StakeholderDetailSheet({
       icon: Pin,
       title: ev.message as string,
       badge: "Registro",
+      author: (ev.author_name as string | null) ?? "Sistema",
       body: null as React.ReactNode,
     })),
     ...feedEvents.map((ev) => ({
@@ -329,6 +330,7 @@ export function StakeholderDetailSheet({
       icon: CalendarDays,
       title: ev.title,
       badge: ev.calendarName || "Agenda",
+      author: "Sistema",
       body: (
         <>
           {ev.htmlLink && (
@@ -368,6 +370,7 @@ export function StakeholderDetailSheet({
       icon: FileText,
       title: d.name,
       badge: "ClickSign",
+      author: "Sistema",
       body: (
         <>
           <p className="text-xs text-muted-foreground">
@@ -392,6 +395,7 @@ export function StakeholderDetailSheet({
         icon: ev.severity === "error" || ev.severity === "critical" ? Unlink : MessageCircle,
         title: ev.title,
         badge: ev.badge,
+        author: "Sistema",
         body:
           ev.details.length > 0 ? (
             <ul className="space-y-0.5">
