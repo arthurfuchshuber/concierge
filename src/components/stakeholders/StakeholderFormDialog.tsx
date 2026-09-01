@@ -721,31 +721,16 @@ export function StakeholderFormDialog({
             </div>
           </section>
 
-          <section>
-            <SectionTitle label="Acesso ao sistema" />
-
-            <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
-            <div className="space-y-3">
-              <div className="min-w-0">
-                <p className="ds-body font-semibold">Permitir acesso ao sistema</p>
-                <p className="ds-meta">
-
-                  {access?.status === "active"
-                    ? "Esta pessoa já acessa o sistema. As permissões por área ficam na ficha, na aba “Acessos”."
-                    : access?.status === "pending"
-                      ? "Convite enviado — o acesso passa a valer quando a pessoa aceitar no primeiro login."
-                      : "Defina uma senha provisória abaixo (ou deixe em branco para enviar convite por e-mail). No primeiro acesso a pessoa cria a própria senha."}
-                </p>
-              </div>
-              <label className="flex items-center gap-2.5">
-                <Switch
-                  checked={systemAccess}
-                  disabled={!emailValid || accessQuery.isLoading}
-                  onCheckedChange={setSystemAccess}
-                />
-                <span className="ds-meta">{systemAccess ? "Ativado" : "Desativado"}</span>
-              </label>
-            </div>
+          <FormSection label="Acesso ao sistema">
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+            <label className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+              <span className="ds-body min-w-0 font-semibold">Permitir acesso ao sistema</span>
+              <Switch
+                checked={systemAccess}
+                disabled={!emailValid || accessQuery.isLoading}
+                onCheckedChange={setSystemAccess}
+              />
+            </label>
             {!emailValid && (
               <p className="ds-meta mt-2 text-amber-500">
                 Informe um e-mail válido acima para liberar o acesso ao sistema.
