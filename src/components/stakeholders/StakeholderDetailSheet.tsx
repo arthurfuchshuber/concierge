@@ -57,9 +57,9 @@ import { EmptyState } from "@/components/ds/EmptyState";
 import { StakeholderStatusControl } from "./StakeholderStatusControl";
 import { effectiveStatus, statusText } from "@/lib/stakeholder-status";
 
-/** Aba do segmented control: full width, 46px, ativa com o gradiente da marca. */
+/** Aba do segmented control: adapta-se à largura da tela (anti-corte), 46px. */
 const SEG_TAB =
-  "min-h-[46px] !flex-none !rounded-[0.3rem] px-4 text-[13px] font-semibold data-[state=active]:bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] data-[state=active]:text-white data-[state=active]:shadow-none";
+  "min-h-[46px] !rounded-[0.3rem] text-[13px] font-semibold data-[state=active]:bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] data-[state=active]:text-white data-[state=active]:shadow-none";
 
 type PreviewTarget = { name: string; url?: string | null; docId?: string } | null;
 
