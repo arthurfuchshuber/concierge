@@ -16,20 +16,29 @@ export function useAreaAccess(namespaces: string[], required: AccessLevelInput =
 
   const query = useQuery({
     queryKey: ["area-access", required, list.join("|")],
-    queryFn: () =>
-      fetcher({
-        data: {
-          permissions: list,
-          required,
-          propertyId: null,
-          clientId: null,
-          recordId: null,
-        },
-      }),
+    queryFn: async () => {
+      try {
+        return await fetcher({
+          data: {
+            permissions: list,
+            required,
+            propertyId: null,
+            clientId: null,
+            recordId: null,
+          },
+        });
+      } catch {
+        // Sem sessão (logout / tela de login) o runtime responde 401.
+        // Isso não é erro de tela: devolvemos "nenhuma decisão" e a UI
+        // simplesmente não libera nada, em vez de quebrar em tela branca.
+        return { decisions: {} } as Awaited<ReturnType<typeof fetcher>>;
+      }
+    },
     enabled: list.length > 0,
     staleTime: 30_000,
     retry: false,
   });
+
 
   const decisions = query.data?.decisions ?? {};
 
