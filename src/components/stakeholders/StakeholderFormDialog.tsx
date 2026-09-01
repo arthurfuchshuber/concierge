@@ -119,18 +119,16 @@ export function rowToStakeholderForm(row: Record<string, any>): StakeholderFormV
   };
 }
 
-function SectionDivider({ label, busy }: { label: string; busy?: boolean }) {
+/** Título de seção do formulário (Sora 700 15px, alinhado à esquerda). */
+function SectionTitle({ label, busy }: { label: string; busy?: boolean }) {
   return (
-    <div className="flex items-center gap-3 pt-1">
-      <div className="h-px flex-1 bg-border/40" />
-      <span className="ds-eyebrow flex items-center gap-1.5">
-        {label}
-        {busy && <Loader2 className="size-3 animate-spin text-primary" />}
-      </span>
-      <div className="h-px flex-1 bg-border/40" />
-    </div>
+    <h3 className="ds-section-title mb-6 flex items-center gap-1.5">
+      {label}
+      {busy && <Loader2 className="size-3 animate-spin text-primary" />}
+    </h3>
   );
 }
+
 
 export function StakeholderFormDialog({
   kind,
