@@ -403,7 +403,8 @@ export function StakeholderFormDialog({
         </DialogHeader>
 
         <div className="space-y-8 max-h-[65vh] overflow-y-auto overflow-x-hidden pr-1">
-          {/* Tipo — segmented control (46px, 0.3rem, nunca quebra em 2 linhas) */}
+          {/* Tipo — só na criação; ao editar, o tipo já está definido */}
+          {!form.id && (
           <div className="ds-segmented rounded-[0.3rem] bg-muted/40 p-0">
             {([
               { key: "pf" as const, label: "Pessoa Física", sub: "CPF", icon: UserRound },
