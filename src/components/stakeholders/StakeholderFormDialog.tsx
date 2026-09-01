@@ -719,7 +719,8 @@ export function StakeholderFormDialog({
               <FieldTypingBadge typing={presence.typing["email"]} />
             </div>
             </div>
-          </section>
+          </FormSection>
+
 
           <FormSection label="Acesso ao sistema">
             <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
