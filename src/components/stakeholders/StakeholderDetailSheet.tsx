@@ -58,6 +58,7 @@ import { getMyClicksignConfig } from "@/lib/clicksign.functions";
 import { listStakeholderOptions } from "@/lib/stakeholder-links.functions";
 import { PropertyQuickEditDialog } from "@/components/admin/PropertyQuickEditDialog";
 import { useRealtimeInvalidate } from "@/hooks/useRealtimeInvalidate";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import type { StakeholderKind } from "./StakeholderDirectory";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { StakeholderStatusControl } from "./StakeholderStatusControl";
@@ -485,7 +486,7 @@ export function StakeholderDetailSheet({
           {displayName}
         </h2>
 
-        {/* Linha 3: metadados com separadores verticais, rolagem horizontal */}
+        {/* Linha 3: status e tipo permanecem juntos. */}
         <div className="ds-scroll-x mt-2 gap-3 ds-meta">
           <StakeholderStatusControl
             kind={kind}
@@ -502,15 +503,14 @@ export function StakeholderDetailSheet({
               ? "Pessoa Jurídica"
               : "Pessoa Física"}
           </span>
-          {contractRange && (
-            <>
-              <span className="h-3 w-px bg-border" aria-hidden />
-              <span className={`whitespace-nowrap tabular-nums ${statusText(effStatus)}`}>
-                {contractRange}
-              </span>
-            </>
-          )}
         </div>
+
+        {/* Linha 4: vigência abaixo do status e do tipo de pessoa. */}
+        {contractRange && (
+          <p className={`mt-1.5 whitespace-nowrap tabular-nums text-sm ${statusText(effStatus)}`}>
+            {contractRange}
+          </p>
+        )}
 
         {categoryLabels.length > 0 && (
           <p className="mt-1.5 ds-meta truncate">{categoryLabels.join(" · ")}</p>
@@ -1001,23 +1001,7 @@ function DocPreviewDialog({
     retry: false,
   });
 
-  // O PDF é servido como blob local: o link assinado do ClickSign vem como
-  // anexo e é bloqueado dentro do visualizador embutido.
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
-  useEffect(() => {
-    if (!data?.base64) {
-      setBlobUrl(null);
-      return;
-    }
-    const bin = atob(data.base64);
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    const u = URL.createObjectURL(new Blob([bytes], { type: data.contentType || "application/pdf" }));
-    setBlobUrl(u);
-    return () => URL.revokeObjectURL(u);
-  }, [data?.base64, data?.contentType]);
-
-  const url = doc?.docId ? blobUrl : doc?.url ?? null;
+  const externalUrl = doc?.docId ? null : doc?.url ?? null;
 
   return (
     <Dialog open={!!doc} onOpenChange={(o) => !o && onClose()}>
@@ -1031,9 +1015,11 @@ function DocPreviewDialog({
               <div className="flex h-[70vh] items-center justify-center gap-2 border-t border-border bg-muted text-sm text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" /> Gerando link seguro…
               </div>
-            ) : url ? (
+            ) : data?.base64 ? (
+              <PdfPages base64={data.base64} />
+            ) : externalUrl ? (
               <iframe
-                src={url}
+                src={externalUrl}
                 title={doc.name}
                 className="h-[70vh] w-full border-t border-border bg-muted"
               />
@@ -1044,10 +1030,10 @@ function DocPreviewDialog({
                   : "Documento sem arquivo disponível."}
               </div>
             )}
-            {url && (
+            {externalUrl && (
               <div className="flex justify-end gap-2 px-5 py-3">
                 <a
-                  href={url}
+                  href={externalUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -1060,6 +1046,86 @@ function DocPreviewDialog({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function PdfPages({ base64 }: { base64: string }) {
+  const [pages, setPages] = useState<string[]>([]);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const objectUrls: string[] = [];
+
+    async function renderPdf() {
+      try {
+        setError(false);
+        setPages([]);
+        const pdfjs = await import("pdfjs-dist");
+        pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+        const pdf = await pdfjs.getDocument({ data: bytes }).promise;
+        const rendered: string[] = [];
+
+        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+          if (cancelled) return;
+          const page = await pdf.getPage(pageNumber);
+          const baseViewport = page.getViewport({ scale: 1 });
+          const scale = Math.min(2, 1100 / baseViewport.width);
+          const viewport = page.getViewport({ scale });
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.ceil(viewport.width);
+          canvas.height = Math.ceil(viewport.height);
+          const context = canvas.getContext("2d");
+          if (!context) throw new Error("Canvas indisponível");
+          await page.render({ canvas, canvasContext: context, viewport }).promise;
+          const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+          if (!blob) throw new Error("Falha ao renderizar página");
+          const objectUrl = URL.createObjectURL(blob);
+          objectUrls.push(objectUrl);
+          rendered.push(objectUrl);
+          if (!cancelled) setPages([...rendered]);
+        }
+      } catch {
+        if (!cancelled) setError(true);
+      }
+    }
+
+    void renderPdf();
+    return () => {
+      cancelled = true;
+      objectUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [base64]);
+
+  if (error) {
+    return (
+      <div className="flex h-[40vh] items-center justify-center border-t border-border bg-muted px-6 text-center text-sm text-muted-foreground">
+        Não foi possível renderizar este documento.
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-[70vh] overflow-y-auto border-t border-border bg-muted p-2 sm:p-4">
+      {pages.length === 0 && (
+        <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" /> Preparando documento…
+        </div>
+      )}
+      <div className="mx-auto flex max-w-3xl flex-col gap-3">
+        {pages.map((page, index) => (
+          <img
+            key={page}
+            src={page}
+            alt={`Página ${index + 1}`}
+            className="h-auto w-full bg-background shadow-sm"
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 

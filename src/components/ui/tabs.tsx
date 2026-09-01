@@ -12,8 +12,8 @@ const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      // ANTI-CORTE (regra global): a barra adapta o espaçamento à largura real
-      // da tela e, se ainda não couber, quebra em outra linha — nunca corta.
+      // ANTI-CORTE: linha única; quando necessário, rola horizontalmente sem
+      // comprimir, cortar ou quebrar os rótulos.
       "ds-segmented w-full max-w-full justify-start rounded-xl border border-border bg-muted/40 p-1 text-muted-foreground",
       className,
     )}
