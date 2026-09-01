@@ -586,7 +586,7 @@ export function StakeholderDetailSheet({
         {/* -------------------- Acessos -------------------- */}
         <TabsContent value="acessos" className="mt-5 space-y-4">
           {!stakeholderEmail ? (
-            <p className="rounded-2xl border border-border bg-card p-5 text-sm text-muted-foreground">
+            <p className="ds-surface bg-card p-5 text-sm text-muted-foreground">
               Cadastre um e-mail nesta ficha para poder liberar o acesso ao sistema.
             </p>
           ) : accessQuery.isLoading ? (
@@ -594,7 +594,7 @@ export function StakeholderDetailSheet({
           ) : accessQuery.data?.status === "active" && accessQuery.data.userId ? (
             <UserAccess userId={accessQuery.data.userId} />
           ) : (
-            <p className="rounded-2xl border border-border bg-card p-5 text-sm text-muted-foreground">
+            <p className="ds-surface bg-card p-5 text-sm text-muted-foreground">
               {accessQuery.data?.status === "pending"
                 ? "Convite enviado. As permissões por área ficam disponíveis assim que a pessoa aceitar o convite e entrar no sistema."
                 : "Esta pessoa ainda não tem acesso ao sistema. Ative “Permitir acesso ao sistema” na edição do cadastro para enviar o convite."}
@@ -624,7 +624,7 @@ export function StakeholderDetailSheet({
           ) : (
             <ul className="space-y-2">
               {(trail.data?.items ?? []).map((ev) => (
-                <li key={ev.id} className="rounded-2xl border border-border bg-card px-4 py-3">
+                <li key={ev.id} className="ds-surface bg-card px-4 py-3">
                   <p className="ds-card-title">{ev.title}</p>
                   <p className="ds-meta">{ev.badge}</p>
                   {ev.details.length > 0 && (
@@ -745,7 +745,7 @@ export function StakeholderDetailSheet({
                     return (
                     <div
                       key={p.id}
-                      className="rounded-2xl border border-border bg-card p-4 space-y-2"
+                      className="ds-surface bg-card p-4 space-y-2"
                     >
                       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
                         <p className="ds-card-title">{p.name}</p>
@@ -874,7 +874,7 @@ export function StakeholderDetailSheet({
             <MoneyCard label="Recebido" value={0} tone="primary" />
             <MoneyCard label="A pagar" value={0} tone="amber" />
           </div>
-          <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="ds-surface bg-card overflow-hidden">
             <div className="grid grid-cols-4 gap-3 border-b border-border px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground">
               <span>Tipo</span>
               <span>Descrição</span>
@@ -905,7 +905,7 @@ export function StakeholderDetailSheet({
                 desc="Contratos importados do ClickSign com este CPF/CNPJ, e-mail ou nome aparecem aqui automaticamente."
               />
             ) : (
-              <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
+              <ul className="divide-y divide-border ds-surface bg-card">
                 {feedDocs.map((d) => (
                   <li key={d.id} className="flex items-start justify-between gap-3 px-4 py-3">
                     <div className="min-w-0">
@@ -1058,7 +1058,7 @@ function MoneyCard({
   const toneCls =
     tone === "emerald" ? "text-emerald-500" : tone === "amber" ? "text-amber-500" : "text-primary";
   return (
-    <div className="min-w-0 rounded-2xl border border-border bg-card px-3 py-3 sm:px-4 sm:py-4">
+    <div className="min-w-0 ds-surface bg-card px-3 py-3 sm:px-4 sm:py-4">
       <p className={`text-[10px] uppercase tracking-wide truncate ${toneCls}`}>{label}</p>
       <p className="font-display text-base sm:text-xl tabular-nums mt-1 tracking-tight break-all">
         {(value / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
@@ -1070,7 +1070,7 @@ function MoneyCard({
 function InfoCard({ label, value }: { label: string; value?: string | null }) {
   if (!value) return null;
   return (
-    <div className="rounded-2xl border border-border bg-card px-4 py-3 min-w-0">
+    <div className="ds-surface bg-card px-4 py-3 min-w-0">
       <p className="ds-eyebrow">{label}</p>
       <p className="text-sm mt-0.5 break-words">{value}</p>
     </div>
