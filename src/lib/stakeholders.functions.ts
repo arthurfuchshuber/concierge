@@ -668,7 +668,14 @@ export const setStakeholderStatus = createServerFn({ method: "POST" })
       patch.contract_end = /^\d{4}-\d{2}-\d{2}$/.test(data.changed_at)
         ? data.changed_at
         : when.toISOString().slice(0, 10);
+    } else {
+      // Qualquer situação que não seja cancelamento reabre a vigência: se o
+      // cadastro tinha sido cancelado (ou o cancelamento estava agendado),
+      // a data final precisa ser apagada — senão um cliente Ativo continua
+      // aparecendo com "início → data de cancelamento".
+      patch.contract_end = null;
     }
+
 
     const { error } = await supabase
       .from(TABLE[data.kind])
