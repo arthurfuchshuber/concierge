@@ -434,6 +434,7 @@ export function StakeholderFormDialog({
               );
             })}
           </div>
+          )}
 
           <section>
             <SectionTitle label="Dados cadastrais" busy={checkingCnpj} />
@@ -644,7 +645,7 @@ export function StakeholderFormDialog({
           <section>
             <SectionTitle label="Acesso ao sistema" />
 
-            <div className="rounded-lg border border-border/60 p-4">
+            <div className="rounded-[0.3rem] border border-border/60 p-4">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <p className="ds-body font-semibold">Permitir acesso ao sistema</p>
