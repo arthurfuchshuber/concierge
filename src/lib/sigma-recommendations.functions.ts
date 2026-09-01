@@ -237,11 +237,14 @@ async function applySigmaPackToPropertyInternal(supabaseAdmin: any, propertyId: 
 }
 
 // ============== PUBLIC READERS ==============
+// Colunas públicas do pack: "notes" é anotação interna e nunca é exposta ao público.
+const PUBLIC_PACK_COLUMNS = "id, city_key, city_label, country, cover_url, is_published, created_at, updated_at";
+
 export const listPublishedSigmaPacks = createServerFn({ method: "GET" }).handler(async () => {
   const sb = publicClient();
   const { data, error } = await sb
     .from("sigma_city_packs")
-    .select("*")
+    .select(PUBLIC_PACK_COLUMNS)
     .eq("is_published", true)
     .order("city_label");
   if (error) throw new Error(error.message);
@@ -253,7 +256,7 @@ export const getPublicSigmaPack = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const sb = publicClient();
     const [pack, recs, mkt, faqs] = await Promise.all([
-      sb.from("sigma_city_packs").select("*").eq("city_key", data.city_key).eq("is_published", true).maybeSingle(),
+      sb.from("sigma_city_packs").select(PUBLIC_PACK_COLUMNS).eq("city_key", data.city_key).eq("is_published", true).maybeSingle(),
       sb.from("sigma_city_recommendations").select("*").eq("city_key", data.city_key).order("position"),
       sb.from("sigma_city_marketplace").select("*").eq("city_key", data.city_key).order("position"),
       sb.from("sigma_city_faqs").select("*").eq("city_key", data.city_key).order("position"),
