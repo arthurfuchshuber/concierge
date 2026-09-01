@@ -974,14 +974,32 @@ function DocPreviewDialog({
   doc: PreviewTarget;
   onClose: () => void;
 }) {
-  const urlFn = useServerFn(getClicksignDocumentUrl);
+  const fileFn = useServerFn(getClicksignDocumentFile);
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["clicksign-doc-url", doc?.docId],
-    queryFn: () => urlFn({ data: { id: doc!.docId! } }),
+    queryKey: ["clicksign-doc-file", doc?.docId],
+    queryFn: () => fileFn({ data: { id: doc!.docId! } }),
     enabled: !!doc?.docId,
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
+    retry: false,
   });
-  const url = doc?.docId ? data?.url ?? null : doc?.url ?? null;
+
+  // O PDF é servido como blob local: o link assinado do ClickSign vem como
+  // anexo e é bloqueado dentro do visualizador embutido.
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!data?.base64) {
+      setBlobUrl(null);
+      return;
+    }
+    const bin = atob(data.base64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const u = URL.createObjectURL(new Blob([bytes], { type: data.contentType || "application/pdf" }));
+    setBlobUrl(u);
+    return () => URL.revokeObjectURL(u);
+  }, [data?.base64, data?.contentType]);
+
+  const url = doc?.docId ? blobUrl : doc?.url ?? null;
 
   return (
     <Dialog open={!!doc} onOpenChange={(o) => !o && onClose()}>
