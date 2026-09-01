@@ -13,8 +13,12 @@ import {
   KeyRound,
   Eye,
   EyeOff,
-
+  ChevronDown,
+  Pencil,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import type { DateRange } from "react-day-picker";
 import {
   Dialog,
   DialogContent,
@@ -119,13 +123,53 @@ export function rowToStakeholderForm(row: Record<string, any>): StakeholderFormV
   };
 }
 
-/** Título de seção do formulário (Sora 700 15px, alinhado à esquerda). */
-function SectionTitle({ label, busy }: { label: string; busy?: boolean }) {
+/** yyyy-mm-dd → Date local (meio-dia evita salto de fuso). */
+function toDate(iso: string): Date | null {
+  if (!iso) return null;
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d, 12);
+}
+function toISO(date: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`;
+}
+function fmtBR(iso: string): string {
+  const d = toDate(iso);
+  return d ? d.toLocaleDateString("pt-BR") : "";
+}
+
+/** Seção expansível do formulário — compacta a altura total do diálogo. */
+function FormSection({
+  label,
+  busy,
+  defaultOpen = false,
+  children,
+}: {
+  label: string;
+  busy?: boolean;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
-    <h3 className="ds-section-title mb-6 flex items-center gap-1.5">
-      {label}
-      {busy && <Loader2 className="size-3 animate-spin text-primary" />}
-    </h3>
+    <section className="rounded-lg border border-border/60">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-2.5 text-left"
+      >
+        <span className="ds-section-title flex min-w-0 items-center gap-1.5">
+          <span className="truncate">{label}</span>
+          {busy && <Loader2 className="size-3 shrink-0 animate-spin text-primary" />}
+        </span>
+        <ChevronDown
+          className={`size-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && <div className="border-t border-border/40 px-3 py-3">{children}</div>}
+    </section>
   );
 }
 
@@ -407,7 +451,7 @@ export function StakeholderFormDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-8 max-h-[65vh] overflow-y-auto overflow-x-hidden pr-1">
+        <div className="space-y-3 max-h-[65vh] overflow-y-auto overflow-x-hidden pr-1">
           {/* Tipo — só na criação; ao editar, o tipo já está definido */}
           {!form.id && (
           <div className="ds-segmented rounded-[0.3rem] bg-muted/40 p-0">
@@ -441,8 +485,7 @@ export function StakeholderFormDialog({
           </div>
           )}
 
-          <section>
-            <SectionTitle label="Dados cadastrais" busy={checkingCnpj} />
+          <FormSection label="Dados cadastrais" busy={checkingCnpj} defaultOpen>
 
             <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
 
@@ -483,16 +526,20 @@ export function StakeholderFormDialog({
                   void handleDocBlur();
                 }}
                 error={errors.doc}
+                endAdornment={
+                  docLocked ? (
+                    <button
+                      type="button"
+                      onClick={() => setDocLocked(false)}
+                      aria-label={`Editar ${isPJ ? "CNPJ" : "CPF"}`}
+                      title={`Editar ${isPJ ? "CNPJ" : "CPF"}`}
+                      className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                    >
+                      <Pencil className="size-3.5" />
+                    </button>
+                  ) : undefined
+                }
               />
-              {docLocked && (
-                <button
-                  type="button"
-                  onClick={() => setDocLocked(false)}
-                  className="ds-meta mt-1 underline underline-offset-2 hover:text-foreground"
-                >
-                  Alterar {isPJ ? "CNPJ" : "CPF"}
-                </button>
-              )}
               <FieldTypingBadge typing={presence.typing["doc"]} />
             </div>
 
@@ -574,42 +621,59 @@ export function StakeholderFormDialog({
               <FieldTypingBadge typing={presence.typing["status"]} />
             </div>
 
+            {/* Vigência: início e fim na mesma linha, com um único calendário. */}
             <div className="space-y-1.5">
               <Label className="ds-meta flex items-center gap-1.5">
-                <Calendar className="size-3.5" /> Início do contrato
+                <Calendar className="size-3.5" /> Vigência do contrato
               </Label>
-              <Input
-                type="date"
-                value={form.contract_start}
-                onChange={(e) => {
-                  set({ contract_start: e.target.value });
-                  presence.broadcastTyping("contract_start", e.target.value);
-                }}
-                onBlur={() => presence.broadcastFieldBlur("contract_start")}
-              />
-              <FieldTypingBadge typing={presence.typing["contract_start"]} />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-input bg-transparent px-3 text-left text-[13px]"
+                  >
+                    <span className={`truncate ${form.contract_start ? "" : "text-muted-foreground/60"}`}>
+                      {form.contract_start
+                        ? `${fmtBR(form.contract_start)} → ${form.contract_end ? fmtBR(form.contract_end) : "sem fim"}`
+                        : "Selecionar período"}
+                    </span>
+                    <Calendar className="size-3.5 shrink-0 text-muted-foreground" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarPicker
+                    mode="range"
+                    defaultMonth={toDate(form.contract_start) ?? undefined}
+                    selected={{
+                      from: toDate(form.contract_start) ?? undefined,
+                      to: toDate(form.contract_end) ?? undefined,
+                    }}
+                    onSelect={(range: DateRange | undefined) => {
+                      set({
+                        contract_start: range?.from ? toISO(range.from) : "",
+                        contract_end: range?.to ? toISO(range.to) : "",
+                      });
+                    }}
+                    numberOfMonths={1}
+                    className="pointer-events-auto p-3"
+                  />
+                  <div className="flex justify-end gap-2 border-t border-border/40 p-2">
+                    <Button
+                      variant="ghost"
+                      className="h-8 rounded-lg text-[12px]"
+                      onClick={() => set({ contract_start: "", contract_end: "" })}
+                    >
+                      Limpar
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              <p className="ds-meta">Selecione só o início ou o período completo.</p>
             </div>
+            </div>
+          </FormSection>
 
-            <div className="space-y-1.5">
-              <Label className="ds-meta flex items-center gap-1.5">
-                <Calendar className="size-3.5" /> Fim do contrato (se houver)
-              </Label>
-              <Input
-                type="date"
-                value={form.contract_end}
-                onChange={(e) => {
-                  set({ contract_end: e.target.value });
-                  presence.broadcastTyping("contract_end", e.target.value);
-                }}
-                onBlur={() => presence.broadcastFieldBlur("contract_end")}
-              />
-              <FieldTypingBadge typing={presence.typing["contract_end"]} />
-            </div>
-            </div>
-          </section>
-
-          <section>
-            <SectionTitle label="Contato" />
+          <FormSection label="Contato" defaultOpen>
 
             <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
 
@@ -655,33 +719,19 @@ export function StakeholderFormDialog({
               <FieldTypingBadge typing={presence.typing["email"]} />
             </div>
             </div>
-          </section>
+          </FormSection>
 
-          <section>
-            <SectionTitle label="Acesso ao sistema" />
 
-            <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
-            <div className="space-y-3">
-              <div className="min-w-0">
-                <p className="ds-body font-semibold">Permitir acesso ao sistema</p>
-                <p className="ds-meta">
-
-                  {access?.status === "active"
-                    ? "Esta pessoa já acessa o sistema. As permissões por área ficam na ficha, na aba “Acessos”."
-                    : access?.status === "pending"
-                      ? "Convite enviado — o acesso passa a valer quando a pessoa aceitar no primeiro login."
-                      : "Defina uma senha provisória abaixo (ou deixe em branco para enviar convite por e-mail). No primeiro acesso a pessoa cria a própria senha."}
-                </p>
-              </div>
-              <label className="flex items-center gap-2.5">
-                <Switch
-                  checked={systemAccess}
-                  disabled={!emailValid || accessQuery.isLoading}
-                  onCheckedChange={setSystemAccess}
-                />
-                <span className="ds-meta">{systemAccess ? "Ativado" : "Desativado"}</span>
-              </label>
-            </div>
+          <FormSection label="Acesso ao sistema">
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+            <label className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+              <span className="ds-body min-w-0 font-semibold">Permitir acesso ao sistema</span>
+              <Switch
+                checked={systemAccess}
+                disabled={!emailValid || accessQuery.isLoading}
+                onCheckedChange={setSystemAccess}
+              />
+            </label>
             {!emailValid && (
               <p className="ds-meta mt-2 text-amber-500">
                 Informe um e-mail válido acima para liberar o acesso ao sistema.
@@ -737,10 +787,10 @@ export function StakeholderFormDialog({
             )}
 
             </div>
-          </section>
+          </FormSection>
 
-          <section>
-            <SectionTitle label="Endereço" busy={loadingCep} />
+          <FormSection label="Endereço" busy={loadingCep}>
+
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 [&>*]:min-w-0">
 
@@ -849,10 +899,10 @@ export function StakeholderFormDialog({
               <FieldTypingBadge typing={presence.typing["state"]} />
             </div>
             </div>
-          </section>
+          </FormSection>
 
-          <section>
-            <SectionTitle label="Extras" />
+          <FormSection label="Extras">
+
 
             <div className="space-y-1.5">
               <Label className="ds-meta">Observações (opcional)</Label>
@@ -869,7 +919,7 @@ export function StakeholderFormDialog({
               />
               <FieldTypingBadge typing={presence.typing["notes"]} />
             </div>
-          </section>
+          </FormSection>
         </div>
 
         <div className="ds-scroll-x justify-end gap-3 pt-3 border-t border-border/30">
