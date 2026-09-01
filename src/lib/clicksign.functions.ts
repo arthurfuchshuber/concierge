@@ -622,7 +622,15 @@ export const extractClicksignPartyData = createServerFn({ method: "POST" })
     } catch {
       /* usa a URL salva */
     }
-    if (!url) throw new Error("Documento sem arquivo disponível para leitura.");
+    if (!url) {
+      return {
+        updated: 0,
+        fields: [] as string[],
+        found: {} as Record<string, unknown>,
+        contractStart: null,
+        notice: "Documento sem arquivo disponível para leitura.",
+      };
+    }
 
     const ex = await import("@/lib/contract-extract.server");
     const page = await ex.firstPageText(url);
