@@ -55,6 +55,11 @@ import { useRealtimeInvalidate } from "@/hooks/useRealtimeInvalidate";
 import type { StakeholderKind } from "./StakeholderDirectory";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { StakeholderStatusControl } from "./StakeholderStatusControl";
+import { effectiveStatus, statusText } from "@/lib/stakeholder-status";
+
+/** Aba do segmented control: full width, 46px, ativa com o gradiente da marca. */
+const SEG_TAB =
+  "min-h-[46px] rounded-[0.3rem] text-[13px] font-semibold data-[state=active]:bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] data-[state=active]:text-white data-[state=active]:shadow-none";
 
 type PreviewTarget = { name: string; url?: string | null; docId?: string } | null;
 
@@ -298,7 +303,21 @@ export function StakeholderDetailSheet({
   const properties = data?.properties ?? [];
   const available = data?.availableProperties ?? [];
   const displayName = row.trade_name || row.name;
-  const initial = String(displayName ?? "?").trim().charAt(0).toUpperCase();
+  
+
+  // Vigência do contrato exibida no cabeçalho, na cor do status (mesma regra
+  // do card da listagem: cancelado/cancelando sem data final usa a data em
+  // que o cancelamento foi efetivado).
+  const effStatus = effectiveStatus(row.status, row.status_changed_at);
+  const contractEnd =
+    row.contract_end ??
+    ((effStatus === "canceled" || effStatus === "canceling") && row.status_changed_at
+      ? String(row.status_changed_at).slice(0, 10)
+      : null);
+  const contractRange = row.contract_start
+    ? `${fmtDateBR(row.contract_start)} → ${contractEnd ? fmtDateBR(contractEnd) : "momento"}`
+    : null;
+
 
   const timeline = [
     ...events.map((ev: any) => ({
@@ -307,6 +326,7 @@ export function StakeholderDetailSheet({
       icon: Pin,
       title: ev.message as string,
       badge: "Registro",
+      author: (ev.author_name as string | null) ?? "Sistema",
       body: null as React.ReactNode,
     })),
     ...feedEvents.map((ev) => ({
@@ -315,6 +335,7 @@ export function StakeholderDetailSheet({
       icon: CalendarDays,
       title: ev.title,
       badge: ev.calendarName || "Agenda",
+      author: "Sistema",
       body: (
         <>
           {ev.htmlLink && (
@@ -354,6 +375,7 @@ export function StakeholderDetailSheet({
       icon: FileText,
       title: d.name,
       badge: "ClickSign",
+      author: "Sistema",
       body: (
         <>
           <p className="text-xs text-muted-foreground">
@@ -378,6 +400,7 @@ export function StakeholderDetailSheet({
         icon: ev.severity === "error" || ev.severity === "critical" ? Unlink : MessageCircle,
         title: ev.title,
         badge: ev.badge,
+        author: "Sistema",
         body:
           ev.details.length > 0 ? (
             <ul className="space-y-0.5">
@@ -395,167 +418,182 @@ export function StakeholderDetailSheet({
 
   return (
     <div className="flex flex-col gap-5 px-5 py-6 sm:px-6">
-      {/* Header card */}
-      <section className="rounded-3xl border border-border bg-gradient-to-b from-card to-card/60 p-5 sm:p-6 shadow-sm">
-        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4">
-          <div className="grid size-16 shrink-0 place-items-center rounded-full bg-primary/15 font-display text-2xl text-primary">
-            {initial}
-          </div>
+      {/* ---------- Cabeçalho: fio de marca + eyebrow + nome + metadados ---------- */}
+      <header className="relative pt-4">
+        <span
+          aria-hidden
+          className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]"
+        />
+
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
           <div className="min-w-0">
-            <h2
-              className="ds-page-title leading-tight truncate"
-              title={displayName}
-            >
+            <span className="ds-eyebrow block text-muted-foreground">
+              {kind === "owner" ? "Proprietário" : "Prestador"}
+            </span>
+            <h2 className="ds-page-title mt-1 truncate leading-tight" title={displayName}>
               {displayName}
             </h2>
-            <div className="mt-2 ds-scroll-x items-center gap-1.5">
+
+            <div className="mt-1.5 flex items-center gap-1.5 overflow-hidden ds-meta">
               <StakeholderStatusControl
                 kind={kind}
                 id={id}
                 accountOwnerId={accountOwnerId}
                 status={row.status}
                 statusChangedAt={row.status_changed_at}
-                variant="pill"
+                variant="compact"
                 invalidateQueryKeys={[queryKey]}
               />
-
-              <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground uppercase">
-                {String(row.person_type ?? "pf")}
+              <span className="text-foreground/20">•</span>
+              <span className="shrink-0">
+                {String(row.person_type ?? "pf").toUpperCase() === "PJ"
+                  ? "Pessoa Jurídica"
+                  : "Pessoa Física"}
               </span>
-              {categoryLabels.map((label) => (
-                <span
-                  key={label}
-                  className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground"
-                >
-                  {label}
-                </span>
-              ))}
+              {contractRange && (
+                <>
+                  <span className="text-foreground/20">•</span>
+                  <span className={`truncate tabular-nums ${statusText(effStatus)}`}>
+                    {contractRange}
+                  </span>
+                </>
+              )}
             </div>
+          </div>
+
+          {/* Ações: botões-ícone 36px, uma linha só, sem cortar na margem */}
+          <div className="ds-scroll-x shrink-0 items-center gap-1.5">
+            <button
+              type="button"
+              onClick={onEdit}
+              aria-label="Editar cadastro"
+              title="Editar cadastro"
+              className="grid size-9 place-items-center rounded-[0.3rem] border border-border text-foreground hover:bg-secondary transition-colors"
+            >
+              <Pencil className="size-4" />
+            </button>
+            {clicksignActive && (
+              <button
+                type="button"
+                onClick={runExtract}
+                disabled={extracting}
+                aria-label="Importar dados do contrato"
+                title="Importar dados do contrato"
+                className="grid size-9 place-items-center rounded-[0.3rem] border border-border text-foreground hover:bg-secondary transition-colors disabled:opacity-60"
+              >
+                {extracting ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <FileText className="size-4" />
+                )}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setDataOpen((o) => !o)}
+              aria-expanded={dataOpen}
+              aria-label="Dados pessoais"
+              title="Dados pessoais"
+              className="grid size-9 place-items-center rounded-[0.3rem] border border-border text-foreground hover:bg-secondary transition-colors"
+            >
+              <ChevronDown className={`size-4 transition-transform ${dataOpen ? "rotate-180" : ""}`} />
+            </button>
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <Button variant="outline" className="w-full rounded-full" onClick={onEdit}>
-            <Pencil className="size-3.5 mr-1.5" /> Editar
-          </Button>
-          {clicksignActive && (
-            <Button
-              variant="outline"
-              className="w-full rounded-full"
-              disabled={extracting}
-              onClick={runExtract}
-            >
-              {extracting ? (
-                <Loader2 className="size-3.5 mr-1.5 animate-spin" />
-              ) : (
-                <FileText className="size-3.5 mr-1.5" />
-              )}
-              Importar Dados
-            </Button>
-          )}
-        </div>
+        {categoryLabels.length > 0 && (
+          <p className="mt-1.5 ds-meta truncate">{categoryLabels.join(" · ")}</p>
+        )}
+      </header>
 
-        <div className="mt-4 border-t border-border pt-3">
-          <button
-            type="button"
-            onClick={() => setDataOpen((o) => !o)}
-            className="relative flex w-full items-center justify-center gap-2 py-1 text-center"
-            aria-expanded={dataOpen}
-          >
-            <span className="ds-eyebrow">
-              Dados pessoais
-            </span>
-            <ChevronDown
-              className={`absolute right-0 size-4 shrink-0 text-muted-foreground transition-transform ${dataOpen ? "rotate-180" : ""}`}
+      {/* ---------- Dados pessoais (recolhível, fechado por padrão) ---------- */}
+      {dataOpen && (
+        <section className="ds-surface bg-card p-4">
+          <dl className="grid gap-4 sm:grid-cols-2">
+            <Field label="Nome completo" value={row.name} copy={row.name} />
+            {row.trade_name && (
+              <Field label="Nome fantasia" value={row.trade_name} copy={row.trade_name} />
+            )}
+            <Field
+              label="Tipo de pessoa"
+              value={String(row.person_type ?? "pf").toUpperCase() === "PJ" ? "Pessoa jurídica" : "Pessoa física"}
             />
-          </button>
-
-          {dataOpen && (
-            <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-              <Field label="Nome completo" value={row.name} copy={row.name} />
-              {row.trade_name && (
-                <Field label="Nome fantasia" value={row.trade_name} copy={row.trade_name} />
-              )}
+            {row.birth_date && (
               <Field
-                label="Tipo de pessoa"
-                value={String(row.person_type ?? "pf").toUpperCase() === "PJ" ? "Pessoa jurídica" : "Pessoa física"}
+                label="Data de nascimento"
+                value={new Date(`${String(row.birth_date).slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR")}
+                copy={new Date(`${String(row.birth_date).slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR")}
               />
-              {row.birth_date && (
+            )}
+            {categoryLabels.length > 0 && (
+              <Field label="Categorias de serviço" value={categoryLabels.join(", ")} />
+            )}
+            {row.cep && <Field label="CEP" value={row.cep} mono copy={row.cep} />}
+            {row.doc && (
+              <Field
+                label={String(row.doc_type ?? "cpf").toUpperCase()}
+                value={formatTaxId(row.doc)}
+                mono
+                copy={formatTaxId(row.doc)}
+              />
+            )}
+            {row.email && (
+              <Field label="E-mail" copy={row.email}>
+                <a
+                  href={`mailto:${row.email}`}
+                  className="inline-flex min-w-0 items-center gap-2 text-sm hover:underline"
+                >
+                  <Mail className="size-3.5 shrink-0 text-muted-foreground" />
+                  <span className="truncate">{row.email}</span>
+                </a>
+              </Field>
+            )}
+            {row.phone && (
+              <Field label="Telefone" copy={formatIntlPhone(row.phone, row.phone_country)}>
+                <WhatsAppLink phone={row.phone} country={row.phone_country} />
+              </Field>
+            )}
+            {(row.address || row.city || row.state) && (
+              <div className="sm:col-span-2">
                 <Field
-                  label="Data de nascimento"
-                  value={new Date(`${String(row.birth_date).slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR")}
-                  copy={new Date(`${String(row.birth_date).slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR")}
-                />
-              )}
-              {categoryLabels.length > 0 && (
-                <Field label="Categorias de serviço" value={categoryLabels.join(", ")} />
-              )}
-              {row.cep && <Field label="CEP" value={row.cep} mono copy={row.cep} />}
-              {row.doc && (
-                <Field
-                  label={String(row.doc_type ?? "cpf").toUpperCase()}
-                  value={formatTaxId(row.doc)}
-                  mono
-                  copy={formatTaxId(row.doc)}
-                />
-              )}
-              {row.email && (
-                <Field label="E-mail" copy={row.email}>
-                  <a
-                    href={`mailto:${row.email}`}
-                    className="inline-flex min-w-0 items-center gap-2 text-sm hover:underline"
-                  >
-                    <Mail className="size-3.5 shrink-0 text-muted-foreground" />
-                    <span className="truncate">{row.email}</span>
-                  </a>
+                  label="Endereço"
+                  copy={[row.address, row.district, [row.city, row.state].filter(Boolean).join(" / ")]
+                    .filter(Boolean)
+                    .join(" · ")}
+                >
+                  <p className="flex items-start gap-2 text-sm">
+                    <MapPin className="size-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 break-words">
+                      {[row.address, row.district, [row.city, row.state].filter(Boolean).join(" / ")]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  </p>
                 </Field>
-              )}
-              {row.phone && (
-                <Field label="Telefone" copy={formatIntlPhone(row.phone, row.phone_country)}>
-                  <WhatsAppLink phone={row.phone} country={row.phone_country} />
-                </Field>
-              )}
-              {(row.address || row.city || row.state) && (
-                <div className="sm:col-span-2">
-                  <Field
-                    label="Endereço"
-                    copy={[row.address, row.district, [row.city, row.state].filter(Boolean).join(" / ")]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  >
-                    <p className="flex items-start gap-2 text-sm">
-                      <MapPin className="size-3.5 mt-0.5 shrink-0 text-muted-foreground" />
-                      <span className="min-w-0 break-words">
-                        {[row.address, row.district, [row.city, row.state].filter(Boolean).join(" / ")]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </span>
-                    </p>
-                  </Field>
-                </div>
-              )}
-            </dl>
-          )}
-        </div>
-      </section>
+              </div>
+            )}
+          </dl>
+        </section>
+      )}
 
 
       <Tabs defaultValue="visao">
-        <div className="rounded-2xl border border-border bg-card p-2">
-          <TabsList className="w-full bg-transparent gap-1">
-            <TabsTrigger value="visao">Visão Geral</TabsTrigger>
-            {kind === "owner" && <TabsTrigger value="imoveis">Imóveis</TabsTrigger>}
-            <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
-            <TabsTrigger value="documentos">Documentos</TabsTrigger>
+        <TabsList className="ds-surface w-full gap-0 border-0 bg-foreground/5 p-0">
+          <TabsTrigger className={SEG_TAB} value="visao">Visão Geral</TabsTrigger>
+          {kind === "owner" && <TabsTrigger className={SEG_TAB} value="imoveis">Imóveis</TabsTrigger>}
+          <TabsTrigger className={SEG_TAB} value="financeiro">Financeiro</TabsTrigger>
+          <TabsTrigger className={SEG_TAB} value="documentos">Documentos</TabsTrigger>
+          <TabsTrigger className={SEG_TAB} value="acessos">Acessos</TabsTrigger>
+          <TabsTrigger className={SEG_TAB} value="log">Log</TabsTrigger>
 
-          </TabsList>
-        </div>
+        </TabsList>
+
 
 
         {/* -------------------- Acessos -------------------- */}
         <TabsContent value="acessos" className="mt-5 space-y-4">
           {!stakeholderEmail ? (
-            <p className="rounded-2xl border border-border bg-card p-5 text-sm text-muted-foreground">
+            <p className="ds-surface bg-card p-5 text-sm text-muted-foreground">
               Cadastre um e-mail nesta ficha para poder liberar o acesso ao sistema.
             </p>
           ) : accessQuery.isLoading ? (
@@ -563,7 +601,7 @@ export function StakeholderDetailSheet({
           ) : accessQuery.data?.status === "active" && accessQuery.data.userId ? (
             <UserAccess userId={accessQuery.data.userId} />
           ) : (
-            <p className="rounded-2xl border border-border bg-card p-5 text-sm text-muted-foreground">
+            <p className="ds-surface bg-card p-5 text-sm text-muted-foreground">
               {accessQuery.data?.status === "pending"
                 ? "Convite enviado. As permissões por área ficam disponíveis assim que a pessoa aceitar o convite e entrar no sistema."
                 : "Esta pessoa ainda não tem acesso ao sistema. Ative “Permitir acesso ao sistema” na edição do cadastro para enviar o convite."}
@@ -593,7 +631,7 @@ export function StakeholderDetailSheet({
           ) : (
             <ul className="space-y-2">
               {(trail.data?.items ?? []).map((ev) => (
-                <li key={ev.id} className="rounded-2xl border border-border bg-card px-4 py-3">
+                <li key={ev.id} className="ds-surface bg-card px-4 py-3">
                   <p className="ds-card-title">{ev.title}</p>
                   <p className="ds-meta">{ev.badge}</p>
                   {ev.details.length > 0 && (
@@ -664,7 +702,7 @@ export function StakeholderDetailSheet({
                   return (
                     <li key={item.key} className="relative">
                       <span className="absolute -left-[29px] top-4 size-2.5 rounded-full bg-primary/70 ring-4 ring-background" />
-                      <div className="rounded-2xl border border-border bg-card px-4 py-3">
+                      <div className="ds-surface bg-card px-4 py-3">
                         <div className="flex items-start gap-2.5">
                           <Icon className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
                           <div className="min-w-0 flex-1 space-y-1">
@@ -672,12 +710,13 @@ export function StakeholderDetailSheet({
                             <p className="ds-meta">{item.badge}</p>
                             {item.body}
                             <p className="ds-meta opacity-80">
-                              {item.at ? fmt(item.at) : "Sem data"}
+                              {item.at ? fmt(item.at) : "Sem data"} · {item.author}
                             </p>
                           </div>
                         </div>
                       </div>
                     </li>
+
                   );
                 })}
               </ol>
@@ -713,7 +752,7 @@ export function StakeholderDetailSheet({
                     return (
                     <div
                       key={p.id}
-                      className="rounded-2xl border border-border bg-card p-4 space-y-2"
+                      className="ds-surface bg-card p-4 space-y-2"
                     >
                       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
                         <p className="ds-card-title">{p.name}</p>
@@ -804,7 +843,7 @@ export function StakeholderDetailSheet({
             )}
 
             {available.length > 0 && (
-              <section className="rounded-2xl border border-dashed border-border p-5 space-y-2">
+              <section className="ds-surface border-dashed p-5 space-y-2">
                 <p className="ds-eyebrow">
                   Vincular residência existente
                 </p>
@@ -842,7 +881,7 @@ export function StakeholderDetailSheet({
             <MoneyCard label="Recebido" value={0} tone="primary" />
             <MoneyCard label="A pagar" value={0} tone="amber" />
           </div>
-          <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="ds-surface bg-card overflow-hidden">
             <div className="grid grid-cols-4 gap-3 border-b border-border px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground">
               <span>Tipo</span>
               <span>Descrição</span>
@@ -873,7 +912,7 @@ export function StakeholderDetailSheet({
                 desc="Contratos importados do ClickSign com este CPF/CNPJ, e-mail ou nome aparecem aqui automaticamente."
               />
             ) : (
-              <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
+              <ul className="divide-y divide-border ds-surface bg-card">
                 {feedDocs.map((d) => (
                   <li key={d.id} className="flex items-start justify-between gap-3 px-4 py-3">
                     <div className="min-w-0">
@@ -1026,7 +1065,7 @@ function MoneyCard({
   const toneCls =
     tone === "emerald" ? "text-emerald-500" : tone === "amber" ? "text-amber-500" : "text-primary";
   return (
-    <div className="min-w-0 rounded-2xl border border-border bg-card px-3 py-3 sm:px-4 sm:py-4">
+    <div className="min-w-0 ds-surface bg-card px-3 py-3 sm:px-4 sm:py-4">
       <p className={`text-[10px] uppercase tracking-wide truncate ${toneCls}`}>{label}</p>
       <p className="font-display text-base sm:text-xl tabular-nums mt-1 tracking-tight break-all">
         {(value / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
@@ -1038,7 +1077,7 @@ function MoneyCard({
 function InfoCard({ label, value }: { label: string; value?: string | null }) {
   if (!value) return null;
   return (
-    <div className="rounded-2xl border border-border bg-card px-4 py-3 min-w-0">
+    <div className="ds-surface bg-card px-4 py-3 min-w-0">
       <p className="ds-eyebrow">{label}</p>
       <p className="text-sm mt-0.5 break-words">{value}</p>
     </div>
