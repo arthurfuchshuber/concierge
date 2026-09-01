@@ -833,25 +833,8 @@ export function StakeholderFormDialog({
           <FormSection label="Endereço" busy={loadingCep} {...sectionProps("endereco")}>
 
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 [&>*]:min-w-0">
+            <div className="grid grid-cols-2 gap-3 [&>*]:min-w-0">
 
-            <div className="min-w-0">
-              <MaskedInput
-                className="min-w-0"
-                label={`CEP${req}`}
-                mask="00000-000"
-                placeholder="00000-000"
-                value={form.cep}
-                onValueChange={(raw) => {
-                  clearError("cep");
-                  presence.broadcastTyping("cep", raw);
-                  void handleCep(raw);
-                }}
-                onBlur={() => presence.broadcastFieldBlur("cep")}
-                error={errors.cep}
-              />
-              <FieldTypingBadge typing={presence.typing["cep"]} />
-            </div>
             <div className="col-span-2">
               <AddressAutocomplete
                 label={`Logradouro${req}`}
@@ -882,6 +865,24 @@ export function StakeholderFormDialog({
                 }}
               />
             </div>
+            <div className="min-w-0">
+              <MaskedInput
+                className="min-w-0"
+                label={`CEP${req}`}
+                mask="00000-000"
+                placeholder="00000-000"
+                value={form.cep}
+                onValueChange={(raw) => {
+                  clearError("cep");
+                  presence.broadcastTyping("cep", raw);
+                  void handleCep(raw);
+                }}
+                onBlur={() => presence.broadcastFieldBlur("cep")}
+                error={errors.cep}
+              />
+              <FieldTypingBadge typing={presence.typing["cep"]} />
+            </div>
+
             <div className="space-y-1.5">
               <Label className="ds-meta">Bairro{req}</Label>
               <Input
