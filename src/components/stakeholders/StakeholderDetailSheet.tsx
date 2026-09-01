@@ -330,8 +330,29 @@ export function StakeholderDetailSheet({
     : null;
 
 
+  // Notas automáticas de bastidor (importação/sincronização/extração) não
+  // entram na Linha do Tempo — elas continuam disponíveis no Log.
+  const NOISE = /(importa[çc][ãa]o do clicksign|dados extra[íi]dos|sincroniza|cadastro criado pela)/i;
+
+  // Abre o link do Google já na conta conectada à integração (authuser),
+  // evitando cair na conta pessoal logada no navegador.
+  const gAccount = (feed.data as { accountEmail?: string | null } | undefined)?.accountEmail ?? null;
+  function gLink(url: string) {
+    if (!gAccount) return url;
+    try {
+      const u = new URL(url);
+      if (!/(^|\.)google\.com$/.test(u.hostname)) return url;
+      u.searchParams.set("authuser", gAccount);
+      return u.toString();
+    } catch {
+      return url;
+    }
+  }
+
   const timeline = [
-    ...events.map((ev: any) => ({
+    ...events
+      .filter((ev: any) => !NOISE.test(String(ev.message ?? "")))
+      .map((ev: any) => ({
       key: `n:${ev.id}`,
       at: ev.created_at as string,
       icon: Pin,
@@ -352,7 +373,7 @@ export function StakeholderDetailSheet({
           {ev.htmlLink && (
             <button
               type="button"
-              onClick={() => setPreview({ name: ev.title, url: ev.htmlLink as string })}
+              onClick={() => window.open(gLink(ev.htmlLink as string), "_blank", "noopener")}
               className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
             >
               <Eye className="size-3" /> Abrir convite
@@ -367,7 +388,7 @@ export function StakeholderDetailSheet({
                 <button
                   key={a.url}
                   type="button"
-                  onClick={() => setPreview({ name: a.title || ev.title, url: a.url })}
+                  onClick={() => window.open(gLink(a.url), "_blank", "noopener")}
                   className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
                 >
                   {a.kind === "transcript" ? <FileText className="size-2.5" /> : <Video className="size-2.5" />}
