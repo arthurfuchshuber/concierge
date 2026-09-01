@@ -38,7 +38,10 @@ function maxDigits(mask: string): number {
 }
 
 export const MaskedInput = React.forwardRef<HTMLInputElement, MaskedInputProps>(
-  ({ mask, value, onValueChange, label, error, hint, icon, className, ...props }, ref) => {
+  (
+    { mask, value, onValueChange, label, error, hint, icon, endAdornment, className, ...props },
+    ref,
+  ) => {
     const emit = (input: string) => {
       const raw = stripMask(input).slice(0, maxDigits(mask));
       onValueChange(raw, applyMask(raw, mask));
