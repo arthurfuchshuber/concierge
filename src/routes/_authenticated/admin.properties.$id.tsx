@@ -4042,12 +4042,9 @@ function Stepper({
   lockedValues?: string[];
 }) {
   return (
-    // Mesmo padrão de "barra que rola na horizontal e nunca corta a última
-    // aba" usado no resto do sistema (ds-scroll-x): os itens mantêm o
-    // tamanho natural (flex: none) e a barra inteira rola por baixo, em vez
-    // de tentar espremer tudo (flex-1) num container de largura fixa — era
-    // isso que fazia "Recomendações" ficar cortada em telas estreitas.
-    <nav className="ds-scroll-x mb-5 -mx-1 px-1 gap-1 rounded-[0.3rem] bg-foreground/5 p-1">
+    // ANTI-CORTE (regra global): `ds-segmented` adapta o espaçamento à largura
+    // real da tela e quebra em outra linha em vez de cortar qualquer aba.
+    <nav className="ds-segmented mb-5 -mx-1 px-1 rounded-[0.3rem] bg-foreground/5 p-1">
       {steps.map((s) => {
         const active = s.value === current;
         const locked = lockedValues?.includes(s.value) ?? false;
