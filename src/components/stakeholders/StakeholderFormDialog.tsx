@@ -898,10 +898,10 @@ export function StakeholderFormDialog({
               <FieldTypingBadge typing={presence.typing["state"]} />
             </div>
             </div>
-          </section>
+          </FormSection>
 
-          <section>
-            <SectionTitle label="Extras" />
+          <FormSection label="Extras">
+
 
             <div className="space-y-1.5">
               <Label className="ds-meta">Observações (opcional)</Label>
