@@ -471,6 +471,41 @@ export function StakeholderDetailSheet({
           </div>
         </div>
 
+        {/* Linha 2: nome em linha única, menor */}
+        <h2
+          className="mt-2 truncate font-display text-[20px] font-bold leading-tight tracking-[-0.01em]"
+          title={displayName}
+        >
+          {displayName}
+        </h2>
+
+        {/* Linha 3: metadados com separadores verticais, rolagem horizontal */}
+        <div className="ds-scroll-x mt-2 gap-3 ds-meta">
+          <StakeholderStatusControl
+            kind={kind}
+            id={id}
+            accountOwnerId={accountOwnerId}
+            status={row.status}
+            statusChangedAt={row.status_changed_at}
+            variant="compact"
+            invalidateQueryKeys={[queryKey]}
+          />
+          <span className="h-3 w-px bg-border" aria-hidden />
+          <span className="whitespace-nowrap">
+            {String(row.person_type ?? "pf").toUpperCase() === "PJ"
+              ? "Pessoa Jurídica"
+              : "Pessoa Física"}
+          </span>
+          {contractRange && (
+            <>
+              <span className="h-3 w-px bg-border" aria-hidden />
+              <span className={`whitespace-nowrap tabular-nums ${statusText(effStatus)}`}>
+                {contractRange}
+              </span>
+            </>
+          )}
+        </div>
+
         {categoryLabels.length > 0 && (
           <p className="mt-1.5 ds-meta truncate">{categoryLabels.join(" · ")}</p>
         )}
