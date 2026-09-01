@@ -11,6 +11,8 @@ interface MaskedInputProps extends Omit<React.InputHTMLAttributes<HTMLInputEleme
   error?: string;
   hint?: string;
   icon?: React.ReactNode;
+  /** Ação à direita dentro do campo (ex.: botão editar). */
+  endAdornment?: React.ReactNode;
 }
 
 export function applyMask(raw: string, mask: string): string {
