@@ -588,11 +588,14 @@ export function StakeholderFormDialog({
               />
               <FieldTypingBadge typing={presence.typing["contract_end"]} />
             </div>
-          </div>
+            </div>
+          </section>
 
-          <SectionDivider label="Contato" />
+          <section>
+            <SectionTitle label="Contato" />
 
-          <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
+            <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
+
             <div className="min-w-0">
               <MaskedInput
                 label={`Telefone / WhatsApp${req}`}
