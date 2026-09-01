@@ -451,7 +451,7 @@ export function StakeholderFormDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-8 max-h-[65vh] overflow-y-auto overflow-x-hidden pr-1">
+        <div className="space-y-3 max-h-[65vh] overflow-y-auto overflow-x-hidden pr-1">
           {/* Tipo — só na criação; ao editar, o tipo já está definido */}
           {!form.id && (
           <div className="ds-segmented rounded-[0.3rem] bg-muted/40 p-0">
