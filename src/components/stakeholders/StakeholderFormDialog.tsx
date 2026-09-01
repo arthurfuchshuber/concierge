@@ -139,24 +139,25 @@ function fmtBR(iso: string): string {
   return d ? d.toLocaleDateString("pt-BR") : "";
 }
 
-/** Seção expansível do formulário — compacta a altura total do diálogo. */
+/** Seção expansível do formulário — só uma aberta por vez (acordeão). */
 function FormSection({
   label,
   busy,
-  defaultOpen = false,
+  open,
+  onToggle,
   children,
 }: {
   label: string;
   busy?: boolean;
-  defaultOpen?: boolean;
+  open: boolean;
+  onToggle: () => void;
   children: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
   return (
     <section className="rounded-lg border border-border/60">
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={onToggle}
         aria-expanded={open}
         className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-2.5 text-left"
       >
@@ -172,6 +173,67 @@ function FormSection({
     </section>
   );
 }
+
+/** Campo de data única com calendário — usado na vigência do contrato. */
+function SingleDateField({
+  label,
+  value,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  onChange: (iso: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="space-y-1.5">
+      <Label className="ds-meta flex items-center gap-1.5">
+        <Calendar className="size-3.5" /> {label}
+      </Label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-input bg-transparent px-3 text-left text-[13px]"
+          >
+            <span className={`truncate ${value ? "" : "text-muted-foreground/60"}`}>
+              {value ? fmtBR(value) : placeholder}
+            </span>
+            <Calendar className="size-3.5 shrink-0 text-muted-foreground" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto rounded-lg p-0" align="start">
+          <CalendarPicker
+            mode="single"
+            defaultMonth={toDate(value) ?? undefined}
+            selected={toDate(value) ?? undefined}
+            onSelect={(d) => {
+              if (d) onChange(toISO(d));
+              setOpen(false);
+            }}
+            numberOfMonths={1}
+            className="pointer-events-auto p-3"
+          />
+          <div className="flex justify-end border-t border-border/40 p-2">
+            <Button
+              variant="ghost"
+              className="h-8 rounded-lg text-[12px]"
+              onClick={() => {
+                onChange("");
+                setOpen(false);
+              }}
+            >
+              Limpar
+            </Button>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
 
 
 export function StakeholderFormDialog({
