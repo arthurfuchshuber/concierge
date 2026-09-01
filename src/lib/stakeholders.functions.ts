@@ -374,14 +374,39 @@ export const getStakeholderDetail = createServerFn({ method: "GET" })
       properties = rows.filter((p) => p.owner_contact_id === data.id);
       availableProperties = rows.filter((p) => !p.owner_contact_id);
     }
+    // Autor de cada movimentação da linha do tempo: resolve os `created_by`
+    // em nome legível (perfil da equipe). Sem autor = evento automático.
+    const authorIds = Array.from(
+      new Set(
+        (events ?? [])
+          .map((e) => (e as { created_by?: string | null }).created_by)
+          .filter((v): v is string => !!v),
+      ),
+    );
+    const authorNames = new Map<string, string>();
+    if (authorIds.length > 0) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, full_name, trade_name")
+        .in("id", authorIds);
+      for (const p of profs ?? []) {
+        const name = (p.trade_name || p.full_name || "").trim();
+        if (name) authorNames.set(p.id as string, name);
+      }
+    }
+
     return {
       row: row ?? null,
-      events: events ?? [],
+      events: (events ?? []).map((e) => {
+        const by = (e as { created_by?: string | null }).created_by ?? null;
+        return { ...e, author_name: by ? (authorNames.get(by) ?? null) : null };
+      }),
       activities: activities ?? [],
       properties,
       availableProperties,
     };
   });
+
 
 const LinkInput = z.object({
   ownerId: z.string().uuid(),
