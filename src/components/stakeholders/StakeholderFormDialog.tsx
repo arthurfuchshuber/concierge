@@ -669,78 +669,52 @@ export function StakeholderFormDialog({
               </div>
             )}
 
-            <div className="space-y-1.5">
-              <Label className="ds-meta">Situação</Label>
-              <Select
-                value={form.status}
-                onValueChange={(v) => {
-                  set({ status: v as "active" | "inactive" });
-                  presence.broadcastTyping("status", v === "active" ? "Ativo" : "Inativo");
-                }}
-                onOpenChange={(o) => !o && presence.broadcastFieldBlur("status")}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Ativo</SelectItem>
-                  <SelectItem value="inactive">Inativo</SelectItem>
-                </SelectContent>
-              </Select>
-              <FieldTypingBadge typing={presence.typing["status"]} />
-            </div>
-
-            {/* Vigência: início e fim na mesma linha, com um único calendário. */}
-            <div className="space-y-1.5">
-              <Label className="ds-meta flex items-center gap-1.5">
-                <Calendar className="size-3.5" /> Vigência do contrato
-              </Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-input bg-transparent px-3 text-left text-[13px]"
-                  >
-                    <span className={`truncate ${form.contract_start ? "" : "text-muted-foreground/60"}`}>
-                      {form.contract_start
-                        ? `${fmtBR(form.contract_start)} → ${form.contract_end ? fmtBR(form.contract_end) : "sem fim"}`
-                        : "Selecionar período"}
-                    </span>
-                    <Calendar className="size-3.5 shrink-0 text-muted-foreground" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarPicker
-                    mode="range"
-                    defaultMonth={toDate(form.contract_start) ?? undefined}
-                    selected={{
-                      from: toDate(form.contract_start) ?? undefined,
-                      to: toDate(form.contract_end) ?? undefined,
-                    }}
-                    onSelect={(range: DateRange | undefined) => {
-                      set({
-                        contract_start: range?.from ? toISO(range.from) : "",
-                        contract_end: range?.to ? toISO(range.to) : "",
-                      });
-                    }}
-                    numberOfMonths={1}
-                    className="pointer-events-auto p-3"
-                  />
-                  <div className="flex justify-end gap-2 border-t border-border/40 p-2">
-                    <Button
-                      variant="ghost"
-                      className="h-8 rounded-lg text-[12px]"
-                      onClick={() => set({ contract_start: "", contract_end: "" })}
-                    >
-                      Limpar
-                    </Button>
-                  </div>
-                </PopoverContent>
-              </Popover>
-              <p className="ds-meta">Selecione só o início ou o período completo.</p>
-            </div>
             </div>
           </FormSection>
+
+          <FormSection label="Situação contratual" {...sectionProps("contrato")}>
+            <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
+              <div className="space-y-1.5">
+                <Label className="ds-meta">Situação</Label>
+                <Select
+                  value={form.status}
+                  onValueChange={(v) => {
+                    set({ status: v as "active" | "inactive" });
+                    presence.broadcastTyping("status", v === "active" ? "Ativo" : "Inativo");
+                  }}
+                  onOpenChange={(o) => !o && presence.broadcastFieldBlur("status")}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Ativo</SelectItem>
+                    <SelectItem value="inactive">Inativo</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FieldTypingBadge typing={presence.typing["status"]} />
+              </div>
+
+              <div className="hidden sm:block" />
+
+              <SingleDateField
+                label="Início do contrato"
+                value={form.contract_start}
+                placeholder="Selecionar data"
+                onChange={(iso) => set({ contract_start: iso })}
+              />
+              <SingleDateField
+                label="Fim do contrato"
+                value={form.contract_end}
+                placeholder="Sem data final"
+                onChange={(iso) => set({ contract_end: iso })}
+              />
+              <p className="ds-meta sm:col-span-2">
+                Sem data final, o contrato vale por tempo indeterminado.
+              </p>
+            </div>
+          </FormSection>
+
 
           <FormSection label="Contato" defaultOpen>
 
