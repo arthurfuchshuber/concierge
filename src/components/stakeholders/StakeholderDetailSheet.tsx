@@ -59,7 +59,7 @@ import { effectiveStatus, statusText } from "@/lib/stakeholder-status";
 
 /** Aba do segmented control: full width, 46px, ativa com o gradiente da marca. */
 const SEG_TAB =
-  "min-h-[46px] rounded-[0.3rem] text-[13px] font-semibold data-[state=active]:bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] data-[state=active]:text-white data-[state=active]:shadow-none";
+  "min-h-[46px] !flex-none !rounded-[0.3rem] px-4 text-[13px] font-semibold data-[state=active]:bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] data-[state=active]:text-white data-[state=active]:shadow-none";
 
 type PreviewTarget = { name: string; url?: string | null; docId?: string } | null;
 
@@ -422,7 +422,7 @@ export function StakeholderDetailSheet({
       <header className="relative pt-4">
         <span
           aria-hidden
-          className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]"
+          className="absolute left-0 right-12 top-0 h-[2px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]"
         />
 
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
@@ -564,9 +564,13 @@ export function StakeholderDetailSheet({
                   <p className="flex items-start gap-2 text-sm">
                     <MapPin className="size-3.5 mt-0.5 shrink-0 text-muted-foreground" />
                     <span className="min-w-0 break-words">
-                      {[row.address, row.district, [row.city, row.state].filter(Boolean).join(" / ")]
-                        .filter(Boolean)
-                        .join(" · ")}
+                      {[row.address, row.district].filter(Boolean).join(" · ")}
+                      {[row.city, row.state].filter(Boolean).length > 0 && (
+                        <>
+                          <br />
+                          {[row.city, row.state].filter(Boolean).join(" / ")}
+                        </>
+                      )}
                     </span>
                   </p>
                 </Field>
@@ -578,7 +582,7 @@ export function StakeholderDetailSheet({
 
 
       <Tabs defaultValue="visao">
-        <TabsList className="ds-surface w-full gap-0 border-0 bg-foreground/5 p-0">
+        <TabsList className="w-full gap-0 !rounded-[0.3rem] border-0 bg-foreground/5 p-0">
           <TabsTrigger className={SEG_TAB} value="visao">Visão Geral</TabsTrigger>
           {kind === "owner" && <TabsTrigger className={SEG_TAB} value="imoveis">Imóveis</TabsTrigger>}
           <TabsTrigger className={SEG_TAB} value="financeiro">Financeiro</TabsTrigger>
@@ -1048,7 +1052,7 @@ function Field({
 
 
 function WhatsAppLink({ phone, country }: { phone?: string | null; country?: string | null }) {
-  return <PhoneActionButton phone={phone} country={country} size={13} />;
+  return <PhoneActionButton phone={phone} country={country} size={14} showNumber />;
 }
 
 

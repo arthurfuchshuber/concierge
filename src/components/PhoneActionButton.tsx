@@ -15,13 +15,15 @@ type Props = {
   className?: string;
   /** tamanho do ícone em px */
   size?: number;
+  /** exibe o número por extenso ao lado do ícone (fichas/detalhes) */
+  showNumber?: boolean;
 };
 
 /**
  * Botão único e padronizado para telefones em todo o app: ícone verde de
  * mensagem que abre as opções "WhatsApp" e "Copiar". Nunca exibe o número.
  */
-export function PhoneActionButton({ phone, country, className, size = 14 }: Props) {
+export function PhoneActionButton({ phone, country, className, size = 14, showNumber = false }: Props) {
   if (!phone) return null;
   const waNumber = toWhatsappNumber(phone, country);
   const label = formatIntlPhone(phone, country) || phone;
@@ -47,10 +49,12 @@ export function PhoneActionButton({ phone, country, className, size = 14 }: Prop
           className={cn(
             // Pedido explícito: sem fundo — só o ícone em verde.
             "inline-flex shrink-0 items-center justify-center rounded-full p-1.5 text-emerald-600 transition hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300",
+            showNumber && "gap-2 justify-start px-0",
             className,
           )}
         >
           <MessageCircle style={{ width: size, height: size }} />
+          {showNumber && <span className="text-sm text-foreground">{label}</span>}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-40" onClick={(e) => e.stopPropagation()}>
