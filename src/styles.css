@@ -724,3 +724,21 @@ dd {
 .ds-dense-fields :is(input:not([type="checkbox"]):not([type="radio"]), [role="combobox"], select) {
   height: 2.25rem;
 }
+
+/* Diálogo de formulário (proprietário/prestador e afins) — replica fielmente
+   o mockup aprovado: campos de 36px, raio 8px, tipografia 13px e rótulos 12px. */
+.ds-form-dialog :is(input, textarea, [role="combobox"], select) {
+  border-radius: 0.5rem;
+  font-size: 13px;
+  background: color-mix(in oklab, var(--foreground) 4%, transparent);
+}
+.ds-form-dialog :is(input:not([type="checkbox"]):not([type="radio"]), [role="combobox"], select) {
+  height: 2.25rem;
+}
+.ds-form-dialog :is(input, textarea)[readonly] {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+.ds-form-dialog button:not(.ds-segmented button) {
+  border-radius: 0.5rem;
+}
