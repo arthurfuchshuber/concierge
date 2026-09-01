@@ -389,7 +389,7 @@ export function StakeholderFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-1.5rem)] max-w-2xl overflow-x-hidden">
+      <DialogContent className="ds-dense-fields w-[calc(100vw-1.5rem)] max-w-2xl overflow-x-hidden">
         <DialogHeader>
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
             <DialogTitle className="ds-page-title capitalize">
@@ -440,7 +440,7 @@ export function StakeholderFormDialog({
             <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">
+              <Label className="ds-meta">
                 {isPJ ? "Razão social *" : "Nome completo *"}
               </Label>
               <Input
@@ -455,7 +455,7 @@ export function StakeholderFormDialog({
                 onBlur={() => presence.broadcastFieldBlur("name")}
                 className={errors.name ? "border-destructive" : ""}
               />
-              {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
+              {errors.name && <p className="ds-meta text-destructive">{errors.name}</p>}
               <FieldTypingBadge typing={presence.typing["name"]} />
             </div>
 
@@ -481,7 +481,7 @@ export function StakeholderFormDialog({
 
             {isPJ ? (
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Nome fantasia{req}</Label>
+                <Label className="ds-meta">Nome fantasia{req}</Label>
                 <Input
                   value={form.trade_name}
                   maxLength={160}
@@ -495,13 +495,13 @@ export function StakeholderFormDialog({
                   className={errors.trade_name ? "border-destructive" : ""}
                 />
                 {errors.trade_name && (
-                  <p className="text-xs text-destructive">{errors.trade_name}</p>
+                  <p className="ds-meta text-destructive">{errors.trade_name}</p>
                 )}
                 <FieldTypingBadge typing={presence.typing["trade_name"]} />
               </div>
             ) : (
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <Label className="ds-meta flex items-center gap-1.5">
                   <Calendar className="size-3.5" /> Data de nascimento{req}
                 </Label>
                 <Input
@@ -516,7 +516,7 @@ export function StakeholderFormDialog({
                   className={errors.birth_date ? "border-destructive" : ""}
                 />
                 {errors.birth_date && (
-                  <p className="text-xs text-destructive">{errors.birth_date}</p>
+                  <p className="ds-meta text-destructive">{errors.birth_date}</p>
                 )}
                 <FieldTypingBadge typing={presence.typing["birth_date"]} />
               </div>
@@ -537,7 +537,7 @@ export function StakeholderFormDialog({
             )}
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Situação</Label>
+              <Label className="ds-meta">Situação</Label>
               <Select
                 value={form.status}
                 onValueChange={(v) => {
@@ -558,7 +558,7 @@ export function StakeholderFormDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <Label className="ds-meta flex items-center gap-1.5">
                 <Calendar className="size-3.5" /> Início do contrato
               </Label>
               <Input
@@ -574,7 +574,7 @@ export function StakeholderFormDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <Label className="ds-meta flex items-center gap-1.5">
                 <Calendar className="size-3.5" /> Fim do contrato (se houver)
               </Label>
               <Input
@@ -615,7 +615,7 @@ export function StakeholderFormDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <Label className="ds-meta flex items-center gap-1.5">
                 <Mail className="size-3.5" /> E-mail{req}
               </Label>
               <Input
@@ -634,7 +634,7 @@ export function StakeholderFormDialog({
                 onBlur={() => presence.broadcastFieldBlur("email")}
                 className={errors.email ? "border-destructive" : ""}
               />
-              {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+              {errors.email && <p className="ds-meta text-destructive">{errors.email}</p>}
               <FieldTypingBadge typing={presence.typing["email"]} />
             </div>
             </div>
@@ -663,13 +663,13 @@ export function StakeholderFormDialog({
               />
             </div>
             {!emailValid && (
-              <p className="mt-2 text-xs text-amber-500">
+              <p className="ds-meta mt-2 text-amber-500">
                 Informe um e-mail válido acima para liberar o acesso ao sistema.
               </p>
             )}
             {systemAccess && emailValid && access?.status === "none" && (
               <div className="mt-3 space-y-1.5">
-                <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <Label className="ds-meta flex items-center gap-1.5">
                   <KeyRound className="size-3.5" /> Senha provisória
                 </Label>
                 <div className="flex gap-2">
@@ -708,7 +708,7 @@ export function StakeholderFormDialog({
                   </Button>
                 </div>
                 {provisionalPwd && provisionalPwd.trim().length < 8 && (
-                  <p className="text-xs text-destructive">A senha precisa ter pelo menos 8 caracteres.</p>
+                  <p className="ds-meta text-destructive">A senha precisa ter pelo menos 8 caracteres.</p>
                 )}
                 <p className="ds-meta">
                   Passe essa senha à pessoa por WhatsApp. Em branco, enviamos convite por e-mail.
@@ -772,7 +772,7 @@ export function StakeholderFormDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Bairro{req}</Label>
+              <Label className="ds-meta">Bairro{req}</Label>
               <Input
                 maxLength={120}
                 placeholder="Bairro"
@@ -785,11 +785,11 @@ export function StakeholderFormDialog({
                 onBlur={() => presence.broadcastFieldBlur("district")}
                 className={errors.district ? "border-destructive" : ""}
               />
-              {errors.district && <p className="text-xs text-destructive">{errors.district}</p>}
+              {errors.district && <p className="ds-meta text-destructive">{errors.district}</p>}
               <FieldTypingBadge typing={presence.typing["district"]} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <Label className="ds-meta flex items-center gap-1.5">
                 <MapPin className="size-3.5" /> Cidade{req}
               </Label>
               <Input
@@ -804,11 +804,11 @@ export function StakeholderFormDialog({
                 onBlur={() => presence.broadcastFieldBlur("city")}
                 className={errors.city ? "border-destructive" : ""}
               />
-              {errors.city && <p className="text-xs text-destructive">{errors.city}</p>}
+              {errors.city && <p className="ds-meta text-destructive">{errors.city}</p>}
               <FieldTypingBadge typing={presence.typing["city"]} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Estado{req}</Label>
+              <Label className="ds-meta">Estado{req}</Label>
               <Input
                 maxLength={2}
                 placeholder="UF"
@@ -822,7 +822,7 @@ export function StakeholderFormDialog({
                 onBlur={() => presence.broadcastFieldBlur("state")}
                 className={errors.state ? "border-destructive" : ""}
               />
-              {errors.state && <p className="text-xs text-destructive">{errors.state}</p>}
+              {errors.state && <p className="ds-meta text-destructive">{errors.state}</p>}
               <FieldTypingBadge typing={presence.typing["state"]} />
             </div>
             </div>
@@ -850,11 +850,11 @@ export function StakeholderFormDialog({
         </div>
 
         <div className="ds-scroll-x justify-end gap-3 pt-3 border-t border-border/30">
-          <Button variant="ghost" className="h-9 rounded-lg" onClick={() => onOpenChange(false)}>
+          <Button variant="ghost" className="h-9 rounded-[0.3rem]" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
           <Button
-            className="h-9 rounded-lg bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90"
+            className="h-9 rounded-[0.3rem] bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90"
             onClick={submit}
             disabled={saving || checkingCnpj}
           >
