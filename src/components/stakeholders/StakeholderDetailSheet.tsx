@@ -436,23 +436,53 @@ export function StakeholderDetailSheet({
           className="absolute left-0 right-12 top-0 h-[2px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]"
         />
 
-        {/* Linha 1: eyebrow + ações (nome ganha a largura toda) */}
-        <div className="flex items-center justify-between gap-3">
-          <span className="ds-eyebrow block truncate text-muted-foreground">
-            {kind === "owner" ? "Proprietário" : "Prestador"}
-          </span>
+        {/* Linha 1: eyebrow (as ações desceram para a linha de metadados) */}
+        <span className="ds-eyebrow block truncate text-muted-foreground">
+          {kind === "owner" ? "Proprietário" : "Prestador"}
+        </span>
 
-          {/* Ações: botões-ícone 36px, uma linha só, sem cortar na margem */}
+        {/* Linha 2: nome em linha única, espaçamento padrão das demais páginas */}
+        <h2
+          className="mt-1 truncate font-display text-[20px] font-bold leading-tight tracking-[-0.01em]"
+          title={displayName}
+        >
+          {displayName}
+        </h2>
+
+        {/* Linha 3: metadados à esquerda, ações à direita (espaço antes vazio) */}
+        <div className="mt-2 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="ds-scroll-x gap-3 ds-meta">
+              <StakeholderStatusControl
+                kind={kind}
+                id={id}
+                accountOwnerId={accountOwnerId}
+                status={row.status}
+                statusChangedAt={row.status_changed_at}
+                variant="compact"
+                invalidateQueryKeys={[queryKey]}
+              />
+              <span className="h-3 w-px bg-border" aria-hidden />
+              <span className="whitespace-nowrap">
+                {String(row.person_type ?? "pf").toUpperCase() === "PJ"
+                  ? "Pessoa Jurídica"
+                  : "Pessoa Física"}
+              </span>
+            </div>
+
+            {contractRange && (
+              <p className={`mt-1.5 whitespace-nowrap tabular-nums text-sm ${statusText(effStatus)}`}>
+                {contractRange}
+              </p>
+            )}
+
+            {categoryLabels.length > 0 && (
+              <p className="mt-1.5 ds-meta truncate">{categoryLabels.join(" · ")}</p>
+            )}
+          </div>
+
+          {/* Ações: importar dados vem antes de editar (ordem invertida) */}
           <div className="ds-scroll-x shrink-0 items-center gap-1.5">
-            <button
-              type="button"
-              onClick={onEdit}
-              aria-label="Editar cadastro"
-              title="Editar cadastro"
-              className="grid size-9 place-items-center rounded-[0.3rem] border border-border text-foreground hover:bg-secondary transition-colors"
-            >
-              <Pencil className="size-4" />
-            </button>
             {clicksignActive && (
               <button
                 type="button"
@@ -471,6 +501,15 @@ export function StakeholderDetailSheet({
             )}
             <button
               type="button"
+              onClick={onEdit}
+              aria-label="Editar cadastro"
+              title="Editar cadastro"
+              className="grid size-9 place-items-center rounded-[0.3rem] border border-border text-foreground hover:bg-secondary transition-colors"
+            >
+              <Pencil className="size-4" />
+            </button>
+            <button
+              type="button"
               onClick={() => setDataOpen((o) => !o)}
               aria-expanded={dataOpen}
               aria-label="Dados pessoais"
@@ -482,43 +521,6 @@ export function StakeholderDetailSheet({
           </div>
         </div>
 
-        {/* Linha 2: nome em linha única, menor */}
-        <h2
-          className="mt-2 truncate font-display text-[20px] font-bold leading-tight tracking-[-0.01em]"
-          title={displayName}
-        >
-          {displayName}
-        </h2>
-
-        {/* Linha 3: status e tipo permanecem juntos. */}
-        <div className="ds-scroll-x mt-2 gap-3 ds-meta">
-          <StakeholderStatusControl
-            kind={kind}
-            id={id}
-            accountOwnerId={accountOwnerId}
-            status={row.status}
-            statusChangedAt={row.status_changed_at}
-            variant="compact"
-            invalidateQueryKeys={[queryKey]}
-          />
-          <span className="h-3 w-px bg-border" aria-hidden />
-          <span className="whitespace-nowrap">
-            {String(row.person_type ?? "pf").toUpperCase() === "PJ"
-              ? "Pessoa Jurídica"
-              : "Pessoa Física"}
-          </span>
-        </div>
-
-        {/* Linha 4: vigência abaixo do status e do tipo de pessoa. */}
-        {contractRange && (
-          <p className={`mt-1.5 whitespace-nowrap tabular-nums text-sm ${statusText(effStatus)}`}>
-            {contractRange}
-          </p>
-        )}
-
-        {categoryLabels.length > 0 && (
-          <p className="mt-1.5 ds-meta truncate">{categoryLabels.join(" · ")}</p>
-        )}
       </header>
 
       {/* ---------- Dados pessoais (recolhível, fechado por padrão) ---------- */}
