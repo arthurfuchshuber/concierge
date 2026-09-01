@@ -591,7 +591,15 @@ export const extractClicksignPartyData = createServerFn({ method: "POST" })
       .order("finished_at", { ascending: false, nullsFirst: false })
       .limit(1);
     const doc = (docs ?? [])[0];
-    if (!doc) throw new Error("Nenhum contrato vinculado a este cadastro.");
+    if (!doc) {
+      return {
+        updated: 0,
+        fields: [] as string[],
+        found: null,
+        contractStart: null,
+        notice: "Nenhum contrato vinculado a este cadastro.",
+      };
+    }
 
     // URL recém-assinada (as salvas expiram).
     let url = (doc.url_signed as string) ?? (doc.url_original as string) ?? null;
@@ -614,7 +622,15 @@ export const extractClicksignPartyData = createServerFn({ method: "POST" })
     } catch {
       /* usa a URL salva */
     }
-    if (!url) throw new Error("Documento sem arquivo disponível para leitura.");
+    if (!url) {
+      return {
+        updated: 0,
+        fields: [] as string[],
+        found: null,
+        contractStart: null,
+        notice: "Documento sem arquivo disponível para leitura.",
+      };
+    }
 
     const ex = await import("@/lib/contract-extract.server");
     const page = await ex.firstPageText(url);

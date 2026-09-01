@@ -143,6 +143,10 @@ export function StakeholderDetailSheet({
     setExtracting(true);
     try {
       const res = await extractFn({ data: { kind, id } });
+      if ("notice" in res && res.notice) {
+        toast.info(res.notice as string);
+        return;
+      }
       const parts: string[] = [];
       if (res.updated > 0) parts.push(`Dados extraídos do contrato: ${res.fields.join(", ")}`);
       if (res.contractStart?.status === "filled") {
