@@ -595,7 +595,7 @@ export const extractClicksignPartyData = createServerFn({ method: "POST" })
       return {
         updated: 0,
         fields: [] as string[],
-        found: {} as Record<string, unknown>,
+        found: null,
         contractStart: null,
         notice: "Nenhum contrato vinculado a este cadastro.",
       };
@@ -626,7 +626,7 @@ export const extractClicksignPartyData = createServerFn({ method: "POST" })
       return {
         updated: 0,
         fields: [] as string[],
-        found: {} as Record<string, unknown>,
+        found: null,
         contractStart: null,
         notice: "Documento sem arquivo disponível para leitura.",
       };
