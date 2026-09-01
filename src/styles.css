@@ -742,3 +742,8 @@ dd {
 .ds-form-dialog button:not(.ds-segmented button) {
   border-radius: 0.5rem;
 }
+
+/* Diálogo de formulário: cantos no raio do layout (8px), não o arredondado padrão. */
+.ds-form-dialog {
+  border-radius: 8px;
+}

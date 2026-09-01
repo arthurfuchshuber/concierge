@@ -203,7 +203,7 @@ function SingleDateField({
             <Calendar className="size-3.5 shrink-0 text-muted-foreground" />
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto rounded-lg p-0" align="start">
+        <PopoverContent className="w-auto rounded-[8px] p-0" align="start">
           <CalendarPicker
             mode="single"
             defaultMonth={toDate(value) ?? undefined}
@@ -686,7 +686,7 @@ export function StakeholderFormDialog({
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="rounded-[8px]">
                     <SelectItem value="active">Ativo</SelectItem>
                     <SelectItem value="inactive">Inativo</SelectItem>
                   </SelectContent>
