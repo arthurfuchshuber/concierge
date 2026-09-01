@@ -786,10 +786,10 @@ export function StakeholderFormDialog({
             )}
 
             </div>
-          </section>
+          </FormSection>
 
-          <section>
-            <SectionTitle label="Endereço" busy={loadingCep} />
+          <FormSection label="Endereço" busy={loadingCep}>
+
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 [&>*]:min-w-0">
 
