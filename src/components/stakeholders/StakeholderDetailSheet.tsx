@@ -300,6 +300,20 @@ export function StakeholderDetailSheet({
   const displayName = row.trade_name || row.name;
   const initial = String(displayName ?? "?").trim().charAt(0).toUpperCase();
 
+  // Vigência do contrato exibida no cabeçalho, na cor do status (mesma regra
+  // do card da listagem: cancelado/cancelando sem data final usa a data em
+  // que o cancelamento foi efetivado).
+  const effStatus = effectiveStatus(row.status, row.status_changed_at);
+  const contractEnd =
+    row.contract_end ??
+    ((effStatus === "canceled" || effStatus === "canceling") && row.status_changed_at
+      ? String(row.status_changed_at).slice(0, 10)
+      : null);
+  const contractRange = row.contract_start
+    ? `${fmtDateBR(row.contract_start)} → ${contractEnd ? fmtDateBR(contractEnd) : "momento"}`
+    : null;
+
+
   const timeline = [
     ...events.map((ev: any) => ({
       key: `n:${ev.id}`,
