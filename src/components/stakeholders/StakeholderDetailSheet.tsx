@@ -651,7 +651,7 @@ export function StakeholderDetailSheet({
             <ul className="space-y-2">
               {(trail.data?.items ?? []).map((ev) => (
                 <li key={ev.id} className="ds-surface bg-card px-4 py-3">
-                  <p className="ds-card-title">{ev.title}</p>
+                  <p className="text-[13.5px] leading-[1.3] font-normal text-foreground">{ev.title}</p>
                   <p className="ds-meta">{ev.badge}</p>
                   {ev.details.length > 0 && (
                     <ul className="mt-1 space-y-0.5">
@@ -725,7 +725,7 @@ export function StakeholderDetailSheet({
                         <div className="flex items-start gap-2.5">
                           <Icon className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
                           <div className="min-w-0 flex-1 space-y-1">
-                            <p className="ds-card-title">{item.title}</p>
+                            <p className="text-[13.5px] leading-[1.3] font-normal text-foreground">{item.title}</p>
                             <p className="ds-meta">{item.badge}</p>
                             {item.body}
                             <p className="ds-meta opacity-80">
@@ -947,7 +947,7 @@ export function StakeholderDetailSheet({
                 {feedDocs.map((d) => (
                   <li key={d.id} className="flex items-start justify-between gap-3 px-4 py-3">
                     <div className="min-w-0">
-                      <p className="ds-card-title truncate">{d.name}</p>
+                      <p className="text-[13.5px] leading-[1.3] font-normal text-foreground truncate">{d.name}</p>
                       {/* Antes mostrava só uma data (finished_at OU synced_at,
                           sem rótulo) — parecia "assinado em tal data" mesmo
                           quando era só a data de IMPORTAÇÃO, com a assinatura
