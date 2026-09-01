@@ -469,8 +469,7 @@ export function StakeholderFormDialog({
           </div>
           )}
 
-          <section>
-            <SectionTitle label="Dados cadastrais" busy={checkingCnpj} />
+          <FormSection label="Dados cadastrais" busy={checkingCnpj} defaultOpen>
 
             <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
 
