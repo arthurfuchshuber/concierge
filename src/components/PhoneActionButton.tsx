@@ -15,6 +15,8 @@ type Props = {
   className?: string;
   /** tamanho do ícone em px */
   size?: number;
+  /** exibe o número por extenso ao lado do ícone (fichas/detalhes) */
+  showNumber?: boolean;
 };
 
 /**
