@@ -55,6 +55,11 @@ import { useRealtimeInvalidate } from "@/hooks/useRealtimeInvalidate";
 import type { StakeholderKind } from "./StakeholderDirectory";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { StakeholderStatusControl } from "./StakeholderStatusControl";
+import { effectiveStatus, statusText } from "@/lib/stakeholder-status";
+
+/** Aba do segmented control: full width, 46px, ativa com o gradiente da marca. */
+const SEG_TAB =
+  "min-h-[46px] rounded-[0.3rem] text-[13px] font-semibold data-[state=active]:bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] data-[state=active]:text-white data-[state=active]:shadow-none";
 
 type PreviewTarget = { name: string; url?: string | null; docId?: string } | null;
 
@@ -836,7 +841,7 @@ export function StakeholderDetailSheet({
             )}
 
             {available.length > 0 && (
-              <section className="rounded-2xl border border-dashed border-border p-5 space-y-2">
+              <section className="ds-surface border-dashed p-5 space-y-2">
                 <p className="ds-eyebrow">
                   Vincular residência existente
                 </p>
