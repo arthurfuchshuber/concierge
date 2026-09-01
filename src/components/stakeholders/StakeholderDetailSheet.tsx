@@ -583,7 +583,9 @@ export function StakeholderDetailSheet({
           {kind === "owner" && <TabsTrigger className={SEG_TAB} value="imoveis">Imóveis</TabsTrigger>}
           <TabsTrigger className={SEG_TAB} value="financeiro">Financeiro</TabsTrigger>
           <TabsTrigger className={SEG_TAB} value="documentos">Documentos</TabsTrigger>
+          <TabsTrigger className={SEG_TAB} value="acessos">Acessos</TabsTrigger>
           <TabsTrigger className={SEG_TAB} value="log">Log</TabsTrigger>
+
         </TabsList>
 
 
