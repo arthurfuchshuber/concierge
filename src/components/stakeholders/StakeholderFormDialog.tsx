@@ -270,6 +270,12 @@ export function StakeholderFormDialog({
   const [showPwd, setShowPwd] = useState(false);
   /** CPF/CNPJ trava depois de validado; o botão "Alterar" libera de novo. */
   const [docLocked, setDocLocked] = useState(false);
+  /** Acordeão: apenas uma seção aberta por vez; todas recolhidas ao abrir. */
+  const [openSection, setOpenSection] = useState<string | null>(null);
+  const sectionProps = (key: string) => ({
+    open: openSection === key,
+    onToggle: () => setOpenSection((c) => (c === key ? null : key)),
+  });
 
   // Presença em tempo real: só existe sala pra registros já salvos (com id) —
   // um cadastro novo, ainda sem id, não tem o que outra pessoa acompanhar.
