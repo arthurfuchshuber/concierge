@@ -19,8 +19,15 @@ import {
   Filter,
   X,
   Eye,
+  MoreVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -539,35 +546,37 @@ function StakeholderCard({
             })()}
           </div>
 
-          <div className="flex shrink-0 items-center overflow-hidden rounded-[8px] border border-border/60 bg-secondary/50 divide-x divide-border/60">
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onOpen(); }}
-              aria-label="Ver detalhes"
-              title="Ver detalhes"
-              className="size-8 inline-flex items-center justify-center text-foreground/80 hover:bg-secondary transition-colors"
-            >
-              <Eye className="size-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onEdit(); }}
-              aria-label="Editar"
-              title="Editar"
-              className="size-8 inline-flex items-center justify-center text-foreground/80 hover:bg-secondary transition-colors"
-            >
-              <Pencil className="size-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onDelete(); }}
-              aria-label="Excluir"
-              title="Excluir"
-              className="size-8 inline-flex items-center justify-center text-foreground/80 hover:bg-destructive/10 hover:text-destructive transition-colors"
-            >
-              <Trash2 className="size-3.5" />
-            </button>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                onClick={(e) => e.stopPropagation()}
+                aria-label="Ações"
+                title="Ações"
+                className="size-8 shrink-0 inline-flex items-center justify-center rounded-[8px] border border-border/60 bg-secondary/50 text-foreground/80 hover:bg-secondary transition-colors"
+              >
+                <MoreVertical className="size-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44 rounded-[8px]">
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onOpen(); }}>
+                <Eye className="size-3.5" />
+                Ver detalhes
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(); }}>
+                <Pencil className="size-3.5" />
+                Editar
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="size-3.5" />
+                Excluir
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
         </div>
       </div>
 
