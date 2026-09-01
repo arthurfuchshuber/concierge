@@ -5057,6 +5057,7 @@ export type Database = {
         Args: { _owner_id: string; _user_id: string }
         Returns: boolean
       }
+      can_join_presence_topic: { Args: { _topic: string }; Returns: boolean }
       can_read_permission_catalog: {
         Args: { _user_id: string }
         Returns: boolean
