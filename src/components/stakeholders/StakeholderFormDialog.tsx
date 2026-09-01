@@ -510,16 +510,20 @@ export function StakeholderFormDialog({
                   void handleDocBlur();
                 }}
                 error={errors.doc}
+                endAdornment={
+                  docLocked ? (
+                    <button
+                      type="button"
+                      onClick={() => setDocLocked(false)}
+                      aria-label={`Editar ${isPJ ? "CNPJ" : "CPF"}`}
+                      title={`Editar ${isPJ ? "CNPJ" : "CPF"}`}
+                      className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                    >
+                      <Pencil className="size-3.5" />
+                    </button>
+                  ) : undefined
+                }
               />
-              {docLocked && (
-                <button
-                  type="button"
-                  onClick={() => setDocLocked(false)}
-                  className="ds-meta mt-1 underline underline-offset-2 hover:text-foreground"
-                >
-                  Alterar {isPJ ? "CNPJ" : "CPF"}
-                </button>
-              )}
               <FieldTypingBadge typing={presence.typing["doc"]} />
             </div>
 
