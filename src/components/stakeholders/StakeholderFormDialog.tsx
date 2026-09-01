@@ -637,15 +637,18 @@ export function StakeholderFormDialog({
               {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
               <FieldTypingBadge typing={presence.typing["email"]} />
             </div>
-          </div>
+            </div>
+          </section>
 
-          <SectionDivider label="Acesso ao sistema" />
+          <section>
+            <SectionTitle label="Acesso ao sistema" />
 
-          <div className="rounded-xl border border-border/60 p-3.5">
+            <div className="rounded-lg border border-border/60 p-4">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <p className="text-sm font-medium">Permitir acesso ao sistema</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="ds-body font-semibold">Permitir acesso ao sistema</p>
+                <p className="ds-meta">
+
                   {access?.status === "active"
                     ? "Esta pessoa já acessa o sistema. As permissões por área ficam na ficha, na aba “Acessos”."
                     : access?.status === "pending"
