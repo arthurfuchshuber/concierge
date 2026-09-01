@@ -395,161 +395,174 @@ export function StakeholderDetailSheet({
 
   return (
     <div className="flex flex-col gap-5 px-5 py-6 sm:px-6">
-      {/* Header card */}
-      <section className="rounded-3xl border border-border bg-gradient-to-b from-card to-card/60 p-5 sm:p-6 shadow-sm">
-        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4">
-          <div className="grid size-16 shrink-0 place-items-center rounded-full bg-primary/15 font-display text-2xl text-primary">
-            {initial}
-          </div>
+      {/* ---------- Cabeçalho: fio de marca + eyebrow + nome + metadados ---------- */}
+      <header className="relative pt-4">
+        <span
+          aria-hidden
+          className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]"
+        />
+
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
           <div className="min-w-0">
-            <h2
-              className="ds-page-title leading-tight truncate"
-              title={displayName}
-            >
+            <span className="ds-eyebrow block text-muted-foreground">
+              {kind === "owner" ? "Proprietário" : "Prestador"}
+            </span>
+            <h2 className="ds-page-title mt-1 truncate leading-tight" title={displayName}>
               {displayName}
             </h2>
-            <div className="mt-2 ds-scroll-x items-center gap-1.5">
+
+            <div className="mt-1.5 flex items-center gap-1.5 overflow-hidden ds-meta">
               <StakeholderStatusControl
                 kind={kind}
                 id={id}
                 accountOwnerId={accountOwnerId}
                 status={row.status}
                 statusChangedAt={row.status_changed_at}
-                variant="pill"
+                variant="compact"
                 invalidateQueryKeys={[queryKey]}
               />
-
-              <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground uppercase">
-                {String(row.person_type ?? "pf")}
+              <span className="text-foreground/20">•</span>
+              <span className="shrink-0">
+                {String(row.person_type ?? "pf").toUpperCase() === "PJ"
+                  ? "Pessoa Jurídica"
+                  : "Pessoa Física"}
               </span>
-              {categoryLabels.map((label) => (
-                <span
-                  key={label}
-                  className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground"
-                >
-                  {label}
-                </span>
-              ))}
+              {contractRange && (
+                <>
+                  <span className="text-foreground/20">•</span>
+                  <span className={`truncate tabular-nums ${statusText(effStatus)}`}>
+                    {contractRange}
+                  </span>
+                </>
+              )}
             </div>
+          </div>
+
+          {/* Ações: botões-ícone 36px, uma linha só, sem cortar na margem */}
+          <div className="ds-scroll-x shrink-0 items-center gap-1.5">
+            <button
+              type="button"
+              onClick={onEdit}
+              aria-label="Editar cadastro"
+              title="Editar cadastro"
+              className="grid size-9 place-items-center rounded-[0.3rem] border border-border text-foreground hover:bg-secondary transition-colors"
+            >
+              <Pencil className="size-4" />
+            </button>
+            {clicksignActive && (
+              <button
+                type="button"
+                onClick={runExtract}
+                disabled={extracting}
+                aria-label="Importar dados do contrato"
+                title="Importar dados do contrato"
+                className="grid size-9 place-items-center rounded-[0.3rem] border border-border text-foreground hover:bg-secondary transition-colors disabled:opacity-60"
+              >
+                {extracting ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <FileText className="size-4" />
+                )}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setDataOpen((o) => !o)}
+              aria-expanded={dataOpen}
+              aria-label="Dados pessoais"
+              title="Dados pessoais"
+              className="grid size-9 place-items-center rounded-[0.3rem] border border-border text-foreground hover:bg-secondary transition-colors"
+            >
+              <ChevronDown className={`size-4 transition-transform ${dataOpen ? "rotate-180" : ""}`} />
+            </button>
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <Button variant="outline" className="w-full rounded-full" onClick={onEdit}>
-            <Pencil className="size-3.5 mr-1.5" /> Editar
-          </Button>
-          {clicksignActive && (
-            <Button
-              variant="outline"
-              className="w-full rounded-full"
-              disabled={extracting}
-              onClick={runExtract}
-            >
-              {extracting ? (
-                <Loader2 className="size-3.5 mr-1.5 animate-spin" />
-              ) : (
-                <FileText className="size-3.5 mr-1.5" />
-              )}
-              Importar Dados
-            </Button>
-          )}
-        </div>
+        {categoryLabels.length > 0 && (
+          <p className="mt-1.5 ds-meta truncate">{categoryLabels.join(" · ")}</p>
+        )}
+      </header>
 
-        <div className="mt-4 border-t border-border pt-3">
-          <button
-            type="button"
-            onClick={() => setDataOpen((o) => !o)}
-            className="relative flex w-full items-center justify-center gap-2 py-1 text-center"
-            aria-expanded={dataOpen}
-          >
-            <span className="ds-eyebrow">
-              Dados pessoais
-            </span>
-            <ChevronDown
-              className={`absolute right-0 size-4 shrink-0 text-muted-foreground transition-transform ${dataOpen ? "rotate-180" : ""}`}
+      {/* ---------- Dados pessoais (recolhível, fechado por padrão) ---------- */}
+      {dataOpen && (
+        <section className="ds-surface bg-card p-4">
+          <dl className="grid gap-4 sm:grid-cols-2">
+            <Field label="Nome completo" value={row.name} copy={row.name} />
+            {row.trade_name && (
+              <Field label="Nome fantasia" value={row.trade_name} copy={row.trade_name} />
+            )}
+            <Field
+              label="Tipo de pessoa"
+              value={String(row.person_type ?? "pf").toUpperCase() === "PJ" ? "Pessoa jurídica" : "Pessoa física"}
             />
-          </button>
-
-          {dataOpen && (
-            <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-              <Field label="Nome completo" value={row.name} copy={row.name} />
-              {row.trade_name && (
-                <Field label="Nome fantasia" value={row.trade_name} copy={row.trade_name} />
-              )}
+            {row.birth_date && (
               <Field
-                label="Tipo de pessoa"
-                value={String(row.person_type ?? "pf").toUpperCase() === "PJ" ? "Pessoa jurídica" : "Pessoa física"}
+                label="Data de nascimento"
+                value={new Date(`${String(row.birth_date).slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR")}
+                copy={new Date(`${String(row.birth_date).slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR")}
               />
-              {row.birth_date && (
+            )}
+            {categoryLabels.length > 0 && (
+              <Field label="Categorias de serviço" value={categoryLabels.join(", ")} />
+            )}
+            {row.cep && <Field label="CEP" value={row.cep} mono copy={row.cep} />}
+            {row.doc && (
+              <Field
+                label={String(row.doc_type ?? "cpf").toUpperCase()}
+                value={formatTaxId(row.doc)}
+                mono
+                copy={formatTaxId(row.doc)}
+              />
+            )}
+            {row.email && (
+              <Field label="E-mail" copy={row.email}>
+                <a
+                  href={`mailto:${row.email}`}
+                  className="inline-flex min-w-0 items-center gap-2 text-sm hover:underline"
+                >
+                  <Mail className="size-3.5 shrink-0 text-muted-foreground" />
+                  <span className="truncate">{row.email}</span>
+                </a>
+              </Field>
+            )}
+            {row.phone && (
+              <Field label="Telefone" copy={formatIntlPhone(row.phone, row.phone_country)}>
+                <WhatsAppLink phone={row.phone} country={row.phone_country} />
+              </Field>
+            )}
+            {(row.address || row.city || row.state) && (
+              <div className="sm:col-span-2">
                 <Field
-                  label="Data de nascimento"
-                  value={new Date(`${String(row.birth_date).slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR")}
-                  copy={new Date(`${String(row.birth_date).slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR")}
-                />
-              )}
-              {categoryLabels.length > 0 && (
-                <Field label="Categorias de serviço" value={categoryLabels.join(", ")} />
-              )}
-              {row.cep && <Field label="CEP" value={row.cep} mono copy={row.cep} />}
-              {row.doc && (
-                <Field
-                  label={String(row.doc_type ?? "cpf").toUpperCase()}
-                  value={formatTaxId(row.doc)}
-                  mono
-                  copy={formatTaxId(row.doc)}
-                />
-              )}
-              {row.email && (
-                <Field label="E-mail" copy={row.email}>
-                  <a
-                    href={`mailto:${row.email}`}
-                    className="inline-flex min-w-0 items-center gap-2 text-sm hover:underline"
-                  >
-                    <Mail className="size-3.5 shrink-0 text-muted-foreground" />
-                    <span className="truncate">{row.email}</span>
-                  </a>
+                  label="Endereço"
+                  copy={[row.address, row.district, [row.city, row.state].filter(Boolean).join(" / ")]
+                    .filter(Boolean)
+                    .join(" · ")}
+                >
+                  <p className="flex items-start gap-2 text-sm">
+                    <MapPin className="size-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 break-words">
+                      {[row.address, row.district, [row.city, row.state].filter(Boolean).join(" / ")]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  </p>
                 </Field>
-              )}
-              {row.phone && (
-                <Field label="Telefone" copy={formatIntlPhone(row.phone, row.phone_country)}>
-                  <WhatsAppLink phone={row.phone} country={row.phone_country} />
-                </Field>
-              )}
-              {(row.address || row.city || row.state) && (
-                <div className="sm:col-span-2">
-                  <Field
-                    label="Endereço"
-                    copy={[row.address, row.district, [row.city, row.state].filter(Boolean).join(" / ")]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  >
-                    <p className="flex items-start gap-2 text-sm">
-                      <MapPin className="size-3.5 mt-0.5 shrink-0 text-muted-foreground" />
-                      <span className="min-w-0 break-words">
-                        {[row.address, row.district, [row.city, row.state].filter(Boolean).join(" / ")]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </span>
-                    </p>
-                  </Field>
-                </div>
-              )}
-            </dl>
-          )}
-        </div>
-      </section>
+              </div>
+            )}
+          </dl>
+        </section>
+      )}
 
 
       <Tabs defaultValue="visao">
-        <div className="rounded-2xl border border-border bg-card p-2">
-          <TabsList className="w-full bg-transparent gap-1">
-            <TabsTrigger value="visao">Visão Geral</TabsTrigger>
-            {kind === "owner" && <TabsTrigger value="imoveis">Imóveis</TabsTrigger>}
-            <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
-            <TabsTrigger value="documentos">Documentos</TabsTrigger>
+        <TabsList className="ds-surface w-full gap-0 border-0 bg-foreground/5 p-0">
+          <TabsTrigger className={SEG_TAB} value="visao">Visão Geral</TabsTrigger>
+          {kind === "owner" && <TabsTrigger className={SEG_TAB} value="imoveis">Imóveis</TabsTrigger>}
+          <TabsTrigger className={SEG_TAB} value="financeiro">Financeiro</TabsTrigger>
+          <TabsTrigger className={SEG_TAB} value="documentos">Documentos</TabsTrigger>
+          <TabsTrigger className={SEG_TAB} value="log">Log</TabsTrigger>
+        </TabsList>
 
-          </TabsList>
-        </div>
 
 
         {/* -------------------- Acessos -------------------- */}
