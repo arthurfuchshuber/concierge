@@ -1820,7 +1820,7 @@ function Guide({ data }: { data: GuideOk }) {
                             >
                               {showTabs ? (
                                 <Tabs defaultValue={defaultTab}>
-                                  <TabsList className="w-full grid grid-cols-2 mb-4">
+                                  <TabsList className="ds-segmented h-auto mb-4">
                                     <TabsTrigger value="passos">Passo a passo</TabsTrigger>
                                     <TabsTrigger value="senhas" data-tour="senhas-tab">
                                       Senhas

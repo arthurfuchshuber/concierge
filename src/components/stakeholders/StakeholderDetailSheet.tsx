@@ -57,9 +57,9 @@ import { EmptyState } from "@/components/ds/EmptyState";
 import { StakeholderStatusControl } from "./StakeholderStatusControl";
 import { effectiveStatus, statusText } from "@/lib/stakeholder-status";
 
-/** Aba do segmented control: full width, 46px, ativa com o gradiente da marca. */
+/** Aba do segmented control: adapta-se à largura da tela (anti-corte), 46px. */
 const SEG_TAB =
-  "min-h-[46px] !flex-none !rounded-[0.3rem] px-4 text-[13px] font-semibold data-[state=active]:bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] data-[state=active]:text-white data-[state=active]:shadow-none";
+  "min-h-[46px] !rounded-[0.3rem] text-[13px] font-semibold data-[state=active]:bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] data-[state=active]:text-white data-[state=active]:shadow-none";
 
 type PreviewTarget = { name: string; url?: string | null; docId?: string } | null;
 
@@ -587,7 +587,7 @@ export function StakeholderDetailSheet({
 
 
       <Tabs defaultValue="visao">
-        <TabsList className="w-full gap-0 !rounded-[0.3rem] border-0 bg-foreground/5 p-0">
+        <TabsList className="ds-segmented h-auto !rounded-[0.3rem] border-0 bg-foreground/5 p-0">
           <TabsTrigger className={SEG_TAB} value="visao">Visão Geral</TabsTrigger>
           {kind === "owner" && <TabsTrigger className={SEG_TAB} value="imoveis">Imóveis</TabsTrigger>}
           <TabsTrigger className={SEG_TAB} value="financeiro">Financeiro</TabsTrigger>

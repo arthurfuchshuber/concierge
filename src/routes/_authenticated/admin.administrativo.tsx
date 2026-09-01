@@ -63,7 +63,7 @@ function AdministrativoPage() {
         className="w-full"
       >
         <div className="px-6 lg:px-10 max-w-[1440px] mx-auto w-full">
-          <TabsList>
+          <TabsList className="ds-segmented h-auto">
             <TabsTrigger value="perfil">
               <UserIcon className="size-4" /> Meu perfil
             </TabsTrigger>
