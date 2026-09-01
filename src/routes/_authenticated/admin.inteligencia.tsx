@@ -104,7 +104,7 @@ function AiGroup() {
         Inteligência agregada de toda a plataforma — sem expor dados de nenhum cliente específico.
       </p>
       <Tabs defaultValue="global">
-        <TabsList className="w-full flex overflow-x-auto justify-start">
+        <TabsList className="ds-segmented h-auto">
           <TabsTrigger value="global" className="shrink-0">Global Intelligence</TabsTrigger>
           <TabsTrigger value="pipeline" className="shrink-0">Pipeline de Aprendizado</TabsTrigger>
           <TabsTrigger value="agentes" className="shrink-0">Evolução dos Agentes</TabsTrigger>
@@ -126,7 +126,7 @@ function AuditGroup() {
         Cada ação da plataforma registrada com autor, conta, motivo, origem, canal e severidade.
       </p>
       <Tabs defaultValue="eventos">
-        <TabsList className="w-full flex overflow-x-auto justify-start">
+        <TabsList className="ds-segmented h-auto">
           <TabsTrigger value="eventos" className="shrink-0">Eventos</TabsTrigger>
           <TabsTrigger value="analytics" className="shrink-0">Analytics de Logs</TabsTrigger>
         </TabsList>

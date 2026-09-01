@@ -72,7 +72,7 @@ function SigmaPackEditor() {
       />
 
       <Tabs defaultValue="recs">
-        <TabsList className="rounded-full">
+        <TabsList className="ds-segmented h-auto rounded-full">
           <TabsTrigger value="recs" className="rounded-full"><MapPin className="size-3.5" /> Pontos ({recs.length})</TabsTrigger>
           <TabsTrigger value="mkt" className="rounded-full"><Link2 className="size-3.5" /> Marketplace ({marketplace.length})</TabsTrigger>
           <TabsTrigger value="faqs" className="rounded-full"><HelpCircle className="size-3.5" /> FAQs ({faqs.length})</TabsTrigger>

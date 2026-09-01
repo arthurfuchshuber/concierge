@@ -231,7 +231,7 @@ function AssinaturaPage() {
           )}
 
           <Tabs defaultValue="plano" className="mt-8">
-            <TabsList>
+            <TabsList className="ds-segmented h-auto">
               <TabsTrigger value="plano">Plano</TabsTrigger>
               <TabsTrigger value="cartao">Cartão de crédito</TabsTrigger>
               <TabsTrigger value="pagamentos">Pagamentos</TabsTrigger>

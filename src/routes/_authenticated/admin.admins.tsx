@@ -128,7 +128,7 @@ function AdminsPage() {
       />
 
       <Tabs value={tab} onValueChange={setTab} className="mt-8">
-        <TabsList>
+        <TabsList className="ds-segmented h-auto">
           <TabsTrigger value="admins"><ShieldCheck className="size-4 mr-1.5" />Administradores</TabsTrigger>
           <TabsTrigger value="invites"><Mail className="size-4 mr-1.5" />Convites {invites.length > 0 && <span className="ml-1 text-[10px] bg-accent text-accent-foreground px-1.5 rounded-full">{invites.length}</span>}</TabsTrigger>
           <TabsTrigger value="permissoes"><Shield className="size-4 mr-1.5" />Permissões</TabsTrigger>

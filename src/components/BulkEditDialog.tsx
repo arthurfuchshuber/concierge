@@ -806,7 +806,7 @@ export function BulkEditDialog({
               baixo em telas estreitas, em vez de espremer tudo (flex-1) num
               container de largura fixa (w-max) — isso cortava a última aba
               em celulares mais estreitos. */}
-          <TabsList className="ds-scroll-x mb-5 -mx-1 px-1 h-auto gap-0 rounded-[0.3rem] bg-foreground/5 p-0">
+          <TabsList className="ds-segmented mb-5 -mx-1 px-1 h-auto gap-0 rounded-[0.3rem] bg-foreground/5 p-0">
             {TEXT_TABS.map((t) => (
               <TabsTrigger
                 key={t.id}
