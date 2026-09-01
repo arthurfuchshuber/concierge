@@ -391,50 +391,54 @@ export function StakeholderFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[calc(100vw-1.5rem)] max-w-2xl overflow-x-hidden">
         <DialogHeader>
-          <div className="flex items-center justify-between gap-3">
-            <DialogTitle className="font-display text-2xl capitalize">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+            <DialogTitle className="ds-page-title capitalize">
               {form.id ? `Editar ${singular}` : `Novo ${singular}`}
             </DialogTitle>
             <PresenceAvatars users={presence.users} />
           </div>
-          <DialogDescription>CNPJ e CEP preenchem os dados automaticamente.</DialogDescription>
+          <DialogDescription className="ds-page-subtitle">
+            CNPJ e CEP preenchem os dados automaticamente.
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 max-h-[65vh] overflow-y-auto overflow-x-hidden pr-1">
-          {/* Tipo */}
-          <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-8 max-h-[65vh] overflow-y-auto overflow-x-hidden pr-1">
+          {/* Tipo — segmented control (46px, 0.3rem, nunca quebra em 2 linhas) */}
+          <div className="ds-segmented rounded-[0.3rem] bg-muted/40 p-0">
             {([
               { key: "pf" as const, label: "Pessoa Física", sub: "CPF", icon: UserRound },
               { key: "pj" as const, label: "Pessoa Jurídica", sub: "CNPJ", icon: Building2 },
-            ]).map(({ key, label, sub, icon: Icon }) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => {
-                  set({ person_type: key, doc: "" });
-                  clearError("doc");
-                }}
-                className={`flex items-center gap-2.5 p-3 rounded-xl border transition-all text-left ${
-                  form.person_type === key
-                    ? "border-transparent bg-gradient-to-r from-primary to-accent shadow-sm"
-                    : "border-border/60 hover:border-primary/40"
-                }`}
-              >
-                <Icon
-                  className={`size-4 shrink-0 ${form.person_type === key ? "text-primary-foreground" : "text-muted-foreground"}`}
-                />
-                <span className="min-w-0">
-                  <span className={`block text-sm font-medium truncate ${form.person_type === key ? "text-primary-foreground" : ""}`}>{label}</span>
-                  <span className={`block ds-meta ${form.person_type === key ? "text-primary-foreground/80" : ""}`}>{sub}</span>
-                </span>
-                {form.person_type === key && <Check className="size-4 text-primary-foreground ml-auto" />}
-              </button>
-            ))}
+            ]).map(({ key, label, sub, icon: Icon }) => {
+              const on = form.person_type === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => {
+                    set({ person_type: key, doc: "" });
+                    clearError("doc");
+                  }}
+                  className={`min-h-[46px] flex items-center justify-center gap-2 rounded-[0.3rem] text-[13px] font-semibold transition-colors ${
+                    on
+                      ? "bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] text-white"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="size-4 shrink-0" />
+                  <span>{label}</span>
+                  <span className={`text-[11px] font-medium ${on ? "text-white/75" : "opacity-70"}`}>
+                    {sub}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
-          <SectionDivider label="Dados cadastrais" busy={checkingCnpj} />
+          <section>
+            <SectionTitle label="Dados cadastrais" busy={checkingCnpj} />
 
-          <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
+            <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
+
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">
                 {isPJ ? "Razão social *" : "Nome completo *"}
