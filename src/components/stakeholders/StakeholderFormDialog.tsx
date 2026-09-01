@@ -389,8 +389,8 @@ export function StakeholderFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="ds-dense-fields w-[calc(100vw-1.5rem)] max-w-2xl overflow-x-hidden">
-        <DialogHeader>
+      <DialogContent className="ds-form-dialog w-[calc(100vw-1.5rem)] max-w-2xl overflow-x-hidden">
+        <DialogHeader className="pb-4 border-b border-border/40">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
             <DialogTitle className="ds-page-title capitalize">
               {form.id ? `Editar ${singular}` : `Novo ${singular}`}
@@ -645,8 +645,8 @@ export function StakeholderFormDialog({
           <section>
             <SectionTitle label="Acesso ao sistema" />
 
-            <div className="rounded-[0.3rem] border border-border/60 p-4">
-            <div className="flex items-start justify-between gap-4">
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
+            <div className="space-y-3">
               <div className="min-w-0">
                 <p className="ds-body font-semibold">Permitir acesso ao sistema</p>
                 <p className="ds-meta">
@@ -658,11 +658,14 @@ export function StakeholderFormDialog({
                       : "Defina uma senha provisória abaixo (ou deixe em branco para enviar convite por e-mail). No primeiro acesso a pessoa cria a própria senha."}
                 </p>
               </div>
-              <Switch
-                checked={systemAccess}
-                disabled={!emailValid || accessQuery.isLoading}
-                onCheckedChange={setSystemAccess}
-              />
+              <label className="flex items-center gap-2.5">
+                <Switch
+                  checked={systemAccess}
+                  disabled={!emailValid || accessQuery.isLoading}
+                  onCheckedChange={setSystemAccess}
+                />
+                <span className="ds-meta">{systemAccess ? "Ativado" : "Desativado"}</span>
+              </label>
             </div>
             {!emailValid && (
               <p className="ds-meta mt-2 text-amber-500">
@@ -784,6 +787,7 @@ export function StakeholderFormDialog({
                   clearError("district");
                   presence.broadcastTyping("district", e.target.value);
                 }}
+                readOnly
                 onBlur={() => presence.broadcastFieldBlur("district")}
                 className={errors.district ? "border-destructive" : ""}
               />
@@ -803,6 +807,7 @@ export function StakeholderFormDialog({
                   clearError("city");
                   presence.broadcastTyping("city", e.target.value);
                 }}
+                readOnly
                 onBlur={() => presence.broadcastFieldBlur("city")}
                 className={errors.city ? "border-destructive" : ""}
               />
@@ -821,6 +826,7 @@ export function StakeholderFormDialog({
                   clearError("state");
                   presence.broadcastTyping("state", v);
                 }}
+                readOnly
                 onBlur={() => presence.broadcastFieldBlur("state")}
                 className={errors.state ? "border-destructive" : ""}
               />
@@ -852,11 +858,11 @@ export function StakeholderFormDialog({
         </div>
 
         <div className="ds-scroll-x justify-end gap-3 pt-3 border-t border-border/30">
-          <Button variant="ghost" className="h-9 rounded-[0.3rem]" onClick={() => onOpenChange(false)}>
+          <Button variant="ghost" className="h-9 rounded-lg" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
           <Button
-            className="h-9 rounded-[0.3rem] bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90"
+            className="h-9 rounded-lg bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] text-white hover:opacity-90"
             onClick={submit}
             disabled={saving || checkingCnpj}
           >
