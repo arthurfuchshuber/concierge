@@ -123,6 +123,22 @@ export function rowToStakeholderForm(row: Record<string, any>): StakeholderFormV
   };
 }
 
+/** yyyy-mm-dd → Date local (meio-dia evita salto de fuso). */
+function toDate(iso: string): Date | null {
+  if (!iso) return null;
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d, 12);
+}
+function toISO(date: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`;
+}
+function fmtBR(iso: string): string {
+  const d = toDate(iso);
+  return d ? d.toLocaleDateString("pt-BR") : "";
+}
+
 /** Seção expansível do formulário — compacta a altura total do diálogo. */
 function FormSection({
   label,
