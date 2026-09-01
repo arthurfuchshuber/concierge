@@ -330,8 +330,29 @@ export function StakeholderDetailSheet({
     : null;
 
 
+  // Notas automáticas de bastidor (importação/sincronização/extração) não
+  // entram na Linha do Tempo — elas continuam disponíveis no Log.
+  const NOISE = /(importa[çc][ãa]o do clicksign|dados extra[íi]dos|sincroniza|cadastro criado pela)/i;
+
+  // Abre o link do Google já na conta conectada à integração (authuser),
+  // evitando cair na conta pessoal logada no navegador.
+  const gAccount = (feed.data as { accountEmail?: string | null } | undefined)?.accountEmail ?? null;
+  function gLink(url: string) {
+    if (!gAccount) return url;
+    try {
+      const u = new URL(url);
+      if (!/(^|\.)google\.com$/.test(u.hostname)) return url;
+      u.searchParams.set("authuser", gAccount);
+      return u.toString();
+    } catch {
+      return url;
+    }
+  }
+
   const timeline = [
-    ...events.map((ev: any) => ({
+    ...events
+      .filter((ev: any) => !NOISE.test(String(ev.message ?? "")))
+      .map((ev: any) => ({
       key: `n:${ev.id}`,
       at: ev.created_at as string,
       icon: Pin,
@@ -352,7 +373,7 @@ export function StakeholderDetailSheet({
           {ev.htmlLink && (
             <button
               type="button"
-              onClick={() => setPreview({ name: ev.title, url: ev.htmlLink as string })}
+              onClick={() => window.open(gLink(ev.htmlLink as string), "_blank", "noopener")}
               className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
             >
               <Eye className="size-3" /> Abrir convite
@@ -367,7 +388,7 @@ export function StakeholderDetailSheet({
                 <button
                   key={a.url}
                   type="button"
-                  onClick={() => setPreview({ name: a.title || ev.title, url: a.url })}
+                  onClick={() => window.open(gLink(a.url), "_blank", "noopener")}
                   className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
                 >
                   {a.kind === "transcript" ? <FileText className="size-2.5" /> : <Video className="size-2.5" />}
@@ -436,23 +457,53 @@ export function StakeholderDetailSheet({
           className="absolute left-0 right-12 top-0 h-[2px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]"
         />
 
-        {/* Linha 1: eyebrow + ações (nome ganha a largura toda) */}
-        <div className="flex items-center justify-between gap-3">
-          <span className="ds-eyebrow block truncate text-muted-foreground">
-            {kind === "owner" ? "Proprietário" : "Prestador"}
-          </span>
+        {/* Linha 1: eyebrow (as ações desceram para a linha de metadados) */}
+        <span className="ds-eyebrow block truncate text-muted-foreground">
+          {kind === "owner" ? "Proprietário" : "Prestador"}
+        </span>
 
-          {/* Ações: botões-ícone 36px, uma linha só, sem cortar na margem */}
+        {/* Linha 2: nome em linha única, espaçamento padrão das demais páginas */}
+        <h2
+          className="mt-1 truncate font-display text-[20px] font-bold leading-tight tracking-[-0.01em]"
+          title={displayName}
+        >
+          {displayName}
+        </h2>
+
+        {/* Linha 3: metadados à esquerda, ações à direita (espaço antes vazio) */}
+        <div className="mt-2 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="ds-scroll-x gap-3 ds-meta">
+              <StakeholderStatusControl
+                kind={kind}
+                id={id}
+                accountOwnerId={accountOwnerId}
+                status={row.status}
+                statusChangedAt={row.status_changed_at}
+                variant="compact"
+                invalidateQueryKeys={[queryKey]}
+              />
+              <span className="h-3 w-px bg-border" aria-hidden />
+              <span className="whitespace-nowrap">
+                {String(row.person_type ?? "pf").toUpperCase() === "PJ"
+                  ? "Pessoa Jurídica"
+                  : "Pessoa Física"}
+              </span>
+            </div>
+
+            {contractRange && (
+              <p className={`mt-1.5 whitespace-nowrap tabular-nums text-sm ${statusText(effStatus)}`}>
+                {contractRange}
+              </p>
+            )}
+
+            {categoryLabels.length > 0 && (
+              <p className="mt-1.5 ds-meta truncate">{categoryLabels.join(" · ")}</p>
+            )}
+          </div>
+
+          {/* Ações: importar dados vem antes de editar (ordem invertida) */}
           <div className="ds-scroll-x shrink-0 items-center gap-1.5">
-            <button
-              type="button"
-              onClick={onEdit}
-              aria-label="Editar cadastro"
-              title="Editar cadastro"
-              className="grid size-9 place-items-center rounded-[0.3rem] border border-border text-foreground hover:bg-secondary transition-colors"
-            >
-              <Pencil className="size-4" />
-            </button>
             {clicksignActive && (
               <button
                 type="button"
@@ -471,6 +522,15 @@ export function StakeholderDetailSheet({
             )}
             <button
               type="button"
+              onClick={onEdit}
+              aria-label="Editar cadastro"
+              title="Editar cadastro"
+              className="grid size-9 place-items-center rounded-[0.3rem] border border-border text-foreground hover:bg-secondary transition-colors"
+            >
+              <Pencil className="size-4" />
+            </button>
+            <button
+              type="button"
               onClick={() => setDataOpen((o) => !o)}
               aria-expanded={dataOpen}
               aria-label="Dados pessoais"
@@ -482,43 +542,6 @@ export function StakeholderDetailSheet({
           </div>
         </div>
 
-        {/* Linha 2: nome em linha única, menor */}
-        <h2
-          className="mt-2 truncate font-display text-[20px] font-bold leading-tight tracking-[-0.01em]"
-          title={displayName}
-        >
-          {displayName}
-        </h2>
-
-        {/* Linha 3: status e tipo permanecem juntos. */}
-        <div className="ds-scroll-x mt-2 gap-3 ds-meta">
-          <StakeholderStatusControl
-            kind={kind}
-            id={id}
-            accountOwnerId={accountOwnerId}
-            status={row.status}
-            statusChangedAt={row.status_changed_at}
-            variant="compact"
-            invalidateQueryKeys={[queryKey]}
-          />
-          <span className="h-3 w-px bg-border" aria-hidden />
-          <span className="whitespace-nowrap">
-            {String(row.person_type ?? "pf").toUpperCase() === "PJ"
-              ? "Pessoa Jurídica"
-              : "Pessoa Física"}
-          </span>
-        </div>
-
-        {/* Linha 4: vigência abaixo do status e do tipo de pessoa. */}
-        {contractRange && (
-          <p className={`mt-1.5 whitespace-nowrap tabular-nums text-sm ${statusText(effStatus)}`}>
-            {contractRange}
-          </p>
-        )}
-
-        {categoryLabels.length > 0 && (
-          <p className="mt-1.5 ds-meta truncate">{categoryLabels.join(" · ")}</p>
-        )}
       </header>
 
       {/* ---------- Dados pessoais (recolhível, fechado por padrão) ---------- */}
@@ -651,7 +674,7 @@ export function StakeholderDetailSheet({
             <ul className="space-y-2">
               {(trail.data?.items ?? []).map((ev) => (
                 <li key={ev.id} className="ds-surface bg-card px-4 py-3">
-                  <p className="ds-card-title">{ev.title}</p>
+                  <p className="text-[13.5px] leading-[1.3] font-normal text-foreground">{ev.title}</p>
                   <p className="ds-meta">{ev.badge}</p>
                   {ev.details.length > 0 && (
                     <ul className="mt-1 space-y-0.5">
@@ -725,7 +748,7 @@ export function StakeholderDetailSheet({
                         <div className="flex items-start gap-2.5">
                           <Icon className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
                           <div className="min-w-0 flex-1 space-y-1">
-                            <p className="ds-card-title">{item.title}</p>
+                            <p className="text-[13.5px] leading-[1.3] font-normal text-foreground">{item.title}</p>
                             <p className="ds-meta">{item.badge}</p>
                             {item.body}
                             <p className="ds-meta opacity-80">
@@ -947,7 +970,7 @@ export function StakeholderDetailSheet({
                 {feedDocs.map((d) => (
                   <li key={d.id} className="flex items-start justify-between gap-3 px-4 py-3">
                     <div className="min-w-0">
-                      <p className="ds-card-title truncate">{d.name}</p>
+                      <p className="text-[13.5px] leading-[1.3] font-normal text-foreground truncate">{d.name}</p>
                       {/* Antes mostrava só uma data (finished_at OU synced_at,
                           sem rótulo) — parecia "assinado em tal data" mesmo
                           quando era só a data de IMPORTAÇÃO, com a assinatura
