@@ -918,7 +918,7 @@ export function StakeholderFormDialog({
               />
               <FieldTypingBadge typing={presence.typing["notes"]} />
             </div>
-          </section>
+          </FormSection>
         </div>
 
         <div className="ds-scroll-x justify-end gap-3 pt-3 border-t border-border/30">
