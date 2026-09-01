@@ -518,50 +518,58 @@ function StakeholderCard({
             <MapPin className="size-3 shrink-0 text-muted-foreground" /> {cityUf}
           </p>
         )}
-        {row.contract_start && (() => {
-          const eff = effectiveStatus(row.status, row.status_changed_at);
-          // Cancelado/Cancelando sem data final preenchida à mão: a data em que
-          // o cancelamento foi (ou será) efetivado é o fim real da vigência —
-          // mostrar "momento" nesses casos era enganoso.
-          const endsOnStatus = eff === "canceled" || eff === "canceling";
-          const end =
-            row.contract_end ??
-            (endsOnStatus && row.status_changed_at ? String(row.status_changed_at).slice(0, 10) : null);
-          return (
-            <p className={`text-[12px] font-medium leading-[1.45] ${statusText(eff)}`}>
-              {fmtDateBR(row.contract_start)} → {end ? fmtDateBR(end) : "momento"}
-            </p>
-          );
-        })()}
+        {/* Vigência à esquerda e ações compactas à direita, na mesma linha —
+            encolhe a altura do card sem cortar nada na margem direita. */}
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+          <div className="min-w-0">
+            {row.contract_start && (() => {
+              const eff = effectiveStatus(row.status, row.status_changed_at);
+              // Cancelado/Cancelando sem data final preenchida à mão: a data em que
+              // o cancelamento foi (ou será) efetivado é o fim real da vigência.
+              const endsOnStatus = eff === "canceled" || eff === "canceling";
+              const end =
+                row.contract_end ??
+                (endsOnStatus && row.status_changed_at ? String(row.status_changed_at).slice(0, 10) : null);
+              return (
+                <p className={`truncate text-[12px] font-medium leading-[1.45] ${statusText(eff)}`}>
+                  {fmtDateBR(row.contract_start)} → {end ? fmtDateBR(end) : "momento"}
+                </p>
+              );
+            })()}
+          </div>
+
+          <div className="flex shrink-0 items-center overflow-hidden rounded-[8px] border border-border/60 bg-secondary/50 divide-x divide-border/60">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onOpen(); }}
+              aria-label="Ver detalhes"
+              title="Ver detalhes"
+              className="size-8 inline-flex items-center justify-center text-foreground/80 hover:bg-secondary transition-colors"
+            >
+              <Eye className="size-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onEdit(); }}
+              aria-label="Editar"
+              title="Editar"
+              className="size-8 inline-flex items-center justify-center text-foreground/80 hover:bg-secondary transition-colors"
+            >
+              <Pencil className="size-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              aria-label="Excluir"
+              title="Excluir"
+              className="size-8 inline-flex items-center justify-center text-foreground/80 hover:bg-destructive/10 hover:text-destructive transition-colors"
+            >
+              <Trash2 className="size-3.5" />
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="mt-3 flex items-center gap-1.5">
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onOpen(); }}
-          className="h-9 flex-1 inline-flex items-center justify-center gap-1.5 rounded-none border-0 bg-secondary/50 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
-        >
-          Ver detalhes
-        </button>
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onEdit(); }}
-          aria-label="Editar"
-          title="Editar"
-          className="size-9 shrink-0 inline-flex items-center justify-center rounded-none border-0 bg-secondary/50 text-foreground/80 hover:bg-secondary transition-colors"
-        >
-          <Pencil className="size-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          aria-label="Excluir"
-          title="Excluir"
-          className="size-9 shrink-0 inline-flex items-center justify-center rounded-none border-0 bg-secondary/50 text-foreground/80 hover:bg-destructive/10 hover:text-destructive transition-colors"
-        >
-          <Trash2 className="size-3.5" />
-        </button>
-      </div>
     </div>
   );
 }
