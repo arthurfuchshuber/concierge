@@ -825,34 +825,36 @@ export function StakeholderFormDialog({
               {errors.state && <p className="text-xs text-destructive">{errors.state}</p>}
               <FieldTypingBadge typing={presence.typing["state"]} />
             </div>
+            </div>
+          </section>
 
-          </div>
+          <section>
+            <SectionTitle label="Extras" />
 
-          <SectionDivider label="Extras" />
-
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Observações (opcional)</Label>
-            <Textarea
-              rows={3}
-              maxLength={4000}
-              placeholder={`Observações sobre o ${singular}...`}
-              value={form.notes}
-              onChange={(e) => {
-                set({ notes: e.target.value });
-                presence.broadcastTyping("notes", e.target.value);
-              }}
-              onBlur={() => presence.broadcastFieldBlur("notes")}
-            />
-            <FieldTypingBadge typing={presence.typing["notes"]} />
-          </div>
+            <div className="space-y-1.5">
+              <Label className="ds-meta">Observações (opcional)</Label>
+              <Textarea
+                rows={3}
+                maxLength={4000}
+                placeholder={`Observações sobre o ${singular}...`}
+                value={form.notes}
+                onChange={(e) => {
+                  set({ notes: e.target.value });
+                  presence.broadcastTyping("notes", e.target.value);
+                }}
+                onBlur={() => presence.broadcastFieldBlur("notes")}
+              />
+              <FieldTypingBadge typing={presence.typing["notes"]} />
+            </div>
+          </section>
         </div>
 
-        <div className="ds-scroll-x justify-center gap-2 pt-3 border-t border-border/30">
-          <Button variant="ghost" className="rounded-full" onClick={() => onOpenChange(false)}>
+        <div className="ds-scroll-x justify-end gap-3 pt-3 border-t border-border/30">
+          <Button variant="ghost" className="h-9 rounded-lg" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
           <Button
-            className="rounded-full bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90"
+            className="h-9 rounded-lg bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90"
             onClick={submit}
             disabled={saving || checkingCnpj}
           >
@@ -864,6 +866,7 @@ export function StakeholderFormDialog({
             {form.id ? "Salvar alterações" : `Salvar ${singular}`}
           </Button>
         </div>
+
       </DialogContent>
     </Dialog>
   );
