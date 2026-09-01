@@ -716,11 +716,14 @@ export function StakeholderFormDialog({
               </div>
             )}
 
-          </div>
+            </div>
+          </section>
 
-          <SectionDivider label="Endereço" busy={loadingCep} />
+          <section>
+            <SectionTitle label="Endereço" busy={loadingCep} />
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 [&>*]:min-w-0">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 [&>*]:min-w-0">
+
             <div className="min-w-0">
               <MaskedInput
                 className="min-w-0"
