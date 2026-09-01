@@ -735,67 +735,78 @@ export function StakeholderDetailSheet({
 
         {/* -------------------- Imóveis -------------------- */}
         {kind === "owner" && (
-          <TabsContent value="imoveis" className="mt-5 space-y-5">
-            <section className="space-y-3">
-              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+          <TabsContent value="imoveis" className="mt-5 space-y-4">
+            {/* Portfólio em linhas densas: título + situação do guia na mesma
+                linha, localização abaixo e ações discretas em texto. */}
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+              <div className="min-w-0">
                 <h3 className="ds-section-title truncate">Imóveis vinculados</h3>
-                <span className="ds-meta shrink-0">
-                  {properties.length} residência(s)
-                </span>
+                <p className="ds-meta">{properties.length} residência(s)</p>
               </div>
+              {available.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="inline-flex h-9 shrink-0 items-center gap-2 rounded-[0.3rem] border border-border bg-secondary/40 px-3 text-[13px] font-medium transition-colors hover:bg-secondary"
+                    >
+                      <Plus className="size-4 text-primary" /> Vincular
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="max-h-72 w-64 overflow-y-auto">
+                    {available.map((p: any) => (
+                      <DropdownMenuItem
+                        key={p.id}
+                        disabled={busy}
+                        onClick={() => toggleLink(p.id, true)}
+                        className="gap-2"
+                      >
+                        <Link2 className="size-3.5 shrink-0 text-muted-foreground" />
+                        <span className="truncate">{p.name}</span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
 
-              {properties.length === 0 ? (
-                <Placeholder
-                  icon={Home}
-                  title="Nenhuma residência vinculada"
-                  desc="Vincule uma residência existente abaixo ou crie uma nova para este proprietário."
-                />
-              ) : (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {properties.map((p: any) => {
-                    const status = p.published
-                      ? { label: "Publicado", cls: "border-emerald-500/30 bg-emerald-500/10 text-emerald-500" }
-                      : p.guide_created
-                      ? { label: "Guia em edição", cls: "border-amber-500/30 bg-amber-500/10 text-amber-500" }
+            {properties.length === 0 ? (
+              <Placeholder
+                icon={Home}
+                title="Nenhuma residência vinculada"
+                desc="Vincule uma residência existente acima ou crie uma nova para este proprietário."
+              />
+            ) : (
+              <div className="space-y-2">
+                {properties.map((p: any) => {
+                  const status = p.published
+                    ? { label: "Publicado", cls: "border-emerald-500/25 bg-emerald-500/10 text-emerald-500" }
+                    : p.guide_created
+                      ? { label: "Pendente", cls: "border-amber-500/25 bg-amber-500/10 text-amber-500" }
                       : { label: "Sem guia", cls: "border-border text-muted-foreground" };
-                    return (
+                  return (
                     <div
                       key={p.id}
-                      className="ds-surface bg-card p-4 space-y-2"
+                      className="ds-surface bg-card p-3 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2"
                     >
-                      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
-                        <p className="ds-card-title">{p.name}</p>
-                        <span
-                          className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] ${status.cls}`}
-                        >
-                          {status.label}
-                        </span>
-                      </div>
-                      <p className="flex items-center gap-1.5 ds-meta">
-                        <MapPin className="size-3 shrink-0" />
-                        {[p.city, p.state].filter(Boolean).join(" / ") || "Sem localização"}
-                      </p>
-                      <div className="ds-scroll-x items-center gap-1 pt-1">
-                        <button
-                          type="button"
-                          onClick={() => setEditingPropertyId(p.id)}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                        >
-                          <Pencil className="size-3" /> Editar
-                        </button>
-                        <Link
-                          to="/admin/properties/$id"
-                          params={{ id: p.id }}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                          title="Abrir o editor completo do guia (checkin, checkout, FAQ, recomendações)"
-                        >
-                          <ExternalLink className="size-3" /> Guia completo
-                        </Link>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="ds-card-title min-w-0 break-words">{p.name}</p>
+                          <span
+                            className={`shrink-0 rounded-[0.2rem] border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${status.cls}`}
+                          >
+                            {status.label}
+                          </span>
+                        </div>
+                        <p className="mt-1 flex items-center gap-1.5 ds-meta">
+                          <MapPin className="size-3.5 shrink-0" />
+                          {[p.city, p.state].filter(Boolean).join(" / ") || "Sem localização"}
+                        </p>
 
                         {transferPropertyId === p.id ? (
-                          <div className="flex items-center gap-1.5 w-full mt-1.5">
+                          <div className="mt-3 flex flex-wrap items-center gap-1.5">
                             <Select value={transferTargetId} onValueChange={setTransferTargetId}>
-                              <SelectTrigger className="h-8 text-xs flex-1 min-w-0">
+                              <SelectTrigger className="h-8 min-w-0 flex-1 text-xs">
                                 <SelectValue placeholder="Transferir para..." />
                               </SelectTrigger>
                               <SelectContent>
@@ -818,30 +829,50 @@ export function StakeholderDetailSheet({
                             <button
                               type="button"
                               onClick={() => { setTransferPropertyId(null); setTransferTargetId(""); }}
-                              className="text-muted-foreground hover:text-foreground shrink-0"
+                              className="shrink-0 text-muted-foreground hover:text-foreground"
                               aria-label="Cancelar transferência"
                             >
                               <X className="size-4" />
                             </button>
                           </div>
                         ) : (
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={() => setTransferPropertyId(p.id)}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:text-destructive transition-colors"
-                            title="Um imóvel sempre precisa de um proprietário — transfira para outro em vez de apenas desvincular."
-                          >
-                            <Unlink className="size-3" /> Transferir
-                          </button>
+                          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+                            <button
+                              type="button"
+                              onClick={() => setEditingPropertyId(p.id)}
+                              className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-tight text-muted-foreground transition-colors hover:text-foreground"
+                            >
+                              <Pencil className="size-3.5" /> Editar
+                            </button>
+                            <Link
+                              to="/admin/properties/$id"
+                              params={{ id: p.id }}
+                              className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-tight text-muted-foreground transition-colors hover:text-foreground"
+                              title="Abrir o editor completo do guia (checkin, checkout, FAQ, recomendações)"
+                            >
+                              <FileText className="size-3.5" /> Guia
+                            </Link>
+                          </div>
                         )}
                       </div>
+
+                      {transferPropertyId !== p.id && (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => setTransferPropertyId(p.id)}
+                          className="grid size-8 shrink-0 place-items-center rounded-[0.3rem] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                          title="Um imóvel sempre precisa de um proprietário — transfira para outro em vez de apenas desvincular."
+                          aria-label="Transferir imóvel"
+                        >
+                          <Unlink className="size-4" />
+                        </button>
+                      )}
                     </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
+                  );
+                })}
+              </div>
+            )}
 
             {editingPropertyId && (
               <PropertyQuickEditDialog
@@ -851,25 +882,6 @@ export function StakeholderDetailSheet({
               />
             )}
 
-            {available.length > 0 && (
-              <section className="ds-surface border-dashed p-5 space-y-2">
-                <p className="ds-eyebrow">
-                  Vincular residência existente
-                </p>
-                {available.map((p: any) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    disabled={busy}
-                    onClick={() => toggleLink(p.id, true)}
-                    className="w-full flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm hover:bg-secondary transition-colors"
-                  >
-                    <span className="truncate">{p.name}</span>
-                    <Link2 className="size-3.5 shrink-0 text-muted-foreground" />
-                  </button>
-                ))}
-              </section>
-            )}
 
             <Link
               to="/admin/properties/$id"
