@@ -695,7 +695,7 @@ export function StakeholderDetailSheet({
                   return (
                     <li key={item.key} className="relative">
                       <span className="absolute -left-[29px] top-4 size-2.5 rounded-full bg-primary/70 ring-4 ring-background" />
-                      <div className="rounded-2xl border border-border bg-card px-4 py-3">
+                      <div className="ds-surface bg-card px-4 py-3">
                         <div className="flex items-start gap-2.5">
                           <Icon className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
                           <div className="min-w-0 flex-1 space-y-1">
@@ -703,12 +703,13 @@ export function StakeholderDetailSheet({
                             <p className="ds-meta">{item.badge}</p>
                             {item.body}
                             <p className="ds-meta opacity-80">
-                              {item.at ? fmt(item.at) : "Sem data"}
+                              {item.at ? fmt(item.at) : "Sem data"} · {item.author}
                             </p>
                           </div>
                         </div>
                       </div>
                     </li>
+
                   );
                 })}
               </ol>
