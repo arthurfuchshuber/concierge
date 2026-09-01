@@ -298,7 +298,7 @@ export function StakeholderDetailSheet({
   const properties = data?.properties ?? [];
   const available = data?.availableProperties ?? [];
   const displayName = row.trade_name || row.name;
-  const initial = String(displayName ?? "?").trim().charAt(0).toUpperCase();
+  
 
   // Vigência do contrato exibida no cabeçalho, na cor do status (mesma regra
   // do card da listagem: cancelado/cancelando sem data final usa a data em
