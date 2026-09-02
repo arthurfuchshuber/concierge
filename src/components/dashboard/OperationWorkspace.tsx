@@ -2028,10 +2028,26 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             {/* Mobile: abas roláveis, uma coluna ativa por vez — 5 colunas lado a
                 lado não cabem numa tela estreita. O item ativo usa sempre o
                 gradiente da marca (mesmo tratamento de toda aba/badge ativo do
-                app), não uma cor diferente por aba. O botão "Filtros" fica
-                fixo no fim dessa mesma linha, não numa linha própria acima. */}
+                app), não uma cor diferente por aba. Filtros/Pendências ficam
+                numa linha própria ACIMA da barra de abas — mesma posição que
+                já usam na aba Limpeza (irmã desta, no mesmo header). */}
             <div className="sm:hidden space-y-3">
               <div className="space-y-2">
+                <div className="flex items-center gap-1">
+                  <CalendarFiltersButton
+                    periodRange={periodRange}
+                    onPeriodRangeChange={setPeriodRange}
+                    cityFilters={cityFilters}
+                    onCityFiltersChange={setCityFilters}
+                    cityOptions={cityOptions}
+                    ownerFilters={ownerFilters}
+                    onOwnerFiltersChange={setOwnerFilters}
+                    ownerOptions={ownerOptions}
+                    hasCustomFilters={hasCustomFilters}
+                    onClearAll={clearAllFilters}
+                  />
+                  <PendenciasButton count={openTasksCount} onClick={() => setPendenciasOpen(true)} />
+                </div>
                 <div
                   // scroll-px-3.5 (14px) = os mesmos 10px de margem da página
                   // (px-2.5 no mobile) + os 4px do próprio px-1 desta barra —
@@ -2087,21 +2103,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                       </button>
                     );
                   })}
-                </div>
-                <div className="flex items-center gap-1">
-                  <CalendarFiltersButton
-                    periodRange={periodRange}
-                    onPeriodRangeChange={setPeriodRange}
-                    cityFilters={cityFilters}
-                    onCityFiltersChange={setCityFilters}
-                    cityOptions={cityOptions}
-                    ownerFilters={ownerFilters}
-                    onOwnerFiltersChange={setOwnerFilters}
-                    ownerOptions={ownerOptions}
-                    hasCustomFilters={hasCustomFilters}
-                    onClearAll={clearAllFilters}
-                  />
-                  <PendenciasButton count={openTasksCount} onClick={() => setPendenciasOpen(true)} />
                 </div>
               </div>
 
