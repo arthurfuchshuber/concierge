@@ -4032,49 +4032,6 @@ function CategoryDescriptionField({
 }
 
 
-function Stepper({
-  steps,
-  current,
-  onChange,
-  lockedValues,
-}: {
-  steps: { value: string; label: string; icon: React.ComponentType<{ className?: string; strokeWidth?: number }> }[];
-  current: string;
-  onChange: (v: string) => void;
-  // Abas visíveis mas ainda não liberadas (ex.: guia com dados obrigatórios
-  // pendentes) — aparecem com cadeado e não respondem a clique.
-  lockedValues?: string[];
-}) {
-  return (
-    // ANTI-CORTE (regra global): `ds-segmented` adapta o espaçamento à largura
-    // real da tela e quebra em outra linha em vez de cortar qualquer aba.
-    <nav className="ds-segmented mb-5 -mx-1 px-1 rounded-[0.3rem] bg-foreground/5 p-1">
-      {steps.map((s) => {
-        const active = s.value === current;
-        const locked = lockedValues?.includes(s.value) ?? false;
-        return (
-          <button
-            key={s.value}
-            type="button"
-            disabled={locked}
-            onClick={() => !locked && onChange(s.value)}
-            title={locked ? "Complete as informações obrigatórias em \"A casa\" para desbloquear" : undefined}
-            className={`whitespace-nowrap px-3 py-2 text-center text-[13px] font-normal leading-none flex items-center justify-center gap-1.5 min-h-[34px] rounded-[0.25rem] transition-colors ${
-              active
-                ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
-                : locked
-                  ? "text-muted-foreground/40 cursor-not-allowed"
-                  : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {locked ? <Lock className="size-3" /> : null}
-            {s.label}
-          </button>
-        );
-      })}
-    </nav>
-  );
-}
 
 
 function GalleryEditor({
