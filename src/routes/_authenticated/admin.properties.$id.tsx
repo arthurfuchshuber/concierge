@@ -1822,8 +1822,10 @@ function PropertyEditor() {
             {renderHostContactSection()}
 
           </SectionGroup>
+          </DenseSections>
 
-          <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-border/60">
+          <div className="ds-scroll-x items-center justify-end gap-2 mt-6 pt-4 border-t border-border/60">
+
             <Link
               to="/admin/guias"
               className="inline-flex items-center h-9 px-4 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors"
