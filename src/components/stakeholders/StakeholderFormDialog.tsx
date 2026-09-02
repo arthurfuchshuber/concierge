@@ -548,9 +548,9 @@ export function StakeholderFormDialog({
           {!form.id && (
           <div className="ds-segmented rounded-[0.3rem] bg-muted/40 p-0">
             {([
-              { key: "pf" as const, label: "Pessoa Física", sub: "CPF", icon: UserRound },
-              { key: "pj" as const, label: "Pessoa Jurídica", sub: "CNPJ", icon: Building2 },
-            ]).map(({ key, label, sub, icon: Icon }) => {
+              { key: "pf" as const, label: "Pessoa Física", icon: UserRound },
+              { key: "pj" as const, label: "Pessoa Jurídica", icon: Building2 },
+            ]).map(({ key, label, icon: Icon }) => {
               const on = form.person_type === key;
               return (
                 <button
@@ -568,9 +568,6 @@ export function StakeholderFormDialog({
                 >
                   <Icon className="size-4 shrink-0" />
                   <span>{label}</span>
-                  <span className={`text-[11px] font-medium ${on ? "text-white/75" : "opacity-70"}`}>
-                    {sub}
-                  </span>
                 </button>
               );
             })}

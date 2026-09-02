@@ -383,6 +383,12 @@ function PropertyEditor() {
   // pedindo pra ela olhar o console). Agora qualquer falha aparece no
   // rodapé, com a mensagem real do erro ao passar o mouse.
   const [autoSaveError, setAutoSaveError] = useState<string | null>(null);
+  // Snapshot (JSON) do último `property` confirmado como salvo — usado só
+  // pela tela enxuta "editar propriedade" (!isNew) pra decidir se a barra de
+  // Cancelar/Salvar alterações aparece: precisa ser estado (não ref, como o
+  // `dirtyRef` acima) porque um ref não dispara re-render — ficaria
+  // "grudado" mostrando a barra até algum outro campo mudar por acaso.
+  const [savedPropertyKey, setSavedPropertyKey] = useState("");
   const [step, setStepRaw] = useState<string>(() => {
     if (typeof window === "undefined") return "house";
     const raw = window.location.hash.replace("#tab-", "");
@@ -509,8 +515,7 @@ function PropertyEditor() {
     setGateOpen(!!(p.gate_code as string));
     setLockOpen(!!(p.lock_code as string));
     suppressHydrationAutosaveRef.current = true;
-    setForm({
-      property: {
+    const propertyForForm = {
         name: (p.name as string) ?? "",
         slug: (p.slug as string) ?? "",
         tagline: (p.tagline as string) ?? "",
@@ -599,7 +604,10 @@ function PropertyEditor() {
         cleaning_price_full_cents: ((p as Record<string, unknown>).cleaning_price_full_cents as number | null) ?? null,
         cleaning_duration_normal_minutes: ((p as Record<string, unknown>).cleaning_duration_normal_minutes as number | null) ?? null,
         cleaning_duration_full_minutes: ((p as Record<string, unknown>).cleaning_duration_full_minutes as number | null) ?? null,
-      },
+    };
+    setSavedPropertyKey(JSON.stringify(propertyForForm));
+    setForm({
+      property: propertyForForm,
       manual: (data.manual ?? []).map((m: Record<string, unknown>) => ({
         title: (m.title as string) ?? "",
         description: (m.description as string) ?? "",
@@ -1135,6 +1143,11 @@ function PropertyEditor() {
       if (!silent) toast.success(isNew ? "Imóvel criado" : "Guia salvo");
       setAutoSaveError(null);
       if (editVersionRef.current === saveVersion) dirtyRef.current = false;
+      // Atualiza o snapshot usado pela barra de Cancelar/Salvar alterações de
+      // "editar propriedade" (ver `savedPropertyKey`): assim que o que acabou
+      // de ser salvo — seja autosave silencioso ou clique manual — bate com o
+      // formulário atual, a barra some sozinha.
+      setSavedPropertyKey(JSON.stringify(propertySource));
       // Em autosave (silent) NÃO invalidamos nada: refetch do guia inteiro a
       // cada tecla era o que deixava a edição lenta. Só marcamos as queries
       // como obsoletas (refetchType: "none"), então elas se atualizam no
@@ -1263,6 +1276,31 @@ function PropertyEditor() {
   const savedSlug = !isNew ? ((data?.property as Record<string, unknown> | undefined)?.slug as string | undefined) : undefined;
   const previewSlug = savedSlug || form.property.slug;
   const previewUrl = useGuidePreviewUrl(previewOpen ? previewSlug : null);
+
+  // Trava: "sem imóvel [completo, vinculado a um proprietário], sem guia".
+  // Cobre também imóveis já existentes (de antes desta regra) que ficaram sem
+  // proprietário e/ou sem os dados básicos obrigatórios (tipo, endereço
+  // completo, calendário Airbnb) — bloqueia qualquer edição, mesmo de um guia
+  // já publicado, até completar. Só se aplica depois que o guia já foi criado
+  // (`guide_created`): antes disso, é a própria tela enxuta "Novo imóvel" que
+  // já pede e valida esses mesmos campos.
+  const missingOwner = !isNew && !form.property.owner_contact_id;
+  const missingHouseFields = form.property.guide_created ? missingRequiredHouseFields(form.property) : [];
+  const allMissingRequiredFields = [...(missingOwner ? ["Proprietário"] : []), ...missingHouseFields];
+  const needsRequiredHouseInfo = !isNew && form.property.guide_created && (missingOwner || missingHouseFields.length > 0);
+
+  // Mesmo motivo do comentário de useGuidePreviewUrl acima: hooks não podem
+  // ser condicionais. Este useEffect ficava depois do early-return de
+  // isLoading logo abaixo e reproduzia o MESMO bug ("Rendered more hooks than
+  // during the previous render") na 1ª abertura de "Editar guia" — só
+  // funcionava depois de "Tentar de novo" porque a 2ª tentativa já reaproveita
+  // os dados em cache e nunca passa pelo estado isLoading=true.
+  useEffect(() => {
+    if ((needsRequiredHouseInfo || houseOnly) && step !== "house") {
+      setStep("house");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsRequiredHouseInfo, houseOnly, step]);
 
   if (!isNew && isLoading) {
     return <div className="max-w-4xl mx-auto px-6 py-10 text-sm text-muted-foreground">Carregando…</div>;
@@ -1749,18 +1787,6 @@ function PropertyEditor() {
   // os MESMOS da aba "A casa" do editor completo (mesmo form.property, mesmas
   // funções render*Section) — não existem em duplicidade, então qualquer
   // alteração feita aqui ou lá é a mesma informação, sempre.
-  // Trava: "sem imóvel [completo, vinculado a um proprietário], sem guia".
-  // Cobre também imóveis já existentes (de antes desta regra) que ficaram sem
-  // proprietário e/ou sem os dados básicos obrigatórios (tipo, endereço
-  // completo, calendário Airbnb) — bloqueia qualquer edição, mesmo de um guia
-  // já publicado, até completar. Só se aplica depois que o guia já foi criado
-  // (`guide_created`): antes disso, é a própria tela enxuta "Novo imóvel" —
-  // logo abaixo — que já pede e valida esses mesmos campos.
-  const missingOwner = !isNew && !form.property.owner_contact_id;
-  const missingHouseFields = form.property.guide_created ? missingRequiredHouseFields(form.property) : [];
-  const allMissingRequiredFields = [...(missingOwner ? ["Proprietário"] : []), ...missingHouseFields];
-  const needsRequiredHouseInfo = !isNew && form.property.guide_created && (missingOwner || missingHouseFields.length > 0);
-
   // Antes, este bloco tinha um `return` aqui com uma tela separada ("Complete
   // as informações do imóvel"), com um layout completamente diferente do
   // editor completo (sem Stepper, sem Acessos/Conversas, sem rodapé de
@@ -1769,14 +1795,10 @@ function PropertyEditor() {
   // completar Proprietário/Tipo/Endereço/Calendário) mas replicando o visual:
   // a pessoa cai na mesma tela do editor completo, só que travada na aba
   // "A casa" (as outras 5 abas ficam visíveis porém bloqueadas, com cadeado)
-  // até os campos obrigatórios serem preenchidos. Ver useEffect abaixo e a
-  // prop `lockedValues` do <Stepper>.
-  useEffect(() => {
-    if ((needsRequiredHouseInfo || houseOnly) && step !== "house") {
-      setStep("house");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [needsRequiredHouseInfo, houseOnly, step]);
+  // até os campos obrigatórios serem preenchidos. Ver `missingOwner` /
+  // `needsRequiredHouseInfo` e o useEffect que força a aba, calculados mais
+  // acima (antes do early-return de carregamento) — e a prop `lockedValues`
+  // do <Stepper>.
 
   const showLeanInfoScreen = isNew || !form.property.guide_created;
 
@@ -1790,17 +1812,31 @@ function PropertyEditor() {
     function handleCreateGuide() {
       void handleSave({ guide_created: true });
     }
+    // Cancelar/Salvar alterações só fazem sentido enquanto existir uma
+    // edição de verdade ainda não confirmada como salva (comparação contra
+    // `savedPropertyKey`, atualizado a cada save — manual ou autosave). Se a
+    // pessoa desfizer a alteração manualmente antes de salvar, volta a bater
+    // com o snapshot e a barra some sozinha, sem precisar salvar nada.
+    // "Criar guia" é uma ação à parte, sempre disponível — não depende de
+    // haver edição pendente.
+    const isDirty = !isNew && savedPropertyKey !== "" && savedPropertyKey !== JSON.stringify(form.property);
     return (
-      <>
       <div className="ds-dense-fields px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full">
         <Link to={backTo as "/admin/guias"} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
           <ArrowLeft className="size-3.5" /> Voltar
         </Link>
 
         <header className="mb-3 min-w-0">
-          <h1 className="ds-page-title w-full break-words">
-            {isNew ? "Novo imóvel" : (form.property.name || "Informações do imóvel")}
-          </h1>
+          {/* Sem nome definido ainda (nada em "A casa" pede Nome — ele só
+              existe na aba "O guia"), a linha de título some inteira em vez
+              de mostrar um texto genérico de preenchimento. */}
+          {isNew ? (
+            <h1 className="ds-page-title w-full break-words">Novo imóvel</h1>
+          ) : (
+            form.property.name && (
+              <h1 className="ds-page-title w-full break-words">{form.property.name}</h1>
+            )
+          )}
           {isNew && (
             <p className="ds-page-subtitle mt-1.5">
               Os dados básicos da residência (proprietário, tipo, endereço e calendário Airbnb são obrigatórios). O guia para hóspedes, checkin, checkout, FAQ e recomendações ficam disponíveis depois de criado — não são obrigatórios.
@@ -1840,50 +1876,42 @@ function PropertyEditor() {
 
           </SectionGroup>
           </DenseSections>
-        </fieldset>
-      </div>
 
-      {/* Mesma barra fixa do rodapé do editor completo (ver mais abaixo,
-          fora do `showLeanInfoScreen`) — antes esta tela tinha um rodapé
-          próprio, sem fixar na base da tela, fugindo do padrão usado em
-          todo o resto do editor. */}
-      <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur p-3 sm:p-4 z-50">
-        <div className="max-w-4xl mx-auto flex flex-wrap justify-center items-center gap-2 sm:gap-3">
-          <Button
-            variant="outline"
-            className="h-10 min-w-[120px]"
-            onClick={() => navigate({ to: backTo as "/admin/guias" })}
-          >
-            Cancelar
-          </Button>
-          {isNew ? (
-            <Button
-              className="h-10 min-w-[140px]"
-              onClick={() => handleSave()}
-              disabled={saving}
-            >
-              {saving ? <Loader2 className="size-4 animate-spin" /> : null}
-              <span className={saving ? "ml-1.5" : ""}>{saving ? "Criando…" : "Criar imóvel"}</span>
-            </Button>
-          ) : (
-            <>
-              <Button variant="secondary" className="h-10 min-w-[140px]" onClick={() => handleSave()} disabled={saving}>
-                {saving ? <Loader2 className="size-4 animate-spin" /> : null}
-                <span className={saving ? "ml-1.5" : ""}>{saving ? "Salvando…" : "Salvar alterações"}</span>
+          {/* Mesmo padrão de rodapé do diálogo "Novo Proprietário"
+              (StakeholderFormDialog): linha comum (sem fixar na base da
+              tela), Cancelar em ghost e ação principal em gradiente com
+              ícone de check. Em "editar propriedade" (!isNew), Cancelar/
+              Salvar alterações só aparecem havendo uma edição pendente de
+              verdade (`isDirty`) — "Criar guia" fica sempre visível. */}
+          <div className="ds-scroll-x justify-end gap-3 pt-3 mt-6 border-t border-border/30">
+            {(isNew || isDirty) && (
+              <Button variant="ghost" className="h-9 rounded-lg" onClick={() => navigate({ to: backTo as "/admin/guias" })}>
+                Cancelar
               </Button>
+            )}
+            {(isNew || isDirty) && (
               <Button
-                className="h-10 min-w-[140px]"
+                className="h-9 rounded-lg bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] text-white hover:opacity-90"
+                onClick={() => handleSave()}
+                disabled={saving}
+              >
+                {saving ? <Loader2 className="size-4 mr-1.5 animate-spin" /> : <Check className="size-4 mr-1.5" />}
+                {isNew ? "Criar imóvel" : "Salvar alterações"}
+              </Button>
+            )}
+            {!isNew && (
+              <Button
+                className="h-9 rounded-lg bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] text-white hover:opacity-90"
                 onClick={handleCreateGuide}
                 disabled={saving}
               >
-                {saving ? <Loader2 className="size-4 animate-spin" /> : null}
-                <span className={saving ? "ml-1.5" : ""}>{saving ? "Criando…" : "Criar guia"}</span>
+                {saving ? <Loader2 className="size-4 mr-1.5 animate-spin" /> : <Check className="size-4 mr-1.5" />}
+                Criar guia
               </Button>
-            </>
-          )}
-        </div>
+            )}
+          </div>
+        </fieldset>
       </div>
-      </>
     );
   }
 
