@@ -1777,11 +1777,7 @@ function PropertyEditor() {
     }
     return (
       <div className="ds-dense-fields px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full">
-<<<<<<< HEAD
         <Link to={backTo as "/admin/guias"} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
-=======
-        <Link to="/admin/guias" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
->>>>>>> 36c826727e25491403a909e36e120b72ca4c3e07
           <ArrowLeft className="size-3.5" /> Voltar
         </Link>
 
@@ -1807,27 +1803,9 @@ function PropertyEditor() {
 
         <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
           <DenseSections>
-<<<<<<< HEAD
           {/* Sem barra de abas aqui: só se fala de "A casa" nesta tela — "O
               guia" e as demais abas só existem depois que o guia é criado. */}
 
-=======
-          {/* Mesma barra de abas do editor de guia: só "A casa" fica ativa —
-              as demais aparecem com cadeado até o guia ser criado. */}
-          <Stepper
-            current="house"
-            onChange={() => {}}
-            steps={GUIDE_STEPS}
-            lockedValues={NON_HOUSE_STEPS}
-            lockedTitle={
-              isNew
-                ? "Disponível depois que o imóvel for criado"
-                : "Crie o guia deste imóvel para desbloquear"
-            }
-          />
-
-
->>>>>>> 36c826727e25491403a909e36e120b72ca4c3e07
           {/* Espelho EXATO da aba "A casa" do editor completo: mesmas seções,
               mesma ordem. Os únicos campos extras são Nome do imóvel e Tipo do
               guia, que vivem dentro da própria "Identificação do Imóvel"
