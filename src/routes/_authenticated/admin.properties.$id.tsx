@@ -1797,12 +1797,12 @@ function PropertyEditor() {
           />
 
 
+          {/* Espelho EXATO da aba "A casa" do editor completo: mesmas seções,
+              mesma ordem. Os únicos campos extras são Nome do imóvel e Tipo do
+              guia, que vivem dentro da própria "Identificação do Imóvel"
+              porque são necessários para criar o imóvel/guia. */}
           <SectionGroup>
-            <Section id="owner" icon={UserRound} title="Proprietário" desc="A quem este imóvel pertence — obrigatório." collapsible>
-              {renderOwnerFields()}
-            </Section>
-
-            <Section id="new-name" icon={Home} title="Nome do imóvel" desc="Como você identifica essa residência internamente." collapsible={false}>
+            <Section id="identity" icon={Home} title="Identificação do Imóvel" desc="Nome, proprietário e tipo do imóvel." collapsible>
               <Field label="Nome" required>
                 <Input
                   value={form.property.name}
@@ -1818,17 +1818,14 @@ function PropertyEditor() {
                 />
               </Field>
               <FieldTypingBadge typing={presence.typing["name"]} />
-            </Section>
-
-            <Section id="new-tagline" icon={FileText} title="Tipo do guia" desc="Define o formato do guia que será criado para os hóspedes." collapsible={false}>
               <Field label="Tipo do guia" required hint="Aparece abaixo do título no guia público.">
                 <EtiquetaSelect value={form.property.tagline} onChange={(v) => update("tagline", v)} />
               </Field>
-            </Section>
-
-            <Section id="property-type" icon={Home} title="Tipo do imóvel" desc="Obrigatório. Ajuda a organizar seus imóveis — as opções são totalmente editáveis." collapsible>
+              {renderOwnerFields()}
               {renderPropertyTypeFields()}
             </Section>
+
+            {renderCleaningSection()}
             {renderAddressSection()}
             {renderAirbnbCalendarSection()}
             {renderHouseRulesSection()}
