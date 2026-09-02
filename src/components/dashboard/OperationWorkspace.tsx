@@ -2048,61 +2048,72 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   />
                   <PendenciasButton count={openTasksCount} onClick={() => setPendenciasOpen(true)} />
                 </div>
-                <div
-                  // scroll-px-3.5 (14px) = os mesmos 10px de margem da página
-                  // (px-2.5 no mobile) + os 4px do próprio px-1 desta barra —
-                  // sem isso, ao selecionar uma aba perto do fim o
-                  // `scrollIntoView` colava o botão rente na borda da tela
-                  // (0px), enquanto a 1ª aba (que nunca precisa rolar) ficava
-                  // com a margem cheia. Mesma regra de "scroll-padding" já
-                  // usada no calendário de ocupação (scrollPaddingLeft), só
-                  // que aqui nos dois lados — pedido explícito: as duas pontas
-                  // com o mesmo espaçamento da borda da tela.
-                  className="ds-scroll-x w-full min-w-0 gap-1.5 snap-x scroll-px-3.5 pb-1 -mx-1 px-1"
-                >
-                  {(
-                    [
-                      { key: "checkin", label: "Check-ins", icon: CalendarCheck, count: kanbanCounts.checkin },
-                      { key: "checkout", label: "Checkouts", icon: CalendarX, count: kanbanCounts.checkout },
-                      { key: "cleaning", label: "Fila Limpeza", icon: Sparkles, count: kanbanCounts.cleaning },
-                      { key: "stay", label: "Estadia", icon: BedDouble, count: kanbanCounts.stay },
-                      { key: "done", label: "Concluídos", icon: CheckCircle2, count: kanbanCounts.done },
-                    ] as const
-                  ).map((t) => {
-                    const Icon = t.icon;
-                    const active = mobileTab === t.key;
-                    // Cor por status: só aparece no item selecionado, e apenas
-                    // como borda inferior (sem fundo, sem borda ao redor).
-                    const toneByKey: Record<string, string> = {
-                      checkin: "border-b-emerald-500 text-emerald-500",
-                      checkout: "border-b-orange-500 text-orange-500",
-                      stay: "border-b-violet-400 text-violet-400",
-                      cleaning: "border-b-sky-400 text-sky-400",
-                      done: "border-b-muted-foreground text-muted-foreground",
-                    };
-                    return (
-                      <button
-                        key={t.key}
-                        type="button"
-                        onClick={(e) => {
-                          setMobileTab(t.key);
-                          // Regra "anti-corte": ao selecionar uma aba, ela
-                          // precisa ficar totalmente visível — sem isso, uma
-                          // aba no meio/fim da lista (ex.: "Limpeza") podia
-                          // continuar parcialmente cortada na borda da tela
-                          // mesmo depois de virar a aba ativa.
-                          e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
-                        }}
-                        className={`h-9 box-border shrink-0 snap-start inline-flex items-center gap-1.5 rounded-none border-0 border-b-2 bg-transparent px-3.5 text-xs font-medium leading-none whitespace-nowrap transition-colors ${
-                          active ? `${toneByKey[t.key]} border-b-current` : "border-b-transparent text-muted-foreground"
-                        }`}
-                      >
-                        <Icon className="size-3.5" />
-                        {t.label}
-                        <span className="opacity-75 tabular-nums">{t.count}</span>
-                      </button>
-                    );
-                  })}
+                {/* Wrapper relative só pra ancorar o degrade — regra
+                    "anti-corte" (peek): a barra continua rolável igual antes,
+                    mas agora com uma pista visual de que há mais abas pra
+                    rolar (a última aba nunca fica com o corte seco na
+                    borda). Degrade some sozinho quando a barra cabe inteira,
+                    já que sem overflow não há nada mesmo pra "espiar". */}
+                <div className="relative">
+                  <div
+                    // scroll-px-3.5 (14px) = os mesmos 10px de margem da página
+                    // (px-2.5 no mobile) + os 4px do próprio px-1 desta barra —
+                    // sem isso, ao selecionar uma aba perto do fim o
+                    // `scrollIntoView` colava o botão rente na borda da tela
+                    // (0px), enquanto a 1ª aba (que nunca precisa rolar) ficava
+                    // com a margem cheia. Mesma regra de "scroll-padding" já
+                    // usada no calendário de ocupação (scrollPaddingLeft), só
+                    // que aqui nos dois lados — pedido explícito: as duas pontas
+                    // com o mesmo espaçamento da borda da tela.
+                    className="ds-scroll-x w-full min-w-0 gap-1.5 snap-x scroll-px-3.5 pb-1 -mx-1 px-1"
+                  >
+                    {(
+                      [
+                        { key: "checkin", label: "Check-ins", icon: CalendarCheck, count: kanbanCounts.checkin },
+                        { key: "checkout", label: "Checkouts", icon: CalendarX, count: kanbanCounts.checkout },
+                        { key: "cleaning", label: "Fila Limpeza", icon: Sparkles, count: kanbanCounts.cleaning },
+                        { key: "stay", label: "Estadia", icon: BedDouble, count: kanbanCounts.stay },
+                        { key: "done", label: "Concluídos", icon: CheckCircle2, count: kanbanCounts.done },
+                      ] as const
+                    ).map((t) => {
+                      const Icon = t.icon;
+                      const active = mobileTab === t.key;
+                      // Cor por status: só aparece no item selecionado, e apenas
+                      // como borda inferior (sem fundo, sem borda ao redor).
+                      const toneByKey: Record<string, string> = {
+                        checkin: "border-b-emerald-500 text-emerald-500",
+                        checkout: "border-b-orange-500 text-orange-500",
+                        stay: "border-b-violet-400 text-violet-400",
+                        cleaning: "border-b-sky-400 text-sky-400",
+                        done: "border-b-muted-foreground text-muted-foreground",
+                      };
+                      return (
+                        <button
+                          key={t.key}
+                          type="button"
+                          onClick={(e) => {
+                            setMobileTab(t.key);
+                            // Regra "anti-corte": ao selecionar uma aba, ela
+                            // precisa ficar totalmente visível — sem isso, uma
+                            // aba no meio/fim da lista (ex.: "Limpeza") podia
+                            // continuar parcialmente cortada na borda da tela
+                            // mesmo depois de virar a aba ativa.
+                            e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
+                          }}
+                          className={`h-9 box-border shrink-0 snap-start inline-flex items-center gap-1.5 rounded-none border-0 border-b-2 bg-transparent px-3.5 text-xs font-medium leading-none whitespace-nowrap transition-colors ${
+                            active ? `${toneByKey[t.key]} border-b-current` : "border-b-transparent text-muted-foreground"
+                          }`}
+                        >
+                          <Icon className="size-3.5" />
+                          {t.label}
+                          <span className="opacity-75 tabular-nums">{t.count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {/* Degrade sutil (Opção A) na borda direita — indica que há
+                      mais abas pra rolar sem precisar de seta/sombra dura. */}
+                  <div className="pointer-events-none absolute inset-y-0 right-1 w-8 bg-gradient-to-l from-background to-transparent" />
                 </div>
               </div>
 

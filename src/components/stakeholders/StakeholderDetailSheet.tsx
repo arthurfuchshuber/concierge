@@ -751,29 +751,25 @@ export function StakeholderDetailSheet({
                 desc="Notas, convites de agenda e documentos aparecem aqui automaticamente."
               />
             ) : (
-              <ol className="relative space-y-3 border-l border-border pl-6">
-                {timeline.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <li key={item.key} className="relative">
-                      <span className="absolute -left-[29px] top-4 size-2.5 rounded-full bg-primary/70 ring-4 ring-background" />
-                      <div className="ds-surface bg-card px-4 py-3">
-                        <div className="flex items-start gap-2.5">
-                          <Icon className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
-                          <div className="min-w-0 flex-1 space-y-1">
-                            <p className="text-[13.5px] leading-[1.3] font-normal text-foreground">{item.title}</p>
-                            <p className="ds-meta">{item.badge}</p>
-                            {item.body}
-                            <p className="ds-meta opacity-80">
-                              {item.at ? fmt(item.at) : "Sem data"} · {item.author}
-                            </p>
-                          </div>
-                        </div>
+              // Recuo maior entre a linha e os cartões (pl-9, era pl-6) —
+              // o -left do ponto acompanha, pra continuar centralizado
+              // em cima da linha.
+              <ol className="relative space-y-3 border-l border-border pl-9">
+                {timeline.map((item) => (
+                  <li key={item.key} className="relative">
+                    <span className="absolute -left-[41px] top-4 size-2.5 rounded-full bg-primary/70 ring-4 ring-background" />
+                    <div className="ds-surface bg-card px-4 py-3">
+                      <div className="min-w-0 space-y-1">
+                        <p className="text-[13.5px] leading-[1.3] font-normal text-foreground">{item.title}</p>
+                        <p className="ds-meta">{item.badge}</p>
+                        {item.body}
+                        <p className="ds-meta opacity-80">
+                          {item.at ? fmt(item.at) : "Sem data"} · {item.author}
+                        </p>
                       </div>
-                    </li>
-
-                  );
-                })}
+                    </div>
+                  </li>
+                ))}
               </ol>
             )}
           </section>

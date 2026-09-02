@@ -153,21 +153,67 @@ function displayValue(field: string, value: unknown): string {
   return text.length > 60 ? `${text.slice(0, 60)}…` : text;
 }
 
+/** dd/mm/aaaa a partir de "aaaa-mm-dd" (formato salvo no banco). */
+function displayDate(value: unknown): string {
+  const s = displayValue("", value);
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : s;
+}
+
 function sameValue(a: unknown, b: unknown): boolean {
   const norm = (v: unknown) =>
     Array.isArray(v) ? [...v].map(String).sort().join("|") : v === null || v === undefined ? "" : String(v);
   return norm(a) === norm(b);
 }
 
-/** Diferenças legíveis entre o cadastro anterior e o novo ("Telefone: A → B"). */
+/** Frase direta por campo ("Nome alterado para X"), em vez do formato
+ *  "Campo: valor antigo → valor novo" — mais fácil de ler de relance na
+ *  Linha do Tempo. Campos sem entrada aqui caem no genérico com o rótulo. */
+const FIELD_CHANGE_TEXT: Record<string, (v: string) => string> = {
+  name: (v) => `Nome alterado para "${v}"`,
+  email: (v) => `E-mail alterado para "${v}"`,
+  city: (v) => `Cidade alterada para "${v}"`,
+  state: (v) => `Estado alterado para "${v}"`,
+  status: (v) => `Situação alterada para "${v}"`,
+  category: (v) => `Categoria principal alterada para "${v}"`,
+  categories: () => "Categorias de serviço atualizadas",
+  notes: () => "Observações atualizadas",
+  commission: (v) => `Comissão alterada para ${v}`,
+  rate: (v) => `Valor/diária alterado para ${v}`,
+};
+
+/** Mudanças legíveis entre o cadastro anterior e o novo, já em frases
+ *  prontas para a Linha do Tempo (não "Campo: A → B"). Início/fim do
+ *  contrato sempre viram uma única frase de "Vigência", em vez de duas
+ *  linhas separadas. */
 function diffPayload(before: Record<string, unknown>, after: Record<string, unknown>): string[] {
-  const out: string[] = [];
+  const changed = new Set<string>();
   for (const [key, value] of Object.entries(after)) {
     if (key === "account_owner_id" || key === "created_by") continue;
     if (!(key in before)) continue;
     if (sameValue(before[key], value)) continue;
-    const label = FIELD_LABELS[key] ?? key;
-    out.push(`${label}: "${displayValue(key, before[key])}" → "${displayValue(key, value)}"`);
+    changed.add(key);
+  }
+
+  const out: string[] = [];
+
+  if (changed.has("contract_start") || changed.has("contract_end")) {
+    changed.delete("contract_start");
+    changed.delete("contract_end");
+    const start = displayDate(after["contract_start"]);
+    const end = displayDate(after["contract_end"]);
+    out.push(
+      start === "vazio"
+        ? "Vigência removida"
+        : end === "vazio"
+          ? `Vigência alterada — início em ${start}, sem data final`
+          : `Vigência alterada para ${start} a ${end}`,
+    );
+  }
+
+  for (const key of changed) {
+    const narrate = FIELD_CHANGE_TEXT[key];
+    out.push(narrate ? narrate(displayValue(key, after[key])) : `${FIELD_LABELS[key] ?? key} alterado(a)`);
   }
   return out;
 }
@@ -242,9 +288,10 @@ export const saveStakeholder = createServerFn({ method: "POST" })
         stakeholder_type: kind,
         stakeholder_id: id,
         kind: "update",
-        message: changes.length
-          ? `Cadastro atualizado — ${changes.length} informação(ões) alterada(s): ${changes.join("; ")}`
-          : "Cadastro salvo sem alterações.",
+        // Frases diretas (uma por mudança) em vez de "Cadastro atualizado —
+        // N informação(ões) alterada(s): Campo: A → B" — cada frase já diz o
+        // que mudou, o prefixo genérico só repetia informação.
+        message: changes.length ? changes.join("; ") : "Cadastro salvo sem alterações.",
         created_by: userId,
       });
       return { ok: true, id };
@@ -432,6 +479,15 @@ export const linkPropertyToOwner = createServerFn({ method: "POST" })
       .eq("account_owner_id", accountId)
       .maybeSingle();
     if (!owner) throw new Error("Proprietário não encontrado");
+    // Nome da residência para a mensagem do evento — "Residência X vinculada"
+    // é bem mais útil na Timeline do que o genérico "vinculada ao
+    // proprietário" (redundante: o evento já está na ficha do proprietário).
+    const { data: property } = await supabase
+      .from("properties")
+      .select("name")
+      .eq("id", data.propertyId)
+      .maybeSingle();
+    const propertyLabel = property?.name ? `Residência "${property.name}"` : "Residência";
 
     const { error } = await supabase
       .from("properties")
@@ -445,7 +501,7 @@ export const linkPropertyToOwner = createServerFn({ method: "POST" })
       stakeholder_type: "owner",
       stakeholder_id: data.ownerId,
       kind: "property",
-      message: data.link ? "Residência vinculada ao proprietário" : "Residência desvinculada",
+      message: data.link ? `${propertyLabel} vinculada` : `${propertyLabel} desvinculada`,
       created_by: userId,
     });
     return { ok: true };

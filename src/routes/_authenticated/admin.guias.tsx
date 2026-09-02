@@ -585,11 +585,25 @@ function Dashboard() {
                 )}
               </button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-64 p-4 space-y-4">
+            <PopoverContent align="end" className="w-72 p-4 space-y-4">
+              {/* Mesmo cabeçalho "Filtros" + link "Limpar tudo" do popover de
+                  Filtros de Proprietários/Guias (StakeholderDirectory) — em
+                  vez do botão "Limpar filtros" cheio no rodapé. */}
+              <div className="flex items-center justify-between">
+                <span className="ds-eyebrow">Filtros</span>
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Limpar tudo
+                  </button>
+                )}
+              </div>
+
               <div>
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
-                  Status
-                </div>
+                <div className="ds-eyebrow mb-2">Status</div>
                 <div className="flex flex-wrap gap-1.5">
                   {(
                     [
@@ -609,10 +623,9 @@ function Dashboard() {
                   ))}
                 </div>
               </div>
-              <div>
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
-                  Acesso
-                </div>
+
+              <div className="border-t border-border pt-4">
+                <div className="ds-eyebrow mb-2">Acesso</div>
                 <div className="flex flex-wrap gap-1.5">
                   {(
                     [
@@ -632,15 +645,6 @@ function Dashboard() {
                   ))}
                 </div>
               </div>
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="w-full text-xs text-muted-foreground hover:text-foreground py-1.5 rounded-none bg-secondary/50"
-                >
-                  Limpar filtros
-                </button>
-              )}
             </PopoverContent>
           </Popover>
 
