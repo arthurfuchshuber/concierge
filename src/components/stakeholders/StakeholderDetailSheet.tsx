@@ -449,7 +449,7 @@ export function StakeholderDetailSheet({
 
 
   return (
-    <div className="flex flex-col gap-5 px-5 py-6 sm:px-6">
+    <div className="flex w-full min-w-0 max-w-full flex-col gap-5 overflow-x-hidden px-5 py-6 sm:px-6">
       {/* ---------- Cabeçalho: fio de marca + eyebrow + nome + metadados ---------- */}
       <header className="relative pt-4">
         <span
