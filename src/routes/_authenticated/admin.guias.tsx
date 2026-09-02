@@ -388,12 +388,21 @@ function Dashboard() {
   // em "Criar nova residência", dentro do proprietário em Stakeholders.
   const propertiesWithoutGuide = useMemo(() => (data ?? []).filter((p: any) => !p.guide_created), [data]);
   const [guidePickerOpen, setGuidePickerOpen] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState("");
+  const filteredPropertiesWithoutGuide = useMemo(() => {
+    const q = pickerSearch.trim().toLowerCase();
+    if (!q) return propertiesWithoutGuide;
+    return propertiesWithoutGuide.filter((p: any) =>
+      [p.name, p.address, p.city, p.country].filter(Boolean).join(" ").toLowerCase().includes(q),
+    );
+  }, [propertiesWithoutGuide, pickerSearch]);
 
   function openGuidePicker() {
     if (!canCreate) {
       toast.error(NO_PERMISSION_MSG);
       return;
     }
+    setPickerSearch("");
     setGuidePickerOpen(true);
   }
 
@@ -1189,35 +1198,65 @@ function Dashboard() {
               </Link>
             </div>
           ) : (
-            <div className="max-h-80 overflow-y-auto -mx-1 px-1 space-y-1.5">
-              {propertiesWithoutGuide.map((p: any) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => {
-                    setGuidePickerOpen(false);
-                    navigate({ to: "/admin/properties/$id", params: { id: p.id } });
-                  }}
-                  className="w-full flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 text-left hover:border-foreground/30 hover:bg-secondary/40 transition-colors"
-                >
-                  <div className="size-9 rounded-md bg-secondary overflow-hidden shrink-0">
-                    {p.hero_image_url ? (
-                      <img src={p.hero_image_url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full grid place-items-center text-muted-foreground">
-                        <Home className="size-4" />
+            <>
+              {/* Mesmo padrão da barra de busca da página (cantos retos,
+                  fundo secondary/50, 36px de altura). */}
+              <div className="relative">
+                <Search className="size-3.5 opacity-60 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  value={pickerSearch}
+                  onChange={(e) => setPickerSearch(e.target.value)}
+                  placeholder="Buscar por nome, endereço, cidade…"
+                  className="h-9 w-full box-border rounded-none border-0 bg-secondary/50 pl-9 pr-8 text-xs font-normal leading-none text-foreground/80 placeholder:text-muted-foreground focus:outline-none focus:bg-secondary transition-colors"
+                />
+                {pickerSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setPickerSearch("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 size-6 grid place-items-center rounded-none text-muted-foreground hover:text-foreground"
+                    aria-label="Limpar busca"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {filteredPropertiesWithoutGuide.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">
+                  Nenhuma residência encontrada para "{pickerSearch}".
+                </p>
+              ) : (
+                <div className="max-h-80 overflow-y-auto -mx-1 px-1 space-y-1.5">
+                  {filteredPropertiesWithoutGuide.map((p: any) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => {
+                        setGuidePickerOpen(false);
+                        navigate({ to: "/admin/properties/$id", params: { id: p.id } });
+                      }}
+                      className="w-full flex items-center gap-3 ds-surface border border-border bg-card px-3 py-2.5 text-left hover:border-foreground/30 hover:bg-secondary/40 transition-colors"
+                    >
+                      <div className="size-9 rounded-[0.3rem] bg-secondary overflow-hidden shrink-0">
+                        {p.hero_image_url ? (
+                          <img src={p.hero_image_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full grid place-items-center text-muted-foreground">
+                            <Home className="size-4" />
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-medium truncate">{p.name}</p>
-                    <p className="ds-meta truncate">
-                      {[p.city, p.country].filter(Boolean).join(", ") || "Sem localização"}
-                    </p>
-                  </div>
-                </button>
-              ))}
-            </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[13px] font-medium truncate">{p.name}</p>
+                        <p className="ds-meta truncate">
+                          {[p.city, p.country].filter(Boolean).join(", ") || "Sem localização"}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </DialogContent>
       </Dialog>
