@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Section, SectionGroup, DenseSections } from "@/components/editor/Section";
+import { Stepper, GUIDE_STEPS, NON_HOUSE_STEPS } from "@/components/editor/Stepper";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, ImagePlus, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Power, Phone, HelpCircle, Sun, Moon, Lock, MessageSquare, LogOut, ChevronDown, Ticket, RefreshCw, Copy, Share2, X, MoveRight, ClipboardList, Car, IdCard, NotebookPen, ArrowLeftRight, AlertTriangle } from "lucide-react";
@@ -1781,6 +1782,20 @@ function PropertyEditor() {
 
         <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
           <DenseSections>
+          {/* Mesma barra de abas do editor de guia: só "A casa" fica ativa —
+              as demais aparecem com cadeado até o guia ser criado. */}
+          <Stepper
+            current="house"
+            onChange={() => {}}
+            steps={GUIDE_STEPS}
+            lockedValues={NON_HOUSE_STEPS}
+            lockedTitle={
+              isNew
+                ? "Disponível depois que o imóvel for criado"
+                : "Crie o guia deste imóvel para desbloquear"
+            }
+          />
+
 
           <SectionGroup>
             <Section id="owner" icon={UserRound} title="Proprietário" desc="A quem este imóvel pertence — obrigatório." collapsible>
@@ -4032,49 +4047,6 @@ function CategoryDescriptionField({
 }
 
 
-function Stepper({
-  steps,
-  current,
-  onChange,
-  lockedValues,
-}: {
-  steps: { value: string; label: string; icon: React.ComponentType<{ className?: string; strokeWidth?: number }> }[];
-  current: string;
-  onChange: (v: string) => void;
-  // Abas visíveis mas ainda não liberadas (ex.: guia com dados obrigatórios
-  // pendentes) — aparecem com cadeado e não respondem a clique.
-  lockedValues?: string[];
-}) {
-  return (
-    // ANTI-CORTE (regra global): `ds-segmented` adapta o espaçamento à largura
-    // real da tela e quebra em outra linha em vez de cortar qualquer aba.
-    <nav className="ds-segmented mb-5 -mx-1 px-1 rounded-[0.3rem] bg-foreground/5 p-1">
-      {steps.map((s) => {
-        const active = s.value === current;
-        const locked = lockedValues?.includes(s.value) ?? false;
-        return (
-          <button
-            key={s.value}
-            type="button"
-            disabled={locked}
-            onClick={() => !locked && onChange(s.value)}
-            title={locked ? "Complete as informações obrigatórias em \"A casa\" para desbloquear" : undefined}
-            className={`whitespace-nowrap px-3 py-2 text-center text-[13px] font-normal leading-none flex items-center justify-center gap-1.5 min-h-[34px] rounded-[0.25rem] transition-colors ${
-              active
-                ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
-                : locked
-                  ? "text-muted-foreground/40 cursor-not-allowed"
-                  : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {locked ? <Lock className="size-3" /> : null}
-            {s.label}
-          </button>
-        );
-      })}
-    </nav>
-  );
-}
 
 
 function GalleryEditor({

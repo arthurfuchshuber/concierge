@@ -32,7 +32,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Section, SectionGroup } from "@/components/editor/Section";
+import { Section, SectionGroup, DenseSections } from "@/components/editor/Section";
+import { Stepper, NON_HOUSE_STEPS } from "@/components/editor/Stepper";
 import { getPropertyForQuickEdit, upsertProperty, transferPropertyOwner } from "@/lib/properties.functions";
 import { syncPropertyAirbnbIcal, listPropertyReservations } from "@/lib/airbnb-ical.functions";
 import { enrichFromMapsLink } from "@/lib/maps.functions";
@@ -487,13 +488,13 @@ export function PropertyQuickEditDialog({
 
   return (
     <ResponsiveDialog open={open} onOpenChange={onOpenChange}>
-      <ResponsiveDialogContent className="w-[calc(100vw-2rem)] sm:max-w-3xl max-h-[88vh] overflow-y-auto">
+      <ResponsiveDialogContent className="ds-dense-fields w-[calc(100vw-2rem)] sm:max-w-3xl max-h-[88vh] overflow-y-auto">
         <ResponsiveDialogHeader>
-          <div className="flex items-center justify-between gap-3">
-            <ResponsiveDialogTitle>Editar imóvel</ResponsiveDialogTitle>
+          <div className="flex items-start justify-between gap-3 min-w-0">
+            <ResponsiveDialogTitle className="ds-page-title w-full break-words">Editar imóvel</ResponsiveDialogTitle>
             <PresenceAvatars users={presence.users} />
           </div>
-          <ResponsiveDialogDescription>
+          <ResponsiveDialogDescription className="ds-page-subtitle mt-1.5">
             Mesma tela da aba "A casa" do editor completo. Para checkin, checkout, FAQ e recomendações, abra o guia.
           </ResponsiveDialogDescription>
         </ResponsiveDialogHeader>
@@ -503,7 +504,15 @@ export function PropertyQuickEditDialog({
             <Loader2 className="size-4 animate-spin" /> Carregando…
           </div>
         ) : (
-          <>
+          <DenseSections>
+            {/* Mesma barra de abas do editor de guia — aqui só "A casa" é
+                editável; as demais abrem no editor completo. */}
+            <Stepper
+              current="house"
+              onChange={() => {}}
+              lockedValues={NON_HOUSE_STEPS}
+              lockedTitle="Abra o guia deste imóvel para editar esta aba"
+            />
             <SectionGroup>
               <Section id="identity" icon={Home} title="Identificação do Imóvel" desc="Proprietário e tipo do imóvel." collapsible>
                 {edited.owner_contact_id ? (
@@ -992,10 +1001,11 @@ export function PropertyQuickEditDialog({
               </Section>
             </SectionGroup>
 
-            <div className="flex items-center justify-end gap-3 pt-4 mt-2 border-t border-border/60">
+            <div className="ds-scroll-x items-center justify-end gap-2 mt-6 pt-4 border-t border-border/60">
               <AutosaveIndicator status={autosave.status} errorMessage={autosave.lastError} />
               <Button
                 variant="outline"
+                className="min-w-[140px]"
                 onClick={async () => {
                   await autosave.flush();
                   onOpenChange(false);
@@ -1007,7 +1017,7 @@ export function PropertyQuickEditDialog({
               </Button>
             </div>
 
-          </>
+          </DenseSections>
         )}
       </ResponsiveDialogContent>
     </ResponsiveDialog>
