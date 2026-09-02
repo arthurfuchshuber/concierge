@@ -424,6 +424,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
               <Link
                 to="/admin/properties/$id"
                 params={{ id: "new" }}
+                search={{ ownerId: createdOwner?.id }}
                 onClick={() => setCreatedOwner(null)}
               >
                 <Home className="size-4 mr-1.5" /> Criar residência

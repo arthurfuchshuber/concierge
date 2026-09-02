@@ -172,6 +172,9 @@ function SingleDateField({
         <PopoverContent className="w-auto rounded-[8px] p-0" align="start">
           <CalendarPicker
             mode="single"
+            captionLayout="dropdown"
+            fromYear={2015}
+            toYear={new Date().getFullYear() + 5}
             defaultMonth={toDate(value) ?? undefined}
             selected={toDate(value) ?? undefined}
             onSelect={(d) => {
@@ -510,9 +513,15 @@ export function StakeholderFormDialog({
         </DialogHeader>
 
         <div className="space-y-3 max-h-[65vh] overflow-y-auto overflow-x-hidden pr-1">
-          {/* Tipo — só na criação; ao editar, o tipo já está definido */}
+          {/* Tipo — só na criação; ao editar, o tipo já está definido.
+              Sempre só 2 opções fixas (não rola/varia como uma barra de
+              abas), então usa flex comum com flex-1 em cada botão para
+              preencher a largura toda meio a meio — ds-segmented força
+              flex:0 auto nos filhos (pensado para abas que rolam), o que
+              deixava os 2 botões encolhidos ao conteúdo e o quadro sem
+              borda, parecendo "desenquadrado". */}
           {!form.id && (
-          <div className="ds-segmented rounded-[0.3rem] bg-muted/40 p-0">
+          <div className="flex gap-0.5 rounded-[0.3rem] border border-border bg-muted/40 p-0.5">
             {([
               { key: "pf" as const, label: "Pessoa Física", icon: UserRound },
               { key: "pj" as const, label: "Pessoa Jurídica", icon: Building2 },
@@ -526,7 +535,7 @@ export function StakeholderFormDialog({
                     set({ person_type: key, doc: "" });
                     clearError("doc");
                   }}
-                  className={`min-h-[46px] flex items-center justify-center gap-2 rounded-[0.3rem] text-[13px] font-semibold transition-colors ${
+                  className={`min-h-[46px] flex-1 flex items-center justify-center gap-2 rounded-[0.3rem] text-[13px] font-semibold transition-colors ${
                     on
                       ? "bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] text-white"
                       : "text-muted-foreground hover:text-foreground"

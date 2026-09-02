@@ -66,9 +66,13 @@ export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   // Stakeholders, que precisa espelhar exatamente esta mesma aba, sem
   // duplicar seus campos em outra tela. `returnTo`: para onde volta o link
   // "Voltar"/"Fechar" — sem ele, cai no padrão (/admin/guias).
-  validateSearch: (s: Record<string, unknown>): { houseOnly?: boolean; returnTo?: string } => ({
+  validateSearch: (s: Record<string, unknown>): { houseOnly?: boolean; returnTo?: string; ownerId?: string } => ({
     ...(s.houseOnly === true ? { houseOnly: true as const } : {}),
     ...(typeof s.returnTo === "string" && s.returnTo ? { returnTo: s.returnTo } : {}),
+    // Quando "Novo imóvel" é aberto de dentro de um proprietário específico
+    // (Stakeholders → Proprietário → "Criar nova residência"), o campo
+    // Proprietário já chega preenchido e travado — ver renderOwnerFields().
+    ...(typeof s.ownerId === "string" && s.ownerId ? { ownerId: s.ownerId } : {}),
   }),
   component: PropertyEditor,
 });
@@ -365,7 +369,15 @@ function PropertyEditor() {
 
 
 
-  const [form, setForm] = useState<FormState>(() => emptyForm());
+  const [form, setForm] = useState<FormState>(() => {
+    const base = emptyForm();
+    if (isNew && search.ownerId) base.property.owner_contact_id = search.ownerId;
+    return base;
+  });
+  // Veio de dentro de um proprietário específico ("Criar nova residência") —
+  // o campo Proprietário nasce preenchido e travado, sem opção de trocar
+  // aqui (ver renderOwnerFields()).
+  const ownerLockedFromContext = isNew && !!search.ownerId;
   const currentOwnerName = propertyOwnerOptions.find((o) => o.id === form.property.owner_contact_id)?.name;
   const formRef = useRef(form);
   formRef.current = form;
@@ -1644,7 +1656,7 @@ function PropertyEditor() {
   // entra junto com Tipo do imóvel no quadrante "Identificação e Custos de
   // Limpeza".
   const renderOwnerFields = () => {
-    const hasOwner = !isNew && !!form.property.owner_contact_id;
+    const hasOwner = (!isNew && !!form.property.owner_contact_id) || ownerLockedFromContext;
     return (
           <>
             {hasOwner ? (
@@ -1654,19 +1666,27 @@ function PropertyEditor() {
                     <Lock className="size-3.5 shrink-0 text-muted-foreground" />
                     <span className="truncate">{currentOwnerName ?? "Proprietário vinculado"}</span>
                   </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="shrink-0"
-                    disabled={readOnly}
-                    onClick={() => { setTransferTargetId(""); setTransferOpen(true); }}
-                  >
-                    <ArrowLeftRight className="size-3.5 mr-1.5" /> Transferir
-                  </Button>
+                  {/* "Transferir" só existe para um imóvel já salvo — em
+                      "Novo imóvel" vindo de dentro do proprietário, o campo
+                      só está travado porque já se sabe o dono; não há o que
+                      transferir ainda. */}
+                  {!isNew && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      disabled={readOnly}
+                      onClick={() => { setTransferTargetId(""); setTransferOpen(true); }}
+                    >
+                      <ArrowLeftRight className="size-3.5 mr-1.5" /> Transferir
+                    </Button>
+                  )}
                 </div>
                 <p className="mt-1.5 text-xs text-muted-foreground">
-                  O proprietário só pode ser alterado através do botão "Transferir", com confirmação.
+                  {isNew
+                    ? "Este imóvel está sendo criado a partir do proprietário selecionado."
+                    : "O proprietário só pode ser alterado através do botão \"Transferir\", com confirmação."}
                 </p>
               </Field>
             ) : (
@@ -1836,11 +1856,6 @@ function PropertyEditor() {
             form.property.name && (
               <h1 className="ds-page-title w-full break-words">{form.property.name}</h1>
             )
-          )}
-          {isNew && (
-            <p className="ds-page-subtitle mt-1.5">
-              Os dados básicos da residência (proprietário, tipo, endereço e calendário Airbnb são obrigatórios). O guia para hóspedes, checkin, checkout, FAQ e recomendações ficam disponíveis depois de criado — não são obrigatórios.
-            </p>
           )}
         </header>
 

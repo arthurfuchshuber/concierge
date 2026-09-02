@@ -1180,13 +1180,15 @@ function Dashboard() {
             componente Dialog. Só o raio do próprio diálogo é ajustado aqui — os
             cards da lista e a busca já seguem, cada um, seu próprio padrão
             estabelecido (ds-surface nos cards, cantos retos na busca). */}
-        <DialogContent className="max-w-md rounded-lg">
+        <DialogContent
+          className="max-w-md rounded-lg"
+          // Sem subtítulo (economiza altura) e sem autofoco no campo de busca —
+          // abrir o diálogo já puxando o teclado no mobile atrapalha a
+          // visualização da lista.
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>Novo guia</DialogTitle>
-            <DialogDescription>
-              Selecione a residência que vai receber este guia. Para cadastrar uma residência nova, use
-              "Criar nova residência" dentro do proprietário, em Stakeholders.
-            </DialogDescription>
           </DialogHeader>
           {/* Mesmo padrão da barra de busca da página (cantos retos, fundo
               secondary/50, 36px de altura) — sempre visível, igual à barra

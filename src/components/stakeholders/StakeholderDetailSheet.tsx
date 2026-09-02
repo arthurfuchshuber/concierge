@@ -6,7 +6,6 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
   Loader2,
-  Mail,
   Phone,
   MapPin,
   FileText,
@@ -63,9 +62,13 @@ import { EmptyState } from "@/components/ds/EmptyState";
 import { StakeholderStatusControl } from "./StakeholderStatusControl";
 import { effectiveStatus, statusText } from "@/lib/stakeholder-status";
 
-/** Aba do segmented control: adapta-se à largura da tela (anti-corte), 46px. */
+/** Aba do segmented control: adapta-se à largura da tela (anti-corte), 46px.
+ *  !flex-none sobrescreve o !flex-1 padrão de TabsTrigger (ui/tabs.tsx) — aqui
+ *  cada aba precisa manter a largura do próprio rótulo (min-w-max) e deixar o
+ *  ds-segmented rolar na horizontal quando não couberem todas, em vez de
+ *  espremer/cortar "Acessos" tentando dividir a largura em partes iguais. */
 const SEG_TAB =
-  "min-h-[46px] !rounded-[0.3rem] text-[13px] font-semibold data-[state=active]:bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] data-[state=active]:text-white data-[state=active]:shadow-none";
+  "min-h-[46px] !flex-none !rounded-[0.3rem] text-[13px] font-semibold data-[state=active]:bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] data-[state=active]:text-white data-[state=active]:shadow-none";
 
 type PreviewTarget = { name: string; url?: string | null; docId?: string } | null;
 
@@ -568,7 +571,6 @@ export function StakeholderDetailSheet({
             {categoryLabels.length > 0 && (
               <Field label="Categorias de serviço" value={categoryLabels.join(", ")} />
             )}
-            {row.cep && <Field label="CEP" value={row.cep} mono copy={row.cep} />}
             {row.doc && (
               <Field
                 label={String(row.doc_type ?? "cpf").toUpperCase()}
@@ -581,9 +583,8 @@ export function StakeholderDetailSheet({
               <Field label="E-mail" copy={row.email}>
                 <a
                   href={`mailto:${row.email}`}
-                  className="inline-flex min-w-0 items-center gap-2 text-sm hover:underline"
+                  className="inline-flex min-w-0 items-center text-sm hover:underline"
                 >
-                  <Mail className="size-3.5 shrink-0 text-muted-foreground" />
                   <span className="truncate">{row.email}</span>
                 </a>
               </Field>
@@ -593,22 +594,31 @@ export function StakeholderDetailSheet({
                 <WhatsAppLink phone={row.phone} country={row.phone_country} />
               </Field>
             )}
-            {(row.address || row.city || row.state) && (
+            {(row.address || row.city || row.state || row.cep) && (
               <div className="sm:col-span-2">
+                {/* Linha 1: endereço + bairro. Linha 2: cidade + estado + CEP
+                    (o CEP deixou de ter um Field próprio — mora aqui). Sem
+                    ícones de localização/e-mail (removidos a pedido). */}
                 <Field
                   label="Endereço"
-                  copy={[row.address, row.district, [row.city, row.state].filter(Boolean).join(" / ")]
+                  copy={[
+                    row.address,
+                    row.district,
+                    [row.city, row.state].filter(Boolean).join(" / "),
+                    row.cep,
+                  ]
                     .filter(Boolean)
                     .join(" · ")}
                 >
-                  <p className="flex items-start gap-2 text-sm">
-                    <MapPin className="size-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+                  <p className="text-sm">
                     <span className="min-w-0 break-words">
                       {[row.address, row.district].filter(Boolean).join(" · ")}
-                      {[row.city, row.state].filter(Boolean).length > 0 && (
+                      {[row.city, row.state, row.cep].filter(Boolean).length > 0 && (
                         <>
                           <br />
-                          {[row.city, row.state].filter(Boolean).join(" / ")}
+                          {[[row.city, row.state].filter(Boolean).join(" / "), row.cep]
+                            .filter(Boolean)
+                            .join(" · ")}
                         </>
                       )}
                     </span>
@@ -915,7 +925,7 @@ export function StakeholderDetailSheet({
             <Link
               to="/admin/properties/$id"
               params={{ id: "new" }}
-              search={{ returnTo: returnToHere }}
+              search={{ returnTo: returnToHere, ownerId: row?.id }}
               className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
             >
               <Plus className="size-3.5" /> Criar nova residência
