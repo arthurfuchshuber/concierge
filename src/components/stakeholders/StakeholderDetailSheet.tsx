@@ -449,7 +449,7 @@ export function StakeholderDetailSheet({
 
 
   return (
-    <div className="flex flex-col gap-5 px-5 py-6 sm:px-6">
+    <div className="flex w-full min-w-0 max-w-full flex-col gap-5 overflow-x-hidden px-5 py-6 sm:px-6">
       {/* ---------- Cabeçalho: fio de marca + eyebrow + nome + metadados ---------- */}
       <header className="relative pt-4">
         <span
@@ -619,8 +619,9 @@ export function StakeholderDetailSheet({
       )}
 
 
-      <Tabs defaultValue="visao">
-        <TabsList className="ds-segmented h-auto !rounded-[0.3rem] border-0 bg-foreground/5 p-0">
+      <Tabs defaultValue="visao" className="min-w-0 max-w-full">
+        <TabsList className="ds-segmented h-auto w-full max-w-full !rounded-[0.3rem] border-0 bg-foreground/5 p-0">
+
           <TabsTrigger className={SEG_TAB} value="visao">Timeline</TabsTrigger>
           {kind === "owner" && <TabsTrigger className={SEG_TAB} value="imoveis">Imóveis</TabsTrigger>}
           <TabsTrigger className={SEG_TAB} value="financeiro">Financeiro</TabsTrigger>

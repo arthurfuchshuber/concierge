@@ -1754,32 +1754,34 @@ function PropertyEditor() {
       await handleSave({ guide_created: true });
     }
     return (
-      <div className="px-6 lg:px-10 pt-8 lg:pt-10 max-w-3xl mx-auto w-full">
+      <div className="ds-dense-fields px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full">
         <Link to="/admin/guias" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
           <ArrowLeft className="size-3.5" /> Voltar
         </Link>
 
-        <PageHeader
-          className="mb-6 pb-4 border-b border-border/60"
-          title={
-            <span className="inline-flex items-center gap-2 min-w-0">
-              <span className="truncate">{isNew ? "Novo imóvel" : (form.property.name || "Informações do imóvel")}</span>
-              {!isNew && (
-                <span className="shrink-0 rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground">
-                  Sem guia criado
-                </span>
-              )}
-            </span>
-          }
-          subtitle={
-            isNew
+        <header className="mb-3 min-w-0">
+          <h1 className="ds-page-title w-full break-words">
+            {isNew ? "Novo imóvel" : (form.property.name || "Informações do imóvel")}
+          </h1>
+          <p className="ds-page-subtitle mt-1.5">
+            {isNew
               ? "Os dados básicos da residência (proprietário, tipo, endereço e calendário Airbnb são obrigatórios). O guia para hóspedes, checkin, checkout, FAQ e recomendações ficam disponíveis depois de criado — não são obrigatórios."
-              : "Este imóvel ainda não tem um guia para hóspedes. Você pode continuar usando dashboard, calendário e kanban só com essas informações, ou criar o guia quando quiser."
-          }
-          actions={<PresenceAvatars users={presence.users} />}
-        />
+              : "Este imóvel ainda não tem um guia para hóspedes. Você pode continuar usando dashboard, calendário e kanban só com essas informações, ou criar o guia quando quiser."}
+          </p>
+        </header>
+
+        <div className="mb-4 ds-scroll-x items-center gap-2">
+          <PresenceAvatars users={presence.users} />
+          {!isNew && (
+            <span className="shrink-0 rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground">
+              Sem guia criado
+            </span>
+          )}
+        </div>
 
         <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
+          <DenseSections>
+
           <SectionGroup>
             <Section id="owner" icon={UserRound} title="Proprietário" desc="A quem este imóvel pertence — obrigatório." collapsible>
               {renderOwnerFields()}
@@ -1820,8 +1822,10 @@ function PropertyEditor() {
             {renderHostContactSection()}
 
           </SectionGroup>
+          </DenseSections>
 
-          <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-border/60">
+          <div className="ds-scroll-x items-center justify-end gap-2 mt-6 pt-4 border-t border-border/60">
+
             <Link
               to="/admin/guias"
               className="inline-flex items-center h-9 px-4 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors"
