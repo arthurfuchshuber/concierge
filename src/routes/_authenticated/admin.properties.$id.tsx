@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Section, SectionGroup, DenseSections } from "@/components/editor/Section";
+import { Stepper, GUIDE_STEPS, NON_HOUSE_STEPS } from "@/components/editor/Stepper";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, ImagePlus, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Power, Phone, HelpCircle, Sun, Moon, Lock, MessageSquare, LogOut, ChevronDown, Ticket, RefreshCw, Copy, Share2, X, MoveRight, ClipboardList, Car, IdCard, NotebookPen, ArrowLeftRight, AlertTriangle } from "lucide-react";
@@ -60,6 +61,15 @@ import { PageHeader } from "@/components/ds/PageHeader";
 
 
 export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
+  // `houseOnly`: abre direto (e trava) na aba "A casa", sem a barra de abas —
+  // usado pelo botão "Editar" do imóvel dentro do proprietário em
+  // Stakeholders, que precisa espelhar exatamente esta mesma aba, sem
+  // duplicar seus campos em outra tela. `returnTo`: para onde volta o link
+  // "Voltar"/"Fechar" — sem ele, cai no padrão (/admin/guias).
+  validateSearch: (s: Record<string, unknown>): { houseOnly?: boolean; returnTo?: string } => ({
+    ...(s.houseOnly === true ? { houseOnly: true as const } : {}),
+    ...(typeof s.returnTo === "string" && s.returnTo ? { returnTo: s.returnTo } : {}),
+  }),
   component: PropertyEditor,
 });
 
@@ -207,14 +217,21 @@ function isEtiqueta(value: string) {
 }
 
 // missingRequiredHouseFields agora vive em "@/lib/property-house-fields" —
-// compartilhada também com PropertyQuickEditDialog (popup de edição rápida
-// dentro do Proprietário em Stakeholders), para as duas telas nunca mais
-// divergirem sobre quais campos são obrigatórios.
+// compartilhada também com o link "Editar" do imóvel dentro do Proprietário
+// em Stakeholders (que abre esta mesma página, em modo `houseOnly`), para as
+// duas entradas nunca mais divergirem sobre quais campos são obrigatórios.
 
 function PropertyEditor() {
   const { id } = Route.useParams();
   const isNew = id === "new";
   const navigate = useNavigate();
+  const search = Route.useSearch();
+  // Modo "só a casa": usado quando se chega aqui pelo botão "Editar" de um
+  // imóvel já com guia criado, dentro do Proprietário em Stakeholders — trava
+  // na aba "A casa" e nunca mostra a barra de abas (mesma regra pedida para
+  // "Criar nova residência", que já cai na tela enxuta abaixo).
+  const houseOnly = search.houseOnly === true;
+  const backTo = search.returnTo || "/admin/guias";
   // Detalhamento do imóvel já vem carregado em segundo plano: abrir a seção
   // é instantâneo, sem "Carregando…".
   usePrefetchPropertyDetails(isNew ? null : id);
@@ -1112,7 +1129,12 @@ function PropertyEditor() {
       // Bidirecional: a ficha do proprietário (Stakeholders) lê os mesmos
       // campos direto da tabela "properties" — mas fica em cache próprio.
       queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "stakeholder-detail", ...mode });
-      if (isNew) navigate({ to: "/admin/properties/$id", params: { id: r.id } });
+      if (isNew)
+        navigate({
+          to: "/admin/properties/$id",
+          params: { id: r.id },
+          search: search.returnTo ? { returnTo: search.returnTo } : undefined,
+        });
 
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Erro ao salvar";
@@ -1734,11 +1756,11 @@ function PropertyEditor() {
   // até os campos obrigatórios serem preenchidos. Ver useEffect abaixo e a
   // prop `lockedValues` do <Stepper>.
   useEffect(() => {
-    if (needsRequiredHouseInfo && step !== "house") {
+    if ((needsRequiredHouseInfo || houseOnly) && step !== "house") {
       setStep("house");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [needsRequiredHouseInfo, step]);
+  }, [needsRequiredHouseInfo, houseOnly, step]);
 
   const showLeanInfoScreen = isNew || !form.property.guide_created;
 
@@ -1754,38 +1776,42 @@ function PropertyEditor() {
       await handleSave({ guide_created: true });
     }
     return (
-      <div className="px-6 lg:px-10 pt-8 lg:pt-10 max-w-3xl mx-auto w-full">
-        <Link to="/admin/guias" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
+      <div className="ds-dense-fields px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full">
+        <Link to={backTo as "/admin/guias"} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
           <ArrowLeft className="size-3.5" /> Voltar
         </Link>
 
-        <PageHeader
-          className="mb-6 pb-4 border-b border-border/60"
-          title={
-            <span className="inline-flex items-center gap-2 min-w-0">
-              <span className="truncate">{isNew ? "Novo imóvel" : (form.property.name || "Informações do imóvel")}</span>
-              {!isNew && (
-                <span className="shrink-0 rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground">
-                  Sem guia criado
-                </span>
-              )}
-            </span>
-          }
-          subtitle={
-            isNew
+        <header className="mb-3 min-w-0">
+          <h1 className="ds-page-title w-full break-words">
+            {isNew ? "Novo imóvel" : (form.property.name || "Informações do imóvel")}
+          </h1>
+          <p className="ds-page-subtitle mt-1.5">
+            {isNew
               ? "Os dados básicos da residência (proprietário, tipo, endereço e calendário Airbnb são obrigatórios). O guia para hóspedes, checkin, checkout, FAQ e recomendações ficam disponíveis depois de criado — não são obrigatórios."
-              : "Este imóvel ainda não tem um guia para hóspedes. Você pode continuar usando dashboard, calendário e kanban só com essas informações, ou criar o guia quando quiser."
-          }
-          actions={<PresenceAvatars users={presence.users} />}
-        />
+              : "Este imóvel ainda não tem um guia para hóspedes. Você pode continuar usando dashboard, calendário e kanban só com essas informações, ou criar o guia quando quiser."}
+          </p>
+        </header>
+
+        <div className="mb-4 ds-scroll-x items-center gap-2">
+          <PresenceAvatars users={presence.users} />
+          {!isNew && (
+            <span className="shrink-0 rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground">
+              Sem guia criado
+            </span>
+          )}
+        </div>
 
         <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
-          <SectionGroup>
-            <Section id="owner" icon={UserRound} title="Proprietário" desc="A quem este imóvel pertence — obrigatório." collapsible>
-              {renderOwnerFields()}
-            </Section>
+          <DenseSections>
+          {/* Sem barra de abas aqui: só se fala de "A casa" nesta tela — "O
+              guia" e as demais abas só existem depois que o guia é criado. */}
 
-            <Section id="new-name" icon={Home} title="Nome do imóvel" desc="Como você identifica essa residência internamente." collapsible={false}>
+          {/* Espelho EXATO da aba "A casa" do editor completo: mesmas seções,
+              mesma ordem. Os únicos campos extras são Nome do imóvel e Tipo do
+              guia, que vivem dentro da própria "Identificação do Imóvel"
+              porque são necessários para criar o imóvel/guia. */}
+          <SectionGroup>
+            <Section id="identity" icon={Home} title="Identificação do Imóvel" desc="Nome, proprietário e tipo do imóvel." collapsible>
               <Field label="Nome" required>
                 <Input
                   value={form.property.name}
@@ -1801,17 +1827,14 @@ function PropertyEditor() {
                 />
               </Field>
               <FieldTypingBadge typing={presence.typing["name"]} />
-            </Section>
-
-            <Section id="new-tagline" icon={FileText} title="Tipo do guia" desc="Define o formato do guia que será criado para os hóspedes." collapsible={false}>
               <Field label="Tipo do guia" required hint="Aparece abaixo do título no guia público.">
                 <EtiquetaSelect value={form.property.tagline} onChange={(v) => update("tagline", v)} />
               </Field>
-            </Section>
-
-            <Section id="property-type" icon={Home} title="Tipo do imóvel" desc="Obrigatório. Ajuda a organizar seus imóveis — as opções são totalmente editáveis." collapsible>
+              {renderOwnerFields()}
               {renderPropertyTypeFields()}
             </Section>
+
+            {renderCleaningSection()}
             {renderAddressSection()}
             {renderAirbnbCalendarSection()}
             {renderHouseRulesSection()}
@@ -1820,10 +1843,12 @@ function PropertyEditor() {
             {renderHostContactSection()}
 
           </SectionGroup>
+          </DenseSections>
 
-          <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-border/60">
+          <div className="ds-scroll-x items-center justify-end gap-2 mt-6 pt-4 border-t border-border/60">
+
             <Link
-              to="/admin/guias"
+              to={backTo as "/admin/guias"}
               className="inline-flex items-center h-9 px-4 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors"
             >
               Cancelar
@@ -1862,7 +1887,7 @@ function PropertyEditor() {
 
   return (
     <div className="ds-dense-fields px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full">
-      <Link to="/admin/guias" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
+      <Link to={backTo as "/admin/guias"} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
         <ArrowLeft className="size-3.5" /> Voltar
       </Link>
       {readOnly ? (
@@ -1875,10 +1900,12 @@ function PropertyEditor() {
 
       <header className="mb-3 min-w-0">
         <h1 className="ds-page-title w-full break-words">{form.property.name || "Sem título"}</h1>
-        <p className="ds-page-subtitle mt-1.5">Edite as informações do guia deste imóvel.</p>
+        <p className="ds-page-subtitle mt-1.5">
+          {houseOnly ? "Edite as informações da casa deste imóvel." : "Edite as informações do guia deste imóvel."}
+        </p>
       </header>
 
-      {!isNew ? (
+      {!isNew && !houseOnly ? (
         <div className="mb-4 ds-scroll-x items-center gap-2">
 
           <PresenceAvatars users={presence.users} />
@@ -1906,19 +1933,24 @@ function PropertyEditor() {
 
       <DenseSections>
       <Tabs value={step} onValueChange={setStep}>
-        <Stepper
-          current={step}
-          onChange={setStep}
-          steps={[
-            { value: "house", label: "A casa", icon: Home },
-            { value: "guide", label: "O guia", icon: FileText },
-            { value: "checkin", label: "Checkin", icon: DoorOpen },
-            { value: "checkout", label: "Checkout", icon: LogOut },
-            { value: "faq", label: "FAQ & Contatos", icon: LifeBuoy },
-            { value: "recs", label: "Recomendações", icon: Compass },
-          ]}
-          lockedValues={needsRequiredHouseInfo ? ["guide", "checkin", "checkout", "faq", "recs"] : undefined}
-        />
+        {/* Modo "só a casa" (link "Editar" dentro do Proprietário, em
+            Stakeholders): trava em "house" e nunca mostra esta barra — só se
+            fala de informações "da casa" ali, igual à tela de criação. */}
+        {!houseOnly && (
+          <Stepper
+            current={step}
+            onChange={setStep}
+            steps={[
+              { value: "house", label: "A casa", icon: Home },
+              { value: "guide", label: "O guia", icon: FileText },
+              { value: "checkin", label: "Checkin", icon: DoorOpen },
+              { value: "checkout", label: "Checkout", icon: LogOut },
+              { value: "faq", label: "FAQ & Contatos", icon: LifeBuoy },
+              { value: "recs", label: "Recomendações", icon: Compass },
+            ]}
+            lockedValues={needsRequiredHouseInfo ? ["guide", "checkin", "checkout", "faq", "recs"] : undefined}
+          />
+        )}
 
 
         {/* ================= A CASA ================= */}
@@ -2676,36 +2708,48 @@ function PropertyEditor() {
 
       <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur p-3 sm:p-4 z-50">
         <div className="max-w-4xl mx-auto flex flex-wrap justify-center items-center gap-2 sm:gap-3">
-          <Button
-            variant="outline"
-            className="h-10 min-w-[120px]"
-            onClick={() => {
-              // Mesma ordem das abas do Stepper acima (house, guide, checkin,
-              // checkout, faq, recs) — antes esta lista estava desatualizada
-              // (basics/access/extras não existem mais como abas) e fazia
-              // "Próximo"/"Anterior" pularem direto para "Recomendações".
-              const order = ["house", "guide", "checkin", "checkout", "faq", "recs"];
-              const i = order.indexOf(step);
-              if (i > 0) setStep(order[i - 1]);
-            }}
-            disabled={step === "house"}
-          >
-            <ArrowLeft className="size-3.5 mr-1" />
-            Anterior
-          </Button>
-          <Button
-            variant="outline"
-            className="h-10 min-w-[120px]"
-            onClick={() => {
-              const order = ["house", "guide", "checkin", "checkout", "faq", "recs"];
-              const i = order.indexOf(step);
-              if (i < order.length - 1) setStep(order[i + 1]);
-            }}
-            disabled={step === "recs" || (needsRequiredHouseInfo && step === "house")}
-          >
-            Próximo
-            <ArrowLeft className="size-3.5 ml-1 rotate-180" />
-          </Button>
+          {houseOnly ? (
+            <Button
+              variant="outline"
+              className="h-10 min-w-[120px]"
+              onClick={() => navigate({ to: backTo as "/admin/guias" })}
+            >
+              Fechar
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                className="h-10 min-w-[120px]"
+                onClick={() => {
+                  // Mesma ordem das abas do Stepper acima (house, guide, checkin,
+                  // checkout, faq, recs) — antes esta lista estava desatualizada
+                  // (basics/access/extras não existem mais como abas) e fazia
+                  // "Próximo"/"Anterior" pularem direto para "Recomendações".
+                  const order = ["house", "guide", "checkin", "checkout", "faq", "recs"];
+                  const i = order.indexOf(step);
+                  if (i > 0) setStep(order[i - 1]);
+                }}
+                disabled={step === "house"}
+              >
+                <ArrowLeft className="size-3.5 mr-1" />
+                Anterior
+              </Button>
+              <Button
+                variant="outline"
+                className="h-10 min-w-[120px]"
+                onClick={() => {
+                  const order = ["house", "guide", "checkin", "checkout", "faq", "recs"];
+                  const i = order.indexOf(step);
+                  if (i < order.length - 1) setStep(order[i + 1]);
+                }}
+                disabled={step === "recs" || (needsRequiredHouseInfo && step === "house")}
+              >
+                Próximo
+                <ArrowLeft className="size-3.5 ml-1 rotate-180" />
+              </Button>
+            </>
+          )}
           {!readOnly && !isNew && (
             <span
               className={`basis-full text-center text-[11px] inline-flex items-center justify-center gap-1.5 ${
@@ -4028,52 +4072,6 @@ function CategoryDescriptionField({
 }
 
 
-function Stepper({
-  steps,
-  current,
-  onChange,
-  lockedValues,
-}: {
-  steps: { value: string; label: string; icon: React.ComponentType<{ className?: string; strokeWidth?: number }> }[];
-  current: string;
-  onChange: (v: string) => void;
-  // Abas visíveis mas ainda não liberadas (ex.: guia com dados obrigatórios
-  // pendentes) — aparecem com cadeado e não respondem a clique.
-  lockedValues?: string[];
-}) {
-  return (
-    // Mesmo padrão de "barra que rola na horizontal e nunca corta a última
-    // aba" usado no resto do sistema (ds-scroll-x): os itens mantêm o
-    // tamanho natural (flex: none) e a barra inteira rola por baixo, em vez
-    // de tentar espremer tudo (flex-1) num container de largura fixa — era
-    // isso que fazia "Recomendações" ficar cortada em telas estreitas.
-    <nav className="ds-scroll-x mb-5 -mx-1 px-1 gap-1 rounded-[0.3rem] bg-foreground/5 p-1">
-      {steps.map((s) => {
-        const active = s.value === current;
-        const locked = lockedValues?.includes(s.value) ?? false;
-        return (
-          <button
-            key={s.value}
-            type="button"
-            disabled={locked}
-            onClick={() => !locked && onChange(s.value)}
-            title={locked ? "Complete as informações obrigatórias em \"A casa\" para desbloquear" : undefined}
-            className={`whitespace-nowrap px-3 py-2 text-center text-[13px] font-normal leading-none flex items-center justify-center gap-1.5 min-h-[34px] rounded-[0.25rem] transition-colors ${
-              active
-                ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
-                : locked
-                  ? "text-muted-foreground/40 cursor-not-allowed"
-                  : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {locked ? <Lock className="size-3" /> : null}
-            {s.label}
-          </button>
-        );
-      })}
-    </nav>
-  );
-}
 
 
 function GalleryEditor({

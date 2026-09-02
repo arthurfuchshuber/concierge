@@ -1,8 +1,8 @@
 import { PhoneActionButton } from "@/components/PhoneActionButton";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
   Loader2,
@@ -29,6 +29,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -43,18 +49,23 @@ import {
 } from "@/lib/stakeholders.functions";
 import { getStakeholderIntegrationFeed } from "@/lib/stakeholder-feed.functions";
 import { getStakeholderSystemTrail } from "@/lib/stakeholder-trail.functions";
-import { getClicksignDocumentUrl, extractClicksignPartyData } from "@/lib/clicksign.functions";
+import { getClicksignDocumentFile, extractClicksignPartyData } from "@/lib/clicksign.functions";
 import { CopyButton } from "@/components/CopyButton";
 import { getStakeholderAccess } from "@/lib/stakeholder-access.functions";
 import { UserAccess } from "@/components/admin-pages/PermissionCenterPage";
 import { listProviderCategories } from "@/lib/provider-categories.functions";
 import { getMyClicksignConfig } from "@/lib/clicksign.functions";
 import { listStakeholderOptions } from "@/lib/stakeholder-links.functions";
-import { PropertyQuickEditDialog } from "@/components/admin/PropertyQuickEditDialog";
 import { useRealtimeInvalidate } from "@/hooks/useRealtimeInvalidate";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import type { StakeholderKind } from "./StakeholderDirectory";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { StakeholderStatusControl } from "./StakeholderStatusControl";
+import { effectiveStatus, statusText } from "@/lib/stakeholder-status";
+
+/** Aba do segmented control: adapta-se à largura da tela (anti-corte), 46px. */
+const SEG_TAB =
+  "min-h-[46px] !rounded-[0.3rem] text-[13px] font-semibold data-[state=active]:bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] data-[state=active]:text-white data-[state=active]:shadow-none";
 
 type PreviewTarget = { name: string; url?: string | null; docId?: string } | null;
 
@@ -101,8 +112,11 @@ export function StakeholderDetailSheet({
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<PreviewTarget>(null);
   const [extracting, setExtracting] = useState(false);
-  const [editingPropertyId, setEditingPropertyId] = useState<string | null>(null);
   const [transferPropertyId, setTransferPropertyId] = useState<string | null>(null);
+  // Pra onde "Voltar"/"Fechar" leva ao editar a casa de um imóvel a partir
+  // daqui — como o editor de imóvel é uma página própria (não um popup),
+  // sem isso a pessoa perderia esta ficha do proprietário aberta.
+  const returnToHere = useRouterState({ select: (s) => s.location.href });
   const [transferTargetId, setTransferTargetId] = useState<string>("");
   // Dados pessoais sempre começam recolhidos ao abrir a ficha.
   const [dataOpen, setDataOpen] = useState(false);
@@ -131,6 +145,10 @@ export function StakeholderDetailSheet({
     setExtracting(true);
     try {
       const res = await extractFn({ data: { kind, id } });
+      if ("notice" in res && res.notice) {
+        toast.info(res.notice as string);
+        return;
+      }
       const parts: string[] = [];
       if (res.updated > 0) parts.push(`Dados extraídos do contrato: ${res.fields.join(", ")}`);
       if (res.contractStart?.status === "filled") {
@@ -298,15 +316,51 @@ export function StakeholderDetailSheet({
   const properties = data?.properties ?? [];
   const available = data?.availableProperties ?? [];
   const displayName = row.trade_name || row.name;
-  const initial = String(displayName ?? "?").trim().charAt(0).toUpperCase();
+  
+
+  // Vigência do contrato exibida no cabeçalho, na cor do status (mesma regra
+  // do card da listagem: cancelado/cancelando sem data final usa a data em
+  // que o cancelamento foi efetivado).
+  const effStatus = effectiveStatus(row.status, row.status_changed_at);
+  const contractEnd =
+    row.contract_end ??
+    ((effStatus === "canceled" || effStatus === "canceling") && row.status_changed_at
+      ? String(row.status_changed_at).slice(0, 10)
+      : null);
+  const contractRange = row.contract_start
+    ? `${fmtDateBR(row.contract_start)} → ${contractEnd ? fmtDateBR(contractEnd) : "momento"}`
+    : null;
+
+
+  // Notas automáticas de bastidor (importação/sincronização/extração) não
+  // entram na Linha do Tempo — elas continuam disponíveis no Log.
+  const NOISE = /(importa[çc][ãa]o do clicksign|dados extra[íi]dos|sincroniza|cadastro criado pela)/i;
+
+  // Abre o link do Google já na conta conectada à integração (authuser),
+  // evitando cair na conta pessoal logada no navegador.
+  const gAccount = (feed.data as { accountEmail?: string | null } | undefined)?.accountEmail ?? null;
+  function gLink(url: string) {
+    if (!gAccount) return url;
+    try {
+      const u = new URL(url);
+      if (!/(^|\.)google\.com$/.test(u.hostname)) return url;
+      u.searchParams.set("authuser", gAccount);
+      return u.toString();
+    } catch {
+      return url;
+    }
+  }
 
   const timeline = [
-    ...events.map((ev: any) => ({
+    ...events
+      .filter((ev: any) => !NOISE.test(String(ev.message ?? "")))
+      .map((ev: any) => ({
       key: `n:${ev.id}`,
       at: ev.created_at as string,
       icon: Pin,
       title: ev.message as string,
       badge: "Registro",
+      author: (ev.author_name as string | null) ?? "Sistema",
       body: null as React.ReactNode,
     })),
     ...feedEvents.map((ev) => ({
@@ -315,12 +369,13 @@ export function StakeholderDetailSheet({
       icon: CalendarDays,
       title: ev.title,
       badge: ev.calendarName || "Agenda",
+      author: "Sistema",
       body: (
         <>
           {ev.htmlLink && (
             <button
               type="button"
-              onClick={() => setPreview({ name: ev.title, url: ev.htmlLink as string })}
+              onClick={() => window.open(gLink(ev.htmlLink as string), "_blank", "noopener")}
               className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
             >
               <Eye className="size-3" /> Abrir convite
@@ -335,7 +390,7 @@ export function StakeholderDetailSheet({
                 <button
                   key={a.url}
                   type="button"
-                  onClick={() => setPreview({ name: a.title || ev.title, url: a.url })}
+                  onClick={() => window.open(gLink(a.url), "_blank", "noopener")}
                   className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
                 >
                   {a.kind === "transcript" ? <FileText className="size-2.5" /> : <Video className="size-2.5" />}
@@ -354,6 +409,7 @@ export function StakeholderDetailSheet({
       icon: FileText,
       title: d.name,
       badge: "ClickSign",
+      author: "Sistema",
       body: (
         <>
           <p className="text-xs text-muted-foreground">
@@ -378,6 +434,7 @@ export function StakeholderDetailSheet({
         icon: ev.severity === "error" || ev.severity === "critical" ? Unlink : MessageCircle,
         title: ev.title,
         badge: ev.badge,
+        author: "Sistema",
         body:
           ev.details.length > 0 ? (
             <ul className="space-y-0.5">
@@ -394,168 +451,194 @@ export function StakeholderDetailSheet({
 
 
   return (
-    <div className="flex flex-col gap-5 px-5 py-6 sm:px-6">
-      {/* Header card */}
-      <section className="rounded-3xl border border-border bg-gradient-to-b from-card to-card/60 p-5 sm:p-6 shadow-sm">
-        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4">
-          <div className="grid size-16 shrink-0 place-items-center rounded-full bg-primary/15 font-display text-2xl text-primary">
-            {initial}
-          </div>
+    <div className="flex w-full min-w-0 max-w-full flex-col gap-5 overflow-x-hidden px-5 py-6 sm:px-6">
+      {/* ---------- Cabeçalho: fio de marca + eyebrow + nome + metadados ---------- */}
+      <header className="relative pt-4">
+        <span
+          aria-hidden
+          className="absolute left-0 right-12 top-0 h-[2px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]"
+        />
+
+        {/* Linha 1: eyebrow (as ações desceram para a linha de metadados) */}
+        <span className="ds-eyebrow block truncate text-muted-foreground">
+          {kind === "owner" ? "Proprietário" : "Prestador"}
+        </span>
+
+        {/* Linha 2: nome em linha única, espaçamento padrão das demais páginas */}
+        <h2
+          className="mt-1 truncate font-display text-[20px] font-bold leading-tight tracking-[-0.01em]"
+          title={displayName}
+        >
+          {displayName}
+        </h2>
+
+        {/* Linha 3: metadados à esquerda, ações à direita (espaço antes vazio) */}
+        <div className="mt-2 flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2
-              className="ds-page-title leading-tight truncate"
-              title={displayName}
-            >
-              {displayName}
-            </h2>
-            <div className="mt-2 ds-scroll-x items-center gap-1.5">
+            <div className="ds-scroll-x gap-3 ds-meta">
               <StakeholderStatusControl
                 kind={kind}
                 id={id}
                 accountOwnerId={accountOwnerId}
                 status={row.status}
                 statusChangedAt={row.status_changed_at}
-                variant="pill"
+                variant="compact"
                 invalidateQueryKeys={[queryKey]}
               />
-
-              <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground uppercase">
-                {String(row.person_type ?? "pf")}
+              <span className="h-3 w-px bg-border" aria-hidden />
+              <span className="whitespace-nowrap">
+                {String(row.person_type ?? "pf").toUpperCase() === "PJ"
+                  ? "Pessoa Jurídica"
+                  : "Pessoa Física"}
               </span>
-              {categoryLabels.map((label) => (
-                <span
-                  key={label}
-                  className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground"
-                >
-                  {label}
-                </span>
-              ))}
             </div>
+
+            {contractRange && (
+              <p className={`mt-1.5 whitespace-nowrap tabular-nums text-sm ${statusText(effStatus)}`}>
+                {contractRange}
+              </p>
+            )}
+
+            {categoryLabels.length > 0 && (
+              <p className="mt-1.5 ds-meta truncate">{categoryLabels.join(" · ")}</p>
+            )}
+          </div>
+
+          {/* Ações: importar dados vem antes de editar (ordem invertida) */}
+          <div className="ds-scroll-x shrink-0 items-center gap-1.5">
+            {clicksignActive && (
+              <button
+                type="button"
+                onClick={runExtract}
+                disabled={extracting}
+                aria-label="Importar dados do contrato"
+                title="Importar dados do contrato"
+                className="grid size-9 place-items-center rounded-[0.3rem] border border-border text-foreground hover:bg-secondary transition-colors disabled:opacity-60"
+              >
+                {extracting ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <FileText className="size-4" />
+                )}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onEdit}
+              aria-label="Editar cadastro"
+              title="Editar cadastro"
+              className="grid size-9 place-items-center rounded-[0.3rem] border border-border text-foreground hover:bg-secondary transition-colors"
+            >
+              <Pencil className="size-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setDataOpen((o) => !o)}
+              aria-expanded={dataOpen}
+              aria-label="Dados pessoais"
+              title="Dados pessoais"
+              className="grid size-9 place-items-center rounded-[0.3rem] border border-border text-foreground hover:bg-secondary transition-colors"
+            >
+              <ChevronDown className={`size-4 transition-transform ${dataOpen ? "rotate-180" : ""}`} />
+            </button>
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <Button variant="outline" className="w-full rounded-full" onClick={onEdit}>
-            <Pencil className="size-3.5 mr-1.5" /> Editar
-          </Button>
-          {clicksignActive && (
-            <Button
-              variant="outline"
-              className="w-full rounded-full"
-              disabled={extracting}
-              onClick={runExtract}
-            >
-              {extracting ? (
-                <Loader2 className="size-3.5 mr-1.5 animate-spin" />
-              ) : (
-                <FileText className="size-3.5 mr-1.5" />
-              )}
-              Importar Dados
-            </Button>
-          )}
-        </div>
+      </header>
 
-        <div className="mt-4 border-t border-border pt-3">
-          <button
-            type="button"
-            onClick={() => setDataOpen((o) => !o)}
-            className="relative flex w-full items-center justify-center gap-2 py-1 text-center"
-            aria-expanded={dataOpen}
-          >
-            <span className="ds-eyebrow">
-              Dados pessoais
-            </span>
-            <ChevronDown
-              className={`absolute right-0 size-4 shrink-0 text-muted-foreground transition-transform ${dataOpen ? "rotate-180" : ""}`}
+      {/* ---------- Dados pessoais (recolhível, fechado por padrão) ---------- */}
+      {dataOpen && (
+        <section className="ds-surface bg-card p-4">
+          <dl className="grid gap-4 sm:grid-cols-2">
+            <Field label="Nome completo" value={row.name} copy={row.name} />
+            {row.trade_name && (
+              <Field label="Nome fantasia" value={row.trade_name} copy={row.trade_name} />
+            )}
+            <Field
+              label="Tipo de pessoa"
+              value={String(row.person_type ?? "pf").toUpperCase() === "PJ" ? "Pessoa jurídica" : "Pessoa física"}
             />
-          </button>
-
-          {dataOpen && (
-            <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-              <Field label="Nome completo" value={row.name} copy={row.name} />
-              {row.trade_name && (
-                <Field label="Nome fantasia" value={row.trade_name} copy={row.trade_name} />
-              )}
+            {row.birth_date && (
               <Field
-                label="Tipo de pessoa"
-                value={String(row.person_type ?? "pf").toUpperCase() === "PJ" ? "Pessoa jurídica" : "Pessoa física"}
+                label="Data de nascimento"
+                value={new Date(`${String(row.birth_date).slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR")}
+                copy={new Date(`${String(row.birth_date).slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR")}
               />
-              {row.birth_date && (
+            )}
+            {categoryLabels.length > 0 && (
+              <Field label="Categorias de serviço" value={categoryLabels.join(", ")} />
+            )}
+            {row.cep && <Field label="CEP" value={row.cep} mono copy={row.cep} />}
+            {row.doc && (
+              <Field
+                label={String(row.doc_type ?? "cpf").toUpperCase()}
+                value={formatTaxId(row.doc)}
+                mono
+                copy={formatTaxId(row.doc)}
+              />
+            )}
+            {row.email && (
+              <Field label="E-mail" copy={row.email}>
+                <a
+                  href={`mailto:${row.email}`}
+                  className="inline-flex min-w-0 items-center gap-2 text-sm hover:underline"
+                >
+                  <Mail className="size-3.5 shrink-0 text-muted-foreground" />
+                  <span className="truncate">{row.email}</span>
+                </a>
+              </Field>
+            )}
+            {row.phone && (
+              <Field label="Telefone" copy={formatIntlPhone(row.phone, row.phone_country)}>
+                <WhatsAppLink phone={row.phone} country={row.phone_country} />
+              </Field>
+            )}
+            {(row.address || row.city || row.state) && (
+              <div className="sm:col-span-2">
                 <Field
-                  label="Data de nascimento"
-                  value={new Date(`${String(row.birth_date).slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR")}
-                  copy={new Date(`${String(row.birth_date).slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR")}
-                />
-              )}
-              {categoryLabels.length > 0 && (
-                <Field label="Categorias de serviço" value={categoryLabels.join(", ")} />
-              )}
-              {row.cep && <Field label="CEP" value={row.cep} mono copy={row.cep} />}
-              {row.doc && (
-                <Field
-                  label={String(row.doc_type ?? "cpf").toUpperCase()}
-                  value={formatTaxId(row.doc)}
-                  mono
-                  copy={formatTaxId(row.doc)}
-                />
-              )}
-              {row.email && (
-                <Field label="E-mail" copy={row.email}>
-                  <a
-                    href={`mailto:${row.email}`}
-                    className="inline-flex min-w-0 items-center gap-2 text-sm hover:underline"
-                  >
-                    <Mail className="size-3.5 shrink-0 text-muted-foreground" />
-                    <span className="truncate">{row.email}</span>
-                  </a>
+                  label="Endereço"
+                  copy={[row.address, row.district, [row.city, row.state].filter(Boolean).join(" / ")]
+                    .filter(Boolean)
+                    .join(" · ")}
+                >
+                  <p className="flex items-start gap-2 text-sm">
+                    <MapPin className="size-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 break-words">
+                      {[row.address, row.district].filter(Boolean).join(" · ")}
+                      {[row.city, row.state].filter(Boolean).length > 0 && (
+                        <>
+                          <br />
+                          {[row.city, row.state].filter(Boolean).join(" / ")}
+                        </>
+                      )}
+                    </span>
+                  </p>
                 </Field>
-              )}
-              {row.phone && (
-                <Field label="Telefone" copy={formatIntlPhone(row.phone, row.phone_country)}>
-                  <WhatsAppLink phone={row.phone} country={row.phone_country} />
-                </Field>
-              )}
-              {(row.address || row.city || row.state) && (
-                <div className="sm:col-span-2">
-                  <Field
-                    label="Endereço"
-                    copy={[row.address, row.district, [row.city, row.state].filter(Boolean).join(" / ")]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  >
-                    <p className="flex items-start gap-2 text-sm">
-                      <MapPin className="size-3.5 mt-0.5 shrink-0 text-muted-foreground" />
-                      <span className="min-w-0 break-words">
-                        {[row.address, row.district, [row.city, row.state].filter(Boolean).join(" / ")]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </span>
-                    </p>
-                  </Field>
-                </div>
-              )}
-            </dl>
-          )}
-        </div>
-      </section>
+              </div>
+            )}
+          </dl>
+        </section>
+      )}
 
 
-      <Tabs defaultValue="visao">
-        <div className="rounded-2xl border border-border bg-card p-2">
-          <TabsList className="w-full bg-transparent gap-1">
-            <TabsTrigger value="visao">Visão Geral</TabsTrigger>
-            {kind === "owner" && <TabsTrigger value="imoveis">Imóveis</TabsTrigger>}
-            <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
-            <TabsTrigger value="documentos">Documentos</TabsTrigger>
+      <Tabs defaultValue="visao" className="min-w-0 max-w-full">
+        <TabsList className="ds-segmented h-auto w-full max-w-full !rounded-[0.3rem] border-0 bg-foreground/5 p-0">
 
-          </TabsList>
-        </div>
+          <TabsTrigger className={SEG_TAB} value="visao">Timeline</TabsTrigger>
+          {kind === "owner" && <TabsTrigger className={SEG_TAB} value="imoveis">Imóveis</TabsTrigger>}
+          <TabsTrigger className={SEG_TAB} value="financeiro">Financeiro</TabsTrigger>
+          <TabsTrigger className={SEG_TAB} value="documentos">Documentos</TabsTrigger>
+          <TabsTrigger className={SEG_TAB} value="acessos">Acessos</TabsTrigger>
+          <TabsTrigger className={SEG_TAB} value="log">Log</TabsTrigger>
+
+        </TabsList>
+
 
 
         {/* -------------------- Acessos -------------------- */}
         <TabsContent value="acessos" className="mt-5 space-y-4">
           {!stakeholderEmail ? (
-            <p className="rounded-2xl border border-border bg-card p-5 text-sm text-muted-foreground">
+            <p className="ds-surface bg-card p-5 text-sm text-muted-foreground">
               Cadastre um e-mail nesta ficha para poder liberar o acesso ao sistema.
             </p>
           ) : accessQuery.isLoading ? (
@@ -563,7 +646,7 @@ export function StakeholderDetailSheet({
           ) : accessQuery.data?.status === "active" && accessQuery.data.userId ? (
             <UserAccess userId={accessQuery.data.userId} />
           ) : (
-            <p className="rounded-2xl border border-border bg-card p-5 text-sm text-muted-foreground">
+            <p className="ds-surface bg-card p-5 text-sm text-muted-foreground">
               {accessQuery.data?.status === "pending"
                 ? "Convite enviado. As permissões por área ficam disponíveis assim que a pessoa aceitar o convite e entrar no sistema."
                 : "Esta pessoa ainda não tem acesso ao sistema. Ative “Permitir acesso ao sistema” na edição do cadastro para enviar o convite."}
@@ -593,8 +676,8 @@ export function StakeholderDetailSheet({
           ) : (
             <ul className="space-y-2">
               {(trail.data?.items ?? []).map((ev) => (
-                <li key={ev.id} className="rounded-2xl border border-border bg-card px-4 py-3">
-                  <p className="ds-card-title">{ev.title}</p>
+                <li key={ev.id} className="ds-surface bg-card px-4 py-3">
+                  <p className="text-[13.5px] leading-[1.3] font-normal text-foreground">{ev.title}</p>
                   <p className="ds-meta">{ev.badge}</p>
                   {ev.details.length > 0 && (
                     <ul className="mt-1 space-y-0.5">
@@ -664,20 +747,21 @@ export function StakeholderDetailSheet({
                   return (
                     <li key={item.key} className="relative">
                       <span className="absolute -left-[29px] top-4 size-2.5 rounded-full bg-primary/70 ring-4 ring-background" />
-                      <div className="rounded-2xl border border-border bg-card px-4 py-3">
+                      <div className="ds-surface bg-card px-4 py-3">
                         <div className="flex items-start gap-2.5">
                           <Icon className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
                           <div className="min-w-0 flex-1 space-y-1">
-                            <p className="ds-card-title">{item.title}</p>
+                            <p className="text-[13.5px] leading-[1.3] font-normal text-foreground">{item.title}</p>
                             <p className="ds-meta">{item.badge}</p>
                             {item.body}
                             <p className="ds-meta opacity-80">
-                              {item.at ? fmt(item.at) : "Sem data"}
+                              {item.at ? fmt(item.at) : "Sem data"} · {item.author}
                             </p>
                           </div>
                         </div>
                       </div>
                     </li>
+
                   );
                 })}
               </ol>
@@ -687,67 +771,78 @@ export function StakeholderDetailSheet({
 
         {/* -------------------- Imóveis -------------------- */}
         {kind === "owner" && (
-          <TabsContent value="imoveis" className="mt-5 space-y-5">
-            <section className="space-y-3">
-              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+          <TabsContent value="imoveis" className="mt-5 space-y-4">
+            {/* Portfólio em linhas densas: título + situação do guia na mesma
+                linha, localização abaixo e ações discretas em texto. */}
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+              <div className="min-w-0">
                 <h3 className="ds-section-title truncate">Imóveis vinculados</h3>
-                <span className="ds-meta shrink-0">
-                  {properties.length} residência(s)
-                </span>
+                <p className="ds-meta">{properties.length} residência(s)</p>
               </div>
+              {available.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="inline-flex h-9 shrink-0 items-center gap-2 rounded-[0.3rem] border border-border bg-secondary/40 px-3 text-[13px] font-medium transition-colors hover:bg-secondary"
+                    >
+                      <Plus className="size-4 text-primary" /> Vincular
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="max-h-72 w-64 overflow-y-auto">
+                    {available.map((p: any) => (
+                      <DropdownMenuItem
+                        key={p.id}
+                        disabled={busy}
+                        onClick={() => toggleLink(p.id, true)}
+                        className="gap-2"
+                      >
+                        <Link2 className="size-3.5 shrink-0 text-muted-foreground" />
+                        <span className="truncate">{p.name}</span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
 
-              {properties.length === 0 ? (
-                <Placeholder
-                  icon={Home}
-                  title="Nenhuma residência vinculada"
-                  desc="Vincule uma residência existente abaixo ou crie uma nova para este proprietário."
-                />
-              ) : (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {properties.map((p: any) => {
-                    const status = p.published
-                      ? { label: "Publicado", cls: "border-emerald-500/30 bg-emerald-500/10 text-emerald-500" }
-                      : p.guide_created
-                      ? { label: "Guia em edição", cls: "border-amber-500/30 bg-amber-500/10 text-amber-500" }
+            {properties.length === 0 ? (
+              <Placeholder
+                icon={Home}
+                title="Nenhuma residência vinculada"
+                desc="Vincule uma residência existente acima ou crie uma nova para este proprietário."
+              />
+            ) : (
+              <div className="space-y-2">
+                {properties.map((p: any) => {
+                  const status = p.published
+                    ? { label: "Publicado", cls: "border-emerald-500/25 bg-emerald-500/10 text-emerald-500" }
+                    : p.guide_created
+                      ? { label: "Pendente", cls: "border-amber-500/25 bg-amber-500/10 text-amber-500" }
                       : { label: "Sem guia", cls: "border-border text-muted-foreground" };
-                    return (
+                  return (
                     <div
                       key={p.id}
-                      className="rounded-2xl border border-border bg-card p-4 space-y-2"
+                      className="ds-surface bg-card p-3 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2"
                     >
-                      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
-                        <p className="ds-card-title">{p.name}</p>
-                        <span
-                          className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] ${status.cls}`}
-                        >
-                          {status.label}
-                        </span>
-                      </div>
-                      <p className="flex items-center gap-1.5 ds-meta">
-                        <MapPin className="size-3 shrink-0" />
-                        {[p.city, p.state].filter(Boolean).join(" / ") || "Sem localização"}
-                      </p>
-                      <div className="ds-scroll-x items-center gap-1 pt-1">
-                        <button
-                          type="button"
-                          onClick={() => setEditingPropertyId(p.id)}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                        >
-                          <Pencil className="size-3" /> Editar
-                        </button>
-                        <Link
-                          to="/admin/properties/$id"
-                          params={{ id: p.id }}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                          title="Abrir o editor completo do guia (checkin, checkout, FAQ, recomendações)"
-                        >
-                          <ExternalLink className="size-3" /> Guia completo
-                        </Link>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="ds-card-title min-w-0 break-words">{p.name}</p>
+                          <span
+                            className={`shrink-0 rounded-[0.2rem] border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${status.cls}`}
+                          >
+                            {status.label}
+                          </span>
+                        </div>
+                        <p className="mt-1 flex items-center gap-1.5 ds-meta">
+                          <MapPin className="size-3.5 shrink-0" />
+                          {[p.city, p.state].filter(Boolean).join(" / ") || "Sem localização"}
+                        </p>
 
                         {transferPropertyId === p.id ? (
-                          <div className="flex items-center gap-1.5 w-full mt-1.5">
+                          <div className="mt-3 flex flex-wrap items-center gap-1.5">
                             <Select value={transferTargetId} onValueChange={setTransferTargetId}>
-                              <SelectTrigger className="h-8 text-xs flex-1 min-w-0">
+                              <SelectTrigger className="h-8 min-w-0 flex-1 text-xs">
                                 <SelectValue placeholder="Transferir para..." />
                               </SelectTrigger>
                               <SelectContent>
@@ -770,62 +865,57 @@ export function StakeholderDetailSheet({
                             <button
                               type="button"
                               onClick={() => { setTransferPropertyId(null); setTransferTargetId(""); }}
-                              className="text-muted-foreground hover:text-foreground shrink-0"
+                              className="shrink-0 text-muted-foreground hover:text-foreground"
                               aria-label="Cancelar transferência"
                             >
                               <X className="size-4" />
                             </button>
                           </div>
                         ) : (
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={() => setTransferPropertyId(p.id)}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:text-destructive transition-colors"
-                            title="Um imóvel sempre precisa de um proprietário — transfira para outro em vez de apenas desvincular."
-                          >
-                            <Unlink className="size-3" /> Transferir
-                          </button>
+                          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+                            <Link
+                              to="/admin/properties/$id"
+                              params={{ id: p.id }}
+                              search={{ houseOnly: true, returnTo: returnToHere }}
+                              className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-tight text-muted-foreground transition-colors hover:text-foreground"
+                              title='Mesma tela da aba "A casa" do editor completo, sem as demais abas.'
+                            >
+                              <Pencil className="size-3.5" /> Editar
+                            </Link>
+                            <Link
+                              to="/admin/properties/$id"
+                              params={{ id: p.id }}
+                              className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-tight text-muted-foreground transition-colors hover:text-foreground"
+                              title="Abrir o editor completo do guia (checkin, checkout, FAQ, recomendações)"
+                            >
+                              <FileText className="size-3.5" /> Guia
+                            </Link>
+                          </div>
                         )}
                       </div>
+
+                      {transferPropertyId !== p.id && (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => setTransferPropertyId(p.id)}
+                          className="grid size-8 shrink-0 place-items-center rounded-[0.3rem] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                          title="Um imóvel sempre precisa de um proprietário — transfira para outro em vez de apenas desvincular."
+                          aria-label="Transferir imóvel"
+                        >
+                          <Unlink className="size-4" />
+                        </button>
+                      )}
                     </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-
-            {editingPropertyId && (
-              <PropertyQuickEditDialog
-                propertyId={editingPropertyId}
-                open={!!editingPropertyId}
-                onOpenChange={(o) => { if (!o) setEditingPropertyId(null); }}
-              />
-            )}
-
-            {available.length > 0 && (
-              <section className="rounded-2xl border border-dashed border-border p-5 space-y-2">
-                <p className="ds-eyebrow">
-                  Vincular residência existente
-                </p>
-                {available.map((p: any) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    disabled={busy}
-                    onClick={() => toggleLink(p.id, true)}
-                    className="w-full flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm hover:bg-secondary transition-colors"
-                  >
-                    <span className="truncate">{p.name}</span>
-                    <Link2 className="size-3.5 shrink-0 text-muted-foreground" />
-                  </button>
-                ))}
-              </section>
+                  );
+                })}
+              </div>
             )}
 
             <Link
               to="/admin/properties/$id"
               params={{ id: "new" }}
+              search={{ returnTo: returnToHere }}
               className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
             >
               <Plus className="size-3.5" /> Criar nova residência
@@ -842,7 +932,7 @@ export function StakeholderDetailSheet({
             <MoneyCard label="Recebido" value={0} tone="primary" />
             <MoneyCard label="A pagar" value={0} tone="amber" />
           </div>
-          <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="ds-surface bg-card overflow-hidden">
             <div className="grid grid-cols-4 gap-3 border-b border-border px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground">
               <span>Tipo</span>
               <span>Descrição</span>
@@ -873,11 +963,11 @@ export function StakeholderDetailSheet({
                 desc="Contratos importados do ClickSign com este CPF/CNPJ, e-mail ou nome aparecem aqui automaticamente."
               />
             ) : (
-              <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
+              <ul className="divide-y divide-border ds-surface bg-card">
                 {feedDocs.map((d) => (
                   <li key={d.id} className="flex items-start justify-between gap-3 px-4 py-3">
                     <div className="min-w-0">
-                      <p className="ds-card-title truncate">{d.name}</p>
+                      <p className="text-[13.5px] leading-[1.3] font-normal text-foreground truncate">{d.name}</p>
                       {/* Antes mostrava só uma data (finished_at OU synced_at,
                           sem rótulo) — parecia "assinado em tal data" mesmo
                           quando era só a data de IMPORTAÇÃO, com a assinatura
@@ -926,14 +1016,16 @@ function DocPreviewDialog({
   doc: PreviewTarget;
   onClose: () => void;
 }) {
-  const urlFn = useServerFn(getClicksignDocumentUrl);
+  const fileFn = useServerFn(getClicksignDocumentFile);
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["clicksign-doc-url", doc?.docId],
-    queryFn: () => urlFn({ data: { id: doc!.docId! } }),
+    queryKey: ["clicksign-doc-file", doc?.docId],
+    queryFn: () => fileFn({ data: { id: doc!.docId! } }),
     enabled: !!doc?.docId,
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
+    retry: false,
   });
-  const url = doc?.docId ? data?.url ?? null : doc?.url ?? null;
+
+  const externalUrl = doc?.docId ? null : doc?.url ?? null;
 
   return (
     <Dialog open={!!doc} onOpenChange={(o) => !o && onClose()}>
@@ -947,9 +1039,11 @@ function DocPreviewDialog({
               <div className="flex h-[70vh] items-center justify-center gap-2 border-t border-border bg-muted text-sm text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" /> Gerando link seguro…
               </div>
-            ) : url ? (
+            ) : data?.base64 ? (
+              <PdfPages base64={data.base64} />
+            ) : externalUrl ? (
               <iframe
-                src={url}
+                src={externalUrl}
                 title={doc.name}
                 className="h-[70vh] w-full border-t border-border bg-muted"
               />
@@ -960,10 +1054,10 @@ function DocPreviewDialog({
                   : "Documento sem arquivo disponível."}
               </div>
             )}
-            {url && (
+            {externalUrl && (
               <div className="flex justify-end gap-2 px-5 py-3">
                 <a
-                  href={url}
+                  href={externalUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -976,6 +1070,86 @@ function DocPreviewDialog({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function PdfPages({ base64 }: { base64: string }) {
+  const [pages, setPages] = useState<string[]>([]);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const objectUrls: string[] = [];
+
+    async function renderPdf() {
+      try {
+        setError(false);
+        setPages([]);
+        const pdfjs = await import("pdfjs-dist");
+        pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+        const pdf = await pdfjs.getDocument({ data: bytes }).promise;
+        const rendered: string[] = [];
+
+        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+          if (cancelled) return;
+          const page = await pdf.getPage(pageNumber);
+          const baseViewport = page.getViewport({ scale: 1 });
+          const scale = Math.min(2, 1100 / baseViewport.width);
+          const viewport = page.getViewport({ scale });
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.ceil(viewport.width);
+          canvas.height = Math.ceil(viewport.height);
+          const context = canvas.getContext("2d");
+          if (!context) throw new Error("Canvas indisponível");
+          await page.render({ canvas, canvasContext: context, viewport }).promise;
+          const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+          if (!blob) throw new Error("Falha ao renderizar página");
+          const objectUrl = URL.createObjectURL(blob);
+          objectUrls.push(objectUrl);
+          rendered.push(objectUrl);
+          if (!cancelled) setPages([...rendered]);
+        }
+      } catch {
+        if (!cancelled) setError(true);
+      }
+    }
+
+    void renderPdf();
+    return () => {
+      cancelled = true;
+      objectUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [base64]);
+
+  if (error) {
+    return (
+      <div className="flex h-[40vh] items-center justify-center border-t border-border bg-muted px-6 text-center text-sm text-muted-foreground">
+        Não foi possível renderizar este documento.
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-[70vh] overflow-y-auto border-t border-border bg-muted p-2 sm:p-4">
+      {pages.length === 0 && (
+        <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" /> Preparando documento…
+        </div>
+      )}
+      <div className="mx-auto flex max-w-3xl flex-col gap-3">
+        {pages.map((page, index) => (
+          <img
+            key={page}
+            src={page}
+            alt={`Página ${index + 1}`}
+            className="h-auto w-full bg-background shadow-sm"
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -1009,7 +1183,7 @@ function Field({
 
 
 function WhatsAppLink({ phone, country }: { phone?: string | null; country?: string | null }) {
-  return <PhoneActionButton phone={phone} country={country} size={13} />;
+  return <PhoneActionButton phone={phone} country={country} size={14} showNumber />;
 }
 
 
@@ -1026,7 +1200,7 @@ function MoneyCard({
   const toneCls =
     tone === "emerald" ? "text-emerald-500" : tone === "amber" ? "text-amber-500" : "text-primary";
   return (
-    <div className="min-w-0 rounded-2xl border border-border bg-card px-3 py-3 sm:px-4 sm:py-4">
+    <div className="min-w-0 ds-surface bg-card px-3 py-3 sm:px-4 sm:py-4">
       <p className={`text-[10px] uppercase tracking-wide truncate ${toneCls}`}>{label}</p>
       <p className="font-display text-base sm:text-xl tabular-nums mt-1 tracking-tight break-all">
         {(value / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
@@ -1038,7 +1212,7 @@ function MoneyCard({
 function InfoCard({ label, value }: { label: string; value?: string | null }) {
   if (!value) return null;
   return (
-    <div className="rounded-2xl border border-border bg-card px-4 py-3 min-w-0">
+    <div className="ds-surface bg-card px-4 py-3 min-w-0">
       <p className="ds-eyebrow">{label}</p>
       <p className="text-sm mt-0.5 break-words">{value}</p>
     </div>

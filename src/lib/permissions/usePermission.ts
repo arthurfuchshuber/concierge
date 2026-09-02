@@ -34,20 +34,27 @@ export function usePermission(
 
   const query = useQuery({
     queryKey: accessQueryKey([permission], required, scope),
-    queryFn: () =>
-      fetcher({
-        data: {
-          permissions: [permission],
-          required,
-          propertyId: scope.propertyId ?? null,
-          clientId: scope.clientId ?? null,
-          recordId: scope.recordId ?? null,
-        },
-      }),
+    queryFn: async () => {
+      try {
+        return await fetcher({
+          data: {
+            permissions: [permission],
+            required,
+            propertyId: scope.propertyId ?? null,
+            clientId: scope.clientId ?? null,
+            recordId: scope.recordId ?? null,
+          },
+        });
+      } catch {
+        // Sem sessão o runtime responde 401 — sem decisão, sem acesso.
+        return { decisions: {} } as Awaited<ReturnType<typeof fetcher>>;
+      }
+    },
     enabled: enabled && !!permission,
     staleTime: 60_000,
     retry: false,
   });
+
 
   const state = toAccessState(
     query.data?.decisions?.[permission],

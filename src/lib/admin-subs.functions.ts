@@ -890,7 +890,7 @@ export const adminListUserPropertiesFull = createServerFn({ method: "POST" })
     const { data: rows, error } = await supabaseAdmin
       .from("properties")
       .select(
-        "id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at, wifi_ssid, checkin_time, checkout_time, owner_contact_id",
+        "id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at, wifi_ssid, checkin_time, checkout_time, owner_contact_id, guide_created",
       )
       .eq("owner_id", data.userId)
       .order("updated_at", { ascending: false });

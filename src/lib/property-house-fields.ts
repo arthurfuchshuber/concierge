@@ -1,10 +1,11 @@
 /**
  * Campos obrigatórios da aba "A casa" (dados básicos do imóvel): tipo do
  * imóvel, endereço completo e calendário do Airbnb. Compartilhado entre a
- * tela "Novo imóvel", a trava de informações pendentes, o "Salvar" do editor
- * completo (admin.properties.$id.tsx) e o popup de edição rápida
- * (PropertyQuickEditDialog) — sempre a mesma lista, em todo lugar que salva
- * o imóvel, para que as duas telas nunca voltem a divergir.
+ * tela "Novo imóvel", a trava de informações pendentes e o "Salvar" do editor
+ * completo (admin.properties.$id.tsx) — inclusive no modo "houseOnly" usado
+ * pelo link "Editar" do imóvel em Stakeholders, já que é a MESMA tela (sem
+ * página/componente duplicado) — sempre a mesma lista, em todo lugar que
+ * salva o imóvel.
  *
  * Proprietário é validado à parte (não é um campo de "A casa").
  */

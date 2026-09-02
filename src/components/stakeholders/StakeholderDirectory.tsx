@@ -18,8 +18,16 @@ import {
   MessageCircle,
   Filter,
   X,
+  Eye,
+  MoreVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -42,7 +50,7 @@ import {
   type StakeholderFormValues,
 } from "./StakeholderFormDialog";
 import { PROVIDER_CATEGORIES, type StakeholderKind } from "./constants";
-import { effectiveStatus } from "@/lib/stakeholder-status";
+import { effectiveStatus, statusText } from "@/lib/stakeholder-status";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { LoadingListState } from "@/components/ds/LoadingState";
 import { useImpersonation } from "@/hooks/useImpersonation";
@@ -518,40 +526,60 @@ function StakeholderCard({
             <MapPin className="size-3 shrink-0 text-muted-foreground" /> {cityUf}
           </p>
         )}
-        {row.contract_start && (
-          <p className="ds-meta">
-            Vigência: {fmtDateBR(row.contract_start)} → {row.contract_end ? fmtDateBR(row.contract_end) : "momento"}
-          </p>
-        )}
+        {/* Vigência à esquerda e ações compactas à direita, na mesma linha —
+            encolhe a altura do card sem cortar nada na margem direita. */}
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+          <div className="min-w-0">
+            {row.contract_start && (() => {
+              const eff = effectiveStatus(row.status, row.status_changed_at);
+              // Cancelado/Cancelando sem data final preenchida à mão: a data em que
+              // o cancelamento foi (ou será) efetivado é o fim real da vigência.
+              const endsOnStatus = eff === "canceled" || eff === "canceling";
+              const end =
+                row.contract_end ??
+                (endsOnStatus && row.status_changed_at ? String(row.status_changed_at).slice(0, 10) : null);
+              return (
+                <p className={`truncate text-[12px] font-medium leading-[1.45] ${statusText(eff)}`}>
+                  {fmtDateBR(row.contract_start)} → {end ? fmtDateBR(end) : "momento"}
+                </p>
+              );
+            })()}
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                onClick={(e) => e.stopPropagation()}
+                aria-label="Ações"
+                title="Ações"
+                className="size-8 shrink-0 inline-flex items-center justify-center rounded-[8px] border border-border/60 bg-secondary/50 text-foreground/80 hover:bg-secondary transition-colors"
+              >
+                <MoreVertical className="size-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44 rounded-[8px]">
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onOpen(); }}>
+                <Eye className="size-3.5" />
+                Ver detalhes
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(); }}>
+                <Pencil className="size-3.5" />
+                Editar
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="size-3.5" />
+                Excluir
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+        </div>
       </div>
 
-      <div className="mt-3 flex items-center gap-1.5">
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onOpen(); }}
-          className="h-9 flex-1 inline-flex items-center justify-center gap-1.5 rounded-none border-0 bg-secondary/50 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
-        >
-          Ver detalhes
-        </button>
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onEdit(); }}
-          aria-label="Editar"
-          title="Editar"
-          className="size-9 shrink-0 inline-flex items-center justify-center rounded-none border-0 bg-secondary/50 text-foreground/80 hover:bg-secondary transition-colors"
-        >
-          <Pencil className="size-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          aria-label="Excluir"
-          title="Excluir"
-          className="size-9 shrink-0 inline-flex items-center justify-center rounded-none border-0 bg-secondary/50 text-foreground/80 hover:bg-destructive/10 hover:text-destructive transition-colors"
-        >
-          <Trash2 className="size-3.5" />
-        </button>
-      </div>
     </div>
   );
 }

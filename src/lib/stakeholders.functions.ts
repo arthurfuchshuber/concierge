@@ -198,6 +198,21 @@ export const saveStakeholder = createServerFn({ method: "POST" })
       cep: onlyDigits(rest.cep) || null,
       account_owner_id: accountId,
     };
+
+    // Cidade/UF são conferíveis online (CEP na BrasilAPI, endereço no
+    // OpenStreetMap). Se vierem vazias, completamos automaticamente em vez de
+    // deixar o card sem localização.
+    if (!String(payload["city"] ?? "").trim() || !String(payload["state"] ?? "").trim()) {
+      const { enrichAddress } = await import("@/lib/geo-enrich.server");
+      const found = await enrichAddress({
+        cep: payload["cep"] as string | null,
+        address: payload["address"] as string | null,
+        district: payload["district"] as string | null,
+        city: payload["city"] as string | null,
+        state: payload["state"] as string | null,
+      });
+      Object.assign(payload, found);
+    }
     if (kind === "provider") {
       const list = (categories ?? []).filter(Boolean);
       payload.categories = list;
@@ -359,14 +374,39 @@ export const getStakeholderDetail = createServerFn({ method: "GET" })
       properties = rows.filter((p) => p.owner_contact_id === data.id);
       availableProperties = rows.filter((p) => !p.owner_contact_id);
     }
+    // Autor de cada movimentação da linha do tempo: resolve os `created_by`
+    // em nome legível (perfil da equipe). Sem autor = evento automático.
+    const authorIds = Array.from(
+      new Set(
+        (events ?? [])
+          .map((e) => (e as { created_by?: string | null }).created_by)
+          .filter((v): v is string => !!v),
+      ),
+    );
+    const authorNames = new Map<string, string>();
+    if (authorIds.length > 0) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, full_name, trade_name")
+        .in("id", authorIds);
+      for (const p of profs ?? []) {
+        const name = (p.trade_name || p.full_name || "").trim();
+        if (name) authorNames.set(p.id as string, name);
+      }
+    }
+
     return {
       row: row ?? null,
-      events: events ?? [],
+      events: (events ?? []).map((e) => {
+        const by = (e as { created_by?: string | null }).created_by ?? null;
+        return { ...e, author_name: by ? (authorNames.get(by) ?? null) : null };
+      }),
       activities: activities ?? [],
       properties,
       availableProperties,
     };
   });
+
 
 const LinkInput = z.object({
   ownerId: z.string().uuid(),
@@ -628,7 +668,22 @@ export const setStakeholderStatus = createServerFn({ method: "POST" })
       patch.contract_end = /^\d{4}-\d{2}-\d{2}$/.test(data.changed_at)
         ? data.changed_at
         : when.toISOString().slice(0, 10);
+    } else {
+      // Sair de um cancelamento reabre a vigência: a data final gravada pelo
+      // próprio cancelamento precisa sumir. Mas uma data final informada
+      // manualmente (contrato com prazo) não pode ser apagada por uma simples
+      // troca de situação — por isso só limpamos quando o registro estava
+      // realmente cancelado/cancelando.
+      const { data: current } = await supabase
+        .from(TABLE[data.kind])
+        .select("status")
+        .eq("id", data.id)
+        .eq("account_owner_id", accountId)
+        .maybeSingle();
+      const prev = (current as { status?: string } | null)?.status;
+      if (prev === "canceled" || prev === "canceling") patch.contract_end = null;
     }
+
 
     const { error } = await supabase
       .from(TABLE[data.kind])

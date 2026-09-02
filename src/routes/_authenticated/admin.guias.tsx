@@ -209,13 +209,6 @@ function Dashboard() {
   // Enquanto carrega, tratamos como "sem permissão" para nunca exibir UI de criação indevidamente.
   const canCreate = createAccess.loading ? false : createAccess.allowed;
   const NO_PERMISSION_MSG = "Você não tem permissão de acesso. Procure o administrador deste cadastro.";
-  function goCreate() {
-    if (!canCreate) {
-      toast.error(NO_PERMISSION_MSG);
-      return;
-    }
-    navigate({ to: "/admin/properties/$id", params: { id: "new" } });
-  }
 
   const [view, setView] = useState<"grid" | "list">("grid");
   const [statCardsOpen, setStatCardsOpen] = useState(false);
@@ -384,10 +377,29 @@ function Dashboard() {
   const renewalLabel = fmtDate(sub.currentPeriodEnd);
   const trialLabel = sub.isTrialing ? fmtDate(sub.trialEndsAt ?? sub.currentPeriodEnd) : null;
 
+  // Só entram na aba Guias os imóveis que já têm um guia efetivamente criado
+  // (guide_created) — um imóvel recém-cadastrado via "Criar nova residência"
+  // (Stakeholders → Proprietários) fica de fora desta lista até alguém clicar
+  // em "Criar guia" para ele. Ele continua existindo normalmente (dashboard,
+  // calendário, kanban funcionam sem guia) — só não aparece aqui.
+  const guideRows = useMemo(() => (data ?? []).filter((p: any) => !!p.guide_created), [data]);
+  // Candidatos para o picker do "Novo guia": imóveis já cadastrados que ainda
+  // não têm guia. "Novo guia" nunca cria um imóvel do zero — isso só acontece
+  // em "Criar nova residência", dentro do proprietário em Stakeholders.
+  const propertiesWithoutGuide = useMemo(() => (data ?? []).filter((p: any) => !p.guide_created), [data]);
+  const [guidePickerOpen, setGuidePickerOpen] = useState(false);
+
+  function openGuidePicker() {
+    if (!canCreate) {
+      toast.error(NO_PERMISSION_MSG);
+      return;
+    }
+    setGuidePickerOpen(true);
+  }
+
   const filtered = useMemo(() => {
-    if (!data) return [];
     const q = search.trim().toLowerCase();
-    const rows = data.filter((p) => {
+    const rows = guideRows.filter((p) => {
       if (statusFilter === "published" && !p.published) return false;
       if (statusFilter === "draft" && p.published) return false;
       if (accessFilter !== "all" && p.access_mode !== accessFilter) return false;
@@ -410,7 +422,7 @@ function Dashboard() {
         cmp(txt((a as { ownerName?: string | null }).ownerName), txt((b as { ownerName?: string | null }).ownerName))
       );
     });
-  }, [data, search, statusFilter, accessFilter]);
+  }, [guideRows, search, statusFilter, accessFilter]);
 
   // Trava: nenhum guia pode ser criado sem um proprietário cadastrado em
   // Stakeholders → Proprietários (fonte da verdade das propriedades).
@@ -638,7 +650,7 @@ function Dashboard() {
           {!readOnly && canCreate && (
             <button
               type="button"
-              onClick={goCreate}
+              onClick={openGuidePicker}
               disabled={reachedLimit || !sub.plan || noOwners}
               aria-label="Novo guia"
               title={
@@ -658,9 +670,9 @@ function Dashboard() {
           )}
         </div>
 
-        {data && data.length > 0 && hasActiveFilters && (
+        {guideRows.length > 0 && hasActiveFilters && (
           <p className="ds-meta">
-            Mostrando {filtered.length} de {data.length} guia{data.length > 1 ? "s" : ""}
+            Mostrando {filtered.length} de {guideRows.length} guia{guideRows.length > 1 ? "s" : ""}
           </p>
         )}
       </div>
@@ -668,7 +680,7 @@ function Dashboard() {
 
       {isLoading ? (
         <LoadingState count={3} />
-      ) : !data?.length ? (
+      ) : !guideRows.length ? (
         !canCreate || readOnly ? (
           <EmptyState
             icon={Home}
@@ -709,7 +721,7 @@ function Dashboard() {
             </div>
             <Button
               className="mt-5 rounded-full"
-              onClick={goCreate}
+              onClick={openGuidePicker}
               disabled={!sub.plan || noOwners}
               title={
                 !sub.plan
@@ -1149,6 +1161,66 @@ function Dashboard() {
           );
         })()
       )}
+
+      {/* "Novo guia" nunca cria um imóvel novo — só vincula um guia a um
+          imóvel já cadastrado (via "Criar nova residência", em Stakeholders)
+          que ainda não tem guia. */}
+      <Dialog open={guidePickerOpen} onOpenChange={setGuidePickerOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Novo guia</DialogTitle>
+            <DialogDescription>
+              Selecione a residência que vai receber este guia. Para cadastrar uma residência nova, use
+              "Criar nova residência" dentro do proprietário, em Stakeholders.
+            </DialogDescription>
+          </DialogHeader>
+          {propertiesWithoutGuide.length === 0 ? (
+            <div className="ds-surface border border-dashed border-border bg-secondary/20 p-4 text-center">
+              <p className="text-sm text-muted-foreground">
+                Nenhuma residência sem guia no momento.
+              </p>
+              <Link
+                to="/admin/stakeholders"
+                search={{ tab: "proprietarios" as const }}
+                onClick={() => setGuidePickerOpen(false)}
+                className="mt-2 inline-block text-xs text-primary underline underline-offset-2"
+              >
+                Ir para Stakeholders → Proprietários
+              </Link>
+            </div>
+          ) : (
+            <div className="max-h-80 overflow-y-auto -mx-1 px-1 space-y-1.5">
+              {propertiesWithoutGuide.map((p: any) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => {
+                    setGuidePickerOpen(false);
+                    navigate({ to: "/admin/properties/$id", params: { id: p.id } });
+                  }}
+                  className="w-full flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5 text-left hover:border-foreground/30 hover:bg-secondary/40 transition-colors"
+                >
+                  <div className="size-9 rounded-md bg-secondary overflow-hidden shrink-0">
+                    {p.hero_image_url ? (
+                      <img src={p.hero_image_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full grid place-items-center text-muted-foreground">
+                        <Home className="size-4" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-medium truncate">{p.name}</p>
+                    <p className="ds-meta truncate">
+                      {[p.city, p.country].filter(Boolean).join(", ") || "Sem localização"}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={dupTarget !== null}

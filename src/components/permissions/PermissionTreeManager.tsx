@@ -395,7 +395,7 @@ export function PermissionTreeManager({ context = "account" as "account" | "saas
         )}
 
         <Tabs defaultValue="tree">
-          <TabsList>
+          <TabsList className="ds-segmented h-auto">
             <TabsTrigger value="tree" className="gap-1">
               <ListTree className="h-4 w-4" /> Árvore
             </TabsTrigger>

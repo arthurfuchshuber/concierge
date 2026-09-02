@@ -38,6 +38,8 @@ export type StakeholderFeed = {
   events: StakeholderFeedEvent[];
   documents: StakeholderFeedDocument[];
   calendarError: string | null;
+  /** E-mail da conta Google conectada — usado para abrir os links na conta certa. */
+  accountEmail: string | null;
 };
 
 const INPUT = z.object({
@@ -65,11 +67,20 @@ export const getStakeholderIntegrationFeed = createServerFn({ method: "POST" })
 
     let events: StakeholderFeedEvent[] = [];
     let calendarError: string | null = null;
+    let accountEmail: string | null = null;
     try {
       const { getConnectionKeyForUser } = await import("@/lib/app-user-connections.server");
       const { CONNECTOR_ID, fetchAllEvents } = await import("@/lib/google-calendar.server");
       const key = await getConnectionKeyForUser(userId, CONNECTOR_ID);
       if (key) {
+        try {
+          const { fetchCalendars } = await import("@/lib/google-calendar.server");
+          const cals = await fetchCalendars(userId);
+          const primary = cals.find((c) => c.primary);
+          accountEmail = primary?.id?.includes("@") ? primary.id : null;
+        } catch {
+          accountEmail = null;
+        }
         const all = await fetchAllEvents(supabase, userId);
         events = all
           .filter((e) => e.link && e.link.type === data.type && e.link.id === data.id)
@@ -104,5 +115,5 @@ export const getStakeholderIntegrationFeed = createServerFn({ method: "POST" })
       signers: Array.isArray(d.signers) ? (d.signers as StakeholderFeedDocument["signers"]) : [],
     }));
 
-    return { events, documents, calendarError };
+    return { events, documents, calendarError, accountEmail };
   });

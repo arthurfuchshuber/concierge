@@ -68,9 +68,13 @@ export function usePresence(roomKey: string | null) {
 
   useEffect(() => {
     if (!roomKey || !me) return;
+    // Canal PRIVADO: o servidor valida (via RLS em realtime.messages) se a
+    // pessoa realmente tem acesso ao imóvel/cadastro deste tópico antes de
+    // entregar presença ou broadcasts.
     const channel = supabase.channel(`presence:${roomKey}`, {
-      config: { presence: { key: me.userId } },
+      config: { private: true, presence: { key: me.userId } },
     });
+
     channelRef.current = channel;
 
     channel

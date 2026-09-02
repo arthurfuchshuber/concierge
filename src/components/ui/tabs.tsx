@@ -12,8 +12,9 @@ const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      // Nunca quebra em 2ª linha: rola horizontalmente com esmaecimento na borda.
-      "ds-scroll-x w-full max-w-full justify-start gap-1 whitespace-nowrap rounded-xl border border-border bg-muted/40 p-1 text-muted-foreground",
+      // ANTI-CORTE: linha única; quando necessário, rola horizontalmente sem
+      // comprimir, cortar ou quebrar os rótulos.
+      "ds-segmented w-full max-w-full justify-start rounded-xl border border-border bg-muted/40 p-1 text-muted-foreground",
       className,
     )}
     {...props}

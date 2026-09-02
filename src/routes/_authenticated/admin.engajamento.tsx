@@ -182,7 +182,7 @@ function EngagementPage() {
             <EmptyState />
           ) : (
             <Tabs value={tab} onValueChange={(v) => patch({ tab: v })} className="w-full">
-              <TabsList className="w-full">
+              <TabsList className="ds-segmented h-auto">
                 <TabsTrigger value="panorama" className="text-xs flex-1">Panorama</TabsTrigger>
                 <TabsTrigger value="jornada" className="text-xs flex-1">Jornada</TabsTrigger>
                 <TabsTrigger value="conteudo" className="text-xs flex-1">Conteúdo</TabsTrigger>

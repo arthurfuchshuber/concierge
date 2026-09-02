@@ -500,6 +500,67 @@ export const getClicksignDocumentUrl = createServerFn({ method: "POST" })
   });
 
 /**
+ * Baixa o PDF no servidor e devolve em base64. A URL assinada do ClickSign
+ * costuma vir com `Content-Disposition: attachment` e bloqueio de origem, o
+ * que impede o navegador de exibir o arquivo dentro do visualizador. Servindo
+ * o conteúdo por aqui, o cliente monta um blob local e o PDF abre normalmente.
+ */
+export const getClicksignDocumentFile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw) => z.object({ id: z.string().uuid() }).parse(raw))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: doc } = await supabase
+      .from("clicksign_documents")
+      .select("document_key, url_signed, url_original")
+      .eq("id", data.id)
+      .eq("account_owner_id", userId)
+      .maybeSingle();
+    if (!doc) throw new Error("Documento não encontrado.");
+
+    let url = (doc.url_signed as string) ?? (doc.url_original as string) ?? null;
+
+    // Renova o link antes de baixar (os links salvos expiram).
+    try {
+      const { decryptToken } = await import("@/lib/whatsapp.server");
+      const cs = await import("@/lib/clicksign.server");
+      const { data: cred } = await supabase
+        .from("host_integration_credentials")
+        .select("api_token_encrypted")
+        .eq("owner_id", userId)
+        .eq("provider", "clicksign")
+        .maybeSingle();
+      if (cred?.api_token_encrypted) {
+        const token = decryptToken(cred.api_token_encrypted as string);
+        const detail = await cs.csFetch(token, "production", `/api/v1/documents/${String(doc.document_key)}`);
+        const d = (detail["document"] ?? detail) as Record<string, unknown>;
+        const downloads = (d["downloads"] as Record<string, unknown> | undefined) ?? {};
+        url =
+          (downloads["signed_file_url"] as string) ??
+          (downloads["original_file_url"] as string) ??
+          url;
+      }
+    } catch {
+      /* usa o link salvo */
+    }
+
+    if (!url) throw new Error("Documento sem arquivo disponível.");
+
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Não foi possível baixar o documento (${res.status}).`);
+    const buf = new Uint8Array(await res.arrayBuffer());
+    let binary = "";
+    for (let i = 0; i < buf.length; i += 8192) {
+      binary += String.fromCharCode(...buf.subarray(i, i + 8192));
+    }
+    return {
+      base64: btoa(binary),
+      contentType: res.headers.get("content-type") ?? "application/pdf",
+    };
+  });
+
+
+/**
  * Lê o contrato mais recente vinculado ao cadastro e preenche os campos que
  * ainda estão vazios (nascimento, telefone, CEP e endereço completo) a partir
  * do quadro "CONTRATANTE" da primeira página do documento.
@@ -530,7 +591,15 @@ export const extractClicksignPartyData = createServerFn({ method: "POST" })
       .order("finished_at", { ascending: false, nullsFirst: false })
       .limit(1);
     const doc = (docs ?? [])[0];
-    if (!doc) throw new Error("Nenhum contrato vinculado a este cadastro.");
+    if (!doc) {
+      return {
+        updated: 0,
+        fields: [] as string[],
+        found: null,
+        contractStart: null,
+        notice: "Nenhum contrato vinculado a este cadastro.",
+      };
+    }
 
     // URL recém-assinada (as salvas expiram).
     let url = (doc.url_signed as string) ?? (doc.url_original as string) ?? null;
@@ -553,7 +622,15 @@ export const extractClicksignPartyData = createServerFn({ method: "POST" })
     } catch {
       /* usa a URL salva */
     }
-    if (!url) throw new Error("Documento sem arquivo disponível para leitura.");
+    if (!url) {
+      return {
+        updated: 0,
+        fields: [] as string[],
+        found: null,
+        contractStart: null,
+        notice: "Documento sem arquivo disponível para leitura.",
+      };
+    }
 
     const ex = await import("@/lib/contract-extract.server");
     const page = await ex.firstPageText(url);

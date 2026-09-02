@@ -13,8 +13,11 @@ import {
   KeyRound,
   Eye,
   EyeOff,
-
+  ChevronDown,
+  Pencil,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
@@ -42,7 +45,7 @@ import { getStakeholderAccess, createStakeholderProvisionalAccess } from "@/lib/
 import { inviteTeamMember, revokeTeamInvite, removeTeamMember } from "@/lib/team.functions";
 import { saveStakeholder } from "@/lib/stakeholders.functions";
 import { lookupCnpj } from "@/lib/br-lookup.functions";
-import { isValidCPF, isValidCNPJ, formatBRPhone } from "@/lib/masks";
+import { isValidCPF, isValidCNPJ } from "@/lib/masks";
 import { type StakeholderKind } from "./constants";
 import { CategoryPicker } from "./CategoryPicker";
 import { AddressAutocomplete } from "./AddressAutocomplete";
@@ -119,18 +122,118 @@ export function rowToStakeholderForm(row: Record<string, any>): StakeholderFormV
   };
 }
 
-function SectionDivider({ label, busy }: { label: string; busy?: boolean }) {
+/** yyyy-mm-dd → Date local (meio-dia evita salto de fuso). */
+function toDate(iso: string): Date | null {
+  if (!iso) return null;
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d, 12);
+}
+function toISO(date: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`;
+}
+function fmtBR(iso: string): string {
+  const d = toDate(iso);
+  return d ? d.toLocaleDateString("pt-BR") : "";
+}
+
+/** Seção expansível do formulário — só uma aberta por vez (acordeão). */
+function FormSection({
+  label,
+  busy,
+  open,
+  onToggle,
+  children,
+}: {
+  label: string;
+  busy?: boolean;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="flex items-center gap-3 pt-1">
-      <div className="h-px flex-1 bg-border/40" />
-      <span className="ds-eyebrow flex items-center gap-1.5">
-        {label}
-        {busy && <Loader2 className="size-3 animate-spin text-primary" />}
-      </span>
-      <div className="h-px flex-1 bg-border/40" />
+    <section className="rounded-lg border border-border/60">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-2.5 text-left"
+      >
+        <span className="ds-section-title flex min-w-0 items-center gap-1.5">
+          <span className="truncate">{label}</span>
+          {busy && <Loader2 className="size-3 shrink-0 animate-spin text-primary" />}
+        </span>
+        <ChevronDown
+          className={`size-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && <div className="border-t border-border/40 px-3 py-3">{children}</div>}
+    </section>
+  );
+}
+
+/** Campo de data única com calendário — usado na vigência do contrato. */
+function SingleDateField({
+  label,
+  value,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  onChange: (iso: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="space-y-1.5">
+      <Label className="ds-meta flex items-center gap-1.5">
+        <Calendar className="size-3.5" /> {label}
+      </Label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-input bg-transparent px-3 text-left text-[13px]"
+          >
+            <span className={`truncate ${value ? "" : "text-muted-foreground/60"}`}>
+              {value ? fmtBR(value) : placeholder}
+            </span>
+            <Calendar className="size-3.5 shrink-0 text-muted-foreground" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto rounded-[8px] p-0" align="start">
+          <CalendarPicker
+            mode="single"
+            defaultMonth={toDate(value) ?? undefined}
+            selected={toDate(value) ?? undefined}
+            onSelect={(d) => {
+              if (d) onChange(toISO(d));
+              setOpen(false);
+            }}
+            numberOfMonths={1}
+            className="pointer-events-auto p-3"
+          />
+          <div className="flex justify-end border-t border-border/40 p-2">
+            <Button
+              variant="ghost"
+              className="h-8 rounded-lg text-[12px]"
+              onClick={() => {
+                onChange("");
+                setOpen(false);
+              }}
+            >
+              Limpar
+            </Button>
+          </div>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
+
+
 
 export function StakeholderFormDialog({
   kind,
@@ -164,6 +267,14 @@ export function StakeholderFormDialog({
   const [systemAccess, setSystemAccess] = useState(false);
   const [provisionalPwd, setProvisionalPwd] = useState("");
   const [showPwd, setShowPwd] = useState(false);
+  /** CPF/CNPJ trava depois de validado; o botão "Alterar" libera de novo. */
+  const [docLocked, setDocLocked] = useState(false);
+  /** Acordeão: apenas uma seção aberta por vez; todas recolhidas ao abrir. */
+  const [openSection, setOpenSection] = useState<string | null>(null);
+  const sectionProps = (key: string) => ({
+    open: openSection === key,
+    onToggle: () => setOpenSection((c) => (c === key ? null : key)),
+  });
 
   // Presença em tempo real: só existe sala pra registros já salvos (com id) —
   // um cadastro novo, ainda sem id, não tem o que outra pessoa acompanhar.
@@ -194,6 +305,8 @@ export function StakeholderFormDialog({
     setSystemAccess(false);
     setProvisionalPwd("");
     setShowPwd(false);
+    setDocLocked(Boolean(stripMask((initial ?? emptyStakeholderForm).doc)));
+    setOpenSection(null);
 
     lastCep.current = "";
   }, [open, initial]);
@@ -220,6 +333,7 @@ export function StakeholderFormDialog({
     if (!isPJ) {
       if (d.length !== 11) return setErrors((p) => ({ ...p, doc: "CPF incompleto" }));
       if (!isValidCPF(d)) return setErrors((p) => ({ ...p, doc: "CPF inválido" }));
+      setDocLocked(true);
       return clearError("doc");
     }
     if (d.length !== 14) return setErrors((p) => ({ ...p, doc: "CNPJ incompleto" }));
@@ -247,6 +361,7 @@ export function StakeholderFormDialog({
         city: res.data!.cidade || p.city,
         state: res.data!.estado || p.state,
       }));
+      setDocLocked(true);
       toast.success("Dados preenchidos pela Receita Federal.");
     } finally {
       setCheckingCnpj(false);
@@ -305,7 +420,31 @@ export function StakeholderFormDialog({
 
     setErrors(errs);
     if (Object.keys(errs).length) {
-      toast.error("Preencha todos os campos obrigatórios.");
+      // Abre automaticamente a seção que contém o primeiro campo com erro —
+      // senão a mensagem inline fica escondida dentro do acordeão fechado.
+      const FIELD_SECTION: Record<string, string> = {
+        name: "dados",
+        doc: "dados",
+        trade_name: "dados",
+        birth_date: "dados",
+        category: "dados",
+        phone: "contato",
+        email: "contato",
+        cep: "endereco",
+        address: "endereco",
+        district: "endereco",
+        city: "endereco",
+        state: "endereco",
+      };
+      const firstKey = Object.keys(errs)[0]!;
+      const target = FIELD_SECTION[firstKey] ?? "dados";
+      setOpenSection(target);
+      toast.error(errs[firstKey] ?? "Preencha todos os campos obrigatórios.");
+      requestAnimationFrame(() => {
+        document
+          .querySelector<HTMLElement>(`[data-field="${firstKey}"]`)
+          ?.scrollIntoView({ block: "center", behavior: "smooth" });
+      });
       return;
     }
 
@@ -391,54 +530,59 @@ export function StakeholderFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-1.5rem)] max-w-2xl overflow-x-hidden">
-        <DialogHeader>
-          <div className="flex items-center justify-between gap-3">
-            <DialogTitle className="font-display text-2xl capitalize">
+      <DialogContent className="ds-form-dialog w-[calc(100vw-1.5rem)] max-w-2xl overflow-x-hidden">
+        <DialogHeader className="pb-4 border-b border-border/40">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+            <DialogTitle className="ds-page-title capitalize">
               {form.id ? `Editar ${singular}` : `Novo ${singular}`}
             </DialogTitle>
             <PresenceAvatars users={presence.users} />
           </div>
-          <DialogDescription>CNPJ e CEP preenchem os dados automaticamente.</DialogDescription>
+          <DialogDescription className="ds-page-subtitle">
+            CNPJ e CEP preenchem os dados automaticamente.
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 max-h-[65vh] overflow-y-auto overflow-x-hidden pr-1">
-          {/* Tipo */}
-          <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-3 max-h-[65vh] overflow-y-auto overflow-x-hidden pr-1">
+          {/* Tipo — só na criação; ao editar, o tipo já está definido */}
+          {!form.id && (
+          <div className="ds-segmented rounded-[0.3rem] bg-muted/40 p-0">
             {([
               { key: "pf" as const, label: "Pessoa Física", sub: "CPF", icon: UserRound },
               { key: "pj" as const, label: "Pessoa Jurídica", sub: "CNPJ", icon: Building2 },
-            ]).map(({ key, label, sub, icon: Icon }) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => {
-                  set({ person_type: key, doc: "" });
-                  clearError("doc");
-                }}
-                className={`flex items-center gap-2.5 p-3 rounded-xl border transition-all text-left ${
-                  form.person_type === key
-                    ? "border-transparent bg-gradient-to-r from-primary to-accent shadow-sm"
-                    : "border-border/60 hover:border-primary/40"
-                }`}
-              >
-                <Icon
-                  className={`size-4 shrink-0 ${form.person_type === key ? "text-primary-foreground" : "text-muted-foreground"}`}
-                />
-                <span className="min-w-0">
-                  <span className={`block text-sm font-medium truncate ${form.person_type === key ? "text-primary-foreground" : ""}`}>{label}</span>
-                  <span className={`block ds-meta ${form.person_type === key ? "text-primary-foreground/80" : ""}`}>{sub}</span>
-                </span>
-                {form.person_type === key && <Check className="size-4 text-primary-foreground ml-auto" />}
-              </button>
-            ))}
+            ]).map(({ key, label, sub, icon: Icon }) => {
+              const on = form.person_type === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => {
+                    set({ person_type: key, doc: "" });
+                    clearError("doc");
+                  }}
+                  className={`min-h-[46px] flex items-center justify-center gap-2 rounded-[0.3rem] text-[13px] font-semibold transition-colors ${
+                    on
+                      ? "bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] text-white"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="size-4 shrink-0" />
+                  <span>{label}</span>
+                  <span className={`text-[11px] font-medium ${on ? "text-white/75" : "opacity-70"}`}>
+                    {sub}
+                  </span>
+                </button>
+              );
+            })}
           </div>
+          )}
 
-          <SectionDivider label="Dados cadastrais" busy={checkingCnpj} />
+          <FormSection label="Dados cadastrais" busy={checkingCnpj} {...sectionProps("dados")}>
 
-          <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
+            <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
+
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">
+              <Label className="ds-meta">
                 {isPJ ? "Razão social *" : "Nome completo *"}
               </Label>
               <Input
@@ -453,7 +597,7 @@ export function StakeholderFormDialog({
                 onBlur={() => presence.broadcastFieldBlur("name")}
                 className={errors.name ? "border-destructive" : ""}
               />
-              {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
+              {errors.name && <p className="ds-meta text-destructive">{errors.name}</p>}
               <FieldTypingBadge typing={presence.typing["name"]} />
             </div>
 
@@ -468,18 +612,32 @@ export function StakeholderFormDialog({
                   clearError("doc");
                   presence.broadcastTyping("doc", raw);
                 }}
+                readOnly={docLocked}
                 onBlur={() => {
                   presence.broadcastFieldBlur("doc");
                   void handleDocBlur();
                 }}
                 error={errors.doc}
+                endAdornment={
+                  docLocked ? (
+                    <button
+                      type="button"
+                      onClick={() => setDocLocked(false)}
+                      aria-label={`Editar ${isPJ ? "CNPJ" : "CPF"}`}
+                      title={`Editar ${isPJ ? "CNPJ" : "CPF"}`}
+                      className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                    >
+                      <Pencil className="size-3.5" />
+                    </button>
+                  ) : undefined
+                }
               />
               <FieldTypingBadge typing={presence.typing["doc"]} />
             </div>
 
             {isPJ ? (
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Nome fantasia{req}</Label>
+                <Label className="ds-meta">Nome fantasia{req}</Label>
                 <Input
                   value={form.trade_name}
                   maxLength={160}
@@ -493,13 +651,13 @@ export function StakeholderFormDialog({
                   className={errors.trade_name ? "border-destructive" : ""}
                 />
                 {errors.trade_name && (
-                  <p className="text-xs text-destructive">{errors.trade_name}</p>
+                  <p className="ds-meta text-destructive">{errors.trade_name}</p>
                 )}
                 <FieldTypingBadge typing={presence.typing["trade_name"]} />
               </div>
             ) : (
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <Label className="ds-meta flex items-center gap-1.5">
                   <Calendar className="size-3.5" /> Data de nascimento{req}
                 </Label>
                 <Input
@@ -514,7 +672,7 @@ export function StakeholderFormDialog({
                   className={errors.birth_date ? "border-destructive" : ""}
                 />
                 {errors.birth_date && (
-                  <p className="text-xs text-destructive">{errors.birth_date}</p>
+                  <p className="ds-meta text-destructive">{errors.birth_date}</p>
                 )}
                 <FieldTypingBadge typing={presence.typing["birth_date"]} />
               </div>
@@ -534,63 +692,57 @@ export function StakeholderFormDialog({
               </div>
             )}
 
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Situação</Label>
-              <Select
-                value={form.status}
-                onValueChange={(v) => {
-                  set({ status: v as "active" | "inactive" });
-                  presence.broadcastTyping("status", v === "active" ? "Ativo" : "Inativo");
-                }}
-                onOpenChange={(o) => !o && presence.broadcastFieldBlur("status")}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Ativo</SelectItem>
-                  <SelectItem value="inactive">Inativo</SelectItem>
-                </SelectContent>
-              </Select>
-              <FieldTypingBadge typing={presence.typing["status"]} />
             </div>
+          </FormSection>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <Calendar className="size-3.5" /> Início do contrato
-              </Label>
-              <Input
-                type="date"
+          <FormSection label="Situação contratual" {...sectionProps("contrato")}>
+            <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
+              <div className="space-y-1.5">
+                <Label className="ds-meta">Situação</Label>
+                <Select
+                  value={form.status}
+                  onValueChange={(v) => {
+                    set({ status: v as "active" | "inactive" });
+                    presence.broadcastTyping("status", v === "active" ? "Ativo" : "Inativo");
+                  }}
+                  onOpenChange={(o) => !o && presence.broadcastFieldBlur("status")}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-[8px]">
+                    <SelectItem value="active">Ativo</SelectItem>
+                    <SelectItem value="inactive">Inativo</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FieldTypingBadge typing={presence.typing["status"]} />
+              </div>
+
+              <div className="hidden sm:block" />
+
+              <SingleDateField
+                label="Início do contrato"
                 value={form.contract_start}
-                onChange={(e) => {
-                  set({ contract_start: e.target.value });
-                  presence.broadcastTyping("contract_start", e.target.value);
-                }}
-                onBlur={() => presence.broadcastFieldBlur("contract_start")}
+                placeholder="Selecionar data"
+                onChange={(iso) => set({ contract_start: iso })}
               />
-              <FieldTypingBadge typing={presence.typing["contract_start"]} />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <Calendar className="size-3.5" /> Fim do contrato (se houver)
-              </Label>
-              <Input
-                type="date"
+              <SingleDateField
+                label="Fim do contrato"
                 value={form.contract_end}
-                onChange={(e) => {
-                  set({ contract_end: e.target.value });
-                  presence.broadcastTyping("contract_end", e.target.value);
-                }}
-                onBlur={() => presence.broadcastFieldBlur("contract_end")}
+                placeholder="Sem data final"
+                onChange={(iso) => set({ contract_end: iso })}
               />
-              <FieldTypingBadge typing={presence.typing["contract_end"]} />
+              <p className="ds-meta sm:col-span-2">
+                Sem data final, o contrato vale por tempo indeterminado.
+              </p>
             </div>
-          </div>
+          </FormSection>
 
-          <SectionDivider label="Contato" />
 
-          <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
+          <FormSection label="Contato" {...sectionProps("contato")}>
+
+            <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
+
             <div className="min-w-0">
               <MaskedInput
                 label={`Telefone / WhatsApp${req}`}
@@ -604,13 +756,12 @@ export function StakeholderFormDialog({
                 }}
                 onBlur={() => presence.broadcastFieldBlur("phone")}
                 error={errors.phone}
-                hint={form.phone ? formatBRPhone(form.phone) : undefined}
               />
               <FieldTypingBadge typing={presence.typing["phone"]} />
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <Label className="ds-meta flex items-center gap-1.5">
                 <Mail className="size-3.5" /> E-mail{req}
               </Label>
               <Input
@@ -629,39 +780,31 @@ export function StakeholderFormDialog({
                 onBlur={() => presence.broadcastFieldBlur("email")}
                 className={errors.email ? "border-destructive" : ""}
               />
-              {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+              {errors.email && <p className="ds-meta text-destructive">{errors.email}</p>}
               <FieldTypingBadge typing={presence.typing["email"]} />
             </div>
-          </div>
+            </div>
+          </FormSection>
 
-          <SectionDivider label="Acesso ao sistema" />
 
-          <div className="rounded-xl border border-border/60 p-3.5">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <p className="text-sm font-medium">Permitir acesso ao sistema</p>
-                <p className="text-xs text-muted-foreground">
-                  {access?.status === "active"
-                    ? "Esta pessoa já acessa o sistema. As permissões por área ficam na ficha, na aba “Acessos”."
-                    : access?.status === "pending"
-                      ? "Convite enviado — o acesso passa a valer quando a pessoa aceitar no primeiro login."
-                      : "Defina uma senha provisória abaixo (ou deixe em branco para enviar convite por e-mail). No primeiro acesso a pessoa cria a própria senha."}
-                </p>
-              </div>
+          <FormSection label="Acesso ao sistema" {...sectionProps("acesso")}>
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+            <label className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+              <span className="ds-body min-w-0 font-semibold">Permitir acesso ao sistema</span>
               <Switch
                 checked={systemAccess}
                 disabled={!emailValid || accessQuery.isLoading}
                 onCheckedChange={setSystemAccess}
               />
-            </div>
+            </label>
             {!emailValid && (
-              <p className="mt-2 text-xs text-amber-500">
+              <p className="ds-meta mt-2 text-amber-500">
                 Informe um e-mail válido acima para liberar o acesso ao sistema.
               </p>
             )}
             {systemAccess && emailValid && access?.status === "none" && (
               <div className="mt-3 space-y-1.5">
-                <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <Label className="ds-meta flex items-center gap-1.5">
                   <KeyRound className="size-3.5" /> Senha provisória
                 </Label>
                 <div className="flex gap-2">
@@ -700,7 +843,7 @@ export function StakeholderFormDialog({
                   </Button>
                 </div>
                 {provisionalPwd && provisionalPwd.trim().length < 8 && (
-                  <p className="text-xs text-destructive">A senha precisa ter pelo menos 8 caracteres.</p>
+                  <p className="ds-meta text-destructive">A senha precisa ter pelo menos 8 caracteres.</p>
                 )}
                 <p className="ds-meta">
                   Passe essa senha à pessoa por WhatsApp. Em branco, enviamos convite por e-mail.
@@ -708,28 +851,14 @@ export function StakeholderFormDialog({
               </div>
             )}
 
-          </div>
-
-          <SectionDivider label="Endereço" busy={loadingCep} />
-
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 [&>*]:min-w-0">
-            <div className="min-w-0">
-              <MaskedInput
-                className="min-w-0"
-                label={`CEP${req}`}
-                mask="00000-000"
-                placeholder="00000-000"
-                value={form.cep}
-                onValueChange={(raw) => {
-                  clearError("cep");
-                  presence.broadcastTyping("cep", raw);
-                  void handleCep(raw);
-                }}
-                onBlur={() => presence.broadcastFieldBlur("cep")}
-                error={errors.cep}
-              />
-              <FieldTypingBadge typing={presence.typing["cep"]} />
             </div>
+          </FormSection>
+
+          <FormSection label="Endereço" busy={loadingCep} {...sectionProps("endereco")}>
+
+
+            <div className="grid grid-cols-2 gap-3 [&>*]:min-w-0">
+
             <div className="col-span-2">
               <AddressAutocomplete
                 label={`Logradouro${req}`}
@@ -760,8 +889,26 @@ export function StakeholderFormDialog({
                 }}
               />
             </div>
+            <div className="min-w-0">
+              <MaskedInput
+                className="min-w-0"
+                label={`CEP${req}`}
+                mask="00000-000"
+                placeholder="00000-000"
+                value={form.cep}
+                onValueChange={(raw) => {
+                  clearError("cep");
+                  presence.broadcastTyping("cep", raw);
+                  void handleCep(raw);
+                }}
+                onBlur={() => presence.broadcastFieldBlur("cep")}
+                error={errors.cep}
+              />
+              <FieldTypingBadge typing={presence.typing["cep"]} />
+            </div>
+
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Bairro{req}</Label>
+              <Label className="ds-meta">Bairro{req}</Label>
               <Input
                 maxLength={120}
                 placeholder="Bairro"
@@ -771,14 +918,15 @@ export function StakeholderFormDialog({
                   clearError("district");
                   presence.broadcastTyping("district", e.target.value);
                 }}
+                readOnly
                 onBlur={() => presence.broadcastFieldBlur("district")}
                 className={errors.district ? "border-destructive" : ""}
               />
-              {errors.district && <p className="text-xs text-destructive">{errors.district}</p>}
+              {errors.district && <p className="ds-meta text-destructive">{errors.district}</p>}
               <FieldTypingBadge typing={presence.typing["district"]} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <Label className="ds-meta flex items-center gap-1.5">
                 <MapPin className="size-3.5" /> Cidade{req}
               </Label>
               <Input
@@ -790,14 +938,15 @@ export function StakeholderFormDialog({
                   clearError("city");
                   presence.broadcastTyping("city", e.target.value);
                 }}
+                readOnly
                 onBlur={() => presence.broadcastFieldBlur("city")}
                 className={errors.city ? "border-destructive" : ""}
               />
-              {errors.city && <p className="text-xs text-destructive">{errors.city}</p>}
+              {errors.city && <p className="ds-meta text-destructive">{errors.city}</p>}
               <FieldTypingBadge typing={presence.typing["city"]} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Estado{req}</Label>
+              <Label className="ds-meta">Estado{req}</Label>
               <Input
                 maxLength={2}
                 placeholder="UF"
@@ -808,40 +957,43 @@ export function StakeholderFormDialog({
                   clearError("state");
                   presence.broadcastTyping("state", v);
                 }}
+                readOnly
                 onBlur={() => presence.broadcastFieldBlur("state")}
                 className={errors.state ? "border-destructive" : ""}
               />
-              {errors.state && <p className="text-xs text-destructive">{errors.state}</p>}
+              {errors.state && <p className="ds-meta text-destructive">{errors.state}</p>}
               <FieldTypingBadge typing={presence.typing["state"]} />
             </div>
+            </div>
+          </FormSection>
 
-          </div>
+          <FormSection label="Extras" {...sectionProps("extras")}>
 
-          <SectionDivider label="Extras" />
 
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Observações (opcional)</Label>
-            <Textarea
-              rows={3}
-              maxLength={4000}
-              placeholder={`Observações sobre o ${singular}...`}
-              value={form.notes}
-              onChange={(e) => {
-                set({ notes: e.target.value });
-                presence.broadcastTyping("notes", e.target.value);
-              }}
-              onBlur={() => presence.broadcastFieldBlur("notes")}
-            />
-            <FieldTypingBadge typing={presence.typing["notes"]} />
-          </div>
+            <div className="space-y-1.5">
+              <Label className="ds-meta">Observações (opcional)</Label>
+              <Textarea
+                rows={3}
+                maxLength={4000}
+                placeholder={`Observações sobre o ${singular}...`}
+                value={form.notes}
+                onChange={(e) => {
+                  set({ notes: e.target.value });
+                  presence.broadcastTyping("notes", e.target.value);
+                }}
+                onBlur={() => presence.broadcastFieldBlur("notes")}
+              />
+              <FieldTypingBadge typing={presence.typing["notes"]} />
+            </div>
+          </FormSection>
         </div>
 
-        <div className="ds-scroll-x justify-center gap-2 pt-3 border-t border-border/30">
-          <Button variant="ghost" className="rounded-full" onClick={() => onOpenChange(false)}>
+        <div className="ds-scroll-x justify-end gap-3 pt-3 border-t border-border/30">
+          <Button variant="ghost" className="h-9 rounded-lg" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
           <Button
-            className="rounded-full bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90"
+            className="h-9 rounded-lg bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] text-white hover:opacity-90"
             onClick={submit}
             disabled={saving || checkingCnpj}
           >
@@ -853,6 +1005,7 @@ export function StakeholderFormDialog({
             {form.id ? "Salvar alterações" : `Salvar ${singular}`}
           </Button>
         </div>
+
       </DialogContent>
     </Dialog>
   );

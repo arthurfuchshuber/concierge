@@ -201,7 +201,7 @@ export const listMyProperties = createServerFn({ method: "GET" })
     // contas quando nenhum "cliente" está selecionado no switcher.
     const { data, error } = await context.supabase
       .from("properties")
-      .select("id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at, wifi_ssid, checkin_time, checkout_time, owner_contact_id")
+      .select("id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at, wifi_ssid, checkin_time, checkout_time, owner_contact_id, guide_created")
       .eq("owner_id", userId)
       .order("updated_at", { ascending: false });
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
@@ -229,7 +229,7 @@ export const listPropertiesForAccount = createServerFn({ method: "POST" })
     );
     const { data: rows, error } = await context.supabase
       .from("properties")
-      .select("id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at, wifi_ssid, checkin_time, checkout_time, owner_contact_id")
+      .select("id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at, wifi_ssid, checkin_time, checkout_time, owner_contact_id, guide_created")
       .eq("owner_id", accountId)
       .order("updated_at", { ascending: false });
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
@@ -687,12 +687,10 @@ export const getMyProperty = createServerFn({ method: "POST" })
 
 /**
  * Igual a getMyProperty, mas SEM assinar as URLs de imagem — deliberadamente.
- * Usada pelo popup de edição rápida (PropertyQuickEditDialog): ele só edita
- * um subconjunto de campos (nome, tipo, endereço, iCal, contato), mas o
- * upsertProperty exige o objeto "property" completo. Se resubmetêssemos as
- * URLs ASSINADAS (temporárias) de getMyProperty como se fossem permanentes,
- * a foto de capa/galeria do imóvel quebraria assim que o link expirasse.
- * Aqui devolvemos o caminho de armazenamento real, intacto.
+ * NÃO É MAIS USADA: existia para o antigo popup de edição rápida (removido —
+ * o link "Editar" do imóvel em Stakeholders agora abre a mesma página
+ * /admin/properties/$id, em modo "houseOnly", em vez de duplicar a tela em
+ * outro componente). Mantida por ora por segurança, mas sem consumidores.
  */
 export const getPropertyForQuickEdit = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

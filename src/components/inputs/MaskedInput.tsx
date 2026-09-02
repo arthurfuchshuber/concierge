@@ -11,6 +11,8 @@ interface MaskedInputProps extends Omit<React.InputHTMLAttributes<HTMLInputEleme
   error?: string;
   hint?: string;
   icon?: React.ReactNode;
+  /** Ação à direita dentro do campo (ex.: botão editar). */
+  endAdornment?: React.ReactNode;
 }
 
 export function applyMask(raw: string, mask: string): string {
@@ -36,7 +38,10 @@ function maxDigits(mask: string): number {
 }
 
 export const MaskedInput = React.forwardRef<HTMLInputElement, MaskedInputProps>(
-  ({ mask, value, onValueChange, label, error, hint, icon, className, ...props }, ref) => {
+  (
+    { mask, value, onValueChange, label, error, hint, icon, endAdornment, className, ...props },
+    ref,
+  ) => {
     const emit = (input: string) => {
       const raw = stripMask(input).slice(0, maxDigits(mask));
       onValueChange(raw, applyMask(raw, mask));
@@ -44,7 +49,7 @@ export const MaskedInput = React.forwardRef<HTMLInputElement, MaskedInputProps>(
 
     return (
       <div className="space-y-1.5">
-        {label && <Label className="text-xs text-muted-foreground">{label}</Label>}
+        {label && <Label className="ds-meta">{label}</Label>}
         <div className="relative">
           {icon && (
             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{icon}</div>
@@ -60,18 +65,22 @@ export const MaskedInput = React.forwardRef<HTMLInputElement, MaskedInputProps>(
               emit(e.clipboardData.getData("text"));
             }}
             className={cn(
-              "flex h-10 w-full rounded-lg border border-input bg-background/60 px-3 py-2 text-sm transition-all",
+              "flex h-9 w-full rounded-lg border border-input bg-transparent px-3 py-2 text-[13px] transition-all",
               "placeholder:text-muted-foreground/50",
               "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary",
               icon && "pl-10",
+              endAdornment && "pr-9",
               error && "border-destructive focus:ring-destructive/30 focus:border-destructive",
               className,
             )}
             {...props}
           />
+          {endAdornment && (
+            <div className="absolute right-1.5 top-1/2 -translate-y-1/2">{endAdornment}</div>
+          )}
         </div>
-        {error && <p className="text-xs text-destructive">{error}</p>}
-        {hint && !error && <p className="text-xs text-muted-foreground">{hint}</p>}
+        {error && <p className="ds-meta text-destructive">{error}</p>}
+        {hint && !error && <p className="ds-meta">{hint}</p>}
       </div>
     );
   },
