@@ -420,7 +420,31 @@ export function StakeholderFormDialog({
 
     setErrors(errs);
     if (Object.keys(errs).length) {
-      toast.error("Preencha todos os campos obrigatórios.");
+      // Abre automaticamente a seção que contém o primeiro campo com erro —
+      // senão a mensagem inline fica escondida dentro do acordeão fechado.
+      const FIELD_SECTION: Record<string, string> = {
+        name: "dados",
+        doc: "dados",
+        trade_name: "dados",
+        birth_date: "dados",
+        category: "dados",
+        phone: "contato",
+        email: "contato",
+        cep: "endereco",
+        address: "endereco",
+        district: "endereco",
+        city: "endereco",
+        state: "endereco",
+      };
+      const firstKey = Object.keys(errs)[0]!;
+      const target = FIELD_SECTION[firstKey] ?? "dados";
+      setOpenSection(target);
+      toast.error(errs[firstKey] ?? "Preencha todos os campos obrigatórios.");
+      requestAnimationFrame(() => {
+        document
+          .querySelector<HTMLElement>(`[data-field="${firstKey}"]`)
+          ?.scrollIntoView({ block: "center", behavior: "smooth" });
+      });
       return;
     }
 
