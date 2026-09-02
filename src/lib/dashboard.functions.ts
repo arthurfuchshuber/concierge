@@ -428,7 +428,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     const [{ data: props }, { data: reservations }, { data: logs }, { data: allStatuses }] = await Promise.all([
       context.supabase
         .from("properties")
-        .select("id, name, airbnb_ical_url, lock_code, gate_code, owner_contact_id")
+        .select("id, name, airbnb_ical_url, lock_code, gate_code, owner_contact_id, guide_created, checkin_instructions")
         .in("id", propIds),
       context.supabase
         .from("property_reservations")
@@ -471,6 +471,16 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     const icalProps = new Set(
       ((props ?? []) as Array<{ id: string; airbnb_ical_url: string | null }>)
         .filter((p) => !!p.airbnb_ical_url?.trim())
+        .map((p) => p.id),
+    );
+
+    // Sem guia criado, não existe "instruções" nem "senhas" pra ninguém ver —
+    // o imóvel nem deveria contar como candidato aos dois quadrantes abaixo.
+    // "Viram instruções de check-in" só faz sentido para quem TEM guia criado
+    // E instruções de check-in preenchidas — sem isso não há o que ver.
+    const checkinInstructionsProps = new Set(
+      ((props ?? []) as Array<{ id: string; guide_created?: boolean | null; checkin_instructions?: string | null }>)
+        .filter((p) => !!p.guide_created && !!p.checkin_instructions?.trim())
         .map((p) => p.id),
     );
 
@@ -541,13 +551,17 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       });
     }
 
-    const checkinsInPeriod = entries.length;
+    // "Viram instruções de check-in": só entram check-ins de imóveis com guia
+    // criado E com as instruções de check-in de fato preenchidas.
+    const checkinEntries = entries.filter((e) => checkinInstructionsProps.has(e.property_id));
+    const checkinsInPeriod = checkinEntries.length;
     const guideOpens = allLogs.length;
 
-    // Guias com senha de acesso (fechadura ou portão) configurada.
+    // Guias com senha de acesso (fechadura ou portão) configurada — e, como
+    // acima, só conta quem já tem guia criado.
     const codesProps = new Set(
-      ((props ?? []) as Array<{ id: string; lock_code: string | null; gate_code: string | null }>)
-        .filter((p) => !!(p.lock_code?.trim() || p.gate_code?.trim()))
+      ((props ?? []) as Array<{ id: string; guide_created?: boolean | null; lock_code: string | null; gate_code: string | null }>)
+        .filter((p) => !!p.guide_created && !!(p.lock_code?.trim() || p.gate_code?.trim()))
         .map((p) => p.id),
     );
     const codeEntries = entries.filter((e) => codesProps.has(e.property_id));
@@ -690,7 +704,7 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       return { viewed: sortMarks(viewed), notViewed: sortMarks(notViewed) };
     }
 
-    const checkinBreakdown = breakdown(checkinSeen, entries);
+    const checkinBreakdown = breakdown(checkinSeen, checkinEntries);
     const codesBreakdown = breakdown(codesSeen, codeEntries, sawAllCodes);
 
     return {
