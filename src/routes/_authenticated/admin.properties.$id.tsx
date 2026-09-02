@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Section, SectionGroup, DenseSections } from "@/components/editor/Section";
+import { Stepper, GUIDE_STEPS, NON_HOUSE_STEPS } from "@/components/editor/Stepper";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound, Home, Compass, LifeBuoy, Check, Eye, Image as ImageIcon, ImagePlus, MapPinned, Clock, DoorOpen, Wifi, UserRound, BookOpen, ClipboardCheck, Shield, Power, Phone, HelpCircle, Sun, Moon, Lock, MessageSquare, LogOut, ChevronDown, Ticket, RefreshCw, Copy, Share2, X, MoveRight, ClipboardList, Car, IdCard, NotebookPen, ArrowLeftRight, AlertTriangle } from "lucide-react";
