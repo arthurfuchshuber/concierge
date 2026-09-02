@@ -1000,10 +1000,11 @@ export function PropertyQuickEditDialog({
               </Section>
             </SectionGroup>
 
-            <div className="flex items-center justify-end gap-3 pt-4 mt-2 border-t border-border/60">
+            <div className="ds-scroll-x items-center justify-end gap-2 mt-6 pt-4 border-t border-border/60">
               <AutosaveIndicator status={autosave.status} errorMessage={autosave.lastError} />
               <Button
                 variant="outline"
+                className="min-w-[140px]"
                 onClick={async () => {
                   await autosave.flush();
                   onOpenChange(false);
@@ -1015,7 +1016,7 @@ export function PropertyQuickEditDialog({
               </Button>
             </div>
 
-          </>
+          </DenseSections>
         )}
       </ResponsiveDialogContent>
     </ResponsiveDialog>
