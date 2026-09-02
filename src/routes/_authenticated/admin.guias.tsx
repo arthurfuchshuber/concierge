@@ -1175,7 +1175,12 @@ function Dashboard() {
           imóvel já cadastrado (via "Criar nova residência", em Stakeholders)
           que ainda não tem guia. */}
       <Dialog open={guidePickerOpen} onOpenChange={setGuidePickerOpen}>
-        <DialogContent className="max-w-md">
+        {/* rounded-lg (8px) — mesmo raio de "diálogo de formulário" (ds-form-dialog,
+            usado em StakeholderFormDialog) em vez do balão rounded-3xl padrão do
+            componente Dialog. Só o raio do próprio diálogo é ajustado aqui — os
+            cards da lista e a busca já seguem, cada um, seu próprio padrão
+            estabelecido (ds-surface nos cards, cantos retos na busca). */}
+        <DialogContent className="max-w-md rounded-lg">
           <DialogHeader>
             <DialogTitle>Novo guia</DialogTitle>
             <DialogDescription>
@@ -1214,9 +1219,9 @@ function Dashboard() {
                 "Todas as residências já têm guia. Para cadastrar uma residência nova, use “Criar nova residência” dentro do proprietário, em Stakeholders."
               }
               action={
-                <Button variant="outline" className="rounded-full" asChild onClick={() => setGuidePickerOpen(false)}>
+                <Button variant="outline" asChild onClick={() => setGuidePickerOpen(false)}>
                   <Link to="/admin/stakeholders" search={{ tab: "proprietarios" as const }}>
-                    Ir para Stakeholders → Proprietários
+                    Ir para Stakeholders
                   </Link>
                 </Button>
               }
@@ -1227,7 +1232,7 @@ function Dashboard() {
               title="Nenhuma residência encontrada"
               description={`Nenhum resultado para "${pickerSearch}". Tente outro termo.`}
               action={
-                <Button variant="outline" className="rounded-full" onClick={() => setPickerSearch("")}>
+                <Button variant="outline" onClick={() => setPickerSearch("")}>
                   Limpar busca
                 </Button>
               }
