@@ -1782,6 +1782,20 @@ function PropertyEditor() {
 
         <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
           <DenseSections>
+          {/* Mesma barra de abas do editor de guia: só "A casa" fica ativa —
+              as demais aparecem com cadeado até o guia ser criado. */}
+          <Stepper
+            current="house"
+            onChange={() => {}}
+            steps={GUIDE_STEPS}
+            lockedValues={NON_HOUSE_STEPS}
+            lockedTitle={
+              isNew
+                ? "Disponível depois que o imóvel for criado"
+                : "Crie o guia deste imóvel para desbloquear"
+            }
+          />
+
 
           <SectionGroup>
             <Section id="owner" icon={UserRound} title="Proprietário" desc="A quem este imóvel pertence — obrigatório." collapsible>
