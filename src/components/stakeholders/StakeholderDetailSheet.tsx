@@ -873,6 +873,7 @@ export function StakeholderDetailSheet({
                           </div>
                         ) : (
                           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+<<<<<<< HEAD
                             <Link
                               to="/admin/properties/$id"
                               params={{ id: p.id }}
@@ -882,6 +883,15 @@ export function StakeholderDetailSheet({
                             >
                               <Pencil className="size-3.5" /> Editar
                             </Link>
+=======
+                            <button
+                              type="button"
+                              onClick={() => setEditingPropertyId(p.id)}
+                              className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-tight text-muted-foreground transition-colors hover:text-foreground"
+                            >
+                              <Pencil className="size-3.5" /> Editar
+                            </button>
+>>>>>>> 36c826727e25491403a909e36e120b72ca4c3e07
                             <Link
                               to="/admin/properties/$id"
                               params={{ id: p.id }}
@@ -911,6 +921,18 @@ export function StakeholderDetailSheet({
                 })}
               </div>
             )}
+<<<<<<< HEAD
+=======
+
+            {editingPropertyId && (
+              <PropertyQuickEditDialog
+                propertyId={editingPropertyId}
+                open={!!editingPropertyId}
+                onOpenChange={(o) => { if (!o) setEditingPropertyId(null); }}
+              />
+            )}
+
+>>>>>>> 36c826727e25491403a909e36e120b72ca4c3e07
 
             <Link
               to="/admin/properties/$id"
