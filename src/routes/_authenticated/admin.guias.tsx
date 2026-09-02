@@ -1183,80 +1183,85 @@ function Dashboard() {
               "Criar nova residência" dentro do proprietário, em Stakeholders.
             </DialogDescription>
           </DialogHeader>
-          {propertiesWithoutGuide.length === 0 ? (
-            <div className="ds-surface border border-dashed border-border bg-secondary/20 p-4 text-center">
-              <p className="text-sm text-muted-foreground">
-                Nenhuma residência sem guia no momento.
-              </p>
-              <Link
-                to="/admin/stakeholders"
-                search={{ tab: "proprietarios" as const }}
-                onClick={() => setGuidePickerOpen(false)}
-                className="mt-2 inline-block text-xs text-primary underline underline-offset-2"
+          {/* Mesmo padrão da barra de busca da página (cantos retos, fundo
+              secondary/50, 36px de altura) — sempre visível, igual à barra
+              de ações da própria tela de Guias. */}
+          <div className="relative">
+            <Search className="size-3.5 opacity-60 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              value={pickerSearch}
+              onChange={(e) => setPickerSearch(e.target.value)}
+              placeholder="Buscar por nome, endereço, cidade…"
+              className="h-9 w-full box-border rounded-none border-0 bg-secondary/50 pl-9 pr-8 text-xs font-normal leading-none text-foreground/80 placeholder:text-muted-foreground focus:outline-none focus:bg-secondary transition-colors"
+            />
+            {pickerSearch && (
+              <button
+                type="button"
+                onClick={() => setPickerSearch("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 size-6 grid place-items-center rounded-none text-muted-foreground hover:text-foreground"
+                aria-label="Limpar busca"
               >
-                Ir para Stakeholders → Proprietários
-              </Link>
-            </div>
-          ) : (
-            <>
-              {/* Mesmo padrão da barra de busca da página (cantos retos,
-                  fundo secondary/50, 36px de altura). */}
-              <div className="relative">
-                <Search className="size-3.5 opacity-60 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  value={pickerSearch}
-                  onChange={(e) => setPickerSearch(e.target.value)}
-                  placeholder="Buscar por nome, endereço, cidade…"
-                  className="h-9 w-full box-border rounded-none border-0 bg-secondary/50 pl-9 pr-8 text-xs font-normal leading-none text-foreground/80 placeholder:text-muted-foreground focus:outline-none focus:bg-secondary transition-colors"
-                />
-                {pickerSearch && (
-                  <button
-                    type="button"
-                    onClick={() => setPickerSearch("")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 size-6 grid place-items-center rounded-none text-muted-foreground hover:text-foreground"
-                    aria-label="Limpar busca"
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                )}
-              </div>
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
 
-              {filteredPropertiesWithoutGuide.length === 0 ? (
-                <p className="py-6 text-center text-sm text-muted-foreground">
-                  Nenhuma residência encontrada para "{pickerSearch}".
-                </p>
-              ) : (
-                <div className="max-h-80 overflow-y-auto -mx-1 px-1 space-y-1.5">
-                  {filteredPropertiesWithoutGuide.map((p: any) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => {
-                        setGuidePickerOpen(false);
-                        navigate({ to: "/admin/properties/$id", params: { id: p.id } });
-                      }}
-                      className="w-full flex items-center gap-3 ds-surface border border-border bg-card px-3 py-2.5 text-left hover:border-foreground/30 hover:bg-secondary/40 transition-colors"
-                    >
-                      <div className="size-9 rounded-[0.3rem] bg-secondary overflow-hidden shrink-0">
-                        {p.hero_image_url ? (
-                          <img src={p.hero_image_url} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full grid place-items-center text-muted-foreground">
-                            <Home className="size-4" />
-                          </div>
-                        )}
+          {propertiesWithoutGuide.length === 0 ? (
+            <EmptyState
+              icon={Home}
+              title="Nenhuma residência sem guia"
+              description={
+                "Todas as residências já têm guia. Para cadastrar uma residência nova, use “Criar nova residência” dentro do proprietário, em Stakeholders."
+              }
+              action={
+                <Button variant="outline" className="rounded-full" asChild onClick={() => setGuidePickerOpen(false)}>
+                  <Link to="/admin/stakeholders" search={{ tab: "proprietarios" as const }}>
+                    Ir para Stakeholders → Proprietários
+                  </Link>
+                </Button>
+              }
+            />
+          ) : filteredPropertiesWithoutGuide.length === 0 ? (
+            <EmptyState
+              icon={Search}
+              title="Nenhuma residência encontrada"
+              description={`Nenhum resultado para "${pickerSearch}". Tente outro termo.`}
+              action={
+                <Button variant="outline" className="rounded-full" onClick={() => setPickerSearch("")}>
+                  Limpar busca
+                </Button>
+              }
+            />
+          ) : (
+            <div className="max-h-80 overflow-y-auto -mx-1 px-1 space-y-1.5">
+              {filteredPropertiesWithoutGuide.map((p: any) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => {
+                    setGuidePickerOpen(false);
+                    navigate({ to: "/admin/properties/$id", params: { id: p.id } });
+                  }}
+                  className="w-full flex items-center gap-3 ds-surface border border-border bg-card px-3 py-2.5 text-left hover:border-foreground/30 hover:bg-secondary/40 transition-colors"
+                >
+                  <div className="size-9 rounded-[0.3rem] bg-secondary overflow-hidden shrink-0">
+                    {p.hero_image_url ? (
+                      <img src={p.hero_image_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full grid place-items-center text-muted-foreground">
+                        <Home className="size-4" />
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[13px] font-medium truncate">{p.name}</p>
-                        <p className="ds-meta truncate">
-                          {[p.city, p.country].filter(Boolean).join(", ") || "Sem localização"}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-medium truncate">{p.name}</p>
+                    <p className="ds-meta truncate">
+                      {[p.city, p.country].filter(Boolean).join(", ") || "Sem localização"}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
           )}
         </DialogContent>
       </Dialog>
