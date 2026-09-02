@@ -1791,6 +1791,7 @@ function PropertyEditor() {
       void handleSave({ guide_created: true });
     }
     return (
+      <>
       <div className="ds-dense-fields px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full">
         <Link to={backTo as "/admin/guias"} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-5 transition-colors">
           <ArrowLeft className="size-3.5" /> Voltar
@@ -1800,11 +1801,11 @@ function PropertyEditor() {
           <h1 className="ds-page-title w-full break-words">
             {isNew ? "Novo imóvel" : (form.property.name || "Informações do imóvel")}
           </h1>
-          <p className="ds-page-subtitle mt-1.5">
-            {isNew
-              ? "Os dados básicos da residência (proprietário, tipo, endereço e calendário Airbnb são obrigatórios). O guia para hóspedes, checkin, checkout, FAQ e recomendações ficam disponíveis depois de criado — não são obrigatórios."
-              : "Este imóvel ainda não tem um guia para hóspedes. Você pode continuar usando dashboard, calendário e kanban só com essas informações, ou criar o guia quando quiser."}
-          </p>
+          {isNew && (
+            <p className="ds-page-subtitle mt-1.5">
+              Os dados básicos da residência (proprietário, tipo, endereço e calendário Airbnb são obrigatórios). O guia para hóspedes, checkin, checkout, FAQ e recomendações ficam disponíveis depois de criado — não são obrigatórios.
+            </p>
+          )}
         </header>
 
         <div className="mb-4 ds-scroll-x items-center gap-2">
@@ -1839,44 +1840,50 @@ function PropertyEditor() {
 
           </SectionGroup>
           </DenseSections>
+        </fieldset>
+      </div>
 
-          <div className="ds-scroll-x items-center justify-end gap-2 mt-6 pt-4 border-t border-border/60">
-
-            <Link
-              to={backTo as "/admin/guias"}
-              className="inline-flex items-center h-9 px-4 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors"
+      {/* Mesma barra fixa do rodapé do editor completo (ver mais abaixo,
+          fora do `showLeanInfoScreen`) — antes esta tela tinha um rodapé
+          próprio, sem fixar na base da tela, fugindo do padrão usado em
+          todo o resto do editor. */}
+      <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur p-3 sm:p-4 z-50">
+        <div className="max-w-4xl mx-auto flex flex-wrap justify-center items-center gap-2 sm:gap-3">
+          <Button
+            variant="outline"
+            className="h-10 min-w-[120px]"
+            onClick={() => navigate({ to: backTo as "/admin/guias" })}
+          >
+            Cancelar
+          </Button>
+          {isNew ? (
+            <Button
+              className="h-10 min-w-[140px]"
+              onClick={() => handleSave()}
+              disabled={saving}
             >
-              Cancelar
-            </Link>
-            {isNew ? (
+              {saving ? <Loader2 className="size-4 animate-spin" /> : null}
+              <span className={saving ? "ml-1.5" : ""}>{saving ? "Criando…" : "Criar imóvel"}</span>
+            </Button>
+          ) : (
+            <>
+              <Button variant="secondary" className="h-10 min-w-[140px]" onClick={() => handleSave()} disabled={saving}>
+                {saving ? <Loader2 className="size-4 animate-spin" /> : null}
+                <span className={saving ? "ml-1.5" : ""}>{saving ? "Salvando…" : "Salvar alterações"}</span>
+              </Button>
               <Button
-                className="min-w-[140px]"
-                onClick={() => handleSave()}
+                className="h-10 min-w-[140px]"
+                onClick={handleCreateGuide}
                 disabled={saving}
               >
                 {saving ? <Loader2 className="size-4 animate-spin" /> : null}
-                <span className={saving ? "ml-1.5" : ""}>{saving ? "Criando…" : "Criar imóvel"}</span>
+                <span className={saving ? "ml-1.5" : ""}>{saving ? "Criando…" : "Criar guia"}</span>
               </Button>
-            ) : (
-              <>
-                <Button variant="secondary" className="min-w-[140px]" onClick={() => handleSave()} disabled={saving}>
-                  {saving ? <Loader2 className="size-4 animate-spin" /> : null}
-                  <span className={saving ? "ml-1.5" : ""}>{saving ? "Salvando…" : "Salvar alterações"}</span>
-                </Button>
-                <Button
-                  className="min-w-[140px]"
-                  onClick={handleCreateGuide}
-                  disabled={saving}
-                >
-
-                  {saving ? <Loader2 className="size-4 animate-spin" /> : null}
-                  <span className={saving ? "ml-1.5" : ""}>{saving ? "Criando…" : "Criar guia"}</span>
-                </Button>
-              </>
-            )}
-          </div>
-        </fieldset>
+            </>
+          )}
+        </div>
       </div>
+      </>
     );
   }
 
