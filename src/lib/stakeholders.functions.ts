@@ -669,11 +669,19 @@ export const setStakeholderStatus = createServerFn({ method: "POST" })
         ? data.changed_at
         : when.toISOString().slice(0, 10);
     } else {
-      // Qualquer situação que não seja cancelamento reabre a vigência: se o
-      // cadastro tinha sido cancelado (ou o cancelamento estava agendado),
-      // a data final precisa ser apagada — senão um cliente Ativo continua
-      // aparecendo com "início → data de cancelamento".
-      patch.contract_end = null;
+      // Sair de um cancelamento reabre a vigência: a data final gravada pelo
+      // próprio cancelamento precisa sumir. Mas uma data final informada
+      // manualmente (contrato com prazo) não pode ser apagada por uma simples
+      // troca de situação — por isso só limpamos quando o registro estava
+      // realmente cancelado/cancelando.
+      const { data: current } = await supabase
+        .from(TABLE[data.kind])
+        .select("status")
+        .eq("id", data.id)
+        .eq("account_owner_id", accountId)
+        .maybeSingle();
+      const prev = (current as { status?: string } | null)?.status;
+      if (prev === "canceled" || prev === "canceling") patch.contract_end = null;
     }
 
 
