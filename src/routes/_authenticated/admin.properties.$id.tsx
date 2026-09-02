@@ -35,7 +35,7 @@ import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound,
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ImageUpload } from "@/components/ImageUpload";
 import { MediaUpload, type MediaItem } from "@/components/MediaUpload";
-import { EtiquetaSelect, ETIQUETA_OPTIONS } from "@/components/EtiquetaSelect";
+import { ETIQUETA_OPTIONS } from "@/components/EtiquetaSelect";
 import { ETIQUETA_CHECKIN_CHECKOUT } from "@/lib/publish-requirements";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -1021,8 +1021,12 @@ function PropertyEditor() {
     // padrão já usado acima para portão/fechadura: o autosave nunca trava por
     // causa de um campo obrigatório que a pessoa ainda não chegou a preencher
     // enquanto edita outra parte do formulário.
+    // Nome NÃO é pedido aqui: não existe campo "Nome" em "A casa" (mora só na
+    // aba "O guia", depois que o guia é criado — ver publish-requirements.ts,
+    // que trata "Identidade visual — Nome do imóvel" como requisito de
+    // PUBLICAÇÃO, não de criação). Por isso, se ainda estiver vazio, é
+    // derivado do endereço logo abaixo, em vez de travar o salvamento.
     if (!silent) {
-      if (!formToSave.property.name.trim()) { toast.error("Informe o nome do imóvel."); return; }
       if (!formToSave.property.owner_contact_id) { toast.error("Selecione um proprietário para este imóvel."); return; }
       const missing = missingRequiredHouseFields(formToSave.property);
       if (missing.length > 0) {
@@ -1037,13 +1041,25 @@ function PropertyEditor() {
       // render (setForm/update() é assíncrono — chamar handleSave logo depois
       // de um update() leria form.property desatualizado).
       const propertySource = overrides ? { ...formToSave.property, ...overrides } : formToSave.property;
+      // Ver comentário acima: sem campo "Nome" em "A casa", um imóvel novo
+      // (ou qualquer imóvel que ainda não tenha ganhado um nome pela aba "O
+      // guia") é salvo com um nome provisório derivado do endereço — nunca
+      // vazio, pois o banco exige `name` preenchido. A pessoa troca por um
+      // nome de verdade depois, na aba "O guia" (Identidade visual), quando
+      // quiser publicar.
+      const derivedName =
+        propertySource.name.trim() ||
+        propertySource.address.trim().slice(0, 120) ||
+        propertySource.city.trim() ||
+        "Novo imóvel";
       const galleryImages = propertySource.gallery_images.filter((u) => u.trim()).slice(0, 4);
       const payload = {
         id: isNew ? null : id,
         ownerId: isNew ? (impersonation?.userId ?? null) : null,
         property: {
           ...propertySource,
-          slug: propertySource.slug || slugify(propertySource.name),
+          name: derivedName,
+          slug: propertySource.slug || slugify(derivedName),
           tagline: propertySource.tagline || null,
           hero_image_url: galleryImages[0] || propertySource.hero_image_url || null,
           gallery_images: galleryImages,
@@ -1765,15 +1781,14 @@ function PropertyEditor() {
   const showLeanInfoScreen = isNew || !form.property.guide_created;
 
   if (showLeanInfoScreen) {
-    async function handleCreateGuide() {
-      if (!form.property.tagline.trim()) {
-        toast.error("Selecione o tipo do guia para continuar.");
-        return;
-      }
-      // Passamos o override direto pro handleSave em vez de chamar update()
-      // antes: update() é assíncrono (setForm), e handleSave rodando logo em
-      // seguida leria form.property ainda com guide_created=false.
-      await handleSave({ guide_created: true });
+    // Sem exceção nenhuma: "Criar guia" só marca guide_created=true. Nome e
+    // Tipo do guia (tagline) não são pedidos aqui — não fazem parte de "A
+    // casa" e, como qualquer outro dado de "O guia" (fotos, instruções de
+    // check-in/checkout etc.), são requisitos de PUBLICAÇÃO, não de criação
+    // do guia (ver publish-requirements.ts). A pessoa preenche isso depois,
+    // na aba "O guia", quando for publicar.
+    function handleCreateGuide() {
+      void handleSave({ guide_created: true });
     }
     return (
       <div className="ds-dense-fields px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full">
@@ -1806,44 +1821,12 @@ function PropertyEditor() {
           {/* Sem barra de abas aqui: só se fala de "A casa" nesta tela — "O
               guia" e as demais abas só existem depois que o guia é criado. */}
 
-          {/* Espelho EXATO da aba "A casa" do editor completo: MESMA função
-              renderIdentitySection() (nunca uma cópia à parte) — "Identificação
-              do Imóvel" abaixo é byte a byte igual à de "Editar guia".
-              Os únicos campos extras aqui, ANTES dela, são os estritamente
-              necessários para dar o próximo passo, e nada além disso:
-              - Nome: só na criação (isNew) — sem ele o imóvel nem existe. Num
-                imóvel já existente o nome já foi definido lá atrás.
-              - Tipo do guia: em qualquer tela sem guia ainda (isNew ou não) —
-                é exigido pelo botão "Criar guia" logo abaixo e não existe em
-                NENHUM outro lugar do sistema pra ser preenchido; sem mostrá-lo
-                aqui, "Criar guia" ficaria irrealizável. */}
-          <SectionGroup>
-            <Section id="guide-identity" icon={FileText} title={isNew ? "Nome e tipo do guia" : "Tipo do guia"} desc="Necessário para criar o guia." collapsible>
-              {isNew && (
-                <>
-                  <Field label="Nome" required>
-                    <Input
-                      value={form.property.name}
-                      maxLength={80}
-                      onChange={(e) => {
-                        const v = e.target.value.slice(0, 80);
-                        update("name", v);
-                        if (!form.property.slug) update("slug", slugify(v));
-                        presence.broadcastTyping("name", v);
-                      }}
-                      onBlur={() => presence.broadcastFieldBlur("name")}
-                      placeholder="Ex: Casa Charmosa Próx. a Avenida das Cataratas"
-                    />
-                  </Field>
-                  <FieldTypingBadge typing={presence.typing["name"]} />
-                </>
-              )}
-              <Field label="Tipo do guia" required hint="Aparece abaixo do título no guia público.">
-                <EtiquetaSelect value={form.property.tagline} onChange={(v) => update("tagline", v)} />
-              </Field>
-            </Section>
-          </SectionGroup>
-
+          {/* Espelho EXATO da aba "A casa" do editor completo: MESMAS funções
+              renderIdentitySection() / renderCleaningSection() / etc. (nunca
+              uma cópia à parte) — byte a byte igual à de "Editar guia", sem
+              nenhum campo a mais e sem nenhuma exceção (nem Nome, nem Tipo do
+              guia — ambos vivem só na aba "O guia", como requisito de
+              publicação, não de criação). */}
           <SectionGroup>
             {renderIdentitySection()}
             {renderCleaningSection()}
