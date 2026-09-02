@@ -1806,34 +1806,46 @@ function PropertyEditor() {
           {/* Sem barra de abas aqui: só se fala de "A casa" nesta tela — "O
               guia" e as demais abas só existem depois que o guia é criado. */}
 
-          {/* Espelho EXATO da aba "A casa" do editor completo: mesmas seções,
-              mesma ordem. Os únicos campos extras são Nome do imóvel e Tipo do
-              guia, que vivem dentro da própria "Identificação do Imóvel"
-              porque são necessários para criar o imóvel/guia. */}
+          {/* Espelho EXATO da aba "A casa" do editor completo: MESMA função
+              renderIdentitySection() (nunca uma cópia à parte) — "Identificação
+              do Imóvel" abaixo é byte a byte igual à de "Editar guia".
+              Os únicos campos extras aqui, ANTES dela, são os estritamente
+              necessários para dar o próximo passo, e nada além disso:
+              - Nome: só na criação (isNew) — sem ele o imóvel nem existe. Num
+                imóvel já existente o nome já foi definido lá atrás.
+              - Tipo do guia: em qualquer tela sem guia ainda (isNew ou não) —
+                é exigido pelo botão "Criar guia" logo abaixo e não existe em
+                NENHUM outro lugar do sistema pra ser preenchido; sem mostrá-lo
+                aqui, "Criar guia" ficaria irrealizável. */}
           <SectionGroup>
-            <Section id="identity" icon={Home} title="Identificação do Imóvel" desc="Nome, proprietário e tipo do imóvel." collapsible>
-              <Field label="Nome" required>
-                <Input
-                  value={form.property.name}
-                  maxLength={80}
-                  onChange={(e) => {
-                    const v = e.target.value.slice(0, 80);
-                    update("name", v);
-                    if (!form.property.slug) update("slug", slugify(v));
-                    presence.broadcastTyping("name", v);
-                  }}
-                  onBlur={() => presence.broadcastFieldBlur("name")}
-                  placeholder="Ex: Casa Charmosa Próx. a Avenida das Cataratas"
-                />
-              </Field>
-              <FieldTypingBadge typing={presence.typing["name"]} />
+            <Section id="guide-identity" icon={FileText} title={isNew ? "Nome e tipo do guia" : "Tipo do guia"} desc="Necessário para criar o guia." collapsible>
+              {isNew && (
+                <>
+                  <Field label="Nome" required>
+                    <Input
+                      value={form.property.name}
+                      maxLength={80}
+                      onChange={(e) => {
+                        const v = e.target.value.slice(0, 80);
+                        update("name", v);
+                        if (!form.property.slug) update("slug", slugify(v));
+                        presence.broadcastTyping("name", v);
+                      }}
+                      onBlur={() => presence.broadcastFieldBlur("name")}
+                      placeholder="Ex: Casa Charmosa Próx. a Avenida das Cataratas"
+                    />
+                  </Field>
+                  <FieldTypingBadge typing={presence.typing["name"]} />
+                </>
+              )}
               <Field label="Tipo do guia" required hint="Aparece abaixo do título no guia público.">
                 <EtiquetaSelect value={form.property.tagline} onChange={(v) => update("tagline", v)} />
               </Field>
-              {renderOwnerFields()}
-              {renderPropertyTypeFields()}
             </Section>
+          </SectionGroup>
 
+          <SectionGroup>
+            {renderIdentitySection()}
             {renderCleaningSection()}
             {renderAddressSection()}
             {renderAirbnbCalendarSection()}
