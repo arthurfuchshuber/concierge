@@ -35,7 +35,7 @@ import { Loader2, Sparkles, Plus, Trash2, MapPin, ArrowLeft, FileText, KeyRound,
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ImageUpload } from "@/components/ImageUpload";
 import { MediaUpload, type MediaItem } from "@/components/MediaUpload";
-import { ETIQUETA_OPTIONS } from "@/components/EtiquetaSelect";
+import { EtiquetaSelect, ETIQUETA_OPTIONS } from "@/components/EtiquetaSelect";
 import { ETIQUETA_CHECKIN_CHECKOUT } from "@/lib/publish-requirements";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -1885,13 +1885,13 @@ function PropertyEditor() {
               verdade (`isDirty`) — "Criar guia" fica sempre visível. */}
           <div className="ds-scroll-x justify-end gap-3 pt-3 mt-6 border-t border-border/30">
             {(isNew || isDirty) && (
-              <Button variant="ghost" className="h-9 rounded-lg" onClick={() => navigate({ to: backTo as "/admin/guias" })}>
+              <Button variant="ghost" className="h-9" onClick={() => navigate({ to: backTo as "/admin/guias" })}>
                 Cancelar
               </Button>
             )}
             {(isNew || isDirty) && (
               <Button
-                className="h-9 rounded-lg bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] text-white hover:opacity-90"
+                className="h-9 bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] text-white hover:opacity-90"
                 onClick={() => handleSave()}
                 disabled={saving}
               >
@@ -1901,7 +1901,7 @@ function PropertyEditor() {
             )}
             {!isNew && (
               <Button
-                className="h-9 rounded-lg bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] text-white hover:opacity-90"
+                className="h-9 bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] text-white hover:opacity-90"
                 onClick={handleCreateGuide}
                 disabled={saving}
               >
@@ -2059,6 +2059,9 @@ function PropertyEditor() {
             </Field>
             <Field label="URL pública (slug)" hint="Aparece em /g/seu-slug">
               <Input value={form.property.slug} maxLength={60} onChange={(e) => update("slug", slugify(e.target.value))} />
+            </Field>
+            <Field label="Tipo do guia" hint="Aparece abaixo do nome no cabeçalho do guia. Obrigatório só para publicar.">
+              <EtiquetaSelect value={form.property.tagline} onChange={(v) => update("tagline", v)} />
             </Field>
           </Section>
 
@@ -2737,7 +2740,12 @@ function PropertyEditor() {
 
 
       <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur p-3 sm:p-4 z-50">
-        <div className="max-w-4xl mx-auto flex flex-wrap justify-center items-center gap-2 sm:gap-3">
+        <div className="max-w-4xl mx-auto">
+        {/* ANTI-CORTE (regra global): a barra de ações rola na horizontal
+            (ds-scroll-x) em vez de quebrar linha — o aviso de autosave abaixo
+            é só texto informativo, por isso fica fora dessa barra, na sua
+            própria linha. */}
+        <div className="ds-scroll-x justify-center gap-2 sm:gap-3">
           {houseOnly ? (
             <Button
               variant="outline"
@@ -2780,30 +2788,30 @@ function PropertyEditor() {
               </Button>
             </>
           )}
-          {!readOnly && !isNew && (
-            <span
-              className={`basis-full text-center text-[11px] inline-flex items-center justify-center gap-1.5 ${
-                autoSaveError ? "text-destructive" : "text-muted-foreground"
-              }`}
-              // Passe o mouse aqui pra ver o motivo real de uma falha — sem
-              // isso, "Falha ao salvar" sozinho não dava nenhuma pista do
-              // que travou o autosave desta página.
-              title={autoSaveError ?? undefined}
-            >
-              {autoSaving ? (
-                <>
-                  <Loader2 className="size-3 animate-spin" /> Salvando…
-                </>
-              ) : autoSaveError ? (
-                <>
-                  <AlertTriangle className="size-3" /> Falha ao salvar — passe o mouse aqui pra ver o motivo
-                </>
-              ) : (
-                "Alterações salvas automaticamente"
-              )}
-            </span>
-          )}
-
+        </div>
+        {!readOnly && !isNew && (
+          <p
+            className={`mt-1.5 text-center text-[11px] inline-flex w-full items-center justify-center gap-1.5 ${
+              autoSaveError ? "text-destructive" : "text-muted-foreground"
+            }`}
+            // Passe o mouse aqui pra ver o motivo real de uma falha — sem
+            // isso, "Falha ao salvar" sozinho não dava nenhuma pista do
+            // que travou o autosave desta página.
+            title={autoSaveError ?? undefined}
+          >
+            {autoSaving ? (
+              <>
+                <Loader2 className="size-3 animate-spin" /> Salvando…
+              </>
+            ) : autoSaveError ? (
+              <>
+                <AlertTriangle className="size-3" /> Falha ao salvar — passe o mouse aqui pra ver o motivo
+              </>
+            ) : (
+              "Alterações salvas automaticamente"
+            )}
+          </p>
+        )}
         </div>
       </div>
 

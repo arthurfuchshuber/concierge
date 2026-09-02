@@ -15,15 +15,31 @@ export function DenseSections({ children }: { children: React.ReactNode }) {
   return <DensityContext.Provider value={true}>{children}</DensityContext.Provider>;
 }
 
-/** Agrupa Sections colapsáveis permitindo apenas uma aberta por vez. */
+/**
+ * Agrupa Sections colapsáveis permitindo apenas uma aberta por vez.
+ * Por padrão é não controlado (guarda o próprio estado). Passando `openId` +
+ * `onOpenIdChange`, quem chama passa a decidir qual seção fica aberta — usado
+ * quando algo de fora precisa abrir uma seção específica (ex.: validação de
+ * formulário abrindo a seção com o campo inválido e rolando até ele).
+ */
 export function SectionGroup({
   children,
   defaultOpenId = null,
+  openId: openIdProp,
+  onOpenIdChange,
 }: {
   children: React.ReactNode;
   defaultOpenId?: string | null;
+  openId?: string | null;
+  onOpenIdChange?: (id: string | null) => void;
 }) {
-  const [openId, setOpenId] = useState<string | null>(defaultOpenId);
+  const [localOpenId, setLocalOpenId] = useState<string | null>(defaultOpenId);
+  const isControlled = openIdProp !== undefined;
+  const openId = isControlled ? openIdProp : localOpenId;
+  const setOpenId = (id: string | null) => {
+    if (!isControlled) setLocalOpenId(id);
+    onOpenIdChange?.(id);
+  };
   return <SectionGroupContext.Provider value={{ openId, setOpenId }}>{children}</SectionGroupContext.Provider>;
 }
 

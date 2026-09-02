@@ -13,8 +13,8 @@ import {
   KeyRound,
   Eye,
   EyeOff,
-  ChevronDown,
   Pencil,
+  NotebookPen,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
@@ -37,6 +37,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Section, SectionGroup, DenseSections } from "@/components/editor/Section";
 import { MaskedInput, stripMask } from "@/components/inputs/MaskedInput";
 import { usePresence } from "@/hooks/usePresence";
 import { PresenceAvatars } from "@/components/presence/PresenceAvatars";
@@ -138,41 +139,6 @@ function fmtBR(iso: string): string {
   return d ? d.toLocaleDateString("pt-BR") : "";
 }
 
-/** Seção expansível do formulário — só uma aberta por vez (acordeão). */
-function FormSection({
-  label,
-  busy,
-  open,
-  onToggle,
-  children,
-}: {
-  label: string;
-  busy?: boolean;
-  open: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-lg border border-border/60">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={open}
-        className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-2.5 text-left"
-      >
-        <span className="ds-section-title flex min-w-0 items-center gap-1.5">
-          <span className="truncate">{label}</span>
-          {busy && <Loader2 className="size-3 shrink-0 animate-spin text-primary" />}
-        </span>
-        <ChevronDown
-          className={`size-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
-        />
-      </button>
-      {open && <div className="border-t border-border/40 px-3 py-3">{children}</div>}
-    </section>
-  );
-}
-
 /** Campo de data única com calendário — usado na vigência do contrato. */
 function SingleDateField({
   label,
@@ -269,12 +235,12 @@ export function StakeholderFormDialog({
   const [showPwd, setShowPwd] = useState(false);
   /** CPF/CNPJ trava depois de validado; o botão "Alterar" libera de novo. */
   const [docLocked, setDocLocked] = useState(false);
-  /** Acordeão: apenas uma seção aberta por vez; todas recolhidas ao abrir. */
+  // Acordeão (só uma seção aberta por vez, todas recolhidas ao abrir): mesmo
+  // SectionGroup/Section do editor de imóvel, mas em modo CONTROLADO — a
+  // validação abaixo precisa poder abrir a seção certa e rolar até o campo
+  // inválido, o que o SectionGroup não controlado (usado no resto do app)
+  // não permite de fora.
   const [openSection, setOpenSection] = useState<string | null>(null);
-  const sectionProps = (key: string) => ({
-    open: openSection === key,
-    onToggle: () => setOpenSection((c) => (c === key ? null : key)),
-  });
 
   // Presença em tempo real: só existe sala pra registros já salvos (com id) —
   // um cadastro novo, ainda sem id, não tem o que outra pessoa acompanhar.
@@ -574,7 +540,13 @@ export function StakeholderFormDialog({
           </div>
           )}
 
-          <FormSection label="Dados cadastrais" busy={checkingCnpj} {...sectionProps("dados")}>
+          {/* Mesmo componente/padrão "quadrantes expansivos" usado no editor
+              de imóvel (Section + SectionGroup, modo dense: cantos 0.3rem,
+              ícone, título 13px) — nunca uma versão à parte só pra este
+              diálogo. */}
+          <SectionGroup openId={openSection} onOpenIdChange={setOpenSection}>
+          <DenseSections>
+          <Section id="dados" icon={UserRound} title="Dados cadastrais" collapsible action={checkingCnpj ? <Loader2 className="size-3.5 shrink-0 animate-spin text-primary" /> : undefined}>
 
             <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
 
@@ -690,9 +662,9 @@ export function StakeholderFormDialog({
             )}
 
             </div>
-          </FormSection>
+          </Section>
 
-          <FormSection label="Situação contratual" {...sectionProps("contrato")}>
+          <Section id="contrato" icon={Calendar} title="Situação contratual" collapsible>
             <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
               <div className="space-y-1.5">
                 <Label className="ds-meta">Situação</Label>
@@ -733,10 +705,10 @@ export function StakeholderFormDialog({
                 Sem data final, o contrato vale por tempo indeterminado.
               </p>
             </div>
-          </FormSection>
+          </Section>
 
 
-          <FormSection label="Contato" {...sectionProps("contato")}>
+          <Section id="contato" icon={Mail} title="Contato" collapsible>
 
             <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
 
@@ -781,10 +753,10 @@ export function StakeholderFormDialog({
               <FieldTypingBadge typing={presence.typing["email"]} />
             </div>
             </div>
-          </FormSection>
+          </Section>
 
 
-          <FormSection label="Acesso ao sistema" {...sectionProps("acesso")}>
+          <Section id="acesso" icon={KeyRound} title="Acesso ao sistema" collapsible>
             <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
             <label className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
               <span className="ds-body min-w-0 font-semibold">Permitir acesso ao sistema</span>
@@ -849,9 +821,9 @@ export function StakeholderFormDialog({
             )}
 
             </div>
-          </FormSection>
+          </Section>
 
-          <FormSection label="Endereço" busy={loadingCep} {...sectionProps("endereco")}>
+          <Section id="endereco" icon={MapPin} title="Endereço" collapsible action={loadingCep ? <Loader2 className="size-3.5 shrink-0 animate-spin text-primary" /> : undefined}>
 
 
             <div className="grid grid-cols-2 gap-3 [&>*]:min-w-0">
@@ -962,9 +934,9 @@ export function StakeholderFormDialog({
               <FieldTypingBadge typing={presence.typing["state"]} />
             </div>
             </div>
-          </FormSection>
+          </Section>
 
-          <FormSection label="Extras" {...sectionProps("extras")}>
+          <Section id="extras" icon={NotebookPen} title="Extras" collapsible>
 
 
             <div className="space-y-1.5">
@@ -982,7 +954,9 @@ export function StakeholderFormDialog({
               />
               <FieldTypingBadge typing={presence.typing["notes"]} />
             </div>
-          </FormSection>
+          </Section>
+          </DenseSections>
+          </SectionGroup>
         </div>
 
         <div className="ds-scroll-x justify-end gap-3 pt-3 border-t border-border/30">
