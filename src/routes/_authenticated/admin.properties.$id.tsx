@@ -1187,6 +1187,23 @@ function PropertyEditor() {
           gallery_images: importedGallery.length ? importedGallery : f.property.gallery_images,
           hero_image_url: importedGallery[0] ?? r.hero_image_url ?? f.property.hero_image_url,
           airbnb_listing_url: airbnbUrl.trim(),
+          // Campos "ampliados" (avaliação, hóspedes/quartos/camas/banheiros,
+          // descrição completa, quartos+camas, comodidades e "O que você
+          // deve saber") — faltavam aqui: o import lia esses dados da Firecrawl
+          // mas nunca copiava pro formulário, então a aba Airbnb ficava
+          // sempre vazia nesses campos mesmo com a importação funcionando.
+          // Corrigido em 03/09/2026.
+          airbnb_rating: r.rating ?? f.property.airbnb_rating,
+          airbnb_guest_count: r.guest_count ?? f.property.airbnb_guest_count,
+          airbnb_bedroom_count: r.bedroom_count ?? f.property.airbnb_bedroom_count,
+          airbnb_bed_count: r.bed_count ?? f.property.airbnb_bed_count,
+          airbnb_bathroom_count: r.bathroom_count ?? f.property.airbnb_bathroom_count,
+          airbnb_description_full: r.description_full ?? f.property.airbnb_description_full,
+          airbnb_rooms_beds: r.rooms_beds.length ? r.rooms_beds : f.property.airbnb_rooms_beds,
+          airbnb_amenities: r.amenities.length ? r.amenities : f.property.airbnb_amenities,
+          airbnb_house_rules: r.house_rules ?? f.property.airbnb_house_rules,
+          airbnb_cancellation_policy: r.cancellation_policy ?? f.property.airbnb_cancellation_policy,
+          airbnb_safety_info: r.safety_info ?? f.property.airbnb_safety_info,
         },
       }));
       const bits: string[] = [];
@@ -1195,6 +1212,10 @@ function PropertyEditor() {
       if (r.gallery_images.length) bits.push(`${r.gallery_images.length} fotos`);
       if (r.city) bits.push("localização");
       if (r.checkin_time || r.checkout_time) bits.push("horários");
+      if (r.description_full) bits.push("descrição completa");
+      if (r.rooms_beds.length) bits.push("quartos e camas");
+      if (r.amenities.length) bits.push(`${r.amenities.length} comodidades`);
+      if (r.house_rules || r.cancellation_policy || r.safety_info) bits.push("O que você deve saber");
       toast.success(bits.length ? `Importado: ${bits.join(" · ")}` : "Importado");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao importar");
@@ -1590,7 +1611,6 @@ function PropertyEditor() {
       id="identity"
       icon={Home}
       title="Identificação do Imóvel"
-      desc="Proprietário e tipo do imóvel."
       collapsible
     >
       {renderOwnerFields()}
@@ -1618,7 +1638,6 @@ function PropertyEditor() {
       id="cleaning"
       icon={Sparkles}
       title="Custos e Duração da Limpeza"
-      desc="Valores fixos cobrados e o período estimado de cada tipo de limpeza deste imóvel."
       collapsible
     >
       {/* Cada tipo de limpeza (normal / completa) tem seu próprio prazo —
@@ -1758,7 +1777,6 @@ function PropertyEditor() {
       id="address"
       icon={MapPinned}
       title="Endereço e localização"
-      desc="Cole o link do Google Maps — o endereço é preenchido automaticamente."
       collapsible
     >
       <Field label="Link do Google Maps — Entrada principal" required>
@@ -1809,7 +1827,6 @@ function PropertyEditor() {
       id="airbnb-calendar"
       icon={RefreshCw}
       title="Calendário do Airbnb"
-      desc="Sincronize para habilitar dashboard, calendário e kanban — funciona mesmo sem publicar um guia."
       collapsible
     >
       {isNew && (
@@ -1958,7 +1975,6 @@ function PropertyEditor() {
       id="host-house"
       icon={UserRound}
       title="Contato do anfitrião"
-      desc="Nome e WhatsApp para o hóspede te encontrar."
       collapsible
     >
       <div className="grid grid-cols-2 gap-3">
@@ -2109,7 +2125,6 @@ function PropertyEditor() {
       id="house-rules"
       icon={ClipboardCheck}
       title="Regras do espaço"
-      desc="Uma regra por linha — cada linha vira um item numerado no guia."
       collapsible
     >
       <Field label="Regras (opcional)" hint="Uma regra por linha. Linhas em branco são ignoradas.">
@@ -2132,7 +2147,6 @@ function PropertyEditor() {
       id="manual"
       icon={BookOpen}
       title="Manual da casa"
-      desc="Instruções de equipamentos e funcionamento."
       collapsible
     >
       {isNew ? (
@@ -2205,7 +2219,6 @@ function PropertyEditor() {
       id="property-details"
       icon={NotebookPen}
       title="Detalhamento do Imóvel"
-      desc="Base de conhecimento livre: micro detalhes que a IA usa e que não aparecem no guia."
       collapsible
     >
       {isNew ? (
@@ -2443,7 +2456,6 @@ function PropertyEditor() {
                   icon={Sparkles}
                   tone="accent"
                   title="Importar do Airbnb"
-                  desc="Cole o link do anúncio — os campos desta aba são preenchidos e mantidos em dia automaticamente."
                   collapsible
                 >
                   {!canAirbnb && (
@@ -2537,17 +2549,18 @@ function PropertyEditor() {
                   )}
                 </Section>
 
-                <Section
-                  id="airbnb-basic-fields"
-                  icon={FileText}
-                  title="Nome e descrição"
-                  desc="Nome e descrição curta que aparecem no cabeçalho do guia."
-                  collapsible
-                >
+                <Section id="airbnb-basic-fields" icon={FileText} title="Nome e descrição" collapsible>
+                  {/* "Nome do imóvel" NÃO foi bloqueado como os outros campos
+                      desta aba: é o único identificador do guia e não tem
+                      nenhum outro lugar na tela onde possa ser digitado — um
+                      imóvel sem link do Airbnb (ou cuja importação ainda não
+                      rodou) ficaria sem nenhuma forma de nomear o guia. Os
+                      demais campos abaixo são só complemento e por isso
+                      seguem a regra normalmente (só leitura). */}
                   <Field
                     label="Nome do imóvel"
                     required
-                    hint={`Máx. 80 caracteres — ${form.property.name.length}/80. Curto e memorável funciona melhor no cabeçalho do guia.`}
+                    hint={`Máx. 80 caracteres — ${form.property.name.length}/80. Preenchido pela importação do Airbnb — edite se quiser um nome diferente do anúncio.`}
                   >
                     <Input
                       value={form.property.name}
@@ -2564,59 +2577,38 @@ function PropertyEditor() {
                       }}
                     />
                   </Field>
-                  <Field
-                    label="Descrição curta"
-                    hint="Texto livre, importado do Airbnb — pode editar à mão também."
-                  >
-                    <Textarea
-                      value={form.property.short_description ?? ""}
-                      maxLength={600}
-                      rows={3}
-                      onChange={(e) => update("short_description", e.target.value || null)}
-                    />
+                  <Field label="Descrição curta">
+                    <ReadOnlyValue value={form.property.short_description} />
                   </Field>
                 </Section>
 
-                <Section
-                  id="gallery"
-                  icon={ImageIcon}
-                  title="Fotos da residência"
-                  desc="Até 4 fotos — a primeira será a capa."
-                  collapsible
-                >
-                  <GalleryEditor
-                    compact
-                    value={form.property.gallery_images}
-                    onChange={(next) => {
-                      setForm((f) => ({
-                        ...f,
-                        property: { ...f.property, gallery_images: next, hero_image_url: next[0] ?? "" },
-                      }));
-                    }}
-                  />
+                <Section id="gallery" icon={ImageIcon} title="Fotos da residência" collapsible>
+                  {form.property.gallery_images.length ? (
+                    <div className="grid grid-cols-4 gap-2">
+                      {form.property.gallery_images.map((url, i) => (
+                        <div key={i} className="relative ds-surface overflow-hidden rounded-lg border border-border/60 aspect-square">
+                          <img src={url} alt={`Foto ${i + 1}`} className="size-full object-cover" />
+                          {i === 0 && (
+                            <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+                              Capa
+                            </span>
+                          )}
+                          <Lock className="absolute top-1 right-1 size-3 text-white drop-shadow" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyHint text="Nenhuma foto importada ainda." />
+                  )}
                 </Section>
 
-                <Section
-                  id="airbnb-checkin-times"
-                  icon={Clock}
-                  title="Horários de check-in"
-                  desc="Janela de chegada."
-                  collapsible
-                >
+                <Section id="airbnb-checkin-times" icon={Clock} title="Horários de check-in" collapsible>
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Check-in a partir de">
-                      <TimePicker
-                        value={form.property.checkin_time}
-                        onChange={(v) => update("checkin_time", v)}
-                        placeholder="15:00"
-                      />
+                      <ReadOnlyValue value={form.property.checkin_time} />
                     </Field>
                     <Field label="Check-in até" hint="opcional">
-                      <TimePicker
-                        value={form.property.checkin_time_max}
-                        onChange={(v) => update("checkin_time_max", v)}
-                        placeholder="22:00"
-                      />
+                      <ReadOnlyValue value={form.property.checkin_time_max} />
                     </Field>
                   </div>
                   <Field
@@ -2634,15 +2626,14 @@ function PropertyEditor() {
                   </Field>
                 </Section>
 
-                <Section
-                  id="airbnb-checkout-times"
-                  icon={Clock}
-                  title="Horários de check-out"
-                  desc="Janela de saída — os dois horários (a partir de / até) são importados do Airbnb."
-                  collapsible
-                >
+                <Section id="airbnb-checkout-times" icon={Clock} title="Horários de check-out" collapsible>
                   <div className="grid grid-cols-2 gap-3">
-                    <Field label="Check-out a partir de" hint="opcional">
+                    {/* "A partir de" NÃO vem do Airbnb (o anúncio só mostra um
+                        horário-limite de saída) — continua editável à mão.
+                        "Até" é o único dos dois que a importação preenche, por
+                        isso só ele fica bloqueado, seguindo a regra desta
+                        aba. */}
+                    <Field label="Check-out a partir de" hint="opcional — não vem do Airbnb, defina à mão">
                       <TimePicker
                         value={form.property.checkout_time_min}
                         onChange={(v) => update("checkout_time_min", v)}
@@ -2650,11 +2641,7 @@ function PropertyEditor() {
                       />
                     </Field>
                     <Field label="Check-out até" hint="opcional">
-                      <TimePicker
-                        value={form.property.checkout_time}
-                        onChange={(v) => update("checkout_time", v)}
-                        placeholder="11:00"
-                      />
+                      <ReadOnlyValue value={form.property.checkout_time} />
                     </Field>
                   </div>
                   <Field
@@ -2672,17 +2659,7 @@ function PropertyEditor() {
                   </Field>
                 </Section>
 
-                <Section
-                  id="airbnb-description-full"
-                  icon={FileText}
-                  title="Descrição completa (Airbnb)"
-                  desc={
-                    form.property.airbnb_description_full
-                      ? `${form.property.airbnb_description_full.length} caracteres — só leitura, vem do anúncio.`
-                      : "Só leitura — preenchida pela importação."
-                  }
-                  collapsible
-                >
+                <Section id="airbnb-description-full" icon={FileText} title="Descrição completa (Airbnb)" collapsible>
                   {form.property.airbnb_description_full ? (
                     <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                       {form.property.airbnb_description_full}
@@ -2692,17 +2669,7 @@ function PropertyEditor() {
                   )}
                 </Section>
 
-                <Section
-                  id="airbnb-rooms-beds"
-                  icon={DoorOpen}
-                  title="Quartos e camas (Airbnb)"
-                  desc={
-                    form.property.airbnb_rooms_beds.length
-                      ? `${form.property.airbnb_rooms_beds.length} quarto(s) — só leitura, vem do anúncio.`
-                      : "Só leitura — preenchido pela importação."
-                  }
-                  collapsible
-                >
+                <Section id="airbnb-rooms-beds" icon={DoorOpen} title="Quartos e camas (Airbnb)" collapsible>
                   {form.property.airbnb_rooms_beds.length ? (
                     <div className="divide-y divide-border/60">
                       {form.property.airbnb_rooms_beds.map((r, i) => (
@@ -2717,21 +2684,7 @@ function PropertyEditor() {
                   )}
                 </Section>
 
-                <Section
-                  id="airbnb-amenities"
-                  icon={Shield}
-                  title="Comodidades (Airbnb)"
-                  desc={
-                    form.property.airbnb_amenities.length
-                      ? `${form.property.airbnb_amenities.length} comodidade(s)${
-                          form.property.airbnb_amenities.some((a) => !a.available)
-                            ? ` · ${form.property.airbnb_amenities.filter((a) => !a.available).length} indisponível(is)`
-                            : ""
-                        } — só leitura, vem do anúncio.`
-                      : "Só leitura — preenchida pela importação."
-                  }
-                  collapsible
-                >
+                <Section id="airbnb-amenities" icon={Shield} title="Comodidades (Airbnb)" collapsible>
                   {form.property.airbnb_amenities.length ? (
                     <div className="flex flex-wrap gap-1.5">
                       {form.property.airbnb_amenities.map((a, i) => (
@@ -2751,13 +2704,7 @@ function PropertyEditor() {
                   )}
                 </Section>
 
-                <Section
-                  id="airbnb-know"
-                  icon={LifeBuoy}
-                  title="O que você deve saber (Airbnb)"
-                  desc="Regras da casa, cancelamento e segurança — só leitura, vem do anúncio."
-                  collapsible
-                >
+                <Section id="airbnb-know" icon={LifeBuoy} title="O que você deve saber (Airbnb)" collapsible>
                   {!form.property.airbnb_house_rules &&
                   !form.property.airbnb_cancellation_policy &&
                   !form.property.airbnb_safety_info ? (
@@ -2807,7 +2754,6 @@ function PropertyEditor() {
                   id="identity"
                   icon={FileText}
                   title="Identidade visual"
-                  desc="Endereço público e tipo do guia."
                   collapsible
                 >
                   <Field label="URL pública (slug)" hint="Aparece em /g/seu-slug">
@@ -2829,7 +2775,6 @@ function PropertyEditor() {
                   id="access-mode"
                   icon={Shield}
                   title="Modo de acesso"
-                  desc="Quem pode visualizar este guia."
                   collapsible
                 >
                   <Field label="Modo de acesso do Guia">
@@ -2901,7 +2846,6 @@ function PropertyEditor() {
                   id="checkin-instr"
                   icon={DoorOpen}
                   title="Instruções de chegada"
-                  desc="Passo a passo do check-in. Uma etapa por linha."
                   collapsible
                 >
                   <Field label="Passo a passo (opcional)" hint="Uma etapa por linha. Linhas em branco são ignoradas.">
@@ -2933,7 +2877,6 @@ function PropertyEditor() {
                   id="access-codes"
                   icon={KeyRound}
                   title="Senhas de Acesso"
-                  desc="Códigos de portão e fechadura, mais o código que libera as senhas no Guia."
                   collapsible
                 >
                   {/* Campo inline — Código para visualizar as senhas no Guia */}
@@ -3158,7 +3101,6 @@ function PropertyEditor() {
                   id="wifi"
                   icon={Wifi}
                   title="Wi-Fi"
-                  desc="Rede e senha exibidas no card de Wi-Fi do guia público."
                   collapsible
                 >
                   <div className="grid grid-cols-2 gap-3">
@@ -3183,7 +3125,6 @@ function PropertyEditor() {
                   id="guest-data"
                   icon={ClipboardList}
                   title="Dados do hóspede"
-                  desc="O que é coletado no formulário de primeiro acesso."
                   collapsible
                 >
                   <div className="space-y-2">
@@ -3303,7 +3244,6 @@ function PropertyEditor() {
                   id="checkout-instr"
                   icon={LogOut}
                   title="Instruções de saída"
-                  desc="Passo a passo do check-out. Uma etapa por linha."
                   collapsible
                 >
                   <Field label="Passo a passo (opcional)" hint="Uma etapa por linha. Linhas em branco são ignoradas.">
@@ -3324,7 +3264,6 @@ function PropertyEditor() {
                   id="checkout-list"
                   icon={ClipboardCheck}
                   title="Checklist de check-out"
-                  desc="O que o hóspede deve fazer antes de sair."
                   collapsible
                 >
                   {form.checkout.length === 0 ? (
@@ -3363,7 +3302,6 @@ function PropertyEditor() {
                   id="emergency"
                   icon={Phone}
                   title="Emergências"
-                  desc="Telefones úteis em caso de urgência."
                   collapsible
                 >
                   {form.emergency.length === 0 ? (
@@ -3412,7 +3350,6 @@ function PropertyEditor() {
                   id="faqs"
                   icon={HelpCircle}
                   title="Perguntas frequentes"
-                  desc="Antecipe dúvidas comuns dos hóspedes."
                   collapsible
                 >
                   {form.faqs.length === 0 ? (
@@ -3569,7 +3506,6 @@ function PropertyEditor() {
                   id="host-faq"
                   icon={UserRound}
                   title="Contato do anfitrião"
-                  desc="Nome e WhatsApp para o hóspede te encontrar."
                   collapsible
                 >
                   <div className="grid grid-cols-2 gap-3">
@@ -3656,7 +3592,6 @@ function PropertyEditor() {
 
                 <RecGroup
                   title="Aqui pertinho"
-                  desc="Arredores do imóvel — a poucos minutos a pé."
                   items={nearbyRecs}
                   onChange={(items) => setForm((f) => ({ ...f, recommendations: items }))}
                   scope="nearby"
@@ -3699,7 +3634,6 @@ function PropertyEditor() {
                   id="marketplace"
                   icon={Ticket}
                   title="Reservas & marketplace"
-                  desc="Links para venda de ingressos, passeios, transfers, produtos ou qualquer experiência que você queira oferecer ao hóspede."
                   collapsible
                   action={
                     sigmaLocked ? null : (
@@ -4118,6 +4052,19 @@ function EmptyHint({ text }: { text: string }) {
   return (
     <div className="ds-surface border border-dashed border-border/70 bg-muted/30 px-4 py-5 text-center text-xs text-muted-foreground leading-relaxed">
       {text}
+    </div>
+  );
+}
+
+/** Exibe (nunca edita) um campo preenchido pela importação/sincronização do
+ *  Airbnb — pedido do cliente em 03/09/2026: todo campo com importação
+ *  automática fica só-leitura na tela, pra editar à mão nunca conflitar com
+ *  o que a checagem diária vai sobrescrever de qualquer forma. */
+function ReadOnlyValue({ value, placeholder = "Ainda não importado" }: { value: string | null | undefined; placeholder?: string }) {
+  return (
+    <div className="ds-surface border border-border/60 bg-muted/30 px-3 py-2 text-sm min-h-[38px] flex items-center gap-2">
+      <Lock className="size-3.5 shrink-0 text-muted-foreground" />
+      <span className={cn(value ? "text-foreground/90" : "text-muted-foreground italic")}>{value || placeholder}</span>
     </div>
   );
 }
@@ -4552,7 +4499,6 @@ function CityRefsGroup({
   return (
     <RecGroup
       title="Pela cidade"
-      desc="Vale a visita — alguns minutos de carro. Compartilhado entre todos os guias desta cidade."
       items={localItems}
       onChange={handleChange}
       scope="city"
@@ -4590,7 +4536,7 @@ export function RecGroup({
   metricsCounts,
 }: {
   title: string;
-  desc: string;
+  desc?: string;
   items: RecItem[];
   onChange: (i: RecItem[]) => void;
   scope: "nearby" | "city";

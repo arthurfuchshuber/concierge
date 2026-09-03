@@ -664,19 +664,49 @@ dd {
    em duas linhas, nunca comprime texto e nunca corta um item pela metade.
    Vale para TODAS as telas/subtelas/tooltips do SaaS.
 
-   "Peek-fade": quando a barra rola, uma sombra bem sutil aparece na(s)
-   borda(s) onde ainda há abas escondidas, para o corte de scroll nunca
-   parecer um corte visual quebrado. É 100% CSS (sem JS): duas camadas de
-   fundo "cobrem" a sombra e rolam junto com o conteúdo (attachment: local);
-   as outras duas ficam fixas na borda do viewport (attachment: scroll). O
-   resultado é que a sombra só aparece no lado em que ainda dá pra rolar —
-   ela some sozinha quando a barra cabe inteira ou quando chega no fim.
-   `--ds-segmented-bg` deixa cada tela ajustar a cor de fundo usada para
-   "cobrir" a sombra, caso não seja o fundo padrão da página. */
+   CORRIGIDO em 03/09/2026 — três bugs reais encontrados nesta regra:
+
+   1) "Degradê estranho no fim da barra": a versão anterior tentava um
+      efeito "peek-fade" que escondia a sombra de scroll quando não havia
+      mais nada pra rolar, pintando por cima dela um retângulo sólido na cor
+      `var(--ds-segmented-bg, var(--background))`. Nenhuma tela chegava a
+      definir `--ds-segmented-bg`, então esse retângulo sempre usava a cor
+      de fundo PLANA da página — só que quase toda barra usa um fundo
+      translúcido (`bg-foreground/5`, `bg-muted/40`, etc.), então o
+      retângulo "sólido" nunca batia com o fundo real por baixo, aparecendo
+      como uma mancha/degradê quebrado na borda. Corrigido removendo esse
+      retângulo de cobertura: agora a sombra é só um gradiente que desbota
+      até TRANSPARENTE (nunca até uma cor sólida), então funciona em
+      qualquer fundo, translúcido ou não, sem precisar de nenhuma variável
+      por tela. Troca: a sombra fica sempre visível nas duas bordas (não
+      desaparece mais sozinha quando a barra cabe inteira ou chega no fim) —
+      mas nunca mais quebra visualmente.
+   2) "Corta uma aba": os filhos desta barra (`TabsTrigger` — ver
+      ui/tabs.tsx) já vêm com `!flex-1` fixo no componente base. Como a
+      regra abaixo também usa `flex: 0 0 auto !important` no mesmo elemento,
+      as duas declarações `!important` empatavam em especificidade — quem
+      ganhava dependia só da ordem de geração do CSS pelo Tailwind (não
+      determinístico). Quando `!flex-1` vencia, o navegador tentava dividir
+      a largura em partes iguais dentro de um container que não cresce,
+      espremendo/cortando os rótulos. Corrigido repetindo a classe
+      (`&.ds-segmented > *`) só nesta regra: repetir um seletor de classe
+      aumenta a especificidade sem precisar de mais `!important`, então esta
+      regra passa a vencer sempre, não importa a ordem de geração.
+   3) "Não distribui as abas com espaçamento igual": esta barra nunca usava
+      `justify-content`, então, quando as abas cabem com folga (não precisam
+      rolar), elas ficavam todas coladas à esquerda em vez de ocupar a
+      largura toda. Corrigido com `justify-content: space-between`: quando
+      cabe, o espaço extra vira espaçamento igual entre as abas (nunca
+      estica o texto/comprime); quando NÃO cabe, o navegador volta sozinho
+      ao alinhamento padrão (início) e a barra rola normalmente — isso é
+      comportamento padrão do CSS para valores de distribuição como
+      `space-between` quando o espaço livre é negativo, não um caso
+      especial tratado aqui. */
 @utility ds-segmented {
   display: flex;
   flex-wrap: nowrap;
   align-items: stretch;
+  justify-content: space-between;
   gap: 2px;
   width: 100%;
   max-width: 100%;
@@ -689,18 +719,11 @@ dd {
   background-repeat: no-repeat;
   background-position:
     left top,
-    right top,
-    left top,
     right top;
   background-size:
-    26px 100%,
-    26px 100%,
     12px 100%,
     12px 100%;
-  background-attachment: local, local, scroll, scroll;
   background-image:
-    linear-gradient(to right, var(--ds-segmented-bg, var(--background)) 45%, transparent),
-    linear-gradient(to left, var(--ds-segmented-bg, var(--background)) 45%, transparent),
     linear-gradient(to right, color-mix(in oklch, var(--foreground) 20%, transparent), transparent),
     linear-gradient(to left, color-mix(in oklch, var(--foreground) 20%, transparent), transparent);
 
@@ -708,7 +731,7 @@ dd {
     display: none;
   }
 
-  & > * {
+  &.ds-segmented > * {
     flex: 0 0 auto !important;
     min-width: max-content;
     white-space: nowrap;

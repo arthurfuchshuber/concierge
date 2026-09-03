@@ -54,6 +54,13 @@ const ImageUrl = z.preprocess(
 const PropertyInput = z.object({
   name: z.string().trim().min(1).max(120),
   tagline: z.string().trim().max(200).optional().nullable(),
+  // "Descrição curta" em texto livre (separada de `tagline`, que é o seletor
+  // fixo "Tipo do guia" — ver migration 20260903050000). Faltava aqui: o
+  // campo existia no formulário e era preenchido pela importação do Airbnb,
+  // mas como este schema valida tudo que chega em upsertProperty e descarta
+  // qualquer chave que não reconhece, o valor nunca chegava a ser salvo —
+  // bug encontrado e corrigido em 03/09/2026.
+  short_description: z.string().trim().max(600).optional().nullable(),
   slug: z.string().regex(slugRe, "Slug inválido (use letras minúsculas, números e hífens)"),
   hero_image_url: HttpsUrl,
   gallery_images: z.array(HttpsUrlRequired).max(4).default([]),
@@ -165,6 +172,32 @@ const PropertyInput = z.object({
   cleaning_price_full_cents: z.number().int().min(0).max(100_000_00).optional().nullable(),
   cleaning_duration_normal_minutes: z.number().int().min(30).max(480).multipleOf(30).optional().nullable(),
   cleaning_duration_full_minutes: z.number().int().min(30).max(480).multipleOf(30).optional().nullable(),
+  // Campos "ampliados" da importação/sincronização do Airbnb (só leitura na
+  // tela — ver aba Airbnb). Mesmo bug do `short_description` acima: existiam
+  // no formulário e no botão "Importar", mas por faltarem aqui eram
+  // descartados antes de chegar ao banco em qualquer salvamento que passasse
+  // por este schema (o botão "Importar" + autosave). A sincronização diária
+  // (refreshStaleAirbnbListings) não é afetada por este bug porque grava
+  // direto na tabela, sem passar por aqui — corrigido em 03/09/2026.
+  airbnb_rating: z.number().min(0).max(5).optional().nullable(),
+  airbnb_guest_count: z.number().int().min(0).max(200).optional().nullable(),
+  airbnb_bedroom_count: z.number().int().min(0).max(200).optional().nullable(),
+  airbnb_bed_count: z.number().int().min(0).max(200).optional().nullable(),
+  airbnb_bathroom_count: z.number().min(0).max(200).optional().nullable(),
+  airbnb_description_full: z.string().max(20_000).optional().nullable(),
+  airbnb_rooms_beds: z
+    .array(z.object({ room: z.string().max(120), beds: z.string().max(200) }))
+    .max(50)
+    .optional()
+    .default([]),
+  airbnb_amenities: z
+    .array(z.object({ name: z.string().max(120), available: z.boolean() }))
+    .max(300)
+    .optional()
+    .default([]),
+  airbnb_house_rules: z.string().max(10_000).optional().nullable(),
+  airbnb_cancellation_policy: z.string().max(10_000).optional().nullable(),
+  airbnb_safety_info: z.string().max(10_000).optional().nullable(),
 });
 
 
