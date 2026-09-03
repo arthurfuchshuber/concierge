@@ -262,7 +262,16 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
                 )}
               </button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-80 p-4 space-y-4">
+            <PopoverContent
+              align="end"
+              className="w-80 p-4 space-y-4"
+              // Sem isso, o Radix foca automaticamente o primeiro campo
+              // focável ao abrir (o campo de busca "Buscar situação…"),
+              // abrindo o teclado do celular sozinho assim que o usuário só
+              // queria ver os filtros. Só deve abrir quando o usuário tocar
+              // no campo de busca.
+              onOpenAutoFocus={(e) => e.preventDefault()}
+            >
               <div className="flex items-center justify-between">
                 <span className="ds-eyebrow">Filtros</span>
                 {(statusFilters.length > 0 || cityFilters.length > 0) && (
