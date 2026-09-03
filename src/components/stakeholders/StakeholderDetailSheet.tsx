@@ -462,14 +462,14 @@ export function StakeholderDetailSheet({
           className="absolute left-0 right-12 top-0 h-[2px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]"
         />
 
-        {/* Linha 1: eyebrow (as ações desceram para a linha de metadados) */}
-        <span className="ds-eyebrow block truncate text-muted-foreground">
+        {/* Linha 1: eyebrow em roxo de marca (mockup aprovado) */}
+        <span className="ds-eyebrow block truncate text-[#9B4DFF]">
           {kind === "owner" ? "Proprietário" : "Prestador"}
         </span>
 
-        {/* Linha 2: nome em linha única, espaçamento padrão das demais páginas */}
+        {/* Linha 2: nome com peso/escala de título de página */}
         <h2
-          className="mt-1 truncate font-display text-[20px] font-bold leading-tight tracking-[-0.01em]"
+          className="mt-1.5 font-display text-[24px] font-extrabold leading-[1.15] tracking-[-0.02em] sm:text-[28px]"
           title={displayName}
         >
           {displayName}
