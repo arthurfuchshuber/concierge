@@ -78,25 +78,48 @@ type FirecrawlScrapeOptions = {
 // Sequência de cliques "melhor esforço" pra revelar conteúdo que o Airbnb
 // esconde atrás de "Mostrar mais"/"Saiba mais" antes de ler a página:
 // descrição completa, comodidades (todas, incluindo riscadas, atrás do
-// "Mostrar todas as X comodidades") e o modal "O que você deve saber"
-// (regras da casa, cancelamento, segurança) com suas próprias expansões
-// internas. Os seletores usam correspondência parcial de aria-label
-// (`*=`), que tende a sobreviver a redesigns melhor que classes CSS
-// ofuscadas — mas o Airbnb não documenta esse HTML publicamente, então
-// isto é uma aposta educada, não uma garantia. Se um seletor não achar
-// nada, o Firecrawl segue em frente sem travar a extração (por isso os
-// cliques ficam numa tentativa separada, com uma tentativa mais simples
-// como rede de segurança logo depois — ver scrapeAirbnbListing).
+// "Mostrar todas as X comodidades") e a seção "O que você deve saber".
+//
+// IMPORTANTE (corrigido em 03/09/2026, com screenshots reais do anúncio):
+// "O que você deve saber" NÃO é um campo único — são 3 cartões distintos
+// (Regras da casa / Segurança e propriedade / Política de cancelamento),
+// cada um com seu PRÓPRIO botão "Saiba mais" que abre um modal PRÓPRIO. E
+// dentro do modal "Regras da casa" ainda existe uma sub-seção "Regras
+// adicionais" com o SEU PRÓPRIO "Mostrar mais" (um segundo nível de
+// expansão). Por isso os cliques abaixo têm duas rodadas: uma pra abrir os
+// 3 modais (o Airbnb mantém cada um montado no DOM mesmo coberto pelos
+// outros, então a extração final no fim consegue ler o conteúdo dos três
+// juntos) e outra, DEPOIS que os modais já abriram, pra expandir o "Mostrar
+// mais" de dentro do modal "Regras da casa".
+//
+// Os seletores usam correspondência parcial de aria-label (`*=`), que
+// tende a sobreviver a redesigns melhor que classes CSS ofuscadas — mas o
+// Airbnb não documenta esse HTML publicamente, então isto continua sendo
+// uma aposta educada, não uma garantia (o comportamento exato de
+// empilhamento dos 3 modais não pôde ser testado ao vivo neste ambiente).
+// Se um seletor não achar nada, o Firecrawl segue em frente sem travar a
+// extração (por isso os cliques ficam numa tentativa separada, com uma
+// tentativa mais simples como rede de segurança logo depois — ver
+// scrapeAirbnbListing).
 const AIRBNB_EXPAND_ACTIONS: FirecrawlAction[] = [
   { type: "wait", milliseconds: 1200 },
   { type: "click", selector: "button[aria-label*='descri' i], button[aria-expanded='false']", all: true },
   { type: "wait", milliseconds: 500 },
-  { type: "click", selector: "button[aria-label*='comodidades' i], button[aria-label*='amenities' i]" },
+  { type: "click", selector: "button[aria-label*='comodidades' i], button[aria-label*='amenities' i]", all: true },
   { type: "wait", milliseconds: 900 },
-  { type: "click", selector: "button[aria-label*='saiba mais' i], button[aria-label*='know' i], a[aria-label*='saiba mais' i]", all: true },
+  // Abre os 3 cartões de "O que você deve saber" (Regras da casa,
+  // Segurança e propriedade, Política de cancelamento) de uma vez.
+  {
+    type: "click",
+    selector:
+      "button[aria-label*='saiba mais' i], button[aria-label*='know' i], a[aria-label*='saiba mais' i], button[aria-label*='regras da casa' i], button[aria-label*='segurança' i], button[aria-label*='cancelamento' i], button[aria-label*='house rules' i], button[aria-label*='safety' i], button[aria-label*='cancellation' i]",
+    all: true,
+  },
   { type: "wait", milliseconds: 900 },
-  { type: "click", selector: "[role='dialog'] button[aria-label*='mostrar mais' i], [role='dialog'] button[aria-label*='show more' i]", all: true },
-  { type: "wait", milliseconds: 500 },
+  // Dentro do modal "Regras da casa" (já aberto acima) existe uma
+  // sub-seção "Regras adicionais" com seu PRÓPRIO "Mostrar mais".
+  { type: "click", selector: "[role='dialog'] button[aria-label*='mostrar mais' i], [role='dialog'] button[aria-label*='show more' i], [role='dialog'] button[aria-expanded='false']", all: true },
+  { type: "wait", milliseconds: 700 },
 ];
 
 async function scrapeWithFirecrawl(apiKey: string, url: string, options: FirecrawlScrapeOptions): Promise<unknown> {
@@ -159,11 +182,21 @@ function pickTime(text?: string | null): string | null {
 // do Airbnb" significa. Usado tanto pelo import manual (botão "Importar")
 // quanto pela sincronização automática diária (refreshStaleAirbnbListings),
 // pra nunca os dois divergirem no que é lido do anúncio.
+//
+// IDIOMA (corrigido em 03/09/2026): cada campo de texto abaixo repete a
+// instrução "original language, never translate" — o cliente reportou que
+// tudo estava vindo em inglês mesmo em anúncios escritos em português. A
+// causa: como as descrições deste schema estão em inglês, o modelo por
+// trás da extração do Firecrawl tende a "ajudar" traduzindo o texto pra
+// inglês também. Repetir a instrução em CADA campo (em vez de só uma vez
+// no topo) é redundante de propósito — reforço reduz a chance de o modelo
+// ignorá-la num campo específico. Ver também o `prompt` passado junto com
+// este schema em scrapeAirbnbListing, com o mesmo reforço em nível global.
 const AIRBNB_EXTRACTION_SCHEMA = {
   type: "object",
   properties: {
-    title: { type: "string", description: "Title or name of the listing" },
-    description: { type: "string", description: "Short description / tagline (1-2 sentences)" },
+    title: { type: "string", description: "Title or name of the listing, copied EXACTLY as written — original language, never translate." },
+    description: { type: "string", description: "Short description / tagline (1-2 sentences), copied EXACTLY as written — original language, never translate." },
     city: { type: "string", description: "City name only" },
     country: { type: "string", description: "Country name only" },
     checkin_time: { type: "string", description: "Check-in start time as displayed, e.g. '15:00' or '3:00 PM' or 'After 3:00 PM'. If a range is shown (e.g. 'Between 3:00 PM and 11:00 PM'), include both times in the original order." },
@@ -176,16 +209,16 @@ const AIRBNB_EXTRACTION_SCHEMA = {
       maxItems: 4,
     },
     rating: { type: "string", description: "Overall star rating exactly as displayed near the top, e.g. '4.91' or '4,91'. Empty string if the listing has no reviews yet." },
-    guest_summary: { type: "string", description: "The subtitle line below the title/rating listing capacity, exactly as displayed, e.g. '7 hóspedes · 3 quartos · 4 camas · 2 banheiros' or '7 guests · 3 bedrooms · 4 beds · 2 baths'." },
-    description_full: { type: "string", description: "The COMPLETE listing description text (every paragraph), fully expanded — not the short truncated version. Include text revealed by any 'Show more'/'Mostrar mais' button under the description." },
+    guest_summary: { type: "string", description: "The subtitle line below the title/rating listing capacity, copied EXACTLY as displayed — original language, never translate, e.g. '7 hóspedes · 3 quartos · 4 camas · 2 banheiros' or '7 guests · 3 bedrooms · 4 beds · 2 baths'." },
+    description_full: { type: "string", description: "The COMPLETE listing description text (every paragraph), fully expanded — not the short truncated version. Include text revealed by any 'Show more'/'Mostrar mais' button under the description. Copy EXACTLY as written — original language, never translate." },
     rooms_beds: {
       type: "array",
       description: "One entry per bedroom/sleeping space shown in the 'Where you'll sleep'/'Onde você vai dormir' section, including every room even if the section scrolls horizontally.",
       items: {
         type: "object",
         properties: {
-          room: { type: "string", description: "Room label, e.g. 'Quarto 1' or 'Bedroom 1'" },
-          beds: { type: "string", description: "Bed description for that room, e.g. '1 cama de casal' or '1 queen bed'" },
+          room: { type: "string", description: "Room label, copied EXACTLY as displayed — original language, never translate, e.g. 'Quarto 1' or 'Bedroom 1'" },
+          beds: { type: "string", description: "Bed description for that room, copied EXACTLY as displayed — original language, never translate, e.g. '1 cama de casal' or '1 queen bed'" },
         },
       },
     },
@@ -195,14 +228,31 @@ const AIRBNB_EXTRACTION_SCHEMA = {
       items: {
         type: "object",
         properties: {
-          name: { type: "string", description: "Amenity name as displayed, e.g. 'Wi-Fi' or 'Piscina'" },
+          name: { type: "string", description: "Amenity name, copied EXACTLY as displayed — original language, never translate, e.g. 'Wi-Fi' or 'Piscina'" },
           available: { type: "boolean", description: "false if the amenity is shown with a strikethrough / marked as not included, true otherwise" },
         },
       },
     },
-    house_rules: { type: "string", description: "Full text/bullets of the house rules ('Regras da casa'), including anything behind a 'Saiba mais'/'Show more' inside the 'O que você deve saber'/'Things to know' section." },
-    cancellation_policy: { type: "string", description: "Full text of the cancellation policy shown in the 'O que você deve saber'/'Things to know' section, including anything behind 'Saiba mais'/'Show more'." },
-    safety_info: { type: "string", description: "Full text of the safety & property info shown in the 'O que você deve saber'/'Things to know' section, including anything behind 'Saiba mais'/'Show more'." },
+    // Os três campos abaixo NÃO são um único campo do anúncio — são 3
+    // cartões distintos dentro de "O que você deve saber"/"Things to
+    // know", cada um com seu próprio "Saiba mais"/"Show more" (ver
+    // AIRBNB_EXPAND_ACTIONS). As descrições dizem exatamente que
+    // sub-seções cada um precisa juntar.
+    house_rules: {
+      type: "string",
+      description:
+        "Full text of 'Regras da casa'/'House rules' — copy EXACTLY as written, original language, never translate. This card has THREE parts inside it; include ALL of them, each as its own paragraph, in this order: (1) 'Durante sua estadia'/'During your stay' — every bullet shown (max guests, pets allowed or not, quiet hours with times, parties/events allowed or not, smoking allowed or not); (2) 'Regras adicionais'/'Additional rules' — the FULL expanded text/bullet list revealed by clicking its OWN 'Mostrar mais'/'Show more' button inside this card, never the short truncated preview; (3) 'Antes de deixar o local'/'Before you leave' — every checklist item shown (e.g. take out trash, turn everything off, return keys, lock up). Do not include check-in/check-out times here — those are captured in separate fields above.",
+    },
+    cancellation_policy: {
+      type: "string",
+      description:
+        "Full text shown in the 'Política de cancelamento'/'Cancellation policy' card inside 'O que você deve saber'/'Things to know' — a card separate from house rules, with its own 'Saiba mais'/'Show more'. Copy EXACTLY as written, original language, never translate. If no trip dates were selected during this read and the card only shows a generic placeholder (e.g. 'Adicione as datas da viagem para ver os detalhes de cancelamento'/'Add your trip dates to see the cancellation details'), return that placeholder text as-is rather than leaving this empty.",
+    },
+    safety_info: {
+      type: "string",
+      description:
+        "Full text of the 'Segurança e propriedade'/'Safety & property' card inside 'O que você deve saber'/'Things to know' — a card separate from house rules and cancellation policy, with its own 'Saiba mais'/'Show more'. Copy EXACTLY as written, original language, never translate. Include every item listed (alarms present or not, cameras, stairs, pool/water hazards, weapons, etc.), each on its own line.",
+    },
   },
   required: ["title"],
 };
@@ -276,23 +326,43 @@ function parseAmenities(value: unknown): AirbnbAmenity[] {
 async function scrapeAirbnbListing(apiKey: string, url: string): Promise<AirbnbImportResult> {
   let result: unknown;
   let lastErr: unknown;
+  // Reforço global de idioma (além do reforço campo a campo dentro do
+  // schema — ver AIRBNB_EXTRACTION_SCHEMA): passado junto de `schema` em
+  // TODAS as tentativas que o usam, porque o Firecrawl aceita `schema` e
+  // `prompt` juntos no mesmo formato "json".
+  const NO_TRANSLATE_PROMPT =
+    "Extract every field exactly as written on the page. Preserve the EXACT original language the listing is written in (Portuguese, English, Spanish, whatever it is) — do NOT translate or paraphrase into another language, even though these instructions are in English.";
   const attempts: FirecrawlScrapeOptions[] = [
     // 1) Tentativa "completa": simula os cliques de "Mostrar mais"/"Saiba
     //    mais" antes de ler a página, pra pegar também os campos ampliados
     //    (descrição completa, comodidades, quartos/camas, "O que você deve
     //    saber"). É a mais frágil (depende dos seletores em
     //    AIRBNB_EXPAND_ACTIONS continuarem batendo com o HTML do Airbnb).
-    { formats: [{ type: "json", schema: AIRBNB_EXTRACTION_SCHEMA }], onlyMainContent: false, waitFor: 2500, actions: AIRBNB_EXPAND_ACTIONS },
+    {
+      formats: [{ type: "json", schema: AIRBNB_EXTRACTION_SCHEMA, prompt: NO_TRANSLATE_PROMPT }],
+      onlyMainContent: false,
+      waitFor: 2500,
+      actions: AIRBNB_EXPAND_ACTIONS,
+    },
     // 2) Sem simular cliques: ainda lê o schema completo (rating, subtítulo,
     //    descrição, quartos/camas costumam já estar no HTML mesmo sem
     //    clicar) — só as seções realmente atrás de um modal/JS (comodidades
     //    completas, "O que você deve saber") tendem a vir vazias aqui.
-    { formats: [{ type: "json", schema: AIRBNB_EXTRACTION_SCHEMA }], onlyMainContent: false, waitFor: 2500 },
-    { formats: [{ type: "json", schema: AIRBNB_EXTRACTION_SCHEMA }], onlyMainContent: false },
+    { formats: [{ type: "json", schema: AIRBNB_EXTRACTION_SCHEMA, prompt: NO_TRANSLATE_PROMPT }], onlyMainContent: false, waitFor: 2500 },
+    { formats: [{ type: "json", schema: AIRBNB_EXTRACTION_SCHEMA, prompt: NO_TRANSLATE_PROMPT }], onlyMainContent: false },
     // 4) Rede de segurança final: só os 7 campos básicos, sem o schema
     //    grande — garante que o import não fica totalmente vazio mesmo se o
     //    Airbnb estiver bloqueando ou a página mudou muito.
-    { formats: [{ type: "json", prompt: "Extract title, description (tagline), city, country, checkin_time, checkout_time, and up to 4 photo URLs from muscache.com." }], onlyMainContent: false },
+    {
+      formats: [
+        {
+          type: "json",
+          prompt:
+            "Extract title, description (tagline), city, country, checkin_time, checkout_time, and up to 4 photo URLs from muscache.com. Keep all text in the EXACT original language of the listing — do not translate.",
+        },
+      ],
+      onlyMainContent: false,
+    },
   ];
   for (const opts of attempts) {
     try {

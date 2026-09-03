@@ -664,50 +664,43 @@ dd {
    em duas linhas, nunca comprime texto e nunca corta um item pela metade.
    Vale para TODAS as telas/subtelas/tooltips do SaaS.
 
-   CORRIGIDO em 03/09/2026 — três bugs reais encontrados nesta regra:
+   CORRIGIDO em 03/09/2026, em duas rodadas:
 
-   1) "Degradê estranho no fim da barra": a versão anterior tentava um
-      efeito "peek-fade" que escondia a sombra de scroll quando não havia
-      mais nada pra rolar, pintando por cima dela um retângulo sólido na cor
-      `var(--ds-segmented-bg, var(--background))`. Nenhuma tela chegava a
-      definir `--ds-segmented-bg`, então esse retângulo sempre usava a cor
-      de fundo PLANA da página — só que quase toda barra usa um fundo
-      translúcido (`bg-foreground/5`, `bg-muted/40`, etc.), então o
-      retângulo "sólido" nunca batia com o fundo real por baixo, aparecendo
-      como uma mancha/degradê quebrado na borda. Corrigido removendo esse
-      retângulo de cobertura: agora a sombra é só um gradiente que desbota
-      até TRANSPARENTE (nunca até uma cor sólida), então funciona em
-      qualquer fundo, translúcido ou não, sem precisar de nenhuma variável
-      por tela. Troca: a sombra fica sempre visível nas duas bordas (não
-      desaparece mais sozinha quando a barra cabe inteira ou chega no fim) —
-      mas nunca mais quebra visualmente.
-   2) "Corta uma aba": os filhos desta barra (`TabsTrigger` — ver
-      ui/tabs.tsx) já vêm com `!flex-1` fixo no componente base. Como a
-      regra abaixo também usa `flex: 0 0 auto !important` no mesmo elemento,
-      as duas declarações `!important` empatavam em especificidade — quem
-      ganhava dependia só da ordem de geração do CSS pelo Tailwind (não
-      determinístico). Quando `!flex-1` vencia, o navegador tentava dividir
-      a largura em partes iguais dentro de um container que não cresce,
-      espremendo/cortando os rótulos. Corrigido repetindo a classe
-      (`&.ds-segmented > *`) só nesta regra: repetir um seletor de classe
-      aumenta a especificidade sem precisar de mais `!important`, então esta
-      regra passa a vencer sempre, não importa a ordem de geração.
-   3) "Não distribui as abas com espaçamento igual": esta barra nunca usava
-      `justify-content`, então, quando as abas cabem com folga (não precisam
-      rolar), elas ficavam todas coladas à esquerda em vez de ocupar a
-      largura toda. Corrigido com `justify-content: space-between`: quando
-      cabe, o espaço extra vira espaçamento igual entre as abas (nunca
-      estica o texto/comprime); quando NÃO cabe, o navegador volta sozinho
-      ao alinhamento padrão (início) e a barra rola normalmente — isso é
-      comportamento padrão do CSS para valores de distribuição como
-      `space-between` quando o espaço livre é negativo, não um caso
-      especial tratado aqui. */
+   Rodada 1 tentou resolver "não distribui com espaçamento igual" com
+   `justify-content: space-between`, e trocou o efeito de sombra por um
+   gradiente sempre visível nas duas bordas. Essa rodada 2 desfaz as DUAS
+   coisas: no celular real do cliente, `justify-content: space-between`
+   combinado com `overflow-x: auto` fez o Safari/iOS calcular errado a área
+   de rolagem — a última aba ficava inacessível mesmo rolando (o mesmo bug
+   de corte que a regra deveria evitar, só que pior), e o gradiente (que
+   deveria ser só um afago sutil de "tem mais pra rolar") passou a aparecer
+   nas DUAS pontas o tempo todo, mesmo sem nada escondido. Corrigido
+   removendo as duas coisas:
+
+   1) Removido `justify-content` por completo — nenhum valor dele
+      (`space-between` incluído) é seguro aqui: como o número de abas varia
+      por tela, a barra PRECISA suportar tanto "cabe tudo" quanto "não cabe,
+      rola" ao mesmo tempo, e distribuir espaço só funciona bem no primeiro
+      caso. Em vez disso, o respiro entre abas agora vem só do `gap`
+      abaixo, que já é proporcional à largura da tela (`clamp`) — cresce
+      quando sobra espaço, encolhe até o mínimo quando não sobra, nunca
+      afeta o texto e nunca depende de `justify-content`.
+   2) Removido o gradiente/sombra de scroll inteiro (as camadas de
+      `background-image`) — não é mais só um ajuste de cor, o cliente não
+      quer nenhum degradê aqui, nas pontas nenhuma. A rolagem horizontal
+      (`overflow-x: auto`) já indica sozinha, pelo padrão nativo do
+      navegador, que há mais conteúdo pra ver.
+
+   Continua valendo da correção anterior: `&.ds-segmented > *` (repetindo a
+   classe) garante que `flex: 0 0 auto` sempre vence o `!flex-1` fixo de
+   `TabsTrigger` (ui/tabs.tsx), não importa a ordem de geração do CSS —
+   sem isso, o navegador tenta dividir a largura em partes iguais dentro
+   de um container que não cresce, espremendo/cortando os rótulos. */
 @utility ds-segmented {
   display: flex;
   flex-wrap: nowrap;
   align-items: stretch;
-  justify-content: space-between;
-  gap: 2px;
+  gap: clamp(2px, 1.6vw, 10px);
   width: 100%;
   max-width: 100%;
   overflow-x: auto;
@@ -715,17 +708,6 @@ dd {
   scrollbar-width: none;
   -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
-
-  background-repeat: no-repeat;
-  background-position:
-    left top,
-    right top;
-  background-size:
-    12px 100%,
-    12px 100%;
-  background-image:
-    linear-gradient(to right, color-mix(in oklch, var(--foreground) 20%, transparent), transparent),
-    linear-gradient(to left, color-mix(in oklch, var(--foreground) 20%, transparent), transparent);
 
   &::-webkit-scrollbar {
     display: none;

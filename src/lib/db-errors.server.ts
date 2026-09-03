@@ -17,6 +17,17 @@ export function safeDbError(scope: string, error: PgErrorLike): Error {
       return new Error("Preencha os campos obrigatórios.");
     case "23514":
       return new Error("Valor inválido para um dos campos.");
+    // "undefined_column" — o código tenta gravar uma coluna que ainda não
+    // existe no banco (normalmente uma migration nova que ainda não foi
+    // aplicada no projeto Supabase). Sem isto, esse erro caía no "default"
+    // abaixo e ficava indistinguível de qualquer outra falha — impossível
+    // de diagnosticar num fluxo onde não há acesso ao banco/logs ao vivo.
+    // Não expõe qual coluna é (evita vazar detalhe de schema), mas dá uma
+    // pista específica o bastante pra saber que é isso, não outra coisa.
+    case "42703":
+      return new Error(
+        "Uma atualização recente do sistema ainda não foi aplicada neste banco de dados. Peça pra quem administra o Supabase aplicar as migrations pendentes e tente salvar de novo.",
+      );
     case "42501":
     case "PGRST301":
       return new Error("Você não tem permissão para esta ação.");
