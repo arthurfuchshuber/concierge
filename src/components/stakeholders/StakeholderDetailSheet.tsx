@@ -648,12 +648,26 @@ export function StakeholderDetailSheet({
       <Tabs defaultValue="visao" className="min-w-0 max-w-full">
         <TabsList className="ds-segmented h-auto w-full max-w-full !rounded-[0.3rem] border-0 bg-foreground/5 p-0">
 
-          <TabsTrigger className={SEG_TAB} value="visao">Timeline</TabsTrigger>
-          {kind === "owner" && <TabsTrigger className={SEG_TAB} value="imoveis">Imóveis</TabsTrigger>}
-          <TabsTrigger className={SEG_TAB} value="financeiro">Financeiro</TabsTrigger>
-          <TabsTrigger className={SEG_TAB} value="documentos">Documentos</TabsTrigger>
-          <TabsTrigger className={SEG_TAB} value="acessos">Acessos</TabsTrigger>
-          <TabsTrigger className={SEG_TAB} value="log">Log</TabsTrigger>
+          <TabsTrigger className={SEG_TAB} value="visao">
+            <CalendarDays /> Timeline
+          </TabsTrigger>
+          {kind === "owner" && (
+            <TabsTrigger className={SEG_TAB} value="imoveis">
+              <Building2 /> Imóveis
+            </TabsTrigger>
+          )}
+          <TabsTrigger className={SEG_TAB} value="financeiro">
+            <CircleDollarSign /> Financeiro
+          </TabsTrigger>
+          <TabsTrigger className={SEG_TAB} value="documentos">
+            <FileText /> Documentos
+          </TabsTrigger>
+          <TabsTrigger className={SEG_TAB} value="acessos">
+            <KeyRound /> Acessos
+          </TabsTrigger>
+          <TabsTrigger className={SEG_TAB} value="log">
+            <History /> Log
+          </TabsTrigger>
 
         </TabsList>
 
