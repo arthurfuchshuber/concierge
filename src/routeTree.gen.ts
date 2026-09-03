@@ -85,8 +85,6 @@ import { Route as AuthenticatedAdminDashboardLimpezaRouteImport } from './routes
 import { Route as AuthenticatedAdminDashboardKanbanRouteImport } from './routes/_authenticated/admin.dashboard.kanban'
 import { Route as AuthenticatedAdminDashboardCalendarioRouteImport } from './routes/_authenticated/admin.dashboard.calendario'
 import { Route as AuthenticatedAdminCidadesCityKeyRouteImport } from './routes/_authenticated/admin.cidades.$cityKey'
-import { Route as AuthenticatedAdminPropertiesIdConversasRouteImport } from './routes/_authenticated/admin.properties.$id_.conversas'
-import { Route as AuthenticatedAdminPropertiesIdAcessosRouteImport } from './routes/_authenticated/admin.properties.$id_.acessos'
 
 const UnsubscribeRoute = UnsubscribeRouteImport.update({
   id: '/unsubscribe',
@@ -510,18 +508,6 @@ const AuthenticatedAdminCidadesCityKeyRoute =
     path: '/cidades/$cityKey',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
-const AuthenticatedAdminPropertiesIdConversasRoute =
-  AuthenticatedAdminPropertiesIdConversasRouteImport.update({
-    id: '/properties/$id_/conversas',
-    path: '/properties/$id/conversas',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminPropertiesIdAcessosRoute =
-  AuthenticatedAdminPropertiesIdAcessosRouteImport.update({
-    id: '/properties/$id_/acessos',
-    path: '/properties/$id/acessos',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -599,8 +585,6 @@ export interface FileRoutesByFullPath {
   '/admin/cidades/': typeof AuthenticatedAdminCidadesIndexRoute
   '/admin/dashboard/': typeof AuthenticatedAdminDashboardIndexRoute
   '/admin/recomendacoes-sigma/': typeof AuthenticatedAdminRecomendacoesSigmaIndexRoute
-  '/admin/properties/$id/acessos': typeof AuthenticatedAdminPropertiesIdAcessosRoute
-  '/admin/properties/$id/conversas': typeof AuthenticatedAdminPropertiesIdConversasRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -675,8 +659,6 @@ export interface FileRoutesByTo {
   '/admin/cidades': typeof AuthenticatedAdminCidadesIndexRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardIndexRoute
   '/admin/recomendacoes-sigma': typeof AuthenticatedAdminRecomendacoesSigmaIndexRoute
-  '/admin/properties/$id/acessos': typeof AuthenticatedAdminPropertiesIdAcessosRoute
-  '/admin/properties/$id/conversas': typeof AuthenticatedAdminPropertiesIdConversasRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -756,8 +738,6 @@ export interface FileRoutesById {
   '/_authenticated/admin/cidades/': typeof AuthenticatedAdminCidadesIndexRoute
   '/_authenticated/admin/dashboard/': typeof AuthenticatedAdminDashboardIndexRoute
   '/_authenticated/admin/recomendacoes-sigma/': typeof AuthenticatedAdminRecomendacoesSigmaIndexRoute
-  '/_authenticated/admin/properties/$id_/acessos': typeof AuthenticatedAdminPropertiesIdAcessosRoute
-  '/_authenticated/admin/properties/$id_/conversas': typeof AuthenticatedAdminPropertiesIdConversasRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -837,8 +817,6 @@ export interface FileRouteTypes {
     | '/admin/cidades/'
     | '/admin/dashboard/'
     | '/admin/recomendacoes-sigma/'
-    | '/admin/properties/$id/acessos'
-    | '/admin/properties/$id/conversas'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -913,8 +891,6 @@ export interface FileRouteTypes {
     | '/admin/cidades'
     | '/admin/dashboard'
     | '/admin/recomendacoes-sigma'
-    | '/admin/properties/$id/acessos'
-    | '/admin/properties/$id/conversas'
   id:
     | '__root__'
     | '/'
@@ -993,8 +969,6 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/cidades/'
     | '/_authenticated/admin/dashboard/'
     | '/_authenticated/admin/recomendacoes-sigma/'
-    | '/_authenticated/admin/properties/$id_/acessos'
-    | '/_authenticated/admin/properties/$id_/conversas'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1582,20 +1556,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminCidadesCityKeyRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
-    '/_authenticated/admin/properties/$id_/conversas': {
-      id: '/_authenticated/admin/properties/$id_/conversas'
-      path: '/properties/$id/conversas'
-      fullPath: '/admin/properties/$id/conversas'
-      preLoaderRoute: typeof AuthenticatedAdminPropertiesIdConversasRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/properties/$id_/acessos': {
-      id: '/_authenticated/admin/properties/$id_/acessos'
-      path: '/properties/$id/acessos'
-      fullPath: '/admin/properties/$id/acessos'
-      preLoaderRoute: typeof AuthenticatedAdminPropertiesIdAcessosRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
   }
 }
 
@@ -1645,8 +1605,6 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminRecomendacoesSigmaCityKeyRoute: typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   AuthenticatedAdminCidadesIndexRoute: typeof AuthenticatedAdminCidadesIndexRoute
   AuthenticatedAdminRecomendacoesSigmaIndexRoute: typeof AuthenticatedAdminRecomendacoesSigmaIndexRoute
-  AuthenticatedAdminPropertiesIdAcessosRoute: typeof AuthenticatedAdminPropertiesIdAcessosRoute
-  AuthenticatedAdminPropertiesIdConversasRoute: typeof AuthenticatedAdminPropertiesIdConversasRoute
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
@@ -1674,10 +1632,6 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminCidadesIndexRoute: AuthenticatedAdminCidadesIndexRoute,
   AuthenticatedAdminRecomendacoesSigmaIndexRoute:
     AuthenticatedAdminRecomendacoesSigmaIndexRoute,
-  AuthenticatedAdminPropertiesIdAcessosRoute:
-    AuthenticatedAdminPropertiesIdAcessosRoute,
-  AuthenticatedAdminPropertiesIdConversasRoute:
-    AuthenticatedAdminPropertiesIdConversasRoute,
 }
 
 const AuthenticatedAdminRouteWithChildren =

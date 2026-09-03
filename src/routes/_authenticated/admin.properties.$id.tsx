@@ -21,7 +21,7 @@ import {
   bulkDeleteCityReferences,
 } from "@/lib/city-references.functions";
 import { listActivePropertyOwnersForSelect } from "@/lib/stakeholders.functions";
-import { importFromAirbnb } from "@/lib/airbnb.functions";
+import { importFromAirbnb, type AirbnbAmenity, type AirbnbRoomBeds } from "@/lib/airbnb.functions";
 import { syncPropertyAirbnbIcal, listPropertyReservations } from "@/lib/airbnb-ical.functions";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useCityReferencesRealtime } from "@/hooks/useCityReferencesRealtime";
@@ -72,7 +72,6 @@ import {
   Sun,
   Moon,
   Lock,
-  MessageSquare,
   LogOut,
   ChevronDown,
   Ticket,
@@ -98,7 +97,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ImageUpload } from "@/components/ImageUpload";
 import { MediaUpload, type MediaItem } from "@/components/MediaUpload";
-import { EtiquetaSelect, ETIQUETA_OPTIONS } from "@/components/EtiquetaSelect";
+import { EtiquetaSelect } from "@/components/EtiquetaSelect";
 import { ETIQUETA_CHECKIN_CHECKOUT } from "@/lib/publish-requirements";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -186,6 +185,10 @@ type FormState = {
     name: string;
     slug: string;
     tagline: string;
+    /** Descrição curta em texto livre — separada de `tagline` (que é o
+     * seletor fixo "Tipo do guia"). Só a importação do Airbnb escreve
+     * aqui automaticamente; editável à mão também. */
+    short_description: string | null;
     hero_image_url: string;
     gallery_images: string[];
     theme_images: { checkin: string; residencia: string; faq: string; explore: string };
@@ -249,6 +252,19 @@ type FormState = {
     airbnb_listing_last_synced_at: string | null;
     airbnb_listing_last_error: string | null;
     airbnb_listing_last_sync_note: string | null;
+    /** Campos "ampliados" da sincronização diária — só leitura na tela,
+     * nunca editados pelo usuário (ver aba Airbnb). */
+    airbnb_rating: number | null;
+    airbnb_guest_count: number | null;
+    airbnb_bedroom_count: number | null;
+    airbnb_bed_count: number | null;
+    airbnb_bathroom_count: number | null;
+    airbnb_description_full: string | null;
+    airbnb_rooms_beds: AirbnbRoomBeds[];
+    airbnb_amenities: AirbnbAmenity[];
+    airbnb_house_rules: string | null;
+    airbnb_cancellation_policy: string | null;
+    airbnb_safety_info: string | null;
     property_type_id: string | null;
     guide_created: boolean;
     /** Proprietário (property_owners) — regra: sem imóvel vinculado a um
@@ -277,6 +293,7 @@ function emptyForm(): FormState {
       name: "",
       slug: "",
       tagline: "",
+      short_description: null,
       hero_image_url: "",
       gallery_images: [],
       theme_images: { checkin: "", residencia: "", faq: "", explore: "" },
@@ -337,6 +354,17 @@ function emptyForm(): FormState {
       airbnb_listing_last_synced_at: null,
       airbnb_listing_last_error: null,
       airbnb_listing_last_sync_note: null,
+      airbnb_rating: null,
+      airbnb_guest_count: null,
+      airbnb_bedroom_count: null,
+      airbnb_bed_count: null,
+      airbnb_bathroom_count: null,
+      airbnb_description_full: null,
+      airbnb_rooms_beds: [],
+      airbnb_amenities: [],
+      airbnb_house_rules: null,
+      airbnb_cancellation_policy: null,
+      airbnb_safety_info: null,
       property_type_id: null,
       guide_created: false,
       owner_contact_id: null,
@@ -364,10 +392,6 @@ function slugify(s: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 60);
-}
-
-function isEtiqueta(value: string) {
-  return (ETIQUETA_OPTIONS as readonly string[]).includes(value);
 }
 
 // missingRequiredHouseFields agora vive em "@/lib/property-house-fields" —
@@ -552,7 +576,7 @@ function PropertyEditor() {
   const [step, setStepRaw] = useState<string>(() => {
     if (typeof window === "undefined") return "house";
     const raw = window.location.hash.replace("#tab-", "");
-    const valid = ["house", "guide", "checkin", "checkout", "faq", "recs"];
+    const valid = ["house", "airbnb", "guide", "checkin", "faq", "recs"];
     return valid.includes(raw) ? raw : "house";
   });
   const setStep = React.useCallback((s: string) => {
@@ -683,6 +707,7 @@ function PropertyEditor() {
       name: (p.name as string) ?? "",
       slug: (p.slug as string) ?? "",
       tagline: (p.tagline as string) ?? "",
+      short_description: ((p as Record<string, unknown>).short_description as string | null) ?? null,
       hero_image_url: (p.hero_image_url as string) ?? "",
       gallery_images: ((p.gallery_images as string[] | null) ?? []).slice(0, 4),
       theme_images: {
@@ -766,6 +791,18 @@ function PropertyEditor() {
       airbnb_listing_last_error: ((p as Record<string, unknown>).airbnb_listing_last_error as string | null) ?? null,
       airbnb_listing_last_sync_note:
         ((p as Record<string, unknown>).airbnb_listing_last_sync_note as string | null) ?? null,
+      airbnb_rating: ((p as Record<string, unknown>).airbnb_rating as number | null) ?? null,
+      airbnb_guest_count: ((p as Record<string, unknown>).airbnb_guest_count as number | null) ?? null,
+      airbnb_bedroom_count: ((p as Record<string, unknown>).airbnb_bedroom_count as number | null) ?? null,
+      airbnb_bed_count: ((p as Record<string, unknown>).airbnb_bed_count as number | null) ?? null,
+      airbnb_bathroom_count: ((p as Record<string, unknown>).airbnb_bathroom_count as number | null) ?? null,
+      airbnb_description_full: ((p as Record<string, unknown>).airbnb_description_full as string | null) ?? null,
+      airbnb_rooms_beds: (((p as Record<string, unknown>).airbnb_rooms_beds as AirbnbRoomBeds[] | null) ?? []),
+      airbnb_amenities: (((p as Record<string, unknown>).airbnb_amenities as AirbnbAmenity[] | null) ?? []),
+      airbnb_house_rules: ((p as Record<string, unknown>).airbnb_house_rules as string | null) ?? null,
+      airbnb_cancellation_policy:
+        ((p as Record<string, unknown>).airbnb_cancellation_policy as string | null) ?? null,
+      airbnb_safety_info: ((p as Record<string, unknown>).airbnb_safety_info as string | null) ?? null,
       property_type_id: ((p as Record<string, unknown>).property_type_id as string | null) ?? null,
       guide_created: ((p as Record<string, unknown>).guide_created as boolean) ?? false,
       owner_contact_id: ((p as Record<string, unknown>).owner_contact_id as string | null) ?? null,
@@ -1141,7 +1178,7 @@ function PropertyEditor() {
           ...f.property,
           name: r.name ?? f.property.name,
           slug: r.name ? slugify(r.name) : f.property.slug,
-          tagline: isEtiqueta(f.property.tagline) ? f.property.tagline : "",
+          short_description: r.short_description ?? f.property.short_description,
           city: r.city ?? f.property.city,
           country: r.country ?? f.property.country,
           checkin_time: r.checkin_time ?? f.property.checkin_time,
@@ -1154,6 +1191,7 @@ function PropertyEditor() {
       }));
       const bits: string[] = [];
       if (r.name) bits.push("nome");
+      if (r.short_description) bits.push("descrição");
       if (r.gallery_images.length) bits.push(`${r.gallery_images.length} fotos`);
       if (r.city) bits.push("localização");
       if (r.checkin_time || r.checkout_time) bits.push("horários");
@@ -2340,20 +2378,6 @@ function PropertyEditor() {
         {!isNew && !houseOnly ? (
           <div className="mb-4 ds-scroll-x items-center gap-2">
             <PresenceAvatars users={presence.users} />
-            <Link
-              to="/admin/properties/$id/acessos"
-              params={{ id }}
-              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-[0.3rem] bg-secondary/50 text-xs font-normal hover:bg-secondary transition-colors shrink-0"
-            >
-              <Shield className="size-3.5 shrink-0" /> Acessos
-            </Link>
-            <Link
-              to="/admin/properties/$id/conversas"
-              params={{ id }}
-              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-[0.3rem] bg-secondary/50 text-xs font-normal hover:bg-secondary transition-colors shrink-0"
-            >
-              <MessageSquare className="size-3.5 shrink-0" /> Conversas
-            </Link>
           </div>
         ) : (
           <div className="mb-4" />
@@ -2370,13 +2394,13 @@ function PropertyEditor() {
                 onChange={setStep}
                 steps={[
                   { value: "house", label: "A casa", icon: Home },
-                  { value: "guide", label: "O guia", icon: FileText },
-                  { value: "checkin", label: "Checkin", icon: DoorOpen },
-                  { value: "checkout", label: "Checkout", icon: LogOut },
-                  { value: "faq", label: "FAQ & Contatos", icon: LifeBuoy },
+                  { value: "airbnb", label: "Airbnb", icon: Sparkles },
+                  { value: "guide", label: "O Guia", icon: FileText },
+                  { value: "checkin", label: "Check-in & Checkout", icon: DoorOpen },
+                  { value: "faq", label: "FAQ", icon: LifeBuoy },
                   { value: "recs", label: "Recomendações", icon: Compass },
                 ]}
-                lockedValues={needsRequiredHouseInfo ? ["guide", "checkin", "checkout", "faq", "recs"] : undefined}
+                lockedValues={needsRequiredHouseInfo ? ["airbnb", "guide", "checkin", "faq", "recs"] : undefined}
               />
             )}
 
@@ -2411,15 +2435,15 @@ function PropertyEditor() {
               </SectionGroup>
             </TabsContent>
 
-            {/* ================= O GUIA ================= */}
-            <TabsContent value="guide" className="space-y-4 mt-6">
+            {/* ================= AIRBNB ================= */}
+            <TabsContent value="airbnb" className="space-y-4 mt-6">
               <SectionGroup>
                 <Section
                   id="import-airbnb"
                   icon={Sparkles}
                   tone="accent"
                   title="Importar do Airbnb"
-                  desc="Cole o link do anúncio para importar descrição, fotos e comodidades no guia."
+                  desc="Cole o link do anúncio — os campos desta aba são preenchidos e mantidos em dia automaticamente."
                   collapsible
                 >
                   {!canAirbnb && (
@@ -2454,7 +2478,7 @@ function PropertyEditor() {
                     </Button>
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-2">
-                    Procurando o calendário/iCal? Ele foi para a aba <strong>A casa</strong> — não depende mais de criar
+                    Procurando o calendário/iCal? Ele continua na aba <strong>A casa</strong> — não depende de criar
                     um guia.
                   </p>
 
@@ -2486,13 +2510,38 @@ function PropertyEditor() {
                       </span>
                     </p>
                   )}
+
+                  {(form.property.airbnb_rating != null ||
+                    form.property.airbnb_guest_count != null ||
+                    form.property.airbnb_bedroom_count != null ||
+                    form.property.airbnb_bed_count != null ||
+                    form.property.airbnb_bathroom_count != null) && (
+                    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 ds-surface border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                      {form.property.airbnb_rating != null && (
+                        <span>
+                          <span className="text-amber-500 font-semibold">★</span>{" "}
+                          {form.property.airbnb_rating.toFixed(2).replace(".", ",")}
+                        </span>
+                      )}
+                      {form.property.airbnb_guest_count != null && (
+                        <span>{form.property.airbnb_guest_count} hóspedes</span>
+                      )}
+                      {form.property.airbnb_bedroom_count != null && (
+                        <span>{form.property.airbnb_bedroom_count} quartos</span>
+                      )}
+                      {form.property.airbnb_bed_count != null && <span>{form.property.airbnb_bed_count} camas</span>}
+                      {form.property.airbnb_bathroom_count != null && (
+                        <span>{form.property.airbnb_bathroom_count} banheiros</span>
+                      )}
+                    </div>
+                  )}
                 </Section>
 
                 <Section
-                  id="identity"
+                  id="airbnb-basic-fields"
                   icon={FileText}
-                  title="Identidade visual"
-                  desc="Como o guia se apresenta para o hóspede."
+                  title="Nome e descrição"
+                  desc="Nome e descrição curta que aparecem no cabeçalho do guia."
                   collapsible
                 >
                   <Field
@@ -2515,18 +2564,16 @@ function PropertyEditor() {
                       }}
                     />
                   </Field>
-                  <Field label="URL pública (slug)" hint="Aparece em /g/seu-slug">
-                    <Input
-                      value={form.property.slug}
-                      maxLength={60}
-                      onChange={(e) => update("slug", slugify(e.target.value))}
-                    />
-                  </Field>
                   <Field
-                    label="Tipo do guia"
-                    hint="Aparece abaixo do nome no cabeçalho do guia. Obrigatório só para publicar."
+                    label="Descrição curta"
+                    hint="Texto livre, importado do Airbnb — pode editar à mão também."
                   >
-                    <EtiquetaSelect value={form.property.tagline} onChange={(v) => update("tagline", v)} />
+                    <Textarea
+                      value={form.property.short_description ?? ""}
+                      maxLength={600}
+                      rows={3}
+                      onChange={(e) => update("short_description", e.target.value || null)}
+                    />
                   </Field>
                 </Section>
 
@@ -2547,6 +2594,235 @@ function PropertyEditor() {
                       }));
                     }}
                   />
+                </Section>
+
+                <Section
+                  id="airbnb-checkin-times"
+                  icon={Clock}
+                  title="Horários de check-in"
+                  desc="Janela de chegada."
+                  collapsible
+                >
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Check-in a partir de">
+                      <TimePicker
+                        value={form.property.checkin_time}
+                        onChange={(v) => update("checkin_time", v)}
+                        placeholder="15:00"
+                      />
+                    </Field>
+                    <Field label="Check-in até" hint="opcional">
+                      <TimePicker
+                        value={form.property.checkin_time_max}
+                        onChange={(v) => update("checkin_time_max", v)}
+                        placeholder="22:00"
+                      />
+                    </Field>
+                  </div>
+                  <Field
+                    label="Observação do check-in (opcional)"
+                    hint="Aparece abaixo dos horários no guia. Deixe em branco para ocultar."
+                  >
+                    <TagMentionTextarea
+                      items={tagItems}
+                      value={form.property.checkin_note}
+                      maxLength={1000}
+                      rows={3}
+                      onChange={(e) => update("checkin_note", e.target.value)}
+                      placeholder="Ex.: Após às 22h, avise pelo WhatsApp com 1h de antecedência."
+                    />
+                  </Field>
+                </Section>
+
+                <Section
+                  id="airbnb-checkout-times"
+                  icon={Clock}
+                  title="Horários de check-out"
+                  desc="Janela de saída — os dois horários (a partir de / até) são importados do Airbnb."
+                  collapsible
+                >
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Check-out a partir de" hint="opcional">
+                      <TimePicker
+                        value={form.property.checkout_time_min}
+                        onChange={(v) => update("checkout_time_min", v)}
+                        placeholder="08:00"
+                      />
+                    </Field>
+                    <Field label="Check-out até" hint="opcional">
+                      <TimePicker
+                        value={form.property.checkout_time}
+                        onChange={(v) => update("checkout_time", v)}
+                        placeholder="11:00"
+                      />
+                    </Field>
+                  </div>
+                  <Field
+                    label="Observação do check-out (opcional)"
+                    hint="Aparece abaixo dos horários no guia. Deixe em branco para ocultar."
+                  >
+                    <TagMentionTextarea
+                      items={tagItems}
+                      value={form.property.checkout_note}
+                      maxLength={1000}
+                      rows={3}
+                      onChange={(e) => update("checkout_note", e.target.value)}
+                      placeholder="Ex.: Late check-out mediante disponibilidade — consulte o anfitrião."
+                    />
+                  </Field>
+                </Section>
+
+                <Section
+                  id="airbnb-description-full"
+                  icon={FileText}
+                  title="Descrição completa (Airbnb)"
+                  desc={
+                    form.property.airbnb_description_full
+                      ? `${form.property.airbnb_description_full.length} caracteres — só leitura, vem do anúncio.`
+                      : "Só leitura — preenchida pela importação."
+                  }
+                  collapsible
+                >
+                  {form.property.airbnb_description_full ? (
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                      {form.property.airbnb_description_full}
+                    </p>
+                  ) : (
+                    <EmptyHint text="Nenhuma descrição completa importada ainda." />
+                  )}
+                </Section>
+
+                <Section
+                  id="airbnb-rooms-beds"
+                  icon={DoorOpen}
+                  title="Quartos e camas (Airbnb)"
+                  desc={
+                    form.property.airbnb_rooms_beds.length
+                      ? `${form.property.airbnb_rooms_beds.length} quarto(s) — só leitura, vem do anúncio.`
+                      : "Só leitura — preenchido pela importação."
+                  }
+                  collapsible
+                >
+                  {form.property.airbnb_rooms_beds.length ? (
+                    <div className="divide-y divide-border/60">
+                      {form.property.airbnb_rooms_beds.map((r, i) => (
+                        <div key={i} className="flex items-center justify-between gap-3 py-2 text-sm">
+                          <span className="font-medium">{r.room || `Quarto ${i + 1}`}</span>
+                          <span className="text-muted-foreground text-xs text-right">{r.beds}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyHint text="Nenhum quarto importado ainda." />
+                  )}
+                </Section>
+
+                <Section
+                  id="airbnb-amenities"
+                  icon={Shield}
+                  title="Comodidades (Airbnb)"
+                  desc={
+                    form.property.airbnb_amenities.length
+                      ? `${form.property.airbnb_amenities.length} comodidade(s)${
+                          form.property.airbnb_amenities.some((a) => !a.available)
+                            ? ` · ${form.property.airbnb_amenities.filter((a) => !a.available).length} indisponível(is)`
+                            : ""
+                        } — só leitura, vem do anúncio.`
+                      : "Só leitura — preenchida pela importação."
+                  }
+                  collapsible
+                >
+                  {form.property.airbnb_amenities.length ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {form.property.airbnb_amenities.map((a, i) => (
+                        <span
+                          key={i}
+                          className={cn(
+                            "text-xs px-2.5 py-1 rounded-full border border-border/60 bg-muted/40",
+                            !a.available && "line-through opacity-50",
+                          )}
+                        >
+                          {a.name}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyHint text="Nenhuma comodidade importada ainda." />
+                  )}
+                </Section>
+
+                <Section
+                  id="airbnb-know"
+                  icon={LifeBuoy}
+                  title="O que você deve saber (Airbnb)"
+                  desc="Regras da casa, cancelamento e segurança — só leitura, vem do anúncio."
+                  collapsible
+                >
+                  {!form.property.airbnb_house_rules &&
+                  !form.property.airbnb_cancellation_policy &&
+                  !form.property.airbnb_safety_info ? (
+                    <EmptyHint text="Nada importado ainda." />
+                  ) : (
+                    <div className="space-y-4">
+                      {form.property.airbnb_house_rules && (
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                            Regras da casa
+                          </p>
+                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                            {form.property.airbnb_house_rules}
+                          </p>
+                        </div>
+                      )}
+                      {form.property.airbnb_cancellation_policy && (
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                            Política de cancelamento
+                          </p>
+                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                            {form.property.airbnb_cancellation_policy}
+                          </p>
+                        </div>
+                      )}
+                      {form.property.airbnb_safety_info && (
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                            Segurança e propriedade
+                          </p>
+                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                            {form.property.airbnb_safety_info}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </Section>
+              </SectionGroup>
+            </TabsContent>
+
+            {/* ================= O GUIA ================= */}
+            <TabsContent value="guide" className="space-y-4 mt-6">
+              <SectionGroup>
+                <Section
+                  id="identity"
+                  icon={FileText}
+                  title="Identidade visual"
+                  desc="Endereço público e tipo do guia."
+                  collapsible
+                >
+                  <Field label="URL pública (slug)" hint="Aparece em /g/seu-slug">
+                    <Input
+                      value={form.property.slug}
+                      maxLength={60}
+                      onChange={(e) => update("slug", slugify(e.target.value))}
+                    />
+                  </Field>
+                  <Field
+                    label="Tipo do guia"
+                    hint="Aparece abaixo do nome no cabeçalho do guia. Obrigatório só para publicar."
+                  >
+                    <EtiquetaSelect value={form.property.tagline} onChange={(v) => update("tagline", v)} />
+                  </Field>
                 </Section>
 
                 <Section
@@ -2618,7 +2894,7 @@ function PropertyEditor() {
               </SectionGroup>
             </TabsContent>
 
-            {/* ================= CHECKIN ================= */}
+            {/* ================= CHECK-IN & CHECKOUT ================= */}
             <TabsContent value="checkin" className="space-y-4 mt-6">
               <SectionGroup>
                 <Section
@@ -2649,44 +2925,6 @@ function PropertyEditor() {
                       onChange={(next) => update("checkin_media", next)}
                       folder="checkin"
                       max={8}
-                    />
-                  </Field>
-                </Section>
-
-                <Section
-                  id="checkin-times"
-                  icon={Clock}
-                  title="Horários de check-in"
-                  desc="Janela de chegada."
-                  collapsible
-                >
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="Check-in a partir de">
-                      <TimePicker
-                        value={form.property.checkin_time}
-                        onChange={(v) => update("checkin_time", v)}
-                        placeholder="15:00"
-                      />
-                    </Field>
-                    <Field label="Check-in até" hint="opcional">
-                      <TimePicker
-                        value={form.property.checkin_time_max}
-                        onChange={(v) => update("checkin_time_max", v)}
-                        placeholder="22:00"
-                      />
-                    </Field>
-                  </div>
-                  <Field
-                    label="Observação do check-in (opcional)"
-                    hint="Aparece abaixo dos horários no guia. Deixe em branco para ocultar."
-                  >
-                    <TagMentionTextarea
-                      items={tagItems}
-                      value={form.property.checkin_note}
-                      maxLength={1000}
-                      rows={3}
-                      onChange={(e) => update("checkin_note", e.target.value)}
-                      placeholder="Ex.: Após às 22h, avise pelo WhatsApp com 1h de antecedência."
                     />
                   </Field>
                 </Section>
@@ -3061,12 +3299,6 @@ function PropertyEditor() {
                     </CaptureRow>
                   </div>
                 </Section>
-              </SectionGroup>
-            </TabsContent>
-
-            {/* ================= CHECKOUT ================= */}
-            <TabsContent value="checkout" className="space-y-4 mt-6">
-              <SectionGroup>
                 <Section
                   id="checkout-instr"
                   icon={LogOut}
@@ -3084,44 +3316,6 @@ function PropertyEditor() {
                       placeholder={
                         "Deixe as chaves sobre a mesa de jantar.\nFeche todas as janelas.\nTranque a porta principal ao sair."
                       }
-                    />
-                  </Field>
-                </Section>
-
-                <Section
-                  id="checkout-times"
-                  icon={Clock}
-                  title="Horários de check-out"
-                  desc="Janela de saída."
-                  collapsible
-                >
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="Check-out a partir de" hint="opcional">
-                      <TimePicker
-                        value={form.property.checkout_time_min}
-                        onChange={(v) => update("checkout_time_min", v)}
-                        placeholder="08:00"
-                      />
-                    </Field>
-                    <Field label="Check-out até">
-                      <TimePicker
-                        value={form.property.checkout_time}
-                        onChange={(v) => update("checkout_time", v)}
-                        placeholder="11:00"
-                      />
-                    </Field>
-                  </div>
-                  <Field
-                    label="Observação do check-out (opcional)"
-                    hint="Aparece abaixo dos horários no guia. Deixe em branco para ocultar."
-                  >
-                    <TagMentionTextarea
-                      items={tagItems}
-                      value={form.property.checkout_note}
-                      maxLength={1000}
-                      rows={3}
-                      onChange={(e) => update("checkout_note", e.target.value)}
-                      placeholder="Ex.: Late check-out mediante disponibilidade — consulte o anfitrião."
                     />
                   </Field>
                 </Section>
@@ -3801,11 +3995,10 @@ function PropertyEditor() {
                     variant="outline"
                     className="h-10 min-w-[120px]"
                     onClick={() => {
-                      // Mesma ordem das abas do Stepper acima (house, guide, checkin,
-                      // checkout, faq, recs) — antes esta lista estava desatualizada
-                      // (basics/access/extras não existem mais como abas) e fazia
-                      // "Próximo"/"Anterior" pularem direto para "Recomendações".
-                      const order = ["house", "guide", "checkin", "checkout", "faq", "recs"];
+                      // Mesma ordem das abas do Stepper acima (house, airbnb, guide,
+                      // checkin, faq, recs — checkin já inclui checkout, que foi
+                      // mesclado na mesma aba "Check-in & Checkout").
+                      const order = ["house", "airbnb", "guide", "checkin", "faq", "recs"];
                       const i = order.indexOf(step);
                       if (i > 0) setStep(order[i - 1]);
                     }}
@@ -3818,7 +4011,7 @@ function PropertyEditor() {
                     variant="outline"
                     className="h-10 min-w-[120px]"
                     onClick={() => {
-                      const order = ["house", "guide", "checkin", "checkout", "faq", "recs"];
+                      const order = ["house", "airbnb", "guide", "checkin", "faq", "recs"];
                       const i = order.indexOf(step);
                       if (i < order.length - 1) setStep(order[i + 1]);
                     }}
