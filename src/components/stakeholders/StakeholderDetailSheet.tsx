@@ -24,6 +24,10 @@ import {
   MessageCircle,
   ChevronDown,
   X,
+  Building2,
+  CircleDollarSign,
+  KeyRound,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
