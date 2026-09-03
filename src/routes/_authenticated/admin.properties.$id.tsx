@@ -2587,17 +2587,17 @@ function PropertyEditor() {
                 </Section>
 
                 <Section id="airbnb-checkin-times" icon={Clock} title="Horários de check-in" collapsible>
-                  {/* Empilhado verticalmente (cascata) a pedido do cliente
-                      em 03/09/2026 — lado a lado (grid de 2 colunas) ficava
-                      com "divergência feia" no visual em telas estreitas
-                      (print real do celular do cliente). */}
-                  <div className="flex flex-col gap-3">
-                    <Field label="Check-in a partir de">
+                  {/* Pedido do cliente em 03/09/2026: o horário fica ao lado
+                      DIREITO do rótulo (não abaixo dele) — inclusive o texto
+                      "(opcional)", que virou parte do próprio rótulo em vez
+                      de uma legenda numa linha separada. */}
+                  <div className="space-y-2.5">
+                    <TimeInlineRow label="Check-in a partir de">
                       <ReadOnlyValue value={form.property.checkin_time} />
-                    </Field>
-                    <Field label="Check-in até" hint="opcional">
+                    </TimeInlineRow>
+                    <TimeInlineRow label="Check-in até" optional>
                       <ReadOnlyValue value={form.property.checkin_time_max} />
-                    </Field>
+                    </TimeInlineRow>
                   </div>
                   <Field
                     label="Observação do check-in (opcional)"
@@ -2615,29 +2615,29 @@ function PropertyEditor() {
                 </Section>
 
                 <Section id="airbnb-checkout-times" icon={Clock} title="Horários de check-out" collapsible>
-                  {/* Empilhado verticalmente (cascata) a pedido do cliente em
-                      03/09/2026 — mesmo ajuste do check-in acima, e aqui
-                      ainda mais importante: um dos dois campos é editável
-                      (TimePicker) e o outro é só-leitura (ReadOnlyValue),
-                      então lado a lado os dois estilos de campo bem
-                      diferentes ficavam visualmente desalinhados ("aquela
-                      divergência feia no visual" apontada pelo cliente). */}
-                  <div className="flex flex-col gap-3">
+                  {/* Mesmo padrão do check-in acima (horário ao lado direito
+                      do rótulo). O "opcional" de "Check-out a partir de"
+                      ficou só "(opcional)" — a explicação "não vem do
+                      Airbnb, defina à mão" foi removida a pedido do cliente
+                      (mantida só em comentário aqui para quem for mexer
+                      depois entender por que este campo é editável e o
+                      outro não). */}
+                  <div className="space-y-2.5">
                     {/* "A partir de" NÃO vem do Airbnb (o anúncio só mostra um
                         horário-limite de saída) — continua editável à mão.
                         "Até" é o único dos dois que a importação preenche, por
                         isso só ele fica bloqueado, seguindo a regra desta
                         aba. */}
-                    <Field label="Check-out a partir de" hint="opcional — não vem do Airbnb, defina à mão">
+                    <TimeInlineRow label="Check-out a partir de" optional>
                       <TimePicker
                         value={form.property.checkout_time_min}
                         onChange={(v) => update("checkout_time_min", v)}
                         placeholder="08:00"
                       />
-                    </Field>
-                    <Field label="Check-out até" hint="opcional">
+                    </TimeInlineRow>
+                    <TimeInlineRow label="Check-out até" optional>
                       <ReadOnlyValue value={form.property.checkout_time} />
-                    </Field>
+                    </TimeInlineRow>
                   </div>
                   <Field
                     label="Observação do check-out (opcional)"
@@ -4044,12 +4044,38 @@ function ReadOnlyValue({ value, placeholder = "Ainda não importado" }: { value:
   );
 }
 
+/** Linha "rótulo à esquerda, horário à direita" — pedido do cliente em
+ *  03/09/2026: os campos de horário (check-in/check-out) devem ficar ao lado
+ *  do rótulo, nunca abaixo dele, e o texto "(opcional)" deve entrar junto do
+ *  próprio rótulo em vez de aparecer como legenda numa linha separada. */
+function TimeInlineRow({
+  label,
+  optional,
+  children,
+}: {
+  label: string;
+  optional?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <p className="text-sm text-foreground min-w-0 truncate">
+        {label}
+        {optional && <span className="text-muted-foreground font-normal"> (opcional)</span>}
+      </p>
+      <div className="w-32 shrink-0">{children}</div>
+    </div>
+  );
+}
+
 /** Exibe um texto longo importado do Airbnb (descrição completa, regras da
  *  casa, política de cancelamento, segurança) de forma "organizada, bonita e
  *  estruturada" — pedido do cliente em 03/09/2026. Quebra em parágrafos
  *  (linha em branco = novo parágrafo; se o texto original não tiver nenhuma
- *  linha em branco, cai pra quebra de linha simples) com espaço entre eles, e
- *  justifica o texto de cada parágrafo. */
+ *  linha em branco, cai pra quebra de linha simples) com espaço entre eles.
+ *  A versão anterior também justificava o texto (`text-align: justify`) — o
+ *  cliente testou e pediu pra tirar ("não ficou muito bom"), então voltou a
+ *  ser alinhado à esquerda, mantendo só a quebra em parágrafos com respiro. */
 function FormattedAirbnbText({ text }: { text: string }) {
   const byBlankLine = text
     .split(/\n{2,}/)
@@ -4065,7 +4091,7 @@ function FormattedAirbnbText({ text }: { text: string }) {
   return (
     <div className="space-y-3">
       {blocks.map((block, i) => (
-        <p key={i} className="text-sm text-muted-foreground leading-relaxed text-justify whitespace-pre-wrap">
+        <p key={i} className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
           {block}
         </p>
       ))}

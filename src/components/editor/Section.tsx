@@ -96,14 +96,26 @@ export function Section({
           <button
             type="button"
             onClick={toggle}
-            className={`flex items-start gap-3 min-w-0 flex-1 text-left ${collapsible ? "cursor-pointer" : "cursor-default"}`}
+            // Alinhamento vertical do cabeçalho: quando NÃO há `desc` (a
+            // maioria das Sections hoje — o subtítulo foi removido em quase
+            // todo o SaaS num pedido anterior), o ícone e o título ficam
+            // numa única linha, então `items-center` centraliza o título
+            // certinho no meio do ícone (pedido do cliente em 03/09/2026,
+            // print da Section "Título do Anúncio" — o título estava
+            // "colado" no topo do ícone em vez de centralizado). Quando AINDA
+            // existe `desc` (ex.: RecGroup "Aqui pertinho"/"Pela cidade"),
+            // mantém `items-start`: com duas linhas de texto, alinhar pelo
+            // topo continua sendo o mais correto visualmente.
+            className={`flex ${desc ? "items-start" : "items-center"} gap-3 min-w-0 flex-1 text-left ${collapsible ? "cursor-pointer" : "cursor-default"}`}
             aria-expanded={collapsible ? isOpen : undefined}
             disabled={!collapsible}
           >
             {Icon && (
               <span
                 className={[
-                  dense ? "grid place-items-center size-7 rounded-[0.3rem] shrink-0" : "grid place-items-center size-8 rounded-lg shrink-0 mt-0.5",
+                  dense
+                    ? "grid place-items-center size-7 rounded-[0.3rem] shrink-0"
+                    : `grid place-items-center size-8 rounded-lg shrink-0 ${desc ? "mt-0.5" : ""}`,
                   accent ? "bg-primary/15 text-primary" : "bg-muted text-foreground/70",
                 ].join(" ")}
               >
@@ -128,7 +140,7 @@ export function Section({
             </div>
             {collapsible && (
               <ChevronDown
-                className={`${dense ? "size-3.5 mt-0.5" : "size-4 mt-1.5"} text-muted-foreground transition-transform shrink-0 ${isOpen ? "rotate-180" : ""}`}
+                className={`${dense ? "size-3.5 mt-0.5" : desc ? "size-4 mt-1.5" : "size-4"} text-muted-foreground transition-transform shrink-0 ${isOpen ? "rotate-180" : ""}`}
               />
             )}
           </button>

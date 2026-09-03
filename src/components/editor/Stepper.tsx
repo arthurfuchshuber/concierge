@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Lock, Home, FileText, DoorOpen, LogOut, LifeBuoy, Compass } from "lucide-react";
 
 export type StepDef = {
@@ -34,6 +35,23 @@ export function Stepper({
   lockedValues?: string[];
   lockedTitle?: string;
 }) {
+  const activeRef = useRef<HTMLButtonElement>(null);
+
+  // ANTI-CORTE, parte 2 (03/09/2026): `ds-segmented` (CSS) garante que a
+  // barra role em vez de espremer/cortar rótulos, mas rolagem sozinha não
+  // garante que a aba escolhida fique 100% visível — se ela já estava perto
+  // da borda quando o usuário tocou nela, ela continua parcialmente cortada
+  // ATÉ alguém arrastar a barra manualmente. `scrollIntoView` aqui resolve
+  // isso: sempre que a aba ativa muda (por clique OU por navegação
+  // programática, ex.: `setStep` chamado de outro lugar da tela), rola a
+  // barra pra deixar essa aba inteira à vista. `inline: "nearest"` evita
+  // rolar mais do que o necessário (não força a aba pro centro se já está
+  // visível), e `block: "nearest"` evita rolar a PÁGINA verticalmente —
+  // only a barra horizontal deve se mexer.
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
+  }, [current]);
+
   return (
     // ANTI-CORTE (regra global): `ds-segmented` adapta o espaçamento à largura
     // real da tela e rola horizontalmente em vez de cortar qualquer aba.
@@ -44,6 +62,7 @@ export function Stepper({
         return (
           <button
             key={s.value}
+            ref={active ? activeRef : undefined}
             type="button"
             disabled={locked}
             onClick={() => !locked && onChange(s.value)}

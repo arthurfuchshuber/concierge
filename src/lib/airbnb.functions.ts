@@ -122,6 +122,30 @@ const AIRBNB_EXPAND_ACTIONS: FirecrawlAction[] = [
     all: true,
   },
   { type: "wait", milliseconds: 1200 },
+  // O modal "Mostrar todas as X comodidades" abre (confirmado pelo print do
+  // cliente em 03/09/2026 — a leitura anterior já trouxe as categorias
+  // certas, "Internet e escritório"/"Outras"), mas só as primeiras
+  // comodidades visíveis no modal eram lidas: é um diálogo com scroll
+  // PRÓPRIO (rola por dentro do modal, não a página toda), então rolar a
+  // PÁGINA (como o passo acima faz pra achar o botão) não revela o resto do
+  // conteúdo do modal — é preciso rolar o próprio `[role='dialog']`.
+  // Repete algumas vezes com espera entre cada rolagem pra dar tempo de
+  // categorias carregarem progressivamente, caso o Airbnb renderize a lista
+  // aos poucos.
+  { type: "scroll", selector: "[role='dialog']", direction: "down", amount: 1600 },
+  { type: "wait", milliseconds: 500 },
+  { type: "scroll", selector: "[role='dialog']", direction: "down", amount: 1600 },
+  { type: "wait", milliseconds: 500 },
+  { type: "scroll", selector: "[role='dialog']", direction: "down", amount: 1600 },
+  { type: "wait", milliseconds: 500 },
+  { type: "scroll", selector: "[role='dialog']", direction: "down", amount: 1600 },
+  { type: "wait", milliseconds: 600 },
+  // Fecha o modal de comodidades antes de seguir: ele é tela cheia e pode
+  // ficar cobrindo os botões "Saiba mais" da página principal, impedindo o
+  // próximo clique de achá-los. Se não houver botão de fechar (seletor não
+  // bate com nada), o Firecrawl segue sem travar.
+  { type: "click", selector: "[role='dialog'] button[aria-label*='fechar' i], [role='dialog'] button[aria-label*='close' i]", all: true },
+  { type: "wait", milliseconds: 500 },
   // Abre os 3 cartões de "O que você deve saber" (Regras da casa,
   // Segurança e propriedade, Política de cancelamento) de uma vez.
   {
