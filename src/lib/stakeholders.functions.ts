@@ -182,10 +182,16 @@ const FIELD_CHANGE_TEXT: Record<string, (v: string) => string> = {
   rate: (v) => `Valor/diária alterado para ${v}`,
 };
 
+/** Campos cujo valor é uma data ISO ("aaaa-mm-dd") e por isso precisam
+ *  passar por `displayDate` (dd/mm/aaaa) em vez de `displayValue` cru. */
+const DATE_FIELDS = new Set(["birth_date"]);
+
 /** Mudanças legíveis entre o cadastro anterior e o novo, já em frases
- *  prontas para a Linha do Tempo (não "Campo: A → B"). Início/fim do
- *  contrato sempre viram uma única frase de "Vigência", em vez de duas
- *  linhas separadas. */
+ *  prontas para a Linha do Tempo (não "Campo: A → B"). Início e fim do
+ *  contrato viram frases próprias e independentes ("Data de início do
+ *  contrato alterada para X"), e quando os dois mudam juntos (ex.: contrato
+ *  novo com vigência completa) as duas frases se juntam numa só com "e" —
+ *  cada uma só aparece quando aquele campo específico realmente mudou. */
 function diffPayload(before: Record<string, unknown>, after: Record<string, unknown>): string[] {
   const changed = new Set<string>();
   for (const [key, value] of Object.entries(after)) {
@@ -198,22 +204,36 @@ function diffPayload(before: Record<string, unknown>, after: Record<string, unkn
   const out: string[] = [];
 
   if (changed.has("contract_start") || changed.has("contract_end")) {
+    const startChanged = changed.has("contract_start");
+    const endChanged = changed.has("contract_end");
     changed.delete("contract_start");
     changed.delete("contract_end");
     const start = displayDate(after["contract_start"]);
     const end = displayDate(after["contract_end"]);
-    out.push(
-      start === "vazio"
-        ? "Vigência removida"
-        : end === "vazio"
-          ? `Vigência alterada — início em ${start}, sem data final`
-          : `Vigência alterada para ${start} a ${end}`,
-    );
+    const startPhrase =
+      start === "vazio" ? "Data de início do contrato removida" : `Data de início do contrato alterada para ${start}`;
+    const endPhrase = end === "vazio" ? "data final removida" : `data final alterada para ${end}`;
+    if (startChanged && endChanged) {
+      out.push(`${startPhrase} e ${endPhrase}`);
+    } else if (startChanged) {
+      out.push(startPhrase);
+    } else {
+      out.push(end === "vazio" ? "Data final do contrato removida" : `Data final do contrato alterada para ${end}`);
+    }
   }
 
   for (const key of changed) {
     const narrate = FIELD_CHANGE_TEXT[key];
-    out.push(narrate ? narrate(displayValue(key, after[key])) : `${FIELD_LABELS[key] ?? key} alterado(a)`);
+    if (narrate) {
+      out.push(narrate(displayValue(key, after[key])));
+      continue;
+    }
+    const value = DATE_FIELDS.has(key) ? displayDate(after[key]) : displayValue(key, after[key]);
+    out.push(
+      value === "vazio"
+        ? `${FIELD_LABELS[key] ?? key} removido(a)`
+        : `${FIELD_LABELS[key] ?? key} alterado(a) para "${value}"`,
+    );
   }
   return out;
 }
