@@ -2826,8 +2826,17 @@ function PropertyEditor() {
                   é logística de chegada do que é logística de saída. Cada
                   subaba tem sua própria SectionGroup (regra de
                   expansividade: só uma Section aberta por vez — mas cada
-                  subaba controla isso de forma independente da outra). */}
-              <div className="ds-segmented mb-4 -mx-1 px-1 rounded-[0.3rem] bg-foreground/5 p-1 max-w-xs">
+                  subaba controla isso de forma independente da outra).
+
+                  NÃO usa a classe `ds-segmented` aqui de propósito — são só
+                  2 rótulos curtos e fixos, que cabem em qualquer largura de
+                  tela sem precisar de rolagem/anti-corte. Usar `ds-segmented`
+                  mesmo assim foi o que causou o bug do print 1 (03/09/2026):
+                  o `width:100%` daquela classe brigou com o `max-w-xs` que
+                  tentava limitar a largura do bloco, e o "Checkout" esticou
+                  ocupando o espaço sobrando. `inline-flex` resolve isso de
+                  raiz — o bloco só ocupa o espaço que os 2 botões precisam. */}
+              <div className="inline-flex gap-1 mb-4 rounded-[0.3rem] bg-foreground/5 p-1">
                 {(
                   [
                     { value: "checkin" as const, label: "Check-in", icon: DoorOpen },

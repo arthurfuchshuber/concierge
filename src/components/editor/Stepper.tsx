@@ -64,7 +64,7 @@ export function Stepper({
   // fica parcialmente visível em nenhuma das duas bordas.
   const clearPadding = () => {
     for (const b of btnRefs.current) {
-      if (b) b.style.paddingRight = "";
+      if (b) b.style.removeProperty("padding-right");
     }
   };
 
@@ -109,7 +109,17 @@ export function Stepper({
     const isTrueEnd = lastIncluded === btns.length - 1;
     if (!isTrueEnd && leftover > 1) {
       const lastBtn = btns[lastIncluded];
-      if (lastBtn) lastBtn.style.paddingRight = `${leftover}px`;
+      // `!important` é OBRIGATÓRIO aqui: `ds-segmented` (styles.css) já
+      // define `padding-inline: ... !important` em CADA botão (precisou
+      // disso pra vencer o `px-3` do Tailwind, que no Tailwind v4 também
+      // vira `padding-inline` — mesma propriedade, mesma especificidade).
+      // Um `style.paddingRight = ...` comum (sem !important) SEMPRE perde
+      // pra uma regra `!important` de folha de estilo, não importa a
+      // especificidade — isso silenciosamente anulava esta correção
+      // inteira (a aba seguinte continuava cortada mesmo com a lógica
+      // certa rodando). `setProperty(..., "important")` é a forma correta
+      // de aplicar `!important` num estilo inline via JS.
+      if (lastBtn) lastBtn.style.setProperty("padding-right", `${leftover}px`, "important");
     }
 
     if (scroll) nav.scrollTo({ left: anchorLeft, behavior: "smooth" });
