@@ -653,6 +653,8 @@ dd {
 
   & > * {
     flex: none;
+    white-space: nowrap;
+    min-width: max-content;
   }
 }
 
@@ -660,7 +662,17 @@ dd {
    uma única linha. O respiro se adapta à largura disponível e, quando os
    rótulos não couberem inteiros, a barra rola horizontalmente. Nunca quebra
    em duas linhas, nunca comprime texto e nunca corta um item pela metade.
-   Vale para TODAS as telas/subtelas/tooltips do SaaS. */
+   Vale para TODAS as telas/subtelas/tooltips do SaaS.
+
+   "Peek-fade": quando a barra rola, uma sombra bem sutil aparece na(s)
+   borda(s) onde ainda há abas escondidas, para o corte de scroll nunca
+   parecer um corte visual quebrado. É 100% CSS (sem JS): duas camadas de
+   fundo "cobrem" a sombra e rolam junto com o conteúdo (attachment: local);
+   as outras duas ficam fixas na borda do viewport (attachment: scroll). O
+   resultado é que a sombra só aparece no lado em que ainda dá pra rolar —
+   ela some sozinha quando a barra cabe inteira ou quando chega no fim.
+   `--ds-segmented-bg` deixa cada tela ajustar a cor de fundo usada para
+   "cobrir" a sombra, caso não seja o fundo padrão da página. */
 @utility ds-segmented {
   display: flex;
   flex-wrap: nowrap;
@@ -673,6 +685,24 @@ dd {
   scrollbar-width: none;
   -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
+
+  background-repeat: no-repeat;
+  background-position:
+    left top,
+    right top,
+    left top,
+    right top;
+  background-size:
+    26px 100%,
+    26px 100%,
+    12px 100%,
+    12px 100%;
+  background-attachment: local, local, scroll, scroll;
+  background-image:
+    linear-gradient(to right, var(--ds-segmented-bg, var(--background)) 45%, transparent),
+    linear-gradient(to left, var(--ds-segmented-bg, var(--background)) 45%, transparent),
+    linear-gradient(to right, color-mix(in oklch, var(--foreground) 20%, transparent), transparent),
+    linear-gradient(to left, color-mix(in oklch, var(--foreground) 20%, transparent), transparent);
 
   &::-webkit-scrollbar {
     display: none;

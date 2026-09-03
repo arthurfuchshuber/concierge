@@ -71,6 +71,7 @@ import { Route as ApiPublicCronSyncAirbnbIcalRouteImport } from './routes/api/pu
 import { Route as ApiPublicCronSaasAlertsRouteImport } from './routes/api/public/cron.saas-alerts'
 import { Route as ApiPublicCronReindexKnowledgeRouteImport } from './routes/api/public/cron.reindex-knowledge'
 import { Route as ApiPublicCronRefreshRecommendationsRouteImport } from './routes/api/public/cron.refresh-recommendations'
+import { Route as ApiPublicCronRefreshAirbnbListingsRouteImport } from './routes/api/public/cron.refresh-airbnb-listings'
 import { Route as ApiPublicCronRefreshCityReferencesRouteImport } from './routes/api/public/cron.refresh-city-references'
 import { Route as ApiPublicCronRefreshCityNewsRouteImport } from './routes/api/public/cron.refresh-city-news'
 import { Route as ApiPublicCronProactiveConciergeRouteImport } from './routes/api/public/cron.proactive-concierge'
@@ -426,6 +427,12 @@ const ApiPublicCronRefreshRecommendationsRoute =
     path: '/api/public/cron/refresh-recommendations',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronRefreshAirbnbListingsRoute =
+  ApiPublicCronRefreshAirbnbListingsRouteImport.update({
+    id: '/api/public/cron/refresh-airbnb-listings',
+    path: '/api/public/cron/refresh-airbnb-listings',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronRefreshCityReferencesRoute =
   ApiPublicCronRefreshCityReferencesRouteImport.update({
     id: '/api/public/cron/refresh-city-references',
@@ -578,6 +585,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
+  '/api/public/cron/refresh-airbnb-listings': typeof ApiPublicCronRefreshAirbnbListingsRoute
   '/api/public/cron/reindex-knowledge': typeof ApiPublicCronReindexKnowledgeRoute
   '/api/public/cron/saas-alerts': typeof ApiPublicCronSaasAlertsRoute
   '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
@@ -653,6 +661,7 @@ export interface FileRoutesByTo {
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
+  '/api/public/cron/refresh-airbnb-listings': typeof ApiPublicCronRefreshAirbnbListingsRoute
   '/api/public/cron/reindex-knowledge': typeof ApiPublicCronReindexKnowledgeRoute
   '/api/public/cron/saas-alerts': typeof ApiPublicCronSaasAlertsRoute
   '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
@@ -733,6 +742,7 @@ export interface FileRoutesById {
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
   '/api/public/cron/refresh-city-references': typeof ApiPublicCronRefreshCityReferencesRoute
   '/api/public/cron/refresh-recommendations': typeof ApiPublicCronRefreshRecommendationsRoute
+  '/api/public/cron/refresh-airbnb-listings': typeof ApiPublicCronRefreshAirbnbListingsRoute
   '/api/public/cron/reindex-knowledge': typeof ApiPublicCronReindexKnowledgeRoute
   '/api/public/cron/saas-alerts': typeof ApiPublicCronSaasAlertsRoute
   '/api/public/cron/sync-airbnb-ical': typeof ApiPublicCronSyncAirbnbIcalRoute
@@ -813,6 +823,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
+    | '/api/public/cron/refresh-airbnb-listings'
     | '/api/public/cron/reindex-knowledge'
     | '/api/public/cron/saas-alerts'
     | '/api/public/cron/sync-airbnb-ical'
@@ -888,6 +899,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
+    | '/api/public/cron/refresh-airbnb-listings'
     | '/api/public/cron/reindex-knowledge'
     | '/api/public/cron/saas-alerts'
     | '/api/public/cron/sync-airbnb-ical'
@@ -967,6 +979,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/refresh-city-news'
     | '/api/public/cron/refresh-city-references'
     | '/api/public/cron/refresh-recommendations'
+    | '/api/public/cron/refresh-airbnb-listings'
     | '/api/public/cron/reindex-knowledge'
     | '/api/public/cron/saas-alerts'
     | '/api/public/cron/sync-airbnb-ical'
@@ -1022,6 +1035,7 @@ export interface RootRouteChildren {
   ApiPublicCronRefreshCityNewsRoute: typeof ApiPublicCronRefreshCityNewsRoute
   ApiPublicCronRefreshCityReferencesRoute: typeof ApiPublicCronRefreshCityReferencesRoute
   ApiPublicCronRefreshRecommendationsRoute: typeof ApiPublicCronRefreshRecommendationsRoute
+  ApiPublicCronRefreshAirbnbListingsRoute: typeof ApiPublicCronRefreshAirbnbListingsRoute
   ApiPublicCronReindexKnowledgeRoute: typeof ApiPublicCronReindexKnowledgeRoute
   ApiPublicCronSaasAlertsRoute: typeof ApiPublicCronSaasAlertsRoute
   ApiPublicCronSyncAirbnbIcalRoute: typeof ApiPublicCronSyncAirbnbIcalRoute
@@ -1463,6 +1477,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronReindexKnowledgeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/refresh-airbnb-listings': {
+      id: '/api/public/cron/refresh-airbnb-listings'
+      path: '/api/public/cron/refresh-airbnb-listings'
+      fullPath: '/api/public/cron/refresh-airbnb-listings'
+      preLoaderRoute: typeof ApiPublicCronRefreshAirbnbListingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/refresh-recommendations': {
       id: '/api/public/cron/refresh-recommendations'
       path: '/api/public/cron/refresh-recommendations'
@@ -1727,6 +1748,8 @@ const rootRouteChildren: RootRouteChildren = {
     ApiPublicCronRefreshCityReferencesRoute,
   ApiPublicCronRefreshRecommendationsRoute:
     ApiPublicCronRefreshRecommendationsRoute,
+  ApiPublicCronRefreshAirbnbListingsRoute:
+    ApiPublicCronRefreshAirbnbListingsRoute,
   ApiPublicCronReindexKnowledgeRoute: ApiPublicCronReindexKnowledgeRoute,
   ApiPublicCronSaasAlertsRoute: ApiPublicCronSaasAlertsRoute,
   ApiPublicCronSyncAirbnbIcalRoute: ApiPublicCronSyncAirbnbIcalRoute,

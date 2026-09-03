@@ -244,6 +244,11 @@ type FormState = {
     airbnb_ical_last_sync_at: string | null;
     airbnb_ical_last_error: string | null;
     airbnb_listing_url: string | null;
+    /** Sincronização automática diária (Firecrawl, via pg_cron) — só leitura
+     * na tela, nunca editada pelo usuário. */
+    airbnb_listing_last_synced_at: string | null;
+    airbnb_listing_last_error: string | null;
+    airbnb_listing_last_sync_note: string | null;
     property_type_id: string | null;
     guide_created: boolean;
     /** Proprietário (property_owners) — regra: sem imóvel vinculado a um
@@ -329,6 +334,9 @@ function emptyForm(): FormState {
       airbnb_ical_last_sync_at: null,
       airbnb_ical_last_error: null,
       airbnb_listing_url: null,
+      airbnb_listing_last_synced_at: null,
+      airbnb_listing_last_error: null,
+      airbnb_listing_last_sync_note: null,
       property_type_id: null,
       guide_created: false,
       owner_contact_id: null,
@@ -753,6 +761,11 @@ function PropertyEditor() {
       airbnb_ical_last_sync_at: (p.airbnb_ical_last_sync_at as string | null) ?? null,
       airbnb_ical_last_error: (p.airbnb_ical_last_error as string | null) ?? null,
       airbnb_listing_url: ((p as Record<string, unknown>).airbnb_listing_url as string | null) ?? null,
+      airbnb_listing_last_synced_at:
+        ((p as Record<string, unknown>).airbnb_listing_last_synced_at as string | null) ?? null,
+      airbnb_listing_last_error: ((p as Record<string, unknown>).airbnb_listing_last_error as string | null) ?? null,
+      airbnb_listing_last_sync_note:
+        ((p as Record<string, unknown>).airbnb_listing_last_sync_note as string | null) ?? null,
       property_type_id: ((p as Record<string, unknown>).property_type_id as string | null) ?? null,
       guide_created: ((p as Record<string, unknown>).guide_created as boolean) ?? false,
       owner_contact_id: ((p as Record<string, unknown>).owner_contact_id as string | null) ?? null,
@@ -2444,6 +2457,35 @@ function PropertyEditor() {
                     Procurando o calendário/iCal? Ele foi para a aba <strong>A casa</strong> — não depende mais de criar
                     um guia.
                   </p>
+
+                  {/* Checagem automática diária (pg_cron → Firecrawl, mesma
+                      leitura do botão acima) — não existe webhook do Airbnb
+                      pra hosts individuais, então isto relê o anúncio uma
+                      vez por dia sozinho e aplica direto o que mudar. Só
+                      aparece depois de salvar um link do Airbnb. */}
+                  {!isNew && form.property.airbnb_listing_url && (
+                    <p className="text-[11px] text-muted-foreground mt-2 flex items-start gap-1.5">
+                      <Sparkles className="size-3 shrink-0 mt-0.5 opacity-60" />
+                      <span>
+                        Checagem automática 1x/dia:{" "}
+                        {form.property.airbnb_listing_last_error ? (
+                          <span className="text-destructive">
+                            falhou na última tentativa ({form.property.airbnb_listing_last_error})
+                          </span>
+                        ) : form.property.airbnb_listing_last_synced_at ? (
+                          <>
+                            última checagem em{" "}
+                            {new Date(form.property.airbnb_listing_last_synced_at).toLocaleString("pt-BR")}
+                            {form.property.airbnb_listing_last_sync_note
+                              ? ` · ${form.property.airbnb_listing_last_sync_note}`
+                              : " · sem mudanças"}
+                          </>
+                        ) : (
+                          "ainda não rodou pela primeira vez"
+                        )}
+                      </span>
+                    </p>
+                  )}
                 </Section>
 
                 <Section
