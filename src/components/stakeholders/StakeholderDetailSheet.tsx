@@ -456,17 +456,11 @@ export function StakeholderDetailSheet({
 
   return (
     <div className="flex w-full min-w-0 max-w-full flex-col gap-5 overflow-x-hidden px-5 py-6 sm:px-6">
-      {/* ---------- Cabeçalho: glow de marca (aprovado — proposta B do mockup)
-          + eyebrow + nome + metadados ---------- */}
-      <header className="relative overflow-hidden pt-4">
-        {/* Antes era um fio reto de 2px; virou uma faixa suave da cor da
-            marca "ao fundo" da área acima do nome, desfocada e esmaecendo
-            pra baixo. -z-10 garante que fica atrás do texto mesmo sendo
-            absolutamente posicionada (senão pintaria por cima do conteúdo
-            estático). */}
+      {/* ---------- Cabeçalho: fio de marca + eyebrow + nome + metadados ---------- */}
+      <header className="relative pt-4">
         <span
           aria-hidden
-          className="pointer-events-none absolute -inset-x-[12%] -top-[70px] -z-10 h-[150px] bg-[linear-gradient(180deg,rgba(124,26,216,.32),rgba(232,45,174,.18)_55%,transparent_100%)] blur-[10px]"
+          className="absolute left-0 right-12 top-0 h-[2px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]"
         />
 
         {/* Linha 1: eyebrow (as ações desceram para a linha de metadados) */}
