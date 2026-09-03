@@ -732,7 +732,12 @@ dd {
   scrollbar-width: none;
   -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
-  scroll-snap-type: x proximity;
+  /* `mandatory` (não `proximity`): o cliente foi explícito — "JAMAIS" um
+     item pode ficar cortado, então a rolagem TEM que sempre terminar num
+     item inteiro, nunca pode "decidir" deixar cortado como o `proximity`
+     permite (ele só encaixa quando já está "perto o suficiente" de um
+     ponto de encaixe; `mandatory` força sempre). */
+  scroll-snap-type: x mandatory;
   scroll-padding-inline: 2px;
 
   &::-webkit-scrollbar {

@@ -621,6 +621,11 @@ function PropertyEditor() {
   const [genCityModeOpen, setGenCityModeOpen] = useState(false);
   const [gateOpen, setGateOpen] = useState(false);
   const [lockOpen, setLockOpen] = useState(false);
+  // Subaba interna da aba "Check-in & Checkout" — pedido do cliente em
+  // 03/09/2026: separar visualmente o que é de check-in do que é de
+  // checkout dentro dessa aba (antes tudo ficava numa lista só, sem
+  // distinção). Ver JSX da TabsContent "checkin" mais abaixo.
+  const [checkinSubStep, setCheckinSubStep] = useState<"checkin" | "checkout">("checkin");
 
   const { data, isLoading } = useQuery({
     queryKey: ["property", id],
@@ -2816,7 +2821,72 @@ function PropertyEditor() {
 
             {/* ================= CHECK-IN & CHECKOUT ================= */}
             <TabsContent value="checkin" className="space-y-4 mt-6">
+              {/* Subabas "Check-in" / "Checkout" dentro da aba "Check-in &
+                  Checkout" — pedido do cliente em 03/09/2026: separar o que
+                  é logística de chegada do que é logística de saída. Cada
+                  subaba tem sua própria SectionGroup (regra de
+                  expansividade: só uma Section aberta por vez — mas cada
+                  subaba controla isso de forma independente da outra). */}
+              <div className="ds-segmented mb-4 -mx-1 px-1 rounded-[0.3rem] bg-foreground/5 p-1 max-w-xs">
+                {(
+                  [
+                    { value: "checkin" as const, label: "Check-in", icon: DoorOpen },
+                    { value: "checkout" as const, label: "Checkout", icon: LogOut },
+                  ]
+                ).map((t) => {
+                  const active = checkinSubStep === t.value;
+                  return (
+                    <button
+                      key={t.value}
+                      type="button"
+                      onClick={() => setCheckinSubStep(t.value)}
+                      className={`whitespace-nowrap px-3 py-2 text-center text-[13px] font-normal leading-none flex items-center justify-center gap-1.5 min-h-[34px] rounded-[0.25rem] transition-colors ${
+                        active
+                          ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <t.icon className="size-3.5" />
+                      {t.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {checkinSubStep === "checkin" && (
               <SectionGroup>
+                <Section id="checkin-times" icon={Clock} title="Horário de check-in" collapsible>
+                  {/* Espelha (mesmo estado do form, não é uma cópia separada)
+                      os campos que já existem na aba Airbnb — pedido do
+                      cliente em 03/09/2026: os horários "sumiram" desta aba
+                      na fusão Check-in+Checkout porque só apareciam lá.
+                      Continuam só-leitura aqui pela mesma regra (campo
+                      importado do Airbnb = só visualização) — pra editar o
+                      horário em si, use a aba Airbnb; a observação dá pra
+                      editar direto por aqui também. */}
+                  <div className="space-y-2.5">
+                    <TimeInlineRow label="Check-in a partir de">
+                      <ReadOnlyValue value={form.property.checkin_time} />
+                    </TimeInlineRow>
+                    <TimeInlineRow label="Check-in até" optional>
+                      <ReadOnlyValue value={form.property.checkin_time_max} />
+                    </TimeInlineRow>
+                  </div>
+                  <Field
+                    label="Observação do check-in (opcional)"
+                    hint="Aparece abaixo dos horários no guia. Deixe em branco para ocultar."
+                  >
+                    <TagMentionTextarea
+                      items={tagItems}
+                      value={form.property.checkin_note}
+                      maxLength={1000}
+                      rows={3}
+                      onChange={(e) => update("checkin_note", e.target.value)}
+                      placeholder="Ex.: Após às 22h, avise pelo WhatsApp com 1h de antecedência."
+                    />
+                  </Field>
+                </Section>
+
                 <Section
                   id="checkin-instr"
                   icon={DoorOpen}
@@ -3215,6 +3285,44 @@ function PropertyEditor() {
                     </CaptureRow>
                   </div>
                 </Section>
+              </SectionGroup>
+              )}
+
+              {checkinSubStep === "checkout" && (
+              <SectionGroup>
+                <Section id="checkout-times" icon={Clock} title="Horário de check-out" collapsible>
+                  {/* Mesmo espelhamento do "Horário de check-in" acima — ver
+                      comentário lá. "Check-out a partir de" continua
+                      editável aqui (é o único horário que não vem do
+                      Airbnb — a aba Airbnb também deixa editar o mesmo
+                      campo, mesmo estado, sem risco de divergência). */}
+                  <div className="space-y-2.5">
+                    <TimeInlineRow label="Check-out a partir de" optional>
+                      <TimePicker
+                        value={form.property.checkout_time_min}
+                        onChange={(v) => update("checkout_time_min", v)}
+                        placeholder="08:00"
+                      />
+                    </TimeInlineRow>
+                    <TimeInlineRow label="Check-out até" optional>
+                      <ReadOnlyValue value={form.property.checkout_time} />
+                    </TimeInlineRow>
+                  </div>
+                  <Field
+                    label="Observação do check-out (opcional)"
+                    hint="Aparece abaixo dos horários no guia. Deixe em branco para ocultar."
+                  >
+                    <TagMentionTextarea
+                      items={tagItems}
+                      value={form.property.checkout_note}
+                      maxLength={1000}
+                      rows={3}
+                      onChange={(e) => update("checkout_note", e.target.value)}
+                      placeholder="Ex.: Late check-out mediante disponibilidade — consulte o anfitrião."
+                    />
+                  </Field>
+                </Section>
+
                 <Section
                   id="checkout-instr"
                   icon={LogOut}
@@ -3268,6 +3376,7 @@ function PropertyEditor() {
                   </div>
                 </Section>
               </SectionGroup>
+              )}
             </TabsContent>
 
             {/* ================= FAQ & CONTATOS ================= */}
