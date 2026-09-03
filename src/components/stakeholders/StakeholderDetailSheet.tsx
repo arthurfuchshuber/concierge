@@ -24,10 +24,6 @@ import {
   MessageCircle,
   ChevronDown,
   X,
-  Building2,
-  CircleDollarSign,
-  KeyRound,
-  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -72,7 +68,7 @@ import { effectiveStatus, statusText } from "@/lib/stakeholder-status";
  *  ds-segmented rolar na horizontal quando não couberem todas, em vez de
  *  espremer/cortar "Acessos" tentando dividir a largura em partes iguais. */
 const SEG_TAB =
-  "min-h-[46px] !flex-none gap-1.5 px-3.5 !rounded-[0.45rem] text-[13px] font-semibold text-muted-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:opacity-70 data-[state=active]:bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] data-[state=active]:text-white data-[state=active]:shadow-none data-[state=active]:[&_svg]:opacity-100";
+  "min-h-[46px] !flex-none !rounded-[0.3rem] text-[13px] font-semibold data-[state=active]:bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] data-[state=active]:text-white data-[state=active]:shadow-none";
 
 type PreviewTarget = { name: string; url?: string | null; docId?: string } | null;
 
@@ -466,14 +462,14 @@ export function StakeholderDetailSheet({
           className="absolute left-0 right-12 top-0 h-[2px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]"
         />
 
-        {/* Linha 1: eyebrow em roxo de marca (mockup aprovado) */}
-        <span className="ds-eyebrow block truncate text-[#9B4DFF]">
+        {/* Linha 1: eyebrow (as ações desceram para a linha de metadados) */}
+        <span className="ds-eyebrow block truncate text-muted-foreground">
           {kind === "owner" ? "Proprietário" : "Prestador"}
         </span>
 
-        {/* Linha 2: nome com peso/escala de título de página */}
+        {/* Linha 2: nome em linha única, espaçamento padrão das demais páginas */}
         <h2
-          className="mt-1.5 font-display text-[24px] font-extrabold leading-[1.15] tracking-[-0.02em] sm:text-[28px]"
+          className="mt-1 truncate font-display text-[20px] font-bold leading-tight tracking-[-0.01em]"
           title={displayName}
         >
           {displayName}
@@ -523,7 +519,7 @@ export function StakeholderDetailSheet({
                     aria-label="Editar"
                     title="Editar"
                     disabled={extracting}
-                    className="grid size-10 place-items-center rounded-[0.6rem] border border-border text-foreground hover:bg-secondary transition-colors disabled:opacity-60"
+                    className="grid size-9 place-items-center rounded-[0.3rem] border border-border text-foreground hover:bg-secondary transition-colors disabled:opacity-60"
                   >
                     {extracting ? (
                       <Loader2 className="size-4 animate-spin" />
@@ -547,7 +543,7 @@ export function StakeholderDetailSheet({
                 onClick={onEdit}
                 aria-label="Editar cadastro"
                 title="Editar cadastro"
-                className="grid size-10 place-items-center rounded-[0.6rem] border border-border text-foreground hover:bg-secondary transition-colors"
+                className="grid size-9 place-items-center rounded-[0.3rem] border border-border text-foreground hover:bg-secondary transition-colors"
               >
                 <Pencil className="size-4" />
               </button>
@@ -558,7 +554,7 @@ export function StakeholderDetailSheet({
               aria-expanded={dataOpen}
               aria-label="Dados pessoais"
               title="Dados pessoais"
-              className="grid size-10 place-items-center rounded-[0.6rem] border border-border text-foreground hover:bg-secondary transition-colors"
+              className="grid size-9 place-items-center rounded-[0.3rem] border border-border text-foreground hover:bg-secondary transition-colors"
             >
               <ChevronDown className={`size-4 transition-transform ${dataOpen ? "rotate-180" : ""}`} />
             </button>
@@ -652,26 +648,12 @@ export function StakeholderDetailSheet({
       <Tabs defaultValue="visao" className="min-w-0 max-w-full">
         <TabsList className="ds-segmented h-auto w-full max-w-full !rounded-[0.3rem] border-0 bg-foreground/5 p-0">
 
-          <TabsTrigger className={SEG_TAB} value="visao">
-            <CalendarDays /> Timeline
-          </TabsTrigger>
-          {kind === "owner" && (
-            <TabsTrigger className={SEG_TAB} value="imoveis">
-              <Building2 /> Imóveis
-            </TabsTrigger>
-          )}
-          <TabsTrigger className={SEG_TAB} value="financeiro">
-            <CircleDollarSign /> Financeiro
-          </TabsTrigger>
-          <TabsTrigger className={SEG_TAB} value="documentos">
-            <FileText /> Documentos
-          </TabsTrigger>
-          <TabsTrigger className={SEG_TAB} value="acessos">
-            <KeyRound /> Acessos
-          </TabsTrigger>
-          <TabsTrigger className={SEG_TAB} value="log">
-            <History /> Log
-          </TabsTrigger>
+          <TabsTrigger className={SEG_TAB} value="visao">Timeline</TabsTrigger>
+          {kind === "owner" && <TabsTrigger className={SEG_TAB} value="imoveis">Imóveis</TabsTrigger>}
+          <TabsTrigger className={SEG_TAB} value="financeiro">Financeiro</TabsTrigger>
+          <TabsTrigger className={SEG_TAB} value="documentos">Documentos</TabsTrigger>
+          <TabsTrigger className={SEG_TAB} value="acessos">Acessos</TabsTrigger>
+          <TabsTrigger className={SEG_TAB} value="log">Log</TabsTrigger>
 
         </TabsList>
 
