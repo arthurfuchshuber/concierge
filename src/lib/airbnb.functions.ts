@@ -23,7 +23,7 @@ const AirbnbInput = z.object({
     }, "Use um link público do anúncio (airbnb.com/h/... ou /rooms/...)"),
 });
 
-export type AirbnbAmenity = { name: string; available: boolean };
+export type AirbnbAmenity = { name: string; available: boolean; category: string | null };
 export type AirbnbRoomBeds = { room: string; beds: string };
 
 export type AirbnbImportResult = {
@@ -105,8 +105,23 @@ const AIRBNB_EXPAND_ACTIONS: FirecrawlAction[] = [
   { type: "wait", milliseconds: 1200 },
   { type: "click", selector: "button[aria-label*='descri' i], button[aria-expanded='false']", all: true },
   { type: "wait", milliseconds: 500 },
-  { type: "click", selector: "button[aria-label*='comodidades' i], button[aria-label*='amenities' i]", all: true },
-  { type: "wait", milliseconds: 900 },
+  // "Mostrar todas as X comodidades"/"Show all X amenities" costuma ficar
+  // abaixo da dobra — sem rolar até ela antes, o clique podia cair fora do
+  // viewport e nunca abrir o modal, deixando só as ~8 comodidades "de
+  // vitrine" que já vêm sem clicar em nada (bug reportado em 03/09/2026:
+  // anúncio real tinha 40+ comodidades, só ~8 eram importadas). O
+  // selector também ficou mais largo (classe genérica de botão + várias
+  // variações de aria-label) porque o texto exato do botão muda de
+  // idioma pro idioma do anúncio.
+  { type: "scroll", direction: "down", amount: 1200 },
+  { type: "wait", milliseconds: 400 },
+  {
+    type: "click",
+    selector:
+      "button[aria-label*='comodidades' i], button[aria-label*='amenities' i], button[aria-label*='mostrar todas' i], button[aria-label*='show all' i], a[aria-label*='comodidades' i], a[aria-label*='amenities' i]",
+    all: true,
+  },
+  { type: "wait", milliseconds: 1200 },
   // Abre os 3 cartões de "O que você deve saber" (Regras da casa,
   // Segurança e propriedade, Política de cancelamento) de uma vez.
   {
@@ -224,12 +239,17 @@ const AIRBNB_EXTRACTION_SCHEMA = {
     },
     amenities: {
       type: "array",
-      description: "EVERY amenity listed on the page, including ones revealed only after clicking 'Mostrar todas as comodidades'/'Show all amenities', and including ones shown with a strikethrough (meaning NOT offered) — do not skip the strikethrough ones.",
+      description: "ALL amenities listed in the 'Mostrar todas as X comodidades'/'Show all X amenities' modal — this modal lists EVERY amenity of the listing (typically far more than the ~10 shown on the main page before clicking), organized under category headers. Read the FULL modal, every category, every item inside each category — do not stop at the first few. Include ones shown with a strikethrough (meaning NOT offered) — do not skip the strikethrough ones. If the modal could not be opened, fall back to the short list shown on the main page instead of leaving this empty.",
       items: {
         type: "object",
         properties: {
           name: { type: "string", description: "Amenity name, copied EXACTLY as displayed — original language, never translate, e.g. 'Wi-Fi' or 'Piscina'" },
           available: { type: "boolean", description: "false if the amenity is shown with a strikethrough / marked as not included, true otherwise" },
+          category: {
+            type: "string",
+            description:
+              "The category/section header this amenity is grouped under inside the 'Mostrar todas as comodidades' modal, copied EXACTLY as displayed — original language, never translate, e.g. 'Banheiro', 'Quarto e lavanderia', 'Aquecimento e resfriamento', 'Internet e escritório', 'Cozinha e sala de jantar', 'Elementos de segurança do lar', 'Área externa'. Empty string if the modal shows amenities as one flat list with no category headers.",
+          },
         },
       },
     },
@@ -307,6 +327,18 @@ function parseRoomsBeds(value: unknown): AirbnbRoomBeds[] {
     .filter((v): v is AirbnbRoomBeds => v !== null);
 }
 
+// O Firecrawl lê a página convertendo o HTML pra markdown antes de extrair o
+// JSON, e nesse passo intermediário um hífen de início de linha (marcador de
+// lista, ex. "- Não é permitido fumar") vira "\-" (escapado, pra markdown não
+// confundir com um novo item de lista aninhado). Isso vazava pro texto final
+// e aparecia literalmente como "\-" na tela (reportado pelo cliente em
+// 03/09/2026, print da seção "Regras adicionais"). Limpa esse e outros
+// escapes de markdown comuns (\*, \_, \., \(, \), \[, \]) antes de gravar —
+// aplicado só nos campos de texto longo importados do Airbnb.
+function unescapeMarkdown(text: string): string {
+  return text.replace(/\\([\\`*_{}[\]()#+\-.!])/g, "$1");
+}
+
 function parseAmenities(value: unknown): AirbnbAmenity[] {
   if (!Array.isArray(value)) return [];
   return value
@@ -315,7 +347,9 @@ function parseAmenities(value: unknown): AirbnbAmenity[] {
       const name = typeof (v as Record<string, unknown>).name === "string" ? (v as Record<string, unknown>).name as string : "";
       if (!name.trim()) return null;
       const available = (v as Record<string, unknown>).available !== false;
-      return { name: name.trim(), available };
+      const categoryRaw = (v as Record<string, unknown>).category;
+      const category = typeof categoryRaw === "string" && categoryRaw.trim() ? categoryRaw.trim() : null;
+      return { name: name.trim(), available, category };
     })
     .filter((v): v is AirbnbAmenity => v !== null);
 }
@@ -408,12 +442,18 @@ async function scrapeAirbnbListing(apiKey: string, url: string): Promise<AirbnbI
 
   const rating = parseRating(typeof j.rating === "string" ? j.rating : null);
   const guestSummary = parseGuestSummary(typeof j.guest_summary === "string" ? j.guest_summary : null);
-  const descriptionFull = typeof j.description_full === "string" && j.description_full.trim() ? j.description_full.trim() : null;
+  const descriptionFull =
+    typeof j.description_full === "string" && j.description_full.trim() ? unescapeMarkdown(j.description_full.trim()) : null;
   const roomsBeds = parseRoomsBeds(j.rooms_beds);
   const amenities = parseAmenities(j.amenities);
-  const houseRules = typeof j.house_rules === "string" && j.house_rules.trim() ? j.house_rules.trim() : null;
-  const cancellationPolicy = typeof j.cancellation_policy === "string" && j.cancellation_policy.trim() ? j.cancellation_policy.trim() : null;
-  const safetyInfo = typeof j.safety_info === "string" && j.safety_info.trim() ? j.safety_info.trim() : null;
+  const houseRules =
+    typeof j.house_rules === "string" && j.house_rules.trim() ? unescapeMarkdown(j.house_rules.trim()) : null;
+  const cancellationPolicy =
+    typeof j.cancellation_policy === "string" && j.cancellation_policy.trim()
+      ? unescapeMarkdown(j.cancellation_policy.trim())
+      : null;
+  const safetyInfo =
+    typeof j.safety_info === "string" && j.safety_info.trim() ? unescapeMarkdown(j.safety_info.trim()) : null;
 
   return {
     name: title,

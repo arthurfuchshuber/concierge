@@ -2123,7 +2123,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 ) : kanbanCheckinPendingRows.length === 0 ? (
                   <ColumnEmpty />
                 ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("checkin", kanbanCheckinPendingRows)} />
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("checkin", kanbanCheckinPendingRows)} showReservationLabel />
                 ))}
               {mobileTab === "checkout" &&
                 (kanbanCheckoutListQ.isLoading ? (
@@ -2131,7 +2131,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 ) : kanbanCheckoutPendingRows.length === 0 ? (
                   <ColumnEmpty />
                 ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("checkout", kanbanCheckoutPendingRows)} />
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("checkout", kanbanCheckoutPendingRows)} showReservationLabel />
                 ))}
               {mobileTab === "stay" &&
                 (kanbanCheckinListQ.isLoading ? (
@@ -2139,7 +2139,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 ) : kanbanStayRows.length === 0 ? (
                   <ColumnEmpty />
                 ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", kanbanStayRows)} />
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", kanbanStayRows)} showReservationLabel />
                 ))}
               {mobileTab === "cleaning" &&
                 (kanbanCheckoutListQ.isLoading ? (
@@ -2147,7 +2147,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 ) : kanbanCleaningRows.length === 0 ? (
                   <ColumnEmpty />
                 ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", kanbanCleaningRows)} />
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", kanbanCleaningRows)} showReservationLabel />
                 ))}
               {mobileTab === "done" &&
                 (concludedQ.isLoading ? (
@@ -2155,7 +2155,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 ) : kanbanConcludedRows.length === 0 ? (
                   <ColumnEmpty />
                 ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("done", kanbanConcludedRows)} />
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("done", kanbanConcludedRows)} showReservationLabel />
                 ))}
             </div>
 
@@ -2180,7 +2180,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ) : kanbanCheckinPendingRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("checkin", kanbanCheckinPendingRows)} />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("checkin", kanbanCheckinPendingRows)} showReservationLabel />
                   )}
                 </KanbanColumn>
               </div>
@@ -2198,7 +2198,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ) : kanbanCheckoutPendingRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("checkout", kanbanCheckoutPendingRows)} />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("checkout", kanbanCheckoutPendingRows)} showReservationLabel />
                   )}
                 </KanbanColumn>
               </div>
@@ -2216,7 +2216,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ) : kanbanCleaningRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", kanbanCleaningRows)} />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", kanbanCleaningRows)} showReservationLabel />
                   )}
                 </KanbanColumn>
               </div>
@@ -2234,7 +2234,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ) : kanbanStayRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", kanbanStayRows)} />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", kanbanStayRows)} showReservationLabel />
                   )}
                 </KanbanColumn>
               </div>
@@ -2279,7 +2279,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                       <ColumnEmpty />
                     )
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("done", kanbanConcludedRows)} />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("done", kanbanConcludedRows)} showReservationLabel />
                   )}
                 </KanbanColumn>
               </div>
@@ -5334,6 +5334,7 @@ function ArrivalGroup({
   compact,
   cleaningTasks,
   onToggleCleaningTask,
+  showReservationLabel,
 }: {
   title: string;
   rows: ArrivalRow[];
@@ -5363,6 +5364,12 @@ function ArrivalGroup({
    * repassa isso — ver arrivalGroupPropsFor). */
   cleaningTasks?: { tasks: TaskRow[]; completions: TaskCompletion[] };
   onToggleCleaningTask?: (task: TaskRow, row: ArrivalRow) => void;
+  /** Prefixo "RESERVA: " antes do código da reserva — pedido explícito, só
+   * nos cards do Kanban (colunas/abas). O MESMO ArrivalCard também renderiza
+   * dentro do popup de um KpiCard no Dashboard/Resumo (ver comentário em
+   * ArrivalCard), que não deve ganhar o prefixo — por isso isto é opcional e
+   * só é passado como true nos <ArrivalGroup> de dentro da view "kanban". */
+  showReservationLabel?: boolean;
 }) {
   // Somente UM card pode ficar com o quadro de detalhes aberto por vez.
   const [localOpenId, setLocalOpenId] = useState<string | null>(null);
@@ -5401,6 +5408,7 @@ function ArrivalGroup({
           compact={compact}
           cleaningTasks={cleaningTasks}
           onToggleCleaningTask={onToggleCleaningTask}
+          showReservationLabel={showReservationLabel}
         />
       ))}
     </div>
@@ -5428,6 +5436,7 @@ function ArrivalCard({
   compact,
   cleaningTasks,
   onToggleCleaningTask,
+  showReservationLabel,
 }: {
   row: ArrivalRow;
   kind: "checkin" | "checkout";
@@ -5453,6 +5462,12 @@ function ArrivalCard({
   /** Checklist de pendências (só no modo "cleaning" — ver mais abaixo). */
   cleaningTasks?: { tasks: TaskRow[]; completions: TaskCompletion[] };
   onToggleCleaningTask?: (task: TaskRow, row: ArrivalRow) => void;
+  /** Prefixo "RESERVA: " antes do código — pedido explícito, só nos cards do
+   * Kanban. Este mesmo ArrivalCard também aparece dentro de um popup de
+   * indicador (KpiCard) no Dashboard/Resumo — ver comentário logo abaixo,
+   * perto de "data-whole-card" — por isso o prefixo é opcional e default
+   * false, pra não vazar pro popup do Resumo. */
+  showReservationLabel?: boolean;
 }) {
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState(row.note ?? "");
@@ -5748,7 +5763,9 @@ function ArrivalCard({
                       title="Copiar código da reserva"
                       className="inline-flex items-center gap-1 min-w-0 hover:text-foreground transition-colors"
                     >
-                      <span className="truncate">{row.reservationCode}</span>
+                      <span className="truncate">
+                        {showReservationLabel ? `RESERVA: ${row.reservationCode}` : row.reservationCode}
+                      </span>
                     </button>
                   ) : (
                     <span className="truncate uppercase">{row.guestName}</span>
@@ -5775,7 +5792,9 @@ function ArrivalCard({
                   title="Copiar código da reserva"
                   className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  <span className="truncate max-w-[160px]">{row.reservationCode}</span>
+                  <span className="truncate max-w-[160px]">
+                    {showReservationLabel ? `RESERVA: ${row.reservationCode}` : row.reservationCode}
+                  </span>
                 </button>
               )}
 

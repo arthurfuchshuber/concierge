@@ -191,7 +191,18 @@ const PropertyInput = z.object({
     .optional()
     .default([]),
   airbnb_amenities: z
-    .array(z.object({ name: z.string().max(120), available: z.boolean() }))
+    .array(
+      z.object({
+        name: z.string().max(120),
+        available: z.boolean(),
+        // Categoria/grupo da comodidade (ex.: "Banheiro", "Quarto e
+        // lavanderia") — pedido do cliente em 03/09/2026 pra exibir as
+        // comodidades separadas por cômodo/seção, igual ao modal "Mostrar
+        // todas as comodidades" do próprio anúncio. Opcional: nem todo
+        // anúncio agrupa (alguns mostram lista única, sem categoria).
+        category: z.string().max(120).optional().nullable(),
+      }),
+    )
     .max(300)
     .optional()
     .default([]),

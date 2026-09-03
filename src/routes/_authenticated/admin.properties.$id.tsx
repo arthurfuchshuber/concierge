@@ -2489,38 +2489,24 @@ function PropertyEditor() {
                       <span className="ml-1.5 hidden sm:inline">{importingAirbnb ? "Importando…" : "Importar"}</span>
                     </Button>
                   </div>
-                  <p className="text-[11px] text-muted-foreground mt-2">
-                    Procurando o calendário/iCal? Ele continua na aba <strong>A casa</strong> — não depende de criar
-                    um guia.
-                  </p>
 
-                  {/* Checagem automática diária (pg_cron → Firecrawl, mesma
-                      leitura do botão acima) — não existe webhook do Airbnb
-                      pra hosts individuais, então isto relê o anúncio uma
-                      vez por dia sozinho e aplica direto o que mudar. Só
-                      aparece depois de salvar um link do Airbnb. */}
-                  {!isNew && form.property.airbnb_listing_url && (
-                    <p className="text-[11px] text-muted-foreground mt-2 flex items-start gap-1.5">
-                      <Sparkles className="size-3 shrink-0 mt-0.5 opacity-60" />
+                  {/* Nota do iCal e o status "checagem automática 1x/dia"
+                      removidos daqui a pedido do cliente em 03/09/2026 —
+                      "remova todo e qualquer subtítulo... da página Airbnb
+                      somente": eram texto explicativo abaixo do título da
+                      seção, mesma categoria do que já tinha sido removido
+                      (prop `desc` das Sections) num pedido anterior.
+                      Mantido abaixo SÓ o caso de erro (não é um "subtítulo"
+                      informativo — é um alerta acionável, e esconder uma
+                      falha de sincronização deixaria o host sem saber por
+                      que os dados pararam de atualizar sozinhos). */}
+                  {!isNew && form.property.airbnb_listing_last_error && (
+                    <div className="mt-3 ds-surface border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive flex items-start gap-2">
+                      <Sparkles className="size-3.5 shrink-0 mt-0.5 opacity-70" />
                       <span>
-                        Checagem automática 1x/dia:{" "}
-                        {form.property.airbnb_listing_last_error ? (
-                          <span className="text-destructive">
-                            falhou na última tentativa ({form.property.airbnb_listing_last_error})
-                          </span>
-                        ) : form.property.airbnb_listing_last_synced_at ? (
-                          <>
-                            última checagem em{" "}
-                            {new Date(form.property.airbnb_listing_last_synced_at).toLocaleString("pt-BR")}
-                            {form.property.airbnb_listing_last_sync_note
-                              ? ` · ${form.property.airbnb_listing_last_sync_note}`
-                              : " · sem mudanças"}
-                          </>
-                        ) : (
-                          "ainda não rodou pela primeira vez"
-                        )}
+                        A checagem automática diária falhou na última tentativa: {form.property.airbnb_listing_last_error}
                       </span>
-                    </p>
+                    </div>
                   )}
 
                   {(form.property.airbnb_rating != null ||
@@ -2549,37 +2535,35 @@ function PropertyEditor() {
                   )}
                 </Section>
 
-                <Section id="airbnb-basic-fields" icon={FileText} title="Nome e descrição" collapsible>
-                  {/* "Nome do imóvel" NÃO foi bloqueado como os outros campos
-                      desta aba: é o único identificador do guia e não tem
-                      nenhum outro lugar na tela onde possa ser digitado — um
-                      imóvel sem link do Airbnb (ou cuja importação ainda não
-                      rodou) ficaria sem nenhuma forma de nomear o guia. Os
-                      demais campos abaixo são só complemento e por isso
-                      seguem a regra normalmente (só leitura). */}
-                  <Field
-                    label="Nome do imóvel"
-                    required
-                    hint={`Máx. 80 caracteres — ${form.property.name.length}/80. Preenchido pela importação do Airbnb — edite se quiser um nome diferente do anúncio.`}
-                  >
-                    <Input
-                      value={form.property.name}
-                      maxLength={80}
-                      onChange={(e) => {
-                        const v = e.target.value.slice(0, 80);
-                        if (e.target.value.length > 80)
-                          toast.info(
-                            "O nome do guia tem limite de 80 caracteres — algo curto e marcante funciona melhor no topo do guia.",
-                            { id: "name-cap" },
-                          );
-                        update("name", v);
-                        if (isNew && !form.property.slug) update("slug", slugify(v));
-                      }}
-                    />
-                  </Field>
-                  <Field label="Descrição curta">
-                    <ReadOnlyValue value={form.property.short_description} />
-                  </Field>
+                <Section id="airbnb-basic-fields" icon={FileText} title="Título do Anúncio" collapsible>
+                  {/* Pedido do cliente em 03/09/2026: esta seção passou a se
+                      chamar "Título do Anúncio" e só existe pra editar o
+                      nome — a "Descrição curta" saiu daqui porque ela já
+                      aparece automaticamente dentro de "Descrição completa"
+                      (não faz sentido duplicar). Também a pedido dele, o
+                      campo abaixo não tem título/legenda própria dentro da
+                      seção (o título da própria Section já basta) — só o
+                      input. "Nome do imóvel" continua sendo o ÚNICO campo
+                      editável desta aba: é o identificador do guia e não
+                      tem nenhum outro lugar na tela onde possa ser digitado
+                      — um imóvel sem link do Airbnb (ou cuja importação
+                      ainda não rodou) ficaria sem nenhuma forma de nomear o
+                      guia. */}
+                  <Input
+                    aria-label="Título do anúncio"
+                    value={form.property.name}
+                    maxLength={80}
+                    onChange={(e) => {
+                      const v = e.target.value.slice(0, 80);
+                      if (e.target.value.length > 80)
+                        toast.info(
+                          "O nome do guia tem limite de 80 caracteres — algo curto e marcante funciona melhor no topo do guia.",
+                          { id: "name-cap" },
+                        );
+                      update("name", v);
+                      if (isNew && !form.property.slug) update("slug", slugify(v));
+                    }}
+                  />
                 </Section>
 
                 <Section id="gallery" icon={ImageIcon} title="Fotos da residência" collapsible>
@@ -2603,7 +2587,11 @@ function PropertyEditor() {
                 </Section>
 
                 <Section id="airbnb-checkin-times" icon={Clock} title="Horários de check-in" collapsible>
-                  <div className="grid grid-cols-2 gap-3">
+                  {/* Empilhado verticalmente (cascata) a pedido do cliente
+                      em 03/09/2026 — lado a lado (grid de 2 colunas) ficava
+                      com "divergência feia" no visual em telas estreitas
+                      (print real do celular do cliente). */}
+                  <div className="flex flex-col gap-3">
                     <Field label="Check-in a partir de">
                       <ReadOnlyValue value={form.property.checkin_time} />
                     </Field>
@@ -2627,7 +2615,14 @@ function PropertyEditor() {
                 </Section>
 
                 <Section id="airbnb-checkout-times" icon={Clock} title="Horários de check-out" collapsible>
-                  <div className="grid grid-cols-2 gap-3">
+                  {/* Empilhado verticalmente (cascata) a pedido do cliente em
+                      03/09/2026 — mesmo ajuste do check-in acima, e aqui
+                      ainda mais importante: um dos dois campos é editável
+                      (TimePicker) e o outro é só-leitura (ReadOnlyValue),
+                      então lado a lado os dois estilos de campo bem
+                      diferentes ficavam visualmente desalinhados ("aquela
+                      divergência feia no visual" apontada pelo cliente). */}
+                  <div className="flex flex-col gap-3">
                     {/* "A partir de" NÃO vem do Airbnb (o anúncio só mostra um
                         horário-limite de saída) — continua editável à mão.
                         "Até" é o único dos dois que a importação preenche, por
@@ -2661,9 +2656,7 @@ function PropertyEditor() {
 
                 <Section id="airbnb-description-full" icon={FileText} title="Descrição completa (Airbnb)" collapsible>
                   {form.property.airbnb_description_full ? (
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                      {form.property.airbnb_description_full}
-                    </p>
+                    <FormattedAirbnbText text={form.property.airbnb_description_full} />
                   ) : (
                     <EmptyHint text="Nenhuma descrição completa importada ainda." />
                   )}
@@ -2686,19 +2679,7 @@ function PropertyEditor() {
 
                 <Section id="airbnb-amenities" icon={Shield} title="Comodidades (Airbnb)" collapsible>
                   {form.property.airbnb_amenities.length ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {form.property.airbnb_amenities.map((a, i) => (
-                        <span
-                          key={i}
-                          className={cn(
-                            "text-xs px-2.5 py-1 rounded-full border border-border/60 bg-muted/40",
-                            !a.available && "line-through opacity-50",
-                          )}
-                        >
-                          {a.name}
-                        </span>
-                      ))}
-                    </div>
+                    <AmenitiesList amenities={form.property.airbnb_amenities} />
                   ) : (
                     <EmptyHint text="Nenhuma comodidade importada ainda." />
                   )}
@@ -2710,35 +2691,29 @@ function PropertyEditor() {
                   !form.property.airbnb_safety_info ? (
                     <EmptyHint text="Nada importado ainda." />
                   ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-5">
                       {form.property.airbnb_house_rules && (
                         <div>
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
                             Regras da casa
                           </p>
-                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                            {form.property.airbnb_house_rules}
-                          </p>
+                          <FormattedAirbnbText text={form.property.airbnb_house_rules} />
                         </div>
                       )}
                       {form.property.airbnb_cancellation_policy && (
                         <div>
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
                             Política de cancelamento
                           </p>
-                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                            {form.property.airbnb_cancellation_policy}
-                          </p>
+                          <FormattedAirbnbText text={form.property.airbnb_cancellation_policy} />
                         </div>
                       )}
                       {form.property.airbnb_safety_info && (
                         <div>
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
                             Segurança e propriedade
                           </p>
-                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                            {form.property.airbnb_safety_info}
-                          </p>
+                          <FormattedAirbnbText text={form.property.airbnb_safety_info} />
                         </div>
                       )}
                     </div>
@@ -4065,6 +4040,83 @@ function ReadOnlyValue({ value, placeholder = "Ainda não importado" }: { value:
     <div className="ds-surface border border-border/60 bg-muted/30 px-3 py-2 text-sm min-h-[38px] flex items-center gap-2">
       <Lock className="size-3.5 shrink-0 text-muted-foreground" />
       <span className={cn(value ? "text-foreground/90" : "text-muted-foreground italic")}>{value || placeholder}</span>
+    </div>
+  );
+}
+
+/** Exibe um texto longo importado do Airbnb (descrição completa, regras da
+ *  casa, política de cancelamento, segurança) de forma "organizada, bonita e
+ *  estruturada" — pedido do cliente em 03/09/2026. Quebra em parágrafos
+ *  (linha em branco = novo parágrafo; se o texto original não tiver nenhuma
+ *  linha em branco, cai pra quebra de linha simples) com espaço entre eles, e
+ *  justifica o texto de cada parágrafo. */
+function FormattedAirbnbText({ text }: { text: string }) {
+  const byBlankLine = text
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const blocks =
+    byBlankLine.length > 1
+      ? byBlankLine
+      : text
+          .split(/\n/)
+          .map((p) => p.trim())
+          .filter(Boolean);
+  return (
+    <div className="space-y-3">
+      {blocks.map((block, i) => (
+        <p key={i} className="text-sm text-muted-foreground leading-relaxed text-justify whitespace-pre-wrap">
+          {block}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+/** Lista de comodidades importadas do Airbnb — pedido do cliente em
+ *  03/09/2026: quando o anúncio agrupa comodidades por cômodo/seção (no modal
+ *  "Mostrar todas as comodidades"), reproduzir essa mesma separação aqui em
+ *  vez de uma lista única. Anúncios sem agrupamento (nenhum item com
+ *  `category`) continuam mostrando a lista única de antes. */
+function AmenitiesList({ amenities }: { amenities: AirbnbAmenity[] }) {
+  const hasCategories = amenities.some((a) => a.category?.trim());
+  const chip = (a: AirbnbAmenity, key: number) => (
+    <span
+      key={key}
+      className={cn(
+        "text-xs px-2.5 py-1 rounded-full border border-border/60 bg-muted/40",
+        !a.available && "line-through opacity-50",
+      )}
+    >
+      {a.name}
+    </span>
+  );
+
+  if (!hasCategories) {
+    return <div className="flex flex-wrap gap-1.5">{amenities.map((a, i) => chip(a, i))}</div>;
+  }
+
+  const groups: Array<[string, AirbnbAmenity[]]> = [];
+  const indexByCategory = new Map<string, number>();
+  for (const a of amenities) {
+    const cat = a.category?.trim() || "Outras";
+    let idx = indexByCategory.get(cat);
+    if (idx === undefined) {
+      idx = groups.length;
+      indexByCategory.set(cat, idx);
+      groups.push([cat, []]);
+    }
+    groups[idx][1].push(a);
+  }
+
+  return (
+    <div className="space-y-4">
+      {groups.map(([cat, items]) => (
+        <div key={cat}>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">{cat}</p>
+          <div className="flex flex-wrap gap-1.5">{items.map((a, i) => chip(a, i))}</div>
+        </div>
+      ))}
     </div>
   );
 }
