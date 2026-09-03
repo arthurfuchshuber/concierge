@@ -475,7 +475,10 @@ export function StakeholderDetailSheet({
           {displayName}
         </h2>
 
-        {/* Linha 3: metadados à esquerda, ações à direita (espaço antes vazio) */}
+        {/* Linha 3: metadados à esquerda, ações à direita (espaço antes vazio).
+            Situação + vigência ficam na mesma linha (com separador) — o
+            "Pessoa Física/Jurídica" saiu daqui, não carregava informação que
+            já não estivesse na ficha (aprovado no mockup do cabeçalho). */}
         <div className="mt-2 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="ds-scroll-x gap-3 ds-meta">
@@ -488,52 +491,63 @@ export function StakeholderDetailSheet({
                 variant="compact"
                 invalidateQueryKeys={[queryKey]}
               />
-              <span className="h-3 w-px bg-border" aria-hidden />
-              <span className="whitespace-nowrap">
-                {String(row.person_type ?? "pf").toUpperCase() === "PJ"
-                  ? "Pessoa Jurídica"
-                  : "Pessoa Física"}
-              </span>
+              {contractRange && (
+                <>
+                  <span className="h-3 w-px bg-border" aria-hidden />
+                  <span className={`whitespace-nowrap tabular-nums ${statusText(effStatus)}`}>
+                    {contractRange}
+                  </span>
+                </>
+              )}
             </div>
-
-            {contractRange && (
-              <p className={`mt-1.5 whitespace-nowrap tabular-nums text-sm ${statusText(effStatus)}`}>
-                {contractRange}
-              </p>
-            )}
 
             {categoryLabels.length > 0 && (
               <p className="mt-1.5 ds-meta truncate">{categoryLabels.join(" · ")}</p>
             )}
           </div>
 
-          {/* Ações: importar dados vem antes de editar (ordem invertida) */}
+          {/* Ações: "Importar dados" e "Editar cadastro" viram um só botão
+              (Editar), com as duas opções num menuzinho — em vez de 2
+              quadrados separados (aprovado no mockup do cabeçalho). "Dados
+              pessoais" continua com seu próprio botão. */}
           <div className="ds-scroll-x shrink-0 items-center gap-1.5">
-            {clicksignActive && (
+            {clicksignActive ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Editar"
+                    title="Editar"
+                    disabled={extracting}
+                    className="grid size-9 place-items-center rounded-[0.3rem] border border-border text-foreground hover:bg-secondary transition-colors disabled:opacity-60"
+                  >
+                    {extracting ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Pencil className="size-4" />
+                    )}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onSelect={onEdit}>
+                    <Pencil className="size-3.5" /> Editar cadastro
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={runExtract}>
+                    <FileText className="size-3.5" /> Importar dados do contrato
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
               <button
                 type="button"
-                onClick={runExtract}
-                disabled={extracting}
-                aria-label="Importar dados do contrato"
-                title="Importar dados do contrato"
-                className="grid size-9 place-items-center rounded-[0.3rem] border border-border text-foreground hover:bg-secondary transition-colors disabled:opacity-60"
+                onClick={onEdit}
+                aria-label="Editar cadastro"
+                title="Editar cadastro"
+                className="grid size-9 place-items-center rounded-[0.3rem] border border-border text-foreground hover:bg-secondary transition-colors"
               >
-                {extracting ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <FileText className="size-4" />
-                )}
+                <Pencil className="size-4" />
               </button>
             )}
-            <button
-              type="button"
-              onClick={onEdit}
-              aria-label="Editar cadastro"
-              title="Editar cadastro"
-              className="grid size-9 place-items-center rounded-[0.3rem] border border-border text-foreground hover:bg-secondary transition-colors"
-            >
-              <Pencil className="size-4" />
-            </button>
             <button
               type="button"
               onClick={() => setDataOpen((o) => !o)}
