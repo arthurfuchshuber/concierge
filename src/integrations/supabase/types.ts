@@ -3355,11 +3355,7 @@ export type Database = {
           access_mode: Database["public"]["Enums"]["access_mode"]
           address: string | null
           address_note: string | null
-          airbnb_ical_last_error: string | null
-          airbnb_ical_last_sync_at: string | null
-          airbnb_ical_url: string | null
-          airbnb_ical_url_2: string | null
-          airbnb_amenities: Json | null
+          airbnb_amenities: Json
           airbnb_bathroom_count: number | null
           airbnb_bed_count: number | null
           airbnb_bedroom_count: number | null
@@ -3367,12 +3363,16 @@ export type Database = {
           airbnb_description_full: string | null
           airbnb_guest_count: number | null
           airbnb_house_rules: string | null
+          airbnb_ical_last_error: string | null
+          airbnb_ical_last_sync_at: string | null
+          airbnb_ical_url: string | null
+          airbnb_ical_url_2: string | null
           airbnb_listing_last_error: string | null
           airbnb_listing_last_sync_note: string | null
           airbnb_listing_last_synced_at: string | null
           airbnb_listing_url: string | null
           airbnb_rating: number | null
-          airbnb_rooms_beds: Json | null
+          airbnb_rooms_beds: Json
           airbnb_safety_info: string | null
           brand_logo_url: string | null
           brand_name: string | null
@@ -3435,7 +3435,6 @@ export type Database = {
           sigma_pack_snapshot: Json | null
           slug: string
           state: string | null
-          short_description: string | null
           tagline: string | null
           theme_images: Json
           updated_at: string
@@ -3448,11 +3447,7 @@ export type Database = {
           access_mode?: Database["public"]["Enums"]["access_mode"]
           address?: string | null
           address_note?: string | null
-          airbnb_ical_last_error?: string | null
-          airbnb_ical_last_sync_at?: string | null
-          airbnb_ical_url?: string | null
-          airbnb_ical_url_2?: string | null
-          airbnb_amenities?: Json | null
+          airbnb_amenities?: Json
           airbnb_bathroom_count?: number | null
           airbnb_bed_count?: number | null
           airbnb_bedroom_count?: number | null
@@ -3460,12 +3455,16 @@ export type Database = {
           airbnb_description_full?: string | null
           airbnb_guest_count?: number | null
           airbnb_house_rules?: string | null
+          airbnb_ical_last_error?: string | null
+          airbnb_ical_last_sync_at?: string | null
+          airbnb_ical_url?: string | null
+          airbnb_ical_url_2?: string | null
           airbnb_listing_last_error?: string | null
           airbnb_listing_last_sync_note?: string | null
           airbnb_listing_last_synced_at?: string | null
           airbnb_listing_url?: string | null
           airbnb_rating?: number | null
-          airbnb_rooms_beds?: Json | null
+          airbnb_rooms_beds?: Json
           airbnb_safety_info?: string | null
           brand_logo_url?: string | null
           brand_name?: string | null
@@ -3528,7 +3527,6 @@ export type Database = {
           sigma_pack_snapshot?: Json | null
           slug: string
           state?: string | null
-          short_description?: string | null
           tagline?: string | null
           theme_images?: Json
           updated_at?: string
@@ -3541,11 +3539,7 @@ export type Database = {
           access_mode?: Database["public"]["Enums"]["access_mode"]
           address?: string | null
           address_note?: string | null
-          airbnb_ical_last_error?: string | null
-          airbnb_ical_last_sync_at?: string | null
-          airbnb_ical_url?: string | null
-          airbnb_ical_url_2?: string | null
-          airbnb_amenities?: Json | null
+          airbnb_amenities?: Json
           airbnb_bathroom_count?: number | null
           airbnb_bed_count?: number | null
           airbnb_bedroom_count?: number | null
@@ -3553,12 +3547,16 @@ export type Database = {
           airbnb_description_full?: string | null
           airbnb_guest_count?: number | null
           airbnb_house_rules?: string | null
+          airbnb_ical_last_error?: string | null
+          airbnb_ical_last_sync_at?: string | null
+          airbnb_ical_url?: string | null
+          airbnb_ical_url_2?: string | null
           airbnb_listing_last_error?: string | null
           airbnb_listing_last_sync_note?: string | null
           airbnb_listing_last_synced_at?: string | null
           airbnb_listing_url?: string | null
           airbnb_rating?: number | null
-          airbnb_rooms_beds?: Json | null
+          airbnb_rooms_beds?: Json
           airbnb_safety_info?: string | null
           brand_logo_url?: string | null
           brand_name?: string | null
@@ -3621,7 +3619,6 @@ export type Database = {
           sigma_pack_snapshot?: Json | null
           slug?: string
           state?: string | null
-          short_description?: string | null
           tagline?: string | null
           theme_images?: Json
           updated_at?: string
