@@ -68,7 +68,7 @@ import { effectiveStatus, statusText } from "@/lib/stakeholder-status";
  *  ds-segmented rolar na horizontal quando não couberem todas, em vez de
  *  espremer/cortar "Acessos" tentando dividir a largura em partes iguais. */
 const SEG_TAB =
-  "min-h-[46px] !flex-none !rounded-[0.3rem] text-[13px] font-semibold data-[state=active]:bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] data-[state=active]:text-white data-[state=active]:shadow-none";
+  "min-h-[46px] !flex-none gap-1.5 px-3.5 !rounded-[0.45rem] text-[13px] font-semibold text-muted-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:opacity-70 data-[state=active]:bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] data-[state=active]:text-white data-[state=active]:shadow-none data-[state=active]:[&_svg]:opacity-100";
 
 type PreviewTarget = { name: string; url?: string | null; docId?: string } | null;
 
