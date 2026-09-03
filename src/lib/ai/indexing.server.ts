@@ -280,7 +280,12 @@ export async function reindexProperty(
   );
   usage = mergeUsage(usage, embedUsage);
 
-  await supabase.from("ai_kb_chunks").delete().eq("property_id", propertyId);
+  // Guarda os ids antigos: só apagamos depois que a nova base entrar inteira.
+  const { data: oldRows } = await supabase
+    .from("ai_kb_chunks")
+    .select("id")
+    .eq("property_id", propertyId);
+  const oldIds = ((oldRows ?? []) as Array<{ id: string }>).map((r) => r.id);
 
   const rows = chunks.map((c, i) => ({
     owner_id: ownerId,
@@ -295,9 +300,40 @@ export async function reindexProperty(
     updated_at: new Date().toISOString(),
   }));
 
-  for (let i = 0; i < rows.length; i += 200) {
-    const { error } = await supabase.from("ai_kb_chunks").insert(rows.slice(i, i + 200));
-    if (error) console.error("[ai-index] insert falhou", error.message);
+  const BATCH = 40;
+  const insertedIds: string[] = [];
+  try {
+    for (let i = 0; i < rows.length; i += BATCH) {
+      const batch = rows.slice(i, i + BATCH);
+      let lastError: string | null = null;
+      let ok = false;
+      for (let attempt = 0; attempt < 3 && !ok; attempt++) {
+        if (attempt > 0) await new Promise((r) => setTimeout(r, 400 * attempt));
+        const { data: created, error } = await supabase
+          .from("ai_kb_chunks")
+          .insert(batch)
+          .select("id");
+        if (error) {
+          lastError = error.message;
+          console.error("[ai-index] insert falhou", error.message);
+          continue;
+        }
+        insertedIds.push(...((created ?? []) as Array<{ id: string }>).map((r) => r.id));
+        ok = true;
+      }
+      if (!ok) throw new Error(lastError ?? "Falha ao gravar a base de conhecimento.");
+    }
+  } catch (e) {
+    // Reverte a gravação parcial para não misturar base nova incompleta com a antiga.
+    for (let i = 0; i < insertedIds.length; i += 200) {
+      await supabase.from("ai_kb_chunks").delete().in("id", insertedIds.slice(i, i + 200));
+    }
+    throw e instanceof Error ? e : new Error(String(e));
+  }
+
+  // Nova base gravada com sucesso — remove a anterior.
+  for (let i = 0; i < oldIds.length; i += 200) {
+    await supabase.from("ai_kb_chunks").delete().in("id", oldIds.slice(i, i + 200));
   }
 
   return { indexed: rows.length, usage };

@@ -34,13 +34,19 @@ export type StakeholderStatusValue =
   | "canceled";
 type StageValue = "documentation" | "contract" | "signature";
 
-const STATUS_OPTIONS: StakeholderStatusValue[] = [
-  "active",
-  "documentation",
-  "contract",
-  "signature",
-  "paused",
-  "canceled",
+/**
+ * O usuário só tem 2 ações reais aqui: reativar o cadastro, ou definir a
+ * data final do contrato (o que agenda o cancelamento). "Cancelando" e
+ * "Cancelado" nunca são escolhidos diretamente — são derivados dessa data
+ * pela mesma regra de data futura que já promove o cadastro sozinho quando
+ * o dia chega (`setStakeholderStatus` / `promoteDueStages`). Os estágios
+ * antigos (Documentação/Contrato/Assinatura/Pausado) saíram daqui; ainda são
+ * reconhecidos em cadastros antigos (rótulo/cor em stakeholder-status.ts),
+ * só não são mais oferecidos como opção.
+ */
+const ACTION_OPTIONS: Array<{ value: "active" | "canceled"; label: string }> = [
+  { value: "active", label: "Marcar como Ativo" },
+  { value: "canceled", label: "Definir data final do contrato" },
 ];
 
 const STAGE_OPTIONS: Array<{ value: StageValue; label: string; hint: string }> = [
@@ -146,9 +152,9 @@ export function StakeholderStatusControl({
           )}
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
-          {STATUS_OPTIONS.map((s) => (
-            <DropdownMenuItem key={s} onSelect={() => openStatusDialog(s)}>
-              {statusLabel(s)}
+          {ACTION_OPTIONS.map((opt) => (
+            <DropdownMenuItem key={opt.value} onSelect={() => openStatusDialog(opt.value)}>
+              {opt.label}
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>
@@ -166,10 +172,14 @@ export function StakeholderStatusControl({
       <Dialog open={!!statusDraft} onOpenChange={(o) => !o && setStatusDraft(null)}>
         <DialogContent className="sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
           <DialogHeader>
-            <DialogTitle>Marcar como {statusDraft ? statusLabel(statusDraft.status) : ""}</DialogTitle>
+            <DialogTitle>
+              {statusDraft?.status === "canceled" ? "Data final do contrato" : "Marcar como Ativo"}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
-            <Label htmlFor="status-date">Data da alteração</Label>
+            <Label htmlFor="status-date">
+              {statusDraft?.status === "canceled" ? "Data final" : "Data da alteração"}
+            </Label>
             <Input
               id="status-date"
               type="date"

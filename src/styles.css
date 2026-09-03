@@ -72,7 +72,9 @@
   --muted: oklch(0.94 0.012 75);
   --muted-foreground: oklch(0.52 0.018 60);
 
-  --accent: oklch(0.7 0.085 50);
+  /* Acento = cor de marca (roxo→magenta), não o tom neutro que vinha do
+     tema padrão — mesma correção aplicada no .dark abaixo. */
+  --accent: oklch(0.66 0.24 325);
   --accent-foreground: oklch(0.985 0.005 80);
 
   --destructive: oklch(0.55 0.21 27);
@@ -107,8 +109,13 @@
   --muted: oklch(0.25 0.016 60);
   --muted-foreground: oklch(0.7 0.014 70);
 
-  --accent: oklch(0.76 0.085 55);
-  --accent-foreground: oklch(0.16 0.012 60);
+  /* Estava com um laranja/bege neutro sobrado do tema base (nunca foi
+     atualizado pra marca) — por isso qualquer dropdown/menu usando o
+     estado "selecionado" via `bg-accent` (ex.: o menu de Situação) saía
+     destoando de todo o resto do app, que já usa roxo→magenta como acento.
+     Mesmo valor da marca usado em .sigma-public-guide. */
+  --accent: oklch(0.69 0.24 330);
+  --accent-foreground: oklch(0.985 0.008 80);
 
   --destructive: oklch(0.65 0.2 27);
   --destructive-foreground: oklch(0.96 0.008 80);

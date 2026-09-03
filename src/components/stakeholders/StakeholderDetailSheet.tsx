@@ -751,16 +751,19 @@ export function StakeholderDetailSheet({
                 desc="Notas, convites de agenda e documentos aparecem aqui automaticamente."
               />
             ) : (
-              // Recuo maior entre a linha e os cartões (pl-9, era pl-6) —
-              // o -left do ponto acompanha, pra continuar centralizado
-              // em cima da linha.
-              <ol className="relative space-y-3 border-l border-border pl-9">
+              // Recuo maior entre a linha e os cartões (pl-11, era pl-9) e
+              // mais respiro entre a própria linha e a borda esquerda da
+              // tela (ml-2) — o -left do ponto acompanha o pl, pra
+              // continuar centralizado em cima da linha. Cartões em
+              // w-full (ocupam a largura toda do quadrante) e com mais
+              // espaço entre um evento e outro (space-y-4, era space-y-3).
+              <ol className="relative ml-2 w-full space-y-4 border-l border-border pl-11">
                 {timeline.map((item) => (
-                  <li key={item.key} className="relative">
-                    <span className="absolute -left-[41px] top-4 size-2.5 rounded-full bg-primary/70 ring-4 ring-background" />
-                    <div className="ds-surface bg-card px-4 py-3">
-                      <div className="min-w-0 space-y-1">
-                        <p className="text-[13.5px] leading-[1.3] font-normal text-foreground">{item.title}</p>
+                  <li key={item.key} className="relative w-full">
+                    <span className="absolute -left-[49px] top-4 size-2.5 rounded-full bg-primary/70 ring-4 ring-background" />
+                    <div className="ds-surface w-full bg-card px-4 py-3.5">
+                      <div className="min-w-0 space-y-1.5">
+                        <p className="text-[13.5px] leading-[1.4] font-normal text-foreground">{item.title}</p>
                         <p className="ds-meta">{item.badge}</p>
                         {item.body}
                         <p className="ds-meta opacity-80">
