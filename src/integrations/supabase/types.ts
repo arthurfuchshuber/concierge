@@ -3430,6 +3430,7 @@ export type Database = {
           property_type_id: string | null
           published: boolean
           require_access_gate: boolean
+          short_description: string | null
           sigma_pack_activated_at: string | null
           sigma_pack_city_key: string | null
           sigma_pack_snapshot: Json | null
@@ -3522,6 +3523,7 @@ export type Database = {
           property_type_id?: string | null
           published?: boolean
           require_access_gate?: boolean
+          short_description?: string | null
           sigma_pack_activated_at?: string | null
           sigma_pack_city_key?: string | null
           sigma_pack_snapshot?: Json | null
@@ -3614,6 +3616,7 @@ export type Database = {
           property_type_id?: string | null
           published?: boolean
           require_access_gate?: boolean
+          short_description?: string | null
           sigma_pack_activated_at?: string | null
           sigma_pack_city_key?: string | null
           sigma_pack_snapshot?: Json | null
