@@ -61,6 +61,7 @@ import type { StakeholderKind } from "./StakeholderDirectory";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { StakeholderStatusControl } from "./StakeholderStatusControl";
 import { effectiveStatus, statusText } from "@/lib/stakeholder-status";
+import { humanizeEventMessage } from "@/lib/stakeholder-event-message";
 
 /** Aba do segmented control: adapta-se à largura da tela (anti-corte), 46px.
  *  !flex-none sobrescreve o !flex-1 padrão de TabsTrigger (ui/tabs.tsx) — aqui
@@ -361,7 +362,7 @@ export function StakeholderDetailSheet({
       key: `n:${ev.id}`,
       at: ev.created_at as string,
       icon: Pin,
-      title: ev.message as string,
+      title: humanizeEventMessage(ev.message as string),
       badge: "Registro",
       author: (ev.author_name as string | null) ?? "Sistema",
       body: null as React.ReactNode,
