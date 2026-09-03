@@ -744,13 +744,43 @@ dd {
     display: none;
   }
 
-  &.ds-segmented > * {
+  &.ds-segmented > *:not([data-spacer]) {
     flex: 0 0 auto !important;
     min-width: max-content;
     white-space: nowrap;
     padding-inline: clamp(0.375rem, 2.2vw, 1rem) !important;
     scroll-snap-align: start;
   }
+}
+
+/* CORRIGIDO de novo em 03/09/2026, rodada 4 — a rodada 3 (comentário acima)
+   resolveu o corte na borda direita, mas trouxe 2 efeitos colaterais novos
+   (prints reais do cliente): (1) a primeira opção da barra ficou "colada"
+   na borda esquerda da tela, sem respiro; (2) o título de cada botão parou
+   de ficar centralizado dentro do "pill". Causa raiz de cada um, e por que
+   a correção é feita em Stepper.tsx (não aqui):
+
+   1) `nav.scrollTo({ left: <offsetLeft do 1º botão> })` rolava a barra além
+      do próprio padding-left do `<nav>` — o valor de `offsetLeft` do 1º
+      botão já é justamente esse padding, então rolar até ali empurra o
+      padding pra fora da área visível. Corrigido: quando a "âncora" é o
+      1º botão, o Stepper agora rola pra `left: 0` (não pra `offsetLeft`),
+      preservando o respiro.
+
+   2) O espaçador dinâmico (o "resto" de espaço que sobra quando a próxima
+      aba só cabe pela metade) estava sendo aplicado como `padding-right`
+      DENTRO de um botão real de verdade. Isso alargava a caixa daquele
+      botão só do lado direito — e como o conteúdo (ícone + texto) é
+      centralizado via `justify-content: center` dentro dessa caixa, um
+      padding assimétrico empurra o conteúdo visualmente pra esquerda do
+      centro real do "pill". Corrigido: o Stepper agora usa um elemento
+      "espaçador" próprio (invisível, `aria-hidden`, marcado com
+      `data-spacer` — por isso a exclusão acima), reposicionado via CSS
+      `order` para ficar sempre DEPOIS do último botão totalmente visível,
+      em vez de alargar o botão em si. O botão nunca mais tem o próprio
+      espaço interno alterado — some 100% do "resto" pro espaçador. */
+@utility ds-end-gutter {
+  flex: 0 0 auto;
 }
 
 /* ============================================================

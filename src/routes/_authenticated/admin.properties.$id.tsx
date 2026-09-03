@@ -2835,31 +2835,41 @@ function PropertyEditor() {
                   o `width:100%` daquela classe brigou com o `max-w-xs` que
                   tentava limitar a largura do bloco, e o "Checkout" esticou
                   ocupando o espaço sobrando. `inline-flex` resolve isso de
-                  raiz — o bloco só ocupa o espaço que os 2 botões precisam. */}
-              <div className="inline-flex gap-1 mb-4 rounded-[0.3rem] bg-foreground/5 p-1">
-                {(
-                  [
-                    { value: "checkin" as const, label: "Check-in", icon: DoorOpen },
-                    { value: "checkout" as const, label: "Checkout", icon: LogOut },
-                  ]
-                ).map((t) => {
-                  const active = checkinSubStep === t.value;
-                  return (
-                    <button
-                      key={t.value}
-                      type="button"
-                      onClick={() => setCheckinSubStep(t.value)}
-                      className={`whitespace-nowrap px-3 py-2 text-center text-[13px] font-normal leading-none flex items-center justify-center gap-1.5 min-h-[34px] rounded-[0.25rem] transition-colors ${
-                        active
-                          ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      <t.icon className="size-3.5" />
-                      {t.label}
-                    </button>
-                  );
-                })}
+                  raiz — o bloco só ocupa o espaço que os 2 botões precisam.
+
+                  Centralizado na página com um wrapper `flex justify-center`
+                  (pedido do cliente em 03/09/2026 — os 2 botões estavam
+                  "colados" à esquerda, sem centralização). `justify-center`
+                  não funcionaria direto no próprio bloco `inline-flex` — ele
+                  só ocupa a largura do conteúdo, então não há "espaço
+                  sobrando" nele mesmo para centralizar; precisa de um pai
+                  block-level de largura total fazendo a centralização. */}
+              <div className="flex justify-center mb-4">
+                <div className="inline-flex gap-1 rounded-[0.3rem] bg-foreground/5 p-1">
+                  {(
+                    [
+                      { value: "checkin" as const, label: "Check-in", icon: DoorOpen },
+                      { value: "checkout" as const, label: "Checkout", icon: LogOut },
+                    ]
+                  ).map((t) => {
+                    const active = checkinSubStep === t.value;
+                    return (
+                      <button
+                        key={t.value}
+                        type="button"
+                        onClick={() => setCheckinSubStep(t.value)}
+                        className={`whitespace-nowrap px-3 py-2 text-center text-[13px] font-normal leading-none flex items-center justify-center gap-1.5 min-h-[34px] rounded-[0.25rem] transition-colors ${
+                          active
+                            ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        <t.icon className="size-3.5" />
+                        {t.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {checkinSubStep === "checkin" && (
