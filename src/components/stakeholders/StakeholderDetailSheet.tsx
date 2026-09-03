@@ -523,7 +523,7 @@ export function StakeholderDetailSheet({
                     aria-label="Editar"
                     title="Editar"
                     disabled={extracting}
-                    className="grid size-9 place-items-center rounded-[0.3rem] border border-border text-foreground hover:bg-secondary transition-colors disabled:opacity-60"
+                    className="grid size-10 place-items-center rounded-[0.6rem] border border-border text-foreground hover:bg-secondary transition-colors disabled:opacity-60"
                   >
                     {extracting ? (
                       <Loader2 className="size-4 animate-spin" />
@@ -547,7 +547,7 @@ export function StakeholderDetailSheet({
                 onClick={onEdit}
                 aria-label="Editar cadastro"
                 title="Editar cadastro"
-                className="grid size-9 place-items-center rounded-[0.3rem] border border-border text-foreground hover:bg-secondary transition-colors"
+                className="grid size-10 place-items-center rounded-[0.6rem] border border-border text-foreground hover:bg-secondary transition-colors"
               >
                 <Pencil className="size-4" />
               </button>
@@ -558,7 +558,7 @@ export function StakeholderDetailSheet({
               aria-expanded={dataOpen}
               aria-label="Dados pessoais"
               title="Dados pessoais"
-              className="grid size-9 place-items-center rounded-[0.3rem] border border-border text-foreground hover:bg-secondary transition-colors"
+              className="grid size-10 place-items-center rounded-[0.6rem] border border-border text-foreground hover:bg-secondary transition-colors"
             >
               <ChevronDown className={`size-4 transition-transform ${dataOpen ? "rotate-180" : ""}`} />
             </button>
