@@ -2580,7 +2580,19 @@ function PropertyEditor() {
                 </Section>
 
                 <Section id="gallery" icon={ImageIcon} title="Fotos da residência" collapsible>
-                  {form.property.gallery_images.length ? (
+                  {/* Com anúncio conectado: só visualização (a importação
+                      manda nas fotos). Sem anúncio: upload manual — é a
+                      única forma de o imóvel ter foto, e foto é obrigatória
+                      pra publicar o guia. */}
+                  {!airbnbLocked ? (
+                    <GalleryEditor
+                      value={form.property.gallery_images}
+                      onChange={(next) => {
+                        update("gallery_images", next);
+                        update("hero_image_url", next[0] ?? null);
+                      }}
+                    />
+                  ) : form.property.gallery_images.length ? (
                     <div className="grid grid-cols-4 gap-2">
                       {form.property.gallery_images.map((url, i) => (
                         <div key={i} className="relative ds-surface overflow-hidden rounded-lg border border-border/60 aspect-square">
@@ -2598,6 +2610,7 @@ function PropertyEditor() {
                     <EmptyHint text="Nenhuma foto importada ainda." />
                   )}
                 </Section>
+
 
                 <Section id="airbnb-checkin-times" icon={Clock} title="Horários de check-in" collapsible>
                   {/* Pedido do cliente em 03/09/2026: o horário fica ao lado
