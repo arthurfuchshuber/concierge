@@ -212,6 +212,10 @@ function RootComponent() {
   // Tratamento global de PERMISSION_DENIED (não quebra a aplicação).
   useEffect(() => installPermissionDeniedHandler(), []);
 
+  // Nova versão publicada: recarrega automaticamente a página de todos.
+  useAppVersionWatcher();
+
+
 
 
   useEffect(() => {
