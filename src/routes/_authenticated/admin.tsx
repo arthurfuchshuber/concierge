@@ -13,6 +13,7 @@ import { AccountSwitcher } from "@/components/admin/AccountSwitcher";
 import { FloatingHandoffDock } from "@/components/handoff/FloatingHandoffDock";
 import { PushNotificationBanner } from "@/components/PushNotificationBanner";
 import { getAtendimentoAccess, countPendingHandoffs } from "@/lib/handoff.functions";
+import { useHasSession } from "@/hooks/useHasSession";
 import { listMyAccounts } from "@/lib/active-account.functions";
 import { PendingInviteDialog } from "@/components/admin/PendingInviteDialog";
 import { CompleteProfileDialog } from "@/components/admin/CompleteProfileDialog";
@@ -83,6 +84,7 @@ function AdminLayout() {
       // localStorage indisponível (modo privado etc.) — não é crítico.
     }
   }, [collapsed]);
+  const hasSession = useHasSession();
   const accessFn = useServerFn(getAtendimentoAccess);
   const pendingFn = useServerFn(countPendingHandoffs);
   const access = useQuery({
@@ -92,6 +94,7 @@ function AdminLayout() {
     },
     staleTime: 5 * 60_000,
     retry: false,
+    enabled: hasSession === true,
   });
   const { impersonation } = useImpersonation();
   const activeAccountId = impersonation?.userId;
@@ -100,7 +103,7 @@ function AdminLayout() {
     queryFn: async () => {
       try { return await pendingFn({ data: { accountOwnerId: activeAccountId } }); } catch { return { count: 0 }; }
     },
-    enabled: access.data?.allowed === true,
+    enabled: hasSession === true && access.data?.allowed === true,
     refetchInterval: 15_000,
     retry: false,
   });
