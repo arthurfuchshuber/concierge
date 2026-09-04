@@ -2619,10 +2619,26 @@ function PropertyEditor() {
                       de uma legenda numa linha separada. */}
                   <div className="space-y-2.5">
                     <TimeInlineRow label="Check-in a partir de">
-                      <ReadOnlyValue value={form.property.checkin_time} />
+                      {airbnbLocked ? (
+                        <ReadOnlyValue value={form.property.checkin_time} />
+                      ) : (
+                        <TimePicker
+                          value={form.property.checkin_time}
+                          onChange={(v) => update("checkin_time", v)}
+                          placeholder="15:00"
+                        />
+                      )}
                     </TimeInlineRow>
                     <TimeInlineRow label="Check-in até" optional>
-                      <ReadOnlyValue value={form.property.checkin_time_max} />
+                      {airbnbLocked ? (
+                        <ReadOnlyValue value={form.property.checkin_time_max} />
+                      ) : (
+                        <TimePicker
+                          value={form.property.checkin_time_max}
+                          onChange={(v) => update("checkin_time_max", v)}
+                          placeholder="16:00"
+                        />
+                      )}
                     </TimeInlineRow>
                   </div>
                   <Field
@@ -2662,7 +2678,15 @@ function PropertyEditor() {
                       />
                     </TimeInlineRow>
                     <TimeInlineRow label="Check-out até" optional>
-                      <ReadOnlyValue value={form.property.checkout_time} />
+                      {airbnbLocked ? (
+                        <ReadOnlyValue value={form.property.checkout_time} />
+                      ) : (
+                        <TimePicker
+                          value={form.property.checkout_time}
+                          onChange={(v) => update("checkout_time", v)}
+                          placeholder="11:00"
+                        />
+                      )}
                     </TimeInlineRow>
                   </div>
                   <Field
@@ -2906,10 +2930,26 @@ function PropertyEditor() {
                       editar direto por aqui também. */}
                   <div className="space-y-2.5">
                     <TimeInlineRow label="Check-in a partir de">
-                      <ReadOnlyValue value={form.property.checkin_time} />
+                      {airbnbLocked ? (
+                        <ReadOnlyValue value={form.property.checkin_time} />
+                      ) : (
+                        <TimePicker
+                          value={form.property.checkin_time}
+                          onChange={(v) => update("checkin_time", v)}
+                          placeholder="15:00"
+                        />
+                      )}
                     </TimeInlineRow>
                     <TimeInlineRow label="Check-in até" optional>
-                      <ReadOnlyValue value={form.property.checkin_time_max} />
+                      {airbnbLocked ? (
+                        <ReadOnlyValue value={form.property.checkin_time_max} />
+                      ) : (
+                        <TimePicker
+                          value={form.property.checkin_time_max}
+                          onChange={(v) => update("checkin_time_max", v)}
+                          placeholder="16:00"
+                        />
+                      )}
                     </TimeInlineRow>
                   </div>
                   <Field
@@ -3345,7 +3385,15 @@ function PropertyEditor() {
                       />
                     </TimeInlineRow>
                     <TimeInlineRow label="Check-out até" optional>
-                      <ReadOnlyValue value={form.property.checkout_time} />
+                      {airbnbLocked ? (
+                        <ReadOnlyValue value={form.property.checkout_time} />
+                      ) : (
+                        <TimePicker
+                          value={form.property.checkout_time}
+                          onChange={(v) => update("checkout_time", v)}
+                          placeholder="11:00"
+                        />
+                      )}
                     </TimeInlineRow>
                   </div>
                   <Field
