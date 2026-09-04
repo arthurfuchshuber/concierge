@@ -1,3 +1,4 @@
+import type * as React from "react";
 import { Lock, Home, FileText, DoorOpen, LogOut, LifeBuoy, Compass } from "lucide-react";
 import { useAntiClipBar } from "@/hooks/useAntiClipBar";
 export type StepDef = {
