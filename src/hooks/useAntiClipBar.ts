@@ -81,6 +81,8 @@ export function useAntiClipBar<T extends HTMLElement>() {
       // DOM nem no espaço interno de nenhum botão.
       btns.forEach((b, i) => {
         b.style.order = String(i * ORDER_STEP);
+        // Zera o espaçamento extra da página anterior ANTES de medir.
+        b.style.marginRight = "";
       });
       if (endGutterRef.current) {
         endGutterRef.current.style.order = String(btns.length * ORDER_STEP);
@@ -131,9 +133,25 @@ export function useAntiClipBar<T extends HTMLElement>() {
       const { last: lastIncluded, end: consumedEnd, startLeft } = best;
       const leftover = containerWidth - (consumedEnd - startLeft);
       const isTrueEnd = lastIncluded === btns.length - 1;
-      if (!isTrueEnd && leftover > 1 && hideSpacer) {
-        hideSpacer.style.order = String(lastIncluded * ORDER_STEP + 1);
-        hideSpacer.style.width = `${leftover}px`;
+      const gaps = lastIncluded - bestStart;
+
+      if (!isTrueEnd && leftover > 1) {
+        if (gaps > 0) {
+          // REGRA ANTI-CORTE: a sobra vira espaçamento PROPORCIONAL entre as
+          // opções visíveis, de modo que a última opção da página termine
+          // exatamente na borda direita. Nada de bloco vazio no fim (que
+          // parecia uma aba cortada) e nada de item "espiando" pela metade.
+          const extra = leftover / gaps;
+          for (let i = bestStart; i < lastIncluded; i++) {
+            btns[i].style.marginRight = `${extra}px`;
+          }
+        } else if (hideSpacer) {
+          // Só um item cabe na página: não há vão para distribuir, então o
+          // resto vira espaçador invisível para empurrar o próximo item
+          // 100% para fora da área visível.
+          hideSpacer.style.order = String(lastIncluded * ORDER_STEP + 1);
+          hideSpacer.style.width = `${leftover}px`;
+        }
       }
 
       if (scroll) {
