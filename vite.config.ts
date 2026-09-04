@@ -15,6 +15,11 @@ export default defineConfig({
   },
   vite: {
     plugins: [mcpPlugin()],
+    define: {
+      // Identificador único por build: usado para recarregar automaticamente
+      // as abas abertas quando uma nova versão entra no ar.
+      __APP_BUILD_ID__: JSON.stringify(String(Date.now())),
+    },
   },
 });
 

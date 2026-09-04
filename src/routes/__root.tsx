@@ -19,6 +19,7 @@ import { OfflineBanner } from "../components/OfflineBanner";
 import { supabase } from "../integrations/supabase/client";
 import { META_PIXEL_ID, initMetaPixel, metaPixelPageView } from "../lib/meta-pixel";
 import { startTrail, trackPageView } from "../lib/trail";
+import { useAppVersionWatcher } from "../lib/app-version";
 
 /** Prefixo das chaves de cache offline (uma por usuário). */
 const CACHE_PREFIX = "cia-cache-v2:";
