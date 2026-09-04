@@ -32,6 +32,7 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as OauthGoogleCalendarReturnRouteImport } from './routes/oauth.google-calendar.return'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as GSlugExplorarRouteImport } from './routes/g.$slug.explorar'
+import { Route as ApiPublicVersionRouteImport } from './routes/api/public/version'
 import { Route as ApiPublicPlacePhotoRouteImport } from './routes/api/public/place-photo'
 import { Route as ApiPublicLandingChatRouteImport } from './routes/api/public/landing-chat'
 import { Route as ApiPublicItineraryRouteImport } from './routes/api/public/itinerary'
@@ -202,6 +203,11 @@ const GSlugExplorarRoute = GSlugExplorarRouteImport.update({
   id: '/explorar',
   path: '/explorar',
   getParentRoute: () => GSlugRoute,
+} as any)
+const ApiPublicVersionRoute = ApiPublicVersionRouteImport.update({
+  id: '/api/public/version',
+  path: '/api/public/version',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicPlacePhotoRoute = ApiPublicPlacePhotoRouteImport.update({
   id: '/api/public/place-photo',
@@ -552,6 +558,7 @@ export interface FileRoutesByFullPath {
   '/api/public/itinerary': typeof ApiPublicItineraryRoute
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
+  '/api/public/version': typeof ApiPublicVersionRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
@@ -626,6 +633,7 @@ export interface FileRoutesByTo {
   '/api/public/itinerary': typeof ApiPublicItineraryRoute
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
+  '/api/public/version': typeof ApiPublicVersionRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
@@ -705,6 +713,7 @@ export interface FileRoutesById {
   '/api/public/itinerary': typeof ApiPublicItineraryRoute
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
+  '/api/public/version': typeof ApiPublicVersionRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
@@ -784,6 +793,7 @@ export interface FileRouteTypes {
     | '/api/public/itinerary'
     | '/api/public/landing-chat'
     | '/api/public/place-photo'
+    | '/api/public/version'
     | '/g/$slug/explorar'
     | '/lovable/email/suppression'
     | '/oauth/google-calendar/return'
@@ -858,6 +868,7 @@ export interface FileRouteTypes {
     | '/api/public/itinerary'
     | '/api/public/landing-chat'
     | '/api/public/place-photo'
+    | '/api/public/version'
     | '/g/$slug/explorar'
     | '/lovable/email/suppression'
     | '/oauth/google-calendar/return'
@@ -936,6 +947,7 @@ export interface FileRouteTypes {
     | '/api/public/itinerary'
     | '/api/public/landing-chat'
     | '/api/public/place-photo'
+    | '/api/public/version'
     | '/g/$slug/explorar'
     | '/lovable/email/suppression'
     | '/oauth/google-calendar/return'
@@ -999,6 +1011,7 @@ export interface RootRouteChildren {
   ApiPublicItineraryRoute: typeof ApiPublicItineraryRoute
   ApiPublicLandingChatRoute: typeof ApiPublicLandingChatRoute
   ApiPublicPlacePhotoRoute: typeof ApiPublicPlacePhotoRoute
+  ApiPublicVersionRoute: typeof ApiPublicVersionRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   OauthGoogleCalendarReturnRoute: typeof OauthGoogleCalendarReturnRoute
   ApiPublicCronConversationRemindersRoute: typeof ApiPublicCronConversationRemindersRoute
@@ -1184,6 +1197,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/g/$slug/explorar'
       preLoaderRoute: typeof GSlugExplorarRouteImport
       parentRoute: typeof GSlugRoute
+    }
+    '/api/public/version': {
+      id: '/api/public/version'
+      path: '/api/public/version'
+      fullPath: '/api/public/version'
+      preLoaderRoute: typeof ApiPublicVersionRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/public/place-photo': {
       id: '/api/public/place-photo'
@@ -1689,6 +1709,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicItineraryRoute: ApiPublicItineraryRoute,
   ApiPublicLandingChatRoute: ApiPublicLandingChatRoute,
   ApiPublicPlacePhotoRoute: ApiPublicPlacePhotoRoute,
+  ApiPublicVersionRoute: ApiPublicVersionRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   OauthGoogleCalendarReturnRoute: OauthGoogleCalendarReturnRoute,
   ApiPublicCronConversationRemindersRoute:
