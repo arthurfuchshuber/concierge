@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useHasSession } from "@/hooks/useHasSession";
 import { listHandoffConversations, countPendingHandoffs, getAtendimentoAccess, resolveConversationForGuest } from "@/lib/handoff.functions";
 import { ConversationList, ConversationView, useMyUserId } from "@/components/handoff/ConversationView";
 import { listenToPushMessages } from "@/lib/push-client";
@@ -62,6 +63,7 @@ function playBeep() {
 }
 
 export function FloatingHandoffDock() {
+  const hasSession = useHasSession();
   const accessFn = useServerFn(getAtendimentoAccess);
   const listFn = useServerFn(listHandoffConversations);
   const { impersonation } = useImpersonation();
@@ -79,9 +81,10 @@ export function FloatingHandoffDock() {
     },
     staleTime: 5 * 60_000,
     retry: false,
+    enabled: hasSession === true,
   });
 
-  const allowed = access.data?.allowed === true;
+  const allowed = hasSession === true && access.data?.allowed === true;
 
   const [state, setState] = useState<DockState>(() => loadState());
   const [activeId, setActiveId] = useState<string | null>(null);
