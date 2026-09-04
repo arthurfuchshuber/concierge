@@ -2455,6 +2455,8 @@ function PropertyEditor() {
               {renderManualSection()}
               {renderPropertyDetailsSection()}
               {renderHostContactSection()}
+              {!isNew && renderProvidersSection()}
+
             </SectionGroup>
           </DenseSections>
 
