@@ -81,6 +81,8 @@ export function useAntiClipBar<T extends HTMLElement>() {
       // DOM nem no espaço interno de nenhum botão.
       btns.forEach((b, i) => {
         b.style.order = String(i * ORDER_STEP);
+        // Zera o espaçamento extra da página anterior ANTES de medir.
+        b.style.marginRight = "";
       });
       if (endGutterRef.current) {
         endGutterRef.current.style.order = String(btns.length * ORDER_STEP);
@@ -95,7 +97,12 @@ export function useAntiClipBar<T extends HTMLElement>() {
       }
       void nav.offsetWidth;
 
-      const containerWidth = nav.clientWidth;
+      // O padding lateral do container conta: sem descontá-lo, o último item
+      // da página ultrapassava a borda por alguns pixels (corte fino).
+      const cs = getComputedStyle(nav);
+      const padLeft = parseFloat(cs.paddingLeft) || 0;
+      const padRight = parseFloat(cs.paddingRight) || 0;
+      const containerWidth = nav.clientWidth - padLeft - padRight;
 
       const fillFrom = (start: number) => {
         const startBtn = btns[start];
@@ -131,13 +138,29 @@ export function useAntiClipBar<T extends HTMLElement>() {
       const { last: lastIncluded, end: consumedEnd, startLeft } = best;
       const leftover = containerWidth - (consumedEnd - startLeft);
       const isTrueEnd = lastIncluded === btns.length - 1;
-      if (!isTrueEnd && leftover > 1 && hideSpacer) {
-        hideSpacer.style.order = String(lastIncluded * ORDER_STEP + 1);
-        hideSpacer.style.width = `${leftover}px`;
+      const gaps = lastIncluded - bestStart;
+
+      if (!isTrueEnd && leftover > 1) {
+        if (gaps > 0) {
+          // REGRA ANTI-CORTE: a sobra vira espaçamento PROPORCIONAL entre as
+          // opções visíveis, de modo que a última opção da página termine
+          // exatamente na borda direita. Nada de bloco vazio no fim (que
+          // parecia uma aba cortada) e nada de item "espiando" pela metade.
+          const extra = leftover / gaps;
+          for (let i = bestStart; i < lastIncluded; i++) {
+            btns[i].style.marginRight = `${extra}px`;
+          }
+        } else if (hideSpacer) {
+          // Só um item cabe na página: não há vão para distribuir, então o
+          // resto vira espaçador invisível para empurrar o próximo item
+          // 100% para fora da área visível.
+          hideSpacer.style.order = String(lastIncluded * ORDER_STEP + 1);
+          hideSpacer.style.width = `${leftover}px`;
+        }
       }
 
       if (scroll) {
-        nav.scrollTo({ left: bestStart === 0 ? 0 : startLeft, behavior: "smooth" });
+        nav.scrollTo({ left: bestStart === 0 ? 0 : Math.max(0, startLeft - padLeft), behavior: "smooth" });
       }
     },
     [items],
