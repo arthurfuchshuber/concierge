@@ -108,6 +108,30 @@ export function Stepper({
   //      depois da última aba de verdade) garante uma "sobra" de verdade no
   //      fim da lista, porque a largura de um item flex real sempre entra no
   //      cálculo de rolagem — ao contrário do padding do container.
+  //
+  // PARTE 5 (03/09/2026, rodada 5) — novo print do cliente: ao abrir
+  // diretamente a aba "Check-in & Checkout" (rótulo comprido) numa tela
+  // estreita, sobrava um vão grande e cinza entre ela e a borda direita da
+  // barra ("o espaço que sobrou entre a última opção visível e a linha
+  // lateral"). Duas causas, 2 correções:
+  //
+  //   a) O algoritmo sempre começava a "página" exatamente na âncora, sem
+  //      olhar se dava pra puxar a aba ANTERIOR pra dentro também (o que
+  //      preenche melhor a barra e diminui o vão). Agora `applyPage` testa
+  //      começar 1, 2, 3... abas mais cedo — sempre mantendo a âncora
+  //      100% visível, nunca cortando nada — e fica com o início que sobra
+  //      menos espaço vazio no final.
+  //   b) Mesmo puxando o máximo possível pra trás, às vezes o rótulo da
+  //      âncora sozinho já ocupa quase toda a largura da tela e não sobra
+  //      espaço pra mais nenhuma aba — nesse caso o vão é inevitável (é o
+  //      espaço que impede a PRÓXIMA aba de aparecer cortada). Pra não
+  //      parecer um buraco vazio "quebrado", quando esse vão fica logo
+  //      depois da aba ATIVA, ele ganha o mesmo degradê e cantos
+  //      arredondados dela — visualmente vira uma continuação do próprio
+  //      "pill" ativo, e não um espaço morto. Isso NÃO reintroduz o bug da
+  //      parte 4b: o texto continua dentro do botão de verdade, que nunca
+  //      teve seu próprio padding alterado — só o vizinho invisível (agora
+  //      colorido) que cresce.
   const findLeadingIndex = (): number => {
     const nav = navRef.current;
     if (!nav) return 0;
@@ -128,29 +152,59 @@ export function Stepper({
     const anchorBtn = btns[anchorIndex];
     if (!nav || !anchorBtn) return;
 
-    // Zera o espaçador escondedor e o tira do meio da lista ANTES de medir —
-    // senão a medição ficaria contaminada pelo espaçador da página anterior
-    // (tanto a largura antiga quanto a posição antiga entre 2 botões).
+    // Zera o espaçador escondedor (largura, posição E cor) e o tira do meio
+    // da lista ANTES de medir — senão a medição ficaria contaminada pelo
+    // espaçador da página anterior.
     if (hideSpacer) {
       hideSpacer.style.width = "0px";
       hideSpacer.style.order = String(steps.length * ORDER_STEP - 1);
+      hideSpacer.style.background = "";
+      hideSpacer.style.borderRadius = "";
     }
     void nav.offsetWidth; // força o navegador a recalcular o layout já sem o espaçador antigo antes do próximo read
 
     const containerWidth = nav.clientWidth;
-    const anchorLeft = anchorBtn.offsetLeft;
-    let lastIncluded = anchorIndex;
-    let consumedEnd = anchorLeft;
-    for (let i = anchorIndex; i < btns.length; i++) {
-      const b = btns[i];
-      if (!b) break;
-      const end = b.offsetLeft + b.offsetWidth;
-      if (end - anchorLeft > containerWidth) break;
-      lastIncluded = i;
-      consumedEnd = end;
+
+    // Preenche gulosamente a partir de um início: inclui abas seguintes
+    // enquanto couberem INTEIRAS dentro de `containerWidth`.
+    const fillFrom = (start: number) => {
+      const startBtn = btns[start];
+      if (!startBtn) return null;
+      const startLeft = startBtn.offsetLeft;
+      let last = start;
+      let end = startLeft;
+      for (let i = start; i < btns.length; i++) {
+        const b = btns[i];
+        if (!b) break;
+        const bEnd = b.offsetLeft + b.offsetWidth;
+        if (bEnd - startLeft > containerWidth) break;
+        last = i;
+        end = bEnd;
+      }
+      return { last, end, startLeft };
+    };
+
+    // Começa pela âncora (comportamento mínimo garantido) e tenta "puxar"
+    // abas anteriores pra dentro da página, uma de cada vez, enquanto isso
+    // (1) ainda deixar a âncora inteira visível e (2) reduzir o espaço
+    // sobrando no final — ver parte 5a acima.
+    const initial = fillFrom(anchorIndex);
+    if (!initial) return;
+    let best = initial;
+    let bestStart = anchorIndex;
+    for (let start = anchorIndex - 1; start >= 0; start--) {
+      const candidate = fillFrom(start);
+      if (!candidate || candidate.last < anchorIndex) break; // não alcança mais a âncora inteira — começos ainda menores também não alcançariam
+      const candidateLeftover = containerWidth - (candidate.end - candidate.startLeft);
+      const bestLeftover = containerWidth - (best.end - best.startLeft);
+      if (candidateLeftover < bestLeftover) {
+        best = candidate;
+        bestStart = start;
+      }
     }
 
-    const leftover = containerWidth - (consumedEnd - anchorLeft);
+    const { last: lastIncluded, end: consumedEnd, startLeft } = best;
+    const leftover = containerWidth - (consumedEnd - startLeft);
     const isTrueEnd = lastIncluded === btns.length - 1;
     if (!isTrueEnd && leftover > 1 && hideSpacer) {
       // `order` ímpar entre `lastIncluded` (par) e `lastIncluded + 1` (par) —
@@ -159,14 +213,21 @@ export function Stepper({
       // botão real.
       hideSpacer.style.order = String(lastIncluded * ORDER_STEP + 1);
       hideSpacer.style.width = `${leftover}px`;
+      if (steps[lastIncluded]?.value === current) {
+        // O espaço sobrando é inevitável e fica logo depois da aba ATIVA —
+        // ver parte 5b: colore igual ao "pill" ativo pra parecer uma
+        // continuação dele, não um vão cinza vazio.
+        hideSpacer.style.background = "linear-gradient(to bottom right, #7C1AD8, #E82DAE)";
+        hideSpacer.style.borderRadius = "0.25rem";
+      }
     }
 
     if (scroll) {
-      // Âncora = 1º botão: rola pra 0 puro (preserva o padding-left do
-      // `<nav>` — ver parte 4a acima). Qualquer outra âncora: o navegador já
-      // limita sozinho ao máximo rolável, que agora inclui o `endGutterRef`
-      // no fim de verdade (ver parte 4c).
-      const target = anchorIndex === 0 ? 0 : anchorLeft;
+      // Início = 1ª aba de todas: rola pra 0 puro (preserva o padding-left
+      // do `<nav>` — ver parte 4a acima). Qualquer outro início: o
+      // navegador já limita sozinho ao máximo rolável, que agora inclui o
+      // `endGutterRef` no fim de verdade (ver parte 4c).
+      const target = bestStart === 0 ? 0 : startLeft;
       nav.scrollTo({ left: target, behavior: "smooth" });
     }
   };
