@@ -615,7 +615,15 @@ function PropertyEditor() {
     if (saved && !airbnbUrl) setAirbnbUrl(saved);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.property.airbnb_listing_url]);
+  // Campos que a importação do Airbnb preenche ficam só-leitura APENAS
+  // quando existe um anúncio conectado — nesse caso, editar à mão só
+  // criaria conflito com a checagem diária, que sobrescreve tudo de novo.
+  // Sem anúncio conectado, nada será sobrescrito e o anfitrião precisa
+  // poder preencher fotos e horários à mão (senão o guia nunca pode ser
+  // publicado: fotos e horários são obrigatórios em publish-requirements).
+  const airbnbLocked = !!(form.property.airbnb_listing_url || "").trim();
   const [importingAirbnb, setImportingAirbnb] = useState(false);
+
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState<"mobile" | "desktop" | null>(null);
   const [genCityModeOpen, setGenCityModeOpen] = useState(false);
