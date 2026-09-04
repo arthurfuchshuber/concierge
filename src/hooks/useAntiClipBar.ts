@@ -43,6 +43,16 @@ export function useAntiClipBar<T extends HTMLElement>() {
   const hideSpacerRef = useRef<HTMLSpanElement | null>(null);
   const endGutterRef = useRef<HTMLSpanElement | null>(null);
   const settleTimer = useRef<number | null>(null);
+  // Página atual (índice do primeiro item visível). É a fonte da verdade —
+  // NÃO derivamos mais a página do `scrollLeft`, porque o navegador rola a
+  // barra sozinho ao focar o botão clicado e essa rolagem parasita fazia a
+  // página "escorregar" (primeiro item colado na borda e último cortado).
+  const pageStartRef = useRef(0);
+  // Só rolagem feita pelo dedo/mouse do usuário reencaixa a página.
+  const userScrollingRef = useRef(false);
+  const pageEndRef = useRef(0);
+
+
 
   const items = useCallback((): HTMLElement[] => {
     const el = ref.current;
@@ -139,6 +149,8 @@ export function useAntiClipBar<T extends HTMLElement>() {
       const leftover = containerWidth - (consumedEnd - startLeft);
       const isTrueEnd = lastIncluded === btns.length - 1;
       const gaps = lastIncluded - bestStart;
+      pageStartRef.current = bestStart;
+      pageEndRef.current = lastIncluded;
 
       if (!isTrueEnd && leftover > 1) {
         if (gaps > 0) {
@@ -160,7 +172,11 @@ export function useAntiClipBar<T extends HTMLElement>() {
       }
 
       if (scroll) {
-        nav.scrollTo({ left: bestStart === 0 ? 0 : Math.max(0, startLeft - padLeft), behavior: "smooth" });
+        // Depois de redistribuir as margens, `offsetLeft` do item âncora pode
+        // ter mudado — releia antes de rolar, senão a barra para alguns pixels
+        // fora do lugar (o sintoma do "primeiro item colado na borda").
+        const target = bestStart === 0 ? 0 : Math.max(0, btns[bestStart].offsetLeft - padLeft);
+        nav.scrollTo({ left: target, behavior: "smooth" });
       }
     },
     [items],
@@ -174,17 +190,18 @@ export function useAntiClipBar<T extends HTMLElement>() {
       if (btns.length === 0) return;
       const idx = preferActive ? activeIndex() : -1;
       if (idx >= 0) {
-        const btn = btns[idx];
-        const fullyVisible =
-          btn.offsetLeft >= nav.scrollLeft - 1 &&
-          btn.offsetLeft + btn.offsetWidth <= nav.scrollLeft + nav.clientWidth + 1;
-        applyPage(fullyVisible ? leadingIndex() : idx, !fullyVisible);
+        // Se a aba ativa já pertence à página atual, a página NÃO muda —
+        // apenas reencaixamos (corrigindo qualquer rolagem que o navegador
+        // tenha feito ao focar o botão clicado).
+        const inCurrentPage = idx >= pageStartRef.current && idx <= pageEndRef.current;
+        applyPage(inCurrentPage ? pageStartRef.current : idx, true);
         return;
       }
-      applyPage(leadingIndex(), false);
+      applyPage(pageStartRef.current, false);
     },
-    [activeIndex, applyPage, items, leadingIndex],
+    [activeIndex, applyPage, items],
   );
+
 
   useEffect(() => {
     const nav = ref.current;
@@ -210,11 +227,25 @@ export function useAntiClipBar<T extends HTMLElement>() {
 
     realign(true);
 
-    const onScroll = () => {
-      if (settleTimer.current) window.clearTimeout(settleTimer.current);
-      settleTimer.current = window.setTimeout(() => applyPage(leadingIndex(), true), SETTLE_MS);
+    // Só a rolagem feita pelo usuário reencaixa a página. Rolagem provocada
+    // pelo navegador (focar o botão clicado) é ignorada — era ela que puxava
+    // a barra para a esquerda e cortava o último item.
+    const onPointerDown = () => {
+      userScrollingRef.current = true;
     };
-    nav.addEventListener("scroll", onScroll, { passive: true });
+    const onPointerUp = () => {
+      if (!userScrollingRef.current) return;
+      if (settleTimer.current) window.clearTimeout(settleTimer.current);
+      settleTimer.current = window.setTimeout(() => {
+        userScrollingRef.current = false;
+        applyPage(leadingIndex(), true);
+      }, SETTLE_MS);
+    };
+    nav.addEventListener("pointerdown", onPointerDown, { passive: true });
+    nav.addEventListener("touchstart", onPointerDown, { passive: true });
+    window.addEventListener("pointerup", onPointerUp, { passive: true });
+    window.addEventListener("touchend", onPointerUp, { passive: true });
+
 
     const ro = new ResizeObserver(() => realign(false));
     ro.observe(nav);
@@ -231,7 +262,11 @@ export function useAntiClipBar<T extends HTMLElement>() {
     });
 
     return () => {
-      nav.removeEventListener("scroll", onScroll);
+      nav.removeEventListener("pointerdown", onPointerDown);
+      nav.removeEventListener("touchstart", onPointerDown);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("touchend", onPointerUp);
+
       ro.disconnect();
       mo.disconnect();
       if (settleTimer.current) window.clearTimeout(settleTimer.current);
