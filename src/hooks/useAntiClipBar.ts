@@ -97,7 +97,12 @@ export function useAntiClipBar<T extends HTMLElement>() {
       }
       void nav.offsetWidth;
 
-      const containerWidth = nav.clientWidth;
+      // O padding lateral do container conta: sem descontá-lo, o último item
+      // da página ultrapassava a borda por alguns pixels (corte fino).
+      const cs = getComputedStyle(nav);
+      const padLeft = parseFloat(cs.paddingLeft) || 0;
+      const padRight = parseFloat(cs.paddingRight) || 0;
+      const containerWidth = nav.clientWidth - padLeft - padRight;
 
       const fillFrom = (start: number) => {
         const startBtn = btns[start];
@@ -155,7 +160,7 @@ export function useAntiClipBar<T extends HTMLElement>() {
       }
 
       if (scroll) {
-        nav.scrollTo({ left: bestStart === 0 ? 0 : startLeft, behavior: "smooth" });
+        nav.scrollTo({ left: bestStart === 0 ? 0 : Math.max(0, startLeft - padLeft), behavior: "smooth" });
       }
     },
     [items],
