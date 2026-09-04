@@ -2,25 +2,37 @@ import * as React from "react";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 
 import { cn } from "@/lib/utils";
+import { useAntiClipBar } from "@/hooks/useAntiClipBar";
 
 const Tabs = TabsPrimitive.Root;
 
 const TabsList = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.List>,
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>
->(({ className, ...props }, ref) => (
-  <TabsPrimitive.List
-    ref={ref}
-    className={cn(
-      // ANTI-CORTE: linha única; quando necessário, rola horizontalmente sem
-      // comprimir, cortar ou quebrar os rótulos.
-      "ds-segmented w-full max-w-full justify-start rounded-xl border border-border bg-muted/40 p-1 text-muted-foreground",
-      className,
-    )}
-    {...props}
-  />
-));
+>(({ className, ...props }, ref) => {
+  // ANTI-CORTE (regra global): mesma lógica do editor de guia, agora
+  // aplicada a TODAS as barras de abas do app — nenhum item pode aparecer
+  // cortado em nenhuma das duas bordas, em nenhuma largura de tela.
+  const barRef = useAntiClipBar<HTMLDivElement>();
+  return (
+    <TabsPrimitive.List
+      ref={(node) => {
+        barRef.current = node as HTMLDivElement | null;
+        if (typeof ref === "function") ref(node);
+        else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node as HTMLDivElement | null;
+      }}
+      className={cn(
+        // ANTI-CORTE: linha única; quando necessário, rola horizontalmente sem
+        // comprimir, cortar ou quebrar os rótulos.
+        "ds-segmented w-full max-w-full justify-start rounded-xl border border-border bg-muted/40 p-1 text-muted-foreground",
+        className,
+      )}
+      {...props}
+    />
+  );
+});
 TabsList.displayName = TabsPrimitive.List.displayName;
+
 
 const TabsTrigger = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Trigger>,
