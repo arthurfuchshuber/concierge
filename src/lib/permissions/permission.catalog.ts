@@ -149,6 +149,7 @@ const STAKEHOLDERS: Def[] = [
   tab("tenant.stakeholders.prestadores", "Prestadores", 30),
   act("tenant.stakeholders.prestadores.cadastrar", "Cadastrar prestador", 10),
   act("tenant.stakeholders.prestadores.editar", "Editar prestador", 20),
+  act("tenant.stakeholders.prestadores.imoveis", "Imóveis atendidos", 30),
 ];
 
 /** IA Concierge — /admin/ia */

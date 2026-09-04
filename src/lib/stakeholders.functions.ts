@@ -441,6 +441,25 @@ export const getStakeholderDetail = createServerFn({ method: "GET" })
       properties = rows.filter((p) => p.owner_contact_id === data.id);
       availableProperties = rows.filter((p) => !p.owner_contact_id);
     }
+
+    if (data.kind === "provider") {
+      // Prestador é N:N com imóvel (via property_providers) — diferente do
+      // proprietário, que é 1:1 via properties.owner_contact_id. "Disponível"
+      // aqui não significa "sem prestador nenhum" (um imóvel pode ter vários),
+      // significa "ainda não vinculado a ESTE prestador".
+      const [{ data: links }, allProps] = await Promise.all([
+        supabase.from("property_providers").select("property_id").eq("provider_id", data.id).eq("account_owner_id", accountId),
+        supabase
+          .from("properties")
+          .select("id, name, slug, published, guide_created, city, state")
+          .eq("owner_id", accountId)
+          .order("name"),
+      ]);
+      const linkedIds = new Set((links ?? []).map((l) => l.property_id as string));
+      const rows = (allProps.data ?? []) as unknown as Array<Omit<PropRow, "owner_contact_id">>;
+      properties = rows.filter((p) => linkedIds.has(p.id)).map((p) => ({ ...p, owner_contact_id: null }));
+      availableProperties = rows.filter((p) => !linkedIds.has(p.id)).map((p) => ({ ...p, owner_contact_id: null }));
+    }
     // Autor de cada movimentação da linha do tempo: resolve os `created_by`
     // em nome legível (perfil da equipe). Sem autor = evento automático.
     const authorIds = Array.from(
@@ -520,6 +539,76 @@ export const linkPropertyToOwner = createServerFn({ method: "POST" })
       account_owner_id: accountId,
       stakeholder_type: "owner",
       stakeholder_id: data.ownerId,
+      kind: "property",
+      message: data.link ? `${propertyLabel} vinculada` : `${propertyLabel} desvinculada`,
+      created_by: userId,
+    });
+    return { ok: true };
+  });
+
+
+const ProviderLinkInput = z.object({
+  providerId: z.string().uuid(),
+  propertyId: z.string().uuid(),
+  link: z.boolean(),
+  accountOwnerId: z.string().uuid().optional().nullable(),
+});
+
+// Vincula (ou desvincula) um imóvel a um prestador. N:N — um imóvel pode ter
+// vários prestadores (limpeza, manutenção...) e um prestador pode atender
+// vários imóveis, por isso não existe "transferir" aqui como em proprietário:
+// desvincular é sempre permitido, sem exigir substituto.
+export const linkPropertyToProvider = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => ProviderLinkInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "stakeholders.vinculo-imovel-prestador", {
+      resource: data.providerId,
+      propertyId: data.propertyId,
+    });
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.accountOwnerId);
+
+    const { data: provider } = await supabase
+      .from("service_providers")
+      .select("id, name")
+      .eq("id", data.providerId)
+      .eq("account_owner_id", accountId)
+      .maybeSingle();
+    if (!provider) throw new Error("Prestador não encontrado");
+    const { data: property } = await supabase
+      .from("properties")
+      .select("id, name")
+      .eq("id", data.propertyId)
+      .eq("owner_id", accountId)
+      .maybeSingle();
+    if (!property) throw new Error("Imóvel não encontrado");
+    const propertyLabel = property.name ? `Residência "${property.name}"` : "Residência";
+
+    if (data.link) {
+      const { error } = await supabase
+        .from("property_providers")
+        .upsert(
+          { account_owner_id: accountId, property_id: data.propertyId, provider_id: data.providerId, created_by: userId },
+          { onConflict: "property_id,provider_id" },
+        );
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await supabase
+        .from("property_providers")
+        .delete()
+        .eq("account_owner_id", accountId)
+        .eq("property_id", data.propertyId)
+        .eq("provider_id", data.providerId);
+      if (error) throw new Error(error.message);
+    }
+
+    await supabase.from("stakeholder_events").insert({
+      account_owner_id: accountId,
+      stakeholder_type: "provider",
+      stakeholder_id: data.providerId,
       kind: "property",
       message: data.link ? `${propertyLabel} vinculada` : `${propertyLabel} desvinculada`,
       created_by: userId,

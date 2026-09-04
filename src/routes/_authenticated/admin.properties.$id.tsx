@@ -615,7 +615,15 @@ function PropertyEditor() {
     if (saved && !airbnbUrl) setAirbnbUrl(saved);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.property.airbnb_listing_url]);
+  // Campos que a importação do Airbnb preenche ficam só-leitura APENAS
+  // quando existe um anúncio conectado — nesse caso, editar à mão só
+  // criaria conflito com a checagem diária, que sobrescreve tudo de novo.
+  // Sem anúncio conectado, nada será sobrescrito e o anfitrião precisa
+  // poder preencher fotos e horários à mão (senão o guia nunca pode ser
+  // publicado: fotos e horários são obrigatórios em publish-requirements).
+  const airbnbLocked = !!(form.property.airbnb_listing_url || "").trim();
   const [importingAirbnb, setImportingAirbnb] = useState(false);
+
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState<"mobile" | "desktop" | null>(null);
   const [genCityModeOpen, setGenCityModeOpen] = useState(false);
@@ -2572,7 +2580,19 @@ function PropertyEditor() {
                 </Section>
 
                 <Section id="gallery" icon={ImageIcon} title="Fotos da residência" collapsible>
-                  {form.property.gallery_images.length ? (
+                  {/* Com anúncio conectado: só visualização (a importação
+                      manda nas fotos). Sem anúncio: upload manual — é a
+                      única forma de o imóvel ter foto, e foto é obrigatória
+                      pra publicar o guia. */}
+                  {!airbnbLocked ? (
+                    <GalleryEditor
+                      value={form.property.gallery_images}
+                      onChange={(next) => {
+                        update("gallery_images", next);
+                        update("hero_image_url", next[0] ?? null);
+                      }}
+                    />
+                  ) : form.property.gallery_images.length ? (
                     <div className="grid grid-cols-4 gap-2">
                       {form.property.gallery_images.map((url, i) => (
                         <div key={i} className="relative ds-surface overflow-hidden rounded-lg border border-border/60 aspect-square">
@@ -2591,6 +2611,7 @@ function PropertyEditor() {
                   )}
                 </Section>
 
+
                 <Section id="airbnb-checkin-times" icon={Clock} title="Horários de check-in" collapsible>
                   {/* Pedido do cliente em 03/09/2026: o horário fica ao lado
                       DIREITO do rótulo (não abaixo dele) — inclusive o texto
@@ -2598,10 +2619,26 @@ function PropertyEditor() {
                       de uma legenda numa linha separada. */}
                   <div className="space-y-2.5">
                     <TimeInlineRow label="Check-in a partir de">
-                      <ReadOnlyValue value={form.property.checkin_time} />
+                      {airbnbLocked ? (
+                        <ReadOnlyValue value={form.property.checkin_time} />
+                      ) : (
+                        <TimePicker
+                          value={form.property.checkin_time}
+                          onChange={(v) => update("checkin_time", v)}
+                          placeholder="15:00"
+                        />
+                      )}
                     </TimeInlineRow>
                     <TimeInlineRow label="Check-in até" optional>
-                      <ReadOnlyValue value={form.property.checkin_time_max} />
+                      {airbnbLocked ? (
+                        <ReadOnlyValue value={form.property.checkin_time_max} />
+                      ) : (
+                        <TimePicker
+                          value={form.property.checkin_time_max}
+                          onChange={(v) => update("checkin_time_max", v)}
+                          placeholder="16:00"
+                        />
+                      )}
                     </TimeInlineRow>
                   </div>
                   <Field
@@ -2641,7 +2678,15 @@ function PropertyEditor() {
                       />
                     </TimeInlineRow>
                     <TimeInlineRow label="Check-out até" optional>
-                      <ReadOnlyValue value={form.property.checkout_time} />
+                      {airbnbLocked ? (
+                        <ReadOnlyValue value={form.property.checkout_time} />
+                      ) : (
+                        <TimePicker
+                          value={form.property.checkout_time}
+                          onChange={(v) => update("checkout_time", v)}
+                          placeholder="11:00"
+                        />
+                      )}
                     </TimeInlineRow>
                   </div>
                   <Field
@@ -2885,10 +2930,26 @@ function PropertyEditor() {
                       editar direto por aqui também. */}
                   <div className="space-y-2.5">
                     <TimeInlineRow label="Check-in a partir de">
-                      <ReadOnlyValue value={form.property.checkin_time} />
+                      {airbnbLocked ? (
+                        <ReadOnlyValue value={form.property.checkin_time} />
+                      ) : (
+                        <TimePicker
+                          value={form.property.checkin_time}
+                          onChange={(v) => update("checkin_time", v)}
+                          placeholder="15:00"
+                        />
+                      )}
                     </TimeInlineRow>
                     <TimeInlineRow label="Check-in até" optional>
-                      <ReadOnlyValue value={form.property.checkin_time_max} />
+                      {airbnbLocked ? (
+                        <ReadOnlyValue value={form.property.checkin_time_max} />
+                      ) : (
+                        <TimePicker
+                          value={form.property.checkin_time_max}
+                          onChange={(v) => update("checkin_time_max", v)}
+                          placeholder="16:00"
+                        />
+                      )}
                     </TimeInlineRow>
                   </div>
                   <Field
@@ -3324,7 +3385,15 @@ function PropertyEditor() {
                       />
                     </TimeInlineRow>
                     <TimeInlineRow label="Check-out até" optional>
-                      <ReadOnlyValue value={form.property.checkout_time} />
+                      {airbnbLocked ? (
+                        <ReadOnlyValue value={form.property.checkout_time} />
+                      ) : (
+                        <TimePicker
+                          value={form.property.checkout_time}
+                          onChange={(v) => update("checkout_time", v)}
+                          placeholder="11:00"
+                        />
+                      )}
                     </TimeInlineRow>
                   </div>
                   <Field

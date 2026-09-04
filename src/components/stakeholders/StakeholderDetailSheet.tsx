@@ -45,6 +45,7 @@ import {
   getStakeholderDetail,
   addStakeholderNote,
   linkPropertyToOwner,
+  linkPropertyToProvider,
 } from "@/lib/stakeholders.functions";
 import { getStakeholderIntegrationFeed } from "@/lib/stakeholder-feed.functions";
 import { getStakeholderSystemTrail } from "@/lib/stakeholder-trail.functions";
@@ -110,6 +111,7 @@ export function StakeholderDetailSheet({
   const detailFn = useServerFn(getStakeholderDetail);
   const noteFn = useServerFn(addStakeholderNote);
   const linkFn = useServerFn(linkPropertyToOwner);
+  const linkProviderFn = useServerFn(linkPropertyToProvider);
   const stakeholderOptionsFn = useServerFn(listStakeholderOptions);
 
   const [note, setNote] = useState("");
@@ -196,7 +198,10 @@ export function StakeholderDetailSheet({
           { table: "property_owners", filter: `id=eq.${id}` },
           { table: "properties", filter: `owner_contact_id=eq.${id}` },
         ]
-      : [{ table: "service_providers", filter: `id=eq.${id}` }],
+      : [
+          { table: "service_providers", filter: `id=eq.${id}` },
+          { table: "property_providers", filter: `provider_id=eq.${id}` },
+        ],
     [queryKey],
   );
 
@@ -249,7 +254,11 @@ export function StakeholderDetailSheet({
   async function toggleLink(propertyId: string, link: boolean) {
     setBusy(true);
     try {
-      await linkFn({ data: { ownerId: id, propertyId, link, accountOwnerId } });
+      if (kind === "provider") {
+        await linkProviderFn({ data: { providerId: id, propertyId, link, accountOwnerId } });
+      } else {
+        await linkFn({ data: { ownerId: id, propertyId, link, accountOwnerId } });
+      }
       qc.invalidateQueries({ queryKey });
       qc.invalidateQueries({ queryKey: ["stakeholders", kind] });
       // Bidirecional: se o editor do imóvel (aba "A casa") estiver aberto em
@@ -459,16 +468,6 @@ export function StakeholderDetailSheet({
       {/* ---------- Cabeçalho: glow de marca (aprovado — proposta B do mockup)
           + eyebrow + nome + metadados ---------- */}
       <header className="relative overflow-hidden pt-4">
-        {/* Antes era um fio reto de 2px; virou uma faixa suave da cor da
-            marca "ao fundo" da área acima do nome, desfocada e esmaecendo
-            pra baixo. -z-10 garante que fica atrás do texto mesmo sendo
-            absolutamente posicionada (senão pintaria por cima do conteúdo
-            estático). */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute -inset-x-[12%] -top-[70px] -z-10 h-[150px] bg-[linear-gradient(180deg,rgba(124,26,216,.32),rgba(232,45,174,.18)_55%,transparent_100%)] blur-[10px]"
-        />
-
         {/* Linha 1: eyebrow (as ações desceram para a linha de metadados) */}
         <span className="ds-eyebrow block truncate text-muted-foreground">
           {kind === "owner" ? "Proprietário" : "Prestador"}
@@ -656,7 +655,9 @@ export function StakeholderDetailSheet({
         <TabsList className="ds-segmented h-auto w-full max-w-full !rounded-[0.3rem] border-0 bg-foreground/5 p-0">
 
           <TabsTrigger className={SEG_TAB} value="visao">Timeline</TabsTrigger>
-          {kind === "owner" && <TabsTrigger className={SEG_TAB} value="imoveis">Imóveis</TabsTrigger>}
+          {(kind === "owner" || kind === "provider") && (
+            <TabsTrigger className={SEG_TAB} value="imoveis">Imóveis</TabsTrigger>
+          )}
           <TabsTrigger className={SEG_TAB} value="financeiro">Financeiro</TabsTrigger>
           <TabsTrigger className={SEG_TAB} value="documentos">Documentos</TabsTrigger>
           <TabsTrigger className={SEG_TAB} value="acessos">Acessos</TabsTrigger>
@@ -800,13 +801,15 @@ export function StakeholderDetailSheet({
         </TabsContent>
 
         {/* -------------------- Imóveis -------------------- */}
-        {kind === "owner" && (
+        {(kind === "owner" || kind === "provider") && (
           <TabsContent value="imoveis" className="mt-5 space-y-4">
             {/* Portfólio em linhas densas: título + situação do guia na mesma
                 linha, localização abaixo e ações discretas em texto. */}
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
               <div className="min-w-0">
-                <h3 className="ds-section-title truncate">Imóveis vinculados</h3>
+                <h3 className="ds-section-title truncate">
+                  {kind === "owner" ? "Imóveis vinculados" : "Imóveis atendidos"}
+                </h3>
                 <p className="ds-meta">{properties.length} residência(s)</p>
               </div>
               {available.length > 0 && (
@@ -840,7 +843,11 @@ export function StakeholderDetailSheet({
               <Placeholder
                 icon={Home}
                 title="Nenhuma residência vinculada"
-                desc="Vincule uma residência existente acima ou crie uma nova para este proprietário."
+                desc={
+                  kind === "owner"
+                    ? "Vincule uma residência existente acima ou crie uma nova para este proprietário."
+                    : "Vincule uma residência existente acima para que este prestador passe a atendê-la."
+                }
               />
             ) : (
               <div className="space-y-2">
@@ -924,17 +931,30 @@ export function StakeholderDetailSheet({
                         )}
                       </div>
 
-                      {transferPropertyId !== p.id && (
+                      {kind === "provider" ? (
                         <button
                           type="button"
                           disabled={busy}
-                          onClick={() => setTransferPropertyId(p.id)}
+                          onClick={() => toggleLink(p.id, false)}
                           className="grid size-8 shrink-0 place-items-center rounded-[0.3rem] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-                          title="Um imóvel sempre precisa de um proprietário — transfira para outro em vez de apenas desvincular."
-                          aria-label="Transferir imóvel"
+                          title="Desvincular este imóvel do prestador."
+                          aria-label="Desvincular imóvel"
                         >
                           <Unlink className="size-4" />
                         </button>
+                      ) : (
+                        transferPropertyId !== p.id && (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => setTransferPropertyId(p.id)}
+                            className="grid size-8 shrink-0 place-items-center rounded-[0.3rem] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                            title="Um imóvel sempre precisa de um proprietário — transfira para outro em vez de apenas desvincular."
+                            aria-label="Transferir imóvel"
+                          >
+                            <Unlink className="size-4" />
+                          </button>
+                        )
                       )}
                     </div>
                   );
@@ -942,14 +962,16 @@ export function StakeholderDetailSheet({
               </div>
             )}
 
-            <Link
-              to="/admin/properties/$id"
-              params={{ id: "new" }}
-              search={{ returnTo: returnToHere, ownerId: row?.id }}
-              className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
-            >
-              <Plus className="size-3.5" /> Criar nova residência
-            </Link>
+            {kind === "owner" && (
+              <Link
+                to="/admin/properties/$id"
+                params={{ id: "new" }}
+                search={{ returnTo: returnToHere, ownerId: row?.id }}
+                className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+              >
+                <Plus className="size-3.5" /> Criar nova residência
+              </Link>
+            )}
           </TabsContent>
         )}
 

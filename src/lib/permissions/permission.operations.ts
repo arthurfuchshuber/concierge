@@ -39,6 +39,11 @@ export const PROTECTED_OPERATIONS = {
     required: "WRITE",
     domain: "stakeholders",
   },
+  "stakeholders.vinculo-imovel-prestador": {
+    permission: "tenant.stakeholders.prestadores.imoveis",
+    required: "WRITE",
+    domain: "stakeholders",
+  },
   "prestadores.write": {
     permission: "tenant.stakeholders.prestadores.cadastrar",
     required: "WRITE",

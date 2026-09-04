@@ -677,7 +677,11 @@ export async function refreshStaleAirbnbListings(limit: number) {
         ? `Atualizado automaticamente: ${changedLabels.join(", ")} (${new Date(now).toLocaleDateString("pt-BR")})`
         : null;
 
-      const { error: updErr } = await supabaseAdmin.from("properties").update(patch).eq("id", row.id);
+      const { error: updErr } = await supabaseAdmin
+        .from("properties")
+        .update(patch as never)
+        .eq("id", row.id);
+
       if (updErr) throw updErr;
       if (changedLabels.length) updated++;
       else unchanged++;

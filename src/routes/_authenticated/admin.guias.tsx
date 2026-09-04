@@ -448,7 +448,14 @@ function Dashboard() {
     staleTime: 30_000,
     retry: false,
   });
-  const noOwners = (ownersCount.data?.count ?? 0) === 0;
+  // isSuccess (não só "tem data?") importa aqui: antes disso, ownersCount.data
+  // é `undefined` e `?? 0` fazia noOwners virar `true` por um instante em
+  // TODA carga da página — mesmo para conta com proprietário cadastrado —
+  // porque a query ainda não tinha resolvido. Resultado: o aviso amarelo
+  // piscava no topo por uns milissegundos e sumia assim que a contagem real
+  // chegava. Só decidimos "sem proprietário" depois que a contagem realmente
+  // veio.
+  const noOwners = ownersCount.isSuccess && (ownersCount.data?.count ?? 0) === 0;
 
   const hasActiveFilters = search.trim() !== "" || statusFilter !== "all" || accessFilter !== "all";
   function clearFilters() {
