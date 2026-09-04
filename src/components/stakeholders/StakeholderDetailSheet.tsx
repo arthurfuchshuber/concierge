@@ -63,6 +63,8 @@ import { EmptyState } from "@/components/ds/EmptyState";
 import { StakeholderStatusControl } from "./StakeholderStatusControl";
 import { effectiveStatus, statusText } from "@/lib/stakeholder-status";
 import { humanizeEventMessage } from "@/lib/stakeholder-event-message";
+import { MultiLinkPicker } from "./MultiLinkPicker";
+
 
 /** Aba do segmented control: adapta-se à largura da tela (anti-corte), 46px.
  *  !flex-none sobrescreve o !flex-1 padrão de TabsTrigger (ui/tabs.tsx) — aqui
@@ -117,6 +119,8 @@ export function StakeholderDetailSheet({
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<PreviewTarget>(null);
+  const [linkPickerOpen, setLinkPickerOpen] = useState(false);
+
   const [extracting, setExtracting] = useState(false);
   const [transferPropertyId, setTransferPropertyId] = useState<string | null>(null);
   // Pra onde "Voltar"/"Fechar" leva ao editar a casa de um imóvel a partir
@@ -272,6 +276,34 @@ export function StakeholderDetailSheet({
       setBusy(false);
     }
   }
+
+  // Vínculo em lote: o usuário marca várias residências no seletor e todas
+  // são vinculadas numa ação só (antes era uma por vez, no menu suspenso).
+  async function linkMany(propertyIds: string[]) {
+    if (propertyIds.length === 0) return;
+    setBusy(true);
+    try {
+      for (const propertyId of propertyIds) {
+        if (kind === "provider") {
+          await linkProviderFn({ data: { providerId: id, propertyId, link: true, accountOwnerId } });
+        } else {
+          await linkFn({ data: { ownerId: id, propertyId, link: true, accountOwnerId } });
+        }
+        qc.invalidateQueries({ queryKey: ["property", propertyId] });
+      }
+      qc.invalidateQueries({ queryKey });
+      qc.invalidateQueries({ queryKey: ["stakeholders", kind] });
+      qc.invalidateQueries({ queryKey: ["my-properties"] });
+      toast.success(
+        propertyIds.length === 1 ? "Residência vinculada." : `${propertyIds.length} residências vinculadas.`,
+      );
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
 
   // Um imóvel sempre precisa ter um proprietário responsável — por isso não
   // existe mais "desvincular" puro. A única forma de tirar um imóvel deste
@@ -813,31 +845,32 @@ export function StakeholderDetailSheet({
                 <p className="ds-meta">{properties.length} residência(s)</p>
               </div>
               {available.length > 0 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      type="button"
-                      className="inline-flex h-9 shrink-0 items-center gap-2 rounded-[0.3rem] border border-border bg-secondary/40 px-3 text-[13px] font-medium transition-colors hover:bg-secondary"
-                    >
-                      <Plus className="size-4 text-primary" /> Vincular
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="max-h-72 w-64 overflow-y-auto">
-                    {available.map((p: any) => (
-                      <DropdownMenuItem
-                        key={p.id}
-                        disabled={busy}
-                        onClick={() => toggleLink(p.id, true)}
-                        className="gap-2"
-                      >
-                        <Link2 className="size-3.5 shrink-0 text-muted-foreground" />
-                        <span className="truncate">{p.name}</span>
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <button
+                  type="button"
+                  onClick={() => setLinkPickerOpen(true)}
+                  className="inline-flex h-9 shrink-0 items-center gap-2 rounded-[0.3rem] border border-border bg-secondary/40 px-3 text-[13px] font-medium transition-colors hover:bg-secondary"
+                >
+                  <Plus className="size-4 text-primary" /> Vincular
+                </button>
               )}
             </div>
+
+            <MultiLinkPicker
+              open={linkPickerOpen}
+              onOpenChange={setLinkPickerOpen}
+              title={kind === "owner" ? "Vincular residências" : "Vincular imóveis atendidos"}
+              description="Marque quantas residências quiser — todas são vinculadas de uma vez."
+              options={available.map((p: any) => ({
+                id: p.id,
+                label: p.name,
+                hint: [p.city, p.state].filter(Boolean).join(" / ") || null,
+              }))}
+              initialSelected={[]}
+              confirmLabel="Vincular selecionados"
+              emptyText="Nenhuma residência disponível."
+              onConfirm={(ids) => linkMany(ids)}
+            />
+
 
             {properties.length === 0 ? (
               <Placeholder

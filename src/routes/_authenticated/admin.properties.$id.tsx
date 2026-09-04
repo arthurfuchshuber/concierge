@@ -20,7 +20,13 @@ import {
   updateCityReference,
   bulkDeleteCityReferences,
 } from "@/lib/city-references.functions";
-import { listActivePropertyOwnersForSelect } from "@/lib/stakeholders.functions";
+import {
+  listActivePropertyOwnersForSelect,
+  listProvidersForProperty,
+  linkPropertyToProvider,
+} from "@/lib/stakeholders.functions";
+import { MultiLinkPicker } from "@/components/stakeholders/MultiLinkPicker";
+
 import { importFromAirbnb, type AirbnbAmenity, type AirbnbRoomBeds } from "@/lib/airbnb.functions";
 import { syncPropertyAirbnbIcal, listPropertyReservations } from "@/lib/airbnb-ical.functions";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -86,6 +92,9 @@ import {
   NotebookPen,
   ArrowLeftRight,
   AlertTriangle,
+  Wrench,
+  Unlink,
+
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -516,6 +525,43 @@ function PropertyEditor() {
     staleTime: 30_000,
   });
   const propertyOwnerOptions = ownersData?.owners ?? [];
+
+  // Prestadores da conta + quais atendem este imóvel (vínculo N:N).
+  const listProvidersFn = useServerFn(listProvidersForProperty);
+  const linkProviderFn = useServerFn(linkPropertyToProvider);
+  const [providersPickerOpen, setProvidersPickerOpen] = useState(false);
+  const [providersBusy, setProvidersBusy] = useState(false);
+  const { data: providersData } = useQuery({
+    queryKey: ["property-providers", id],
+    queryFn: () => listProvidersFn({ data: { propertyId: id } }),
+    enabled: !isNew,
+    staleTime: 30_000,
+  });
+  const providerOptions = providersData?.providers ?? [];
+  const linkedProviders = providerOptions.filter((p) => p.linked);
+
+  async function saveProviderLinks(selectedIds: string[]) {
+    setProvidersBusy(true);
+    try {
+      const before = new Set(linkedProviders.map((p) => p.id));
+      const after = new Set(selectedIds);
+      const toLink = selectedIds.filter((pid) => !before.has(pid));
+      const toUnlink = [...before].filter((pid) => !after.has(pid));
+      for (const providerId of [...toLink, ...toUnlink]) {
+        await linkProviderFn({
+          data: { providerId, propertyId: id, link: after.has(providerId) },
+        });
+      }
+      await queryClient.invalidateQueries({ queryKey: ["property-providers", id] });
+      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "stakeholder-detail" });
+      if (toLink.length || toUnlink.length) toast.success("Prestadores atualizados.");
+    } catch (e) {
+      toast.error(friendlyErrorMessage(e, "Não foi possível atualizar os prestadores."));
+    } finally {
+      setProvidersBusy(false);
+    }
+  }
+
 
   // Transferência deliberada de proprietário — uma vez vinculado, o campo
   // "Proprietário" fica travado (não é mais um <Select> livre) e só pode
@@ -1631,6 +1677,77 @@ function PropertyEditor() {
     </Section>
   );
 
+  // Quadrante "Prestadores de serviço": mesmo vínculo N:N que existe na ficha
+  // do prestador (Stakeholders → Prestadores → Imóveis), visto pelo lado do
+  // imóvel. Seleção múltipla: marca-se vários de uma vez e a diferença
+  // (vincular/desvincular) é aplicada na confirmação.
+  const renderProvidersSection = () => (
+    <Section
+      id="providers"
+      icon={Wrench}
+      title="Prestadores de Serviço"
+      collapsible
+    >
+      <div className="space-y-3">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+          <p className="ds-meta min-w-0">
+            {linkedProviders.length} prestador(es) atendendo este imóvel.
+          </p>
+          <button
+            type="button"
+            onClick={() => setProvidersPickerOpen(true)}
+            className="inline-flex h-9 shrink-0 items-center gap-2 rounded-[0.3rem] border border-border bg-secondary/40 px-3 text-[13px] font-medium transition-colors hover:bg-secondary"
+          >
+            <Plus className="size-4 text-primary" /> Vincular
+          </button>
+        </div>
+
+        {linkedProviders.length === 0 ? (
+          <p className="ds-meta">Nenhum prestador vinculado ainda.</p>
+        ) : (
+          <div className="space-y-2">
+            {linkedProviders.map((p) => (
+              <div
+                key={p.id}
+                className="ds-surface grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 bg-card px-3 py-2.5"
+              >
+                <p className="min-w-0 break-words text-[13.5px] font-medium text-foreground">{p.name}</p>
+                <button
+                  type="button"
+                  disabled={providersBusy}
+                  onClick={() => saveProviderLinks(linkedProviders.filter((x) => x.id !== p.id).map((x) => x.id))}
+                  className="grid size-8 shrink-0 place-items-center rounded-[0.3rem] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                  aria-label="Desvincular prestador"
+                  title="Desvincular este prestador do imóvel."
+                >
+                  <Unlink className="size-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <MultiLinkPicker
+        open={providersPickerOpen}
+        onOpenChange={setProvidersPickerOpen}
+        title="Prestadores deste imóvel"
+        description="Marque quantos prestadores quiser — desmarcar remove o vínculo."
+        options={providerOptions.map((p) => ({
+          id: p.id,
+          label: p.name,
+          hint: p.categories.join(", ") || null,
+        }))}
+        initialSelected={linkedProviders.map((p) => p.id)}
+        confirmLabel="Salvar vínculos"
+        emptyText="Nenhum prestador cadastrado ainda."
+        onConfirm={(ids) => saveProviderLinks(ids)}
+      />
+    </Section>
+  );
+
+
+
   // Quadrante EXCLUSIVO de limpeza: valores fixos (R$, armazenados em
   // centavos — mesma convenção de dinheiro já usada em prestadores de
   // serviço via hourly_rate_cents) + período estimado (minutos, múltiplos de
@@ -2338,6 +2455,8 @@ function PropertyEditor() {
               {renderManualSection()}
               {renderPropertyDetailsSection()}
               {renderHostContactSection()}
+              {!isNew && renderProvidersSection()}
+
             </SectionGroup>
           </DenseSections>
 
@@ -2458,6 +2577,9 @@ function PropertyEditor() {
                 {renderPropertyDetailsSection()}
 
                 {renderHostContactSection()}
+
+                {!isNew && renderProvidersSection()}
+
               </SectionGroup>
             </TabsContent>
 

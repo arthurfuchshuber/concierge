@@ -772,6 +772,42 @@ export const listActivePropertyOwnersForSelect = createServerFn({ method: "GET" 
     };
   });
 
+// Prestadores da conta + quais deles já atendem um imóvel específico —
+// usado pelo quadrante "Prestadores de serviço" dentro do editor do imóvel
+// (o mesmo vínculo N:N da ficha do prestador, visto pelo outro lado).
+export const listProvidersForProperty = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ propertyId: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId);
+    const [{ data: all, error }, { data: links }] = await Promise.all([
+      supabase
+        .from("service_providers")
+        .select("id, name, trade_name, category, categories")
+        .eq("account_owner_id", accountId)
+        .order("name", { ascending: true }),
+      supabase
+        .from("property_providers")
+        .select("provider_id")
+        .eq("account_owner_id", accountId)
+        .eq("property_id", data.propertyId),
+    ]);
+    if (error) throw new Error(error.message);
+    const linked = new Set((links ?? []).map((l) => l.provider_id as string));
+    return {
+      providers: (all ?? []).map((p) => ({
+        id: p.id as string,
+        name: ((p.trade_name as string | null) || (p.name as string)) ?? "",
+        categories: (Array.isArray(p.categories) ? (p.categories as string[]) : p.category ? [p.category as string] : []),
+        linked: linked.has(p.id as string),
+      })),
+    };
+  });
+
+
+
 /**
  * Situação do cadastro com a data informada pelo usuário.
  * - "canceled" com data futura vira "canceling" (amarelo) e só é confirmado depois.
