@@ -526,6 +526,43 @@ function PropertyEditor() {
   });
   const propertyOwnerOptions = ownersData?.owners ?? [];
 
+  // Prestadores da conta + quais atendem este imóvel (vínculo N:N).
+  const listProvidersFn = useServerFn(listProvidersForProperty);
+  const linkProviderFn = useServerFn(linkPropertyToProvider);
+  const [providersPickerOpen, setProvidersPickerOpen] = useState(false);
+  const [providersBusy, setProvidersBusy] = useState(false);
+  const { data: providersData } = useQuery({
+    queryKey: ["property-providers", id],
+    queryFn: () => listProvidersFn({ data: { propertyId: id } }),
+    enabled: !isNew,
+    staleTime: 30_000,
+  });
+  const providerOptions = providersData?.providers ?? [];
+  const linkedProviders = providerOptions.filter((p) => p.linked);
+
+  async function saveProviderLinks(selectedIds: string[]) {
+    setProvidersBusy(true);
+    try {
+      const before = new Set(linkedProviders.map((p) => p.id));
+      const after = new Set(selectedIds);
+      const toLink = selectedIds.filter((pid) => !before.has(pid));
+      const toUnlink = [...before].filter((pid) => !after.has(pid));
+      for (const providerId of [...toLink, ...toUnlink]) {
+        await linkProviderFn({
+          data: { providerId, propertyId: id, link: after.has(providerId) },
+        });
+      }
+      await queryClient.invalidateQueries({ queryKey: ["property-providers", id] });
+      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "stakeholder-detail" });
+      if (toLink.length || toUnlink.length) toast.success("Prestadores atualizados.");
+    } catch (e) {
+      toast.error(friendlyErrorMessage(e, "Não foi possível atualizar os prestadores."));
+    } finally {
+      setProvidersBusy(false);
+    }
+  }
+
+
   // Transferência deliberada de proprietário — uma vez vinculado, o campo
   // "Proprietário" fica travado (não é mais um <Select> livre) e só pode
   // mudar através deste fluxo dedicado, com confirmação explícita.
