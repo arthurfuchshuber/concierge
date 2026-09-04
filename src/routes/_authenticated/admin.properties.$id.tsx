@@ -2577,6 +2577,9 @@ function PropertyEditor() {
                 {renderPropertyDetailsSection()}
 
                 {renderHostContactSection()}
+
+                {!isNew && renderProvidersSection()}
+
               </SectionGroup>
             </TabsContent>
 
