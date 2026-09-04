@@ -605,6 +605,38 @@ export const linkPropertyToProvider = createServerFn({ method: "POST" })
       if (error) throw new Error(error.message);
     }
 
+    // Se o prestador também tem login na equipe, o vínculo com o imóvel precisa
+    // refletir na "residência atendida" — senão ele continua sem ver o imóvel
+    // nos painéis (dashboard, fila de limpeza, calendário).
+    const { data: providerUser } = await supabase
+      .from("service_providers")
+      .select("member_user_id")
+      .eq("id", data.providerId)
+      .maybeSingle();
+    const memberUserId = (providerUser as { member_user_id?: string | null } | null)?.member_user_id ?? null;
+    if (memberUserId) {
+      if (data.link) {
+        await supabase.from("property_assignments").upsert(
+          {
+            tenant_id: accountId,
+            property_id: data.propertyId,
+            user_id: memberUserId,
+            status: "active",
+            created_by: userId,
+          } as never,
+          { onConflict: "tenant_id,property_id,user_id" },
+        );
+      } else {
+        await supabase
+          .from("property_assignments")
+          .delete()
+          .eq("tenant_id", accountId)
+          .eq("property_id", data.propertyId)
+          .eq("user_id", memberUserId);
+      }
+    }
+
+
     await supabase.from("stakeholder_events").insert({
       account_owner_id: accountId,
       stakeholder_type: "provider",
