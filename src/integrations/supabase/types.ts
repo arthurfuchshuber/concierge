@@ -4126,6 +4126,51 @@ export type Database = {
         }
         Relationships: []
       }
+      property_providers: {
+        Row: {
+          account_owner_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          property_id: string
+          provider_id: string
+          updated_at: string
+        }
+        Insert: {
+          account_owner_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          property_id: string
+          provider_id: string
+          updated_at?: string
+        }
+        Update: {
+          account_owner_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          property_id?: string
+          provider_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_providers_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_providers_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "service_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       property_recommendations: {
         Row: {
           category: string | null
