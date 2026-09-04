@@ -20,7 +20,13 @@ import {
   updateCityReference,
   bulkDeleteCityReferences,
 } from "@/lib/city-references.functions";
-import { listActivePropertyOwnersForSelect } from "@/lib/stakeholders.functions";
+import {
+  listActivePropertyOwnersForSelect,
+  listProvidersForProperty,
+  linkPropertyToProvider,
+} from "@/lib/stakeholders.functions";
+import { MultiLinkPicker } from "@/components/stakeholders/MultiLinkPicker";
+
 import { importFromAirbnb, type AirbnbAmenity, type AirbnbRoomBeds } from "@/lib/airbnb.functions";
 import { syncPropertyAirbnbIcal, listPropertyReservations } from "@/lib/airbnb-ical.functions";
 import { useSubscription } from "@/hooks/useSubscription";
