@@ -31,7 +31,7 @@ import {
   AlertTriangle,
   X,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -187,7 +187,21 @@ export function GuideAccessGate({
   navItems = [],
   prefill = null,
   minArrivalTime = null,
-}: Props & { timeZone?: string; minArrivalTime?: string | null }) {
+  checkinTimeMax = null,
+  checkoutTime = null,
+  checkoutTimeMin = null,
+}: Props & {
+  timeZone?: string;
+  minArrivalTime?: string | null;
+  /** Horário máximo de check-in do imóvel — teto da previsão de chegada
+   * (pedido explícito, 05/09/2026, mesma regra já aplicada no painel do
+   * anfitrião). */
+  checkinTimeMax?: string | null;
+  /** Horário limite de check-out do imóvel — teto da previsão de saída. */
+  checkoutTime?: string | null;
+  /** Horário mínimo de check-out do imóvel — piso da previsão de saída. */
+  checkoutTimeMin?: string | null;
+}) {
   const themeClass = cn("sigma-public-guide", theme === "light" && "theme-light");
 
   const submit = useServerFn(recordGuideAccess);
@@ -237,6 +251,16 @@ export function GuideAccessGate({
   // Step 2 state — perguntas progressivas
   const [arrivalAns, setArrivalAns] = useState<"yes" | "no" | null>(null);
   const [arrivalTime, setArrivalTime] = useState({ h: "", m: "" });
+  // Data prevista de chegada — em branco = usa a data confirmada da reserva
+  // (range.from) sem alteração nenhuma. Pedido explícito (05/09/2026): o
+  // hóspede pode adiantar OU atrasar o dia da chegada aqui, com a mesma regra
+  // de limite já aplicada no painel do anfitrião (nunca antes da reserva).
+  const [arrivalDate, setArrivalDate] = useState("");
+  // Previsão de saída — pergunta nova e independente da de chegada (mesmo
+  // padrão Sim/Não), pedido explícito (05/09/2026).
+  const [departureAns, setDepartureAns] = useState<"yes" | "no" | null>(null);
+  const [departureDate, setDepartureDate] = useState("");
+  const [departureTime, setDepartureTime] = useState({ h: "", m: "" });
 
   const [vehicleAns, setVehicleAns] = useState<"yes" | "no" | null>(null);
   const [vehicleCount, setVehicleCount] = useState<number>(0);
@@ -517,6 +541,15 @@ export function GuideAccessGate({
 
     const checkinDate = format(range.from, "yyyy-MM-dd");
     const checkoutDate = format(range.to, "yyyy-MM-dd");
+    // Previsão de chegada/saída (data): em branco = usa a data confirmada da
+    // reserva sem alteração — só vira um "override" de verdade quando o
+    // hóspede efetivamente escolhe outra data. Pedido explícito (05/09/2026).
+    const predictedCheckinDate = arrivalAns === "yes" ? arrivalDate || checkinDate : null;
+    const departureStr =
+      departureAns === "yes" && departureTime.h
+        ? `${departureTime.h.padStart(2, "0")}:${(departureTime.m || "00").padStart(2, "0")}`
+        : "";
+    const predictedCheckoutDate = departureAns === "yes" ? departureDate || checkoutDate : null;
     setLoading(true);
     try {
       const res = await submit({
@@ -532,6 +565,9 @@ export function GuideAccessGate({
           guest_phone: phone,
           guest_phone_country: country,
           guest_arrival_time: arrivalStr || null,
+          predicted_checkin_date: predictedCheckinDate,
+          predicted_checkout_date: predictedCheckoutDate,
+          predicted_checkout_time: departureStr || null,
           guest_vehicles:
             vehicleAns === "yes" && vehicles.length > 0
               ? vehicles.map((v) => ({ plate: v.plate.trim(), model: v.model.trim(), color: v.color.trim() }))
@@ -801,11 +837,24 @@ export function GuideAccessGate({
               cfg={cfg}
               slug={slug}
               minArrivalTime={minArrivalTime}
+              checkinTimeMax={checkinTimeMax}
+              checkoutTime={checkoutTime}
+              checkoutTimeMin={checkoutTimeMin}
+              checkinISO={range?.from ? format(range.from, "yyyy-MM-dd") : ""}
+              checkoutISO={range?.to ? format(range.to, "yyyy-MM-dd") : ""}
               defaultName={titleCaseName(name)}
               arrivalAns={arrivalAns}
               setArrivalAns={setArrivalAns}
               arrivalTime={arrivalTime}
               setArrivalTime={setArrivalTime}
+              arrivalDate={arrivalDate}
+              setArrivalDate={setArrivalDate}
+              departureAns={departureAns}
+              setDepartureAns={setDepartureAns}
+              departureDate={departureDate}
+              setDepartureDate={setDepartureDate}
+              departureTime={departureTime}
+              setDepartureTime={setDepartureTime}
               vehicleAns={vehicleAns}
               setVehicleAns={setVehicleAns}
               vehicleCount={vehicleCount}
@@ -830,17 +879,69 @@ export function GuideAccessGate({
 
 /* ---------- Step 2 ---------- */
 
+/** "HH:MM" → {h, m}, ou null se vazio/inválido. */
+function parseHM(t: string | null | undefined): { h: number; m: number } | null {
+  const m = String(t ?? "").match(/^(\d{1,2}):(\d{2})/);
+  return m ? { h: Number(m[1]), m: Number(m[2]) } : null;
+}
+/** Horas selecionáveis dentro de [min, max] (ambos opcionais — sem limite
+ * quando ausente). Usado pelos seletores de chegada e saída (05/09/2026,
+ * mesma regra do painel do anfitrião: "checkin só pode ser preenchido o
+ * horário a partir do horário configurado... checkout pode selecionar até
+ * a data/horário limite configurado"). */
+function buildHourOptions(min: { h: number; m: number } | null, max: { h: number; m: number } | null): string[] {
+  const minH = min?.h ?? 0;
+  const maxH = max?.h ?? 23;
+  if (maxH < minH) return [String(minH).padStart(2, "0")];
+  return Array.from({ length: maxH - minH + 1 }, (_, i) => String(minH + i).padStart(2, "0"));
+}
+function buildMinuteOptions(
+  min: { h: number; m: number } | null,
+  max: { h: number; m: number } | null,
+  selectedH: number,
+): string[] {
+  const minH = min?.h ?? 0;
+  const minM = min?.m ?? 0;
+  const maxH = max?.h ?? 23;
+  const maxM = max?.m ?? 59;
+  return ["00", "15", "30", "45"].filter((mm) => {
+    const v = Number(mm);
+    if (selectedH === minH && v < minM) return false;
+    if (selectedH === maxH && v > maxM) return false;
+    return true;
+  });
+}
+
 function Step2(props: {
   cfg: CollectionConfig;
   slug: string;
   /** Horário mínimo de check-in do imóvel — a previsão de chegada nunca
    * pode ser anterior a ele. */
   minArrivalTime?: string | null;
+  /** Horário máximo de check-in do imóvel — teto da previsão de chegada. */
+  checkinTimeMax?: string | null;
+  /** Horário limite de check-out — teto da previsão de saída. */
+  checkoutTime?: string | null;
+  /** Horário mínimo de check-out — piso da previsão de saída. */
+  checkoutTimeMin?: string | null;
+  /** Datas confirmadas da reserva (yyyy-MM-dd) — limites da previsão de
+   * chegada/saída: chegada nunca antes de `checkinISO`; saída nunca depois
+   * de `checkoutISO`. */
+  checkinISO: string;
+  checkoutISO: string;
   defaultName: string;
   arrivalAns: "yes" | "no" | null;
   setArrivalAns: (v: "yes" | "no" | null) => void;
   arrivalTime: { h: string; m: string };
   setArrivalTime: (v: { h: string; m: string }) => void;
+  arrivalDate: string;
+  setArrivalDate: (v: string) => void;
+  departureAns: "yes" | "no" | null;
+  setDepartureAns: (v: "yes" | "no" | null) => void;
+  departureDate: string;
+  setDepartureDate: (v: string) => void;
+  departureTime: { h: string; m: string };
+  setDepartureTime: (v: { h: string; m: string }) => void;
   vehicleAns: "yes" | "no" | null;
   setVehicleAns: (v: "yes" | "no" | null) => void;
   vehicleCount: number;
@@ -860,10 +961,23 @@ function Step2(props: {
     slug,
     defaultName,
     minArrivalTime,
+    checkinTimeMax,
+    checkoutTime,
+    checkoutTimeMin,
+    checkinISO,
+    checkoutISO,
     arrivalAns,
     setArrivalAns,
     arrivalTime,
     setArrivalTime,
+    arrivalDate,
+    setArrivalDate,
+    departureAns,
+    setDepartureAns,
+    departureDate,
+    setDepartureDate,
+    departureTime,
+    setDepartureTime,
     vehicleAns,
     setVehicleAns,
     vehicleCount,
@@ -879,13 +993,29 @@ function Step2(props: {
     onSubmit,
   } = props;
 
-  // Piso da previsão de chegada = horário mínimo de check-in do imóvel.
-  const minParsed = String(minArrivalTime ?? "").match(/^(\d{1,2}):(\d{2})/);
-  const minH = minParsed ? Number(minParsed[1]) : 0;
-  const minM = minParsed ? Number(minParsed[2]) : 0;
-  const hourOptions = Array.from({ length: 24 - minH }, (_, i) => String(minH + i).padStart(2, "0"));
-  const selectedH = arrivalTime.h ? Number(arrivalTime.h) : minH;
-  const minuteOptions = ["00", "15", "30", "45"].filter((m) => selectedH > minH || Number(m) >= minM);
+  // Chegada: piso = checkin_time do imóvel, teto = checkin_time_max (quando
+  // configurado). Data: nunca antes da reserva confirmada, nunca no dia do
+  // check-out (ou depois) — mesma regra do painel do anfitrião.
+  const arrivalMin = parseHM(minArrivalTime);
+  const arrivalMax = parseHM(checkinTimeMax);
+  const minH = arrivalMin?.h ?? 0;
+  const minM = arrivalMin?.m ?? 0;
+  const hourOptions = buildHourOptions(arrivalMin, arrivalMax);
+  const selectedH = arrivalTime.h ? Number(arrivalTime.h) : (arrivalMin?.h ?? 0);
+  const minuteOptions = buildMinuteOptions(arrivalMin, arrivalMax, selectedH);
+  const arrivalDateMin = checkinISO || undefined;
+  const arrivalDateMax = checkoutISO ? format(addDays(new Date(`${checkoutISO}T12:00:00`), -1), "yyyy-MM-dd") : undefined;
+
+  // Saída: piso = checkout_time_min do imóvel, teto = checkout_time (data
+  // limite oficial). Data: nunca antes do check-in, nunca depois do
+  // check-out confirmado.
+  const departureMin = parseHM(checkoutTimeMin);
+  const departureMax = parseHM(checkoutTime);
+  const departureHourOptions = buildHourOptions(departureMin, departureMax);
+  const selectedDepH = departureTime.h ? Number(departureTime.h) : (departureMin?.h ?? 0);
+  const departureMinuteOptions = buildMinuteOptions(departureMin, departureMax, selectedDepH);
+  const departureDateMin = checkinISO || undefined;
+  const departureDateMax = checkoutISO || undefined;
 
   return (
     <>
@@ -914,48 +1044,146 @@ function Step2(props: {
             }}
           >
             {arrivalAns === "yes" && (
-              <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-                <label className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-bold whitespace-nowrap">
-                  Por volta de
-                </label>
-                <div className="flex items-center gap-1.5">
-                  <Select
-                    value={arrivalTime.h ? arrivalTime.h.padStart(2, "0") : undefined}
-                    onValueChange={(h) => {
-                      const nextM =
-                        Number(h) === minH && Number(arrivalTime.m || "0") < minM
-                          ? String(minM).padStart(2, "0")
-                          : (arrivalTime.m || "00").padStart(2, "0");
-                      setArrivalTime({ h, m: nextM });
-                    }}
-                  >
-                    <SelectTrigger className="h-9 w-[54px] justify-center rounded-[10px] border-border bg-foreground/[0.04] text-[14px] font-bold [&>svg]:hidden">
-                      <SelectValue placeholder="hh" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[280px] min-w-[70px]">
-                      {hourOptions.map((h) => (
-                        <SelectItem key={h} value={h}>
-                          {h}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <span className="text-[14px] font-bold text-muted-foreground">:</span>
-                  <Select
-                    value={arrivalTime.m ? arrivalTime.m.padStart(2, "0") : undefined}
-                    onValueChange={(m) => setArrivalTime({ h: arrivalTime.h || String(minH).padStart(2, "0"), m })}
-                  >
-                    <SelectTrigger className="h-9 w-[54px] justify-center rounded-[10px] border-border bg-foreground/[0.04] text-[14px] font-bold [&>svg]:hidden">
-                      <SelectValue placeholder="mm" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[280px] min-w-[70px]">
-                      {minuteOptions.map((m) => (
-                        <SelectItem key={m} value={m}>
-                          {m}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              <div className="mt-3 flex flex-col items-center gap-2">
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <label className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-bold whitespace-nowrap">
+                    Dia
+                  </label>
+                  <input
+                    type="date"
+                    value={arrivalDate || arrivalDateMin || ""}
+                    min={arrivalDateMin}
+                    max={arrivalDateMax}
+                    onChange={(e) => setArrivalDate(e.target.value)}
+                    className="h-9 rounded-[10px] border border-border bg-foreground/[0.04] px-2.5 text-[13px] font-semibold text-foreground"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <label className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-bold whitespace-nowrap">
+                    Por volta de
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <Select
+                      value={arrivalTime.h ? arrivalTime.h.padStart(2, "0") : undefined}
+                      onValueChange={(h) => {
+                        const nextM =
+                          Number(h) === minH && Number(arrivalTime.m || "0") < minM
+                            ? String(minM).padStart(2, "0")
+                            : (arrivalTime.m || "00").padStart(2, "0");
+                        setArrivalTime({ h, m: nextM });
+                      }}
+                    >
+                      <SelectTrigger className="h-9 w-[54px] justify-center rounded-[10px] border-border bg-foreground/[0.04] text-[14px] font-bold [&>svg]:hidden">
+                        <SelectValue placeholder="hh" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[280px] min-w-[70px]">
+                        {hourOptions.map((h) => (
+                          <SelectItem key={h} value={h}>
+                            {h}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <span className="text-[14px] font-bold text-muted-foreground">:</span>
+                    <Select
+                      value={arrivalTime.m ? arrivalTime.m.padStart(2, "0") : undefined}
+                      onValueChange={(m) => setArrivalTime({ h: arrivalTime.h || String(minH).padStart(2, "0"), m })}
+                    >
+                      <SelectTrigger className="h-9 w-[54px] justify-center rounded-[10px] border-border bg-foreground/[0.04] text-[14px] font-bold [&>svg]:hidden">
+                        <SelectValue placeholder="mm" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[280px] min-w-[70px]">
+                        {minuteOptions.map((m) => (
+                          <SelectItem key={m} value={m}>
+                            {m}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            )}
+          </QuestionBlock>
+        )}
+
+        {/* Departure */}
+        {cfg.arrivalTime !== "off" && (
+          <QuestionBlock
+            icon="🚪"
+            title="Possui previsão de saída?"
+            required={false}
+            answer={departureAns}
+            onAnswer={(v) => {
+              setDepartureAns(v);
+              if (v === "no") setDepartureTime({ h: "", m: "" });
+            }}
+          >
+            {departureAns === "yes" && (
+              <div className="mt-3 flex flex-col items-center gap-2">
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <label className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-bold whitespace-nowrap">
+                    Dia
+                  </label>
+                  <input
+                    type="date"
+                    value={departureDate || departureDateMax || ""}
+                    min={departureDateMin}
+                    max={departureDateMax}
+                    onChange={(e) => setDepartureDate(e.target.value)}
+                    className="h-9 rounded-[10px] border border-border bg-foreground/[0.04] px-2.5 text-[13px] font-semibold text-foreground"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <label className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-bold whitespace-nowrap">
+                    Por volta de
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <Select
+                      value={departureTime.h ? departureTime.h.padStart(2, "0") : undefined}
+                      onValueChange={(h) => {
+                        const depMinH = departureMin?.h ?? 0;
+                        const depMinM = departureMin?.m ?? 0;
+                        const nextM =
+                          Number(h) === depMinH && Number(departureTime.m || "0") < depMinM
+                            ? String(depMinM).padStart(2, "0")
+                            : (departureTime.m || "00").padStart(2, "0");
+                        setDepartureTime({ h, m: nextM });
+                      }}
+                    >
+                      <SelectTrigger className="h-9 w-[54px] justify-center rounded-[10px] border-border bg-foreground/[0.04] text-[14px] font-bold [&>svg]:hidden">
+                        <SelectValue placeholder="hh" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[280px] min-w-[70px]">
+                        {departureHourOptions.map((h) => (
+                          <SelectItem key={h} value={h}>
+                            {h}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <span className="text-[14px] font-bold text-muted-foreground">:</span>
+                    <Select
+                      value={departureTime.m ? departureTime.m.padStart(2, "0") : undefined}
+                      onValueChange={(m) =>
+                        setDepartureTime({
+                          h: departureTime.h || String(departureMin?.h ?? 0).padStart(2, "0"),
+                          m,
+                        })
+                      }
+                    >
+                      <SelectTrigger className="h-9 w-[54px] justify-center rounded-[10px] border-border bg-foreground/[0.04] text-[14px] font-bold [&>svg]:hidden">
+                        <SelectValue placeholder="mm" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[280px] min-w-[70px]">
+                        {departureMinuteOptions.map((m) => (
+                          <SelectItem key={m} value={m}>
+                            {m}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
             )}

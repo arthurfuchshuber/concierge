@@ -5894,9 +5894,14 @@ function ArrivalCard({
             )}
             <DateEditor
               /* Data prevista é um override próprio do card: fica em
-                 branco até alguém registrar chegada em outro dia. */
+                 branco até alguém registrar chegada em outro dia.
+                 Diferente do campo "Período" (datas confirmadas da
+                 reserva), este NÃO trava para "Hóspede Pendente" — o
+                 anfitrião pode registrar a previsão de chegada/saída
+                 mesmo antes do hóspede se identificar no formulário do
+                 guia. Pedido explícito (05/09/2026). */
               value={row.arrivalDateOverride ?? ""}
-              disabled={busy || isPendingFill}
+              disabled={busy}
               placeholder="Data"
               min={predictedMinDate ?? undefined}
               // Checkin: nunca antes da reserva, até 1 dia antes do checkout

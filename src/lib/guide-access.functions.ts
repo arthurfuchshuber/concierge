@@ -29,9 +29,31 @@ const AccessInput = z.object({
   guest_phone: z.string().trim().max(40).optional().nullable(),
   guest_phone_country: z.string().trim().max(4).optional().nullable(),
   guest_arrival_time: z.string().trim().max(10).optional().nullable(),
+  predicted_checkin_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  predicted_checkout_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  predicted_checkout_time: z.string().trim().max(10).optional().nullable(),
   guest_vehicles: z.array(VehicleSchema).max(10).optional().nullable(),
   guest_documents: z.array(DocumentSchema).max(20).optional().nullable(),
 });
+
+function timeToMinutes(t: string | null | undefined): number | null {
+  const m = String(t ?? "").match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+/** Mesma checagem de faixa usada no seletor de horário do anfitrião — aqui só
+ * pra decidir se um horário previsto informado pelo hóspede fica dentro do
+ * limite configurado para o imóvel antes de gravar como override. */
+function withinTimeBounds(time: string | null, min: string | null, max: string | null): boolean {
+  const t = timeToMinutes(time);
+  if (t === null) return false;
+  const lo = timeToMinutes(min);
+  const hi = timeToMinutes(max);
+  if (lo !== null && t < lo) return false;
+  if (hi !== null && t > hi) return false;
+  return true;
+}
 
 export const recordGuideAccess = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => AccessInput.parse(i))
@@ -44,7 +66,9 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const propQuery = supabaseAdmin
       .from("properties")
-      .select("id, checkin_time, tagline, airbnb_ical_url, airbnb_ical_last_sync_at")
+      .select(
+        "id, checkin_time, checkin_time_max, checkout_time, checkout_time_min, tagline, airbnb_ical_url, airbnb_ical_last_sync_at",
+      )
       .eq("slug", data.slug)
       .eq("published", true);
     const { data: prop, error: propErr } = data.property_id
@@ -104,21 +128,103 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
     }
 
     const userAgent = getRequestHeader("user-agent")?.slice(0, 500) ?? null;
-    const { error } = await supabaseAdmin.from("guide_access_logs").insert({
-      property_id: prop.id,
-      guest_name: data.guest_name,
-      reservation_code: (data.reservation_code?.trim() || icalReservationCode) || null,
-      checkin_date: data.checkin_date,
-      checkout_date: data.checkout_date ?? null,
-      guest_phone: data.guest_phone?.trim() || null,
+    const { data: insertedLog, error } = await supabaseAdmin
+      .from("guide_access_logs")
+      .insert({
+        property_id: prop.id,
+        guest_name: data.guest_name,
+        reservation_code: (data.reservation_code?.trim() || icalReservationCode) || null,
+        checkin_date: data.checkin_date,
+        checkout_date: data.checkout_date ?? null,
+        guest_phone: data.guest_phone?.trim() || null,
 
-      guest_phone_country: data.guest_phone_country?.trim() || null,
-      guest_arrival_time: data.guest_arrival_time?.trim() || null,
-      guest_vehicles: data.guest_vehicles && data.guest_vehicles.length > 0 ? data.guest_vehicles : null,
-      guest_documents: data.guest_documents && data.guest_documents.length > 0 ? data.guest_documents : null,
-      user_agent: userAgent,
-    } as never);
+        guest_phone_country: data.guest_phone_country?.trim() || null,
+        guest_arrival_time: data.guest_arrival_time?.trim() || null,
+        guest_vehicles: data.guest_vehicles && data.guest_vehicles.length > 0 ? data.guest_vehicles : null,
+        guest_documents: data.guest_documents && data.guest_documents.length > 0 ? data.guest_documents : null,
+        user_agent: userAgent,
+      } as never)
+      .select("id")
+      .single();
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("guide_access_logs", error);
+
+    // Previsão de chegada/saída informada pelo próprio hóspede no formulário
+    // (mesmas regras já aplicadas no seletor do anfitrião): checkin nunca
+    // antes da reserva confirmada nem no dia do checkout (ou depois);
+    // checkout nunca antes do checkin nem depois da reserva confirmada. O
+    // navegador do hóspede já aplica esses limites no input (min/max), isso
+    // aqui é só defesa em profundidade — se vier fora do limite, ignoramos
+    // silenciosamente em vez de derrubar o cadastro inteiro. Pedido
+    // explícito (05/09/2026).
+    const logId = (insertedLog as { id: string } | null)?.id ?? null;
+    if (logId) {
+      const stayCheckinDate = data.checkin_date;
+      const stayCheckoutDate = data.checkout_date ?? null;
+      const arrivalOverride =
+        typeof data.predicted_checkin_date === "string" &&
+        data.predicted_checkin_date >= stayCheckinDate &&
+        (!stayCheckoutDate || data.predicted_checkin_date < stayCheckoutDate)
+          ? data.predicted_checkin_date
+          : null;
+      const departureOverride =
+        typeof data.predicted_checkout_date === "string" &&
+        data.predicted_checkout_date >= stayCheckinDate &&
+        (!stayCheckoutDate || data.predicted_checkout_date <= stayCheckoutDate)
+          ? data.predicted_checkout_date
+          : null;
+
+      const p = prop as {
+        checkin_time?: string | null;
+        checkin_time_max?: string | null;
+        checkout_time?: string | null;
+        checkout_time_min?: string | null;
+      };
+      const arrivalTimeRaw = data.guest_arrival_time?.trim() || null;
+      const arrivalTimeOverride =
+        arrivalTimeRaw && withinTimeBounds(arrivalTimeRaw, p.checkin_time ?? null, p.checkin_time_max ?? null)
+          ? arrivalTimeRaw
+          : null;
+      const departureTimeRaw = data.predicted_checkout_time?.trim() || null;
+      const departureTimeOverride =
+        departureTimeRaw && withinTimeBounds(departureTimeRaw, p.checkout_time_min ?? null, p.checkout_time ?? null)
+          ? departureTimeRaw
+          : null;
+
+      try {
+        const writes: Array<Promise<unknown>> = [];
+        if (arrivalOverride || arrivalTimeOverride) {
+          writes.push(
+            supabaseAdmin.from("guest_arrival_status").upsert(
+              {
+                log_id: logId,
+                property_id: prop.id,
+                kind: "checkin",
+                arrival_date_override: arrivalOverride,
+                arrival_time_override: arrivalTimeOverride,
+              } as never,
+              { onConflict: "log_id,kind" },
+            ),
+          );
+        }
+        if (departureOverride || departureTimeOverride) {
+          writes.push(
+            supabaseAdmin.from("guest_arrival_status").upsert(
+              {
+                log_id: logId,
+                property_id: prop.id,
+                kind: "checkout",
+                arrival_date_override: departureOverride,
+                arrival_time_override: departureTimeOverride,
+              } as never,
+              { onConflict: "log_id,kind" },
+            ),
+          );
+        }
+        if (writes.length > 0) await Promise.all(writes);
+      } catch {
+        // Não derruba o cadastro do hóspede por falha ao gravar a previsão.
+      }
+    }
 
 
     try {
