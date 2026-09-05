@@ -1260,7 +1260,11 @@ const RevertInput = z
   .object({
     logId: z.string().uuid().optional(),
     reservationId: z.string().uuid().optional(),
-    from: z.enum(["checkout", "stay", "cleaning", "done"]),
+    // "no_show" desfaz o "Não Compareceu" (ver markNoShow logo abaixo) — o
+    // card volta pra Chegadas, mesmo racional de "stay"/"checkout" (undo do
+    // checkin.done), só que aqui a linha nunca tinha status "done" pra
+    // começo de conversa: era "no_show".
+    from: z.enum(["checkout", "stay", "cleaning", "done", "no_show"]),
   })
   .refine((v) => !!v.logId || !!v.reservationId, { message: "Informe a reserva ou o registro do hóspede." });
 
@@ -1291,8 +1295,8 @@ export const revertArrival = createServerFn({ method: "POST" })
       return undefined;
     }
 
-    if (data.from === "stay" || data.from === "checkout") {
-      // Back to Chegadas: undo checkin.done.
+    if (data.from === "stay" || data.from === "checkout" || data.from === "no_show") {
+      // Back to Chegadas: undo checkin.done (ou checkin.no_show).
       const id = await findId("checkin");
       if (id) {
         const { error } = await context.supabase
@@ -1372,6 +1376,85 @@ export const revertArrival = createServerFn({ method: "POST" })
         if (error) throw new Error(error.message);
       }
     }
+    return { ok: true };
+  });
+
+// ----- "Não Compareceu" (no-show) -----
+// Pedido explícito, 05/09/2026: um card de Check-ins pode ser marcado como
+// "Não Compareceu" pelo menu "⋮". Ele sai da esteira normal (nunca mais
+// aparece em Check-ins/Estadia/Checkouts/Limpeza) e passa a viver numa
+// coluna própria (ver listNoShowArrivals). Importante: como isso NUNCA cria
+// uma linha kind="checkout", a trava operacional de advanceArrival (que só
+// enxerga checkout aberto do mesmo imóvel) não tem o que bloquear — o imóvel
+// já fica liberado pro próximo check-in imediatamente, sem precisar de
+// nenhuma lógica extra de "pular limpeza".
+const NoShowInput = z
+  .object({
+    logId: z.string().uuid().optional(),
+    reservationId: z.string().uuid().optional(),
+  })
+  .refine((v) => !!v.logId || !!v.reservationId, { message: "Informe a reserva ou o registro do hóspede." });
+
+export const markNoShow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => NoShowInput.parse(i))
+  .handler(async ({ data, context }) => {
+    let propertyId: string | null = null;
+    if (data.logId) {
+      const { data: log } = await context.supabase
+        .from("guide_access_logs")
+        .select("property_id")
+        .eq("id", data.logId)
+        .maybeSingle();
+      propertyId = (log as { property_id: string } | null)?.property_id ?? null;
+    }
+    if (!propertyId && data.reservationId) {
+      const { data: res } = await context.supabase
+        .from("property_reservations")
+        .select("property_id")
+        .eq("id", data.reservationId)
+        .maybeSingle();
+      propertyId = (res as { property_id: string } | null)?.property_id ?? null;
+    }
+    if (!propertyId) throw new Error("Registro não encontrado.");
+
+    const nowIso = new Date().toISOString();
+    const body: {
+      property_id: string;
+      kind: "checkin";
+      log_id?: string;
+      reservation_id?: string;
+      status: string;
+      done_at: string;
+      concluded_at: string;
+    } = { property_id: propertyId, kind: "checkin", status: "no_show", done_at: nowIso, concluded_at: nowIso };
+    if (data.logId) body.log_id = data.logId;
+    if (data.reservationId) body.reservation_id = data.reservationId;
+
+    // Mesmo racional de upsertStatus (advanceArrival, mais acima): quando os
+    // DOIS identificadores coexistem, busca por QUALQUER um dos dois antes de
+    // decidir insert/update — um onConflict só não é seguro nesse caso (ver
+    // comentário completo lá em cima).
+    if (data.logId && data.reservationId) {
+      const { data: existing, error: findErr } = await context.supabase
+        .from("guest_arrival_status")
+        .select("id")
+        .eq("kind", "checkin")
+        .or(`log_id.eq.${data.logId},reservation_id.eq.${data.reservationId}`)
+        .limit(1);
+      if (findErr) throw new Error(findErr.message);
+      const existingId = (existing?.[0] as { id: string } | undefined)?.id;
+      const { error } = existingId
+        ? await context.supabase.from("guest_arrival_status").update(body).eq("id", existingId)
+        : await context.supabase.from("guest_arrival_status").insert(body);
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = data.reservationId
+        ? await context.supabase.from("guest_arrival_status").upsert(body, { onConflict: "reservation_id,kind" })
+        : await context.supabase.from("guest_arrival_status").upsert(body, { onConflict: "log_id,kind" });
+      if (error) throw new Error(error.message);
+    }
+
     return { ok: true };
   });
 
@@ -1769,6 +1852,166 @@ export const listConcludedArrivals = createServerFn({ method: "GET" })
     // Busca (sem acento, sem caixa) por hóspede, imóvel, proprietário ou
     // código da reserva — só entra em ação quando `q` vem preenchido, então
     // não muda em nada o comportamento padrão da tela.
+    const { normalize } = await import("@/lib/clicksign.server");
+    const term = normalize(data!.q);
+    const filtered = out.filter((r) =>
+      [r.guestName, r.propertyName, r.ownerName, r.reservationCode].some(
+        (v) => v && normalize(v).includes(term),
+      ),
+    );
+    return { rows: filtered };
+  });
+
+// ----- Não Compareceu: cards marcados como no-show (coluna própria, depois
+// de "Concluídos") -----
+// Espelha listConcludedArrivals quase linha por linha (mesmo racional: busca
+// por padrão só os 200 mais recentes, solta o limite quando `q` vem
+// preenchido) — só troca o filtro (kind="checkin" + status="no_show", em vez
+// de kind="checkout" + concluded_at preenchido) e a ordenação (done_at, que é
+// o timestamp gravado por markNoShow).
+export const listNoShowArrivals = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => ConcludedInput.parse(i))
+  .handler(async ({ data, context }): Promise<{ rows: ArrivalRow[] }> => {
+    const propIds = await accessiblePropertyIds(context.supabase as never, data?.ownerId ?? null, context.userId);
+    if (propIds.length === 0) return { rows: [] };
+
+    const searching = !!data?.q && data.q.trim().length > 0;
+
+    const { data: statuses } = await context.supabase
+      .from("guest_arrival_status")
+      .select("log_id, reservation_id, property_id, note, arrival_time_override, done_at")
+      .in("property_id", propIds)
+      .eq("kind", "checkin")
+      .eq("status", "no_show")
+      .order("done_at", { ascending: false })
+      .limit(searching ? 3000 : 200);
+
+    const rowsIn = (statuses ?? []) as Array<{
+      log_id: string | null;
+      reservation_id: string | null;
+      property_id: string;
+      note: string | null;
+      arrival_time_override: string | null;
+      done_at: string | null;
+    }>;
+    if (rowsIn.length === 0) return { rows: [] };
+
+    const logIds = rowsIn.map((r) => r.log_id).filter((v): v is string => !!v);
+    const resIds = rowsIn.map((r) => r.reservation_id).filter((v): v is string => !!v);
+
+    const [{ data: props }, logsRes, resRes] = await Promise.all([
+      context.supabase.from("properties").select("id, name, address, owner_contact_id, maps_url, garage_maps_url, lat, lng").in("id", propIds),
+      logIds.length
+        ? context.supabase
+            .from("guide_access_logs")
+            .select("id, property_id, guest_name, guest_phone, guest_phone_country, guest_arrival_time, checkin_date, checkout_date, reservation_code, created_at")
+            .in("id", logIds)
+        : Promise.resolve({ data: [] as never[] }),
+      resIds.length
+        ? context.supabase
+            .from("property_reservations")
+            .select("id, property_id, checkin_date, checkout_date, guest_hint, created_at")
+            .in("id", resIds)
+        : Promise.resolve({ data: [] as never[] }),
+    ]);
+
+    const propArr = (props ?? []) as Array<{
+      id: string;
+      name: string | null;
+      address: string | null;
+      owner_contact_id: string | null;
+      maps_url: string | null;
+      garage_maps_url: string | null;
+      lat: number | null;
+      lng: number | null;
+    }>;
+    const ownerIds = Array.from(new Set(propArr.map((p) => p.owner_contact_id).filter((v): v is string => !!v)));
+    const ownerNameById = new Map<string, string>();
+    const ownerPhoneById = new Map<string, { phone: string | null; country: string | null }>();
+    if (ownerIds.length > 0) {
+      const { data: owners } = await context.supabase
+        .from("property_owners")
+        .select("id, name, trade_name, phone, phone_country")
+        .in("id", ownerIds);
+      for (const o of (owners ?? []) as Array<{ id: string; name: string | null; trade_name: string | null; phone: string | null; phone_country: string | null }>) {
+        const label = (o.trade_name || o.name || "").trim();
+        if (label) ownerNameById.set(o.id, label);
+        ownerPhoneById.set(o.id, { phone: o.phone ?? null, country: o.phone_country ?? null });
+      }
+    }
+    const propById = new Map(propArr.map((p) => [p.id, p]));
+    const logById = new Map(
+      ((logsRes.data ?? []) as Array<Record<string, unknown>>).map((l) => [l["id"] as string, l]),
+    );
+    const resById = new Map(
+      ((resRes.data ?? []) as Array<Record<string, unknown>>).map((r) => [r["id"] as string, r]),
+    );
+
+    const out: ArrivalRow[] = [];
+    const seen = new Set<string>();
+    for (const s of rowsIn) {
+      const log = s.log_id ? logById.get(s.log_id) : undefined;
+      const res = s.reservation_id ? resById.get(s.reservation_id) : undefined;
+      if (!log && !res) continue;
+      const p = propById.get(s.property_id);
+      const checkin = (log?.["checkin_date"] as string) ?? (res?.["checkin_date"] as string) ?? "";
+      const checkout = (log?.["checkout_date"] as string) ?? (res?.["checkout_date"] as string) ?? null;
+      const key = `${s.property_id}|${checkin}|${checkout ?? ""}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        logId: (log?.["id"] as string) ?? `ical:${s.reservation_id}`,
+        reservationId: s.reservation_id,
+        mutedUntil: null,
+        propertyId: s.property_id,
+        propertyName: p?.name ?? null,
+        ownerName: p?.owner_contact_id ? (ownerNameById.get(p.owner_contact_id) ?? null) : null,
+        ownerPhone: p?.owner_contact_id ? (ownerPhoneById.get(p.owner_contact_id)?.phone ?? null) : null,
+        ownerPhoneCountry: p?.owner_contact_id ? (ownerPhoneById.get(p.owner_contact_id)?.country ?? null) : null,
+        propertyAddress: p?.address ?? null,
+        mapsUrl: p?.maps_url ?? null,
+        garageMapsUrl: p?.garage_maps_url ?? null,
+        lat: p?.lat ?? null,
+        lng: p?.lng ?? null,
+        hasPasswords: false,
+        openedCheckin: true,
+        openedGuide: true,
+        readInstructions: true,
+        viewedPasswords: true,
+        guestName: (log?.["guest_name"] as string) ?? (res?.["guest_hint"] as string) ?? "Reserva Airbnb",
+        guestPhone: (log?.["guest_phone"] as string) ?? null,
+        guestPhoneCountry: (log?.["guest_phone_country"] as string) ?? null,
+        guestArrivalTime: (log?.["guest_arrival_time"] as string) ?? null,
+        standardTime: null,
+        standardTimeMax: null,
+        cleaningPriceNormalCents: null,
+        cleaningPriceFullCents: null,
+        date: checkin,
+        guestCheckin: checkin,
+        guestCheckout: checkout,
+        reservationCode: (log?.["reservation_code"] as string) ?? (res?.["guest_hint"] as string) ?? null,
+        createdAt: (log?.["created_at"] as string) ?? (res?.["created_at"] as string) ?? new Date().toISOString(),
+        // Não existe um status "no_show" no tipo ArrivalRow (de propósito —
+        // ver comentário no topo deste bloco): igual a "Concluídos", esta
+        // lista já é dedicada e não compete com os filtros "pending" das
+        // outras colunas, então "done" aqui só serve pra a UI (ArrivalCard)
+        // tratar o card como um card "fechado" (mostra o selo, esconde o
+        // botão de ação) — o valor real gravado no banco é "no_show".
+        status: "done",
+        note: s.note,
+        arrivalTimeOverride: s.arrival_time_override,
+        arrivalDateOverride: null,
+        doneAt: s.done_at,
+        pendingFill: false,
+        ical: { hasIcal: !!res, matched: !!res, icalCheckin: null, icalCheckout: null },
+        additionalGuests: [],
+        concludedAt: s.done_at,
+      });
+    }
+
+    if (!searching) return { rows: out };
+
     const { normalize } = await import("@/lib/clicksign.server");
     const term = normalize(data!.q);
     const filtered = out.filter((r) =>

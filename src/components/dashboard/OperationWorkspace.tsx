@@ -61,6 +61,7 @@ import {
   Navigation,
   Download,
   Repeat,
+  UserX,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, parse, isValid, differenceInCalendarDays } from "date-fns";
@@ -68,7 +69,7 @@ import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 import { toBlob } from "html-to-image";
 
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Calendar as RangeCalendar } from "@/components/ui/calendar";
@@ -105,6 +106,8 @@ import {
   advanceArrival,
   revertArrival,
   listConcludedArrivals,
+  markNoShow,
+  listNoShowArrivals,
   getOccupancyBoard,
   getCleaningStats,
   type ArrivalRow,
@@ -625,6 +628,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const activeOwnerId = impersonation?.userId ?? null;
 
   const concludedFn = useServerFn(listConcludedArrivals);
+  const noShowFn = useServerFn(listNoShowArrivals);
+  const markNoShowFn = useServerFn(markNoShow);
   const occupancyFn = useServerFn(getOccupancyBoard);
   const cleaningStatsFn = useServerFn(getCleaningStats);
   const taskLinkOptionsFn = useServerFn(listTaskLinkOptions);
@@ -654,7 +659,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     if (!el) return;
     const GAP = 12; // gap-3
     const MIN_COL = 320;
-    const TOTAL_COLS = 5;
+    const TOTAL_COLS = 6;
     function recalc() {
       const containerWidth = el!.clientWidth;
       if (containerWidth <= 0) return;
@@ -680,6 +685,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     stay: null,
     cleaning: null,
     done: null,
+    no_show: null,
   });
   // Card em ação (para feedback imediato no toque, sem travar o quadro inteiro).
   const [busyRowId, setBusyRowId] = useState<string | null>(null);
@@ -766,6 +772,21 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const concludedQ = useQuery({
     queryKey: ["dash-list", "concluded", activeOwnerId ?? "self", concludedSearchDebounced],
     queryFn: () => concludedFn({ data: { ownerId: activeOwnerId, q: concludedSearchDebounced || undefined } }),
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+  });
+  // Busca de "Não Compareceu": mesmo racional de "Concluídos" acima (limite
+  // padrão de 200, solto quando `q` vem preenchido) — coluna própria, depois
+  // de "Concluídos" (pedido explícito, 05/09/2026).
+  const [noShowSearch, setNoShowSearch] = useState("");
+  const [noShowSearchDebounced, setNoShowSearchDebounced] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setNoShowSearchDebounced(noShowSearch.trim()), 300);
+    return () => clearTimeout(t);
+  }, [noShowSearch]);
+  const noShowQ = useQuery({
+    queryKey: ["dash-list", "no_show", activeOwnerId ?? "self", noShowSearchDebounced],
+    queryFn: () => noShowFn({ data: { ownerId: activeOwnerId, q: noShowSearchDebounced || undefined } }),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
   });
@@ -949,13 +970,26 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
   const revertFn = useServerFn(revertArrival);
   const revert = useMutation({
-    mutationFn: (v: { logId?: string; reservationId?: string; from: "checkout" | "stay" | "cleaning" | "done" }) =>
-      revertFn({ data: v }),
+    mutationFn: (v: {
+      logId?: string;
+      reservationId?: string;
+      from: "checkout" | "stay" | "cleaning" | "done" | "no_show";
+    }) => revertFn({ data: v }),
     onSuccess: () => {
       refreshDashboard();
       toast.success("Check desfeito.");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao desfazer."),
+    onSettled: () => setBusyRowId(null),
+  });
+
+  const noShow = useMutation({
+    mutationFn: (v: { logId?: string; reservationId?: string }) => markNoShowFn({ data: v }),
+    onSuccess: () => {
+      refreshDashboard();
+      toast.success('Marcado como "Não Compareceu".');
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao marcar não compareceu."),
     onSettled: () => setBusyRowId(null),
   });
 
@@ -1488,12 +1522,20 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     () => concludedRows.filter(matchesKanbanOwnerCity),
     [concludedRows, matchesKanbanOwnerCity],
   );
+  // "Não Compareceu" segue o mesmo racional de "Concluídos" acima: nunca foi
+  // limitado por Hoje/Amanhã/7 dias/Todos, só pelos filtros de Cidade/Proprietário.
+  const noShowRows = noShowQ.data?.rows ?? [];
+  const kanbanNoShowRows = useMemo(
+    () => noShowRows.filter(matchesKanbanOwnerCity),
+    [noShowRows, matchesKanbanOwnerCity],
+  );
   const kanbanCounts = {
     checkin: kanbanCheckinPendingRows.length,
     checkout: kanbanCheckoutPendingRows.length,
     stay: kanbanStayRows.length,
     cleaning: kanbanCleaningRows.length,
     done: kanbanConcludedRows.length,
+    no_show: kanbanNoShowRows.length,
   };
 
   const rangeLabel: Record<typeof range, string> = {
@@ -1513,6 +1555,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       kanbanCiRowsAll,
       kanbanCoRowsAll,
       concludedRows,
+      noShowRows,
       tomorrowCheckinPendingRows,
       tomorrowCheckoutPendingRows,
     ];
@@ -1523,7 +1566,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       }
     }
     return map;
-  }, [kanbanCiRowsAll, kanbanCoRowsAll, concludedRows, tomorrowCheckinPendingRows, tomorrowCheckoutPendingRows]);
+  }, [kanbanCiRowsAll, kanbanCoRowsAll, concludedRows, noShowRows, tomorrowCheckinPendingRows, tomorrowCheckoutPendingRows]);
   function guestNameForTask(t: TaskRow): string {
     if (t.logId) return guestNameByStayRef.get(`log:${t.logId}`) ?? "Hóspede";
     if (t.reservationId) return guestNameByStayRef.get(`res:${t.reservationId}`) ?? "Hóspede";
@@ -1572,7 +1615,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       kind: colKind,
       mode: colMode,
       onMark: (row: ArrivalRow) => {
-        if (colMode === "done") return;
+        if (colMode === "done" || colMode === "no_show") return;
         handleAdvance(row, colMode as "checkin" | "stay" | "checkout" | "cleaning");
       },
       onRevert:
@@ -1593,8 +1636,36 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 patchList("checkout", (rows) =>
                   rows.map((r) => (r.logId === row.logId ? { ...r, status: "pending" } : r)),
                 );
-              revert.mutate({ ...target, from: colMode as "checkout" | "stay" | "cleaning" | "done" });
+              // "done" e "no_show" não têm otimista aqui: a lista de origem
+              // (Concluídos/Não Compareceu) é buscada à parte, não patcheada
+              // no cache de checkin/checkout — o refetch do refreshDashboard
+              // já resolve, mesmo racional que "done" sempre teve.
+              revert.mutate({ ...target, from: colMode as "checkout" | "stay" | "cleaning" | "done" | "no_show" });
             },
+      // Só a coluna de Check-ins oferece "Não Compareceu" (pedido explícito,
+      // 05/09/2026: a opção vive no menu "⋮" do card de check-in pendente).
+      onNoShow:
+        colMode === "checkin"
+          ? (row: ArrivalRow) => {
+              const target = statusTarget(row);
+              if (!target.logId && !target.reservationId) {
+                toast.error("Não foi possível identificar esse card.");
+                return;
+              }
+              if (
+                !window.confirm(
+                  `Marcar ${row.guestName || "este hóspede"} como "Não Compareceu"? O card sai da lista de Check-ins e o imóvel fica liberado para o próximo check-in imediatamente.`,
+                )
+              )
+                return;
+              setBusyRowId(row.logId);
+              // Otimista: some da coluna de Check-ins na hora — o refetch
+              // (refreshDashboard, no onSuccess da mutation) traz de volta na
+              // coluna "Não Compareceu".
+              patchList("checkin", (rows) => rows.filter((r) => r.logId !== row.logId));
+              noShow.mutate(target);
+            }
+          : undefined,
       onSyncIcal: (row: ArrivalRow) => {
         const t = colKind === "checkin" ? "15:00" : "11:00";
         setBusyRowId(row.logId);
@@ -2074,6 +2145,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                         { key: "cleaning", label: "Fila Limpeza", icon: Sparkles, count: kanbanCounts.cleaning },
                         { key: "stay", label: "Estadia", icon: BedDouble, count: kanbanCounts.stay },
                         { key: "done", label: "Concluídos", icon: CheckCircle2, count: kanbanCounts.done },
+                        { key: "no_show", label: "Não Compareceu", icon: UserX, count: kanbanCounts.no_show },
                       ] as const
                     ).map((t) => {
                       const Icon = t.icon;
@@ -2086,6 +2158,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                         stay: "border-b-violet-400 text-violet-400",
                         cleaning: "border-b-sky-400 text-sky-400",
                         done: "border-b-muted-foreground text-muted-foreground",
+                        no_show: "border-b-rose-500 text-rose-500",
                       };
                       return (
                         <button
@@ -2156,6 +2229,14 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   <ColumnEmpty />
                 ) : (
                   <ArrivalGroup title="" {...arrivalGroupPropsFor("done", kanbanConcludedRows)} showReservationLabel />
+                ))}
+              {mobileTab === "no_show" &&
+                (noShowQ.isLoading ? (
+                  <ColumnLoading />
+                ) : kanbanNoShowRows.length === 0 ? (
+                  <ColumnEmpty />
+                ) : (
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("no_show", kanbanNoShowRows)} showReservationLabel />
                 ))}
             </div>
 
@@ -2280,6 +2361,52 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     )
                   ) : (
                     <ArrivalGroup title="" {...arrivalGroupPropsFor("done", kanbanConcludedRows)} showReservationLabel />
+                  )}
+                </KanbanColumn>
+              </div>
+
+              {/* Coluna nova, depois de "Concluídos" (pedido explícito,
+                  05/09/2026) — espelha a coluna de Concluídos (mesma busca,
+                  mesmo limite de 200/3000 no servidor), só que pros cards
+                  marcados como "Não Compareceu" pelo menu "⋮" da coluna de
+                  Check-ins. */}
+              <div style={{ width: kanbanColWidth }} className="shrink-0 snap-start">
+                <KanbanColumn
+                  onScroll={() => setExpandedByColumn((prev) => ({ ...prev, no_show: null }))}
+                  title="Não Compareceu"
+                  icon={UserX}
+                  count={kanbanCounts.no_show}
+                  tone="rose"
+                >
+                  <div className="relative sticky top-0 z-10 -mt-0.5 mb-1">
+                    <Search className="size-3.5 opacity-60 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      value={noShowSearch}
+                      onChange={(e) => setNoShowSearch(e.target.value)}
+                      placeholder="Buscar em não compareceu…"
+                      className="h-8 w-full box-border rounded-none border-0 bg-secondary/60 pl-8 pr-7 text-xs font-normal leading-none text-foreground/80 placeholder:text-muted-foreground focus:outline-none focus:bg-secondary transition-colors"
+                    />
+                    {noShowSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setNoShowSearch("")}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 size-5 grid place-items-center rounded-none text-muted-foreground hover:text-foreground"
+                        aria-label="Limpar busca"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  {noShowQ.isLoading ? (
+                    <ColumnLoading />
+                  ) : kanbanNoShowRows.length === 0 ? (
+                    noShowSearch ? (
+                      <p className="ds-meta px-1 py-6 text-center">Nenhum resultado para "{noShowSearch}".</p>
+                    ) : (
+                      <ColumnEmpty />
+                    )
+                  ) : (
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("no_show", kanbanNoShowRows)} showReservationLabel />
                   )}
                 </KanbanColumn>
               </div>
@@ -2522,6 +2649,7 @@ const KANBAN_TONE: Record<string, string> = {
   sky: "text-sky-600 dark:text-sky-400 bg-sky-500/10 ring-sky-500/20",
   violet: "text-violet-600 dark:text-violet-400 bg-violet-500/10 ring-violet-500/20",
   zinc: "text-muted-foreground bg-muted ring-border",
+  rose: "text-rose-600 dark:text-rose-400 bg-rose-500/10 ring-rose-500/20",
 };
 
 // Mesmo mapa de cor das colunas do desktop, só que como aba ativa (borda +
@@ -2533,6 +2661,7 @@ const KANBAN_TONE_ACTIVE: Record<string, string> = {
   sky: "border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-400",
   violet: "border-violet-500 bg-violet-500/10 text-violet-600 dark:text-violet-400",
   zinc: "border-primary bg-primary/10 text-primary",
+  rose: "border-rose-500 bg-rose-500/10 text-rose-600 dark:text-rose-400",
 };
 
 /** Uma coluna do quadro Kanban — cabeçalho fixo (título + contagem) e corpo
@@ -2548,7 +2677,7 @@ function KanbanColumn({
   title: string;
   icon: React.ElementType;
   count: number;
-  tone: "emerald" | "amber" | "sky" | "violet" | "zinc";
+  tone: "emerald" | "amber" | "sky" | "violet" | "zinc" | "rose";
   children: React.ReactNode;
   /** Dispara ao rolar o corpo da coluna — usado pra recolher "Detalhes da
    * operação" sozinho, de forma sutil, acompanhando a rolagem do usuário. */
@@ -5320,6 +5449,7 @@ function ArrivalGroup({
   mode,
   onMark,
   onRevert,
+  onNoShow,
   onSyncIcal,
   onNote,
   onEditDates,
@@ -5342,6 +5472,9 @@ function ArrivalGroup({
   mode: BoardMode;
   onMark: (r: ArrivalRow) => void;
   onRevert?: (r: ArrivalRow) => void;
+  /** Marca um card de Check-ins como "Não Compareceu" — só passado quando
+   * mode === "checkin" (ver arrivalGroupPropsFor). */
+  onNoShow?: (r: ArrivalRow) => void;
   onSyncIcal: (r: ArrivalRow) => void;
   onNote: (r: ArrivalRow, note: string | null) => void;
   onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
@@ -5395,6 +5528,7 @@ function ArrivalGroup({
           mode={mode}
           onMark={onMark}
           onRevert={onRevert}
+          onNoShow={onNoShow}
           onSyncIcal={onSyncIcal}
           onNote={onNote}
           onEditDates={onEditDates}
@@ -5415,7 +5549,7 @@ function ArrivalGroup({
   );
 }
 
-type BoardMode = "checkin" | "checkout" | "stay" | "cleaning" | "done";
+type BoardMode = "checkin" | "checkout" | "stay" | "cleaning" | "done" | "no_show";
 
 function ArrivalCard({
   row,
@@ -5423,6 +5557,7 @@ function ArrivalCard({
   mode,
   onMark,
   onRevert,
+  onNoShow,
   onSyncIcal,
   onNote,
   onEditDates,
@@ -5443,6 +5578,9 @@ function ArrivalCard({
   mode: BoardMode;
   onMark: (r: ArrivalRow) => void;
   onRevert?: (r: ArrivalRow) => void;
+  /** Marca este card (Check-ins) como "Não Compareceu" — pedido explícito,
+   * 05/09/2026: opção no menu "⋮", só nos cards de check-in ainda pendentes. */
+  onNoShow?: (r: ArrivalRow) => void;
   onSyncIcal: (r: ArrivalRow) => void;
   onNote: (r: ArrivalRow, note: string | null) => void;
   onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
@@ -5711,16 +5849,26 @@ function ArrivalCard({
       ? "Desfazer o check-in e voltar este card para a lista de Check-ins?"
       : mode === "cleaning"
         ? "Desfazer o check-out e voltar este card para a lista de Checkouts?"
-        : "Reabrir esta estadia e voltar o card para a lista Em Limpeza?";
+        : mode === "no_show"
+          ? 'Desfazer o "Não Compareceu" e voltar este card para a lista de Check-ins?'
+          : "Reabrir esta estadia e voltar o card para a lista Em Limpeza?";
   const revertTitle =
     mode === "stay" || mode === "checkout"
       ? "Voltar para a etapa anterior (lista de Check-ins)"
       : mode === "cleaning"
         ? "Voltar para a etapa anterior (lista de Checkouts)"
-        : "Voltar para a etapa anterior (lista Em Limpeza)";
+        : mode === "no_show"
+          ? "Voltar para a etapa anterior (lista de Check-ins)"
+          : "Voltar para a etapa anterior (lista Em Limpeza)";
   const handleRevertClick = () => {
     if (window.confirm(revertConfirmLabel)) onRevert?.(row);
   };
+
+  // "Não Compareceu" — só faz sentido num card de Check-ins ainda pendente
+  // (uma vez que o check-in de verdade acontece, ou o card já está noutra
+  // etapa da esteira, a opção não se aplica mais).
+  const showNoShowMenuItem = mode === "checkin" && !done && !!onNoShow;
+  const handleNoShowClick = () => onNoShow?.(row);
 
   // Confirmação quando o check acontece fora do horário/data comum da esteira.
   const [confirmMsg, setConfirmMsg] = useState<string | null>(null);
@@ -5915,42 +6063,38 @@ function ArrivalCard({
                 <Eraser className="size-3" />
               </button>
             )}
-            <DateEditor
-              /* Data prevista é um override próprio do card: fica em
-                 branco até alguém registrar chegada em outro dia.
-                 Diferente do campo "Período" (datas confirmadas da
-                 reserva), este NÃO trava para "Hóspede Pendente" — o
-                 anfitrião pode registrar a previsão de chegada/saída
-                 mesmo antes do hóspede se identificar no formulário do
-                 guia. Pedido explícito (05/09/2026). */
-              value={row.arrivalDateOverride ?? ""}
+            <PredictedEditor
+              /* Data + horário previstos num ÚNICO tooltip (pedido
+                 explícito, 05/09/2026): nada é salvo — e o card só se move
+                 de lista — depois que o usuário FECHA o tooltip inteiro
+                 (clique fora, Esc ou "Concluir"), nunca no meio da escolha
+                 da data. Antes, a data confirmava sozinha e o card podia
+                 sumir da tela antes do usuário conseguir ajustar o horário.
+                 Também não trava para "Hóspede Pendente" — o anfitrião pode
+                 registrar a previsão mesmo antes do hóspede se identificar
+                 no formulário do guia. */
+              kind={kind}
+              dateValue={row.arrivalDateOverride ?? ""}
+              timeValue={guestTime ?? null}
               disabled={busy}
-              placeholder="Data"
-              min={predictedMinDate ?? undefined}
+              confirmedDate={confirmedDateForKind}
+              datePlaceholder="Data"
               // Checkin: nunca antes da reserva, até 1 dia antes do checkout
               // confirmado. Checkout: antes não tinha teto nenhum aqui — agora
               // trava na data de checkout confirmada (não dá pra "esticar" a
               // estadia sozinho por este campo; sair antes continua permitido,
               // já que o mínimo continua sendo a data de check-in). Pedido
               // explícito, 04/09/2026.
-              max={(kind === "checkout" ? confirmedCheckoutDate : predictedMaxDate) ?? undefined}
-              onChange={(v) => onEditPredictedDate?.(row, v)}
-              // Mesma fonte do rótulo "Previsto Check-in/Checkout" (pedido
-              // explícito) — a cor continua branca quando preenchido, pois
-              // vem do texto ambiente; só o placeholder segue cinza (herdado
-              // do botão, ver "blank" acima).
-              valueClassName="text-[10px] uppercase tracking-wider font-normal"
-            />
-            {/* Horário só depois da data: a ordem é data → horário. `min`/
-                `max` travam de verdade o horário ao configurado no imóvel
-                (ver effMinTime/effMaxTime acima) — pedido explícito. */}
-            <TimeDropdown
-              value={guestTime ?? null}
-              disabled={busy || !row.arrivalDateOverride}
-              size="xs"
-              min={effMinTime}
-              max={effMaxTime}
-              onChange={(v) => onEditTime(row, v)}
+              dateMin={predictedMinDate ?? undefined}
+              dateMax={(kind === "checkout" ? confirmedCheckoutDate : predictedMaxDate) ?? undefined}
+              standardTime={row.standardTime}
+              standardTimeMax={row.standardTimeMax}
+              onCommit={(date, time) => {
+                const dateChanged = date !== (row.arrivalDateOverride ?? null);
+                const timeChanged = time !== (guestTime ?? null);
+                if (dateChanged) onEditPredictedDate?.(row, date);
+                if (timeChanged) onEditTime(row, time);
+              }}
             />
           </span>
         </div>
@@ -6130,6 +6274,15 @@ function ArrivalCard({
             <CheckCircle2 className={compact ? "size-3 shrink-0" : "size-4 shrink-0"} />
             {!compact && <span className="truncate">Concluído</span>}
           </span>
+        ) : mode === "no_show" ? (
+          <span
+            title="Hóspede não compareceu"
+            aria-label="Hóspede não compareceu"
+            className={`inline-flex flex-1 min-w-0 items-center justify-center gap-2 rounded-lg bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/30 font-semibold ${compact ? "h-6 px-2 text-[10.5px]" : "h-9 px-3 text-xs"}`}
+          >
+            <UserX className={compact ? "size-3 shrink-0" : "size-4 shrink-0"} />
+            {!compact && <span className="truncate">Não Compareceu</span>}
+          </span>
         ) : (
           <button
             onClick={() => {
@@ -6293,6 +6446,11 @@ function ArrivalCard({
                   <Undo2 className="size-3.5 shrink-0" /> {revertTitle}
                 </DropdownMenuItem>
               )}
+              {showNoShowMenuItem && (
+                <DropdownMenuItem onClick={handleNoShowClick} disabled={busy}>
+                  <UserX className="size-3.5 shrink-0" /> Não Compareceu
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={() => setNoteOpen((v) => !v)}>
                 <StickyNote className="size-3.5 shrink-0" /> {row.note ? "Editar nota" : "Adicionar nota"}
               </DropdownMenuItem>
@@ -6361,6 +6519,19 @@ function addDaysISO(iso: string | null | undefined, days: number): string | unde
   return dt.toISOString().slice(0, 10);
 }
 
+/**
+ * Calendário no MESMO padrão já usado em outros pontos do sistema (ex.:
+ * "Prazo" do card de tarefa) — Popover + Calendar do design system, em vez
+ * do seletor nativo do navegador (que além de destoar do tema, em alguns
+ * ambientes simplesmente parava de abrir depois do primeiro valor
+ * escolhido). Pedido explícito, 05/09/2026.
+ *
+ * A confirmação (`onChange`) só dispara quando o popover FECHA, nunca no
+ * clique do dia em si — assim o card não "pula" de lista/ordenação no meio
+ * da edição, dando tempo do usuário ajustar também o horário antes da
+ * previsão ser efetivamente salva (mesmo pedido). Fechar sem escolher nada
+ * não altera o valor.
+ */
 function DateEditor({
   value,
   disabled,
@@ -6383,38 +6554,70 @@ function DateEditor({
       seguir a fonte de um rótulo específico (ex.: linha "Previsto"). */
   valueClassName?: string;
 }) {
-  const blank = !value || (!!blankWhen && value === blankWhen);
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState<string | null>(null);
+  const shown = pending ?? value;
+  const blank = !shown || (!!blankWhen && shown === blankWhen);
+  const selected = shown ? parseISODateLocal(shown) : undefined;
+  const minDate = min ? parseISODateLocal(min) : undefined;
+  const maxDate = max ? parseISODateLocal(max) : undefined;
+  const disabledMatcher =
+    minDate && maxDate
+      ? [{ before: minDate }, { after: maxDate }]
+      : minDate
+        ? { before: minDate }
+        : maxDate
+          ? { after: maxDate }
+          : undefined;
+
+  function commitPending() {
+    if (pending !== null && pending !== value) onChange(pending);
+    setPending(null);
+  }
+
   return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={(e) => {
-        const input = e.currentTarget.querySelector("input") as HTMLInputElement | null;
-        if (input && typeof input.showPicker === "function") input.showPicker();
-        else input?.focus();
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) commitPending();
+        setOpen(next);
       }}
-      className={`relative inline-flex items-center cursor-pointer rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit ${blank ? "text-muted-foreground" : ""}`}
-      title="Clique para corrigir a data"
     >
-      <span className={`tabular-nums ${valueClassName ?? ""}`}>{blank ? (placeholder ?? "—") : fmtDateBR(value)}</span>
-      <input
-        type="date"
-        value={blank ? "" : value}
-        disabled={disabled}
-        min={min}
-        max={max}
-        onChange={(e) => {
-          const v = e.target.value;
-          if (!v || v === value) return;
-          if (min && v < min) return;
-          if (max && v > max) return;
-          onChange(v);
-        }}
-        onClick={(e) => e.stopPropagation()}
-        aria-label="Data"
-        className="absolute inset-0 opacity-0 cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0"
-      />
-    </button>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={(e) => e.stopPropagation()}
+          className={`relative inline-flex items-center cursor-pointer rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit ${blank ? "text-muted-foreground" : ""}`}
+          title="Clique para corrigir a data"
+        >
+          <span className={`tabular-nums ${valueClassName ?? ""}`}>{blank ? (placeholder ?? "—") : fmtDateBR(shown)}</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-auto p-0" onClick={(e) => e.stopPropagation()}>
+        <RangeCalendar
+          mode="single"
+          locale={ptBR}
+          selected={selected}
+          defaultMonth={selected ?? minDate}
+          disabled={disabledMatcher}
+          onSelect={(d) => {
+            if (!d) return;
+            setPending(dateToISOLocal(d));
+          }}
+          className="p-3"
+        />
+        <div className="flex items-center justify-end border-t border-border p-2">
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="rounded-md px-2.5 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10"
+          >
+            Concluir
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -6503,6 +6706,199 @@ function TimeDropdown({
 function timeToMinutes(s: string): number {
   const [h, m] = s.split(":").map(Number);
   return h * 60 + (m || 0);
+}
+
+/**
+ * Data + horário previstos num ÚNICO tooltip (pedido explícito, 05/09/2026):
+ * não é "mover o card depois de fechar o calendário", é mover só depois de
+ * fechar o TOOLTIP inteiro — calendário e horário precisam viver na mesma
+ * caixa flutuante, com uma única confirmação no final, senão a mesma
+ * situação se repete (o usuário escolhe a data, ela é salva na hora, o card
+ * já pode sumir da lista antes dele conseguir clicar no horário).
+ *
+ * Nada é gravado (nem o card se move) enquanto o tooltip está aberto — só
+ * quando fecha (clique fora, Esc ou o botão "Concluir") é que a data e o
+ * horário pendentes são confirmados juntos, numa única leva.
+ *
+ * O piso/teto do horário reage à data QUE ESTÁ SENDO escolhida (ainda não
+ * confirmada) — mesma regra de "dia mudou → sem piso/teto" do card, só que
+ * calculada aqui em cima do valor pendente, senão a lista de horários
+ * ficaria com a janela do dia errado enquanto o usuário ainda decide.
+ */
+function PredictedEditor({
+  kind,
+  dateValue,
+  timeValue,
+  disabled,
+  confirmedDate,
+  dateMin,
+  dateMax,
+  standardTime,
+  standardTimeMax,
+  datePlaceholder = "Data",
+  onCommit,
+}: {
+  kind: "checkin" | "checkout";
+  dateValue: string; // "" quando não há previsão
+  timeValue: string | null;
+  disabled: boolean;
+  /** Data confirmada da reserva para este tipo (row.guestCheckin/guestCheckout) — usada só para recalcular o piso/teto de horário ao vivo. */
+  confirmedDate: string | null;
+  dateMin?: string;
+  dateMax?: string;
+  standardTime: string | null;
+  standardTimeMax: string | null;
+  datePlaceholder?: string;
+  onCommit: (date: string | null, time: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  // undefined = não tocado ainda nesta sessão de edição (mostra o valor
+  // confirmado); string/"" ou null = valor pendente explícito.
+  const [pendingDate, setPendingDate] = useState<string | undefined>(undefined);
+  const [pendingTime, setPendingTime] = useState<string | null | undefined>(undefined);
+
+  const shownDate = pendingDate !== undefined ? pendingDate : dateValue;
+  const shownTime = pendingTime !== undefined ? pendingTime : timeValue;
+  const dateBlank = !shownDate;
+
+  const selected = shownDate ? parseISODateLocal(shownDate) : undefined;
+  const minDate = dateMin ? parseISODateLocal(dateMin) : undefined;
+  const maxDate = dateMax ? parseISODateLocal(dateMax) : undefined;
+  const disabledMatcher =
+    minDate && maxDate
+      ? [{ before: minDate }, { after: maxDate }]
+      : minDate
+        ? { before: minDate }
+        : maxDate
+          ? { after: maxDate }
+          : undefined;
+
+  // Mesmo cálculo do card (ver effMinTime/effMaxTime em ArrivalCard), só que
+  // em cima da data PENDENTE — a janela do imóvel só vale quando a previsão
+  // ainda cai no mesmo dia da reserva confirmada.
+  const dayShifted = !!shownDate && !!confirmedDate && shownDate !== confirmedDate;
+  const liveMinTime = dayShifted ? null : kind === "checkout" ? standardTimeMax : standardTime;
+  const liveMaxTime = dayShifted ? null : kind === "checkout" ? standardTime : standardTimeMax;
+  const timeSlots = useMemo(() => {
+    if (!liveMinTime && !liveMaxTime) return TIME_SLOTS;
+    const a = liveMinTime ? timeToMinutes(liveMinTime) : -Infinity;
+    const b = liveMaxTime ? timeToMinutes(liveMaxTime) : Infinity;
+    return TIME_SLOTS.filter((t) => {
+      const v = timeToMinutes(t);
+      return v >= a && v <= b;
+    });
+  }, [liveMinTime, liveMaxTime]);
+
+  function startEditing() {
+    if (disabled) return;
+    setPendingDate(dateValue || "");
+    setPendingTime(timeValue ?? null);
+    setOpen(true);
+  }
+
+  function closeAndCommit() {
+    const finalDate = pendingDate !== undefined ? pendingDate || null : dateValue || null;
+    const finalTime = pendingTime !== undefined ? pendingTime : timeValue ?? null;
+    const dateChanged = finalDate !== (dateValue || null);
+    const timeChanged = finalTime !== (timeValue ?? null);
+    if (dateChanged || timeChanged) onCommit(finalDate, finalTime);
+    setPendingDate(undefined);
+    setPendingTime(undefined);
+    setOpen(false);
+  }
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) closeAndCommit();
+      }}
+    >
+      <PopoverAnchor asChild>
+        <span className="inline-flex items-center gap-3">
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={(e) => {
+              e.stopPropagation();
+              startEditing();
+            }}
+            className={`relative inline-flex items-center cursor-pointer rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit ${dateBlank ? "text-muted-foreground" : ""}`}
+            title="Clique para ajustar data e horário previstos"
+          >
+            <span className="tabular-nums text-[10px] uppercase tracking-wider font-normal">
+              {dateBlank ? datePlaceholder : fmtDateBR(shownDate)}
+            </span>
+          </button>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={(e) => {
+              e.stopPropagation();
+              startEditing();
+            }}
+            title="Clique para ajustar data e horário previstos"
+            className="inline-flex w-auto items-center gap-1 tabular-nums rounded cursor-pointer bg-transparent border-0 p-0 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit text-[10px] uppercase tracking-wider"
+          >
+            <span className={shownTime ? "font-normal text-foreground" : "font-normal text-muted-foreground"}>
+              {shownTime ?? "Horário"}
+            </span>
+          </button>
+        </span>
+      </PopoverAnchor>
+      <PopoverContent align="end" className="w-auto p-0" onClick={(e) => e.stopPropagation()}>
+        <RangeCalendar
+          mode="single"
+          locale={ptBR}
+          selected={selected}
+          defaultMonth={selected ?? minDate}
+          disabled={disabledMatcher}
+          onSelect={(d) => {
+            if (!d) return;
+            setPendingDate(dateToISOLocal(d));
+          }}
+          className="p-3"
+        />
+        <div className="border-t border-border p-2">
+          <div className="px-1 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Horário
+          </div>
+          <div className="flex max-h-32 flex-wrap gap-1 overflow-y-auto px-1">
+            {timeSlots.map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setPendingTime(t)}
+                className={`rounded px-2 py-1 text-[11px] tabular-nums ${
+                  shownTime === t
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-foreground hover:bg-secondary/70"
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center justify-between border-t border-border p-2">
+          <button
+            type="button"
+            onClick={() => setPendingTime(null)}
+            className="rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+          >
+            Limpar horário
+          </button>
+          <button
+            type="button"
+            onClick={closeAndCommit}
+            className="rounded-md px-2.5 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10"
+          >
+            Concluir
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 function isTimeWithin(t: string, min: string, max: string | null): boolean {
