@@ -356,6 +356,75 @@ export async function revokeCenterPermission(
  * Vincula ou desvincula um imóvel do usuário.
  * O imóvel é SEMPRE escopo — nenhuma permissão é criada por imóvel.
  */
+/**
+ * Sai do modo "atende todas as residências": grava um vínculo explícito para
+ * cada imóvel da conta (exceto os excluídos) e desliga a flag.
+ */
+async function materializeAllProperties(
+  tenantId: string,
+  targetUserId: string,
+  actorId: string,
+  except: string[] = [],
+) {
+  const client = await db();
+  const { data: props } = await client
+    .from("properties")
+    .select("id")
+    .eq("owner_id", tenantId);
+  const ids = ((props ?? []) as Array<{ id: string }>)
+    .map((p) => p.id)
+    .filter((id) => !except.includes(id));
+  for (const id of ids) {
+    await permissionRepository.upsertPropertyAssignment({
+      tenantId,
+      propertyId: id,
+      userId: targetUserId,
+      createdBy: actorId,
+    });
+  }
+  await client
+    .from("account_members")
+    .update({ all_properties: false } as never)
+    .eq("owner_id", tenantId)
+    .eq("member_user_id", targetUserId);
+}
+
+/** Liga/desliga o modo "atende todas as residências" de um usuário da equipe. */
+export async function setCenterAllProperties(
+  actorId: string,
+  input: { targetUserId: string; all: boolean },
+): Promise<MutationResult> {
+  const ctx = await assertCenterWrite(actorId);
+  await assertSameTenant(ctx.tenantId, input.targetUserId);
+  if (input.targetUserId === ctx.tenantId) {
+    return { ok: true, message: "O titular da conta já atende todas as residências." };
+  }
+
+  const client = await db();
+  if (input.all) {
+    await client
+      .from("account_members")
+      .update({ all_properties: true } as never)
+      .eq("owner_id", ctx.tenantId)
+      .eq("member_user_id", input.targetUserId);
+  } else {
+    await materializeAllProperties(ctx.tenantId, input.targetUserId, ctx.actorId);
+  }
+
+  await audit(ctx, {
+    targetUserId: input.targetUserId,
+    action: input.all ? "scope.property.all.on" : "scope.property.all.off",
+    scopeType: "PROPERTY",
+    metadata: { all: input.all },
+  });
+  return {
+    ok: true,
+    message: input.all
+      ? "Agora esta pessoa atende todas as residências, inclusive as futuras."
+      : "Agora você escolhe quais residências esta pessoa atende.",
+  };
+}
+
 export async function setCenterPropertyScope(
   actorId: string,
   input: { targetUserId: string; propertyId: string; assigned: boolean },
@@ -371,6 +440,24 @@ export async function setCenterPropertyScope(
     .eq("owner_id", ctx.tenantId)
     .maybeSingle();
   if (!property) throw new Error("Residência não pertence a esta conta.");
+
+  // Se a pessoa está no modo "todas as residências" e alguém desmarca uma,
+  // materializamos a lista atual (todas menos essa) e saímos do modo "todas".
+  const { data: member } = await client
+    .from("account_members")
+    .select("all_properties")
+    .eq("owner_id", ctx.tenantId)
+    .eq("member_user_id", input.targetUserId)
+    .maybeSingle();
+  const isAll = (member as { all_properties?: boolean | null } | null)?.all_properties !== false;
+  if (isAll && input.targetUserId !== ctx.tenantId) {
+    if (input.assigned) {
+      return { ok: true, message: "Esta pessoa já atende todas as residências." };
+    }
+    await materializeAllProperties(ctx.tenantId, input.targetUserId, ctx.actorId, [
+      input.propertyId,
+    ]);
+  }
 
   if (input.assigned) {
     await permissionRepository.upsertPropertyAssignment({
@@ -410,6 +497,7 @@ export const permissionCenterMutations = {
   grantCenterPermission,
   revokeCenterPermission,
   setCenterPropertyScope,
+  setCenterAllProperties,
 };
 
 export const ACCOUNT_ROLE_OPTIONS = ACCOUNT_ROLES.map((r) => ({ value: r, label: ROLE_LABEL[r]! }));

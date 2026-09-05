@@ -615,6 +615,13 @@ export const linkPropertyToProvider = createServerFn({ method: "POST" })
       .maybeSingle();
     const memberUserId = (providerUser as { member_user_id?: string | null } | null)?.member_user_id ?? null;
     if (memberUserId) {
+      // Prestador com login atende apenas as residências vinculadas a ele —
+      // nunca o modo "todas as residências" da equipe interna.
+      await supabase
+        .from("account_members")
+        .update({ all_properties: false } as never)
+        .eq("owner_id", accountId)
+        .eq("member_user_id", memberUserId);
       if (data.link) {
         await supabase.from("property_assignments").upsert(
           {
