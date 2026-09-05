@@ -227,22 +227,61 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
       if (s.reservation_id) doneRes.add(`${s.kind}|${s.reservation_id}`);
     }
 
+    // Casamento reserva→hóspede (mesma lógica do Kanban): quando o hóspede
+    // preenche o formulário, a previsão é gravada no LOG (guest_arrival_status
+    // com log_id), nunca na reserva. Sem consultar o log casado, o contador
+    // usaria a data bruta da reserva e divergiria da lista.
+    const { dedupeFormLogs, findLogsForReservation } = await import("@/lib/arrival-board.server");
+    const uniqueKpiLogs = dedupeFormLogs(logRows.filter((l) => !isPlaceholderGuest(l.guest_name)));
+    const matchedLogByRes = new Map<string, Map<string, LogRow | null>>();
+    function matchedLogFor(r: ResRow, kind: "checkin" | "checkout"): LogRow | null {
+      let byKind = matchedLogByRes.get(kind);
+      if (!byKind) {
+        byKind = new Map();
+        matchedLogByRes.set(kind, byKind);
+      }
+      if (byKind.has(r.id)) return byKind.get(r.id) ?? null;
+      const primary =
+        r.checkin_date && r.checkout_date
+          ? findLogsForReservation(
+              uniqueKpiLogs,
+              {
+                property_id: r.property_id,
+                checkin_date: r.checkin_date,
+                checkout_date: r.checkout_date,
+                guest_hint: r.guest_hint,
+              },
+              kind,
+            ).primary
+          : null;
+      byKind.set(r.id, primary ?? null);
+      return primary ?? null;
+    }
+
     function countFor(col: "checkin_date" | "checkout_date", from: string, to: string) {
       const kind: "checkin" | "checkout" = col === "checkin_date" ? "checkin" : "checkout";
       const seen = new Set<string>();
+      const usedLogIds = new Set<string>();
       for (const r of resRows) {
-        const date = overrideRes.get(`${kind}|${r.id}`) ?? r[col];
-        if (date < from || date > to) continue;
         if (!icalProps.has(r.property_id) || !isRealReservation(r)) continue;
-        if (doneRes.has(`${kind}|${r.id}`)) continue;
+        const matched = matchedLogFor(r, kind);
+        if (matched) usedLogIds.add(matched.id);
+        const date =
+          overrideRes.get(`${kind}|${r.id}`) ??
+          (matched ? overrideLog.get(`${kind}|${matched.id}`) : undefined) ??
+          r[col];
+        if (date < from || date > to) continue;
+        if (doneRes.has(`${kind}|${r.id}`) || (matched && doneLog.has(`${kind}|${matched.id}`))) continue;
         // Datas passadas só contam se já houve interação registrada.
-        if (date < today && !touchedRes.has(`${kind}|${r.id}`)) continue;
+        const touched = touchedRes.has(`${kind}|${r.id}`) || (matched ? touchedLog.has(`${kind}|${matched.id}`) : false);
+        if (date < today && !touched) continue;
         seen.add(`ical|${r.id}`);
       }
       for (const row of logRows) {
         const v = overrideLog.get(`${kind}|${row.id}`) ?? row[col];
         if (!v || v < from || v > to) continue;
         if (icalProps.has(row.property_id) || isPlaceholderGuest(row.guest_name)) continue;
+        if (usedLogIds.has(row.id)) continue;
         if (doneLog.has(`${kind}|${row.id}`)) continue;
         if (v < today && !touchedLog.has(`${kind}|${row.id}`)) continue;
         seen.add(`log|${row.property_id}|${(row.guest_name || "").trim().toLowerCase()}|${v}`);
