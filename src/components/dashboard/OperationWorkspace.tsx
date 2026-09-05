@@ -759,6 +759,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     queryFn: () => listFn({ data: { kind: "checkin", range: "all", ownerId: activeOwnerId } }),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
+    ...liveSync,
     enabled: view === "kanban",
   });
   const kanbanCheckoutListQ = useQuery({
@@ -766,6 +767,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     queryFn: () => listFn({ data: { kind: "checkout", range: "all", ownerId: activeOwnerId } }),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
+    ...liveSync,
     enabled: view === "kanban",
   });
   // Busca de "Concluídos": por padrão o servidor só devolve os 200 cards
@@ -785,6 +787,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     queryFn: () => concludedFn({ data: { ownerId: activeOwnerId, q: concludedSearchDebounced || undefined } }),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
+    ...liveSync,
   });
   // Busca de "Não Compareceu": mesmo racional de "Concluídos" acima (limite
   // padrão de 200, solto quando `q` vem preenchido) — coluna própria, depois
@@ -828,6 +831,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     queryFn: () => occupancyFn({ data: { ownerId: activeOwnerId, days: occDays, start: occStart } }),
     staleTime: 60_000,
     placeholderData: keepPreviousData,
+    ...liveSync,
   });
 
   // Propriedades (id/nome/cidade/proprietário) já vêm da própria agenda —
