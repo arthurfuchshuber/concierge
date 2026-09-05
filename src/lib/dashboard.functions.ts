@@ -612,7 +612,11 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     // criado E com as instruções de check-in de fato preenchidas.
     const checkinEntries = entries.filter((e) => checkinInstructionsProps.has(e.property_id));
     const checkinsInPeriod = checkinEntries.length;
-    const guideOpens = allLogs.length;
+    const guideOpens = allLogs.filter((l) => {
+      const d = overrideLog.get(l.id) ?? l.checkin_date;
+      return !!d && d >= from && d <= to;
+    }).length;
+
 
     // Guias com senha de acesso (fechadura ou portão) configurada — e, como
     // acima, só conta quem já tem guia criado.
