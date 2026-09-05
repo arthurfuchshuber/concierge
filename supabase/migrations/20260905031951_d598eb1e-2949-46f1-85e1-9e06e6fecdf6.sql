@@ -1,0 +1,2 @@
+ALTER TABLE public.guest_arrival_status DROP CONSTRAINT IF EXISTS guest_arrival_status_status_check;
+ALTER TABLE public.guest_arrival_status ADD CONSTRAINT guest_arrival_status_status_check CHECK (status IN ('pending','done','no_show'));
