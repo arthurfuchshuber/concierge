@@ -438,6 +438,12 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       from = today;
       to = addDaysISO(today, 29);
     }
+    // Janela alargada: a previsão informada pelo anfitrião
+    // (arrival_date_override) pode mover um check-in para dentro ou para fora
+    // do período, então buscamos uma margem e filtramos em memória pela data
+    // efetiva — exatamente como o Kanban e os cards de KPI fazem.
+    const fetchFrom = addDaysISO(from, -30);
+    const fetchTo = addDaysISO(to, 30);
     const [{ data: props }, { data: reservations }, { data: logs }, { data: allStatuses }] = await Promise.all([
       context.supabase
         .from("properties")
@@ -448,8 +454,8 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         .select("id, property_id, checkin_date, checkout_date, status, raw_summary, guest_hint")
         .in("property_id", propIds)
         .eq("source", "airbnb")
-        .gte("checkin_date", from)
-        .lte("checkin_date", to)
+        .gte("checkin_date", fetchFrom)
+        .lte("checkin_date", fetchTo)
         .gte("checkout_date", today)
         .limit(5000),
       context.supabase
@@ -458,27 +464,56 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
           "id, property_id, guest_name, guest_phone, guest_arrival_time, checkin_date, checkout_date, reservation_code, created_at",
         )
         .in("property_id", propIds)
-        .gte("checkin_date", from)
-        .lte("checkin_date", to)
+        .gte("checkin_date", fetchFrom)
+        .lte("checkin_date", fetchTo)
         .order("created_at", { ascending: true })
         .limit(2000),
       context.supabase
         .from("guest_arrival_status")
-        .select("reservation_id, log_id, kind, status")
+        .select("reservation_id, log_id, kind, status, arrival_date_override, concluded_at")
         .in("property_id", propIds)
         .eq("kind", "checkin")
         .limit(5000),
     ]);
 
-    // Check-ins já concluídos saem da base de engajamento — o quadrante segue
-    // apenas os check-ins PENDENTES, igual aos cards do Kanban.
+    // Check-ins já concluídos (ou marcados como "não compareceu") saem da base
+    // de engajamento — o quadrante segue apenas os check-ins PENDENTES, igual
+    // aos cards do Kanban. Guardamos também a previsão de data informada e
+    // quais registros já tiveram alguma interação: check-in de data passada só
+    // continua contando quando alguém mexeu nele (mesma regra dos KPIs).
     const doneReservations = new Set<string>();
     const doneLogs = new Set<string>();
-    for (const s of (allStatuses ?? []) as Array<{ reservation_id: string | null; log_id: string | null; status: string }>) {
-      if (s.status !== "done") continue;
+    const touchedReservations = new Set<string>();
+    const touchedLogs = new Set<string>();
+    const overrideReservation = new Map<string, string>();
+    const overrideLog = new Map<string, string>();
+    for (const s of (allStatuses ?? []) as Array<{
+      reservation_id: string | null;
+      log_id: string | null;
+      status: string;
+      arrival_date_override: string | null;
+      concluded_at: string | null;
+    }>) {
+      if (s.reservation_id) touchedReservations.add(s.reservation_id);
+      if (s.log_id) touchedLogs.add(s.log_id);
+      if (s.arrival_date_override) {
+        if (s.reservation_id) overrideReservation.set(s.reservation_id, s.arrival_date_override);
+        if (s.log_id) overrideLog.set(s.log_id, s.arrival_date_override);
+      }
+      if (s.status !== "done" && s.status !== "no_show" && !s.concluded_at) continue;
       if (s.reservation_id) doneReservations.add(s.reservation_id);
       if (s.log_id) doneLogs.add(s.log_id);
     }
+
+    // Data efetiva do check-in + regra de janela (inclui atrasados só quando
+    // já houve interação registrada).
+    function inWindow(date: string | null | undefined, touched: boolean): boolean {
+      if (!date) return false;
+      if (date < from || date > to) return false;
+      if (date < today && !touched) return false;
+      return true;
+    }
+
 
 
     const icalProps = new Set(
@@ -540,6 +575,12 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
             ).primary
           : null;
       if (doneReservations.has(r.id) || (matched && doneLogs.has(matched.id))) continue;
+      const resTouched = touchedReservations.has(r.id) || (matched ? touchedLogs.has(matched.id) : false);
+      const resDate =
+        overrideReservation.get(r.id) ??
+        (matched ? overrideLog.get(matched.id) : undefined) ??
+        r.checkin_date;
+      if (!inWindow(resDate, resTouched)) continue;
       entries.push({
         property_id: r.property_id,
         name: (matched?.guest_name || "").trim() || "Hóspede pendente",
@@ -553,7 +594,10 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     for (const l of allLogs) {
       if (icalProps.has(l.property_id)) continue;
       if (doneLogs.has(l.id)) continue;
-      const key = `${l.property_id}|${(l.guest_name || "").trim().toLowerCase()}|${(l.guest_phone || "").replace(/\D/g, "")}|${l.checkin_date ?? ""}`;
+      const logDate = overrideLog.get(l.id) ?? l.checkin_date;
+      if (!inWindow(logDate, touchedLogs.has(l.id))) continue;
+      const key = `${l.property_id}|${(l.guest_name || "").trim().toLowerCase()}|${(l.guest_phone || "").replace(/\D/g, "")}|${logDate ?? ""}`;
+
       if (seenFallback.has(key)) continue;
       seenFallback.add(key);
       entries.push({
@@ -568,7 +612,11 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     // criado E com as instruções de check-in de fato preenchidas.
     const checkinEntries = entries.filter((e) => checkinInstructionsProps.has(e.property_id));
     const checkinsInPeriod = checkinEntries.length;
-    const guideOpens = allLogs.length;
+    const guideOpens = allLogs.filter((l) => {
+      const d = overrideLog.get(l.id) ?? l.checkin_date;
+      return !!d && d >= from && d <= to;
+    }).length;
+
 
     // Guias com senha de acesso (fechadura ou portão) configurada — e, como
     // acima, só conta quem já tem guia criado.
