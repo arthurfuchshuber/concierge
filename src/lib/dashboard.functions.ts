@@ -166,7 +166,7 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
         .limit(5000),
       context.supabase
         .from("guest_arrival_status")
-        .select("log_id, reservation_id, kind, status")
+        .select("log_id, reservation_id, kind, status, arrival_date_override, concluded_at")
         .in("property_id", propIds)
         .limit(5000),
     ]);
@@ -190,7 +190,9 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
       log_id: string | null;
       reservation_id: string | null;
       kind: "checkin" | "checkout";
-      status: "pending" | "done";
+      status: "pending" | "done" | "no_show";
+      arrival_date_override: string | null;
+      concluded_at: string | null;
     };
     const icalProps = new Set(
       ((props ?? []) as Array<{ id: string; airbnb_ical_url: string | null }>)
@@ -203,10 +205,20 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
     const doneRes = new Set<string>();
     const touchedLog = new Set<string>();
     const touchedRes = new Set<string>();
+    // Previsão informada pelo anfitrião manda no dia contado — mesma regra que
+    // o Kanban usa (arrival_date_override em arrival-board.server.ts), senão o
+    // número do card diverge da lista.
+    const overrideLog = new Map<string, string>();
+    const overrideRes = new Map<string, string>();
     for (const s of (statuses ?? []) as StatusRow[]) {
       if (s.log_id) touchedLog.add(`${s.kind}|${s.log_id}`);
       if (s.reservation_id) touchedRes.add(`${s.kind}|${s.reservation_id}`);
-      if (s.status !== "done") continue;
+      if (s.arrival_date_override) {
+        if (s.log_id) overrideLog.set(`${s.kind}|${s.log_id}`, s.arrival_date_override);
+        if (s.reservation_id) overrideRes.set(`${s.kind}|${s.reservation_id}`, s.arrival_date_override);
+      }
+      // Concluído/Não compareceu saem da esteira, como no Kanban.
+      if (s.status !== "done" && s.status !== "no_show" && !s.concluded_at) continue;
       if (s.log_id) doneLog.add(`${s.kind}|${s.log_id}`);
       if (s.reservation_id) doneRes.add(`${s.kind}|${s.reservation_id}`);
     }
@@ -215,15 +227,16 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
       const kind: "checkin" | "checkout" = col === "checkin_date" ? "checkin" : "checkout";
       const seen = new Set<string>();
       for (const r of resRows) {
-        if (r[col] < from || r[col] > to) continue;
+        const date = overrideRes.get(`${kind}|${r.id}`) ?? r[col];
+        if (date < from || date > to) continue;
         if (!icalProps.has(r.property_id) || !isRealReservation(r)) continue;
         if (doneRes.has(`${kind}|${r.id}`)) continue;
         // Datas passadas só contam se já houve interação registrada.
-        if (r[col] < today && !touchedRes.has(`${kind}|${r.id}`)) continue;
+        if (date < today && !touchedRes.has(`${kind}|${r.id}`)) continue;
         seen.add(`ical|${r.id}`);
       }
       for (const row of logRows) {
-        const v = row[col];
+        const v = overrideLog.get(`${kind}|${row.id}`) ?? row[col];
         if (!v || v < from || v > to) continue;
         if (icalProps.has(row.property_id) || isPlaceholderGuest(row.guest_name)) continue;
         if (doneLog.has(`${kind}|${row.id}`)) continue;
