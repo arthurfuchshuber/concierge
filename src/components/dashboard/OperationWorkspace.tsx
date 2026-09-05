@@ -5560,8 +5560,16 @@ function ArrivalCard({
         : row.standardTimeMax
           ? `até ${row.standardTimeMax}`
           : null;
-  const divergent =
-    !!guestTime && !!row.standardTime && !isTimeWithin(guestTime, row.standardTime, row.standardTimeMax);
+  // Horário mínimo/máximo na ordem CERTA (min, max), independente de qual
+  // campo (`standardTime`/`standardTimeMax`) guarda qual valor pro tipo —
+  // ver comentário acima sobre a inversão proposital no checkout. Usado
+  // tanto pra detectar divergência quanto pra travar de verdade o seletor de
+  // horário logo abaixo (pedido explícito, 04/09/2026: "checkin só pode ser
+  // preenchido o horário a partir do horário configurado... checkout pode
+  // selecionar até a data/horário limite configurado").
+  const effMinTime = kind === "checkout" ? row.standardTimeMax : row.standardTime;
+  const effMaxTime = kind === "checkout" ? row.standardTime : row.standardTimeMax;
+  const divergent = !!guestTime && !!effMinTime && !isTimeWithin(guestTime, effMinTime, effMaxTime);
 
   const done = row.status === "done";
   const visualDone = done && mode !== "cleaning" && mode !== "stay";
@@ -5578,12 +5586,11 @@ function ArrivalCard({
   const originalCheckinRef = useRef(row.guestCheckin);
   const predictedMinDate = row.ical.icalCheckin ?? originalCheckinRef.current;
   const predictedMaxDate = addDaysISO(row.ical.icalCheckout ?? row.guestCheckout, -1) ?? null;
-  // Limite superior da previsão de CHECKOUT: nunca depois do dia de saída da
-  // reserva (iCal quando existe, senão a data confirmada) — pedido explícito
-  // ("checkout após o horário permitido... não deve ser permitido
-  // selecionar"). Sem isto, o seletor de data do checkout não tinha teto
-  // nenhum.
-  const predictedMaxCheckoutDate = row.ical.icalCheckout ?? row.guestCheckout ?? null;
+  // Data confirmada de check-out da reserva — teto da previsão de checkout
+  // (pedido explícito, 04/09/2026: "checkout... não pode ser mais tarde que
+  // a confirmada" — sair antes é permitido, "esticar" a estadia sozinho
+  // pelo campo previsto não). Antes não existia teto nenhum aqui.
+  const confirmedCheckoutDate = row.ical.icalCheckout ?? row.guestCheckout ?? null;
   const todayISO = todayISOSaoPaulo();
   // "Atrasado" só faz sentido pra uma ação ainda PENDENTE cuja data já
   // passou (ex.: check-in que devia ter acontecido ontem e ninguém marcou).
@@ -5892,9 +5899,13 @@ function ArrivalCard({
               disabled={busy || isPendingFill}
               placeholder="Data"
               min={predictedMinDate ?? undefined}
-              max={
-                kind === "checkout" ? (predictedMaxCheckoutDate ?? undefined) : (predictedMaxDate ?? undefined)
-              }
+              // Checkin: nunca antes da reserva, até 1 dia antes do checkout
+              // confirmado. Checkout: antes não tinha teto nenhum aqui — agora
+              // trava na data de checkout confirmada (não dá pra "esticar" a
+              // estadia sozinho por este campo; sair antes continua permitido,
+              // já que o mínimo continua sendo a data de check-in). Pedido
+              // explícito, 04/09/2026.
+              max={(kind === "checkout" ? confirmedCheckoutDate : predictedMaxDate) ?? undefined}
               onChange={(v) => onEditPredictedDate?.(row, v)}
               // Mesma fonte do rótulo "Previsto Check-in/Checkout" (pedido
               // explícito) — a cor continua branca quando preenchido, pois
@@ -5902,27 +5913,15 @@ function ArrivalCard({
               // do botão, ver "blank" acima).
               valueClassName="text-[10px] uppercase tracking-wider font-normal"
             />
-            {/* Horário só depois da data: a ordem é data → horário. Limites de
-                horário (pedido explícito) só se aplicam no dia-limite da
-                previsão: check-in não pode ficar antes do horário padrão de
-                entrada no dia do check-in da reserva, e checkout não pode
-                ficar depois do horário padrão de saída no dia do checkout da
-                reserva. Em qualquer outro dia previsto (ex.: check-in
-                antecipado um dia inteiro) não há limite de horário. */}
+            {/* Horário só depois da data: a ordem é data → horário. `min`/
+                `max` travam de verdade o horário ao configurado no imóvel
+                (ver effMinTime/effMaxTime acima) — pedido explícito. */}
             <TimeDropdown
               value={guestTime ?? null}
               disabled={busy || !row.arrivalDateOverride}
               size="xs"
-              min={
-                kind === "checkin" && row.arrivalDateOverride === predictedMinDate
-                  ? (row.standardTime ?? undefined)
-                  : undefined
-              }
-              max={
-                kind === "checkout" && row.arrivalDateOverride === predictedMaxCheckoutDate
-                  ? (row.standardTime ?? undefined)
-                  : undefined
-              }
+              min={effMinTime}
+              max={effMaxTime}
               onChange={(v) => onEditTime(row, v)}
             />
           </span>
@@ -6409,13 +6408,23 @@ function TimeDropdown({
   disabled?: boolean;
   onChange: (v: string | null) => void;
   size?: "sm" | "xs";
-  /** Menor horário selecionável (inclusive), formato "HH:mm". */
-  min?: string;
-  /** Maior horário selecionável (inclusive), formato "HH:mm". */
-  max?: string;
+  /** Restringe de verdade os horários selecionáveis (inclusive) ao horário
+      configurado do imóvel — pedido explícito do cliente (04/09/2026): antes
+      só existia um aviso visual (âmbar) depois de já ter escolhido um
+      horário fora da janela; agora o horário nem aparece como opção. `null`/
+      omitido = sem limite (imóvel sem esse horário configurado). */
+  min?: string | null;
+  max?: string | null;
 }) {
-  // Comparação de string funciona pois TIME_SLOTS é sempre "HH:mm" (zero-padded).
-  const slots = TIME_SLOTS.filter((t) => (!min || t >= min) && (!max || t <= max));
+  const slots = useMemo(() => {
+    if (!min && !max) return TIME_SLOTS;
+    const a = min ? timeToMinutes(min) : -Infinity;
+    const b = max ? timeToMinutes(max) : Infinity;
+    return TIME_SLOTS.filter((t) => {
+      const v = timeToMinutes(t);
+      return v >= a && v <= b;
+    });
+  }, [min, max]);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -6463,13 +6472,14 @@ function TimeDropdown({
   );
 }
 
+function timeToMinutes(s: string): number {
+  const [h, m] = s.split(":").map(Number);
+  return h * 60 + (m || 0);
+}
+
 function isTimeWithin(t: string, min: string, max: string | null): boolean {
-  const toMin = (s: string) => {
-    const [h, m] = s.split(":").map(Number);
-    return h * 60 + (m || 0);
-  };
-  const v = toMin(t);
-  const a = toMin(min);
-  const b = max ? toMin(max) : a + 60;
+  const v = timeToMinutes(t);
+  const a = timeToMinutes(min);
+  const b = max ? timeToMinutes(max) : a + 60;
   return v >= a - 30 && v <= b + 30;
 }

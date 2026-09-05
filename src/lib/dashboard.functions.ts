@@ -771,24 +771,60 @@ export const upsertArrivalStatus = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => UpsertInput.parse(i))
   .handler(async ({ data, context }) => {
     let propertyId: string | null = null;
+    // Datas confirmadas da estadia (reserva quando disponível, senão o
+    // registro do guia) — usadas abaixo pra validar a previsão no servidor,
+    // não só no seletor do navegador (que dá pra contornar). Pedido
+    // explícito, 04/09/2026: checkin nunca antes da reserva; checkout nunca
+    // depois da reserva confirmada.
+    let stayCheckinDate: string | null = null;
+    let stayCheckoutDate: string | null = null;
     if (data.reservationId) {
       const { data: reservation, error: reservationErr } = await context.supabase
         .from("property_reservations")
-        .select("id, property_id")
+        .select("id, property_id, checkin_date, checkout_date")
         .eq("id", data.reservationId)
         .maybeSingle();
       if (reservationErr || !reservation) throw new Error("Reserva não encontrada.");
-      propertyId = (reservation as { property_id: string }).property_id;
+      const res = reservation as { property_id: string; checkin_date: string; checkout_date: string };
+      propertyId = res.property_id;
+      stayCheckinDate = res.checkin_date;
+      stayCheckoutDate = res.checkout_date;
     } else if (data.logId) {
       const { data: log, error: logErr } = await context.supabase
         .from("guide_access_logs")
-        .select("id, property_id")
+        .select("id, property_id, checkin_date, checkout_date")
         .eq("id", data.logId)
         .maybeSingle();
       if (logErr || !log) throw new Error("Registro não encontrado.");
-      propertyId = (log as { property_id: string }).property_id;
+      const l = log as { property_id: string; checkin_date: string; checkout_date: string | null };
+      propertyId = l.property_id;
+      stayCheckinDate = l.checkin_date;
+      stayCheckoutDate = l.checkout_date;
     }
     if (!propertyId) throw new Error("Registro não encontrado.");
+
+    // Trava no servidor a mesma regra do seletor de data no Kanban (não é só
+    // enfeite do navegador — sem isso, nada impede um bypass): checkin não
+    // pode ser previsto ANTES da data confirmada da reserva (chegar depois é
+    // permitido); checkout não pode ser previsto DEPOIS da data confirmada
+    // (sair antes é permitido, mas "esticar" a estadia sozinho por aqui não).
+    if (typeof data.arrivalDateOverride === "string" && stayCheckinDate) {
+      if (data.kind === "checkin" && data.arrivalDateOverride < stayCheckinDate) {
+        throw new Error("A previsão de check-in não pode ser antes da data confirmada da reserva.");
+      }
+      if (data.kind === "checkout" && data.arrivalDateOverride < stayCheckinDate) {
+        throw new Error("A previsão de check-out não pode ser antes do check-in.");
+      }
+      if (data.kind === "checkout" && stayCheckoutDate && data.arrivalDateOverride > stayCheckoutDate) {
+        throw new Error("A previsão de check-out não pode ser depois da data confirmada da reserva.");
+      }
+      // Mesmo teto já aplicado no seletor do Kanban: check-in não pode cair
+      // no dia do check-out (ou depois) — não faz sentido entrar e sair no
+      // mesmo dia previsto como check-out.
+      if (data.kind === "checkin" && stayCheckoutDate && data.arrivalDateOverride >= stayCheckoutDate) {
+        throw new Error("A previsão de check-in não pode ser no dia do check-out ou depois.");
+      }
+    }
 
     const patch: {
       log_id?: string;
