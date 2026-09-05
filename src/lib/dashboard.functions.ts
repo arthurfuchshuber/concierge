@@ -1419,15 +1419,24 @@ export const markNoShow = createServerFn({ method: "POST" })
     if (!propertyId) throw new Error("Registro não encontrado.");
 
     const nowIso = new Date().toISOString();
+    // IMPORTANTE: NÃO gravar done_at aqui. Vários lugares do sistema tratam
+    // "done_at preenchido" como sinônimo de "check-in de verdade aconteceu"
+    // (ex.: src/lib/ai/context.server.ts e a checagem que o próprio hóspede
+    // usa no guia, em guide-access.functions.ts — ambos fazem
+    // `status === "done" || !!done_at`). Se gravássemos done_at aqui, um
+    // hóspede que nunca chegou passaria a aparecer como "check-in
+    // confirmado" pro assistente de IA e até pro próprio guia do hóspede —
+    // exatamente o oposto do que "Não Compareceu" significa. concluded_at
+    // sozinho já basta pra ordenar a lista (ver listNoShowArrivals) e pra
+    // tirar o card de qualquer lista "em aberto".
     const body: {
       property_id: string;
       kind: "checkin";
       log_id?: string;
       reservation_id?: string;
       status: string;
-      done_at: string;
       concluded_at: string;
-    } = { property_id: propertyId, kind: "checkin", status: "no_show", done_at: nowIso, concluded_at: nowIso };
+    } = { property_id: propertyId, kind: "checkin", status: "no_show", concluded_at: nowIso };
     if (data.logId) body.log_id = data.logId;
     if (data.reservationId) body.reservation_id = data.reservationId;
 
@@ -1866,9 +1875,9 @@ export const listConcludedArrivals = createServerFn({ method: "GET" })
 // de "Concluídos") -----
 // Espelha listConcludedArrivals quase linha por linha (mesmo racional: busca
 // por padrão só os 200 mais recentes, solta o limite quando `q` vem
-// preenchido) — só troca o filtro (kind="checkin" + status="no_show", em vez
-// de kind="checkout" + concluded_at preenchido) e a ordenação (done_at, que é
-// o timestamp gravado por markNoShow).
+// preenchido) — só troca o filtro (kind="checkin" + status="no_show") e a
+// ordenação (concluded_at, o timestamp gravado por markNoShow — NUNCA
+// done_at: ver comentário em markNoShow sobre por que done_at fica de fora).
 export const listNoShowArrivals = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => ConcludedInput.parse(i))
@@ -1880,11 +1889,11 @@ export const listNoShowArrivals = createServerFn({ method: "GET" })
 
     const { data: statuses } = await context.supabase
       .from("guest_arrival_status")
-      .select("log_id, reservation_id, property_id, note, arrival_time_override, done_at")
+      .select("log_id, reservation_id, property_id, note, arrival_time_override, concluded_at")
       .in("property_id", propIds)
       .eq("kind", "checkin")
       .eq("status", "no_show")
-      .order("done_at", { ascending: false })
+      .order("concluded_at", { ascending: false })
       .limit(searching ? 3000 : 200);
 
     const rowsIn = (statuses ?? []) as Array<{
@@ -1893,7 +1902,7 @@ export const listNoShowArrivals = createServerFn({ method: "GET" })
       property_id: string;
       note: string | null;
       arrival_time_override: string | null;
-      done_at: string | null;
+      concluded_at: string | null;
     }>;
     if (rowsIn.length === 0) return { rows: [] };
 
@@ -2002,11 +2011,14 @@ export const listNoShowArrivals = createServerFn({ method: "GET" })
         note: s.note,
         arrivalTimeOverride: s.arrival_time_override,
         arrivalDateOverride: null,
-        doneAt: s.done_at,
+        // doneAt fica null de propósito: o check-in nunca aconteceu de
+        // verdade (ver comentário em markNoShow) — concludedAt é o único
+        // timestamp real gravado por essa marcação.
+        doneAt: null,
         pendingFill: false,
         ical: { hasIcal: !!res, matched: !!res, icalCheckin: null, icalCheckout: null },
         additionalGuests: [],
-        concludedAt: s.done_at,
+        concludedAt: s.concluded_at,
       });
     }
 

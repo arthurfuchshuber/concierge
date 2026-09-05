@@ -6709,16 +6709,24 @@ function timeToMinutes(s: string): number {
 }
 
 /**
- * Data + horário previstos num ÚNICO tooltip (pedido explícito, 05/09/2026):
- * não é "mover o card depois de fechar o calendário", é mover só depois de
- * fechar o TOOLTIP inteiro — calendário e horário precisam viver na mesma
- * caixa flutuante, com uma única confirmação no final, senão a mesma
- * situação se repete (o usuário escolhe a data, ela é salva na hora, o card
- * já pode sumir da lista antes dele conseguir clicar no horário).
+ * Data e horário previstos são dois campos SEPARADOS de novo (pedido
+ * explícito, 05/09/2026: "quero que fiquem separados como antes, porém
+ * ambos no layout padrão dos tooltips") — cada botão abre seu próprio
+ * tooltip (só calendário / só horário, cada um com o mesmo visual dos
+ * tooltips padrão do sistema), não mais um painel único com os dois juntos.
  *
- * Nada é gravado (nem o card se move) enquanto o tooltip está aberto — só
- * quando fecha (clique fora, Esc ou o botão "Concluir") é que a data e o
- * horário pendentes são confirmados juntos, numa única leva.
+ * Mas por baixo dos panos continua sendo UMA ÚNICA sessão de edição
+ * (`open`/pendingDate/pendingTime compartilhados): os dois botões só trocam
+ * QUAL conteúdo aparece dentro do mesmo Popover (ver `openField`), sem abrir
+ * e fechar de verdade um popover por vez. Isso é o que preserva o ajuste
+ * anterior (pedido explícito, mesma data): "não é mover depois de fechar o
+ * calendário, é mover depois de fechar o TOOLTIP inteiro" — se cada campo
+ * tivesse seu próprio Popover independente, fechar o de Data já confirmaria
+ * e moveria o card antes do usuário conseguir abrir o de Horário, voltando
+ * ao bug original. Nada é gravado (nem o card se move) enquanto QUALQUER um
+ * dos dois estiver "aberto" — só quando o usuário clica fora dos dois
+ * botões (ou aperta "Concluir"/Esc) é que a data e o horário pendentes são
+ * confirmados juntos, numa única leva.
  *
  * O piso/teto do horário reage à data QUE ESTÁ SENDO escolhida (ainda não
  * confirmada) — mesma regra de "dia mudou → sem piso/teto" do card, só que
@@ -6752,6 +6760,9 @@ function PredictedEditor({
   onCommit: (date: string | null, time: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
+  // Qual dos dois tooltips está sendo exibido AGORA dentro do Popover
+  // compartilhado — "date" (só calendário) ou "time" (só horário).
+  const [activeField, setActiveField] = useState<"date" | "time">("date");
   // undefined = não tocado ainda nesta sessão de edição (mostra o valor
   // confirmado); string/"" ou null = valor pendente explícito.
   const [pendingDate, setPendingDate] = useState<string | undefined>(undefined);
@@ -6789,11 +6800,18 @@ function PredictedEditor({
     });
   }, [liveMinTime, liveMaxTime]);
 
-  function startEditing() {
+  // Abre o campo pedido — se o Popover já estiver aberto (usuário clicou
+  // primeiro em Data e agora clica em Horário, ou vice-versa), só troca qual
+  // conteúdo aparece, SEM reinicializar pendingDate/pendingTime (senão um
+  // ajuste já feito no outro campo, ainda não confirmado, seria perdido).
+  function openField(field: "date" | "time") {
     if (disabled) return;
-    setPendingDate(dateValue || "");
-    setPendingTime(timeValue ?? null);
-    setOpen(true);
+    if (!open) {
+      setPendingDate(dateValue || "");
+      setPendingTime(timeValue ?? null);
+      setOpen(true);
+    }
+    setActiveField(field);
   }
 
   function closeAndCommit() {
@@ -6805,6 +6823,7 @@ function PredictedEditor({
     setPendingDate(undefined);
     setPendingTime(undefined);
     setOpen(false);
+    setActiveField("date");
   }
 
   return (
@@ -6821,10 +6840,10 @@ function PredictedEditor({
             disabled={disabled}
             onClick={(e) => {
               e.stopPropagation();
-              startEditing();
+              openField("date");
             }}
             className={`relative inline-flex items-center cursor-pointer rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit ${dateBlank ? "text-muted-foreground" : ""}`}
-            title="Clique para ajustar data e horário previstos"
+            title="Clique para corrigir a data prevista"
           >
             <span className="tabular-nums text-[10px] uppercase tracking-wider font-normal">
               {dateBlank ? datePlaceholder : fmtDateBR(shownDate)}
@@ -6835,9 +6854,9 @@ function PredictedEditor({
             disabled={disabled}
             onClick={(e) => {
               e.stopPropagation();
-              startEditing();
+              openField("time");
             }}
-            title="Clique para ajustar data e horário previstos"
+            title="Clique para corrigir o horário previsto"
             className="inline-flex w-auto items-center gap-1 tabular-nums rounded cursor-pointer bg-transparent border-0 p-0 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit text-[10px] uppercase tracking-wider"
           >
             <span className={shownTime ? "font-normal text-foreground" : "font-normal text-muted-foreground"}>
@@ -6846,57 +6865,75 @@ function PredictedEditor({
           </button>
         </span>
       </PopoverAnchor>
-      <PopoverContent align="end" className="w-auto p-0" onClick={(e) => e.stopPropagation()}>
-        <RangeCalendar
-          mode="single"
-          locale={ptBR}
-          selected={selected}
-          defaultMonth={selected ?? minDate}
-          disabled={disabledMatcher}
-          onSelect={(d) => {
-            if (!d) return;
-            setPendingDate(dateToISOLocal(d));
-          }}
-          className="p-3"
-        />
-        <div className="border-t border-border p-2">
-          <div className="px-1 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Horário
+      {/* Dois tooltips separados (pedido explícito), um por vez, dentro do
+          MESMO Popover — ver comentário no topo do componente sobre por que
+          isso não é um único painel combinado (visual) nem dois Popovers de
+          verdade (comportamento de commit). */}
+      {activeField === "date" ? (
+        <PopoverContent align="end" className="w-auto p-0" onClick={(e) => e.stopPropagation()}>
+          <RangeCalendar
+            mode="single"
+            locale={ptBR}
+            selected={selected}
+            defaultMonth={selected ?? minDate}
+            disabled={disabledMatcher}
+            onSelect={(d) => {
+              if (!d) return;
+              setPendingDate(dateToISOLocal(d));
+            }}
+            className="p-3"
+          />
+          <div className="flex items-center justify-end border-t border-border p-2">
+            <button
+              type="button"
+              onClick={closeAndCommit}
+              className="rounded-md px-2.5 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10"
+            >
+              Concluir
+            </button>
           </div>
-          <div className="flex max-h-32 flex-wrap gap-1 overflow-y-auto px-1">
-            {timeSlots.map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setPendingTime(t)}
-                className={`rounded px-2 py-1 text-[11px] tabular-nums ${
-                  shownTime === t
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary text-foreground hover:bg-secondary/70"
-                }`}
-              >
-                {t}
-              </button>
-            ))}
+        </PopoverContent>
+      ) : (
+        <PopoverContent align="end" className="w-auto p-0" onClick={(e) => e.stopPropagation()}>
+          <div className="p-2">
+            <div className="px-1 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Horário
+            </div>
+            <div className="flex max-h-56 w-56 flex-wrap gap-1 overflow-y-auto px-1">
+              {timeSlots.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setPendingTime(t)}
+                  className={`rounded px-2 py-1 text-[11px] tabular-nums ${
+                    shownTime === t
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-secondary text-foreground hover:bg-secondary/70"
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-        <div className="flex items-center justify-between border-t border-border p-2">
-          <button
-            type="button"
-            onClick={() => setPendingTime(null)}
-            className="rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
-          >
-            Limpar horário
-          </button>
-          <button
-            type="button"
-            onClick={closeAndCommit}
-            className="rounded-md px-2.5 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10"
-          >
-            Concluir
-          </button>
-        </div>
-      </PopoverContent>
+          <div className="flex items-center justify-between border-t border-border p-2">
+            <button
+              type="button"
+              onClick={() => setPendingTime(null)}
+              className="rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+            >
+              Limpar horário
+            </button>
+            <button
+              type="button"
+              onClick={closeAndCommit}
+              className="rounded-md px-2.5 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10"
+            >
+              Concluir
+            </button>
+          </div>
+        </PopoverContent>
+      )}
     </Popover>
   );
 }
