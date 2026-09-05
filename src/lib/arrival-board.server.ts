@@ -241,11 +241,15 @@ export async function buildArrivalRows(
       reservation_code: string | null;
       created_at: string;
     }>;
-    const placeholderLogs = rawLogs.filter((l) => isPlaceholderGuest(l.guest_name));
+    let placeholderLogs = rawLogs.filter((l) => isPlaceholderGuest(l.guest_name));
     const formLogs = rawLogs.filter((l) => !isPlaceholderGuest(l.guest_name));
     // Dedupe only truly repeated form submissions for the same stay (helper
     // compartilhado com getGuideEngagement — ver dedupeFormLogs acima).
-    const uniqueLogs = dedupeFormLogs(formLogs);
+    // `let`: pode ganhar itens extras mais abaixo (ver "PREVISTO fora da
+    // janela" após o Promise.all) quando uma previsão movida pelo
+    // anfitrião/hóspede cai num dia que a busca principal, filtrada pela
+    // data BRUTA da reserva, não teria trazido.
+    let uniqueLogs = dedupeFormLogs(formLogs);
 
     const reservationWindowStart = data.range === "tomorrow" ? addDaysISO(today, 1) : today;
     const reservationWindowEnd =
@@ -322,6 +326,62 @@ export async function buildArrivalRows(
           )
         : Promise.resolve([]),
     ]);
+
+    // PREVISTO fora da janela original (04/09/2026) — pedido explícito do
+    // cliente: quando o anfitrião (ou o hóspede) define uma previsão de
+    // chegada/saída num dia DIFERENTE do dia bruto da reserva (ex.: reserva
+    // confirmada pro dia 5, mas previsão movida pro dia 7), o card precisa
+    // aparecer no dia da previsão em TODO o dashboard — não só ficar com um
+    // texto "Previsto" divergente enquanto continua listado no dia antigo.
+    // As queries acima (logs e reservas) filtram pela data BRUTA da reserva
+    // (`dateCol`/`checkin_date`/`checkout_date`), então uma previsão que
+    // aponta pra fora da janela [from,to] pedida faz o registro nem ser
+    // buscado. `statuses` já foi carregado SEM filtro de data nenhum (query
+    // acima), então já temos todas as previsões em mãos — só falta buscar,
+    // à parte, os registros específicos que a previsão aponta pra dentro da
+    // janela mas que a busca principal descartou.
+    const knownLogIds = new Set(((logs ?? []) as Array<{ id: string }>).map((l) => l.id));
+    const knownReservationIds = new Set(((reservations ?? []) as Array<{ id: string }>).map((r) => r.id));
+    const missingLogIds = new Set<string>();
+    const missingReservationIds = new Set<string>();
+    for (const s of (statuses ?? []) as Array<{
+      log_id: string | null;
+      reservation_id: string | null;
+      kind: "checkin" | "checkout";
+      arrival_date_override: string | null;
+    }>) {
+      if (s.kind !== data.kind || !s.arrival_date_override) continue;
+      const od = s.arrival_date_override;
+      if (od < (from ?? today)) continue;
+      if (to && od > to) continue;
+      if (s.log_id && !knownLogIds.has(s.log_id)) missingLogIds.add(s.log_id);
+      if (s.reservation_id && !knownReservationIds.has(s.reservation_id)) missingReservationIds.add(s.reservation_id);
+    }
+    const [{ data: extraLogsData }, { data: extraReservationsData }] = await Promise.all([
+      missingLogIds.size > 0
+        ? context.supabase
+            .from("guide_access_logs")
+            .select(
+              "id, property_id, guest_name, guest_phone, guest_phone_country, guest_arrival_time, checkin_date, checkout_date, reservation_code, created_at",
+            )
+            .in("id", Array.from(missingLogIds))
+        : Promise.resolve({ data: [] as unknown[] }),
+      missingReservationIds.size > 0
+        ? context.supabase
+            .from("property_reservations")
+            .select(
+              "id, property_id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at, created_at",
+            )
+            .in("id", Array.from(missingReservationIds))
+        : Promise.resolve({ data: [] as unknown[] }),
+    ]);
+    if (extraLogsData && extraLogsData.length > 0) {
+      const extraRaw = extraLogsData as typeof rawLogs;
+      placeholderLogs = [...placeholderLogs, ...extraRaw.filter((l) => isPlaceholderGuest(l.guest_name))];
+      const extraForm = extraRaw.filter((l) => !isPlaceholderGuest(l.guest_name));
+      uniqueLogs = dedupeFormLogs([...formLogs, ...extraForm]);
+    }
+    const allReservationsRaw = [...((reservations ?? []) as unknown[]), ...((extraReservationsData ?? []) as unknown[])];
 
     const ownerIdsForProps = Array.from(
       new Set(
@@ -563,7 +623,10 @@ export async function buildArrivalRows(
       string,
       Array<{ id: string; checkin: string; checkout: string; raw_summary: string | null; status: string | null }>
     >();
-    const reservationRows = ((reservations ?? []) as ReservationRow[]).filter(isRealReservation);
+    // `allReservationsRaw` = reserva buscada pela data bruta + reservas que a
+    // busca principal descartou mas cuja PREVISÃO cai dentro da janela
+    // pedida (ver bloco "PREVISTO fora da janela" logo após o Promise.all).
+    const reservationRows = (allReservationsRaw as ReservationRow[]).filter(isRealReservation);
     for (const r of reservationRows) {
       const arr = resByProp.get(r.property_id) ?? [];
       arr.push({
@@ -618,7 +681,11 @@ export async function buildArrivalRows(
       if (data.kind === "checkin") {
         if (belongsToCheckoutStage(r.checkin_date, r.checkout_date, resCheckinDone)) return false;
       }
-      const date = data.kind === "checkin" ? r.checkin_date : r.checkout_date;
+      // Pedido explícito do cliente (04/09/2026): a previsão informada
+      // (arrival_date_override) manda no dia em que o card aparece — a data
+      // bruta da reserva só é usada de fallback quando não há previsão.
+      const override = reservationStatusMap.get(r.id)?.arrival_date_override ?? null;
+      const date = override ?? (data.kind === "checkin" ? r.checkin_date : r.checkout_date);
       if (date < (from ?? today)) {
         if (data.kind === "checkin" && data.range !== "tomorrow") {
           // Estadia em andamento continua visível para alimentar "Em Estadia".
@@ -676,7 +743,10 @@ export async function buildArrivalRows(
       const p = propMap.get(l.property_id);
       const s = statusMap.get(l.id);
       if (s?.concluded_at) return null;
-      const date = data.kind === "checkin" ? l.checkin_date : (l.checkout_date ?? l.checkin_date);
+      // Pedido explícito do cliente (04/09/2026): a previsão (override)
+      // manda no dia do card — a data bruta informada pelo hóspede só entra
+      // de fallback quando não há previsão registrada.
+      const date = s?.arrival_date_override ?? (data.kind === "checkin" ? l.checkin_date : (l.checkout_date ?? l.checkin_date));
       const hasIcal = !!p?.airbnb_ical_url;
       let matched = false;
       let icalCheckin: string | null = null;
@@ -786,7 +856,14 @@ export async function buildArrivalRows(
       const logStatus = matchedLog ? statusMap.get(matchedLog.id) : undefined;
       const s = reservationStatusMap.get(r.id) ?? legacy ?? logStatus;
       if (s?.concluded_at) return null;
-      const date = data.kind === "checkin" ? r.checkin_date : r.checkout_date;
+      // Pedido explícito do cliente (04/09/2026): a previsão (override)
+      // manda no dia do card — a data bruta da reserva só entra de fallback
+      // quando não há previsão registrada. Cast pelo mesmo motivo de
+      // `arrivalDateOverride` logo abaixo: `s` pode vir de `legacy`, cujo
+      // tipo não lista esse campo (mesmo ele existindo em runtime).
+      const date =
+        (s as { arrival_date_override?: string | null } | undefined)?.arrival_date_override ??
+        (data.kind === "checkin" ? r.checkin_date : r.checkout_date);
       // IMPORTANTE: nunca usar `synced_at` aqui — ele é reescrito a cada sync do iCal,
       // o que promoveria toda estadia em curso automaticamente. Só a data real de
       // criação do registro (integração nova) pode disparar a auto-distribuição.
