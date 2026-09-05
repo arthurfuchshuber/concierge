@@ -1055,7 +1055,13 @@ export const advanceArrival = createServerFn({ method: "POST" })
         checkoutDate = (log as { checkout_date: string | null }).checkout_date ?? null;
       }
     }
-    if (!propertyId && data.reservationId) {
+    // A reserva do iCal é a fonte AUTORITATIVA das datas da estadia: o
+    // formulário do hóspede (guide_access_logs) frequentemente traz a data de
+    // saída errada/desatualizada. Quando os dois existem, as datas da reserva
+    // mandam — sem isso, um checkout de HOJE casado com um log antigo era
+    // tratado como "limpeza vencida" e o card ia direto para Concluídos,
+    // sumindo da Fila de Limpeza.
+    if (data.reservationId) {
       const { data: res } = await context.supabase
         .from("property_reservations")
         .select("property_id, checkin_date, checkout_date")
@@ -1067,6 +1073,7 @@ export const advanceArrival = createServerFn({ method: "POST" })
         checkoutDate = (res as { checkout_date: string | null }).checkout_date ?? null;
       }
     }
+
     if (!propertyId) throw new Error("Registro não encontrado.");
 
     const nowIso = new Date().toISOString();
