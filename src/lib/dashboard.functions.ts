@@ -575,6 +575,12 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
             ).primary
           : null;
       if (doneReservations.has(r.id) || (matched && doneLogs.has(matched.id))) continue;
+      const resTouched = touchedReservations.has(r.id) || (matched ? touchedLogs.has(matched.id) : false);
+      const resDate =
+        overrideReservation.get(r.id) ??
+        (matched ? overrideLog.get(matched.id) : undefined) ??
+        r.checkin_date;
+      if (!inWindow(resDate, resTouched)) continue;
       entries.push({
         property_id: r.property_id,
         name: (matched?.guest_name || "").trim() || "Hóspede pendente",
@@ -588,7 +594,10 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     for (const l of allLogs) {
       if (icalProps.has(l.property_id)) continue;
       if (doneLogs.has(l.id)) continue;
-      const key = `${l.property_id}|${(l.guest_name || "").trim().toLowerCase()}|${(l.guest_phone || "").replace(/\D/g, "")}|${l.checkin_date ?? ""}`;
+      const logDate = overrideLog.get(l.id) ?? l.checkin_date;
+      if (!inWindow(logDate, touchedLogs.has(l.id))) continue;
+      const key = `${l.property_id}|${(l.guest_name || "").trim().toLowerCase()}|${(l.guest_phone || "").replace(/\D/g, "")}|${logDate ?? ""}`;
+
       if (seenFallback.has(key)) continue;
       seenFallback.add(key);
       entries.push({
