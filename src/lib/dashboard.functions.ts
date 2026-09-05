@@ -166,7 +166,7 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
         .limit(5000),
       context.supabase
         .from("guest_arrival_status")
-        .select("log_id, reservation_id, kind, status")
+        .select("log_id, reservation_id, kind, status, arrival_date_override, concluded_at")
         .in("property_id", propIds)
         .limit(5000),
     ]);
