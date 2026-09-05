@@ -30,7 +30,7 @@ export type SubjectSnapshot = {
   /** Imóveis com vínculo ATIVO (escopo PROPERTY). */
   properties: string[];
   /** `true` quando a pessoa atende todas as residências da conta (padrão). */
-  allProperties: boolean;
+  allProperties?: boolean;
   assignments: PermissionAssignment[];
   nodeIdBySlug: Record<string, string>;
   /** Slugs ativos conhecidos no banco (quando disponíveis). */

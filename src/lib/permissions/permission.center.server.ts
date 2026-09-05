@@ -455,8 +455,8 @@ export async function loadCenterUserDetail(
     direct,
     inherited,
     scopes: scopeSummary(snapshot),
-    allProperties: snapshot.allProperties,
-    properties: await propertiesOf(tenantId, snapshot.properties, snapshot.allProperties),
+    allProperties: snapshot.allProperties === true,
+    properties: await propertiesOf(tenantId, snapshot.properties, snapshot.allProperties === true),
   };
 }
 
@@ -495,7 +495,7 @@ export async function loadCenterScopes(
   return {
     allowed: true,
     scopes: scopeSummary(snapshot),
-    properties: await propertiesOf(tenantId, snapshot.properties, snapshot.allProperties),
+    properties: await propertiesOf(tenantId, snapshot.properties, snapshot.allProperties === true),
   };
 }
 
