@@ -149,7 +149,7 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
       context.supabase.from("properties").select("id, airbnb_ical_url").in("id", propIds),
       context.supabase
         .from("guide_access_logs")
-        .select("id, property_id, guest_name, checkin_date, checkout_date")
+        .select("id, property_id, guest_name, guest_phone, checkin_date, checkout_date, reservation_code, created_at")
         .in("property_id", propIds)
         .or(
           `and(checkin_date.gte.${overdueFrom},checkin_date.lte.${tomorrow}),and(checkout_date.gte.${overdueFrom},checkout_date.lte.${tomorrow})`,
@@ -157,7 +157,7 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
         .limit(2000),
       context.supabase
         .from("property_reservations")
-        .select("id, property_id, checkin_date, checkout_date, status, raw_summary")
+        .select("id, property_id, checkin_date, checkout_date, status, raw_summary, guest_hint")
         .in("property_id", propIds)
         .eq("source", "airbnb")
         .or(
