@@ -705,36 +705,47 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
   // KPIs derivam das mesmas listas do kanban para garantir sincronia visual.
 
+  // Rede de segurança contra divergência entre usuários: além do realtime
+  // (canal "dash-live" abaixo), estas listas se atualizam sozinhas a cada 30s
+  // e sempre que a aba volta ao foco — assim dois membros da equipe nunca
+  // ficam vendo números diferentes por causa de um evento perdido.
+  const liveSync = { refetchInterval: 30_000, refetchIntervalInBackground: false, refetchOnWindowFocus: true } as const;
   const engQ = useQuery({
     queryKey: ["dash-eng", engRange, activeOwnerId ?? "self"],
     queryFn: () => engFn({ data: { range: engRange, ownerId: activeOwnerId } }),
     staleTime: 60_000,
     placeholderData: keepPreviousData,
+    ...liveSync,
   });
   const checkinListQ = useQuery({
     queryKey: ["dash-list", "checkin", range, activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkin", range, ownerId: activeOwnerId } }),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
+    ...liveSync,
   });
   const checkoutListQ = useQuery({
     queryKey: ["dash-list", "checkout", range, activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkout", range, ownerId: activeOwnerId } }),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
+    ...liveSync,
   });
   const tomorrowCheckinListQ = useQuery({
     queryKey: ["dash-list", "checkin", "tomorrow", activeOwnerId ?? "self", "top-card"],
     queryFn: () => listFn({ data: { kind: "checkin", range: "tomorrow", ownerId: activeOwnerId } }),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
+    ...liveSync,
   });
   const tomorrowCheckoutListQ = useQuery({
     queryKey: ["dash-list", "checkout", "tomorrow", activeOwnerId ?? "self", "top-card"],
     queryFn: () => listFn({ data: { kind: "checkout", range: "tomorrow", ownerId: activeOwnerId } }),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
+    ...liveSync,
   });
+
   // Pedido explícito: no Kanban, o antigo seletor "Hoje/Amanhã/7 dias/Todos"
   // virou o mesmo botão "Filtros" (Período/Cidade/Proprietário) do
   // Dashboard/Limpeza — só que aqui ele filtra as LISTAS do próprio quadro,
@@ -748,6 +759,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     queryFn: () => listFn({ data: { kind: "checkin", range: "all", ownerId: activeOwnerId } }),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
+    ...liveSync,
     enabled: view === "kanban",
   });
   const kanbanCheckoutListQ = useQuery({
@@ -755,6 +767,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     queryFn: () => listFn({ data: { kind: "checkout", range: "all", ownerId: activeOwnerId } }),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
+    ...liveSync,
     enabled: view === "kanban",
   });
   // Busca de "Concluídos": por padrão o servidor só devolve os 200 cards
@@ -774,6 +787,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     queryFn: () => concludedFn({ data: { ownerId: activeOwnerId, q: concludedSearchDebounced || undefined } }),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
+    ...liveSync,
   });
   // Busca de "Não Compareceu": mesmo racional de "Concluídos" acima (limite
   // padrão de 200, solto quando `q` vem preenchido) — coluna própria, depois
@@ -817,6 +831,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     queryFn: () => occupancyFn({ data: { ownerId: activeOwnerId, days: occDays, start: occStart } }),
     staleTime: 60_000,
     placeholderData: keepPreviousData,
+    ...liveSync,
   });
 
   // Propriedades (id/nome/cidade/proprietário) já vêm da própria agenda —
