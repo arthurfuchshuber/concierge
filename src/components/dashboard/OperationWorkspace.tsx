@@ -5578,6 +5578,12 @@ function ArrivalCard({
   const originalCheckinRef = useRef(row.guestCheckin);
   const predictedMinDate = row.ical.icalCheckin ?? originalCheckinRef.current;
   const predictedMaxDate = addDaysISO(row.ical.icalCheckout ?? row.guestCheckout, -1) ?? null;
+  // Limite superior da previsão de CHECKOUT: nunca depois do dia de saída da
+  // reserva (iCal quando existe, senão a data confirmada) — pedido explícito
+  // ("checkout após o horário permitido... não deve ser permitido
+  // selecionar"). Sem isto, o seletor de data do checkout não tinha teto
+  // nenhum.
+  const predictedMaxCheckoutDate = row.ical.icalCheckout ?? row.guestCheckout ?? null;
   const todayISO = todayISOSaoPaulo();
   // "Atrasado" só faz sentido pra uma ação ainda PENDENTE cuja data já
   // passou (ex.: check-in que devia ter acontecido ontem e ninguém marcou).
@@ -5886,7 +5892,9 @@ function ArrivalCard({
               disabled={busy || isPendingFill}
               placeholder="Data"
               min={predictedMinDate ?? undefined}
-              max={kind === "checkout" ? undefined : (predictedMaxDate ?? undefined)}
+              max={
+                kind === "checkout" ? (predictedMaxCheckoutDate ?? undefined) : (predictedMaxDate ?? undefined)
+              }
               onChange={(v) => onEditPredictedDate?.(row, v)}
               // Mesma fonte do rótulo "Previsto Check-in/Checkout" (pedido
               // explícito) — a cor continua branca quando preenchido, pois
@@ -5894,11 +5902,27 @@ function ArrivalCard({
               // do botão, ver "blank" acima).
               valueClassName="text-[10px] uppercase tracking-wider font-normal"
             />
-            {/* Horário só depois da data: a ordem é data → horário. */}
+            {/* Horário só depois da data: a ordem é data → horário. Limites de
+                horário (pedido explícito) só se aplicam no dia-limite da
+                previsão: check-in não pode ficar antes do horário padrão de
+                entrada no dia do check-in da reserva, e checkout não pode
+                ficar depois do horário padrão de saída no dia do checkout da
+                reserva. Em qualquer outro dia previsto (ex.: check-in
+                antecipado um dia inteiro) não há limite de horário. */}
             <TimeDropdown
               value={guestTime ?? null}
               disabled={busy || !row.arrivalDateOverride}
               size="xs"
+              min={
+                kind === "checkin" && row.arrivalDateOverride === predictedMinDate
+                  ? (row.standardTime ?? undefined)
+                  : undefined
+              }
+              max={
+                kind === "checkout" && row.arrivalDateOverride === predictedMaxCheckoutDate
+                  ? (row.standardTime ?? undefined)
+                  : undefined
+              }
               onChange={(v) => onEditTime(row, v)}
             />
           </span>
@@ -6378,12 +6402,20 @@ function TimeDropdown({
   disabled,
   onChange,
   size = "sm",
+  min,
+  max,
 }: {
   value: string | null;
   disabled?: boolean;
   onChange: (v: string | null) => void;
   size?: "sm" | "xs";
+  /** Menor horário selecionável (inclusive), formato "HH:mm". */
+  min?: string;
+  /** Maior horário selecionável (inclusive), formato "HH:mm". */
+  max?: string;
 }) {
+  // Comparação de string funciona pois TIME_SLOTS é sempre "HH:mm" (zero-padded).
+  const slots = TIME_SLOTS.filter((t) => (!min || t >= min) && (!max || t <= max));
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -6414,7 +6446,7 @@ function TimeDropdown({
             Limpar
           </DropdownMenuItem>
         )}
-        {TIME_SLOTS.map((t) => (
+        {slots.map((t) => (
           <DropdownMenuItem
             key={t}
             onClick={(e) => {

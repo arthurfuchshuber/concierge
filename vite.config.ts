@@ -12,7 +12,19 @@ export default defineConfig({
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
     server: { entry: "server" },
+    // Páginas públicas e iguais para todo visitante: geradas como HTML estático
+    // no build (SSG). Páginas com sessão/dados por usuário continuam de fora.
+    pages: [
+      { path: "/" },
+      { path: "/precos" },
+      { path: "/termos" },
+      { path: "/privacidade" },
+      { path: "/reembolso" },
+      { path: "/confianca" },
+    ],
+    prerender: { enabled: true, autoStaticPathsDiscovery: false },
   },
+
   vite: {
     plugins: [mcpPlugin()],
     define: {
