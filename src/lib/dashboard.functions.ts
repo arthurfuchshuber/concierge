@@ -175,8 +175,11 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
       id: string;
       property_id: string;
       guest_name: string;
+      guest_phone: string | null;
       checkin_date: string;
       checkout_date: string | null;
+      reservation_code: string | null;
+      created_at: string;
     };
     type ResRow = {
       id: string;
@@ -185,6 +188,7 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
       checkout_date: string;
       status: string | null;
       raw_summary: string | null;
+      guest_hint: string | null;
     };
     type StatusRow = {
       log_id: string | null;
