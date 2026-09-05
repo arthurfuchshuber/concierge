@@ -2890,7 +2890,45 @@ function KpiCard({
   // gatilho (compact/highlight) do card em si, que já usa a prop `compact`
   // pra outra coisa (faixa fina vs. quadrado).
   const [listMode, setListMode] = useState<"full" | "list">("list");
-  const list = useWholeCardsMaxHeight(2, `${open}:${rows.length}:${loading}:${listMode}`);
+  // "Congela" QUAIS cards aparecem (e em que ordem) assim que o popup termina
+  // de carregar (pedido explícito, 05/09/2026): sem isso, editar a
+  // data/horário previsto de UM card dentro deste popup (ex.: "Check-ins
+  // amanhã") faz o card sumir da lista NA HORA, assim que o commit é
+  // confirmado — mesmo com o popup ainda aberto — porque `rows` vem direto
+  // da mesma query reativa do Kanban, que já reflete o novo valor. O usuário
+  // quer o oposto: o card só deve mesmo sair desta lista depois que ELE
+  // FECHAR o popup inteiro (botão "X") e abrir de novo.
+  //
+  // Importante: só a PRESENÇA/ORDEM fica travada — os campos de cada card
+  // (a própria data/horário que acabou de ser editada, notas, status etc.)
+  // continuam vindo ao vivo de `rows` enquanto o card ainda existir lá, pra
+  // o usuário ver a confirmação de que o ajuste realmente salvou, em vez do
+  // campo "voltar" pro valor antigo até fechar o popup.
+  const [frozenSnapshot, setFrozenSnapshot] = useState<Map<string, ArrivalRow> | null>(null);
+  useEffect(() => {
+    if (!open) {
+      // Fechou (ou ainda não abriu): solta o congelamento, pra próxima
+      // abertura tirar uma "foto" nova, já atualizada.
+      setFrozenSnapshot(null);
+      return;
+    }
+    // Só tira a "foto" DEPOIS que o carregamento (onRefresh, disparado ao
+    // abrir) termina — assim o popup sempre abre com o dado mais recente, e
+    // só a partir daí fica imune a cards somendo/aparecendo em segundo plano.
+    if (!loading && frozenSnapshot === null) {
+      setFrozenSnapshot(new Map(rows.map((r) => [r.logId, r] as const)));
+    }
+  }, [open, loading, rows, frozenSnapshot]);
+  const displayRows = useMemo(() => {
+    if (!frozenSnapshot) return rows;
+    const liveById = new Map(rows.map((r) => [r.logId, r] as const));
+    // Prefere a versão AO VIVO (campos atualizados) de cada card que ainda
+    // existe em `rows`; só cai pra "foto" congelada se o card tiver
+    // desaparecido de vez da fonte (aí é melhor mostrar o último estado
+    // conhecido do que sumir da lista no meio da sessão).
+    return Array.from(frozenSnapshot.keys()).map((id) => liveById.get(id) ?? frozenSnapshot.get(id)!);
+  }, [frozenSnapshot, rows]);
+  const list = useWholeCardsMaxHeight(2, `${open}:${displayRows.length}:${loading}:${listMode}`);
   const screenshotRef = useRef<HTMLDivElement | null>(null);
   const valueTone = tone === "primary" ? "text-accent" : "text-foreground";
   const valueColor =
@@ -3003,16 +3041,16 @@ function KpiCard({
             <div className="min-w-0 flex-1">
               <DialogTitle className="text-base font-display leading-tight truncate">{label}</DialogTitle>
               <div className="ds-meta mt-0.5">
-                {rangeLabel} · {rows.length} {rows.length === 1 ? "hóspede" : "hóspedes"}
+                {rangeLabel} · {displayRows.length} {displayRows.length === 1 ? "hóspede" : "hóspedes"}
               </div>
             </div>
           </div>
-          {rows.length > 0 && (
+          {displayRows.length > 0 && (
             <div className="flex items-center justify-end gap-1.5 mt-3">
               <ScreenshotButton
                 targetRef={screenshotRef}
                 fileName={`${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-                receiptRows={rows}
+                receiptRows={displayRows}
                 receiptTitle={label}
               />
               <ViewModeToggle value={listMode} onChange={setListMode} />
@@ -3038,11 +3076,11 @@ function KpiCard({
             <div className="py-14 grid place-items-center text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
             </div>
-          ) : rows.length === 0 ? (
+          ) : displayRows.length === 0 ? (
             <div className="py-12 text-center text-sm text-muted-foreground">Nenhum registro no período.</div>
           ) : (
             <div className="pb-3">
-              <ArrivalGroup title="" {...cardProps} compact={listMode === "list"} />
+              <ArrivalGroup title="" {...cardProps} rows={displayRows} compact={listMode === "list"} />
             </div>
           )}
         </div>
