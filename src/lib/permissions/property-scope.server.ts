@@ -17,6 +17,9 @@ export async function visiblePropertyIds(userId: string): Promise<string[] | nul
   const isMember = snapshot.subject.isTenantMember;
   if (!isMember) return null;
   if (roles.includes("SYSTEM") || roles.includes("CRON")) return null;
+  // "Todas as residências": enxerga tudo da conta, inclusive imóveis criados
+  // depois — só passa a ter recorte quando alguém limita a lista.
+  if (snapshot.allProperties) return null;
   return snapshot.properties;
 }
 
