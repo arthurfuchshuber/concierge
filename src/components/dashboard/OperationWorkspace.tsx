@@ -5567,8 +5567,20 @@ function ArrivalCard({
   // horário logo abaixo (pedido explícito, 04/09/2026: "checkin só pode ser
   // preenchido o horário a partir do horário configurado... checkout pode
   // selecionar até a data/horário limite configurado").
-  const effMinTime = kind === "checkout" ? row.standardTimeMax : row.standardTime;
-  const effMaxTime = kind === "checkout" ? row.standardTime : row.standardTimeMax;
+  //
+  // Esse piso/teto só faz sentido quando a previsão cai no MESMO dia da
+  // reserva confirmada — ele existe pra impedir um horário "impossível"
+  // dentro da janela padrão daquele dia. Quando a previsão muda o DIA (só
+  // acontece pra chegada depois ou saída antes da data confirmada — o
+  // servidor já impede o contrário), o dia deixa de ser o de virada do
+  // imóvel e a janela do dia original não se aplica mais: qualquer horário
+  // vale. Pedido explícito, 05/09/2026 ("se a reserva é dia 4 a partir das
+  // 15h, o hóspede obviamente pode entrar às 11h do dia seguinte").
+  const confirmedDateForKind = kind === "checkout" ? row.guestCheckout : row.guestCheckin;
+  const predictedDayShifted =
+    !!row.arrivalDateOverride && !!confirmedDateForKind && row.arrivalDateOverride !== confirmedDateForKind;
+  const effMinTime = predictedDayShifted ? null : kind === "checkout" ? row.standardTimeMax : row.standardTime;
+  const effMaxTime = predictedDayShifted ? null : kind === "checkout" ? row.standardTime : row.standardTimeMax;
   const divergent = !!guestTime && !!effMinTime && !isTimeWithin(guestTime, effMinTime, effMaxTime);
 
   const done = row.status === "done";
@@ -5616,9 +5628,20 @@ function ArrivalCard({
         : done
           ? "text-emerald-700 dark:text-emerald-300"
           : "text-sky-700 dark:text-sky-300";
-  const blockReason = kind === "checkin" && !done && !isFuture ? (cleaningBlocked ?? null) : null;
+  // Trava real do botão "Check-in realizado!": usa a data CONFIRMADA da
+  // reserva (`row.guestCheckin`), nunca a prevista (`row.date`, que já pode
+  // estar sobrescrita pela previsão de chegada). Uma previsão pra um dia
+  // depois da reserva é só uma expectativa registrada pelo anfitrião — ela
+  // move o card de dia no dashboard, mas nunca pode impedir marcar o
+  // check-in real quando ele de fato acontece (bug real corrigido,
+  // 05/09/2026: previsão pra amanhã travava o botão como se a reserva toda
+  // fosse amanhã). O indicador visual "data futura" (borda âmbar) e a
+  // confirmação de checkout antecipado continuam usando `row.date`
+  // normalmente — só esta trava de ação muda.
+  const confirmedCheckinFuture = kind === "checkin" && !!row.guestCheckin && row.guestCheckin > todayISO;
+  const blockReason = kind === "checkin" && !done && !confirmedCheckinFuture ? (cleaningBlocked ?? null) : null;
   const cleaningBlock = blockReason !== null;
-  const blockCheck = (kind === "checkin" && !done && isFuture) || cleaningBlock;
+  const blockCheck = (kind === "checkin" && !done && confirmedCheckinFuture) || cleaningBlock;
 
   // Prefer garage address when available for logistics
   const mapsHref =
@@ -6124,7 +6147,7 @@ function ArrivalCard({
               }
               if (blockCheck) {
                 toast.warning(
-                  `Check-in previsto para ${fmtDateBR(row.date)}. Só é possível marcar a partir do dia da chegada.`,
+                  `Check-in confirmado para ${fmtDateBR(row.guestCheckin)}. Só é possível marcar a partir do dia da chegada.`,
                 );
                 return;
               }
@@ -6156,7 +6179,7 @@ function ArrivalCard({
                     ? "Check-out anterior pendente — limpeza precisa ser concluída antes de liberar o check-in"
                     : "Limpeza ainda em andamento — check-in bloqueado"
                   : blockCheck
-                    ? `Só é possível marcar a partir de ${fmtDateBR(row.date)}`
+                    ? `Só é possível marcar a partir de ${fmtDateBR(row.guestCheckin)}`
                     : mode === "cleaning"
                       ? "Concluir limpeza (finaliza a estadia)"
                       : mode === "stay"
