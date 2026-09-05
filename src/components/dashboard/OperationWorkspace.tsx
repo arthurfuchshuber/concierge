@@ -705,36 +705,47 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
   // KPIs derivam das mesmas listas do kanban para garantir sincronia visual.
 
+  // Rede de segurança contra divergência entre usuários: além do realtime
+  // (canal "dash-live" abaixo), estas listas se atualizam sozinhas a cada 30s
+  // e sempre que a aba volta ao foco — assim dois membros da equipe nunca
+  // ficam vendo números diferentes por causa de um evento perdido.
+  const liveSync = { refetchInterval: 30_000, refetchIntervalInBackground: false, refetchOnWindowFocus: true } as const;
   const engQ = useQuery({
     queryKey: ["dash-eng", engRange, activeOwnerId ?? "self"],
     queryFn: () => engFn({ data: { range: engRange, ownerId: activeOwnerId } }),
     staleTime: 60_000,
     placeholderData: keepPreviousData,
+    ...liveSync,
   });
   const checkinListQ = useQuery({
     queryKey: ["dash-list", "checkin", range, activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkin", range, ownerId: activeOwnerId } }),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
+    ...liveSync,
   });
   const checkoutListQ = useQuery({
     queryKey: ["dash-list", "checkout", range, activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkout", range, ownerId: activeOwnerId } }),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
+    ...liveSync,
   });
   const tomorrowCheckinListQ = useQuery({
     queryKey: ["dash-list", "checkin", "tomorrow", activeOwnerId ?? "self", "top-card"],
     queryFn: () => listFn({ data: { kind: "checkin", range: "tomorrow", ownerId: activeOwnerId } }),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
+    ...liveSync,
   });
   const tomorrowCheckoutListQ = useQuery({
     queryKey: ["dash-list", "checkout", "tomorrow", activeOwnerId ?? "self", "top-card"],
     queryFn: () => listFn({ data: { kind: "checkout", range: "tomorrow", ownerId: activeOwnerId } }),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
+    ...liveSync,
   });
+
   // Pedido explícito: no Kanban, o antigo seletor "Hoje/Amanhã/7 dias/Todos"
   // virou o mesmo botão "Filtros" (Período/Cidade/Proprietário) do
   // Dashboard/Limpeza — só que aqui ele filtra as LISTAS do próprio quadro,
