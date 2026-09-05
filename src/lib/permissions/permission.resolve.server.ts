@@ -29,6 +29,8 @@ export type SubjectSnapshot = {
   status: SubjectStatus;
   /** Imóveis com vínculo ATIVO (escopo PROPERTY). */
   properties: string[];
+  /** `true` quando a pessoa atende todas as residências da conta (padrão). */
+  allProperties?: boolean;
   assignments: PermissionAssignment[];
   nodeIdBySlug: Record<string, string>;
   /** Slugs ativos conhecidos no banco (quando disponíveis). */
@@ -50,23 +52,31 @@ async function admin() {
 /** Descobre o tenant (titular da conta) e o status do usuário. */
 export async function resolveTenantOf(
   userId: string,
-): Promise<{ tenantId: string; status: SubjectStatus; role: string | null }> {
+): Promise<{
+  tenantId: string;
+  status: SubjectStatus;
+  role: string | null;
+  allProperties: boolean;
+}> {
   const db = await admin();
   const { data } = await db
     .from("account_members")
-    .select("owner_id, role, status")
+    .select("owner_id, role, status, all_properties")
     .eq("member_user_id", userId)
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
 
-  if (!data) return { tenantId: userId, status: "active", role: "owner" };
+  if (!data) return { tenantId: userId, status: "active", role: "owner", allProperties: true };
 
   const status = ((data.status as string) ?? "active") as SubjectStatus;
   return {
     tenantId: (data.owner_id as string) ?? userId,
     status: ["active", "pending", "revoked"].includes(status) ? status : "unknown",
     role: (data.role as string) ?? null,
+    // Padrão do produto: uma pessoa nova da equipe atende TODAS as residências
+    // (inclusive as criadas depois) até que alguém limite a lista dela.
+    allProperties: (data as { all_properties?: boolean | null }).all_properties !== false,
   };
 }
 
@@ -106,18 +116,16 @@ export async function resolveSubjectSnapshot(
 ): Promise<SubjectSnapshot> {
   bootstrapPermissionRegistry();
 
+  const membership = await resolveTenantOf(userId);
   const resolvedTenant = ctx.tenantId
     ? { tenantId: ctx.tenantId, status: "unknown" as SubjectStatus, role: null }
-    : await resolveTenantOf(userId);
+    : membership;
 
   // Quando o tenant vem por parâmetro, ainda precisamos do status real.
   let status = resolvedTenant.status;
   if (ctx.tenantId) {
     if (ctx.tenantId === userId) status = "active";
-    else {
-      const membership = await resolveTenantOf(userId);
-      status = membership.tenantId === ctx.tenantId ? membership.status : "revoked";
-    }
+    else status = membership.tenantId === ctx.tenantId ? membership.status : "revoked";
   }
 
   const tenantId = resolvedTenant.tenantId;
@@ -133,6 +141,7 @@ export async function resolveSubjectSnapshot(
   return {
     subject: { userId, tenantId, systemRoles, plan, isTenantMember: userId !== tenantId },
     status,
+    allProperties: userId === tenantId ? true : membership.allProperties,
     properties: propertyRows
       .filter((r) => (r.status ?? "active") === "active")
       .map((r) => r.property_id),

@@ -81,6 +81,8 @@ export type CenterUserDetail = {
   inherited: Array<{ namespace: string; label: string; level: AccessLevel }>;
   scopes: Array<{ type: ScopeType; description: string; count: number }>;
   properties: CenterProperty[];
+  /** `true` quando a pessoa atende todas as residências (padrão de quem entra). */
+  allProperties: boolean;
 };
 
 export type CenterProperty = {
@@ -310,7 +312,7 @@ export async function loadCenterOverview(
   return { allowed: true, context: kind, tenantId, tenantName, users, invites };
 }
 
-async function propertiesOf(tenantId: string, assigned: string[]) {
+async function propertiesOf(tenantId: string, assigned: string[], all = false) {
   const client = await db();
   const { data } = await client
     .from("properties")
@@ -366,7 +368,7 @@ async function propertiesOf(tenantId: string, assigned: string[]) {
       ownerPhone: owner?.phone ?? null,
       ownerPhoneCountry: owner?.country ?? null,
       published: !!p.published,
-      assigned: assigned.includes(p.id),
+      assigned: all || assigned.includes(p.id),
     };
   });
 }
@@ -453,7 +455,8 @@ export async function loadCenterUserDetail(
     direct,
     inherited,
     scopes: scopeSummary(snapshot),
-    properties: await propertiesOf(tenantId, snapshot.properties),
+    allProperties: snapshot.allProperties === true,
+    properties: await propertiesOf(tenantId, snapshot.properties, snapshot.allProperties === true),
   };
 }
 
@@ -492,7 +495,7 @@ export async function loadCenterScopes(
   return {
     allowed: true,
     scopes: scopeSummary(snapshot),
-    properties: await propertiesOf(tenantId, snapshot.properties),
+    properties: await propertiesOf(tenantId, snapshot.properties, snapshot.allProperties === true),
   };
 }
 

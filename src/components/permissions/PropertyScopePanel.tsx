@@ -35,12 +35,17 @@ export function PropertyScopePanel({
   pending,
   onToggle,
   onBulk,
+  allProperties = false,
+  onAllProperties,
 }: {
   properties: CenterProperty[];
   disabled?: boolean;
   pending?: boolean;
   onToggle: (propertyId: string, assigned: boolean) => void;
   onBulk: (propertyIds: string[], assigned: boolean) => void;
+  /** `true` = atende todas as residências, inclusive as criadas depois. */
+  allProperties?: boolean;
+  onAllProperties?: (all: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [term, setTerm] = useState("");
@@ -80,6 +85,7 @@ export function PropertyScopePanel({
     );
   }, [properties, term, city, owner]);
 
+  const locked = disabled || allProperties;
   const filteredIds = filtered.map((p) => p.id);
   const selectedVisible = selected.filter((id) => filteredIds.includes(id));
   const allVisibleSelected = filteredIds.length > 0 && selectedVisible.length === filteredIds.length;
@@ -99,12 +105,29 @@ export function PropertyScopePanel({
           <Home className="h-4 w-4" /> Residências que esta pessoa atende
         </span>
         <span className="text-xs text-muted-foreground">
-          {properties.filter((p) => p.assigned).length} de {properties.length}
+          {allProperties
+            ? "Todas"
+            : `${properties.filter((p) => p.assigned).length} de ${properties.length}`}
         </span>
       </button>
 
       {open ? (
         <div className="mt-3 space-y-3">
+          <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">Atende todas as residências</p>
+              <p className="text-xs text-muted-foreground">
+                Padrão de quem entra na equipe: inclui automaticamente as residências criadas
+                depois. Desligue para escolher uma lista específica.
+              </p>
+            </div>
+            <Switch
+              checked={allProperties}
+              disabled={disabled || pending || !onAllProperties}
+              onCheckedChange={(v) => onAllProperties?.(!!v)}
+            />
+          </div>
+
           <div className="space-y-2">
             <div className="relative w-full">
               <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -151,7 +174,7 @@ export function PropertyScopePanel({
                 <Checkbox
                   checked={allVisibleSelected}
                   onCheckedChange={(v) => setSelected(v ? filteredIds : [])}
-                  disabled={disabled || filteredIds.length === 0}
+                  disabled={locked || filteredIds.length === 0}
                 />
                 <span className="truncate">Selecionar {filtered.length} visíveis</span>
               </label>
@@ -164,7 +187,7 @@ export function PropertyScopePanel({
                 size="sm"
                 variant="outline"
                 className="flex-1"
-                disabled={disabled || pending || selectedVisible.length === 0}
+                disabled={locked || pending || selectedVisible.length === 0}
                 onClick={() => onBulk(selectedVisible, true)}
               >
                 Ativar
@@ -173,7 +196,7 @@ export function PropertyScopePanel({
                 size="sm"
                 variant="outline"
                 className="flex-1"
-                disabled={disabled || pending || selectedVisible.length === 0}
+                disabled={locked || pending || selectedVisible.length === 0}
                 onClick={() => onBulk(selectedVisible, false)}
               >
                 Desativar

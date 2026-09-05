@@ -148,6 +148,17 @@ export const revokePermissionCenterPermission = createServerFn({ method: "POST" 
     return m.revokeCenterPermission(context.userId, data);
   });
 
+/** Liga/desliga o modo "atende todas as residências". */
+export const setPermissionCenterAllProperties = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z.object({ targetUserId: z.string().uuid(), all: z.boolean() }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const m = await import("@/lib/permissions/permission.center.mutations.server");
+    return m.setCenterAllProperties(context.userId, data);
+  });
+
 /** Vincula/desvincula uma residência (escopo PROPERTY). */
 export const setPermissionCenterPropertyScope = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
