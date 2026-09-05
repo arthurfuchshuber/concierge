@@ -6883,13 +6883,22 @@ function PredictedEditor({
             }}
             className="p-3"
           />
+          {/* IMPORTANTE: este botão NÃO fecha o Popover nem confirma nada —
+              só troca pra visão de Horário, dentro da MESMA sessão aberta.
+              Pedido explícito, 05/09/2026: um "Concluir" aqui (que fechasse
+              e já confirmasse tudo) fazia o card se mover assim que a data
+              era ajustada, antes do usuário conseguir abrir o Horário —
+              exatamente o bug que a sessão compartilhada deveria evitar. A
+              única forma de fechar/confirmar de verdade agora é pelo
+              "Concluir" da visão de Horário, ou clicando fora dos dois
+              campos. */}
           <div className="flex items-center justify-end border-t border-border p-2">
             <button
               type="button"
-              onClick={closeAndCommit}
+              onClick={() => setActiveField("time")}
               className="rounded-md px-2.5 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10"
             >
-              Concluir
+              Avançar para horário
             </button>
           </div>
         </PopoverContent>
