@@ -154,6 +154,7 @@ type PropRow = {
   name: string | null;
   city: string | null;
   checkin_time: string | null;
+  checkin_time_max: string | null;
   checkout_time: string | null;
 };
 
@@ -198,7 +199,7 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
   // durante uma edição — em nenhum dos dois casos ele para de operar).
   const { data: propsRaw } = await admin
     .from("properties")
-    .select("id, owner_id, name, city, checkin_time, checkout_time");
+    .select("id, owner_id, name, city, checkin_time, checkin_time_max, checkout_time");
   const props = (propsRaw ?? []) as PropRow[];
   if (props.length === 0) return { ownersNotified: 0, notifications: 0 };
 
