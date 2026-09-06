@@ -1601,3 +1601,101 @@ export async function refreshStaleCityReferencesByPlaceId(limit: number) {
   }
   return { updated, failed, total: list.length };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Backfill de uso único: preenche lat/lng dos imóveis que já têm maps_url mas
+// estão sem coordenada. NÃO toca em endereço, cidade, fotos ou recomendações.
+// Admin SaaS processa todos os imóveis; usuário comum, só os próprios.
+// ─────────────────────────────────────────────────────────────────────────────
+type BackfillFailure = { id: string; name: string | null; reason: string };
+type BackfillCoordsResult = {
+  total: number;
+  updated: number;
+  failed: number;
+  skipped_invalid_link: number;
+  failures: BackfillFailure[];
+  skipped: BackfillFailure[];
+};
+
+function isAllowedMapsUrl(raw: string): boolean {
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== "https:" && u.protocol !== "http:") return false;
+    return ALLOWED_MAPS_HOSTS.has(u.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
+async function coordsFromMapsUrl(mapsUrl: string): Promise<{ lat: number; lng: number } | null> {
+  const resolved = await resolveShortUrl(mapsUrl);
+  const coords = extractCoords(resolved);
+  if (coords) return coords;
+  const q = decodeURIComponent(resolved.split("/place/")[1]?.split("/")[0] ?? "").replace(/\+/g, " ");
+  if (!q) return null;
+  const g = await geocodeText(q);
+  const loc = g?.geometry?.location;
+  return loc ? { lat: loc.lat, lng: loc.lng } : null;
+}
+
+export const backfillPropertyCoords = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<BackfillCoordsResult> => {
+    const { userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: isAdmin } = await context.supabase.rpc("has_role", {
+      _user_id: userId,
+      _role: "admin",
+    });
+
+    let query = supabaseAdmin
+      .from("properties")
+      .select("id, name, maps_url, lat, lng")
+      .not("maps_url", "is", null)
+      .or("lat.is.null,lng.is.null");
+    if (!isAdmin) query = query.eq("owner_id", userId);
+
+    const { data: rows, error } = await query;
+    if (error) throw new Error(`Falha ao listar imóveis: ${error.message}`);
+
+    const list = (rows ?? []) as Array<{ id: string; name: string | null; maps_url: string | null }>;
+    const failures: BackfillFailure[] = [];
+    const skipped: BackfillFailure[] = [];
+    let updated = 0;
+
+    for (const p of list) {
+      const url = (p.maps_url ?? "").trim();
+      if (!url || !isAllowedMapsUrl(url)) {
+        skipped.push({ id: p.id, name: p.name, reason: "Link do Google Maps ausente ou inválido." });
+        continue;
+      }
+      try {
+        const coords = await coordsFromMapsUrl(url);
+        if (!coords) {
+          failures.push({ id: p.id, name: p.name, reason: "Não foi possível extrair coordenadas do link." });
+          continue;
+        }
+        const { error: upErr } = await supabaseAdmin
+          .from("properties")
+          .update({ lat: coords.lat, lng: coords.lng } as never)
+          .eq("id", p.id);
+        if (upErr) {
+          failures.push({ id: p.id, name: p.name, reason: `Falha ao salvar: ${upErr.message}` });
+          continue;
+        }
+        updated += 1;
+      } catch (e) {
+        failures.push({ id: p.id, name: p.name, reason: e instanceof Error ? e.message : String(e) });
+      }
+    }
+
+    return {
+      total: list.length,
+      updated,
+      failed: failures.length,
+      skipped_invalid_link: skipped.length,
+      failures,
+      skipped,
+    };
+  });
