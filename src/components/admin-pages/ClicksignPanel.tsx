@@ -122,9 +122,11 @@ export function ClicksignPanel({ accountOwnerId = null, readOnly = false }: { ac
       toast.error(e instanceof Error ? e.message : "Erro ao atualizar dados"),
   });
 
+  // O segredo nunca chega em texto puro do servidor — o campo começa vazio e
+  // só é enviado quando alguém digita um novo valor.
   useEffect(() => {
-    setSecret(cfg.data?.webhookSecret ?? "");
-  }, [cfg.data?.webhookSecret]);
+    setSecret("");
+  }, [cfg.data?.webhookSecretMasked]);
 
   const saveSecretFn = useServerFn(rotateMyClicksignWebhookSecret);
 
