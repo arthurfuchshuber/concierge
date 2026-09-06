@@ -11,7 +11,8 @@ export type ClicksignConfigPublic = {
   lastError: string | null;
   documentsCount: number;
   ownerId: string;
-  webhookSecret: string | null;
+  webhookSecretMasked: string;
+  hasWebhookSecret: boolean;
   webhookLastEventAt: string | null;
 };
 
@@ -25,6 +26,16 @@ function newWebhookSecret(): string {
   crypto.getRandomValues(bytes);
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
+
+// Nunca devolvemos o segredo do webhook em texto puro para o cliente: qualquer
+// membro ativo da conta consegue ler essa resposta e poderia forjar chamadas ao
+// endpoint público do ClickSign. Mostramos apenas uma versão mascarada.
+function maskSecret(s: string | null): string {
+  if (!s) return "";
+  if (s.length <= 8) return "•".repeat(s.length);
+  return `${s.slice(0, 4)}${"•".repeat(Math.min(s.length - 8, 24))}${s.slice(-4)}`;
+}
+
 
 export const getMyClicksignConfig = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -53,7 +64,8 @@ export const getMyClicksignConfig = createServerFn({ method: "GET" })
       lastError: (data?.last_error as string) ?? null,
       documentsCount: count ?? 0,
       ownerId,
-      webhookSecret: (data?.webhook_secret as string) ?? null,
+      webhookSecretMasked: maskSecret((data?.webhook_secret as string) ?? null),
+      hasWebhookSecret: Boolean(data?.webhook_secret),
       webhookLastEventAt: (data?.webhook_last_event_at as string) ?? null,
     };
   });

@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 
 // ----- helpers -----
 
@@ -1138,17 +1140,30 @@ const AdvanceInput = z
   })
   .refine((v) => !!v.logId || !!v.reservationId, { message: "Informe a reserva ou o registro do hóspede." });
 
-export const advanceArrival = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => AdvanceInput.parse(i))
-  .handler(async ({ data, context }) => {
+/**
+ * Corpo de `advanceArrival`, extraído pra função independente (pedido
+ * explícito, 06/09/2026): reaproveitado tanto pelo clique manual em
+ * "Confirmar checkout" (via `advanceArrival` abaixo, com o client de sessão
+ * do usuário) quanto pela confirmação automática de checkout no horário
+ * previsto (`runAutoCheckoutScan`, em `auto-checkout.server.ts`, com
+ * `supabaseAdmin` — sem sessão de usuário, roda por cron). Aceita qualquer
+ * `SupabaseClient<Database>`: um client de sessão (RLS do usuário) ou o
+ * admin (bypassa RLS, usado pelo cron). `byUserId` só é usado no avanço de
+ * limpeza (`from: "cleaning"`), pra registrar quem concluiu — omitido no
+ * cron, que não tem um usuário humano por trás da ação.
+ */
+export async function runAdvanceArrival(
+  supabase: SupabaseClient<Database>,
+  data: z.infer<typeof AdvanceInput>,
+  opts?: { byUserId?: string | null },
+) {
     // Resolve property + stay dates from the source record.
     let propertyId: string | null = null;
     let checkinDate: string | null = null;
     let checkoutDate: string | null = null;
 
     if (data.logId) {
-      const { data: log } = await context.supabase
+      const { data: log } = await supabase
         .from("guide_access_logs")
         .select("property_id, checkin_date, checkout_date")
         .eq("id", data.logId)
@@ -1166,7 +1181,7 @@ export const advanceArrival = createServerFn({ method: "POST" })
     // tratado como "limpeza vencida" e o card ia direto para Concluídos,
     // sumindo da Fila de Limpeza.
     if (data.reservationId) {
-      const { data: res } = await context.supabase
+      const { data: res } = await supabase
         .from("property_reservations")
         .select("property_id, checkin_date, checkout_date")
         .eq("id", data.reservationId)
@@ -1216,7 +1231,7 @@ export const advanceArrival = createServerFn({ method: "POST" })
       // value violates unique constraint guest_arrival_status_log_id_kind_key"
       // ao concluir limpeza de um card já casado com log + reserva).
       if (data.logId && data.reservationId) {
-        const { data: existing, error: findErr } = await context.supabase
+        const { data: existing, error: findErr } = await supabase
           .from("guest_arrival_status")
           .select("id")
           .eq("kind", kind)
@@ -1225,17 +1240,17 @@ export const advanceArrival = createServerFn({ method: "POST" })
         if (findErr) throw new Error(findErr.message);
         const existingId = (existing?.[0] as { id: string } | undefined)?.id;
         const { error } = existingId
-          ? await context.supabase.from("guest_arrival_status").update(body).eq("id", existingId)
-          : await context.supabase.from("guest_arrival_status").insert(body);
+          ? await supabase.from("guest_arrival_status").update(body).eq("id", existingId)
+          : await supabase.from("guest_arrival_status").insert(body);
         if (error) throw new Error(error.message);
         return;
       }
 
       const { error } = data.reservationId
-        ? await context.supabase
+        ? await supabase
             .from("guest_arrival_status")
             .upsert(body, { onConflict: "reservation_id,kind" })
-        : await context.supabase
+        : await supabase
             .from("guest_arrival_status")
             .upsert(body, { onConflict: "log_id,kind" });
       if (error) throw new Error(error.message);
@@ -1255,7 +1270,7 @@ export const advanceArrival = createServerFn({ method: "POST" })
       // tem a estadia anterior em aberto (checkout pendente ou limpeza não
       // concluída). Isso já é bloqueado na tela, mas a tela só enxerga os
       // cards do filtro atual — a regra precisa valer no servidor.
-      const { data: openCheckouts } = await context.supabase
+      const { data: openCheckouts } = await supabase
         .from("guest_arrival_status")
         .select("log_id, reservation_id, status, concluded_at")
         .eq("property_id", propertyId)
@@ -1316,7 +1331,7 @@ export const advanceArrival = createServerFn({ method: "POST" })
       // Gravamos o preço vigente do imóvel NAQUELE momento — se o valor
       // configurado mudar depois, os totais já registrados não se alteram.
       const cleaningType = data.cleaningType ?? "normal";
-      const { data: propPrices } = await context.supabase
+      const { data: propPrices } = await supabase
         .from("properties")
         .select("cleaning_price_normal_cents, cleaning_price_full_cents")
         .eq("id", propertyId)
@@ -1350,7 +1365,7 @@ export const advanceArrival = createServerFn({ method: "POST" })
           await notifyCleaningDone(supabaseAdmin as never, {
             propertyId,
             refKey,
-            byUserId: context.userId,
+            byUserId: (opts?.byUserId ?? null),
           });
         } else {
           await notifyCleaningReady(supabaseAdmin as never, { propertyId, refKey });
@@ -1361,7 +1376,14 @@ export const advanceArrival = createServerFn({ method: "POST" })
     }
 
     return { ok: true };
-  });
+}
+
+export const advanceArrival = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => AdvanceInput.parse(i))
+  .handler(async ({ data, context }) =>
+    runAdvanceArrival(context.supabase, data, { byUserId: context.userId }),
+  );
 
 
 // ----- Undo a check-advance (from destination list) -----
