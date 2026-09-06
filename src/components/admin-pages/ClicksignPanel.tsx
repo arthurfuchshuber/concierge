@@ -153,7 +153,7 @@ export function ClicksignPanel({ accountOwnerId = null, readOnly = false }: { ac
     mutationFn: async () => {
       await saveFn({ data: { apiToken: token || undefined, environment: "production" } });
       const s = secret.trim();
-      if (s.length >= 8 && s !== (cfg.data?.webhookSecret ?? "")) {
+      if (s.length >= 8) {
         await saveSecretFn({ data: { secret: s } });
       }
     },
