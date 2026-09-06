@@ -684,7 +684,17 @@ export async function buildArrivalRows(
       // Pedido explícito do cliente (04/09/2026): a previsão informada
       // (arrival_date_override) manda no dia em que o card aparece — a data
       // bruta da reserva só é usada de fallback quando não há previsão.
-      const override = reservationStatusMap.get(r.id)?.arrival_date_override ?? null;
+      // A previsão preenchida pelo hóspede no formulário é gravada no LOG
+      // (guest_arrival_status.log_id), não na reserva — por isso o filtro
+      // precisa resolver o override na mesma ordem que rowFromReservation.
+      const inRangeLog = findLogsForReservation(uniqueLogs, r, data.kind).primary;
+      const legacyStatus = placeholderStatus.get(
+        placeholderKey(r.property_id, r.checkin_date, r.checkout_date, data.kind),
+      );
+      const resolved =
+        reservationStatusMap.get(r.id) ?? legacyStatus ?? (inRangeLog ? statusMap.get(inRangeLog.id) : undefined);
+      const override =
+        (resolved as { arrival_date_override?: string | null } | undefined)?.arrival_date_override ?? null;
       const date = override ?? (data.kind === "checkin" ? r.checkin_date : r.checkout_date);
       if (date < (from ?? today)) {
         if (data.kind === "checkin" && data.range !== "tomorrow") {

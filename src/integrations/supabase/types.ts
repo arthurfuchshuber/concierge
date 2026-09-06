@@ -85,6 +85,7 @@ export type Database = {
       }
       account_members: {
         Row: {
+          all_properties: boolean
           created_at: string
           id: string
           invited_by: string | null
@@ -95,6 +96,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          all_properties?: boolean
           created_at?: string
           id?: string
           invited_by?: string | null
@@ -105,6 +107,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          all_properties?: boolean
           created_at?: string
           id?: string
           invited_by?: string | null

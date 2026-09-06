@@ -149,7 +149,7 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
       context.supabase.from("properties").select("id, airbnb_ical_url").in("id", propIds),
       context.supabase
         .from("guide_access_logs")
-        .select("id, property_id, guest_name, checkin_date, checkout_date")
+        .select("id, property_id, guest_name, guest_phone, checkin_date, checkout_date, reservation_code, created_at")
         .in("property_id", propIds)
         .or(
           `and(checkin_date.gte.${overdueFrom},checkin_date.lte.${tomorrow}),and(checkout_date.gte.${overdueFrom},checkout_date.lte.${tomorrow})`,
@@ -157,7 +157,7 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
         .limit(2000),
       context.supabase
         .from("property_reservations")
-        .select("id, property_id, checkin_date, checkout_date, status, raw_summary")
+        .select("id, property_id, checkin_date, checkout_date, status, raw_summary, guest_hint")
         .in("property_id", propIds)
         .eq("source", "airbnb")
         .or(
@@ -166,7 +166,7 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
         .limit(5000),
       context.supabase
         .from("guest_arrival_status")
-        .select("log_id, reservation_id, kind, status")
+        .select("log_id, reservation_id, kind, status, arrival_date_override, concluded_at")
         .in("property_id", propIds)
         .limit(5000),
     ]);
@@ -175,8 +175,11 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
       id: string;
       property_id: string;
       guest_name: string;
+      guest_phone: string | null;
       checkin_date: string;
       checkout_date: string | null;
+      reservation_code: string | null;
+      created_at: string;
     };
     type ResRow = {
       id: string;
@@ -185,12 +188,15 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
       checkout_date: string;
       status: string | null;
       raw_summary: string | null;
+      guest_hint: string | null;
     };
     type StatusRow = {
       log_id: string | null;
       reservation_id: string | null;
       kind: "checkin" | "checkout";
-      status: "pending" | "done";
+      status: "pending" | "done" | "no_show";
+      arrival_date_override: string | null;
+      concluded_at: string | null;
     };
     const icalProps = new Set(
       ((props ?? []) as Array<{ id: string; airbnb_ical_url: string | null }>)
@@ -203,29 +209,79 @@ export const getDashboardKpis = createServerFn({ method: "GET" })
     const doneRes = new Set<string>();
     const touchedLog = new Set<string>();
     const touchedRes = new Set<string>();
+    // Previsão informada pelo anfitrião manda no dia contado — mesma regra que
+    // o Kanban usa (arrival_date_override em arrival-board.server.ts), senão o
+    // número do card diverge da lista.
+    const overrideLog = new Map<string, string>();
+    const overrideRes = new Map<string, string>();
     for (const s of (statuses ?? []) as StatusRow[]) {
       if (s.log_id) touchedLog.add(`${s.kind}|${s.log_id}`);
       if (s.reservation_id) touchedRes.add(`${s.kind}|${s.reservation_id}`);
-      if (s.status !== "done") continue;
+      if (s.arrival_date_override) {
+        if (s.log_id) overrideLog.set(`${s.kind}|${s.log_id}`, s.arrival_date_override);
+        if (s.reservation_id) overrideRes.set(`${s.kind}|${s.reservation_id}`, s.arrival_date_override);
+      }
+      // Concluído/Não compareceu saem da esteira, como no Kanban.
+      if (s.status !== "done" && s.status !== "no_show" && !s.concluded_at) continue;
       if (s.log_id) doneLog.add(`${s.kind}|${s.log_id}`);
       if (s.reservation_id) doneRes.add(`${s.kind}|${s.reservation_id}`);
+    }
+
+    // Casamento reserva→hóspede (mesma lógica do Kanban): quando o hóspede
+    // preenche o formulário, a previsão é gravada no LOG (guest_arrival_status
+    // com log_id), nunca na reserva. Sem consultar o log casado, o contador
+    // usaria a data bruta da reserva e divergiria da lista.
+    const { dedupeFormLogs, findLogsForReservation } = await import("@/lib/arrival-board.server");
+    const uniqueKpiLogs = dedupeFormLogs(logRows.filter((l) => !isPlaceholderGuest(l.guest_name)));
+    const matchedLogByRes = new Map<string, Map<string, LogRow | null>>();
+    function matchedLogFor(r: ResRow, kind: "checkin" | "checkout"): LogRow | null {
+      let byKind = matchedLogByRes.get(kind);
+      if (!byKind) {
+        byKind = new Map();
+        matchedLogByRes.set(kind, byKind);
+      }
+      if (byKind.has(r.id)) return byKind.get(r.id) ?? null;
+      const primary =
+        r.checkin_date && r.checkout_date
+          ? findLogsForReservation(
+              uniqueKpiLogs,
+              {
+                property_id: r.property_id,
+                checkin_date: r.checkin_date,
+                checkout_date: r.checkout_date,
+                guest_hint: r.guest_hint,
+              },
+              kind,
+            ).primary
+          : null;
+      byKind.set(r.id, primary ?? null);
+      return primary ?? null;
     }
 
     function countFor(col: "checkin_date" | "checkout_date", from: string, to: string) {
       const kind: "checkin" | "checkout" = col === "checkin_date" ? "checkin" : "checkout";
       const seen = new Set<string>();
+      const usedLogIds = new Set<string>();
       for (const r of resRows) {
-        if (r[col] < from || r[col] > to) continue;
         if (!icalProps.has(r.property_id) || !isRealReservation(r)) continue;
-        if (doneRes.has(`${kind}|${r.id}`)) continue;
+        const matched = matchedLogFor(r, kind);
+        if (matched) usedLogIds.add(matched.id);
+        const date =
+          overrideRes.get(`${kind}|${r.id}`) ??
+          (matched ? overrideLog.get(`${kind}|${matched.id}`) : undefined) ??
+          r[col];
+        if (date < from || date > to) continue;
+        if (doneRes.has(`${kind}|${r.id}`) || (matched && doneLog.has(`${kind}|${matched.id}`))) continue;
         // Datas passadas só contam se já houve interação registrada.
-        if (r[col] < today && !touchedRes.has(`${kind}|${r.id}`)) continue;
+        const touched = touchedRes.has(`${kind}|${r.id}`) || (matched ? touchedLog.has(`${kind}|${matched.id}`) : false);
+        if (date < today && !touched) continue;
         seen.add(`ical|${r.id}`);
       }
       for (const row of logRows) {
-        const v = row[col];
+        const v = overrideLog.get(`${kind}|${row.id}`) ?? row[col];
         if (!v || v < from || v > to) continue;
         if (icalProps.has(row.property_id) || isPlaceholderGuest(row.guest_name)) continue;
+        if (usedLogIds.has(row.id)) continue;
         if (doneLog.has(`${kind}|${row.id}`)) continue;
         if (v < today && !touchedLog.has(`${kind}|${row.id}`)) continue;
         seen.add(`log|${row.property_id}|${(row.guest_name || "").trim().toLowerCase()}|${v}`);
@@ -425,6 +481,12 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
       from = today;
       to = addDaysISO(today, 29);
     }
+    // Janela alargada: a previsão informada pelo anfitrião
+    // (arrival_date_override) pode mover um check-in para dentro ou para fora
+    // do período, então buscamos uma margem e filtramos em memória pela data
+    // efetiva — exatamente como o Kanban e os cards de KPI fazem.
+    const fetchFrom = addDaysISO(from, -30);
+    const fetchTo = addDaysISO(to, 30);
     const [{ data: props }, { data: reservations }, { data: logs }, { data: allStatuses }] = await Promise.all([
       context.supabase
         .from("properties")
@@ -435,8 +497,8 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
         .select("id, property_id, checkin_date, checkout_date, status, raw_summary, guest_hint")
         .in("property_id", propIds)
         .eq("source", "airbnb")
-        .gte("checkin_date", from)
-        .lte("checkin_date", to)
+        .gte("checkin_date", fetchFrom)
+        .lte("checkin_date", fetchTo)
         .gte("checkout_date", today)
         .limit(5000),
       context.supabase
@@ -445,27 +507,56 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
           "id, property_id, guest_name, guest_phone, guest_arrival_time, checkin_date, checkout_date, reservation_code, created_at",
         )
         .in("property_id", propIds)
-        .gte("checkin_date", from)
-        .lte("checkin_date", to)
+        .gte("checkin_date", fetchFrom)
+        .lte("checkin_date", fetchTo)
         .order("created_at", { ascending: true })
         .limit(2000),
       context.supabase
         .from("guest_arrival_status")
-        .select("reservation_id, log_id, kind, status")
+        .select("reservation_id, log_id, kind, status, arrival_date_override, concluded_at")
         .in("property_id", propIds)
         .eq("kind", "checkin")
         .limit(5000),
     ]);
 
-    // Check-ins já concluídos saem da base de engajamento — o quadrante segue
-    // apenas os check-ins PENDENTES, igual aos cards do Kanban.
+    // Check-ins já concluídos (ou marcados como "não compareceu") saem da base
+    // de engajamento — o quadrante segue apenas os check-ins PENDENTES, igual
+    // aos cards do Kanban. Guardamos também a previsão de data informada e
+    // quais registros já tiveram alguma interação: check-in de data passada só
+    // continua contando quando alguém mexeu nele (mesma regra dos KPIs).
     const doneReservations = new Set<string>();
     const doneLogs = new Set<string>();
-    for (const s of (allStatuses ?? []) as Array<{ reservation_id: string | null; log_id: string | null; status: string }>) {
-      if (s.status !== "done") continue;
+    const touchedReservations = new Set<string>();
+    const touchedLogs = new Set<string>();
+    const overrideReservation = new Map<string, string>();
+    const overrideLog = new Map<string, string>();
+    for (const s of (allStatuses ?? []) as Array<{
+      reservation_id: string | null;
+      log_id: string | null;
+      status: string;
+      arrival_date_override: string | null;
+      concluded_at: string | null;
+    }>) {
+      if (s.reservation_id) touchedReservations.add(s.reservation_id);
+      if (s.log_id) touchedLogs.add(s.log_id);
+      if (s.arrival_date_override) {
+        if (s.reservation_id) overrideReservation.set(s.reservation_id, s.arrival_date_override);
+        if (s.log_id) overrideLog.set(s.log_id, s.arrival_date_override);
+      }
+      if (s.status !== "done" && s.status !== "no_show" && !s.concluded_at) continue;
       if (s.reservation_id) doneReservations.add(s.reservation_id);
       if (s.log_id) doneLogs.add(s.log_id);
     }
+
+    // Data efetiva do check-in + regra de janela (inclui atrasados só quando
+    // já houve interação registrada).
+    function inWindow(date: string | null | undefined, touched: boolean): boolean {
+      if (!date) return false;
+      if (date < from || date > to) return false;
+      if (date < today && !touched) return false;
+      return true;
+    }
+
 
 
     const icalProps = new Set(
@@ -527,6 +618,12 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
             ).primary
           : null;
       if (doneReservations.has(r.id) || (matched && doneLogs.has(matched.id))) continue;
+      const resTouched = touchedReservations.has(r.id) || (matched ? touchedLogs.has(matched.id) : false);
+      const resDate =
+        overrideReservation.get(r.id) ??
+        (matched ? overrideLog.get(matched.id) : undefined) ??
+        r.checkin_date;
+      if (!inWindow(resDate, resTouched)) continue;
       entries.push({
         property_id: r.property_id,
         name: (matched?.guest_name || "").trim() || "Hóspede pendente",
@@ -540,7 +637,10 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     for (const l of allLogs) {
       if (icalProps.has(l.property_id)) continue;
       if (doneLogs.has(l.id)) continue;
-      const key = `${l.property_id}|${(l.guest_name || "").trim().toLowerCase()}|${(l.guest_phone || "").replace(/\D/g, "")}|${l.checkin_date ?? ""}`;
+      const logDate = overrideLog.get(l.id) ?? l.checkin_date;
+      if (!inWindow(logDate, touchedLogs.has(l.id))) continue;
+      const key = `${l.property_id}|${(l.guest_name || "").trim().toLowerCase()}|${(l.guest_phone || "").replace(/\D/g, "")}|${logDate ?? ""}`;
+
       if (seenFallback.has(key)) continue;
       seenFallback.add(key);
       entries.push({
@@ -555,7 +655,11 @@ export const getGuideEngagement = createServerFn({ method: "GET" })
     // criado E com as instruções de check-in de fato preenchidas.
     const checkinEntries = entries.filter((e) => checkinInstructionsProps.has(e.property_id));
     const checkinsInPeriod = checkinEntries.length;
-    const guideOpens = allLogs.length;
+    const guideOpens = allLogs.filter((l) => {
+      const d = overrideLog.get(l.id) ?? l.checkin_date;
+      return !!d && d >= from && d <= to;
+    }).length;
+
 
     // Guias com senha de acesso (fechadura ou portão) configurada — e, como
     // acima, só conta quem já tem guia criado.
@@ -1055,7 +1159,13 @@ export const advanceArrival = createServerFn({ method: "POST" })
         checkoutDate = (log as { checkout_date: string | null }).checkout_date ?? null;
       }
     }
-    if (!propertyId && data.reservationId) {
+    // A reserva do iCal é a fonte AUTORITATIVA das datas da estadia: o
+    // formulário do hóspede (guide_access_logs) frequentemente traz a data de
+    // saída errada/desatualizada. Quando os dois existem, as datas da reserva
+    // mandam — sem isso, um checkout de HOJE casado com um log antigo era
+    // tratado como "limpeza vencida" e o card ia direto para Concluídos,
+    // sumindo da Fila de Limpeza.
+    if (data.reservationId) {
       const { data: res } = await context.supabase
         .from("property_reservations")
         .select("property_id, checkin_date, checkout_date")
@@ -1067,6 +1177,7 @@ export const advanceArrival = createServerFn({ method: "POST" })
         checkoutDate = (res as { checkout_date: string | null }).checkout_date ?? null;
       }
     }
+
     if (!propertyId) throw new Error("Registro não encontrado.");
 
     const nowIso = new Date().toISOString();

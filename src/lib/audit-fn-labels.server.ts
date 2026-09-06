@@ -29,6 +29,7 @@ const FN_LABELS: Record<string, string> = {
   setSubjectPermissionLevel: "Alterou o nível de permissão de um usuário",
   setSubjectProperty: "Alterou o acesso a um imóvel",
   setPermissionCenterPropertyScope: "Alterou o escopo de imóveis de um usuário",
+  setPermissionCenterAllProperties: "Alterou o modo \"todas as residências\" de um usuário",
   grantPermissionCenterPermission: "Concedeu uma permissão",
   revokePermissionCenterPermission: "Revogou uma permissão",
   assignPermissionCenterRole: "Atribuiu um papel",

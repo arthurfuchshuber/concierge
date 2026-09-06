@@ -22,6 +22,7 @@ import {
   getPermissionCenterUser,
   grantPermissionCenterPermission,
   setPermissionCenterPropertyScope,
+  setPermissionCenterAllProperties,
 } from "@/lib/permission-center.functions";
 import { getTeamInviteLink, resendTeamInvite, revokeTeamInvite } from "@/lib/team.functions";
 import { cn } from "@/lib/utils";
@@ -199,6 +200,7 @@ export function UserAccess({
   const fn = useServerFn(getPermissionCenterUser);
   const grant = useServerFn(grantPermissionCenterPermission);
   const setProperty = useServerFn(setPermissionCenterPropertyScope);
+  const setAllProps = useServerFn(setPermissionCenterAllProperties);
   
 
   const q = useQuery({
@@ -268,6 +270,17 @@ export function UserAccess({
       qc.invalidateQueries({ queryKey: ["area-access"] });
     },
     onError: (e: Error) => toast.error(e.message || "Não conseguimos salvar as áreas agora. Tente de novo em instantes."),
+  });
+
+  /** Liga/desliga "atende todas as residências (inclusive as futuras)". */
+  const allPropertiesMutation = useMutation({
+    mutationFn: (all: boolean) => setAllProps({ data: { targetUserId: userId, all } }),
+    onSuccess: (res) => {
+      toast.success((res as { message?: string })?.message ?? "Pronto!");
+      qc.invalidateQueries({ queryKey: ["permission-center-user", userId] });
+    },
+    onError: (e: Error) =>
+      toast.error(e.message || "Não conseguimos alterar isso agora. Tente de novo em instantes."),
   });
 
   const propertyMutation = useMutation({
@@ -448,7 +461,13 @@ export function UserAccess({
       <PropertyScopePanel
         properties={detail.properties}
         disabled={isOwner}
-        pending={propertyMutation.isPending || bulkPropertyMutation.isPending}
+        pending={
+          propertyMutation.isPending ||
+          bulkPropertyMutation.isPending ||
+          allPropertiesMutation.isPending
+        }
+        allProperties={detail.allProperties}
+        onAllProperties={(all) => allPropertiesMutation.mutate(all)}
         onToggle={(propertyId, assigned) => propertyMutation.mutate({ propertyId, assigned })}
         onBulk={(propertyIds, assigned) => bulkPropertyMutation.mutate({ propertyIds, assigned })}
       />

@@ -191,7 +191,7 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
           : null;
 
       try {
-        const writes: Array<Promise<unknown>> = [];
+        const writes: Array<PromiseLike<unknown>> = [];
         if (arrivalOverride || arrivalTimeOverride) {
           writes.push(
             supabaseAdmin.from("guest_arrival_status").upsert(

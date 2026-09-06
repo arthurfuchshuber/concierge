@@ -26,6 +26,8 @@ import {
   linkPropertyToProvider,
 } from "@/lib/stakeholders.functions";
 import { MultiLinkPicker } from "@/components/stakeholders/MultiLinkPicker";
+import { AddressAutocomplete } from "@/components/stakeholders/AddressAutocomplete";
+import type { AddressSuggestion } from "@/lib/address-lookup.functions";
 
 import { importFromAirbnb, type AirbnbAmenity, type AirbnbRoomBeds } from "@/lib/airbnb.functions";
 import { syncPropertyAirbnbIcal, listPropertyReservations } from "@/lib/airbnb-ical.functions";
@@ -1166,6 +1168,41 @@ function PropertyEditor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.property.maps_url, enriching]);
 
+  // Escolha de uma sugestão no autocomplete de endereço (pedido explícito,
+  // 06/09/2026): preenche endereço/cidade/estado/país/coordenadas na hora —
+  // SEM passar pelo `handleEnrich` (que também gera recomendações "Aqui
+  // pertinho" e dispara a geração de referências da cidade). Isso satisfaz a
+  // mesma necessidade do link do Maps (coordenada preenchida automaticamente)
+  // por um segundo caminho, sem repetir a geração de recomendações.
+  // O link do Maps só é preenchido sozinho se ainda estiver vazio — nunca
+  // sobrescreve um link que a pessoa já colou manualmente. Quando ele É
+  // preenchido aqui, marcamos `enrichedUrlRef` na hora pra o efeito acima
+  // (que dispara o enriquecimento completo ao ver um link novo) não disparar
+  // de novo pra esse mesmo link — a coordenada já veio, não precisa repetir.
+  function handlePickAddress(s: AddressSuggestion) {
+    setForm((f) => {
+      const hasMapsUrl = !!f.property.maps_url.trim();
+      const nextMapsUrl = hasMapsUrl ? f.property.maps_url : (s.maps_url ?? f.property.maps_url);
+      if (!hasMapsUrl && s.maps_url) enrichedUrlRef.current = s.maps_url;
+      return {
+        ...f,
+        property: {
+          ...f.property,
+          address: s.address || f.property.address,
+          city: s.city || f.property.city,
+          state: s.state || f.property.state,
+          country: s.country || f.property.country,
+          lat: s.lat ?? f.property.lat,
+          lng: s.lng ?? f.property.lng,
+          maps_url: nextMapsUrl,
+        },
+      };
+    });
+    toast.success(
+      s.lat != null && s.lng != null ? "Endereço e coordenadas preenchidos." : "Endereço preenchido.",
+    );
+  }
+
   async function handleGenerateCityRecommendations(mode: "replace" | "fill" = "fill") {
     const city = form.property.city.trim();
     if (!city) {
@@ -1931,9 +1968,19 @@ function PropertyEditor() {
           placeholder="https://maps.app.goo.gl/..."
         />
       </Field>
-      <Field label="Endereço" required>
-        <Input value={form.property.address} onChange={(e) => update("address", e.target.value)} />
-      </Field>
+      {/* Autocomplete do Google (pedido explícito, 06/09/2026) — digitar já
+          sugere endereços reais e, ao escolher um, preenche cidade/estado/
+          país/coordenadas junto (mesmo mecanismo usado em Prestadores/
+          Proprietários — ver AddressAutocomplete). Continua editável como
+          texto livre pra casos que o Google não encontre. Renderizado direto
+          (sem o wrapper <Field>) porque o componente já traz seu próprio
+          rótulo, igual ao uso em Prestadores/Proprietários. */}
+      <AddressAutocomplete
+        value={form.property.address}
+        label="Endereço *"
+        onChange={(v) => update("address", v)}
+        onPick={handlePickAddress}
+      />
       <div className="grid grid-cols-2 gap-3">
         <Field label="Cidade" required>
           <Input value={form.property.city} onChange={(e) => update("city", e.target.value)} />

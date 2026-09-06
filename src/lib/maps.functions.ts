@@ -305,6 +305,108 @@ function extractCityCountry(comps: GeoComponent[] | undefined) {
   return { city, country, state };
 }
 
+// ----- Autocomplete de endereço (imóveis + prestadores/proprietários) ------
+// Um único provedor (Google Places) alimenta tanto o campo "Endereço" do
+// imóvel (que também precisa de lat/lng pra ordenação de checkouts por
+// proximidade) quanto o campo de endereço de Prestadores/Proprietários (que
+// só precisa dos campos estruturados, sem coordenada). Pedido explícito
+// (06/09/2026): trocar a base de "endereço digitado" — antes CEP (Prestadores)
+// ou nada (Imóvel, só texto livre) — por busca no Google enquanto a pessoa
+// digita, igual já funcionava a busca de "Aqui pertinho".
+
+// Componente de endereço no formato da Places API NOVA (v1): longText/shortText,
+// diferente do formato legado (long_name/short_name) usado pela Geocoding API.
+type PlaceAddressComponent = { longText?: string; shortText?: string; types?: string[] };
+
+function pickAddressComponent(
+  comps: PlaceAddressComponent[] | undefined,
+  type: string,
+  preferShort = false,
+): string {
+  const c = comps?.find((x) => x.types?.includes(type));
+  if (!c) return "";
+  return (preferShort ? c.shortText : c.longText) ?? c.longText ?? c.shortText ?? "";
+}
+
+function extractAddressPartsV1(comps: PlaceAddressComponent[] | undefined) {
+  const streetNumber = pickAddressComponent(comps, "street_number");
+  const route = pickAddressComponent(comps, "route");
+  const district =
+    pickAddressComponent(comps, "sublocality") ||
+    pickAddressComponent(comps, "sublocality_level_1") ||
+    pickAddressComponent(comps, "neighborhood");
+  const city = pickAddressComponent(comps, "locality") || pickAddressComponent(comps, "administrative_area_level_2");
+  const state = pickAddressComponent(comps, "administrative_area_level_1", true);
+  const cep = pickAddressComponent(comps, "postal_code").replace(/\D/g, "");
+  const country = pickAddressComponent(comps, "country");
+  return { address: [route, streetNumber].filter(Boolean).join(", "), district, city, state, cep, country };
+}
+
+export type GoogleAddressSuggestion = {
+  label: string;
+  address: string;
+  district: string;
+  city: string;
+  state: string;
+  cep: string;
+  country: string;
+  lat: number | null;
+  lng: number | null;
+  maps_url: string | null;
+  place_id: string | null;
+};
+
+/**
+ * Busca endereços no Google Places a partir do texto digitado (debounced no
+ * cliente). Usada tanto pelo autocomplete de endereço do imóvel quanto pelo
+ * de Prestadores/Proprietários (ver `address-lookup.functions.ts`) — um
+ * único ponto de integração com o Google pra manter os dois consistentes.
+ */
+export async function searchAddressCandidatesGoogle(query: string): Promise<GoogleAddressSuggestion[]> {
+  const res = await gatewayFetch(`/places/v1/places:searchText`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-FieldMask": "places.id,places.formattedAddress,places.location,places.addressComponents,places.googleMapsUri",
+    },
+    body: JSON.stringify({
+      textQuery: query,
+      maxResultCount: 6,
+      languageCode: DEFAULT_LANGUAGE,
+      regionCode: DEFAULT_REGION,
+    }),
+  });
+  if (!res.ok) return [];
+  const j = (await res.json()) as {
+    places?: Array<{
+      id: string;
+      formattedAddress?: string;
+      location?: { latitude: number; longitude: number };
+      addressComponents?: PlaceAddressComponent[];
+      googleMapsUri?: string;
+    }>;
+  };
+  return (j.places ?? [])
+    .filter((p) => p.id)
+    .slice(0, 6)
+    .map((p) => {
+      const parts = extractAddressPartsV1(p.addressComponents);
+      return {
+        label: p.formattedAddress ?? "",
+        address: parts.address,
+        district: parts.district,
+        city: parts.city,
+        state: parts.state,
+        cep: parts.cep,
+        country: parts.country || "BR",
+        lat: p.location?.latitude ?? null,
+        lng: p.location?.longitude ?? null,
+        maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
+        place_id: p.id ?? null,
+      };
+    });
+}
+
 const PLACE_FIELD_MASK =
   "places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.googleMapsUri,places.photos.name,places.photos.widthPx,places.photos.heightPx,places.primaryType,places.editorialSummary,places.generativeSummary,places.regularOpeningHours";
 

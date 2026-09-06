@@ -154,6 +154,7 @@ type PropRow = {
   name: string | null;
   city: string | null;
   checkin_time: string | null;
+  checkin_time_max: string | null;
   checkout_time: string | null;
 };
 
@@ -198,7 +199,7 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
   // durante uma edição — em nenhum dos dois casos ele para de operar).
   const { data: propsRaw } = await admin
     .from("properties")
-    .select("id, owner_id, name, city, checkin_time, checkout_time");
+    .select("id, owner_id, name, city, checkin_time, checkin_time_max, checkout_time");
   const props = (propsRaw ?? []) as PropRow[];
   if (props.length === 0) return { ownersNotified: 0, notifications: 0 };
 
@@ -314,13 +315,22 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
     let latePendingCheckins = 0;
     let criticalCheckins = 0;
     for (const r of pendingCheckins) {
+      // Previsão de chegada posterior (o `date` do card já resolve o
+      // override): enquanto o dia previsto não chegou, nada está atrasado.
       if (r.date > today) continue;
       if (isMuted(r)) continue;
       const p = propById.get(r.propertyId);
-      const limit = timeToMinutes(
-        r.arrivalTimeOverride ?? r.guestArrivalTime ?? r.standardTime ?? p?.checkin_time ?? null,
+      // Pedido explícito do cliente (05/09/2026): só é atraso depois do
+      // HORÁRIO LIMITE de check-in configurado para o imóvel — o horário
+      // inicial da janela (checkin_time) não serve de gatilho. Se o hóspede
+      // avisou uma chegada ainda mais tarde, ela prevalece.
+      const configuredLimit = timeToMinutes(
+        r.standardTimeMax ?? p?.checkin_time_max ?? r.standardTime ?? p?.checkin_time ?? null,
         DEFAULT_CHECKIN,
       );
+      const predicted = r.arrivalTimeOverride ?? r.guestArrivalTime ?? null;
+      const predictedLimit = predicted ? timeToMinutes(predicted, configuredLimit) : configuredLimit;
+      const limit = Math.max(configuredLimit, predictedLimit);
       const lateBy = r.date < today ? 24 * 60 : t.minutes - limit;
       if (lateBy <= 0) continue;
       latePendingCheckins++;
