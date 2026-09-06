@@ -11,7 +11,8 @@ export type ClicksignConfigPublic = {
   lastError: string | null;
   documentsCount: number;
   ownerId: string;
-  webhookSecret: string | null;
+  webhookSecretMasked: string;
+  hasWebhookSecret: boolean;
   webhookLastEventAt: string | null;
 };
 
