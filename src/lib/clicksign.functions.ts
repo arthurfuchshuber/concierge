@@ -27,6 +27,16 @@ function newWebhookSecret(): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+// Nunca devolvemos o segredo do webhook em texto puro para o cliente: qualquer
+// membro ativo da conta consegue ler essa resposta e poderia forjar chamadas ao
+// endpoint público do ClickSign. Mostramos apenas uma versão mascarada.
+function maskSecret(s: string | null): string {
+  if (!s) return "";
+  if (s.length <= 8) return "•".repeat(s.length);
+  return `${s.slice(0, 4)}${"•".repeat(Math.min(s.length - 8, 24))}${s.slice(-4)}`;
+}
+
+
 export const getMyClicksignConfig = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((raw) => z.object({ ownerId: z.string().uuid().nullish() }).parse(raw ?? {}))
