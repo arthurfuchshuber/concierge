@@ -64,7 +64,8 @@ export const getMyClicksignConfig = createServerFn({ method: "GET" })
       lastError: (data?.last_error as string) ?? null,
       documentsCount: count ?? 0,
       ownerId,
-      webhookSecret: (data?.webhook_secret as string) ?? null,
+      webhookSecretMasked: maskSecret((data?.webhook_secret as string) ?? null),
+      hasWebhookSecret: Boolean(data?.webhook_secret),
       webhookLastEventAt: (data?.webhook_last_event_at as string) ?? null,
     };
   });
