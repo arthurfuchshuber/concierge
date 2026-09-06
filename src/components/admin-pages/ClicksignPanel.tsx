@@ -296,7 +296,11 @@ export function ClicksignPanel({ accountOwnerId = null, readOnly = false }: { ac
                   <Input
                     value={secret}
                     onChange={(e) => setSecret(e.target.value)}
-                    placeholder="cole aqui o segredo do ClickSign"
+                    placeholder={
+                      cfg.data?.hasWebhookSecret
+                        ? `salvo: ${cfg.data.webhookSecretMasked} — digite um novo para substituir`
+                        : "cole aqui o segredo do ClickSign"
+                    }
                     type={showSecret ? "text" : "password"}
                     autoComplete="off"
                     className="h-8 font-mono text-[11px]"
@@ -310,20 +314,13 @@ export function ClicksignPanel({ accountOwnerId = null, readOnly = false }: { ac
                   >
                     {showSecret ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
                   </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="h-8 shrink-0 rounded-full px-2"
-                    onClick={() => copy(secret, "Segredo copiado.")}
-                  >
-                    <Copy className="size-3.5" />
-                  </Button>
                 </div>
               </div>
               <p className="text-[10px] text-muted-foreground">
-                O segredo é salvo junto com a chave de API ao clicar em “Salvar”.
+                Por segurança, o segredo salvo nunca é exibido de volta — informe um novo valor
+                para substituí-lo. Ele é salvo junto com a chave de API ao clicar em “Salvar”.
               </p>
+
 
             </AccordionContent>
           </AccordionItem>
