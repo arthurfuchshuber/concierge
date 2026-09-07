@@ -1743,6 +1743,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 return;
               }
               setBusyRowId(row.logId);
+              unpinRow(row.logId);
+
               if (colMode === "stay")
                 patchList("checkin", (rows) =>
                   rows.map((r) => (r.logId === row.logId ? { ...r, status: "pending" } : r)),
