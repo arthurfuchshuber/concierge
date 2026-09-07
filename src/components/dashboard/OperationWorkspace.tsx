@@ -3031,6 +3031,7 @@ function KpiCard({
   shadowTone,
   compact,
   highlight,
+  pinnedIds,
   cardProps,
 }: {
   label: string;
