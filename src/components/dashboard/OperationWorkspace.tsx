@@ -66,7 +66,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { notifyAction } from "@/components/UndoActionBar";
+<<<<<<< HEAD
 import { ReservationRecordsButton } from "@/components/dashboard/ReservationRecords";
+=======
+>>>>>>> b668220eedab2d8a41829aae08b14d5c5640b56a
 import { format, parse, isValid, differenceInCalendarDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
