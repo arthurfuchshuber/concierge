@@ -1129,6 +1129,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   }
 
   function handleEditTime(row: ArrivalRow, k: "checkin" | "checkout", time: string | null) {
+    const prev = row.arrivalTimeOverride ?? null;
     setBusyRowId(row.logId);
     // Otimista: o campo já mostra o novo horário na hora — o servidor só
     // confirma em segundo plano (mesmo racional do optimisticMove acima).
@@ -1136,7 +1137,15 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       rows.map((r) => (r.logId === row.logId ? { ...r, arrivalTimeOverride: time } : r)),
     );
     upsert.mutate({ ...statusTarget(row), kind: k, arrivalTimeOverride: time });
+    notifyAction(time ? `Horário previsto atualizado para ${time}.` : "Horário previsto removido.", () => {
+      setBusyRowId(row.logId);
+      patchList(k, (rows: ArrivalRow[]) =>
+        rows.map((r) => (r.logId === row.logId ? { ...r, arrivalTimeOverride: prev } : r)),
+      );
+      upsert.mutate({ ...statusTarget(row), kind: k, arrivalTimeOverride: prev });
+    });
   }
+
 
   // Realtime — sincroniza kanban e KPIs sem precisar recarregar a página quando
   // horários, notas ou reservas mudam (via outro membro da equipe, iCal etc).
