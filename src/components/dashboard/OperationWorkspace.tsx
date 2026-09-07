@@ -1789,6 +1789,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         const t = colKind === "checkin" ? "15:00" : "11:00";
         const prev = row.arrivalTimeOverride ?? null;
         setBusyRowId(row.logId);
+        pinRow(row.logId);
+
         upsert.mutate({ ...statusTarget(row), kind: colKind, arrivalTimeOverride: t });
         notifyAction(`Horário alinhado ao iCal (${t}).`, () => {
           setBusyRowId(row.logId);
