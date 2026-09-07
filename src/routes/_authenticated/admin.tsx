@@ -11,6 +11,7 @@ import { OnboardingCheckout } from "@/components/OnboardingCheckout";
 import { ClientSwitcher } from "@/components/admin/ClientSwitcher";
 import { AccountSwitcher } from "@/components/admin/AccountSwitcher";
 import { FloatingHandoffDock } from "@/components/handoff/FloatingHandoffDock";
+import { FloatingDock } from "@/components/FloatingDock";
 import { PushNotificationBanner } from "@/components/PushNotificationBanner";
 import { getAtendimentoAccess, countPendingHandoffs } from "@/lib/handoff.functions";
 import { useHasSession } from "@/hooks/useHasSession";
@@ -444,11 +445,28 @@ function AdminLayout() {
 
 
       </div>
+      {/* Canto flutuante (07/09/2026): um botão só, que abre "Atendimento" e
+          "Assistente". O Assistente vale para TODA a área logada — inclusive
+          prestador de limpeza, que não atende hóspede e antes não via botão
+          nenhum aqui; é justamente quem mais precisa de "onde eu marco isso?".
+          Por isso o FloatingDock não depende da permissão de atendimento: ela
+          só decide se o menu tem uma opção ou duas. */}
+      {!awaitingAccountChoice && (
+        <FloatingDock
+          handoffAvailable={
+            handoffEnabled &&
+            areaAccess.ready &&
+            areaAccess.can("tenant.atendimento") &&
+            !pathname.startsWith("/admin/atendimento")
+          }
+          pendingCount={pending.data?.count ?? 0}
+        />
+      )}
       {handoffEnabled &&
         areaAccess.ready &&
         areaAccess.can("tenant.atendimento") &&
         !awaitingAccountChoice &&
-        !pathname.startsWith("/admin/atendimento") && <FloatingHandoffDock />}
+        !pathname.startsWith("/admin/atendimento") && <FloatingHandoffDock launcher={false} />}
       <PendingInviteDialog />
       <CompleteProfileDialog />
       <ForcePasswordChangeDialog />

@@ -62,7 +62,7 @@ function playBeep() {
   } catch {}
 }
 
-export function FloatingHandoffDock() {
+export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } = {}) {
   const hasSession = useHasSession();
   const accessFn = useServerFn(getAtendimentoAccess);
   const listFn = useServerFn(listHandoffConversations);
@@ -263,8 +263,12 @@ export function FloatingHandoffDock() {
 
   const dock = (
     <>
-      {/* Botão flutuante fechado */}
-      {!state.open && (
+      {/* Botão flutuante fechado.
+          Desde 07/09/2026 o canto tem um único botão, o do FloatingDock, que
+          abre um menu com "Atendimento" e "Assistente" — daí `launcher={false}`
+          lá. Este botão continua aqui, e não foi apagado, porque em qualquer
+          outro lugar que monte o dock sozinho ele ainda é a forma de abri-lo. */}
+      {launcher && !state.open && (
         <button
           onPointerDown={onClosedButtonPointerDown}
           onClick={() => {

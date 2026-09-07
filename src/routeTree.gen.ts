@@ -81,6 +81,7 @@ import { Route as ApiPublicCronLearningLoopRouteImport } from './routes/api/publ
 import { Route as ApiPublicCronEvaluationSuiteRouteImport } from './routes/api/public/cron.evaluation-suite'
 import { Route as ApiPublicCronConversationRemindersRouteImport } from './routes/api/public/cron.conversation-reminders'
 import { Route as ApiPublicCronAutoCheckoutRouteImport } from './routes/api/public/cron.auto-checkout'
+import { Route as ApiPublicCronReindexSystemKnowledgeRouteImport } from './routes/api/public/cron.reindex-system-knowledge'
 import { Route as AuthenticatedAdminRecomendacoesSigmaCityKeyRouteImport } from './routes/_authenticated/admin.recomendacoes-sigma.$cityKey'
 import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_authenticated/admin.properties.$id'
 import { Route as AuthenticatedAdminDashboardLimpezaRouteImport } from './routes/_authenticated/admin.dashboard.limpeza'
@@ -485,6 +486,12 @@ const ApiPublicCronAutoCheckoutRoute =
     path: '/api/public/cron/auto-checkout',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronReindexSystemKnowledgeRoute =
+  ApiPublicCronReindexSystemKnowledgeRouteImport.update({
+    id: '/api/public/cron/reindex-system-knowledge',
+    path: '/api/public/cron/reindex-system-knowledge',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedAdminRecomendacoesSigmaCityKeyRoute =
   AuthenticatedAdminRecomendacoesSigmaCityKeyRouteImport.update({
     id: '/recomendacoes-sigma/$cityKey',
@@ -578,6 +585,7 @@ export interface FileRoutesByFullPath {
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
+  '/api/public/cron/reindex-system-knowledge': typeof ApiPublicCronReindexSystemKnowledgeRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
   '/api/public/cron/evaluation-suite': typeof ApiPublicCronEvaluationSuiteRoute
   '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
@@ -654,6 +662,7 @@ export interface FileRoutesByTo {
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
+  '/api/public/cron/reindex-system-knowledge': typeof ApiPublicCronReindexSystemKnowledgeRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
   '/api/public/cron/evaluation-suite': typeof ApiPublicCronEvaluationSuiteRoute
   '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
@@ -735,6 +744,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/_authenticated/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
+  '/api/public/cron/reindex-system-knowledge': typeof ApiPublicCronReindexSystemKnowledgeRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
   '/api/public/cron/evaluation-suite': typeof ApiPublicCronEvaluationSuiteRoute
   '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
@@ -816,6 +826,7 @@ export interface FileRouteTypes {
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/auto-checkout'
+    | '/api/public/cron/reindex-system-knowledge'
     | '/api/public/cron/conversation-reminders'
     | '/api/public/cron/evaluation-suite'
     | '/api/public/cron/learning-loop'
@@ -892,6 +903,7 @@ export interface FileRouteTypes {
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/auto-checkout'
+    | '/api/public/cron/reindex-system-knowledge'
     | '/api/public/cron/conversation-reminders'
     | '/api/public/cron/evaluation-suite'
     | '/api/public/cron/learning-loop'
@@ -972,6 +984,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/properties/$id'
     | '/_authenticated/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/auto-checkout'
+    | '/api/public/cron/reindex-system-knowledge'
     | '/api/public/cron/conversation-reminders'
     | '/api/public/cron/evaluation-suite'
     | '/api/public/cron/learning-loop'
@@ -1028,6 +1041,7 @@ export interface RootRouteChildren {
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   OauthGoogleCalendarReturnRoute: typeof OauthGoogleCalendarReturnRoute
   ApiPublicCronAutoCheckoutRoute: typeof ApiPublicCronAutoCheckoutRoute
+  ApiPublicCronReindexSystemKnowledgeRoute: typeof ApiPublicCronReindexSystemKnowledgeRoute
   ApiPublicCronConversationRemindersRoute: typeof ApiPublicCronConversationRemindersRoute
   ApiPublicCronEvaluationSuiteRoute: typeof ApiPublicCronEvaluationSuiteRoute
   ApiPublicCronLearningLoopRoute: typeof ApiPublicCronLearningLoopRoute
@@ -1555,6 +1569,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronAutoCheckoutRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/reindex-system-knowledge': {
+      id: '/api/public/cron/reindex-system-knowledge'
+      path: '/api/public/cron/reindex-system-knowledge'
+      fullPath: '/api/public/cron/reindex-system-knowledge'
+      preLoaderRoute: typeof ApiPublicCronReindexSystemKnowledgeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin/recomendacoes-sigma/$cityKey': {
       id: '/_authenticated/admin/recomendacoes-sigma/$cityKey'
       path: '/recomendacoes-sigma/$cityKey'
@@ -1734,6 +1755,7 @@ const rootRouteChildren: RootRouteChildren = {
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   OauthGoogleCalendarReturnRoute: OauthGoogleCalendarReturnRoute,
   ApiPublicCronAutoCheckoutRoute: ApiPublicCronAutoCheckoutRoute,
+  ApiPublicCronReindexSystemKnowledgeRoute: ApiPublicCronReindexSystemKnowledgeRoute,
   ApiPublicCronConversationRemindersRoute:
     ApiPublicCronConversationRemindersRoute,
   ApiPublicCronEvaluationSuiteRoute: ApiPublicCronEvaluationSuiteRoute,

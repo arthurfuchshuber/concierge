@@ -29,8 +29,16 @@ export const AI_MODELS = {
   contracts: "openai/gpt-5.6-sol",
   /** Geração de conteúdo (descrições, mensagens, anúncios, e-mails). */
   content: "google/gemini-2.5-flash",
-  /** Concierge interno (operadores). */
-  internal: "google/gemini-2.5-flash",
+  /**
+   * Assistente do Painel — o concierge interno dos operadores.
+   *
+   * Precisa ser um modelo OpenAI: ele é o único caminho de tool calling nesta
+   * arquitetura (`runAgent` fala com a Responses API), e o assistente depende
+   * de ferramentas tanto para ler a operação quanto para montar uma ação. Um
+   * modelo mais barato aqui não é uma troca de qualidade por custo — é ficar
+   * sem ferramenta nenhuma.
+   */
+  internal: "openai/gpt-5.6-sol",
   /** Organização e justificativa de recomendações turísticas. */
   recommendations: "google/gemini-2.5-flash",
   /** Embeddings do Hybrid RAG. */

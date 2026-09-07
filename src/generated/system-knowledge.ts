@@ -1,0 +1,2222 @@
+// GERADO AUTOMATICAMENTE por scripts/extract-system-knowledge.mjs — não edite à mão.
+// Fonte do conhecimento do Assistente do Painel. Regenerado a cada build.
+
+export type GeneratedSystemDoc = {
+  doc_key: string;
+  kind: string;
+  title: string;
+  content: string;
+  source_path: string | null;
+  audience: string[];
+  content_hash: string;
+};
+
+export const GENERATED_AT = "2026-09-07T22:21:51.475Z";
+
+export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
+  {
+    "doc_key": "route:/",
+    "kind": "route",
+    "title": "ConciergeIA — Atendimento com IA para hóspedes de temporada — tela /",
+    "content": "Caminho no sistema: /\n\nO ConciergeIA responde seus hóspedes em segundos, no idioma deles, com o tom da sua marca. Menos check-ins caóticos, mais avaliações 5 estrelas.",
+    "source_path": "src/routes/index.tsx",
+    "audience": [],
+    "content_hash": "f4082c37773fdf585eda6fba12139b77"
+  },
+  {
+    "doc_key": "route:/admin/administrativo",
+    "kind": "route",
+    "title": "Administrativo — tela /admin/administrativo",
+    "content": "Caminho no sistema: /admin/administrativo\n\nNo menu do painel esta tela se chama \"Administrativo\".",
+    "source_path": "src/routes/_authenticated/admin.administrativo.tsx",
+    "audience": [],
+    "content_hash": "2aefcc71e25271ca2c005843831616fe"
+  },
+  {
+    "doc_key": "route:/admin/admins",
+    "kind": "route",
+    "title": "Administradores — tela /admin/admins",
+    "content": "Caminho no sistema: /admin/admins\n\nNo menu do painel esta tela se chama \"Administradores\".",
+    "source_path": "src/routes/_authenticated/admin.admins.tsx",
+    "audience": [],
+    "content_hash": "770b3bce39a04a9049d69504eabe33c3"
+  },
+  {
+    "doc_key": "route:/admin/atendimento",
+    "kind": "route",
+    "title": "Atendimento — tela /admin/atendimento",
+    "content": "Caminho no sistema: /admin/atendimento\n\nNo menu do painel esta tela se chama \"Atendimento\".",
+    "source_path": "src/routes/_authenticated/admin.atendimento.tsx",
+    "audience": [],
+    "content_hash": "c368140d272caa29058f9da307ee776f"
+  },
+  {
+    "doc_key": "route:/admin/clientes",
+    "kind": "route",
+    "title": "Clientes — tela /admin/clientes",
+    "content": "Caminho no sistema: /admin/clientes\n\nNo menu do painel esta tela se chama \"Clientes\".",
+    "source_path": "src/routes/_authenticated/admin.clientes.tsx",
+    "audience": [],
+    "content_hash": "73cf3196522df92d01435add83f669a9"
+  },
+  {
+    "doc_key": "route:/admin/dashboard",
+    "kind": "route",
+    "title": "Dashboard — tela /admin/dashboard",
+    "content": "Caminho no sistema: /admin/dashboard\n\nNo menu do painel esta tela se chama \"Dashboard\".\n\nPainel operacional diário do anfitrião: check-ins, checkouts e engajamento do guia.",
+    "source_path": "src/routes/_authenticated/admin.dashboard.index.tsx",
+    "audience": [],
+    "content_hash": "7e5ab3cfe8ad4d3e4a6e481abb21b8c6"
+  },
+  {
+    "doc_key": "route:/admin/dashboard/kanban",
+    "kind": "route",
+    "title": "Kanban da operação — ConciergeIA — tela /admin/dashboard/kanban",
+    "content": "Caminho no sistema: /admin/dashboard/kanban\n\nQuadro de reservas por etapa: chegada, estadia, saída, limpeza e concluídos.",
+    "source_path": "src/routes/_authenticated/admin.dashboard.kanban.tsx",
+    "audience": [],
+    "content_hash": "99c20b3316a55c7aa50e6e8be6426305"
+  },
+  {
+    "doc_key": "route:/admin/dashboard/limpeza",
+    "kind": "route",
+    "title": "Limpeza — ConciergeIA — tela /admin/dashboard/limpeza",
+    "content": "Caminho no sistema: /admin/dashboard/limpeza\n\nHistórico e custos das limpezas realizadas.",
+    "source_path": "src/routes/_authenticated/admin.dashboard.limpeza.tsx",
+    "audience": [],
+    "content_hash": "90714c885b613af323056da6061d15c5"
+  },
+  {
+    "doc_key": "route:/admin/engajamento",
+    "kind": "route",
+    "title": "Engajamento — tela /admin/engajamento",
+    "content": "Caminho no sistema: /admin/engajamento\n\nNo menu do painel esta tela se chama \"Engajamento\".",
+    "source_path": "src/routes/_authenticated/admin.engajamento.tsx",
+    "audience": [],
+    "content_hash": "e942ffa70fdb123880a924edc9085528"
+  },
+  {
+    "doc_key": "route:/admin/guias",
+    "kind": "route",
+    "title": "Guias — tela /admin/guias",
+    "content": "Caminho no sistema: /admin/guias\n\nNo menu do painel esta tela se chama \"Guias\".",
+    "source_path": "src/routes/_authenticated/admin.guias.tsx",
+    "audience": [],
+    "content_hash": "e21346780d8aa5c0546fbb2f122bad45"
+  },
+  {
+    "doc_key": "route:/admin/ia",
+    "kind": "route",
+    "title": "IA Concierge — tela /admin/ia",
+    "content": "Caminho no sistema: /admin/ia\n\nNo menu do painel esta tela se chama \"IA Concierge\".\n\nGovernança do conhecimento do ConciergeIA: memória da operação, regras da empresa e aprendizados pendentes de aprovação.",
+    "source_path": "src/routes/_authenticated/admin.ia.tsx",
+    "audience": [],
+    "content_hash": "efd064d64a1041dfcac4f448878648b6"
+  },
+  {
+    "doc_key": "route:/admin/inteligencia",
+    "kind": "route",
+    "title": "Inteligência — tela /admin/inteligencia",
+    "content": "Caminho no sistema: /admin/inteligencia\n\nNo menu do painel esta tela se chama \"Inteligência\".\n\nPainel único da plataforma: inteligência global, pipeline de aprendizado, evolução de agentes e prompts, mais o rastro de auditoria de todo o SaaS.",
+    "source_path": "src/routes/_authenticated/admin.inteligencia.tsx",
+    "audience": [],
+    "content_hash": "10a0338d171222da340800c41c589aee"
+  },
+  {
+    "doc_key": "route:/admin/recomendacoes-sigma",
+    "kind": "route",
+    "title": "Recomendações — tela /admin/recomendacoes-sigma",
+    "content": "Caminho no sistema: /admin/recomendacoes-sigma\n\nNo menu do painel esta tela se chama \"Recomendações\".",
+    "source_path": "src/routes/_authenticated/admin.recomendacoes-sigma.index.tsx",
+    "audience": [],
+    "content_hash": "2de03867ae936c79d01db98a98f568b5"
+  },
+  {
+    "doc_key": "route:/admin/stakeholders",
+    "kind": "route",
+    "title": "Stakeholders — tela /admin/stakeholders",
+    "content": "Caminho no sistema: /admin/stakeholders\n\nNo menu do painel esta tela se chama \"Stakeholders\".\n\nProprietários, hóspedes e prestadores da sua operação em um só lugar.",
+    "source_path": "src/routes/_authenticated/admin.stakeholders.tsx",
+    "audience": [],
+    "content_hash": "1ecdf7bde55e5dc77c55fbc9e8fe3ca2"
+  },
+  {
+    "doc_key": "route:/auth",
+    "kind": "route",
+    "title": "Entrar — ConciergeIA — tela /auth",
+    "content": "Caminho no sistema: /auth\n\nAcesse o ConciergeIA e automatize o atendimento aos seus hóspedes com IA.",
+    "source_path": "src/routes/auth.tsx",
+    "audience": [],
+    "content_hash": "99add2912345dccc91b80ce2b553faff"
+  },
+  {
+    "doc_key": "route:/confianca",
+    "kind": "route",
+    "title": "Central de Confiança — ConciergeIA — tela /confianca",
+    "content": "Caminho no sistema: /confianca\n\nComo o ConciergeIA protege os dados de anfitriões e hóspedes: autenticação, criptografia, controle de acesso e privacidade.",
+    "source_path": "src/routes/confianca.tsx",
+    "audience": [],
+    "content_hash": "5f29062f96148137dd7a8ca8a6f051ef"
+  },
+  {
+    "doc_key": "route:/definir-senha",
+    "kind": "route",
+    "title": "Criar senha de acesso | ConciergeIA — tela /definir-senha",
+    "content": "Caminho no sistema: /definir-senha\n\nDefina a sua senha de acesso ao painel do ConciergeIA e comece a gerenciar check-ins, check-outs e o atendimento aos hóspedes.",
+    "source_path": "src/routes/definir-senha.tsx",
+    "audience": [],
+    "content_hash": "848fe998bc9acf39b1924da50315e852"
+  },
+  {
+    "doc_key": "route:/oauth/google-calendar/return",
+    "kind": "route",
+    "title": "Conectando Google Agenda | SigmaConcierge — tela /oauth/google-calendar/return",
+    "content": "Caminho no sistema: /oauth/google-calendar/return\n\nFinalizando a conexão da sua conta Google Agenda com o SigmaConcierge.",
+    "source_path": "src/routes/oauth.google-calendar.return.tsx",
+    "audience": [],
+    "content_hash": "c2c95042a0de8ccc4139d72d5f32abaa"
+  },
+  {
+    "doc_key": "route:/precos",
+    "kind": "route",
+    "title": "Planos e preços — ConciergeIA — tela /precos",
+    "content": "Caminho no sistema: /precos\n\nEscolha o plano ideal para criar guias digitais para seus hóspedes. 7 dias grátis em todos os planos pagos.",
+    "source_path": "src/routes/precos.tsx",
+    "audience": [],
+    "content_hash": "349efc738bf11002eda82c71903fddfe"
+  },
+  {
+    "doc_key": "route:/privacidade",
+    "kind": "route",
+    "title": "Política de Privacidade — ConciergeIA — tela /privacidade",
+    "content": "Caminho no sistema: /privacidade\n\nComo o ConciergeIA coleta, usa e protege seus dados pessoais em conformidade com a LGPD.",
+    "source_path": "src/routes/privacidade.tsx",
+    "audience": [],
+    "content_hash": "fe2f574e077f4eaff289dfe42c9d797a"
+  },
+  {
+    "doc_key": "route:/reembolso",
+    "kind": "route",
+    "title": "Política de Reembolso — ConciergeIA — tela /reembolso",
+    "content": "Caminho no sistema: /reembolso\n\nGarantia de devolução de 30 dias do ConciergeIA. Veja como solicitar reembolso e cancelar sua assinatura pelo portal do cliente.",
+    "source_path": "src/routes/reembolso.tsx",
+    "audience": [],
+    "content_hash": "92a7eb8a032fab1bc104644d77ba4209"
+  },
+  {
+    "doc_key": "route:/termos",
+    "kind": "route",
+    "title": "Termos e Condições — ConciergeIA — tela /termos",
+    "content": "Caminho no sistema: /termos\n\nLeia os termos e condições de uso do ConciergeIA: contas, pagamentos via Paddle, limites de responsabilidade e suporte.",
+    "source_path": "src/routes/termos.tsx",
+    "audience": [],
+    "content_hash": "b3ddc4ae7717516e16239ce371788ae6"
+  },
+  {
+    "doc_key": "route:/unsubscribe",
+    "kind": "route",
+    "title": "Cancelar e-mails — ConciergeIA — tela /unsubscribe",
+    "content": "Caminho no sistema: /unsubscribe\n\nCancele o recebimento de e-mails do ConciergeIA em poucos segundos, com confirmação segura.",
+    "source_path": "src/routes/unsubscribe.tsx",
+    "audience": [],
+    "content_hash": "77b2d459ed19d7df676713e6ee86dc9d"
+  },
+  {
+    "doc_key": "rule:ACTION_OPTIONS",
+    "kind": "rule",
+    "title": "Regra — ACTION_OPTIONS",
+    "content": "O usuário só tem 2 ações reais aqui: reativar o cadastro, ou definir a\ndata final do contrato (o que agenda o cancelamento). \"Cancelando\" e\n\"Cancelado\" nunca são escolhidos diretamente — são derivados dessa data\npela mesma regra de data futura que já promove o cadastro sozinho quando\no dia chega (`setStakeholderStatus` / `promoteDueStages`). Os estágios\nantigos (Documentação/Contrato/Assinatura/Pausado) saíram daqui; ainda são\nreconhecidos em cadastros antigos (rótulo/cor em stakeholder-status.ts),\nsó não são mais oferecidos como opção.",
+    "source_path": "src/components/stakeholders/StakeholderStatusControl.tsx",
+    "audience": [],
+    "content_hash": "497a7b770a19055ba45867e8899a2fb1"
+  },
+  {
+    "doc_key": "rule:Addr",
+    "kind": "rule",
+    "title": "Regra — Addr",
+    "content": "Enriquecimento de endereço a partir de fontes públicas confiáveis.\n\nRegra do projeto: campos que podem ser conferidos online (CEP, endereço,\ncidade/UF) NÃO devem ficar vazios quando é possível descobri-los. Aqui a\nordem de confiança é:\n 1. BrasilAPI /cep (Correios/open-cep) — fonte oficial para CEP brasileiro;\n 2. Nominatim (OpenStreetMap) — busca textual do endereço, usada quando não\n há CEP válido ou quando o CEP não resolveu.\n\nNunca sobrescreve valor já preenchido pelo usuário: só completa o que falta.",
+    "source_path": "src/lib/geo-enrich.server.ts",
+    "audience": [],
+    "content_hash": "b2a00562842724edc278ee68cf29e039"
+  },
+  {
+    "doc_key": "rule:adminApplyCustomTrial",
+    "kind": "rule",
+    "title": "Regra — adminApplyCustomTrial",
+    "content": "Aplica um trial personalizado no Paddle para uma assinatura existente:\npausa a cobrança agora e agenda o retorno automático em `trialEndsAt`.\nEnquanto pausada, o Paddle não gera nenhuma cobrança. Na data definida,\nretoma sozinho e cobra o proporcional até o próximo ciclo.\n\nSe `trialEndsAt` for nulo/passado e a assinatura estiver pausada,\ndespausa imediatamente (encerra o trial customizado).",
+    "source_path": "src/lib/admin-subs.functions.ts",
+    "audience": [],
+    "content_hash": "cf95a46aea198eb04a974a076be740a1"
+  },
+  {
+    "doc_key": "rule:AreaGate",
+    "kind": "rule",
+    "title": "Regra — AreaGate",
+    "content": "`AreaGate` — bloqueia uma área inteira quando o backend nega o acesso.\nEnquanto a decisão não chega, exibe um esqueleto (nunca conteúdo protegido).",
+    "source_path": "src/components/permissions/AreaGate.tsx",
+    "audience": [],
+    "content_hash": "f5a072be47e2e09fbb90667c37bb02ca"
+  },
+  {
+    "doc_key": "rule:attachReservationRecord",
+    "kind": "rule",
+    "title": "Regra — attachReservationRecord",
+    "content": "Registra um anexo (foto/vídeo/áudio/arquivo) já enviado pelo cliente\ndireto pro storage — mesmo fluxo de attachStaffMessage (chat-\nattachments.functions.ts): o navegador sobe o arquivo pro bucket\nprimeiro (RLS de storage.objects garante que só quem acessa o imóvel\nescreve ali), e esta função só grava a linha com os metadados.",
+    "source_path": "src/lib/reservation-records.functions.ts",
+    "audience": [],
+    "content_hash": "ad288b0ededa953cb49739e26bc16e5c"
+  },
+  {
+    "doc_key": "rule:attachTaskRecord",
+    "kind": "rule",
+    "title": "Regra — attachTaskRecord",
+    "content": "Anexo preso a uma PENDÊNCIA (não a uma reserva) — usado pela comprovação\nda resolução e pelos anexos da criação de pendência (07/09/2026).\n\nMesma mecânica do anexo de reserva: o navegador sobe o arquivo pro bucket\ne aqui só gravamos os metadados. Quando a pendência tem reserva vinculada,\n`logId`/`reservationId` vêm junto — assim a comprovação também aparece na\nlinha do tempo daquela reserva, fechando o ciclo \"problema → conserto\" no\nmesmo lugar. Sem reserva (pendência só do imóvel), o registro fica preso\napenas à pendência, e `cardMode` fica vazio: não nasceu em coluna nenhuma\ndo Kanban.",
+    "source_path": "src/lib/reservation-records.functions.ts",
+    "audience": [],
+    "content_hash": "a68f0fbf497293a3e7408cea2dda1249"
+  },
+  {
+    "doc_key": "rule:AudioAttachButton",
+    "kind": "rule",
+    "title": "Regra — AudioAttachButton",
+    "content": "Só o microfone, separado do resto — pedido explícito (07/09/2026): na\nconclusão de pendência ele fica junto do campo \"Como foi resolvido\", pra\nquem prefere explicar falando em vez de digitar. Grava assim que é tocado\n(autoStart), sem exigir um segundo clique.",
+    "source_path": "src/components/dashboard/TaskAttachments.tsx",
+    "audience": [],
+    "content_hash": "54286623a751a461a23230c18cec34c1"
+  },
+  {
+    "doc_key": "rule:bodyByCity",
+    "kind": "rule",
+    "title": "Regra — bodyByCity",
+    "content": "Monta o corpo da notificação agrupado por cidade:\n \"2 em Foz do Iguaçu\\n1 em Praia do Peró\"\nQuando não há cidade cadastrada, usa o nome do imóvel como fallback.",
+    "source_path": "src/lib/ops-push.server.ts",
+    "audience": [],
+    "content_hash": "733d6c253a2c2a01935e1199bc25d1bc"
+  },
+  {
+    "doc_key": "rule:buildHourOptions",
+    "kind": "rule",
+    "title": "Regra — buildHourOptions",
+    "content": "Horas selecionáveis dentro de [min, max] (ambos opcionais — sem limite\nquando ausente). Usado pelos seletores de chegada e saída (05/09/2026,\nmesma regra do painel do anfitrião: \"checkin só pode ser preenchido o\nhorário a partir do horário configurado... checkout pode selecionar até\na data/horário limite configurado\").",
+    "source_path": "src/components/GuideAccessGate.tsx",
+    "audience": [],
+    "content_hash": "1a43778face7123eb6636f53377f99aa"
+  },
+  {
+    "doc_key": "rule:buildInitialState",
+    "kind": "rule",
+    "title": "Regra — buildInitialState",
+    "content": "Pré-carrega o popup com o que já existe nos guias selecionados: o campo\naparece sempre preenchido com o valor atual (quando os guias divergem, o\ncampo fica vazio com aviso — nada é sobrescrito sem edição explícita).",
+    "source_path": "src/components/BulkEditDialog.tsx",
+    "audience": [],
+    "content_hash": "c7d8c644541b6cda766a97f30451c791"
+  },
+  {
+    "doc_key": "rule:buildReceiptNode",
+    "kind": "rule",
+    "title": "Regra — buildReceiptNode",
+    "content": "Monta, fora da tela (position: fixed + offset negativo — nunca\ndisplay:none, que impediria a medição/captura), o layout \"comprovante\"\nusado no print das listas de hóspedes (pedido explícito): largura sempre\nfixa, uma linha compacta por hóspede (em vez do card grande da tela),\ncom um cabeçalho e um rodapé de recibo. Reaproveita as mesmas classes\nTailwind/tokens do resto do app — não é um estilo à parte.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "87ac883cc8c5c126bceb8c25a3863ce4"
+  },
+  {
+    "doc_key": "rule:buildSameDayCheckinLookup",
+    "kind": "rule",
+    "title": "Regra — buildSameDayCheckinLookup",
+    "content": "Mapa `propriedade|data` → horário previsto do check-in daquele dia (ou\n`null` se houver check-in sem horário definido) — usado só pra decidir se\num checkout \"cruza\" com uma chegada no mesmo imóvel no mesmo dia (giro).\nQuando há mais de um check-in no mesmo imóvel/dia (raro), fica o mais cedo.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "b4ccf87270d1da5e51220efb64dc0dae"
+  },
+  {
+    "doc_key": "rule:CalendarFiltersButton",
+    "kind": "rule",
+    "title": "Regra — CalendarFiltersButton",
+    "content": "Botão único que reúne Período + Cidade + Proprietário + \"limpar todos\" num\nsó painel — pedido explícito: no Dashboard, os 3 botões de filtro (que\nantes ficavam numa linha própria acima do calendário) viraram só ESTE\nbotão, ao lado do título \"Calendário de ocupação\" (mesma ideia do botão\núnico \"Hoje/Amanhã/7 dias/Todos\" da visão Kanban). O estado\n(periodRange/cityFilters/ownerFilters) continua vivendo no pai\n(OperationWorkspace), porque também afeta os cards de limpeza acima —\neste componente só desenha o painel e delega toda mudança pro pai.\n\nLayout escolhido pelo usuário entre 3 mockups (Opção C — \"lista →\ndetalhe\"): abre num resumo enxuto de 1 linha por filtro (com o valor\natual à direita); tocar numa linha entra no editor daquele filtro\nespecífico, com \"‹ Filtros\" pra voltar. Pedido explícito: o editor de\n\"Período\" é o MESMO calendário padrão (completo) que já era usado no\nantigo botão \"Período\" sozinho — não uma versão reduzida.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "91cd1b68599a4403d23f1384b79bd2a3"
+  },
+  {
+    "doc_key": "rule:CancellationReviewDialog",
+    "kind": "rule",
+    "title": "Regra — CancellationReviewDialog",
+    "content": "Popup global: quando chega a data de um cancelamento agendado, toda a equipe\né consultada para confirmar o cancelamento definitivo ou reverter para Ativo.\nEnquanto ninguém responder, o popup continua aparecendo em qualquer tela.",
+    "source_path": "src/components/stakeholders/CancellationReviewDialog.tsx",
+    "audience": [],
+    "content_hash": "d3c327edec42c496f04c190f3ac1114c"
+  },
+  {
+    "doc_key": "rule:cellHalves",
+    "kind": "rule",
+    "title": "Regra — cellHalves",
+    "content": "Cada dia é dividido em duas metades (manhã = saída, tarde = entrada),\nque é a ordem natural do dia. Quando as duas metades são iguais o\ndesenho é renderizado inteiro.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "7ac439d7f03848e5eae4591d9ee2343d"
+  },
+  {
+    "doc_key": "rule:centsToReaisInput",
+    "kind": "rule",
+    "title": "Regra — centsToReaisInput",
+    "content": "Campo de dinheiro (R$) que aceita digitação livre.\n\nPor que não um <Input type=\"number\"> controlado direto pelos centavos?\nPorque reformatar o valor a cada tecla (ex.: \"1\" -> grava 100 centavos ->\nrepinta \"1,00\") empurra o cursor pro fim e trava a digitação no meio do\nnúmero — o usuário não consegue completar \"1,50\" porque, ao digitar o\n\"5\", o campo já virou \"1,00\" e o \"5\" cai fora do lugar.\n\nAqui o campo guarda seu PRÓPRIO texto (livre, sem reformatar a cada\ntecla) e só chama onChange com os centavos já convertidos. A formatação\n\"bonita\" (2 casas decimais) só é reaplicada ao perder o foco.",
+    "source_path": "src/components/ui/money-input.tsx",
+    "audience": [],
+    "content_hash": "681aaf06e118ef3af14a89d0f1d4c8d8"
+  },
+  {
+    "doc_key": "rule:ChannelType",
+    "kind": "rule",
+    "title": "Regra — ChannelType",
+    "content": "Channel Gateway — contratos.\n\nO Agent Core NUNCA sabe de onde veio a mensagem. Todo canal converte sua\ncarga própria em `InboundMessage` e recebe de volta `OutboundMessage`.",
+    "source_path": "src/lib/ai/channels/types.ts",
+    "audience": [],
+    "content_hash": "ce1a505497fee1c4533be8de48881247"
+  },
+  {
+    "doc_key": "rule:CleaningBreakdownContent",
+    "kind": "rule",
+    "title": "Regra — CleaningBreakdownContent",
+    "content": "Conteúdo do tooltip \"quais imóveis\" (Limpezas Realizadas / Custo Total\nLimpeza). Pedido explícito: também ganha o alternador Completo/Lista e o\nbotão de print — no modo Lista mostra só proprietário + imóvel + um\natalho pro mapa (bem pequeno).",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "5eb4a030742377d73ed305d31cc5f25b"
+  },
+  {
+    "doc_key": "rule:CleaningForecastDialog",
+    "kind": "rule",
+    "title": "Regra — CleaningForecastDialog",
+    "content": "\"Limpeza Prevista 7d\" (pedido explícito) — mesma linguagem visual dos\ngráficos de histórico logo acima, só que olhando pra FRENTE: baseado nos\ncheckouts já agendados pros próximos 7 dias (hoje → hoje+6), não em\nlimpezas já concluídas. O custo é uma ESTIMATIVA (preço da limpeza\nnormal de cada imóvel — o tipo real só é escolhido na hora de concluir).",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "71b964d28ae18b748abcad11a589a36c"
+  },
+  {
+    "doc_key": "rule:cleaningForecastListQ",
+    "kind": "rule",
+    "title": "Regra — cleaningForecastListQ",
+    "content": "\"Limpeza Prevista 7d\" (pedido explícito) — diferente do histórico\n(`getCleaningStats`, baseado em `concluded_at`), aqui a base são os\nCHECKOUTS AGENDADOS (ainda pendentes) pros próximos 7 dias: cada\ncheckout previsto vira uma limpeza esperada naquele dia. Reaproveita a\nmesma lista/lógica de \"Checkouts\" (iCal, gating etc.) via `listFn`, só\nque com `range: \"7d\"` (hoje → hoje+6).\nCusto: como o tipo de limpeza (normal/completa) só é escolhido na hora\nde concluir, o valor aqui é uma ESTIMATIVA usando o preço da limpeza\nnormal de cada imóvel (pedido explícito) — nunca um valor fechado.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "4dc9e8de43bca8c3b191eb5fa43abda1"
+  },
+  {
+    "doc_key": "rule:cleaningRows",
+    "kind": "rule",
+    "title": "Regra — cleaningRows",
+    "content": "\"Fila de Limpeza\" precisa incluir também o checkout ANTECIPADO de um\ncard de amanhã: ele sai da lista de amanhã (deixa de ser pendente) e,\nsem isso, não apareceria em lugar nenhum.\n\nPedido explícito (mesmo ajuste já feito no quadrante do Kanban): a faixa\nespelha TODOS os checkouts do período, não só os já liberados — quem\nainda não fez check-out aparece também, bloqueado (ver `awaitingCheckout`\nno ArrivalCard). Bloqueado nunca compete com quem já está liberado, por\nisso vem sempre DEPOIS na lista (mesmo racional de sempre).",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "28f8194ed1c409eb4bdf7e276a73dfb6"
+  },
+  {
+    "doc_key": "rule:ClicksignContractStartConflictDialog",
+    "kind": "rule",
+    "title": "Regra — ClicksignContractStartConflictDialog",
+    "content": "Quando a sincronização do ClickSign encontra cadastros cuja \"Início do\ncontrato\" já foi preenchida manualmente com uma data diferente da\nassinatura mais antiga do ClickSign, mostramos essa lista e deixamos a\ndecisão (manter ou sobrescrever) sempre com quem acionou a sincronização —\na integração nunca decide isso sozinha.",
+    "source_path": "src/components/admin-pages/ClicksignContractStartConflictDialog.tsx",
+    "audience": [],
+    "content_hash": "6c0dd8e906ea21d5af7eb29fa7231b93"
+  },
+  {
+    "doc_key": "rule:ClicksignDisconnectDialog",
+    "kind": "rule",
+    "title": "Regra — ClicksignDisconnectDialog",
+    "content": "Ao desativar a integração, pergunta se os dados criados por ela devem ser\nmantidos ou removidos. Cadastros feitos manualmente nunca são apagados.",
+    "source_path": "src/components/admin-pages/ClicksignDisconnectDialog.tsx",
+    "audience": [],
+    "content_hash": "c93bcbf9eaf9c9de60b22eff8a2ed757"
+  },
+  {
+    "doc_key": "rule:clusterByProximity",
+    "kind": "rule",
+    "title": "Regra — clusterByProximity",
+    "content": "Encadeia os itens de um grupo empatado pelo vizinho mais próximo (rota\ncurta): parte do primeiro item do grupo e, a cada passo, escolhe entre os\nrestantes aquele que está mais perto do ÚLTIMO item já encadeado — não do\nprimeiro. Pedido explícito, com exemplo real: \"casa da Patrícia\" → o\npróximo deve ser quem está mais perto DELA (ex.: \"casa do Arthur\"), e o\nseguinte, mais perto do Arthur (ex.: \"studio da Eliete\") — não uma\npropriedade distante só porque pertence a um grupo com mais unidades\n(ex.: vários \"studios do Clayton\" longe dali). Isso também garante que\nimóveis no mesmo endereço apareçam juntos (distância ~0 = sempre o\npróximo escolhido). Imóveis sem coordenada cadastrada não competem nesse\ncritério; ficam ao final do grupo, na ordem que já tinham.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "7bb57d8ce7d452ae85a0bb5a3783d3ff"
+  },
+  {
+    "doc_key": "rule:contratanteBlock",
+    "kind": "rule",
+    "title": "Regra — contratanteBlock",
+    "content": "Recorta o trecho do \"CONTRATANTE\" — do rótulo até o próximo bloco\n(CONTRATADA/CONTRATADO, cláusula, objeto…). Se não achar, devolve o\ninício da página para a IA analisar mesmo assim.",
+    "source_path": "src/lib/contract-extract.server.ts",
+    "audience": [],
+    "content_hash": "81593a28310de075cb3d992a743ae6b4"
+  },
+  {
+    "doc_key": "rule:countAccountGuides",
+    "kind": "rule",
+    "title": "Regra — countAccountGuides",
+    "content": "Contagem GLOBAL de guias da conta (número total de imóveis do titular),\nindependente do recorte de residências visíveis para o caller. Serve para\nindicadores de plano (\"X/900\"), que são informação da conta, não do escopo.",
+    "source_path": "src/lib/properties.functions.ts",
+    "audience": [],
+    "content_hash": "c22a95b71b33ecdaba9ecb14d005de44"
+  },
+  {
+    "doc_key": "rule:createGuidePreviewToken",
+    "kind": "rule",
+    "title": "Regra — createGuidePreviewToken",
+    "content": "Emite um token curto para pré-visualizar o guia (inclusive rascunhos).\n A RLS de `properties` garante que só quem tem acesso ao imóvel recebe.",
+    "source_path": "src/lib/guide-preview.functions.ts",
+    "audience": [],
+    "content_hash": "f748e593c76b7da6d2b2ca9d510f4016"
+  },
+  {
+    "doc_key": "rule:createLinkedTask",
+    "kind": "rule",
+    "title": "Regra — createLinkedTask",
+    "content": "Abre a pendência no Kanban para as categorias que exigem ação\n(objeto esquecido / dano / manutenção). Devolve o id da tarefa criada, ou\nnull quando a categoria não gera pendência.\n\nA tarefa nasce ligada à reserva E ao imóvel — os dois vínculos que o\ncliente pediu — reaproveitando exatamente os campos que `tasks` já tinha\n(property_id + log_id + reservation_id), com o mesmo insert de\n`createTask` (tasks.functions.ts).",
+    "source_path": "src/lib/reservation-records.functions.ts",
+    "audience": [],
+    "content_hash": "8951ade053510905855fad89e733609e"
+  },
+  {
+    "doc_key": "rule:DateEditor",
+    "kind": "rule",
+    "title": "Regra — DateEditor",
+    "content": "Calendário no MESMO padrão já usado em outros pontos do sistema (ex.:\n\"Prazo\" do card de tarefa) — Popover + Calendar do design system, em vez\ndo seletor nativo do navegador (que além de destoar do tema, em alguns\nambientes simplesmente parava de abrir depois do primeiro valor\nescolhido). Pedido explícito, 05/09/2026.\n\nA confirmação (`onChange`) só dispara quando o popover FECHA, nunca no\nclique do dia em si — assim o card não \"pula\" de lista/ordenação no meio\nda edição, dando tempo do usuário ajustar também o horário antes da\nprevisão ser efetivamente salva (mesmo pedido). Fechar sem escolher nada\nnão altera o valor.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "ea31ea92e4d0ab8e5ad3511d50f5d855"
+  },
+  {
+    "doc_key": "rule:dedupeFormLogs",
+    "kind": "rule",
+    "title": "Regra — dedupeFormLogs",
+    "content": "Dedupe apenas submissões repetidas do MESMO formulário para a MESMA\nestadia (nunca mescla reservas back-to-back na mesma unidade — checkout\nfaz parte da identidade, pois um hóspede pode sair no mesmo dia que outro\nentra). Compartilhado entre o Kanban (buildArrivalRows) e o agregado de\nengajamento do Dashboard (getGuideEngagement) para que os dois nunca\n\"casem\" hóspedes diferentes com a mesma reserva.",
+    "source_path": "src/lib/arrival-board.server.ts",
+    "audience": [],
+    "content_hash": "e8396655bc05b566a9cc1b5b5c33218b"
+  },
+  {
+    "doc_key": "rule:DEFAULT_TZ",
+    "kind": "rule",
+    "title": "Regra — DEFAULT_TZ",
+    "content": "Fuso horário do IMÓVEL (cidade/país), nunca o do aparelho do hóspede.\nTodas as contagens e horários exibidos no guia devem usar estas funções.",
+    "source_path": "src/lib/property-timezone.ts",
+    "audience": [],
+    "content_hash": "c133080e51961339b4374115e172b6d8"
+  },
+  {
+    "doc_key": "rule:defaultShowInCleaning",
+    "kind": "rule",
+    "title": "Regra — defaultShowInCleaning",
+    "content": "Pedido explícito (07/09/2026): pendência de MANUTENÇÃO já nasce visível\npara a limpeza — a chave, nesse caso, serve para OCULTAR. Todas as outras\ncategorias nascem ocultas e a chave serve para MOSTRAR.\n\nVale para os dois caminhos de criação: o formulário \"Nova pendência\" e as\npendências abertas automaticamente a partir de um registro da reserva.\nUma vez criada, o valor é sempre o que estiver gravado — esta função só\ndecide o PADRÃO inicial.",
+    "source_path": "src/lib/tasks-types.ts",
+    "audience": [],
+    "content_hash": "79655ce433b542cf5418297d7d066721"
+  },
+  {
+    "doc_key": "rule:deleteReservationRecord",
+    "kind": "rule",
+    "title": "Regra — deleteReservationRecord",
+    "content": "Remove um registro (e o arquivo do storage, se houver). A pendência\ngerada NÃO é apagada junto: ela pode já estar em andamento com outra\npessoa: quem quiser encerrá-la faz isso na tela de Pendências.",
+    "source_path": "src/lib/reservation-records.functions.ts",
+    "audience": [],
+    "content_hash": "e57100511b0c10d3f65a8ad99e7ce441"
+  },
+  {
+    "doc_key": "rule:diffPayload",
+    "kind": "rule",
+    "title": "Regra — diffPayload",
+    "content": "Mudanças legíveis entre o cadastro anterior e o novo, já em frases\n prontas para a Linha do Tempo (não \"Campo: A → B\"). Início e fim do\n contrato viram frases próprias e independentes (\"Data de início do\n contrato alterada para X\"), e quando os dois mudam juntos (ex.: contrato\n novo com vigência completa) as duas frases se juntam numa só com \"e\" —\n cada uma só aparece quando aquele campo específico realmente mudou.",
+    "source_path": "src/lib/stakeholders.functions.ts",
+    "audience": [],
+    "content_hash": "587d644cd63750935d1cba6ef32c1139"
+  },
+  {
+    "doc_key": "rule:earliestSignedAt",
+    "kind": "rule",
+    "title": "Regra — earliestSignedAt",
+    "content": "Data (yyyy-mm-dd) do primeiro documento assinado no ClickSign vinculado a\neste cadastro. Quando há mais de um documento (contrato, aditivo, termo…),\nusamos sempre o mais antigo já concluído — é o que mais se aproxima do\ninício real da vigência.",
+    "source_path": "src/lib/contract-fill.server.ts",
+    "audience": [],
+    "content_hash": "e2e455ccbb86e8a30d5213e6edb5c29c"
+  },
+  {
+    "doc_key": "rule:EngagementBreakdownDialog",
+    "kind": "rule",
+    "title": "Regra — EngagementBreakdownDialog",
+    "content": "Redesign aprovado (Opção C): abas \"Viram\"/\"Não viram\" em vez das 2 listas\nempilhadas — só um grupo por vez, com mais respiro por linha (avatar de\niniciais + nome + imóvel), melhor pra quando a lista de hóspedes cresce.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "4e3dcc804876f097fcf80f261b06c420"
+  },
+  {
+    "doc_key": "rule:EngagementCard",
+    "kind": "rule",
+    "title": "Regra — EngagementCard",
+    "content": "Card individual do Engajamento (desktop) — exatamente o tratamento visual\ndo mockup aprovado (borda + fundo com gradiente radial roxo/rosa + acento\nlateral + ícone em caixinha + valor em destaque), só sem negrito nas\nfrases (pedido explícito).",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "d2569b61de70b30381dd02696cbf9574"
+  },
+  {
+    "doc_key": "rule:EngagementFlags",
+    "kind": "rule",
+    "title": "Regra — EngagementFlags",
+    "content": "Pendências de engajamento do hóspede — só mostramos o que está em falta:\n1) não acessou o guia · 2) não leu as instruções (menos de 5s na Chegada)\n3) não viu as senhas.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "c471246258005f899ac3ec7d0f6a3efd"
+  },
+  {
+    "doc_key": "rule:ensureRegistry",
+    "kind": "rule",
+    "title": "Regra — ensureRegistry",
+    "content": "Garante que o Registry esteja carregado em memória e que a árvore exista\nno banco. O sync oficial só dispara quando a tabela está vazia — nunca\nsilenciosamente a cada leitura. Falhas são registradas, não propagadas.",
+    "source_path": "src/lib/permissions/permission.admin.server.ts",
+    "audience": [],
+    "content_hash": "189811dc72d08c4938a80b671b1b24ec"
+  },
+  {
+    "doc_key": "rule:ensureRegistrySynced",
+    "kind": "rule",
+    "title": "Regra — ensureRegistrySynced",
+    "content": "Garante que a árvore exista antes de qualquer leitura administrativa.\nSó dispara o sync quando a tabela está vazia — evita \"árvore vazia no boot\".",
+    "source_path": "src/lib/permissions/permission.sync.server.ts",
+    "audience": [],
+    "content_hash": "1fd733aed05a2ecd527404f56fc93db4"
+  },
+  {
+    "doc_key": "rule:evaluate",
+    "kind": "rule",
+    "title": "Regra — evaluate",
+    "content": "Avalia um pedido de permissão de forma determinística.\n\nOrdem: OWNER → papéis de bypass → feature gating → assignment direto →\nherança pelos ancestrais → negação padrão.",
+    "source_path": "src/lib/permissions/permission.engine.ts",
+    "audience": [],
+    "content_hash": "40d1f8ff9c3906240f7df78ead374be0"
+  },
+  {
+    "doc_key": "rule:FALLBACK_CATEGORY",
+    "kind": "rule",
+    "title": "Regra — FALLBACK_CATEGORY",
+    "content": "Categoria usada como último recurso quando, por algum motivo, a escolha\nnão chegou até o envio (a folha SEMPRE aparece antes da captura, então na\nprática isso não acontece).\n\nPedido explícito (07/09/2026): NENHUMA categoria é sugerida/destacada na\nfolha — a escolha é sempre 100% do usuário, sem viés visual. Antes\n\"Observação / Outros\" vinha marcada como sugerida.",
+    "source_path": "src/components/dashboard/ReservationRecords.tsx",
+    "audience": [],
+    "content_hash": "e71705698627af53a6baeb089cfa258e"
+  },
+  {
+    "doc_key": "rule:fetchWithRetry",
+    "kind": "rule",
+    "title": "Regra — fetchWithRetry",
+    "content": "fetch com um retry curto para falhas transitórias (5xx ou erro de rede).\nNUNCA retenta se o cancelamento veio do próprio signal do caller (timeout\nintencional) — nesse caso, insistir só atrasaria uma resposta que já vai\nser abandonada. 429/402 não são retentados aqui: já têm tratamento próprio\nem `throwForStatus` e retry imediato só pioraria rate limit/billing.",
+    "source_path": "src/lib/ai/gateway.server.ts",
+    "audience": [],
+    "content_hash": "2088aac0620c20f56d9307ab08ba6ee2"
+  },
+  {
+    "doc_key": "rule:FieldTypingBadge",
+    "kind": "rule",
+    "title": "Regra — FieldTypingBadge",
+    "content": "Mostra \"Fulano está digitando: ...\" junto de um campo, com o texto exato\nque a outra pessoa está digitando naquele campo agora. Só leitura — nunca\nmescla com o que você mesmo está digitando ali.",
+    "source_path": "src/components/presence/FieldTypingBadge.tsx",
+    "audience": [],
+    "content_hash": "f7f55f2830a8f498fe6d611b4a82e8a0"
+  },
+  {
+    "doc_key": "rule:fillContractStartFromClicksign",
+    "kind": "rule",
+    "title": "Regra — fillContractStartFromClicksign",
+    "content": "Preenche a \"Início do contrato\" com a data do primeiro documento assinado\nno ClickSign. Nunca sobrescreve um valor já existente por conta própria —\nse o cadastro já tem uma data diferente, isso vira um \"conflito\" e só é\nresolvido se quem acionou a sincronização pedir explicitamente (`overwrite`).",
+    "source_path": "src/lib/contract-fill.server.ts",
+    "audience": [],
+    "content_hash": "b53e260469b18dce69d27a8b94392cea"
+  },
+  {
+    "doc_key": "rule:filterUpcoming",
+    "kind": "rule",
+    "title": "Regra — filterUpcoming",
+    "content": "Regra de ouro do calendário: nada que já aconteceu chega ao hóspede, e nada\ndistante demais (só a janela de hoje até +8 dias).\n- Itens de categoria \"evento\" só passam com data confirmada.\n- Um evento é válido enquanto (endDate ?? startDate) >= hoje e começa até hoje+8.\n- Itens perenes (restaurante, passeio, natureza…) não têm data e seguem válidos.",
+    "source_path": "src/lib/city-news.functions.ts",
+    "audience": [],
+    "content_hash": "63746b66ab047ef3044711547e6e89a5"
+  },
+  {
+    "doc_key": "rule:findArrivalPointers",
+    "kind": "rule",
+    "title": "Regra — findArrivalPointers",
+    "content": "Busca, sem LLM e sem revelar conteúdo sensível, se o anfitrião já documentou um\nprocedimento de chegada para este imóvel — só para apontar o hóspede ao item certo\ndentro do guia, nunca para substituir a leitura dele.",
+    "source_path": "src/lib/ai/guest-safety.server.ts",
+    "audience": [],
+    "content_hash": "959ce311a399bc1e994de8d50ade35f4"
+  },
+  {
+    "doc_key": "rule:findLogsForReservation",
+    "kind": "rule",
+    "title": "Regra — findLogsForReservation",
+    "content": "Retorna todos os logs que representam hóspedes da MESMA reserva iCal\n(primário + acompanhantes). Ordenados por prioridade (código HM bate mais\nforte que datas), o primeiro vira o hóspede exibido; os demais ficam como\nacompanhantes. Usada tanto pelo Kanban (buildArrivalRows) quanto pelo\nagregado de engajamento do Dashboard (getGuideEngagement) — é o que\ngarante que os dois concordem sobre QUAL hóspede pertence a qual reserva\n(antes, o Dashboard usava um casamento mais simples e podia atribuir a\nreserva a um hóspede diferente do que aparece no card do Kanban).",
+    "source_path": "src/lib/arrival-board.server.ts",
+    "audience": [],
+    "content_hash": "b7f8fd330b0648e76c671e618b20c820"
+  },
+  {
+    "doc_key": "rule:FirstVisitTour",
+    "kind": "rule",
+    "title": "Regra — FirstVisitTour",
+    "content": "Tour de primeiro acesso: depois que o hóspede preenche seus dados pela\nprimeira vez para ESSA reserva (telefone+nome+data+imóvel), guiamos ele\naté o essencial — sem isso, muita gente nem descobria que \"Check-in\" tinha\numa aba de senhas dentro.\n\nPasso 1 aponta para o card \"Check-in\" (data-tour=\"checkin-card\").\nAssim que ele toca ali (o card abre), passo 2 aponta para a aba \"Senhas\"\ndentro do card (data-tour=\"senhas-tab\"). Ao tocar nela, o tour termina.\n\"Pular\" encerra a qualquer momento. Nunca reaparece na mesma reserva.",
+    "source_path": "src/components/guide/FirstVisitTour.tsx",
+    "audience": [],
+    "content_hash": "d3274393c73139e4eeb07352e8f5ee34"
+  },
+  {
+    "doc_key": "rule:getPropertyForQuickEdit",
+    "kind": "rule",
+    "title": "Regra — getPropertyForQuickEdit",
+    "content": "Igual a getMyProperty, mas SEM assinar as URLs de imagem — deliberadamente.\nNÃO É MAIS USADA: existia para o antigo popup de edição rápida (removido —\no link \"Editar\" do imóvel em Stakeholders agora abre a mesma página\n/admin/properties/$id, em modo \"houseOnly\", em vez de duplicar a tela em\noutro componente). Mantida por ora por segurança, mas sem consumidores.",
+    "source_path": "src/lib/properties.functions.ts",
+    "audience": [],
+    "content_hash": "dddb84bbce25db21cffe9f642035629d"
+  },
+  {
+    "doc_key": "rule:getPropertyNotifiableUsers",
+    "kind": "rule",
+    "title": "Regra — getPropertyNotifiableUsers",
+    "content": "Retorna user_ids que devem ser notificados quando um handoff acontece\nem uma dada propriedade: o owner + os account_members ativos com\npapel owner/agent (viewers não recebem push).",
+    "source_path": "src/lib/handoff.server.ts",
+    "audience": [],
+    "content_hash": "2b8df4d1c9fba58293297d3049815e90"
+  },
+  {
+    "doc_key": "rule:getTeamInviteLink",
+    "kind": "rule",
+    "title": "Regra — getTeamInviteLink",
+    "content": "Gera um link direto de acesso para o convidado — usado quando o e-mail não\nchega (filtro de spam do provedor do destinatário). O titular copia e envia\npelo canal que preferir (WhatsApp, etc).",
+    "source_path": "src/lib/team.functions.ts",
+    "audience": [],
+    "content_hash": "4dea2f26097fe9d43ecd94ee106f5d8c"
+  },
+  {
+    "doc_key": "rule:GuestMarkGroup",
+    "kind": "rule",
+    "title": "Regra — GuestMarkGroup",
+    "content": "Mesma lógica dos cards: hóspede principal (1º a acessar) + \"+N\" expansível.\nLayout em \"linha-cartão\" com avatar de iniciais (redesign aprovado do\ntooltip de engajamento — Opção C: abas \"Viram\"/\"Não viram\" + linhas mais\nespaçadas).",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "4e5e1b4b39cbb858a2ef42978b4ce86d"
+  },
+  {
+    "doc_key": "rule:handleSaveClick",
+    "kind": "rule",
+    "title": "Regra — handleSaveClick",
+    "content": "\"Salvar alterações\": só dispara depois da confirmação explícita no\nAlertDialog — sem salvamento automático. Uma edição em massa aplica a\nMESMA alteração em vários guias de uma vez (SÓ os campos/listas\nrealmente editados neste popup; valores divergentes entre os guias\nviram vazio até a pessoa preencher — nunca ficam sobrescritos sem\nintenção), então merece um passo deliberado antes de gravar de verdade.",
+    "source_path": "src/components/BulkEditDialog.tsx",
+    "audience": [],
+    "content_hash": "83aa804f205c1de49deeaea19ea26ede"
+  },
+  {
+    "doc_key": "rule:hasPendingOnboarding",
+    "kind": "rule",
+    "title": "Regra — hasPendingOnboarding",
+    "content": "Checa (sem apagar) se o onboarding pós-formulário desta reserva ainda está\npendente. Diferente do antigo \"consome e apaga na hora\": aqui a flag\nSOBREVIVE a um refresh no meio do onboarding — o hóspede não consegue\nescapar pra página principal atualizando a tela enquanto não passar por\ntodas as etapas. Só quem apaga a flag é `clearPendingOnboarding`, chamada\nquando o hóspede realmente termina (qualquer um dos botões finais).",
+    "source_path": "src/components/GuideAccessGate.tsx",
+    "audience": [],
+    "content_hash": "2dcd95af10c0c9277d0c95d8564c9d34"
+  },
+  {
+    "doc_key": "rule:HouseFieldsInput",
+    "kind": "rule",
+    "title": "Regra — HouseFieldsInput",
+    "content": "Campos obrigatórios da aba \"A casa\" (dados básicos do imóvel): tipo do\nimóvel, endereço completo e calendário do Airbnb. Compartilhado entre a\ntela \"Novo imóvel\", a trava de informações pendentes e o \"Salvar\" do editor\ncompleto (admin.properties.$id.tsx) — inclusive no modo \"houseOnly\" usado\npelo link \"Editar\" do imóvel em Stakeholders, já que é a MESMA tela (sem\npágina/componente duplicado) — sempre a mesma lista, em todo lugar que\nsalva o imóvel.\n\nProprietário é validado à parte (não é um campo de \"A casa\").",
+    "source_path": "src/lib/property-house-fields.ts",
+    "audience": [],
+    "content_hash": "08a9c68d5f543af7930dd7d27abad25c"
+  },
+  {
+    "doc_key": "rule:humanizeEventMessage",
+    "kind": "rule",
+    "title": "Regra — humanizeEventMessage",
+    "content": "Reescreve uma mensagem de evento \"Cadastro atualizado — ...\" do formato\n bruto antigo pro formato objetivo atual. Mensagens que não batem com o\n padrão reconhecido (já no formato novo, ou de outro tipo de evento)\n voltam exatamente como vieram.",
+    "source_path": "src/lib/stakeholder-event-message.ts",
+    "audience": [],
+    "content_hash": "0b895f93308ecf69916522d2fc66324f"
+  },
+  {
+    "doc_key": "rule:InputSchema",
+    "kind": "rule",
+    "title": "Regra — InputSchema",
+    "content": "Motor de dados da página Engajamento (visão gerencial multi-cliente).\n\nO DTO já vem consolidado — cliente só renderiza. Foco: tempo de permanência,\nprofundidade de leitura, atrito no chat, e ranking real de imóveis por\nengajamento (não apenas volume).",
+    "source_path": "src/lib/engagement-analytics.functions.ts",
+    "audience": [],
+    "content_hash": "259251e76ccdf3c4b518c36cdb76c99e"
+  },
+  {
+    "doc_key": "rule:isExpired",
+    "kind": "rule",
+    "title": "Regra — isExpired",
+    "content": "O acesso vale até as 15h do dia de checkout no fuso do imóvel. Quando o fuso\nnão é conhecido, damos 12h de tolerância para não expulsar um hóspede que\nestá navegando de outro fuso.",
+    "source_path": "src/components/GuideAccessGate.tsx",
+    "audience": [],
+    "content_hash": "c8e37b8e68b965b3d8099f003d2eca5c"
+  },
+  {
+    "doc_key": "rule:isTodayOrFutureDate",
+    "kind": "rule",
+    "title": "Regra — isTodayOrFutureDate",
+    "content": "Data é hoje ou está no futuro (comparando por dia). Diferente de\n`isFutureDate` (que trata \"hoje\" como já chegado), esta é usada\nespecificamente para cancelamento agendado: o próprio dia marcado ainda\nprecisa contar como \"não passou\" — só deixa de ser true a partir do dia\nseguinte, quando o cancelamento passa a ser definitivo.",
+    "source_path": "src/lib/stakeholder-status.ts",
+    "audience": [],
+    "content_hash": "3710e7eee0aea8a0539e618ee4f0bafd"
+  },
+  {
+    "doc_key": "rule:KIND_WEIGHT",
+    "kind": "rule",
+    "title": "Regra — KIND_WEIGHT",
+    "content": "Um trecho escrito à mão vale mais que um extraído do código, e uma regra de\nnegócio vale mais que a descrição de uma tela: quem pergunta \"por quê\"\nquer o racional, não o rótulo do menu.",
+    "source_path": "src/lib/ai/system-knowledge.server.ts",
+    "audience": [],
+    "content_hash": "323ab523dae8275d4b429a8df47ce0b7"
+  },
+  {
+    "doc_key": "rule:KnowledgeScope",
+    "kind": "rule",
+    "title": "Regra — KnowledgeScope",
+    "content": "Fronteira de conhecimento (Tenant Knowledge Boundary):\n property → owner_portfolio → company_tenant → global\nUma informação nunca sobe além do escopo em que foi registrada.",
+    "source_path": "src/lib/ai/tenant/context.server.ts",
+    "audience": [],
+    "content_hash": "dd8144a8f917a4a36baf67afe3f6b875"
+  },
+  {
+    "doc_key": "rule:KnowledgeScopeType",
+    "kind": "rule",
+    "title": "Regra — KnowledgeScopeType",
+    "content": "Knowledge Governance — hierarquia oficial de conhecimento do ConciergeIA.\n\nRegra de ouro: dados do imóvel NÃO são duplicados. `PROPERTY_DATA` continua\nsendo lido da tabela `properties` e suas filhas; as demais camadas apenas\ncomplementam com regras, memória e inteligência acumulada.",
+    "source_path": "src/lib/ai/governance/scopes.ts",
+    "audience": [],
+    "content_hash": "9866940972979b69fae923168a51521c"
+  },
+  {
+    "doc_key": "rule:LEGACY_PREFIX",
+    "kind": "rule",
+    "title": "Regra — LEGACY_PREFIX",
+    "content": "Alguns eventos antigos da Linha do Tempo foram gravados no formato bruto\nde antes da reescrita de `diffPayload` (stakeholders.functions.ts):\n \"Cadastro atualizado — N informação(ões) alterada(s): Campo: \"A\" → \"B\"\"\nEsse texto já está gravado no banco — não temos acesso direto pra\nreescrever o histórico, e a mensagem é salva como texto puro no momento\nda edição (não guarda os valores estruturados de antes/depois). Por isso\na \"tradução\" pro formato objetivo acontece aqui, na hora de exibir,\nsem tocar no dado original: eventos novos já nascem no formato objetivo\n(gerado pelo servidor) e passam por aqui sem qualquer alteração; só os\nantigos, no formato bruto reconhecido, são reescritos na tela.",
+    "source_path": "src/lib/stakeholder-event-message.ts",
+    "audience": [],
+    "content_hash": "955f61e0beb3bdaa91d837fce14a2c28"
+  },
+  {
+    "doc_key": "rule:maskDigitsIfLocked",
+    "kind": "rule",
+    "title": "Regra — maskDigitsIfLocked",
+    "content": "Textos operacionais (portão, fechadura, chegada) podem conter o código\nescrito no meio da frase. Quando o guia está protegido por senha, qualquer\nsequência numérica é removida ANTES de virar chunk — assim o RAG nunca\ndevolve um código que o hóspede ainda não liberou.",
+    "source_path": "src/lib/ai/indexing.server.ts",
+    "audience": [],
+    "content_hash": "44b97639ca10a736f8228bdaa9cada84"
+  },
+  {
+    "doc_key": "rule:MultiLinkPicker",
+    "kind": "rule",
+    "title": "Regra — MultiLinkPicker",
+    "content": "Seleção MÚLTIPLA de vínculos (imóveis dentro do proprietário/prestador,\nprestadores dentro do imóvel). Antes cada vínculo exigia abrir o menu,\nclicar, esperar o salvamento e abrir de novo — agora marca-se tudo de uma\nvez e confirma numa ação só.\n\n`initialSelected` já vem marcado: o mesmo diálogo serve para adicionar e\nremover vínculos (o pai recebe a lista final e calcula a diferença).",
+    "source_path": "src/components/stakeholders/MultiLinkPicker.tsx",
+    "audience": [],
+    "content_hash": "a727491096c8c6fce6c8786ad5675422"
+  },
+  {
+    "doc_key": "rule:MultiSelectFilterField",
+    "kind": "rule",
+    "title": "Regra — MultiSelectFilterField",
+    "content": "Campo de filtro com busca e múltipla seleção — pensado para viver dentro\nde um Popover de \"Filtros\" (como em Stakeholders) e ser reaproveitado nos\ndemais filtros do sistema, mantendo sempre a mesma dinâmica: rótulo do\ncampo, contagem de selecionados com atalho para limpar, busca e uma lista\ncom checkbox por opção.",
+    "source_path": "src/components/ui/multi-select-filter.tsx",
+    "audience": [],
+    "content_hash": "3f23654d4e9d0b45a1f15fd12d93653e"
+  },
+  {
+    "doc_key": "rule:NAME_COL_BASE",
+    "kind": "rule",
+    "title": "Regra — NAME_COL_BASE",
+    "content": "Mobile: exatamente 5 dias inteiros no visor.\nDesktop: o máximo de dias inteiros que couber na largura do quadrante,\nsem nunca cortar a bolinha do último dia.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "9c4874ae6312d801e917341e534c4da1"
+  },
+  {
+    "doc_key": "rule:nextCleaningKeyByProperty",
+    "kind": "rule",
+    "title": "Regra — nextCleaningKeyByProperty",
+    "content": "Qual card de limpeza é a PRÓXIMA limpeza de cada imóvel (pedido\nexplícito, 07/09/2026): as pendências abertas do imóvel são exibidas no\ncard da limpeza mais próxima, e só nele.\n\nIsto é CALCULADO a cada render, nunca gravado: se entrar uma reserva\nrepentina com limpeza pro dia 8, ela simplesmente passa a ser a mais\npróxima e as pendências aparecem lá — sem ninguém \"mover\" nada, sem\nrotina de correção, sem estado que possa ficar errado. Se essa limpeza\ndo dia 8 for cancelada, tudo volta pro dia 10 pelo mesmo caminho.\n\nA base é `kanbanCoRowsAll` (checkouts com alcance \"all\", ver a query\nacima) e NÃO a lista já filtrada por período/cidade/proprietário — senão\nfiltrar a tela por \"Hoje\" faria o sistema eleger a limpeza errada como\n\"próxima\". Só cards ainda não concluídos entram na disputa.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "d5418ec6488d6c103f452ea45dca235f"
+  },
+  {
+    "doc_key": "rule:normalizeText",
+    "kind": "rule",
+    "title": "Regra — normalizeText",
+    "content": "Preserva quebras de parágrafo (ex.: passo a passo de check-in) — só colapsa\nespaços/tabs redundantes dentro de cada linha, não achata tudo num bloco só.",
+    "source_path": "src/lib/ai/indexing.server.ts",
+    "audience": [],
+    "content_hash": "75d80e82843db0378e9d38e60c3c64dd"
+  },
+  {
+    "doc_key": "rule:OccupancyPanel",
+    "kind": "rule",
+    "title": "Regra — OccupancyPanel",
+    "content": "Agenda macro: ocupação de todos os imóveis nos próximos dias.\n\nOs filtros de Período/Proprietário/Cidade não vivem mais aqui como\nbotões separados — viraram um botão único (`CalendarFiltersButton`, ao\nlado do título) dentro do cabeçalho deste painel. O ESTADO continua\nvivendo no OperationWorkspace (o pai), porque também precisa afetar os\ncards \"Limpezas Realizadas\"/\"Custo Total Limpeza\" (que são irmãos deste\npainel, na aba \"Limpeza\") — por isso os valores/opções e os callbacks de\nmudança chegam tudo via props. `properties` já chega FILTRADA.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "b9d2e597086f026243bb1c43e760fdbf"
+  },
+  {
+    "doc_key": "rule:PageHeader",
+    "kind": "rule",
+    "title": "Regra — PageHeader",
+    "content": "Cabeçalho padrão de página do Sistema de Design.\n- Page Title: Sora 700 22px\n- Page Subtitle: Manrope 400 13px (muted)\n- Ações à direita, nunca quebrando em 2ª linha (rolagem horizontal no mobile)\n- 40px de respiro até o primeiro conteúdo",
+    "source_path": "src/components/ds/PageHeader.tsx",
+    "audience": [],
+    "content_hash": "ffaf52c027cb534edf3565ba11b98e42"
+  },
+  {
+    "doc_key": "rule:parseGuestSummary",
+    "kind": "rule",
+    "title": "Regra — parseGuestSummary",
+    "content": "Extrai os quatro números do subtítulo \"7 hóspedes · 3 quartos · 4 camas ·\n 2 banheiros\" (aceita separadores variados e \"studio\"/\"sem quarto\" como 0\n quartos). Cada número fica null se aquele item não aparecer no texto.",
+    "source_path": "src/lib/airbnb.functions.ts",
+    "audience": [],
+    "content_hash": "7af0fc321dd9f88de0f5b7f2156247e0"
+  },
+  {
+    "doc_key": "rule:parseISODateLocal",
+    "kind": "rule",
+    "title": "Regra — parseISODateLocal",
+    "content": "ISO \"YYYY-MM-DD\" → Date ao meio-dia LOCAL (não UTC) — evita cair no dia\nerrado perto da meia-noite dependendo do fuso do navegador. Mesma\nconvenção já usada alhures neste arquivo (ex.: `${row.date}T12:00:00`).",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "f35bf384dbc8476068735e46ff6c7bb5"
+  },
+  {
+    "doc_key": "rule:PendingAttachment",
+    "kind": "rule",
+    "title": "Regra — PendingAttachment",
+    "content": "Anexos de PENDÊNCIA (pedido explícito, 07/09/2026) — os mesmos quatro\nbotões dos registros da reserva, reaproveitados na criação de uma\npendência e na comprovação da resolução.\n\nDiferença importante em relação aos registros de reserva: aqui os\narquivos ficam RETIDOS EM MEMÓRIA até a ação principal terminar. Na\ncriação, a pendência ainda não existe (não há id pra vincular); na\nconclusão, o envio só faz sentido se a conclusão de fato for gravada.\nPor isso o fluxo é: escolher arquivos → salvar/concluir → só então subir\nos anexos (ver `uploadPendingAttachments`). Nada de arquivo órfão no\nstorage quando a pessoa desiste no meio.\n\nTambém não há seletor de categoria aqui: a categoria de um anexo de\npendência é a da própria pendência — perguntar de novo seria fricção à\ntoa.",
+    "source_path": "src/components/dashboard/TaskAttachments.tsx",
+    "audience": [],
+    "content_hash": "b217301f9e76ab67b8cc8245fd323cea"
+  },
+  {
+    "doc_key": "rule:PER_PROPERTY_FIELDS",
+    "kind": "rule",
+    "title": "Regra — PER_PROPERTY_FIELDS",
+    "content": "Campos que são EXCLUSIVOS de cada residência (senhas, Wi-Fi, endereço, links\nde mapa). Aplicá-los em vários guias de uma vez faria um imóvel receber o\ncódigo de outro — por isso são bloqueados quando há mais de um selecionado.",
+    "source_path": "src/lib/properties.functions.ts",
+    "audience": [],
+    "content_hash": "572d994cd4cf545f5b4b3d76419d0a86"
+  },
+  {
+    "doc_key": "rule:PERMISSION_FEATURE",
+    "kind": "rule",
+    "title": "Regra — PERMISSION_FEATURE",
+    "content": "Mapa permissão → feature do plano. Quando a feature não está presente no\nplano do dono, o toggle é ocultado/desabilitado e o servidor recusa gravar.\nPermissões sem mapeamento (null) são liberadas em qualquer plano.",
+    "source_path": "src/lib/member-permissions.functions.ts",
+    "audience": [],
+    "content_hash": "3577b78cfb9e8a17b01a46b8b152349e"
+  },
+  {
+    "doc_key": "rule:PERMISSIONABLE_ROUTE_PREFIXES",
+    "kind": "rule",
+    "title": "Regra — PERMISSIONABLE_ROUTE_PREFIXES",
+    "content": "ALLOWLIST — apenas estas famílias de rota geram recursos permissionáveis.\nTodo o resto (marketing, autenticação, legal, landing, guia público de\nleitura, APIs) é catalogado como NÃO permissionável.",
+    "source_path": "src/lib/permissions/permission.slugs.ts",
+    "audience": [],
+    "content_hash": "3bc47737bee0a4254d101a097576b13a"
+  },
+  {
+    "doc_key": "rule:PermissionGate",
+    "kind": "rule",
+    "title": "Regra — PermissionGate",
+    "content": "`<PermissionGate>` — exibe o conteúdo apenas quando o backend autoriza.\n\nEstado seguro por construção: durante o carregamento ou em caso de falha\nna verificação, o conteúdo protegido NÃO é renderizado.",
+    "source_path": "src/lib/permissions/PermissionGate.tsx",
+    "audience": [],
+    "content_hash": "abf882f0e67f7caefaf481ef6ee7a63c"
+  },
+  {
+    "doc_key": "rule:PhoneActionButton",
+    "kind": "rule",
+    "title": "Regra — PhoneActionButton",
+    "content": "Botão único e padronizado para telefones em todo o app: ícone verde de\nmensagem que abre as opções \"WhatsApp\" e \"Copiar\". Nunca exibe o número.",
+    "source_path": "src/components/PhoneActionButton.tsx",
+    "audience": [],
+    "content_hash": "d3b7ef85e34907c66fd245f5482bc138"
+  },
+  {
+    "doc_key": "rule:PlanKey",
+    "kind": "rule",
+    "title": "Regra — PlanKey",
+    "content": "Feature Access — gating por plano do SaaS.\n\nFASE 1: estrutura apenas. NÃO integra com billing e NÃO altera nenhuma\nregra atual de plano (`plan-guard.server.ts` continua sendo a fonte em uso).",
+    "source_path": "src/lib/permissions/feature.access.ts",
+    "audience": [],
+    "content_hash": "ac3b24999636d5bba4bcaafa627526f7"
+  },
+  {
+    "doc_key": "rule:PredictedEditor",
+    "kind": "rule",
+    "title": "Regra — PredictedEditor",
+    "content": "Data e horário previstos são dois campos SEPARADOS de novo (pedido\nexplícito, 05/09/2026: \"quero que fiquem separados como antes, porém\nambos no layout padrão dos tooltips\") — cada botão abre seu próprio\ntooltip (só calendário / só horário, cada um com o mesmo visual dos\ntooltips padrão do sistema), não mais um painel único com os dois juntos.\n\nMas por baixo dos panos continua sendo UMA ÚNICA sessão de edição\n(`open`/pendingDate/pendingTime compartilhados): os dois botões só trocam\nQUAL conteúdo aparece dentro do mesmo Popover (ver `openField`), sem abrir\ne fechar de verdade um popover por vez. Isso é o que preserva o ajuste\nanterior (pedido explícito, mesma data): \"não é mover depois de fechar o\ncalendário, é mover depois de fechar o TOOLTIP inteiro\" — se cada campo\ntivesse seu próprio Popover independente, fechar o de Data já confirmaria\ne moveria o card antes do usuário conseguir abrir o de Horário, voltando\nao bug original. Nada é gravado (nem o card se move) enquanto QUALQUER um\ndos dois estiver \"aberto\" — só quando o usuário clica fora dos dois\nbotões (ou aperta \"Concluir\"/Esc) é que a data e o horário pendentes são\nconfirmados juntos, numa única leva.\n\nO piso/teto do horário reage à data QUE ESTÁ SENDO escolhida (ainda não\nconfirmada) — mesma regra de \"dia mudou → sem piso/teto\" do card, só que\ncalculada aqui em cima do valor pendente, senão a lista de horários\nficaria com a janela do dia errado enquanto o usuário ainda decide.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "d45f5612f1c6c96d62e4a921df79ab76"
+  },
+  {
+    "doc_key": "rule:ProactiveAutonomy",
+    "kind": "rule",
+    "title": "Regra — ProactiveAutonomy",
+    "content": "Proactive Rules Engine — regras declarativas de antecipação.\n\nCada regra define o gatilho, a ação recomendada e o LIMITE DE AUTONOMIA:\n low → executa automaticamente\n medium → executa após validação humana\n high → sempre exige humano",
+    "source_path": "src/lib/ai/agents/proactive/rules.ts",
+    "audience": [],
+    "content_hash": "562deeb16089ca5cb76577d8936f84c7"
+  },
+  {
+    "doc_key": "rule:propertyCityById",
+    "kind": "rule",
+    "title": "Regra — propertyCityById",
+    "content": "Listas do Kanban, filtradas pelo botão \"Filtros\" (Período/Cidade/\nProprietário) — ver kanbanCheckinListQ/kanbanCheckoutListQ acima.\n`cleaningPendingPropIds` (bloqueio de check-in) continua vindo do\n`coRows`/`stayRows` de HOJE, de propósito: reflete o estado ATUAL do\nimóvel, não deve mudar só porque a pessoa navegou pra outro período no\nKanban.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "d836f92dfc9b771a74094215ed3616ad"
+  },
+  {
+    "doc_key": "rule:RATE_WINDOW_MS",
+    "kind": "rule",
+    "title": "Regra — RATE_WINDOW_MS",
+    "content": "Freio simples por origem: o endpoint é público (o hóspede não tem login),\nentão limitamos a quantidade de lotes por minuto para que ninguém consiga\ninflar a trilha de auditoria.",
+    "source_path": "src/lib/trail.functions.ts",
+    "audience": [],
+    "content_hash": "7165923d3017b91ea79fb6a16843344d"
+  },
+  {
+    "doc_key": "rule:refreshStaleAirbnbListings",
+    "kind": "rule",
+    "title": "Regra — refreshStaleAirbnbListings",
+    "content": "Compara o anúncio público (via Firecrawl) com o que está salvo e aplica\n só o que de fato mudou. Chamada uma vez por dia por\n `/api/public/cron/refresh-airbnb-listings` (agendado no pg_cron — ver\n migration correspondente) — mesmo mecanismo de leitura do botão manual\n \"Importar\" (scrapeAirbnbListing), só que percorrendo sozinho todos os\n imóveis com um link do Airbnb cadastrado, dos menos verificados\n recentemente pra frente, e aplicando a mudança direto (sem precisar de\n alguém clicar \"Salvar\"). Cada imóvel grava seu próprio horário/erro da\n última tentativa em `airbnb_listing_last_synced_at`/`_last_error`, e um\n resumo em português do que mudou em `airbnb_listing_last_sync_note`\n (nulo quando a checagem não achou nada novo).\n\n Também compara, campo a campo, o resultado de hoje com o que já estava\n salvo: se um campo que tinha conteúdo (principalmente os \"ampliados\",\n que dependem de cliques simulados em botões que o Airbnb pode mudar sem\n aviso — ver AIRBNB_EXPAND_ACTIONS) vier vazio numa leitura que não deu\n erro, isso é registrado como possível falha silenciosa. No fim da\n varredura, se algum imóvel apresentou isso, um único push é enviado aos\n admins do SaaS (notifySaasAdmins) resumindo o que sumiu — pedido do\n cliente em 03/09/2026 pra não deixar essas quebras passarem batido.",
+    "source_path": "src/lib/airbnb.functions.ts",
+    "audience": [],
+    "content_hash": "64c0ef8e90979566cdb9350608f54067"
+  },
+  {
+    "doc_key": "rule:requireAccess",
+    "kind": "rule",
+    "title": "Regra — requireAccess",
+    "content": "`requireAccess` — valida e lança `PermissionEnforcementError` quando negado.\nPonto obrigatório de entrada de qualquer operação protegida do backend.",
+    "source_path": "src/lib/permissions/permission.enforce.server.ts",
+    "audience": [],
+    "content_hash": "7c028baaf21a7715c3cd4284a0d953f2"
+  },
+  {
+    "doc_key": "rule:resolveAccessPinWindow",
+    "kind": "rule",
+    "title": "Regra — resolveAccessPinWindow",
+    "content": "Verifica se \"agora\" está dentro da janela [check-in - 24h, check-out] de\nQUALQUER reserva vigente/próxima da propriedade (o PIN é único por imóvel,\ncompartilhado com quem quer que seja o hóspede atual — não há, neste\ncaminho, identificação de qual hóspede está acessando).",
+    "source_path": "src/lib/access-pin-window.server.ts",
+    "audience": [],
+    "content_hash": "2609d73eee708157058d5f5975617b5e"
+  },
+  {
+    "doc_key": "rule:resolveEffectivePlan",
+    "kind": "rule",
+    "title": "Regra — resolveEffectivePlan",
+    "content": "Resolve o plano EFETIVO para uma operação. Diferente de `resolveUserPlan`\n(que sempre olha a assinatura do próprio caller), este helper considera o\ncontexto da operação:\n\n - Se `ownerId` (ou `propertyId`) apontar para outra conta e o caller for\n membro ativo dessa conta, retornamos o plano do DONO daquela conta.\n - Caso contrário, retornamos o plano do próprio caller.\n\nIsso garante que membros convidados operem sob o plano da conta\n(Enterprise / Business / Pro) — nunca caindo em Free silenciosamente.",
+    "source_path": "src/lib/plan-guard.server.ts",
+    "audience": [],
+    "content_hash": "45409f955af44f7dfff10b79ad52b439"
+  },
+  {
+    "doc_key": "rule:resolveProfileOwnerId",
+    "kind": "rule",
+    "title": "Regra — resolveProfileOwnerId",
+    "content": "Perfil pessoal: nunca herda a conta por vínculo implícito de equipe.\nSó usa outro titular quando explicitamente solicitado (impersonação) e autorizado.",
+    "source_path": "src/lib/account-scope.server.ts",
+    "audience": [],
+    "content_hash": "278ccadef654cab57bea75a8bba7c7eb"
+  },
+  {
+    "doc_key": "rule:resolveReservationTarget",
+    "kind": "rule",
+    "title": "Regra — resolveReservationTarget",
+    "content": "Mesmo critério de statusTarget/resolveTarget (advanceArrival, markNoShow,\nauto-checkout): `logId` só é um UUID real quando não é o placeholder\n\"ical:<reservation_id>\" usado por reservas só-iCal.",
+    "source_path": "src/components/dashboard/ReservationRecords.tsx",
+    "audience": [],
+    "content_hash": "3b9d584bced33dc8cbc4df70c9c8b03d"
+  },
+  {
+    "doc_key": "rule:resolveTarget",
+    "kind": "rule",
+    "title": "Regra — resolveTarget",
+    "content": "Resolve `logId`/`reservationId` pro formato que `runAdvanceArrival` espera\na partir de um `ArrivalRow`. Mesmo critério de `statusTarget` (em\n`OperationWorkspace.tsx`): `logId` só é aceito quando é um UUID real de\n`guide_access_logs` — uma reserva só-iCal (sem log/formulário do hóspede)\nusa o prefixo sintético \"ical:<reservation_id>\" no lugar de um log de\nverdade, e nesse caso é o `reservation_id` embutido que deve ser usado.",
+    "source_path": "src/lib/auto-checkout.server.ts",
+    "audience": [],
+    "content_hash": "fe2e5ad544b27a3d48da06b869ebd467"
+  },
+  {
+    "doc_key": "rule:runAdvanceArrival",
+    "kind": "rule",
+    "title": "Regra — runAdvanceArrival",
+    "content": "Corpo de `advanceArrival`, extraído pra função independente (pedido\nexplícito, 06/09/2026): reaproveitado tanto pelo clique manual em\n\"Confirmar checkout\" (via `advanceArrival` abaixo, com o client de sessão\ndo usuário) quanto pela confirmação automática de checkout no horário\nprevisto (`runAutoCheckoutScan`, em `auto-checkout.server.ts`, com\n`supabaseAdmin` — sem sessão de usuário, roda por cron). Aceita qualquer\n`SupabaseClient<Database>`: um client de sessão (RLS do usuário) ou o\nadmin (bypassa RLS, usado pelo cron). `byUserId` só é usado no avanço de\nlimpeza (`from: \"cleaning\"`), pra registrar quem concluiu — omitido no\ncron, que não tem um usuário humano por trás da ação.",
+    "source_path": "src/lib/dashboard.functions.ts",
+    "audience": [],
+    "content_hash": "6179d27ee6532400603d7ae8a7bc5b1c"
+  },
+  {
+    "doc_key": "rule:runAutoCheckoutScan",
+    "kind": "rule",
+    "title": "Regra — runAutoCheckoutScan",
+    "content": "Confirma automaticamente o checkout de um card assim que o horário\nPREVISTO chega — pedido explícito (06/09/2026): \"se um usuário colocar\n4h00 da manhã como prevista, então o card será dado como checkout\nconfirmado nesse horário (sempre horário local do guia — usando o\nprincipal horário do país em questão)\". Roda por cron (`cron.auto-\ncheckout`, a cada 5 minutos) — não depende de ninguém abrir o app.\n\n\"Horário previsto\" segue EXATAMENTE o mesmo critério já usado em todo o\nresto do sistema (ordenação inteligente dos checkouts, alertas de atraso\nem `runOpsPushScan`): override do anfitrião (`arrivalTimeOverride`) OU,\nna ausência dele, o horário que o próprio hóspede informou\n(`guestArrivalTime`). O horário PADRÃO do imóvel (`checkout_time`) nunca\nentra aqui — só dispara quando alguém de fato definiu uma previsão.\n\nO fuso usado é o do IMÓVEL (`propertyTimeZone`, cidade/país cadastrados),\na mesma função já usada pro guia do hóspede — nunca um fuso fixo de\nservidor. Isso cobre \"o principal horário do país em questão\" mesmo pra\nimóveis fora do Brasil.\n\nA ação em si reaproveita `runAdvanceArrival` — a MESMA lógica do clique\nmanual em \"Confirmar checkout\" (libera o imóvel, entra na fila de\nlimpeza, avisa os prestadores de limpeza) — só que com `supabaseAdmin`,\njá que não há usuário logado por trás de um cron. O \"silenciar\" do card\n(`mutedUntil`) NÃO afeta esta rotina: ele só existe pra parar de INCOMODAR\ncom alertas de atraso, não pra suspender a confirmação automática.",
+    "source_path": "src/lib/auto-checkout.server.ts",
+    "audience": [],
+    "content_hash": "6b918eb3945f2967ef24006bb08b8495"
+  },
+  {
+    "doc_key": "rule:runOpsPushScan",
+    "kind": "rule",
+    "title": "Regra — runOpsPushScan",
+    "content": "Varredura operacional. Deve rodar a cada 30 minutos.\nA fonte de verdade é EXATAMENTE a mesma esteira (Kanban) do dashboard:\nusamos `buildArrivalRows` e consideramos apenas os cards pendentes.\nRegras:\n 1. 20h — quantos check-outs ocorrem amanhã\n 2. 07h — quantos check-ins ocorrem hoje\n 3. a cada 30min — check-outs atrasados (passou do horário oficial, sem \"check\")\n 4. a cada 1h após o horário de check-in — check-ins ainda pendentes\n 5. a cada 2h (em hora cheia), o dia todo — cards \"Em Limpeza\" ainda sem\n confirmação, independentemente de horário de checkin/checkout.\n 6. atraso grave (check-out +2h / check-in +3h) vira alerta crítico — e nesse\n caso o aviso \"normal\" correspondente NÃO é enviado (evita push duplicado).",
+    "source_path": "src/lib/ops-push.server.ts",
+    "audience": [],
+    "content_hash": "cc8a24bdff35842e5a13d7218b5c910c"
+  },
+  {
+    "doc_key": "rule:ScopeInput",
+    "kind": "rule",
+    "title": "Regra — ScopeInput",
+    "content": "Ponte frontend → Authorization Runtime (FASE 4.1).\n\nAs decisões vêm EXCLUSIVAMENTE de `permission.guard.server.ts` /\n`permission.enforce.server.ts`. Nenhuma regra de permissão é reimplementada\nno cliente: aqui só trafega a decisão já tomada pelo backend.",
+    "source_path": "src/lib/permissions/permission.access.functions.ts",
+    "audience": [],
+    "content_hash": "77f55cc1bfc89c6b8f18159ec0e98f57"
+  },
+  {
+    "doc_key": "rule:ScreenshotButton",
+    "kind": "rule",
+    "title": "Regra — ScreenshotButton",
+    "content": "Botão \"tirar um print\" (pedido explícito) — captura o container apontado\npor `targetRef` como PNG. Ao clicar, abre um menu com duas opções:\n\"Salvar Imagem\" (baixa o PNG) e \"Copiar Imagem\" (vai pra área de\ntransferência, pra colar direto em outro lugar). Usa `html-to-image`\n(já não existia nenhuma lib de captura no projeto).\n\nQuando `receiptRows` é passado (listas de hóspedes), o print NÃO captura\no card grande da tela — monta o layout \"comprovante\" compacto (pedido\nexplícito) num node à parte, fora da tela, só pra gerar a imagem; a tela\ndo usuário continua com os cards normais, clicáveis. Sem `receiptRows`\n(ex.: lista de imóveis do tooltip de Limpeza), continua capturando o\n`targetRef` como antes.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "57734f99014716f1e3ef0f53bb12bb1c"
+  },
+  {
+    "doc_key": "rule:scrubPossibleCode",
+    "kind": "rule",
+    "title": "Regra — scrubPossibleCode",
+    "content": "Remove qualquer trecho que pareça senha/código (letra + número colados, 4+ caracteres).\nDefesa extra: mesmo indicando só TÍTULOS de itens do manual/FAQ (nunca o corpo/resposta),\num anfitrião pode ter escrito o próprio código no título por engano.",
+    "source_path": "src/lib/ai/guest-safety.server.ts",
+    "audience": [],
+    "content_hash": "2ab18fe3d9bc2ec32787bb74d9d3542f"
+  },
+  {
+    "doc_key": "rule:searchBrAddress",
+    "kind": "rule",
+    "title": "Regra — searchBrAddress",
+    "content": "Autocompletar de endereço enquanto a pessoa digita — usado tanto pelo\ncampo de endereço de Prestadores/Proprietários quanto pelo campo\n\"Endereço\" do imóvel (ver `AddressAutocomplete`, compartilhado pelos dois).\nPedido explícito (06/09/2026): trocar o provedor de Nominatim/OpenStreetMap\npelo Google Places, o mesmo já usado no resto do sistema (recomendações,\nlink do Maps do imóvel) — resultado mais preciso e consistente, e já traz\nlat/lng prontos (sem precisar de uma segunda chamada de geocodificação).",
+    "source_path": "src/lib/address-lookup.functions.ts",
+    "audience": [],
+    "content_hash": "6c37cd837b82baaf367a78a79f51090a"
+  },
+  {
+    "doc_key": "rule:SectionGroup",
+    "kind": "rule",
+    "title": "Regra — SectionGroup",
+    "content": "Agrupa Sections colapsáveis permitindo apenas uma aberta por vez.\nPor padrão é não controlado (guarda o próprio estado). Passando `openId` +\n`onOpenIdChange`, quem chama passa a decidir qual seção fica aberta — usado\nquando algo de fora precisa abrir uma seção específica (ex.: validação de\nformulário abrindo a seção com o campo inválido e rolando até ele).",
+    "source_path": "src/components/editor/Section.tsx",
+    "audience": [],
+    "content_hash": "6a2193bf9ba397b363b2f989f892d79e"
+  },
+  {
+    "doc_key": "rule:SEG_TAB",
+    "kind": "rule",
+    "title": "Regra — SEG_TAB",
+    "content": "Aba do segmented control: adapta-se à largura da tela (anti-corte), 46px.\n !flex-none sobrescreve o !flex-1 padrão de TabsTrigger (ui/tabs.tsx) — aqui\n cada aba precisa manter a largura do próprio rótulo (min-w-max) e deixar o\n ds-segmented rolar na horizontal quando não couberem todas, em vez de\n espremer/cortar \"Acessos\" tentando dividir a largura em partes iguais.",
+    "source_path": "src/components/stakeholders/StakeholderDetailSheet.tsx",
+    "audience": [],
+    "content_hash": "cc1ee53bc55458f9e9727b4d80fc231d"
+  },
+  {
+    "doc_key": "rule:sendBrandedAccountInvite",
+    "kind": "rule",
+    "title": "Regra — sendBrandedAccountInvite",
+    "content": "Envia o convite de equipe usando o e-mail branded do app.\n\nNão usamos mais o e-mail nativo de convite/magic link do Supabase (sujeito a\nlimites de taxa e sem identidade visual). Geramos apenas o link de ação com\na API admin (que NÃO dispara e-mail) e enviamos pela fila do app.",
+    "source_path": "src/lib/team-invite-email.server.ts",
+    "audience": [],
+    "content_hash": "c359bacdda8b28734325434cf24f7d95"
+  },
+  {
+    "doc_key": "rule:sendGuestReplyPush",
+    "kind": "rule",
+    "title": "Regra — sendGuestReplyPush",
+    "content": "Push pra CADA mensagem nova do hóspede numa conversa que já está com um\nhumano (assigned_to preenchido). Antes, só a mensagem que DISPARAVA o\nhandoff gerava push — qualquer mensagem seguinte do hóspede na mesma\nconversa (já assumida) não avisava ninguém, mesmo com o atendente\nesperando resposta. Se a conversa tem um responsável específico\n(assigned_to), só ele é notificado — não o time inteiro.",
+    "source_path": "src/lib/handoff.server.ts",
+    "audience": [],
+    "content_hash": "64c86e46d768769353b7ca42581cd670"
+  },
+  {
+    "doc_key": "rule:sendOpenConversationReminders",
+    "kind": "rule",
+    "title": "Regra — sendOpenConversationReminders",
+    "content": "Lembrete horário: conversas assumidas por um humano (assigned_to) que\ncontinuam abertas (não resolvidas) recebem um push a cada ~1h avisando\nque a conversa com o hóspede continua em aberto. Chamado por um cron.\n\nUsa `last_reminder_at` (não só `handoff_at`) pra saber quando foi o\nÚLTIMO lembrete — sem isso, rodar o cron a cada 15min mandaria push a\ncada 15min pra qualquer conversa aberta há mais de 1h, não de hora em\nhora de verdade.",
+    "source_path": "src/lib/handoff.server.ts",
+    "audience": [],
+    "content_hash": "f10f71c9dd876dca05bd6f0512519a77"
+  },
+  {
+    "doc_key": "rule:sortCheckinRows",
+    "kind": "rule",
+    "title": "Regra — sortCheckinRows",
+    "content": "Ordenação dos cards de chegada:\n1) imóveis já liberados para check-in acima de qualquer um ainda com\n checkout/limpeza pendente — bloqueado NUNCA compete por horário, fica\n sempre abaixo dos liberados (mesmo racional do botão bloqueado no\n Kanban: enquanto o imóvel não libera, o check-in nem entra na\n \"disputa\" de prioridade).\n2) horário previsto de chegada (mais cedo primeiro; sem horário vai por último)\n3) proprietário A→Z\n4) nome do anúncio A→Z",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "367bbce32cff19183527900ba874e2a6"
+  },
+  {
+    "doc_key": "rule:sortCheckoutRows",
+    "kind": "rule",
+    "title": "Regra — sortCheckoutRows",
+    "content": "Ordenação dos checkouts (pedido explícito), em ordem de prioridade:\n1) imóvel com check-in previsto no MESMO dia (giro) sobe pro topo;\n2) dentro do giro, pelo horário previsto do check-in que está chegando\n (mais cedo primeiro);\n3) o que sobrar (inclusive quem não tem giro) pelo horário previsto do\n próprio checkout (mais cedo primeiro);\n4) o que ainda estiver empatado, por proximidade de endereço — encadeado\n pelo vizinho mais próximo do ÚLTIMO imóvel já ordenado (rota curta),\n não pelo tamanho do grupo de imóveis vizinhos.\n`checkinRowSources` recebe TODAS as fontes de check-in relevantes pro\nmesmo período das linhas de checkout (não só as pendentes: um giro conta\nmesmo que o check-in já tenha sido marcado feito).",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "6e7d3457843ef1461150aef8b52b1c7f"
+  },
+  {
+    "doc_key": "rule:SOURCE_CONFIDENCE",
+    "kind": "rule",
+    "title": "Regra — SOURCE_CONFIDENCE",
+    "content": "Ranking Permanente de Fontes.\n\nPesos fixos e auditáveis por fonte. Em caso de conflito entre informações,\na fonte de maior peso SEMPRE prevalece — e fontes conflitantes nunca são\nmisturadas na mesma resposta.\n\nAlterar um peso aqui muda o comportamento de todo o agente: mantenha a\nordem hierárquica (oficial > curado > externo > inferido).",
+    "source_path": "src/lib/ai/sources.ts",
+    "audience": [],
+    "content_hash": "f853da0ed1e11d46dea9ccc6fc7de1c4"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:137749",
+    "kind": "rule",
+    "title": "Regra em OperationWorkspace.tsx",
+    "content": "Destaque visual opt-in (só usado hoje por \"Fila de Limpeza\"): borda +\ngradiente âmbar + acento lateral + ícone em caixinha, sem negrito.\nNão afeta nenhum outro uso do KpiCard (compact ou não).",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "ec0f34c7bfc0754666d9cc96f2f2a568"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:137984",
+    "kind": "rule",
+    "title": "Regra em OperationWorkspace.tsx",
+    "content": "Cards que devem continuar visíveis no popup mesmo que já não pertençam\nmais à lista — hoje só os que tiveram HORÁRIO/DATA PREVISTOS ajustados.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "4b33a44930f947dea6060da94f816439"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:138176",
+    "kind": "rule",
+    "title": "Regra em OperationWorkspace.tsx",
+    "content": "Pedido explícito: os cards dentro do popup precisam ficar IDÊNTICOS ao\ncard do Kanban — em vez de manter uma segunda implementação (que já\ndivergiu do Kanban antes, ver o bug do bloqueio de check-in), o popup\nagora renderiza o MESMO <ArrivalGroup>/<ArrivalCard> do Kanban, com os\nMESMOS handlers. Vem de arrivalGroupPropsFor(colMode, rows) — a mesma\nfunção que já alimenta as colunas do Kanban.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "dfd7cbf815d96bcf7c9214257a5e2387"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:227904",
+    "kind": "rule",
+    "title": "Regra em OperationWorkspace.tsx",
+    "content": "Pedido explícito: os filtros (Período/Cidade/Proprietário) que antes\nficavam numa linha própria acima deste card viraram um botão único\n(`CalendarFiltersButton`) dentro do cabeçalho, ao lado do título — por\nisso o estado/opções continuam vindo do pai (`OperationWorkspace`),\nque é quem também usa esses mesmos filtros pros cards de limpeza.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "67345afec21e651284020dbb8b2f7803"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:259206",
+    "kind": "rule",
+    "title": "Regra em OperationWorkspace.tsx",
+    "content": "Dialog de detalhe (quem viu / quem não viu) — extraído do BarRow original\npra poder ser reaproveitado também pelo EngagementCard (cards separados do\ndesktop), sem duplicar esse JSX nos dois lugares.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "191a73d470b9e71e3339a0db344ffb5a"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:266966",
+    "kind": "rule",
+    "title": "Regra em OperationWorkspace.tsx",
+    "content": "Controlado de fora (pela coluna do Kanban) quando presente — permite\nrecolher os \"Detalhes da operação\" ao rolar a coluna. Sem isso, cai de\nvolta pro estado local de sempre.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "1420a71a82d71664b9b9257192bc6178"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:270211",
+    "kind": "rule",
+    "title": "Regra em OperationWorkspace.tsx",
+    "content": "Marca este card (Check-ins) como \"Não Compareceu\" — pedido explícito,\n05/09/2026: opção no menu \"⋮\", só nos cards de check-in ainda pendentes.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "b858b5d3155e42847ae34a889b4053e2"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:271105",
+    "kind": "rule",
+    "title": "Regra em OperationWorkspace.tsx",
+    "content": "Modo \"Lista\" (pedido explícito): mostra só proprietário, imóvel e os\n botões de ação (bem menores) — some com nome do hóspede, código,\n período, previsto e alertas de iCal. Reaproveita o mesmo card e os\n mesmos handlers; só a apresentação muda.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "943bbf38018e813c04eeb6799825fda6"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:322744",
+    "kind": "rule",
+    "title": "Regra em OperationWorkspace.tsx",
+    "content": "Restringe de verdade os horários selecionáveis (inclusive) ao horário\n configurado do imóvel — pedido explícito do cliente (04/09/2026): antes\n só existia um aviso visual (âmbar) depois de já ter escolhido um\n horário fora da janela; agora o horário nem aparece como opção. `null`/\n omitido = sem limite (imóvel sem esse horário configurado).",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "8ebe1ab97a0756cd4e0279b3025812c8"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:43017",
+    "kind": "rule",
+    "title": "Regra em OperationWorkspace.tsx",
+    "content": "Cards \"fixados\" no popup aberto: SÓ ajustes de data/horário previsto\nseguram o card na lista até o usuário fechar o popup no \"X\". Qualquer\noutra ação (check, não compareceu, limpeza não será realizada, desfazer)\ntira o card da tela na hora.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "edce2904f3ccf71032151d09f19ecae0"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/TaskAttachments.tsx:2044",
+    "kind": "rule",
+    "title": "Regra em TaskAttachments.tsx",
+    "content": "Sobe os anexos retidos e grava cada um como registro da pendência. Chamar\nDEPOIS que a pendência existe (criação) ou foi concluída (comprovação).\nFalha de um arquivo não derruba os outros — nem a ação principal, que já\naconteceu.",
+    "source_path": "src/components/dashboard/TaskAttachments.tsx",
+    "audience": [],
+    "content_hash": "abda222d5c7f7b14809f0a094bc3ec59"
+  },
+  {
+    "doc_key": "rule:src/components/guide/BottomNav.tsx:448",
+    "kind": "rule",
+    "title": "Regra em BottomNav.tsx",
+    "content": "Quando definido, só o item com esta key responde a toque — os demais\nficam visualmente apagados e travados. Usado durante o onboarding\npós-formulário: o hóspede vê o menu real, com \"Chegada\" selecionado,\nmas não consegue navegar pra outra aba até concluir as etapas.",
+    "source_path": "src/components/guide/BottomNav.tsx",
+    "audience": [],
+    "content_hash": "7fa56c1c8d21bcdba236dfb5c4726edf"
+  },
+  {
+    "doc_key": "rule:src/components/GuideAccessGate.tsx:35896",
+    "kind": "rule",
+    "title": "Regra em GuideAccessGate.tsx",
+    "content": "Datas confirmadas da reserva (yyyy-MM-dd) — limites da previsão de\nchegada/saída: chegada nunca antes de `checkinISO`; saída nunca depois\nde `checkoutISO`.",
+    "source_path": "src/components/GuideAccessGate.tsx",
+    "audience": [],
+    "content_hash": "c84a0e7b0fea8e95741bd6e26746f9f2"
+  },
+  {
+    "doc_key": "rule:src/components/GuideAccessGate.tsx:5445",
+    "kind": "rule",
+    "title": "Regra em GuideAccessGate.tsx",
+    "content": "Itens do menu inferior real do guia — mostrado em tela cheia por trás\ndo formulário, com \"Chegada\" travado (o hóspede não navega pra outra\naba antes de se identificar).",
+    "source_path": "src/components/GuideAccessGate.tsx",
+    "audience": [],
+    "content_hash": "a01a4d9f91ff2ee14ed37a261a0e63ae"
+  },
+  {
+    "doc_key": "rule:src/components/GuideAccessGate.tsx:6433",
+    "kind": "rule",
+    "title": "Regra em GuideAccessGate.tsx",
+    "content": "Horário máximo de check-in do imóvel — teto da previsão de chegada\n(pedido explícito, 05/09/2026, mesma regra já aplicada no painel do\nanfitrião).",
+    "source_path": "src/components/GuideAccessGate.tsx",
+    "audience": [],
+    "content_hash": "a316426ba5b0c0ef8c0a2216d094e32c"
+  },
+  {
+    "doc_key": "rule:src/components/GuideAiChat.tsx:7316",
+    "kind": "rule",
+    "title": "Regra em GuideAiChat.tsx",
+    "content": "true quando qualquer outro popup/onboarding já está na tela (tour de\nprimeiro acesso, diálogo de PIN, etc.) — nesse caso o popup sugestivo\nnunca aparece por cima; só quando a tela estiver limpa.",
+    "source_path": "src/components/GuideAiChat.tsx",
+    "audience": [],
+    "content_hash": "872221f36316c88d42026deaec7339ff"
+  },
+  {
+    "doc_key": "rule:src/components/handoff/AudioRecorderButton.tsx:352",
+    "kind": "rule",
+    "title": "Regra em AudioRecorderButton.tsx",
+    "content": "Começa a gravar sozinho ao montar, sem esperar o clique no microfone.\nUsado pelos \"Registros da reserva\" (07/09/2026): lá a categoria é\nperguntada ANTES, e a gravação precisa começar assim que a pessoa\nescolhe — sem um segundo toque. O chat com hóspede não passa esta prop\ne segue exatamente como antes (só grava ao tocar no microfone).",
+    "source_path": "src/components/handoff/AudioRecorderButton.tsx",
+    "audience": [],
+    "content_hash": "72ecc10611abbec39b47addf405d3ed6"
+  },
+  {
+    "doc_key": "rule:src/components/ResponsiveDialog.tsx:1117",
+    "kind": "rule",
+    "title": "Regra em ResponsiveDialog.tsx",
+    "content": "true (padrão, comportamento inalterado): o conteúdo inteiro (cabeçalho +\ncorpo + rodapé) rola como um bloco único — é preciso descer até o fim\npara alcançar o rodapé.\nfalse: o próprio conteúdo controla o scroll internamente (ex.: cabeçalho\ne rodapé fixos, só a área do meio rola) — use quando o rodapé precisa\nficar sempre visível na tela.",
+    "source_path": "src/components/ResponsiveDialog.tsx",
+    "audience": [],
+    "content_hash": "d8d103f972a9c212fdf3caff1c946ead"
+  },
+  {
+    "doc_key": "rule:src/lib/access-pin-window.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em access-pin-window.server.ts",
+    "content": "Janela de liberação do código de acesso (Wi-Fi/portão/fechadura) protegido\npor `access_codes_pin`.\n\nRegra de negócio já existente e correta no agente de IA\n(`src/lib/ai/context.server.ts`, `pinReleaseAt`): o código só deve ficar\ndisponível a partir de 24h antes do horário de check-in até o horário de\ncheck-out da reserva vigente. Este módulo replica exatamente a mesma\nfórmula (mesmo cálculo de 24h antes do check-in, mesmo horário de\ncheck-out como fechamento) para aplicá-la também no caminho que\nefetivamente libera os dados para o hóspede (`getPublicGuide` /\n`submitAccessPin`, em `src/lib/guide.functions.ts`) — hoje esse caminho só\nconfere se o PIN digitado bate com o cadastrado, sem nenhuma checagem de\ndata, permitindo acesso fora da janela sempre que o PIN correto é\ninformado (ex.: código reutilizado após o check-out, ou compartilhado\nantes da liberação prevista).\n\nQuando a propriedade não tem NENHUMA reserva/registro de chegada\ncadastrado (nem `guide_access_logs`, nem `property_reservations`\nsincronizada do Airbnb), não há dado real contra o qual aplicar a janela —\nnesse caso mantemos o comportamento atual (liberado só pelo PIN), para não\nquebrar anfitriões que usam esse campo sem registrar chegadas no sistema.",
+    "source_path": "src/lib/access-pin-window.server.ts",
+    "audience": [],
+    "content_hash": "23c6602aec44cbe86c742c522f47ed75"
+  },
+  {
+    "doc_key": "rule:src/lib/ai-learning.functions.ts:0",
+    "kind": "rule",
+    "title": "Regra em ai-learning.functions.ts",
+    "content": "API interna do Continuous Learning Loop.\n\nToda função é autenticada e opera dentro do tenant do chamador. Aprovação de\nconhecimento é sempre humana e registra o revisor.",
+    "source_path": "src/lib/ai-learning.functions.ts",
+    "audience": [],
+    "content_hash": "52bbdaf6fc74295782c61c55e989d1b0"
+  },
+  {
+    "doc_key": "rule:src/lib/ai-ops.functions.ts:0",
+    "kind": "rule",
+    "title": "Regra em ai-ops.functions.ts",
+    "content": "API interna (admin/anfitrião) das camadas de Avaliação, Observabilidade,\nCanais e Inteligência Proativa. Toda função é autenticada e sempre opera\ndentro do tenant do chamador — nunca aceita tenant vindo do cliente.",
+    "source_path": "src/lib/ai-ops.functions.ts",
+    "audience": [],
+    "content_hash": "f1fc91a7861b441ff498990f643b577b"
+  },
+  {
+    "doc_key": "rule:src/lib/ai-supervision.functions.ts:0",
+    "kind": "rule",
+    "title": "Regra em ai-supervision.functions.ts",
+    "content": "Supervisão da IA (backend): fila de perguntas ao humano e aprovação de\nconhecimento aprendido. Sem UI — apenas a camada de dados/RPC.\n\nSTATUS (auditoria de continuidade — ver AUDITORIA_IA_CONCIERGE.md):\n- `answerEscalation` está REDUNDANTE desde a correção em `handoff.functions.ts`\n (`sendHandoffMessage`), que já marca escalonamentos pendentes como respondidos\n automaticamente quando um humano responde pelo dock — sem precisar desta rota.\n- `listLearningCandidates`/`reviewLearningCandidate` duplicam, sem nenhum\n consumidor de UI confirmado, a pipeline REAL de aprovação de conhecimento\n que já existe em `@/lib/ai-learning.functions.ts` (essa sim usada por\n `admin.ia.tsx`) — que por sua vez lê a mesma tabela `ai_learning_candidates`\n e já cobre corretamente as candidatas criadas por `queueLearningCandidate`\n (via fallback `row.extracted_information ?? row.proposed_memory`).\n- Não removemos este arquivo agora por não ser possível confirmar com 100% de\n certeza que nenhum consumidor externo (app mobile, cron, integração) o chama\n diretamente pelo nome da server function. Antes de apagar de vez, confirme\n isso no seu ambiente e então remova este arquivo e as duas funções análogas\n em `human-loop/learning.server.ts` (`approveLearningCandidate`/`rejectLearningCandidate`).",
+    "source_path": "src/lib/ai-supervision.functions.ts",
+    "audience": [],
+    "content_hash": "5de840274d54a5d2545a7d5a67e1386a"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/agents/proactive/engine.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em engine.server.ts",
+    "content": "Event Intelligence Engine + execução das ações proativas.\n\nVarre reservas, memória operacional e memória de hóspede para produzir\nsinais; cruza os sinais com o Proactive Rules Engine; grava as ações em\n`ai_proactive_actions` respeitando o limite de autonomia.\n\nNada é enviado ao hóspede aqui: ações de autonomia baixa ficam prontas para\nexecução, médias aguardam validação e altas sempre exigem humano.",
+    "source_path": "src/lib/ai/agents/proactive/engine.server.ts",
+    "audience": [],
+    "content_hash": "b7f0457e583c8634aea4e1710a3912e9"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/agents/proactive/sender.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em sender.server.ts",
+    "content": "Execução real das ações proativas de baixa autonomia (FASE — envio real).\n\n`engine.server.ts` já grava, em `ai_proactive_actions`, ações de autonomia\n\"low\" já como `status: \"approved\"` (aprovação automática — é a própria\nregra que decide que dispensa humano, ver `approvalFor` em `./rules`).\n`markActionExecuted` já existia para marcar uma ação como executada, mas\nnada nunca chamava nem essa função nem disparava a mensagem em si — as\nações ficavam para sempre \"aprovadas\" e nunca chegavam ao hóspede. Este\nmódulo fecha esse último passo, só para as regras que são, de fato,\nmensagens ao hóspede (não para \"reservation_briefing\"/\"returning_guest_\nrecognition\", que são anotações internas, não texto a enviar).\n\nCanal: reaproveita o WhatsApp já conectado pelo anfitrião\n(`sendWhatsappText`, mesma credencial usada no atendimento humano/IA).\nSem WhatsApp conectado, ou sem telefone do hóspede localizado, a ação é\nmarcada como falha com o motivo — nunca fica reprocessando para sempre,\nmas também nunca finge ter enviado algo que não foi.\n\nTelefone do hóspede: reservas sincronizadas do Airbnb (`property_reservations`,\nfonte do gatilho checkin/checkout) não trazem telefone — o iCal do Airbnb\nnão expõe isso. O telefone só existe quando o hóspede preencheu o\nformulário de chegada no próprio guia (`guide_access_logs`). Por isso\ncruzamos pela MESMA janela de datas (check-in/check-out) do mesmo imóvel —\ncomo um imóvel só tem uma estadia ativa por vez, esse cruzamento é seguro.\nSem log correspondente com telefone, não há para quem enviar.",
+    "source_path": "src/lib/ai/agents/proactive/sender.server.ts",
+    "audience": [],
+    "content_hash": "1517a837b46b66e93ebfeb037cc04b36"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/alerts/engine.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em engine.server.ts",
+    "content": "Intelligent Alerts Engine.\n\nCompara a janela recente com a janela anterior e materializa alertas em\n`ai_alerts`. Roda no cron — nunca no caminho de resposta ao hóspede.",
+    "source_path": "src/lib/ai/alerts/engine.server.ts",
+    "audience": [],
+    "content_hash": "26fcaa1a003bd2af6a02268f23225aae"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/assistant-tools.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em assistant-tools.server.ts",
+    "content": "Ferramentas do Assistente do Painel (07/09/2026).\n\nDuas famílias, com garantias diferentes:\n\n LEITURA — consultam os dados reais da conta. Todas usam o cliente Supabase\n DO USUÁRIO (nunca o admin), então o RLS decide o que cada pessoa enxerga.\n É isso que faz \"prestador só recebe resposta sobre o que ele já podia ver\"\n ser verdade por construção, e não por uma regra escrita no prompt — que o\n modelo poderia ignorar.\n\n PREPARAÇÃO — resolvem uma intenção (\"abre uma pendência no 105\") em um\n payload pronto, mas NÃO gravam. Devolvem a ação e o texto do cartão de\n confirmação; quem grava é o clique da pessoa, na interface. Ver o comentário\n de `assistant-types.ts` para o porquê.",
+    "source_path": "src/lib/ai/assistant-tools.server.ts",
+    "audience": [],
+    "content_hash": "c1ce0cdb28e49031425478368dfab246"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/audit/events.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em events.server.ts",
+    "content": "Enterprise Audit Trail — Event Log Engine.\n\nÚnico ponto autorizado a gravar em `ai_system_events`. Registra QUEM fez,\nQUANDO, EM QUAL CONTA, COM QUAL PERMISSÃO, POR QUE, DE ONDE e O RESULTADO.\n\nPolítica de privacidade do raciocínio: nunca gravamos chain-of-thought.\nSomente motivo estruturado, classificação e evidências utilizadas.",
+    "source_path": "src/lib/ai/audit/events.server.ts",
+    "audience": [],
+    "content_hash": "5eccbe5fbb591ffefc1ba818481afcd1"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/audit/platform.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em platform.server.ts",
+    "content": "Atalhos de auditoria para o SaaS INTEIRO (não só IA).\n\nQualquer módulo server-side pode registrar um evento sem se preocupar com\ncliente Supabase ou com o formato da tabela. Auditoria nunca derruba a\noperação principal — todos os helpers engolem erros.",
+    "source_path": "src/lib/ai/audit/platform.server.ts",
+    "audience": [],
+    "content_hash": "5c4af37b492d3fcb3ccec39e03e3fbb4"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/channels/gateway.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em gateway.server.ts",
+    "content": "Channel Gateway — abstração de origem da mensagem.\n\nRegistra o canal de cada conversa (`ai_conversation_channels`) e entrega ao\nnúcleo apenas o formato normalizado. Novos canais (WhatsApp, Airbnb Inbox,\nBooking, e-mail, app próprio) entram registrando um adaptador aqui — nenhuma\nlinha do Agent Core precisa mudar.",
+    "source_path": "src/lib/ai/channels/gateway.server.ts",
+    "audience": [],
+    "content_hash": "ab397c63c0753e79b1b0f2a6c74c58f9"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/conversation/core.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em core.server.ts",
+    "content": "Omnichannel Conversation Core.\n\nUma única Conversation Entity por hóspede/imóvel, independentemente do canal.\nWhatsApp e chat da plataforma escrevem no MESMO registro (`ai_conversations`)\ne no MESMO histórico (`ai_messages`). O canal só define para onde a resposta\nvolta — nunca cria uma conversa paralela.\n\nEste módulo é aditivo: as tabelas legadas (`property_chat_*`) continuam\nfuncionando e são espelhadas aqui via `legacy_conversation_id`.",
+    "source_path": "src/lib/ai/conversation/core.server.ts",
+    "audience": [],
+    "content_hash": "53d44b263dd90413c1da2d1847a20e4a"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/evaluation/engine.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em engine.server.ts",
+    "content": "AI Agent Evaluation Engine.\n\nExecuta a biblioteca de cenários contra o pipeline REAL (mesmo orquestrador\nusado em produção), compara com o comportamento esperado, calcula o Agent\nQuality Score e persiste tudo em `ai_agent_evaluations`.\n\nNunca envia mensagem ao hóspede: roda em superfície isolada (\"evaluation\").",
+    "source_path": "src/lib/ai/evaluation/engine.server.ts",
+    "audience": [],
+    "content_hash": "c42e1252519cbdc4bb69c18abd97ad4a"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/evaluation/regression.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em regression.server.ts",
+    "content": "Regression Testing.\n\nCompara cada execução de cenário com a última execução registrada do mesmo\ncaso no mesmo tenant. Toda mudança de prompt, modelo, ferramenta, regra de\nagente ou memória passa por aqui antes de ir para produção.",
+    "source_path": "src/lib/ai/evaluation/regression.server.ts",
+    "audience": [],
+    "content_hash": "8e948ef1fef50aa5eb76b9a25449d422"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/governance/tenant-knowledge.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em tenant-knowledge.server.ts",
+    "content": "Knowledge Governance — Conhecimento da Operação (`ai_tenant_knowledge`).\n\nRegras internas da empresa: políticas, procedimentos, fornecedores.\nNão duplica dados do imóvel (PROPERTY_DATA continua sendo a fonte oficial).",
+    "source_path": "src/lib/ai/governance/tenant-knowledge.server.ts",
+    "audience": [],
+    "content_hash": "4364d0d847f392156d08c8d8c3379325"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/human-loop/escalations.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em escalations.server.ts",
+    "content": "Human-in-the-Loop — a IA pergunta ao supervisor humano quando não sabe.\n\nFluxo: a IA registra a dúvida (`ai_human_escalations`), avisa o hóspede que\nestá confirmando com a equipe e NUNCA inventa a resposta. Quando um humano\nresponde, a decisão volta para a conversa e vira candidata a conhecimento.",
+    "source_path": "src/lib/ai/human-loop/escalations.server.ts",
+    "audience": [],
+    "content_hash": "49bc16f58184112976389f837099bfc2"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/human-loop/learning.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em learning.server.ts",
+    "content": "Knowledge Distillation + Approval Flow.\n\nToda decisão humana vira candidata a conhecimento (`ai_learning_candidates`).\nNada entra na memória de longo prazo sem aprovação explícita de um humano —\ne uma exceção pontual nunca vira regra permanente (vira exceção temporária).",
+    "source_path": "src/lib/ai/human-loop/learning.server.ts",
+    "audience": [],
+    "content_hash": "ae972fa05a8b175c30900b6a3b5196a6"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/learning/conversation-analyzer.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em conversation-analyzer.server.ts",
+    "content": "FASE 1 — Conversation Analyzer.\n\nApós uma conversa encerrada, reconstrói o que aconteceu a partir do rastro\njá existente (`ai_agent_logs`, `ai_human_escalations`, feedback do hóspede)\ne classifica o desfecho: SUCCESS, PARTIAL, FAILURE ou LEARNING_OPPORTUNITY.\n\nNunca lança: análise jamais pode quebrar o atendimento.",
+    "source_path": "src/lib/ai/learning/conversation-analyzer.server.ts",
+    "audience": [],
+    "content_hash": "267ad7c02826c8cd3d30ffb8adaa3d29"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/learning/gaps.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em gaps.server.ts",
+    "content": "FASE 7 — Automatic Knowledge Gap Detection.\n\nConsolida perguntas recorrentes que a IA não soube responder em\n`ai_knowledge_gaps`, para o anfitrião ver o que falta na base.",
+    "source_path": "src/lib/ai/learning/gaps.server.ts",
+    "audience": [],
+    "content_hash": "a8ca9f55200a220bb0dc42ae2392a4aa"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/learning/knowledge-extraction.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em knowledge-extraction.server.ts",
+    "content": "FASE 2 — Knowledge Extraction Engine.\n\nLê a conversa analisada e extrai conhecimento reutilizável: regras implícitas\nditas por humanos, instruções operacionais e lacunas de base. Nunca grava\nmemória — apenas propõe candidatos.",
+    "source_path": "src/lib/ai/learning/knowledge-extraction.server.ts",
+    "audience": [],
+    "content_hash": "197b0f3627004a3b3eb0041ec8f9812e"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/learning/loop.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em loop.server.ts",
+    "content": "Continuous Learning Loop — orquestrador.\n\nEncadeia: Analyzer → Extraction → Validation → Candidate → Gaps → Memory\nIntelligence. Assíncrono e tolerante a falhas: nunca afeta o atendimento.\n\nSEGURANÇA (FASE 11): todo conhecimento nasce com origem rastreável\n(conversa + tenant), passa por validação de risco/escopo e só entra na\nmemória de longo prazo após aprovação humana explícita.",
+    "source_path": "src/lib/ai/learning/loop.server.ts",
+    "audience": [],
+    "content_hash": "fe100de0c302503c5f4368e3e579dcc6"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/learning/memory-intelligence.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em memory-intelligence.server.ts",
+    "content": "FASE 8 — Memory Intelligence.\n\nMemórias ganham peso quando ajudam e perdem quando aparecem em conversas\nmalsucedidas. Memórias com falha recorrente expiram para revisão humana.",
+    "source_path": "src/lib/ai/learning/memory-intelligence.server.ts",
+    "audience": [],
+    "content_hash": "23c45883d8ce10f5ab52fe7db20dcf3e"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/learning/prompt-optimizer.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em prompt-optimizer.server.ts",
+    "content": "FASE 6 — Prompt Improvement Engine.\n\nDetecta padrões repetidos de falha e propõe ajustes de prompt em\n`ai_prompt_change_candidates`. NUNCA altera prompt automaticamente:\n`prompts.ts` continua sendo a única fonte de verdade, editada por humanos.",
+    "source_path": "src/lib/ai/learning/prompt-optimizer.server.ts",
+    "audience": [],
+    "content_hash": "e8b7a1c5c66213a66c9b64805adf47c0"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/learning/validation.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em validation.server.ts",
+    "content": "FASE 4 — Knowledge Validation Agent.\n\nAntes de qualquer candidato virar conhecimento, um segundo agente avalia\nrisco, escopo e conflito com memórias já existentes. Ele só pode RESTRINGIR\n(rebaixar escopo, exigir humano) — nunca ampliar.",
+    "source_path": "src/lib/ai/learning/validation.server.ts",
+    "audience": [],
+    "content_hash": "742b416d97aad769f237909e8fa03d20"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/memory/guest-context.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em guest-context.server.ts",
+    "content": "Guest Context Engine.\n\nMonta automaticamente, antes do Planner Agent, tudo que um operador\nexperiente saberia sobre o atendimento:\n identidade do hóspede → reserva atual → imóvel → histórico recente →\n problemas anteriores → preferências → idioma → sentimento.\n\nO contexto é injetado no raciocínio do agente, NUNCA exposto ao hóspede.",
+    "source_path": "src/lib/ai/memory/guest-context.server.ts",
+    "audience": [],
+    "content_hash": "74029b0b7b5610788296c352c440e601"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/memory/policy.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em policy.server.ts",
+    "content": "Política de gravação de memória.\n\nNem toda mensagem vira memória. Uma classificação decide o que merece\npersistir:\n\n SIM: preferência explícita do hóspede, problema operacional, solução\n aplicada, informação relevante do imóvel, decisão operacional.\n NÃO: conversa casual, dúvida pontual sem valor futuro, informação efêmera,\n dado sensível desnecessário (documento, cartão, senha, endereço\n completo de terceiros).\n\nA classificação usa um modelo rápido, com heurística de segurança por cima:\nnada sensível é gravado, mesmo que o modelo sugira.",
+    "source_path": "src/lib/ai/memory/policy.server.ts",
+    "audience": [],
+    "content_hash": "920957bc854f617ec6f06bc14c329fe0"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/memory/retrieval.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em retrieval.server.ts",
+    "content": "Memory Retrieval System — recuperação inteligente e pontuada de memórias.\n\nNunca carrega o histórico inteiro. Recupera candidatas por similaridade\nsemântica (pgvector) + busca textual, e as pontua por:\n\n Tier 1 contexto da reserva atual (mesmo hóspede, mesma estadia)\n Tier 2 problemas recentes do mesmo imóvel\n Tier 3 preferências do hóspede\n Tier 4 histórico antigo relevante\n Tier 5 memórias genéricas\n\nFatores adicionais: relevância semântica, decaimento temporal, confiança da\norigem, importância e relação com a categoria da solicitação.\n\nREGRA DE OURO: memória NUNCA é verdade absoluta. Toda memória entregue ao\nagente vem carimbada com origem, data e confiança, e é explicitamente\nsubordinada às fontes oficiais no Ranking Permanente de Fontes.",
+    "source_path": "src/lib/ai/memory/retrieval.server.ts",
+    "audience": [],
+    "content_hash": "bfb758d33d6015319ee1646cf7e767f5"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/memory/shortterm.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em shortterm.server.ts",
+    "content": "Short-Term Memory — memória viva da conversa atual.\n\nGuarda, por conversa: mensagens recentes, intenção corrente, entidades\nidentificadas, ferramentas chamadas e seus resultados, decisões do planner\ne contexto temporário da sessão. Permite continuidade dentro da mesma\ninteração (\"meu ar parou\" → \"é no quarto principal\").\n\nPersistência: cache em processo com TTL. Como o runtime é serverless e pode\nreciclar isolates, a camada é sempre reconstruída de forma resiliente a\npartir do histórico da conversa (`seedFromHistory`) — nunca é fonte única\nde verdade nem substitui a Long-Term Memory.",
+    "source_path": "src/lib/ai/memory/shortterm.server.ts",
+    "audience": [],
+    "content_hash": "ebcb5115e572b1b9e6479729def45d01"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/models.ts:1382",
+    "kind": "rule",
+    "title": "Regra em models.ts",
+    "content": "Assistente do Painel — o concierge interno dos operadores.\n\nPrecisa ser um modelo OpenAI: ele é o único caminho de tool calling nesta\narquitetura (`runAgent` fala com a Responses API), e o assistente depende\nde ferramentas tanto para ler a operação quanto para montar uma ação. Um\nmodelo mais barato aqui não é uma troca de qualidade por custo — é ficar\nsem ferramenta nenhuma.",
+    "source_path": "src/lib/ai/models.ts",
+    "audience": [],
+    "content_hash": "12e9246567a67eb7f39dc17f1206515f"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/observability/metrics.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em metrics.server.ts",
+    "content": "AI Observability Platform — métricas operacionais.\n\nAgrega `ai_agent_logs`, `ai_operational_memory`, `ai_human_escalations` e\n`ai_agent_evaluations` em séries persistidas em `ai_agent_metrics`.\nTudo é sempre calculado dentro do tenant.",
+    "source_path": "src/lib/ai/observability/metrics.server.ts",
+    "audience": [],
+    "content_hash": "16efad27041a3cadd984207eed26d5d1"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/observability/root-cause.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em root-cause.server.ts",
+    "content": "Root Cause Analysis — \"por que essa resposta aconteceu?\".\n\nMonta (e depois recupera) o rastro completo de uma interação: agente\nescolhido, contexto usado, memórias recuperadas, ferramentas chamadas,\nfontes consultadas e a decisão final.",
+    "source_path": "src/lib/ai/observability/root-cause.server.ts",
+    "audience": [],
+    "content_hash": "d83a74c35e881710671cd72249217e20"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/orchestrator.server.ts:4236",
+    "kind": "rule",
+    "title": "Regra em orchestrator.server.ts",
+    "content": "Opções curtas de resposta rápida (botões) — [] quando a resposta não é\numa pergunta de múltipla escolha. O hóspede sempre pode digitar livre.",
+    "source_path": "src/lib/ai/orchestrator.server.ts",
+    "audience": [],
+    "content_hash": "b363c30ad7d651fa7ca1b6cfc775680f"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/orchestrator.server.ts:5459",
+    "kind": "rule",
+    "title": "Regra em orchestrator.server.ts",
+    "content": "Datas da reserva — usadas para vincular o roteiro (itinerário) à\nRESERVA, não ao hóspede individual: mais de uma pessoa pode estar\nconversando sobre a mesma reserva (casal, cada um pelo próprio\ncelular), e todos precisam ver o mesmo roteiro compartilhado.",
+    "source_path": "src/lib/ai/orchestrator.server.ts",
+    "audience": [],
+    "content_hash": "b2317eaba815caf04ea6f76f3bff779e"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/planner.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em planner.server.ts",
+    "content": "Planner Agent — etapa anterior ao Tool Calling.\n\nDecide o plano mínimo de investigação: quais ferramentas realmente precisam\nser usadas, se podem rodar em paralelo e se o caso já nasce para humano.\nRoda em modelo rápido e barato; falhas nunca bloqueiam o atendimento\n(o agente principal continua com autonomia total de tool calling).",
+    "source_path": "src/lib/ai/planner.server.ts",
+    "audience": [],
+    "content_hash": "db39445307d3c91ddfc488cf5460abca"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/prompts.ts:0",
+    "kind": "rule",
+    "title": "Regra em prompts.ts",
+    "content": "Registro versionado de prompts (Prompt Versioning).\n\nTodo prompt usado pelo agente vive aqui com uma versão explícita. A versão\n(e o hash do conteúdo) é registrada em `ai_agent_logs` a cada interação,\npermitindo auditoria, comparação entre versões e evolução controlada.\n\nREGRA: ao editar o texto de um prompt, incremente a `version` correspondente.",
+    "source_path": "src/lib/ai/prompts.ts",
+    "audience": [],
+    "content_hash": "5a509cc5762f76525f390cd4f786a869"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/reflection.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em reflection.server.ts",
+    "content": "Reflection Step — autoavaliação da resposta antes do envio ao hóspede.\n\nAvalia clareza, precisão, consistência e tom, e pode devolver uma versão\nmelhorada da redação (sem inventar informação nova). Falhas nunca bloqueiam\no atendimento: a resposta original segue com score neutro.",
+    "source_path": "src/lib/ai/reflection.server.ts",
+    "audience": [],
+    "content_hash": "c74cb990d8b09b4ceeb514f126510d44"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/reservation-mode.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em reservation-mode.server.ts",
+    "content": "Modo da reserva: individual ou grupo — decidido pelos PRÓPRIOS hóspedes,\nnunca forçado pelo sistema. Quando mais de uma pessoa aparece vinculada à\nmesma reserva (mesmo imóvel + mesmas datas, nomes diferentes), a IA avisa\ne pergunta se querem tratar assuntos como roteiro em conjunto. Só vira\n\"grupo\" de verdade quando TODAS as pessoas que já apareceram nessa\nreserva votaram \"grupo\" — enquanto isso não acontece (ninguém votou,\nvotos incompletos, ou alguém prefere separado), cada um continua isolado.",
+    "source_path": "src/lib/ai/reservation-mode.server.ts",
+    "audience": [],
+    "content_hash": "7b7e40ec6950949911fb9d07891c4feb"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/system-knowledge.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em system-knowledge.server.ts",
+    "content": "Conhecimento do Assistente do Painel sobre o próprio sistema (07/09/2026).\n\nDois lados:\n\n `reindexSystemKnowledge` — sobe o que o extrator gerou no build\n (`src/generated/system-knowledge.json`) para `ai_system_docs`. Compara\n `content_hash` antes de gastar embedding: numa entrega que mexe em três\n arquivos, só esses três trechos são reprocessados. É o que torna barato\n rodar isso a cada deploy — e é rodar a cada deploy que faz o assistente\n conhecer as novidades sem ninguém escrever documentação.\n\n `retrieveSystemKnowledge` — busca híbrida (vetorial + textual) sobre esse\n material. Mesmo desenho do `rag.server.ts` que serve o agente do hóspede,\n com uma diferença: aqui não há filtro por conta, porque o conhecimento do\n produto é o mesmo para todo mundo. Por isso ele mora numa tabela separada:\n se estivesse junto do conteúdo dos anfitriões, um bug de filtro exporia\n documentação interna numa conversa com hóspede.",
+    "source_path": "src/lib/ai/system-knowledge.server.ts",
+    "audience": [],
+    "content_hash": "05f96a45622bfb4c5291b58140b1a8c1"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/tenant/context.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em context.server.ts",
+    "content": "Tenant Isolation Layer.\n\nToda leitura/escrita da IA acontece dentro de um tenant (empresa). O tenant\né o dono da conta (`owner_id` do imóvel): usuários, imóveis, hóspedes,\nmemórias, conhecimento e agentes de uma empresa nunca podem cruzar para\noutra. Este módulo é o único lugar autorizado a resolver e validar o tenant.",
+    "source_path": "src/lib/ai/tenant/context.server.ts",
+    "audience": [],
+    "content_hash": "0c1676ec634fdec26972bb1388d049a3"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/tools.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em tools.server.ts",
+    "content": "Sistema de Ferramentas (Tool Calling).\nCada integração é uma ferramenta independente e auditável. O agente decide\nquais acionar antes de responder — nunca responde por conhecimento próprio.",
+    "source_path": "src/lib/ai/tools.server.ts",
+    "audience": [],
+    "content_hash": "f593d0ae6b6b03cc73ecc50c0cee4c0e"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/validate.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em validate.server.ts",
+    "content": "Validação final (Gemini Flash) — última etapa antes de enviar ao hóspede.\nVerifica conflitos, alucinações, dados fora do contexto, idioma e políticas.\nSe houver qualquer inconsistência, a resposta NÃO é enviada automaticamente:\no atendimento é escalado para um humano.\n\nFAIL-SAFE: se o validador falhar (indisponível/erro/resposta vazia) em um\ncontexto de risco alto — categoria sensível (acesso/reserva/financeiro) ou\nplano marcado como risco alto — NÃO aprovamos por padrão. Aprovar \"às cegas\"\njustamente quando a checagem anti-alucinação está fora do ar é o pior momento\npossível para relaxar a guarda. Em contexto de risco normal/baixo, seguimos\nfalhando aberto (não travar o atendimento por uma instabilidade pontual).",
+    "source_path": "src/lib/ai/validate.server.ts",
+    "audience": [],
+    "content_hash": "eb7ac9fc0427ac606871aaf01847f5fe"
+  },
+  {
+    "doc_key": "rule:src/lib/airbnb.functions.ts:1005",
+    "kind": "rule",
+    "title": "Regra em airbnb.functions.ts",
+    "content": "Descrição curta em texto livre. Grava em `properties.short_description`\n— NUNCA em `properties.tagline`, que é um seletor fixo de \"Tipo do\nguia\" (3 opções) e não texto livre; escrever a descrição ali deixava o\ncampo \"sem seleção\" na tela (bug encontrado em 03/09/2026).",
+    "source_path": "src/lib/airbnb.functions.ts",
+    "audience": [],
+    "content_hash": "6d4da53872e2d063d01a89de0ea2c51f"
+  },
+  {
+    "doc_key": "rule:src/lib/assistant-types.ts:0",
+    "kind": "rule",
+    "title": "Regra em assistant-types.ts",
+    "content": "Tipos do Assistente do Painel (pedido explícito, 07/09/2026).\n\nA decisão central que estes tipos carregam: o assistente NUNCA grava nada\nsozinho. Quando a pessoa pede uma ação, o servidor apenas MONTA a ação —\nresolve \"o 105\" no id do imóvel, escolhe a categoria, calcula para qual\nlimpeza a pendência vai — e devolve uma `AssistantAction` junto de um\n`preview` legível. Quem executa é o clique de confirmação na interface,\nchamando exatamente a mesma server function que o resto do painel já usa\n(`createTask`, `setTaskStatus`, `markNoShow`).\n\nIsso evita o pior modo de falha de um agente com poder de escrita — gravar\nalgo que a pessoa não pediu por ter entendido errado — e ainda mantém uma\núnica implementação de cada gravação: se a regra de criação de pendência\nmudar, muda num lugar só e o assistente acompanha de graça.",
+    "source_path": "src/lib/assistant-types.ts",
+    "audience": [],
+    "content_hash": "9d3f1310acf1ea7d5eaf2e366a63a88f"
+  },
+  {
+    "doc_key": "rule:src/lib/assistant.functions.ts:0",
+    "kind": "rule",
+    "title": "Regra em assistant.functions.ts",
+    "content": "Server functions do Assistente do Painel (pedido explícito, 07/09/2026).\n\nO caminho de uma pergunta:\n\n 1. Recupera o que o sistema sabe sobre si mesmo (`retrieveSystemKnowledge`)\n e injeta no prompt. Isso vai SEMPRE, antes de qualquer ferramenta: a\n maioria das perguntas é \"como faço X\" ou \"por que isso é assim\", e nessas\n o RAG já resolve sem gastar uma rodada de tool calling.\n\n 2. Roda o agente com as ferramentas de leitura e de preparação de ação.\n As de leitura usam o cliente do usuário, então o RLS limita o que cada\n pessoa recebe — inclusive prestadores.\n\n 3. Se alguma ferramenta preparou uma ação, ela volta como `pendingAction`.\n Nada foi gravado ainda: a gravação acontece quando a pessoa confirma na\n interface, que chama a mesma server function do resto do painel.\n\nMesmos padrões do resto do projeto: createServerFn + requireSupabaseAuth +\nzod, com AnyClient nas tabelas que ainda não estão no types.ts gerado.",
+    "source_path": "src/lib/assistant.functions.ts",
+    "audience": [],
+    "content_hash": "5674b6fa53ea76be36860872abcb06e6"
+  },
+  {
+    "doc_key": "rule:src/lib/audit-fn-labels.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em audit-fn-labels.server.ts",
+    "content": "Tradução de chamadas de servidor para linguagem humana no Audit Trail.\n\nObjetivo: nenhuma linha do log pode ser críptica. Toda ação vira uma frase\n(\"Criou a regra ...\", \"Moveu o card do hóspede ... para Em limpeza\").",
+    "source_path": "src/lib/audit-fn-labels.server.ts",
+    "audience": [],
+    "content_hash": "d05d5b3fbcfbb14983fce0d3164c8d22"
+  },
+  {
+    "doc_key": "rule:src/lib/audit-fn-middleware.ts:0",
+    "kind": "rule",
+    "title": "Regra em audit-fn-middleware.ts",
+    "content": "Middleware global de auditoria de chamadas de servidor.\n\nToda chamada a um server function é registrada: quem chamou, qual função,\no que foi enviado, duração, resultado e erro (quando houver). Auditoria\nnunca derruba a operação — falhas de log são engolidas.",
+    "source_path": "src/lib/audit-fn-middleware.ts",
+    "audience": [],
+    "content_hash": "fce7a2b3d9ddfaa599f282005fa3bef2"
+  },
+  {
+    "doc_key": "rule:src/lib/dashboard-arrival-types.ts:371",
+    "kind": "rule",
+    "title": "Regra em dashboard-arrival-types.ts",
+    "content": "Coordenadas do imóvel (quando cadastradas) — usadas só pra desempate por\nproximidade na ordenação dos checkouts (regra 4, pedido explícito).",
+    "source_path": "src/lib/dashboard-arrival-types.ts",
+    "audience": [],
+    "content_hash": "c5d7c67ab36429e4ef7882a69012e930"
+  },
+  {
+    "doc_key": "rule:src/lib/dashboard-arrival-types.ts:954",
+    "kind": "rule",
+    "title": "Regra em dashboard-arrival-types.ts",
+    "content": "Preço vigente da limpeza normal/completa do imóvel, em centavos — usado\nsó pra decidir quais opções aparecem no diálogo \"Qual limpeza foi\nrealizada?\" (uma opção sem preço configurado, ou com preço 0, não\naparece).",
+    "source_path": "src/lib/dashboard-arrival-types.ts",
+    "audience": [],
+    "content_hash": "cb02c1d074b4576f0be8291692385a9e"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/feature.access.ts:1332",
+    "kind": "rule",
+    "title": "Regra em feature.access.ts",
+    "content": "Valida Plano → Funcionalidade disponível.\n\nEnquanto a feature não estiver declarada no registry, a decisão é\npermissiva por design: esta fase não pode restringir nada.",
+    "source_path": "src/lib/permissions/feature.access.ts",
+    "audience": [],
+    "content_hash": "89a84c8fa64a17190855966437902617"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/index.ts:0",
+    "kind": "rule",
+    "title": "Regra em index.ts",
+    "content": "Permission Engine — ponto de entrada público da camada de permissões.\n\nFASE 1 (estrutural): nada aqui está conectado às telas, rotas, menus ou\nregras de acesso atuais. O comportamento do ConciergeIA permanece idêntico.\n\nRegras estruturais já definidas:\n - OWNER sempre possui acesso total ao que estiver disponível para o tenant;\n suas permissões nunca podem ser editadas.\n - Nenhuma funcionalidade futura pode existir sem estar no Permission Registry.\n\nO repositório e o serviço são server-only e devem ser importados\ndiretamente de \"./permission.repository.server\" / \"./permission.service.server\".",
+    "source_path": "src/lib/permissions/index.ts",
+    "audience": [],
+    "content_hash": "5e21d0791baec6357375b09c2fd393bf"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/permission.areas.ts:0",
+    "kind": "rule",
+    "title": "Regra em permission.areas.ts",
+    "content": "Áreas exibidas na página de Permissões — derivadas DIRETAMENTE do catálogo.\n\nCategoria = página do menu lateral (PAGE)\nSubcategoria = aba/subpágina (TAB | SUBPAGE)\nAtividade = ação dentro da aba (RESOURCE | SECTION | FIELD)\n\nNão existe lista paralela: mexer no catálogo muda esta tela automaticamente.",
+    "source_path": "src/lib/permissions/permission.areas.ts",
+    "audience": [],
+    "content_hash": "8f8d10d1ca73b80d8f5f10a8b1f30938"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/permission.bootstrap.ts:0",
+    "kind": "rule",
+    "title": "Regra em permission.bootstrap.ts",
+    "content": "Permission Bootstrap — carrega o catálogo e o auto discovery no Registry.\n\nFASE 2: catalogação apenas. Executar o bootstrap não altera nenhuma\npermissão vigente, nenhum menu e nenhum fluxo — ele só popula a árvore\nem memória (e, quando sincronizado, a tabela `permission_nodes`).",
+    "source_path": "src/lib/permissions/permission.bootstrap.ts",
+    "audience": [],
+    "content_hash": "20c24c23cb58ddcccda8cca7c7e1d05f"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/permission.catalog.ts:0",
+    "kind": "rule",
+    "title": "Regra em permission.catalog.ts",
+    "content": "Permission Catalog — árvore ÚNICA de permissões do ConciergeIA.\n\nREGRA ESTRUTURAL (definida pelo produto):\n 1. CATEGORIA = cada página do menu lateral esquerdo do SaaS\n (menu da conta do cliente `tenant.*` e menu Admin SaaS `admin.*`).\n 2. SUBCATEGORIA = cada aba existente dentro daquela página.\n 3. ATIVIDADE = cada ação possível dentro da aba (kanban, criar, editar,\n excluir, sincronizar, etc.).\n\nNada além disto entra na árvore. Rotas descobertas automaticamente pelo\nscanner ficam ocultas (apenas diagnóstico).",
+    "source_path": "src/lib/permissions/permission.catalog.ts",
+    "audience": [],
+    "content_hash": "fec1d5a2139fe845aa1906a3b47a66f8"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/permission.center.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em permission.center.server.ts",
+    "content": "Permission Center (FASE 4.2) — camada de leitura do centro administrativo\n\"Equipe e Permissões\".\n\nREGRAS DESTA FASE:\n - Nenhuma regra de autorização é criada, alterada ou reimplementada aqui.\n - Toda decisão vem de `permission.guard.server.ts` (via `checkAccess`, que\n respeita o modo de enforcement do tenant).\n - Somente leitura: nada é gravado, nenhum novo tipo de permissão é criado.",
+    "source_path": "src/lib/permissions/permission.center.server.ts",
+    "audience": [],
+    "content_hash": "54b65db9a288ba30187b056afb7cf2a9"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/permission.enforce.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em permission.enforce.server.ts",
+    "content": "Permission Enforcement Layer (FASE 3.7).\n\nCamada ÚNICA de aplicação das decisões produzidas pelo\n`permission.guard.server.ts`. Nenhuma validação paralela é criada aqui:\ntoda decisão continua vindo de `can()` / `evaluateWithSnapshot()`.\n\nModos de aplicação\n------------------\nO ConciergeIA ainda opera com o modelo legado (owner + account_members +\nmember_permissions). Para preservar 100% dos fluxos atuais, o enforcement\nroda em modo \"progressivo\":\n\n - OWNER / ADMIN_SAAS / SYSTEM / CRON → sempre autorizados (regra imutável).\n - Sujeito revogado ou pendente → SEMPRE bloqueado.\n - Tenant que já possui atribuições na nova árvore → decisão do guard vale.\n - Tenant SEM nenhuma atribuição (ainda não migrado) → a decisão negativa é\n registrada no diagnóstico (shadow) e a operação segue, exatamente como\n hoje. Assim nenhuma conta perde acesso antes da migração da Fase 4.\n\nA troca para o modo estrito é apenas uma constante (`ENFORCEMENT_MODE`).",
+    "source_path": "src/lib/permissions/permission.enforce.server.ts",
+    "audience": [],
+    "content_hash": "2b31fe5d984d0e0b810bfda9ebe57a82"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/permission.engine.ts:0",
+    "kind": "rule",
+    "title": "Regra em permission.engine.ts",
+    "content": "Permission Engine — avaliação pura (sem I/O, sem banco, sem telas).\n\nFASE 1: implementado e testável, porém NÃO conectado a nenhuma rota,\npágina ou fluxo existente.",
+    "source_path": "src/lib/permissions/permission.engine.ts",
+    "audience": [],
+    "content_hash": "b9520c99460a0b3ee517a8978ccf9449"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/permission.features.ts:0",
+    "kind": "rule",
+    "title": "Regra em permission.features.ts",
+    "content": "Permission Features — declaração das funcionalidades comercializáveis.\n\nMapeia Plano → Funcionalidade usando exatamente os mesmos planos do SaaS.\nServe para o gating automático da árvore de permissões (FASE 3).\nNÃO altera o `plan-guard.server.ts`, que continua sendo a fonte em uso\npara autorização real.",
+    "source_path": "src/lib/permissions/permission.features.ts",
+    "audience": [],
+    "content_hash": "bed2fa1e1d48a03bcbda0651cd455daa"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/permission.guard.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em permission.guard.server.ts",
+    "content": "Authorization Runtime Engine (FASE 3.6) — ponto ÚNICO de validação.\n\nModelo:\n Subject → Roles / Direct Grants → Permissions → Scope Resolution\n → Resource Validation → Decision\n\nToda decisão é padronizada (nunca apenas true/false) e toda negação é\nregistrada em um log interno para diagnóstico.\n\nNADA aqui está conectado a rotas, telas, menus ou papéis atuais.",
+    "source_path": "src/lib/permissions/permission.guard.server.ts",
+    "audience": [],
+    "content_hash": "d141da89fd01da0800924736663c5699"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/permission.guard.ts:0",
+    "kind": "rule",
+    "title": "Regra em permission.guard.ts",
+    "content": "Permission Guard — middleware central de validação.\n\nFASE 1: interface pronta, NÃO conectada a nenhuma rota, server function\nou tela. As rotas continuam exatamente com as regras de hoje.",
+    "source_path": "src/lib/permissions/permission.guard.ts",
+    "audience": [],
+    "content_hash": "a91a05eb7f232ae240a2393b17b8fc21"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/permission.guardian.ts:0",
+    "kind": "rule",
+    "title": "Regra em permission.guardian.ts",
+    "content": "Lovable Guardian — governança da árvore de permissões.\n\nFASE 2: apenas arquitetura. O Guardian detecta recursos novos que ainda não\npossuem Permission Node e prepara a proposta de decisão. NENHUMA interação\nvisual é implementada nesta fase e nada é registrado automaticamente sem\ndecisão explícita.",
+    "source_path": "src/lib/permissions/permission.guardian.ts",
+    "audience": [],
+    "content_hash": "24d2f6563e5fba7149bb193d50e45e2d"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/permission.migration.functions.ts:0",
+    "kind": "rule",
+    "title": "Regra em permission.migration.functions.ts",
+    "content": "Endpoints para o SaaS admin operar, na prática, a máquina de estados já\nexistente em permission.migration.server.ts (FASE 3.8).\n\nO motor novo de permissões (permission.engine.ts + permission.enforce.server.ts)\njá roda em paralelo ao legado, mas nenhuma tela jamais chamava\nenableMonitoringMode/enableEnforcedMode/completeMigration — toda conta\nficava parada para sempre em \"legacy\" (modo padrão, sem bloqueio real),\ntornando o motor novo puramente decorativo. Este arquivo expõe, como\ncreateServerFn, exatamente as transições que já existiam prontas e\nprotegidas (um passo por vez, admin do SaaS obrigatório, nunca automático)\n— sem alterar nenhuma regra de negócio da máquina de estados em si.",
+    "source_path": "src/lib/permissions/permission.migration.functions.ts",
+    "audience": [],
+    "content_hash": "265bc7c7a399549201d5d759b7218e84"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/permission.migration.report.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em permission.migration.report.server.ts",
+    "content": "Relatório de migração de permissões (FASE 3.8).\n\nConsolida o estado da ativação por tenant: quem já migrou, quem está\npendente, divergências observadas, últimas negativas e riscos.\nSomente leitura — não altera nenhum modo.",
+    "source_path": "src/lib/permissions/permission.migration.report.server.ts",
+    "audience": [],
+    "content_hash": "ad08b10260b3bdd6d45184d3dadaa4e8"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/permission.migration.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em permission.migration.server.ts",
+    "content": "Permission Migration & Activation Control (FASE 3.8).\n\nControla, por tenant, QUAL modelo de autorização vale em runtime.\nA mudança de modo é SEMPRE explícita e exige um administrador do SaaS —\nnenhum tenant migra sozinho, nem por efeito colateral de outro fluxo.\n\nModos\n-----\n legacy → comportamento atual; o novo motor roda apenas para diagnóstico.\n monitoring → novo motor roda e registra divergências; nada é bloqueado.\n enforced → o guard passa a bloquear normalmente.\n completed → migração encerrada; somente o novo fluxo decide.",
+    "source_path": "src/lib/permissions/permission.migration.server.ts",
+    "audience": [],
+    "content_hash": "fe2d00aa5c22b52ea30d3a240b3fe053"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/permission.registry.ts:0",
+    "kind": "rule",
+    "title": "Regra em permission.registry.ts",
+    "content": "Permission Registry — catálogo central de Permission Nodes.\n\nFASE 2: o catálogo completo do ConciergeIA é declarado e descoberto\nautomaticamente aqui. O registry continua desconectado das telas, menus e\nregras de acesso atuais — ele apenas cataloga a árvore.\n\nRegras:\n - slug único e padronizado (`pai.filho.neto`);\n - nunca criar duplicidade (registro é idempotente e faz merge);\n - nunca criar árvore quebrada (pais ausentes são criados automaticamente).",
+    "source_path": "src/lib/permissions/permission.registry.ts",
+    "audience": [],
+    "content_hash": "14c6e18399786caec2a289dfbf8deb95"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/permission.repository.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em permission.repository.server.ts",
+    "content": "Permission Repository — único ponto de acesso ao banco para permissões.\n\nFASE 1: implementado, porém nenhum fluxo existente o utiliza.\nUsa o cliente admin porque o engine roda server-side e faz o próprio\nisolamento por tenant em cada consulta.",
+    "source_path": "src/lib/permissions/permission.repository.server.ts",
+    "audience": [],
+    "content_hash": "ffc5bc6584333f505d37917c1af9dae8"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/permission.resolve.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em permission.resolve.server.ts",
+    "content": "Permission Resolve (FASE 3.6) — camada de resolução.\n\nTransforma \"usuário + contexto\" em \"permissões efetivas disponíveis\".\nNÃO decide nada: apenas carrega e normaliza o estado do sujeito\n(tenant, papéis, plano, status, atribuições e imóveis vinculados).\n\nNenhum fluxo, rota ou tela existente é alterado por este módulo.",
+    "source_path": "src/lib/permissions/permission.resolve.server.ts",
+    "audience": [],
+    "content_hash": "726cf6ee364cc89a94d96f56ac8d0c7b"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/permission.scanner.ts:0",
+    "kind": "rule",
+    "title": "Regra em permission.scanner.ts",
+    "content": "Permission Scanner (Auto Discovery) — descobre automaticamente a estrutura\nnavegável do ConciergeIA e a traduz em Permission Nodes.\n\nFASE 3.5: o scanner passou a respeitar uma ALLOWLIST. Rotas públicas,\nde marketing, de autenticação, legais, landing pages, APIs e utilitários\ntécnicos continuam sendo catalogados para diagnóstico, porém marcados como\n`isPermissionable = false` — e nunca entram na árvore de permissões.",
+    "source_path": "src/lib/permissions/permission.scanner.ts",
+    "audience": [],
+    "content_hash": "c7789104327689da6dd9c338f1f59900"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/permission.scopes.ts:0",
+    "kind": "rule",
+    "title": "Regra em permission.scopes.ts",
+    "content": "Permission Scopes — validação de escopo operacional (FASE 3.5).\n\nPrepara o suporte real a GLOBAL, TENANT, CLIENT, PROPERTY e RECORD.\nNenhuma autorização é aplicada nesta fase: o objetivo é garantir que toda\ngravação/consulta futura de permissão informe um escopo coerente.\n\nREGRA: um imóvel NUNCA vira nó da árvore de permissões. O imóvel é sempre\num ESCOPO (`scope_type = 'PROPERTY'`, `scope_id = <property_id>`) aplicado\nsobre um nó existente.",
+    "source_path": "src/lib/permissions/permission.scopes.ts",
+    "audience": [],
+    "content_hash": "49a00207062d1401ae6b88d5923d54a0"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/permission.selftest.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em permission.selftest.server.ts",
+    "content": "Testes internos do Authorization Runtime Engine (FASE 3.6).\n\nNão dependem de banco: usam snapshots fabricados e o núcleo determinístico\n`evaluateWithSnapshot`. Servem como verificação de sanidade antes de\nqualquer ativação do guard em produção (Fase 4).",
+    "source_path": "src/lib/permissions/permission.selftest.server.ts",
+    "audience": [],
+    "content_hash": "d2f5ce59f622754d58abfef956db2350"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/permission.sync.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em permission.sync.server.ts",
+    "content": "Permission Sync — rotina OFICIAL de sincronização do Registry com o banco.\n\nFASE 3.5. Substitui o \"lazy sync\" implícito. Características:\n - executa em ondas por profundidade (pai sempre antes do filho);\n - registra cada execução em `permission_sync_runs`;\n - aplica SOFT DELETE (`active = false`, `deactivated_at`) — nada é apagado;\n - preserva permissões existentes ao renomear slugs, migrando o nó antigo\n e registrando a mudança em `permission_node_slug_history`;\n - nunca lança para o chamador: devolve um relatório com os erros.",
+    "source_path": "src/lib/permissions/permission.sync.server.ts",
+    "audience": [],
+    "content_hash": "c6fbcfab1d9fc279535b470e4227ca54"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/permission.types.ts:3966",
+    "kind": "rule",
+    "title": "Regra em permission.types.ts",
+    "content": "FASE 3.5 — quando `false`, o nó é catalogado apenas para diagnóstico e\nNUNCA entra na árvore de permissões (rotas públicas, legais, marketing,\nautenticação e landing pages).",
+    "source_path": "src/lib/permissions/permission.types.ts",
+    "audience": [],
+    "content_hash": "9e71512ff43288fb1c345a76c7f342e2"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/permission.types.ts:5763",
+    "kind": "rule",
+    "title": "Regra em permission.types.ts",
+    "content": "O usuário é MEMBRO desta conta (não é o titular)? Nesse caso as\npermissões da conta valem mesmo que ele seja administrador do SaaS —\no bypass de `ADMIN_SAAS` fica restrito aos recursos `admin.*`.",
+    "source_path": "src/lib/permissions/permission.types.ts",
+    "audience": [],
+    "content_hash": "39ac1cc28bf3f47a27a96d6e47eba592"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/permission.ui.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em permission.ui.server.ts",
+    "content": "Permission UI (server) — camada de acesso da interface de gerenciamento.\n\nResolve o contexto (conta do cliente x Admin do SaaS), valida quem pode\ngerenciar, monta os usuários gerenciáveis e delega ao Permission Admin.\n\nNÃO autoriza requisições do produto: a autorização segue no sistema atual.",
+    "source_path": "src/lib/permissions/permission.ui.server.ts",
+    "audience": [],
+    "content_hash": "33dd1ca1d1fca192de44f586a3c91084"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/permissionClient.ts:0",
+    "kind": "rule",
+    "title": "Regra em permissionClient.ts",
+    "content": "(arquivo nomeado sem \".client.\" por causa da proteção de imports do TanStack Start)\nCamada client-side de autorização (FASE 4.1).\n\nRegra inegociável: o frontend NUNCA decide permissão. Este módulo apenas\ntransporta, normaliza e cacheia as decisões produzidas pelo backend\n(`permission.guard.server.ts` / `permission.enforce.server.ts`).",
+    "source_path": "src/lib/permissions/permissionClient.ts",
+    "audience": [],
+    "content_hash": "87a21b9c3c947e4e3469b3dd1bf3fdd2"
+  },
+  {
+    "doc_key": "rule:src/lib/permissions/usePermission.ts:514",
+    "kind": "rule",
+    "title": "Regra em usePermission.ts",
+    "content": "Compatibilidade: regra legada já existente na tela (ex.: `isAdmin`).\nEnquanto a conta não estiver em modo bloqueante, mantém o comportamento\natual sem duplicar regra de permissão no frontend.",
+    "source_path": "src/lib/permissions/usePermission.ts",
+    "audience": [],
+    "content_hash": "8caf2363392c4b3031d09941442515b2"
+  },
+  {
+    "doc_key": "rule:src/lib/recommendations-move.functions.ts:203",
+    "kind": "rule",
+    "title": "Regra em recommendations-move.functions.ts",
+    "content": "Server functions para gerenciar movimentação de pontos entre\n`property_recommendations` (scope=nearby — \"Aqui Pertinho\") e\n`city_references` (compartilhado por cidade ou por grupo).\n\nRegras de auto-decisão (addPlaceAuto):\n - nearby : distância ≤ 1500 m OU ≤ 20 min a pé.\n - city : demais casos. Independe de avaliação para que o anfitrião\n consiga adicionar pontos novos manualmente; a regra de\n qualidade (rating ≥ 4.5 & ≥ 500 reviews) só limita a geração\n automática por IA, não a inserção manual.",
+    "source_path": "src/lib/recommendations-move.functions.ts",
+    "audience": [],
+    "content_hash": "2d762dfcdb45caa052355bec80553cbd"
+  },
+  {
+    "doc_key": "rule:src/lib/tasks-types.ts:1356",
+    "kind": "rule",
+    "title": "Regra em tasks-types.ts",
+    "content": "Vínculo pontual com uma estadia específica — quando presente, a\npendência é \"pontual\" (some quando a estadia termina). Sem nenhum dos\ndois, é \"recorrente\" (permanente do imóvel/proprietário).",
+    "source_path": "src/lib/tasks-types.ts",
+    "audience": [],
+    "content_hash": "b7fc8eee61350eb3efcc2ea02add55ab"
+  },
+  {
+    "doc_key": "rule:src/lib/tasks-types.ts:1842",
+    "kind": "rule",
+    "title": "Regra em tasks-types.ts",
+    "content": "Repetição por tempo (independente do modelo \"recorrente por limpeza\"):\nao concluir, a pendência volta pendente com um novo prazo N dias à\nfrente, em vez de ficar marcada como feita pra sempre.",
+    "source_path": "src/lib/tasks-types.ts",
+    "audience": [],
+    "content_hash": "8ed6b89b41faff137865671e57cb8069"
+  },
+  {
+    "doc_key": "rule:src/lib/trail.functions.ts:0",
+    "kind": "rule",
+    "title": "Regra em trail.functions.ts",
+    "content": "Ingestão universal de rastro de uso.\n\nRecebe lotes de eventos do navegador (host, equipe e hóspede) e grava no\nEnterprise Audit Trail. Funciona autenticado ou anônimo: quando há sessão,\no evento é atribuído ao usuário; caso contrário fica como visitante/hóspede\nidentificado por um ID anônimo de dispositivo.",
+    "source_path": "src/lib/trail.functions.ts",
+    "audience": [],
+    "content_hash": "1e96dc5eccd9bc146212251429a745d7"
+  },
+  {
+    "doc_key": "rule:src/lib/trail.ts:0",
+    "kind": "rule",
+    "title": "Regra em trail.ts",
+    "content": "Rastro de uso no cliente.\n\nCaptura absolutamente tudo o que a pessoa faz na interface (navegação,\ncliques, campos, envios, cópias, rolagem, foco de aba, erros) e envia em\nlotes para o Enterprise Audit Trail.\n\nPrivacidade: registramos O QUE foi tocado (rótulo do botão, nome do campo),\nnunca o conteúdo digitado. Campos de senha são totalmente ignorados.",
+    "source_path": "src/lib/trail.ts",
+    "audience": [],
+    "content_hash": "6b410279c93cc87f14fef0f542338d1e"
+  },
+  {
+    "doc_key": "rule:StakeholderStatusControl",
+    "kind": "rule",
+    "title": "Regra — StakeholderStatusControl",
+    "content": "Controle de situação do stakeholder — mesma regra em qualquer lugar que o\nusa (card compacto da lista/Kanban ou cabeçalho da ficha de detalhes):\nqualquer mudança de status exige a data real da efetivação, e \"Ativo\" com\ndata futura pede o estágio real (Documentação/Contrato/Assinatura) até lá.",
+    "source_path": "src/components/stakeholders/StakeholderStatusControl.tsx",
+    "audience": [],
+    "content_hash": "4f4bdb312e07754d9b3c496e916632a9"
+  },
+  {
+    "doc_key": "rule:StatDisplayCard",
+    "kind": "rule",
+    "title": "Regra — StatDisplayCard",
+    "content": "Card de estatística pura (sem lista/detalhe por trás) — usado para\n\"Limpezas Realizadas\" e \"Custo Total Limpeza\". Mesmo visual dos KpiCards,\nmas não abre popup: é só um número agregado, \"Hoje\" (fuso de São Paulo).\nQuando `breakdown` vem preenchido, mostra o mesmo tooltip \"i\" usado na\nvisualização de engajamento, listando quais imóveis entraram na conta.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "545c4cb92effd8e79a487b3b34f797a6"
+  },
+  {
+    "doc_key": "rule:subscriptionGrantsAccess",
+    "kind": "rule",
+    "title": "Regra — subscriptionGrantsAccess",
+    "content": "Uma assinatura só concede acesso se o período for válido. Para trials, o\nlimite é `trial_ends_at` (o `current_period_end` costuma vir nulo em trials\ndo Paddle — sem esse teto o trial nunca expiraria).",
+    "source_path": "src/lib/plan-guard.server.ts",
+    "audience": [],
+    "content_hash": "74a2b56781d896125dd9775c2010fac3"
+  },
+  {
+    "doc_key": "rule:syncStaleIcals",
+    "kind": "rule",
+    "title": "Regra — syncStaleIcals",
+    "content": "Ressincroniza iCals desatualizados (>10min) para que qualquer superfície\n(Kanban, KPIs, calendário de ocupação) leia sempre a reserva mais recente.",
+    "source_path": "src/lib/arrival-board.server.ts",
+    "audience": [],
+    "content_hash": "cf9c8a225beeec84d35fd30b9001091c"
+  },
+  {
+    "doc_key": "rule:SystemRole",
+    "kind": "rule",
+    "title": "Regra — SystemRole",
+    "content": "Papéis internos do sistema.\n\nREGRA ESTRUTURAL DO OWNER (documentada aqui, ainda NÃO aplicada):\n - OWNER sempre possui acesso total ao que estiver disponível para o tenant.\n - As permissões do OWNER nunca podem ser editadas, removidas ou rebaixadas.\n - Qualquer tentativa de gravar assignment para um OWNER deve ser rejeitada\n pelo Permission Service nas fases seguintes.",
+    "source_path": "src/lib/permissions/permission.types.ts",
+    "audience": [],
+    "content_hash": "e4b58a484510d22147108fa1b06b17c5"
+  },
+  {
+    "doc_key": "rule:TASK_RULES",
+    "kind": "rule",
+    "title": "Regra — TASK_RULES",
+    "content": "As três categorias que viram pendência no Kanban (pedido explícito): a\ntarefa nasce vinculada AO MESMO TEMPO à reserva (log_id/reservation_id) e\nao imóvel (property_id) — os três campos já existiam em `tasks`, nada\nprecisou mudar lá.\n\n`taskCategory` mapeia para as categorias que a tela de Pendências já\nconhece (ver TaskCategory em tasks-types.ts); `showInCleaning` só é\nligado em \"objeto esquecido\" — quem limpa é quem vai achar e separar o\nobjeto, enquanto dano e manutenção são pra operação resolver, não pra\nfaxina executar.",
+    "source_path": "src/lib/reservation-records.functions.ts",
+    "audience": [],
+    "content_hash": "4a63227ae8b6e0fa00edd75f687643fe"
+  },
+  {
+    "doc_key": "rule:TaskCompletion",
+    "kind": "rule",
+    "title": "Regra — TaskCompletion",
+    "content": "Uma marca de \"feito\" pra uma pendência RECORRENTE numa limpeza\nespecífica — não fecha a pendência, só registra que aquela ocorrência já\nfoi resolvida (ela volta pendente na próxima).",
+    "source_path": "src/lib/tasks-types.ts",
+    "audience": [],
+    "content_hash": "ce380fc7778abe7ac0d0a342ab877beb"
+  },
+  {
+    "doc_key": "rule:TaskFormGroup",
+    "kind": "rule",
+    "title": "Regra — TaskFormGroup",
+    "content": "Rótulo de seção do formulário de pendência — dá hierarquia ao que antes\nera uma pilha de campos do mesmo tamanho (pedido explícito, 07/09/2026).",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "83543e04828ea2bc310424183c001a37"
+  },
+  {
+    "doc_key": "rule:TaskResolveDialog",
+    "kind": "rule",
+    "title": "Regra — TaskResolveDialog",
+    "content": "Conclusão de pendência com prestação de contas (pedido explícito,\n07/09/2026): quem resolveu, quanto custou e a comprovação. Os três são\nOPCIONAIS — o botão \"Concluir\" funciona com tudo em branco, que é o\ncomportamento que existia antes.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "096e865828b5177e25ca656a7fd3aa81"
+  },
+  {
+    "doc_key": "rule:TasksDialog",
+    "kind": "rule",
+    "title": "Regra — TasksDialog",
+    "content": "Dialog \"PENDÊNCIAS\" do Kanban — 3 agrupamentos (Por Proprietário / Por\nImóvel / Imóvel + Hóspede) + formulário de criação. Toda pendência é\nobrigatoriamente vinculada a um imóvel e/ou a um proprietário (pedido\nexplícito) — nunca solta.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "467e94a80792c94f3d1d95de836383f6"
+  },
+  {
+    "doc_key": "rule:upsertNodes",
+    "kind": "rule",
+    "title": "Regra — upsertNodes",
+    "content": "Sincroniza definições do Registry com a tabela (upsert por slug).\nNenhum nó é apagado — compatibilidade total com o que já existe.\n\nO upsert é feito em ondas por profundidade do slug para que o `parent_id`\ndos filhos sempre encontre o pai já persistido (herança garantida).",
+    "source_path": "src/lib/permissions/permission.repository.server.ts",
+    "audience": [],
+    "content_hash": "696f9de4c742c8c978e7d4f5ff8ca7bd"
+  },
+  {
+    "doc_key": "rule:useAreaAccess",
+    "kind": "rule",
+    "title": "Regra — useAreaAccess",
+    "content": "`useAreaAccess` — decisões do backend para VÁRIAS áreas em uma única consulta.\n\nRegra: o frontend nunca decide permissão; aqui só transportamos a decisão\njá tomada pelo Authorization Runtime. Enquanto carrega, `loading` é true e\na UI deve aguardar (não mostrar nem esconder prematuramente).",
+    "source_path": "src/lib/permissions/useAreaAccess.ts",
+    "audience": [],
+    "content_hash": "7c3a001c065f98517444a3fd22165ca7"
+  },
+  {
+    "doc_key": "rule:useWholeCardsMaxHeight",
+    "kind": "rule",
+    "title": "Regra — useWholeCardsMaxHeight",
+    "content": "Limita a altura de uma lista em N cards INTEIROS — nunca corta um card ao\nmeio. Mede os itens de verdade e escolhe o maior corte que caiba na tela.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "b8aa4791c71d3daa3834c0ac42c3ea46"
+  },
+  {
+    "doc_key": "rule:verifiedActor",
+    "kind": "rule",
+    "title": "Regra — verifiedActor",
+    "content": "Identidade VERIFICADA do autor.\n\nAntes o token era apenas decodificado em base64 — qualquer pessoa poderia\nforjar `sub`/`email` e gravar rastro em nome de outro usuário. Agora o token\né validado pelo serviço de autenticação; se não for válido, o evento entra\ncomo visitante anônimo.",
+    "source_path": "src/lib/trail.functions.ts",
+    "audience": [],
+    "content_hash": "45d0d9a247b1539b9f81ac2c1ae800cb"
+  },
+  {
+    "doc_key": "rule:verifyEventDates",
+    "kind": "rule",
+    "title": "Regra — verifyEventDates",
+    "content": "Confere no conteúdo real da fonte a data de cada item classificado como\n\"evento\". Só sobrevive o que tem data explícita e ainda não passou — nada de\ninferência. Sem confirmação, o item é descartado (nunca vira \"talvez\").",
+    "source_path": "src/lib/city-news.functions.ts",
+    "audience": [],
+    "content_hash": "afca04ac8ec6f48953cefe9f6bcb2692"
+  },
+  {
+    "doc_key": "rule:ViewModeToggle",
+    "kind": "rule",
+    "title": "Regra — ViewModeToggle",
+    "content": "Alterna \"Completo\" / \"Lista\" — usado no Kanban, nos popups dos 4 KPIs do\nDashboard e no tooltip \"quais imóveis\" da Limpeza. Puramente visual: quem\ncontrola o estado é o componente pai (via `value`/`onChange`).\n\nPedido explícito (07/09/2026): era um par de botões com rótulo\n(\"Completo\" / \"Lista\"); virou UM botão só, com UM ícone, que alterna a\ncada toque. O ícone mostrado é o do modo PARA ONDE o toque leva (em modo\nLista aparece a grade, e vice-versa), com o título explicando a ação —\nassim o botão sempre responde \"o que acontece se eu clicar\", que é a\npergunta que importa num controle de estado único. Mesmo formato/curva do\nbotão de print ao lado, pra lerem como um par.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "46164f6494ac1e5b0ccc46c648e2d0b4"
+  },
+  {
+    "doc_key": "rule:visiblePropertyIds",
+    "kind": "rule",
+    "title": "Regra — visiblePropertyIds",
+    "content": "Recorte por residência (escopo PROPERTY).\n\nRegra do produto: um membro da equipe só enxerga as residências que ele\natende. Se nenhuma residência estiver marcada para ele, ele não vê NENHUMA —\nlistas, cards e indicadores ficam zerados, mesmo com permissão de edição.\n\nRetorna:\n - `null` quando não há recorte (titular da conta ou admin do SaaS fora de\n uma conta): enxerga tudo o que a RLS permitir.\n - `string[]` (possivelmente vazio) com os IDs permitidos.",
+    "source_path": "src/lib/permissions/property-scope.server.ts",
+    "audience": [],
+    "content_hash": "6cd228872ece4097f6e2e36dc4e1397f"
+  }
+];

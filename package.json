@@ -5,12 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "NODE_OPTIONS=--max-old-space-size=8192 vite build",
-    "build:dev": "NODE_OPTIONS=--max-old-space-size=6144 vite build --mode development",
+    "build": "npm run conhecimento && NODE_OPTIONS=--max-old-space-size=8192 vite build",
+    "build:dev": "npm run conhecimento && NODE_OPTIONS=--max-old-space-size=6144 vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "conhecimento": "node scripts/extract-system-knowledge.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^2.0.48",
