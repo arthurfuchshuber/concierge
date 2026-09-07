@@ -65,6 +65,7 @@ import {
   Ban,
 } from "lucide-react";
 import { toast } from "sonner";
+import { notifyAction } from "@/components/UndoActionBar";
 import { format, parse, isValid, differenceInCalendarDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
