@@ -298,6 +298,7 @@ function RootComponent() {
       <OfflineBanner />
       <Outlet />
       <Toaster position="top-center" />
+      <UndoActionBar />
     </I18nProvider>
   );
 
