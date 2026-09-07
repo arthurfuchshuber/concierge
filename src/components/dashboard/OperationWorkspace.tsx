@@ -71,6 +71,7 @@ import {
   AttachmentPicker,
   AttachmentsSending,
   uploadPendingAttachments,
+  AudioAttachButton,
   type PendingAttachment,
 } from "@/components/dashboard/TaskAttachments";
 import { attachTaskRecord } from "@/lib/reservation-records.functions";
@@ -1009,7 +1010,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     mutationFn: (v: {
       logId?: string;
       reservationId?: string;
-      from: "checkout" | "stay" | "cleaning" | "done" | "no_show";
+      from: "checkout" | "stay" | "cleaning" | "done" | "no_show" | "skip_stay";
     }) => revertFn({ data: v }),
     onSuccess: () => {
       refreshDashboard();
@@ -1140,8 +1141,17 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       ...(skipCleaning ? { skipCleaning: true } : {}),
     });
     // Feedback padrão do produto: mensagem no topo + "Desfazer" por 5s.
-    const stageAfter: "stay" | "checkout" | "cleaning" | "done" = skipCleaning
-      ? "done"
+    // Desfazer precisa devolver o card à coluna de ORIGEM. No atalho
+    // "Limpeza não será realizada" o check-out é marcado como feito mesmo
+    // quando o card ainda estava em Estadia/Checkouts pendentes — por isso o
+    // undo é escolhido pela origem, e não sempre "done" (que deixava o card
+    // em Em Limpeza).
+    const stageAfter: "stay" | "checkout" | "cleaning" | "done" | "skip_stay" = skipCleaning
+      ? from === "stay"
+        ? "skip_stay"
+        : from === "checkout"
+          ? "cleaning"
+          : "done"
       : from === "checkin"
         ? "stay"
         : from === "stay"
@@ -2484,7 +2494,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 ) : kanbanCheckinPendingRows.length === 0 ? (
                   <ColumnEmpty />
                 ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("checkin", kanbanCheckinPendingRows)} showReservationLabel compact={kanbanListMode === "list"} />
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("checkin", kanbanCheckinPendingRows)} compact={kanbanListMode === "list"} />
                 ))}
               {mobileTab === "checkout" &&
                 (kanbanCheckoutListQ.isLoading ? (
@@ -2492,7 +2502,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 ) : kanbanCheckoutPendingRows.length === 0 ? (
                   <ColumnEmpty />
                 ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("checkout", kanbanCheckoutPendingRows)} showReservationLabel compact={kanbanListMode === "list"} />
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("checkout", kanbanCheckoutPendingRows)} compact={kanbanListMode === "list"} />
                 ))}
               {mobileTab === "stay" &&
                 (kanbanCheckinListQ.isLoading ? (
@@ -2500,7 +2510,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 ) : kanbanStayRows.length === 0 ? (
                   <ColumnEmpty />
                 ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", kanbanStayRows)} showReservationLabel compact={kanbanListMode === "list"} />
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", kanbanStayRows)} compact={kanbanListMode === "list"} />
                 ))}
               {mobileTab === "cleaning" &&
                 (kanbanCheckoutListQ.isLoading ? (
@@ -2508,7 +2518,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 ) : kanbanCleaningRows.length === 0 ? (
                   <ColumnEmpty />
                 ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", kanbanCleaningRows)} showReservationLabel compact={kanbanListMode === "list"} />
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", kanbanCleaningRows)} compact={kanbanListMode === "list"} />
                 ))}
               {mobileTab === "done" &&
                 (concludedQ.isLoading ? (
@@ -2516,7 +2526,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 ) : kanbanConcludedRows.length === 0 ? (
                   <ColumnEmpty />
                 ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("done", kanbanConcludedRows)} showReservationLabel compact={kanbanListMode === "list"} />
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("done", kanbanConcludedRows)} compact={kanbanListMode === "list"} />
                 ))}
               {mobileTab === "no_show" &&
                 (noShowQ.isLoading ? (
@@ -2524,7 +2534,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 ) : kanbanNoShowRows.length === 0 ? (
                   <ColumnEmpty />
                 ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("no_show", kanbanNoShowRows)} showReservationLabel compact={kanbanListMode === "list"} />
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("no_show", kanbanNoShowRows)} compact={kanbanListMode === "list"} />
                 ))}
               </div>
             </div>
@@ -2550,7 +2560,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ) : kanbanCheckinPendingRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("checkin", kanbanCheckinPendingRows)} showReservationLabel compact={kanbanListMode === "list"} />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("checkin", kanbanCheckinPendingRows)} compact={kanbanListMode === "list"} />
                   )}
                 </KanbanColumn>
               </div>
@@ -2568,7 +2578,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ) : kanbanCheckoutPendingRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("checkout", kanbanCheckoutPendingRows)} showReservationLabel compact={kanbanListMode === "list"} />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("checkout", kanbanCheckoutPendingRows)} compact={kanbanListMode === "list"} />
                   )}
                 </KanbanColumn>
               </div>
@@ -2586,7 +2596,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ) : kanbanCleaningRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", kanbanCleaningRows)} showReservationLabel compact={kanbanListMode === "list"} />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", kanbanCleaningRows)} compact={kanbanListMode === "list"} />
                   )}
                 </KanbanColumn>
               </div>
@@ -2604,7 +2614,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ) : kanbanStayRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", kanbanStayRows)} showReservationLabel compact={kanbanListMode === "list"} />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", kanbanStayRows)} compact={kanbanListMode === "list"} />
                   )}
                 </KanbanColumn>
               </div>
@@ -2649,7 +2659,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                       <ColumnEmpty />
                     )
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("done", kanbanConcludedRows)} showReservationLabel compact={kanbanListMode === "list"} />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("done", kanbanConcludedRows)} compact={kanbanListMode === "list"} />
                   )}
                 </KanbanColumn>
               </div>
@@ -2695,7 +2705,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                       <ColumnEmpty />
                     )
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("no_show", kanbanNoShowRows)} showReservationLabel compact={kanbanListMode === "list"} />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("no_show", kanbanNoShowRows)} compact={kanbanListMode === "list"} />
                   )}
                 </KanbanColumn>
               </div>
@@ -3877,6 +3887,7 @@ function TaskResolveDialog({
   }) => Promise<void>;
 }) {
   const [providerId, setProviderId] = useState<string | null>(null);
+  const [providerOpen, setProviderOpen] = useState(false);
   const [cents, setCents] = useState<number | null>(null);
   const [note, setNote] = useState("");
   const [files, setFiles] = useState<PendingAttachment[]>([]);
@@ -3888,6 +3899,7 @@ function TaskResolveDialog({
   useEffect(() => {
     if (!state) return;
     setProviderId(null);
+    setProviderOpen(false);
     setCents(state.task.amountSpentCents ?? null);
     setNote("");
     setFiles([]);
@@ -3910,115 +3922,157 @@ function TaskResolveDialog({
     }
   }
 
+  const selected = providers.find((p) => p.id === providerId) ?? null;
+
   return (
     <Dialog open={!!state} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border-border/60 p-0 sm:w-full sm:max-w-md">
-        <DialogHeader className="border-b border-border/50 px-4 pb-3 pt-4">
-          <DialogTitle className="text-[15px] font-display">Concluir pendência</DialogTitle>
-          <p className="ds-meta mt-0.5 truncate">{task?.title}</p>
+      {/* Mesmas classes do dialog de PENDÊNCIAS (largura, curva, borda,
+          fundo, sombra) — pedido explícito (07/09/2026): esta tela destoava
+          do padrão do resto do sistema. */}
+      <DialogContent className="w-[calc(100vw-2.5rem)] sm:w-full sm:max-w-lg p-0 overflow-hidden rounded-lg border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
+        <DialogTitle className="sr-only">Concluir pendência</DialogTitle>
+        <DialogDescription className="sr-only">
+          Registre quem resolveu, quanto custou e a comprovação da resolução.
+        </DialogDescription>
+
+        {/* Cabeçalho no mesmo formato do de Pendências: ds-page-title +
+            ds-page-subtitle, com pr-9 pra não passar por baixo do X. */}
+        <div className="px-5 pt-5 pb-3">
+          <h2 className="ds-page-title truncate pr-9">Concluir pendência</h2>
+          <p className="ds-page-subtitle mt-1.5 truncate">{task?.title}</p>
           {(task?.propertyName || task?.ownerName) && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
               {task?.propertyName && (
-                <span className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-secondary/40 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                <span className="inline-flex max-w-full items-center gap-1 rounded-[0.3rem] border border-border/60 bg-secondary/40 px-2 py-1 text-[10.5px] text-muted-foreground">
                   <Home className="size-3 shrink-0" />
-                  <span className="max-w-[9rem] truncate text-foreground/80">{task.propertyName}</span>
+                  <span className="truncate text-foreground/80">{task.propertyName}</span>
                 </span>
               )}
               {task?.ownerName && (
-                <span className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-secondary/40 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                <span className="inline-flex max-w-full items-center gap-1 rounded-[0.3rem] border border-border/60 bg-secondary/40 px-2 py-1 text-[10.5px] text-muted-foreground">
                   <User className="size-3 shrink-0" />
-                  <span className="max-w-[9rem] truncate text-foreground/80">{task.ownerName}</span>
+                  <span className="truncate text-foreground/80">{task.ownerName}</span>
                 </span>
               )}
             </div>
           )}
-        </DialogHeader>
+        </div>
 
-        <div className="sg-elegant-scroll max-h-[58vh] space-y-4 overflow-y-auto px-4 py-3.5">
-          <div>
-            <div className="ds-eyebrow mb-1.5 flex items-center gap-1.5">
-              Quem resolveu <span className="font-normal normal-case tracking-normal opacity-70">opcional</span>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              {providers.map((p) => {
-                const on = providerId === p.id;
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setProviderId(on ? null : p.id)}
-                    className={`flex items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left transition-colors ${
-                      on ? "border-emerald-500/45 bg-emerald-500/[0.07]" : "border-border/60 bg-card hover:bg-secondary/40"
-                    }`}
-                  >
-                    <span
-                      className={`grid size-7 shrink-0 place-items-center rounded-full border text-[10px] font-bold ${
-                        on
-                          ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                          : "border-border/60 bg-secondary/50 text-muted-foreground"
-                      }`}
-                    >
-                      {p.name.slice(0, 2).toUpperCase()}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[12.5px] font-semibold">{p.name}</span>
-                      {p.categories.length > 0 && (
-                        <span className="block truncate text-[10px] capitalize text-muted-foreground">
-                          {p.categories.join(" · ")}
+        <div className="sg-elegant-scroll max-h-[56vh] space-y-2.5 overflow-y-auto px-5 pb-4">
+          <TaskFormGroup label="Quem resolveu" />
+          {/* Dropdown buscável (pedido explícito): lista completa de
+              prestadores + busca por nome, cidade ou tipo de serviço. Mesmo
+              par Popover+Command já usado no título da nova pendência. */}
+          <Popover open={providerOpen} onOpenChange={setProviderOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="h-[42px] w-full rounded-lg border border-border bg-background px-2.5 text-left"
+              >
+                <span className="block text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Responsável (opcional)
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className={`min-w-0 flex-1 truncate text-xs ${selected ? "font-semibold" : "text-muted-foreground"}`}>
+                    {selected ? selected.name : "Selecione o Responsável"}
+                  </span>
+                  <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
+                </span>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
+              <Command>
+                <CommandInput placeholder="Buscar por nome, cidade ou tipo…" />
+                <CommandList className="sg-elegant-scroll max-h-56">
+                  <CommandEmpty>Nenhum prestador encontrado.</CommandEmpty>
+                  <CommandGroup>
+                    {selected && (
+                      <CommandItem
+                        value="__limpar__ remover responsavel"
+                        onSelect={() => {
+                          setProviderId(null);
+                          setProviderOpen(false);
+                        }}
+                        className="cursor-pointer text-muted-foreground"
+                      >
+                        <X className="size-3.5 shrink-0" /> Sem responsável
+                      </CommandItem>
+                    )}
+                    {providers.map((p) => (
+                      <CommandItem
+                        key={p.id}
+                        // O `value` é o que a busca do Command filtra: nome +
+                        // cidade + categorias, atendendo os três critérios.
+                        value={`${p.name} ${p.city ?? ""} ${p.categories.join(" ")}`}
+                        onSelect={() => {
+                          setProviderId(p.id);
+                          setProviderOpen(false);
+                        }}
+                        className="cursor-pointer"
+                      >
+                        <span className="grid size-6 shrink-0 place-items-center rounded-full border border-border/60 bg-secondary/50 text-[9px] font-bold text-muted-foreground">
+                          {p.name.slice(0, 2).toUpperCase()}
                         </span>
-                      )}
-                    </span>
-                    {on && <CheckCircle2 className="size-4 shrink-0 text-emerald-500" />}
-                  </button>
-                );
-              })}
-              {providers.length === 0 && (
-                <p className="rounded-lg border border-dashed border-border/60 px-2.5 py-2 text-[11px] text-muted-foreground">
-                  Nenhum prestador ativo cadastrado — a conclusão segue normalmente sem isso.
-                </p>
-              )}
-            </div>
-          </div>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-xs font-medium">{p.name}</span>
+                          {(p.city || p.categories.length > 0) && (
+                            <span className="block truncate text-[10px] capitalize text-muted-foreground">
+                              {[p.city, p.categories.join(" · ")].filter(Boolean).join(" — ")}
+                            </span>
+                          )}
+                        </span>
+                        {providerId === p.id && <Check className="size-3.5 shrink-0 text-emerald-500" />}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
 
-          <div>
-            <div className="ds-eyebrow mb-1.5 flex items-center gap-1.5">
-              Quanto custou <span className="font-normal normal-case tracking-normal opacity-70">opcional</span>
-            </div>
+          <TaskFormGroup label="Quanto custou" />
+          <div className="flex h-[42px] flex-col justify-center rounded-lg border border-border bg-background px-2.5">
+            <span className="block text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Valor (opcional)
+            </span>
             <MoneyInput cents={cents} onChange={setCents} placeholder="0,00" />
           </div>
 
-          <div>
-            <div className="ds-eyebrow mb-1.5">Comprovação</div>
-            <AttachmentPicker files={files} onChange={setFiles} disabled={saving} />
+          <TaskFormGroup label="Comprovação" />
+          <AttachmentPicker files={files} onChange={setFiles} disabled={saving} showAudio={false} />
+          {/* Pedido explícito: o campo de texto ganha o microfone ao lado,
+              pra quem prefere explicar falando. */}
+          <div className="flex items-start gap-2">
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={2}
+              maxLength={2000}
               placeholder="Como foi resolvido…"
-              className="mt-2 w-full resize-none rounded-lg border border-border bg-background px-2.5 py-2 text-xs outline-none placeholder:text-muted-foreground focus:border-primary/40"
+              className="w-full flex-1 resize-none rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs"
             />
+            <AudioAttachButton files={files} onChange={setFiles} disabled={saving} />
           </div>
-        </div>
 
-        <div className="flex items-center gap-2 border-t border-border/50 px-4 py-3">
-          {saving && <AttachmentsSending count={files.length} />}
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            disabled={saving}
-            className="rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground disabled:opacity-50"
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={submit}
-            disabled={saving}
-            className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] px-4 py-2 text-xs font-bold text-white disabled:opacity-60"
-          >
-            {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
-            Concluir
-          </button>
+          <div className="flex items-center justify-end gap-2 pt-1">
+            {saving && <AttachmentsSending count={files.length} />}
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              disabled={saving}
+              className="rounded-md px-2 py-1.5 text-xs hover:bg-secondary disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={submit}
+              disabled={saving}
+              className="rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+            >
+              {saving ? "Concluindo…" : "Concluir"}
+            </button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -4222,21 +4276,27 @@ function TasksDialog({
           Tarefas e pendências vinculadas a imóveis e proprietários.
         </DialogDescription>
         <div className="px-5 pt-5 pb-3">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <h2 className="ds-page-title truncate">Pendências</h2>
-              <p className="ds-page-subtitle mt-1.5 truncate">
-                {activeTasks.length} {activeTasks.length === 1 ? "aberta" : "abertas"}
-              </p>
+          {/* Pedido explícito (07/09/2026): "Nova" sobe para a MESMA linha do
+              título (antes ficava centralizado no bloco título+subtítulo) e
+              ganha `pr-9` para caber à ESQUERDA do X de fechar — que é
+              absoluto em right-4 com size-8, ou seja, ocupa até 48px da borda.
+              Com os 20px do px-5 + 36px do pr-9, sobram 8px de respiro entre
+              os dois; antes o X ficava sobreposto ao botão. */}
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 pr-9">
+              <h2 className="ds-page-title min-w-0 flex-1 truncate">Pendências</h2>
+              <button
+                type="button"
+                onClick={() => setShowForm((v) => !v)}
+                className="shrink-0 h-8 inline-flex items-center gap-1.5 rounded-[0.3rem] px-2.5 text-xs font-semibold text-white bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] transition-opacity hover:opacity-90"
+              >
+                {showForm ? <ChevronRight className="size-3.5 rotate-90" /> : <UserPlus className="size-3.5" />}
+                Nova
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowForm((v) => !v)}
-              className="shrink-0 h-8 inline-flex items-center gap-1.5 rounded-[0.3rem] px-2.5 text-xs font-semibold text-white bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] transition-opacity hover:opacity-90"
-            >
-              {showForm ? <ChevronRight className="size-3.5 rotate-90" /> : <UserPlus className="size-3.5" />}
-              Nova
-            </button>
+            <p className="ds-page-subtitle mt-1.5 truncate">
+              {activeTasks.length} {activeTasks.length === 1 ? "aberta" : "abertas"}
+            </p>
           </div>
 
           {!showForm && (
@@ -6008,7 +6068,6 @@ function ArrivalGroup({
   compact,
   cleaningTasks,
   onToggleCleaningTask,
-  showReservationLabel,
 }: {
   title: string;
   rows: ArrivalRow[];
@@ -6048,12 +6107,6 @@ function ArrivalGroup({
     nextCleaningKeyByProperty: Map<string, string>;
   };
   onToggleCleaningTask?: (task: TaskRow, row: ArrivalRow) => void;
-  /** Prefixo "RESERVA: " antes do código da reserva — pedido explícito, só
-   * nos cards do Kanban (colunas/abas). O MESMO ArrivalCard também renderiza
-   * dentro do popup de um KpiCard no Dashboard/Resumo (ver comentário em
-   * ArrivalCard), que não deve ganhar o prefixo — por isso isto é opcional e
-   * só é passado como true nos <ArrivalGroup> de dentro da view "kanban". */
-  showReservationLabel?: boolean;
 }) {
   // Somente UM card pode ficar com o quadro de detalhes aberto por vez.
   const [localOpenId, setLocalOpenId] = useState<string | null>(null);
@@ -6094,7 +6147,6 @@ function ArrivalGroup({
           compact={compact}
           cleaningTasks={cleaningTasks}
           onToggleCleaningTask={onToggleCleaningTask}
-          showReservationLabel={showReservationLabel}
         />
       ))}
     </div>
@@ -6124,7 +6176,6 @@ function ArrivalCard({
   compact,
   cleaningTasks,
   onToggleCleaningTask,
-  showReservationLabel,
 }: {
   row: ArrivalRow;
   kind: "checkin" | "checkout";
@@ -6160,12 +6211,6 @@ function ArrivalCard({
     nextCleaningKeyByProperty: Map<string, string>;
   };
   onToggleCleaningTask?: (task: TaskRow, row: ArrivalRow) => void;
-  /** Prefixo "RESERVA: " antes do código — pedido explícito, só nos cards do
-   * Kanban. Este mesmo ArrivalCard também aparece dentro de um popup de
-   * indicador (KpiCard) no Dashboard/Resumo — ver comentário logo abaixo,
-   * perto de "data-whole-card" — por isso o prefixo é opcional e default
-   * false, pra não vazar pro popup do Resumo. */
-  showReservationLabel?: boolean;
 }) {
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState(row.note ?? "");
@@ -6504,7 +6549,11 @@ function ArrivalCard({
           No modo "Lista" só o proprietário e o imóvel ficam (pedido
           explícito) — nome do hóspede, código e período somem. */}
       <div className="flex items-center gap-3">
-        <div className="flex-1 min-w-0">
+        {/* space-y-1: pedido explícito (07/09/2026) — o respiro que existia
+            só entre o proprietário e o título do imóvel agora vale para
+            TODAS as linhas de informação do card (hóspede, código, período,
+            proprietário, imóvel), que antes ficavam coladas umas nas outras. */}
+        <div className="flex-1 min-w-0 space-y-1">
           {!compact && (
             <>
               {/* Nome do hóspede — movido para cima do código da reserva
@@ -6526,7 +6575,7 @@ function ArrivalCard({
                       className="inline-flex items-center gap-1 min-w-0 hover:text-foreground transition-colors"
                     >
                       <span className="truncate">
-                        {showReservationLabel ? `RESERVA: ${row.reservationCode}` : row.reservationCode}
+                        {row.reservationCode}
                       </span>
                     </button>
                   ) : (
@@ -6555,7 +6604,7 @@ function ArrivalCard({
                   className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <span className="truncate max-w-[160px]">
-                    {showReservationLabel ? `RESERVA: ${row.reservationCode}` : row.reservationCode}
+                    {row.reservationCode}
                   </span>
                 </button>
               )}

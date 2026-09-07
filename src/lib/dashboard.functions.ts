@@ -1416,7 +1416,10 @@ const RevertInput = z
     // card volta pra Chegadas, mesmo racional de "stay"/"checkout" (undo do
     // checkin.done), só que aqui a linha nunca tinha status "done" pra
     // começo de conversa: era "no_show".
-    from: z.enum(["checkout", "stay", "cleaning", "done", "no_show"]),
+    // "skip_stay" desfaz o "Limpeza não será realizada" acionado a partir de
+    // "Em Estadia": remove a linha de checkout criada pelo atalho e devolve o
+    // card para a estadia em curso.
+    from: z.enum(["checkout", "stay", "cleaning", "done", "no_show", "skip_stay"]),
   })
   .refine((v) => !!v.logId || !!v.reservationId, { message: "Informe a reserva ou o registro do hóspede." });
 
@@ -1512,6 +1515,23 @@ export const revertArrival = createServerFn({ method: "POST" })
         const { error } = await context.supabase
           .from("guest_arrival_status")
           .update({ concluded_at: null })
+          .eq("id", ciId);
+        if (error) throw new Error(error.message);
+      }
+    } else if (data.from === "skip_stay") {
+      // Desfaz o "Limpeza não será realizada" disparado de "Em Estadia": a
+      // linha de checkout foi criada só pelo atalho, então some; o check-in
+      // volta a ser uma estadia em curso (done, sem conclusão).
+      const coId = await findId("checkout");
+      if (coId) {
+        const { error } = await context.supabase.from("guest_arrival_status").delete().eq("id", coId);
+        if (error) throw new Error(error.message);
+      }
+      const ciId = await findId("checkin");
+      if (ciId) {
+        const { error } = await context.supabase
+          .from("guest_arrival_status")
+          .update({ status: "done", concluded_at: null })
           .eq("id", ciId);
         if (error) throw new Error(error.message);
       }

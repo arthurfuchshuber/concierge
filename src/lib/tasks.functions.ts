@@ -73,7 +73,7 @@ export const listTaskLinkOptions = createServerFn({ method: "GET" })
       // parte) porque a tela de Pendências já consome ela.
       db
         .from("service_providers")
-        .select("id, name, trade_name, category, categories, status")
+        .select("id, name, trade_name, category, categories, city, status")
         .eq("account_owner_id", accountOwnerId)
         .eq("status", "active")
         .order("name"),
@@ -106,10 +106,12 @@ export const listTaskLinkOptions = createServerFn({ method: "GET" })
       trade_name: string | null;
       category: string | null;
       categories: string[] | null;
+      city: string | null;
     }>)
       .map((p) => ({
         id: p.id,
         name: (p.trade_name || p.name || "").trim() || "Sem nome",
+        city: (p.city ?? "").trim() || null,
         // `categories` (lista) é o campo atual; `category` (texto) é o
         // legado de quando havia só uma — vale como reserva.
         categories: (p.categories ?? (p.category ? [p.category] : [])).filter(Boolean),

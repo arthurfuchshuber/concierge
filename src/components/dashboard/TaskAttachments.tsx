@@ -120,7 +120,25 @@ export async function uploadPendingAttachments(
   return { sent, failed };
 }
 
-export function AttachmentPicker({
+/** Acrescenta um anexo à lista, preservando os que já estavam lá. */
+function appendAttachment(
+  files: PendingAttachment[],
+  onChange: (next: PendingAttachment[]) => void,
+  blob: Blob,
+  name: string,
+  mime: string,
+  durationMs?: number,
+) {
+  onChange([...files, { key: crypto.randomUUID(), blob, name, mime, durationMs, kind: inferKind(mime) }]);
+}
+
+/**
+ * Só o microfone, separado do resto — pedido explícito (07/09/2026): na
+ * conclusão de pendência ele fica junto do campo "Como foi resolvido", pra
+ * quem prefere explicar falando em vez de digitar. Grava assim que é tocado
+ * (autoStart), sem exigir um segundo clique.
+ */
+export function AudioAttachButton({
   files,
   onChange,
   disabled,
@@ -129,13 +147,61 @@ export function AttachmentPicker({
   onChange: (next: PendingAttachment[]) => void;
   disabled?: boolean;
 }) {
+  const [recording, setRecording] = useState(false);
+  if (recording) {
+    return (
+      <AudioRecorderButton
+        autoStart
+        maxSeconds={120}
+        compact
+        onCancel={() => setRecording(false)}
+        onRecorded={(a) => {
+          setRecording(false);
+          appendAttachment(
+            files,
+            onChange,
+            a.blob,
+            `audio-${Date.now()}.${a.mime.includes("mp4") ? "m4a" : "webm"}`,
+            a.mime,
+            a.durationMs,
+          );
+        }}
+      />
+    );
+  }
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={() => setRecording(true)}
+      aria-label="Gravar áudio"
+      title="Gravar áudio"
+      className="grid size-8 shrink-0 place-items-center rounded-[0.3rem] border border-border bg-background text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+    >
+      <Mic className="size-3.5" />
+    </button>
+  );
+}
+
+export function AttachmentPicker({
+  files,
+  onChange,
+  disabled,
+  showAudio = true,
+}: {
+  files: PendingAttachment[];
+  onChange: (next: PendingAttachment[]) => void;
+  disabled?: boolean;
+  /** false quando o microfone é renderizado à parte (ver AudioAttachButton). */
+  showAudio?: boolean;
+}) {
   const photoRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [recording, setRecording] = useState(false);
 
   function add(blob: Blob, name: string, mime: string, durationMs?: number) {
-    onChange([...files, { key: crypto.randomUUID(), blob, name, mime, durationMs, kind: inferKind(mime) }]);
+    appendAttachment(files, onChange, blob, name, mime, durationMs);
   }
 
   function onPicked(e: React.ChangeEvent<HTMLInputElement>) {
@@ -172,16 +238,18 @@ export function AttachmentPicker({
           <button type="button" disabled={disabled} onClick={() => fileRef.current?.click()} className={btn}>
             <Paperclip className="size-3.5" /> Arquivo
           </button>
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => setRecording(true)}
-            aria-label="Gravar áudio"
-            title="Gravar áudio"
-            className="grid size-8 place-items-center rounded-lg border border-border/60 bg-secondary/30 text-foreground/80 hover:bg-secondary/50 disabled:opacity-50"
-          >
-            <Mic className="size-3.5" />
-          </button>
+          {showAudio && (
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => setRecording(true)}
+              aria-label="Gravar áudio"
+              title="Gravar áudio"
+              className="grid size-8 place-items-center rounded-lg border border-border/60 bg-secondary/30 text-foreground/80 hover:bg-secondary/50 disabled:opacity-50"
+            >
+              <Mic className="size-3.5" />
+            </button>
+          )}
         </div>
       )}
 

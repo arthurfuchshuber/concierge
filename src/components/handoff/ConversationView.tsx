@@ -431,7 +431,14 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
 
   return (
     <div
-      className="flex flex-col h-full min-h-0 bg-white text-zinc-900"
+      // max-h-[100dvh]: pedido explícito (07/09/2026) — o cabeçalho do
+      // hóspede sumia ao abrir o teclado no celular. Causa: `h-full` mede a
+      // viewport SEM descontar o teclado, então o painel ficava mais alto
+      // que a área visível e o navegador rolava a página inteira pra manter
+      // o campo à vista, levando o cabeçalho junto. `dvh` acompanha a
+      // viewport dinâmica, então o painel fica contido e quem rola é só a
+      // lista de mensagens — o cabeçalho (shrink-0 + sticky) nunca sai.
+      className="flex flex-col h-full max-h-[100dvh] min-h-0 bg-white text-zinc-900"
       style={{
         // Sobrescreve tokens do tema escuro dentro do painel de chat,
         // deixando a janela completamente clara na visão desktop.
@@ -457,7 +464,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
         ["--primary-foreground" as never]: "#ffffff",
       }}
     >
-      <div className={`sticky top-0 z-10 border-b border-zinc-200 shrink-0 bg-zinc-50 ${inputFocused ? "px-3 py-1.5" : "p-3 space-y-2"}`}>
+      <div className={`sticky top-0 z-20 border-b border-zinc-200 shrink-0 bg-zinc-50 ${inputFocused ? "px-3 py-1.5" : "p-3 space-y-2"}`}>
         <div className={`flex gap-2 ${inputFocused ? "items-center" : "items-start justify-between"}`}>
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-1.5">
@@ -1033,7 +1040,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
             }}
             className="sticky bottom-0 z-10 shrink-0 border-t border-border bg-surface"
             style={{
-              paddingTop: "0.5rem",
+              paddingTop: "0.375rem",
               paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
               paddingLeft: "max(0.5rem, env(safe-area-inset-left))",
               paddingRight: "max(0.5rem, env(safe-area-inset-right))",
@@ -1071,7 +1078,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 onCamera={() => cameraInputRef.current?.click()}
               />
               <div
-                className={`flex-1 min-w-0 flex items-center rounded-full border bg-background px-3 min-h-9 ${note ? "border-yellow-500/50" : "border-border"}`}
+                className={`flex-1 min-w-0 flex items-center rounded-full border bg-background px-3 min-h-8 ${note ? "border-yellow-500/50" : "border-border"}`}
               >
                 <TagMentionTextarea
                   value={text}
@@ -1098,13 +1105,13 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 <button
                   type="submit"
                   disabled={send.isPending}
-                  className={`size-11 grid place-items-center rounded-full text-white disabled:opacity-40 shrink-0 ${channel === "whatsapp" && !note ? "bg-emerald-600" : "bg-primary"}`}
+                  className={`size-8 grid place-items-center rounded-full text-white disabled:opacity-40 shrink-0 ${channel === "whatsapp" && !note ? "bg-emerald-600" : "bg-primary"}`}
                 >
-                  {send.isPending ? <Loader2 className="size-5 animate-spin" /> : <Send className="size-5" />}
+                  {send.isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
                 </button>
               ) : (
                 <div className="shrink-0">
-                  <AudioRecorderButton disabled={uploading} maxSeconds={60} onRecorded={onAudioRecorded} />
+                  <AudioRecorderButton disabled={uploading} maxSeconds={60} onRecorded={onAudioRecorded} compact />
                 </div>
               )}
             </div>

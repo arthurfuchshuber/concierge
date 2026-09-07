@@ -29,9 +29,9 @@ export function ComposerPlusMenu({
           disabled={disabled}
           aria-label="Adicionar anexo"
           title="Adicionar"
-          className={`grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 ${className}`}
+          className={`grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 ${className}`}
         >
-          <Plus className="size-5" />
+          <Plus className="size-4" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" side="top" className="w-40">

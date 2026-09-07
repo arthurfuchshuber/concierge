@@ -89,6 +89,9 @@ export type TaskLinkOwner = {
 export type TaskLinkProvider = {
   id: string;
   name: string;
-  /** Categorias do prestador ("limpeza", "manutenção"…), só pra exibir. */
+  /** Categorias do prestador ("limpeza", "manutenção"…) — exibidas e usadas
+   * na busca do seletor "quem resolveu". */
   categories: string[];
+  /** Cidade — também entra na busca (pedido explícito, 07/09/2026). */
+  city: string | null;
 };
