@@ -1779,7 +1779,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         });
       },
       onEditDates: (row: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => {
-        const prev = { checkinDate: row.checkinDate, checkoutDate: row.checkoutDate ?? null };
+        const prev = { checkinDate: row.guestCheckin, checkoutDate: row.guestCheckout ?? null };
         setBusyRowId(row.logId);
         updateDates.mutate({ logId: row.logId, ...dates });
         notifyAction("Datas atualizadas.", () => {
