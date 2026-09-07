@@ -402,8 +402,12 @@ function RecordBlock({ group, onDelete }: { group: RecordGroup; onDelete: (id: s
 
       <div className="flex items-center gap-1.5 border-t border-border/50 px-2.5 py-1.5 text-[10.5px] text-muted-foreground">
         <span className="truncate">{head.createdByName ?? "Equipe"}</span>
-        <span className="opacity-50">·</span>
-        <span className="truncate">via {MODE_LABEL[head.cardMode]}</span>
+        {head.cardMode && (
+          <>
+            <span className="opacity-50">·</span>
+            <span className="truncate">via {MODE_LABEL[head.cardMode]}</span>
+          </>
+        )}
         {photos && (
           <>
             <span className="opacity-50">·</span>

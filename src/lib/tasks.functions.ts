@@ -7,11 +7,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { defaultShowInCleaning } from "@/lib/tasks-types";
 import type {
   TaskCategory,
   TaskCompletion,
   TaskLinkOwner,
   TaskLinkProperty,
+  TaskLinkProvider,
   TaskPriority,
   TaskRow,
   TaskStatus,
@@ -43,7 +45,10 @@ const ScopeInput = z.object({ ownerId: z.string().uuid().nullable().optional() }
 export const listTaskLinkOptions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => ScopeInput.parse(i) ?? {})
-  .handler(async ({ data, context }): Promise<{ properties: TaskLinkProperty[]; owners: TaskLinkOwner[] }> => {
+  .handler(async ({
+    data,
+    context,
+  }): Promise<{ properties: TaskLinkProperty[]; owners: TaskLinkOwner[]; providers: TaskLinkProvider[] }> => {
     const { accessiblePropertyIds } = await import("@/lib/dashboard.functions");
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
     const db = context.supabase as unknown as AnyClient;
@@ -53,7 +58,7 @@ export const listTaskLinkOptions = createServerFn({ method: "GET" })
       resolveAuthorizedAccountOwnerId(context.supabase as never, context.userId, data.ownerId ?? null),
     ]);
 
-    const [{ data: props }, { data: ownerRows }] = await Promise.all([
+    const [{ data: props }, { data: ownerRows }, { data: providerRows }] = await Promise.all([
       propIds.length > 0
         ? db.from("properties").select("id, name, owner_contact_id").in("id", propIds).order("name")
         : Promise.resolve({ data: [] }),
@@ -62,6 +67,15 @@ export const listTaskLinkOptions = createServerFn({ method: "GET" })
         .select("id, name, trade_name")
         .eq("account_owner_id", accountOwnerId)
         .neq("status", "canceled")
+        .order("name"),
+      // Prestadores ativos — alimentam "quem resolveu" ao concluir uma
+      // pendência. Vêm junto nesta mesma função (em vez de uma busca à
+      // parte) porque a tela de Pendências já consome ela.
+      db
+        .from("service_providers")
+        .select("id, name, trade_name, category, categories, status")
+        .eq("account_owner_id", accountOwnerId)
+        .eq("status", "active")
         .order("name"),
     ]);
 
@@ -86,7 +100,23 @@ export const listTaskLinkOptions = createServerFn({ method: "GET" })
       .map(([id, name]) => ({ id, name }))
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
 
-    return { properties, owners };
+    const providers: TaskLinkProvider[] = ((providerRows ?? []) as Array<{
+      id: string;
+      name: string | null;
+      trade_name: string | null;
+      category: string | null;
+      categories: string[] | null;
+    }>)
+      .map((p) => ({
+        id: p.id,
+        name: (p.trade_name || p.name || "").trim() || "Sem nome",
+        // `categories` (lista) é o campo atual; `category` (texto) é o
+        // legado de quando havia só uma — vale como reserva.
+        categories: (p.categories ?? (p.category ? [p.category] : [])).filter(Boolean),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+
+    return { properties, owners, providers };
   });
 
 // ----- Listagem (dialog "PENDÊNCIAS" + checklist da Limpeza) -----
@@ -115,7 +145,7 @@ export const listTasks = createServerFn({ method: "GET" })
     let query = db
       .from("tasks")
       .select(
-        "id, title, description, category, priority, due_date, show_in_cleaning, status, completed_at, created_at, property_id, owner_contact_id, log_id, reservation_id, amount_spent_cents, recurrence_days",
+        "id, title, description, category, priority, due_date, show_in_cleaning, status, completed_at, created_at, property_id, owner_contact_id, log_id, reservation_id, amount_spent_cents, recurrence_days, resolved_by_provider_id, resolution_note",
       )
       .eq("account_owner_id", accountOwnerId)
       .in("status", ["pending", "done"])
@@ -142,6 +172,8 @@ export const listTasks = createServerFn({ method: "GET" })
       reservation_id: string | null;
       amount_spent_cents: number | null;
       recurrence_days: number | null;
+      resolved_by_provider_id: string | null;
+      resolution_note: string | null;
     }>;
 
     // Nomes de imóvel/proprietário em 2 buscas em lote (mesma técnica do
@@ -176,6 +208,20 @@ export const listTasks = createServerFn({ method: "GET" })
       if (label) ownerNameById.set(o.id, label);
     }
 
+    // Nome de quem resolveu — mesma técnica em lote das duas buscas acima.
+    const providerIdsUsed = Array.from(
+      new Set(raw.map((r) => r.resolved_by_provider_id).filter((v): v is string => !!v)),
+    );
+    const { data: providerRows } =
+      providerIdsUsed.length > 0
+        ? await db.from("service_providers").select("id, name, trade_name").in("id", providerIdsUsed)
+        : { data: [] };
+    const providerNameById = new Map<string, string>();
+    for (const p of (providerRows ?? []) as Array<{ id: string; name: string | null; trade_name: string | null }>) {
+      const label = (p.trade_name || p.name || "").trim();
+      if (label) providerNameById.set(p.id, label);
+    }
+
     const tasks: TaskRow[] = raw.map((r) => {
       const prop = r.property_id ? propById.get(r.property_id) : undefined;
       const effectiveOwnerId = r.owner_contact_id ?? prop?.owner_contact_id ?? null;
@@ -198,6 +244,11 @@ export const listTasks = createServerFn({ method: "GET" })
         reservationId: r.reservation_id,
         amountSpentCents: r.amount_spent_cents,
         recurrenceDays: r.recurrence_days,
+        resolvedByProviderId: r.resolved_by_provider_id,
+        resolvedByProviderName: r.resolved_by_provider_id
+          ? (providerNameById.get(r.resolved_by_provider_id) ?? null)
+          : null,
+        resolutionNote: r.resolution_note,
       };
     });
 
@@ -247,7 +298,9 @@ const CreateTaskInput = z
       .regex(/^\d{4}-\d{2}-\d{2}$/)
       .nullable()
       .optional(),
-    showInCleaning: z.boolean().default(false),
+    /** Omitido = usa o padrão da categoria (ver defaultShowInCleaning):
+     * manutenção nasce visível para a limpeza, o resto nasce oculto. */
+    showInCleaning: z.boolean().optional(),
     propertyId: z.string().uuid().nullable().optional(),
     ownerContactId: z.string().uuid().nullable().optional(),
     logId: z.string().uuid().nullable().optional(),
@@ -283,7 +336,7 @@ export const createTask = createServerFn({ method: "POST" })
         category: data.category,
         priority: data.priority,
         due_date: data.dueDate ?? null,
-        show_in_cleaning: data.showInCleaning,
+        show_in_cleaning: data.showInCleaning ?? defaultShowInCleaning(data.category),
         amount_spent_cents: data.amountSpentCents ?? null,
         recurrence_days: data.recurrenceDays ?? null,
         created_by: context.userId,
@@ -300,8 +353,12 @@ const SetTaskStatusInput = z.object({
   taskId: z.string().uuid(),
   status: z.enum(["pending", "done", "canceled"]),
   /** Só relevante ao concluir ("done") uma pendência que ainda não tinha
-   * valor — ver diálogo "teve gasto nessa tarefa?" na UI. */
+   * valor — ver diálogo de conclusão na UI. */
   amountSpentCents: z.number().int().min(0).nullable().optional(),
+  /** Prestação de contas da conclusão (pedido explícito, 07/09/2026) — os
+   * dois OPCIONAIS: dá pra concluir sem informar nada, como antes. */
+  resolvedByProviderId: z.string().uuid().nullable().optional(),
+  resolutionNote: z.string().trim().max(2000).nullable().optional(),
 });
 
 export const setTaskStatus = createServerFn({ method: "POST" })
@@ -314,6 +371,14 @@ export const setTaskStatus = createServerFn({ method: "POST" })
       completed_at: data.status === "done" ? new Date().toISOString() : null,
     };
     if (data.amountSpentCents !== undefined) patch.amount_spent_cents = data.amountSpentCents;
+    if (data.resolvedByProviderId !== undefined) patch.resolved_by_provider_id = data.resolvedByProviderId;
+    if (data.resolutionNote !== undefined) patch.resolution_note = data.resolutionNote || null;
+    // Reabrir limpa a prestação de contas da conclusão anterior — senão a
+    // pendência volta pendente ainda exibindo "resolvida por Fulano".
+    if (data.status === "pending") {
+      patch.resolved_by_provider_id = null;
+      patch.resolution_note = null;
+    }
 
     if (data.status === "done") {
       // Pendência com recorrência em dias: o ciclo não "fecha pra sempre" —

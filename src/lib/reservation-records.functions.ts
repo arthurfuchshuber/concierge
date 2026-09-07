@@ -40,11 +40,25 @@ const CardMode = z.enum(["checkin", "checkout", "stay", "cleaning", "done", "no_
  */
 const TASK_RULES: Record<
   string,
-  { taskCategory: "maintenance" | "guest_request"; priority: "high" | "medium"; showInCleaning: boolean; prefix: string }
+  {
+    taskCategory: "maintenance" | "guest_request" | "inspection";
+    priority: "high" | "medium";
+    showInCleaning: boolean;
+    prefix: string;
+  }
 > = {
+  // "Mostrar na limpeza" segue a mesma regra do formulário (07/09/2026):
+  // MANUTENÇÃO nasce visível pra limpeza; as demais nascem ocultas. Objeto
+  // esquecido é a exceção acordada antes — quem limpa é quem acha e separa
+  // o objeto, então continua entrando no checklist.
+  //
+  // Dano entra como "Vistoria" (e não "Manutenção") de propósito: manutenção
+  // é a única categoria que vai automaticamente pra próxima limpeza, e um
+  // dano é registro/prova pra cobrança, não tarefa da faxina. Se preferir
+  // ver danos como Manutenção na lista de Pendências, é só trocar aqui.
   forgotten: { taskCategory: "guest_request", priority: "medium", showInCleaning: true, prefix: "Objeto esquecido" },
-  damage: { taskCategory: "maintenance", priority: "high", showInCleaning: false, prefix: "Dano/incidente" },
-  maintenance: { taskCategory: "maintenance", priority: "medium", showInCleaning: false, prefix: "Manutenção" },
+  damage: { taskCategory: "inspection", priority: "high", showInCleaning: false, prefix: "Dano/incidente" },
+  maintenance: { taskCategory: "maintenance", priority: "medium", showInCleaning: true, prefix: "Manutenção" },
 };
 
 // Mesma identidade estável usada em toda a esteira (advanceArrival,
@@ -67,7 +81,9 @@ export type ReservationRecord = {
   durationMs: number | null;
   fileName: string | null;
   body: string | null;
-  cardMode: "checkin" | "checkout" | "stay" | "cleaning" | "done" | "no_show";
+  /** Coluna do Kanban onde nasceu. Vazio em anexo de pendência, que não
+   * nasce em coluna nenhuma. */
+  cardMode: "checkin" | "checkout" | "stay" | "cleaning" | "done" | "no_show" | null;
   createdByName: string | null;
   createdAt: string;
   /** Pendência gerada automaticamente (só nas 3 categorias que geram). */
@@ -335,6 +351,123 @@ export const createReservationRecordNote = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
     return { ok: true, taskCreated: !!taskId };
+  });
+
+/**
+ * Anexo preso a uma PENDÊNCIA (não a uma reserva) — usado pela comprovação
+ * da resolução e pelos anexos da criação de pendência (07/09/2026).
+ *
+ * Mesma mecânica do anexo de reserva: o navegador sobe o arquivo pro bucket
+ * e aqui só gravamos os metadados. Quando a pendência tem reserva vinculada,
+ * `logId`/`reservationId` vêm junto — assim a comprovação também aparece na
+ * linha do tempo daquela reserva, fechando o ciclo "problema → conserto" no
+ * mesmo lugar. Sem reserva (pendência só do imóvel), o registro fica preso
+ * apenas à pendência, e `cardMode` fica vazio: não nasceu em coluna nenhuma
+ * do Kanban.
+ */
+export const attachTaskRecord = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        propertyId: z.string().uuid(),
+        taskId: z.string().uuid(),
+        logId: z.string().uuid().optional(),
+        reservationId: z.string().uuid().optional(),
+        category: CategoryEnum.default("other"),
+        isResolution: z.boolean().default(false),
+        path: z.string().min(3).max(500),
+        kind: z.enum(["photo", "video", "audio", "file"]),
+        mime: z.string().min(1).max(150),
+        sizeBytes: z.number().int().nonnegative(),
+        durationMs: z.number().int().nonnegative().optional().nullable(),
+        fileName: z.string().max(200).optional().nullable(),
+        caption: z.string().max(2000).optional().nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase as unknown as AnyClient;
+    if (!data.path.startsWith(`${data.propertyId}/`)) {
+      throw new Error("Caminho de anexo inválido.");
+    }
+    const who = await resolveAuthorName(supabase, context.userId);
+    const { error } = await supabase.from("reservation_records").insert({
+      property_id: data.propertyId,
+      log_id: data.logId ?? null,
+      reservation_id: data.reservationId ?? null,
+      task_id: data.taskId,
+      is_resolution: data.isResolution,
+      kind: data.kind,
+      category: data.category,
+      storage_path: data.path,
+      mime: data.mime,
+      size_bytes: data.sizeBytes,
+      duration_ms: data.durationMs ?? null,
+      file_name: data.fileName ?? null,
+      body: data.caption ?? null,
+      card_mode: null,
+      created_by: context.userId,
+      created_by_name: who,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Anexos de uma pendência — os da abertura e os da comprovação. */
+export const listTaskRecords = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ taskId: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase as unknown as AnyClient;
+    const { data: rows, error } = await supabase
+      .from("reservation_records")
+      .select("id, kind, category, storage_path, mime, size_bytes, duration_ms, file_name, body, created_by_name, created_at, is_resolution")
+      .eq("task_id", data.taskId)
+      .order("created_at", { ascending: true })
+      .limit(200);
+    if (error) throw new Error(error.message);
+
+    const list = (rows ?? []) as Array<{
+      id: string;
+      kind: ReservationRecord["kind"];
+      category: RecordCategory;
+      storage_path: string | null;
+      mime: string | null;
+      size_bytes: number | null;
+      duration_ms: number | null;
+      file_name: string | null;
+      body: string | null;
+      created_by_name: string | null;
+      created_at: string;
+      is_resolution: boolean;
+    }>;
+
+    const paths = list.filter((r) => r.storage_path).map((r) => r.storage_path as string);
+    const urlByPath = new Map<string, string>();
+    if (paths.length > 0) {
+      const { data: signed } = await supabase.storage.from(BUCKET).createSignedUrls(paths, SIGN_TTL_SECONDS);
+      for (const s of (signed ?? []) as Array<{ path: string | null; signedUrl: string | null }>) {
+        if (s.path && s.signedUrl) urlByPath.set(s.path, s.signedUrl);
+      }
+    }
+
+    return {
+      records: list.map((r) => ({
+        id: r.id,
+        kind: r.kind,
+        category: r.category,
+        url: r.storage_path ? (urlByPath.get(r.storage_path) ?? null) : null,
+        mime: r.mime,
+        sizeBytes: r.size_bytes,
+        durationMs: r.duration_ms,
+        fileName: r.file_name,
+        body: r.body,
+        createdByName: r.created_by_name,
+        createdAt: r.created_at,
+        isResolution: r.is_resolution,
+      })),
+    };
   });
 
 /**

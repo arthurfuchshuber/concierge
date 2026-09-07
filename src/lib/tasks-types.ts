@@ -12,6 +12,20 @@ export type TaskCategory =
 export type TaskPriority = "low" | "medium" | "high";
 export type TaskStatus = "pending" | "done" | "canceled";
 
+/**
+ * Pedido explícito (07/09/2026): pendência de MANUTENÇÃO já nasce visível
+ * para a limpeza — a chave, nesse caso, serve para OCULTAR. Todas as outras
+ * categorias nascem ocultas e a chave serve para MOSTRAR.
+ *
+ * Vale para os dois caminhos de criação: o formulário "Nova pendência" e as
+ * pendências abertas automaticamente a partir de um registro da reserva.
+ * Uma vez criada, o valor é sempre o que estiver gravado — esta função só
+ * decide o PADRÃO inicial.
+ */
+export function defaultShowInCleaning(category: TaskCategory): boolean {
+  return category === "maintenance";
+}
+
 export type TaskRow = {
   id: string;
   title: string;
@@ -40,6 +54,12 @@ export type TaskRow = {
    * ao concluir, a pendência volta pendente com um novo prazo N dias à
    * frente, em vez de ficar marcada como feita pra sempre. */
   recurrenceDays: number | null;
+  /** Prestação de contas da conclusão (07/09/2026) — quem resolveu e o que
+   * foi feito. Ambos opcionais; o quanto custou continua em
+   * `amountSpentCents`. */
+  resolvedByProviderId: string | null;
+  resolvedByProviderName: string | null;
+  resolutionNote: string | null;
 };
 
 /** Uma marca de "feito" pra uma pendência RECORRENTE numa limpeza
@@ -62,4 +82,13 @@ export type TaskLinkProperty = {
 export type TaskLinkOwner = {
   id: string;
   name: string;
+};
+
+/** Prestador cadastrado e ativo — oferecido em "quem resolveu" ao concluir
+ * uma pendência (pedido explícito, 07/09/2026). */
+export type TaskLinkProvider = {
+  id: string;
+  name: string;
+  /** Categorias do prestador ("limpeza", "manutenção"…), só pra exibir. */
+  categories: string[];
 };

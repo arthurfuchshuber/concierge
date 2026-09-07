@@ -67,6 +67,13 @@ import {
 import { toast } from "sonner";
 import { notifyAction } from "@/components/UndoActionBar";
 import { ReservationRecordsButton } from "@/components/dashboard/ReservationRecords";
+import {
+  AttachmentPicker,
+  AttachmentsSending,
+  uploadPendingAttachments,
+  type PendingAttachment,
+} from "@/components/dashboard/TaskAttachments";
+import { attachTaskRecord } from "@/lib/reservation-records.functions";
 import { format, parse, isValid, differenceInCalendarDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
@@ -124,7 +131,16 @@ import {
   setTaskStatus,
   toggleCleaningCompletion,
 } from "@/lib/tasks.functions";
-import type { TaskRow, TaskCompletion, TaskLinkProperty, TaskLinkOwner, TaskCategory, TaskPriority } from "@/lib/tasks-types";
+import { defaultShowInCleaning } from "@/lib/tasks-types";
+import type {
+  TaskRow,
+  TaskCompletion,
+  TaskLinkProperty,
+  TaskLinkOwner,
+  TaskLinkProvider,
+  TaskCategory,
+  TaskPriority,
+} from "@/lib/tasks-types";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { ConfirmActionDialog } from "@/components/permissions/ConfirmActionDialog";
@@ -1493,6 +1509,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       taskId: string;
       status: "pending" | "done" | "canceled";
       amountSpentCents?: number | null;
+      /** Prestação de contas da conclusão (07/09/2026) — ambos opcionais. */
+      resolvedByProviderId?: string | null;
+      resolutionNote?: string | null;
     }) => setTaskStatusFn({ data: v }),
     onSuccess: invalidateTasks,
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar pendência."),
@@ -1507,40 +1526,72 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     onSuccess: invalidateTasks,
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar checklist."),
   });
-  // Pergunta "teve gasto?" ao concluir uma pendência sem valor informado —
-  // pedido explícito: só interrompe quando o valor está em branco (se já
-  // tinha um valor, concluir não pergunta nada de novo).
-  type ExpensePromptState =
+  // Conclusão de pendência com prestação de contas (pedido explícito,
+  // 07/09/2026): ao concluir, perguntamos QUEM resolveu, QUANTO custou e
+  // deixamos anexar a comprovação. Antes isto era só um "teve gasto nessa
+  // tarefa? Sim/Não". Tudo continua OPCIONAL — dá pra concluir sem preencher
+  // nada. Substitui o antigo `expensePrompt`, mas mantém os dois gatilhos
+  // que já existiam: concluir na lista de Pendências ("status") e marcar no
+  // checklist do card de Limpeza ("cleaning", que fecha só a ocorrência).
+  type ResolvePromptState =
     | { kind: "status"; task: TaskRow }
     | { kind: "cleaning"; task: TaskRow; row: ArrivalRow };
-  const [expensePrompt, setExpensePrompt] = useState<ExpensePromptState | null>(null);
-  const [expenseHasCost, setExpenseHasCost] = useState(false);
-  const [expenseCents, setExpenseCents] = useState<number | null>(null);
-  function closeExpensePrompt() {
-    setExpensePrompt(null);
-    setExpenseHasCost(false);
-    setExpenseCents(null);
+  const [resolvePrompt, setResolvePrompt] = useState<ResolvePromptState | null>(null);
+  const attachTaskRecordFn = useServerFn(attachTaskRecord);
+
+  function closeResolvePrompt() {
+    setResolvePrompt(null);
   }
-  function confirmExpensePrompt() {
-    if (!expensePrompt) return;
-    const amountSpentCents = expenseHasCost ? expenseCents : null;
-    if (expensePrompt.kind === "status") {
-      setTaskStatusMutation.mutate({ taskId: expensePrompt.task.id, status: "done", amountSpentCents });
+
+  async function confirmResolve(v: {
+    amountSpentCents: number | null;
+    providerId: string | null;
+    note: string | null;
+    files: PendingAttachment[];
+  }) {
+    if (!resolvePrompt) return;
+    const task = resolvePrompt.task;
+    if (resolvePrompt.kind === "status") {
+      await setTaskStatusMutation.mutateAsync({
+        taskId: task.id,
+        status: "done",
+        amountSpentCents: v.amountSpentCents,
+        resolvedByProviderId: v.providerId,
+        resolutionNote: v.note,
+      });
     } else {
-      toggleCleaningTaskMutation.mutate({
-        taskId: expensePrompt.task.id,
-        logId: expensePrompt.row.logId,
-        reservationId: expensePrompt.row.reservationId,
-        amountSpentCents,
+      await toggleCleaningTaskMutation.mutateAsync({
+        taskId: task.id,
+        logId: resolvePrompt.row.logId,
+        reservationId: resolvePrompt.row.reservationId,
+        amountSpentCents: v.amountSpentCents,
       });
     }
-    closeExpensePrompt();
+
+    // Comprovação sobe DEPOIS da conclusão gravada — se a pessoa desistir no
+    // meio, nada de arquivo órfão no storage. Falha de anexo não desfaz a
+    // conclusão, só avisa.
+    if (v.files.length > 0 && task.propertyId) {
+      const res = await uploadPendingAttachments(attachTaskRecordFn, v.files, {
+        propertyId: task.propertyId,
+        taskId: task.id,
+        logId: task.logId ?? undefined,
+        reservationId: task.reservationId ?? undefined,
+        isResolution: true,
+      });
+      if (res.failed > 0) toast.error(`${res.failed} anexo(s) não subiram. A conclusão foi salva.`);
+    }
+    closeResolvePrompt();
   }
+
   function requestSetTaskStatus(taskId: string, status: "pending" | "done" | "canceled") {
     if (status === "done") {
       const task = (tasksQ.data?.tasks ?? []).find((t) => t.id === taskId);
-      if (task && task.amountSpentCents == null) {
-        setExpensePrompt({ kind: "status", task });
+      // Diferente do antigo prompt (que só aparecia quando o valor estava em
+      // branco), a tela de conclusão sempre abre: ela não pergunta só o
+      // gasto, pergunta a prestação de contas inteira.
+      if (task) {
+        setResolvePrompt({ kind: "status", task });
         return;
       }
     }
@@ -1682,23 +1733,57 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // Tarefas que aparecem no checklist do card de Limpeza — repassadas pra
   // ArrivalGroup/ArrivalCard só quando colMode === "cleaning" (única coluna
   // que usa isso; as outras ignoram por completo).
+  /**
+   * Qual card de limpeza é a PRÓXIMA limpeza de cada imóvel (pedido
+   * explícito, 07/09/2026): as pendências abertas do imóvel são exibidas no
+   * card da limpeza mais próxima, e só nele.
+   *
+   * Isto é CALCULADO a cada render, nunca gravado: se entrar uma reserva
+   * repentina com limpeza pro dia 8, ela simplesmente passa a ser a mais
+   * próxima e as pendências aparecem lá — sem ninguém "mover" nada, sem
+   * rotina de correção, sem estado que possa ficar errado. Se essa limpeza
+   * do dia 8 for cancelada, tudo volta pro dia 10 pelo mesmo caminho.
+   *
+   * A base é `kanbanCoRowsAll` (checkouts com alcance "all", ver a query
+   * acima) e NÃO a lista já filtrada por período/cidade/proprietário — senão
+   * filtrar a tela por "Hoje" faria o sistema eleger a limpeza errada como
+   * "próxima". Só cards ainda não concluídos entram na disputa.
+   */
+  const nextCleaningKeyByProperty = useMemo(() => {
+    const best = new Map<string, { key: string; date: string }>();
+    for (const r of kanbanCoRowsAll) {
+      if (!r.propertyId) continue;
+      const key = r.reservationId ?? r.logId;
+      if (!key) continue;
+      const current = best.get(r.propertyId);
+      if (!current || r.date < current.date) best.set(r.propertyId, { key, date: r.date });
+    }
+    const out = new Map<string, string>();
+    for (const [propertyId, v] of best) out.set(propertyId, v.key);
+    return out;
+  }, [kanbanCoRowsAll]);
+
   const cleaningTasksData = useMemo(
-    () => ({ tasks: tasksQ.data?.tasks ?? [], completions: tasksQ.data?.completions ?? [] }),
-    [tasksQ.data],
+    () => ({
+      tasks: tasksQ.data?.tasks ?? [],
+      completions: tasksQ.data?.completions ?? [],
+      nextCleaningKeyByProperty,
+    }),
+    [tasksQ.data, nextCleaningKeyByProperty],
   );
   function handleToggleCleaningTask(task: TaskRow, row: ArrivalRow) {
     if (task.logId || task.reservationId) {
       // Pontual: o próprio status da pendência representa esta estadia.
       const willComplete = task.status !== "done";
-      if (willComplete && task.amountSpentCents == null) {
-        setExpensePrompt({ kind: "status", task });
+      if (willComplete) {
+        setResolvePrompt({ kind: "status", task });
         return;
       }
-      setTaskStatusMutation.mutate({ taskId: task.id, status: task.status === "done" ? "pending" : "done" });
+      setTaskStatusMutation.mutate({ taskId: task.id, status: "pending" });
     } else {
       // Recorrente: marca só esta ocorrência (log/reserva do card) — a
       // pendência em si continua ativa e volta pendente na próxima limpeza.
-      // Cada ocorrência é nova, então sempre pergunta o gasto ao MARCAR
+      // Cada ocorrência é nova, então sempre abre a conclusão ao MARCAR
       // (nunca ao desmarcar, que só remove o registro).
       const completions = cleaningTasksData.completions;
       const already = completions.some(
@@ -1707,7 +1792,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           ((row.logId && c.logId === row.logId) || (row.reservationId && c.reservationId === row.reservationId)),
       );
       if (!already) {
-        setExpensePrompt({ kind: "cleaning", task, row });
+        setResolvePrompt({ kind: "cleaning", task, row });
         return;
       }
       toggleCleaningTaskMutation.mutate({ taskId: task.id, logId: row.logId, reservationId: row.reservationId });
@@ -2629,52 +2714,12 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               onSetStatus={requestSetTaskStatus}
             />
 
-            <AlertDialog open={!!expensePrompt} onOpenChange={(v) => !v && closeExpensePrompt()}>
-              <AlertDialogContent className="sm:max-w-sm">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Teve gasto nessa tarefa?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    "{expensePrompt?.task.title}" não tem um valor registrado. Quer anotar quanto foi gasto?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setExpenseHasCost(false)}
-                    className={`flex-1 text-xs font-semibold py-2 rounded-lg border transition-colors ${
-                      !expenseHasCost ? "border-foreground/30 bg-secondary" : "border-border text-muted-foreground"
-                    }`}
-                  >
-                    Não
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setExpenseHasCost(true)}
-                    className={`flex-1 text-xs font-semibold py-2 rounded-lg border transition-colors ${
-                      expenseHasCost
-                        ? "border-transparent text-white bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE]"
-                        : "border-border text-muted-foreground"
-                    }`}
-                  >
-                    Sim, teve gasto
-                  </button>
-                </div>
-                {expenseHasCost && (
-                  <div>
-                    <label className="text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground mb-1 block">
-                      Valor gasto
-                    </label>
-                    <MoneyInput cents={expenseCents} onChange={setExpenseCents} placeholder="0,00" />
-                  </div>
-                )}
-                <AlertDialogFooter>
-                  <AlertDialogCancel onClick={closeExpensePrompt}>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={confirmExpensePrompt}>
-                    {expenseHasCost ? "Salvar e concluir" : "Concluir"}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <TaskResolveDialog
+              state={resolvePrompt}
+              onOpenChange={(v) => !v && closeResolvePrompt()}
+              providers={taskLinkOptionsQ.data?.providers ?? []}
+              onConfirm={confirmResolve}
+            />
           </section>
         </>
       ) : null}
@@ -3809,6 +3854,188 @@ function PendenciasButton({ count, onClick }: { count: number; onClick: () => vo
   );
 }
 
+/**
+ * Conclusão de pendência com prestação de contas (pedido explícito,
+ * 07/09/2026): quem resolveu, quanto custou e a comprovação. Os três são
+ * OPCIONAIS — o botão "Concluir" funciona com tudo em branco, que é o
+ * comportamento que existia antes.
+ */
+function TaskResolveDialog({
+  state,
+  onOpenChange,
+  providers,
+  onConfirm,
+}: {
+  state: { kind: "status" | "cleaning"; task: TaskRow } | null;
+  onOpenChange: (v: boolean) => void;
+  providers: TaskLinkProvider[];
+  onConfirm: (v: {
+    amountSpentCents: number | null;
+    providerId: string | null;
+    note: string | null;
+    files: PendingAttachment[];
+  }) => Promise<void>;
+}) {
+  const [providerId, setProviderId] = useState<string | null>(null);
+  const [cents, setCents] = useState<number | null>(null);
+  const [note, setNote] = useState("");
+  const [files, setFiles] = useState<PendingAttachment[]>([]);
+  const [saving, setSaving] = useState(false);
+  const task = state?.task;
+
+  // Reabrir o diálogo pra outra pendência não pode herdar o que foi digitado
+  // na anterior.
+  useEffect(() => {
+    if (!state) return;
+    setProviderId(null);
+    setCents(state.task.amountSpentCents ?? null);
+    setNote("");
+    setFiles([]);
+    setSaving(false);
+  }, [state?.task.id, state?.kind]);
+
+  async function submit() {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await onConfirm({
+        amountSpentCents: cents,
+        providerId,
+        note: note.trim() || null,
+        files,
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não consegui concluir a pendência.");
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={!!state} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border-border/60 p-0 sm:w-full sm:max-w-md">
+        <DialogHeader className="border-b border-border/50 px-4 pb-3 pt-4">
+          <DialogTitle className="text-[15px] font-display">Concluir pendência</DialogTitle>
+          <p className="ds-meta mt-0.5 truncate">{task?.title}</p>
+          {(task?.propertyName || task?.ownerName) && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {task?.propertyName && (
+                <span className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-secondary/40 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                  <Home className="size-3 shrink-0" />
+                  <span className="max-w-[9rem] truncate text-foreground/80">{task.propertyName}</span>
+                </span>
+              )}
+              {task?.ownerName && (
+                <span className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-secondary/40 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                  <User className="size-3 shrink-0" />
+                  <span className="max-w-[9rem] truncate text-foreground/80">{task.ownerName}</span>
+                </span>
+              )}
+            </div>
+          )}
+        </DialogHeader>
+
+        <div className="sg-elegant-scroll max-h-[58vh] space-y-4 overflow-y-auto px-4 py-3.5">
+          <div>
+            <div className="ds-eyebrow mb-1.5 flex items-center gap-1.5">
+              Quem resolveu <span className="font-normal normal-case tracking-normal opacity-70">opcional</span>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {providers.map((p) => {
+                const on = providerId === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setProviderId(on ? null : p.id)}
+                    className={`flex items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left transition-colors ${
+                      on ? "border-emerald-500/45 bg-emerald-500/[0.07]" : "border-border/60 bg-card hover:bg-secondary/40"
+                    }`}
+                  >
+                    <span
+                      className={`grid size-7 shrink-0 place-items-center rounded-full border text-[10px] font-bold ${
+                        on
+                          ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                          : "border-border/60 bg-secondary/50 text-muted-foreground"
+                      }`}
+                    >
+                      {p.name.slice(0, 2).toUpperCase()}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[12.5px] font-semibold">{p.name}</span>
+                      {p.categories.length > 0 && (
+                        <span className="block truncate text-[10px] capitalize text-muted-foreground">
+                          {p.categories.join(" · ")}
+                        </span>
+                      )}
+                    </span>
+                    {on && <CheckCircle2 className="size-4 shrink-0 text-emerald-500" />}
+                  </button>
+                );
+              })}
+              {providers.length === 0 && (
+                <p className="rounded-lg border border-dashed border-border/60 px-2.5 py-2 text-[11px] text-muted-foreground">
+                  Nenhum prestador ativo cadastrado — a conclusão segue normalmente sem isso.
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <div className="ds-eyebrow mb-1.5 flex items-center gap-1.5">
+              Quanto custou <span className="font-normal normal-case tracking-normal opacity-70">opcional</span>
+            </div>
+            <MoneyInput cents={cents} onChange={setCents} placeholder="0,00" />
+          </div>
+
+          <div>
+            <div className="ds-eyebrow mb-1.5">Comprovação</div>
+            <AttachmentPicker files={files} onChange={setFiles} disabled={saving} />
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={2}
+              placeholder="Como foi resolvido…"
+              className="mt-2 w-full resize-none rounded-lg border border-border bg-background px-2.5 py-2 text-xs outline-none placeholder:text-muted-foreground focus:border-primary/40"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 border-t border-border/50 px-4 py-3">
+          {saving && <AttachmentsSending count={files.length} />}
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            disabled={saving}
+            className="rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground disabled:opacity-50"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={saving}
+            className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] px-4 py-2 text-xs font-bold text-white disabled:opacity-60"
+          >
+            {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
+            Concluir
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Rótulo de seção do formulário de pendência — dá hierarquia ao que antes
+ * era uma pilha de campos do mesmo tamanho (pedido explícito, 07/09/2026). */
+function TaskFormGroup({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2 pt-1">
+      <span className="text-[9.5px] font-extrabold uppercase tracking-[0.12em] text-muted-foreground">{label}</span>
+      <span className="h-px flex-1 bg-border/70" />
+    </div>
+  );
+}
+
 const TASK_CATEGORY_LABEL: Record<TaskCategory, string> = {
   maintenance: "Manutenção",
   financial: "Financeiro",
@@ -3904,7 +4131,11 @@ function TasksDialog({
   const [showInCleaning, setShowInCleaning] = useState(false);
   const [propertyId, setPropertyId] = useState<string>("");
   const [ownerContactId, setOwnerContactId] = useState<string>("");
-  const [amountSpentCents, setAmountSpentCents] = useState<number | null>(null);
+  const [files, setFiles] = useState<PendingAttachment[]>([]);
+  /** A chave "mostrar/ocultar na limpeza" segue o padrão da categoria até a
+   * pessoa mexer nela — depois disso a escolha manual manda. */
+  const [cleaningTouched, setCleaningTouched] = useState(false);
+  const attachFn = useServerFn(attachTaskRecord);
   const [recurrenceOn, setRecurrenceOn] = useState(false);
   const [recurrenceDays, setRecurrenceDays] = useState(30);
   const [titleComboOpen, setTitleComboOpen] = useState(false);
@@ -3933,10 +4164,11 @@ function TasksDialog({
     setCategory("other");
     setPriority("medium");
     setDueDate("");
-    setShowInCleaning(false);
+    setShowInCleaning(defaultShowInCleaning("other"));
+    setCleaningTouched(false);
     setPropertyId("");
     setOwnerContactId("");
-    setAmountSpentCents(null);
+    setFiles([]);
     setRecurrenceOn(false);
     setRecurrenceDays(30);
   }
@@ -3951,7 +4183,7 @@ function TasksDialog({
       return;
     }
     try {
-      await onCreate({
+      const created = await onCreate({
         title: title.trim(),
         description: description.trim() || null,
         category,
@@ -3960,9 +4192,21 @@ function TasksDialog({
         showInCleaning,
         propertyId: propertyId || null,
         ownerContactId: ownerContactId || null,
-        amountSpentCents,
+        // "Valor" saiu da criação (pedido explícito): na hora de abrir quase
+        // nunca se sabe quanto vai custar — ele é perguntado na conclusão.
+        amountSpentCents: null,
         recurrenceDays: recurrenceOn ? recurrenceDays : null,
       });
+      // Anexos só sobem depois que a pendência existe — antes disso não há
+      // id pra vincular, e desistir no meio não pode deixar arquivo órfão.
+      if (files.length > 0 && created?.id && propertyId) {
+        const res = await uploadPendingAttachments(attachFn, files, {
+          propertyId,
+          taskId: created.id,
+          isResolution: false,
+        });
+        if (res.failed > 0) toast.error(`${res.failed} anexo(s) não subiram. A pendência foi criada.`);
+      }
       resetForm();
       setShowForm(false);
     } catch {
@@ -4070,35 +4314,16 @@ function TasksDialog({
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
               maxLength={1000}
-              placeholder="Descrição (opcional)"
+              placeholder="Detalhes (opcional)"
               className="w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs"
             />
-            <div className="grid grid-cols-2 gap-2">
-              <Select value={category} onValueChange={(v) => setCategory(v as TaskCategory)}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(TASK_CATEGORY_LABEL) as TaskCategory[]).map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {TASK_CATEGORY_LABEL[c]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={priority} onValueChange={(v) => setPriority(v as TaskPriority)}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(TASK_PRIORITY_LABEL) as TaskPriority[]).map((p) => (
-                    <SelectItem key={p} value={p}>
-                      {TASK_PRIORITY_LABEL[p]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Pedido explícito (07/09/2026): abrir uma pendência de
+                manutenção com a foto do problema junto era o que faltava —
+                mesmos anexos dos registros da reserva. Os arquivos ficam
+                retidos até a pendência existir (ver TaskAttachments). */}
+            <AttachmentPicker files={files} onChange={setFiles} disabled={creating} />
+
+            <TaskFormGroup label="Onde" />
             <div className="grid grid-cols-2 gap-2">
               <Select
                 value={propertyId || "none"}
@@ -4140,12 +4365,69 @@ function TasksDialog({
                 </SelectContent>
               </Select>
             </div>
-            {linkMissing && (
+            {/* O aviso só aparece depois que a pessoa desfaz os dois
+                vínculos — antes ele nascia laranja na tela, parecendo erro
+                antes de qualquer ação. Abrindo pelo card, imóvel e
+                proprietário já vêm preenchidos. */}
+            {linkMissing ? (
               <p className="text-[11px] text-amber-600 dark:text-amber-400">
-                Vincule a um imóvel e/ou a um proprietário (obrigatório).
+                Escolha um imóvel e/ou um proprietário para continuar.
+              </p>
+            ) : (
+              <p className="text-[10.5px] text-muted-foreground">
+                Escolher o imóvel já traz o proprietário cadastrado dele.
               </p>
             )}
+
+            <TaskFormGroup label="Como tratar" />
+            {/* Prioridade vira três botões com cor semântica: é escolha entre
+                três, fica a um toque (o select pedia dois) e a cor comunica
+                antes da leitura. */}
+            <div className="flex gap-1.5">
+              {(Object.keys(TASK_PRIORITY_LABEL) as TaskPriority[]).map((p) => {
+                const on = priority === p;
+                const tone =
+                  p === "low"
+                    ? "border-emerald-500/50 bg-emerald-500/12 text-emerald-600 dark:text-emerald-400"
+                    : p === "medium"
+                      ? "border-amber-500/50 bg-amber-500/12 text-amber-600 dark:text-amber-400"
+                      : "border-rose-500/50 bg-rose-500/12 text-rose-600 dark:text-rose-400";
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPriority(p)}
+                    className={`flex-1 rounded-lg border py-1.5 text-[11.5px] font-semibold transition-colors ${
+                      on ? tone : "border-border/60 bg-card text-muted-foreground hover:bg-secondary/40"
+                    }`}
+                  >
+                    {TASK_PRIORITY_LABEL[p]}
+                  </button>
+                );
+              })}
+            </div>
             <div className="grid grid-cols-2 gap-2">
+              <Select
+                value={category}
+                onValueChange={(v) => {
+                  const next = v as TaskCategory;
+                  setCategory(next);
+                  // Enquanto a pessoa não mexer na chave, ela segue o padrão
+                  // da categoria (manutenção nasce visível pra limpeza).
+                  if (!cleaningTouched) setShowInCleaning(defaultShowInCleaning(next));
+                }}
+              >
+                <SelectTrigger className="h-[42px] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(TASK_CATEGORY_LABEL) as TaskCategory[]).map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {TASK_CATEGORY_LABEL[c]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Popover open={dueDatePopoverOpen} onOpenChange={setDueDatePopoverOpen}>
                 <PopoverTrigger asChild>
                   <button
@@ -4187,17 +4469,9 @@ function TasksDialog({
                   )}
                 </PopoverContent>
               </Popover>
-              <div className="h-[42px] rounded-lg border border-border bg-background px-2.5 flex flex-col justify-center">
-                <span className="text-[9px] uppercase tracking-wide text-muted-foreground font-semibold block">
-                  Valor (opcional)
-                </span>
-                <MoneyInput
-                  cents={amountSpentCents}
-                  onChange={setAmountSpentCents}
-                  placeholder="0,00"
-                />
-              </div>
             </div>
+
+            <TaskFormGroup label="Opções" />
             {!showInCleaning && (
               <div className="rounded-lg border border-border px-2.5 py-1.5 space-y-1.5">
                 <label className="flex items-center gap-2 text-xs cursor-pointer">
@@ -4220,10 +4494,37 @@ function TasksDialog({
                 )}
               </div>
             )}
-            <label className="flex items-center gap-2 text-xs cursor-pointer">
-              <Checkbox checked={showInCleaning} onCheckedChange={(v) => setShowInCleaning(!!v)} />
-              Aparece no checklist do card de Limpeza
-            </label>
+            {/* Pedido explícito (07/09/2026): MANUTENÇÃO já nasce visível
+                para a limpeza, e aí a chave serve pra OCULTAR; as demais
+                categorias nascem ocultas e a chave serve pra MOSTRAR. É a
+                mesma coluna no banco (`show_in_cleaning`) — o que muda é o
+                padrão e o sentido em que a pergunta é feita. */}
+            {(() => {
+              const isMaintenance = category === "maintenance";
+              const checked = isMaintenance ? !showInCleaning : showInCleaning;
+              return (
+                <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border/60 px-2.5 py-2 text-xs">
+                  <Checkbox
+                    className="mt-0.5"
+                    checked={checked}
+                    onCheckedChange={(v) => {
+                      setCleaningTouched(true);
+                      setShowInCleaning(isMaintenance ? !v : !!v);
+                    }}
+                  />
+                  <span className="min-w-0">
+                    <span className="block font-medium">
+                      {isMaintenance ? "Ocultar da limpeza" : "Mostrar na limpeza"}
+                    </span>
+                    <span className="block text-[10.5px] text-muted-foreground">
+                      {isMaintenance
+                        ? "Manutenção vai sozinha para a próxima limpeza do imóvel. Marque para deixá-la fora do checklist."
+                        : "Marque para esta pendência entrar no checklist da próxima limpeza do imóvel."}
+                    </span>
+                  </span>
+                </label>
+              );
+            })()}
             <div className="flex items-center justify-end gap-2 pt-1">
               <button
                 type="button"
@@ -5740,7 +6041,12 @@ function ArrivalGroup({
   compact?: boolean;
   /** Pendências pra exibir como checklist no card (só a coluna de Limpeza
    * repassa isso — ver arrivalGroupPropsFor). */
-  cleaningTasks?: { tasks: TaskRow[]; completions: TaskCompletion[] };
+  cleaningTasks?: {
+    tasks: TaskRow[];
+    completions: TaskCompletion[];
+    /** propertyId -> chave do card que é a PRÓXIMA limpeza daquele imóvel. */
+    nextCleaningKeyByProperty: Map<string, string>;
+  };
   onToggleCleaningTask?: (task: TaskRow, row: ArrivalRow) => void;
   /** Prefixo "RESERVA: " antes do código da reserva — pedido explícito, só
    * nos cards do Kanban (colunas/abas). O MESMO ArrivalCard também renderiza
@@ -5847,7 +6153,12 @@ function ArrivalCard({
       mesmos handlers; só a apresentação muda. */
   compact?: boolean;
   /** Checklist de pendências (só no modo "cleaning" — ver mais abaixo). */
-  cleaningTasks?: { tasks: TaskRow[]; completions: TaskCompletion[] };
+  cleaningTasks?: {
+    tasks: TaskRow[];
+    completions: TaskCompletion[];
+    /** propertyId -> chave do card que é a PRÓXIMA limpeza daquele imóvel. */
+    nextCleaningKeyByProperty: Map<string, string>;
+  };
   onToggleCleaningTask?: (task: TaskRow, row: ArrivalRow) => void;
   /** Prefixo "RESERVA: " antes do código — pedido explícito, só nos cards do
    * Kanban. Este mesmo ArrivalCard também aparece dentro de um popup de
@@ -5898,14 +6209,33 @@ function ArrivalCard({
         )
         .map((c) => c.taskId),
     );
+    // Pedido explícito (07/09/2026): as pendências abertas do imóvel vão
+    // TODAS para a PRÓXIMA limpeza dele — não mais "cada uma na limpeza da
+    // sua própria reserva" (que escondia a pendência de uma estadia já
+    // encerrada) nem "em toda limpeza" (que repetia a mesma pendência em
+    // vários cards ao mesmo tempo). Este card só mostra o checklist se ELE
+    // for a próxima limpeza do imóvel; a eleição é recalculada a cada
+    // carregamento (ver nextCleaningKeyByProperty), então uma reserva nova
+    // com limpeza mais próxima puxa a lista pra ela sozinha.
+    const thisKey = row.reservationId ?? row.logId;
+    const nextKey = cleaningTasks.nextCleaningKeyByProperty.get(row.propertyId);
+    if (!thisKey || !nextKey || thisKey !== nextKey) return [];
+
+    // Uma pendência concluída não deve seguir ocupando espaço nas limpezas
+    // seguintes, mas também não pode sumir no instante do clique — senão
+    // quem marcou por engano fica sem como desmarcar. Regra: em aberto
+    // sempre aparece; concluída só continua aparecendo na limpeza em que foi
+    // resolvida (marca desta ocorrência) ou nas primeiras 24h após a
+    // conclusão.
+    const DAY_MS = 86_400_000;
+    const stillVisibleWhenDone = (t: TaskRow) =>
+      completedHere.has(t.id) || (!!t.completedAt && Date.now() - new Date(t.completedAt).getTime() < DAY_MS);
+
     return cleaningTasks.tasks
       .filter((t) => t.showInCleaning && t.status !== "canceled")
-      .filter((t) =>
-        t.logId || t.reservationId
-          ? (!!t.logId && t.logId === row.logId) || (!!t.reservationId && !!row.reservationId && t.reservationId === row.reservationId)
-          : t.propertyId === row.propertyId,
-      )
-      .map((t) => ({ task: t, done: t.logId || t.reservationId ? t.status === "done" : completedHere.has(t.id) }));
+      .filter((t) => t.propertyId === row.propertyId)
+      .map((t) => ({ task: t, done: t.logId || t.reservationId ? t.status === "done" : completedHere.has(t.id) }))
+      .filter((it) => !it.done || stillVisibleWhenDone(it.task));
   }, [mode, cleaningTasks, row.logId, row.reservationId, row.propertyId]);
 
   const guestTime = row.arrivalTimeOverride ?? row.guestArrivalTime;
