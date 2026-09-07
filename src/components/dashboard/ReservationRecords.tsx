@@ -124,14 +124,15 @@ const CATEGORIES: CategoryMeta[] = [
 const CATEGORY_BY_KEY = new Map(CATEGORIES.map((c) => [c.key, c]));
 
 /**
- * A coluna SUGERE, nunca escolhe: a pessoa continua tendo que tocar na
- * categoria antes de a câmera abrir. Categorias que geram pendência
- * (dano/manutenção/objeto esquecido) NUNCA são sugeridas — marcar um
- * problema é sempre decisão consciente.
+ * Categoria usada como último recurso quando, por algum motivo, a escolha
+ * não chegou até o envio (a folha SEMPRE aparece antes da captura, então na
+ * prática isso não acontece).
+ *
+ * Pedido explícito (07/09/2026): NENHUMA categoria é sugerida/destacada na
+ * folha — a escolha é sempre 100% do usuário, sem viés visual. Antes
+ * "Observação / Outros" vinha marcada como sugerida.
  */
-function suggestedCategory(mode: CardMode): RecordCategory {
-  return mode === "cleaning" ? "cleaning_audit" : "other";
-}
+const FALLBACK_CATEGORY: RecordCategory = "other";
 
 /** Mesmo critério de statusTarget/resolveTarget (advanceArrival, markNoShow,
  * auto-checkout): `logId` só é um UUID real quando não é o placeholder
@@ -425,12 +426,10 @@ function RecordBlock({ group, onDelete }: { group: RecordGroup; onDelete: (id: s
 function CategorySheet({
   open,
   onOpenChange,
-  suggestion,
   onPick,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  suggestion: RecordCategory;
   onPick: (c: RecordCategory) => void;
 }) {
   return (
@@ -443,15 +442,12 @@ function CategorySheet({
         <div className="flex flex-col gap-1.5 px-3 pb-3.5">
           {CATEGORIES.map((c) => {
             const Icon = c.icon;
-            const isSuggested = c.key === suggestion;
             return (
               <button
                 key={c.key}
                 type="button"
                 onClick={() => onPick(c.key)}
-                className={`flex items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left transition-colors hover:bg-secondary/40 ${
-                  isSuggested ? "border-primary/45 bg-primary/[0.06]" : "border-border/60 bg-card"
-                }`}
+                className="flex items-center gap-2.5 rounded-xl border border-border/60 bg-card px-2.5 py-2 text-left transition-colors hover:bg-secondary/40"
               >
                 <span className={`grid size-8 shrink-0 place-items-center rounded-lg border ${c.tone}`}>
                   <Icon className="size-4" />
@@ -461,13 +457,8 @@ function CategorySheet({
                   <span className="block truncate text-[10.5px] text-muted-foreground">{c.hint}</span>
                 </span>
                 {c.createsTask && (
-                  <span className="shrink-0 rounded px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wider text-[#E82DAE] bg-[#E82DAE]/10">
+                  <span className="shrink-0 rounded bg-[#E82DAE]/10 px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wider text-[#E82DAE]">
                     pendência
-                  </span>
-                )}
-                {!c.createsTask && isSuggested && (
-                  <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wider text-primary">
-                    sugerida
                   </span>
                 )}
               </button>
@@ -602,12 +593,12 @@ function ReservationRecordsDialog({
     e.target.value = "";
     if (!f) return;
     // A categoria já foi escolhida na folha, antes da câmera abrir.
-    const category = pickedCategory ?? suggestedCategory(mode);
+    const category = pickedCategory ?? FALLBACK_CATEGORY;
     await uploadAndAttach(f, category, { name: f.name, mime: f.type });
   }
 
   async function onAudioRecorded(audio: RecordedAudio) {
-    const category = pickedCategory ?? suggestedCategory(mode);
+    const category = pickedCategory ?? FALLBACK_CATEGORY;
     const filename = `audio-${Date.now()}.${audio.mime.includes("mp4") ? "m4a" : "webm"}`;
     setRecordingAudio(false);
     await uploadAndAttach(audio.blob, category, {
@@ -839,7 +830,6 @@ function ReservationRecordsDialog({
           setSheetOpen(v);
           if (!v) setPendingAction(null);
         }}
-        suggestion={suggestedCategory(mode)}
         onPick={handlePickCategory}
       />
     </>

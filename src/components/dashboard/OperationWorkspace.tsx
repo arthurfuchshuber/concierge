@@ -364,10 +364,17 @@ function InfoHint({ title, children }: { title?: string; children: React.ReactNo
 }
 
 /**
- * Alterna "Completo" / "Lista" — pedido explícito para facilitar a
- * visualização dentro dos popups de card (4 KPIs do Dashboard) e do
- * tooltip "quais imóveis" da Limpeza. Puramente visual: quem controla o
- * estado é o componente pai (via `value`/`onChange`).
+ * Alterna "Completo" / "Lista" — usado no Kanban, nos popups dos 4 KPIs do
+ * Dashboard e no tooltip "quais imóveis" da Limpeza. Puramente visual: quem
+ * controla o estado é o componente pai (via `value`/`onChange`).
+ *
+ * Pedido explícito (07/09/2026): era um par de botões com rótulo
+ * ("Completo" / "Lista"); virou UM botão só, com UM ícone, que alterna a
+ * cada toque. O ícone mostrado é o do modo PARA ONDE o toque leva (em modo
+ * Lista aparece a grade, e vice-versa), com o título explicando a ação —
+ * assim o botão sempre responde "o que acontece se eu clicar", que é a
+ * pergunta que importa num controle de estado único. Mesmo formato/curva do
+ * botão de print ao lado, pra lerem como um par.
  */
 function ViewModeToggle({
   value,
@@ -376,31 +383,19 @@ function ViewModeToggle({
   value: "full" | "list";
   onChange: (v: "full" | "list") => void;
 }) {
+  const goingToList = value === "full";
+  const Icon = goingToList ? LayoutList : LayoutGrid;
+  const label = goingToList ? "Ver em modo lista" : "Ver em modo completo";
   return (
-    // Mesma curva padrão (0.3rem) usada nos demais cards/quadrantes do app
-    // (pedido explícito) — antes era rounded-md (6px), destoando do resto.
-    <div className="inline-flex items-center rounded-[0.3rem] border border-border/60 bg-secondary/30 p-0.5 text-[11px]">
-      <button
-        type="button"
-        onClick={() => onChange("full")}
-        className={`inline-flex items-center gap-1 rounded-[0.2rem] px-2 py-1 transition-colors ${
-          value === "full" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-        }`}
-      >
-        <LayoutGrid className="size-3" />
-        Completo
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange("list")}
-        className={`inline-flex items-center gap-1 rounded-[0.2rem] px-2 py-1 transition-colors ${
-          value === "list" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-        }`}
-      >
-        <LayoutList className="size-3" />
-        Lista
-      </button>
-    </div>
+    <button
+      type="button"
+      onClick={() => onChange(goingToList ? "list" : "full")}
+      title={label}
+      aria-label={label}
+      className="inline-flex items-center justify-center rounded-[0.3rem] border border-border/60 bg-secondary/30 p-1.5 text-muted-foreground transition-colors hover:bg-secondary/50 hover:text-foreground"
+    >
+      <Icon className="size-3" />
+    </button>
   );
 }
 
@@ -2312,16 +2307,17 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     onClearAll={clearAllFilters}
                   />
                   <PendenciasButton count={openTasksCount} onClick={() => setPendenciasOpen(true)} />
-                  {/* Mesmos botões do desktop (ver acima), à direita de
-                      Filtros/Pendências. No mobile o print captura só a aba
+                  {/* Pedido explícito (07/09/2026): print e alternador ficam
+                      encostados na BORDA DIREITA da linha (ml-auto), com
+                      Filtros/Pendências à esquerda — antes os quatro ficavam
+                      amontoados à esquerda. No mobile o print captura só a aba
                       ativa (kanbanMobileScreenshotRef, ancorado no wrapper do
                       conteúdo da aba, mais abaixo) — as outras colunas nem
                       estão montadas na tela pra fotografar. */}
-                  <ScreenshotButton
-                    targetRef={kanbanMobileScreenshotRef}
-                    fileName={`kanban-${mobileTab}`}
-                  />
-                  <ViewModeToggle value={kanbanListMode} onChange={setKanbanListMode} />
+                  <div className="ml-auto flex shrink-0 items-center gap-1">
+                    <ScreenshotButton targetRef={kanbanMobileScreenshotRef} fileName={`kanban-${mobileTab}`} />
+                    <ViewModeToggle value={kanbanListMode} onChange={setKanbanListMode} />
+                  </div>
                 </div>
                 {/* Wrapper relative só pra ancorar o degrade — regra
                     "anti-corte" (peek): a barra continua rolável igual antes,
