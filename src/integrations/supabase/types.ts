@@ -4435,6 +4435,84 @@ export type Database = {
         }
         Relationships: []
       }
+      reservation_records: {
+        Row: {
+          body: string | null
+          card_mode: string | null
+          category: string
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          duration_ms: number | null
+          file_name: string | null
+          id: string
+          is_resolution: boolean
+          kind: string
+          log_id: string | null
+          mime: string | null
+          property_id: string
+          reservation_id: string | null
+          size_bytes: number | null
+          storage_path: string | null
+          task_id: string | null
+        }
+        Insert: {
+          body?: string | null
+          card_mode?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          duration_ms?: number | null
+          file_name?: string | null
+          id?: string
+          is_resolution?: boolean
+          kind: string
+          log_id?: string | null
+          mime?: string | null
+          property_id: string
+          reservation_id?: string | null
+          size_bytes?: number | null
+          storage_path?: string | null
+          task_id?: string | null
+        }
+        Update: {
+          body?: string | null
+          card_mode?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          duration_ms?: number | null
+          file_name?: string | null
+          id?: string
+          is_resolution?: boolean
+          kind?: string
+          log_id?: string | null
+          mime?: string | null
+          property_id?: string
+          reservation_id?: string | null
+          size_bytes?: number | null
+          storage_path?: string | null
+          task_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_records_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_records_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_providers: {
         Row: {
           account_owner_id: string
@@ -5002,6 +5080,8 @@ export type Database = {
           property_id: string | null
           recurrence_days: number | null
           reservation_id: string | null
+          resolution_note: string | null
+          resolved_by_provider_id: string | null
           show_in_cleaning: boolean
           status: string
           title: string
@@ -5023,6 +5103,8 @@ export type Database = {
           property_id?: string | null
           recurrence_days?: number | null
           reservation_id?: string | null
+          resolution_note?: string | null
+          resolved_by_provider_id?: string | null
           show_in_cleaning?: boolean
           status?: string
           title: string
@@ -5044,6 +5126,8 @@ export type Database = {
           property_id?: string | null
           recurrence_days?: number | null
           reservation_id?: string | null
+          resolution_note?: string | null
+          resolved_by_provider_id?: string | null
           show_in_cleaning?: boolean
           status?: string
           title?: string
@@ -5062,6 +5146,13 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_resolved_by_provider_id_fkey"
+            columns: ["resolved_by_provider_id"]
+            isOneToOne: false
+            referencedRelation: "service_providers"
             referencedColumns: ["id"]
           },
         ]

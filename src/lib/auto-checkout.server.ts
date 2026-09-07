@@ -94,13 +94,27 @@ export async function runAutoCheckoutScan(admin: Admin, now: Date = new Date()) 
   let failed = 0;
 
   for (const r of pending) {
-    const predictedTime = r.arrivalTimeOverride ?? r.guestArrivalTime;
-    const hm = parseHm(predictedTime);
+    // IMPORTANTE: só o horário PREVISTO DE SAÍDA definido pelo anfitrião
+    // (`arrivalTimeOverride` da linha de checkout) dispara a confirmação
+    // automática. `guestArrivalTime` é o horário de CHEGADA informado pelo
+    // hóspede no formulário de check-in — usá-lo aqui confirmava saídas que
+    // ninguém confirmou e ainda acionava a limpeza.
+    const hm = parseHm(r.arrivalTimeOverride);
     if (!hm) continue; // sem horário previsto definido: confirmação continua manual
 
     const [y, mo, d] = r.date.split("-").map(Number);
     if (!y || !mo || !d) continue;
     const tz = tzByProperty.get(r.propertyId) ?? "America/Sao_Paulo";
+    // Checkouts atrasados de dias anteriores (a lista "today" inclui até
+    // OVERDUE_WINDOW_DAYS para trás) continuam pendentes de confirmação
+    // manual — a automação só age no próprio dia previsto.
+    const todayLocal = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(now);
+    if (r.date !== todayLocal) continue;
     const predictedAt = zonedTimeToUtc(y, mo, d, hm[0], hm[1], tz);
     if (predictedAt.getTime() > nowMs) continue; // ainda não chegou o horário previsto
 
