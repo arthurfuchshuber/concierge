@@ -62,6 +62,7 @@ import {
   Download,
   Repeat,
   UserX,
+  Ban,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, parse, isValid, differenceInCalendarDays } from "date-fns";
