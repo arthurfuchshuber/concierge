@@ -1105,6 +1105,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       return;
     }
     setBusyRowId(row.logId);
+    // Ação de esteira: o card não fica mais preso na lista aberta.
+    unpinRow(row.logId);
+
     // Cancela buscas em andamento ANTES do patch otimista: sem isso, uma
     // recarga já disparada (30s/foco) podia terminar depois do clique e
     // reescrever o cache com o estado antigo — o card "voltava" e só sumia na
