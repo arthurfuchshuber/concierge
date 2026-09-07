@@ -3009,23 +3009,6 @@ function OnboardingArrivalHeader({
 }
 
 /** Card de senha ainda bloqueada — cinza, sem valor, cadeado à direita. */
-function OnboardingLockedCard({ icon, name, detail }: { icon: string; name: string; detail: string }) {
-  return (
-    <div className="rounded-[14px] border border-border bg-background/40 px-3 py-2.5 mb-2 flex items-center gap-2.5 opacity-60">
-      <span className="size-8 rounded-[10px] bg-secondary border border-border grid place-items-center text-[14px]">
-        {icon}
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="text-[12.5px] font-bold text-muted-foreground">{name}</div>
-        <div className="text-[10.5px] text-muted-foreground/80 [text-wrap:auto]">{detail}</div>
-      </div>
-      <span aria-hidden className="text-[13px] leading-none">
-        🔒
-      </span>
-    </div>
-  );
-}
-
 function OnboardingPasswordCard({
   icon,
   name,
@@ -3507,61 +3490,63 @@ function PostAccessOnboarding({
                     onToggle={() => setOpenPwd((k) => (k === "wifi" ? null : "wifi"))}
                   />
                 )}
+                {/* O portão era exibido aqui como OnboardingLockedCard — um
+                    cartão SEM caminho de revelação nenhum, com o aviso fixo
+                    "Libera junto com a fechadura, às {checkin}". Resultado: a
+                    senha do portão nunca ficava disponível nesta etapa, em
+                    nenhum horário, e o aviso ainda prometia uma liberação que
+                    o componente não sabia fazer. Pior em imóvel sem fechadura
+                    cadastrada (ex.: Studio 105), onde a mensagem apontava para
+                    uma fechadura inexistente. Agora ele é um cartão igual aos
+                    outros dois — mesma revelação por 👁, mesmo requestUnlock,
+                    mesma janela de senhas do resto do guia. */}
                 {gateCode && (
-                  <OnboardingLockedCard
+                  <OnboardingPasswordCard
                     icon="🚪"
                     name={(gateLabel || "").trim() || "Portão da garagem"}
-                    detail={
-                      checkinTime ? `Libera junto com a fechadura, às ${checkinTime}` : "Libera junto com a fechadura"
-                    }
+                    value={gateCode}
+                    ready
+                    requestUnlock={requestUnlock}
+                    onRevealed={() => markPasswordsSeen("gate")}
+                    expanded={openPwd === "gate"}
+                    onToggle={() => setOpenPwd((k) => (k === "gate" ? null : "gate"))}
                   />
                 )}
               </div>
 
-              <div className="rounded-[15px] border border-[#a855f7]/25 bg-[#a855f7]/10 p-3.5 flex items-start gap-2.5 mt-1 mb-4">
+              {/* Antes eram 4 parágrafos explicando janela de liberação,
+                  código de visualização e regra do portão — informação demais
+                  para uma etapa que o hóspede só quer atravessar. Ficou uma
+                  frase: o que fazer (tocar no 👁) e até quando as senhas
+                  valem. */}
+              <div className="rounded-[15px] border border-[#a855f7]/25 bg-[#a855f7]/10 p-3 flex items-start gap-2.5 mt-1 mb-4">
                 <span className="text-[14px] leading-none mt-0.5">🔐</span>
-                <div className="flex-1 text-[12.5px] leading-[1.5] text-foreground/85 [text-wrap:auto] space-y-1.5">
-                  <p>
-                    <b className="text-foreground">Quando cada senha fica disponível:</b>
-                  </p>
-                  <p>
-                    • As senhas ficam liberadas para visualização a partir de{" "}
-                    <b className="text-foreground">24 horas antes do seu check-in</b>
-                    {checkinTime ? (
-                      <>
-                        {" "}
-                        (previsto para as <b className="text-foreground">{checkinTime}</b>)
-                      </>
-                    ) : null}
-                    , e deixam de ser exibidas assim que o check-out for concluído
-                    {checkoutTime ? (
-                      <>
-                        {" "}
-                        (às <b className="text-foreground">{checkoutTime}</b>)
-                      </>
-                    ) : null}
-                    .
-                  </p>
+                <p className="flex-1 text-[12.5px] leading-[1.5] text-foreground/85 [text-wrap:auto]">
                   {hasAccessPin ? (
-                    <p>
-                      • O seu anfitrião cadastrou um{" "}
-                      <b className="text-foreground">código de visualização</b>: toque em 👁 e informe esse código para
-                      revelar cada valor. Se você ainda não o recebeu,{" "}
-                      <b className="text-foreground">solicite diretamente ao anfitrião</b>.
-                    </p>
+                    <>
+                      Toque em 👁 e informe o <b className="text-foreground">código de visualização</b> do anfitrião —
+                      as senhas valem até o check-out
+                      {checkoutTime ? (
+                        <>
+                          {" "}
+                          (às <b className="text-foreground">{checkoutTime}</b>)
+                        </>
+                      ) : null}
+                      .
+                    </>
                   ) : (
-                    <p>
-                      • Não há código de visualização neste imóvel: basta tocar em 👁 para revelar cada valor. Ele
-                      continua oculto até você pedir, protegendo a senha caso o link fique com outra pessoa.
-                    </p>
+                    <>
+                      Toque em 👁 para revelar cada senha — elas ficam ocultas até você pedir e valem até o check-out
+                      {checkoutTime ? (
+                        <>
+                          {" "}
+                          (às <b className="text-foreground">{checkoutTime}</b>)
+                        </>
+                      ) : null}
+                      .
+                    </>
                   )}
-                  {gateCode ? (
-                    <p>
-                      • O <b className="text-foreground">{(gateLabel || "").trim() || "Portão da garagem"}</b> é liberado
-                      junto com a fechadura{checkinTime ? `, às ${checkinTime}` : ""}.
-                    </p>
-                  ) : null}
-                </div>
+                </p>
               </div>
 
 
