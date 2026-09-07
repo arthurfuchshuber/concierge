@@ -1836,6 +1836,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         const prevDate = row.arrivalDateOverride ?? null;
         const prevTime = row.arrivalTimeOverride ?? null;
         setBusyRowId(row.logId);
+        pinRow(row.logId);
+
         patchList(colKind, (rows: ArrivalRow[]) =>
           rows.map((r) =>
             r.logId === row.logId ? { ...r, arrivalDateOverride: null, arrivalTimeOverride: null } : r,
