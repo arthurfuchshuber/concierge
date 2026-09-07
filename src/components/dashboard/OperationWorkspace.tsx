@@ -1058,6 +1058,25 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     [qc],
   );
 
+  /**
+   * Cards "fixados" no popup aberto: SÓ ajustes de data/horário previsto
+   * seguram o card na lista até o usuário fechar o popup no "X". Qualquer
+   * outra ação (check, não compareceu, limpeza não será realizada, desfazer)
+   * tira o card da tela na hora.
+   */
+  const [pinnedRowIds, setPinnedRowIds] = useState<ReadonlySet<string>>(() => new Set());
+  const pinRow = useCallback((id: string) => {
+    setPinnedRowIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+  }, []);
+  const unpinRow = useCallback((id: string) => {
+    setPinnedRowIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }, []);
+
   const optimisticMove = useCallback(
     (row: ArrivalRow, from: "checkin" | "stay" | "checkout" | "cleaning" | "done") => {
       const id = row.logId;
@@ -1072,6 +1091,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     },
     [patchList],
   );
+
 
   function runAdvance(
     row: ArrivalRow,
