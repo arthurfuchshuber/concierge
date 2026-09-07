@@ -1816,6 +1816,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       onEditPredictedDate: (row: ArrivalRow, date: string | null) => {
         const prev = row.arrivalDateOverride ?? null;
         setBusyRowId(row.logId);
+        pinRow(row.logId);
+
         // Otimista, mesmo racional do handleEditTime/optimisticMove.
         patchList(colKind, (rows: ArrivalRow[]) =>
           rows.map((r) => (r.logId === row.logId ? { ...r, arrivalDateOverride: date } : r)),
