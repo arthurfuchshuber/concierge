@@ -3048,6 +3048,9 @@ function KpiCard({
    * gradiente âmbar + acento lateral + ícone em caixinha, sem negrito.
    * Não afeta nenhum outro uso do KpiCard (compact ou não). */
   highlight?: "amber";
+  /** Cards que devem continuar visíveis no popup mesmo que já não pertençam
+   * mais à lista — hoje só os que tiveram HORÁRIO/DATA PREVISTOS ajustados. */
+  pinnedIds?: ReadonlySet<string>;
   /** Pedido explícito: os cards dentro do popup precisam ficar IDÊNTICOS ao
    * card do Kanban — em vez de manter uma segunda implementação (que já
    * divergiu do Kanban antes, ver o bug do bloqueio de check-in), o popup
@@ -3061,44 +3064,40 @@ function KpiCard({
   // gatilho (compact/highlight) do card em si, que já usa a prop `compact`
   // pra outra coisa (faixa fina vs. quadrado).
   const [listMode, setListMode] = useState<"full" | "list">("list");
-  // "Congela" QUAIS cards aparecem (e em que ordem) assim que o popup termina
-  // de carregar (pedido explícito, 05/09/2026): sem isso, editar a
-  // data/horário previsto de UM card dentro deste popup (ex.: "Check-ins
-  // amanhã") faz o card sumir da lista NA HORA, assim que o commit é
-  // confirmado — mesmo com o popup ainda aberto — porque `rows` vem direto
-  // da mesma query reativa do Kanban, que já reflete o novo valor. O usuário
-  // quer o oposto: o card só deve mesmo sair desta lista depois que ELE
-  // FECHAR o popup inteiro (botão "X") e abrir de novo.
+  // A lista do popup é AO VIVO: qualquer ação de esteira (check, "não
+  // compareceu", "limpeza não será realizada", desfazer) tira o card da tela
+  // na hora do clique.
   //
-  // Importante: só a PRESENÇA/ORDEM fica travada — os campos de cada card
-  // (a própria data/horário que acabou de ser editada, notas, status etc.)
-  // continuam vindo ao vivo de `rows` enquanto o card ainda existir lá, pra
-  // o usuário ver a confirmação de que o ajuste realmente salvou, em vez do
-  // campo "voltar" pro valor antigo até fechar o popup.
+  // Única exceção (pedido explícito): ajustar DATA/HORÁRIO PREVISTOS não pode
+  // fazer o card sumir no meio da edição — esses cards ficam "presos" na
+  // lista (via `pinnedIds`, na mesma posição em que estavam quando o popup
+  // abriu) até o usuário fechar o popup no "X".
   const [frozenSnapshot, setFrozenSnapshot] = useState<Map<string, ArrivalRow> | null>(null);
   useEffect(() => {
     if (!open) {
-      // Fechou (ou ainda não abriu): solta o congelamento, pra próxima
-      // abertura tirar uma "foto" nova, já atualizada.
+      // Fechou (ou ainda não abriu): solta a "foto", pra próxima abertura
+      // tirar uma nova, já atualizada.
       setFrozenSnapshot(null);
       return;
     }
-    // Só tira a "foto" DEPOIS que o carregamento (onRefresh, disparado ao
-    // abrir) termina — assim o popup sempre abre com o dado mais recente, e
-    // só a partir daí fica imune a cards somendo/aparecendo em segundo plano.
     if (!loading && frozenSnapshot === null) {
       setFrozenSnapshot(new Map(rows.map((r) => [r.logId, r] as const)));
     }
   }, [open, loading, rows, frozenSnapshot]);
   const displayRows = useMemo(() => {
-    if (!frozenSnapshot) return rows;
-    const liveById = new Map(rows.map((r) => [r.logId, r] as const));
-    // Prefere a versão AO VIVO (campos atualizados) de cada card que ainda
-    // existe em `rows`; só cai pra "foto" congelada se o card tiver
-    // desaparecido de vez da fonte (aí é melhor mostrar o último estado
-    // conhecido do que sumir da lista no meio da sessão).
-    return Array.from(frozenSnapshot.keys()).map((id) => liveById.get(id) ?? frozenSnapshot.get(id)!);
-  }, [frozenSnapshot, rows]);
+    if (!frozenSnapshot || !pinnedIds || pinnedIds.size === 0) return rows;
+    const liveIds = new Set(rows.map((r) => r.logId));
+    const out = [...rows];
+    let idx = 0;
+    for (const id of frozenSnapshot.keys()) {
+      if (!liveIds.has(id) && pinnedIds.has(id)) {
+        out.splice(Math.min(idx, out.length), 0, frozenSnapshot.get(id)!);
+      }
+      idx++;
+    }
+    return out;
+  }, [frozenSnapshot, rows, pinnedIds]);
+
   const list = useWholeCardsMaxHeight(2, `${open}:${displayRows.length}:${loading}:${listMode}`);
   const screenshotRef = useRef<HTMLDivElement | null>(null);
   const valueTone = tone === "primary" ? "text-accent" : "text-foreground";
