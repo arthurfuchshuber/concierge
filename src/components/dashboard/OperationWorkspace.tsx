@@ -975,11 +975,18 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       reservationId?: string;
       from: "checkin" | "stay" | "checkout" | "cleaning";
       cleaningType?: "normal" | "completa";
+      skipCleaning?: boolean;
     }) => advanceFn({ data: v }),
+    // Sem debounce aqui: o card já se moveu de forma otimista no clique, e a
+    // recarga acontece assim que o servidor confirma — esperar 600s+ dava a
+    // impressão de que o botão "não respondia".
     onSuccess: () => {
-      refreshDashboard();
+      refreshDashboard(0);
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao avançar card."),
+    onError: (e) => {
+      toast.error(e instanceof Error ? e.message : "Falha ao avançar card.");
+      refreshDashboard(0);
+    },
     onSettled: () => setBusyRowId(null),
   });
 
