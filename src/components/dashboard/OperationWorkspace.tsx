@@ -1658,6 +1658,20 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         if (colMode === "done" || colMode === "no_show") return;
         handleAdvance(row, colMode as "checkin" | "stay" | "checkout" | "cleaning");
       },
+      // "Limpeza não será realizada" — conclui a estadia sem contabilizar
+      // nenhum valor de limpeza (só faz sentido na esteira de saída).
+      onSkipCleaning:
+        colMode === "checkout" || colMode === "stay" || colMode === "cleaning"
+          ? (row: ArrivalRow) => {
+              if (
+                !window.confirm(
+                  "Marcar que a limpeza NÃO será realizada? O card vai para Concluídos e o valor da limpeza não será contabilizado.",
+                )
+              )
+                return;
+              runAdvance(row, colMode as "stay" | "checkout" | "cleaning", undefined, true);
+            }
+          : undefined,
       onRevert:
         colMode === "checkin"
           ? undefined
