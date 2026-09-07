@@ -1268,6 +1268,21 @@ export async function runAdvanceArrival(
     }
     const cleaningStale = !!(checkoutDate && daysBetween(today, checkoutDate) > 1);
 
+    // "Limpeza não será realizada": conclui a estadia de qualquer etapa da
+    // esteira, sem snapshot de tipo/preço — o card vai para Concluídos e
+    // NÃO entra nos totais de limpeza (getCleaningStats exige cleaning_type).
+    if (data.skipCleaning) {
+      await upsertStatus("checkout", {
+        status: "done",
+        done_at: nowIso,
+        concluded_at: nowIso,
+        cleaning_type: null,
+        cleaning_price_cents: null,
+      });
+      await upsertStatus("checkin", { status: "done", done_at: nowIso, concluded_at: nowIso });
+      return { ok: true };
+    }
+
     // Bucket-aware progression.
     if (data.from === "checkin") {
       // Trava operacional: não é possível dar check-in num imóvel que ainda
