@@ -2025,6 +2025,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 // Azul claro enquanto houver pendência, verde quando zerar —
                 // mesmo tom "in"/"in-pending" usado no calendário.
                 shadowTone={checkinPendingRows.length > 0 ? "sky" : "emerald"}
+                pinnedIds={pinnedRowIds}
                 cardProps={arrivalGroupPropsFor("checkin", checkinPendingRows)}
               />
             </div>
@@ -2040,6 +2041,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 // Laranja (mesmo tom do "out" no calendário) enquanto houver
                 // pendência, verde quando zerar.
                 shadowTone={checkoutPendingRows.length > 0 ? "amber" : "emerald"}
+                pinnedIds={pinnedRowIds}
                 cardProps={arrivalGroupPropsFor("checkout", checkoutPendingRows)}
               />
             </div>
@@ -2052,6 +2054,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 loading={tomorrowCheckinListQ.isLoading}
                 onRefresh={() => tomorrowCheckinListQ.refetch()}
                 rangeLabel="Amanhã"
+                pinnedIds={pinnedRowIds}
                 cardProps={arrivalGroupPropsFor("checkin", tomorrowCheckinPendingRows)}
               />
             </div>
@@ -2064,6 +2067,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 loading={tomorrowCheckoutListQ.isLoading}
                 onRefresh={() => tomorrowCheckoutListQ.refetch()}
                 rangeLabel="Amanhã"
+                pinnedIds={pinnedRowIds}
                 cardProps={arrivalGroupPropsFor("checkout", tomorrowCheckoutPendingRows)}
               />
             </div>
@@ -2083,6 +2087,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   rangeLabel={rangeLabel[range]}
                   compact
                   highlight="amber"
+                  pinnedIds={pinnedRowIds}
                   cardProps={arrivalGroupPropsFor("cleaning", cleaningRows)}
                 />
               </div>
@@ -2135,6 +2140,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 loading={checkinListQ.isLoading}
                 onRefresh={() => checkinListQ.refetch()}
                 rangeLabel={rangeLabel[range]}
+                pinnedIds={pinnedRowIds}
                 cardProps={arrivalGroupPropsFor("stay", stayRows)}
               />
             </div>
