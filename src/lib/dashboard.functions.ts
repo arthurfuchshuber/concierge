@@ -1137,6 +1137,10 @@ const AdvanceInput = z
     // Opcional para não quebrar chamadas antigas/outros "from"; quando
     // ausente no avanço de limpeza, cai no fallback "normal".
     cleaningType: z.enum(["normal", "completa"]).optional(),
+    // "Limpeza não será realizada" (menu ⋮ do card): conclui a estadia
+    // direto, sem gravar tipo/preço de limpeza — assim o card sai da esteira
+    // sem entrar nos totais de "Limpezas Realizadas"/"Custo Total Limpeza".
+    skipCleaning: z.boolean().optional(),
   })
   .refine((v) => !!v.logId || !!v.reservationId, { message: "Informe a reserva ou o registro do hóspede." });
 
