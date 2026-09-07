@@ -1103,7 +1103,31 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       ...(cleaningType ? { cleaningType } : {}),
       ...(skipCleaning ? { skipCleaning: true } : {}),
     });
+    // Feedback padrão do produto: mensagem no topo + "Desfazer" por 5s.
+    const stageAfter: "stay" | "checkout" | "cleaning" | "done" = skipCleaning
+      ? "done"
+      : from === "checkin"
+        ? "stay"
+        : from === "stay"
+          ? "checkout"
+          : from === "checkout"
+            ? "cleaning"
+            : "done";
+    const message = skipCleaning
+      ? "Limpeza não será realizada — card concluído."
+      : from === "checkin"
+        ? "Check-in confirmado."
+        : from === "stay"
+          ? "Check-out confirmado."
+          : from === "checkout"
+            ? "Limpeza iniciada."
+            : "Limpeza concluída.";
+    notifyAction(message, () => {
+      setBusyRowId(row.logId);
+      revert.mutate({ ...target, from: stageAfter });
+    });
   }
+
 
   /**
    * Antecipar um card com data futura (ex.: "Checkouts amanhã") é uma ação
