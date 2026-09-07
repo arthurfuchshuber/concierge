@@ -62,8 +62,11 @@ import {
   Download,
   Repeat,
   UserX,
+  Ban,
 } from "lucide-react";
 import { toast } from "sonner";
+import { notifyAction } from "@/components/UndoActionBar";
+import { ReservationRecordsButton } from "@/components/dashboard/ReservationRecords";
 import { format, parse, isValid, differenceInCalendarDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
@@ -975,11 +978,18 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       reservationId?: string;
       from: "checkin" | "stay" | "checkout" | "cleaning";
       cleaningType?: "normal" | "completa";
+      skipCleaning?: boolean;
     }) => advanceFn({ data: v }),
+    // Sem debounce aqui: o card já se moveu de forma otimista no clique, e a
+    // recarga acontece assim que o servidor confirma — esperar 600s+ dava a
+    // impressão de que o botão "não respondia".
     onSuccess: () => {
-      refreshDashboard();
+      refreshDashboard(0);
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao avançar card."),
+    onError: (e) => {
+      toast.error(e instanceof Error ? e.message : "Falha ao avançar card.");
+      refreshDashboard(0);
+    },
     onSettled: () => setBusyRowId(null),
   });
 
@@ -1049,6 +1059,25 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     [qc],
   );
 
+  /**
+   * Cards "fixados" no popup aberto: SÓ ajustes de data/horário previsto
+   * seguram o card na lista até o usuário fechar o popup no "X". Qualquer
+   * outra ação (check, não compareceu, limpeza não será realizada, desfazer)
+   * tira o card da tela na hora.
+   */
+  const [pinnedRowIds, setPinnedRowIds] = useState<ReadonlySet<string>>(() => new Set());
+  const pinRow = useCallback((id: string) => {
+    setPinnedRowIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+  }, []);
+  const unpinRow = useCallback((id: string) => {
+    setPinnedRowIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }, []);
+
   const optimisticMove = useCallback(
     (row: ArrivalRow, from: "checkin" | "stay" | "checkout" | "cleaning" | "done") => {
       const id = row.logId;
@@ -1064,10 +1093,12 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     [patchList],
   );
 
+
   function runAdvance(
     row: ArrivalRow,
     from: "checkin" | "stay" | "checkout" | "cleaning",
     cleaningType?: "normal" | "completa",
+    skipCleaning?: boolean,
   ) {
     const target = statusTarget(row);
     if (!target.logId && !target.reservationId) {
@@ -1075,9 +1106,53 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       return;
     }
     setBusyRowId(row.logId);
-    optimisticMove(row, from);
-    advance.mutate({ ...target, from, ...(cleaningType ? { cleaningType } : {}) });
+    // Ação de esteira: o card não fica mais preso na lista aberta.
+    unpinRow(row.logId);
+
+    // Cancela buscas em andamento ANTES do patch otimista: sem isso, uma
+    // recarga já disparada (30s/foco) podia terminar depois do clique e
+    // reescrever o cache com o estado antigo — o card "voltava" e só sumia na
+    // próxima recarga, dando a sensação de lentidão.
+    qc.cancelQueries({ predicate: (q) => q.queryKey[0] === "dash-list" });
+    if (skipCleaning) {
+      // "Limpeza não será realizada": sai da esteira na hora (vai direto pra
+      // Concluídos, sem passar por Em Limpeza).
+      patchList("checkout", (rows) => rows.filter((r) => r.logId !== row.logId));
+      patchList("checkin", (rows) => rows.filter((r) => r.logId !== row.logId));
+    } else {
+      optimisticMove(row, from);
+    }
+    advance.mutate({
+      ...target,
+      from,
+      ...(cleaningType ? { cleaningType } : {}),
+      ...(skipCleaning ? { skipCleaning: true } : {}),
+    });
+    // Feedback padrão do produto: mensagem no topo + "Desfazer" por 5s.
+    const stageAfter: "stay" | "checkout" | "cleaning" | "done" = skipCleaning
+      ? "done"
+      : from === "checkin"
+        ? "stay"
+        : from === "stay"
+          ? "checkout"
+          : from === "checkout"
+            ? "cleaning"
+            : "done";
+    const message = skipCleaning
+      ? "Limpeza não será realizada — card concluído."
+      : from === "checkin"
+        ? "Check-in confirmado."
+        : from === "stay"
+          ? "Check-out confirmado."
+          : from === "checkout"
+            ? "Limpeza iniciada."
+            : "Limpeza concluída.";
+    notifyAction(message, () => {
+      setBusyRowId(row.logId);
+      revert.mutate({ ...target, from: stageAfter });
+    });
   }
+
 
   /**
    * Antecipar um card com data futura (ex.: "Checkouts amanhã") é uma ação
@@ -1103,14 +1178,26 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   }
 
   function handleEditTime(row: ArrivalRow, k: "checkin" | "checkout", time: string | null) {
+    const prev = row.arrivalTimeOverride ?? null;
     setBusyRowId(row.logId);
+    // Só ajuste de horário/data previstos segura o card na lista aberta.
+    pinRow(row.logId);
+
     // Otimista: o campo já mostra o novo horário na hora — o servidor só
     // confirma em segundo plano (mesmo racional do optimisticMove acima).
     patchList(k, (rows: ArrivalRow[]) =>
       rows.map((r) => (r.logId === row.logId ? { ...r, arrivalTimeOverride: time } : r)),
     );
     upsert.mutate({ ...statusTarget(row), kind: k, arrivalTimeOverride: time });
+    notifyAction(time ? `Horário previsto atualizado para ${time}.` : "Horário previsto removido.", () => {
+      setBusyRowId(row.logId);
+      patchList(k, (rows: ArrivalRow[]) =>
+        rows.map((r) => (r.logId === row.logId ? { ...r, arrivalTimeOverride: prev } : r)),
+      );
+      upsert.mutate({ ...statusTarget(row), kind: k, arrivalTimeOverride: prev });
+    });
   }
+
 
   // Realtime — sincroniza kanban e KPIs sem precisar recarregar a página quando
   // horários, notas ou reservas mudam (via outro membro da equipe, iCal etc).
@@ -1359,6 +1446,16 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // pelas marcadas "aparece na limpeza".
   // ---------------------------------------------------------------------
   const [pendenciasOpen, setPendenciasOpen] = useState(false);
+  // Alternador "Completo"/"Lista" do Kanban — mesmo padrão já usado nos
+  // popups de KPI e no tooltip de Limpeza (ViewModeToggle). Pedido explícito
+  // (07/09/2026): "Lista" é o padrão ao abrir o Kanban (mais compacto, cabe
+  // mais cards por coluna sem rolar).
+  const [kanbanListMode, setKanbanListMode] = useState<"full" | "list">("list");
+  // Refs pro botão de print do Kanban: um alvo por layout (mobile mostra só a
+  // aba ativa; desktop mostra as colunas todas lado a lado dentro do mesmo
+  // container rolável já usado pra calcular a largura das colunas —
+  // kanbanRowRef, declarado mais abaixo).
+  const kanbanMobileScreenshotRef = useRef<HTMLDivElement | null>(null);
   const tasksQ = useQuery({
     queryKey: ["dash-tasks", activeOwnerId ?? "self"],
     queryFn: () => listTasksFn({ data: { ownerId: activeOwnerId } }),
@@ -1633,6 +1730,20 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         if (colMode === "done" || colMode === "no_show") return;
         handleAdvance(row, colMode as "checkin" | "stay" | "checkout" | "cleaning");
       },
+      // "Limpeza não será realizada" — conclui a estadia sem contabilizar
+      // nenhum valor de limpeza (só faz sentido na esteira de saída).
+      onSkipCleaning:
+        colMode === "checkout" || colMode === "stay" || colMode === "cleaning"
+          ? (row: ArrivalRow) => {
+              if (
+                !window.confirm(
+                  "Marcar que a limpeza NÃO será realizada? O card vai para Concluídos e o valor da limpeza não será contabilizado.",
+                )
+              )
+                return;
+              runAdvance(row, colMode as "stay" | "checkout" | "cleaning", undefined, true);
+            }
+          : undefined,
       onRevert:
         colMode === "checkin"
           ? undefined
@@ -1643,6 +1754,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 return;
               }
               setBusyRowId(row.logId);
+              unpinRow(row.logId);
+
               if (colMode === "stay")
                 patchList("checkin", (rows) =>
                   rows.map((r) => (r.logId === row.logId ? { ...r, status: "pending" } : r)),
@@ -1674,40 +1787,76 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               )
                 return;
               setBusyRowId(row.logId);
+              unpinRow(row.logId);
+
               // Otimista: some da coluna de Check-ins na hora — o refetch
               // (refreshDashboard, no onSuccess da mutation) traz de volta na
               // coluna "Não Compareceu".
               patchList("checkin", (rows) => rows.filter((r) => r.logId !== row.logId));
               noShow.mutate(target);
+              notifyAction('Marcado como "Não Compareceu".', () => {
+                setBusyRowId(row.logId);
+                revert.mutate({ ...target, from: "no_show" });
+              });
             }
           : undefined,
       onSyncIcal: (row: ArrivalRow) => {
         const t = colKind === "checkin" ? "15:00" : "11:00";
+        const prev = row.arrivalTimeOverride ?? null;
         setBusyRowId(row.logId);
+        pinRow(row.logId);
+
         upsert.mutate({ ...statusTarget(row), kind: colKind, arrivalTimeOverride: t });
-        toast.success(`Horário alinhado ao iCal (${t}).`);
+        notifyAction(`Horário alinhado ao iCal (${t}).`, () => {
+          setBusyRowId(row.logId);
+          upsert.mutate({ ...statusTarget(row), kind: colKind, arrivalTimeOverride: prev });
+        });
       },
       onNote: (row: ArrivalRow, note: string | null) => {
+        const prev = row.note ?? null;
         setBusyRowId(row.logId);
         upsert.mutate({ ...statusTarget(row), kind: colKind, note });
+        notifyAction(note ? "Observação salva." : "Observação removida.", () => {
+          setBusyRowId(row.logId);
+          upsert.mutate({ ...statusTarget(row), kind: colKind, note: prev });
+        });
       },
       onEditDates: (row: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => {
+        const prev = { checkinDate: row.guestCheckin, checkoutDate: row.guestCheckout ?? null };
         setBusyRowId(row.logId);
         updateDates.mutate({ logId: row.logId, ...dates });
+        notifyAction("Datas atualizadas.", () => {
+          setBusyRowId(row.logId);
+          updateDates.mutate({ logId: row.logId, ...prev });
+        });
       },
       onEditPredictedDate: (row: ArrivalRow, date: string | null) => {
+        const prev = row.arrivalDateOverride ?? null;
         setBusyRowId(row.logId);
+        pinRow(row.logId);
+
         // Otimista, mesmo racional do handleEditTime/optimisticMove.
         patchList(colKind, (rows: ArrivalRow[]) =>
           rows.map((r) => (r.logId === row.logId ? { ...r, arrivalDateOverride: date } : r)),
         );
         upsert.mutate({ ...statusTarget(row), kind: colKind, arrivalDateOverride: date });
+        notifyAction(date ? "Data prevista atualizada." : "Data prevista removida.", () => {
+          setBusyRowId(row.logId);
+          patchList(colKind, (rows: ArrivalRow[]) =>
+            rows.map((r) => (r.logId === row.logId ? { ...r, arrivalDateOverride: prev } : r)),
+          );
+          upsert.mutate({ ...statusTarget(row), kind: colKind, arrivalDateOverride: prev });
+        });
       },
       onEditTime: (row: ArrivalRow, time: string | null) => handleEditTime(row, colKind, time),
       // Limpa os dois campos (Data + Horário previstos) de uma vez —
       // botão só aparece quando pelo menos um dos dois estiver preenchido.
       onClearPredicted: (row: ArrivalRow) => {
+        const prevDate = row.arrivalDateOverride ?? null;
+        const prevTime = row.arrivalTimeOverride ?? null;
         setBusyRowId(row.logId);
+        pinRow(row.logId);
+
         patchList(colKind, (rows: ArrivalRow[]) =>
           rows.map((r) =>
             r.logId === row.logId ? { ...r, arrivalDateOverride: null, arrivalTimeOverride: null } : r,
@@ -1719,7 +1868,24 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           arrivalDateOverride: null,
           arrivalTimeOverride: null,
         });
+        notifyAction("Previsão de data e horário removida.", () => {
+          setBusyRowId(row.logId);
+          patchList(colKind, (rows: ArrivalRow[]) =>
+            rows.map((r) =>
+              r.logId === row.logId
+                ? { ...r, arrivalDateOverride: prevDate, arrivalTimeOverride: prevTime }
+                : r,
+            ),
+          );
+          upsert.mutate({
+            ...statusTarget(row),
+            kind: colKind,
+            arrivalDateOverride: prevDate,
+            arrivalTimeOverride: prevTime,
+          });
+        });
       },
+
       busyRowId,
       // Antes "Estadia"/"Limpeza" ficavam com opacity-70 (pra parecer
       // menos urgente) — só que isso também fazia o card parecer menos card,
@@ -1870,6 +2036,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 // Azul claro enquanto houver pendência, verde quando zerar —
                 // mesmo tom "in"/"in-pending" usado no calendário.
                 shadowTone={checkinPendingRows.length > 0 ? "sky" : "emerald"}
+                pinnedIds={pinnedRowIds}
                 cardProps={arrivalGroupPropsFor("checkin", checkinPendingRows)}
               />
             </div>
@@ -1885,6 +2052,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 // Laranja (mesmo tom do "out" no calendário) enquanto houver
                 // pendência, verde quando zerar.
                 shadowTone={checkoutPendingRows.length > 0 ? "amber" : "emerald"}
+                pinnedIds={pinnedRowIds}
                 cardProps={arrivalGroupPropsFor("checkout", checkoutPendingRows)}
               />
             </div>
@@ -1897,6 +2065,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 loading={tomorrowCheckinListQ.isLoading}
                 onRefresh={() => tomorrowCheckinListQ.refetch()}
                 rangeLabel="Amanhã"
+                pinnedIds={pinnedRowIds}
                 cardProps={arrivalGroupPropsFor("checkin", tomorrowCheckinPendingRows)}
               />
             </div>
@@ -1909,6 +2078,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 loading={tomorrowCheckoutListQ.isLoading}
                 onRefresh={() => tomorrowCheckoutListQ.refetch()}
                 rangeLabel="Amanhã"
+                pinnedIds={pinnedRowIds}
                 cardProps={arrivalGroupPropsFor("checkout", tomorrowCheckoutPendingRows)}
               />
             </div>
@@ -1928,6 +2098,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   rangeLabel={rangeLabel[range]}
                   compact
                   highlight="amber"
+                  pinnedIds={pinnedRowIds}
                   cardProps={arrivalGroupPropsFor("cleaning", cleaningRows)}
                 />
               </div>
@@ -1980,6 +2151,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 loading={checkinListQ.isLoading}
                 onRefresh={() => checkinListQ.refetch()}
                 rangeLabel={rangeLabel[range]}
+                pinnedIds={pinnedRowIds}
                 cardProps={arrivalGroupPropsFor("stay", stayRows)}
               />
             </div>
@@ -2108,6 +2280,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   onClearAll={clearAllFilters}
                 />
                 <PendenciasButton count={openTasksCount} onClick={() => setPendenciasOpen(true)} />
+                {/* Pedido explícito (07/09/2026): alternador Completo/Lista e
+                    print ficam à direita de Filtros/Pendências — mesmos
+                    componentes já usados nos popups de KPI e no tooltip de
+                    Limpeza. No desktop o alvo do print é o próprio container
+                    rolável com as colunas do quadro (kanbanRowRef, abaixo). */}
+                <ScreenshotButton targetRef={kanbanRowRef} fileName="kanban" />
+                <ViewModeToggle value={kanbanListMode} onChange={setKanbanListMode} />
               </div>
             </div>
 
@@ -2133,6 +2312,16 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     onClearAll={clearAllFilters}
                   />
                   <PendenciasButton count={openTasksCount} onClick={() => setPendenciasOpen(true)} />
+                  {/* Mesmos botões do desktop (ver acima), à direita de
+                      Filtros/Pendências. No mobile o print captura só a aba
+                      ativa (kanbanMobileScreenshotRef, ancorado no wrapper do
+                      conteúdo da aba, mais abaixo) — as outras colunas nem
+                      estão montadas na tela pra fotografar. */}
+                  <ScreenshotButton
+                    targetRef={kanbanMobileScreenshotRef}
+                    fileName={`kanban-${mobileTab}`}
+                  />
+                  <ViewModeToggle value={kanbanListMode} onChange={setKanbanListMode} />
                 </div>
                 {/* Wrapper relative só pra ancorar o degrade — regra
                     "anti-corte" (peek): a barra continua rolável igual antes,
@@ -2205,13 +2394,16 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 </div>
               </div>
 
+              {/* Ref só pro print (ScreenshotButton acima) — captura sempre a
+                  aba atualmente montada, seja qual for. */}
+              <div ref={kanbanMobileScreenshotRef}>
               {mobileTab === "checkin" &&
                 (kanbanCheckinListQ.isLoading ? (
                   <ColumnLoading />
                 ) : kanbanCheckinPendingRows.length === 0 ? (
                   <ColumnEmpty />
                 ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("checkin", kanbanCheckinPendingRows)} showReservationLabel />
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("checkin", kanbanCheckinPendingRows)} showReservationLabel compact={kanbanListMode === "list"} />
                 ))}
               {mobileTab === "checkout" &&
                 (kanbanCheckoutListQ.isLoading ? (
@@ -2219,7 +2411,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 ) : kanbanCheckoutPendingRows.length === 0 ? (
                   <ColumnEmpty />
                 ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("checkout", kanbanCheckoutPendingRows)} showReservationLabel />
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("checkout", kanbanCheckoutPendingRows)} showReservationLabel compact={kanbanListMode === "list"} />
                 ))}
               {mobileTab === "stay" &&
                 (kanbanCheckinListQ.isLoading ? (
@@ -2227,7 +2419,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 ) : kanbanStayRows.length === 0 ? (
                   <ColumnEmpty />
                 ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", kanbanStayRows)} showReservationLabel />
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", kanbanStayRows)} showReservationLabel compact={kanbanListMode === "list"} />
                 ))}
               {mobileTab === "cleaning" &&
                 (kanbanCheckoutListQ.isLoading ? (
@@ -2235,7 +2427,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 ) : kanbanCleaningRows.length === 0 ? (
                   <ColumnEmpty />
                 ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", kanbanCleaningRows)} showReservationLabel />
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", kanbanCleaningRows)} showReservationLabel compact={kanbanListMode === "list"} />
                 ))}
               {mobileTab === "done" &&
                 (concludedQ.isLoading ? (
@@ -2243,7 +2435,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 ) : kanbanConcludedRows.length === 0 ? (
                   <ColumnEmpty />
                 ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("done", kanbanConcludedRows)} showReservationLabel />
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("done", kanbanConcludedRows)} showReservationLabel compact={kanbanListMode === "list"} />
                 ))}
               {mobileTab === "no_show" &&
                 (noShowQ.isLoading ? (
@@ -2251,8 +2443,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 ) : kanbanNoShowRows.length === 0 ? (
                   <ColumnEmpty />
                 ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("no_show", kanbanNoShowRows)} showReservationLabel />
+                  <ArrivalGroup title="" {...arrivalGroupPropsFor("no_show", kanbanNoShowRows)} showReservationLabel compact={kanbanListMode === "list"} />
                 ))}
+              </div>
             </div>
 
             {/* Desktop/tablet: colunas com largura fixa e confortável, com
@@ -2276,7 +2469,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ) : kanbanCheckinPendingRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("checkin", kanbanCheckinPendingRows)} showReservationLabel />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("checkin", kanbanCheckinPendingRows)} showReservationLabel compact={kanbanListMode === "list"} />
                   )}
                 </KanbanColumn>
               </div>
@@ -2294,7 +2487,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ) : kanbanCheckoutPendingRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("checkout", kanbanCheckoutPendingRows)} showReservationLabel />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("checkout", kanbanCheckoutPendingRows)} showReservationLabel compact={kanbanListMode === "list"} />
                   )}
                 </KanbanColumn>
               </div>
@@ -2312,7 +2505,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ) : kanbanCleaningRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", kanbanCleaningRows)} showReservationLabel />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", kanbanCleaningRows)} showReservationLabel compact={kanbanListMode === "list"} />
                   )}
                 </KanbanColumn>
               </div>
@@ -2330,7 +2523,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ) : kanbanStayRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", kanbanStayRows)} showReservationLabel />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", kanbanStayRows)} showReservationLabel compact={kanbanListMode === "list"} />
                   )}
                 </KanbanColumn>
               </div>
@@ -2375,7 +2568,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                       <ColumnEmpty />
                     )
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("done", kanbanConcludedRows)} showReservationLabel />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("done", kanbanConcludedRows)} showReservationLabel compact={kanbanListMode === "list"} />
                   )}
                 </KanbanColumn>
               </div>
@@ -2421,7 +2614,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                       <ColumnEmpty />
                     )
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("no_show", kanbanNoShowRows)} showReservationLabel />
+                    <ArrivalGroup title="" {...arrivalGroupPropsFor("no_show", kanbanNoShowRows)} showReservationLabel compact={kanbanListMode === "list"} />
                   )}
                 </KanbanColumn>
               </div>
@@ -2876,6 +3069,7 @@ function KpiCard({
   shadowTone,
   compact,
   highlight,
+  pinnedIds,
   cardProps,
 }: {
   label: string;
@@ -2892,6 +3086,9 @@ function KpiCard({
    * gradiente âmbar + acento lateral + ícone em caixinha, sem negrito.
    * Não afeta nenhum outro uso do KpiCard (compact ou não). */
   highlight?: "amber";
+  /** Cards que devem continuar visíveis no popup mesmo que já não pertençam
+   * mais à lista — hoje só os que tiveram HORÁRIO/DATA PREVISTOS ajustados. */
+  pinnedIds?: ReadonlySet<string>;
   /** Pedido explícito: os cards dentro do popup precisam ficar IDÊNTICOS ao
    * card do Kanban — em vez de manter uma segunda implementação (que já
    * divergiu do Kanban antes, ver o bug do bloqueio de check-in), o popup
@@ -2905,44 +3102,40 @@ function KpiCard({
   // gatilho (compact/highlight) do card em si, que já usa a prop `compact`
   // pra outra coisa (faixa fina vs. quadrado).
   const [listMode, setListMode] = useState<"full" | "list">("list");
-  // "Congela" QUAIS cards aparecem (e em que ordem) assim que o popup termina
-  // de carregar (pedido explícito, 05/09/2026): sem isso, editar a
-  // data/horário previsto de UM card dentro deste popup (ex.: "Check-ins
-  // amanhã") faz o card sumir da lista NA HORA, assim que o commit é
-  // confirmado — mesmo com o popup ainda aberto — porque `rows` vem direto
-  // da mesma query reativa do Kanban, que já reflete o novo valor. O usuário
-  // quer o oposto: o card só deve mesmo sair desta lista depois que ELE
-  // FECHAR o popup inteiro (botão "X") e abrir de novo.
+  // A lista do popup é AO VIVO: qualquer ação de esteira (check, "não
+  // compareceu", "limpeza não será realizada", desfazer) tira o card da tela
+  // na hora do clique.
   //
-  // Importante: só a PRESENÇA/ORDEM fica travada — os campos de cada card
-  // (a própria data/horário que acabou de ser editada, notas, status etc.)
-  // continuam vindo ao vivo de `rows` enquanto o card ainda existir lá, pra
-  // o usuário ver a confirmação de que o ajuste realmente salvou, em vez do
-  // campo "voltar" pro valor antigo até fechar o popup.
+  // Única exceção (pedido explícito): ajustar DATA/HORÁRIO PREVISTOS não pode
+  // fazer o card sumir no meio da edição — esses cards ficam "presos" na
+  // lista (via `pinnedIds`, na mesma posição em que estavam quando o popup
+  // abriu) até o usuário fechar o popup no "X".
   const [frozenSnapshot, setFrozenSnapshot] = useState<Map<string, ArrivalRow> | null>(null);
   useEffect(() => {
     if (!open) {
-      // Fechou (ou ainda não abriu): solta o congelamento, pra próxima
-      // abertura tirar uma "foto" nova, já atualizada.
+      // Fechou (ou ainda não abriu): solta a "foto", pra próxima abertura
+      // tirar uma nova, já atualizada.
       setFrozenSnapshot(null);
       return;
     }
-    // Só tira a "foto" DEPOIS que o carregamento (onRefresh, disparado ao
-    // abrir) termina — assim o popup sempre abre com o dado mais recente, e
-    // só a partir daí fica imune a cards somendo/aparecendo em segundo plano.
     if (!loading && frozenSnapshot === null) {
       setFrozenSnapshot(new Map(rows.map((r) => [r.logId, r] as const)));
     }
   }, [open, loading, rows, frozenSnapshot]);
   const displayRows = useMemo(() => {
-    if (!frozenSnapshot) return rows;
-    const liveById = new Map(rows.map((r) => [r.logId, r] as const));
-    // Prefere a versão AO VIVO (campos atualizados) de cada card que ainda
-    // existe em `rows`; só cai pra "foto" congelada se o card tiver
-    // desaparecido de vez da fonte (aí é melhor mostrar o último estado
-    // conhecido do que sumir da lista no meio da sessão).
-    return Array.from(frozenSnapshot.keys()).map((id) => liveById.get(id) ?? frozenSnapshot.get(id)!);
-  }, [frozenSnapshot, rows]);
+    if (!frozenSnapshot || !pinnedIds || pinnedIds.size === 0) return rows;
+    const liveIds = new Set(rows.map((r) => r.logId));
+    const out = [...rows];
+    let idx = 0;
+    for (const id of frozenSnapshot.keys()) {
+      if (!liveIds.has(id) && pinnedIds.has(id)) {
+        out.splice(Math.min(idx, out.length), 0, frozenSnapshot.get(id)!);
+      }
+      idx++;
+    }
+    return out;
+  }, [frozenSnapshot, rows, pinnedIds]);
+
   const list = useWholeCardsMaxHeight(2, `${open}:${displayRows.length}:${loading}:${listMode}`);
   const screenshotRef = useRef<HTMLDivElement | null>(null);
   const valueTone = tone === "primary" ? "text-accent" : "text-foreground";
@@ -5503,6 +5696,7 @@ function ArrivalGroup({
   onMark,
   onRevert,
   onNoShow,
+  onSkipCleaning,
   onSyncIcal,
   onNote,
   onEditDates,
@@ -5528,6 +5722,8 @@ function ArrivalGroup({
   /** Marca um card de Check-ins como "Não Compareceu" — só passado quando
    * mode === "checkin" (ver arrivalGroupPropsFor). */
   onNoShow?: (r: ArrivalRow) => void;
+  /** "Limpeza não será realizada" — conclui a estadia sem contabilizar valor. */
+  onSkipCleaning?: (r: ArrivalRow) => void;
   onSyncIcal: (r: ArrivalRow) => void;
   onNote: (r: ArrivalRow, note: string | null) => void;
   onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
@@ -5582,6 +5778,7 @@ function ArrivalGroup({
           onMark={onMark}
           onRevert={onRevert}
           onNoShow={onNoShow}
+          onSkipCleaning={onSkipCleaning}
           onSyncIcal={onSyncIcal}
           onNote={onNote}
           onEditDates={onEditDates}
@@ -5611,6 +5808,7 @@ function ArrivalCard({
   onMark,
   onRevert,
   onNoShow,
+  onSkipCleaning,
   onSyncIcal,
   onNote,
   onEditDates,
@@ -5634,6 +5832,8 @@ function ArrivalCard({
   /** Marca este card (Check-ins) como "Não Compareceu" — pedido explícito,
    * 05/09/2026: opção no menu "⋮", só nos cards de check-in ainda pendentes. */
   onNoShow?: (r: ArrivalRow) => void;
+  /** "Limpeza não será realizada" — conclui sem contabilizar o valor. */
+  onSkipCleaning?: (r: ArrivalRow) => void;
   onSyncIcal: (r: ArrivalRow) => void;
   onNote: (r: ArrivalRow, note: string | null) => void;
   onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
@@ -5905,14 +6105,9 @@ function ArrivalCard({
         : mode === "no_show"
           ? 'Desfazer o "Não Compareceu" e voltar este card para a lista de Check-ins?'
           : "Reabrir esta estadia e voltar o card para a lista Em Limpeza?";
-  const revertTitle =
-    mode === "stay" || mode === "checkout"
-      ? "Voltar para a etapa anterior (lista de Check-ins)"
-      : mode === "cleaning"
-        ? "Voltar para a etapa anterior (lista de Checkouts)"
-        : mode === "no_show"
-          ? "Voltar para a etapa anterior (lista de Check-ins)"
-          : "Voltar para a etapa anterior (lista Em Limpeza)";
+  // Pedido explícito (07/09/2026): rótulo único e curto, sem o detalhe da
+  // lista de destino entre parênteses.
+  const revertTitle = "Retornar ao status anterior";
   const handleRevertClick = () => {
     if (window.confirm(revertConfirmLabel)) onRevert?.(row);
   };
@@ -5922,6 +6117,10 @@ function ArrivalCard({
   // etapa da esteira, a opção não se aplica mais).
   const showNoShowMenuItem = mode === "checkin" && !done && !!onNoShow;
   const handleNoShowClick = () => onNoShow?.(row);
+
+  // "Limpeza não será realizada" — conclui a estadia direto, sem contabilizar
+  // o valor da limpeza. Não faz sentido num card ainda aguardando check-out.
+  const showSkipCleaningMenuItem = !!onSkipCleaning && !awaitingCheckout;
 
   // Confirmação quando o check acontece fora do horário/data comum da esteira.
   const [confirmMsg, setConfirmMsg] = useState<string | null>(null);
@@ -6438,7 +6637,7 @@ function ArrivalCard({
             type="button"
             onClick={handleRevertClick}
             disabled={busy}
-            aria-label="Voltar para a etapa anterior"
+            aria-label="Retornar ao status anterior"
             title={revertTitle}
             className="shrink-0 grid place-items-center rounded-lg bg-secondary hover:bg-secondary/80 border border-border/60 transition-colors size-9"
           >
@@ -6473,6 +6672,11 @@ function ArrivalCard({
             </DropdownMenu>
           )}
 
+          {/* "Registros da reserva" (pedido explícito, 07/09/2026): mesmo
+              ícone em QUALQUER status — abre a linha do tempo única da
+              reserva (foto/vídeo/áudio/arquivo/nota), entre Maps e "⋮". */}
+          <ReservationRecordsButton row={row} mode={mode} compact={compact} />
+
           {/* Nota + Silenciar juntos num só botão de menu, agora ao lado
                 direito do Maps. O menu principal mostra só 2 opções —
                 "Adicionar nota" e "Silenciar notificações" — e as 24 opções
@@ -6502,6 +6706,11 @@ function ArrivalCard({
               {showNoShowMenuItem && (
                 <DropdownMenuItem onClick={handleNoShowClick} disabled={busy}>
                   <UserX className="size-3.5 shrink-0" /> Não Compareceu
+                </DropdownMenuItem>
+              )}
+              {showSkipCleaningMenuItem && (
+                <DropdownMenuItem onClick={() => onSkipCleaning?.(row)} disabled={busy}>
+                  <Ban className="size-3.5 shrink-0" /> Limpeza não será realizada
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem onClick={() => setNoteOpen((v) => !v)}>

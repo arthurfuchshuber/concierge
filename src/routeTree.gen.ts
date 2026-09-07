@@ -77,10 +77,10 @@ import { Route as ApiPublicCronRefreshCityNewsRouteImport } from './routes/api/p
 import { Route as ApiPublicCronRefreshAirbnbListingsRouteImport } from './routes/api/public/cron.refresh-airbnb-listings'
 import { Route as ApiPublicCronProactiveConciergeRouteImport } from './routes/api/public/cron.proactive-concierge'
 import { Route as ApiPublicCronOpsPushRouteImport } from './routes/api/public/cron.ops-push'
-import { Route as ApiPublicCronAutoCheckoutRouteImport } from './routes/api/public/cron.auto-checkout'
 import { Route as ApiPublicCronLearningLoopRouteImport } from './routes/api/public/cron.learning-loop'
 import { Route as ApiPublicCronEvaluationSuiteRouteImport } from './routes/api/public/cron.evaluation-suite'
 import { Route as ApiPublicCronConversationRemindersRouteImport } from './routes/api/public/cron.conversation-reminders'
+import { Route as ApiPublicCronAutoCheckoutRouteImport } from './routes/api/public/cron.auto-checkout'
 import { Route as AuthenticatedAdminRecomendacoesSigmaCityKeyRouteImport } from './routes/_authenticated/admin.recomendacoes-sigma.$cityKey'
 import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_authenticated/admin.properties.$id'
 import { Route as AuthenticatedAdminDashboardLimpezaRouteImport } from './routes/_authenticated/admin.dashboard.limpeza'
@@ -461,11 +461,6 @@ const ApiPublicCronOpsPushRoute = ApiPublicCronOpsPushRouteImport.update({
   path: '/api/public/cron/ops-push',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicCronAutoCheckoutRoute = ApiPublicCronAutoCheckoutRouteImport.update({
-  id: '/api/public/cron/auto-checkout',
-  path: '/api/public/cron/auto-checkout',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiPublicCronLearningLoopRoute =
   ApiPublicCronLearningLoopRouteImport.update({
     id: '/api/public/cron/learning-loop',
@@ -482,6 +477,12 @@ const ApiPublicCronConversationRemindersRoute =
   ApiPublicCronConversationRemindersRouteImport.update({
     id: '/api/public/cron/conversation-reminders',
     path: '/api/public/cron/conversation-reminders',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicCronAutoCheckoutRoute =
+  ApiPublicCronAutoCheckoutRouteImport.update({
+    id: '/api/public/cron/auto-checkout',
+    path: '/api/public/cron/auto-checkout',
     getParentRoute: () => rootRouteImport,
   } as any)
 const AuthenticatedAdminRecomendacoesSigmaCityKeyRoute =
@@ -576,11 +577,11 @@ export interface FileRoutesByFullPath {
   '/admin/dashboard/limpeza': typeof AuthenticatedAdminDashboardLimpezaRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
+  '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
   '/api/public/cron/evaluation-suite': typeof ApiPublicCronEvaluationSuiteRoute
   '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
-  '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
   '/api/public/cron/proactive-concierge': typeof ApiPublicCronProactiveConciergeRoute
   '/api/public/cron/refresh-airbnb-listings': typeof ApiPublicCronRefreshAirbnbListingsRoute
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
@@ -652,11 +653,11 @@ export interface FileRoutesByTo {
   '/admin/dashboard/limpeza': typeof AuthenticatedAdminDashboardLimpezaRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
+  '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
   '/api/public/cron/evaluation-suite': typeof ApiPublicCronEvaluationSuiteRoute
   '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
-  '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
   '/api/public/cron/proactive-concierge': typeof ApiPublicCronProactiveConciergeRoute
   '/api/public/cron/refresh-airbnb-listings': typeof ApiPublicCronRefreshAirbnbListingsRoute
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
@@ -733,11 +734,11 @@ export interface FileRoutesById {
   '/_authenticated/admin/dashboard/limpeza': typeof AuthenticatedAdminDashboardLimpezaRoute
   '/_authenticated/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/_authenticated/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
+  '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
   '/api/public/cron/evaluation-suite': typeof ApiPublicCronEvaluationSuiteRoute
   '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
-  '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
   '/api/public/cron/proactive-concierge': typeof ApiPublicCronProactiveConciergeRoute
   '/api/public/cron/refresh-airbnb-listings': typeof ApiPublicCronRefreshAirbnbListingsRoute
   '/api/public/cron/refresh-city-news': typeof ApiPublicCronRefreshCityNewsRoute
@@ -814,11 +815,11 @@ export interface FileRouteTypes {
     | '/admin/dashboard/limpeza'
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
+    | '/api/public/cron/auto-checkout'
     | '/api/public/cron/conversation-reminders'
     | '/api/public/cron/evaluation-suite'
     | '/api/public/cron/learning-loop'
     | '/api/public/cron/ops-push'
-    | '/api/public/cron/auto-checkout'
     | '/api/public/cron/proactive-concierge'
     | '/api/public/cron/refresh-airbnb-listings'
     | '/api/public/cron/refresh-city-news'
@@ -890,11 +891,11 @@ export interface FileRouteTypes {
     | '/admin/dashboard/limpeza'
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
+    | '/api/public/cron/auto-checkout'
     | '/api/public/cron/conversation-reminders'
     | '/api/public/cron/evaluation-suite'
     | '/api/public/cron/learning-loop'
     | '/api/public/cron/ops-push'
-    | '/api/public/cron/auto-checkout'
     | '/api/public/cron/proactive-concierge'
     | '/api/public/cron/refresh-airbnb-listings'
     | '/api/public/cron/refresh-city-news'
@@ -970,11 +971,11 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/dashboard/limpeza'
     | '/_authenticated/admin/properties/$id'
     | '/_authenticated/admin/recomendacoes-sigma/$cityKey'
+    | '/api/public/cron/auto-checkout'
     | '/api/public/cron/conversation-reminders'
     | '/api/public/cron/evaluation-suite'
     | '/api/public/cron/learning-loop'
     | '/api/public/cron/ops-push'
-    | '/api/public/cron/auto-checkout'
     | '/api/public/cron/proactive-concierge'
     | '/api/public/cron/refresh-airbnb-listings'
     | '/api/public/cron/refresh-city-news'
@@ -1026,11 +1027,11 @@ export interface RootRouteChildren {
   ApiPublicVersionRoute: typeof ApiPublicVersionRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   OauthGoogleCalendarReturnRoute: typeof OauthGoogleCalendarReturnRoute
+  ApiPublicCronAutoCheckoutRoute: typeof ApiPublicCronAutoCheckoutRoute
   ApiPublicCronConversationRemindersRoute: typeof ApiPublicCronConversationRemindersRoute
   ApiPublicCronEvaluationSuiteRoute: typeof ApiPublicCronEvaluationSuiteRoute
   ApiPublicCronLearningLoopRoute: typeof ApiPublicCronLearningLoopRoute
   ApiPublicCronOpsPushRoute: typeof ApiPublicCronOpsPushRoute
-  ApiPublicCronAutoCheckoutRoute: typeof ApiPublicCronAutoCheckoutRoute
   ApiPublicCronProactiveConciergeRoute: typeof ApiPublicCronProactiveConciergeRoute
   ApiPublicCronRefreshAirbnbListingsRoute: typeof ApiPublicCronRefreshAirbnbListingsRoute
   ApiPublicCronRefreshCityNewsRoute: typeof ApiPublicCronRefreshCityNewsRoute
@@ -1526,13 +1527,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronOpsPushRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/cron/auto-checkout': {
-      id: '/api/public/cron/auto-checkout'
-      path: '/api/public/cron/auto-checkout'
-      fullPath: '/api/public/cron/auto-checkout'
-      preLoaderRoute: typeof ApiPublicCronAutoCheckoutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/cron/learning-loop': {
       id: '/api/public/cron/learning-loop'
       path: '/api/public/cron/learning-loop'
@@ -1552,6 +1546,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/cron/conversation-reminders'
       fullPath: '/api/public/cron/conversation-reminders'
       preLoaderRoute: typeof ApiPublicCronConversationRemindersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/cron/auto-checkout': {
+      id: '/api/public/cron/auto-checkout'
+      path: '/api/public/cron/auto-checkout'
+      fullPath: '/api/public/cron/auto-checkout'
+      preLoaderRoute: typeof ApiPublicCronAutoCheckoutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin/recomendacoes-sigma/$cityKey': {
@@ -1732,12 +1733,12 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicVersionRoute: ApiPublicVersionRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   OauthGoogleCalendarReturnRoute: OauthGoogleCalendarReturnRoute,
+  ApiPublicCronAutoCheckoutRoute: ApiPublicCronAutoCheckoutRoute,
   ApiPublicCronConversationRemindersRoute:
     ApiPublicCronConversationRemindersRoute,
   ApiPublicCronEvaluationSuiteRoute: ApiPublicCronEvaluationSuiteRoute,
   ApiPublicCronLearningLoopRoute: ApiPublicCronLearningLoopRoute,
   ApiPublicCronOpsPushRoute: ApiPublicCronOpsPushRoute,
-  ApiPublicCronAutoCheckoutRoute: ApiPublicCronAutoCheckoutRoute,
   ApiPublicCronProactiveConciergeRoute: ApiPublicCronProactiveConciergeRoute,
   ApiPublicCronRefreshAirbnbListingsRoute:
     ApiPublicCronRefreshAirbnbListingsRoute,

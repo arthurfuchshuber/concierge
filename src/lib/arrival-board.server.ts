@@ -559,7 +559,20 @@ export async function buildArrivalRows(
     const checkinDoneReservations = new Set<string>();
     const checkinPendingLogs = new Set<string>();
     const checkinPendingReservations = new Set<string>();
+    // "Não Compareceu" (guest_arrival_status kind="checkin" status="no_show",
+    // ver markNoShow em dashboard.functions.ts) precisa remover o card TANTO
+    // de Checkouts quanto de Fila de Limpeza — pedido explícito (07/09/2026):
+    // um hóspede que nunca chegou não tem saída nem faxina de verdade pra
+    // fazer. `status` aqui é tipado só como "pending"|"done" (StatusRow acima)
+    // mas o valor real gravado no banco também pode ser "no_show" — daí o
+    // cast pra string na comparação abaixo.
+    const checkinNoShowLogs = new Set<string>();
+    const checkinNoShowReservations = new Set<string>();
     for (const s of (statuses ?? []) as StatusRow[]) {
+      if (s.kind === "checkin" && (s.status as string) === "no_show") {
+        if (s.log_id) checkinNoShowLogs.add(s.log_id);
+        if (s.reservation_id) checkinNoShowReservations.add(s.reservation_id);
+      }
       if (s.kind === "checkin" && (s.status === "done" || !!s.done_at)) {
         if (s.log_id) checkinDoneLogs.add(s.log_id);
         if (s.reservation_id) checkinDoneReservations.add(s.reservation_id);
@@ -1002,6 +1015,14 @@ export async function buildArrivalRows(
     const gatedRows =
       data.kind === "checkout"
         ? rows.filter((r) => {
+            // "Não Compareceu" nunca vira card de Checkout/Limpeza — sai da
+            // esteira ANTES de qualquer outra regra (inclusive "tomorrow" e
+            // estadia em curso, abaixo), independente de como o card chegou
+            // (log manual ou reserva do iCal).
+            const noShow =
+              !!(r.logId && !r.logId.startsWith("ical:") && checkinNoShowLogs.has(r.logId)) ||
+              !!(r.reservationId && checkinNoShowReservations.has(r.reservationId));
+            if (noShow) return false;
             const logDone = !!(r.logId && !r.logId.startsWith("ical:") && checkinDoneLogs.has(r.logId));
             const resDone = !!(r.reservationId && checkinDoneReservations.has(r.reservationId));
             const logExplicitlyPending = !!(r.logId && !r.logId.startsWith("ical:") && checkinPendingLogs.has(r.logId));
