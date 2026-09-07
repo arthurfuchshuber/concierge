@@ -125,6 +125,25 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "ConciergeIA" },
       { name: "twitter:card", content: "summary_large_image" },
+      /**
+       * Imagem de preview do link (07/09/2026). Precisa estar declarada AQUI,
+       * no root: enquanto a tag faltava, o deploy do Lovable preenchia a lacuna
+       * sozinho com um screenshot automático do preview do projeto — um print de
+       * 11/06/2026, da época do SigmaGuide, que aparecia no LinkedIn, WhatsApp e
+       * em qualquer lugar onde o link fosse colado.
+       *
+       * URL absoluta é obrigatória: crawler nenhum resolve caminho relativo.
+       * As páginas públicas de guia (g.$slug) sobrescrevem com a foto do imóvel,
+       * que é o comportamento certo lá.
+       */
+      { property: "og:image", content: "https://guia.anfitriaosigma.com.br/og-cover.png" },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      {
+        property: "og:image:alt",
+        content: "ConciergeIA — seus hóspedes atendidos em 3 segundos, 24 horas por dia.",
+      },
+      { name: "twitter:image", content: "https://guia.anfitriaosigma.com.br/og-cover.png" },
       { name: "google-site-verification", content: "o7m2Z68kLI_sgZFwkIsA1VQzKGI1OYfiqw6FKxsup5E" },
     ],
     links: [
