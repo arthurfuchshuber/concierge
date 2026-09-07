@@ -12,6 +12,15 @@ type Props = {
   maxSeconds?: number;
   onRecorded: (audio: RecordedAudio) => Promise<void> | void;
   compact?: boolean;
+  /** Começa a gravar sozinho ao montar, sem esperar o clique no microfone.
+   * Usado pelos "Registros da reserva" (07/09/2026): lá a categoria é
+   * perguntada ANTES, e a gravação precisa começar assim que a pessoa
+   * escolhe — sem um segundo toque. O chat com hóspede não passa esta prop
+   * e segue exatamente como antes (só grava ao tocar no microfone). */
+  autoStart?: boolean;
+  /** Chamado quando a gravação é cancelada/descartada sem enviar — deixa o
+   * pai desmontar o gravador e voltar ao estado anterior. */
+  onCancel?: () => void;
 };
 
 /**
@@ -21,7 +30,7 @@ type Props = {
  * - Auto-stops at maxSeconds (default 60).
  * - Cancel button discards, Send button hands the blob to onRecorded.
  */
-export function AudioRecorderButton({ disabled, maxSeconds = 60, onRecorded, compact }: Props) {
+export function AudioRecorderButton({ disabled, maxSeconds = 60, onRecorded, compact, autoStart, onCancel }: Props) {
   const [state, setState] = useState<"idle" | "recording" | "sending">("idle");
   const [elapsedMs, setElapsedMs] = useState(0);
   const [level, setLevel] = useState<number[]>([]);
@@ -101,6 +110,7 @@ export function AudioRecorderButton({ disabled, maxSeconds = 60, onRecorded, com
         setLevel([]);
         if (reason === "cancel") {
           setState("idle");
+          onCancel?.();
           return;
         }
         // send or timeout
@@ -143,6 +153,17 @@ export function AudioRecorderButton({ disabled, maxSeconds = 60, onRecorded, com
       setState("idle");
     }
   }
+
+  // autoStart: dispara a gravação uma única vez ao montar. O ref evita
+  // gravar duas vezes no StrictMode do desenvolvimento (monta/desmonta/
+  // monta), que abriria dois streams de microfone.
+  const autoStartedRef = useRef(false);
+  useEffect(() => {
+    if (!autoStart || autoStartedRef.current || disabled) return;
+    autoStartedRef.current = true;
+    void start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, disabled]);
 
   function stop(reason: "cancel" | "send") {
     if (!mediaRef.current) return;

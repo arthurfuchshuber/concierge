@@ -6,20 +6,46 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 // ÚNICA por reserva — foto, vídeo, áudio, arquivo ou nota de
 // situação/problema/auditoria — visível a partir do card em QUALQUER status
 // (Check-in, Estadia, Checkout, Fila de Limpeza, Concluídos, Não
-// Compareceu). A tabela `reservation_records` é NOVA (migração
-// 20260907130000_reservation_records.sql) e só existe de verdade depois que
-// essa migração for aplicada no Supabase — até lá (e também depois, já que
-// os tipos gerados em `types.ts` não incluem tabelas fora do schema
-// conhecido no momento da geração) o `.from("reservation_records")` precisa
-// de um client "solto" (mesmo padrão de `AnyClient` já usado em
-// arrival-board.server.ts) em vez do `SupabaseClient<Database>` estrito.
-type AnyClient = { from: (table: string) => any; storage: any };
+// Compareceu). A tabela `reservation_records` é NOVA (migrações
+// 20260907130000 e 20260907180000) e os tipos gerados em `types.ts` não a
+// conhecem — daí o client "solto" (mesmo padrão de `AnyClient` já usado em
+// arrival-board.server.ts / tasks.functions.ts) em vez do
+// `SupabaseClient<Database>` estrito.
+type AnyClient = { from: (table: string) => any; storage: any; rpc: any };
 
 const BUCKET = "reservation-records";
 const SIGN_TTL_SECONDS = 60 * 60; // 1h — mesmo prazo de signChatAttachmentUrl/signPropertyImages.
 
-const RecordKind = z.enum(["photo", "video", "audio", "file", "note"]);
+/**
+ * Categorias na ORDEM definida pelo cliente (07/09/2026) — a mesma ordem em
+ * que aparecem no seletor que abre ANTES da câmera/gravação.
+ */
+export const RECORD_CATEGORIES = ["forgotten", "damage", "cleaning_audit", "maintenance", "other"] as const;
+export type RecordCategory = (typeof RECORD_CATEGORIES)[number];
+
+const CategoryEnum = z.enum(RECORD_CATEGORIES);
 const CardMode = z.enum(["checkin", "checkout", "stay", "cleaning", "done", "no_show"]);
+
+/**
+ * As três categorias que viram pendência no Kanban (pedido explícito): a
+ * tarefa nasce vinculada AO MESMO TEMPO à reserva (log_id/reservation_id) e
+ * ao imóvel (property_id) — os três campos já existiam em `tasks`, nada
+ * precisou mudar lá.
+ *
+ * `taskCategory` mapeia para as categorias que a tela de Pendências já
+ * conhece (ver TaskCategory em tasks-types.ts); `showInCleaning` só é
+ * ligado em "objeto esquecido" — quem limpa é quem vai achar e separar o
+ * objeto, enquanto dano e manutenção são pra operação resolver, não pra
+ * faxina executar.
+ */
+const TASK_RULES: Record<
+  string,
+  { taskCategory: "maintenance" | "guest_request"; priority: "high" | "medium"; showInCleaning: boolean; prefix: string }
+> = {
+  forgotten: { taskCategory: "guest_request", priority: "medium", showInCleaning: true, prefix: "Objeto esquecido" },
+  damage: { taskCategory: "maintenance", priority: "high", showInCleaning: false, prefix: "Dano/incidente" },
+  maintenance: { taskCategory: "maintenance", priority: "medium", showInCleaning: false, prefix: "Manutenção" },
+};
 
 // Mesma identidade estável usada em toda a esteira (advanceArrival,
 // markNoShow, auto-checkout): pelo menos um dos dois precisa vir preenchido.
@@ -33,6 +59,7 @@ const TargetInput = z
 export type ReservationRecord = {
   id: string;
   kind: "photo" | "video" | "audio" | "file" | "note";
+  category: RecordCategory;
   storagePath: string | null;
   url: string | null;
   mime: string | null;
@@ -43,17 +70,14 @@ export type ReservationRecord = {
   cardMode: "checkin" | "checkout" | "stay" | "cleaning" | "done" | "no_show";
   createdByName: string | null;
   createdAt: string;
+  /** Pendência gerada automaticamente (só nas 3 categorias que geram). */
+  taskId: string | null;
+  taskStatus: "pending" | "done" | "canceled" | null;
 };
 
 /**
  * Lista, em ordem cronológica, TODOS os registros de uma reserva — não
- * importa em qual card/status cada um foi criado. `logId`/`reservationId`
- * são os mesmos já resolvidos no cliente (ver resolveReservationTarget em
- * ReservationRecords.tsx), idênticos aos usados por advanceArrival/
- * markNoShow — por isso a busca cobre os dois campos: a mesma estadia pode
- * ter sido gravada com um OU outro dependendo de qual card/rota criou o
- * registro (log de formulário vs. reserva do iCal), mas ambos apontam pra
- * mesma reserva de verdade.
+ * importa em qual card/status cada um foi criado.
  */
 export const listReservationRecords = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -67,7 +91,7 @@ export const listReservationRecords = createServerFn({ method: "GET" })
     const { data: rows, error } = await supabase
       .from("reservation_records")
       .select(
-        "id, kind, storage_path, mime, size_bytes, duration_ms, file_name, body, card_mode, created_by_name, created_at",
+        "id, kind, category, storage_path, mime, size_bytes, duration_ms, file_name, body, card_mode, created_by_name, created_at, task_id",
       )
       .or(orParts.join(","))
       .order("created_at", { ascending: true })
@@ -77,6 +101,7 @@ export const listReservationRecords = createServerFn({ method: "GET" })
     const list = (rows ?? []) as Array<{
       id: string;
       kind: ReservationRecord["kind"];
+      category: RecordCategory;
       storage_path: string | null;
       mime: string | null;
       size_bytes: number | null;
@@ -86,6 +111,7 @@ export const listReservationRecords = createServerFn({ method: "GET" })
       card_mode: ReservationRecord["cardMode"];
       created_by_name: string | null;
       created_at: string;
+      task_id: string | null;
     }>;
 
     // Assina, de uma vez só, os paths que têm arquivo — mesmo padrão de
@@ -99,9 +125,22 @@ export const listReservationRecords = createServerFn({ method: "GET" })
       }
     }
 
+    // Status ATUAL das pendências geradas — lido da própria tabela `tasks`,
+    // nunca copiado pra cá: concluir a pendência no Kanban tem que refletir
+    // no registro sem nenhuma sincronização.
+    const taskIds = Array.from(new Set(list.map((r) => r.task_id).filter((v): v is string => !!v)));
+    const taskStatusById = new Map<string, "pending" | "done" | "canceled">();
+    if (taskIds.length > 0) {
+      const { data: taskRows } = await supabase.from("tasks").select("id, status").in("id", taskIds);
+      for (const t of (taskRows ?? []) as Array<{ id: string; status: "pending" | "done" | "canceled" }>) {
+        taskStatusById.set(t.id, t.status);
+      }
+    }
+
     const out: ReservationRecord[] = list.map((r) => ({
       id: r.id,
       kind: r.kind,
+      category: r.category,
       storagePath: r.storage_path,
       url: r.storage_path ? (urlByPath.get(r.storage_path) ?? null) : null,
       mime: r.mime,
@@ -112,9 +151,77 @@ export const listReservationRecords = createServerFn({ method: "GET" })
       cardMode: r.card_mode,
       createdByName: r.created_by_name,
       createdAt: r.created_at,
+      taskId: r.task_id,
+      taskStatus: r.task_id ? (taskStatusById.get(r.task_id) ?? null) : null,
     }));
     return { records: out };
   });
+
+/** Nome de quem está registrando — mesmo fallback usado no handoff. */
+async function resolveAuthorName(supabase: AnyClient, userId: string): Promise<string> {
+  const { data: prof } = await supabase
+    .from("profiles")
+    .select("full_name, trade_name")
+    .eq("id", userId)
+    .maybeSingle();
+  return (prof?.trade_name || prof?.full_name) ?? "Um membro da equipe";
+}
+
+/**
+ * Abre a pendência no Kanban para as categorias que exigem ação
+ * (objeto esquecido / dano / manutenção). Devolve o id da tarefa criada, ou
+ * null quando a categoria não gera pendência.
+ *
+ * A tarefa nasce ligada à reserva E ao imóvel — os dois vínculos que o
+ * cliente pediu — reaproveitando exatamente os campos que `tasks` já tinha
+ * (property_id + log_id + reservation_id), com o mesmo insert de
+ * `createTask` (tasks.functions.ts).
+ */
+async function createLinkedTask(
+  supabase: AnyClient,
+  userId: string,
+  input: {
+    category: RecordCategory;
+    propertyId: string;
+    logId?: string;
+    reservationId?: string;
+    body: string | null;
+  },
+): Promise<string | null> {
+  const rule = TASK_RULES[input.category];
+  if (!rule) return null;
+
+  const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+  const accountOwnerId = await resolveAuthorizedAccountOwnerId(supabase as never, userId, null);
+
+  // O texto digitado vira o título; sem texto (só foto/áudio), um título
+  // genérico da categoria — o anexo em si fica no registro.
+  const typed = (input.body ?? "").trim();
+  const title = typed ? `${rule.prefix}: ${typed}`.slice(0, 200) : `${rule.prefix} registrado`;
+
+  const { data: inserted, error } = await supabase
+    .from("tasks")
+    .insert({
+      account_owner_id: accountOwnerId,
+      property_id: input.propertyId,
+      owner_contact_id: null,
+      log_id: input.logId ?? null,
+      reservation_id: input.reservationId ?? null,
+      title,
+      description: "Aberta automaticamente a partir de um registro da reserva.",
+      category: rule.taskCategory,
+      priority: rule.priority,
+      due_date: null,
+      show_in_cleaning: rule.showInCleaning,
+      amount_spent_cents: null,
+      recurrence_days: null,
+      created_by: userId,
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+  return (inserted as { id: string }).id;
+}
 
 /**
  * Registra um anexo (foto/vídeo/áudio/arquivo) já enviado pelo cliente
@@ -132,6 +239,7 @@ export const attachReservationRecord = createServerFn({ method: "POST" })
         logId: z.string().uuid().optional(),
         reservationId: z.string().uuid().optional(),
         cardMode: CardMode,
+        category: CategoryEnum,
         path: z.string().min(3).max(500),
         kind: z.enum(["photo", "video", "audio", "file"]),
         mime: z.string().min(1).max(150),
@@ -153,18 +261,21 @@ export const attachReservationRecord = createServerFn({ method: "POST" })
       throw new Error("Caminho de anexo inválido.");
     }
 
-    const { data: prof } = await supabase
-      .from("profiles")
-      .select("full_name, trade_name")
-      .eq("id", context.userId)
-      .maybeSingle();
-    const who = (prof?.trade_name || prof?.full_name) ?? "Um membro da equipe";
+    const who = await resolveAuthorName(supabase, context.userId);
+    const taskId = await createLinkedTask(supabase, context.userId, {
+      category: data.category,
+      propertyId: data.propertyId,
+      logId: data.logId,
+      reservationId: data.reservationId,
+      body: data.caption ?? null,
+    });
 
     const { error } = await supabase.from("reservation_records").insert({
       property_id: data.propertyId,
       log_id: data.logId ?? null,
       reservation_id: data.reservationId ?? null,
       kind: data.kind,
+      category: data.category,
       storage_path: data.path,
       mime: data.mime,
       size_bytes: data.sizeBytes,
@@ -174,9 +285,10 @@ export const attachReservationRecord = createServerFn({ method: "POST" })
       card_mode: data.cardMode,
       created_by: context.userId,
       created_by_name: who,
+      task_id: taskId,
     });
     if (error) throw new Error(error.message);
-    return { ok: true };
+    return { ok: true, taskCreated: !!taskId };
   });
 
 /**
@@ -192,6 +304,7 @@ export const createReservationRecordNote = createServerFn({ method: "POST" })
         logId: z.string().uuid().optional(),
         reservationId: z.string().uuid().optional(),
         cardMode: CardMode,
+        category: CategoryEnum,
         body: z.string().trim().min(1).max(2000),
       })
       .refine((v) => !!v.logId || !!v.reservationId, { message: "Informe a reserva ou o registro do hóspede." })
@@ -199,28 +312,36 @@ export const createReservationRecordNote = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const supabase = context.supabase as unknown as AnyClient;
-    const { data: prof } = await supabase
-      .from("profiles")
-      .select("full_name, trade_name")
-      .eq("id", context.userId)
-      .maybeSingle();
-    const who = (prof?.trade_name || prof?.full_name) ?? "Um membro da equipe";
+    const who = await resolveAuthorName(supabase, context.userId);
+    const taskId = await createLinkedTask(supabase, context.userId, {
+      category: data.category,
+      propertyId: data.propertyId,
+      logId: data.logId,
+      reservationId: data.reservationId,
+      body: data.body,
+    });
 
     const { error } = await supabase.from("reservation_records").insert({
       property_id: data.propertyId,
       log_id: data.logId ?? null,
       reservation_id: data.reservationId ?? null,
       kind: "note",
+      category: data.category,
       body: data.body,
       card_mode: data.cardMode,
       created_by: context.userId,
       created_by_name: who,
+      task_id: taskId,
     });
     if (error) throw new Error(error.message);
-    return { ok: true };
+    return { ok: true, taskCreated: !!taskId };
   });
 
-/** Remove um registro (e o arquivo do storage, se houver). */
+/**
+ * Remove um registro (e o arquivo do storage, se houver). A pendência
+ * gerada NÃO é apagada junto: ela pode já estar em andamento com outra
+ * pessoa: quem quiser encerrá-la faz isso na tela de Pendências.
+ */
 export const deleteReservationRecord = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { id: string }) => z.object({ id: z.string().uuid() }).parse(input))
