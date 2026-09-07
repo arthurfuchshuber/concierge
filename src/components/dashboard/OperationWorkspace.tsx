@@ -1774,6 +1774,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               )
                 return;
               setBusyRowId(row.logId);
+              unpinRow(row.logId);
+
               // Otimista: some da coluna de Check-ins na hora — o refetch
               // (refreshDashboard, no onSuccess da mutation) traz de volta na
               // coluna "Não Compareceu".
