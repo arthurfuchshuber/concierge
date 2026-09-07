@@ -34,6 +34,18 @@ const AskInput = z.object({
   message: z.string().trim().min(1).max(2000),
   /** Rota em que a pessoa está — "onde eu marco isso?" depende disso. */
   currentPath: z.string().max(300).nullable().optional(),
+  /**
+   * Imagem anexada, como data URL (pedido explícito, 07/09/2026). Vai junto da
+   * pergunta para o modelo olhar — um print da tela costuma explicar melhor
+   * que qualquer descrição. Não é gravada em lugar nenhum: serve a esta
+   * pergunta e acaba ali.
+   */
+  imageDataUrl: z
+    .string()
+    .max(8_000_000)
+    .regex(/^data:image\/(png|jpe?g|webp|gif);base64,/)
+    .nullable()
+    .optional(),
 });
 
 function instructions(params: { knowledge: string; currentPath: string | null; today: string }): string {
@@ -46,11 +58,22 @@ function instructions(params: { knowledge: string; currentPath: string | null; t
     "· Curto por padrão. Detalhe só quando perguntarem o porquê de algo.",
     "· Ao explicar uma regra, use o racional da documentação abaixo com as palavras dela — é a decisão real que foi tomada, com data. Não reescreva o motivo por conta própria.",
     "· Se a documentação não cobre o que perguntaram, diga que não sabe e sugira quem pode saber. NUNCA invente como o sistema funciona.",
-    "· Ao indicar onde fica algo, cite o nome que aparece no menu e o caminho.",
+    "· Use Markdown: **negrito** para números e nomes que importam, listas com hífen.",
+    "",
+    "COMO APONTAR UMA TELA",
+    "· Escreva o nome da tela como link: [Kanban](/admin/dashboard/kanban). O nome fica clicável na frase.",
+    "· NUNCA escreva o caminho solto no texto, nem repita o endereço entre parênteses, nem acrescente uma linha do tipo 'acesse em ...'. Só o nome, como link.",
+    "· Use o caminho exato que aparece em 'Caminho no sistema' na documentação abaixo. Sem caminho conhecido, cite só o nome do menu, sem link.",
+    "· Vale o mesmo para endereço: escreva o endereço como link para o mapa — [Rua X, 123 — Centro](url do campo `mapa`) — em vez de colar a URL na resposta.",
     "",
     "DADOS DA CONTA",
     "· Para qualquer pergunta sobre a operação real (limpezas, chegadas, pendências), use as ferramentas. Não estime.",
     "· Você só enxerga o que esta pessoa já podia ver. Se uma consulta voltar vazia, pode ser falta de permissão — diga isso em vez de afirmar que não existe.",
+    "",
+    "HORÁRIOS — leia com atenção",
+    "· Cada item da agenda traz `horarioOrigem`. 'informado' = alguém definiu aquele horário. 'padrao' = ninguém definiu nada e aquele é só o horário padrão do imóvel.",
+    "· Com origem 'informado', diga \"às 11h\". Com origem 'padrao', diga \"a partir das 11h\" — afirmar um horário exato que ninguém informou é dar uma precisão que não existe.",
+    "· Numa lista em que os dois casos aparecem, não resuma tudo num horário só: diga o horário de quem informou e trate o resto como 'a partir de'.",
     "",
     "AÇÕES",
     "· Você NÃO grava nada. As ferramentas `preparar_*` apenas montam a ação para a pessoa confirmar na tela.",
@@ -132,7 +155,16 @@ export const askAssistant = createServerFn({ method: "POST" })
       }),
       input: [
         ...past.map((m) => ({ type: "message", role: m.role, content: m.content })),
-        { type: "message", role: "user", content: data.message },
+        data.imageDataUrl
+          ? {
+              type: "message",
+              role: "user",
+              content: [
+                { type: "input_text", text: data.message },
+                { type: "input_image", image_url: data.imageDataUrl },
+              ],
+            }
+          : { type: "message", role: "user", content: data.message },
       ],
       tools,
       maxSteps: 6,
@@ -151,15 +183,6 @@ export const askAssistant = createServerFn({ method: "POST" })
       sources.push({ label: call.name.replace(/_/g, " "), kind: "consulta" });
     }
 
-    // Tela sugerida: a rota mais bem colocada entre os trechos recuperados.
-    const routeDoc = knowledge.docs.find((d) => d.kind === "route");
-    const route = routeDoc
-      ? {
-          path: routeDoc.docKey.replace(/^route:/, ""),
-          label: routeDoc.title.replace(/ — tela .*$/, ""),
-        }
-      : null;
-
     const answer = run.text.trim() || "Não consegui responder agora. Tenta perguntar de outro jeito?";
 
     // Grava o par pergunta/resposta. A ação preparada vai no meta: é o registro
@@ -174,7 +197,6 @@ export const askAssistant = createServerFn({ method: "POST" })
         content: answer,
         meta: {
           sources,
-          route,
           pendingAction: prepared.current,
           tools: run.toolCalls.map((c) => c.name),
           usage: run.usage,
@@ -191,7 +213,6 @@ export const askAssistant = createServerFn({ method: "POST" })
         content: answer,
         createdAt: nowIso,
         sources,
-        route,
         pendingAction: prepared.current,
       },
     };
@@ -239,7 +260,6 @@ export const listAssistantThread = createServerFn({ method: "GET" })
       content: r.content,
       createdAt: r.created_at,
       sources: (r.meta?.sources as AssistantSource[]) ?? [],
-      route: (r.meta?.route as AssistantMessage["route"]) ?? null,
       // Ação preparada não sobrevive ao recarregar: os dados podem ter mudado
       // desde então, e confirmar às cegas uma proposta velha é como a pessoa
       // gravaria algo que já não faz sentido.
@@ -247,6 +267,64 @@ export const listAssistantThread = createServerFn({ method: "GET" })
     }));
 
     return { threadId, messages };
+  });
+
+/**
+ * Transcreve um áudio gravado no painel (pedido explícito, 07/09/2026).
+ *
+ * O áudio não vira anexo nem fica guardado: ele é convertido em texto e esse
+ * texto entra na conversa como a pergunta da pessoa. Assim ditar "abre uma
+ * pendência de manutenção no 105, chuveiro pingando" percorre exatamente o
+ * mesmo caminho de quem digitou — inclusive o cartão de confirmação antes de
+ * gravar. Falar vira só outra forma de escrever, não um segundo fluxo com
+ * regras próprias.
+ *
+ * Mesmo endpoint de transcrição que os detalhes do imóvel já usam.
+ */
+export const transcribeAssistantAudio = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        audioBase64: z.string().min(100).max(20_000_000),
+        mimeType: z.string().max(120).default("audio/webm"),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data }): Promise<{ text: string }> => {
+    const apiKey = process.env["LOVABLE_API_KEY"];
+    if (!apiKey) throw new Error("IA não configurada.");
+
+    const bytes = Uint8Array.from(atob(data.audioBase64), (c) => c.charCodeAt(0));
+    const ext =
+      ({
+        "audio/webm": "webm",
+        "audio/mp4": "mp4",
+        "audio/mpeg": "mp3",
+        "audio/wav": "wav",
+        "audio/ogg": "ogg",
+      } as Record<string, string>)[data.mimeType.split(";")[0]] ?? "webm";
+
+    const form = new FormData();
+    form.append("model", "openai/gpt-4o-transcribe");
+    form.append("file", new Blob([bytes], { type: data.mimeType }), `assistente.${ext}`);
+
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/audio/transcriptions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: form,
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.error("[assistente] transcrição falhou", res.status, body.slice(0, 300));
+      if (res.status === 429) throw new Error("Muitas requisições. Tente em instantes.");
+      if (res.status === 402) throw new Error("Créditos de IA esgotados.");
+      throw new Error("Não consegui transcrever o áudio. Tente gravar novamente.");
+    }
+    const json = (await res.json()) as { text?: string };
+    const text = (json.text ?? "").trim();
+    if (!text) throw new Error("Não entendi o áudio. Grave novamente, por favor.");
+    return { text };
   });
 
 /** Começa uma conversa nova, deixando a anterior no histórico. */

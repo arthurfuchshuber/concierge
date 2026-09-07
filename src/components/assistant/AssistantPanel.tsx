@@ -15,12 +15,29 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouterState } from "@tanstack/react-router";
-import { Sparkles, Send, Loader2, X, RotateCcw, ArrowUpRight } from "lucide-react";
-import { askAssistant, listAssistantThread, startAssistantThread } from "@/lib/assistant.functions";
+import { Sparkles, Send, Loader2, X, RotateCcw, Paperclip, Mic } from "lucide-react";
+import {
+  askAssistant,
+  listAssistantThread,
+  startAssistantThread,
+  transcribeAssistantAudio,
+} from "@/lib/assistant.functions";
+import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
 import { createTask, setTaskStatus } from "@/lib/tasks.functions";
 import { markNoShow } from "@/lib/dashboard.functions";
 import type { AssistantMessage, PendingAction } from "@/lib/assistant-types";
+import { AiMarkdown } from "@/components/ai/AiMarkdown";
 import { toast } from "sonner";
+
+/** Blob → base64 puro (sem o cabeçalho data:), que é o que a transcrição espera. */
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
+    reader.onerror = () => reject(new Error("Não consegui ler o áudio gravado."));
+    reader.readAsDataURL(blob);
+  });
+}
 
 const SUGESTOES = [
   "Como marco que o hóspede não compareceu?",
@@ -38,6 +55,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
   const createTaskFn = useServerFn(createTask);
   const setStatusFn = useServerFn(setTaskStatus);
   const noShowFn = useServerFn(markNoShow);
+  const transcribeFn = useServerFn(transcribeAssistantAudio);
 
   const [threadId, setThreadId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -47,6 +65,12 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [doneActions, setDoneActions] = useState<Set<string>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  // Imagem anexada à PRÓXIMA pergunta. Vive só até o envio: não é
+  // guardada em lugar nenhum, serve para o modelo olhar e acaba ali.
+  const [image, setImage] = useState<{ dataUrl: string; name: string } | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
 
   const history = useQuery({
     queryKey: ["assistant-thread"],
@@ -69,8 +93,15 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
   }, [messages.length, pending]);
 
   const ask = useMutation({
-    mutationFn: (text: string) =>
-      askFn({ data: { threadId, message: text, currentPath: pathname } }),
+    mutationFn: (v: { text: string; imageDataUrl: string | null }) =>
+      askFn({
+        data: {
+          threadId,
+          message: v.text,
+          currentPath: pathname,
+          imageDataUrl: v.imageDataUrl,
+        },
+      }),
     onSuccess: (res) => {
       setThreadId(res.threadId);
       setLive((prev) => [...prev, res.message]);
@@ -81,24 +112,67 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
     },
   });
 
+  const busy = ask.isPending || transcribing;
+
   function send(text: string) {
     const clean = text.trim();
-    if (!clean || ask.isPending) return;
+    if (!clean || busy) return;
+    const attached = image;
     setDraft("");
+    setImage(null);
     setPending(null);
     setLive((prev) => [
       ...prev,
       {
         id: crypto.randomUUID(),
+        // Marca a imagem na própria bolha: sem isso, a pessoa manda um print e
+        // a conversa não guarda sinal nenhum de que ele foi junto.
+        content: attached ? `${clean}\n\n📎 ${attached.name}` : clean,
         role: "user",
-        content: clean,
         createdAt: new Date().toISOString(),
         sources: [],
-        route: null,
         pendingAction: null,
       },
     ]);
-    ask.mutate(clean);
+    ask.mutate({ text: clean, imageDataUrl: attached?.dataUrl ?? null });
+  }
+
+  function onPickImage(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Por enquanto eu consigo olhar imagens — uma foto ou um print da tela.");
+      return;
+    }
+    // 6 MB: acima disso o data URL passa do limite aceito pela server function.
+    if (file.size > 6_000_000) {
+      toast.error("Imagem muito grande. Tente uma menor que 6 MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setImage({ dataUrl: String(reader.result), name: file.name });
+    reader.onerror = () => toast.error("Não consegui ler esse arquivo.");
+    reader.readAsDataURL(file);
+  }
+
+  /**
+   * Áudio vira texto e segue como qualquer pergunta digitada — inclusive o
+   * cartão de confirmação, quando é um pedido de ação. Falar é outra forma de
+   * escrever, não um segundo caminho com regras próprias.
+   */
+  async function onRecorded(a: RecordedAudio) {
+    setRecording(false);
+    setTranscribing(true);
+    try {
+      const base64 = await blobToBase64(a.blob);
+      const { text } = await transcribeFn({ data: { audioBase64: base64, mimeType: a.mime } });
+      setTranscribing(false);
+      send(text);
+    } catch (err) {
+      setTranscribing(false);
+      toast.error(err instanceof Error ? err.message : "Não consegui transcrever o áudio.");
+    }
   }
 
   /** Executa a ação confirmada pela mesma porta que a interface normal usa. */
@@ -231,22 +305,83 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
           e.preventDefault();
           send(draft);
         }}
-        className="flex shrink-0 items-center gap-2 border-t border-border bg-surface px-3 py-2"
+        className="shrink-0 border-t border-border bg-surface px-3 py-2"
       >
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="Pergunte alguma coisa…"
-          className="h-8 min-w-0 flex-1 rounded-full border border-border bg-background px-3 text-sm outline-none focus:ring-0"
-        />
-        <button
-          type="submit"
-          disabled={!draft.trim() || ask.isPending}
-          aria-label="Enviar"
-          className="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground disabled:opacity-40"
-        >
-          {ask.isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-        </button>
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPickImage} />
+
+        {image && (
+          <div className="mb-2 flex items-center gap-2 rounded-lg border border-border bg-card px-2 py-1.5">
+            <img src={image.dataUrl} alt="" className="size-8 shrink-0 rounded object-cover" />
+            <span className="min-w-0 flex-1 truncate text-[11.5px]">{image.name}</span>
+            <button
+              type="button"
+              onClick={() => setImage(null)}
+              aria-label="Remover imagem"
+              className="grid size-6 shrink-0 place-items-center rounded text-muted-foreground hover:text-destructive"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* Anexo à esquerda, áudio à direita — a mesma disposição do resto do
+            sistema, para o gesto não mudar de lugar entre uma tela e outra. */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={busy}
+            aria-label="Anexar imagem"
+            title="Anexar uma foto ou print"
+            className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
+          >
+            <Paperclip className="size-4" />
+          </button>
+
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder={transcribing ? "transcrevendo…" : "Pergunte alguma coisa…"}
+            disabled={transcribing}
+            className="h-8 min-w-0 flex-1 rounded-full border border-border bg-background px-3 text-sm outline-none focus:ring-0"
+          />
+
+          {/* Enviar só toma o lugar do microfone quando há texto — do contrário
+              o botão de falar sumiria justamente de quem prefere falar. */}
+          {draft.trim() || image ? (
+            <button
+              type="submit"
+              disabled={!draft.trim() || busy}
+              aria-label="Enviar"
+              className="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground disabled:opacity-40"
+            >
+              {ask.isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+            </button>
+          ) : transcribing ? (
+            <span className="grid size-8 shrink-0 place-items-center text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+            </span>
+          ) : recording ? (
+            <AudioRecorderButton
+              autoStart
+              compact
+              maxSeconds={120}
+              onRecorded={onRecorded}
+              onCancel={() => setRecording(false)}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setRecording(true)}
+              disabled={busy}
+              aria-label="Falar"
+              title="Ditar sua pergunta ou um pedido"
+              className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
+            >
+              <Mic className="size-4" />
+            </button>
+          )}
+        </div>
       </form>
     </div>
   );
@@ -257,13 +392,20 @@ function MessageBubble({ message }: { message: AssistantMessage }) {
   return (
     <div className={`flex flex-col gap-1.5 ${mine ? "items-end" : "items-start"}`}>
       <div
-        className={`max-w-[88%] whitespace-pre-wrap break-words rounded-xl px-3 py-2 text-[13px] leading-relaxed ${
-          mine ? "bg-primary text-primary-foreground" : "border border-border bg-card"
+        className={`max-w-[88%] break-words rounded-xl px-3 py-2 text-[13px] leading-relaxed ${
+          mine ? "whitespace-pre-wrap bg-primary text-primary-foreground" : "border border-border bg-card"
         }`}
       >
-        {message.content}
+        {/* O que a pessoa digitou é texto puro — se ela escrever asteriscos,
+            deve ver asteriscos. Só a resposta da IA passa pelo Markdown. */}
+        {mine ? message.content : <AiMarkdown>{message.content}</AiMarkdown>}
       </div>
-      {!mine && (message.sources.length > 0 || message.route) && (
+      {/* Só as fontes. O "abrir tela" saiu daqui em 07/09/2026: quando a IA
+          aponta um lugar do sistema, ela escreve o nome da tela como link
+          dentro da própria frase — um chip repetindo a mesma coisa embaixo era
+          poluição, e obrigava a ler duas vezes para entender que era um
+          caminho só. */}
+      {!mine && message.sources.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5">
           {message.sources.slice(0, 3).map((s, i) => (
             <span
@@ -274,14 +416,6 @@ function MessageBubble({ message }: { message: AssistantMessage }) {
               {s.label}
             </span>
           ))}
-          {message.route && (
-            <a
-              href={message.route.path}
-              className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-[10px] font-medium hover:bg-secondary/50"
-            >
-              Abrir {message.route.label} <ArrowUpRight className="size-3" />
-            </a>
-          )}
         </div>
       )}
     </div>

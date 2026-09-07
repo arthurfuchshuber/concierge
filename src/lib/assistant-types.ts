@@ -70,8 +70,9 @@ export type AssistantMessage = {
   content: string;
   createdAt: string;
   sources: AssistantSource[];
-  /** Tela sugerida para a pessoa abrir, quando a resposta aponta para uma. */
-  route: { path: string; label: string } | null;
+  /** A tela apontada pela resposta vira link dentro do próprio texto
+   * (07/09/2026) — não há mais um campo separado nem um chip embaixo da
+   * mensagem repetindo o mesmo caminho. */
   pendingAction: PendingAction | null;
 };
 

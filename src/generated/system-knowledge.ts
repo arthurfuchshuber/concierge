@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-07T22:21:51.475Z";
+export const GENERATED_AT = "2026-09-07T22:46:46.158Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -717,6 +717,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "2dcd95af10c0c9277d0c95d8564c9d34"
   },
   {
+    "doc_key": "rule:HoraPrevista",
+    "kind": "rule",
+    "title": "Regra — HoraPrevista",
+    "content": "Horário previsto de um card, e — igualmente importante — de ONDE ele veio\n(pedido explícito, 07/09/2026).\n\nDuas armadilhas moram aqui:\n\n 1. `guestArrivalTime` é o horário que o hóspede informou para a CHEGADA.\n Num card de checkout ele não diz nada sobre a saída. Usá-lo ali foi\n exatamente o bug que fez o checkout automático confirmar na hora\n errada (06/09/2026) — por isso a saída só olha para o override do card\n e, na falta dele, para o padrão do imóvel.\n\n 2. \"11h\" pode significar duas coisas muito diferentes: alguém informou 11h,\n ou ninguém informou nada e 11h é só o padrão do imóvel. Dizer \"todas às\n 11h\" no segundo caso afirma uma precisão que não existe — a resposta\n honesta é \"a partir das 11h\". Daí a origem viajar junto do valor, para\n o agente escolher a palavra certa em vez de adivinhar.",
+    "source_path": "src/lib/ai/assistant-tools.server.ts",
+    "audience": [],
+    "content_hash": "7debd17936f90d854ee645fc0d381bcc"
+  },
+  {
     "doc_key": "rule:HouseFieldsInput",
     "kind": "rule",
     "title": "Regra — HouseFieldsInput",
@@ -742,6 +751,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/engagement-analytics.functions.ts",
     "audience": [],
     "content_hash": "259251e76ccdf3c4b518c36cdb76c99e"
+  },
+  {
+    "doc_key": "rule:InternalLink",
+    "kind": "rule",
+    "title": "Regra — InternalLink",
+    "content": "Link para uma tela do próprio sistema (pedido explícito, 07/09/2026).\n\nA IA aponta caminhos escrevendo `[Kanban](/admin/dashboard/kanban)`, e o\nleitor deve poder clicar no NOME — sem o endereço aparecer na resposta e sem\numa linha extra de \"abrir tela\" embaixo.\n\nNavega pelo router em vez de deixar o `<a>` recarregar a página: um recarregamento\ncompleto aqui derrubaria o painel aberto e faria a pessoa perder a conversa\nno exato momento em que ela seguiu a orientação recebida.",
+    "source_path": "src/components/ai/AiMarkdown.tsx",
+    "audience": [],
+    "content_hash": "ac7b00788b10556672931c7a9faaaf91"
   },
   {
     "doc_key": "rule:isExpired",
@@ -859,6 +877,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
     "content_hash": "b9d2e597086f026243bb1c43e760fdbf"
+  },
+  {
+    "doc_key": "rule:onRecorded",
+    "kind": "rule",
+    "title": "Regra — onRecorded",
+    "content": "Áudio vira texto e segue como qualquer pergunta digitada — inclusive o\ncartão de confirmação, quando é um pedido de ação. Falar é outra forma de\nescrever, não um segundo caminho com regras próprias.",
+    "source_path": "src/components/assistant/AssistantPanel.tsx",
+    "audience": [],
+    "content_hash": "4d19f38c974bfc49a8cba94305612c3b"
   },
   {
     "doc_key": "rule:PageHeader",
@@ -1158,6 +1185,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "f10f71c9dd876dca05bd6f0512519a77"
   },
   {
+    "doc_key": "rule:shape",
+    "kind": "rule",
+    "title": "Regra — shape",
+    "content": "Endereço já com o link do mapa pronto (pedido explícito, 07/09/2026):\nquem pergunta o endereço de um imóvel quase sempre vai abrir o mapa em\nseguida. Quando o imóvel não tem `maps_url` cadastrado, monta a busca pelo\npróprio endereço — melhor um mapa pesquisado que nenhum.",
+    "source_path": "src/lib/ai/assistant-tools.server.ts",
+    "audience": [],
+    "content_hash": "57ffb747f784d1d6a181a9b2bfc660ab"
+  },
+  {
     "doc_key": "rule:sortCheckinRows",
     "kind": "rule",
     "title": "Regra — sortCheckinRows",
@@ -1183,6 +1219,24 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/ai/sources.ts",
     "audience": [],
     "content_hash": "f853da0ed1e11d46dea9ccc6fc7de1c4"
+  },
+  {
+    "doc_key": "rule:src/components/ai/AiMarkdown.tsx:0",
+    "kind": "rule",
+    "title": "Regra em AiMarkdown.tsx",
+    "content": "Renderização do texto que a IA escreve (pedido explícito, 07/09/2026).\n\nOs modelos escrevem em Markdown por conta própria — `**assim**` para\ndestacar um número, listas com hífen. Exibindo como texto puro, o leitor vê\nos asteriscos crus, que é exatamente o oposto do destaque pretendido.\n\nDuas armadilhas que este componente resolve e que justificam ele existir em\nvez de um `<ReactMarkdown>` solto em cada tela:\n\n 1. O preflight do Tailwind zera marcador e recuo de `ul`/`ol`. Sem estilo\n explícito, uma lista da IA vira um bloco de linhas coladas, sem bullet.\n Por isso cada elemento abaixo é estilizado à mão — o projeto não usa o\n plugin de typography.\n\n 2. Em Markdown, uma quebra de linha simples é \"quebra suave\" e some na\n renderização — mas a IA escreve uma frase por linha esperando ver uma\n frase por linha. O chat do hóspede resolve isso trocando toda quebra\n por linha em branco antes de renderizar; aqui não dá, porque a mesma\n troca destruiria tabela (que exige linhas adjacentes) e afrouxaria as\n listas. A saída é `whitespace-pre-line` no parágrafo: a quebra suave\n chega como \"\\n\" no texto e o CSS a exibe, sem tocar no Markdown.\n\nHerda tamanho e cor de quem o envolve, então serve tanto num balão claro\nquanto num escuro.",
+    "source_path": "src/components/ai/AiMarkdown.tsx",
+    "audience": [],
+    "content_hash": "2cc9bc470dd974359ec18d1ab3e41539"
+  },
+  {
+    "doc_key": "rule:src/components/assistant/AssistantPanel.tsx:0",
+    "kind": "rule",
+    "title": "Regra em AssistantPanel.tsx",
+    "content": "Painel do Assistente do Painel (pedido explícito, 07/09/2026).\n\nA parte que merece atenção é a confirmação de ação. Quando a resposta vem\ncom uma `pendingAction`, o painel mostra o cartão com os campos exatos que\nserão gravados e só grava no clique — chamando a MESMA server function que\na tela correspondente usaria (`createTask`, `setTaskStatus`, `markNoShow`).\nNada de um caminho de escrita paralelo: se a regra de criação de pendência\nmudar amanhã, o assistente acompanha sem ninguém lembrar dele.\n\nPor isso também as queries do painel são invalidadas depois de confirmar —\no quadro atrás precisa refletir o que acabou de acontecer.",
+    "source_path": "src/components/assistant/AssistantPanel.tsx",
+    "audience": [],
+    "content_hash": "1d6019faf67077787112e40ec8da6346"
   },
   {
     "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:137749",
@@ -1282,6 +1336,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/TaskAttachments.tsx",
     "audience": [],
     "content_hash": "abda222d5c7f7b14809f0a094bc3ec59"
+  },
+  {
+    "doc_key": "rule:src/components/FloatingDock.tsx:0",
+    "kind": "rule",
+    "title": "Regra em FloatingDock.tsx",
+    "content": "Botão flutuante único do painel (pedido explícito, 07/09/2026).\n\nAntes o canto tinha o botão do Atendimento e nada mais. Com a chegada do\nAssistente, empilhar um segundo botão bagunçaria o canto — e o dock já é\narrastável, então os dois teriam que se mover juntos. A decisão foi um botão\nsó, na cor de destaque, que abre um menu com as duas opções.\n\nA movimentação é a mesma de antes, de propósito: arrastar na vertical, com a\nposição guardada no aparelho. Quem já tinha o hábito de subir o botão para\nele não cobrir um card continua conseguindo.\n\nO Atendimento não é reimplementado aqui: escolher \"Atendimento\" dispara o\nmesmo evento (`handoff-dock:open`) que os cards já usam para abrir uma\nconversa, e o FloatingHandoffDock — que segue montado, só que sem botão\npróprio — responde. Uma porta de entrada, uma implementação.",
+    "source_path": "src/components/FloatingDock.tsx",
+    "audience": [],
+    "content_hash": "f16ed5d69a4cb9d16877ddc6f8455d00"
   },
   {
     "doc_key": "rule:src/components/guide/BottomNav.tsx:448",
@@ -1734,6 +1797,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "9d3f1310acf1ea7d5eaf2e366a63a88f"
   },
   {
+    "doc_key": "rule:src/lib/assistant-types.ts:2375",
+    "kind": "rule",
+    "title": "Regra em assistant-types.ts",
+    "content": "A tela apontada pela resposta vira link dentro do próprio texto\n(07/09/2026) — não há mais um campo separado nem um chip embaixo da\nmensagem repetindo o mesmo caminho.",
+    "source_path": "src/lib/assistant-types.ts",
+    "audience": [],
+    "content_hash": "aea6e0dd752ab44bafbf64ca31f3132f"
+  },
+  {
     "doc_key": "rule:src/lib/assistant.functions.ts:0",
     "kind": "rule",
     "title": "Regra em assistant.functions.ts",
@@ -1741,6 +1813,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/assistant.functions.ts",
     "audience": [],
     "content_hash": "5674b6fa53ea76be36860872abcb06e6"
+  },
+  {
+    "doc_key": "rule:src/lib/assistant.functions.ts:1712",
+    "kind": "rule",
+    "title": "Regra em assistant.functions.ts",
+    "content": "Imagem anexada, como data URL (pedido explícito, 07/09/2026). Vai junto da\npergunta para o modelo olhar — um print da tela costuma explicar melhor\nque qualquer descrição. Não é gravada em lugar nenhum: serve a esta\npergunta e acaba ali.",
+    "source_path": "src/lib/assistant.functions.ts",
+    "audience": [],
+    "content_hash": "33dec6642968c2b0f4f777319ad37516"
   },
   {
     "doc_key": "rule:src/lib/audit-fn-labels.server.ts:0",
@@ -2157,6 +2238,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "467e94a80792c94f3d1d95de836383f6"
   },
   {
+    "doc_key": "rule:transcribeAssistantAudio",
+    "kind": "rule",
+    "title": "Regra — transcribeAssistantAudio",
+    "content": "Transcreve um áudio gravado no painel (pedido explícito, 07/09/2026).\n\nO áudio não vira anexo nem fica guardado: ele é convertido em texto e esse\ntexto entra na conversa como a pergunta da pessoa. Assim ditar \"abre uma\npendência de manutenção no 105, chuveiro pingando\" percorre exatamente o\nmesmo caminho de quem digitou — inclusive o cartão de confirmação antes de\ngravar. Falar vira só outra forma de escrever, não um segundo fluxo com\nregras próprias.\n\nMesmo endpoint de transcrição que os detalhes do imóvel já usam.",
+    "source_path": "src/lib/assistant.functions.ts",
+    "audience": [],
+    "content_hash": "be9890b721f66bc4228625c302f59ca2"
+  },
+  {
     "doc_key": "rule:upsertNodes",
     "kind": "rule",
     "title": "Regra — upsertNodes",
@@ -2182,6 +2272,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
     "content_hash": "b8aa4791c71d3daa3834c0ac42c3ea46"
+  },
+  {
+    "doc_key": "rule:UUID_RE",
+    "kind": "rule",
+    "title": "Regra — UUID_RE",
+    "content": "Convenção da esteira: nem todo card tem log de verdade. Reserva vinda do\niCal sem formulário preenchido carrega um `logId` sintético (\"ical:<id>\"),\nque só serve como chave de tela. Mandar isso para `markNoShow` — que valida\nuuid — daria erro de validação; o identificador utilizável nesse caso é o\n`reservationId`. Estas duas funções são o filtro.",
+    "source_path": "src/lib/ai/assistant-tools.server.ts",
+    "audience": [],
+    "content_hash": "620175e88a29e2339d97f8d56ac3e92f"
   },
   {
     "doc_key": "rule:verifiedActor",

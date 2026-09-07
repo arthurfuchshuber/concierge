@@ -71,6 +71,36 @@ function realLogId(logId: string | null | undefined): string | null {
   return logId && UUID_RE.test(logId) ? logId : null;
 }
 
+/**
+ * Horário previsto de um card, e — igualmente importante — de ONDE ele veio
+ * (pedido explícito, 07/09/2026).
+ *
+ * Duas armadilhas moram aqui:
+ *
+ *   1. `guestArrivalTime` é o horário que o hóspede informou para a CHEGADA.
+ *      Num card de checkout ele não diz nada sobre a saída. Usá-lo ali foi
+ *      exatamente o bug que fez o checkout automático confirmar na hora
+ *      errada (06/09/2026) — por isso a saída só olha para o override do card
+ *      e, na falta dele, para o padrão do imóvel.
+ *
+ *   2. "11h" pode significar duas coisas muito diferentes: alguém informou 11h,
+ *      ou ninguém informou nada e 11h é só o padrão do imóvel. Dizer "todas às
+ *      11h" no segundo caso afirma uma precisão que não existe — a resposta
+ *      honesta é "a partir das 11h". Daí a origem viajar junto do valor, para
+ *      o agente escolher a palavra certa em vez de adivinhar.
+ */
+type HoraPrevista = { hora: string | null; origem: "informado" | "padrao" | "desconhecido" };
+
+function horaPrevista(
+  r: { arrivalTimeOverride: string | null; guestArrivalTime: string | null; standardTime: string | null },
+  kind: "checkin" | "checkout",
+): HoraPrevista {
+  const informado = kind === "checkin" ? (r.arrivalTimeOverride ?? r.guestArrivalTime) : r.arrivalTimeOverride;
+  if (informado) return { hora: informado, origem: "informado" };
+  if (r.standardTime) return { hora: r.standardTime, origem: "padrao" };
+  return { hora: null, origem: "desconhecido" };
+}
+
 export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
   const db = ctx.supabase as unknown as AnyClient;
 
@@ -80,18 +110,37 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
    * "Studio 10x" na conta, adivinhar em silêncio criaria a pendência no imóvel
    * errado — melhor o agente perguntar qual.
    */
-  async function matchProperties(term: string): Promise<Array<{ id: string; name: string; city: string | null }>> {
+  type PropRow = {
+    id: string;
+    name: string | null;
+    city: string | null;
+    address: string | null;
+    address_note: string | null;
+    maps_url: string | null;
+  };
+  const PROP_COLS = "id, name, city, address, address_note, maps_url";
+
+  /**
+   * Endereço já com o link do mapa pronto (pedido explícito, 07/09/2026):
+   * quem pergunta o endereço de um imóvel quase sempre vai abrir o mapa em
+   * seguida. Quando o imóvel não tem `maps_url` cadastrado, monta a busca pelo
+   * próprio endereço — melhor um mapa pesquisado que nenhum.
+   */
+  function shape(r: PropRow) {
+    const endereco = [r.address, r.address_note].filter(Boolean).join(" — ") || null;
+    const mapa =
+      r.maps_url ??
+      (endereco ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}` : null);
+    return { id: r.id, nome: r.name ?? "(sem nome)", cidade: r.city, endereco, mapa };
+  }
+
+  async function matchProperties(term: string) {
     if (!ctx.propertyIds.length) return [];
-    const { data } = await db
-      .from("properties")
-      .select("id, name, city")
-      .in("id", ctx.propertyIds)
-      .limit(200);
-    const rows = (data ?? []) as Array<{ id: string; name: string | null; city: string | null }>;
-    const needle = term.trim().toLowerCase();
+    const { data } = await db.from("properties").select(PROP_COLS).in("id", ctx.propertyIds).limit(200);
+    const rows = (data ?? []) as PropRow[];
     const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    const hits = rows.filter((r) => norm(r.name ?? "").includes(norm(needle)));
-    return hits.map((r) => ({ id: r.id, name: r.name ?? "(sem nome)", city: r.city }));
+    const needle = norm(term.trim());
+    return rows.filter((r) => norm(r.name ?? "").includes(needle)).map(shape);
   }
 
   return [
@@ -99,7 +148,7 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
     {
       name: "listar_imoveis",
       description:
-        "Lista os imóveis que este usuário pode ver, com cidade. Use para descobrir o id de um imóvel citado pelo nome antes de qualquer outra ferramenta.",
+        "Lista os imóveis que este usuário pode ver, com cidade, endereço e link do mapa. Use para descobrir o id de um imóvel citado pelo nome antes de qualquer outra ferramenta, e também quando perguntarem o endereço de um imóvel.",
       parameters: schema(
         {
           busca: {
@@ -115,14 +164,15 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
           const hits = await matchProperties(term);
           return { imoveis: hits, total: hits.length };
         }
-        const { data } = await db.from("properties").select("id, name, city").in("id", ctx.propertyIds).limit(200);
-        return { imoveis: data ?? [], total: (data ?? []).length };
+        const { data } = await db.from("properties").select(PROP_COLS).in("id", ctx.propertyIds).limit(200);
+        const all = ((data ?? []) as PropRow[]).map(shape);
+        return { imoveis: all, total: all.length };
       },
     },
     {
       name: "agenda",
       description:
-        "Chegadas (check-in) ou saídas/limpezas (check-out) do período. Use para perguntas como 'quantas limpezas tenho amanhã' ou 'quem chega hoje'.",
+        "Chegadas (check-in) ou saídas/limpezas (check-out) do período. Use para perguntas como 'quantas limpezas tenho amanhã' ou 'quem chega hoje'. Cada item traz `horario` e `horarioOrigem`: 'informado' quando alguém de fato definiu aquele horário, 'padrao' quando é apenas o horário padrão do imóvel e ninguém informou nada.",
       parameters: schema(
         {
           tipo: { type: "string", enum: ["chegadas", "saidas"] },
@@ -141,16 +191,20 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
         });
         return {
           total: rows.length,
-          itens: rows.slice(0, 40).map((r) => ({
-            imovel: r.propertyName,
-            propertyId: r.propertyId,
-            hospede: r.guestName,
-            data: r.date,
-            horario: r.arrivalTimeOverride ?? r.guestArrivalTime ?? r.standardTime,
-            status: r.status,
-            logId: realLogId(r.logId),
-            reservationId: r.reservationId,
-          })),
+          itens: rows.slice(0, 40).map((r) => {
+            const h = horaPrevista(r, kind as "checkin" | "checkout");
+            return {
+              imovel: r.propertyName,
+              propertyId: r.propertyId,
+              hospede: r.guestName,
+              data: r.date,
+              horario: h.hora,
+              horarioOrigem: h.origem,
+              status: r.status,
+              logId: realLogId(r.logId),
+              reservationId: r.reservationId,
+            };
+          }),
         };
       },
     },
