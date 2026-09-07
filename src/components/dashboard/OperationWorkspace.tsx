@@ -62,6 +62,7 @@ import {
   Download,
   Repeat,
   UserX,
+  Ban,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, parse, isValid, differenceInCalendarDays } from "date-fns";
@@ -975,11 +976,18 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       reservationId?: string;
       from: "checkin" | "stay" | "checkout" | "cleaning";
       cleaningType?: "normal" | "completa";
+      skipCleaning?: boolean;
     }) => advanceFn({ data: v }),
+    // Sem debounce aqui: o card já se moveu de forma otimista no clique, e a
+    // recarga acontece assim que o servidor confirma — esperar 600s+ dava a
+    // impressão de que o botão "não respondia".
     onSuccess: () => {
-      refreshDashboard();
+      refreshDashboard(0);
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao avançar card."),
+    onError: (e) => {
+      toast.error(e instanceof Error ? e.message : "Falha ao avançar card.");
+      refreshDashboard(0);
+    },
     onSettled: () => setBusyRowId(null),
   });
 
@@ -1068,6 +1076,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     row: ArrivalRow,
     from: "checkin" | "stay" | "checkout" | "cleaning",
     cleaningType?: "normal" | "completa",
+    skipCleaning?: boolean,
   ) {
     const target = statusTarget(row);
     if (!target.logId && !target.reservationId) {
@@ -1075,8 +1084,25 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       return;
     }
     setBusyRowId(row.logId);
-    optimisticMove(row, from);
-    advance.mutate({ ...target, from, ...(cleaningType ? { cleaningType } : {}) });
+    // Cancela buscas em andamento ANTES do patch otimista: sem isso, uma
+    // recarga já disparada (30s/foco) podia terminar depois do clique e
+    // reescrever o cache com o estado antigo — o card "voltava" e só sumia na
+    // próxima recarga, dando a sensação de lentidão.
+    qc.cancelQueries({ predicate: (q) => q.queryKey[0] === "dash-list" });
+    if (skipCleaning) {
+      // "Limpeza não será realizada": sai da esteira na hora (vai direto pra
+      // Concluídos, sem passar por Em Limpeza).
+      patchList("checkout", (rows) => rows.filter((r) => r.logId !== row.logId));
+      patchList("checkin", (rows) => rows.filter((r) => r.logId !== row.logId));
+    } else {
+      optimisticMove(row, from);
+    }
+    advance.mutate({
+      ...target,
+      from,
+      ...(cleaningType ? { cleaningType } : {}),
+      ...(skipCleaning ? { skipCleaning: true } : {}),
+    });
   }
 
   /**
@@ -1633,6 +1659,20 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         if (colMode === "done" || colMode === "no_show") return;
         handleAdvance(row, colMode as "checkin" | "stay" | "checkout" | "cleaning");
       },
+      // "Limpeza não será realizada" — conclui a estadia sem contabilizar
+      // nenhum valor de limpeza (só faz sentido na esteira de saída).
+      onSkipCleaning:
+        colMode === "checkout" || colMode === "stay" || colMode === "cleaning"
+          ? (row: ArrivalRow) => {
+              if (
+                !window.confirm(
+                  "Marcar que a limpeza NÃO será realizada? O card vai para Concluídos e o valor da limpeza não será contabilizado.",
+                )
+              )
+                return;
+              runAdvance(row, colMode as "stay" | "checkout" | "cleaning", undefined, true);
+            }
+          : undefined,
       onRevert:
         colMode === "checkin"
           ? undefined
@@ -5503,6 +5543,7 @@ function ArrivalGroup({
   onMark,
   onRevert,
   onNoShow,
+  onSkipCleaning,
   onSyncIcal,
   onNote,
   onEditDates,
@@ -5528,6 +5569,8 @@ function ArrivalGroup({
   /** Marca um card de Check-ins como "Não Compareceu" — só passado quando
    * mode === "checkin" (ver arrivalGroupPropsFor). */
   onNoShow?: (r: ArrivalRow) => void;
+  /** "Limpeza não será realizada" — conclui a estadia sem contabilizar valor. */
+  onSkipCleaning?: (r: ArrivalRow) => void;
   onSyncIcal: (r: ArrivalRow) => void;
   onNote: (r: ArrivalRow, note: string | null) => void;
   onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
@@ -5582,6 +5625,7 @@ function ArrivalGroup({
           onMark={onMark}
           onRevert={onRevert}
           onNoShow={onNoShow}
+          onSkipCleaning={onSkipCleaning}
           onSyncIcal={onSyncIcal}
           onNote={onNote}
           onEditDates={onEditDates}
@@ -5611,6 +5655,7 @@ function ArrivalCard({
   onMark,
   onRevert,
   onNoShow,
+  onSkipCleaning,
   onSyncIcal,
   onNote,
   onEditDates,
@@ -5634,6 +5679,8 @@ function ArrivalCard({
   /** Marca este card (Check-ins) como "Não Compareceu" — pedido explícito,
    * 05/09/2026: opção no menu "⋮", só nos cards de check-in ainda pendentes. */
   onNoShow?: (r: ArrivalRow) => void;
+  /** "Limpeza não será realizada" — conclui sem contabilizar o valor. */
+  onSkipCleaning?: (r: ArrivalRow) => void;
   onSyncIcal: (r: ArrivalRow) => void;
   onNote: (r: ArrivalRow, note: string | null) => void;
   onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
@@ -5905,14 +5952,9 @@ function ArrivalCard({
         : mode === "no_show"
           ? 'Desfazer o "Não Compareceu" e voltar este card para a lista de Check-ins?'
           : "Reabrir esta estadia e voltar o card para a lista Em Limpeza?";
-  const revertTitle =
-    mode === "stay" || mode === "checkout"
-      ? "Voltar para a etapa anterior (lista de Check-ins)"
-      : mode === "cleaning"
-        ? "Voltar para a etapa anterior (lista de Checkouts)"
-        : mode === "no_show"
-          ? "Voltar para a etapa anterior (lista de Check-ins)"
-          : "Voltar para a etapa anterior (lista Em Limpeza)";
+  // Pedido explícito (07/09/2026): rótulo único e curto, sem o detalhe da
+  // lista de destino entre parênteses.
+  const revertTitle = "Retornar ao status anterior";
   const handleRevertClick = () => {
     if (window.confirm(revertConfirmLabel)) onRevert?.(row);
   };
@@ -5922,6 +5964,10 @@ function ArrivalCard({
   // etapa da esteira, a opção não se aplica mais).
   const showNoShowMenuItem = mode === "checkin" && !done && !!onNoShow;
   const handleNoShowClick = () => onNoShow?.(row);
+
+  // "Limpeza não será realizada" — conclui a estadia direto, sem contabilizar
+  // o valor da limpeza. Não faz sentido num card ainda aguardando check-out.
+  const showSkipCleaningMenuItem = !!onSkipCleaning && !awaitingCheckout;
 
   // Confirmação quando o check acontece fora do horário/data comum da esteira.
   const [confirmMsg, setConfirmMsg] = useState<string | null>(null);
@@ -6438,7 +6484,7 @@ function ArrivalCard({
             type="button"
             onClick={handleRevertClick}
             disabled={busy}
-            aria-label="Voltar para a etapa anterior"
+            aria-label="Retornar ao status anterior"
             title={revertTitle}
             className="shrink-0 grid place-items-center rounded-lg bg-secondary hover:bg-secondary/80 border border-border/60 transition-colors size-9"
           >
@@ -6502,6 +6548,11 @@ function ArrivalCard({
               {showNoShowMenuItem && (
                 <DropdownMenuItem onClick={handleNoShowClick} disabled={busy}>
                   <UserX className="size-3.5 shrink-0" /> Não Compareceu
+                </DropdownMenuItem>
+              )}
+              {showSkipCleaningMenuItem && (
+                <DropdownMenuItem onClick={() => onSkipCleaning?.(row)} disabled={busy}>
+                  <Ban className="size-3.5 shrink-0" /> Limpeza não será realizada
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem onClick={() => setNoteOpen((v) => !v)}>

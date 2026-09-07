@@ -1137,6 +1137,10 @@ const AdvanceInput = z
     // Opcional para não quebrar chamadas antigas/outros "from"; quando
     // ausente no avanço de limpeza, cai no fallback "normal".
     cleaningType: z.enum(["normal", "completa"]).optional(),
+    // "Limpeza não será realizada" (menu ⋮ do card): conclui a estadia
+    // direto, sem gravar tipo/preço de limpeza — assim o card sai da esteira
+    // sem entrar nos totais de "Limpezas Realizadas"/"Custo Total Limpeza".
+    skipCleaning: z.boolean().optional(),
   })
   .refine((v) => !!v.logId || !!v.reservationId, { message: "Informe a reserva ou o registro do hóspede." });
 
@@ -1263,6 +1267,21 @@ export async function runAdvanceArrival(
       return Math.round((da - db) / 86400000);
     }
     const cleaningStale = !!(checkoutDate && daysBetween(today, checkoutDate) > 1);
+
+    // "Limpeza não será realizada": conclui a estadia de qualquer etapa da
+    // esteira, sem snapshot de tipo/preço — o card vai para Concluídos e
+    // NÃO entra nos totais de limpeza (getCleaningStats exige cleaning_type).
+    if (data.skipCleaning) {
+      await upsertStatus("checkout", {
+        status: "done",
+        done_at: nowIso,
+        concluded_at: nowIso,
+        cleaning_type: null,
+        cleaning_price_cents: null,
+      });
+      await upsertStatus("checkin", { status: "done", done_at: nowIso, concluded_at: nowIso });
+      return { ok: true };
+    }
 
     // Bucket-aware progression.
     if (data.from === "checkin") {
