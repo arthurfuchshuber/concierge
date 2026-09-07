@@ -65,6 +65,7 @@ import {
   Ban,
 } from "lucide-react";
 import { toast } from "sonner";
+import { notifyAction } from "@/components/UndoActionBar";
 import { format, parse, isValid, differenceInCalendarDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
@@ -1103,7 +1104,31 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       ...(cleaningType ? { cleaningType } : {}),
       ...(skipCleaning ? { skipCleaning: true } : {}),
     });
+    // Feedback padrão do produto: mensagem no topo + "Desfazer" por 5s.
+    const stageAfter: "stay" | "checkout" | "cleaning" | "done" = skipCleaning
+      ? "done"
+      : from === "checkin"
+        ? "stay"
+        : from === "stay"
+          ? "checkout"
+          : from === "checkout"
+            ? "cleaning"
+            : "done";
+    const message = skipCleaning
+      ? "Limpeza não será realizada — card concluído."
+      : from === "checkin"
+        ? "Check-in confirmado."
+        : from === "stay"
+          ? "Check-out confirmado."
+          : from === "checkout"
+            ? "Limpeza iniciada."
+            : "Limpeza concluída.";
+    notifyAction(message, () => {
+      setBusyRowId(row.logId);
+      revert.mutate({ ...target, from: stageAfter });
+    });
   }
+
 
   /**
    * Antecipar um card com data futura (ex.: "Checkouts amanhã") é uma ação
@@ -1129,6 +1154,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   }
 
   function handleEditTime(row: ArrivalRow, k: "checkin" | "checkout", time: string | null) {
+    const prev = row.arrivalTimeOverride ?? null;
     setBusyRowId(row.logId);
     // Otimista: o campo já mostra o novo horário na hora — o servidor só
     // confirma em segundo plano (mesmo racional do optimisticMove acima).
@@ -1136,7 +1162,15 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       rows.map((r) => (r.logId === row.logId ? { ...r, arrivalTimeOverride: time } : r)),
     );
     upsert.mutate({ ...statusTarget(row), kind: k, arrivalTimeOverride: time });
+    notifyAction(time ? `Horário previsto atualizado para ${time}.` : "Horário previsto removido.", () => {
+      setBusyRowId(row.logId);
+      patchList(k, (rows: ArrivalRow[]) =>
+        rows.map((r) => (r.logId === row.logId ? { ...r, arrivalTimeOverride: prev } : r)),
+      );
+      upsert.mutate({ ...statusTarget(row), kind: k, arrivalTimeOverride: prev });
+    });
   }
+
 
   // Realtime — sincroniza kanban e KPIs sem precisar recarregar a página quando
   // horários, notas ou reservas mudam (via outro membro da equipe, iCal etc).
@@ -1719,34 +1753,62 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               // coluna "Não Compareceu".
               patchList("checkin", (rows) => rows.filter((r) => r.logId !== row.logId));
               noShow.mutate(target);
+              notifyAction('Marcado como "Não Compareceu".', () => {
+                setBusyRowId(row.logId);
+                revert.mutate({ ...target, from: "no_show" });
+              });
             }
           : undefined,
       onSyncIcal: (row: ArrivalRow) => {
         const t = colKind === "checkin" ? "15:00" : "11:00";
+        const prev = row.arrivalTimeOverride ?? null;
         setBusyRowId(row.logId);
         upsert.mutate({ ...statusTarget(row), kind: colKind, arrivalTimeOverride: t });
-        toast.success(`Horário alinhado ao iCal (${t}).`);
+        notifyAction(`Horário alinhado ao iCal (${t}).`, () => {
+          setBusyRowId(row.logId);
+          upsert.mutate({ ...statusTarget(row), kind: colKind, arrivalTimeOverride: prev });
+        });
       },
       onNote: (row: ArrivalRow, note: string | null) => {
+        const prev = row.note ?? null;
         setBusyRowId(row.logId);
         upsert.mutate({ ...statusTarget(row), kind: colKind, note });
+        notifyAction(note ? "Observação salva." : "Observação removida.", () => {
+          setBusyRowId(row.logId);
+          upsert.mutate({ ...statusTarget(row), kind: colKind, note: prev });
+        });
       },
       onEditDates: (row: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => {
+        const prev = { checkinDate: row.guestCheckin, checkoutDate: row.guestCheckout ?? null };
         setBusyRowId(row.logId);
         updateDates.mutate({ logId: row.logId, ...dates });
+        notifyAction("Datas atualizadas.", () => {
+          setBusyRowId(row.logId);
+          updateDates.mutate({ logId: row.logId, ...prev });
+        });
       },
       onEditPredictedDate: (row: ArrivalRow, date: string | null) => {
+        const prev = row.arrivalDateOverride ?? null;
         setBusyRowId(row.logId);
         // Otimista, mesmo racional do handleEditTime/optimisticMove.
         patchList(colKind, (rows: ArrivalRow[]) =>
           rows.map((r) => (r.logId === row.logId ? { ...r, arrivalDateOverride: date } : r)),
         );
         upsert.mutate({ ...statusTarget(row), kind: colKind, arrivalDateOverride: date });
+        notifyAction(date ? "Data prevista atualizada." : "Data prevista removida.", () => {
+          setBusyRowId(row.logId);
+          patchList(colKind, (rows: ArrivalRow[]) =>
+            rows.map((r) => (r.logId === row.logId ? { ...r, arrivalDateOverride: prev } : r)),
+          );
+          upsert.mutate({ ...statusTarget(row), kind: colKind, arrivalDateOverride: prev });
+        });
       },
       onEditTime: (row: ArrivalRow, time: string | null) => handleEditTime(row, colKind, time),
       // Limpa os dois campos (Data + Horário previstos) de uma vez —
       // botão só aparece quando pelo menos um dos dois estiver preenchido.
       onClearPredicted: (row: ArrivalRow) => {
+        const prevDate = row.arrivalDateOverride ?? null;
+        const prevTime = row.arrivalTimeOverride ?? null;
         setBusyRowId(row.logId);
         patchList(colKind, (rows: ArrivalRow[]) =>
           rows.map((r) =>
@@ -1759,7 +1821,24 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           arrivalDateOverride: null,
           arrivalTimeOverride: null,
         });
+        notifyAction("Previsão de data e horário removida.", () => {
+          setBusyRowId(row.logId);
+          patchList(colKind, (rows: ArrivalRow[]) =>
+            rows.map((r) =>
+              r.logId === row.logId
+                ? { ...r, arrivalDateOverride: prevDate, arrivalTimeOverride: prevTime }
+                : r,
+            ),
+          );
+          upsert.mutate({
+            ...statusTarget(row),
+            kind: colKind,
+            arrivalDateOverride: prevDate,
+            arrivalTimeOverride: prevTime,
+          });
+        });
       },
+
       busyRowId,
       // Antes "Estadia"/"Limpeza" ficavam com opacity-70 (pra parecer
       // menos urgente) — só que isso também fazia o card parecer menos card,
