@@ -1058,6 +1058,25 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     [qc],
   );
 
+  /**
+   * Cards "fixados" no popup aberto: SÓ ajustes de data/horário previsto
+   * seguram o card na lista até o usuário fechar o popup no "X". Qualquer
+   * outra ação (check, não compareceu, limpeza não será realizada, desfazer)
+   * tira o card da tela na hora.
+   */
+  const [pinnedRowIds, setPinnedRowIds] = useState<ReadonlySet<string>>(() => new Set());
+  const pinRow = useCallback((id: string) => {
+    setPinnedRowIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+  }, []);
+  const unpinRow = useCallback((id: string) => {
+    setPinnedRowIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }, []);
+
   const optimisticMove = useCallback(
     (row: ArrivalRow, from: "checkin" | "stay" | "checkout" | "cleaning" | "done") => {
       const id = row.logId;
@@ -1073,6 +1092,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     [patchList],
   );
 
+
   function runAdvance(
     row: ArrivalRow,
     from: "checkin" | "stay" | "checkout" | "cleaning",
@@ -1085,6 +1105,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       return;
     }
     setBusyRowId(row.logId);
+    // Ação de esteira: o card não fica mais preso na lista aberta.
+    unpinRow(row.logId);
+
     // Cancela buscas em andamento ANTES do patch otimista: sem isso, uma
     // recarga já disparada (30s/foco) podia terminar depois do clique e
     // reescrever o cache com o estado antigo — o card "voltava" e só sumia na
@@ -1156,6 +1179,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   function handleEditTime(row: ArrivalRow, k: "checkin" | "checkout", time: string | null) {
     const prev = row.arrivalTimeOverride ?? null;
     setBusyRowId(row.logId);
+    // Só ajuste de horário/data previstos segura o card na lista aberta.
+    pinRow(row.logId);
+
     // Otimista: o campo já mostra o novo horário na hora — o servidor só
     // confirma em segundo plano (mesmo racional do optimisticMove acima).
     patchList(k, (rows: ArrivalRow[]) =>
@@ -1717,6 +1743,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 return;
               }
               setBusyRowId(row.logId);
+              unpinRow(row.logId);
+
               if (colMode === "stay")
                 patchList("checkin", (rows) =>
                   rows.map((r) => (r.logId === row.logId ? { ...r, status: "pending" } : r)),
@@ -1748,6 +1776,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               )
                 return;
               setBusyRowId(row.logId);
+              unpinRow(row.logId);
+
               // Otimista: some da coluna de Check-ins na hora — o refetch
               // (refreshDashboard, no onSuccess da mutation) traz de volta na
               // coluna "Não Compareceu".
@@ -1763,6 +1793,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         const t = colKind === "checkin" ? "15:00" : "11:00";
         const prev = row.arrivalTimeOverride ?? null;
         setBusyRowId(row.logId);
+        pinRow(row.logId);
+
         upsert.mutate({ ...statusTarget(row), kind: colKind, arrivalTimeOverride: t });
         notifyAction(`Horário alinhado ao iCal (${t}).`, () => {
           setBusyRowId(row.logId);
@@ -1790,6 +1822,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       onEditPredictedDate: (row: ArrivalRow, date: string | null) => {
         const prev = row.arrivalDateOverride ?? null;
         setBusyRowId(row.logId);
+        pinRow(row.logId);
+
         // Otimista, mesmo racional do handleEditTime/optimisticMove.
         patchList(colKind, (rows: ArrivalRow[]) =>
           rows.map((r) => (r.logId === row.logId ? { ...r, arrivalDateOverride: date } : r)),
@@ -1810,6 +1844,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         const prevDate = row.arrivalDateOverride ?? null;
         const prevTime = row.arrivalTimeOverride ?? null;
         setBusyRowId(row.logId);
+        pinRow(row.logId);
+
         patchList(colKind, (rows: ArrivalRow[]) =>
           rows.map((r) =>
             r.logId === row.logId ? { ...r, arrivalDateOverride: null, arrivalTimeOverride: null } : r,
@@ -1989,6 +2025,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 // Azul claro enquanto houver pendência, verde quando zerar —
                 // mesmo tom "in"/"in-pending" usado no calendário.
                 shadowTone={checkinPendingRows.length > 0 ? "sky" : "emerald"}
+                pinnedIds={pinnedRowIds}
                 cardProps={arrivalGroupPropsFor("checkin", checkinPendingRows)}
               />
             </div>
@@ -2004,6 +2041,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 // Laranja (mesmo tom do "out" no calendário) enquanto houver
                 // pendência, verde quando zerar.
                 shadowTone={checkoutPendingRows.length > 0 ? "amber" : "emerald"}
+                pinnedIds={pinnedRowIds}
                 cardProps={arrivalGroupPropsFor("checkout", checkoutPendingRows)}
               />
             </div>
@@ -2016,6 +2054,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 loading={tomorrowCheckinListQ.isLoading}
                 onRefresh={() => tomorrowCheckinListQ.refetch()}
                 rangeLabel="Amanhã"
+                pinnedIds={pinnedRowIds}
                 cardProps={arrivalGroupPropsFor("checkin", tomorrowCheckinPendingRows)}
               />
             </div>
@@ -2028,6 +2067,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 loading={tomorrowCheckoutListQ.isLoading}
                 onRefresh={() => tomorrowCheckoutListQ.refetch()}
                 rangeLabel="Amanhã"
+                pinnedIds={pinnedRowIds}
                 cardProps={arrivalGroupPropsFor("checkout", tomorrowCheckoutPendingRows)}
               />
             </div>
@@ -2047,6 +2087,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   rangeLabel={rangeLabel[range]}
                   compact
                   highlight="amber"
+                  pinnedIds={pinnedRowIds}
                   cardProps={arrivalGroupPropsFor("cleaning", cleaningRows)}
                 />
               </div>
@@ -2099,6 +2140,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 loading={checkinListQ.isLoading}
                 onRefresh={() => checkinListQ.refetch()}
                 rangeLabel={rangeLabel[range]}
+                pinnedIds={pinnedRowIds}
                 cardProps={arrivalGroupPropsFor("stay", stayRows)}
               />
             </div>
@@ -2995,6 +3037,7 @@ function KpiCard({
   shadowTone,
   compact,
   highlight,
+  pinnedIds,
   cardProps,
 }: {
   label: string;
@@ -3011,6 +3054,9 @@ function KpiCard({
    * gradiente âmbar + acento lateral + ícone em caixinha, sem negrito.
    * Não afeta nenhum outro uso do KpiCard (compact ou não). */
   highlight?: "amber";
+  /** Cards que devem continuar visíveis no popup mesmo que já não pertençam
+   * mais à lista — hoje só os que tiveram HORÁRIO/DATA PREVISTOS ajustados. */
+  pinnedIds?: ReadonlySet<string>;
   /** Pedido explícito: os cards dentro do popup precisam ficar IDÊNTICOS ao
    * card do Kanban — em vez de manter uma segunda implementação (que já
    * divergiu do Kanban antes, ver o bug do bloqueio de check-in), o popup
@@ -3024,44 +3070,40 @@ function KpiCard({
   // gatilho (compact/highlight) do card em si, que já usa a prop `compact`
   // pra outra coisa (faixa fina vs. quadrado).
   const [listMode, setListMode] = useState<"full" | "list">("list");
-  // "Congela" QUAIS cards aparecem (e em que ordem) assim que o popup termina
-  // de carregar (pedido explícito, 05/09/2026): sem isso, editar a
-  // data/horário previsto de UM card dentro deste popup (ex.: "Check-ins
-  // amanhã") faz o card sumir da lista NA HORA, assim que o commit é
-  // confirmado — mesmo com o popup ainda aberto — porque `rows` vem direto
-  // da mesma query reativa do Kanban, que já reflete o novo valor. O usuário
-  // quer o oposto: o card só deve mesmo sair desta lista depois que ELE
-  // FECHAR o popup inteiro (botão "X") e abrir de novo.
+  // A lista do popup é AO VIVO: qualquer ação de esteira (check, "não
+  // compareceu", "limpeza não será realizada", desfazer) tira o card da tela
+  // na hora do clique.
   //
-  // Importante: só a PRESENÇA/ORDEM fica travada — os campos de cada card
-  // (a própria data/horário que acabou de ser editada, notas, status etc.)
-  // continuam vindo ao vivo de `rows` enquanto o card ainda existir lá, pra
-  // o usuário ver a confirmação de que o ajuste realmente salvou, em vez do
-  // campo "voltar" pro valor antigo até fechar o popup.
+  // Única exceção (pedido explícito): ajustar DATA/HORÁRIO PREVISTOS não pode
+  // fazer o card sumir no meio da edição — esses cards ficam "presos" na
+  // lista (via `pinnedIds`, na mesma posição em que estavam quando o popup
+  // abriu) até o usuário fechar o popup no "X".
   const [frozenSnapshot, setFrozenSnapshot] = useState<Map<string, ArrivalRow> | null>(null);
   useEffect(() => {
     if (!open) {
-      // Fechou (ou ainda não abriu): solta o congelamento, pra próxima
-      // abertura tirar uma "foto" nova, já atualizada.
+      // Fechou (ou ainda não abriu): solta a "foto", pra próxima abertura
+      // tirar uma nova, já atualizada.
       setFrozenSnapshot(null);
       return;
     }
-    // Só tira a "foto" DEPOIS que o carregamento (onRefresh, disparado ao
-    // abrir) termina — assim o popup sempre abre com o dado mais recente, e
-    // só a partir daí fica imune a cards somendo/aparecendo em segundo plano.
     if (!loading && frozenSnapshot === null) {
       setFrozenSnapshot(new Map(rows.map((r) => [r.logId, r] as const)));
     }
   }, [open, loading, rows, frozenSnapshot]);
   const displayRows = useMemo(() => {
-    if (!frozenSnapshot) return rows;
-    const liveById = new Map(rows.map((r) => [r.logId, r] as const));
-    // Prefere a versão AO VIVO (campos atualizados) de cada card que ainda
-    // existe em `rows`; só cai pra "foto" congelada se o card tiver
-    // desaparecido de vez da fonte (aí é melhor mostrar o último estado
-    // conhecido do que sumir da lista no meio da sessão).
-    return Array.from(frozenSnapshot.keys()).map((id) => liveById.get(id) ?? frozenSnapshot.get(id)!);
-  }, [frozenSnapshot, rows]);
+    if (!frozenSnapshot || !pinnedIds || pinnedIds.size === 0) return rows;
+    const liveIds = new Set(rows.map((r) => r.logId));
+    const out = [...rows];
+    let idx = 0;
+    for (const id of frozenSnapshot.keys()) {
+      if (!liveIds.has(id) && pinnedIds.has(id)) {
+        out.splice(Math.min(idx, out.length), 0, frozenSnapshot.get(id)!);
+      }
+      idx++;
+    }
+    return out;
+  }, [frozenSnapshot, rows, pinnedIds]);
+
   const list = useWholeCardsMaxHeight(2, `${open}:${displayRows.length}:${loading}:${listMode}`);
   const screenshotRef = useRef<HTMLDivElement | null>(null);
   const valueTone = tone === "primary" ? "text-accent" : "text-foreground";
