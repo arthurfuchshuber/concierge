@@ -1075,6 +1075,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     row: ArrivalRow,
     from: "checkin" | "stay" | "checkout" | "cleaning",
     cleaningType?: "normal" | "completa",
+    skipCleaning?: boolean,
   ) {
     const target = statusTarget(row);
     if (!target.logId && !target.reservationId) {
@@ -1082,8 +1083,25 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       return;
     }
     setBusyRowId(row.logId);
-    optimisticMove(row, from);
-    advance.mutate({ ...target, from, ...(cleaningType ? { cleaningType } : {}) });
+    // Cancela buscas em andamento ANTES do patch otimista: sem isso, uma
+    // recarga já disparada (30s/foco) podia terminar depois do clique e
+    // reescrever o cache com o estado antigo — o card "voltava" e só sumia na
+    // próxima recarga, dando a sensação de lentidão.
+    qc.cancelQueries({ predicate: (q) => q.queryKey[0] === "dash-list" });
+    if (skipCleaning) {
+      // "Limpeza não será realizada": sai da esteira na hora (vai direto pra
+      // Concluídos, sem passar por Em Limpeza).
+      patchList("checkout", (rows) => rows.filter((r) => r.logId !== row.logId));
+      patchList("checkin", (rows) => rows.filter((r) => r.logId !== row.logId));
+    } else {
+      optimisticMove(row, from);
+    }
+    advance.mutate({
+      ...target,
+      from,
+      ...(cleaningType ? { cleaningType } : {}),
+      ...(skipCleaning ? { skipCleaning: true } : {}),
+    });
   }
 
   /**
