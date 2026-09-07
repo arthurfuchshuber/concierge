@@ -23,6 +23,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import type { AssistantAsk, AssistantMessage, AssistantSource, PendingAction } from "@/lib/assistant-types";
+import { HOUSE_RULES } from "@/lib/ai/house-rules";
 
 type AnyClient = { from: (t: string) => any };
 
@@ -53,26 +54,27 @@ function instructions(params: { knowledge: string; currentPath: string | null; t
     "Você é o Assistente do Painel do ConciergeIA — um sistema de gestão de imóveis de aluguel por temporada.",
     "Você atende quem OPERA o sistema: equipe, anfitriões e prestadores (limpeza, manutenção). Nunca hóspedes.",
     "",
-    "COMO RESPONDER",
-    "· Português do Brasil, direto, sem saudação e sem repetir a pergunta.",
-    "· Curto por padrão. Detalhe só quando perguntarem o porquê de algo.",
+    HOUSE_RULES,
+    "",
+    "O que vem abaixo é o que muda por você atender a EQUIPE. Onde houver conflito, o mais específico manda.",
+    "",
+    "TOM",
+    "· Sem saudação e sem repetir a pergunta — quem está no painel está no meio de uma tarefa.",
     "· Ao explicar uma regra, use o racional da documentação abaixo com as palavras dela — é a decisão real que foi tomada, com data. Não reescreva o motivo por conta própria.",
     "· Se a documentação não cobre o que perguntaram, diga que não sabe e sugira quem pode saber. NUNCA invente como o sistema funciona.",
-    "· Use Markdown: **negrito** para números e nomes que importam, listas com hífen.",
     "",
     "COMO APONTAR UMA TELA",
     "· Escreva o nome da tela como link: [Kanban](/admin/dashboard/kanban). O nome fica clicável na frase.",
-    "· NUNCA escreva o caminho solto no texto, nem repita o endereço entre parênteses, nem acrescente uma linha do tipo 'acesse em ...'. Só o nome, como link.",
+    "· Nunca acrescente uma linha do tipo 'acesse em ...' — a regra da casa sobre links já cobre o resto.",
     "· Use o caminho exato que aparece em 'Caminho no sistema' na documentação abaixo. Sem caminho conhecido, cite só o nome do menu, sem link.",
-    "· Vale o mesmo para endereço: escreva o endereço como link para o mapa — [Rua X, 123 — Centro](url do campo `mapa`) — em vez de colar a URL na resposta.",
+    "· Endereço de imóvel segue o mesmo padrão: [Rua X, 123 — Centro](url do campo `mapa`).",
     "",
     "DADOS DA CONTA",
     "· Para qualquer pergunta sobre a operação real (limpezas, chegadas, pendências), use as ferramentas. Não estime.",
-    "· Você só enxerga o que esta pessoa já podia ver. Se uma consulta voltar vazia, pode ser falta de permissão — diga isso em vez de afirmar que não existe.",
     "",
-    "HORÁRIOS — leia com atenção",
+    "HORÁRIOS — é assim que a regra da casa sobre precisão se aplica aqui",
     "· Cada item da agenda traz `horarioOrigem`. 'informado' = alguém definiu aquele horário. 'padrao' = ninguém definiu nada e aquele é só o horário padrão do imóvel.",
-    "· Com origem 'informado', diga \"às 11h\". Com origem 'padrao', diga \"a partir das 11h\" — afirmar um horário exato que ninguém informou é dar uma precisão que não existe.",
+    "· Com origem 'informado', diga \"às 11h\". Com origem 'padrao', diga \"a partir das 11h\".",
     "· Numa lista em que os dois casos aparecem, não resuma tudo num horário só: diga o horário de quem informou e trate o resto como 'a partir de'.",
     "",
     "AÇÕES",
@@ -292,39 +294,8 @@ export const transcribeAssistantAudio = createServerFn({ method: "POST" })
       .parse(i),
   )
   .handler(async ({ data }): Promise<{ text: string }> => {
-    const apiKey = process.env["LOVABLE_API_KEY"];
-    if (!apiKey) throw new Error("IA não configurada.");
-
-    const bytes = Uint8Array.from(atob(data.audioBase64), (c) => c.charCodeAt(0));
-    const ext =
-      ({
-        "audio/webm": "webm",
-        "audio/mp4": "mp4",
-        "audio/mpeg": "mp3",
-        "audio/wav": "wav",
-        "audio/ogg": "ogg",
-      } as Record<string, string>)[data.mimeType.split(";")[0]] ?? "webm";
-
-    const form = new FormData();
-    form.append("model", "openai/gpt-4o-transcribe");
-    form.append("file", new Blob([bytes], { type: data.mimeType }), `assistente.${ext}`);
-
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/audio/transcriptions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}` },
-      body: form,
-    });
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      console.error("[assistente] transcrição falhou", res.status, body.slice(0, 300));
-      if (res.status === 429) throw new Error("Muitas requisições. Tente em instantes.");
-      if (res.status === 402) throw new Error("Créditos de IA esgotados.");
-      throw new Error("Não consegui transcrever o áudio. Tente gravar novamente.");
-    }
-    const json = (await res.json()) as { text?: string };
-    const text = (json.text ?? "").trim();
-    if (!text) throw new Error("Não entendi o áudio. Grave novamente, por favor.");
-    return { text };
+    const { transcribeAudioBase64 } = await import("@/lib/ai/transcribe.server");
+    return { text: await transcribeAudioBase64(data.audioBase64, data.mimeType) };
   });
 
 /** Começa uma conversa nova, deixando a anterior no histórico. */

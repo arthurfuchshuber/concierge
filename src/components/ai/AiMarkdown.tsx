@@ -59,7 +59,19 @@ function InternalLink({ href, children }: { href: string; children: React.ReactN
   );
 }
 
-export function AiMarkdown({ children }: { children: string }) {
+export function AiMarkdown({
+  children,
+  extraComponents,
+}: {
+  children: string;
+  /**
+   * Substituições pontuais de quem usa. O chat do hóspede precisa de duas: um
+   * `code` com botão de copiar (senha de Wi-Fi se copia, não se digita) e um
+   * `img` que some quando a foto do lugar expira, em vez de mostrar ícone
+   * quebrado. O resto do padrão continua valendo para os dois chats.
+   */
+  extraComponents?: Record<string, unknown>;
+}) {
   return (
     <div className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
       <ReactMarkdown
@@ -107,6 +119,7 @@ export function AiMarkdown({ children }: { children: string }) {
             <th {...props} className="border border-current/20 px-1.5 py-1 text-left font-semibold" />
           ),
           td: ({ node, ...props }) => <td {...props} className="border border-current/20 px-1.5 py-1" />,
+          ...(extraComponents ?? {}),
         }}
       >
         {children}

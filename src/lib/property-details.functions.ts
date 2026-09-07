@@ -145,38 +145,7 @@ export const transcribeDetailAudio = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAccess(context.supabase, context.userId, data.propertyId);
-
-    const apiKey = process.env["LOVABLE_API_KEY"];
-    if (!apiKey) throw new Error("IA não configurada.");
-
-    const bytes = Uint8Array.from(atob(data.audioBase64), (c) => c.charCodeAt(0));
-    const ext =
-      ({
-        "audio/webm": "webm",
-        "audio/mp4": "mp4",
-        "audio/mpeg": "mp3",
-        "audio/wav": "wav",
-        "audio/ogg": "ogg",
-      } as Record<string, string>)[data.mimeType.split(";")[0]] ?? "webm";
-
-    const form = new FormData();
-    form.append("model", "openai/gpt-4o-transcribe");
-    form.append("file", new Blob([bytes], { type: data.mimeType }), `detalhe.${ext}`);
-
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/audio/transcriptions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}` },
-      body: form,
-    });
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      console.error("[property-details] transcrição falhou", res.status, body.slice(0, 300));
-      if (res.status === 429) throw new Error("Muitas requisições. Tente em instantes.");
-      if (res.status === 402) throw new Error("Créditos de IA esgotados.");
-      throw new Error("Não consegui transcrever o áudio. Tente gravar novamente.");
-    }
-    const json = (await res.json()) as { text?: string };
-    const text = (json.text ?? "").trim();
-    if (!text) throw new Error("Não entendi o áudio. Grave novamente, por favor.");
-    return { text };
+    // Mesma transcrição das duas IAs (ver src/lib/ai/transcribe.server.ts).
+    const { transcribeAudioBase64 } = await import("@/lib/ai/transcribe.server");
+    return { text: await transcribeAudioBase64(data.audioBase64, data.mimeType) };
   });

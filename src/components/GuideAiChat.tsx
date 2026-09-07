@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ComposerPlusMenu } from "@/components/handoff/ComposerPlusMenu";
 import { MessageCircleMore, Send, X, Loader2, Paperclip, Copy, Check, CalendarDays, ArrowLeft } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { AiMarkdown } from "@/components/ai/AiMarkdown";
 import { GuestNotificationsPrompt } from "@/components/GuestNotificationsPrompt";
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
 import { AttachmentBubble, type AttachmentInfo } from "@/components/handoff/AttachmentBubble";
@@ -389,6 +388,8 @@ export function GuideAiChat({
   const [humanMode, setHumanMode] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadErr, setUploadErr] = useState<string | null>(null);
+  // Áudio virando texto antes de ir para a IA (07/09/2026).
+  const [transcribing, setTranscribing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const lastFetchedAtRef = useRef<string | undefined>(undefined);
@@ -461,7 +462,46 @@ export function GuideAiChat({
     await uploadGuestAttachment(f, { filename: f.name, mime: f.type });
   }
 
+  /**
+   * Áudio do hóspede (07/09/2026).
+   *
+   * Falando com a IA, o áudio é transcrito e o TEXTO é enviado como uma
+   * mensagem qualquer — a IA responde com o contexto de sempre, sem saber que
+   * veio de voz. Antes disso o microfone só existia no atendimento humano, e
+   * mesmo lá o áudio virava um anexo que a IA nunca ouvia: quem falava com ela
+   * mandava uma mensagem vazia.
+   *
+   * No atendimento humano o comportamento antigo continua: quem está do outro
+   * lado é uma pessoa, e ouvir a voz do hóspede — o tom, a pressa — diz coisas
+   * que a transcrição perde.
+   */
   async function onGuestAudio(audio: RecordedAudio) {
+    if (!humanMode) {
+      setUploadErr(null);
+      setTranscribing(true);
+      try {
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
+          reader.onerror = () => reject(new Error("Não consegui ler o áudio gravado."));
+          reader.readAsDataURL(audio.blob);
+        });
+        const res = await fetch("/api/public/guide-transcribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slug, sessionId, audioBase64: base64, mimeType: audio.mime }),
+        });
+        const data = (await res.json()) as { text?: string; error?: string };
+        if (!res.ok || !data.text) throw new Error(data.error ?? "Não consegui transcrever o áudio.");
+        setTranscribing(false);
+        void send(data.text);
+      } catch (e) {
+        setTranscribing(false);
+        setUploadErr((e as Error).message);
+      }
+      return;
+    }
+
     const ext = audio.mime.includes("mp4") ? "m4a" : "webm";
     await uploadGuestAttachment(audio.blob, {
       filename: `audio-${Date.now()}.${ext}`,
@@ -952,22 +992,23 @@ export function GuideAiChat({
                     </div>
                   )}
                   {m.content && (
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        a: ({ node, ...props }) => (
-                          <a {...props} target="_blank" rel="noopener noreferrer" />
-                        ),
-                        code: ({ node, children, ...props }) => (
+                    /* Mesmo renderizador do Assistente do Painel (07/09/2026):
+                       as duas IAs escrevem Markdown, então as duas devem exibir
+                       negrito, lista e link do mesmo jeito. As duas exceções do
+                       guia — código copiável e foto que some quando expira —
+                       continuam aqui, porque só fazem sentido para o hóspede. */
+                    <AiMarkdown
+                      extraComponents={{
+                        code: ({ node, children, ...props }: any) => (
                           <CopyableCode {...props}>{children}</CopyableCode>
                         ),
-                        img: ({ node, alt, ...props }) => (
+                        img: ({ node, alt, ...props }: any) => (
                           <img
                             {...props}
                             alt={alt ?? ""}
                             loading="lazy"
                             className="block w-full max-w-[240px] rounded-xl border border-zinc-200 my-1.5 object-cover aspect-[4/3]"
-                            onError={(e) => {
+                            onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
                               // Foto indisponível/expirada — some em vez de mostrar ícone quebrado.
                               (e.currentTarget as HTMLImageElement).style.display = "none";
                             }}
@@ -975,12 +1016,8 @@ export function GuideAiChat({
                         ),
                       }}
                     >
-                      {/* Cada quebra de linha vira parágrafo separado (linha em
-                          branco) — em Markdown puro, uma quebra simples é só
-                          uma "quebra suave" dentro do mesmo parágrafo, sem
-                          nenhum espaçamento visual entre frases. */}
-                      {((m.id && autoTranslated[m.id]) || m.content).replace(/\n+/g, "\n\n")}
-                    </ReactMarkdown>
+                      {(m.id && autoTranslated[m.id]) || m.content}
+                    </AiMarkdown>
                   )}
 
                 </div>
@@ -1090,6 +1127,10 @@ export function GuideAiChat({
               >
                 {loading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" strokeWidth={2} />}
               </button>
+            ) : transcribing ? (
+              <span className="grid size-9 shrink-0 place-items-center text-zinc-500">
+                <Loader2 className="size-4 animate-spin" />
+              </span>
             ) : (
               <div className="shrink-0">
                 <AudioRecorderButton

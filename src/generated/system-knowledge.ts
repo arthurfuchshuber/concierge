@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-07T22:46:46.158Z";
+export const GENERATED_AT = "2026-09-07T22:58:25.992Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -726,6 +726,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "7debd17936f90d854ee645fc0d381bcc"
   },
   {
+    "doc_key": "rule:HOUSE_RULES_VERSION",
+    "kind": "rule",
+    "title": "Regra — HOUSE_RULES_VERSION",
+    "content": "REGRAS DA CASA — o padrão único das IAs do ConciergeIA.\n\nPedido explícito (07/09/2026): \"tudo que eu falar sobre regras para a IA\nassistente deve valer também para a IA de atendimento e vice-versa\".\n\nAntes disso as mesmas regras existiam duas vezes, escritas de formas\ndiferentes: o prompt do atendimento já mandava usar `**negrito**` e\n`[texto](url)`, e a mesma orientação foi escrita de novo, com outras\npalavras, no assistente do painel. Duas cópias de uma regra não ficam iguais\npor muito tempo — uma é ajustada, a outra não, e as duas IAs passam a se\ncomportar de um jeito que ninguém decidiu.\n\nONDE ENTRA UMA REGRA NOVA\n\n · Vale para qualquer pessoa que converse com o sistema? Entra AQUI, e as\n duas IAs mudam juntas.\n · Só faz sentido para um dos públicos? Fica no prompt daquele agente —\n apontar uma tela do painel não significa nada para um hóspede, e o canal\n de senhas do guia não significa nada para um operador.\n\nAo mexer no texto abaixo, suba a versão: ela entra no hash de prompt gravado\nem `ai_agent_logs`, então uma resposta antiga continua rastreável até as\nregras que valiam quando ela foi dada.",
+    "source_path": "src/lib/ai/house-rules.ts",
+    "audience": [],
+    "content_hash": "0a1d0997652211eb8af41faabb2c2f22"
+  },
+  {
     "doc_key": "rule:HouseFieldsInput",
     "kind": "rule",
     "title": "Regra — HouseFieldsInput",
@@ -877,6 +886,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
     "content_hash": "b9d2e597086f026243bb1c43e760fdbf"
+  },
+  {
+    "doc_key": "rule:onGuestAudio",
+    "kind": "rule",
+    "title": "Regra — onGuestAudio",
+    "content": "Áudio do hóspede (07/09/2026).\n\nFalando com a IA, o áudio é transcrito e o TEXTO é enviado como uma\nmensagem qualquer — a IA responde com o contexto de sempre, sem saber que\nveio de voz. Antes disso o microfone só existia no atendimento humano, e\nmesmo lá o áudio virava um anexo que a IA nunca ouvia: quem falava com ela\nmandava uma mensagem vazia.\n\nNo atendimento humano o comportamento antigo continua: quem está do outro\nlado é uma pessoa, e ouvir a voz do hóspede — o tom, a pressa — diz coisas\nque a transcrição perde.",
+    "source_path": "src/components/GuideAiChat.tsx",
+    "audience": [],
+    "content_hash": "2395946079ad4fe4ac673dfb72ddccda"
   },
   {
     "doc_key": "rule:onRecorded",
@@ -1230,6 +1248,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "2cc9bc470dd974359ec18d1ab3e41539"
   },
   {
+    "doc_key": "rule:src/components/ai/AiMarkdown.tsx:2740",
+    "kind": "rule",
+    "title": "Regra em AiMarkdown.tsx",
+    "content": "Substituições pontuais de quem usa. O chat do hóspede precisa de duas: um\n`code` com botão de copiar (senha de Wi-Fi se copia, não se digita) e um\n`img` que some quando a foto do lugar expira, em vez de mostrar ícone\nquebrado. O resto do padrão continua valendo para os dois chats.",
+    "source_path": "src/components/ai/AiMarkdown.tsx",
+    "audience": [],
+    "content_hash": "9db42d9f3fbd87da800a39425e70c95a"
+  },
+  {
     "doc_key": "rule:src/components/assistant/AssistantPanel.tsx:0",
     "kind": "rule",
     "title": "Regra em AssistantPanel.tsx",
@@ -1383,7 +1410,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "a316426ba5b0c0ef8c0a2216d094e32c"
   },
   {
-    "doc_key": "rule:src/components/GuideAiChat.tsx:7316",
+    "doc_key": "rule:src/components/GuideAiChat.tsx:7293",
     "kind": "rule",
     "title": "Regra em GuideAiChat.tsx",
     "content": "true quando qualquer outro popup/onboarding já está na tela (tour de\nprimeiro acesso, diálogo de PIN, etc.) — nesse caso o popup sugestivo\nnunca aparece por cima; só quando a tela estiver limpa.",
@@ -1716,7 +1743,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "db39445307d3c91ddfc488cf5460abca"
   },
   {
-    "doc_key": "rule:src/lib/ai/prompts.ts:0",
+    "doc_key": "rule:src/lib/ai/prompts.ts:67",
     "kind": "rule",
     "title": "Regra em prompts.ts",
     "content": "Registro versionado de prompts (Prompt Versioning).\n\nTodo prompt usado pelo agente vive aqui com uma versão explícita. A versão\n(e o hash do conteúdo) é registrada em `ai_agent_logs` a cada interação,\npermitindo auditoria, comparação entre versões e evolução controlada.\n\nREGRA: ao editar o texto de um prompt, incremente a `version` correspondente.",
@@ -1770,6 +1797,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "f593d0ae6b6b03cc73ecc50c0cee4c0e"
   },
   {
+    "doc_key": "rule:src/lib/ai/transcribe.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em transcribe.server.ts",
+    "content": "Transcrição de áudio — uma implementação para todas as IAs do produto.\n\nPedido explícito (07/09/2026): \"para todo áudio enviado para a IA, seja pelo\nhóspede, seja por um usuário, ela deve transcrever automaticamente e\nresponder com base em sua compreensão\".\n\nIsso é uma REGRA DA CASA aplicada em código, não só em prompt: falar tem que\nvaler o mesmo que digitar, nos dois chats. O áudio vira texto e segue pelo\ncaminho normal da conversa — com o mesmo contexto, as mesmas ferramentas e,\nno painel, o mesmo cartão de confirmação antes de gravar qualquer coisa.\nNenhuma das duas IAs tem um \"modo áudio\" com regras próprias.\n\nAntes desta unificação a transcrição existia solta em property-details, e o\náudio do hóspede não era transcrito em lugar nenhum — a IA recebia uma\nmensagem vazia com um anexo e literalmente não sabia o que tinha sido dito.",
+    "source_path": "src/lib/ai/transcribe.server.ts",
+    "audience": [],
+    "content_hash": "70266f89178604a5d61ad21edef12790"
+  },
+  {
     "doc_key": "rule:src/lib/ai/validate.server.ts:0",
     "kind": "rule",
     "title": "Regra em validate.server.ts",
@@ -1815,7 +1851,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "5674b6fa53ea76be36860872abcb06e6"
   },
   {
-    "doc_key": "rule:src/lib/assistant.functions.ts:1712",
+    "doc_key": "rule:src/lib/assistant.functions.ts:1764",
     "kind": "rule",
     "title": "Regra em assistant.functions.ts",
     "content": "Imagem anexada, como data URL (pedido explícito, 07/09/2026). Vai junto da\npergunta para o modelo olhar — um print da tela costuma explicar melhor\nque qualquer descrição. Não é gravada em lugar nenhum: serve a esta\npergunta e acaba ali.",
@@ -2245,6 +2281,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/assistant.functions.ts",
     "audience": [],
     "content_hash": "be9890b721f66bc4228625c302f59ca2"
+  },
+  {
+    "doc_key": "rule:transcribeAudio",
+    "kind": "rule",
+    "title": "Regra — transcribeAudio",
+    "content": "Converte áudio em texto. Recebe bytes, não base64: quem chama já tem o\nformato mais barato à mão (o guia tem o arquivo, o painel decodifica uma\nvez só) e evita uma cópia extra em memória para cada áudio.",
+    "source_path": "src/lib/ai/transcribe.server.ts",
+    "audience": [],
+    "content_hash": "02b59ad68787e9d1c1e603b6c263328d"
   },
   {
     "doc_key": "rule:upsertNodes",
