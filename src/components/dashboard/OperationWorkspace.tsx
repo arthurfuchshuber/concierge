@@ -5542,6 +5542,7 @@ function ArrivalGroup({
   onMark,
   onRevert,
   onNoShow,
+  onSkipCleaning,
   onSyncIcal,
   onNote,
   onEditDates,
@@ -5567,6 +5568,8 @@ function ArrivalGroup({
   /** Marca um card de Check-ins como "Não Compareceu" — só passado quando
    * mode === "checkin" (ver arrivalGroupPropsFor). */
   onNoShow?: (r: ArrivalRow) => void;
+  /** "Limpeza não será realizada" — conclui a estadia sem contabilizar valor. */
+  onSkipCleaning?: (r: ArrivalRow) => void;
   onSyncIcal: (r: ArrivalRow) => void;
   onNote: (r: ArrivalRow, note: string | null) => void;
   onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
@@ -5621,6 +5624,7 @@ function ArrivalGroup({
           onMark={onMark}
           onRevert={onRevert}
           onNoShow={onNoShow}
+          onSkipCleaning={onSkipCleaning}
           onSyncIcal={onSyncIcal}
           onNote={onNote}
           onEditDates={onEditDates}
@@ -5650,6 +5654,7 @@ function ArrivalCard({
   onMark,
   onRevert,
   onNoShow,
+  onSkipCleaning,
   onSyncIcal,
   onNote,
   onEditDates,
@@ -5673,6 +5678,8 @@ function ArrivalCard({
   /** Marca este card (Check-ins) como "Não Compareceu" — pedido explícito,
    * 05/09/2026: opção no menu "⋮", só nos cards de check-in ainda pendentes. */
   onNoShow?: (r: ArrivalRow) => void;
+  /** "Limpeza não será realizada" — conclui sem contabilizar o valor. */
+  onSkipCleaning?: (r: ArrivalRow) => void;
   onSyncIcal: (r: ArrivalRow) => void;
   onNote: (r: ArrivalRow, note: string | null) => void;
   onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
@@ -5944,14 +5951,9 @@ function ArrivalCard({
         : mode === "no_show"
           ? 'Desfazer o "Não Compareceu" e voltar este card para a lista de Check-ins?'
           : "Reabrir esta estadia e voltar o card para a lista Em Limpeza?";
-  const revertTitle =
-    mode === "stay" || mode === "checkout"
-      ? "Voltar para a etapa anterior (lista de Check-ins)"
-      : mode === "cleaning"
-        ? "Voltar para a etapa anterior (lista de Checkouts)"
-        : mode === "no_show"
-          ? "Voltar para a etapa anterior (lista de Check-ins)"
-          : "Voltar para a etapa anterior (lista Em Limpeza)";
+  // Pedido explícito (07/09/2026): rótulo único e curto, sem o detalhe da
+  // lista de destino entre parênteses.
+  const revertTitle = "Retornar ao status anterior";
   const handleRevertClick = () => {
     if (window.confirm(revertConfirmLabel)) onRevert?.(row);
   };
@@ -5961,6 +5963,10 @@ function ArrivalCard({
   // etapa da esteira, a opção não se aplica mais).
   const showNoShowMenuItem = mode === "checkin" && !done && !!onNoShow;
   const handleNoShowClick = () => onNoShow?.(row);
+
+  // "Limpeza não será realizada" — conclui a estadia direto, sem contabilizar
+  // o valor da limpeza. Não faz sentido num card ainda aguardando check-out.
+  const showSkipCleaningMenuItem = !!onSkipCleaning && !awaitingCheckout;
 
   // Confirmação quando o check acontece fora do horário/data comum da esteira.
   const [confirmMsg, setConfirmMsg] = useState<string | null>(null);
@@ -6477,7 +6483,7 @@ function ArrivalCard({
             type="button"
             onClick={handleRevertClick}
             disabled={busy}
-            aria-label="Voltar para a etapa anterior"
+            aria-label="Retornar ao status anterior"
             title={revertTitle}
             className="shrink-0 grid place-items-center rounded-lg bg-secondary hover:bg-secondary/80 border border-border/60 transition-colors size-9"
           >
@@ -6541,6 +6547,11 @@ function ArrivalCard({
               {showNoShowMenuItem && (
                 <DropdownMenuItem onClick={handleNoShowClick} disabled={busy}>
                   <UserX className="size-3.5 shrink-0" /> Não Compareceu
+                </DropdownMenuItem>
+              )}
+              {showSkipCleaningMenuItem && (
+                <DropdownMenuItem onClick={() => onSkipCleaning?.(row)} disabled={busy}>
+                  <Ban className="size-3.5 shrink-0" /> Limpeza não será realizada
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem onClick={() => setNoteOpen((v) => !v)}>
