@@ -1179,6 +1179,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   function handleEditTime(row: ArrivalRow, k: "checkin" | "checkout", time: string | null) {
     const prev = row.arrivalTimeOverride ?? null;
     setBusyRowId(row.logId);
+    // Só ajuste de horário/data previstos segura o card na lista aberta.
+    pinRow(row.logId);
+
     // Otimista: o campo já mostra o novo horário na hora — o servidor só
     // confirma em segundo plano (mesmo racional do optimisticMove acima).
     patchList(k, (rows: ArrivalRow[]) =>
