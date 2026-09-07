@@ -1009,7 +1009,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     mutationFn: (v: {
       logId?: string;
       reservationId?: string;
-      from: "checkout" | "stay" | "cleaning" | "done" | "no_show";
+      from: "checkout" | "stay" | "cleaning" | "done" | "no_show" | "skip_stay";
     }) => revertFn({ data: v }),
     onSuccess: () => {
       refreshDashboard();
@@ -1140,8 +1140,17 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       ...(skipCleaning ? { skipCleaning: true } : {}),
     });
     // Feedback padrão do produto: mensagem no topo + "Desfazer" por 5s.
-    const stageAfter: "stay" | "checkout" | "cleaning" | "done" = skipCleaning
-      ? "done"
+    // Desfazer precisa devolver o card à coluna de ORIGEM. No atalho
+    // "Limpeza não será realizada" o check-out é marcado como feito mesmo
+    // quando o card ainda estava em Estadia/Checkouts pendentes — por isso o
+    // undo é escolhido pela origem, e não sempre "done" (que deixava o card
+    // em Em Limpeza).
+    const stageAfter: "stay" | "checkout" | "cleaning" | "done" | "skip_stay" = skipCleaning
+      ? from === "stay"
+        ? "skip_stay"
+        : from === "checkout"
+          ? "cleaning"
+          : "done"
       : from === "checkin"
         ? "stay"
         : from === "stay"
