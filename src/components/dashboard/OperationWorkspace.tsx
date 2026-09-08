@@ -4318,6 +4318,14 @@ function TasksDialog({
       toast.error("Vincule a um imóvel ou a um proprietário.");
       return;
     }
+    // Anexo precisa de imóvel (é ele que define a pasta e a permissão do
+    // arquivo). Sem isso os arquivos sumiriam em silêncio.
+    if (files.length > 0 && !propertyId) {
+      toast.error(
+        "Para anexar fotos, vídeos ou áudios, escolha um imóvel. Sem imóvel, só é possível salvar a pendência sem anexos.",
+      );
+      return;
+    }
     try {
       const created = await onCreate({
         title: title.trim(),
