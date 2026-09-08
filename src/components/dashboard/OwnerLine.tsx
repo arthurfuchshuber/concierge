@@ -1,4 +1,5 @@
 import { PhoneActionButton } from "@/components/PhoneActionButton";
+import { CARD_OWNER } from "@/components/dashboard/card-colors";
 
 /**
  * Nome do proprietário em destaque com o botão de contato (ícone) à direita.
@@ -19,7 +20,7 @@ export function OwnerLine({
   return (
     <div className="flex w-full min-w-0 max-w-full items-center gap-1.5 overflow-hidden">
       <span
-        className={`${phonePosition === "end" ? "flex-1" : "shrink"} min-w-0 truncate text-xs font-bold text-accent`}
+        className={`${phonePosition === "end" ? "flex-1" : "shrink"} min-w-0 truncate text-xs ${CARD_OWNER}`}
         title={name}
       >
         {name}

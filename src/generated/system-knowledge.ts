@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-08T19:17:56.676Z";
+export const GENERATED_AT = "2026-09-08T20:39:06.437Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -258,6 +258,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "cf8e65fc42202fa18217ff7528682325"
   },
   {
+    "doc_key": "rule:allowedWindowPhrase",
+    "kind": "rule",
+    "title": "Regra — allowedWindowPhrase",
+    "content": "A JANELA PERMITIDA do imóvel, em frase.\n\nPedido explícito (08/09/2026): \"PERMITIDO: ENTRE 15H00 E 23H00\". Antes o\nhorário padrão aparecia sem nome nenhum, e quem não conhecia a tela não\nsabia o que aquele segundo horário significava.\n\nA ordem dos campos é invertida no checkout de propósito — é assim que o\ncadastro do imóvel guarda: `standardTime` é o horário LIMITE de saída e\n`standardTimeMax` o de abertura.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "aa559bfb5c318579be22dfd7ffd8c016"
+  },
+  {
     "doc_key": "rule:AreaGate",
     "kind": "rule",
     "title": "Regra — AreaGate",
@@ -357,6 +366,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "d3c327edec42c496f04c190f3ac1114c"
   },
   {
+    "doc_key": "rule:CardStage",
+    "kind": "rule",
+    "title": "Regra — CardStage",
+    "content": "A BARRA LATERAL DE ETAPA — 3px na borda esquerda do card.\n\nPedido explícito (08/09/2026, layout novo dos cards): a etapa sai do texto e\nvira cor, sempre na mesma posição. É a única coisa do card que se lê sem\nler — passando o olho por uma coluna inteira dá para ver onde cada reserva\nestá sem parar em nenhuma.\n\nAtraso sobrepõe a etapa: uma data vencida sem a ação feita é o único estado\nque precisa gritar mais alto que \"em que fase estou\".",
+    "source_path": "src/components/dashboard/card-colors.ts",
+    "audience": [],
+    "content_hash": "c47eaa9424d89caa750b4901b33ec3df"
+  },
+  {
     "doc_key": "rule:cellHalves",
     "kind": "rule",
     "title": "Regra — cellHalves",
@@ -382,6 +400,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/ai/channels/types.ts",
     "audience": [],
     "content_hash": "ce1a505497fee1c4533be8de48881247"
+  },
+  {
+    "doc_key": "rule:checkinNoShowStays",
+    "kind": "rule",
+    "title": "Regra — checkinNoShowStays",
+    "content": "\"Não Compareceu\" identificado pela ESTADIA (imóvel + data de entrada),\nnão só pelos identificadores gravados.\n\nPor que isto foi preciso (bug real relatado em 08/09/2026: \"ao acionar\nnão compareceu, o card continua espelhado na Fila de Limpeza\"):\n\nO gate por id só funciona quando o card de CHECK-IN e o card de\nCHECKOUT da mesma estadia carregam o mesmo identificador — e nem\nsempre carregam. O casamento log↔reserva é FEITO DE FORMA DIFERENTE\nnos dois lados: `findLogsForReservation` tem a linha\n`if (resCode && !logCode && kind === \"checkin\") continue;`, ou seja,\num formulário sem código de reserva casa com a reserva no lado da\nSAÍDA e não casa no lado da CHEGADA. Nesse caso o card de chegada é o\ndo log (reservationId nulo) e o de saída é o da reserva — e\n`markNoShow`, que grava só o que o card clicado tinha, deixa o outro\nlado sem nenhuma chave em comum. O card sobrevive ao filtro e reaparece\nem Checkouts/Limpeza.\n\nA estadia resolve isso porque não depende de casamento nenhum: dois\nhóspedes diferentes não começam no MESMO imóvel no MESMO dia. É a\nmesma identidade que a pessoa enxerga na tela.\n\nAs duas consultas abaixo só acontecem quando existe algum \"não\ncompareceu\" na conta.",
+    "source_path": "src/lib/arrival-board.server.ts",
+    "audience": [],
+    "content_hash": "314eb75812f6c04b06c933a3b0f2fa4f"
   },
   {
     "doc_key": "rule:CLEANING_DAY_MIN_PX",
@@ -463,6 +490,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
     "content_hash": "7bb57d8ce7d452ae85a0bb5a3783d3ff"
+  },
+  {
+    "doc_key": "rule:commitPrediction",
+    "kind": "rule",
+    "title": "Regra — commitPrediction",
+    "content": "Grava uma previsão. `side` decide EM QUAL LINHA do banco ela cai\n(`guest_arrival_status.kind`), e `target` decide com quais identificadores\n— os da linha daquele lado, nunca os do card que abriu o editor. As duas\nprevisões da mesma estadia vivem em registros diferentes: por construção,\nnão há como uma sobrescrever a outra.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "c985da08335d34800968b717a3992aa6"
   },
   {
     "doc_key": "rule:COMPOSER_INPUT",
@@ -699,6 +735,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "d3274393c73139e4eeb07352e8f5ee34"
   },
   {
+    "doc_key": "rule:freeProperties",
+    "kind": "rule",
+    "title": "Regra — freeProperties",
+    "content": "Imóveis livres do dia aberto — exatamente o que o servidor calculou.\n\nAntes o cliente ainda subtraía `cleaningPendingPropIds` daqui (\"imóvel\ncom check-out pendente ou limpeza em andamento não é livre\"). Isso\nquebrava o indicador de duas formas ao mesmo tempo, e as duas foram\napontadas no pedido de 08/09/2026:\n\n 1. amarrava um número de DIA ao andamento dos checkouts/limpezas de\n HOJE — abrir outro dia no calendário mostrava um número contaminado\n pelo que está pendente agora;\n 2. respondia a outra pergunta. \"Livre\" aqui é \"não tem reserva com\n entrada nem estadia nesse dia\". Uma limpeza pendente não é uma\n reserva: o imóvel continua sem ninguém dentro e disponível para\n receber, que é a informação que a pessoa procura ao abrir o dia.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "a9d0454168bb05b3edfc06aa4287b769"
+  },
+  {
     "doc_key": "rule:getPropertyForQuickEdit",
     "kind": "rule",
     "title": "Regra — getPropertyForQuickEdit",
@@ -861,6 +906,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "955f61e0beb3bdaa91d837fce14a2c28"
   },
   {
+    "doc_key": "rule:listBare",
+    "kind": "rule",
+    "title": "Regra — listBare",
+    "content": "Lista + Concluídos/Não Compareceu = card mínimo (pedido explícito,\n08/09/2026): \"não deve ser apresentada qualquer info que não seja o nome\ndo proprietário, título do anúncio e botões\".\n\nSão as duas listas de ARQUIVO do quadro. Ali ninguém está operando nada:\nestá procurando um card específico para desfazer ou conferir. Período,\nprevisão, nota e alertas de iCal só alongam a linha e atrasam a busca —\no histórico completo continua a um clique (ver o popup de histórico).\n\nA etiqueta ALERTA é a exceção deliberada, por pedido explícito no mesmo\ndia: ela aparece em todo e qualquer card, inclusive aqui.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "7682bdfa9a51516884a96e671256880f"
+  },
+  {
     "doc_key": "rule:maskDigitsIfLocked",
     "kind": "rule",
     "title": "Regra — maskDigitsIfLocked",
@@ -922,6 +976,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
     "content_hash": "b9d2e597086f026243bb1c43e760fdbf"
+  },
+  {
+    "doc_key": "rule:occupiedOnDay",
+    "kind": "rule",
+    "title": "Regra — occupiedOnDay",
+    "content": "IMÓVEIS LIVRES DO DIA ABERTO (pedido explícito, 08/09/2026):\n\"ao abrir o dia, esse indicador já precisa mostrar QUANTOS imóveis não\ntêm reserva com entrada (ou estadia) naquele dia\".\n\nA conta é do DIA, e só do dia: um imóvel está ocupado quando alguma\nestadia ENTRA nele naquele dia ou ATRAVESSA aquele dia. O dia da saída\nnão conta como ocupado — o imóvel fica disponível para receber alguém.\nSe de fato entra alguém nesse mesmo dia (giro), a própria estadia nova\njá marca o imóvel como ocupado pela primeira condição.\n\nO que saiu daqui, e por quê: havia um relógio de parede fixo em 11h\n(America/Sao_Paulo) que segurava o imóvel como \"ocupado\" até aquela\nhora no dia do checkout. Isso amarrava um indicador de DIA ao HORÁRIO\ndos checkouts pendentes — abrir um dia e ver o número mudar sozinho às\n11h, ou ver um imóvel como ocupado depois de o hóspede já ter saído às\n9h. Um número por dia não pode depender de que horas são.",
+    "source_path": "src/lib/dashboard.functions.ts",
+    "audience": [],
+    "content_hash": "e668d0cb202c0a9275b5fcfee24d5f43"
   },
   {
     "doc_key": "rule:onGuestAudio",
@@ -1032,22 +1095,31 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ac3b24999636d5bba4bcaafa627526f7"
   },
   {
-    "doc_key": "rule:PredictedEditor",
+    "doc_key": "rule:predictionDayLabel",
     "kind": "rule",
-    "title": "Regra — PredictedEditor",
-    "content": "Data e horário previstos são dois campos SEPARADOS de novo (pedido\nexplícito, 05/09/2026: \"quero que fiquem separados como antes, porém\nambos no layout padrão dos tooltips\") — cada botão abre seu próprio\ntooltip (só calendário / só horário, cada um com o mesmo visual dos\ntooltips padrão do sistema), não mais um painel único com os dois juntos.\n\nMas por baixo dos panos continua sendo UMA ÚNICA sessão de edição\n(`open`/pendingDate/pendingTime compartilhados): os dois botões só trocam\nQUAL conteúdo aparece dentro do mesmo Popover (ver `openField`), sem abrir\ne fechar de verdade um popover por vez. Isso é o que preserva o ajuste\nanterior (pedido explícito, mesma data): \"não é mover depois de fechar o\ncalendário, é mover depois de fechar o TOOLTIP inteiro\" — se cada campo\ntivesse seu próprio Popover independente, fechar o de Data já confirmaria\ne moveria o card antes do usuário conseguir abrir o de Horário, voltando\nao bug original. Nada é gravado (nem o card se move) enquanto QUALQUER um\ndos dois estiver \"aberto\" — só quando o usuário clica fora dos dois\nbotões (ou aperta \"Concluir\"/Esc) é que a data e o horário pendentes são\nconfirmados juntos, numa única leva.\n\nO piso/teto do horário reage à data QUE ESTÁ SENDO escolhida (ainda não\nconfirmada) — mesma regra de \"dia mudou → sem piso/teto\" do card, só que\ncalculada aqui em cima do valor pendente, senão a lista de horários\nficaria com a janela do dia errado enquanto o usuário ainda decide.",
+    "title": "Regra — predictionDayLabel",
+    "content": "O DIA da previsão, em palavra quando dá — \"hoje\", \"amanhã\", \"ontem\" — e na\ndata cheia quando não dá.\n\nExiste porque um horário sozinho é ambíguo: \"20:00\" de que dia? A previsão\ntem data própria (`arrival_date_override`), separada do horário, e ela pode\ncair num dia diferente do da reserva — o hóspede avisa que só chega amanhã,\na saída é antecipada. Sem esta linha, o card mostraria um horário sem dizer\nde quando ele é.\n\nPedido explícito (08/09/2026): quando é HOJE — o caso da maioria dos cards —\na palavra fica apagada, porque uma informação que se repete em quinze cards\nseguidos deixa de ser lida. Qualquer outro dia ganha destaque, e um dia que\njá passou fica vermelho: é exceção, e é o que precisa ser visto.",
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
-    "content_hash": "d45f5612f1c6c96d62e4a921df79ab76"
+    "content_hash": "cde06f233f84f524d3aaf701761567af"
   },
   {
-    "doc_key": "rule:previsaoInformada",
+    "doc_key": "rule:PredictionSide",
     "kind": "rule",
-    "title": "Regra — previsaoInformada",
-    "content": "A faixa \"Previsto\" ganha destaque em amarelo QUANDO HOUVER previsão\ninformada (pedido explícito, 08/09/2026). \"Informada\" quer dizer que\nalguém de fato definiu algo — não o horário padrão do imóvel, que existe\nem todo card e destacaria todos, esvaziando o destaque.\n\nO `guestArrivalTime` só entra no CHECK-IN: ele é o horário que o hóspede\ninformou para a CHEGADA e não diz nada sobre a saída. Foi exatamente essa\nconfusão que fez o checkout automático confirmar na hora errada\n(06/09/2026) — mesma regra de `horaPrevista`, em assistant-tools.server.",
+    "title": "Regra — PredictionSide",
+    "content": "O EDITOR DE PREVISÃO — data e horário, dos DOIS lados da estadia.\n\nPedido explícito (08/09/2026): \"o usuário precisa conseguir editar a data +\nhorário da previsão (tanto de checkin quanto de checkout)... e essas duas\ninformações não podem conflitar... porém, cada informação deve ser mostrada\nno status correto\".\n\nCOMO AS DUAS CONVIVEM SEM CONFLITAR\n\nElas nunca disputam o mesmo campo: `guest_arrival_status` guarda UMA LINHA\nPOR LADO da estadia (`kind` \"checkin\" e \"checkout\"), e cada linha tem o seu\npróprio `arrival_date_override` e `arrival_time_override`. São registros\ndiferentes da mesma reserva. A leitura já é filtrada por lado — a lista de\nchegadas não enxerga a linha de saída — então \"cada uma aparece no status\ncerto\" é consequência do modelo, não de uma regra de tela.\n\nPOR QUE O TOOLTIP TEM OS DOIS, SE O CARD MOSTRA UM\n\nPorque quem opera costuma saber os dois de uma vez (\"chego dia 8 às 20h e\nsaio dia 14 às 8h\"), e o card onde ele está só oferece um. Sem o segundo\nbloco, registrar a saída exigiria esperar o card mudar de coluna, ou abrir o\nhistórico — dois caminhos mais longos para o caso mais comum. Então: o lado\ndo card vem aberto, o outro fica numa linha recolhida a um clique. Quem só\nsabe um lado nem percebe que o outro está ali.\n\nA MECÂNICA DE CADA BLOCO NÃO MUDOU (regra do projeto: não mexer na estrutura\ndos tooltips). Continua sendo data + horário no MESMO popover, com o commit\nacontecendo só quando o popover inteiro fecha — nunca no meio da escolha da\ndata, senão o card se move antes de a pessoa conseguir ajustar o horário\n(bug real corrigido em 05/09/2026). O que existe agora são DOIS desses\nblocos, não um bloco diferente.",
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
-    "content_hash": "315cc289545fca67b93cfaccc2d87f4a"
+    "content_hash": "9214a9eb138c4f18d96cd25f17527859"
+  },
+  {
+    "doc_key": "rule:predKind",
+    "kind": "rule",
+    "title": "Regra — predKind",
+    "content": "A previsão que a coluna mostra é a do que vem A SEGUIR — não a do lado\nde onde a lista veio. \"Em Estadia\" é o caso que revela a diferença: o\ncard sai da lista de chegadas, mas a chegada já aconteceu; o que falta\nprever ali é a saída.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "a3f929b66db18b667b0c0ce1749f9e68"
   },
   {
     "doc_key": "rule:ProactiveAutonomy",
@@ -1156,6 +1228,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/auto-checkout.server.ts",
     "audience": [],
     "content_hash": "fe2e5ad544b27a3d48da06b869ebd467"
+  },
+  {
+    "doc_key": "rule:rowByStay",
+    "kind": "rule",
+    "title": "Regra — rowByStay",
+    "content": "As linhas das duas esteiras indexadas pela ESTADIA, para um card de um\nlado conseguir alcançar a previsão do outro.\n\nA chave `reservationId ?? logId` é a mesma que o resto do quadro já usa\npara casar card com card. Ela é necessária porque o card de \"Em Estadia\"\nnasce da lista de CHEGADAS e, por isso, não carrega o `arrival_*_override`\ndo lado da saída — que é justamente o que ele precisa mostrar.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "17bfb9b914e0facf3b74e9ae9d8842d4"
   },
   {
     "doc_key": "rule:runAdvanceArrival",
@@ -1275,6 +1356,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "57ffb747f784d1d6a181a9b2bfc660ab"
   },
   {
+    "doc_key": "rule:showPrediction",
+    "kind": "rule",
+    "title": "Regra — showPrediction",
+    "content": "A PREVISÃO que este card mostra e edita — a do que vem A SEGUIR, não a da\nlista de origem (pedido explícito, 08/09/2026).\n\nA diferença aparece em \"Em Estadia\": o card vem da lista de CHEGADAS, mas\na chegada já aconteceu. Editar ali a previsão de check-in de quem já fez\ncheck-in não serve para nada — e o caso mais comum da operação é\nexatamente o oposto: o hóspede está dentro do imóvel e avisa a que horas\nvai sair. Por isso Em Estadia, Checkouts e Fila de Limpeza mostram a\nprevisão de SAÍDA, e só Chegadas mostra a de chegada.\n\nConcluído e Não Compareceu não têm previsão a exibir: não há próxima ação\npara prever.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "d4a1553d30fff796e6c716e62036fc7c"
+  },
+  {
     "doc_key": "rule:sortCheckinRows",
     "kind": "rule",
     "title": "Regra — sortCheckinRows",
@@ -1338,7 +1428,25 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "914091bc096eea511759c33fbaa6d179"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:137820",
+    "doc_key": "rule:src/components/dashboard/card-colors.ts:0",
+    "kind": "rule",
+    "title": "Regra em card-colors.ts",
+    "content": "AS CORES DAS INFORMAÇÕES DE UM CARD — um lugar só, para todos os cards.\n\nPedido explícito (08/09/2026): \"a cor das informações precisa ser replicada\nem TODOS os demais cards... exemplo: proprietário no pink, período nas cores\ndos status\".\n\nO padrão nasceu no card do Kanban e é este:\n\n · PROPRIETÁRIO — rosa da marca (`--accent`). É a única linha colorida por\n IDENTIDADE, não por estado: serve para achar o card do proprietário\n certo passando o olho por uma coluna inteira.\n · IMÓVEL — cor de texto cheia, com a tipografia de título do card. É o\n nome que a pessoa lê primeiro.\n · PERÍODO / DATAS — cor de ESTADO (ver `periodColorClass`): vermelho para\n atrasado, laranja para saída, verde para estadia em curso, azul para\n chegada pendente. É a cor que substituiu as antigas etiquetas\n \"Atrasado\"/\"Data futura\".\n · HÓSPEDE, CÓDIGO E DEMAIS APOIOS — cinza. Informação de contexto não\n compete com as três acima.\n\nPor que constantes e não classes escritas em cada tela: o padrão já existia\nde fato no Kanban, mas só lá — nos outros cards cada linha tinha ganhado uma\ncor por conta própria. Com o padrão vindo daqui, um card novo herda o\nsignificado das cores em vez de reinventá-lo, e mudar o padrão é mudar UM\narquivo.",
+    "source_path": "src/components/dashboard/card-colors.ts",
+    "audience": [],
+    "content_hash": "5659909501ffd7e0b67da654b7615957"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/card-colors.ts:1770",
+    "kind": "rule",
+    "title": "Regra em card-colors.ts",
+    "content": "Cor do PERÍODO/data conforme o estado da estadia.\n\n`overdue` vence tudo: uma data que já passou sem a ação feita é o único\nestado que precisa gritar. Depois disso, a cor diz em que ponto da esteira\no card está.",
+    "source_path": "src/components/dashboard/card-colors.ts",
+    "audience": [],
+    "content_hash": "ef3c1c66c3ef578b9b9e0522f86a4558"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:145153",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Destaque visual opt-in (só usado hoje por \"Fila de Limpeza\"): borda +\ngradiente âmbar + acento lateral + ícone em caixinha, sem negrito.\nNão afeta nenhum outro uso do KpiCard (compact ou não).",
@@ -1347,7 +1455,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ec0f34c7bfc0754666d9cc96f2f2a568"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:138055",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:145388",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Cards que devem continuar visíveis no popup mesmo que já não pertençam\nmais à lista — hoje só os que tiveram HORÁRIO/DATA PREVISTOS ajustados.",
@@ -1356,7 +1464,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "4b33a44930f947dea6060da94f816439"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:138247",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:145580",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Pedido explícito: os cards dentro do popup precisam ficar IDÊNTICOS ao\ncard do Kanban — em vez de manter uma segunda implementação (que já\ndivergiu do Kanban antes, ver o bug do bloqueio de check-in), o popup\nagora renderiza o MESMO <ArrivalGroup>/<ArrivalCard> do Kanban, com os\nMESMOS handlers. Vem de arrivalGroupPropsFor(colMode, rows) — a mesma\nfunção que já alimenta as colunas do Kanban.",
@@ -1365,7 +1473,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "dfd7cbf815d96bcf7c9214257a5e2387"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:182156",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:190547",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Rótulo de seção do formulário de pendência — dá hierarquia ao que antes\nera uma pilha de campos do mesmo tamanho (pedido explícito, 07/09/2026).",
@@ -1374,7 +1482,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "56b708e624e12bb9a26b2593234ea4c6"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:232584",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:241324",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Pedido explícito: os filtros (Período/Cidade/Proprietário) que antes\nficavam numa linha própria acima deste card viraram um botão único\n(`CalendarFiltersButton`) dentro do cabeçalho, ao lado do título — por\nisso o estado/opções continuam vindo do pai (`OperationWorkspace`),\nque é quem também usa esses mesmos filtros pros cards de limpeza.",
@@ -1383,7 +1491,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "67345afec21e651284020dbb8b2f7803"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:263886",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:272626",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Dialog de detalhe (quem viu / quem não viu) — extraído do BarRow original\npra poder ser reaproveitado também pelo EngagementCard (cards separados do\ndesktop), sem duplicar esse JSX nos dois lugares.",
@@ -1392,7 +1500,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "191a73d470b9e71e3339a0db344ffb5a"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:271646",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:280463",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Controlado de fora (pela coluna do Kanban) quando presente — permite\nrecolher os \"Detalhes da operação\" ao rolar a coluna. Sem isso, cai de\nvolta pro estado local de sempre.",
@@ -1401,7 +1509,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1420a71a82d71664b9b9257192bc6178"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:274891",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:283785",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Marca este card (Check-ins) como \"Não Compareceu\" — pedido explícito,\n05/09/2026: opção no menu \"⋮\", só nos cards de check-in ainda pendentes.",
@@ -1410,7 +1518,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "b858b5d3155e42847ae34a889b4053e2"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:275785",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:284785",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Modo \"Lista\" (pedido explícito): mostra só proprietário, imóvel e os\n botões de ação (bem menores) — some com nome do hóspede, código,\n período, previsto e alertas de iCal. Reaproveita o mesmo card e os\n mesmos handlers; só a apresentação muda.",
@@ -1419,7 +1527,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "943bbf38018e813c04eeb6799825fda6"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:328822",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:299930",
+    "kind": "rule",
+    "title": "Regra em OperationWorkspace.tsx",
+    "content": "HISTÓRICO DA RESERVA (pedido explícito, 08/09/2026).\n\nNa visão Lista, o clique no próprio card abre a jornada completa — é o\ngesto natural quando o card mostra pouca coisa. No modo Completo o card\nestá cheio de controles e um clique global roubaria o clique de todos\neles, então ali o caminho é o item do menu \"⋮\". Os dois abrem exatamente\na mesma tela.\n\nSó identificador real: a chave sintética \"ical:<id>\" não é um uuid de\nlog — nesses cards a reserva é quem identifica a estadia.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "91b0393d11ad3250d65978789bbf0665"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:340783",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Restringe de verdade os horários selecionáveis (inclusive) ao horário\n configurado do imóvel — pedido explícito do cliente (04/09/2026): antes\n só existia um aviso visual (âmbar) depois de já ter escolhido um\n horário fora da janela; agora o horário nem aparece como opção. `null`/\n omitido = sem limite (imóvel sem esse horário configurado).",
@@ -1428,13 +1545,40 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8ebe1ab97a0756cd4e0279b3025812c8"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:43086",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:343501",
+    "kind": "rule",
+    "title": "Regra em OperationWorkspace.tsx",
+    "content": "Data e horário previstos são dois campos SEPARADOS de novo (pedido\nexplícito, 05/09/2026: \"quero que fiquem separados como antes, porém\nambos no layout padrão dos tooltips\") — cada botão abre seu próprio\ntooltip (só calendário / só horário, cada um com o mesmo visual dos\ntooltips padrão do sistema), não mais um painel único com os dois juntos.\n\nMas por baixo dos panos continua sendo UMA ÚNICA sessão de edição\n(`open`/pendingDate/pendingTime compartilhados): os dois botões só trocam\nQUAL conteúdo aparece dentro do mesmo Popover (ver `openField`), sem abrir\ne fechar de verdade um popover por vez. Isso é o que preserva o ajuste\nanterior (pedido explícito, mesma data): \"não é mover depois de fechar o\ncalendário, é mover depois de fechar o TOOLTIP inteiro\" — se cada campo\ntivesse seu próprio Popover independente, fechar o de Data já confirmaria\ne moveria o card antes do usuário conseguir abrir o de Horário, voltando\nao bug original. Nada é gravado (nem o card se move) enquanto QUALQUER um\ndos dois estiver \"aberto\" — só quando o usuário clica fora dos dois\nbotões (ou aperta \"Concluir\"/Esc) é que a data e o horário pendentes são\nconfirmados juntos, numa única leva.\n\nO piso/teto do horário reage à data QUE ESTÁ SENDO escolhida (ainda não\nconfirmada) — mesma regra de \"dia mudou → sem piso/teto\" do card, só que\ncalculada aqui em cima do valor pendente, senão a lista de horários\nficaria com a janela do dia errado enquanto o usuário ainda decide.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "2b5d3cc828947c9353140290107ef27c"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:43333",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Cards \"fixados\" no popup aberto: SÓ ajustes de data/horário previsto\nseguram o card na lista até o usuário fechar o popup no \"X\". Qualquer\noutra ação (check, não compareceu, limpeza não será realizada, desfazer)\ntira o card da tela na hora.",
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
     "content_hash": "edce2904f3ccf71032151d09f19ecae0"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/ReservationJourneyDialog.tsx:0",
+    "kind": "rule",
+    "title": "Regra em ReservationJourneyDialog.tsx",
+    "content": "O HISTÓRICO DA RESERVA, na mesma moldura dos outros popups do quadro\n(Pendências, Limpeza Prevista 7d): largura `sm:max-w-lg`, cabeçalho com\n`ds-page-title` + `ds-page-subtitle`, corpo rolável em `sg-elegant-scroll`.\nPedido explícito (08/09/2026): \"precisa seguir o mesmo layout padrão que já\nimplementamos\".\n\nAs cores das linhas vêm de `card-colors.ts` — as MESMAS do card que abriu\neste popup: proprietário no rosa, período na cor do estado. Um histórico\npintado com outra régua faria a pessoa reaprender o significado das cores\nao atravessar dois cliques.",
+    "source_path": "src/components/dashboard/ReservationJourneyDialog.tsx",
+    "audience": [],
+    "content_hash": "dc0da3da58aa3722f69ddc52964edb30"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/ReservationJourneyDialog.tsx:3227",
+    "kind": "rule",
+    "title": "Regra em ReservationJourneyDialog.tsx",
+    "content": "Chegada e saída, as duas editáveis (pedido explícito, 08/09/2026).\n\nChega pronto do card, como nó já montado, e não como dados: o editor de\nprevisão vive dentro do quadro (é lá que estão as duas listas da esteira\ne a gravação otimista), e importá-lo daqui criaria um ciclo — o quadro já\nimporta este diálogo. Passar o nó pronto mantém uma única implementação\nde gravação, que é a mesma regra que vale para as ações do assistente.",
+    "source_path": "src/components/dashboard/ReservationJourneyDialog.tsx",
+    "audience": [],
+    "content_hash": "05695c4506d7fc3e0183fd55b62a5aae"
   },
   {
     "doc_key": "rule:src/components/dashboard/TaskAttachments.tsx:2044",
@@ -1977,6 +2121,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "cb02c1d074b4576f0be8291692385a9e"
   },
   {
+    "doc_key": "rule:src/lib/dashboard.functions.ts:70422",
+    "kind": "rule",
+    "title": "Regra em dashboard.functions.ts",
+    "content": "Completa o identificador que faltou (pedido explícito, 08/09/2026: o\ncard marcado como \"não compareceu\" continuava espelhado na Fila de\nLimpeza).\n\nO card de chegada e o de saída da MESMA estadia nem sempre carregam o\nmesmo identificador — o casamento formulário↔reserva é mais exigente\ndo lado da chegada (ver `findLogsForReservation`). Gravando só o que o\ncard clicado tinha, o outro lado ficava sem chave em comum e escapava\ndo filtro. Aqui procuramos o par pela estadia e gravamos os DOIS, de\nmodo que qualquer consumidor — não só o quadro — reconheça o\nnão comparecimento por qualquer um dos lados.",
+    "source_path": "src/lib/dashboard.functions.ts",
+    "audience": [],
+    "content_hash": "47be47ef7e7c20587e5825edf22d4743"
+  },
+  {
     "doc_key": "rule:src/lib/permissions/feature.access.ts:1332",
     "kind": "rule",
     "title": "Regra em feature.access.ts",
@@ -2229,6 +2382,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "2d762dfcdb45caa052355bec80553cbd"
   },
   {
+    "doc_key": "rule:src/lib/reservation-journey.functions.ts:0",
+    "kind": "rule",
+    "title": "Regra em reservation-journey.functions.ts",
+    "content": "HISTÓRICO DA RESERVA — a jornada inteira de uma estadia, num lugar só.\n\nPedido explícito (08/09/2026), em duas frases que são a mesma coisa:\n · \"ao clicar em um card da visão lista no kanban, abrir um tooltip com o\n histórico de tudo relacionado àquela reserva\";\n · \"TODOS OS CARDS relacionados à mesma reserva precisam ser O MESMO\n CARD... no final, o card precisa apresentar toda a jornada/histórico da\n reserva, limpeza, etc\".\n\nO QUE JÁ ERA VERDADE, E O QUE FALTAVA\n\nO card já é o mesmo objeto ao longo da esteira: Check-ins e Em Estadia saem\nda MESMA lista (`kind: \"checkin\"`, separadas só por status), e Checkouts e\nFila de Limpeza saem da MESMA lista (`kind: \"checkout\"`) — o \"espelho\" da\nlimpeza nunca foi um card novo, é a mesma `ArrivalRow`, com os mesmos\nidentificadores, renderizada com outro `mode`. O que faltava não era\nunificar a identidade: era o card CONTAR essa jornada. Cada coluna mostrava\nsó o instante presente, e o que tinha acontecido antes ficava invisível.\n\nÉ isso que esta função devolve: a linha do tempo da estadia montada a\npartir do que o sistema de fato gravou — nunca inferida de \"onde o card\nestá agora\".\n\nCOMO A JORNADA É RECONSTRUÍDA\n\nA fonte é `guest_arrival_status`, que guarda uma linha por lado da estadia\n(`kind` \"checkin\" e \"checkout\") com os carimbos de tempo reais: `done_at`\n(a etapa aconteceu), `concluded_at` (o card saiu da esteira) e, no lado da\nsaída, `cleaning_type`/`cleaning_price_cents` (que limpeza foi feita e por\nquanto). Um passo só é dado como concluído quando existe carimbo — jamais\nporque o passo seguinte existe.\n\nA estadia é encontrada pelos DOIS identificadores (log do formulário e\nreserva do iCal) porque nem todo card carrega os dois: o casamento\nformulário↔reserva é mais exigente do lado da chegada (ver\n`findLogsForReservation`). Procurar pelos dois, e completar um pelo outro\natravés da estadia (imóvel + data de entrada), é o que garante que abrir o\nhistórico pelo card de Limpeza mostre o mesmo que abrir pelo de Check-in.",
+    "source_path": "src/lib/reservation-journey.functions.ts",
+    "audience": [],
+    "content_hash": "8df8468b519bbea9643ac2223113b3c4"
+  },
+  {
     "doc_key": "rule:src/lib/tasks-types.ts:1356",
     "kind": "rule",
     "title": "Regra em tasks-types.ts",
@@ -2263,6 +2425,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/trail.ts",
     "audience": [],
     "content_hash": "6b410279c93cc87f14fef0f542338d1e"
+  },
+  {
+    "doc_key": "rule:stage",
+    "kind": "rule",
+    "title": "Regra — stage",
+    "content": "A ETAPA que a barra lateral pinta. Atraso sobrepõe a fase: uma data que já\npassou sem a ação feita é o único estado que precisa gritar mais alto que\n\"em que ponto da esteira eu estou\".",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "3b40e2414a6dfdd54dd553d8a087c251"
   },
   {
     "doc_key": "rule:StakeholderStatusControl",

@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { periodColorClass } from "@/components/dashboard/card-colors";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Download, Loader2, Mail, MessageCircle, Search, Users, FileText, Car, Clock, Phone } from "lucide-react";
@@ -19,6 +20,8 @@ function fmt(iso: string) {
 function fmtDate(d: string) {
   try { const [y, m, day] = d.split("-"); return `${day}/${m}/${y}`; } catch { return d; }
 }
+/** Hoje no fuso do Brasil (YYYY-MM-DD) — usado só para decidir a cor da data. */
+const todayISO = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
 
 type Vehicle = { plate?: string | null; model?: string | null; color?: string | null };
 type Document = { guest_name?: string | null; file_url?: string | null; doc_type?: string | null; doc_number?: string | null };
@@ -196,7 +199,12 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
                       <div className="ds-meta truncate hidden sm:block">
                         {r.guest_phone ? `${r.guest_phone_country ?? ""} ${r.guest_phone}` : "—"}
                       </div>
-                      <div className="ds-meta hidden sm:block">Check-in {fmtDate(r.checkin_date)}</div>
+                      {/* Data na cor de ESTADO, como em todo card do sistema
+                          (card-colors.ts): azul enquanto a chegada não
+                          aconteceu, cinza quando já é histórico. */}
+                      <div className={`ds-meta hidden sm:block ${r.checkin_date >= todayISO ? periodColorClass({ kind: "checkin" }) : ""}`}>
+                        Check-in {fmtDate(r.checkin_date)}
+                      </div>
                       <div className="ds-meta text-right whitespace-nowrap">{fmt(r.created_at)}</div>
                     </div>
                     <span className="text-muted-foreground shrink-0">

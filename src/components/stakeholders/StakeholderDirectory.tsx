@@ -501,7 +501,11 @@ function StakeholderCard({
               (Tailwind) sendo sobreposto por uma regra sem layer. Span não é
               afetado por aquela regra, então o truncate funciona de verdade. */}
           <span
-            className="ds-card-title truncate leading-tight min-w-0"
+            /* Proprietário no rosa da marca — mesmo significado de cor do
+               card do Kanban (card-colors.ts). Prestador continua na cor de
+               texto cheia: o rosa identifica PROPRIETÁRIO, e vale como pista
+               justamente por não valer para todo mundo. */
+            className={`ds-card-title truncate leading-tight min-w-0 ${kind === "owner" ? "text-accent" : ""}`}
             title={row.trade_name || row.name}
           >
             {row.trade_name || row.name}

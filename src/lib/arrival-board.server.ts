@@ -573,6 +573,8 @@ export async function buildArrivalRows(
         if (s.log_id) checkinNoShowLogs.add(s.log_id);
         if (s.reservation_id) checkinNoShowReservations.add(s.reservation_id);
       }
+      // (a chave por ESTADIA — imóvel + data de entrada — é montada logo
+      // depois deste laço, ver `checkinNoShowStays`)
       if (s.kind === "checkin" && (s.status === "done" || !!s.done_at)) {
         if (s.log_id) checkinDoneLogs.add(s.log_id);
         if (s.reservation_id) checkinDoneReservations.add(s.reservation_id);
@@ -594,6 +596,59 @@ export async function buildArrivalRows(
       };
       if (s.log_id) statusMap.set(s.log_id, value);
       if (s.reservation_id) reservationStatusMap.set(s.reservation_id, value);
+    }
+
+    /**
+     * "Não Compareceu" identificado pela ESTADIA (imóvel + data de entrada),
+     * não só pelos identificadores gravados.
+     *
+     * Por que isto foi preciso (bug real relatado em 08/09/2026: "ao acionar
+     * não compareceu, o card continua espelhado na Fila de Limpeza"):
+     *
+     * O gate por id só funciona quando o card de CHECK-IN e o card de
+     * CHECKOUT da mesma estadia carregam o mesmo identificador — e nem
+     * sempre carregam. O casamento log↔reserva é FEITO DE FORMA DIFERENTE
+     * nos dois lados: `findLogsForReservation` tem a linha
+     * `if (resCode && !logCode && kind === "checkin") continue;`, ou seja,
+     * um formulário sem código de reserva casa com a reserva no lado da
+     * SAÍDA e não casa no lado da CHEGADA. Nesse caso o card de chegada é o
+     * do log (reservationId nulo) e o de saída é o da reserva — e
+     * `markNoShow`, que grava só o que o card clicado tinha, deixa o outro
+     * lado sem nenhuma chave em comum. O card sobrevive ao filtro e reaparece
+     * em Checkouts/Limpeza.
+     *
+     * A estadia resolve isso porque não depende de casamento nenhum: dois
+     * hóspedes diferentes não começam no MESMO imóvel no MESMO dia. É a
+     * mesma identidade que a pessoa enxerga na tela.
+     *
+     * As duas consultas abaixo só acontecem quando existe algum "não
+     * compareceu" na conta.
+     */
+    const checkinNoShowStays = new Set<string>();
+    if (checkinNoShowLogs.size > 0 || checkinNoShowReservations.size > 0) {
+      const stayKey = (propertyId: string | null, checkinDate: string | null) =>
+        propertyId && checkinDate ? `${propertyId}|${checkinDate}` : null;
+      const [logRows, resRows] = await Promise.all([
+        checkinNoShowLogs.size > 0
+          ? context.supabase
+              .from("guide_access_logs")
+              .select("id, property_id, checkin_date")
+              .in("id", Array.from(checkinNoShowLogs))
+          : Promise.resolve({ data: [] as Array<{ property_id: string; checkin_date: string }> }),
+        checkinNoShowReservations.size > 0
+          ? context.supabase
+              .from("property_reservations")
+              .select("id, property_id, checkin_date")
+              .in("id", Array.from(checkinNoShowReservations))
+          : Promise.resolve({ data: [] as Array<{ property_id: string; checkin_date: string }> }),
+      ]);
+      for (const row of [
+        ...((logRows.data ?? []) as Array<{ property_id: string | null; checkin_date: string | null }>),
+        ...((resRows.data ?? []) as Array<{ property_id: string | null; checkin_date: string | null }>),
+      ]) {
+        const key = stayKey(row.property_id, row.checkin_date);
+        if (key) checkinNoShowStays.add(key);
+      }
     }
 
 
@@ -1021,7 +1076,10 @@ export async function buildArrivalRows(
             // (log manual ou reserva do iCal).
             const noShow =
               !!(r.logId && !r.logId.startsWith("ical:") && checkinNoShowLogs.has(r.logId)) ||
-              !!(r.reservationId && checkinNoShowReservations.has(r.reservationId));
+              !!(r.reservationId && checkinNoShowReservations.has(r.reservationId)) ||
+              // Rede de segurança por ESTADIA — pega o caso em que os dois
+              // lados não compartilham identificador (ver checkinNoShowStays).
+              !!(r.propertyId && r.guestCheckin && checkinNoShowStays.has(`${r.propertyId}|${r.guestCheckin}`));
             if (noShow) return false;
             const logDone = !!(r.logId && !r.logId.startsWith("ical:") && checkinDoneLogs.has(r.logId));
             const resDone = !!(r.reservationId && checkinDoneReservations.has(r.reservationId));

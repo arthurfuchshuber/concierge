@@ -6,6 +6,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { useAntiClipColumns } from "@/hooks/useAntiClipColumns";
+import { CARD_MUTED, CARD_PENDING_GUEST, periodColorClass, stageBarClass, type CardStage } from "@/components/dashboard/card-colors";
+import { ReservationJourneyDialog } from "@/components/dashboard/ReservationJourneyDialog";
 import {
   ResponsiveContainer,
   BarChart,
@@ -64,6 +66,8 @@ import {
   Repeat,
   UserX,
   Ban,
+  History,
+  Clock3,
 } from "lucide-react";
 import { toast } from "sonner";
 import { notifyAction } from "@/components/UndoActionBar";
@@ -1359,11 +1363,23 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     () => sortCheckinRows(rawTomorrowCheckinPendingRows),
     [rawTomorrowCheckinPendingRows, sortCheckinRows],
   );
-  // Imóvel com check-out pendente ou limpeza em andamento não é "livre".
-  const freeProperties = useMemo(
-    () => (occupancyQ.data?.freeToday ?? []).filter((p) => !cleaningPendingPropIds.has(p.id)),
-    [occupancyQ.data?.freeToday, cleaningPendingPropIds],
-  );
+  /**
+   * Imóveis livres do dia aberto — exatamente o que o servidor calculou.
+   *
+   * Antes o cliente ainda subtraía `cleaningPendingPropIds` daqui ("imóvel
+   * com check-out pendente ou limpeza em andamento não é livre"). Isso
+   * quebrava o indicador de duas formas ao mesmo tempo, e as duas foram
+   * apontadas no pedido de 08/09/2026:
+   *
+   *   1. amarrava um número de DIA ao andamento dos checkouts/limpezas de
+   *      HOJE — abrir outro dia no calendário mostrava um número contaminado
+   *      pelo que está pendente agora;
+   *   2. respondia a outra pergunta. "Livre" aqui é "não tem reserva com
+   *      entrada nem estadia nesse dia". Uma limpeza pendente não é uma
+   *      reserva: o imóvel continua sem ninguém dentro e disponível para
+   *      receber, que é a informação que a pessoa procura ao abrir o dia.
+   */
+  const freeProperties = useMemo(() => occupancyQ.data?.freeToday ?? [], [occupancyQ.data?.freeToday]);
 
   // Check-ins de hoje já marcados como concluídos → agenda mostra "ocupado".
   const checkedInPropertyIds = useMemo(
@@ -1533,6 +1549,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       logId?: string | null;
       reservationId?: string | null;
       amountSpentCents?: number | null;
+      resolvedByProviderId?: string | null;
+      resolutionNote?: string | null;
     }) => toggleCleaningFn({ data: v }),
     onSuccess: invalidateTasks,
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar checklist."),
@@ -1562,6 +1580,15 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   }) {
     if (!resolvePrompt) return;
     const task = resolvePrompt.task;
+    // Anexo precisa de um imóvel (é ele que define a pasta e a permissão do
+    // arquivo). Sem imóvel os arquivos sumiriam em silêncio — melhor barrar
+    // ANTES de gravar a conclusão e explicar o que fazer.
+    if (v.files.length > 0 && !task.propertyId) {
+      toast.error(
+        "Para anexar fotos, vídeos ou áudios, a pendência precisa estar vinculada a um imóvel. Remova os anexos ou vincule um imóvel à pendência.",
+      );
+      return;
+    }
     if (resolvePrompt.kind === "status") {
       await setTaskStatusMutation.mutateAsync({
         taskId: task.id,
@@ -1576,6 +1603,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         logId: resolvePrompt.row.logId,
         reservationId: resolvePrompt.row.reservationId,
         amountSpentCents: v.amountSpentCents,
+        // A tela de conclusão é a mesma dos dois gatilhos: quem resolveu e
+        // como foi resolvido também ficam gravados na ocorrência da limpeza.
+        resolvedByProviderId: v.providerId,
+        resolutionNote: v.note,
       });
     }
 
@@ -1810,13 +1841,125 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     }
   }
 
+  /**
+   * As linhas das duas esteiras indexadas pela ESTADIA, para um card de um
+   * lado conseguir alcançar a previsão do outro.
+   *
+   * A chave `reservationId ?? logId` é a mesma que o resto do quadro já usa
+   * para casar card com card. Ela é necessária porque o card de "Em Estadia"
+   * nasce da lista de CHEGADAS e, por isso, não carrega o `arrival_*_override`
+   * do lado da saída — que é justamente o que ele precisa mostrar.
+   */
+  const rowByStay = useMemo(() => {
+    const checkin = new Map<string, ArrivalRow>();
+    const checkout = new Map<string, ArrivalRow>();
+    for (const r of [...ciRows, ...kanbanCiRowsAll]) checkin.set(r.reservationId ?? r.logId, r);
+    for (const r of [...coRows, ...kanbanCoRowsAll]) checkout.set(r.reservationId ?? r.logId, r);
+    return { checkin, checkout };
+  }, [ciRows, coRows, kanbanCiRowsAll, kanbanCoRowsAll]);
+
+  /**
+   * Grava uma previsão. `side` decide EM QUAL LINHA do banco ela cai
+   * (`guest_arrival_status.kind`), e `target` decide com quais identificadores
+   * — os da linha daquele lado, nunca os do card que abriu o editor. As duas
+   * previsões da mesma estadia vivem em registros diferentes: por construção,
+   * não há como uma sobrescrever a outra.
+   */
+  const commitPrediction = useCallback(
+    (side: "checkin" | "checkout", target: ArrivalRow, date: string | null, time: string | null) => {
+      const key = target.reservationId ?? target.logId;
+      const prev = rowByStay[side].get(key) ?? target;
+      const prevTime = prev.arrivalTimeOverride ?? (side === "checkin" ? prev.guestArrivalTime : null) ?? null;
+      const dateChanged = date !== (prev.arrivalDateOverride ?? null);
+      const timeChanged = time !== prevTime;
+      if (!dateChanged && !timeChanged) return;
+      setBusyRowId(target.logId);
+      pinRow(target.logId);
+      patchList(side, (rows: ArrivalRow[]) =>
+        rows.map((r) =>
+          (r.reservationId ?? r.logId) === key
+            ? {
+                ...r,
+                ...(dateChanged ? { arrivalDateOverride: date } : {}),
+                ...(timeChanged ? { arrivalTimeOverride: time } : {}),
+              }
+            : r,
+        ),
+      );
+      upsert.mutate({
+        ...statusTarget(target),
+        kind: side,
+        ...(dateChanged ? { arrivalDateOverride: date } : {}),
+        ...(timeChanged ? { arrivalTimeOverride: time } : {}),
+      });
+      notifyAction("Previsão atualizada.", () => {
+        setBusyRowId(target.logId);
+        upsert.mutate({
+          ...statusTarget(target),
+          kind: side,
+          ...(dateChanged ? { arrivalDateOverride: prev.arrivalDateOverride ?? null } : {}),
+          ...(timeChanged ? { arrivalTimeOverride: prev.arrivalTimeOverride ?? null } : {}),
+        });
+      });
+    },
+    [rowByStay, patchList, upsert, pinRow],
+  );
+
+  /** Monta um lado da previsão a partir da linha daquele lado. */
+  const buildPredictionSide = useCallback(
+    (side: "checkin" | "checkout", fallbackRow: ArrivalRow): PredictionSide => {
+      const key = fallbackRow.reservationId ?? fallbackRow.logId;
+      const src = rowByStay[side].get(key) ?? fallbackRow;
+      // O horário que o HÓSPEDE informou é de CHEGADA — não diz nada sobre a
+      // saída. Foi essa confusão que fez o checkout automático confirmar na
+      // hora errada (06/09/2026), e ela não pode voltar por aqui.
+      const time = src.arrivalTimeOverride ?? (side === "checkin" ? src.guestArrivalTime : null);
+      return {
+        kind: side,
+        label: side === "checkout" ? "Saída" : "Chegada",
+        dateValue: src.arrivalDateOverride ?? "",
+        timeValue: time ?? null,
+        confirmedDate: (side === "checkout" ? src.guestCheckout : src.guestCheckin) ?? null,
+        // Chegada: nunca antes da reserva, até um dia antes da saída
+        // confirmada. Saída: até a data de saída confirmada — sair antes é
+        // permitido, "esticar" a estadia por este campo não.
+        dateMin: (src.ical.icalCheckin ?? src.guestCheckin) ?? undefined,
+        dateMax:
+          (side === "checkout"
+            ? (src.ical.icalCheckout ?? src.guestCheckout)
+            : addDaysISO(src.ical.icalCheckout ?? src.guestCheckout, -1)) ?? undefined,
+        standardTime: src.standardTime,
+        standardTimeMax: src.standardTimeMax,
+        onCommit: (date, t) => commitPrediction(side, src, date, t),
+      };
+    },
+    [rowByStay, commitPrediction],
+  );
+
   function arrivalGroupPropsFor(colMode: BoardMode, rows: ArrivalRow[]) {
     const colKind: "checkin" | "checkout" =
       colMode === "checkout" || colMode === "cleaning" || colMode === "done" ? "checkout" : "checkin";
+    /**
+     * A previsão que a coluna mostra é a do que vem A SEGUIR — não a do lado
+     * de onde a lista veio. "Em Estadia" é o caso que revela a diferença: o
+     * card sai da lista de chegadas, mas a chegada já aconteceu; o que falta
+     * prever ali é a saída.
+     */
+    const predKind: "checkin" | "checkout" =
+      colMode === "stay" || colMode === "checkout" || colMode === "cleaning" || colMode === "done"
+        ? "checkout"
+        : "checkin";
+    const otherKind: "checkin" | "checkout" = predKind === "checkout" ? "checkin" : "checkout";
     return {
       rows,
       kind: colKind,
       mode: colMode,
+      getPrediction: (r: ArrivalRow): CardPrediction => ({
+        primary: buildPredictionSide(predKind, r),
+        // O outro lado vai junto, recolhido: quem já sabe a chegada E a saída
+        // registra as duas sem sair do card (pedido explícito, 08/09/2026).
+        secondary: buildPredictionSide(otherKind, r),
+      }),
       onMark: (row: ArrivalRow) => {
         if (colMode === "done" || colMode === "no_show") return;
         handleAdvance(row, colMode as "checkin" | "stay" | "checkout" | "cleaning");
@@ -2250,6 +2393,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               <FreePropertiesCard
                 loading={occupancyQ.isLoading}
                 properties={freeProperties}
+                day={occStart}
                 onRefresh={() => occupancyQ.refetch()}
               />
             </div>
@@ -3018,6 +3162,16 @@ function measureScrollbarWidth(): number {
   return width;
 }
 
+/**
+ * A previsão que um card exibe e edita: o lado principal (o do que vem a
+ * seguir) e o outro lado, que aparece recolhido dentro do mesmo tooltip.
+ * Montada por coluna em `arrivalGroupPropsFor`.
+ */
+type CardPrediction = {
+  primary: PredictionSide;
+  secondary: PredictionSide | null;
+};
+
 /** Limita a altura de uma lista em N cards INTEIROS — nunca corta um card ao
  * meio. Mede os itens de verdade e escolhe o maior corte que caiba na tela. */
 function useWholeCardsMaxHeight(visible: number, key: unknown) {
@@ -3402,14 +3556,21 @@ function EngagementAlertDropdown({ flags }: { flags: Array<{ icon: typeof Eye; l
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/15 dark:bg-amber-500/20 px-2 py-0.5 text-[10px] uppercase tracking-wider font-semibold text-amber-700 dark:text-amber-400 shadow-sm hover:bg-amber-500/25 transition-colors"
-        title="Ver alertas de engajamento"
+        /* Sem borda e com o canto do card (pedido explícito, 08/09/2026): a
+           etiqueta passou a usar o mesmo desenho do resto do sistema, em vez
+           da pílula contornada que era o único objeto assim na tela. */
+        className="inline-flex items-center gap-1 rounded-[0.3rem] border-0 bg-amber-500/20 dark:bg-amber-500/25 px-2 py-0.5 text-[9.5px] uppercase tracking-[0.1em] font-extrabold text-amber-700 dark:text-amber-300 shadow-sm transition-colors hover:bg-amber-500/30"
+        title="Ver alertas"
       >
         <AlertTriangle className="size-3 shrink-0" />
-        Engajamento
+        {/* "Engajamento" virou "ALERTA" (pedido explícito, 08/09/2026): a
+            etiqueta nomeia o que ela FAZ — avisar — e não a métrica de onde
+            os avisos saíram. Quem lê um card no meio da operação não precisa
+            saber que a origem é o engajamento do hóspede. */}
+        Alerta
       </button>
       {open && (
-        <ul className="absolute right-0 top-full z-30 mt-1 min-w-[190px] space-y-1 rounded-lg border border-amber-500/25 bg-popover px-2 py-1.5 shadow-lg">
+        <ul className="absolute left-1/2 top-full z-30 mt-1 min-w-[190px] -translate-x-1/2 space-y-1 rounded-[0.3rem] border border-amber-500/25 bg-popover px-2 py-1.5 shadow-lg">
           {flags.map((f) => (
             <li key={f.label} className="flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-400">
               <f.icon className="size-3 shrink-0" />
@@ -3427,13 +3588,22 @@ function FreePropertiesCard({
   loading,
   properties,
   onRefresh,
+  day,
 }: {
   loading: boolean;
   properties: Array<{ id: string; name: string }>;
   onRefresh: () => void;
+  /** Dia a que o número se refere (o primeiro do período aberto). */
+  day: string;
 }) {
   const [open, setOpen] = useState(false);
   const list = useWholeCardsMaxHeight(2, `${open}:${properties.length}:${loading}`);
+  // O número sempre foi o do dia ABERTO, não necessariamente o de hoje — mas
+  // o título dizia "hoje" em qualquer caso. Abrir outro dia no calendário e
+  // ler "Imóveis livres hoje" com o número de outro dia é o tipo de erro que
+  // ninguém percebe até tomar uma decisão errada por causa dele.
+  const isToday = day === todayISOSaoPaulo();
+  const dayLabel = isToday ? "hoje" : fmtDateBR(day);
   // Vermelho claro quando há imóvel livre (chama atenção pra ociosidade);
   // sem cor especial quando zero.
   const hasFree = properties.length > 0;
@@ -3454,8 +3624,8 @@ function FreePropertiesCard({
             {/* Ícone neutro (mesma cor do texto do rótulo) — só o número
                 grande é que muda de cor conforme o estado. */}
             <Home className="size-3.5 shrink-0" />
-            <span className="min-w-0 flex-1 truncate leading-none" title="Imóveis livres">
-              Imóveis livres
+            <span className="min-w-0 flex-1 truncate leading-none" title={`Imóveis livres ${dayLabel}`}>
+              Imóveis livres {isToday ? "" : dayLabel}
             </span>
           </div>
           <div
@@ -3467,7 +3637,7 @@ function FreePropertiesCard({
       </DialogTrigger>
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-lg">
         <DialogHeader className="px-5 pt-5 pb-3">
-          <DialogTitle className="text-base font-display">Imóveis livres hoje</DialogTitle>
+          <DialogTitle className="text-base font-display">Imóveis livres {dayLabel}</DialogTitle>
         </DialogHeader>
         <div
           ref={list.ref}
@@ -3479,7 +3649,7 @@ function FreePropertiesCard({
               <Loader2 className="size-5 animate-spin" />
             </div>
           ) : properties.length === 0 ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">Nenhum imóvel livre hoje.</div>
+            <div className="py-10 text-center text-sm text-muted-foreground">Nenhum imóvel livre {dayLabel}.</div>
           ) : (
             <ul className="space-y-1.5 pb-2">
               {properties.map((p) => (
@@ -4303,6 +4473,14 @@ function TasksDialog({
     }
     if (linkMissing) {
       toast.error("Vincule a um imóvel ou a um proprietário.");
+      return;
+    }
+    // Anexo precisa de imóvel (é ele que define a pasta e a permissão do
+    // arquivo). Sem isso os arquivos sumiriam em silêncio.
+    if (files.length > 0 && !propertyId) {
+      toast.error(
+        "Para anexar fotos, vídeos ou áudios, escolha um imóvel. Sem imóvel, só é possível salvar a pendência sem anexos.",
+      );
       return;
     }
     try {
@@ -6165,6 +6343,7 @@ function ArrivalGroup({
   onNote,
   onEditDates,
   onEditTime,
+  getPrediction,
   onEditPredictedDate,
   onClearPredicted,
   busyRowId,
@@ -6191,6 +6370,7 @@ function ArrivalGroup({
   onNote: (r: ArrivalRow, note: string | null) => void;
   onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
   onEditTime: (r: ArrivalRow, time: string | null) => void;
+  getPrediction?: (r: ArrivalRow) => CardPrediction | null;
   onEditPredictedDate?: (r: ArrivalRow, date: string | null) => void;
   /** Limpa Data + Horário previstos de uma vez (botão de limpar). */
   onClearPredicted?: (r: ArrivalRow) => void;
@@ -6245,6 +6425,7 @@ function ArrivalGroup({
           onNote={onNote}
           onEditDates={onEditDates}
           onEditTime={onEditTime}
+          prediction={getPrediction ? getPrediction(r) : null}
           onEditPredictedDate={onEditPredictedDate}
           onClearPredicted={onClearPredicted}
           busy={busyRowId === r.logId}
@@ -6274,6 +6455,7 @@ function ArrivalCard({
   onNote,
   onEditDates,
   onEditTime,
+  prediction,
   onEditPredictedDate,
   onClearPredicted,
   busy,
@@ -6298,6 +6480,8 @@ function ArrivalCard({
   onNote: (r: ArrivalRow, note: string | null) => void;
   onEditDates: (r: ArrivalRow, dates: { checkinDate?: string; checkoutDate?: string | null }) => void;
   onEditTime: (r: ArrivalRow, time: string | null) => void;
+  /** A previsão que este card exibe/edita — ver CardPrediction. */
+  prediction?: CardPrediction | null;
   onEditPredictedDate?: (r: ArrivalRow, date: string | null) => void;
   /** Limpa Data + Horário previstos de uma vez (botão de limpar). */
   onClearPredicted?: (r: ArrivalRow) => void;
@@ -6409,26 +6593,6 @@ function ArrivalCard({
           ? `${row.standardTime} – ${row.standardTimeMax}`
           : row.standardTime
         : null;
-  // Mesma informação do stdWindow acima, mas em frase — usada só no tooltip
-  // "i" do campo Previsto (pedido explícito): "entre X e Y" quando há os dois
-  // horários, "a partir de X" quando só há o inicial, "até Y" quando só há o
-  // final.
-  const stdWindowPhrase =
-    kind === "checkout"
-      ? row.standardTime && row.standardTimeMax
-        ? `entre ${row.standardTimeMax} e ${row.standardTime}`
-        : row.standardTime
-          ? `até ${row.standardTime}`
-          : row.standardTimeMax
-            ? `a partir de ${row.standardTimeMax}`
-            : null
-      : row.standardTime
-        ? row.standardTimeMax
-          ? `entre ${row.standardTime} e ${row.standardTimeMax}`
-          : `a partir de ${row.standardTime}`
-        : row.standardTimeMax
-          ? `até ${row.standardTimeMax}`
-          : null;
   // Horário mínimo/máximo na ordem CERTA (min, max), independente de qual
   // campo (`standardTime`/`standardTimeMax`) guarda qual valor pro tipo —
   // ver comentário acima sobre a inversão proposital no checkout. Usado
@@ -6451,23 +6615,6 @@ function ArrivalCard({
   const effMinTime = predictedDayShifted ? null : kind === "checkout" ? row.standardTimeMax : row.standardTime;
   const effMaxTime = predictedDayShifted ? null : kind === "checkout" ? row.standardTime : row.standardTimeMax;
   const divergent = !!guestTime && !!effMinTime && !isTimeWithin(guestTime, effMinTime, effMaxTime);
-  /**
-   * A faixa "Previsto" ganha destaque em amarelo QUANDO HOUVER previsão
-   * informada (pedido explícito, 08/09/2026). "Informada" quer dizer que
-   * alguém de fato definiu algo — não o horário padrão do imóvel, que existe
-   * em todo card e destacaria todos, esvaziando o destaque.
-   *
-   * O `guestArrivalTime` só entra no CHECK-IN: ele é o horário que o hóspede
-   * informou para a CHEGADA e não diz nada sobre a saída. Foi exatamente essa
-   * confusão que fez o checkout automático confirmar na hora errada
-   * (06/09/2026) — mesma regra de `horaPrevista`, em assistant-tools.server.
-   */
-  const previsaoInformada = !!(
-    row.arrivalDateOverride ||
-    row.arrivalTimeOverride ||
-    (kind === "checkin" && row.guestArrivalTime)
-  );
-
   const done = row.status === "done";
   const visualDone = done && mode !== "cleaning" && mode !== "stay";
   // Pedido explícito: a coluna de Limpeza agora espelha TODOS os checkouts
@@ -6476,18 +6623,11 @@ function ArrivalCard({
   // outros bloqueios do Kanban: nunca competem com quem já está liberado).
   const awaitingCheckout = mode === "cleaning" && !done;
   const isPendingFill = row.pendingFill;
-  // Janela permitida para a data prevista: da data original de check-in
-  // (iCal quando existe) até 1 dia antes do check-out.
-  // Sem iCal, congelamos a data original na primeira renderização — senão ela
-  // acompanharia a data recém-escolhida e o campo voltaria a ficar em branco.
-  const originalCheckinRef = useRef(row.guestCheckin);
-  const predictedMinDate = row.ical.icalCheckin ?? originalCheckinRef.current;
-  const predictedMaxDate = addDaysISO(row.ical.icalCheckout ?? row.guestCheckout, -1) ?? null;
-  // Data confirmada de check-out da reserva — teto da previsão de checkout
-  // (pedido explícito, 04/09/2026: "checkout... não pode ser mais tarde que
-  // a confirmada" — sair antes é permitido, "esticar" a estadia sozinho
-  // pelo campo previsto não). Antes não existia teto nenhum aqui.
-  const confirmedCheckoutDate = row.ical.icalCheckout ?? row.guestCheckout ?? null;
+  // As travas de data da previsão saíram daqui: agora são calculadas POR
+  // LADO em `buildPredictionSide` (a chegada trava até um dia antes da
+  // saída confirmada; a saída trava na data de saída confirmada). Mantê-las
+  // aqui significaria calcular só as do lado deste card, e o tooltip edita
+  // os dois.
   const todayISO = todayISOSaoPaulo();
   // "Atrasado" só faz sentido pra uma ação ainda PENDENTE cuja data já
   // passou (ex.: check-in que devia ter acontecido ontem e ninguém marcou).
@@ -6505,14 +6645,9 @@ function ArrivalCard({
   // futura" (removidas a pedido): atrasado sobrepõe qualquer outra cor;
   // fora isso, checkout é laranja, checkin confirmado (Em Estadia) é verde
   // e checkin pendente é azul.
-  const periodoColorClass =
-    isOverdue && !visualDone
-      ? "text-red-800 dark:text-red-400"
-      : kind === "checkout"
-        ? "text-orange-600 dark:text-orange-400"
-        : done
-          ? "text-emerald-700 dark:text-emerald-300"
-          : "text-sky-700 dark:text-sky-300";
+  // A regra vive em card-colors.ts — é o mesmo padrão que os outros cards do
+  // sistema passaram a usar (pedido explícito, 08/09/2026).
+  const periodoColorClass = periodColorClass({ overdue: isOverdue && !visualDone, kind, done });
   // Trava real do botão "Check-in realizado!": usa a data CONFIRMADA da
   // reserva (`row.guestCheckin`), nunca a prevista (`row.date`, que já pode
   // estar sobrescrita pela previsão de chegada). Uma previsão pra um dia
@@ -6588,6 +6723,84 @@ function ArrivalCard({
   // dentro do menu "⋮" em vez de ocupar mais um ícone.
   // Um card "aguardando check-out" (mirror do checkout ainda não confirmado)
   // não tem o que desfazer aqui — ele nem chegou a virar limpeza de verdade.
+  /**
+   * Lista + Concluídos/Não Compareceu = card mínimo (pedido explícito,
+   * 08/09/2026): "não deve ser apresentada qualquer info que não seja o nome
+   * do proprietário, título do anúncio e botões".
+   *
+   * São as duas listas de ARQUIVO do quadro. Ali ninguém está operando nada:
+   * está procurando um card específico para desfazer ou conferir. Período,
+   * previsão, nota e alertas de iCal só alongam a linha e atrasam a busca —
+   * o histórico completo continua a um clique (ver o popup de histórico).
+   *
+   * A etiqueta ALERTA é a exceção deliberada, por pedido explícito no mesmo
+   * dia: ela aparece em todo e qualquer card, inclusive aqui.
+   */
+  const listBare = compact && (mode === "done" || mode === "no_show");
+
+  /**
+   * A ETAPA que a barra lateral pinta. Atraso sobrepõe a fase: uma data que já
+   * passou sem a ação feita é o único estado que precisa gritar mais alto que
+   * "em que ponto da esteira eu estou".
+   */
+  const stage: CardStage =
+    mode === "done"
+      ? "done"
+      : mode === "no_show"
+        ? "no_show"
+        : isOverdue && !visualDone
+          ? "late"
+          : mode === "cleaning"
+            ? "cleaning"
+            : mode === "stay"
+              ? "stay"
+              : mode === "checkout"
+                ? "checkout"
+                : "checkin";
+
+  /**
+   * A PREVISÃO que este card mostra e edita — a do que vem A SEGUIR, não a da
+   * lista de origem (pedido explícito, 08/09/2026).
+   *
+   * A diferença aparece em "Em Estadia": o card vem da lista de CHEGADAS, mas
+   * a chegada já aconteceu. Editar ali a previsão de check-in de quem já fez
+   * check-in não serve para nada — e o caso mais comum da operação é
+   * exatamente o oposto: o hóspede está dentro do imóvel e avisa a que horas
+   * vai sair. Por isso Em Estadia, Checkouts e Fila de Limpeza mostram a
+   * previsão de SAÍDA, e só Chegadas mostra a de chegada.
+   *
+   * Concluído e Não Compareceu não têm previsão a exibir: não há próxima ação
+   * para prever.
+   */
+  const showPrediction = !listBare && mode !== "done" && mode !== "no_show";
+  const predictionPrimary = prediction?.primary ?? null;
+  const predictionSecondary = prediction?.secondary ?? null;
+  const predictionTime = predictionPrimary?.timeValue ?? null;
+  const predictionDay = predictionDayLabel(
+    predictionPrimary?.dateValue ||
+      (predictionPrimary?.kind === "checkout" ? row.guestCheckout : row.guestCheckin) ||
+      row.date,
+    todayISO,
+  );
+  const allowedPhrase = predictionPrimary
+    ? allowedWindowPhrase(predictionPrimary.kind, predictionPrimary.standardTime, predictionPrimary.standardTimeMax)
+    : null;
+  /**
+   * HISTÓRICO DA RESERVA (pedido explícito, 08/09/2026).
+   *
+   * Na visão Lista, o clique no próprio card abre a jornada completa — é o
+   * gesto natural quando o card mostra pouca coisa. No modo Completo o card
+   * está cheio de controles e um clique global roubaria o clique de todos
+   * eles, então ali o caminho é o item do menu "⋮". Os dois abrem exatamente
+   * a mesma tela.
+   *
+   * Só identificador real: a chave sintética "ical:<id>" não é um uuid de
+   * log — nesses cards a reserva é quem identifica a estadia.
+   */
+  const [journeyOpen, setJourneyOpen] = useState(false);
+  const journeyLogId = /^[0-9a-f-]{36}$/i.test(row.logId) ? row.logId : null;
+  const journeyReservationId = row.reservationId ?? (row.logId.startsWith("ical:") ? row.logId.slice(5) : null);
+  const canOpenJourney = !!journeyLogId || !!journeyReservationId;
   const canRevert = !!onRevert && mode !== "checkin" && !awaitingCheckout;
   const showRevertButton = canRevert && !compact;
   const showRevertMenuItem = canRevert && compact;
@@ -6645,101 +6858,173 @@ function ArrivalCard({
       // aparece dentro de um popup de indicador (KpiCard) — inofensivo aqui
       // no Kanban, que não usa esse hook.
       data-whole-card
-      className={`group relative snap-start flex flex-col rounded-none bg-secondary/70 hover:bg-secondary/90 p-3 gap-2.5 transition-colors ${
-        isOverdue && !visualDone
-          ? "border-l-[3px] border-l-red-500"
-          : isFuture && !visualDone
-            ? "border-l-[3px] border-l-amber-500"
-            : ""
+      /* Visão Lista: o card inteiro abre o histórico da reserva (pedido
+         explícito).
+         O guarda abaixo é o que torna isso seguro. O card carrega botões que
+         NÃO param a propagação (concluir, mapa, clipe de registros, menu
+         "⋮"): sem ele, concluir uma limpeza abriria o histórico junto. Em
+         vez de sair espalhando `stopPropagation` por cada controle — que
+         alguém esqueceria no próximo botão adicionado —, o contêiner ignora
+         qualquer clique que tenha nascido dentro de algo interativo. */
+      onClick={
+        compact && canOpenJourney
+          ? (e: React.MouseEvent<HTMLDivElement>) => {
+              const el = e.target as HTMLElement | null;
+              const interactive = el?.closest("button, a, input, select, textarea, label, [role='button']");
+              if (interactive && interactive !== e.currentTarget) return;
+              setJourneyOpen(true);
+            }
+          : undefined
+      }
+      role={compact && canOpenJourney ? "button" : undefined}
+      title={compact && canOpenJourney ? "Ver o histórico desta reserva" : undefined}
+      /* A curva de 0.3rem é a do Design System — o card era o único bloco
+         quadrado do sistema. O acento lateral saiu daqui e virou a barra de
+         ETAPA: antes só existia em "atrasado" e "data futura", agora vale
+         para todas as fases. */
+      className={`group relative flex snap-start flex-col overflow-hidden rounded-[0.3rem] bg-secondary/70 p-3 pl-3.5 gap-2 transition-colors hover:bg-secondary/90 ${
+        compact && canOpenJourney ? "cursor-pointer" : ""
       }`}
     >
-      {/* Alerta de engajamento — badge fixo no topo do card, cortando a
-          borda superior (pedido explícito), sem a seta de expandir. Some no
-          modo "Lista" (pedido explícito: só proprietário/imóvel/botões). */}
-      {!compact && mode !== "cleaning" && !isPendingFill && (
-        <div className="absolute -top-2.5 right-3 z-10">
-          <EngagementFlags
-            openedGuide={row.openedGuide}
-            readInstructions={row.readInstructions}
-            hasPasswords={row.hasPasswords}
-            viewedPasswords={row.viewedPasswords}
-          />
-        </div>
+      {journeyOpen && (
+        <ReservationJourneyDialog
+          open={journeyOpen}
+          onOpenChange={setJourneyOpen}
+          logId={journeyLogId}
+          reservationId={journeyReservationId}
+          /* As DUAS previsões vão editáveis para o histórico (pedido
+             explícito, 08/09/2026). Este é o único lugar do sistema que é
+             por RESERVA e não por coluna — então é onde chegada e saída
+             convivem sem depender de o card estar na lista certa. */
+          predictionEditor={
+            prediction ? (
+              <div className="ds-surface divide-y divide-border/60 border border-border/60">
+                {[prediction.primary, prediction.secondary]
+                  .filter((side): side is PredictionSide => !!side)
+                  .map((side) => (
+                    <PredictedEditor
+                      key={side.kind}
+                      disabled={busy}
+                      primary={side}
+                      /* Aqui NÃO existe lado recolhido: o histórico é por
+                         reserva, então os dois já aparecem, cada um com o
+                         seu próprio editor. É a diferença combinada com o
+                         card, onde um vem aberto e o outro a um clique. */
+                      trigger={
+                        <button
+                          type="button"
+                          className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-secondary/40"
+                        >
+                          <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold">
+                            <span
+                              className={`size-1.5 shrink-0 rounded-full ${side.kind === "checkout" ? "bg-orange-400" : "bg-sky-400"}`}
+                            />
+                            {side.label}
+                          </span>
+                          <span
+                            className={`text-[11.5px] tabular-nums ${
+                              side.dateValue || side.timeValue
+                                ? "font-semibold text-amber-600 dark:text-amber-400"
+                                : "text-muted-foreground"
+                            }`}
+                          >
+                            {side.dateValue || side.timeValue
+                              ? [side.dateValue ? fmtDateBR(side.dateValue) : null, side.timeValue]
+                                  .filter(Boolean)
+                                  .join(" · ")
+                              : "não informada"}
+                          </span>
+                        </button>
+                      }
+                    />
+                  ))}
+              </div>
+            ) : null
+          }
+        />
       )}
+      {/* Etiqueta ALERTA — badge sobre a borda superior, CENTRALIZADO, sem
+          borda e com o mesmo canto do card (pedido explícito, 08/09/2026).
+          Sem condição nenhuma de contexto: "precisa aparecer EM TODO E
+          QUALQUER CARD, independentemente do local, tooltip, etc". O próprio
+          `EngagementFlags` devolve `null` quando não há o que alertar, então
+          o badge continua só aparecendo quando existe alerta — o que mudou é
+          que ele não é mais escondido pela coluna nem pela vista. */}
+      <div className="absolute -top-2.5 left-1/2 z-10 -translate-x-1/2">
+        <EngagementFlags
+          openedGuide={row.openedGuide}
+          readInstructions={row.readInstructions}
+          hasPasswords={row.hasPasswords}
+          viewedPasswords={row.viewedPasswords}
+        />
+      </div>
 
-      {/* Header: nome + imóvel + data — sem avatar (ocupava espaço demais
-          numa coluna estreita de Kanban; o nome já identifica o hóspede).
-          No modo "Lista" só o proprietário e o imóvel ficam (pedido
-          explícito) — nome do hóspede, código e período somem. */}
-      <div className="flex items-center gap-3">
-        {/* ds-card-lines: o espaçamento padrão entre linhas de card, agora
-            num utilitário único do Design System (ver styles.css) em vez de
-            um `space-y-1` solto aqui. Pedido explícito, terceira vez
-            (08/09/2026): a mesma medida tem de valer em TODOS os cards do
-            sistema, não só neste. */}
-        <div className="flex-1 min-w-0 ds-card-lines">
-          {!compact && (
+      {/* A barra de ETAPA: 3px na borda esquerda, sempre no mesmo lugar. É a
+          única informação do card que se lê sem ler — percorrendo uma coluna
+          inteira dá para ver em que fase cada reserva está sem parar em
+          nenhuma. Substitui as antigas bordas de "atrasado"/"data futura",
+          que só existiam em dois casos e deixavam o resto sem sinal. */}
+      <span
+        aria-hidden
+        className={`absolute inset-y-0 left-0 w-[3px] rounded-l-[0.3rem] ${stageBarClass(stage)}`}
+      />
+
+      <div className="flex items-start gap-3">
+        {/* ds-card-lines: o espaçamento padrão entre linhas de card (styles.css). */}
+        <div className="min-w-0 flex-1 ds-card-lines">
+          <OwnerLine
+            name={row.ownerName}
+            phone={row.ownerPhone}
+            country={row.ownerPhoneCountry}
+            phonePosition="adjacent"
+          />
+          {/* O IMÓVEL é o título do card. O proprietário fica acima, menor e
+              no rosa da marca: identifica sem disputar a leitura. */}
+          <div className="ds-card-title truncate" title={row.propertyName ?? undefined}>
+            {row.propertyName ?? "Sem nome"}
+          </div>
+
+          {!listBare && !compact && (
             <>
-              {/* Nome do hóspede — movido para cima do código da reserva
-                  (pedido explícito), sem alterar o conteúdo da linha. */}
-              <div
-                className={`text-xs flex items-center gap-1 ${isPendingFill ? "text-orange-500 font-medium" : "text-muted-foreground"}`}
-              >
+              {/* Hóspede e código na MESMA linha, separados por ponto. Antes
+                  cada um ocupava uma linha própria e o card virava uma pilha
+                  de sete linhas com seis cores brigando entre si. */}
+              <div className="flex flex-wrap items-center gap-x-1.5 text-[11.5px]">
                 {isPendingFill ? (
-                  <>
+                  <span className={`inline-flex items-center gap-1 ${CARD_PENDING_GUEST}`}>
                     <UserPlus className="size-3 shrink-0" />
-                    <span className="truncate">Hóspede Pendente</span>
-                  </>
-                ) : !row.guestName || row.guestName === row.reservationCode ? (
-                  row.reservationCode ? (
+                    Hóspede pendente
+                  </span>
+                ) : row.guestName && row.guestName !== row.reservationCode ? (
+                  <span className={`inline-flex min-w-0 items-center gap-1.5 ${CARD_MUTED}`}>
+                    {/* Pedido explícito: nome do hóspede SEMPRE em maiúsculo. */}
+                    <span className="min-w-0 truncate uppercase">{row.guestName}</span>
+                    <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
+                    <ExtraGuests guests={row.additionalGuests ?? []} />
+                  </span>
+                ) : null}
+                {row.reservationCode && (
+                  <>
+                    {(isPendingFill || (row.guestName && row.guestName !== row.reservationCode)) && (
+                      <span className="text-muted-foreground/60">·</span>
+                    )}
                     <button
                       type="button"
                       onClick={(e) => copyReservationCode(e, row.reservationCode as string)}
                       title="Copiar código da reserva"
-                      className="inline-flex items-center gap-1 min-w-0 hover:text-foreground transition-colors"
+                      className={`min-w-0 truncate transition-colors hover:text-foreground ${CARD_MUTED}`}
                     >
-                      <span className="truncate">
-                        {row.reservationCode}
-                      </span>
+                      {row.reservationCode}
                     </button>
-                  ) : (
-                    <span className="truncate uppercase">{row.guestName}</span>
-                  )
-                ) : (
-                  <span className="inline-flex min-w-0 items-center gap-1.5">
-                    {/* Pedido explícito: nome do hóspede SEMPRE em maiúsculo nos cards. */}
-                    <span className="min-w-0 truncate uppercase">{row.guestName}</span>
-                    <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
-                    {/* Pedido explícito: o "+N" (outros hóspedes) fica à direita
-                        do ícone do chat, não mais antes do nome. */}
-                    <ExtraGuests guests={row.additionalGuests ?? []} />
-                  </span>
+                  </>
                 )}
               </div>
 
-              {/* Código da reserva — acima do proprietário, alinhado à esquerda.
-                  Clicável para copiar; sem o botão "copiar" ao lado (pedido
-                  explícito). */}
-              {row.reservationCode && (isPendingFill || (row.guestName && row.guestName !== row.reservationCode)) && (
-                <button
-                  type="button"
-                  onClick={(e) => copyReservationCode(e, row.reservationCode as string)}
-                  title="Copiar código da reserva"
-                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <span className="truncate max-w-[160px]">
-                    {row.reservationCode}
-                  </span>
-                </button>
-              )}
-
-              {/* Período — logo abaixo do código da reserva e acima do
-                  proprietário (pedido explícito). Em vez das etiquetas
-                  "Atrasado"/"Data futura" (removidas), a cor do próprio período
-                  agora comunica o status: checkout = laranja; checkin pendente =
-                  azul; checkin confirmado (Em Estadia) = verde; atrasado = vermelho
-                  (sobrepõe as outras cores). */}
-              <div className={`flex items-center gap-1.5 text-xs flex-wrap ${periodoColorClass}`}>
+              {/* O período, na cor do ESTADO — é ela que substituiu as antigas
+                  etiquetas "Atrasado"/"Data futura". */}
+              <div
+                className={`flex flex-wrap items-center gap-1.5 text-[11.5px] tabular-nums ${periodoColorClass}`}
+              >
                 <DateEditor
                   value={row.guestCheckin}
                   disabled={busy || isPendingFill}
@@ -6758,109 +7043,65 @@ function ArrivalCard({
               </div>
             </>
           )}
-
-          <OwnerLine
-            name={row.ownerName}
-            phone={row.ownerPhone}
-            country={row.ownerPhoneCountry}
-            phonePosition="adjacent"
-          />
-          <div className="ds-card-title truncate" title={row.propertyName ?? undefined}>
-            {row.propertyName ?? "Sem nome"}
-          </div>
         </div>
-      </div>
 
-      {/* Previsto — fixo, sem acordeon (mesmo espaçamento (zero) que existe
-          entre o nome do hóspede e o período). O alerta de engajamento saiu
-          daqui (agora é o badge fixo no topo do card, ver acima) — assim não
-          sobra espaço vazio entre este campo e o botão de check-in.
-          -mx-3 (cancela o p-3 do card) + px-3 (readiciona por dentro): a
-          faixa de fundo agora corta o card de fora a fora (pedido
-          explícito) e o texto continua alinhado com o nome do imóvel.
-          No modo "Lista" só aparece quando já tem algo preenchido (data
-          e/ou horário previstos) — pedido explícito; sem isso continua
-          escondida, igual antes. */}
-      {mode !== "cleaning" && (!compact || !!(row.arrivalDateOverride || guestTime)) && (
-        <div
-          /* Três estados, do mais grave ao mais neutro:
-             1) divergente — a previsão informada está FORA da janela padrão
-                do imóvel: âmbar forte, é um aviso;
-             2) previsão informada dentro da janela — amarelo leve (pedido
-                explícito, 08/09/2026): destaca que aquele card já tem uma
-                expectativa registrada, sem parecer alerta;
-             3) sem previsão — a faixa neutra de sempre. */
-          className={`-mt-2.5 -mx-3 flex items-center justify-between gap-2 rounded-none px-3 py-1.5 text-xs ${
-            divergent
-              ? "bg-amber-500/10 border-y border-amber-500/30"
-              : previsaoInformada
-                ? "bg-yellow-400/15 border-y border-yellow-500/30"
-                : "bg-background/50 border-y border-border/40"
-          }`}
-        >
-          <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
-            Previsto {kind === "checkout" ? "Checkout" : "Check-in"}
-            {/* Margem de horário — saiu da tela (pedido explícito) e virou
-                tooltip, com o texto de acordo com check-in ou checkout.
-                Sem título no tooltip (pedido explícito) — só a frase. */}
-            <InfoHint>
-              {stdWindowPhrase
-                ? `O horário padrão de ${kind === "checkout" ? "checkout" : "check-in"} deste imóvel é ${stdWindowPhrase}.`
-                : `Este imóvel não tem horário padrão de ${kind === "checkout" ? "checkout" : "check-in"} configurado.`}
-            </InfoHint>
-          </span>
-          <span className="ml-auto flex items-center justify-end gap-3 shrink-0 text-xs font-medium">
-            {/* Limpa Data + Horário previstos de uma vez — só aparece quando
-                pelo menos um dos dois estiver preenchido (pedido explícito). */}
-            {(row.arrivalDateOverride || row.arrivalTimeOverride) && onClearPredicted && (
+        {/* A COLUNA DA PREVISÃO — rótulo, horário, dia. Largura fixa de 78px
+            para que os horários fiquem alinhados entre todos os cards: numa
+            coluna com quinze reservas eles formam uma coluna própria, que se
+            lê de cima a baixo sem parar em cada card.
+            Ela inteira é o botão que abre o editor. */}
+        {showPrediction && predictionPrimary && (
+          <PredictedEditor
+            disabled={busy}
+            primary={predictionPrimary}
+            secondary={predictionSecondary ?? undefined}
+            trigger={
               <button
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onClearPredicted(row);
-                }}
-                disabled={busy}
-                title="Limpar data e horário previstos"
-                aria-label="Limpar data e horário previstos"
-                className="inline-flex items-center justify-center rounded text-muted-foreground/70 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-40"
+                title="Clique para ajustar a previsão"
+                className="w-[78px] shrink-0 rounded-[0.3rem] px-0.5 py-0.5 text-right transition-colors hover:bg-foreground/[0.05] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed"
               >
-                <Eraser className="size-3" />
+                <span className="block text-[8.5px] font-extrabold uppercase leading-tight tracking-[0.12em] text-muted-foreground">
+                  Previsão
+                </span>
+                {predictionTime ? (
+                  <span className="block font-display text-[16px] font-bold leading-tight tabular-nums text-amber-500 dark:text-amber-400">
+                    {predictionTime}
+                  </span>
+                ) : (
+                  <span className="block text-[11.5px] font-semibold leading-snug text-muted-foreground">
+                    não informada
+                  </span>
+                )}
+                {predictionTime && predictionDay.label && (
+                  <span
+                    className={`block text-[9px] font-bold uppercase leading-tight tracking-[0.1em] ${
+                      predictionDay.tone === "late"
+                        ? "text-red-500 dark:text-red-400"
+                        : predictionDay.tone === "accent"
+                          ? "text-amber-600 dark:text-amber-400"
+                          : "text-muted-foreground"
+                    }`}
+                  >
+                    {predictionDay.label}
+                  </span>
+                )}
               </button>
-            )}
-            <PredictedEditor
-              /* Data + horário previstos num ÚNICO tooltip (pedido
-                 explícito, 05/09/2026): nada é salvo — e o card só se move
-                 de lista — depois que o usuário FECHA o tooltip inteiro
-                 (clique fora, Esc ou "Concluir"), nunca no meio da escolha
-                 da data. Antes, a data confirmava sozinha e o card podia
-                 sumir da tela antes do usuário conseguir ajustar o horário.
-                 Também não trava para "Hóspede Pendente" — o anfitrião pode
-                 registrar a previsão mesmo antes do hóspede se identificar
-                 no formulário do guia. */
-              kind={kind}
-              dateValue={row.arrivalDateOverride ?? ""}
-              timeValue={guestTime ?? null}
-              disabled={busy}
-              confirmedDate={confirmedDateForKind}
-              datePlaceholder="Data"
-              // Checkin: nunca antes da reserva, até 1 dia antes do checkout
-              // confirmado. Checkout: antes não tinha teto nenhum aqui — agora
-              // trava na data de checkout confirmada (não dá pra "esticar" a
-              // estadia sozinho por este campo; sair antes continua permitido,
-              // já que o mínimo continua sendo a data de check-in). Pedido
-              // explícito, 04/09/2026.
-              dateMin={predictedMinDate ?? undefined}
-              dateMax={(kind === "checkout" ? confirmedCheckoutDate : predictedMaxDate) ?? undefined}
-              standardTime={row.standardTime}
-              standardTimeMax={row.standardTimeMax}
-              onCommit={(date, time) => {
-                const dateChanged = date !== (row.arrivalDateOverride ?? null);
-                const timeChanged = time !== (guestTime ?? null);
-                if (dateChanged) onEditPredictedDate?.(row, date);
-                if (timeChanged) onEditTime(row, time);
-              }}
-            />
-          </span>
+            }
+          />
+        )}
+      </div>
+
+      {/* A JANELA PERMITIDA do imóvel, nomeada (pedido explícito): antes o
+          horário padrão aparecia sem rótulo nenhum e ninguém sabia o que
+          aquele segundo horário significava.
+          Fica em linha própria, de largura inteira, e não dentro da coluna da
+          direita: "entre 15:00 e 23:00" precisa de ~130px, e ali roubaria do
+          nome do imóvel justamente o espaço que o faz caber. */}
+      {showPrediction && allowedPhrase && (
+        <div className="flex items-center gap-1.5 border-t border-border/40 pt-1.5 text-[9.5px] font-bold uppercase tracking-wide text-muted-foreground">
+          <Clock3 className="size-2.5 shrink-0 opacity-70" />
+          Permitido <span className="font-semibold text-foreground/70">{allowedPhrase}</span>
         </div>
       )}
 
@@ -6933,7 +7174,7 @@ function ArrivalCard({
       })()}
 
 
-      {row.note && !noteOpen && (
+      {!listBare && row.note && !noteOpen && (
         <button
           type="button"
           onClick={() => {
@@ -6948,7 +7189,7 @@ function ArrivalCard({
         </button>
       )}
 
-      {noteOpen && (
+      {!listBare && noteOpen && (
         <div className="space-y-2">
           <textarea
             value={noteText}
@@ -6997,7 +7238,7 @@ function ArrivalCard({
       {/* Checklist de pendências desta limpeza — só aparece quando existe
           pelo menos 1 pendência marcada "aparece na limpeza" pra este
           imóvel/estadia (pedido explícito). */}
-      {cleaningChecklist.length > 0 && (
+      {!listBare && cleaningChecklist.length > 0 && (
         <div className="rounded-lg border border-sky-400/25 bg-sky-400/[0.06] px-2.5 py-2 space-y-1.5">
           <div className="flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-wider text-sky-500 dark:text-sky-400">
             <span>Checklist desta limpeza</span>
@@ -7033,19 +7274,19 @@ function ArrivalCard({
           <span
             title="Esteira concluída"
             aria-label="Esteira concluída"
-            className={`inline-flex flex-1 min-w-0 items-center justify-center gap-2 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 font-semibold ${compact ? "h-6 px-2 text-[10.5px]" : "h-9 px-3 text-xs"}`}
+            className={`inline-flex flex-1 min-w-0 items-center justify-center gap-2 rounded-[0.3rem] bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 font-semibold ${compact ? "h-7 px-2.5 text-[11px]" : "h-9 px-3 text-xs"}`}
           >
             <CheckCircle2 className={compact ? "size-3 shrink-0" : "size-4 shrink-0"} />
-            {!compact && <span className="truncate">Concluído</span>}
+            <span className="truncate">Concluído</span>
           </span>
         ) : mode === "no_show" ? (
           <span
             title="Hóspede não compareceu"
             aria-label="Hóspede não compareceu"
-            className={`inline-flex flex-1 min-w-0 items-center justify-center gap-2 rounded-lg bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/30 font-semibold ${compact ? "h-6 px-2 text-[10.5px]" : "h-9 px-3 text-xs"}`}
+            className={`inline-flex flex-1 min-w-0 items-center justify-center gap-2 rounded-[0.3rem] bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/30 font-semibold ${compact ? "h-7 px-2.5 text-[11px]" : "h-9 px-3 text-xs"}`}
           >
             <UserX className={compact ? "size-3 shrink-0" : "size-4 shrink-0"} />
-            {!compact && <span className="truncate">Não Compareceu</span>}
+            <span className="truncate">{compact ? "Não veio" : "Não Compareceu"}</span>
           </span>
         ) : (
           <button
@@ -7105,8 +7346,8 @@ function ArrivalCard({
                           ? "Reabrir (voltar para Pendente)"
                           : "Marcar como Concluído"
             }
-            className={`flex-1 min-w-0 self-center box-border leading-none inline-flex items-center justify-center gap-2 font-semibold tracking-tight rounded-lg transition-all active:scale-[0.99] ${
-              compact ? "h-6 max-h-6 min-h-6 px-2 text-[10.5px]" : "h-9 max-h-9 min-h-9 px-3 text-[12.5px]"
+            className={`flex-1 min-w-0 self-center box-border leading-none inline-flex items-center justify-center gap-2 font-semibold tracking-tight rounded-[0.3rem] transition-all active:scale-[0.99] ${
+              compact ? "h-7 max-h-7 min-h-7 px-2.5 text-[11px]" : "h-9 max-h-9 min-h-9 px-3 text-[12.5px]"
             } ${
               awaitingCheckout
                 ? "bg-amber-900/20 text-amber-800 dark:text-amber-600 border border-amber-800/40 cursor-not-allowed"
@@ -7122,21 +7363,31 @@ function ArrivalCard({
             }`}
           >
             <Check className={compact ? "size-3 shrink-0" : "size-4 shrink-0"} />
-            {/* Modo "Lista": só o ícone, sem o texto (o title do botão acima
-                já descreve a ação pra leitor de tela/tooltip nativo). */}
-            {!compact && (
-              <span className="truncate">
-                {awaitingCheckout
-                  ? "Aguardando check-out"
-                  : mode === "cleaning"
-                    ? "Concluir limpeza!"
-                    : mode === "checkout" || mode === "stay"
-                      ? "Check-out realizado!"
-                      : done
-                        ? "Reabrir"
+            {/* O botão SEMPRE diz o que faz, inclusive na Lista (pedido
+                explícito, 08/09/2026). Antes ali ficava só um ✓ ocupando
+                60% da largura do card: o maior objeto da tela era também o
+                que menos informava. Na Lista o rótulo é a versão curta —
+                "Check-in" em vez de "Check-in realizado!" — para caber sem
+                empurrar os três ícones ao lado. */}
+            <span className="truncate">
+              {awaitingCheckout
+                ? compact
+                  ? "Aguardando"
+                  : "Aguardando check-out"
+                : mode === "cleaning"
+                  ? compact
+                    ? "Limpeza"
+                    : "Concluir limpeza!"
+                  : mode === "checkout" || mode === "stay"
+                    ? compact
+                      ? "Check-out"
+                      : "Check-out realizado!"
+                    : done
+                      ? "Reabrir"
+                      : compact
+                        ? "Check-in"
                         : "Check-in realizado!"}
-              </span>
-            )}
+            </span>
           </button>
         )}
 
@@ -7165,7 +7416,7 @@ function ArrivalCard({
                   type="button"
                   aria-label="Opções do Maps"
                   title={row.garageMapsUrl ? "Garagem no Maps" : "Endereço no Maps"}
-                  className={`grid place-items-center rounded-lg bg-background/60 border border-border/50 hover:bg-primary/[0.08] ${compact ? "size-6" : "size-9"}`}
+                  className={`grid place-items-center rounded-[0.3rem] bg-background/60 border border-border/50 hover:bg-primary/[0.08] ${compact ? "size-7" : "size-9"}`}
                 >
                   <MapPin className={compact ? "size-3.5" : "size-4"} />
                 </button>
@@ -7200,7 +7451,7 @@ function ArrivalCard({
                 type="button"
                 aria-label="Mais opções"
                 title="Nota interna e alertas"
-                className={`grid place-items-center rounded-lg border ${compact ? "size-6" : "size-9"} ${
+                className={`grid place-items-center rounded-[0.3rem] border ${compact ? "size-7" : "size-9"} ${
                   isMutedNow
                     ? "bg-amber-500/15 border-amber-500/50 text-amber-600 dark:text-amber-400"
                     : "bg-background/60 border-border/50 hover:bg-primary/[0.08]"
@@ -7223,6 +7474,11 @@ function ArrivalCard({
               {showSkipCleaningMenuItem && (
                 <DropdownMenuItem onClick={() => onSkipCleaning?.(row)} disabled={busy}>
                   <Ban className="size-3.5 shrink-0" /> Limpeza não será realizada
+                </DropdownMenuItem>
+              )}
+              {canOpenJourney && (
+                <DropdownMenuItem onClick={() => setJourneyOpen(true)}>
+                  <History className="size-3.5 shrink-0" /> Histórico da reserva
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem onClick={() => setNoteOpen((v) => !v)}>
@@ -7507,48 +7763,126 @@ function timeToMinutes(s: string): number {
  * calculada aqui em cima do valor pendente, senão a lista de horários
  * ficaria com a janela do dia errado enquanto o usuário ainda decide.
  */
-function PredictedEditor({
-  kind,
-  dateValue,
-  timeValue,
-  disabled,
-  confirmedDate,
-  dateMin,
-  dateMax,
-  standardTime,
-  standardTimeMax,
-  datePlaceholder = "Data",
-  onCommit,
-}: {
+/**
+ * O EDITOR DE PREVISÃO — data e horário, dos DOIS lados da estadia.
+ *
+ * Pedido explícito (08/09/2026): "o usuário precisa conseguir editar a data +
+ * horário da previsão (tanto de checkin quanto de checkout)... e essas duas
+ * informações não podem conflitar... porém, cada informação deve ser mostrada
+ * no status correto".
+ *
+ * COMO AS DUAS CONVIVEM SEM CONFLITAR
+ *
+ * Elas nunca disputam o mesmo campo: `guest_arrival_status` guarda UMA LINHA
+ * POR LADO da estadia (`kind` "checkin" e "checkout"), e cada linha tem o seu
+ * próprio `arrival_date_override` e `arrival_time_override`. São registros
+ * diferentes da mesma reserva. A leitura já é filtrada por lado — a lista de
+ * chegadas não enxerga a linha de saída — então "cada uma aparece no status
+ * certo" é consequência do modelo, não de uma regra de tela.
+ *
+ * POR QUE O TOOLTIP TEM OS DOIS, SE O CARD MOSTRA UM
+ *
+ * Porque quem opera costuma saber os dois de uma vez ("chego dia 8 às 20h e
+ * saio dia 14 às 8h"), e o card onde ele está só oferece um. Sem o segundo
+ * bloco, registrar a saída exigiria esperar o card mudar de coluna, ou abrir o
+ * histórico — dois caminhos mais longos para o caso mais comum. Então: o lado
+ * do card vem aberto, o outro fica numa linha recolhida a um clique. Quem só
+ * sabe um lado nem percebe que o outro está ali.
+ *
+ * A MECÂNICA DE CADA BLOCO NÃO MUDOU (regra do projeto: não mexer na estrutura
+ * dos tooltips). Continua sendo data + horário no MESMO popover, com o commit
+ * acontecendo só quando o popover inteiro fecha — nunca no meio da escolha da
+ * data, senão o card se move antes de a pessoa conseguir ajustar o horário
+ * (bug real corrigido em 05/09/2026). O que existe agora são DOIS desses
+ * blocos, não um bloco diferente.
+ */
+export type PredictionSide = {
   kind: "checkin" | "checkout";
-  dateValue: string; // "" quando não há previsão
+  /** "Chegada" | "Saída" — o nome que a pessoa lê. */
+  label: string;
+  /** "" quando não há previsão. */
+  dateValue: string;
   timeValue: string | null;
-  disabled: boolean;
-  /** Data confirmada da reserva para este tipo (row.guestCheckin/guestCheckout) — usada só para recalcular o piso/teto de horário ao vivo. */
+  /** Data confirmada da reserva neste lado — recalcula piso/teto ao vivo. */
   confirmedDate: string | null;
   dateMin?: string;
   dateMax?: string;
   standardTime: string | null;
   standardTimeMax: string | null;
-  datePlaceholder?: string;
   onCommit: (date: string | null, time: string | null) => void;
+};
+
+function PredictedEditor({
+  trigger,
+  primary,
+  secondary,
+  disabled,
+}: {
+  /** O que abre o editor — hoje, a coluna "PREVISÃO / 20:00 / hoje" do card. */
+  trigger: React.ReactElement;
+  /** O lado que este card representa: vem aberto. */
+  primary: PredictionSide;
+  /** O outro lado da mesma estadia: vem recolhido. */
+  secondary?: PredictionSide;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  // Qual dos dois tooltips está sendo exibido AGORA dentro do Popover
-  // compartilhado — "date" (só calendário) ou "time" (só horário).
-  const [activeField, setActiveField] = useState<"date" | "time">("date");
-  // undefined = não tocado ainda nesta sessão de edição (mostra o valor
-  // confirmado); string/"" ou null = valor pendente explícito.
-  const [pendingDate, setPendingDate] = useState<string | undefined>(undefined);
-  const [pendingTime, setPendingTime] = useState<string | null | undefined>(undefined);
+  // Três telas dentro do MESMO popover: o resumo (os dois lados), o
+  // calendário e a lista de horários. Trocar de tela nunca confirma nada.
+  const [view, setView] = useState<"summary" | "date" | "time">("summary");
+  const [editing, setEditing] = useState<"primary" | "secondary">("primary");
+  const [expanded, setExpanded] = useState(false);
+  // undefined = não tocado nesta sessão (mostra o valor gravado).
+  const [pending, setPending] = useState<
+    Record<"primary" | "secondary", { date?: string; time?: string | null }>
+  >({ primary: {}, secondary: {} });
 
-  const shownDate = pendingDate !== undefined ? pendingDate : dateValue;
-  const shownTime = pendingTime !== undefined ? pendingTime : timeValue;
-  const dateBlank = !shownDate;
+  const sideOf = (slot: "primary" | "secondary") => (slot === "primary" ? primary : secondary);
+  const shownDate = (slot: "primary" | "secondary") => {
+    const p = pending[slot].date;
+    return p !== undefined ? p : (sideOf(slot)?.dateValue ?? "");
+  };
+  const shownTime = (slot: "primary" | "secondary") => {
+    const p = pending[slot].time;
+    return p !== undefined ? p : (sideOf(slot)?.timeValue ?? null);
+  };
 
-  const selected = shownDate ? parseISODateLocal(shownDate) : undefined;
-  const minDate = dateMin ? parseISODateLocal(dateMin) : undefined;
-  const maxDate = dateMax ? parseISODateLocal(dateMax) : undefined;
+  function reset() {
+    setPending({ primary: {}, secondary: {} });
+    setView("summary");
+    setEditing("primary");
+    setExpanded(false);
+  }
+
+  /** Grava os dois lados de uma vez — só o que de fato mudou. */
+  function closeAndCommit() {
+    (["primary", "secondary"] as const).forEach((slot) => {
+      const side = sideOf(slot);
+      if (!side) return;
+      const finalDate = pending[slot].date !== undefined ? pending[slot].date || null : side.dateValue || null;
+      const finalTime =
+        pending[slot].time !== undefined ? (pending[slot].time ?? null) : (side.timeValue ?? null);
+      const dateChanged = finalDate !== (side.dateValue || null);
+      const timeChanged = finalTime !== (side.timeValue ?? null);
+      if (dateChanged || timeChanged) side.onCommit(finalDate, finalTime);
+    });
+    reset();
+    setOpen(false);
+  }
+
+  function openPicker(slot: "primary" | "secondary", field: "date" | "time") {
+    if (disabled) return;
+    setEditing(slot);
+    setView(field);
+  }
+
+  const active = sideOf(editing);
+  const activeDate = shownDate(editing);
+  const activeTime = shownTime(editing);
+
+  const selected = activeDate ? parseISODateLocal(activeDate) : undefined;
+  const minDate = active?.dateMin ? parseISODateLocal(active.dateMin) : undefined;
+  const maxDate = active?.dateMax ? parseISODateLocal(active.dateMax) : undefined;
   const disabledMatcher =
     minDate && maxDate
       ? [{ before: minDate }, { after: maxDate }]
@@ -7558,12 +7892,19 @@ function PredictedEditor({
           ? { after: maxDate }
           : undefined;
 
-  // Mesmo cálculo do card (ver effMinTime/effMaxTime em ArrivalCard), só que
-  // em cima da data PENDENTE — a janela do imóvel só vale quando a previsão
-  // ainda cai no mesmo dia da reserva confirmada.
-  const dayShifted = !!shownDate && !!confirmedDate && shownDate !== confirmedDate;
-  const liveMinTime = dayShifted ? null : kind === "checkout" ? standardTimeMax : standardTime;
-  const liveMaxTime = dayShifted ? null : kind === "checkout" ? standardTime : standardTimeMax;
+  // A janela do imóvel só vale enquanto a previsão cai no mesmo dia da reserva
+  // confirmada: mudou o dia, qualquer horário passa a ser possível.
+  const dayShifted = !!activeDate && !!active?.confirmedDate && activeDate !== active.confirmedDate;
+  const liveMinTime = dayShifted
+    ? null
+    : active?.kind === "checkout"
+      ? (active?.standardTimeMax ?? null)
+      : (active?.standardTime ?? null);
+  const liveMaxTime = dayShifted
+    ? null
+    : active?.kind === "checkout"
+      ? (active?.standardTime ?? null)
+      : (active?.standardTimeMax ?? null);
   const timeSlots = useMemo(() => {
     if (!liveMinTime && !liveMaxTime) return TIME_SLOTS;
     const a = liveMinTime ? timeToMinutes(liveMinTime) : -Infinity;
@@ -7574,77 +7915,151 @@ function PredictedEditor({
     });
   }, [liveMinTime, liveMaxTime]);
 
-  // Abre o campo pedido — se o Popover já estiver aberto (usuário clicou
-  // primeiro em Data e agora clica em Horário, ou vice-versa), só troca qual
-  // conteúdo aparece, SEM reinicializar pendingDate/pendingTime (senão um
-  // ajuste já feito no outro campo, ainda não confirmado, seria perdido).
-  function openField(field: "date" | "time") {
-    if (disabled) return;
-    if (!open) {
-      setPendingDate(dateValue || "");
-      setPendingTime(timeValue ?? null);
-      setOpen(true);
-    }
-    setActiveField(field);
-  }
-
-  function closeAndCommit() {
-    const finalDate = pendingDate !== undefined ? pendingDate || null : dateValue || null;
-    const finalTime = pendingTime !== undefined ? pendingTime : timeValue ?? null;
-    const dateChanged = finalDate !== (dateValue || null);
-    const timeChanged = finalTime !== (timeValue ?? null);
-    if (dateChanged || timeChanged) onCommit(finalDate, finalTime);
-    setPendingDate(undefined);
-    setPendingTime(undefined);
-    setOpen(false);
-    setActiveField("date");
+  /** Um lado no resumo: nome, valor atual e os dois campos. */
+  function SideBlock({ slot }: { slot: "primary" | "secondary" }) {
+    const side = sideOf(slot);
+    if (!side) return null;
+    const d = shownDate(slot);
+    const t = shownTime(slot);
+    const janela = allowedWindowPhrase(side.kind, side.standardTime, side.standardTimeMax);
+    const dot = side.kind === "checkout" ? "bg-orange-400" : "bg-sky-400";
+    return (
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold">
+            <span className={`size-1.5 shrink-0 rounded-full ${dot}`} />
+            {side.label}
+          </span>
+          <span
+            className={`text-[11px] tabular-nums ${
+              d || t ? "font-semibold text-amber-600 dark:text-amber-400" : "text-muted-foreground"
+            }`}
+          >
+            {d || t ? [d ? fmtDateBR(d) : null, t].filter(Boolean).join(" · ") : "não informada"}
+          </span>
+        </div>
+        <div className="grid grid-cols-[1fr_88px] gap-1.5">
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={(e) => {
+              e.stopPropagation();
+              openPicker(slot, "date");
+            }}
+            className="ds-surface flex h-8 items-center gap-1.5 border border-border bg-background px-2.5 text-left text-xs tabular-nums hover:border-primary/50 disabled:opacity-50"
+          >
+            <CalendarRange className="size-3 shrink-0 text-muted-foreground" />
+            <span className={d ? "" : "text-muted-foreground"}>{d ? fmtDateBR(d) : "Data"}</span>
+          </button>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={(e) => {
+              e.stopPropagation();
+              openPicker(slot, "time");
+            }}
+            className="ds-surface flex h-8 items-center gap-1.5 border border-border bg-background px-2.5 text-left text-xs tabular-nums hover:border-primary/50 disabled:opacity-50"
+          >
+            <Clock3 className="size-3 shrink-0 text-muted-foreground" />
+            <span className={t ? "" : "text-muted-foreground"}>{t ?? "Horário"}</span>
+          </button>
+        </div>
+        {janela && (
+          <span className="text-[9.5px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Permitido <span className="text-foreground/70">{janela}</span>
+          </span>
+        )}
+      </div>
+    );
   }
 
   return (
     <Popover
       open={open}
       onOpenChange={(next) => {
-        if (!next) closeAndCommit();
+        if (next) {
+          reset();
+          setOpen(true);
+          return;
+        }
+        closeAndCommit();
       }}
     >
-      <PopoverAnchor asChild>
-        <span className="inline-flex items-center gap-3">
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={(e) => {
-              e.stopPropagation();
-              openField("date");
-            }}
-            className={`relative inline-flex items-center cursor-pointer rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit ${dateBlank ? "text-muted-foreground" : ""}`}
-            title="Clique para corrigir a data prevista"
-          >
-            <span className="tabular-nums text-[10px] uppercase tracking-wider font-normal">
-              {dateBlank ? datePlaceholder : fmtDateBR(shownDate)}
-            </span>
-          </button>
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={(e) => {
-              e.stopPropagation();
-              openField("time");
-            }}
-            title="Clique para corrigir o horário previsto"
-            className="inline-flex w-auto items-center gap-1 tabular-nums rounded cursor-pointer bg-transparent border-0 p-0 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit text-[10px] uppercase tracking-wider"
-          >
-            <span className={shownTime ? "font-normal text-foreground" : "font-normal text-muted-foreground"}>
-              {shownTime ?? "Horário"}
-            </span>
-          </button>
-        </span>
-      </PopoverAnchor>
-      {/* Dois tooltips separados (pedido explícito), um por vez, dentro do
-          MESMO Popover — ver comentário no topo do componente sobre por que
-          isso não é um único painel combinado (visual) nem dois Popovers de
-          verdade (comportamento de commit). */}
-      {activeField === "date" ? (
+      <PopoverTrigger asChild disabled={disabled}>
+        {trigger}
+      </PopoverTrigger>
+
+      {view === "summary" ? (
+        <PopoverContent align="end" className="w-[264px] p-3" onClick={(e) => e.stopPropagation()}>
+          <p className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+            Previsão
+          </p>
+          <SideBlock slot="primary" />
+          {secondary && (
+            <>
+              <div className="my-3 h-px bg-border" />
+              {expanded ? (
+                <SideBlock slot="secondary" />
+              ) : (
+                /* Recolhido: uma linha só. Quem não precisa do outro lado não
+                   ganha um segundo formulário na frente. */
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setExpanded(true);
+                  }}
+                  className="flex w-full items-center justify-between gap-2 text-left"
+                >
+                  <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-muted-foreground">
+                    <span
+                      className={`size-1.5 shrink-0 rounded-full ${secondary.kind === "checkout" ? "bg-orange-400" : "bg-sky-400"}`}
+                    />
+                    {secondary.label}
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                    {shownDate("secondary") || shownTime("secondary")
+                      ? [
+                          shownDate("secondary") ? fmtDateBR(shownDate("secondary")) : null,
+                          shownTime("secondary"),
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")
+                      : "não informada"}
+                    <ChevronRight className="size-3" />
+                  </span>
+                </button>
+              )}
+            </>
+          )}
+          <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-2.5">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setPending((prev) => ({ ...prev, [editing]: { date: "", time: null } }));
+              }}
+              className="rounded-md px-1.5 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+            >
+              Limpar previsão
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                closeAndCommit();
+              }}
+              className="ds-surface h-7 bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] px-3.5 text-[11.5px] font-bold text-white"
+            >
+              Concluir
+            </button>
+          </div>
+        </PopoverContent>
+      ) : view === "date" ? (
         <PopoverContent align="end" className="w-auto p-0" onClick={(e) => e.stopPropagation()}>
+          <div className="border-b border-border px-3 py-2 text-[11px] font-semibold text-muted-foreground">
+            Data prevista · {active?.label}
+          </div>
           <RangeCalendar
             mode="single"
             locale={ptBR}
@@ -7653,43 +8068,36 @@ function PredictedEditor({
             disabled={disabledMatcher}
             onSelect={(d) => {
               if (!d) return;
-              setPendingDate(dateToISOLocal(d));
+              setPending((prev) => ({ ...prev, [editing]: { ...prev[editing], date: dateToISOLocal(d) } }));
             }}
             className="p-3"
           />
-          {/* IMPORTANTE: este botão NÃO fecha o Popover nem confirma nada —
-              só troca pra visão de Horário, dentro da MESMA sessão aberta.
-              Pedido explícito, 05/09/2026: um "Concluir" aqui (que fechasse
-              e já confirmasse tudo) fazia o card se mover assim que a data
-              era ajustada, antes do usuário conseguir abrir o Horário —
-              exatamente o bug que a sessão compartilhada deveria evitar. A
-              única forma de fechar/confirmar de verdade agora é pelo
-              "Concluir" da visão de Horário, ou clicando fora dos dois
-              campos. */}
+          {/* Este botão NÃO confirma nada: só volta ao resumo, dentro da MESMA
+              sessão aberta. Confirmar acontece apenas ao fechar o popover. */}
           <div className="flex items-center justify-end border-t border-border p-2">
             <button
               type="button"
-              onClick={() => setActiveField("time")}
+              onClick={() => setView("summary")}
               className="rounded-md px-2.5 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10"
             >
-              Avançar para horário
+              Voltar
             </button>
           </div>
         </PopoverContent>
       ) : (
         <PopoverContent align="end" className="w-auto p-0" onClick={(e) => e.stopPropagation()}>
+          <div className="border-b border-border px-3 py-2 text-[11px] font-semibold text-muted-foreground">
+            Horário previsto · {active?.label}
+          </div>
           <div className="p-2">
-            <div className="px-1 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Horário
-            </div>
             <div className="flex max-h-56 w-56 flex-wrap gap-1 overflow-y-auto px-1">
               {timeSlots.map((t) => (
                 <button
                   key={t}
                   type="button"
-                  onClick={() => setPendingTime(t)}
+                  onClick={() => setPending((prev) => ({ ...prev, [editing]: { ...prev[editing], time: t } }))}
                   className={`rounded px-2 py-1 text-[11px] tabular-nums ${
-                    shownTime === t
+                    activeTime === t
                       ? "bg-primary text-primary-foreground"
                       : "bg-secondary text-foreground hover:bg-secondary/70"
                   }`}
@@ -7702,23 +8110,74 @@ function PredictedEditor({
           <div className="flex items-center justify-between border-t border-border p-2">
             <button
               type="button"
-              onClick={() => setPendingTime(null)}
+              onClick={() => setPending((prev) => ({ ...prev, [editing]: { ...prev[editing], time: null } }))}
               className="rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
             >
               Limpar horário
             </button>
             <button
               type="button"
-              onClick={closeAndCommit}
+              onClick={() => setView("summary")}
               className="rounded-md px-2.5 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10"
             >
-              Concluir
+              Voltar
             </button>
           </div>
         </PopoverContent>
       )}
     </Popover>
   );
+}
+
+/**
+ * O DIA da previsão, em palavra quando dá — "hoje", "amanhã", "ontem" — e na
+ * data cheia quando não dá.
+ *
+ * Existe porque um horário sozinho é ambíguo: "20:00" de que dia? A previsão
+ * tem data própria (`arrival_date_override`), separada do horário, e ela pode
+ * cair num dia diferente do da reserva — o hóspede avisa que só chega amanhã,
+ * a saída é antecipada. Sem esta linha, o card mostraria um horário sem dizer
+ * de quando ele é.
+ *
+ * Pedido explícito (08/09/2026): quando é HOJE — o caso da maioria dos cards —
+ * a palavra fica apagada, porque uma informação que se repete em quinze cards
+ * seguidos deixa de ser lida. Qualquer outro dia ganha destaque, e um dia que
+ * já passou fica vermelho: é exceção, e é o que precisa ser visto.
+ */
+function predictionDayLabel(
+  dateISO: string | null,
+  todayISO: string,
+): { label: string; tone: "muted" | "accent" | "late" } {
+  if (!dateISO) return { label: "", tone: "muted" };
+  const day = dateISO.slice(0, 10);
+  if (day === todayISO) return { label: "hoje", tone: "muted" };
+  if (day === addDaysISO(todayISO, 1)) return { label: "amanhã", tone: "accent" };
+  if (day === addDaysISO(todayISO, -1)) return { label: "ontem", tone: "late" };
+  return { label: fmtDateBR(day), tone: day < todayISO ? "late" : "accent" };
+}
+
+/**
+ * A JANELA PERMITIDA do imóvel, em frase.
+ *
+ * Pedido explícito (08/09/2026): "PERMITIDO: ENTRE 15H00 E 23H00". Antes o
+ * horário padrão aparecia sem nome nenhum, e quem não conhecia a tela não
+ * sabia o que aquele segundo horário significava.
+ *
+ * A ordem dos campos é invertida no checkout de propósito — é assim que o
+ * cadastro do imóvel guarda: `standardTime` é o horário LIMITE de saída e
+ * `standardTimeMax` o de abertura.
+ */
+function allowedWindowPhrase(
+  kind: "checkin" | "checkout",
+  standardTime: string | null,
+  standardTimeMax: string | null,
+): string | null {
+  const min = kind === "checkout" ? standardTimeMax : standardTime;
+  const max = kind === "checkout" ? standardTime : standardTimeMax;
+  if (min && max) return `entre ${min} e ${max}`;
+  if (min) return `a partir das ${min}`;
+  if (max) return `até as ${max}`;
+  return null;
 }
 
 function isTimeWithin(t: string, min: string, max: string | null): boolean {

@@ -1,4 +1,5 @@
 import { PhoneActionButton } from "@/components/PhoneActionButton";
+import { CARD_OWNER } from "@/components/dashboard/card-colors";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Compass, Home } from "lucide-react";
 import { useSearch } from "@tanstack/react-router";
@@ -818,7 +819,7 @@ function Dashboard() {
                 {(p as any).ownerName && (
                   <div className="flex items-center gap-1.5 min-w-0">
                     <span
-                      className="min-w-0 max-w-full truncate text-[11px] font-bold text-primary"
+                      className={`min-w-0 max-w-full truncate text-[11px] ${CARD_OWNER}`}
                       title={(p as any).ownerName}
                     >
                       {(p as any).ownerName}

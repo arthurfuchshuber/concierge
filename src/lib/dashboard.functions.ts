@@ -1572,23 +1572,67 @@ export const markNoShow = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => NoShowInput.parse(i))
   .handler(async ({ data, context }) => {
     let propertyId: string | null = null;
+    // A ESTADIA (imóvel + data de entrada) é resolvida junto: é ela que
+    // permite completar o identificador que faltar, logo abaixo.
+    let checkinDate: string | null = null;
     if (data.logId) {
       const { data: log } = await context.supabase
         .from("guide_access_logs")
-        .select("property_id")
+        .select("property_id, checkin_date")
         .eq("id", data.logId)
         .maybeSingle();
-      propertyId = (log as { property_id: string } | null)?.property_id ?? null;
+      const row = log as { property_id: string; checkin_date: string | null } | null;
+      propertyId = row?.property_id ?? null;
+      checkinDate = row?.checkin_date ?? null;
     }
-    if (!propertyId && data.reservationId) {
+    if (data.reservationId) {
       const { data: res } = await context.supabase
         .from("property_reservations")
-        .select("property_id")
+        .select("property_id, checkin_date")
         .eq("id", data.reservationId)
         .maybeSingle();
-      propertyId = (res as { property_id: string } | null)?.property_id ?? null;
+      const row = res as { property_id: string; checkin_date: string | null } | null;
+      propertyId = propertyId ?? row?.property_id ?? null;
+      checkinDate = checkinDate ?? row?.checkin_date ?? null;
     }
     if (!propertyId) throw new Error("Registro não encontrado.");
+
+    /**
+     * Completa o identificador que faltou (pedido explícito, 08/09/2026: o
+     * card marcado como "não compareceu" continuava espelhado na Fila de
+     * Limpeza).
+     *
+     * O card de chegada e o de saída da MESMA estadia nem sempre carregam o
+     * mesmo identificador — o casamento formulário↔reserva é mais exigente
+     * do lado da chegada (ver `findLogsForReservation`). Gravando só o que o
+     * card clicado tinha, o outro lado ficava sem chave em comum e escapava
+     * do filtro. Aqui procuramos o par pela estadia e gravamos os DOIS, de
+     * modo que qualquer consumidor — não só o quadro — reconheça o
+     * não comparecimento por qualquer um dos lados.
+     */
+    if (checkinDate) {
+      if (!data.reservationId) {
+        const { data: res } = await context.supabase
+          .from("property_reservations")
+          .select("id")
+          .eq("property_id", propertyId)
+          .eq("checkin_date", checkinDate)
+          .limit(1);
+        const found = (res?.[0] as { id: string } | undefined)?.id;
+        if (found) data = { ...data, reservationId: found };
+      }
+      if (!data.logId) {
+        const { data: logs } = await context.supabase
+          .from("guide_access_logs")
+          .select("id")
+          .eq("property_id", propertyId)
+          .eq("checkin_date", checkinDate)
+          .order("created_at", { ascending: true })
+          .limit(1);
+        const found = (logs?.[0] as { id: string } | undefined)?.id;
+        if (found) data = { ...data, logId: found };
+      }
+    }
 
     const nowIso = new Date().toISOString();
     // IMPORTANTE: NÃO gravar done_at aqui. Vários lugares do sistema tratam
@@ -1848,28 +1892,35 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
       ownerName: p.owner_contact_id ? (occOwnerName.get(p.owner_contact_id) ?? null) : null,
     }));
 
-    // Um imóvel cujo checkout é hoje só passa a contar como "livre" após o horário
-    // padrão de checkout (11h no fuso local). Antes disso, ele ainda está ocupado.
-    const nowHour = Number(
-      new Intl.DateTimeFormat("pt-BR", {
-        hour: "2-digit",
-        hour12: false,
-        timeZone: "America/Sao_Paulo",
-      }).format(new Date()),
-    );
-    const beforeCheckoutHour = Number.isFinite(nowHour) ? nowHour < 11 : true;
-    const occupiedToday = new Set(
+    /**
+     * IMÓVEIS LIVRES DO DIA ABERTO (pedido explícito, 08/09/2026):
+     * "ao abrir o dia, esse indicador já precisa mostrar QUANTOS imóveis não
+     * têm reserva com entrada (ou estadia) naquele dia".
+     *
+     * A conta é do DIA, e só do dia: um imóvel está ocupado quando alguma
+     * estadia ENTRA nele naquele dia ou ATRAVESSA aquele dia. O dia da saída
+     * não conta como ocupado — o imóvel fica disponível para receber alguém.
+     * Se de fato entra alguém nesse mesmo dia (giro), a própria estadia nova
+     * já marca o imóvel como ocupado pela primeira condição.
+     *
+     * O que saiu daqui, e por quê: havia um relógio de parede fixo em 11h
+     * (America/Sao_Paulo) que segurava o imóvel como "ocupado" até aquela
+     * hora no dia do checkout. Isso amarrava um indicador de DIA ao HORÁRIO
+     * dos checkouts pendentes — abrir um dia e ver o número mudar sozinho às
+     * 11h, ou ver um imóvel como ocupado depois de o hóspede já ter saído às
+     * 9h. Um número por dia não pode depender de que horas são.
+     */
+    const occupiedOnDay = new Set(
       stays
         .filter((s) => {
           const out = s.checkout ?? s.checkin;
-          if (s.checkin <= start && out > start) return true;
-          // checkout marcado para hoje: ainda ocupado até o horário padrão de saída
-          return s.checkin <= start && out === start && beforeCheckoutHour;
+          // Entrada nesse dia, ou estadia em curso atravessando o dia.
+          return s.checkin <= start && out > start;
         })
         .map((s) => s.propertyId),
     );
     const freeToday = properties
-      .filter((p) => !occupiedToday.has(p.id))
+      .filter((p) => !occupiedOnDay.has(p.id))
       .map((p) => ({ id: p.id, name: p.name }));
 
     return { start, days, properties, stays, freeToday };
