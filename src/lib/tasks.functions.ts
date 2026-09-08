@@ -453,6 +453,8 @@ export const toggleCleaningCompletion = createServerFn({ method: "POST" })
       log_id: data.logId ?? null,
       reservation_id: data.reservationId ?? null,
       amount_spent_cents: data.amountSpentCents ?? null,
+      resolved_by_provider_id: data.resolvedByProviderId ?? null,
+      resolution_note: data.resolutionNote?.trim() || null,
       completed_by: context.userId,
     });
     if (error) throw new Error(error.message);
