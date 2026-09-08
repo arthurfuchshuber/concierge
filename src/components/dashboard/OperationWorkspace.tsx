@@ -1585,6 +1585,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         logId: resolvePrompt.row.logId,
         reservationId: resolvePrompt.row.reservationId,
         amountSpentCents: v.amountSpentCents,
+        // A tela de conclusão é a mesma dos dois gatilhos: quem resolveu e
+        // como foi resolvido também ficam gravados na ocorrência da limpeza.
+        resolvedByProviderId: v.providerId,
+        resolutionNote: v.note,
       });
     }
 
