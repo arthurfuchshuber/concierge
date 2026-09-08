@@ -10,6 +10,7 @@ import { readAccessRecord } from "@/components/GuideAccessGate";
 import { metaPixelTrackCustom } from "@/lib/meta-pixel";
 import { translateMessage } from "@/lib/translate.functions";
 import { detectLanguage, userLanguage } from "@/lib/lang-detect";
+import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 
 type Msg = {
   role: "user" | "assistant" | "system";
@@ -390,6 +391,7 @@ export function GuideAiChat({
   const [uploadErr, setUploadErr] = useState<string | null>(null);
   // Áudio virando texto antes de ir para a IA (07/09/2026).
   const [transcribing, setTranscribing] = useState(false);
+  const keyboardInset = useKeyboardInset();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const lastFetchedAtRef = useRef<string | undefined>(undefined);
@@ -851,39 +853,45 @@ export function GuideAiChat({
         aria-hidden="true"
       />
       <div
-        className="fixed bottom-4 right-4 left-4 sm:left-auto sm:bottom-5 sm:right-5 w-auto sm:w-[360px] h-[70dvh] max-h-[560px] sm:h-[480px] flex flex-col bg-white text-zinc-900 rounded-2xl border border-zinc-200 shadow-2xl overflow-hidden"
-        style={{ zIndex: 2147483602 }}
+        className="fixed bottom-4 right-4 left-4 sm:left-auto sm:bottom-5 sm:right-5 w-auto sm:w-[360px] h-[70dvh] max-h-[560px] sm:h-[480px] flex flex-col min-h-0 bg-white text-zinc-900 rounded-2xl border border-zinc-200 shadow-2xl overflow-hidden"
+        style={{
+          zIndex: 2147483602,
+          // Com o teclado aberto o painel ENCOLHE em vez de escorregar para
+          // cima — é o que mantém o cabeçalho na tela (ver useKeyboardInset).
+          bottom: keyboardInset ? `calc(1rem + ${keyboardInset}px)` : undefined,
+          maxHeight: keyboardInset ? `calc(100dvh - ${keyboardInset}px - 2rem)` : undefined,
+        }}
         role="dialog"
         aria-modal="true"
         aria-label="Chat do concierge"
       >
-        {/* Header */}
-        <div className="relative px-4 py-3 border-b border-zinc-200 bg-gradient-to-br from-emerald-50 to-white">
-
-          <div className="flex items-center gap-3">
-            <div className="size-9 rounded-full bg-emerald-100 text-emerald-700 grid place-items-center shrink-0 ring-1 ring-emerald-200">
-              <MessageCircleMore className="size-4" strokeWidth={1.9} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] uppercase tracking-[0.24em] text-emerald-700/80 font-semibold">Concierge IA</p>
-              <p className="text-[13px] font-medium truncate text-zinc-900">{propertyName}</p>
-            </div>
+        {/* Cabeçalho — mesmas medidas do Assistente do Painel (08/09/2026):
+            altura fixa de 48px, ícone de 24, botões de 28 com canto reto, uma
+            linha de título e o contexto à direita em texto menor. `shrink-0`
+            é o que impede o cabeçalho de ser espremido quando a conversa
+            cresce ou o teclado abre. */}
+        <div className="flex h-12 shrink-0 items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-3">
+          <span className="grid size-6 shrink-0 place-items-center rounded-full bg-emerald-600 text-white">
+            <MessageCircleMore className="size-3.5" strokeWidth={2} />
+          </span>
+          <span className="truncate text-sm font-medium text-zinc-900">Concierge</span>
+          <span className="ml-auto min-w-0 truncate pl-2 text-[11px] text-zinc-500">{propertyName}</span>
+          <div className="flex shrink-0 items-center gap-1">
             <button
               type="button"
               onClick={() => (showItinerary ? setShowItinerary(false) : openItinerary())}
               aria-label={showItinerary ? "Voltar ao chat" : "Ver meu roteiro"}
               title="Meu roteiro"
-              className="grid size-9 place-items-center rounded-full hover:bg-zinc-100 text-zinc-500 hover:text-zinc-900 transition-colors"
+              className="grid size-7 place-items-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-200/70 hover:text-zinc-900"
             >
-              {showItinerary ? <ArrowLeft className="size-4" /> : <CalendarDays className="size-4" />}
+              {showItinerary ? <ArrowLeft className="size-3.5" /> : <CalendarDays className="size-3.5" />}
             </button>
             <button
               type="button"
               onClick={() => setOpen(false)}
               aria-label="Fechar"
-              className="grid size-9 place-items-center rounded-full hover:bg-zinc-100 text-zinc-500 hover:text-zinc-900 transition-colors"
+              className="grid size-7 place-items-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-200/70 hover:text-zinc-900"
             >
-
               <X className="size-4" />
             </button>
           </div>
@@ -931,7 +939,7 @@ export function GuideAiChat({
         ) : (
         <>
         {/* Messages */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-5 space-y-4">
+        <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3">
           {messages.length === 0 && (
             <div className="text-center py-6">
               <div className="mx-auto size-12 rounded-2xl bg-emerald-100 text-emerald-700 grid place-items-center mb-3 ring-1 ring-emerald-200">
@@ -970,7 +978,7 @@ export function GuideAiChat({
                 <div className="max-w-[85%] flex flex-col items-end gap-1">
                   {m.attachment && <AttachmentBubble attachment={m.attachment} />}
                   {m.content && (
-                    <div className="rounded-2xl rounded-tr-md bg-zinc-900 text-white px-3.5 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-line">
+                    <div className="rounded-xl bg-zinc-900 px-3 py-2 text-[14px] leading-relaxed whitespace-pre-line text-white">
                       {m.content}
                     </div>
                   )}
@@ -1047,7 +1055,7 @@ export function GuideAiChat({
           })()}
           {streamingText && (
             <div className="flex justify-start">
-              <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-zinc-100 dark:bg-zinc-800 px-3.5 py-2.5 text-[14px] leading-relaxed whitespace-pre-wrap">
+              <div className="max-w-[88%] rounded-xl bg-zinc-100 px-3 py-2 text-[14px] leading-relaxed">
                 {streamingText}
                 <span className="ml-0.5 inline-block h-3.5 w-[2px] translate-y-[2px] bg-emerald-500 animate-pulse" />
               </div>
@@ -1073,8 +1081,13 @@ export function GuideAiChat({
 
         {/* Composer */}
         <div
-          className="px-3 pt-2 border-t border-zinc-200 bg-white"
-          style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+          className="shrink-0 border-t border-zinc-200 bg-white px-3 pt-2"
+          style={{
+            // Com o teclado aberto o painel já encolheu (ver useKeyboardInset),
+            // então a área segura do aparelho deixa de valer — ela só existe
+            // quando não há teclado por cima.
+            paddingBottom: keyboardInset ? "0.5rem" : "max(0.75rem, env(safe-area-inset-bottom))",
+          }}
         >
           {uploadErr && (
             <div className="text-[11px] text-red-600 mb-1.5 px-1 flex items-center justify-between">
@@ -1103,7 +1116,11 @@ export function GuideAiChat({
               onAttach={() => fileInputRef.current?.click()}
               onCamera={() => cameraInputRef.current?.click()}
             />
-            <div className="flex-1 min-w-0 flex items-center bg-zinc-50 border border-zinc-200 rounded-full px-3 py-1.5 focus-within:border-emerald-400/50 transition-colors">
+            {/* Mesma barra do Assistente do Painel (08/09/2026): 32px de
+                altura, pílula com borda fina. O texto continua em 16px porque
+                abaixo disso o iOS dá zoom ao focar o campo — no painel isso
+                não importa, aqui sim. */}
+            <div className="flex h-8 min-w-0 flex-1 items-center rounded-full border border-zinc-200 bg-zinc-50 px-3 transition-colors focus-within:border-emerald-400/50">
               <textarea
                 ref={inputRef}
                 value={input}
@@ -1111,10 +1128,10 @@ export function GuideAiChat({
                 onKeyDown={onKey}
                 rows={1}
                 maxLength={2000}
-                placeholder={uploading ? "Enviando anexo…" : "Mensagem…"}
+                placeholder={transcribing ? "transcrevendo…" : uploading ? "Enviando anexo…" : "Mensagem…"}
                 aria-label="Mensagem para o concierge"
-                disabled={uploading}
-                className="block w-full resize-none bg-transparent py-0 text-[16px] leading-[1.4rem] h-[1.4rem] max-h-24 overflow-y-auto text-zinc-900 outline-none placeholder:text-zinc-400 min-w-0"
+                disabled={uploading || transcribing}
+                className="block h-[1.2rem] max-h-20 w-full min-w-0 resize-none overflow-y-auto bg-transparent py-0 text-[16px] leading-[1.2rem] text-zinc-900 outline-none placeholder:text-zinc-400"
               />
             </div>
             {input.trim() ? (
@@ -1123,12 +1140,12 @@ export function GuideAiChat({
                 onClick={() => void send()}
                 disabled={loading || uploading}
                 aria-label="Enviar"
-                className="grid size-9 place-items-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                className="grid size-8 shrink-0 place-items-center rounded-full bg-emerald-600 text-white transition-all hover:bg-emerald-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {loading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" strokeWidth={2} />}
               </button>
             ) : transcribing ? (
-              <span className="grid size-9 shrink-0 place-items-center text-zinc-500">
+              <span className="grid size-8 shrink-0 place-items-center text-zinc-500">
                 <Loader2 className="size-4 animate-spin" />
               </span>
             ) : (

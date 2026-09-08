@@ -20,6 +20,7 @@ import { createPortal } from "react-dom";
 import { Sparkles, Headphones, X } from "lucide-react";
 import { HANDOFF_DOCK_OPEN_EVENT } from "@/lib/handoff-dock";
 import { AssistantPanel } from "@/components/assistant/AssistantPanel";
+import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 
 const POSITION_KEY = "handoff-dock-position-v1";
 
@@ -58,6 +59,7 @@ export function FloatingDock({
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [dockBottom, setDockBottom] = useState(88);
   const [dragY, setDragY] = useState<number | null>(null);
+  const keyboardInset = useKeyboardInset();
   const justDraggedRef = useRef(false);
 
   useEffect(() => {
@@ -215,7 +217,13 @@ export function FloatingDock({
             >
               <X className="sr-only" />
             </button>
-            <div className="absolute inset-x-3 bottom-3 top-12 flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl">
+            {/* Com o teclado aberto o painel encolhe pelo rodapé em vez de
+                escorregar para cima — é o que mantém o cabeçalho visível
+                (mesmo tratamento do chat do hóspede, ver useKeyboardInset). */}
+            <div
+              className="absolute inset-x-3 top-12 flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl"
+              style={{ bottom: `calc(0.75rem + ${keyboardInset}px)` }}
+            >
               <AssistantPanel onClose={() => setAssistantOpen(false)} />
             </div>
           </div>
