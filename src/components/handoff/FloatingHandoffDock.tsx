@@ -12,6 +12,7 @@ import { HANDOFF_DOCK_OPEN_EVENT, type HandoffDockOpenDetail } from "@/lib/hando
 import { Headphones, X, Minimize2, Maximize2, Expand, Shrink, ArrowLeft } from "lucide-react";
 import { QUEUES, type Queue } from "@/lib/handoff-queues";
 import { useImpersonation } from "@/hooks/useImpersonation";
+import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 
 const DOCK_STATE_KEY = "handoff-dock-state-v1";
 const DOCK_POSITION_KEY = "handoff-dock-position-v1";
@@ -64,6 +65,7 @@ function playBeep() {
 
 export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } = {}) {
   const hasSession = useHasSession();
+  const keyboardInset = useKeyboardInset();
   const accessFn = useServerFn(getAtendimentoAccess);
   const listFn = useServerFn(listHandoffConversations);
   const { impersonation } = useImpersonation();
@@ -298,10 +300,15 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
       {/* Widget desktop */}
       {state.open && (
         <div
-          className={`hidden lg:flex fixed bottom-6 right-6 flex-col bg-surface border border-border rounded-2xl shadow-2xl overflow-hidden ${
+          className={`hidden lg:flex fixed right-6 flex-col bg-surface border border-border rounded-2xl shadow-2xl overflow-hidden ${
             state.minimized ? "w-80 h-14" : enlarged ? "w-[820px] h-[76vh]" : "w-[520px] h-[560px]"
           }`}
-          style={{ zIndex: 2147483000, pointerEvents: "auto" }}
+          style={{
+            zIndex: 2147483000,
+            pointerEvents: "auto",
+            // Também aqui: um tablet em modo paisagem abre teclado virtual.
+            bottom: `calc(1.5rem + ${keyboardInset}px)`,
+          }}
           // Impede que cliques no atendimento sejam lidos como "clique fora"
           // por popups abertos atrás — antes, fechar o dock fechava tudo.
           onPointerDown={(e) => e.stopPropagation()}
@@ -418,8 +425,15 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
             aria-label="Fechar central de atendimento"
           />
           <section
-            className="absolute inset-x-3 bottom-3 flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl"
-            style={{ top: "max(5rem, calc(env(safe-area-inset-top, 0px) + 1rem))" }}
+            className="absolute inset-x-3 flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl"
+            style={{
+              top: "max(5rem, calc(env(safe-area-inset-top, 0px) + 1rem))",
+              // Com o teclado aberto o painel ENCOLHE pelo rodapé. Sem isto ele
+              // continua do tamanho da tela inteira, a área visível some por
+              // baixo do teclado e o cabeçalho do hóspede sai junto — que é
+              // exatamente o que estava acontecendo (ver useKeyboardInset).
+              bottom: `calc(0.75rem + ${keyboardInset}px)`,
+            }}
             role="dialog"
             aria-modal="true"
             aria-label="Central de atendimento"

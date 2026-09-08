@@ -11,6 +11,7 @@ import { metaPixelTrackCustom } from "@/lib/meta-pixel";
 import { translateMessage } from "@/lib/translate.functions";
 import { detectLanguage, userLanguage } from "@/lib/lang-detect";
 import { useKeyboardInset } from "@/hooks/useKeyboardInset";
+import { COMPOSER_FIELD, COMPOSER_INPUT } from "@/components/chat/composer-styles";
 
 type Msg = {
   role: "user" | "assistant" | "system";
@@ -1120,7 +1121,7 @@ export function GuideAiChat({
                 altura, pílula com borda fina. O texto continua em 16px porque
                 abaixo disso o iOS dá zoom ao focar o campo — no painel isso
                 não importa, aqui sim. */}
-            <div className="flex h-8 min-w-0 flex-1 items-center rounded-full border border-zinc-200 bg-zinc-50 px-3 transition-colors focus-within:border-emerald-400/50">
+            <div className={`${COMPOSER_FIELD} !border-zinc-200 !bg-zinc-50 transition-colors focus-within:!border-emerald-400/50`}>
               <textarea
                 ref={inputRef}
                 value={input}
@@ -1131,7 +1132,7 @@ export function GuideAiChat({
                 placeholder={transcribing ? "transcrevendo…" : uploading ? "Enviando anexo…" : "Mensagem…"}
                 aria-label="Mensagem para o concierge"
                 disabled={uploading || transcribing}
-                className="block h-[1.2rem] max-h-20 w-full min-w-0 resize-none overflow-y-auto bg-transparent py-0 text-[16px] leading-[1.2rem] text-zinc-900 outline-none placeholder:text-zinc-400"
+                className={`${COMPOSER_INPUT} !text-[16px] text-zinc-900 placeholder:text-zinc-400`}
               />
             </div>
             {input.trim() ? (

@@ -64,6 +64,8 @@ import { getTagItemsForConversation } from "@/lib/guide-tag-items.functions";
 import { KnowledgeFillDialog } from "@/components/handoff/KnowledgeFillDialog";
 import { TeachAiDialog } from "@/components/handoff/TeachAiDialog";
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
+import { COMPOSER_FIELD, COMPOSER_INPUT, COMPOSER_SEND_BTN } from "@/components/chat/composer-styles";
+import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import { AttachmentBubble, type AttachmentInfo } from "@/components/handoff/AttachmentBubble";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -135,6 +137,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const [channel, setChannel] = useState<"chat" | "whatsapp">("chat");
   const [reopenOpen, setReopenOpen] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
+  const keyboardInset = useKeyboardInset();
   const [actionMsg, setActionMsg] = useState<{ id: string; content: string; mine: boolean } | null>(null);
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startLongPress = (m: { id: string; content: string; mine: boolean }) => {
@@ -1038,12 +1041,11 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
               if (!text.trim() || send.isPending) return;
               send.mutate();
             }}
-            className="sticky bottom-0 z-10 shrink-0 border-t border-border bg-surface"
+            className="sticky bottom-0 z-10 shrink-0 border-t border-border bg-surface px-3 pt-2"
             style={{
-              paddingTop: "0.375rem",
-              paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
-              paddingLeft: "max(0.5rem, env(safe-area-inset-left))",
-              paddingRight: "max(0.5rem, env(safe-area-inset-right))",
+              // Só o rodapé precisa da área segura; laterais e topo saem das
+              // classes compartilhadas, iguais às do Assistente.
+              paddingBottom: keyboardInset ? "0.5rem" : "max(0.5rem, env(safe-area-inset-bottom))",
             }}
           >
             {uploading && (
@@ -1056,7 +1058,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 <StickyNote className="size-3" /> nota interna (só a equipe vê)
               </div>
             )}
-            <div className="flex items-end gap-2">
+            <div className="flex items-center gap-2">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -1077,9 +1079,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 onAttach={() => fileInputRef.current?.click()}
                 onCamera={() => cameraInputRef.current?.click()}
               />
-              <div
-                className={`flex-1 min-w-0 flex items-center rounded-full border bg-background px-3 min-h-8 ${note ? "border-yellow-500/50" : "border-border"}`}
-              >
+              <div className={`${COMPOSER_FIELD} ${note ? "!border-yellow-500/50" : ""}`}>
                 <TagMentionTextarea
                   value={text}
                   onChange={(e) => setText(e.target.value)}
@@ -1095,7 +1095,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                   placeholder={note ? "Nota interna…" : "Mensagem…"}
                   rows={1}
                   containerClassName="flex-1 min-w-0"
-                  className="w-full resize-none bg-transparent border-0 px-0 py-0 text-sm leading-[1.35rem] outline-none focus:ring-0 min-w-0 h-[1.35rem] max-h-24 overflow-y-auto block"
+                  className={`${COMPOSER_INPUT} border-0 px-0`}
                 />
               </div>
 
@@ -1105,7 +1105,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 <button
                   type="submit"
                   disabled={send.isPending}
-                  className={`size-8 grid place-items-center rounded-full text-white disabled:opacity-40 shrink-0 ${channel === "whatsapp" && !note ? "bg-emerald-600" : "bg-primary"}`}
+                  className={`${COMPOSER_SEND_BTN} ${channel === "whatsapp" && !note ? "bg-emerald-600" : "bg-primary"}`}
                 >
                   {send.isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
                 </button>

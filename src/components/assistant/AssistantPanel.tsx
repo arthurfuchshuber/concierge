@@ -27,6 +27,14 @@ import { createTask, setTaskStatus } from "@/lib/tasks.functions";
 import { markNoShow } from "@/lib/dashboard.functions";
 import type { AssistantMessage, PendingAction } from "@/lib/assistant-types";
 import { AiMarkdown } from "@/components/ai/AiMarkdown";
+import {
+  CHAT_HEADER,
+  CHAT_HEADER_BTN,
+  COMPOSER_BAR,
+  COMPOSER_FIELD,
+  COMPOSER_ICON_BTN,
+  COMPOSER_SEND_BTN,
+} from "@/components/chat/composer-styles";
 import { toast } from "sonner";
 
 /** Blob → base64 puro (sem o cabeçalho data:), que é o que a transcrição espera. */
@@ -236,7 +244,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
-      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-secondary/40 px-3">
+      <div className={CHAT_HEADER}>
         <span className="grid size-6 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground">
           <Sparkles className="size-3.5" />
         </span>
@@ -246,14 +254,14 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
             onClick={newThread}
             title="Começar uma conversa nova"
             aria-label="Começar uma conversa nova"
-            className="grid size-7 place-items-center rounded-md hover:bg-secondary"
+            className={CHAT_HEADER_BTN}
           >
             <RotateCcw className="size-3.5" />
           </button>
           <button
             onClick={onClose}
             aria-label="Fechar"
-            className="grid size-7 place-items-center rounded-md hover:bg-secondary"
+            className={CHAT_HEADER_BTN}
           >
             <X className="size-4" />
           </button>
@@ -333,7 +341,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
             disabled={busy}
             aria-label="Anexar imagem"
             title="Anexar uma foto ou print"
-            className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
+            className={COMPOSER_ICON_BTN}
           >
             <Paperclip className="size-4" />
           </button>
@@ -343,7 +351,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
             onChange={(e) => setDraft(e.target.value)}
             placeholder={transcribing ? "transcrevendo…" : "Pergunte alguma coisa…"}
             disabled={transcribing}
-            className="h-8 min-w-0 flex-1 rounded-full border border-border bg-background px-3 text-sm outline-none focus:ring-0"
+            className={`${COMPOSER_FIELD} text-sm`}
           />
 
           {/* Enviar só toma o lugar do microfone quando há texto — do contrário
@@ -353,7 +361,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
               type="submit"
               disabled={!draft.trim() || busy}
               aria-label="Enviar"
-              className="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground disabled:opacity-40"
+              className={`${COMPOSER_SEND_BTN} bg-accent text-accent-foreground`}
             >
               {ask.isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
             </button>
@@ -376,7 +384,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
               disabled={busy}
               aria-label="Falar"
               title="Ditar sua pergunta ou um pedido"
-              className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
+              className={COMPOSER_ICON_BTN}
             >
               <Mic className="size-4" />
             </button>

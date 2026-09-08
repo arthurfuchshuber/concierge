@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-08T16:08:00.896Z";
+export const GENERATED_AT = "2026-09-08T16:36:14.941Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -436,6 +436,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
     "content_hash": "7bb57d8ce7d452ae85a0bb5a3783d3ff"
+  },
+  {
+    "doc_key": "rule:COMPOSER_INPUT",
+    "kind": "rule",
+    "title": "Regra — COMPOSER_INPUT",
+    "content": "O campo em si. Altura de linha travada para a pílula não crescer sozinha —\nera isso que deixava a barra do Atendimento mais alta que a do Assistente.",
+    "source_path": "src/components/chat/composer-styles.ts",
+    "audience": [],
+    "content_hash": "ed9ab3243554b00d65ae2ecc079754d5"
   },
   {
     "doc_key": "rule:contratanteBlock",
@@ -1284,6 +1293,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1d6019faf67077787112e40ec8da6346"
   },
   {
+    "doc_key": "rule:src/components/chat/composer-styles.ts:0",
+    "kind": "rule",
+    "title": "Regra em composer-styles.ts",
+    "content": "As medidas da barra de mensagem e do cabeçalho — um lugar só, para os três\nchats do produto: Atendimento, Assistente do Painel e o guia do hóspede.\n\nPedido explícito (08/09/2026), depois de eu errar duas vezes: \"precisamos que\no layout de ambos os chats sejam iguais, use como referência o layout do chat\ncom assistente, os mínimos detalhes\".\n\nPOR QUE ISTO EXISTE EM VEZ DE EU SÓ AJUSTAR AS CLASSES DE NOVO\n\nJá ajustei essas medidas à mão duas vezes e elas voltaram a divergir — porque\n\"igual\" escrito em três arquivos diferentes é só uma coincidência esperando\npara acabar. Com as classes vindo daqui, dois chats só ficam diferentes se\nalguém mudar ESTE arquivo, e aí mudam juntos.\n\nOs valores são os do Assistente do Painel, que é a referência combinada:\nbarra de 32px, pílula de borda fina, botões redondos de 32px, cabeçalho de\n48px com botões de 28px.",
+    "source_path": "src/components/chat/composer-styles.ts",
+    "audience": [],
+    "content_hash": "914091bc096eea511759c33fbaa6d179"
+  },
+  {
     "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:137749",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
@@ -1428,7 +1446,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "a316426ba5b0c0ef8c0a2216d094e32c"
   },
   {
-    "doc_key": "rule:src/components/GuideAiChat.tsx:7354",
+    "doc_key": "rule:src/components/GuideAiChat.tsx:7438",
     "kind": "rule",
     "title": "Regra em GuideAiChat.tsx",
     "content": "true quando qualquer outro popup/onboarding já está na tela (tour de\nprimeiro acesso, diálogo de PIN, etc.) — nesse caso o popup sugestivo\nnunca aparece por cima; só quando a tela estiver limpa.",

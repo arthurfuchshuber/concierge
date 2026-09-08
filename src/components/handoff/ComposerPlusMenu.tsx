@@ -1,4 +1,5 @@
 import { Plus, Camera, Paperclip } from "lucide-react";
+import { COMPOSER_ICON_BTN } from "@/components/chat/composer-styles";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -29,7 +30,7 @@ export function ComposerPlusMenu({
           disabled={disabled}
           aria-label="Adicionar anexo"
           title="Adicionar"
-          className={`grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 ${className}`}
+          className={`${COMPOSER_ICON_BTN} ${className}`}
         >
           <Plus className="size-4" />
         </button>
