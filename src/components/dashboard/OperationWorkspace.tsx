@@ -1562,6 +1562,15 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   }) {
     if (!resolvePrompt) return;
     const task = resolvePrompt.task;
+    // Anexo precisa de um imóvel (é ele que define a pasta e a permissão do
+    // arquivo). Sem imóvel os arquivos sumiriam em silêncio — melhor barrar
+    // ANTES de gravar a conclusão e explicar o que fazer.
+    if (v.files.length > 0 && !task.propertyId) {
+      toast.error(
+        "Para anexar fotos, vídeos ou áudios, a pendência precisa estar vinculada a um imóvel. Remova os anexos ou vincule um imóvel à pendência.",
+      );
+      return;
+    }
     if (resolvePrompt.kind === "status") {
       await setTaskStatusMutation.mutateAsync({
         taskId: task.id,
