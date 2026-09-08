@@ -1674,6 +1674,48 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_system_docs: {
+        Row: {
+          audience: string[]
+          content: string
+          content_hash: string
+          doc_key: string
+          embedding: string | null
+          id: string
+          kind: string
+          source_path: string | null
+          title: string
+          tsv: unknown
+          updated_at: string
+        }
+        Insert: {
+          audience?: string[]
+          content: string
+          content_hash: string
+          doc_key: string
+          embedding?: string | null
+          id?: string
+          kind?: string
+          source_path?: string | null
+          title: string
+          tsv?: unknown
+          updated_at?: string
+        }
+        Update: {
+          audience?: string[]
+          content?: string
+          content_hash?: string
+          doc_key?: string
+          embedding?: string | null
+          id?: string
+          kind?: string
+          source_path?: string | null
+          title?: string
+          tsv?: unknown
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ai_system_events: {
         Row: {
           action: string | null
@@ -1854,6 +1896,68 @@ export type Database = {
           connector_id?: string
           created_at?: string
           id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      assistant_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          meta: Json
+          role: string
+          thread_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          meta?: Json
+          role: string
+          thread_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          meta?: Json
+          role?: string
+          thread_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistant_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "assistant_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assistant_threads: {
+        Row: {
+          created_at: string
+          id: string
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          title?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -5324,6 +5428,19 @@ export type Database = {
           title: string
         }[]
       }
+      match_ai_system_docs: {
+        Args: { match_count?: number; query_embedding: string }
+        Returns: {
+          audience: string[]
+          content: string
+          doc_key: string
+          id: string
+          kind: string
+          similarity: number
+          source_path: string
+          title: string
+        }[]
+      }
       member_can_see_property: {
         Args: { _owner_id: string; _property_id: string; _user_id: string }
         Returns: boolean
@@ -5416,6 +5533,19 @@ export type Database = {
           scope: string
           source: string
           subject_key: string
+          title: string
+        }[]
+      }
+      search_ai_system_docs_text: {
+        Args: { _query: string; match_count?: number }
+        Returns: {
+          audience: string[]
+          content: string
+          doc_key: string
+          id: string
+          kind: string
+          rank: number
+          source_path: string
           title: string
         }[]
       }
