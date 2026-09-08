@@ -420,6 +420,10 @@ const ToggleCleaningInput = z
     /** Só usado ao MARCAR (nunca ao desmarcar) — gasto desta ocorrência
      * específica, quando a pendência não tinha valor padrão definido. */
     amountSpentCents: z.number().int().min(0).nullable().optional(),
+    /** Prestação de contas desta ocorrência: a tela de conclusão pergunta
+     * quem resolveu e como — antes esses campos eram descartados aqui. */
+    resolvedByProviderId: z.string().uuid().nullable().optional(),
+    resolutionNote: z.string().max(2000).nullable().optional(),
   })
   .refine((v) => !!v.logId || !!v.reservationId, { message: "Informe a estadia (log ou reserva)." });
 
@@ -449,6 +453,8 @@ export const toggleCleaningCompletion = createServerFn({ method: "POST" })
       log_id: data.logId ?? null,
       reservation_id: data.reservationId ?? null,
       amount_spent_cents: data.amountSpentCents ?? null,
+      resolved_by_provider_id: data.resolvedByProviderId ?? null,
+      resolution_note: data.resolutionNote?.trim() || null,
       completed_by: context.userId,
     });
     if (error) throw new Error(error.message);

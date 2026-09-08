@@ -1533,6 +1533,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       logId?: string | null;
       reservationId?: string | null;
       amountSpentCents?: number | null;
+      resolvedByProviderId?: string | null;
+      resolutionNote?: string | null;
     }) => toggleCleaningFn({ data: v }),
     onSuccess: invalidateTasks,
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar checklist."),
@@ -1562,6 +1564,15 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   }) {
     if (!resolvePrompt) return;
     const task = resolvePrompt.task;
+    // Anexo precisa de um imóvel (é ele que define a pasta e a permissão do
+    // arquivo). Sem imóvel os arquivos sumiriam em silêncio — melhor barrar
+    // ANTES de gravar a conclusão e explicar o que fazer.
+    if (v.files.length > 0 && !task.propertyId) {
+      toast.error(
+        "Para anexar fotos, vídeos ou áudios, a pendência precisa estar vinculada a um imóvel. Remova os anexos ou vincule um imóvel à pendência.",
+      );
+      return;
+    }
     if (resolvePrompt.kind === "status") {
       await setTaskStatusMutation.mutateAsync({
         taskId: task.id,
@@ -1576,6 +1587,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         logId: resolvePrompt.row.logId,
         reservationId: resolvePrompt.row.reservationId,
         amountSpentCents: v.amountSpentCents,
+        // A tela de conclusão é a mesma dos dois gatilhos: quem resolveu e
+        // como foi resolvido também ficam gravados na ocorrência da limpeza.
+        resolvedByProviderId: v.providerId,
+        resolutionNote: v.note,
       });
     }
 
@@ -4303,6 +4318,14 @@ function TasksDialog({
     }
     if (linkMissing) {
       toast.error("Vincule a um imóvel ou a um proprietário.");
+      return;
+    }
+    // Anexo precisa de imóvel (é ele que define a pasta e a permissão do
+    // arquivo). Sem isso os arquivos sumiriam em silêncio.
+    if (files.length > 0 && !propertyId) {
+      toast.error(
+        "Para anexar fotos, vídeos ou áudios, escolha um imóvel. Sem imóvel, só é possível salvar a pendência sem anexos.",
+      );
       return;
     }
     try {
