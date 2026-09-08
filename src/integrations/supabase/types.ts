@@ -5137,6 +5137,8 @@ export type Database = {
           id: string
           log_id: string | null
           reservation_id: string | null
+          resolution_note: string | null
+          resolved_by_provider_id: string | null
           task_id: string
         }
         Insert: {
@@ -5146,6 +5148,8 @@ export type Database = {
           id?: string
           log_id?: string | null
           reservation_id?: string | null
+          resolution_note?: string | null
+          resolved_by_provider_id?: string | null
           task_id: string
         }
         Update: {
@@ -5155,9 +5159,18 @@ export type Database = {
           id?: string
           log_id?: string | null
           reservation_id?: string | null
+          resolution_note?: string | null
+          resolved_by_provider_id?: string | null
           task_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "task_completions_resolved_by_provider_id_fkey"
+            columns: ["resolved_by_provider_id"]
+            isOneToOne: false
+            referencedRelation: "service_providers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "task_completions_task_id_fkey"
             columns: ["task_id"]
