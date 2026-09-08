@@ -1533,6 +1533,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       logId?: string | null;
       reservationId?: string | null;
       amountSpentCents?: number | null;
+      resolvedByProviderId?: string | null;
+      resolutionNote?: string | null;
     }) => toggleCleaningFn({ data: v }),
     onSuccess: invalidateTasks,
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar checklist."),
