@@ -176,7 +176,10 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
                     className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-muted/30 transition-colors"
                   >
                     <div className="min-w-0 flex-1 grid sm:grid-cols-[1.2fr_1fr_.8fr_.6fr] gap-3 items-center">
-                      <div className="min-w-0">
+                      {/* ds-card-lines: espaçamento padrão entre linhas de
+                          card (styles.css) — pedido explícito, vale para
+                          TODOS os cards do sistema. */}
+                      <div className="min-w-0 ds-card-lines">
                         <div className="ds-card-title truncate">{r.guest_name}</div>
                         <div className="ds-meta truncate flex items-center gap-1.5">
                           <span className="truncate">{r.property_name ?? "—"}</span>

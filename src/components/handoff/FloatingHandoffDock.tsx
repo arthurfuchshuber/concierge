@@ -12,7 +12,7 @@ import { HANDOFF_DOCK_OPEN_EVENT, type HandoffDockOpenDetail } from "@/lib/hando
 import { Headphones, X, Minimize2, Maximize2, Expand, Shrink, ArrowLeft } from "lucide-react";
 import { QUEUES, type Queue } from "@/lib/handoff-queues";
 import { useImpersonation } from "@/hooks/useImpersonation";
-import { useKeyboardInset } from "@/hooks/useKeyboardInset";
+import { useVisualViewport, viewportOverlayStyle } from "@/hooks/useVisualViewport";
 
 const DOCK_STATE_KEY = "handoff-dock-state-v1";
 const DOCK_POSITION_KEY = "handoff-dock-position-v1";
@@ -65,7 +65,7 @@ function playBeep() {
 
 export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } = {}) {
   const hasSession = useHasSession();
-  const keyboardInset = useKeyboardInset();
+  const viewport = useVisualViewport();
   const accessFn = useServerFn(getAtendimentoAccess);
   const listFn = useServerFn(listHandoffConversations);
   const { impersonation } = useImpersonation();
@@ -306,8 +306,8 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
           style={{
             zIndex: 2147483000,
             pointerEvents: "auto",
-            // Também aqui: um tablet em modo paisagem abre teclado virtual.
-            bottom: `calc(1.5rem + ${keyboardInset}px)`,
+            // Tablet em paisagem também abre teclado virtual.
+            bottom: viewport.covered ? `calc(1.5rem + ${viewport.covered}px)` : "1.5rem",
           }}
           // Impede que cliques no atendimento sejam lidos como "clique fora"
           // por popups abertos atrás — antes, fechar o dock fechava tudo.
@@ -412,8 +412,12 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
       {/* Widget mobile */}
       {state.open && (
         <div
-          className="lg:hidden fixed inset-0"
-          style={{ zIndex: 2147483000, pointerEvents: "auto" }}
+          className="lg:hidden"
+          // Ancorado na visual viewport em vez de `inset-0`: com o teclado
+          // aberto, `inset-0` continua sendo a janela inteira e o painel
+          // escorrega para fora por cima, levando o cabeçalho junto. Funciona
+          // no iOS e no Android, que tratam o teclado de formas diferentes.
+          style={{ ...viewportOverlayStyle(viewport), zIndex: 2147483000, pointerEvents: "auto" }}
           onPointerDown={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
           onFocusCapture={(e) => e.stopPropagation()}
@@ -425,14 +429,12 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
             aria-label="Fechar central de atendimento"
           />
           <section
-            className="absolute inset-x-3 flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl"
+            className="absolute inset-x-3 flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl"
             style={{
-              top: "max(5rem, calc(env(safe-area-inset-top, 0px) + 1rem))",
-              // Com o teclado aberto o painel ENCOLHE pelo rodapé. Sem isto ele
-              // continua do tamanho da tela inteira, a área visível some por
-              // baixo do teclado e o cabeçalho do hóspede sai junto — que é
-              // exatamente o que estava acontecendo (ver useKeyboardInset).
-              bottom: `calc(0.75rem + ${keyboardInset}px)`,
+              // Com teclado aberto não sobra espaço para respiro no topo: o
+              // painel encosta e o cabeçalho fica garantido.
+              top: viewport.keyboardOpen ? "0.5rem" : "max(5rem, calc(env(safe-area-inset-top, 0px) + 1rem))",
+              bottom: "0.75rem",
             }}
             role="dialog"
             aria-modal="true"

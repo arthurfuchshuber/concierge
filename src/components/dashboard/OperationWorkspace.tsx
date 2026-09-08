@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { useAntiClipColumns } from "@/hooks/useAntiClipColumns";
 import {
   ResponsiveContainer,
   BarChart,
@@ -14,7 +15,7 @@ import {
   LineChart,
   Line,
   XAxis,
-  YAxis,
+  LabelList,
   CartesianGrid,
   Tooltip as RechartsTooltip,
 } from "recharts";
@@ -3634,112 +3635,174 @@ function StatDisplayCard({
 const CLEANING_COUNT_COLOR = "#38bdf8"; // sky-400
 const CLEANING_COST_COLOR = "#d97706"; // amber-600
 
-function CleaningDailyBarChart({ data, loading }: { data: CleaningDailyPoint[] | undefined; loading: boolean }) {
+/**
+ * Largura mínima de UM dia nos gráficos de previsão. Escolhida pelo rótulo
+ * mais largo que pode aparecer ("08/09" ou "R$1.234" em 9–10px, ~36px), mais
+ * respiro dos dois lados. É esse número que garante que dois dias vizinhos
+ * nunca fiquem "muito próximos um do outro" — a condição que o pedido usa
+ * para acionar a rolagem.
+ */
+const CLEANING_DAY_MIN_PX = 56;
+
+/** Rótulo curto do eixo horizontal: "08/09". */
+function dayTick(v: string): string {
+  const [, m, d] = v.split("-");
+  return `${d}/${m}`;
+}
+
+/**
+ * Moldura comum dos dois gráficos de previsão (pedido explícito, 08/09/2026).
+ *
+ * Duas decisões moram aqui:
+ *
+ *   · NÃO existe mais eixo vertical. A grandeza é lida no rótulo em cima de
+ *     cada marca e no tooltip — a "legenda vertical" saiu a pedido, e sair
+ *     sem colocar nada no lugar deixaria o gráfico ilegível.
+ *
+ *   · TODO dia do filtro aparece rotulado (`interval={0}`), nunca "um sim,
+ *     outro não". Quando os dias não cabem, quem cede é a largura da vista,
+ *     não o rótulo: a faixa passa a rolar para a direita e a janela visível
+ *     encolhe até o último dia INTEIRO (regra anti-corte, ver
+ *     useAntiClipColumns). Sem degradê nas bordas — proibido pelo cliente.
+ */
+function CleaningChartFrame({
+  title,
+  data,
+  loading,
+  children,
+}: {
+  title: string;
+  data: CleaningDailyPoint[] | undefined;
+  loading: boolean;
+  children: (width: number) => React.ReactElement;
+}) {
+  const days = data?.length ?? 0;
+  const anti = useAntiClipColumns(days, CLEANING_DAY_MIN_PX);
   return (
     <div className="w-full rounded-[0.3rem] border-0 bg-card px-3.5 py-3.5 ds-3d">
       <div className="flex items-center justify-between gap-2 mb-2">
-        <span className="ds-eyebrow">Limpezas por dia</span>
-        <span className="text-[10px] text-muted-foreground">{data && data.length > 0 ? `${data.length} dias` : ""}</span>
+        <span className="ds-eyebrow">{title}</span>
+        <span className="text-[10px] text-muted-foreground">
+          {days > 0 ? `${days} dias${anti.scrolls ? " · role para o lado" : ""}` : ""}
+        </span>
       </div>
-      <div className="h-32">
-        {loading || !data || data.length === 0 ? (
-          <div className="h-full grid place-items-center text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" />
+      {loading || !data || days === 0 ? (
+        <div className="h-32 grid place-items-center text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+        </div>
+      ) : (
+        <div ref={anti.ref} className="flex w-full">
+          <div
+            className="sg-elegant-scroll overflow-x-auto overflow-y-hidden"
+            style={{ width: anti.viewportWidth }}
+          >
+            <div className="h-32" style={{ width: anti.contentWidth }}>
+              {anti.contentWidth ? children(anti.contentWidth) : null}
+            </div>
           </div>
-        ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
-              <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" vertical={false} />
-              <XAxis
-                dataKey="date"
-                tickFormatter={(v: string) => {
-                  const [, m, d] = v.split("-");
-                  return `${d}/${m}`;
-                }}
-                tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                tickLine={false}
-                axisLine={false}
-                minTickGap={16}
-              />
-              <YAxis tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} width={28} allowDecimals={false} />
-              <RechartsTooltip
-                contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid var(--border)", background: "var(--popover)", color: "var(--popover-foreground)" }}
-                labelFormatter={(v: unknown) => fmtDateBR(String(v))}
-                formatter={(value: number) => [`${value}`, "Limpezas"]}
-                cursor={{ fill: "var(--muted)", opacity: 0.3 }}
-              />
-              <Bar dataKey="count" fill={CLEANING_COUNT_COLOR} radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={false} />
-            </BarChart>
-          </ResponsiveContainer>
-        )}
-      </div>
+          {/* Espaçador INVISÍVEL: é a sobra que não dá para um dia inteiro.
+              Sem ele, o dia seguinte apareceria pela metade na borda. */}
+          {anti.spacer > 0 && <span aria-hidden className="shrink-0" style={{ width: anti.spacer }} />}
+        </div>
+      )}
     </div>
+  );
+}
+
+const CLEANING_TOOLTIP_STYLE = {
+  fontSize: 12,
+  borderRadius: 8,
+  border: "1px solid var(--border)",
+  background: "var(--popover)",
+  color: "var(--popover-foreground)",
+} as const;
+
+function CleaningDailyBarChart({ data, loading }: { data: CleaningDailyPoint[] | undefined; loading: boolean }) {
+  return (
+    <CleaningChartFrame title="Limpezas por dia" data={data} loading={loading}>
+      {(width) => (
+        <BarChart width={width} height={128} data={data} margin={{ top: 14, right: 8, left: 8, bottom: 0 }}>
+          <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" vertical={false} />
+          <XAxis
+            dataKey="date"
+            tickFormatter={dayTick}
+            tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+            tickLine={false}
+            axisLine={false}
+            // interval=0: todos os dias rotulados, sem exceção.
+            interval={0}
+          />
+          <RechartsTooltip
+            contentStyle={CLEANING_TOOLTIP_STYLE}
+            labelFormatter={(v: unknown) => fmtDateBR(String(v))}
+            formatter={(value: number) => [`${value}`, "Limpezas"]}
+            cursor={{ fill: "var(--muted)", opacity: 0.3 }}
+          />
+          <Bar dataKey="count" fill={CLEANING_COUNT_COLOR} radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={false}>
+            {/* Substitui o eixo vertical removido: o número fica em cima da
+                própria barra, que é onde se olha. */}
+            <LabelList
+              dataKey="count"
+              position="top"
+              offset={4}
+              style={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+            />
+          </Bar>
+        </BarChart>
+      )}
+    </CleaningChartFrame>
   );
 }
 
 function CleaningDailyAreaChart({ data, loading }: { data: CleaningDailyPoint[] | undefined; loading: boolean }) {
   return (
-    <div className="w-full rounded-[0.3rem] border-0 bg-card px-3.5 py-3.5 ds-3d">
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <span className="ds-eyebrow">Custo total por dia</span>
-        <span className="text-[10px] text-muted-foreground">{data && data.length > 0 ? `${data.length} dias` : ""}</span>
-      </div>
-      <div className="h-32">
-        {loading || !data || data.length === 0 ? (
-          <div className="h-full grid place-items-center text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" />
-          </div>
-        ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 4, right: 4, left: -12, bottom: 0 }}>
-              <defs>
-                <linearGradient id="cleaningCostArea" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor={CLEANING_COST_COLOR} stopOpacity={0.35} />
-                  <stop offset="100%" stopColor={CLEANING_COST_COLOR} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" vertical={false} />
-              <XAxis
-                dataKey="date"
-                tickFormatter={(v: string) => {
-                  const [, m, d] = v.split("-");
-                  return `${d}/${m}`;
-                }}
-                tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                tickLine={false}
-                axisLine={false}
-                minTickGap={16}
-              />
-              <YAxis
-                tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                tickLine={false}
-                axisLine={false}
-                width={46}
-                // Formato compacto (sem centavos) — o valor cheio (com
-                // centavos) já aparece no tooltip ao passar o mouse. O
-                // "R$ 1.234,00" completo não cabia na largura do eixo e
-                // ficava cortado, mostrando só ",00" em toda linha.
-                tickFormatter={(v: number) => `R$${Math.round(v / 100).toLocaleString("pt-BR")}`}
-              />
-              <RechartsTooltip
-                contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid var(--border)", background: "var(--popover)", color: "var(--popover-foreground)" }}
-                labelFormatter={(v: unknown) => fmtDateBR(String(v))}
-                formatter={(value: number) => [centsToBRL(value), "Custo"]}
-                cursor={{ stroke: "var(--border)" }}
-              />
-              <Area
-                type="monotone"
-                dataKey="totalCents"
-                stroke={CLEANING_COST_COLOR}
-                strokeWidth={2}
-                fill="url(#cleaningCostArea)"
-                isAnimationActive={false}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        )}
-      </div>
-    </div>
+    <CleaningChartFrame title="Custo total por dia" data={data} loading={loading}>
+      {(width) => (
+        <AreaChart width={width} height={128} data={data} margin={{ top: 16, right: 8, left: 8, bottom: 0 }}>
+          <defs>
+            <linearGradient id="cleaningCostArea" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor={CLEANING_COST_COLOR} stopOpacity={0.35} />
+              <stop offset="100%" stopColor={CLEANING_COST_COLOR} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" vertical={false} />
+          <XAxis
+            dataKey="date"
+            tickFormatter={dayTick}
+            tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+            tickLine={false}
+            axisLine={false}
+            interval={0}
+          />
+          <RechartsTooltip
+            contentStyle={CLEANING_TOOLTIP_STYLE}
+            labelFormatter={(v: unknown) => fmtDateBR(String(v))}
+            formatter={(value: number) => [centsToBRL(value), "Custo"]}
+            cursor={{ stroke: "var(--border)" }}
+          />
+          <Area
+            type="monotone"
+            dataKey="totalCents"
+            stroke={CLEANING_COST_COLOR}
+            strokeWidth={2}
+            fill="url(#cleaningCostArea)"
+            isAnimationActive={false}
+          >
+            {/* Mesmo papel do rótulo das barras. Valor arredondado e sem
+                centavos, como o eixo removido já fazia — o valor cheio
+                continua no tooltip. Dia sem custo não ganha rótulo, para não
+                encher o gráfico de "R$0". */}
+            <LabelList
+              dataKey="totalCents"
+              position="top"
+              offset={6}
+              formatter={(v: number) => (v ? `R$${Math.round(v / 100).toLocaleString("pt-BR")}` : "")}
+              style={{ fontSize: 9.5, fill: "var(--muted-foreground)" }}
+            />
+          </Area>
+        </AreaChart>
+      )}
+    </CleaningChartFrame>
   );
 }
 
@@ -4081,10 +4144,16 @@ function TaskResolveDialog({
 
 /** Rótulo de seção do formulário de pendência — dá hierarquia ao que antes
  * era uma pilha de campos do mesmo tamanho (pedido explícito, 07/09/2026). */
+/**
+ * Título de seção do formulário de pendência. Usa `ds-eyebrow` — o rótulo
+ * pequeno padrão do Design System, o mesmo dos cards de indicador — em vez de
+ * um 9.5px extrabold inventado só aqui, que era o menor texto de toda a tela
+ * e não existia em nenhum outro lugar do sistema.
+ */
 function TaskFormGroup({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-2 pt-1">
-      <span className="text-[9.5px] font-extrabold uppercase tracking-[0.12em] text-muted-foreground">{label}</span>
+      <span className="ds-eyebrow text-muted-foreground">{label}</span>
       <span className="h-px flex-1 bg-border/70" />
     </div>
   );
@@ -4324,12 +4393,29 @@ function TasksDialog({
         </div>
 
         {showForm ? (
-          <div className="px-5 pb-5 space-y-2.5">
+          /* REDESENHO DO FORMULÁRIO (pedido explícito, 08/09/2026: "está
+             completamente fora do layout implementado em sistema e ainda bem
+             DESORGANIZADO, DESESTRUTURADO... menos poluição visual e mais
+             atratividade").
+             O que estava errado era medível, não questão de gosto: nove
+             controles com CINCO curvas diferentes (rounded-lg, rounded-md,
+             rounded-full, rounded-[0.3rem] e o padrão do Select), TRÊS alturas
+             (h-8, h-[42px] e "o que der" no textarea) e SEIS tamanhos de fonte
+             (sm, xs, 11.5, 10.5, 9 e o do Select). Cada bloco parecia vir de
+             uma tela diferente.
+             A correção é usar o padrão que o sistema já tem: `ds-dense-fields`
+             (styles.css) é a formatação de campo do Design System — mesma
+             curva de 0.3rem, mesma fonte de 13px e mesma altura de 2.25rem já
+             usadas no popup de edição em massa e no editor de guia. Tudo aqui
+             passa a herdar dela; o que não é um <input>/<select> nativo (as
+             pílulas de prioridade, o botão de prazo) repete a MESMA altura
+             (h-9) e a MESMA curva à mão. */
+          <div className="ds-dense-fields px-5 pb-5 space-y-3">
             <Popover open={titleComboOpen} onOpenChange={setTitleComboOpen}>
               <PopoverTrigger asChild>
                 <button
                   type="button"
-                  className="w-full flex items-center justify-between gap-2 rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm text-left"
+                  className="ds-surface h-9 w-full flex items-center justify-between gap-2 border border-border bg-background px-2.5 text-[13px] text-left"
                 >
                   <span className={`truncate ${title ? "" : "text-muted-foreground"}`}>
                     {title || "Título da pendência"}
@@ -4375,7 +4461,10 @@ function TasksDialog({
               rows={2}
               maxLength={1000}
               placeholder="Detalhes (opcional)"
-              className="w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs"
+              /* Sem altura fixa aqui: `ds-dense-fields` já dá a curva e a
+                 fonte, e a regra de altura daquele bloco exclui textarea de
+                 propósito (um campo de texto longo com 36px seria pior). */
+              className="ds-surface w-full resize-none border border-border bg-background px-2.5 py-2 leading-snug"
             />
             {/* Pedido explícito (07/09/2026): abrir uma pendência de
                 manutenção com a foto do problema junto era o que faltava —
@@ -4399,7 +4488,7 @@ function TasksDialog({
                   }
                 }}
               >
-                <SelectTrigger className="h-8 text-xs">
+                <SelectTrigger className="h-9">
                   <SelectValue placeholder="Imóvel" />
                 </SelectTrigger>
                 <SelectContent>
@@ -4412,7 +4501,7 @@ function TasksDialog({
                 </SelectContent>
               </Select>
               <Select value={ownerContactId || "none"} onValueChange={(v) => setOwnerContactId(v === "none" ? "" : v)}>
-                <SelectTrigger className="h-8 text-xs">
+                <SelectTrigger className="h-9">
                   <SelectValue placeholder="Proprietário" />
                 </SelectTrigger>
                 <SelectContent>
@@ -4429,43 +4518,17 @@ function TasksDialog({
                 vínculos — antes ele nascia laranja na tela, parecendo erro
                 antes de qualquer ação. Abrindo pelo card, imóvel e
                 proprietário já vêm preenchidos. */}
-            {linkMissing ? (
+            {/* Uma linha de apoio só, no lugar de duas: o aviso quando falta
+                vínculo, a dica quando ainda não se escolheu nada, e NADA
+                quando já está resolvido — texto permanente na tela é a
+                poluição que o pedido menciona. */}
+            {linkMissing && (
               <p className="text-[11px] text-amber-600 dark:text-amber-400">
-                Escolha um imóvel e/ou um proprietário para continuar.
-              </p>
-            ) : (
-              <p className="text-[10.5px] text-muted-foreground">
-                Escolher o imóvel já traz o proprietário cadastrado dele.
+                Escolha um imóvel e/ou um proprietário — o imóvel já traz o proprietário cadastrado dele.
               </p>
             )}
 
             <TaskFormGroup label="Como tratar" />
-            {/* Prioridade vira três botões com cor semântica: é escolha entre
-                três, fica a um toque (o select pedia dois) e a cor comunica
-                antes da leitura. */}
-            <div className="flex gap-1.5">
-              {(Object.keys(TASK_PRIORITY_LABEL) as TaskPriority[]).map((p) => {
-                const on = priority === p;
-                const tone =
-                  p === "low"
-                    ? "border-emerald-500/50 bg-emerald-500/12 text-emerald-600 dark:text-emerald-400"
-                    : p === "medium"
-                      ? "border-amber-500/50 bg-amber-500/12 text-amber-600 dark:text-amber-400"
-                      : "border-rose-500/50 bg-rose-500/12 text-rose-600 dark:text-rose-400";
-                return (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => setPriority(p)}
-                    className={`flex-1 rounded-lg border py-1.5 text-[11.5px] font-semibold transition-colors ${
-                      on ? tone : "border-border/60 bg-card text-muted-foreground hover:bg-secondary/40"
-                    }`}
-                  >
-                    {TASK_PRIORITY_LABEL[p]}
-                  </button>
-                );
-              })}
-            </div>
             <div className="grid grid-cols-2 gap-2">
               <Select
                 value={category}
@@ -4477,7 +4540,7 @@ function TasksDialog({
                   if (!cleaningTouched) setShowInCleaning(defaultShowInCleaning(next));
                 }}
               >
-                <SelectTrigger className="h-[42px] text-xs">
+                <SelectTrigger className="h-9">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -4490,16 +4553,20 @@ function TasksDialog({
               </Select>
               <Popover open={dueDatePopoverOpen} onOpenChange={setDueDatePopoverOpen}>
                 <PopoverTrigger asChild>
+                  {/* Uma linha só, com ícone à esquerda — igual a um Select ao
+                      lado. O rótulo "PRAZO" em 9px acima do valor era a única
+                      coisa na tela inteira naquele tamanho, e o que obrigava
+                      este campo a ser 6px mais alto que os vizinhos. */}
                   <button
                     type="button"
-                    className={`h-[42px] w-full rounded-lg border bg-background px-2.5 text-left ${
+                    className={`ds-surface h-9 w-full flex items-center gap-2 border bg-background px-2.5 text-left text-[13px] ${
                       dueDate ? "border-[#a855f7]/60" : "border-border"
                     }`}
                   >
-                    <span className="text-[9px] uppercase tracking-wide text-muted-foreground font-semibold block">
-                      Prazo
+                    <CalendarRange className="size-3.5 shrink-0 text-muted-foreground" />
+                    <span className={`truncate ${dueDate ? "" : "text-muted-foreground"}`}>
+                      {dueDate ? fmtDateBR(dueDate) : "Sem prazo"}
                     </span>
-                    <span className="text-xs font-semibold">{dueDate ? fmtDateBR(dueDate) : "Sem prazo"}</span>
                   </button>
                 </PopoverTrigger>
                 <PopoverContent align="start" className="w-auto p-0">
@@ -4531,68 +4598,108 @@ function TasksDialog({
               </Popover>
             </div>
 
+            {/* Prioridade desceu para logo abaixo de categoria/prazo: as três
+                pílulas coloridas eram a primeira coisa da seção e roubavam a
+                atenção do que de fato define a pendência. Mesma altura (h-9)
+                dos dois campos acima, para a seção inteira ler como uma grade
+                de três linhas iguais. */}
+            <div className="flex gap-1.5">
+              {(Object.keys(TASK_PRIORITY_LABEL) as TaskPriority[]).map((p) => {
+                const on = priority === p;
+                const tone =
+                  p === "low"
+                    ? "border-emerald-500/50 bg-emerald-500/12 text-emerald-600 dark:text-emerald-400"
+                    : p === "medium"
+                      ? "border-amber-500/50 bg-amber-500/12 text-amber-600 dark:text-amber-400"
+                      : "border-rose-500/50 bg-rose-500/12 text-rose-600 dark:text-rose-400";
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPriority(p)}
+                    className={`ds-surface h-9 flex-1 border text-[12.5px] font-semibold transition-colors ${
+                      on ? tone : "border-border/60 bg-card text-muted-foreground hover:bg-secondary/40"
+                    }`}
+                  >
+                    {TASK_PRIORITY_LABEL[p]}
+                  </button>
+                );
+              })}
+            </div>
+
             <TaskFormGroup label="Opções" />
-            {!showInCleaning && (
-              <div className="rounded-lg border border-border px-2.5 py-1.5 space-y-1.5">
-                <label className="flex items-center gap-2 text-xs cursor-pointer">
-                  <Checkbox checked={recurrenceOn} onCheckedChange={(v) => setRecurrenceOn(!!v)} />
-                  <Repeat className="size-3.5 text-muted-foreground" />
-                  Repetir esta pendência
-                </label>
-                {recurrenceOn && (
-                  <div className="flex items-center gap-1.5 pl-6 text-xs text-muted-foreground">
-                    <span>a cada</span>
-                    <input
-                      type="number"
-                      min={1}
-                      value={recurrenceDays}
-                      onChange={(e) => setRecurrenceDays(Math.max(1, Number(e.target.value) || 1))}
-                      className="w-14 rounded-md border border-border bg-background px-1.5 py-1 text-xs text-center"
+            {/* As duas opções agora vivem num PAINEL só, separadas por uma
+                divisória — antes eram duas caixas soltas com bordas de
+                opacidades diferentes, o que fazia parecer que uma pertencia à
+                seção e a outra não. */}
+            <div className="ds-surface overflow-hidden border border-border divide-y divide-border/60">
+              {!showInCleaning && (
+                <div className="px-2.5 py-2">
+                  <label className="flex items-center gap-2 text-[13px] cursor-pointer">
+                    <Checkbox checked={recurrenceOn} onCheckedChange={(v) => setRecurrenceOn(!!v)} />
+                    <Repeat className="size-3.5 shrink-0 text-muted-foreground" />
+                    Repetir esta pendência
+                  </label>
+                  {recurrenceOn && (
+                    <div className="mt-2 flex items-center gap-1.5 pl-6 text-[13px] text-muted-foreground">
+                      <span>a cada</span>
+                      <input
+                        type="number"
+                        min={1}
+                        value={recurrenceDays}
+                        onChange={(e) => setRecurrenceDays(Math.max(1, Number(e.target.value) || 1))}
+                        className="ds-surface h-8 w-16 border border-border bg-background px-1.5 text-center"
+                      />
+                      <span>dias</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* Pedido explícito (07/09/2026): MANUTENÇÃO já nasce visível
+                  para a limpeza, e aí a chave serve pra OCULTAR; as demais
+                  categorias nascem ocultas e a chave serve pra MOSTRAR. É a
+                  mesma coluna no banco (`show_in_cleaning`) — o que muda é o
+                  padrão e o sentido em que a pergunta é feita. */}
+              {(() => {
+                const isMaintenance = category === "maintenance";
+                const checked = isMaintenance ? !showInCleaning : showInCleaning;
+                return (
+                  <label className="flex cursor-pointer items-start gap-2 px-2.5 py-2 text-[13px]">
+                    <Checkbox
+                      className="mt-0.5"
+                      checked={checked}
+                      onCheckedChange={(v) => {
+                        setCleaningTouched(true);
+                        setShowInCleaning(isMaintenance ? !v : !!v);
+                      }}
                     />
-                    <span>dias</span>
-                  </div>
-                )}
-              </div>
-            )}
-            {/* Pedido explícito (07/09/2026): MANUTENÇÃO já nasce visível
-                para a limpeza, e aí a chave serve pra OCULTAR; as demais
-                categorias nascem ocultas e a chave serve pra MOSTRAR. É a
-                mesma coluna no banco (`show_in_cleaning`) — o que muda é o
-                padrão e o sentido em que a pergunta é feita. */}
-            {(() => {
-              const isMaintenance = category === "maintenance";
-              const checked = isMaintenance ? !showInCleaning : showInCleaning;
-              return (
-                <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border/60 px-2.5 py-2 text-xs">
-                  <Checkbox
-                    className="mt-0.5"
-                    checked={checked}
-                    onCheckedChange={(v) => {
-                      setCleaningTouched(true);
-                      setShowInCleaning(isMaintenance ? !v : !!v);
-                    }}
-                  />
-                  <span className="min-w-0">
-                    <span className="block font-medium">
-                      {isMaintenance ? "Ocultar da limpeza" : "Mostrar na limpeza"}
+                    <span className="min-w-0">
+                      <span className="block">
+                        {isMaintenance ? "Ocultar da limpeza" : "Mostrar na limpeza"}
+                      </span>
+                      <span className="block text-[11px] leading-snug text-muted-foreground">
+                        {isMaintenance
+                          ? "Manutenção vai sozinha para a próxima limpeza do imóvel. Marque para deixá-la fora do checklist."
+                          : "Marque para esta pendência entrar no checklist da próxima limpeza do imóvel."}
+                      </span>
                     </span>
-                    <span className="block text-[10.5px] text-muted-foreground">
-                      {isMaintenance
-                        ? "Manutenção vai sozinha para a próxima limpeza do imóvel. Marque para deixá-la fora do checklist."
-                        : "Marque para esta pendência entrar no checklist da próxima limpeza do imóvel."}
-                    </span>
-                  </span>
-                </label>
-              );
-            })()}
-            <div className="flex items-center justify-end gap-2 pt-1">
+                  </label>
+                );
+              })()}
+            </div>
+
+            {/* Rodapé com uma divisória acima: separa decisão de ação, e é o
+                mesmo desenho do rodapé do diálogo de conclusão. As duas curvas
+                (rounded-md no Cancelar e rounded-full no Criar) viraram a
+                curva única do sistema. */}
+            <div className="flex items-center justify-end gap-2 border-t border-border/60 pt-3">
               <button
                 type="button"
                 onClick={() => {
                   resetForm();
                   setShowForm(false);
                 }}
-                className="text-xs px-2 py-1.5 rounded-md hover:bg-secondary"
+                className="ds-surface h-9 px-3 text-[13px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
               >
                 Cancelar
               </button>
@@ -4600,7 +4707,7 @@ function TasksDialog({
                 type="button"
                 onClick={handleSubmit}
                 disabled={creating}
-                className="text-xs font-semibold px-3 py-1.5 rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white disabled:opacity-60"
+                className="ds-surface h-9 px-4 text-[13px] font-semibold bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white transition-opacity hover:opacity-90 disabled:opacity-60"
               >
                 {creating ? "Criando…" : "Criar pendência"}
               </button>
@@ -4634,11 +4741,11 @@ function TasksDialog({
                       return (
                         <div key={t.id} className="flex items-start gap-2 rounded-lg bg-secondary/40 px-2.5 py-2">
                           <span className={`mt-1 size-1.5 rounded-full shrink-0 ${TASK_PRIORITY_DOT[t.priority]}`} />
-                          <div className="min-w-0 flex-1">
+                          <div className="min-w-0 flex-1 ds-card-lines">
                             <div className={`text-xs font-semibold leading-snug ${t.status === "done" ? "line-through text-muted-foreground" : ""}`}>
                               {t.title}
                             </div>
-                            <div className="text-[10.5px] text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                            <div className="text-[10.5px] text-muted-foreground flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
                               <span>{TASK_CATEGORY_LABEL[t.category]}</span>
                               {groupBy !== "property" && t.propertyName && <span>· {t.propertyName}</span>}
                               {t.dueDate && (
@@ -6344,6 +6451,22 @@ function ArrivalCard({
   const effMinTime = predictedDayShifted ? null : kind === "checkout" ? row.standardTimeMax : row.standardTime;
   const effMaxTime = predictedDayShifted ? null : kind === "checkout" ? row.standardTime : row.standardTimeMax;
   const divergent = !!guestTime && !!effMinTime && !isTimeWithin(guestTime, effMinTime, effMaxTime);
+  /**
+   * A faixa "Previsto" ganha destaque em amarelo QUANDO HOUVER previsão
+   * informada (pedido explícito, 08/09/2026). "Informada" quer dizer que
+   * alguém de fato definiu algo — não o horário padrão do imóvel, que existe
+   * em todo card e destacaria todos, esvaziando o destaque.
+   *
+   * O `guestArrivalTime` só entra no CHECK-IN: ele é o horário que o hóspede
+   * informou para a CHEGADA e não diz nada sobre a saída. Foi exatamente essa
+   * confusão que fez o checkout automático confirmar na hora errada
+   * (06/09/2026) — mesma regra de `horaPrevista`, em assistant-tools.server.
+   */
+  const previsaoInformada = !!(
+    row.arrivalDateOverride ||
+    row.arrivalTimeOverride ||
+    (kind === "checkin" && row.guestArrivalTime)
+  );
 
   const done = row.status === "done";
   const visualDone = done && mode !== "cleaning" && mode !== "stay";
@@ -6549,11 +6672,12 @@ function ArrivalCard({
           No modo "Lista" só o proprietário e o imóvel ficam (pedido
           explícito) — nome do hóspede, código e período somem. */}
       <div className="flex items-center gap-3">
-        {/* space-y-1: pedido explícito (07/09/2026) — o respiro que existia
-            só entre o proprietário e o título do imóvel agora vale para
-            TODAS as linhas de informação do card (hóspede, código, período,
-            proprietário, imóvel), que antes ficavam coladas umas nas outras. */}
-        <div className="flex-1 min-w-0 space-y-1">
+        {/* ds-card-lines: o espaçamento padrão entre linhas de card, agora
+            num utilitário único do Design System (ver styles.css) em vez de
+            um `space-y-1` solto aqui. Pedido explícito, terceira vez
+            (08/09/2026): a mesma medida tem de valer em TODOS os cards do
+            sistema, não só neste. */}
+        <div className="flex-1 min-w-0 ds-card-lines">
           {!compact && (
             <>
               {/* Nome do hóspede — movido para cima do código da reserva
@@ -6659,7 +6783,20 @@ function ArrivalCard({
           escondida, igual antes. */}
       {mode !== "cleaning" && (!compact || !!(row.arrivalDateOverride || guestTime)) && (
         <div
-          className={`-mt-2.5 -mx-3 flex items-center justify-between gap-2 rounded-none px-3 py-1.5 text-xs ${divergent ? "bg-amber-500/10 border-y border-amber-500/30" : "bg-background/50 border-y border-border/40"}`}
+          /* Três estados, do mais grave ao mais neutro:
+             1) divergente — a previsão informada está FORA da janela padrão
+                do imóvel: âmbar forte, é um aviso;
+             2) previsão informada dentro da janela — amarelo leve (pedido
+                explícito, 08/09/2026): destaca que aquele card já tem uma
+                expectativa registrada, sem parecer alerta;
+             3) sem previsão — a faixa neutra de sempre. */
+          className={`-mt-2.5 -mx-3 flex items-center justify-between gap-2 rounded-none px-3 py-1.5 text-xs ${
+            divergent
+              ? "bg-amber-500/10 border-y border-amber-500/30"
+              : previsaoInformada
+                ? "bg-yellow-400/15 border-y border-yellow-500/30"
+                : "bg-background/50 border-y border-border/40"
+          }`}
         >
           <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
             Previsto {kind === "checkout" ? "Checkout" : "Check-in"}

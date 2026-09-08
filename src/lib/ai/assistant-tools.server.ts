@@ -134,6 +134,60 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
     return { id: r.id, nome: r.name ?? "(sem nome)", cidade: r.city, endereco, mapa };
   }
 
+  /**
+   * Reencontra na agenda REAL o card que o modelo indicou, e devolve a linha
+   * inteira — nunca só um "ok".
+   *
+   * Existe porque nenhuma ferramenta de escrita deve confiar no id que o
+   * modelo escreveu. Gravar no card errado aqui não é um erro de texto: move
+   * o card de dia no quadro de todo mundo, cancela o checkout e a limpeza de
+   * uma estadia, ou avança uma etapa que ninguém pediu. Conferir contra a
+   * agenda custa uma consulta e transforma "o modelo alucinou um uuid" em uma
+   * mensagem de erro em vez de uma gravação silenciosa.
+   *
+   * Os identificadores que seguem para a gravação são os DA LINHA ENCONTRADA.
+   */
+  type AgendaHit = {
+    row: {
+      logId: string | null;
+      reservationId: string | null;
+      guestName: string;
+      propertyName: string | null;
+      date: string;
+    };
+  };
+  async function findAgendaRow(
+    kind: "checkin" | "checkout",
+    ids: { logId?: unknown; reservationId?: unknown },
+  ): Promise<AgendaHit | { erro: string }> {
+    const logId = typeof ids.logId === "string" && ids.logId ? ids.logId : null;
+    const reservationId = typeof ids.reservationId === "string" && ids.reservationId ? ids.reservationId : null;
+    if (!logId && !reservationId) return { erro: "Informe o card (logId ou reservationId)." };
+
+    const { buildArrivalRows } = await import("@/lib/arrival-board.server");
+    const { rows } = await buildArrivalRows(ctx.supabase as never, {
+      kind,
+      range: "7d",
+      propIds: ctx.propertyIds,
+    });
+    const hit = rows.find(
+      (r) => (logId && r.logId === logId) || (reservationId && r.reservationId === reservationId),
+    );
+    if (!hit) return { erro: "Não encontrei esse card na agenda dos próximos 7 dias." };
+    if (!realLogId(hit.logId) && !hit.reservationId) {
+      return { erro: "Esse card ainda não tem identificador gravável." };
+    }
+    return {
+      row: {
+        logId: hit.logId,
+        reservationId: hit.reservationId,
+        guestName: hit.guestName,
+        propertyName: hit.propertyName,
+        date: hit.date,
+      },
+    };
+  }
+
   async function matchProperties(term: string) {
     if (!ctx.propertyIds.length) return [];
     const { data } = await db.from("properties").select(PROP_COLS).in("id", ctx.propertyIds).limit(200);
@@ -241,7 +295,7 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
     {
       name: "preparar_criar_pendencia",
       description:
-        "Monta (SEM gravar) a criação de uma pendência. Chame só quando souber o imóvel e o título. A pessoa confirma na tela depois. Nunca diga que a pendência foi criada — diga que está pronta para confirmação.",
+        "Monta (SEM gravar) a criação de uma pendência, com TODOS os campos que a tela de Pendências oferece — inclusive RECORRÊNCIA (repetir a cada N dias) e a chave de mostrar/ocultar na limpeza. Chame só quando souber o imóvel e o título. A pessoa confirma na tela depois. Nunca diga que a pendência foi criada — diga que está pronta para confirmação.",
       parameters: schema(
         {
           propertyId: { type: "string", description: "Id do imóvel (use listar_imoveis antes)." },
@@ -250,8 +304,27 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
           categoria: { type: "string", enum: CATEGORIES },
           prioridade: { type: "string", enum: ["low", "medium", "high"] },
           prazo: { type: ["string", "null"], description: "Data YYYY-MM-DD ou null." },
+          recorrenciaDias: {
+            type: ["integer", "null"],
+            description:
+              'Repete a pendência a cada N dias. Ex.: "trocar filtro a cada 90 dias" → 90; "revisão mensal" → 30. Null quando é uma pendência única. Ao concluir, ela volta pendente sozinha com o prazo N dias à frente.',
+          },
+          mostrarNaLimpeza: {
+            type: ["boolean", "null"],
+            description:
+              "Entra no checklist da próxima limpeza do imóvel. Null = padrão da categoria (manutenção nasce visível, o resto nasce oculto).",
+          },
         },
-        ["propertyId", "titulo", "descricao", "categoria", "prioridade", "prazo"],
+        [
+          "propertyId",
+          "titulo",
+          "descricao",
+          "categoria",
+          "prioridade",
+          "prazo",
+          "recorrenciaDias",
+          "mostrarNaLimpeza",
+        ],
       ),
       execute: async (args) => {
         const propertyId = String(args.propertyId);
@@ -263,10 +336,18 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
         const priority = (["low", "medium", "high"].includes(String(args.prioridade))
           ? args.prioridade
           : "medium") as TaskPriority;
-        const showInCleaning = defaultShowInCleaning(category);
+        const padraoLimpeza = defaultShowInCleaning(category);
+        const showInCleaning = typeof args.mostrarNaLimpeza === "boolean" ? args.mostrarNaLimpeza : padraoLimpeza;
         const title = String(args.titulo).trim();
         const description = typeof args.descricao === "string" && args.descricao.trim() ? args.descricao.trim() : null;
         const dueDate = typeof args.prazo === "string" && /^\d{4}-\d{2}-\d{2}$/.test(args.prazo) ? args.prazo : null;
+        // Recorrência: inteiro positivo ou nada. O `Math.floor` existe porque
+        // o modelo às vezes manda 30.0 — que é um número válido em JSON e
+        // seria rejeitado pelo `z.number().int()` do createTask lá na frente.
+        const recurrenceDays =
+          typeof args.recorrenciaDias === "number" && Number.isFinite(args.recorrenciaDias) && args.recorrenciaDias >= 1
+            ? Math.floor(args.recorrenciaDias)
+            : null;
 
         const action: AssistantAction = {
           kind: "create_task",
@@ -279,6 +360,7 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
             ownerContactId: null,
             dueDate,
             showInCleaning,
+            recurrenceDays,
           },
         };
         const preview = [
@@ -288,13 +370,184 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
           { label: "Prioridade", value: PRIORITY_LABEL[priority] },
           {
             label: "Na limpeza",
-            value: showInCleaning ? "Sim — padrão da categoria" : "Não — padrão da categoria",
+            value: showInCleaning
+              ? `Sim${showInCleaning === padraoLimpeza ? " — padrão da categoria" : ""}`
+              : `Não${showInCleaning === padraoLimpeza ? " — padrão da categoria" : ""}`,
           },
         ];
         if (description) preview.push({ label: "Detalhe", value: description });
         if (dueDate) preview.push({ label: "Prazo", value: dueDate });
+        if (recurrenceDays) preview.push({ label: "Repetição", value: `A cada ${recurrenceDays} dias` });
 
         ctx.prepared.current = { action, confirmLabel: "Criar pendência", preview };
+        return { pronto: true, resumo: preview };
+      },
+    },
+    {
+      name: "preparar_arquivar_pendencia",
+      description:
+        "Monta (SEM gravar) o ARQUIVAMENTO de uma pendência (o mesmo botão da lixeira na lista de Pendências) ou a REABERTURA de uma já concluída. Use listar_pendencias antes para obter o id. A pessoa confirma na tela.",
+      parameters: schema(
+        {
+          taskId: { type: "string" },
+          acao: { type: "string", enum: ["arquivar", "reabrir"] },
+        },
+        ["taskId", "acao"],
+      ),
+      execute: async (args) => {
+        const taskId = String(args.taskId);
+        const { data: task } = await db.from("tasks").select("id, title, status").eq("id", taskId).maybeSingle();
+        const row = task as { id: string; title: string; status: string } | null;
+        if (!row) return { erro: "Pendência não encontrada ou sem acesso." };
+        const arquivar = args.acao !== "reabrir";
+        if (arquivar && row.status === "canceled") return { erro: "Essa pendência já está arquivada." };
+        if (!arquivar && row.status === "pending") return { erro: "Essa pendência já está aberta." };
+
+        const action: AssistantAction = {
+          kind: "set_task_status",
+          payload: { taskId, status: arquivar ? "canceled" : "pending" },
+        };
+        ctx.prepared.current = {
+          action,
+          confirmLabel: arquivar ? "Arquivar pendência" : "Reabrir pendência",
+          preview: [
+            { label: "Pendência", value: row.title },
+            {
+              label: "Efeito",
+              value: arquivar
+                ? "Sai da lista de Pendências e do checklist da limpeza"
+                : "Volta para a lista de Pendências, sem a prestação de contas anterior",
+            },
+          ],
+        };
+        return { pronto: true, resumo: ctx.prepared.current.preview };
+      },
+    },
+    {
+      name: "preparar_definir_previsao",
+      description:
+        'Monta (SEM gravar) a DATA e/ou o HORÁRIO PREVISTOS de uma chegada ou saída — a mesma faixa "Previsto Check-in/Checkout" do card. Use para pedidos como "o hóspede do 105 avisou que chega às 22h" ou "o checkout do 302 vai ser amanhã". Use `agenda` antes para obter logId/reservationId. Passar null num campo LIMPA aquele campo. A pessoa confirma na tela.',
+      parameters: schema(
+        {
+          logId: { type: ["string", "null"] },
+          reservationId: { type: ["string", "null"] },
+          tipo: { type: "string", enum: ["chegadas", "saidas"] },
+          data: { type: ["string", "null"], description: "Data prevista YYYY-MM-DD, ou null para limpar." },
+          horario: { type: ["string", "null"], description: "Horário previsto HH:MM, ou null para limpar." },
+        },
+        ["logId", "reservationId", "tipo", "data", "horario"],
+      ),
+      execute: async (args) => {
+        const kind = args.tipo === "saidas" ? "checkout" : "checkin";
+        const date =
+          typeof args.data === "string" && /^\d{4}-\d{2}-\d{2}$/.test(args.data) ? args.data : null;
+        const time = typeof args.horario === "string" && /^\d{2}:\d{2}$/.test(args.horario) ? args.horario : null;
+        if (!date && !time && args.data !== null && args.horario !== null) {
+          return { erro: "Informe a data (YYYY-MM-DD) e/ou o horário (HH:MM)." };
+        }
+
+        // Mesma conferência do "não compareceu": o card é reencontrado na
+        // agenda real, e os identificadores gravados são os DELE — nunca os
+        // que o modelo escreveu. Gravar previsão no hóspede errado move um
+        // card de dia no quadro de todo mundo.
+        const hit = await findAgendaRow(kind, { logId: args.logId, reservationId: args.reservationId });
+        if ("erro" in hit) return hit;
+
+        const action: AssistantAction = {
+          kind: "set_prediction",
+          payload: {
+            logId: realLogId(hit.row.logId),
+            reservationId: hit.row.reservationId,
+            kind,
+            arrivalDateOverride: date,
+            arrivalTimeOverride: time,
+          },
+        };
+        const preview = [
+          { label: "Hóspede", value: hit.row.guestName },
+          { label: "Imóvel", value: hit.row.propertyName ?? "—" },
+          { label: kind === "checkout" ? "Saída" : "Chegada", value: hit.row.date },
+        ];
+        preview.push({ label: "Data prevista", value: date ?? "Em branco (limpar)" });
+        preview.push({ label: "Horário previsto", value: time ?? "Em branco (limpar)" });
+
+        ctx.prepared.current = { action, confirmLabel: "Salvar previsão", preview };
+        return { pronto: true, resumo: preview };
+      },
+    },
+    {
+      name: "preparar_avancar_etapa",
+      description:
+        'Monta (SEM gravar) o AVANÇO de um card na esteira — os botões "Check-in realizado", "Confirmar checkout" e "Concluir limpeza" do Kanban. `de` diz de qual lista o card está saindo: checkin (vira Em Estadia), stay (vira Saída/Checkout), checkout (libera para a limpeza) e cleaning (conclui a limpeza). Use `agenda` antes para obter logId/reservationId. A pessoa confirma na tela.',
+      parameters: schema(
+        {
+          logId: { type: ["string", "null"] },
+          reservationId: { type: ["string", "null"] },
+          de: { type: "string", enum: ["checkin", "stay", "checkout", "cleaning"] },
+          tipoLimpeza: {
+            type: ["string", "null"],
+            enum: ["normal", "completa", null],
+            description:
+              'Só para de="cleaning": qual faxina foi feita. É o que define o preço gravado. Se a pessoa não disse, PERGUNTE antes de preparar — não chute.',
+          },
+        },
+        ["logId", "reservationId", "de", "tipoLimpeza"],
+      ),
+      execute: async (args) => {
+        const from = String(args.de) as "checkin" | "stay" | "checkout" | "cleaning";
+        // Concluir limpeza sem dizer o tipo grava o preço da limpeza normal
+        // em silêncio. Na tela essa pergunta é obrigatória (o clique abre o
+        // seletor de tipo antes de qualquer coisa) — aqui vale o mesmo.
+        const cleaningType =
+          args.tipoLimpeza === "normal" || args.tipoLimpeza === "completa" ? args.tipoLimpeza : null;
+        if (from === "cleaning" && !cleaningType) {
+          return {
+            erro: "Para concluir a limpeza eu preciso saber se foi limpeza normal ou completa — é isso que define o valor gravado.",
+          };
+        }
+        // O card é procurado na agenda do tipo correspondente: quem avança a
+        // partir de "checkin" está numa chegada; os outros três estão do lado
+        // da saída/limpeza.
+        const kind = from === "checkin" ? "checkin" : "checkout";
+        const hit = await findAgendaRow(kind, { logId: args.logId, reservationId: args.reservationId });
+        if ("erro" in hit) return hit;
+
+        const EFEITO: Record<typeof from, string> = {
+          checkin: "O hóspede passa para Em Estadia",
+          stay: "Encerra a estadia e o card vai para Checkouts",
+          checkout: "Libera o imóvel e entra na fila de limpeza (avisa os prestadores)",
+          cleaning: "Conclui a limpeza e fecha a estadia",
+        };
+        const action: AssistantAction = {
+          kind: "advance",
+          payload: {
+            logId: realLogId(hit.row.logId),
+            reservationId: hit.row.reservationId,
+            from,
+            cleaningType,
+          },
+        };
+        const preview = [
+          { label: "Hóspede", value: hit.row.guestName },
+          { label: "Imóvel", value: hit.row.propertyName ?? "—" },
+          { label: "Data", value: hit.row.date },
+          { label: "Efeito", value: EFEITO[from] },
+        ];
+        if (cleaningType) {
+          preview.push({ label: "Tipo de limpeza", value: cleaningType === "completa" ? "Completa" : "Normal" });
+        }
+        ctx.prepared.current = {
+          action,
+          confirmLabel:
+            from === "checkin"
+              ? "Confirmar check-in"
+              : from === "stay"
+                ? "Encerrar estadia"
+                : from === "checkout"
+                  ? "Confirmar checkout"
+                  : "Concluir limpeza",
+          preview,
+        };
         return { pronto: true, resumo: preview };
       },
     },
@@ -345,41 +598,23 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
         ["logId", "reservationId"],
       ),
       execute: async (args) => {
-        const logId = typeof args.logId === "string" && args.logId ? args.logId : null;
-        const reservationId =
-          typeof args.reservationId === "string" && args.reservationId ? args.reservationId : null;
-        if (!logId && !reservationId) return { erro: "Informe a chegada (logId ou reservationId)." };
-
         // Confere contra a agenda em vez de aceitar o id que o modelo mandou:
         // marcar não comparecimento no hóspede errado apaga o checkout e a
         // limpeza dele do quadro, e não há desfazer óbvio.
-        const { buildArrivalRows } = await import("@/lib/arrival-board.server");
-        const { rows } = await buildArrivalRows(ctx.supabase as never, {
-          kind: "checkin",
-          range: "7d",
-          propIds: ctx.propertyIds,
-        });
-        const hit = rows.find((r) => (logId && r.logId === logId) || (reservationId && r.reservationId === reservationId));
-        if (!hit) return { erro: "Chegada não encontrada nos próximos 7 dias." };
+        const hit = await findAgendaRow("checkin", { logId: args.logId, reservationId: args.reservationId });
+        if ("erro" in hit) return hit;
 
-        // Sempre os identificadores da linha encontrada, não os que vieram do
-        // modelo: é o que garante que a gravação bata com o card conferido.
-        const safeLogId = realLogId(hit.logId);
-        const safeReservationId = hit.reservationId;
-        if (!safeLogId && !safeReservationId) {
-          return { erro: "Essa chegada não tem identificador gravável ainda." };
-        }
         const action: AssistantAction = {
           kind: "no_show",
-          payload: { logId: safeLogId, reservationId: safeReservationId },
+          payload: { logId: realLogId(hit.row.logId), reservationId: hit.row.reservationId },
         };
         ctx.prepared.current = {
           action,
           confirmLabel: "Marcar não compareceu",
           preview: [
-            { label: "Hóspede", value: hit.guestName },
-            { label: "Imóvel", value: hit.propertyName ?? "—" },
-            { label: "Chegada prevista", value: hit.date },
+            { label: "Hóspede", value: hit.row.guestName },
+            { label: "Imóvel", value: hit.row.propertyName ?? "—" },
+            { label: "Chegada prevista", value: hit.row.date },
             { label: "Efeito", value: "Some da esteira e cancela o checkout e a limpeza desta estadia" },
           ],
         };

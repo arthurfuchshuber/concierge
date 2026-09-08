@@ -530,7 +530,10 @@ function StakeholderCard({
         />
       </div>
 
-      <div className="mt-1.5 space-y-0.5">
+      {/* ds-card-lines: o espaçamento padrão entre linhas de card
+          (styles.css). Aqui as linhas ficavam a 0.5 (2px) — praticamente
+          coladas; pedido explícito: a mesma medida em TODOS os cards. */}
+      <div className="mt-1.5 ds-card-lines">
         {cityUf && (
           <p className="ds-meta flex items-center gap-1.5">
             <MapPin className="size-3 shrink-0 text-muted-foreground" /> {cityUf}

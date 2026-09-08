@@ -810,8 +810,13 @@ function Dashboard() {
                 </div>
               </div>
               <div className="p-4">
+                {/* ds-card-lines: espaçamento padrão entre as linhas de
+                    informação do card (styles.css). Antes cada linha
+                    carregava a própria margem (mb-1, mt-0.5, mt-1) e o
+                    resultado era um respiro diferente a cada par. */}
+                <div className="ds-card-lines">
                 {(p as any).ownerName && (
-                  <div className="mb-1 flex items-center gap-1.5 min-w-0">
+                  <div className="flex items-center gap-1.5 min-w-0">
                     <span
                       className="min-w-0 max-w-full truncate text-[11px] font-bold text-primary"
                       title={(p as any).ownerName}
@@ -828,14 +833,15 @@ function Dashboard() {
                 )}
                 <h3 className="ds-card-title truncate">{p.name}</h3>
                 {p.city && (
-                  <p className="mt-0.5 truncate ds-meta font-semibold text-yellow-500">
+                  <p className="truncate ds-meta font-semibold text-yellow-500">
                     {p.city}
                     {p.country ? `, ${p.country}` : ""}
                   </p>
                 )}
-                <p className="ds-card-desc mt-1">
+                <p className="ds-card-desc">
                   {p.tagline || `${p.city ?? ""}${p.country ? `, ${p.country}` : ""}`}
                 </p>
+                </div>
 
                 <div className="mt-2 flex items-center gap-2">
                   {(() => {

@@ -10,7 +10,7 @@ import { readAccessRecord } from "@/components/GuideAccessGate";
 import { metaPixelTrackCustom } from "@/lib/meta-pixel";
 import { translateMessage } from "@/lib/translate.functions";
 import { detectLanguage, userLanguage } from "@/lib/lang-detect";
-import { useKeyboardInset } from "@/hooks/useKeyboardInset";
+import { useVisualViewport } from "@/hooks/useVisualViewport";
 import { COMPOSER_FIELD, COMPOSER_INPUT } from "@/components/chat/composer-styles";
 
 type Msg = {
@@ -392,7 +392,7 @@ export function GuideAiChat({
   const [uploadErr, setUploadErr] = useState<string | null>(null);
   // Áudio virando texto antes de ir para a IA (07/09/2026).
   const [transcribing, setTranscribing] = useState(false);
-  const keyboardInset = useKeyboardInset();
+  const viewport = useVisualViewport();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const lastFetchedAtRef = useRef<string | undefined>(undefined);
@@ -857,10 +857,18 @@ export function GuideAiChat({
         className="fixed bottom-4 right-4 left-4 sm:left-auto sm:bottom-5 sm:right-5 w-auto sm:w-[360px] h-[70dvh] max-h-[560px] sm:h-[480px] flex flex-col min-h-0 bg-white text-zinc-900 rounded-2xl border border-zinc-200 shadow-2xl overflow-hidden"
         style={{
           zIndex: 2147483602,
-          // Com o teclado aberto o painel ENCOLHE em vez de escorregar para
-          // cima — é o que mantém o cabeçalho na tela (ver useKeyboardInset).
-          bottom: keyboardInset ? `calc(1rem + ${keyboardInset}px)` : undefined,
-          maxHeight: keyboardInset ? `calc(100dvh - ${keyboardInset}px - 2rem)` : undefined,
+          // Com o teclado aberto o painel deixa de ser posicionado pela janela
+          // e passa a ocupar a área visível de verdade — é o que mantém o
+          // cabeçalho na tela no iOS e no Android (ver useVisualViewport).
+          ...(viewport.keyboardOpen
+            ? {
+                position: "fixed" as const,
+                top: viewport.top + 8,
+                height: viewport.height - 16,
+                bottom: "auto" as const,
+                maxHeight: "none" as const,
+              }
+            : null),
         }}
         role="dialog"
         aria-modal="true"
@@ -1084,10 +1092,10 @@ export function GuideAiChat({
         <div
           className="shrink-0 border-t border-zinc-200 bg-white px-3 pt-2"
           style={{
-            // Com o teclado aberto o painel já encolheu (ver useKeyboardInset),
+            // Com o teclado aberto o painel já encolheu (ver useVisualViewport),
             // então a área segura do aparelho deixa de valer — ela só existe
             // quando não há teclado por cima.
-            paddingBottom: keyboardInset ? "0.5rem" : "max(0.75rem, env(safe-area-inset-bottom))",
+            paddingBottom: viewport.keyboardOpen ? "0.5rem" : "max(0.75rem, env(safe-area-inset-bottom))",
           }}
         >
           {uploadErr && (

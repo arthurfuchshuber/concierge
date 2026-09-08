@@ -65,7 +65,7 @@ import { KnowledgeFillDialog } from "@/components/handoff/KnowledgeFillDialog";
 import { TeachAiDialog } from "@/components/handoff/TeachAiDialog";
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
 import { COMPOSER_FIELD, COMPOSER_INPUT, COMPOSER_SEND_BTN } from "@/components/chat/composer-styles";
-import { useKeyboardInset } from "@/hooks/useKeyboardInset";
+import { useVisualViewport } from "@/hooks/useVisualViewport";
 import { AttachmentBubble, type AttachmentInfo } from "@/components/handoff/AttachmentBubble";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -137,7 +137,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const [channel, setChannel] = useState<"chat" | "whatsapp">("chat");
   const [reopenOpen, setReopenOpen] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
-  const keyboardInset = useKeyboardInset();
+  const viewport = useVisualViewport();
   const [actionMsg, setActionMsg] = useState<{ id: string; content: string; mine: boolean } | null>(null);
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startLongPress = (m: { id: string; content: string; mine: boolean }) => {
@@ -1045,7 +1045,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
             style={{
               // Só o rodapé precisa da área segura; laterais e topo saem das
               // classes compartilhadas, iguais às do Assistente.
-              paddingBottom: keyboardInset ? "0.5rem" : "max(0.5rem, env(safe-area-inset-bottom))",
+              paddingBottom: viewport.keyboardOpen ? "0.5rem" : "max(0.5rem, env(safe-area-inset-bottom))",
             }}
           >
             {uploading && (

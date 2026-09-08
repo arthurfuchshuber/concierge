@@ -621,6 +621,25 @@ dd {
   text-transform: uppercase;
 }
 
+/* ESPAÇAMENTO PADRÃO ENTRE AS LINHAS DE INFORMAÇÃO DE UM CARD.
+   Regra global (pedido explícito, terceira vez em 08/09/2026): nenhuma linha
+   de card fica colada na de cima. Vale para TODOS os cards do sistema —
+   Kanban, Pendências, Hóspedes, Proprietários/Prestadores, Guias.
+
+   Por que é um utilitário e não um `space-y-1` escrito em cada tela: já foi
+   aplicado à mão duas vezes e voltou a divergir, porque "o mesmo
+   espaçamento" repetido em oito arquivos é só uma coincidência esperando
+   para acabar. Com a medida vindo daqui, mudar o padrão é mudar UM lugar.
+
+   Usa `> * + *` (e não `gap`) de propósito: os cards são blocos comuns, não
+   flex/grid, e assim a primeira linha nunca ganha margem — o respiro fica só
+   ENTRE as linhas, sem desalinhar o topo do card. */
+@utility ds-card-lines {
+  & > * + * {
+    margin-top: 0.25rem;
+  }
+}
+
 /* Descrição de apoio do card padrão — no máximo 2 linhas. */
 @utility ds-card-desc {
   font-family: var(--font-sans);

@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-08T16:42:22.600Z";
+export const GENERATED_AT = "2026-09-08T19:17:56.676Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -249,6 +249,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "cf95a46aea198eb04a974a076be740a1"
   },
   {
+    "doc_key": "rule:AgendaHit",
+    "kind": "rule",
+    "title": "Regra — AgendaHit",
+    "content": "Reencontra na agenda REAL o card que o modelo indicou, e devolve a linha\ninteira — nunca só um \"ok\".\n\nExiste porque nenhuma ferramenta de escrita deve confiar no id que o\nmodelo escreveu. Gravar no card errado aqui não é um erro de texto: move\no card de dia no quadro de todo mundo, cancela o checkout e a limpeza de\numa estadia, ou avança uma etapa que ninguém pediu. Conferir contra a\nagenda custa uma consulta e transforma \"o modelo alucinou um uuid\" em uma\nmensagem de erro em vez de uma gravação silenciosa.\n\nOs identificadores que seguem para a gravação são os DA LINHA ENCONTRADA.",
+    "source_path": "src/lib/ai/assistant-tools.server.ts",
+    "audience": [],
+    "content_hash": "cf8e65fc42202fa18217ff7528682325"
+  },
+  {
     "doc_key": "rule:AreaGate",
     "kind": "rule",
     "title": "Regra — AreaGate",
@@ -375,6 +384,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ce1a505497fee1c4533be8de48881247"
   },
   {
+    "doc_key": "rule:CLEANING_DAY_MIN_PX",
+    "kind": "rule",
+    "title": "Regra — CLEANING_DAY_MIN_PX",
+    "content": "Largura mínima de UM dia nos gráficos de previsão. Escolhida pelo rótulo\nmais largo que pode aparecer (\"08/09\" ou \"R$1.234\" em 9–10px, ~36px), mais\nrespiro dos dois lados. É esse número que garante que dois dias vizinhos\nnunca fiquem \"muito próximos um do outro\" — a condição que o pedido usa\npara acionar a rolagem.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "df052b208c2bc159c5eb49378ff0f4a7"
+  },
+  {
     "doc_key": "rule:CleaningBreakdownContent",
     "kind": "rule",
     "title": "Regra — CleaningBreakdownContent",
@@ -382,6 +400,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
     "content_hash": "5eb4a030742377d73ed305d31cc5f25b"
+  },
+  {
+    "doc_key": "rule:CleaningChartFrame",
+    "kind": "rule",
+    "title": "Regra — CleaningChartFrame",
+    "content": "Moldura comum dos dois gráficos de previsão (pedido explícito, 08/09/2026).\n\nDuas decisões moram aqui:\n\n · NÃO existe mais eixo vertical. A grandeza é lida no rótulo em cima de\n cada marca e no tooltip — a \"legenda vertical\" saiu a pedido, e sair\n sem colocar nada no lugar deixaria o gráfico ilegível.\n\n · TODO dia do filtro aparece rotulado (`interval={0}`), nunca \"um sim,\n outro não\". Quando os dias não cabem, quem cede é a largura da vista,\n não o rótulo: a faixa passa a rolar para a direita e a janela visível\n encolhe até o último dia INTEIRO (regra anti-corte, ver\n useAntiClipColumns). Sem degradê nas bordas — proibido pelo cliente.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "abc6be4b1241f1b198d0c96335e60b46"
   },
   {
     "doc_key": "rule:CleaningForecastDialog",
@@ -1014,6 +1041,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "d45f5612f1c6c96d62e4a921df79ab76"
   },
   {
+    "doc_key": "rule:previsaoInformada",
+    "kind": "rule",
+    "title": "Regra — previsaoInformada",
+    "content": "A faixa \"Previsto\" ganha destaque em amarelo QUANDO HOUVER previsão\ninformada (pedido explícito, 08/09/2026). \"Informada\" quer dizer que\nalguém de fato definiu algo — não o horário padrão do imóvel, que existe\nem todo card e destacaria todos, esvaziando o destaque.\n\nO `guestArrivalTime` só entra no CHECK-IN: ele é o horário que o hóspede\ninformou para a CHEGADA e não diz nada sobre a saída. Foi exatamente essa\nconfusão que fez o checkout automático confirmar na hora errada\n(06/09/2026) — mesma regra de `horaPrevista`, em assistant-tools.server.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "315cc289545fca67b93cfaccc2d87f4a"
+  },
+  {
     "doc_key": "rule:ProactiveAutonomy",
     "kind": "rule",
     "title": "Regra — ProactiveAutonomy",
@@ -1302,7 +1338,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "914091bc096eea511759c33fbaa6d179"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:137751",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:137820",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Destaque visual opt-in (só usado hoje por \"Fila de Limpeza\"): borda +\ngradiente âmbar + acento lateral + ícone em caixinha, sem negrito.\nNão afeta nenhum outro uso do KpiCard (compact ou não).",
@@ -1311,7 +1347,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ec0f34c7bfc0754666d9cc96f2f2a568"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:137986",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:138055",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Cards que devem continuar visíveis no popup mesmo que já não pertençam\nmais à lista — hoje só os que tiveram HORÁRIO/DATA PREVISTOS ajustados.",
@@ -1320,7 +1356,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "4b33a44930f947dea6060da94f816439"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:138178",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:138247",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Pedido explícito: os cards dentro do popup precisam ficar IDÊNTICOS ao\ncard do Kanban — em vez de manter uma segunda implementação (que já\ndivergiu do Kanban antes, ver o bug do bloqueio de check-in), o popup\nagora renderiza o MESMO <ArrivalGroup>/<ArrivalCard> do Kanban, com os\nMESMOS handlers. Vem de arrivalGroupPropsFor(colMode, rows) — a mesma\nfunção que já alimenta as colunas do Kanban.",
@@ -1329,7 +1365,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "dfd7cbf815d96bcf7c9214257a5e2387"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:227906",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:182156",
+    "kind": "rule",
+    "title": "Regra em OperationWorkspace.tsx",
+    "content": "Rótulo de seção do formulário de pendência — dá hierarquia ao que antes\nera uma pilha de campos do mesmo tamanho (pedido explícito, 07/09/2026).",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "56b708e624e12bb9a26b2593234ea4c6"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:232584",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Pedido explícito: os filtros (Período/Cidade/Proprietário) que antes\nficavam numa linha própria acima deste card viraram um botão único\n(`CalendarFiltersButton`) dentro do cabeçalho, ao lado do título — por\nisso o estado/opções continuam vindo do pai (`OperationWorkspace`),\nque é quem também usa esses mesmos filtros pros cards de limpeza.",
@@ -1338,7 +1383,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "67345afec21e651284020dbb8b2f7803"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:259208",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:263886",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Dialog de detalhe (quem viu / quem não viu) — extraído do BarRow original\npra poder ser reaproveitado também pelo EngagementCard (cards separados do\ndesktop), sem duplicar esse JSX nos dois lugares.",
@@ -1347,7 +1392,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "191a73d470b9e71e3339a0db344ffb5a"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:266968",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:271646",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Controlado de fora (pela coluna do Kanban) quando presente — permite\nrecolher os \"Detalhes da operação\" ao rolar a coluna. Sem isso, cai de\nvolta pro estado local de sempre.",
@@ -1356,7 +1401,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1420a71a82d71664b9b9257192bc6178"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:270213",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:274891",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Marca este card (Check-ins) como \"Não Compareceu\" — pedido explícito,\n05/09/2026: opção no menu \"⋮\", só nos cards de check-in ainda pendentes.",
@@ -1365,7 +1410,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "b858b5d3155e42847ae34a889b4053e2"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:271107",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:275785",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Modo \"Lista\" (pedido explícito): mostra só proprietário, imóvel e os\n botões de ação (bem menores) — some com nome do hóspede, código,\n período, previsto e alertas de iCal. Reaproveita o mesmo card e os\n mesmos handlers; só a apresentação muda.",
@@ -1374,7 +1419,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "943bbf38018e813c04eeb6799825fda6"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:322746",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:328822",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Restringe de verdade os horários selecionáveis (inclusive) ao horário\n configurado do imóvel — pedido explícito do cliente (04/09/2026): antes\n só existia um aviso visual (âmbar) depois de já ter escolhido um\n horário fora da janela; agora o horário nem aparece como opção. `null`/\n omitido = sem limite (imóvel sem esse horário configurado).",
@@ -1383,7 +1428,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8ebe1ab97a0756cd4e0279b3025812c8"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:43017",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:43086",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Cards \"fixados\" no popup aberto: SÓ ajustes de data/horário previsto\nseguram o card na lista até o usuário fechar o popup no \"X\". Qualquer\noutra ação (check, não compareceu, limpeza não será realizada, desfazer)\ntira o card da tela na hora.",
@@ -1446,7 +1491,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "a316426ba5b0c0ef8c0a2216d094e32c"
   },
   {
-    "doc_key": "rule:src/components/GuideAiChat.tsx:7438",
+    "doc_key": "rule:src/components/GuideAiChat.tsx:7440",
     "kind": "rule",
     "title": "Regra em GuideAiChat.tsx",
     "content": "true quando qualquer outro popup/onboarding já está na tela (tour de\nprimeiro acesso, diálogo de PIN, etc.) — nesse caso o popup sugestivo\nnunca aparece por cima; só quando a tela estiver limpa.",
@@ -1863,13 +1908,13 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:src/lib/assistant-types.ts:0",
     "kind": "rule",
     "title": "Regra em assistant-types.ts",
-    "content": "Tipos do Assistente do Painel (pedido explícito, 07/09/2026).\n\nA decisão central que estes tipos carregam: o assistente NUNCA grava nada\nsozinho. Quando a pessoa pede uma ação, o servidor apenas MONTA a ação —\nresolve \"o 105\" no id do imóvel, escolhe a categoria, calcula para qual\nlimpeza a pendência vai — e devolve uma `AssistantAction` junto de um\n`preview` legível. Quem executa é o clique de confirmação na interface,\nchamando exatamente a mesma server function que o resto do painel já usa\n(`createTask`, `setTaskStatus`, `markNoShow`).\n\nIsso evita o pior modo de falha de um agente com poder de escrita — gravar\nalgo que a pessoa não pediu por ter entendido errado — e ainda mantém uma\núnica implementação de cada gravação: se a regra de criação de pendência\nmudar, muda num lugar só e o assistente acompanha de graça.",
+    "content": "Tipos do Assistente do Painel (pedido explícito, 07/09/2026).\n\nA decisão central que estes tipos carregam: o assistente NUNCA grava nada\nsozinho. Quando a pessoa pede uma ação, o servidor apenas MONTA a ação —\nresolve \"o 105\" no id do imóvel, escolhe a categoria, calcula para qual\nlimpeza a pendência vai — e devolve uma `AssistantAction` junto de um\n`preview` legível. Quem executa é o clique de confirmação na interface,\nchamando exatamente a mesma server function que o resto do painel já usa\n(`createTask`, `setTaskStatus`, `markNoShow`, `upsertArrivalStatus`,\n`advanceArrival`).\n\nIsso evita o pior modo de falha de um agente com poder de escrita — gravar\nalgo que a pessoa não pediu por ter entendido errado — e ainda mantém uma\núnica implementação de cada gravação: se a regra de criação de pendência\nmudar, muda num lugar só e o assistente acompanha de graça.\n\nAUTONOMIA MÁXIMA (pedido explícito, 08/09/2026): \"quero que a IA interna\ntenha AUTONOMIA MÁXIMA e que consiga executar QUALQUER coisa solicitada\npelo usuário — caso este usuário tenha autonomia para fazer aquilo\".\n\nVale registrar como as duas coisas convivem, porque parecem brigar e não\nbrigam. O que limitava a IA não era o cartão de confirmação: era a lista\ncurta de ações que ela sabia montar. Quando o usuário pediu uma pendência\nrecorrente de 30 dias, a IA respondeu \"não consigo criar recorrência\" — e a\ncoluna `tasks.recurrence_days` existe desde sempre, o `createTask` já a\naceita, a tela de Pendências já a oferece. Faltava só a ferramenta expor o\ncampo. Autonomia, aqui, é COBERTURA: tudo que a tela faz, a IA monta.\n\nQuem decide o que cada pessoa PODE continua sendo o sistema, nunca a IA:\nas ferramentas de leitura usam o cliente Supabase do usuário (RLS), e a\ngravação passa pela mesma server function da tela, com a mesma checagem de\npermissão. Se a pessoa não pode, a gravação falha — do mesmo jeito que\nfalharia se ela clicasse no botão. A IA nunca é a guardiã da permissão, e\npor isso também nunca deve recusar por conta própria.",
     "source_path": "src/lib/assistant-types.ts",
     "audience": [],
-    "content_hash": "9d3f1310acf1ea7d5eaf2e366a63a88f"
+    "content_hash": "fe8316e338c8baf8bad05976f4600f13"
   },
   {
-    "doc_key": "rule:src/lib/assistant-types.ts:2375",
+    "doc_key": "rule:src/lib/assistant-types.ts:4653",
     "kind": "rule",
     "title": "Regra em assistant-types.ts",
     "content": "A tela apontada pela resposta vira link dentro do próprio texto\n(07/09/2026) — não há mais um campo separado nem um chip embaixo da\nmensagem repetindo o mesmo caminho.",
@@ -2286,10 +2331,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:TaskFormGroup",
     "kind": "rule",
     "title": "Regra — TaskFormGroup",
-    "content": "Rótulo de seção do formulário de pendência — dá hierarquia ao que antes\nera uma pilha de campos do mesmo tamanho (pedido explícito, 07/09/2026).",
+    "content": "Título de seção do formulário de pendência. Usa `ds-eyebrow` — o rótulo\npequeno padrão do Design System, o mesmo dos cards de indicador — em vez de\num 9.5px extrabold inventado só aqui, que era o menor texto de toda a tela\ne não existia em nenhum outro lugar do sistema.",
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
-    "content_hash": "83543e04828ea2bc310424183c001a37"
+    "content_hash": "cfe839b931d891cf965c39d6d5d493ec"
   },
   {
     "doc_key": "rule:TaskResolveDialog",

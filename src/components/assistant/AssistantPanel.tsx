@@ -24,7 +24,7 @@ import {
 } from "@/lib/assistant.functions";
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
 import { createTask, setTaskStatus } from "@/lib/tasks.functions";
-import { markNoShow } from "@/lib/dashboard.functions";
+import { advanceArrival, markNoShow, upsertArrivalStatus } from "@/lib/dashboard.functions";
 import type { AssistantMessage, PendingAction } from "@/lib/assistant-types";
 import { AiMarkdown } from "@/components/ai/AiMarkdown";
 import {
@@ -63,6 +63,8 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
   const createTaskFn = useServerFn(createTask);
   const setStatusFn = useServerFn(setTaskStatus);
   const noShowFn = useServerFn(markNoShow);
+  const predictionFn = useServerFn(upsertArrivalStatus);
+  const advanceFn = useServerFn(advanceArrival);
   const transcribeFn = useServerFn(transcribeAssistantAudio);
 
   const [threadId, setThreadId] = useState<string | null>(null);
@@ -198,6 +200,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
             ownerContactId: a.payload.ownerContactId ?? undefined,
             dueDate: a.payload.dueDate ?? undefined,
             showInCleaning: a.payload.showInCleaning ?? undefined,
+            recurrenceDays: a.payload.recurrenceDays ?? undefined,
           },
         } as never);
         return;
@@ -208,6 +211,36 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
             taskId: a.payload.taskId,
             status: "done",
             resolutionNote: a.payload.resolutionNote,
+          },
+        } as never);
+        return;
+      }
+      if (a.kind === "set_task_status") {
+        await setStatusFn({ data: { taskId: a.payload.taskId, status: a.payload.status } } as never);
+        return;
+      }
+      if (a.kind === "set_prediction") {
+        await predictionFn({
+          data: {
+            logId: a.payload.logId ?? undefined,
+            reservationId: a.payload.reservationId ?? undefined,
+            kind: a.payload.kind,
+            // `null` aqui é significativo — é como a tela LIMPA o campo. Por
+            // isso não pode virar `undefined` (que o servidor lê como "não
+            // mexer neste campo").
+            arrivalDateOverride: a.payload.arrivalDateOverride,
+            arrivalTimeOverride: a.payload.arrivalTimeOverride,
+          },
+        } as never);
+        return;
+      }
+      if (a.kind === "advance") {
+        await advanceFn({
+          data: {
+            logId: a.payload.logId ?? undefined,
+            reservationId: a.payload.reservationId ?? undefined,
+            from: a.payload.from,
+            cleaningType: a.payload.cleaningType ?? undefined,
           },
         } as never);
         return;

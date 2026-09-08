@@ -31,7 +31,12 @@ export const COMPOSER_FIELD =
  * era isso que deixava a barra do Atendimento mais alta que a do Assistente.
  */
 export const COMPOSER_INPUT =
-  "block h-[1.2rem] max-h-20 w-full min-w-0 resize-none overflow-y-auto bg-transparent py-0 text-sm leading-[1.2rem] outline-none focus:ring-0";
+  // `min-h-0` e `border-0` são obrigatórios, não cosméticos: o <Textarea> base
+  // do projeto (ui/textarea.tsx) vem com `min-h-[60px]` e borda própria. Como
+  // `h-` e `min-h-` são propriedades diferentes, o merge de classes NÃO desfaz
+  // aquele mínimo — o campo de 60px estourava a pílula de 32px e o placeholder
+  // aparecia ACIMA dela, fora do quadro (08/09/2026).
+  "block h-[1.2rem] min-h-0 max-h-20 w-full min-w-0 resize-none overflow-y-auto border-0 bg-transparent px-0 py-0 text-sm leading-[1.2rem] shadow-none outline-none focus-visible:ring-0 focus:ring-0";
 
 /** Botão auxiliar (anexo, microfone): redondo, sem preenchimento. */
 export const COMPOSER_ICON_BTN =

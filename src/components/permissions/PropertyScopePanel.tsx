@@ -230,7 +230,10 @@ export function PropertyScopePanel({
                       </span>
                       <AccordionTrigger className="min-w-0 flex-1 overflow-hidden py-1 hover:no-underline [&>svg]:shrink-0">
 
-                        <div className="min-w-0 max-w-full flex-1 space-y-0.5 overflow-hidden text-left">
+                        {/* ds-card-lines: espaçamento padrão entre linhas de
+                            card (styles.css) — pedido explícito, vale para
+                            TODOS os cards do sistema. */}
+                        <div className="min-w-0 max-w-full flex-1 ds-card-lines overflow-hidden text-left">
                           <p className="truncate text-sm font-medium" title={p.name}>
                             {p.name}
                           </p>
