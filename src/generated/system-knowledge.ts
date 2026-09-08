@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-07T22:58:25.992Z";
+export const GENERATED_AT = "2026-09-08T04:07:57.081Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -1032,6 +1032,24 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "7165923d3017b91ea79fb6a16843344d"
   },
   {
+    "doc_key": "rule:ReasoningEffort",
+    "kind": "rule",
+    "title": "Regra — ReasoningEffort",
+    "content": "Quanto a IA pensa antes de responder — política única das duas IAs.\n\nPedido explícito (07/09/2026): \"quero que ela seja altamente inteligente,\ncomo se o usuário estivesse conversando com o ChatGPT, com o Gemini\".\n\nO QUE ESTAVA ERRADO\n\nOs dois agentes rodavam com `reasoningEffort: \"low\"` em praticamente toda\nconversa — o atendimento só subia para \"medium\" quando a mensagem era urgente\nou arriscada, e o assistente do painel estava fixo em \"low\". Num modelo de\nraciocínio, \"low\" não é uma economia inofensiva: é a diferença entre pensar\nno problema e responder de bate-pronto. Era o que fazia as respostas\nparecerem rasas mesmo com todo o contexto certo na mão — não faltava\ninformação, faltava pensar.\n\nO QUE MUDA\n\nO esforço passa a depender do que foi PERGUNTADO, e não só de urgência:\n\n · alto — a pessoa pediu comparação, recomendação, um porquê, um plano,\n ou mandou um texto longo com várias perguntas juntas. É o tipo\n de resposta que só fica boa se o modelo pensar antes.\n · médio — o padrão de qualquer conversa de verdade. Vale também para todo\n pedido de AÇÃO: gravar a coisa errada custa mais caro do que os\n segundos a mais de raciocínio.\n · baixo — só o que é genuinamente trivial: saudação, \"ok\", \"obrigado\",\n uma confirmação de uma linha.\n\nO CUSTO, DITO NA CARA\n\nPensar mais custa mais tempo e mais tokens. A escolha aqui é deliberada:\npagar isso nas perguntas que merecem e não pagar nas que não merecem — em\nvez de economizar em todas, que era o comportamento anterior e o motivo da\nreclamação.",
+    "source_path": "src/lib/ai/reasoning.ts",
+    "audience": [],
+    "content_hash": "d0e0dc85d2d00b3333b56e00d4fb8d64"
+  },
+  {
+    "doc_key": "rule:reasoningFor",
+    "kind": "rule",
+    "title": "Regra — reasoningFor",
+    "content": "Decide o esforço para uma mensagem.\n\n`isAction` cobre o caso em que a pessoa está mandando o sistema FAZER algo\n(criar pendência, marcar não comparecimento): ali o piso é médio mesmo que a\nfrase seja curta, porque interpretar errado grava dado errado.",
+    "source_path": "src/lib/ai/reasoning.ts",
+    "audience": [],
+    "content_hash": "21463f078baac3321475523c21c8b704"
+  },
+  {
     "doc_key": "rule:refreshStaleAirbnbListings",
     "kind": "rule",
     "title": "Regra — refreshStaleAirbnbListings",
@@ -1716,7 +1734,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "d83a74c35e881710671cd72249217e20"
   },
   {
-    "doc_key": "rule:src/lib/ai/orchestrator.server.ts:4236",
+    "doc_key": "rule:src/lib/ai/orchestrator.server.ts:4293",
     "kind": "rule",
     "title": "Regra em orchestrator.server.ts",
     "content": "Opções curtas de resposta rápida (botões) — [] quando a resposta não é\numa pergunta de múltipla escolha. O hóspede sempre pode digitar livre.",
@@ -1725,7 +1743,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "b363c30ad7d651fa7ca1b6cfc775680f"
   },
   {
-    "doc_key": "rule:src/lib/ai/orchestrator.server.ts:5459",
+    "doc_key": "rule:src/lib/ai/orchestrator.server.ts:5516",
     "kind": "rule",
     "title": "Regra em orchestrator.server.ts",
     "content": "Datas da reserva — usadas para vincular o roteiro (itinerário) à\nRESERVA, não ao hóspede individual: mais de uma pessoa pode estar\nconversando sobre a mesma reserva (casal, cada um pelo próprio\ncelular), e todos precisam ver o mesmo roteiro compartilhado.",
@@ -1851,7 +1869,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "5674b6fa53ea76be36860872abcb06e6"
   },
   {
-    "doc_key": "rule:src/lib/assistant.functions.ts:1764",
+    "doc_key": "rule:src/lib/assistant.functions.ts:1828",
     "kind": "rule",
     "title": "Regra em assistant.functions.ts",
     "content": "Imagem anexada, como data URL (pedido explícito, 07/09/2026). Vai junto da\npergunta para o modelo olhar — um print da tela costuma explicar melhor\nque qualquer descrição. Não é gravada em lugar nenhum: serve a esta\npergunta e acaba ali.",

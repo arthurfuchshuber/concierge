@@ -56,6 +56,7 @@ import { allowedToolsOf, getAgent, renderAgentBriefing, stampAgentPrompt } from 
 import { describeRouting, routeToAgent } from "./agents/supervisor.server";
 import { buildAgentTools } from "./agents/tools.server";
 import type { AgentRouting } from "./agents/types";
+import { reasoningFor, maxStepsFor } from "./reasoning";
 import {
   markAnswersApplied,
   pendingHumanAnswers,
@@ -481,15 +482,24 @@ export async function runHospitalityAgent(params: {
   let toolsUsed: Array<{ name: string; args?: unknown; durationMs?: number; parallelBatch?: number }> = [];
   let errorMsg: string | null = null;
 
+  const effort = reasoningFor(params.message, {
+    highRisk: intent.urgency === "high" || plan.riskLevel === "high",
+  });
+
   try {
     const run = await runAgent({
       task: "agent",
       instructions,
       input,
       tools,
-      maxSteps: agent.maxSteps,
-      reasoningEffort:
-        intent.urgency === "high" || plan.riskLevel === "high" ? "medium" : agent.reasoningEffort,
+      // Esforço e passos vêm da política única das duas IAs (ver
+      // src/lib/ai/reasoning.ts). Antes disso o padrão era "low" em quase toda
+      // conversa e o teto do agente era fixo, o que deixava a resposta rasa
+      // mesmo com o contexto certo em mãos. `agent.maxSteps` continua sendo o
+      // teto do especialista — a política só pede mais espaço quando a
+      // pergunta merece, nunca menos do que o agente já permitia.
+      maxSteps: Math.max(agent.maxSteps, maxStepsFor(effort)),
+      reasoningEffort: effort,
     });
 
     usage = mergeUsage(usage, run.usage);

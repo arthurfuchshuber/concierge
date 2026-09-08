@@ -24,6 +24,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import type { AssistantAsk, AssistantMessage, AssistantSource, PendingAction } from "@/lib/assistant-types";
 import { HOUSE_RULES } from "@/lib/ai/house-rules";
+import { maxStepsFor, reasoningFor } from "@/lib/ai/reasoning";
 
 type AnyClient = { from: (t: string) => any };
 
@@ -146,6 +147,10 @@ export const askAssistant = createServerFn({ method: "POST" })
       prepared,
     });
 
+    // Pedido de ação nunca roda no esforço mínimo: interpretar errado aqui
+    // monta uma gravação errada para a pessoa confirmar.
+    const effort = reasoningFor(data.message, { isAction: true });
+
     const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
 
     const run = await runAgent({
@@ -169,8 +174,10 @@ export const askAssistant = createServerFn({ method: "POST" })
           : { type: "message", role: "user", content: data.message },
       ],
       tools,
-      maxSteps: 6,
-      reasoningEffort: "low",
+      // Mesma política de raciocínio do atendimento (ver src/lib/ai/reasoning.ts):
+      // pensa de verdade quando a pergunta pede, e não gasta em "ok, obrigado".
+      maxSteps: maxStepsFor(effort),
+      reasoningEffort: effort,
     });
 
     // Fontes: os trechos que de fato entraram no prompt, mais as consultas de
