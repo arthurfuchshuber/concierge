@@ -72,8 +72,4 @@ USING (owner_id = auth.uid() OR has_role(auth.uid(),'admin'::app_role)
 CREATE POLICY "Account can read owners" ON public.property_owners FOR SELECT TO authenticated
 USING (can_access_stakeholder_data(auth.uid(), account_owner_id));
 CREATE POLICY "Account can read providers" ON public.service_providers FOR SELECT TO authenticated
-<<<<<<< HEAD
 USING (can_access_stakeholder_data(auth.uid(), account_owner_id));
-=======
-USING (can_access_stakeholder_data(auth.uid(), account_owner_id));
->>>>>>> 5a9fa45acc4e76074b6ef365b37b3a4ffb6b674b
