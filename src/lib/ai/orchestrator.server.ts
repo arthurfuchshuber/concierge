@@ -46,6 +46,7 @@ import { reflectOnAnswer, type Reflection } from "./reflection.server";
 import { aggregateSourceWeight, confidenceOf, renderSourceRanking } from "./sources";
 import {
   aggregateConfidence,
+  handoffFallback,
   hedgeNotice,
   isSensitiveContext,
   thresholdsFor,
@@ -685,6 +686,40 @@ export async function runHospitalityAgent(params: {
   } else if (handoffReason) {
     tier = "handoff";
     confidence = 1;
+  }
+
+  /**
+   * A RESPOSTA PARCIAL DE UMA ESCALAÇÃO TAMBÉM PASSA PELO VALIDADOR.
+   *
+   * O bloco grande acima roda com `!handoffReason`: quando o modelo escala, a
+   * checagem anti-alucinação e a autoavaliação eram puladas inteiras e a
+   * confiança virava 1 por decreto. Só que o prompt MANDA responder
+   * parcialmente antes de escalar — então justamente o texto entregue no
+   * momento mais delicado era o único que ninguém revisava.
+   *
+   * Foi assim que saiu, para um hóspede que perguntou em que apartamento
+   * estava, um "não consegui localizar sua reserva" que o contexto
+   * desmentia (08/09/2026). A checagem é barata perto do estrago.
+   *
+   * Reprovado, o texto não é remendado: cai para uma frase curta e honesta.
+   * Quem continua a conversa é a pessoa que recebeu a escalação.
+   */
+  if (reply && handoffReason) {
+    const guard = await validateAnswer({
+      question: params.message,
+      answer: reply,
+      evidence: evidenceText,
+      language: intent.language,
+      policies: context.behavior || undefined,
+      history: params.history,
+      highRisk: highRiskContext,
+    });
+    usage = mergeUsage(usage, guard.usage);
+    models.validation = guard.model;
+    validationResult = guard.validation;
+    if (!guard.validation.approved) {
+      reply = handoffFallback(intent.language);
+    }
   }
 
   // Sugestão de botões de resposta rápida — só quando há de fato uma resposta

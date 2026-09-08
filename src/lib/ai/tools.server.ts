@@ -182,27 +182,99 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
   tools.push({
     name: "get_reservation",
     description:
-      "Consulta a reserva do hóspede (datas de check-in/check-out registradas). Fonte de confiabilidade máxima " +
-      "para perguntas sobre datas, prazos e permanência.",
+      "A estadia deste hóspede: QUAL É A UNIDADE (imóvel/apartamento) em que ele está hospedado, o endereço e as " +
+      "datas de check-in/check-out registradas. Use para 'qual é o meu apartamento', 'em qual unidade eu estou', " +
+      "datas, prazos e permanência. A unidade vem SEMPRE preenchida — ela é o imóvel deste guia — mesmo quando o " +
+      "formulário do hóspede não é encontrado.",
     parameters: schema({}, []),
     execute: async () => {
-      const name = (ctx.guestName ?? "").trim();
-      if (!name) return { encontrada: false, motivo: "hóspede não identificado" };
-      const { data } = await ctx.supabase
+      /**
+       * O IMÓVEL É SEMPRE CONHECIDO — e é ele que responde "qual é o meu
+       * apartamento".
+       *
+       * Um guia pertence a UM imóvel. O hóspede que está conversando aqui
+       * abriu o guia daquele imóvel; não existe ambiguidade sobre em que
+       * unidade ele está. Antes esta ferramenta devolvia `{encontrada:false}`
+       * e mais nada quando não achava o FORMULÁRIO do hóspede, e o agente
+       * concluía que não sabia nem em que apartamento a pessoa estava —
+       * respondendo com uma pergunta de volta a quem só queria o número da
+       * porta (caso real, 08/09/2026).
+       *
+       * Agora a unidade vai sempre. O que pode faltar é o formulário — e a
+       * ausência dele afeta apenas as DATAS, nunca a identidade do imóvel.
+       */
+      const { data: prop } = await ctx.supabase
+        .from("properties")
+        .select("name, address, address_note")
+        .eq("id", ctx.propertyId)
+        .maybeSingle();
+      const p = prop as { name: string | null; address: string | null; address_note: string | null } | null;
+      const unidade = {
+        imovel: p?.name ?? null,
+        endereco: [p?.address, p?.address_note].filter(Boolean).join(" — ") || null,
+      };
+
+      /**
+       * A busca do formulário usa a MESMA cadeia tolerante do construtor de
+       * contexto (ver context.server.ts): nome exato normalizado → primeiro
+       * nome → estadia que cobre hoje → mais recente.
+       *
+       * Antes era `.eq("guest_name", name)`, igualdade byte a byte. Bastava um
+       * acento, uma caixa diferente ou um sobrenome faltando para o contexto
+       * ACHAR a estadia e a ferramenta NÃO achar — e o agente recebia as duas
+       * coisas ao mesmo tempo, dizendo ao hóspede que não localizou a reserva
+       * enquanto tinha as datas dela no próprio prompt.
+       */
+      const { data: rows } = await ctx.supabase
         .from("guide_access_logs")
         .select("guest_name, checkin_date, checkout_date, created_at")
         .eq("property_id", ctx.propertyId)
-        .eq("guest_name", name)
         .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (!data) return { encontrada: false };
+        .limit(50);
+      const logs = (rows ?? []) as Array<{
+        guest_name: string | null;
+        checkin_date: string | null;
+        checkout_date: string | null;
+        created_at: string | null;
+      }>;
+      const norm = (v: string | null) =>
+        (v ?? "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const target = norm(ctx.guestName ?? null);
+      const todayIso = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+      const covers = (l: (typeof logs)[number]) => {
+        if (!l.checkin_date) return false;
+        const ci = String(l.checkin_date).slice(0, 10);
+        const co = l.checkout_date ? String(l.checkout_date).slice(0, 10) : ci;
+        return todayIso >= ci && todayIso <= co;
+      };
+      let log: (typeof logs)[number] | null = null;
+      if (target) {
+        log =
+          logs.find((l) => norm(l.guest_name) === target) ??
+          logs.find((l) => {
+            const a = norm(l.guest_name).split(" ")[0];
+            const b = target.split(" ")[0];
+            return !!a && !!b && a === b;
+          }) ??
+          null;
+      }
+      if (!log) log = logs.find(covers) ?? logs[0] ?? null;
+
       ctx.collectSource({ source: "reservation", title: "Reserva do hóspede", confidence: confidenceOf("reservation") });
+      if (!log?.checkin_date) {
+        return {
+          ...unidade,
+          encontrada: false,
+          motivo: "não há formulário de acesso casado com este hóspede — as DATAS não puderam ser confirmadas",
+          observacao: "A unidade acima é a deste guia e vale mesmo sem o formulário.",
+        };
+      }
       return {
+        ...unidade,
         encontrada: true,
-        hospede: data.guest_name,
-        checkin: data.checkin_date,
-        checkout: data.checkout_date,
+        hospede: log.guest_name,
+        checkin: log.checkin_date,
+        checkout: log.checkout_date,
       };
     },
   });

@@ -63,7 +63,22 @@ export async function buildAgentContext(params: {
   );
   lines.push(`## Momento atual\n${nowInfo(tz)} (fuso ${tz})`);
 
-  lines.push(`\n## Residência\nNome: ${p.name ?? ""}`);
+  /**
+   * O nome do imóvel é a resposta para "qual é o meu apartamento".
+   *
+   * Um guia pertence a UM imóvel, e o hóspede que está conversando abriu o
+   * guia daquele imóvel: não existe ambiguidade sobre em que unidade ele está.
+   * A frase abaixo diz isso ao modelo em vez de deixar que ele deduza —
+   * porque, deduzindo, ele já preferiu um número solto no meio das instruções
+   * do anfitrião ao nome cadastrado, e devolveu uma pergunta a quem só queria
+   * o número da porta (caso real, 08/09/2026).
+   */
+  lines.push(
+    `\n## Residência\nNome: ${p.name ?? ""}\n` +
+      "ESTA é a unidade em que o hóspede está hospedado — o guia pertence a ela. " +
+      "Se algum texto livre (instruções, observações) citar outro número de unidade, é erro de cadastro do anfitrião: " +
+      "o nome acima prevalece e você responde por ele, sem hesitar e sem devolver a pergunta.",
+  );
   if (p.tagline) lines.push(String(p.tagline));
   if (p.city) lines.push(`Cidade: ${p.city}${p.country ? ` (${p.country})` : ""}`);
   if (p.host_name) lines.push(`Anfitrião: ${p.host_name}`);
@@ -232,7 +247,7 @@ export async function buildAgentContext(params: {
       }
 
       lines.push(
-        `\n## Dados de estadia informados no acesso ao guia\nHóspede: ${log.guest_name}\nHoje: ${fmt(today)}\nCheck-in: ${fmt(ci)}${co ? `\nCheck-out: ${fmt(co)}` : ""}\nCheck-in concluído: ${checkinDone ? "sim" : "não"}\nCheck-out concluído: ${checkoutDone ? "sim" : "não"}\nFase da estadia: ${stayPhase}\n${phaseNote}${checkinTimingNote}`,
+        `\n## Reserva do hóspede (informada no acesso ao guia)\nHóspede: ${log.guest_name}\nHoje: ${fmt(today)}\nCheck-in: ${fmt(ci)}${co ? `\nCheck-out: ${fmt(co)}` : ""}\nCheck-in concluído: ${checkinDone ? "sim" : "não"}\nCheck-out concluído: ${checkoutDone ? "sim" : "não"}\nFase da estadia: ${stayPhase}\n${phaseNote}${checkinTimingNote}`,
       );
     }
 

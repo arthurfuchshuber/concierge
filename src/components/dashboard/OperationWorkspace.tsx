@@ -1868,9 +1868,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const commitPrediction = useCallback(
     (side: "checkin" | "checkout", target: ArrivalRow, date: string | null, time: string | null) => {
       const key = target.reservationId ?? target.logId;
-      const prev = rowByStay[side].get(key) ?? target;
-      const prevTime = prev.arrivalTimeOverride ?? (side === "checkin" ? prev.guestArrivalTime : null) ?? null;
-      const dateChanged = date !== (prev.arrivalDateOverride ?? null);
+      // Mesma regra da leitura: sem linha DAQUELE lado, o valor anterior é
+      // vazio — nunca o do outro lado (ver buildPredictionSide).
+      const prev = rowByStay[side].get(key) ?? null;
+      const prevTime = prev ? (prev.arrivalTimeOverride ?? (side === "checkin" ? prev.guestArrivalTime : null) ?? null) : null;
+      const dateChanged = date !== (prev?.arrivalDateOverride ?? null);
       const timeChanged = time !== prevTime;
       if (!dateChanged && !timeChanged) return;
       setBusyRowId(target.logId);
@@ -1897,8 +1899,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         upsert.mutate({
           ...statusTarget(target),
           kind: side,
-          ...(dateChanged ? { arrivalDateOverride: prev.arrivalDateOverride ?? null } : {}),
-          ...(timeChanged ? { arrivalTimeOverride: prev.arrivalTimeOverride ?? null } : {}),
+          ...(dateChanged ? { arrivalDateOverride: prev?.arrivalDateOverride ?? null } : {}),
+          ...(timeChanged ? { arrivalTimeOverride: prev?.arrivalTimeOverride ?? null } : {}),
         });
       });
     },
@@ -1909,16 +1911,31 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const buildPredictionSide = useCallback(
     (side: "checkin" | "checkout", fallbackRow: ArrivalRow): PredictionSide => {
       const key = fallbackRow.reservationId ?? fallbackRow.logId;
-      const src = rowByStay[side].get(key) ?? fallbackRow;
+      /**
+       * A linha DAQUELE lado, quando ela existe. Quando NÃO existe (a coluna
+       * de Checkouts pode estar vazia, por exemplo), caímos na linha do card
+       * só para as informações da RESERVA e do IMÓVEL — datas confirmadas,
+       * horários padrão, identificadores. Nunca para a previsão.
+       *
+       * Bug real, corrigido em 08/09/2026: sem essa distinção, abrir o
+       * editor num card de chegada mostrava a data e a hora da CHEGADA também
+       * no bloco "Saída", porque o fallback era a própria linha de chegada e
+       * ela carrega o override dela. Ficava parecendo que uma previsão tinha
+       * sido copiada para a outra — e bastaria confirmar para que virasse
+       * verdade no banco.
+       */
+      const own = rowByStay[side].get(key) ?? null;
+      const src = own ?? fallbackRow;
       // O horário que o HÓSPEDE informou é de CHEGADA — não diz nada sobre a
       // saída. Foi essa confusão que fez o checkout automático confirmar na
       // hora errada (06/09/2026), e ela não pode voltar por aqui.
-      const time = src.arrivalTimeOverride ?? (side === "checkin" ? src.guestArrivalTime : null);
+      const time = own ? (own.arrivalTimeOverride ?? (side === "checkin" ? own.guestArrivalTime : null)) : null;
+      const date = own?.arrivalDateOverride ?? "";
       return {
         kind: side,
         label: side === "checkout" ? "Saída" : "Chegada",
-        dateValue: src.arrivalDateOverride ?? "",
-        timeValue: time ?? null,
+        dateValue: date,
+        timeValue: time,
         confirmedDate: (side === "checkout" ? src.guestCheckout : src.guestCheckin) ?? null,
         // Chegada: nunca antes da reserva, até um dia antes da saída
         // confirmada. Saída: até a data de saída confirmada — sair antes é
@@ -6866,25 +6883,30 @@ function ArrivalCard({
          vez de sair espalhando `stopPropagation` por cada controle — que
          alguém esqueceria no próximo botão adicionado —, o contêiner ignora
          qualquer clique que tenha nascido dentro de algo interativo. */
-      onClick={
-        compact && canOpenJourney
-          ? (e: React.MouseEvent<HTMLDivElement>) => {
-              const el = e.target as HTMLElement | null;
-              const interactive = el?.closest("button, a, input, select, textarea, label, [role='button']");
-              if (interactive && interactive !== e.currentTarget) return;
-              setJourneyOpen(true);
-            }
-          : undefined
-      }
-      role={compact && canOpenJourney ? "button" : undefined}
-      title={compact && canOpenJourney ? "Ver o histórico desta reserva" : undefined}
+      /* O clique no card abria o Histórico da reserva. DESATIVADO a pedido
+         (08/09/2026) enquanto o histórico é redesenhado — o caminho continua
+         existindo pelo item "Histórico da reserva" no menu "⋮", então nada se
+         perdeu; só o gesto acidental saiu do caminho. Para reativar, basta
+         devolver o onClick abaixo (o guarda de clique em elemento interativo
+         está preservado no comentário, era a parte difícil).
+
+         onClick={(e) => {
+           const el = e.target as HTMLElement | null;
+           const interactive = el?.closest("button, a, input, select, textarea, label, [role='button']");
+           if (interactive && interactive !== e.currentTarget) return;
+           setJourneyOpen(true);
+         }} */
       /* A curva de 0.3rem é a do Design System — o card era o único bloco
          quadrado do sistema. O acento lateral saiu daqui e virou a barra de
          ETAPA: antes só existia em "atrasado" e "data futura", agora vale
          para todas as fases. */
-      className={`group relative flex snap-start flex-col overflow-hidden rounded-[0.3rem] bg-secondary/70 p-3 pl-3.5 gap-2 transition-colors hover:bg-secondary/90 ${
-        compact && canOpenJourney ? "cursor-pointer" : ""
-      }`}
+      /* SEM `overflow-hidden` (corrigido 08/09/2026): ele cortava exatamente a
+         metade de cima da etiqueta ALERTA, que monta sobre a borda superior do
+         card de propósito. A barra de etapa não precisa dele — ela já tem o
+         próprio `rounded-l`. E `isolate` cria o contexto de empilhamento do
+         card, para a etiqueta ficar acima do card de cima sem depender da
+         ordem em que os cards aparecem no DOM. */
+      className="group relative isolate flex snap-start flex-col rounded-[0.3rem] bg-secondary/70 p-3 pl-3.5 gap-2 transition-colors hover:bg-secondary/90"
     >
       {journeyOpen && (
         <ReservationJourneyDialog
@@ -6950,7 +6972,7 @@ function ArrivalCard({
           `EngagementFlags` devolve `null` quando não há o que alertar, então
           o badge continua só aparecendo quando existe alerta — o que mudou é
           que ele não é mais escondido pela coluna nem pela vista. */}
-      <div className="absolute -top-2.5 left-1/2 z-10 -translate-x-1/2">
+      <div className="absolute -top-2.5 left-1/2 z-30 -translate-x-1/2">
         <EngagementFlags
           openedGuide={row.openedGuide}
           readInstructions={row.readInstructions}
@@ -7069,7 +7091,11 @@ function ArrivalCard({
                     {predictionTime}
                   </span>
                 ) : (
-                  <span className="block text-[11.5px] font-semibold leading-snug text-muted-foreground">
+                  /* MESMA tipografia do rótulo "Previsão" logo acima (pedido
+                     explícito): sem previsão, as duas linhas formam um bloco
+                     só — "PREVISÃO / NÃO INFORMADA" — em vez de um rótulo
+                     miúdo seguido de um texto de outro tamanho e outra caixa. */
+                  <span className="block text-[8.5px] font-extrabold uppercase leading-[1.35] tracking-[0.12em] text-muted-foreground/70">
                     não informada
                   </span>
                 )}
@@ -7924,21 +7950,16 @@ function PredictedEditor({
     const janela = allowedWindowPhrase(side.kind, side.standardTime, side.standardTimeMax);
     const dot = side.kind === "checkout" ? "bg-orange-400" : "bg-sky-400";
     return (
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between gap-2">
-          <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold">
-            <span className={`size-1.5 shrink-0 rounded-full ${dot}`} />
-            {side.label}
-          </span>
-          <span
-            className={`text-[11px] tabular-nums ${
-              d || t ? "font-semibold text-amber-600 dark:text-amber-400" : "text-muted-foreground"
-            }`}
-          >
-            {d || t ? [d ? fmtDateBR(d) : null, t].filter(Boolean).join(" · ") : "não informada"}
-          </span>
-        </div>
-        <div className="grid grid-cols-[1fr_88px] gap-1.5">
+      <div className="flex flex-col gap-1.5">
+        {/* Só o nome do lado. A linha que repetia aqui em cima a data e a hora
+            que já aparecem nos campos logo abaixo saiu (pedido explícito,
+            08/09/2026: "muito poluído/confuso") — era a mesma informação
+            escrita duas vezes, a 6px de distância. */}
+        <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold">
+          <span className={`size-1.5 shrink-0 rounded-full ${dot}`} />
+          {side.label}
+        </span>
+        <div className="grid grid-cols-[1fr_84px] gap-1.5">
           <button
             type="button"
             disabled={disabled}
@@ -7965,8 +7986,8 @@ function PredictedEditor({
           </button>
         </div>
         {janela && (
-          <span className="text-[9.5px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Permitido <span className="text-foreground/70">{janela}</span>
+          <span className="text-[9px] font-bold uppercase tracking-[0.06em] text-muted-foreground/80">
+            Permitido <span className="text-foreground/60">{janela}</span>
           </span>
         )}
       </div>
@@ -7990,14 +8011,14 @@ function PredictedEditor({
       </PopoverTrigger>
 
       {view === "summary" ? (
-        <PopoverContent align="end" className="w-[264px] p-3" onClick={(e) => e.stopPropagation()}>
-          <p className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+        <PopoverContent align="end" className="w-[252px] p-3" onClick={(e) => e.stopPropagation()}>
+          <p className="mb-2.5 text-[9.5px] font-extrabold uppercase tracking-[0.14em] text-muted-foreground">
             Previsão
           </p>
           <SideBlock slot="primary" />
           {secondary && (
             <>
-              <div className="my-3 h-px bg-border" />
+              <div className="my-2.5 h-px bg-border/70" />
               {expanded ? (
                 <SideBlock slot="secondary" />
               ) : (
@@ -8009,7 +8030,7 @@ function PredictedEditor({
                     e.stopPropagation();
                     setExpanded(true);
                   }}
-                  className="flex w-full items-center justify-between gap-2 text-left"
+                  className="flex w-full items-center justify-between gap-2 rounded-[0.3rem] py-0.5 text-left transition-colors hover:bg-secondary/40"
                 >
                   <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-muted-foreground">
                     <span
@@ -8032,7 +8053,7 @@ function PredictedEditor({
               )}
             </>
           )}
-          <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-2.5">
+          <div className="mt-3 flex items-center justify-between gap-2 border-t border-border/70 pt-2.5">
             <button
               type="button"
               onClick={(e) => {

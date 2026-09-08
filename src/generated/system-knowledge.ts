@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-08T20:39:06.437Z";
+export const GENERATED_AT = "2026-09-08T21:05:05.479Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -789,6 +789,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "83aa804f205c1de49deeaea19ea26ede"
   },
   {
+    "doc_key": "rule:handoffFallback",
+    "kind": "rule",
+    "title": "Regra — handoffFallback",
+    "content": "A frase que substitui uma resposta parcial REPROVADA pelo validador numa\nescalação.\n\nO prompt manda responder parcialmente antes de escalar, e essa resposta\nparcial passou a ser validada como qualquer outra (ver orchestrator). Quando\nela não passa, o certo não é remendar o texto: é dizer pouco e verdadeiro.\nQuem continua a conversa é a pessoa que recebeu a escalação — o hóspede não\nprecisa saber disso, e por isso a frase não menciona transferência nem\nequipe (proibido pelo prompt).",
+    "source_path": "src/lib/ai/confidence.ts",
+    "audience": [],
+    "content_hash": "44b23f348fb56e29bfdfa03f9f49f498"
+  },
+  {
     "doc_key": "rule:hasPendingOnboarding",
     "kind": "rule",
     "title": "Regra — hasPendingOnboarding",
@@ -1003,6 +1012,24 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/assistant/AssistantPanel.tsx",
     "audience": [],
     "content_hash": "4d19f38c974bfc49a8cba94305612c3b"
+  },
+  {
+    "doc_key": "rule:OVERLAY_COLLISION_PADDING",
+    "kind": "rule",
+    "title": "Regra — OVERLAY_COLLISION_PADDING",
+    "content": "REGRA GLOBAL DE ABERTURA DE TOOLTIPS, POPOVERS E MENUS.\n\nPedido explícito (08/09/2026): \"nenhum tooltip/quadrante pode ser aberto para\no lado que estiver mais propício a ficar escondido — se houver qualquer\nchance, então a abertura tem que ser para o lado oposto\".\n\nO Radix já vira o painel para o lado oposto sozinho quando não cabe. O que\nele não sabe é que a tela NÃO termina onde o viewport termina: o app tem uma\nbarra de navegação fixa embaixo e um cabeçalho fixo em cima, e os dois ficam\nPOR CIMA de qualquer painel. Para o Radix havia espaço; para os olhos, o\ncalendário abria por baixo da barra e ficava cortado (caso real: o seletor de\ndata prevista, aberto num card do fim da lista).\n\nA correção é contar essas faixas como se fossem borda da tela. Com elas na\nconta, \"não cabe embaixo\" passa a ser verdade antes de o painel encostar na\nbarra — e o Radix abre para cima, que é exatamente a regra pedida.\n\nOs valores são folgados de propósito. Errar para o lado de virar cedo demais\ncusta um painel abrindo para cima sem precisar; errar para o outro lado custa\num painel ilegível.",
+    "source_path": "src/components/ui/overlay-collision.ts",
+    "audience": [],
+    "content_hash": "4fb6d297dbb127283bd87636f544fec2"
+  },
+  {
+    "doc_key": "rule:own",
+    "kind": "rule",
+    "title": "Regra — own",
+    "content": "A linha DAQUELE lado, quando ela existe. Quando NÃO existe (a coluna\nde Checkouts pode estar vazia, por exemplo), caímos na linha do card\nsó para as informações da RESERVA e do IMÓVEL — datas confirmadas,\nhorários padrão, identificadores. Nunca para a previsão.\n\nBug real, corrigido em 08/09/2026: sem essa distinção, abrir o\neditor num card de chegada mostrava a data e a hora da CHEGADA também\nno bloco \"Saída\", porque o fallback era a própria linha de chegada e\nela carrega o override dela. Ficava parecendo que uma previsão tinha\nsido copiada para a outra — e bastaria confirmar para que virasse\nverdade no banco.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "41de04fe58496c5c97ddd80d912e025f"
   },
   {
     "doc_key": "rule:PageHeader",
@@ -1446,7 +1473,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ef3c1c66c3ef578b9b9e0522f86a4558"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:145153",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:146112",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Destaque visual opt-in (só usado hoje por \"Fila de Limpeza\"): borda +\ngradiente âmbar + acento lateral + ícone em caixinha, sem negrito.\nNão afeta nenhum outro uso do KpiCard (compact ou não).",
@@ -1455,7 +1482,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ec0f34c7bfc0754666d9cc96f2f2a568"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:145388",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:146347",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Cards que devem continuar visíveis no popup mesmo que já não pertençam\nmais à lista — hoje só os que tiveram HORÁRIO/DATA PREVISTOS ajustados.",
@@ -1464,7 +1491,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "4b33a44930f947dea6060da94f816439"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:145580",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:146539",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Pedido explícito: os cards dentro do popup precisam ficar IDÊNTICOS ao\ncard do Kanban — em vez de manter uma segunda implementação (que já\ndivergiu do Kanban antes, ver o bug do bloqueio de check-in), o popup\nagora renderiza o MESMO <ArrivalGroup>/<ArrivalCard> do Kanban, com os\nMESMOS handlers. Vem de arrivalGroupPropsFor(colMode, rows) — a mesma\nfunção que já alimenta as colunas do Kanban.",
@@ -1473,7 +1500,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "dfd7cbf815d96bcf7c9214257a5e2387"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:190547",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:191506",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Rótulo de seção do formulário de pendência — dá hierarquia ao que antes\nera uma pilha de campos do mesmo tamanho (pedido explícito, 07/09/2026).",
@@ -1482,7 +1509,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "56b708e624e12bb9a26b2593234ea4c6"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:241324",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:242283",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Pedido explícito: os filtros (Período/Cidade/Proprietário) que antes\nficavam numa linha própria acima deste card viraram um botão único\n(`CalendarFiltersButton`) dentro do cabeçalho, ao lado do título — por\nisso o estado/opções continuam vindo do pai (`OperationWorkspace`),\nque é quem também usa esses mesmos filtros pros cards de limpeza.",
@@ -1491,7 +1518,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "67345afec21e651284020dbb8b2f7803"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:272626",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:273585",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Dialog de detalhe (quem viu / quem não viu) — extraído do BarRow original\npra poder ser reaproveitado também pelo EngagementCard (cards separados do\ndesktop), sem duplicar esse JSX nos dois lugares.",
@@ -1500,7 +1527,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "191a73d470b9e71e3339a0db344ffb5a"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:280463",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:281422",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Controlado de fora (pela coluna do Kanban) quando presente — permite\nrecolher os \"Detalhes da operação\" ao rolar a coluna. Sem isso, cai de\nvolta pro estado local de sempre.",
@@ -1509,7 +1536,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1420a71a82d71664b9b9257192bc6178"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:283785",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:284744",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Marca este card (Check-ins) como \"Não Compareceu\" — pedido explícito,\n05/09/2026: opção no menu \"⋮\", só nos cards de check-in ainda pendentes.",
@@ -1518,7 +1545,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "b858b5d3155e42847ae34a889b4053e2"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:284785",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:285744",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Modo \"Lista\" (pedido explícito): mostra só proprietário, imóvel e os\n botões de ação (bem menores) — some com nome do hóspede, código,\n período, previsto e alertas de iCal. Reaproveita o mesmo card e os\n mesmos handlers; só a apresentação muda.",
@@ -1527,7 +1554,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "943bbf38018e813c04eeb6799825fda6"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:299930",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:300889",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "HISTÓRICO DA RESERVA (pedido explícito, 08/09/2026).\n\nNa visão Lista, o clique no próprio card abre a jornada completa — é o\ngesto natural quando o card mostra pouca coisa. No modo Completo o card\nestá cheio de controles e um clique global roubaria o clique de todos\neles, então ali o caminho é o item do menu \"⋮\". Os dois abrem exatamente\na mesma tela.\n\nSó identificador real: a chave sintética \"ical:<id>\" não é um uuid de\nlog — nesses cards a reserva é quem identifica a estadia.",
@@ -1536,7 +1563,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "91b0393d11ad3250d65978789bbf0665"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:340783",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:342632",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Restringe de verdade os horários selecionáveis (inclusive) ao horário\n configurado do imóvel — pedido explícito do cliente (04/09/2026): antes\n só existia um aviso visual (âmbar) depois de já ter escolhido um\n horário fora da janela; agora o horário nem aparece como opção. `null`/\n omitido = sem limite (imóvel sem esse horário configurado).",
@@ -1545,7 +1572,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8ebe1ab97a0756cd4e0279b3025812c8"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:343501",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:345350",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Data e horário previstos são dois campos SEPARADOS de novo (pedido\nexplícito, 05/09/2026: \"quero que fiquem separados como antes, porém\nambos no layout padrão dos tooltips\") — cada botão abre seu próprio\ntooltip (só calendário / só horário, cada um com o mesmo visual dos\ntooltips padrão do sistema), não mais um painel único com os dois juntos.\n\nMas por baixo dos panos continua sendo UMA ÚNICA sessão de edição\n(`open`/pendingDate/pendingTime compartilhados): os dois botões só trocam\nQUAL conteúdo aparece dentro do mesmo Popover (ver `openField`), sem abrir\ne fechar de verdade um popover por vez. Isso é o que preserva o ajuste\nanterior (pedido explícito, mesma data): \"não é mover depois de fechar o\ncalendário, é mover depois de fechar o TOOLTIP inteiro\" — se cada campo\ntivesse seu próprio Popover independente, fechar o de Data já confirmaria\ne moveria o card antes do usuário conseguir abrir o de Horário, voltando\nao bug original. Nada é gravado (nem o card se move) enquanto QUALQUER um\ndos dois estiver \"aberto\" — só quando o usuário clica fora dos dois\nbotões (ou aperta \"Concluir\"/Esc) é que a data e o horário pendentes são\nconfirmados juntos, numa única leva.\n\nO piso/teto do horário reage à data QUE ESTÁ SENDO escolhida (ainda não\nconfirmada) — mesma regra de \"dia mudou → sem piso/teto\" do card, só que\ncalculada aqui em cima do valor pendente, senão a lista de horários\nficaria com a janela do dia errado enquanto o usuário ainda decide.",
@@ -1761,6 +1788,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ab397c63c0753e79b1b0f2a6c74c58f9"
   },
   {
+    "doc_key": "rule:src/lib/ai/context.server.ts:2349",
+    "kind": "rule",
+    "title": "Regra em context.server.ts",
+    "content": "O nome do imóvel é a resposta para \"qual é o meu apartamento\".\n\nUm guia pertence a UM imóvel, e o hóspede que está conversando abriu o\nguia daquele imóvel: não existe ambiguidade sobre em que unidade ele está.\nA frase abaixo diz isso ao modelo em vez de deixar que ele deduza —\nporque, deduzindo, ele já preferiu um número solto no meio das instruções\ndo anfitrião ao nome cadastrado, e devolveu uma pergunta a quem só queria\no número da porta (caso real, 08/09/2026).",
+    "source_path": "src/lib/ai/context.server.ts",
+    "audience": [],
+    "content_hash": "7fd994f604a5935503b16bbd026b35bf"
+  },
+  {
     "doc_key": "rule:src/lib/ai/conversation/core.server.ts:0",
     "kind": "rule",
     "title": "Regra em core.server.ts",
@@ -1941,7 +1977,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "d83a74c35e881710671cd72249217e20"
   },
   {
-    "doc_key": "rule:src/lib/ai/orchestrator.server.ts:4293",
+    "doc_key": "rule:src/lib/ai/orchestrator.server.ts:29377",
+    "kind": "rule",
+    "title": "Regra em orchestrator.server.ts",
+    "content": "A RESPOSTA PARCIAL DE UMA ESCALAÇÃO TAMBÉM PASSA PELO VALIDADOR.\n\nO bloco grande acima roda com `!handoffReason`: quando o modelo escala, a\nchecagem anti-alucinação e a autoavaliação eram puladas inteiras e a\nconfiança virava 1 por decreto. Só que o prompt MANDA responder\nparcialmente antes de escalar — então justamente o texto entregue no\nmomento mais delicado era o único que ninguém revisava.\n\nFoi assim que saiu, para um hóspede que perguntou em que apartamento\nestava, um \"não consegui localizar sua reserva\" que o contexto\ndesmentia (08/09/2026). A checagem é barata perto do estrago.\n\nReprovado, o texto não é remendado: cai para uma frase curta e honesta.\nQuem continua a conversa é a pessoa que recebeu a escalação.",
+    "source_path": "src/lib/ai/orchestrator.server.ts",
+    "audience": [],
+    "content_hash": "6421e59807ab173ca9d54a11e289e332"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/orchestrator.server.ts:4312",
     "kind": "rule",
     "title": "Regra em orchestrator.server.ts",
     "content": "Opções curtas de resposta rápida (botões) — [] quando a resposta não é\numa pergunta de múltipla escolha. O hóspede sempre pode digitar livre.",
@@ -1950,7 +1995,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "b363c30ad7d651fa7ca1b6cfc775680f"
   },
   {
-    "doc_key": "rule:src/lib/ai/orchestrator.server.ts:5516",
+    "doc_key": "rule:src/lib/ai/orchestrator.server.ts:5535",
     "kind": "rule",
     "title": "Regra em orchestrator.server.ts",
     "content": "Datas da reserva — usadas para vincular o roteiro (itinerário) à\nRESERVA, não ao hóspede individual: mais de uma pessoa pode estar\nconversando sobre a mesma reserva (casal, cada um pelo próprio\ncelular), e todos precisam ver o mesmo roteiro compartilhado.",
@@ -2020,6 +2065,24 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/ai/tools.server.ts",
     "audience": [],
     "content_hash": "f593d0ae6b6b03cc73ecc50c0cee4c0e"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/tools.server.ts:7389",
+    "kind": "rule",
+    "title": "Regra em tools.server.ts",
+    "content": "O IMÓVEL É SEMPRE CONHECIDO — e é ele que responde \"qual é o meu\napartamento\".\n\nUm guia pertence a UM imóvel. O hóspede que está conversando aqui\nabriu o guia daquele imóvel; não existe ambiguidade sobre em que\nunidade ele está. Antes esta ferramenta devolvia `{encontrada:false}`\ne mais nada quando não achava o FORMULÁRIO do hóspede, e o agente\nconcluía que não sabia nem em que apartamento a pessoa estava —\nrespondendo com uma pergunta de volta a quem só queria o número da\nporta (caso real, 08/09/2026).\n\nAgora a unidade vai sempre. O que pode faltar é o formulário — e a\nausência dele afeta apenas as DATAS, nunca a identidade do imóvel.",
+    "source_path": "src/lib/ai/tools.server.ts",
+    "audience": [],
+    "content_hash": "28da5258f8c193c8ec21d8cf77c664eb"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/tools.server.ts:8610",
+    "kind": "rule",
+    "title": "Regra em tools.server.ts",
+    "content": "A busca do formulário usa a MESMA cadeia tolerante do construtor de\ncontexto (ver context.server.ts): nome exato normalizado → primeiro\nnome → estadia que cobre hoje → mais recente.\n\nAntes era `.eq(\"guest_name\", name)`, igualdade byte a byte. Bastava um\nacento, uma caixa diferente ou um sobrenome faltando para o contexto\nACHAR a estadia e a ferramenta NÃO achar — e o agente recebia as duas\ncoisas ao mesmo tempo, dizendo ao hóspede que não localizou a reserva\nenquanto tinha as datas dela no próprio prompt.",
+    "source_path": "src/lib/ai/tools.server.ts",
+    "audience": [],
+    "content_hash": "dc6fa20160c13570af7b0133e953133b"
   },
   {
     "doc_key": "rule:src/lib/ai/transcribe.server.ts:0",

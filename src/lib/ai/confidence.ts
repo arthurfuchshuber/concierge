@@ -93,6 +93,23 @@ export function aggregateConfidence(params: {
   return Math.max(0, Math.min(1, Number(score.toFixed(4))));
 }
 
+/**
+ * A frase que substitui uma resposta parcial REPROVADA pelo validador numa
+ * escalação.
+ *
+ * O prompt manda responder parcialmente antes de escalar, e essa resposta
+ * parcial passou a ser validada como qualquer outra (ver orchestrator). Quando
+ * ela não passa, o certo não é remendar o texto: é dizer pouco e verdadeiro.
+ * Quem continua a conversa é a pessoa que recebeu a escalação — o hóspede não
+ * precisa saber disso, e por isso a frase não menciona transferência nem
+ * equipe (proibido pelo prompt).
+ */
+export function handoffFallback(language: string): string {
+  if (language?.startsWith("en")) return "Let me confirm this properly and come right back to you.";
+  if (language?.startsWith("es")) return "Voy a confirmarlo bien y te respondo enseguida.";
+  return "Vou confirmar isso direitinho e já te respondo.";
+}
+
 /** Ressalva adicionada quando a confiança fica na faixa intermediária. */
 export function hedgeNotice(language: string): string {
   const pt = "\n\n_Confirme comigo ou com o anfitrião antes de contar com essa informação — quero ter certeza de que está tudo certo para você._";
