@@ -53,7 +53,11 @@ const CATEGORY_LABEL: Record<TaskCategory, string> = {
   cleaning: "Limpeza",
   other: "Outros",
 };
-const PRIORITY_LABEL: Record<TaskPriority, string> = { low: "Baixa", medium: "Média", high: "Alta" };
+const PRIORITY_LABEL: Record<TaskPriority, string> = {
+  low: "Baixa",
+  medium: "Média",
+  high: "Alta",
+};
 
 function todayISO(tz = "America/Sao_Paulo"): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date());
@@ -92,10 +96,15 @@ function realLogId(logId: string | null | undefined): string | null {
 type HoraPrevista = { hora: string | null; origem: "informado" | "padrao" | "desconhecido" };
 
 function horaPrevista(
-  r: { arrivalTimeOverride: string | null; guestArrivalTime: string | null; standardTime: string | null },
+  r: {
+    arrivalTimeOverride: string | null;
+    guestArrivalTime: string | null;
+    standardTime: string | null;
+  },
   kind: "checkin" | "checkout",
 ): HoraPrevista {
-  const informado = kind === "checkin" ? (r.arrivalTimeOverride ?? r.guestArrivalTime) : r.arrivalTimeOverride;
+  const informado =
+    kind === "checkin" ? (r.arrivalTimeOverride ?? r.guestArrivalTime) : r.arrivalTimeOverride;
   if (informado) return { hora: informado, origem: "informado" };
   if (r.standardTime) return { hora: r.standardTime, origem: "padrao" };
   return { hora: null, origem: "desconhecido" };
@@ -130,7 +139,9 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
     const endereco = [r.address, r.address_note].filter(Boolean).join(" — ") || null;
     const mapa =
       r.maps_url ??
-      (endereco ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}` : null);
+      (endereco
+        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}`
+        : null);
     return { id: r.id, nome: r.name ?? "(sem nome)", cidade: r.city, endereco, mapa };
   }
 
@@ -161,7 +172,8 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
     ids: { logId?: unknown; reservationId?: unknown },
   ): Promise<AgendaHit | { erro: string }> {
     const logId = typeof ids.logId === "string" && ids.logId ? ids.logId : null;
-    const reservationId = typeof ids.reservationId === "string" && ids.reservationId ? ids.reservationId : null;
+    const reservationId =
+      typeof ids.reservationId === "string" && ids.reservationId ? ids.reservationId : null;
     if (!logId && !reservationId) return { erro: "Informe o card (logId ou reservationId)." };
 
     const { buildArrivalRows } = await import("@/lib/arrival-board.server");
@@ -190,9 +202,17 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
 
   async function matchProperties(term: string) {
     if (!ctx.propertyIds.length) return [];
-    const { data } = await db.from("properties").select(PROP_COLS).in("id", ctx.propertyIds).limit(200);
+    const { data } = await db
+      .from("properties")
+      .select(PROP_COLS)
+      .in("id", ctx.propertyIds)
+      .limit(200);
     const rows = (data ?? []) as PropRow[];
-    const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const norm = (s: string) =>
+      s
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
     const needle = norm(term.trim());
     return rows.filter((r) => norm(r.name ?? "").includes(needle)).map(shape);
   }
@@ -218,7 +238,11 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
           const hits = await matchProperties(term);
           return { imoveis: hits, total: hits.length };
         }
-        const { data } = await db.from("properties").select(PROP_COLS).in("id", ctx.propertyIds).limit(200);
+        const { data } = await db
+          .from("properties")
+          .select(PROP_COLS)
+          .in("id", ctx.propertyIds)
+          .limit(200);
         const all = ((data ?? []) as PropRow[]).map(shape);
         return { imoveis: all, total: all.length };
       },
@@ -268,7 +292,10 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
         "Pendências (o botão PENDÊNCIAS do Kanban). Filtra por imóvel e por situação. Use antes de concluir uma pendência, para achar o id certo.",
       parameters: schema(
         {
-          propertyId: { type: ["string", "null"], description: "Id do imóvel, ou null para todos." },
+          propertyId: {
+            type: ["string", "null"],
+            description: "Id do imóvel, ou null para todos.",
+          },
           situacao: { type: "string", enum: ["pending", "done", "todas"] },
           busca: { type: ["string", "null"], description: "Parte do título da pendência." },
         },
@@ -284,7 +311,8 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
         const propertyId = typeof args.propertyId === "string" ? args.propertyId : null;
         q = propertyId ? q.eq("property_id", propertyId) : q.in("property_id", ctx.propertyIds);
         if (args.situacao !== "todas") q = q.eq("status", String(args.situacao));
-        if (typeof args.busca === "string" && args.busca.trim()) q = q.ilike("title", `%${args.busca.trim()}%`);
+        if (typeof args.busca === "string" && args.busca.trim())
+          q = q.ilike("title", `%${args.busca.trim()}%`);
         const { data, error } = await q;
         if (error) return { erro: error.message };
         return { total: (data ?? []).length, itens: data ?? [] };
@@ -331,21 +359,36 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
         if (!ctx.propertyIds.includes(propertyId)) {
           return { erro: "Você não tem acesso a esse imóvel." };
         }
-        const { data: prop } = await db.from("properties").select("name").eq("id", propertyId).maybeSingle();
-        const category = (CATEGORIES.includes(args.categoria as TaskCategory) ? args.categoria : "other") as TaskCategory;
-        const priority = (["low", "medium", "high"].includes(String(args.prioridade))
-          ? args.prioridade
-          : "medium") as TaskPriority;
+        const { data: prop } = await db
+          .from("properties")
+          .select("name")
+          .eq("id", propertyId)
+          .maybeSingle();
+        const category = (
+          CATEGORIES.includes(args.categoria as TaskCategory) ? args.categoria : "other"
+        ) as TaskCategory;
+        const priority = (
+          ["low", "medium", "high"].includes(String(args.prioridade)) ? args.prioridade : "medium"
+        ) as TaskPriority;
         const padraoLimpeza = defaultShowInCleaning(category);
-        const showInCleaning = typeof args.mostrarNaLimpeza === "boolean" ? args.mostrarNaLimpeza : padraoLimpeza;
+        const showInCleaning =
+          typeof args.mostrarNaLimpeza === "boolean" ? args.mostrarNaLimpeza : padraoLimpeza;
         const title = String(args.titulo).trim();
-        const description = typeof args.descricao === "string" && args.descricao.trim() ? args.descricao.trim() : null;
-        const dueDate = typeof args.prazo === "string" && /^\d{4}-\d{2}-\d{2}$/.test(args.prazo) ? args.prazo : null;
+        const description =
+          typeof args.descricao === "string" && args.descricao.trim()
+            ? args.descricao.trim()
+            : null;
+        const dueDate =
+          typeof args.prazo === "string" && /^\d{4}-\d{2}-\d{2}$/.test(args.prazo)
+            ? args.prazo
+            : null;
         // Recorrência: inteiro positivo ou nada. O `Math.floor` existe porque
         // o modelo às vezes manda 30.0 — que é um número válido em JSON e
         // seria rejeitado pelo `z.number().int()` do createTask lá na frente.
         const recurrenceDays =
-          typeof args.recorrenciaDias === "number" && Number.isFinite(args.recorrenciaDias) && args.recorrenciaDias >= 1
+          typeof args.recorrenciaDias === "number" &&
+          Number.isFinite(args.recorrenciaDias) &&
+          args.recorrenciaDias >= 1
             ? Math.floor(args.recorrenciaDias)
             : null;
 
@@ -377,7 +420,8 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
         ];
         if (description) preview.push({ label: "Detalhe", value: description });
         if (dueDate) preview.push({ label: "Prazo", value: dueDate });
-        if (recurrenceDays) preview.push({ label: "Repetição", value: `A cada ${recurrenceDays} dias` });
+        if (recurrenceDays)
+          preview.push({ label: "Repetição", value: `A cada ${recurrenceDays} dias` });
 
         ctx.prepared.current = { action, confirmLabel: "Criar pendência", preview };
         return { pronto: true, resumo: preview };
@@ -397,8 +441,14 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
           categoria: { type: "string", enum: CATEGORIES },
           prioridade: { type: "string", enum: ["low", "medium", "high"] },
           prazo: { type: ["string", "null"], description: "Data YYYY-MM-DD ou null." },
-          recorrenciaDias: { type: ["integer", "null"], description: "Repete a cada N dias, ou null." },
-          mostrarNaLimpeza: { type: ["boolean", "null"], description: "Null = padrão da categoria." },
+          recorrenciaDias: {
+            type: ["integer", "null"],
+            description: "Repete a cada N dias, ou null.",
+          },
+          mostrarNaLimpeza: {
+            type: ["boolean", "null"],
+            description: "Null = padrão da categoria.",
+          },
           busca: {
             type: ["string", "null"],
             description:
@@ -431,25 +481,42 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
           .in("id", ctx.propertyIds)
           .order("name")
           .limit(500);
-        const norm = (v: string) => v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        const norm = (v: string) =>
+          v
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .trim();
         let alvos = ((propRows ?? []) as Array<{ id: string; name: string | null }>).map((p) => ({
           id: p.id,
           name: p.name ?? "(sem nome)",
         }));
         if (term) alvos = alvos.filter((p) => norm(p.name).includes(norm(term)));
-        if (!alvos.length) return { erro: term ? `Nenhum imóvel casa com "${term}".` : "Nenhum imóvel encontrado." };
+        if (!alvos.length)
+          return { erro: term ? `Nenhum imóvel casa com "${term}".` : "Nenhum imóvel encontrado." };
 
         const title = String(args.titulo).trim();
-        const category = (CATEGORIES.includes(args.categoria as TaskCategory) ? args.categoria : "other") as TaskCategory;
-        const priority = (["low", "medium", "high"].includes(String(args.prioridade))
-          ? args.prioridade
-          : "medium") as TaskPriority;
+        const category = (
+          CATEGORIES.includes(args.categoria as TaskCategory) ? args.categoria : "other"
+        ) as TaskCategory;
+        const priority = (
+          ["low", "medium", "high"].includes(String(args.prioridade)) ? args.prioridade : "medium"
+        ) as TaskPriority;
         const padraoLimpeza = defaultShowInCleaning(category);
-        const showInCleaning = typeof args.mostrarNaLimpeza === "boolean" ? args.mostrarNaLimpeza : padraoLimpeza;
-        const description = typeof args.descricao === "string" && args.descricao.trim() ? args.descricao.trim() : null;
-        const dueDate = typeof args.prazo === "string" && /^\d{4}-\d{2}-\d{2}$/.test(args.prazo) ? args.prazo : null;
+        const showInCleaning =
+          typeof args.mostrarNaLimpeza === "boolean" ? args.mostrarNaLimpeza : padraoLimpeza;
+        const description =
+          typeof args.descricao === "string" && args.descricao.trim()
+            ? args.descricao.trim()
+            : null;
+        const dueDate =
+          typeof args.prazo === "string" && /^\d{4}-\d{2}-\d{2}$/.test(args.prazo)
+            ? args.prazo
+            : null;
         const recurrenceDays =
-          typeof args.recorrenciaDias === "number" && Number.isFinite(args.recorrenciaDias) && args.recorrenciaDias >= 1
+          typeof args.recorrenciaDias === "number" &&
+          Number.isFinite(args.recorrenciaDias) &&
+          args.recorrenciaDias >= 1
             ? Math.floor(args.recorrenciaDias)
             : null;
 
@@ -469,13 +536,17 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
         const { data: abertas } = await db
           .from("tasks")
           .select("id, title, property_id, status")
-          .in("property_id", alvos.map((p) => p.id))
+          .in(
+            "property_id",
+            alvos.map((p) => p.id),
+          )
           .eq("status", "pending")
           .limit(2000);
         const jaTem = new Map<string, string>();
         for (const t of (abertas ?? []) as Array<{ title: string; property_id: string | null }>) {
           if (!t.property_id) continue;
-          if (norm(t.title) === norm(title) && !jaTem.has(t.property_id)) jaTem.set(t.property_id, t.title);
+          if (norm(t.title) === norm(title) && !jaTem.has(t.property_id))
+            jaTem.set(t.property_id, t.title);
         }
 
         const duplicates = alvos
@@ -494,13 +565,24 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
         const action: AssistantAction = {
           kind: "create_task_bulk",
           payload: {
-            base: { title, description, category, priority, dueDate, showInCleaning, recurrenceDays },
+            base: {
+              title,
+              description,
+              category,
+              priority,
+              dueDate,
+              showInCleaning,
+              recurrenceDays,
+            },
             properties,
             duplicates,
           },
         };
         const preview = [
-          { label: "Imóveis", value: `${properties.length} ${properties.length === 1 ? "imóvel" : "imóveis"}` },
+          {
+            label: "Imóveis",
+            value: `${properties.length} ${properties.length === 1 ? "imóvel" : "imóveis"}`,
+          },
           { label: "Título", value: title },
           { label: "Categoria", value: CATEGORY_LABEL[category] },
           { label: "Prioridade", value: PRIORITY_LABEL[priority] },
@@ -508,7 +590,8 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
         ];
         if (description) preview.push({ label: "Detalhe", value: description });
         if (dueDate) preview.push({ label: "Prazo", value: dueDate });
-        if (recurrenceDays) preview.push({ label: "Repetição", value: `A cada ${recurrenceDays} dias` });
+        if (recurrenceDays)
+          preview.push({ label: "Repetição", value: `A cada ${recurrenceDays} dias` });
         preview.push({
           label: "Onde",
           value: properties.map((p) => p.name).join(", "),
@@ -549,12 +632,18 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
       ),
       execute: async (args) => {
         const taskId = String(args.taskId);
-        const { data: task } = await db.from("tasks").select("id, title, status").eq("id", taskId).maybeSingle();
+        const { data: task } = await db
+          .from("tasks")
+          .select("id, title, status")
+          .eq("id", taskId)
+          .maybeSingle();
         const row = task as { id: string; title: string; status: string } | null;
         if (!row) return { erro: "Pendência não encontrada ou sem acesso." };
         const arquivar = args.acao !== "reabrir";
-        if (arquivar && row.status === "canceled") return { erro: "Essa pendência já está arquivada." };
-        if (!arquivar && row.status === "pending") return { erro: "Essa pendência já está aberta." };
+        if (arquivar && row.status === "canceled")
+          return { erro: "Essa pendência já está arquivada." };
+        if (!arquivar && row.status === "pending")
+          return { erro: "Essa pendência já está aberta." };
 
         const action: AssistantAction = {
           kind: "set_task_status",
@@ -585,8 +674,14 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
           logId: { type: ["string", "null"] },
           reservationId: { type: ["string", "null"] },
           tipo: { type: "string", enum: ["chegadas", "saidas"] },
-          data: { type: ["string", "null"], description: "Data prevista YYYY-MM-DD, ou null para limpar." },
-          horario: { type: ["string", "null"], description: "Horário previsto HH:MM, ou null para limpar." },
+          data: {
+            type: ["string", "null"],
+            description: "Data prevista YYYY-MM-DD, ou null para limpar.",
+          },
+          horario: {
+            type: ["string", "null"],
+            description: "Horário previsto HH:MM, ou null para limpar.",
+          },
         },
         ["logId", "reservationId", "tipo", "data", "horario"],
       ),
@@ -594,7 +689,10 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
         const kind = args.tipo === "saidas" ? "checkout" : "checkin";
         const date =
           typeof args.data === "string" && /^\d{4}-\d{2}-\d{2}$/.test(args.data) ? args.data : null;
-        const time = typeof args.horario === "string" && /^\d{2}:\d{2}$/.test(args.horario) ? args.horario : null;
+        const time =
+          typeof args.horario === "string" && /^\d{2}:\d{2}$/.test(args.horario)
+            ? args.horario
+            : null;
         if (!date && !time && args.data !== null && args.horario !== null) {
           return { erro: "Informe a data (YYYY-MM-DD) e/ou o horário (HH:MM)." };
         }
@@ -603,7 +701,10 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
         // agenda real, e os identificadores gravados são os DELE — nunca os
         // que o modelo escreveu. Gravar previsão no hóspede errado move um
         // card de dia no quadro de todo mundo.
-        const hit = await findAgendaRow(kind, { logId: args.logId, reservationId: args.reservationId });
+        const hit = await findAgendaRow(kind, {
+          logId: args.logId,
+          reservationId: args.reservationId,
+        });
         if ("erro" in hit) return hit;
 
         const action: AssistantAction = {
@@ -652,7 +753,9 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
         // em silêncio. Na tela essa pergunta é obrigatória (o clique abre o
         // seletor de tipo antes de qualquer coisa) — aqui vale o mesmo.
         const cleaningType =
-          args.tipoLimpeza === "normal" || args.tipoLimpeza === "completa" ? args.tipoLimpeza : null;
+          args.tipoLimpeza === "normal" || args.tipoLimpeza === "completa"
+            ? args.tipoLimpeza
+            : null;
         if (from === "cleaning" && !cleaningType) {
           return {
             erro: "Para concluir a limpeza eu preciso saber se foi limpeza normal ou completa — é isso que define o valor gravado.",
@@ -662,7 +765,10 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
         // partir de "checkin" está numa chegada; os outros três estão do lado
         // da saída/limpeza.
         const kind = from === "checkin" ? "checkin" : "checkout";
-        const hit = await findAgendaRow(kind, { logId: args.logId, reservationId: args.reservationId });
+        const hit = await findAgendaRow(kind, {
+          logId: args.logId,
+          reservationId: args.reservationId,
+        });
         if ("erro" in hit) return hit;
 
         const EFEITO: Record<typeof from, string> = {
@@ -687,7 +793,10 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
           { label: "Efeito", value: EFEITO[from] },
         ];
         if (cleaningType) {
-          preview.push({ label: "Tipo de limpeza", value: cleaningType === "completa" ? "Completa" : "Normal" });
+          preview.push({
+            label: "Tipo de limpeza",
+            value: cleaningType === "completa" ? "Completa" : "Normal",
+          });
         }
         ctx.prepared.current = {
           action,
@@ -722,7 +831,12 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
           .select("id, title, status, property_id")
           .eq("id", taskId)
           .maybeSingle();
-        const row = task as { id: string; title: string; status: string; property_id: string | null } | null;
+        const row = task as {
+          id: string;
+          title: string;
+          status: string;
+          property_id: string | null;
+        } | null;
         if (!row) return { erro: "Pendência não encontrada ou sem acesso." };
         if (row.status === "done") return { erro: "Essa pendência já está concluída." };
 
@@ -730,10 +844,16 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
           typeof args.comoFoiResolvido === "string" && args.comoFoiResolvido.trim()
             ? args.comoFoiResolvido.trim()
             : null;
-        const action: AssistantAction = { kind: "complete_task", payload: { taskId, resolutionNote: note } };
+        const action: AssistantAction = {
+          kind: "complete_task",
+          payload: { taskId, resolutionNote: note },
+        };
         const preview = [{ label: "Pendência", value: row.title }];
         if (note) preview.push({ label: "Como foi resolvido", value: note });
-        preview.push({ label: "Quem resolveu", value: "Em branco — dá para preencher na tela depois" });
+        preview.push({
+          label: "Quem resolveu",
+          value: "Em branco — dá para preencher na tela depois",
+        });
 
         ctx.prepared.current = { action, confirmLabel: "Concluir pendência", preview };
         return { pronto: true, resumo: preview };
@@ -754,7 +874,10 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
         // Confere contra a agenda em vez de aceitar o id que o modelo mandou:
         // marcar não comparecimento no hóspede errado apaga o checkout e a
         // limpeza dele do quadro, e não há desfazer óbvio.
-        const hit = await findAgendaRow("checkin", { logId: args.logId, reservationId: args.reservationId });
+        const hit = await findAgendaRow("checkin", {
+          logId: args.logId,
+          reservationId: args.reservationId,
+        });
         if ("erro" in hit) return hit;
 
         const action: AssistantAction = {
@@ -768,10 +891,66 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
             { label: "Hóspede", value: hit.row.guestName },
             { label: "Imóvel", value: hit.row.propertyName ?? "—" },
             { label: "Chegada prevista", value: hit.row.date },
-            { label: "Efeito", value: "Some da esteira e cancela o checkout e a limpeza desta estadia" },
+            {
+              label: "Efeito",
+              value: "Some da esteira e cancela o checkout e a limpeza desta estadia",
+            },
           ],
         };
         return { pronto: true, resumo: ctx.prepared.current.preview };
+      },
+    },
+
+    // ───────────────────── preferências da pessoa ─────────────────────
+    {
+      /**
+       * A ÚNICA ferramenta que grava na hora, sem cartão — e por um motivo
+       * lógico, não por exceção: ela É o cartão. Pedir confirmação para
+       * desligar a confirmação seria uma piada.
+       *
+       * Pedido explícito (09/09/2026): "se o usuário pedir 'dispense a
+       * confirmação', então ela tem que acatar e manter isso memorizado para
+       * aquele usuário específico".
+       *
+       * O que ela NÃO faz: ampliar permissão. Com a chave ligada, cada
+       * gravação continua passando pela MESMA server function da tela e pelo
+       * MESMO RLS — quem não pode arquivar uma pendência continua não podendo,
+       * e a falha aparece igual. O que sai é o clique, não a checagem.
+       *
+       * Escreve em `profiles` com o cliente do PRÓPRIO usuário: o RLS
+       * ("profiles update own") garante sozinho que ninguém mude a preferência
+       * de outra pessoa, sem nenhuma checagem extra aqui.
+       */
+      name: "definir_confirmacao_automatica",
+      description:
+        "Liga ou desliga a confirmação automática das ações DESTE usuário. Ligada, tudo que você preparar é gravado na hora, " +
+        "sem o cartão de confirmação — e a preferência fica memorizada para as próximas conversas. Use SEMPRE que a pessoa " +
+        "pedir para dispensar/parar de pedir confirmação, confiar em você, agir direto, e também quando ela pedir o contrário " +
+        "('volte a me perguntar antes'). Não pergunte se pode: a pessoa já pediu. Depois de chamar, diga em uma linha o que " +
+        "passou a valer e que ela pode reverter quando quiser.",
+      parameters: schema(
+        {
+          ativa: {
+            type: "boolean",
+            description:
+              "true = grava direto, sem cartão. false = volta a pedir confirmação em cada ação.",
+          },
+        },
+        ["ativa"],
+      ),
+      execute: async (args) => {
+        const ativa = args.ativa === true;
+        const { error } = await db
+          .from("profiles")
+          .update({ assistant_auto_confirm: ativa })
+          .eq("id", ctx.userId);
+        if (error) return { erro: error.message };
+        return {
+          confirmacaoAutomatica: ativa,
+          efeito: ativa
+            ? "A partir de agora eu gravo direto o que você pedir, sem cartão de confirmação."
+            : "Voltei a pedir confirmação antes de gravar qualquer coisa.",
+        };
       },
     },
 

@@ -115,6 +115,25 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
     onSuccess: (res) => {
       setThreadId(res.threadId);
       setLive((prev) => [...prev, res.message]);
+      /**
+       * CONFIRMAÇÃO AUTOMÁTICA (pedido explícito, 09/09/2026: "se o usuário
+       * pedir 'dispense a confirmação', então ela tem que acatar e manter isso
+       * memorizado para aquele usuário específico").
+       *
+       * A ação segue exatamente o mesmo caminho de sempre — a mutation
+       * `confirm`, as mesmas server functions das telas, o mesmo RLS. O que
+       * muda é só quem dispara: o clique da pessoa ou esta linha. Por isso a
+       * autonomia não vira privilégio: se ela não pode gravar aquilo, falha
+       * aqui igual falharia no cartão, com o mesmo erro.
+       *
+       * `res.autoConfirm` é lido no servidor DEPOIS do turno, então "dispense
+       * a confirmação" já vale para a ação preparada nesta mesma mensagem.
+       */
+      if (res.autoConfirm && res.message.pendingAction) {
+        setPending(null);
+        confirm.mutate(res.message.pendingAction);
+        return;
+      }
       setPending(res.message.pendingAction);
     },
     onError: (e: unknown) => {
@@ -252,8 +271,10 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
         }
         return;
       }
-            if (a.kind === "set_task_status") {
-        await setStatusFn({ data: { taskId: a.payload.taskId, status: a.payload.status } } as never);
+      if (a.kind === "set_task_status") {
+        await setStatusFn({
+          data: { taskId: a.payload.taskId, status: a.payload.status },
+        } as never);
         return;
       }
       if (a.kind === "set_prediction") {
@@ -292,7 +313,9 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
     onSuccess: (_r, p) => {
       setDoneActions((prev) => new Set(prev).add(JSON.stringify(p.action)));
       setPending(null);
-      toast.success("Feito.");
+      // Com a confirmação dispensada, este aviso é o ÚNICO sinal de que algo
+      // foi gravado — então ele diz o quê, não só "feito".
+      toast.success(p.confirmLabel ? `${p.confirmLabel} — feito.` : "Feito.");
       // O quadro atrás precisa refletir a gravação — mesma lógica de
       // invalidação que as telas usam depois de qualquer mutação.
       qc.invalidateQueries();
@@ -328,11 +351,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
           >
             <RotateCcw className="size-3.5" />
           </button>
-          <button
-            onClick={onClose}
-            aria-label="Fechar"
-            className={CHAT_HEADER_BTN}
-          >
+          <button onClick={onClose} aria-label="Fechar" className={CHAT_HEADER_BTN}>
             <X className="size-4" />
           </button>
         </div>
@@ -342,7 +361,8 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
         {empty && (
           <div className="space-y-3 py-2">
             <p className="text-sm text-muted-foreground">
-              Pergunte como algo funciona, consulte a sua operação ou peça para eu preparar uma ação.
+              Pergunte como algo funciona, consulte a sua operação ou peça para eu preparar uma
+              ação.
             </p>
             <div className="flex flex-col gap-1.5">
               {SUGESTOES.map((s) => (
@@ -385,7 +405,13 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
         }}
         className="shrink-0 border-t border-border bg-surface px-3 py-2"
       >
-        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPickImage} />
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={onPickImage}
+        />
 
         {image && (
           <div className="mb-2 flex items-center gap-2 rounded-lg border border-border bg-card px-2 py-1.5">
@@ -433,7 +459,11 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
               aria-label="Enviar"
               className={`${COMPOSER_SEND_BTN} bg-accent text-accent-foreground`}
             >
-              {ask.isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+              {ask.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Send className="size-4" />
+              )}
             </button>
           ) : transcribing ? (
             <span className="grid size-8 shrink-0 place-items-center text-muted-foreground">
@@ -471,7 +501,9 @@ function MessageBubble({ message }: { message: AssistantMessage }) {
     <div className={`flex flex-col gap-1.5 ${mine ? "items-end" : "items-start"}`}>
       <div
         className={`max-w-[88%] break-words rounded-xl px-3 py-2 text-[13px] leading-relaxed ${
-          mine ? "whitespace-pre-wrap bg-primary text-primary-foreground" : "border border-border bg-card"
+          mine
+            ? "whitespace-pre-wrap bg-primary text-primary-foreground"
+            : "border border-border bg-card"
         }`}
       >
         {/* O que a pessoa digitou é texto puro — se ela escrever asteriscos,
@@ -513,7 +545,9 @@ function ActionCard({
 }) {
   return (
     <div className="rounded-xl border border-border border-l-[3px] border-l-accent bg-card p-3">
-      <p className="text-[10px] font-bold uppercase tracking-wider text-accent">Confirmar antes de gravar</p>
+      <p className="text-[10px] font-bold uppercase tracking-wider text-accent">
+        Confirmar antes de gravar
+      </p>
       <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[12px]">
         {pending.preview.map((row) => (
           <div key={row.label} className="contents">

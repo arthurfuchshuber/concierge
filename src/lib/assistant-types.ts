@@ -163,4 +163,21 @@ export type AssistantMessage = {
 export type AssistantAsk = {
   threadId: string;
   message: AssistantMessage;
+  /**
+   * A pessoa dispensou o cartão de confirmação (`profiles.assistant_auto_
+   * confirm`). Com `true`, a interface executa a `pendingAction` na hora, em
+   * vez de esperar o clique.
+   *
+   * Pedido explícito (09/09/2026): "se o usuário pedir 'dispense a
+   * confirmação', então ela tem que acatar e manter isso memorizado para
+   * aquele usuário específico".
+   *
+   * Vem no envelope da resposta, e não de uma query separada, porque a
+   * preferência pode ter mudado NESTA mensagem — a IA tem uma ferramenta para
+   * ligá-la, e o valor que interessa é o de depois da conversa.
+   *
+   * A autonomia é sobre o CLIQUE, não sobre permissão: a gravação continua
+   * passando pela mesma server function e pelo mesmo RLS da tela.
+   */
+  autoConfirm: boolean;
 };

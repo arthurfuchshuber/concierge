@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-09T19:36:32.907Z";
+export const GENERATED_AT = "2026-09-09T19:55:01.125Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -1140,6 +1140,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ac3b24999636d5bba4bcaafa627526f7"
   },
   {
+    "doc_key": "rule:postResponses",
+    "kind": "rule",
+    "title": "Regra — postResponses",
+    "content": "`onTextDelta` repassa cada pedaço de texto ASSIM QUE ELE CHEGA.\n\nOs eventos já chegavam — `response.output_text.delta`, token a token — e\neram jogados num buffer que só era lido no fim. Era exatamente por isso que\na resposta parecia lenta comparada ao ChatGPT: não é que lá o modelo seja\nmais rápido, é que lá a primeira palavra aparece em ~300ms e continua\nsaindo, enquanto aqui a tela ficava vários segundos em branco e depois\ndespejava o texto pronto. Mesmo tempo total, percepção oposta.\n\nO callback nunca pode derrubar a chamada: quem escuta é uma conexão SSE que\npode cair no meio (o hóspede fecha a aba). Por isso o try/catch mudo.",
+    "source_path": "src/lib/ai/gateway.server.ts",
+    "audience": [],
+    "content_hash": "7b894cf3043849af7809df9e34a4754c"
+  },
+  {
     "doc_key": "rule:predictionDayLabel",
     "kind": "rule",
     "title": "Regra — predictionDayLabel",
@@ -1480,6 +1489,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/assistant/AssistantPanel.tsx",
     "audience": [],
     "content_hash": "1d6019faf67077787112e40ec8da6346"
+  },
+  {
+    "doc_key": "rule:src/components/assistant/AssistantPanel.tsx:4795",
+    "kind": "rule",
+    "title": "Regra em AssistantPanel.tsx",
+    "content": "CONFIRMAÇÃO AUTOMÁTICA (pedido explícito, 09/09/2026: \"se o usuário\npedir 'dispense a confirmação', então ela tem que acatar e manter isso\nmemorizado para aquele usuário específico\").\n\nA ação segue exatamente o mesmo caminho de sempre — a mutation\n`confirm`, as mesmas server functions das telas, o mesmo RLS. O que\nmuda é só quem dispara: o clique da pessoa ou esta linha. Por isso a\nautonomia não vira privilégio: se ela não pode gravar aquilo, falha\naqui igual falharia no cartão, com o mesmo erro.\n\n`res.autoConfirm` é lido no servidor DEPOIS do turno, então \"dispense\na confirmação\" já vale para a ação preparada nesta mesma mensagem.",
+    "source_path": "src/components/assistant/AssistantPanel.tsx",
+    "audience": [],
+    "content_hash": "5c2c5b13052a34cbf91c67dae6cfa570"
   },
   {
     "doc_key": "rule:src/components/chat/composer-styles.ts:0",
@@ -1824,13 +1842,22 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "c1ce0cdb28e49031425478368dfab246"
   },
   {
-    "doc_key": "rule:src/lib/ai/assistant-tools.server.ts:20591",
+    "doc_key": "rule:src/lib/ai/assistant-tools.server.ts:21221",
     "kind": "rule",
     "title": "Regra em assistant-tools.server.ts",
     "content": "PENDÊNCIA PARECIDA JÁ EXISTENTE — pedido explícito (08/09/2026):\n\"se tiver uma pendência parecida com essa que está sendo solicitada,\nvocê não tem que gravar uma nova. Você precisa perguntar para o\nusuário se ele quer gravar mesmo assim\".\n\n\"Parecida\" é comparação do TÍTULO normalizado (sem acento, sem\ncaixa, sem espaço sobrando) entre as pendências ABERTAS do imóvel:\né o que a pessoa reconhece como \"essa já existe\". Comparar por\nsemelhança semântica seria mais esperto e menos previsível — e aqui\nprevisibilidade vale mais, porque o custo do erro é duplicar\nsilenciosamente uma rotina em dezenas de imóveis.",
     "source_path": "src/lib/ai/assistant-tools.server.ts",
     "audience": [],
     "content_hash": "387889c0801095ecc9769eaf2fb9135f"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/assistant-tools.server.ts:37079",
+    "kind": "rule",
+    "title": "Regra em assistant-tools.server.ts",
+    "content": "A ÚNICA ferramenta que grava na hora, sem cartão — e por um motivo\nlógico, não por exceção: ela É o cartão. Pedir confirmação para\ndesligar a confirmação seria uma piada.\n\nPedido explícito (09/09/2026): \"se o usuário pedir 'dispense a\nconfirmação', então ela tem que acatar e manter isso memorizado para\naquele usuário específico\".\n\nO que ela NÃO faz: ampliar permissão. Com a chave ligada, cada\ngravação continua passando pela MESMA server function da tela e pelo\nMESMO RLS — quem não pode arquivar uma pendência continua não podendo,\ne a falha aparece igual. O que sai é o clique, não a checagem.\n\nEscreve em `profiles` com o cliente do PRÓPRIO usuário: o RLS\n(\"profiles update own\") garante sozinho que ninguém mude a preferência\nde outra pessoa, sem nenhuma checagem extra aqui.",
+    "source_path": "src/lib/ai/assistant-tools.server.ts",
+    "audience": [],
+    "content_hash": "43a4dc370011c06bfb8946cd8f24d2b8"
   },
   {
     "doc_key": "rule:src/lib/ai/audit/events.server.ts:0",
@@ -1894,6 +1921,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/ai/evaluation/regression.server.ts",
     "audience": [],
     "content_hash": "8e948ef1fef50aa5eb76b9a25449d422"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/gateway.server.ts:11418",
+    "kind": "rule",
+    "title": "Regra em gateway.server.ts",
+    "content": "Recebe o texto da resposta conforme ele é escrito, para a interface poder\nmostrar em vez de esperar. Ver `postResponses`.\n\nO agente pode dar VÁRIAS voltas (uma por rodada de ferramentas), e cada\nvolta pode escrever texto. Por isso vem junto o número do passo: quem\nescuta descarta o que veio de um passo anterior quando um novo começa a\nescrever — senão o preâmbulo de uma rodada intermediária ficaria colado na\nresposta final.",
+    "source_path": "src/lib/ai/gateway.server.ts",
+    "audience": [],
+    "content_hash": "0500caf69496790cae2bb38de2112e6c"
   },
   {
     "doc_key": "rule:src/lib/ai/governance/tenant-knowledge.server.ts:0",
@@ -2211,6 +2247,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "aea6e0dd752ab44bafbf64ca31f3132f"
   },
   {
+    "doc_key": "rule:src/lib/assistant-types.ts:6314",
+    "kind": "rule",
+    "title": "Regra em assistant-types.ts",
+    "content": "A pessoa dispensou o cartão de confirmação (`profiles.assistant_auto_\nconfirm`). Com `true`, a interface executa a `pendingAction` na hora, em\nvez de esperar o clique.\n\nPedido explícito (09/09/2026): \"se o usuário pedir 'dispense a\nconfirmação', então ela tem que acatar e manter isso memorizado para\naquele usuário específico\".\n\nVem no envelope da resposta, e não de uma query separada, porque a\npreferência pode ter mudado NESTA mensagem — a IA tem uma ferramenta para\nligá-la, e o valor que interessa é o de depois da conversa.\n\nA autonomia é sobre o CLIQUE, não sobre permissão: a gravação continua\npassando pela mesma server function e pelo mesmo RLS da tela.",
+    "source_path": "src/lib/assistant-types.ts",
+    "audience": [],
+    "content_hash": "dc6f62cd5f7d06901dc11bc3f49e4a2a"
+  },
+  {
     "doc_key": "rule:src/lib/assistant.functions.ts:0",
     "kind": "rule",
     "title": "Regra em assistant.functions.ts",
@@ -2220,7 +2265,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "5674b6fa53ea76be36860872abcb06e6"
   },
   {
-    "doc_key": "rule:src/lib/assistant.functions.ts:1828",
+    "doc_key": "rule:src/lib/assistant.functions.ts:12632",
+    "kind": "rule",
+    "title": "Regra em assistant.functions.ts",
+    "content": "A preferência é lida DEPOIS do run, de propósito: a própria conversa\npode ter acabado de ligá-la (ver `definir_confirmacao_automatica`). Lida\nantes, o \"dispense a confirmação\" só valeria a partir da mensagem\nseguinte — e a pessoa veria um cartão logo depois de pedir para não ver\nmais cartões.",
+    "source_path": "src/lib/assistant.functions.ts",
+    "audience": [],
+    "content_hash": "c26269ecadfeac7f7b283f7a4334219f"
+  },
+  {
+    "doc_key": "rule:src/lib/assistant.functions.ts:1837",
     "kind": "rule",
     "title": "Regra em assistant.functions.ts",
     "content": "Imagem anexada, como data URL (pedido explícito, 07/09/2026). Vai junto da\npergunta para o modelo olhar — um print da tela costuma explicar melhor\nque qualquer descrição. Não é gravada em lugar nenhum: serve a esta\npergunta e acaba ali.",

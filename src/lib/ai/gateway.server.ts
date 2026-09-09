@@ -51,7 +51,11 @@ function throwForStatus(status: number, body: string): never {
  * ser abandonada. 429/402 não são retentados aqui: já têm tratamento próprio
  * em `throwForStatus` e retry imediato só pioraria rate limit/billing.
  */
-async function fetchWithRetry(url: string, init: RequestInit, opts?: { retries?: number; backoffMs?: number }): Promise<Response> {
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  opts?: { retries?: number; backoffMs?: number },
+): Promise<Response> {
   const retries = opts?.retries ?? 1;
   const backoffMs = opts?.backoffMs ?? 400;
   let lastErr: unknown;
@@ -86,7 +90,10 @@ export async function chatText(
 
   // Modelos OpenAI são servidos pela Responses API (streaming obrigatório).
   if (isResponsesModel(model)) {
-    const system = messages.filter((m) => m.role === "system").map((m) => m.content).join("\n\n");
+    const system = messages
+      .filter((m) => m.role === "system")
+      .map((m) => m.content)
+      .join("\n\n");
     const run = await runAgent({
       task,
       instructions: opts?.json
@@ -97,7 +104,9 @@ export async function chatText(
         .map((m) => ({
           type: "message",
           role: m.role,
-          content: [{ type: m.role === "assistant" ? "output_text" : "input_text", text: m.content }],
+          content: [
+            { type: m.role === "assistant" ? "output_text" : "input_text", text: m.content },
+          ],
         })),
       tools: [],
       maxSteps: 1,
@@ -107,7 +116,6 @@ export async function chatText(
   }
 
   const res = await fetchWithRetry(`${BASE}/chat/completions`, {
-
     method: "POST",
     headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey() },
     // Timeout defensivo: chamadas de classificação/validação são rápidas por natureza;
@@ -130,7 +138,11 @@ export async function chatText(
   return {
     text: (json.choices?.[0]?.message?.content ?? "").trim(),
     model,
-    usage: { inputTokens, outputTokens, costUsd: estimateCostUsd(model, inputTokens, outputTokens) },
+    usage: {
+      inputTokens,
+      outputTokens,
+      costUsd: estimateCostUsd(model, inputTokens, outputTokens),
+    },
   };
 }
 
@@ -140,9 +152,15 @@ export async function chatJson<T>(
   messages: ChatMessage[],
   opts?: { signal?: AbortSignal },
 ): Promise<{ data: T | null; usage: Usage; model: string }> {
-  const { text, usage, model } = await chatText(task, messages, { json: true, signal: opts?.signal });
+  const { text, usage, model } = await chatText(task, messages, {
+    json: true,
+    signal: opts?.signal,
+  });
   try {
-    const cleaned = text.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+    const cleaned = text
+      .replace(/^```(?:json)?/i, "")
+      .replace(/```$/, "")
+      .trim();
     return { data: JSON.parse(cleaned) as T, usage, model };
   } catch {
     return { data: null, usage, model };
@@ -190,7 +208,6 @@ export async function embedTexts(texts: string[]): Promise<{ vectors: number[][]
   return { vectors, usage };
 }
 
-
 export async function embedOne(text: string): Promise<{ vector: number[] | null; usage: Usage }> {
   const { vectors, usage } = await embedTexts([text]);
   return { vector: vectors[0] ?? null, usage };
@@ -215,7 +232,24 @@ type ResponsesPayload = {
   status?: string;
 };
 
-async function postResponses(body: unknown, signal?: AbortSignal): Promise<ResponsesPayload> {
+/**
+ * `onTextDelta` repassa cada pedaço de texto ASSIM QUE ELE CHEGA.
+ *
+ * Os eventos já chegavam — `response.output_text.delta`, token a token — e
+ * eram jogados num buffer que só era lido no fim. Era exatamente por isso que
+ * a resposta parecia lenta comparada ao ChatGPT: não é que lá o modelo seja
+ * mais rápido, é que lá a primeira palavra aparece em ~300ms e continua
+ * saindo, enquanto aqui a tela ficava vários segundos em branco e depois
+ * despejava o texto pronto. Mesmo tempo total, percepção oposta.
+ *
+ * O callback nunca pode derrubar a chamada: quem escuta é uma conexão SSE que
+ * pode cair no meio (o hóspede fecha a aba). Por isso o try/catch mudo.
+ */
+async function postResponses(
+  body: unknown,
+  signal?: AbortSignal,
+  onTextDelta?: (delta: string) => void,
+): Promise<ResponsesPayload> {
   const res = await fetchWithRetry(`${BASE}/responses`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey() },
@@ -245,10 +279,24 @@ async function postResponses(body: unknown, signal?: AbortSignal): Promise<Respo
       const raw = line.slice(5).trim();
       if (!raw || raw === "[DONE]") continue;
       try {
-        const evt = JSON.parse(raw) as { type?: string; delta?: string; response?: ResponsesPayload };
+        const evt = JSON.parse(raw) as {
+          type?: string;
+          delta?: string;
+          response?: ResponsesPayload;
+        };
         if (evt.type === "response.output_text.delta" && typeof evt.delta === "string") {
           textFallback += evt.delta;
-        } else if ((evt.type === "response.completed" || evt.type === "response.incomplete") && evt.response) {
+          if (onTextDelta) {
+            try {
+              onTextDelta(evt.delta);
+            } catch {
+              /* quem escuta pode ter ido embora — nunca derruba a geração */
+            }
+          }
+        } else if (
+          (evt.type === "response.completed" || evt.type === "response.incomplete") &&
+          evt.response
+        ) {
           completed = evt.response;
         }
       } catch {
@@ -269,7 +317,6 @@ export type AgentToolCall = {
   /** Quantas ferramentas rodaram em paralelo nesta rodada. */
   parallelBatch?: number;
 };
-
 
 export type AgentRun = {
   text: string;
@@ -292,6 +339,17 @@ export async function runAgent(params: {
   maxSteps?: number;
   reasoningEffort?: "low" | "medium" | "high";
   signal?: AbortSignal;
+  /**
+   * Recebe o texto da resposta conforme ele é escrito, para a interface poder
+   * mostrar em vez de esperar. Ver `postResponses`.
+   *
+   * O agente pode dar VÁRIAS voltas (uma por rodada de ferramentas), e cada
+   * volta pode escrever texto. Por isso vem junto o número do passo: quem
+   * escuta descarta o que veio de um passo anterior quando um novo começa a
+   * escrever — senão o preâmbulo de uma rodada intermediária ficaria colado na
+   * resposta final.
+   */
+  onTextDelta?: (delta: string, step: number) => void;
 }): Promise<AgentRun> {
   const model = modelFor(params.task ?? "agent");
   const maxSteps = params.maxSteps ?? 5;
@@ -328,6 +386,7 @@ export async function runAgent(params: {
         include: ["reasoning.encrypted_content"],
       },
       signal,
+      params.onTextDelta ? (d) => params.onTextDelta?.(d, steps) : undefined,
     );
 
     const inputTokens = payload.usage?.input_tokens ?? 0;
@@ -343,7 +402,9 @@ export async function runAgent(params: {
 
     const messageText = output
       .filter((item) => item.type === "message")
-      .flatMap((item) => ((item as { content?: Array<{ type?: string; text?: string }> }).content ?? []))
+      .flatMap(
+        (item) => (item as { content?: Array<{ type?: string; text?: string }> }).content ?? [],
+      )
       .filter((c) => c.type === "output_text")
       .map((c) => c.text ?? "")
       .join("")
@@ -376,7 +437,9 @@ export async function runAgent(params: {
         try {
           result = tool ? await tool.execute(args) : { error: `Ferramenta desconhecida: ${name}` };
         } catch (err) {
-          result = { error: err instanceof Error ? err.message : "Falha ao executar a ferramenta." };
+          result = {
+            error: err instanceof Error ? err.message : "Falha ao executar a ferramenta.",
+          };
         }
         return { name, callId, args, result, durationMs: Date.now() - startedAt };
       }),
@@ -396,7 +459,6 @@ export async function runAgent(params: {
         output: JSON.stringify(call.result ?? null).slice(0, 20000),
       });
     }
-
   }
 
   return { text, toolCalls, usage, model, steps };

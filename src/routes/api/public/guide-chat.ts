@@ -14,7 +14,11 @@ const sessionMessageTimes = new Map<string, number[]>();
 const ipMessageTimes = new Map<string, number[]>();
 const guideDailyCount = new Map<string, { date: string; count: number }>();
 
-function checkRateLimit(sessionId: string, ip: string, slug: string): { ok: boolean; reason?: string } {
+function checkRateLimit(
+  sessionId: string,
+  ip: string,
+  slug: string,
+): { ok: boolean; reason?: string } {
   const now = Date.now();
   const min = 60_000;
   const day = 86_400_000;
@@ -63,302 +67,322 @@ async function runGuideChat(
   body: z.infer<typeof Body>,
   emitStage: (stage: StageEvent) => void,
 ): Promise<Response> {
-        {
+  {
+    const apiKey = process.env.LOVABLE_API_KEY;
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: "IA não configurada." }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        const apiKey = process.env.LOVABLE_API_KEY;
-        if (!apiKey) {
-          return new Response(JSON.stringify({ error: "IA não configurada." }), { status: 500, headers: { "Content-Type": "application/json" } });
-        }
+    const { data: prop } = await supabaseAdmin
+      .from("properties")
+      .select("*")
+      .eq("slug", body.slug)
+      .eq("published", true)
+      .maybeSingle<PropertyRow>();
 
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (!prop) {
+      return new Response(JSON.stringify({ error: "Guia não encontrado." }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (prop.access_mode === "pin") {
+      const cookie = getCookie(`sg-pin-${prop.id}`);
+      if (cookie !== "ok") {
+        return new Response(JSON.stringify({ error: "Acesso bloqueado." }), {
+          status: 403,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
 
-        const { data: prop } = await supabaseAdmin
-          .from("properties")
-          .select("*")
-          .eq("slug", body.slug)
-          .eq("published", true)
-          .maybeSingle<PropertyRow>();
+    // Gate: guest AI chat is available from the Pro plan onwards.
+    const { resolveOwnerPlanAdmin } = await import("@/lib/plan-guard.server");
+    const ownerPlan = await resolveOwnerPlanAdmin(supabaseAdmin as SupabaseClient, prop.owner_id);
+    if (!ownerPlan.features.guestChat) {
+      return new Response(
+        JSON.stringify({ error: "A assistente IA não está disponível neste guia." }),
+        { status: 403, headers: { "Content-Type": "application/json" } },
+      );
+    }
 
-        if (!prop) {
-          return new Response(JSON.stringify({ error: "Guia não encontrado." }), { status: 404, headers: { "Content-Type": "application/json" } });
-        }
-        if (prop.access_mode === "pin") {
-          const cookie = getCookie(`sg-pin-${prop.id}`);
-          if (cookie !== "ok") {
-            return new Response(JSON.stringify({ error: "Acesso bloqueado." }), { status: 403, headers: { "Content-Type": "application/json" } });
-          }
-        }
+    // Get or create conversation
+    let conversationId = body.conversationId;
+    if (conversationId) {
+      const { data: conv } = await supabaseAdmin
+        .from("property_chat_conversations")
+        .select("id, property_id, guest_session_id")
+        .eq("id", conversationId)
+        .maybeSingle();
+      if (!conv || conv.property_id !== prop.id || conv.guest_session_id !== body.sessionId) {
+        conversationId = undefined;
+      }
+    }
+    if (!conversationId) {
+      const { data: created, error: cErr } = await supabaseAdmin
+        .from("property_chat_conversations")
+        .insert({
+          property_id: prop.id,
+          guest_session_id: body.sessionId,
+          guest_name: body.guestName ?? null,
+        })
+        .select("id")
+        .single();
+      if (cErr || !created) {
+        return new Response(JSON.stringify({ error: "Não consegui iniciar a conversa." }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      conversationId = created.id;
 
-        // Gate: guest AI chat is available from the Pro plan onwards.
-        const { resolveOwnerPlanAdmin } = await import("@/lib/plan-guard.server");
-        const ownerPlan = await resolveOwnerPlanAdmin(supabaseAdmin as SupabaseClient, prop.owner_id);
-        if (!ownerPlan.features.guestChat) {
-          return new Response(
-            JSON.stringify({ error: "A assistente IA não está disponível neste guia." }),
-            { status: 403, headers: { "Content-Type": "application/json" } },
-          );
-        }
-
-        // Get or create conversation
-        let conversationId = body.conversationId;
-        if (conversationId) {
-          const { data: conv } = await supabaseAdmin
-            .from("property_chat_conversations")
-            .select("id, property_id, guest_session_id")
-            .eq("id", conversationId)
-            .maybeSingle();
-          if (!conv || conv.property_id !== prop.id || conv.guest_session_id !== body.sessionId) {
-            conversationId = undefined;
-          }
-        }
-        if (!conversationId) {
-          const { data: created, error: cErr } = await supabaseAdmin
-            .from("property_chat_conversations")
-            .insert({
-              property_id: prop.id,
-              guest_session_id: body.sessionId,
-              guest_name: body.guestName ?? null,
-            })
-            .select("id")
-            .single();
-          if (cErr || !created) {
-            return new Response(JSON.stringify({ error: "Não consegui iniciar a conversa." }), { status: 500, headers: { "Content-Type": "application/json" } });
-          }
-          conversationId = created.id;
-
-          // Avisa o anfitrião que um hóspede iniciou uma conversa com a IA.
-          try {
-            const { sendConversationStartedPush } = await import("@/lib/ops-push.server");
-            await sendConversationStartedPush(supabaseAdmin, {
-              propertyId: prop.id,
-              propertyName: prop.name ?? null,
-              conversationId: created.id,
-              guestName: body.guestName ?? null,
-              firstMessage: body.message ?? null,
-            });
-          } catch (e) {
-            console.error("[guide-chat] conversation-started push failed", e);
-          }
-        }
-
-        // ── Omnichannel Conversation Core (espelho unificado, nunca bloqueante)
-        const { resolveCoreConversation, appendCoreMessage } = await import("@/lib/ai/conversation/core.server");
-        const coreConv = await resolveCoreConversation({
-          supabase: supabaseAdmin,
-          tenantId: String(prop.owner_id),
-          propertyId: String(prop.id),
-          legacyConversationId: conversationId,
-          channel: "platform_chat",
+      // Avisa o anfitrião que um hóspede iniciou uma conversa com a IA.
+      try {
+        const { sendConversationStartedPush } = await import("@/lib/ops-push.server");
+        await sendConversationStartedPush(supabaseAdmin, {
+          propertyId: prop.id,
+          propertyName: prop.name ?? null,
+          conversationId: created.id,
           guestName: body.guestName ?? null,
-          guestPhone: null,
+          firstMessage: body.message ?? null,
         });
-        const mirrorToCore = async (
-          senderType: "guest" | "agent" | "human_operator",
-          content: string,
-        ): Promise<void> => {
-          if (!coreConv || !content) return;
-          await appendCoreMessage({
-            supabase: supabaseAdmin,
-            conversationId: coreConv.id,
-            tenantId: coreConv.tenantId,
-            propertyId: String(prop.id),
-            senderType,
-            channel: "platform_chat",
-            content,
-          });
-        };
+      } catch (e) {
+        console.error("[guide-chat] conversation-started push failed", e);
+      }
+    }
 
-        // If the conversation is currently handled by a human (ai_paused), just
-        // persist the guest message and let the agent reply — the guide chat
-        // will surface new agent messages via polling / realtime.
-        const { data: convState } = await supabaseAdmin
-          .from("property_chat_conversations")
-          .select("ai_paused, status, assigned_to")
-          .eq("id", conversationId)
-          .maybeSingle();
+    // ── Omnichannel Conversation Core (espelho unificado, nunca bloqueante)
+    const { resolveCoreConversation, appendCoreMessage } =
+      await import("@/lib/ai/conversation/core.server");
+    const coreConv = await resolveCoreConversation({
+      supabase: supabaseAdmin,
+      tenantId: String(prop.owner_id),
+      propertyId: String(prop.id),
+      legacyConversationId: conversationId,
+      channel: "platform_chat",
+      guestName: body.guestName ?? null,
+      guestPhone: null,
+    });
+    const mirrorToCore = async (
+      senderType: "guest" | "agent" | "human_operator",
+      content: string,
+    ): Promise<void> => {
+      if (!coreConv || !content) return;
+      await appendCoreMessage({
+        supabase: supabaseAdmin,
+        conversationId: coreConv.id,
+        tenantId: coreConv.tenantId,
+        propertyId: String(prop.id),
+        senderType,
+        channel: "platform_chat",
+        content,
+      });
+    };
 
-        // Se a conversa está "resolvida" e o hóspede envia nova mensagem, reabrir com a IA.
-        if (convState?.status === "resolved") {
-          await supabaseAdmin
-            .from("property_chat_conversations")
-            .update({ status: "ai", ai_paused: false, resolved_at: null, assigned_to: null })
-            .eq("id", conversationId);
-        }
+    // If the conversation is currently handled by a human (ai_paused), just
+    // persist the guest message and let the agent reply — the guide chat
+    // will surface new agent messages via polling / realtime.
+    const { data: convState } = await supabaseAdmin
+      .from("property_chat_conversations")
+      .select("ai_paused, status, assigned_to")
+      .eq("id", conversationId)
+      .maybeSingle();
 
-        // Se um humano assumiu a conversa (ai_paused), NUNCA devolvemos para a IA
-        // — mesmo que o hóspede clique em uma dica com forceAi. A mensagem é
-        // apenas persistida para o atendente responder.
-        if (convState?.ai_paused) {
-          await supabaseAdmin.from("property_chat_messages").insert({
-            conversation_id: conversationId,
-            role: "user",
-            content: body.message,
-            sender_type: "guest",
-          });
-          await mirrorToCore("guest", body.message);
+    // Se a conversa está "resolvida" e o hóspede envia nova mensagem, reabrir com a IA.
+    if (convState?.status === "resolved") {
+      await supabaseAdmin
+        .from("property_chat_conversations")
+        .update({ status: "ai", ai_paused: false, resolved_at: null, assigned_to: null })
+        .eq("id", conversationId);
+    }
 
-          await supabaseAdmin
-            .from("property_chat_conversations")
-            .update({ last_message_at: new Date().toISOString(), guest_name: body.guestName ?? undefined })
-            .eq("id", conversationId);
+    // Se um humano assumiu a conversa (ai_paused), NUNCA devolvemos para a IA
+    // — mesmo que o hóspede clique em uma dica com forceAi. A mensagem é
+    // apenas persistida para o atendente responder.
+    if (convState?.ai_paused) {
+      await supabaseAdmin.from("property_chat_messages").insert({
+        conversation_id: conversationId,
+        role: "user",
+        content: body.message,
+        sender_type: "guest",
+      });
+      await mirrorToCore("guest", body.message);
 
-          // Push pra CADA mensagem do hóspede numa conversa já assumida — antes
-          // só a mensagem que DISPARAVA o handoff gerava push; qualquer
-          // mensagem seguinte na mesma conversa (já com um humano) não
-          // avisava ninguém. Se há um responsável específico, só ele recebe;
-          // sem isso, cai pra todo o time notificável da propriedade.
-          try {
-            const { getPropertyNotifiableUsers, sendGuestReplyPush } = await import("@/lib/handoff.server");
-            const userIds = convState.assigned_to
-              ? [convState.assigned_to as string]
-              : await getPropertyNotifiableUsers(supabaseAdmin, prop.id);
-            await sendGuestReplyPush(supabaseAdmin, {
-              userIds,
-              conversationId,
-              propertyName: prop.name,
-              guestName: body.guestName ?? null,
-              guestMessage: body.message,
-            });
-          } catch (e) {
-            console.error("Guest reply push failed", e);
-          }
+      await supabaseAdmin
+        .from("property_chat_conversations")
+        .update({
+          last_message_at: new Date().toISOString(),
+          guest_name: body.guestName ?? undefined,
+        })
+        .eq("id", conversationId);
 
-          return new Response(
-            JSON.stringify({ conversationId, reply: "", handoff: true, humanMode: true }),
-            { status: 200, headers: { "Content-Type": "application/json" } },
-          );
-        }
-
-        // Load prior messages (latest 20)
-        const { data: priorRaw } = await supabaseAdmin
-          .from("property_chat_messages")
-          .select("role, content")
-          .eq("conversation_id", conversationId)
-          .order("created_at", { ascending: false })
-          .limit(20);
-        const prior = (priorRaw ?? [])
-          .filter((m) => m.role === "user" || m.role === "assistant")
-          .reverse();
-
-        await supabaseAdmin.from("property_chat_messages").insert({
-          conversation_id: conversationId,
-          role: "user",
-          content: body.message,
-          sender_type: "guest",
+      // Push pra CADA mensagem do hóspede numa conversa já assumida — antes
+      // só a mensagem que DISPARAVA o handoff gerava push; qualquer
+      // mensagem seguinte na mesma conversa (já com um humano) não
+      // avisava ninguém. Se há um responsável específico, só ele recebe;
+      // sem isso, cai pra todo o time notificável da propriedade.
+      try {
+        const { getPropertyNotifiableUsers, sendGuestReplyPush } =
+          await import("@/lib/handoff.server");
+        const userIds = convState.assigned_to
+          ? [convState.assigned_to as string]
+          : await getPropertyNotifiableUsers(supabaseAdmin, prop.id);
+        await sendGuestReplyPush(supabaseAdmin, {
+          userIds,
+          conversationId,
+          propertyName: prop.name,
+          guestName: body.guestName ?? null,
+          guestMessage: body.message,
         });
-        await mirrorToCore("guest", body.message);
+      } catch (e) {
+        console.error("Guest reply push failed", e);
+      }
 
+      return new Response(
+        JSON.stringify({ conversationId, reply: "", handoff: true, humanMode: true }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }
 
-        // Nota: quando ai_paused=true, já retornamos acima. Aqui ai_paused é
-        // false, então não há handoff ativo para limpar.
+    // Load prior messages (latest 20)
+    const { data: priorRaw } = await supabaseAdmin
+      .from("property_chat_messages")
+      .select("role, content")
+      .eq("conversation_id", conversationId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    const prior = (priorRaw ?? [])
+      .filter((m) => m.role === "user" || m.role === "assistant")
+      .reverse();
 
+    await supabaseAdmin.from("property_chat_messages").insert({
+      conversation_id: conversationId,
+      role: "user",
+      content: body.message,
+      sender_type: "guest",
+    });
+    await mirrorToCore("guest", body.message);
 
-        // Sticky exploration mode: se qualquer resposta anterior da IA já foi no
-        // formato de exploração de dica, mantemos o mesmo comportamento nos
-        // turnos seguintes (sem handoff automático, tom de amigo local).
-        const explorationSignature = /Destaques|Melhor horário|Como chegar|Dica de quem conhece/i;
-        const inExplorationFlow = body.forceAi || prior.some(
-          (m) => m.role === "assistant" && explorationSignature.test(m.content ?? ""),
-        );
+    // Nota: quando ai_paused=true, já retornamos acima. Aqui ai_paused é
+    // false, então não há handoff ativo para limpar.
 
-        // ─── Agente de Hospitalidade (nova arquitetura) ───
-        const { runHospitalityAgent } = await import("@/lib/ai/orchestrator.server");
-        const { AiGatewayError } = await import("@/lib/ai/gateway.server");
+    // Sticky exploration mode: se qualquer resposta anterior da IA já foi no
+    // formato de exploração de dica, mantemos o mesmo comportamento nos
+    // turnos seguintes (sem handoff automático, tom de amigo local).
+    const explorationSignature = /Destaques|Melhor horário|Como chegar|Dica de quem conhece/i;
+    const inExplorationFlow =
+      body.forceAi ||
+      prior.some((m) => m.role === "assistant" && explorationSignature.test(m.content ?? ""));
 
-        let result: Awaited<ReturnType<typeof runHospitalityAgent>>;
-        try {
-          result = await runHospitalityAgent({
-            onStage: emitStage,
-            supabase: supabaseAdmin as SupabaseClient,
-            property: prop as unknown as Record<string, unknown>,
-            conversationId,
-            sessionId: body.sessionId,
-            guestName: body.guestName ?? null,
-            message: body.message,
-            history: prior.map((m) => ({ role: m.role as string, content: m.content ?? "" })),
-            explorationMode: inExplorationFlow,
-            surface: "guide_chat",
-          });
-        } catch (err) {
-          const status = err instanceof AiGatewayError ? err.status : 502;
-          const message =
-            err instanceof AiGatewayError
-              ? err.message
-              : "Não consegui responder agora. Tente de novo.";
-          if (!(err instanceof AiGatewayError)) console.error("guide-chat agent error", err);
-          return new Response(JSON.stringify({ error: message, conversationId }), {
-            status: status === 429 || status === 402 ? status : 502,
-            headers: { "Content-Type": "application/json" },
-          });
-        }
+    // ─── Agente de Hospitalidade (nova arquitetura) ───
+    const { runHospitalityAgent } = await import("@/lib/ai/orchestrator.server");
+    const { AiGatewayError } = await import("@/lib/ai/gateway.server");
 
-        const handoffTriggered = result.handoff;
-        const partialReply = result.reply.trim();
-        if (handoffTriggered) {
-          const reason = result.handoffReason ?? "Hóspede pediu atendimento humano.";
-          const urgency = result.handoffUrgency;
-          await supabaseAdmin
-            .from("property_chat_conversations")
-            .update({
-              status: "needs_human",
-              // Com resposta parcial a IA continua na conversa (consulta
-              // interna); só travamos a IA quando não houve nada a dizer.
-              ai_paused: !partialReply,
-              handoff_reason: reason,
-              handoff_urgency: urgency,
-              handoff_at: new Date().toISOString(),
-            })
-            .eq("id", conversationId);
-          try {
-            const { getPropertyNotifiableUsers, sendHandoffPush } = await import("@/lib/handoff.server");
-            const userIds = await getPropertyNotifiableUsers(supabaseAdmin, prop.id);
-            const guestNameForLookup = (body.guestName ?? "").trim();
-            const { data: accessLog } = guestNameForLookup
-              ? await supabaseAdmin
-                  .from("guide_access_logs")
-                  .select("guest_name, checkin_date")
-                  .eq("property_id", prop.id)
-                  .eq("guest_name", guestNameForLookup)
-                  .order("created_at", { ascending: false })
-                  .limit(1)
-                  .maybeSingle()
-              : { data: null as { guest_name: string; checkin_date: string } | null };
-            await sendHandoffPush(supabaseAdmin, {
-              userIds,
-              conversationId,
-              propertyName: prop.name,
-              guestName: body.guestName ?? accessLog?.guest_name ?? null,
-              guestMessage: body.message,
-              checkinDate: accessLog?.checkin_date ?? null,
-              reason,
-              urgency,
-            });
-          } catch (e) {
-            console.error("Handoff push failed", e);
-          }
-        }
+    let result: Awaited<ReturnType<typeof runHospitalityAgent>>;
+    try {
+      result = await runHospitalityAgent({
+        onStage: emitStage,
+        supabase: supabaseAdmin as SupabaseClient,
+        property: prop as unknown as Record<string, unknown>,
+        conversationId,
+        sessionId: body.sessionId,
+        guestName: body.guestName ?? null,
+        message: body.message,
+        history: prior.map((m) => ({ role: m.role as string, content: m.content ?? "" })),
+        explorationMode: inExplorationFlow,
+        surface: "guide_chat",
+      });
+    } catch (err) {
+      const status = err instanceof AiGatewayError ? err.status : 502;
+      const message =
+        err instanceof AiGatewayError
+          ? err.message
+          : "Não consegui responder agora. Tente de novo.";
+      if (!(err instanceof AiGatewayError)) console.error("guide-chat agent error", err);
+      return new Response(JSON.stringify({ error: message, conversationId }), {
+        status: status === 429 || status === 402 ? status : 502,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
-        // A IA sempre entrega o que sabe. No handoff, a mensagem parcial já
-        // sinaliza a consulta interna — sem anunciar transferência.
-        const finalReply = partialReply;
+    const handoffTriggered = result.handoff;
+    const partialReply = result.reply.trim();
+    if (handoffTriggered) {
+      const reason = result.handoffReason ?? "Hóspede pediu atendimento humano.";
+      const urgency = result.handoffUrgency;
+      await supabaseAdmin
+        .from("property_chat_conversations")
+        .update({
+          status: "needs_human",
+          // Com resposta parcial a IA continua na conversa (consulta
+          // interna); só travamos a IA quando não houve nada a dizer.
+          ai_paused: !partialReply,
+          handoff_reason: reason,
+          handoff_urgency: urgency,
+          handoff_at: new Date().toISOString(),
+        })
+        .eq("id", conversationId);
+      try {
+        const { getPropertyNotifiableUsers, sendHandoffPush } =
+          await import("@/lib/handoff.server");
+        const userIds = await getPropertyNotifiableUsers(supabaseAdmin, prop.id);
+        const guestNameForLookup = (body.guestName ?? "").trim();
+        const { data: accessLog } = guestNameForLookup
+          ? await supabaseAdmin
+              .from("guide_access_logs")
+              .select("guest_name, checkin_date")
+              .eq("property_id", prop.id)
+              .eq("guest_name", guestNameForLookup)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle()
+          : { data: null as { guest_name: string; checkin_date: string } | null };
+        await sendHandoffPush(supabaseAdmin, {
+          userIds,
+          conversationId,
+          propertyName: prop.name,
+          guestName: body.guestName ?? accessLog?.guest_name ?? null,
+          guestMessage: body.message,
+          checkinDate: accessLog?.checkin_date ?? null,
+          reason,
+          urgency,
+        });
+      } catch (e) {
+        console.error("Handoff push failed", e);
+      }
+    }
 
-        if (finalReply) {
-          await supabaseAdmin.from("property_chat_messages").insert({
-            conversation_id: conversationId,
-            role: "assistant",
-            content: finalReply,
-            sender_type: "ai",
-          });
-          await mirrorToCore("agent", finalReply);
-        }
+    // A IA sempre entrega o que sabe. No handoff, a mensagem parcial já
+    // sinaliza a consulta interna — sem anunciar transferência.
+    const finalReply = partialReply;
 
-        await supabaseAdmin
-          .from("property_chat_conversations")
-          .update({ last_message_at: new Date().toISOString(), guest_name: body.guestName ?? undefined })
-          .eq("id", conversationId);
+    if (finalReply) {
+      await supabaseAdmin.from("property_chat_messages").insert({
+        conversation_id: conversationId,
+        role: "assistant",
+        content: finalReply,
+        sender_type: "ai",
+      });
+      await mirrorToCore("agent", finalReply);
+    }
 
-        return new Response(JSON.stringify({ conversationId, reply: finalReply, handoff: handoffTriggered }), { status: 200, headers: { "Content-Type": "application/json" } });
+    await supabaseAdmin
+      .from("property_chat_conversations")
+      .update({
+        last_message_at: new Date().toISOString(),
+        guest_name: body.guestName ?? undefined,
+      })
+      .eq("id", conversationId);
+
+    return new Response(
+      JSON.stringify({ conversationId, reply: finalReply, handoff: handoffTriggered }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
   }
 }
 
@@ -370,7 +394,10 @@ export const Route = createFileRoute("/api/public/guide-chat")({
         try {
           body = Body.parse(await request.json());
         } catch {
-          return new Response(JSON.stringify({ error: "Entrada inválida." }), { status: 400, headers: { "Content-Type": "application/json" } });
+          return new Response(JSON.stringify({ error: "Entrada inválida." }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          });
         }
 
         // Rate limit checks
@@ -413,19 +440,47 @@ export const Route = createFileRoute("/api/public/guide-chat")({
                 error?: string;
               };
               if (!res.ok || payload.error) {
-                send({ type: "error", error: payload.error ?? "Não consegui responder agora.", conversationId: payload.conversationId ?? null });
+                send({
+                  type: "error",
+                  error: payload.error ?? "Não consegui responder agora.",
+                  conversationId: payload.conversationId ?? null,
+                });
               } else {
                 const reply = payload.reply ?? "";
                 if (reply) {
                   send({ type: "reply_start", conversationId: payload.conversationId ?? null });
+                  /**
+                   * A revelação em pedaços é ENFEITE, e enfeite não pode cobrar
+                   * segundos: aqui o texto JÁ ESTÁ pronto e validado, então
+                   * cada milissegundo de pausa é espera pura somada ao fim de
+                   * um pipeline que já demorou.
+                   *
+                   * O código anterior mandava um pedaço a cada 22ms com no
+                   * mínimo 18 caracteres. Numa resposta de 600 caracteres isso
+                   * eram ~33 pedaços, ~730ms de sono depois de tudo pronto.
+                   *
+                   * Agora o custo é ORÇADO: pedaço maior em texto longo e
+                   * pausa calculada para a revelação inteira caber em ~260ms,
+                   * seja qual for o tamanho. Continua parecendo que está sendo
+                   * escrito, para de custar meio segundo.
+                   *
+                   * (Isto é diferente de streaming de verdade, que mostraria o
+                   * texto enquanto o modelo escreve. Aqui não dá: a regra desta
+                   * rota — correta — é nunca enviar ao hóspede texto que ainda
+                   * não passou pela validação.)
+                   */
+                  const REVEAL_BUDGET_MS = 260;
+                  const chunkSize = reply.length > 400 ? 36 : 18;
+                  const chunkCount = Math.max(1, Math.ceil(reply.length / chunkSize));
+                  const delayMs = Math.min(18, Math.floor(REVEAL_BUDGET_MS / chunkCount));
                   const words = reply.split(/(\s+)/);
                   let buf = "";
                   for (const w of words) {
                     buf += w;
-                    if (buf.length >= 18) {
+                    if (buf.length >= chunkSize) {
                       send({ type: "delta", text: buf });
                       buf = "";
-                      await new Promise((r) => setTimeout(r, 22));
+                      if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
                     }
                   }
                   if (buf) send({ type: "delta", text: buf });
@@ -470,7 +525,10 @@ export const Route = createFileRoute("/api/public/guide-chat")({
         const sessionId = url.searchParams.get("sessionId") ?? "";
         const since = url.searchParams.get("since");
         if (!/^[0-9a-f-]{36}$/i.test(conversationId) || sessionId.length < 8) {
-          return new Response(JSON.stringify({ error: "invalid" }), { status: 400, headers: { "Content-Type": "application/json" } });
+          return new Response(JSON.stringify({ error: "invalid" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          });
         }
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data: conv } = await supabaseAdmin
@@ -479,7 +537,10 @@ export const Route = createFileRoute("/api/public/guide-chat")({
           .eq("id", conversationId)
           .maybeSingle();
         if (!conv || conv.guest_session_id !== sessionId) {
-          return new Response(JSON.stringify({ error: "not_found" }), { status: 404, headers: { "Content-Type": "application/json" } });
+          return new Response(JSON.stringify({ error: "not_found" }), {
+            status: 404,
+            headers: { "Content-Type": "application/json" },
+          });
         }
         let q = supabaseAdmin
           .from("property_chat_messages")
