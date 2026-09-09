@@ -679,8 +679,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // horizontal), mas nenhuma fica mais estreita que 320px.
   const kanbanRowRef = useRef<HTMLDivElement>(null);
   const [kanbanColWidth, setKanbanColWidth] = useState(320);
-  /** Barra de abas do Kanban no mobile — regra anti-corte (useAntiClipBar). */
-  const kanbanTabsRef = useAntiClipBar<HTMLDivElement>();
   useLayoutEffect(() => {
     const el = kanbanRowRef.current;
     if (!el) return;
@@ -2646,17 +2644,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     // usada no calendário de ocupação (scrollPaddingLeft), só
                     // que aqui nos dois lados — pedido explícito: as duas pontas
                     // com o mesmo espaçamento da borda da tela.
-                    /* REGRA ANTI-CORTE (regra global do projeto): esta barra
-                       passou a usar `useAntiClipBar`, o MESMO hook das outras
-                       barras de abas do sistema. Antes ela tinha só um
-                       `scrollIntoView` no clique — que conserta a aba que você
-                       acabou de tocar, e não a barra: ao abrir a tela, a
-                       próxima aba continuava aparecendo pela metade na borda
-                       (print de 09/09/2026). O hook garante que nenhuma aba
-                       apareça cortada em nenhuma largura, e que a sobra vire
-                       espaçador invisível. */
-                    ref={kanbanTabsRef}
-                    className="ds-scroll-x w-full min-w-0 gap-1.5 pb-1 -mx-1 px-1"
+                    className="ds-scroll-x w-full min-w-0 gap-1.5 snap-x scroll-px-3.5 pb-1 -mx-1 px-1"
                   >
                     {(
                       [
@@ -2684,12 +2672,15 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                         <button
                           key={t.key}
                           type="button"
-                          // O reencaixe da barra é do `useAntiClipBar`, que
-                          // observa a mudança de aba ativa — um
-                          // `scrollIntoView` aqui competiria com ele e traria
-                          // de volta o corte que o hook acabou de resolver.
-                          onClick={() => setMobileTab(t.key)}
-                          data-state={active ? "active" : "inactive"}
+                          onClick={(e) => {
+                            setMobileTab(t.key);
+                            // Regra "anti-corte": ao selecionar uma aba, ela
+                            // precisa ficar totalmente visível — sem isso, uma
+                            // aba no meio/fim da lista (ex.: "Limpeza") podia
+                            // continuar parcialmente cortada na borda da tela
+                            // mesmo depois de virar a aba ativa.
+                            e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
+                          }}
                           className={`h-9 box-border shrink-0 snap-start inline-flex items-center gap-1.5 rounded-none border-0 border-b-2 bg-transparent px-3.5 text-xs font-medium leading-none whitespace-nowrap transition-colors ${
                             active ? `${toneByKey[t.key]} border-b-current` : "border-b-transparent text-muted-foreground"
                           }`}
@@ -2701,10 +2692,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                       );
                     })}
                   </div>
-                  {/* O degradê que existia nesta borda foi REMOVIDO: a regra
-                      anti-corte proíbe máscara/gradiente nas laterais (pedido
-                      do cliente). Quem sinaliza que há mais abas agora é o
-                      próprio hook, que nunca deixa uma aba pela metade. */}
+                  {/* Degrade sutil (Opção A) na borda direita — indica que há
+                      mais abas pra rolar sem precisar de seta/sombra dura. */}
+                  <div className="pointer-events-none absolute inset-y-0 right-1 w-8 bg-gradient-to-l from-background to-transparent" />
                 </div>
               </div>
 

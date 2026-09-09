@@ -148,32 +148,27 @@ export function useAntiClipBar<T extends HTMLElement>() {
       const { last: lastIncluded, end: consumedEnd, startLeft } = best;
       const leftover = containerWidth - (consumedEnd - startLeft);
       const isTrueEnd = lastIncluded === btns.length - 1;
+      const gaps = lastIncluded - bestStart;
       pageStartRef.current = bestStart;
       pageEndRef.current = lastIncluded;
 
-      if (!isTrueEnd && leftover > 1 && hideSpacer) {
-        /**
-         * REGRA ANTI-CORTE, do jeito que ela está escrita lá em cima (regra 2)
-         * e nada além disso: a sobra vira um ESPAÇADOR INVISÍVEL depois do
-         * último item que coube inteiro, empurrando o próximo 100% para fora
-         * da área visível. Os itens ficam colados uns nos outros, com o
-         * espaçamento normal da barra, alinhados à esquerda.
-         *
-         * Aqui existiu por um tempo uma variação: distribuir a sobra como
-         * margem ENTRE os itens visíveis, para a página terminar rente à borda
-         * direita. Em barras de itens largos ficava bom; na barra de status do
-         * Kanban, de itens curtos, virou outra coisa — duas ou três abas
-         * espalhadas com vãos enormes, lidas como texto justificado em vez de
-         * um menu (prints de 09/09/2026). Tentei limitar o vão por um teto e
-         * ainda ficou errado, porque o problema nunca foi o tamanho do vão:
-         * era existir vão no meio. Espaço que sobra pertence ao FIM da barra.
-         *
-         * Uma barra de abas se lê da esquerda para a direita, em sequência.
-         * Distribuir a sobra quebra essa sequência para ganhar um alinhamento
-         * que ninguém pediu. Fica só a regra.
-         */
-        hideSpacer.style.order = String(lastIncluded * ORDER_STEP + 1);
-        hideSpacer.style.width = `${leftover}px`;
+      if (!isTrueEnd && leftover > 1) {
+        if (gaps > 0) {
+          // REGRA ANTI-CORTE: a sobra vira espaçamento PROPORCIONAL entre as
+          // opções visíveis, de modo que a última opção da página termine
+          // exatamente na borda direita. Nada de bloco vazio no fim (que
+          // parecia uma aba cortada) e nada de item "espiando" pela metade.
+          const extra = leftover / gaps;
+          for (let i = bestStart; i < lastIncluded; i++) {
+            btns[i].style.marginRight = `${extra}px`;
+          }
+        } else if (hideSpacer) {
+          // Só um item cabe na página: não há vão para distribuir, então o
+          // resto vira espaçador invisível para empurrar o próximo item
+          // 100% para fora da área visível.
+          hideSpacer.style.order = String(lastIncluded * ORDER_STEP + 1);
+          hideSpacer.style.width = `${leftover}px`;
+        }
       }
 
       if (scroll) {
