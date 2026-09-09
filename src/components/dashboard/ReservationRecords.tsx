@@ -24,7 +24,12 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
 import {
   listReservationRecords,
@@ -142,7 +147,8 @@ function resolveReservationTarget(row: { logId: string; reservationId: string | 
   reservationId?: string;
 } {
   const logId = /^[0-9a-f-]{36}$/i.test(row.logId) ? row.logId : undefined;
-  const reservationId = row.reservationId ?? (row.logId.startsWith("ical:") ? row.logId.slice(5) : undefined);
+  const reservationId =
+    row.reservationId ?? (row.logId.startsWith("ical:") ? row.logId.slice(5) : undefined);
   return { logId, reservationId: reservationId ?? undefined };
 }
 
@@ -213,7 +219,8 @@ function AudioPlayer({ url, durationMs }: { url: string; durationMs: number | nu
         onTimeUpdate={(e) => {
           const el = e.currentTarget;
           setElapsed(el.currentTime);
-          if (el.duration && Number.isFinite(el.duration)) setProgress((el.currentTime / el.duration) * 100);
+          if (el.duration && Number.isFinite(el.duration))
+            setProgress((el.currentTime / el.duration) * 100);
         }}
         onEnded={() => {
           setPlaying(false);
@@ -344,7 +351,9 @@ function RecordBlock({ group, onDelete }: { group: RecordGroup; onDelete: (id: s
         ) : (
           <>
             {head.kind === "note" && (
-              <p className="whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground/90">{head.body}</p>
+              <p className="whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground/90">
+                {head.body}
+              </p>
             )}
             {head.kind === "photo" && head.url && (
               <a href={head.url} target="_blank" rel="noreferrer" className="block">
@@ -356,9 +365,15 @@ function RecordBlock({ group, onDelete }: { group: RecordGroup; onDelete: (id: s
               </a>
             )}
             {head.kind === "video" && head.url && (
-              <video src={head.url} controls className="max-h-56 w-full rounded-md border border-border/50 bg-black" />
+              <video
+                src={head.url}
+                controls
+                className="max-h-56 w-full rounded-md border border-border/50 bg-black"
+              />
             )}
-            {head.kind === "audio" && head.url && <AudioPlayer url={head.url} durationMs={head.durationMs} />}
+            {head.kind === "audio" && head.url && (
+              <AudioPlayer url={head.url} durationMs={head.durationMs} />
+            )}
             {head.kind === "file" && head.url && (
               <a
                 href={head.url}
@@ -367,7 +382,9 @@ function RecordBlock({ group, onDelete }: { group: RecordGroup; onDelete: (id: s
                 className="flex items-center gap-2 rounded-md border border-border/50 bg-secondary/30 px-2 py-1.5 hover:bg-secondary/50"
               >
                 <FileText className="size-4 shrink-0 text-muted-foreground" />
-                <span className="min-w-0 flex-1 truncate text-xs">{head.fileName ?? "Arquivo"}</span>
+                <span className="min-w-0 flex-1 truncate text-xs">
+                  {head.fileName ?? "Arquivo"}
+                </span>
                 <Download className="size-3.5 shrink-0 text-muted-foreground" />
               </a>
             )}
@@ -395,7 +412,11 @@ function RecordBlock({ group, onDelete }: { group: RecordGroup; onDelete: (id: s
                   : "bg-rose-500/15 text-rose-600 dark:text-rose-400"
             }`}
           >
-            {head.taskStatus === "done" ? "Resolvida" : head.taskStatus === "canceled" ? "Cancelada" : "Em aberto"}
+            {head.taskStatus === "done"
+              ? "Resolvida"
+              : head.taskStatus === "canceled"
+                ? "Cancelada"
+                : "Em aberto"}
           </span>
         </div>
       )}
@@ -453,12 +474,18 @@ function CategorySheet({
                 onClick={() => onPick(c.key)}
                 className="flex items-center gap-2.5 rounded-xl border border-border/60 bg-card px-2.5 py-2 text-left transition-colors hover:bg-secondary/40"
               >
-                <span className={`grid size-8 shrink-0 place-items-center rounded-lg border ${c.tone}`}>
+                <span
+                  className={`grid size-8 shrink-0 place-items-center rounded-lg border ${c.tone}`}
+                >
                   <Icon className="size-4" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[12.5px] font-semibold text-foreground">{c.label}</span>
-                  <span className="block truncate text-[10.5px] text-muted-foreground">{c.hint}</span>
+                  <span className="block truncate text-[12.5px] font-semibold text-foreground">
+                    {c.label}
+                  </span>
+                  <span className="block truncate text-[10.5px] text-muted-foreground">
+                    {c.hint}
+                  </span>
                 </span>
                 {c.createsTask && (
                   <span className="shrink-0 rounded bg-[#E82DAE]/10 px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wider text-[#E82DAE]">
@@ -649,7 +676,9 @@ function ReservationRecordsDialog({
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
           <DialogHeader className="border-b border-border/50 px-5 pb-3 pt-5">
             <DialogTitle className="truncate text-base font-display leading-tight">
-              {row.guestName && row.guestName !== row.reservationCode ? row.guestName : "Registros da reserva"}
+              {row.guestName && row.guestName !== row.reservationCode
+                ? row.guestName
+                : "Registros da reserva"}
             </DialogTitle>
             <div className="ds-meta mt-0.5 flex flex-wrap items-center gap-x-1.5 truncate">
               <span className="truncate">{row.propertyName ?? "Imóvel"}</span>
@@ -717,7 +746,8 @@ function ReservationRecordsDialog({
               <div className="flex flex-col gap-2.5">
                 {groups.map((g, i) => {
                   const prev = groups[i - 1];
-                  const showDay = !prev || dayKey(prev.items[0].createdAt) !== dayKey(g.items[0].createdAt);
+                  const showDay =
+                    !prev || dayKey(prev.items[0].createdAt) !== dayKey(g.items[0].createdAt);
                   return (
                     <div key={g.key} className="flex flex-col gap-2.5">
                       {showDay && (
@@ -745,8 +775,22 @@ function ReservationRecordsDialog({
             )}
             {errorMsg && <div className="pb-1.5 text-[10.5px] text-destructive">{errorMsg}</div>}
 
-            <input ref={photoInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onFilePicked} />
-            <input ref={videoInputRef} type="file" accept="video/*" capture="environment" className="hidden" onChange={onFilePicked} />
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={onFilePicked}
+            />
+            <input
+              ref={videoInputRef}
+              type="file"
+              accept="video/*"
+              capture="environment"
+              className="hidden"
+              onChange={onFilePicked}
+            />
             <input ref={fileInputRef} type="file" className="hidden" onChange={onFilePicked} />
 
             {recordingAudio ? (
@@ -821,7 +865,11 @@ function ReservationRecordsDialog({
                 className="grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
                 aria-label="Salvar descrição"
               >
-                {noteMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+                {noteMutation.isPending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Send className="size-4" />
+                )}
               </button>
             </form>
           </div>
@@ -859,11 +907,17 @@ export function ReservationRecordsButton({
         onClick={() => setOpen(true)}
         aria-label="Registros da reserva"
         title="Registros da reserva (fotos, vídeos, áudios, arquivos e descrições)"
-        className={`grid place-items-center rounded-lg border border-border/50 bg-background/60 hover:bg-primary/[0.08] ${compact ? "size-6" : "size-9"}`}
+        /* MESMO botão do Maps e do "⋮" ao lado (pedido explícito, 09/09/2026):
+           `rounded-lg` e `size-6` eram os únicos do trio fora do padrão — a
+           curva de 0.3rem é a do Design System e o compacto dos vizinhos é
+           `size-7`. Com três botões colados, um pixel de diferença aparece. */
+        className={`grid place-items-center rounded-[0.3rem] border border-border/50 bg-background/60 hover:bg-primary/[0.08] ${compact ? "size-7" : "size-9"}`}
       >
         <Paperclip className={compact ? "size-3.5" : "size-4"} />
       </button>
-      {open && <ReservationRecordsDialog open={open} onOpenChange={setOpen} row={row} mode={mode} />}
+      {open && (
+        <ReservationRecordsDialog open={open} onOpenChange={setOpen} row={row} mode={mode} />
+      )}
     </>
   );
 }

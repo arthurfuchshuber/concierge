@@ -618,10 +618,22 @@ function ScreenshotButton({
           disabled={busy}
           title="Tirar um print"
           aria-label="Tirar um print"
-          // Mesma curva padrão (0.3rem) do quadrante Completo/Lista ao lado.
-          className="inline-flex items-center justify-center rounded-[0.3rem] border border-border/60 bg-secondary/30 p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors disabled:opacity-50"
+          /* MESMO PADRÃO DOS BOTÕES DE FILTRO (pedido explícito, 09/09/2026):
+             sem fundo, sem borda, mesma altura de 32px e o ícone no mesmo
+             tamanho e opacidade dos ícones de "Filtros" e "Pendências".
+             O quadrado com fundo existia para parear com o alternador
+             Completo/Lista que ficava ao lado — e esse alternador não existe
+             mais. Sozinho, ele virava o único botão "de caixinha" numa linha de
+             botões soltos.
+             Esta é a ÚNICA definição do botão de print no sistema, então a
+             mudança vale em todos os lugares onde ele aparece. */
+          className="inline-flex h-8 shrink-0 items-center justify-center rounded-[0.3rem] border-0 bg-transparent px-1.5 text-foreground/70 transition-colors hover:text-foreground disabled:opacity-50"
         >
-          {busy ? <Loader2 className="size-3 animate-spin" /> : <Camera className="size-3" />}
+          {busy ? (
+            <Loader2 className="size-3.5 animate-spin opacity-60" />
+          ) : (
+            <Camera className="size-3.5 opacity-60" />
+          )}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-[10rem]">
@@ -4719,25 +4731,6 @@ const TASK_PRIORITY_LABEL: Record<TaskPriority, string> = {
   medium: "Média",
   high: "Alta",
 };
-/**
- * CHECKBOX NA COR DA PRIORIDADE (mockup aprovado, 09/09/2026).
- *
- * A barra colorida da esquerda era o único lugar onde a prioridade aparecia.
- * Trocando-a por um checkbox, a prioridade teria sumido — a saída foi pintar o
- * próprio checkbox: um elemento diz duas coisas ("clique aqui para concluir" e
- * "esta é a prioridade") sem gastar um pixel de largura, que é o recurso
- * escasso numa lista com nomes de imóvel de 40 caracteres.
- */
-const TASK_PRIORITY_BOX: Record<TaskPriority, string> = {
-  low: "border-emerald-500 text-emerald-500",
-  medium: "border-amber-500 text-amber-500",
-  high: "border-rose-500 text-rose-500",
-};
-const TASK_PRIORITY_BOX_ON: Record<TaskPriority, string> = {
-  low: "bg-emerald-500 border-emerald-500",
-  medium: "bg-amber-500 border-amber-500",
-  high: "bg-rose-500 border-rose-500",
-};
 
 /**
  * PENDÊNCIAS — O RACIONAL DA TELA (pedido explícito, 09/09/2026, com mockups
@@ -5821,10 +5814,22 @@ function TasksDialog({
                                 t.status === "done" ? "Reabrir pendência" : "Concluir pendência"
                               }
                               title={`${t.status === "done" ? "Reabrir" : "Concluir"} · prioridade ${TASK_PRIORITY_LABEL[t.priority].toLowerCase()}`}
-                              className={`grid size-4 shrink-0 place-items-center rounded-[0.25rem] border-2 transition-colors ${
+                              /* NEUTRO POR ORA (pedido explícito, 09/09/2026):
+                                 borda fina de 1px e sem a cor da prioridade.
+                                 A cor entrou junto com o checkbox para a
+                                 prioridade não sumir da tela quando a barra
+                                 lateral saiu — mas três cores fortes repetidas
+                                 linha a linha viraram a coisa mais chamativa da
+                                 lista, disputando com o título.
+                                 A prioridade continua viva: ela ORDENA a lista
+                                 (seletor "Prioridade") e está no `title` deste
+                                 botão. Se voltar a fazer falta como cor, o
+                                 caminho é um sinal mais discreto, não repintar
+                                 o controle. */
+                              className={`grid size-4 shrink-0 place-items-center rounded-[0.25rem] border transition-colors ${
                                 t.status === "done"
-                                  ? TASK_PRIORITY_BOX_ON[t.priority]
-                                  : `${TASK_PRIORITY_BOX[t.priority]} hover:bg-foreground/5`
+                                  ? "border-muted-foreground bg-muted-foreground"
+                                  : "border-muted-foreground/60 hover:border-muted-foreground hover:bg-foreground/5"
                               }`}
                             >
                               <Check
@@ -5832,9 +5837,16 @@ function TasksDialog({
                                 strokeWidth={4}
                               />
                             </button>
-                            <div className="min-w-0 flex-1 ds-card-lines">
+                            {/* `leading-none` + `justify-center`: sem isso o
+                                bloco de texto herda a altura de linha do
+                                parágrafo e fica alguns pixels ABAIXO do centro
+                                óptico — o checkbox e a lixeira ficavam
+                                alinhados entre si e o título não (print de
+                                09/09/2026). Com uma linha só de conteúdo, o
+                                centro do texto passa a ser o centro da linha. */}
+                            <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
                               <div
-                                className={`truncate text-xs font-semibold leading-snug ${t.status === "done" ? "line-through text-muted-foreground" : ""}`}
+                                className={`truncate text-xs font-semibold leading-none ${t.status === "done" ? "line-through text-muted-foreground" : ""}`}
                               >
                                 {t.title}
                                 {/* A recorrência era "· repete 30d" e comia o
@@ -5848,7 +5860,7 @@ function TasksDialog({
                                 )}
                               </div>
                               {(meta.length > 0 || (showOwner && t.ownerName)) && (
-                                <div className="truncate text-[10px] text-muted-foreground">
+                                <div className="truncate text-[10px] leading-none text-muted-foreground">
                                   {showOwner && t.ownerName && (
                                     <span className={CARD_OWNER}>{t.ownerName}</span>
                                   )}
@@ -5857,9 +5869,9 @@ function TasksDialog({
                                 </div>
                               )}
                             </div>
-                            <div className="shrink-0 whitespace-nowrap text-right">
+                            <div className="flex shrink-0 items-center whitespace-nowrap text-right">
                               <span
-                                className={`text-[11.5px] font-bold leading-tight tabular-nums ${
+                                className={`text-[11.5px] font-bold leading-none tabular-nums ${
                                   bucket === "late"
                                     ? "text-rose-500"
                                     : bucket === "today"
@@ -8147,7 +8159,14 @@ function ArrivalCard({
           `EngagementFlags` devolve `null` quando não há o que alertar, então
           o badge continua só aparecendo quando existe alerta — o que mudou é
           que ele não é mais escondido pela coluna nem pela vista. */}
-      <div className="absolute -top-1.5 left-1/2 z-30 -translate-x-1/2">
+      {/* A etiqueta CORTA a borda superior ao meio (pedido explícito,
+          09/09/2026): `top-0` põe o topo dela na linha da borda e
+          `-translate-y-1/2` sobe metade da própria altura, então a borda passa
+          exatamente pelo centro dela. Antes era um deslocamento fixo em pixels,
+          que só acertava enquanto a etiqueta tivesse aquela altura — e ela
+          encolheu duas vezes desde então. Com a translação por porcentagem,
+          isso passa a valer sozinho em qualquer tamanho. */}
+      <div className="absolute left-1/2 top-0 z-30 -translate-x-1/2 -translate-y-1/2">
         <EngagementFlags
           openedGuide={row.openedGuide}
           readInstructions={row.readInstructions}
@@ -8274,13 +8293,20 @@ function ArrivalCard({
                     </span>
                   </>
                 ) : (
-                  /* Duas palavras, duas linhas, ALINHADAS À DIREITA — a mesma
-                     margem de "PREVISÃO" e do horário (pedido explícito,
-                     09/09/2026). Centralizado, este bloco não encostava na
-                     mesma borda dos cards vizinhos e a coluna da direita
-                     parecia desalinhada de card para card. */
-                  <span className="block text-right text-[8.5px] font-extrabold uppercase leading-[1.35] tracking-[0.12em] text-muted-foreground/70">
-                    Sem previsão
+                  /* Duas palavras em duas linhas: "PREVISÃO" encosta na borda
+                     direita (a mesma margem do horário nos outros cards) e
+                     "SEM" fica CENTRALIZADO sobre ela (pedido explícito,
+                     09/09/2026).
+                     Quebra de linha automática não faz isso — ela alinha as
+                     duas pontas iguais. Por isso as duas palavras são spans
+                     separados: o `items-end` de fora cola o bloco na direita e
+                     o `items-center` de dentro centra "SEM" na largura de
+                     "PREVISÃO", que é a palavra mais larga. */
+                  <span className="flex flex-col items-end text-[8.5px] font-extrabold uppercase leading-[1.35] tracking-[0.12em] text-muted-foreground/70">
+                    <span className="flex flex-col items-center">
+                      <span>Sem</span>
+                      <span>Previsão</span>
+                    </span>
                   </span>
                 )}
                 {predictionTime && predictionDay.label && (
@@ -8309,19 +8335,14 @@ function ArrivalCard({
           direita: "entre 15:00 e 23:00" precisa de ~130px, e ali roubaria do
           nome do imóvel justamente o espaço que o faz caber. */}
       {showPrediction && allowedPhrase && (
-        /* A janela da limpeza sai em ÂMBAR (pedido explícito): ali ela não é
-           uma regra de fundo como nos outros cards — é o prazo de quem vai
-           trabalhar, e precisa ser lida antes do resto. */
-        <div
-          className={`flex items-center gap-1.5 border-t border-border/40 pt-1.5 text-[9.5px] font-bold uppercase tracking-wide ${
-            cleaningWindowPhrase ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"
-          }`}
-        >
+        /* ÂMBAR EM TODO LUGAR (pedido explícito, 09/09/2026) — antes só a
+           janela da limpeza saía colorida. É a mesma informação nos dois
+           casos: o intervalo em que aquela ação PODE acontecer. Se ela merece
+           destaque no card de limpeza, merece no de chegada também; ter duas
+           cores para a mesma frase é que era a incoerência. */
+        <div className="flex items-center gap-1.5 border-t border-border/40 pt-1.5 text-[9.5px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">
           <Clock3 className="size-2.5 shrink-0 opacity-70" />
-          Permitido{" "}
-          <span className={`font-semibold ${cleaningWindowPhrase ? "" : "text-foreground/70"}`}>
-            {allowedPhrase}
-          </span>
+          Permitido <span className="font-semibold">{allowedPhrase}</span>
         </div>
       )}
 
@@ -9241,8 +9262,8 @@ function PredictedEditor({
           </button>
         </div>
         {janela && (
-          <span className="text-[9px] font-bold uppercase tracking-[0.06em] text-muted-foreground/80">
-            Permitido <span className="text-foreground/60">{janela}</span>
+          <span className="text-[9px] font-bold uppercase tracking-[0.06em] text-amber-600 dark:text-amber-400">
+            Permitido <span className="font-semibold">{janela}</span>
           </span>
         )}
       </div>
