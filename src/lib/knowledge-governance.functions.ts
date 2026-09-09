@@ -172,7 +172,7 @@ export const listGlobalInsights = createServerFn({ method: "POST" })
     await requireAdmin(context as never);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { listGlobalIntelligence } = await import("@/lib/ai/governance/global-intelligence.server");
-    const rows = await listGlobalIntelligence({ supabase: supabaseAdmin, status: data.status });
+    const rows = await listGlobalIntelligence({ supabase: supabaseAdmin, status: data.status, includeEvidence: true });
     return rows.map((r) => ({
       id: String(r.id),
       title: String(r.title ?? ""),
