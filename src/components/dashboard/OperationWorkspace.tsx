@@ -5742,7 +5742,17 @@ function TasksDialog({
                       const bucket = taskBucket(t, todayISO);
                       // Imóvel e proprietário só quando NENHUM cabeçalho os diz.
                       const showProperty = groupBy === "urgency" || groupBy === "owner";
-                      const showOwner = groupBy === "urgency" || groupBy === "property";
+                      /* O proprietário aparece UMA vez por grupo, na etiqueta,
+                         ao lado do nome do imóvel. Repeti-lo dentro de cada
+                         linha (pedido explícito para remover, 09/09/2026) só
+                         gastava uma segunda linha para dizer o que estava dois
+                         pixels acima — e, agrupando por imóvel com uma
+                         pendência cada, isso dobrava a altura da lista de novo.
+                         Ele só volta para a linha quando NENHUMA etiqueta o
+                         carrega: agrupando por urgência (a etiqueta é a faixa
+                         de tempo) ou por hóspede (a etiqueta é imóvel + nome do
+                         hóspede). */
+                      const showOwner = groupBy === "urgency" || groupBy === "guest";
                       // Ver TASK_AGE_VISIBLE_DAYS: idade só a partir de 7 dias.
                       const openedOn = t.createdAt ? isoDateSaoPaulo(t.createdAt) : null;
                       const age = openedOn ? daysBetweenISO(openedOn, todayISO) : null;
