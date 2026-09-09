@@ -120,7 +120,31 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover" },
+      /**
+       * `interactive-widget=resizes-content` é o que faz o cabeçalho dos chats
+       * ficar realmente fixo com o teclado aberto (pedido explícito, repetido
+       * várias vezes — e as tentativas anteriores falharam por atacar o lado
+       * errado do problema).
+       *
+       * Sem essa diretiva, o Android usa o padrão `resizes-visual`: o teclado
+       * apenas SOBREPÕE a tela e o viewport de LAYOUT continua do tamanho
+       * original. Como `position: fixed` se ancora no viewport de layout, o
+       * overlay do chat continuava com a altura da tela inteira, e o navegador
+       * rolava o viewport visual para revelar o campo de digitação — levando o
+       * cabeçalho para fora da área visível. Nenhum ajuste de CSS ou de
+       * `visualViewport` no componente resolvia isso, porque o elemento estava
+       * corretamente posicionado num viewport que já não era o que se enxergava.
+       *
+       * Com `resizes-content`, o viewport de layout ENCOLHE junto com o teclado:
+       * `position: fixed` volta a significar "preso à tela visível", e o
+       * cabeçalho fica onde deve — no chat do painel, no do hóspede e em
+       * qualquer outro que venha depois.
+       */
+      {
+        name: "viewport",
+        content:
+          "width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content",
+      },
       { name: "theme-color", content: "#FDF9F2" },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "ConciergeIA" },

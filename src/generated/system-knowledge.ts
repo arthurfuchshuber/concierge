@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-08T21:05:05.479Z";
+export const GENERATED_AT = "2026-09-08T23:52:34.385Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -661,6 +661,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/permissions/permission.engine.ts",
     "audience": [],
     "content_hash": "40d1f8ff9c3906240f7df78ead374be0"
+  },
+  {
+    "doc_key": "rule:falhas",
+    "kind": "rule",
+    "title": "Regra — falhas",
+    "content": "UMA confirmação, N gravações — pedido explícito (08/09/2026): \"crie\na recorrência em todos os imóveis sem me pedir para confirmar a\ngravação de cada um deles\".\n\nEm série, de propósito: `createTask` é a MESMA server function da\ntela de Pendências, e disparar quarenta em paralelo só troca a\nespera do usuário por picos no banco. Em série, um erro no meio não\nderruba o que já entrou — o que já foi criado, fica.",
+    "source_path": "src/components/assistant/AssistantPanel.tsx",
+    "audience": [],
+    "content_hash": "85a54d1afa5a112b1f0adb5f30397855"
   },
   {
     "doc_key": "rule:FALLBACK_CATEGORY",
@@ -1761,6 +1770,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "c1ce0cdb28e49031425478368dfab246"
   },
   {
+    "doc_key": "rule:src/lib/ai/assistant-tools.server.ts:20591",
+    "kind": "rule",
+    "title": "Regra em assistant-tools.server.ts",
+    "content": "PENDÊNCIA PARECIDA JÁ EXISTENTE — pedido explícito (08/09/2026):\n\"se tiver uma pendência parecida com essa que está sendo solicitada,\nvocê não tem que gravar uma nova. Você precisa perguntar para o\nusuário se ele quer gravar mesmo assim\".\n\n\"Parecida\" é comparação do TÍTULO normalizado (sem acento, sem\ncaixa, sem espaço sobrando) entre as pendências ABERTAS do imóvel:\né o que a pessoa reconhece como \"essa já existe\". Comparar por\nsemelhança semântica seria mais esperto e menos previsível — e aqui\nprevisibilidade vale mais, porque o custo do erro é duplicar\nsilenciosamente uma rotina em dezenas de imóveis.",
+    "source_path": "src/lib/ai/assistant-tools.server.ts",
+    "audience": [],
+    "content_hash": "387889c0801095ecc9769eaf2fb9135f"
+  },
+  {
     "doc_key": "rule:src/lib/ai/audit/events.server.ts:0",
     "kind": "rule",
     "title": "Regra em events.server.ts",
@@ -2121,7 +2139,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "fe8316e338c8baf8bad05976f4600f13"
   },
   {
-    "doc_key": "rule:src/lib/assistant-types.ts:4653",
+    "doc_key": "rule:src/lib/assistant-types.ts:3001",
+    "kind": "rule",
+    "title": "Regra em assistant-types.ts",
+    "content": "A MESMA pendência em VÁRIOS imóveis, com UMA confirmação só.\n\nPedido explícito (08/09/2026): \"crie a recorrência em todos os imóveis\nsem me pedir para confirmar a gravação de cada um deles\". Antes cada\nimóvel exigia um cartão, e criar uma rotina em quinze imóveis eram\nquinze confirmações — o assistente virava um formulário lento.\n\nO cartão de confirmação continua existindo: o que muda é o que ele\ncobre. Um cartão, a lista inteira, uma decisão. E `duplicados` traz os\nimóveis que JÁ têm pendência parecida — eles ficam de fora por padrão,\nporque duplicar em silêncio é pior do que não criar.",
+    "source_path": "src/lib/assistant-types.ts",
+    "audience": [],
+    "content_hash": "ab61003ea290d8dbe120d9b53c57696f"
+  },
+  {
+    "doc_key": "rule:src/lib/assistant-types.ts:6006",
     "kind": "rule",
     "title": "Regra em assistant-types.ts",
     "content": "A tela apontada pela resposta vira link dentro do próprio texto\n(07/09/2026) — não há mais um campo separado nem um chip embaixo da\nmensagem repetindo o mesmo caminho.",

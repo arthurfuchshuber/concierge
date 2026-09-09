@@ -12,7 +12,7 @@ import { HANDOFF_DOCK_OPEN_EVENT, type HandoffDockOpenDetail } from "@/lib/hando
 import { Headphones, X, Minimize2, Maximize2, Expand, Shrink, ArrowLeft } from "lucide-react";
 import { QUEUES, type Queue } from "@/lib/handoff-queues";
 import { useImpersonation } from "@/hooks/useImpersonation";
-import { useVisualViewport, viewportOverlayStyle } from "@/hooks/useVisualViewport";
+import { useLockBodyScroll, useVisualViewport, viewportOverlayStyle } from "@/hooks/useVisualViewport";
 
 const DOCK_STATE_KEY = "handoff-dock-state-v1";
 const DOCK_POSITION_KEY = "handoff-dock-position-v1";
@@ -91,6 +91,8 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
   const [state, setState] = useState<DockState>(() => loadState());
   const [activeId, setActiveId] = useState<string | null>(null);
   const [enlarged, setEnlarged] = useState(false);
+  // Com o Atendimento aberto a página atrás não rola — ver useLockBodyScroll.
+  useLockBodyScroll(state.open && !state.minimized);
   const [dockBottom, setDockBottom] = useState(() => loadDockBottom());
   const [dragY, setDragY] = useState<number | null>(null);
   const justDraggedRef = useRef(false);

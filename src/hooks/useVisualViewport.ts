@@ -95,3 +95,26 @@ export function viewportOverlayStyle(box: ViewportBox): {
 } {
   return { position: "fixed", left: 0, right: 0, top: box.top, height: box.height };
 }
+
+/**
+ * Trava a rolagem da PÁGINA enquanto um overlay de chat está aberto.
+ *
+ * Segunda metade da correção do cabeçalho (a primeira é
+ * `interactive-widget=resizes-content`, no meta viewport — ver __root.tsx).
+ * Mesmo com o viewport encolhendo certo, o navegador ainda tenta rolar a
+ * página para revelar o campo em foco. Como o overlay é `position: fixed`,
+ * essa rolagem não move o overlay — mas move tudo atrás dele e, em alguns
+ * aparelhos, arrasta o viewport visual junto. Travando o body, não há o que
+ * rolar: o teclado abre, o overlay encolhe e o cabeçalho fica onde está.
+ */
+export function useLockBodyScroll(active: boolean): void {
+  useEffect(() => {
+    if (!active || typeof document === "undefined") return;
+    const body = document.body;
+    const prev = body.style.overflow;
+    body.style.overflow = "hidden";
+    return () => {
+      body.style.overflow = prev;
+    };
+  }, [active]);
+}

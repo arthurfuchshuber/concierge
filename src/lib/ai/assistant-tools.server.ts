@@ -384,6 +384,159 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
       },
     },
     {
+      name: "preparar_criar_pendencia_em_lote",
+      description:
+        "Monta (SEM gravar) a MESMA pendência em VÁRIOS imóveis de uma vez, com UMA única confirmação. Use sempre que o " +
+        "pedido cobrir mais de um imóvel — 'em todos os imóveis', 'em todos os studios', 'nos imóveis do proprietário X'. " +
+        "NUNCA faça um imóvel por vez pedindo confirmação a cada um. A ferramenta já verifica pendências parecidas e deixa " +
+        "de fora os imóveis que já têm uma; ela devolve essa lista para você AVISAR a pessoa e perguntar se quer duplicar.",
+      parameters: schema(
+        {
+          titulo: { type: "string" },
+          descricao: { type: ["string", "null"] },
+          categoria: { type: "string", enum: CATEGORIES },
+          prioridade: { type: "string", enum: ["low", "medium", "high"] },
+          prazo: { type: ["string", "null"], description: "Data YYYY-MM-DD ou null." },
+          recorrenciaDias: { type: ["integer", "null"], description: "Repete a cada N dias, ou null." },
+          mostrarNaLimpeza: { type: ["boolean", "null"], description: "Null = padrão da categoria." },
+          busca: {
+            type: ["string", "null"],
+            description:
+              "Filtra os imóveis pelo nome (ex.: 'studio'). Null = TODOS os imóveis que a pessoa pode ver.",
+          },
+          incluirDuplicados: {
+            type: "boolean",
+            description:
+              "false na primeira vez, SEMPRE. Só passe true depois de a pessoa autorizar explicitamente duplicar nos imóveis que já têm pendência parecida.",
+          },
+        },
+        [
+          "titulo",
+          "descricao",
+          "categoria",
+          "prioridade",
+          "prazo",
+          "recorrenciaDias",
+          "mostrarNaLimpeza",
+          "busca",
+          "incluirDuplicados",
+        ],
+      ),
+      execute: async (args) => {
+        if (!ctx.propertyIds.length) return { erro: "Você não tem imóveis visíveis." };
+        const term = typeof args.busca === "string" && args.busca.trim() ? args.busca.trim() : null;
+        const { data: propRows } = await db
+          .from("properties")
+          .select("id, name")
+          .in("id", ctx.propertyIds)
+          .order("name")
+          .limit(500);
+        const norm = (v: string) => v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        let alvos = ((propRows ?? []) as Array<{ id: string; name: string | null }>).map((p) => ({
+          id: p.id,
+          name: p.name ?? "(sem nome)",
+        }));
+        if (term) alvos = alvos.filter((p) => norm(p.name).includes(norm(term)));
+        if (!alvos.length) return { erro: term ? `Nenhum imóvel casa com "${term}".` : "Nenhum imóvel encontrado." };
+
+        const title = String(args.titulo).trim();
+        const category = (CATEGORIES.includes(args.categoria as TaskCategory) ? args.categoria : "other") as TaskCategory;
+        const priority = (["low", "medium", "high"].includes(String(args.prioridade))
+          ? args.prioridade
+          : "medium") as TaskPriority;
+        const padraoLimpeza = defaultShowInCleaning(category);
+        const showInCleaning = typeof args.mostrarNaLimpeza === "boolean" ? args.mostrarNaLimpeza : padraoLimpeza;
+        const description = typeof args.descricao === "string" && args.descricao.trim() ? args.descricao.trim() : null;
+        const dueDate = typeof args.prazo === "string" && /^\d{4}-\d{2}-\d{2}$/.test(args.prazo) ? args.prazo : null;
+        const recurrenceDays =
+          typeof args.recorrenciaDias === "number" && Number.isFinite(args.recorrenciaDias) && args.recorrenciaDias >= 1
+            ? Math.floor(args.recorrenciaDias)
+            : null;
+
+        /**
+         * PENDÊNCIA PARECIDA JÁ EXISTENTE — pedido explícito (08/09/2026):
+         * "se tiver uma pendência parecida com essa que está sendo solicitada,
+         * você não tem que gravar uma nova. Você precisa perguntar para o
+         * usuário se ele quer gravar mesmo assim".
+         *
+         * "Parecida" é comparação do TÍTULO normalizado (sem acento, sem
+         * caixa, sem espaço sobrando) entre as pendências ABERTAS do imóvel:
+         * é o que a pessoa reconhece como "essa já existe". Comparar por
+         * semelhança semântica seria mais esperto e menos previsível — e aqui
+         * previsibilidade vale mais, porque o custo do erro é duplicar
+         * silenciosamente uma rotina em dezenas de imóveis.
+         */
+        const { data: abertas } = await db
+          .from("tasks")
+          .select("id, title, property_id, status")
+          .in("property_id", alvos.map((p) => p.id))
+          .eq("status", "pending")
+          .limit(2000);
+        const jaTem = new Map<string, string>();
+        for (const t of (abertas ?? []) as Array<{ title: string; property_id: string | null }>) {
+          if (!t.property_id) continue;
+          if (norm(t.title) === norm(title) && !jaTem.has(t.property_id)) jaTem.set(t.property_id, t.title);
+        }
+
+        const duplicates = alvos
+          .filter((p) => jaTem.has(p.id))
+          .map((p) => ({ id: p.id, name: p.name, existing: jaTem.get(p.id) as string }));
+        const incluirDuplicados = args.incluirDuplicados === true;
+        const properties = incluirDuplicados ? alvos : alvos.filter((p) => !jaTem.has(p.id));
+
+        if (!properties.length) {
+          return {
+            erro: `Todos os ${alvos.length} imóveis já têm "${title}" em aberto. Se quiser criar assim mesmo, me confirme e eu preparo com duplicação.`,
+            duplicados: duplicates.map((d) => d.name),
+          };
+        }
+
+        const action: AssistantAction = {
+          kind: "create_task_bulk",
+          payload: {
+            base: { title, description, category, priority, dueDate, showInCleaning, recurrenceDays },
+            properties,
+            duplicates,
+          },
+        };
+        const preview = [
+          { label: "Imóveis", value: `${properties.length} ${properties.length === 1 ? "imóvel" : "imóveis"}` },
+          { label: "Título", value: title },
+          { label: "Categoria", value: CATEGORY_LABEL[category] },
+          { label: "Prioridade", value: PRIORITY_LABEL[priority] },
+          { label: "Na limpeza", value: showInCleaning ? "Sim" : "Não" },
+        ];
+        if (description) preview.push({ label: "Detalhe", value: description });
+        if (dueDate) preview.push({ label: "Prazo", value: dueDate });
+        if (recurrenceDays) preview.push({ label: "Repetição", value: `A cada ${recurrenceDays} dias` });
+        preview.push({
+          label: "Onde",
+          value: properties.map((p) => p.name).join(", "),
+        });
+        if (duplicates.length) {
+          preview.push({
+            label: incluirDuplicados ? "Duplicando em" : "Fora (já tem)",
+            value: duplicates.map((d) => d.name).join(", "),
+          });
+        }
+
+        ctx.prepared.current = {
+          action,
+          confirmLabel: `Criar em ${properties.length} ${properties.length === 1 ? "imóvel" : "imóveis"}`,
+          preview,
+        };
+        return {
+          pronto: true,
+          totalImoveis: properties.length,
+          duplicados: duplicates.map((d) => d.name),
+          aviso: duplicates.length
+            ? "Estes imóveis JÁ têm uma pendência com esse título e ficaram de fora. Avise a pessoa e pergunte se ela quer criar mesmo assim (aí chame de novo com incluirDuplicados=true)."
+            : null,
+          resumo: preview,
+        };
+      },
+    },
+    {
       name: "preparar_arquivar_pendencia",
       description:
         "Monta (SEM gravar) o ARQUIVAMENTO de uma pendência (o mesmo botão da lixeira na lista de Pendências) ou a REABERTURA de uma já concluída. Use listar_pendencias antes para obter o id. A pessoa confirma na tela.",

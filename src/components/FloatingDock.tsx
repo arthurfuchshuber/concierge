@@ -20,7 +20,7 @@ import { createPortal } from "react-dom";
 import { Sparkles, Headphones, X } from "lucide-react";
 import { HANDOFF_DOCK_OPEN_EVENT } from "@/lib/handoff-dock";
 import { AssistantPanel } from "@/components/assistant/AssistantPanel";
-import { useVisualViewport, viewportOverlayStyle } from "@/hooks/useVisualViewport";
+import { useLockBodyScroll, useVisualViewport, viewportOverlayStyle } from "@/hooks/useVisualViewport";
 
 const POSITION_KEY = "handoff-dock-position-v1";
 
@@ -60,6 +60,8 @@ export function FloatingDock({
   const [dockBottom, setDockBottom] = useState(88);
   const [dragY, setDragY] = useState<number | null>(null);
   const viewport = useVisualViewport();
+  // Com o chat aberto a página atrás não rola — ver useLockBodyScroll.
+  useLockBodyScroll(assistantOpen);
   const justDraggedRef = useRef(false);
 
   useEffect(() => {

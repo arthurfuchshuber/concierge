@@ -215,7 +215,44 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
         } as never);
         return;
       }
-      if (a.kind === "set_task_status") {
+      if (a.kind === "create_task_bulk") {
+        /**
+         * UMA confirmação, N gravações — pedido explícito (08/09/2026): "crie
+         * a recorrência em todos os imóveis sem me pedir para confirmar a
+         * gravação de cada um deles".
+         *
+         * Em série, de propósito: `createTask` é a MESMA server function da
+         * tela de Pendências, e disparar quarenta em paralelo só troca a
+         * espera do usuário por picos no banco. Em série, um erro no meio não
+         * derruba o que já entrou — o que já foi criado, fica.
+         */
+        const falhas: string[] = [];
+        for (const prop of a.payload.properties) {
+          try {
+            await createTaskFn({
+              data: {
+                title: a.payload.base.title,
+                description: a.payload.base.description ?? undefined,
+                category: a.payload.base.category,
+                priority: a.payload.base.priority,
+                propertyId: prop.id,
+                dueDate: a.payload.base.dueDate ?? undefined,
+                showInCleaning: a.payload.base.showInCleaning ?? undefined,
+                recurrenceDays: a.payload.base.recurrenceDays ?? undefined,
+              },
+            } as never);
+          } catch {
+            falhas.push(prop.name);
+          }
+        }
+        if (falhas.length) {
+          throw new Error(
+            `Criei em ${a.payload.properties.length - falhas.length} de ${a.payload.properties.length}. Não consegui em: ${falhas.join(", ")}.`,
+          );
+        }
+        return;
+      }
+            if (a.kind === "set_task_status") {
         await setStatusFn({ data: { taskId: a.payload.taskId, status: a.payload.status } } as never);
         return;
       }

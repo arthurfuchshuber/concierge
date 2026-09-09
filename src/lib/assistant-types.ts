@@ -64,6 +64,38 @@ export type AssistantAction =
       };
     }
   | {
+      /**
+       * A MESMA pendência em VÁRIOS imóveis, com UMA confirmação só.
+       *
+       * Pedido explícito (08/09/2026): "crie a recorrência em todos os imóveis
+       * sem me pedir para confirmar a gravação de cada um deles". Antes cada
+       * imóvel exigia um cartão, e criar uma rotina em quinze imóveis eram
+       * quinze confirmações — o assistente virava um formulário lento.
+       *
+       * O cartão de confirmação continua existindo: o que muda é o que ele
+       * cobre. Um cartão, a lista inteira, uma decisão. E `duplicados` traz os
+       * imóveis que JÁ têm pendência parecida — eles ficam de fora por padrão,
+       * porque duplicar em silêncio é pior do que não criar.
+       */
+      kind: "create_task_bulk";
+      payload: {
+        /** O que será criado, igual em todos os imóveis. */
+        base: {
+          title: string;
+          description: string | null;
+          category: TaskCategory;
+          priority: TaskPriority;
+          dueDate: string | null;
+          showInCleaning: boolean | null;
+          recurrenceDays: number | null;
+        };
+        /** Onde criar. */
+        properties: Array<{ id: string; name: string }>;
+        /** Fora da lista por já terem pendência parecida (informativo). */
+        duplicates: Array<{ id: string; name: string; existing: string }>;
+      };
+    }
+  | {
       /** Arquivar (status "canceled") ou reabrir (status "pending"). */
       kind: "set_task_status";
       payload: {
