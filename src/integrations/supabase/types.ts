@@ -3413,6 +3413,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          assistant_auto_confirm: boolean
           avatar_url: string | null
           birth_date: string | null
           cpf: string | null
@@ -3427,6 +3428,7 @@ export type Database = {
           trade_name: string | null
         }
         Insert: {
+          assistant_auto_confirm?: boolean
           avatar_url?: string | null
           birth_date?: string | null
           cpf?: string | null
@@ -3441,6 +3443,7 @@ export type Database = {
           trade_name?: string | null
         }
         Update: {
+          assistant_auto_confirm?: boolean
           avatar_url?: string | null
           birth_date?: string | null
           cpf?: string | null
