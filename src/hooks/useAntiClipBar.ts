@@ -33,25 +33,6 @@ import { useCallback, useEffect, useRef } from "react";
 const ORDER_STEP = 2;
 const END_GUTTER_PX = 8;
 const SETTLE_MS = 150;
-/**
- * Teto do respiro extra que a sobra pode acrescentar ENTRE dois itens.
- *
- * A distribuição proporcional (abaixo) nasceu para barras de itens largos,
- * onde sobram poucos pixels e espalhá-los deixa a página terminando rente à
- * borda — bonito e correto. Aplicada a uma barra de itens CURTOS, ela vira
- * outra coisa: no Kanban do celular cabiam duas abas de ~100px numa faixa de
- * ~360px, e os ~150px de sobra viraram um vão único gigante entre "Check-ins"
- * e "Checkouts" (print de 09/09/2026). A barra parecia texto justificado, não
- * um menu — as abas deixavam de se ler como uma sequência.
- *
- * O erro foi tratar "sobra" como algo que sempre deve ser distribuído. Sobra
- * pequena é ajuste; sobra grande é espaço vazio, e espaço vazio pertence ao
- * FIM da barra, não ao meio dela. Acima deste teto, portanto, a sobra volta a
- * ser o espaçador invisível descrito na regra 2 — que é o comportamento
- * original do anti-corte e o que qualquer barra de abas faz: itens à
- * esquerda, vão à direita, próximo item 100% fora da vista.
- */
-const MAX_EXTRA_PER_GAP_PX = 24;
 
 function isSpacer(el: Element) {
   return el.hasAttribute("data-spacer");
@@ -167,27 +148,32 @@ export function useAntiClipBar<T extends HTMLElement>() {
       const { last: lastIncluded, end: consumedEnd, startLeft } = best;
       const leftover = containerWidth - (consumedEnd - startLeft);
       const isTrueEnd = lastIncluded === btns.length - 1;
-      const gaps = lastIncluded - bestStart;
       pageStartRef.current = bestStart;
       pageEndRef.current = lastIncluded;
 
-      if (!isTrueEnd && leftover > 1) {
-        // REGRA ANTI-CORTE: sobra PEQUENA vira espaçamento proporcional entre
-        // as opções visíveis, de modo que a última termine exatamente na borda
-        // direita. Sobra GRANDE (ver MAX_EXTRA_PER_GAP_PX) não se distribui —
-        // ela vira espaçador invisível no fim da página, empurrando o próximo
-        // item 100% para fora da área visível. Em nenhum dos dois casos um
-        // item aparece cortado, que é o que a regra garante.
-        const canSpread = gaps > 0 && leftover / gaps <= MAX_EXTRA_PER_GAP_PX;
-        if (canSpread) {
-          const extra = leftover / gaps;
-          for (let i = bestStart; i < lastIncluded; i++) {
-            btns[i].style.marginRight = `${extra}px`;
-          }
-        } else if (hideSpacer) {
-          hideSpacer.style.order = String(lastIncluded * ORDER_STEP + 1);
-          hideSpacer.style.width = `${leftover}px`;
-        }
+      if (!isTrueEnd && leftover > 1 && hideSpacer) {
+        /**
+         * REGRA ANTI-CORTE, do jeito que ela está escrita lá em cima (regra 2)
+         * e nada além disso: a sobra vira um ESPAÇADOR INVISÍVEL depois do
+         * último item que coube inteiro, empurrando o próximo 100% para fora
+         * da área visível. Os itens ficam colados uns nos outros, com o
+         * espaçamento normal da barra, alinhados à esquerda.
+         *
+         * Aqui existiu por um tempo uma variação: distribuir a sobra como
+         * margem ENTRE os itens visíveis, para a página terminar rente à borda
+         * direita. Em barras de itens largos ficava bom; na barra de status do
+         * Kanban, de itens curtos, virou outra coisa — duas ou três abas
+         * espalhadas com vãos enormes, lidas como texto justificado em vez de
+         * um menu (prints de 09/09/2026). Tentei limitar o vão por um teto e
+         * ainda ficou errado, porque o problema nunca foi o tamanho do vão:
+         * era existir vão no meio. Espaço que sobra pertence ao FIM da barra.
+         *
+         * Uma barra de abas se lê da esquerda para a direita, em sequência.
+         * Distribuir a sobra quebra essa sequência para ganhar um alinhamento
+         * que ninguém pediu. Fica só a regra.
+         */
+        hideSpacer.style.order = String(lastIncluded * ORDER_STEP + 1);
+        hideSpacer.style.width = `${leftover}px`;
       }
 
       if (scroll) {

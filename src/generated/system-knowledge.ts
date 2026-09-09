@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-09T01:24:06.972Z";
+export const GENERATED_AT = "2026-09-09T01:37:15.812Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -310,6 +310,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/ops-push.server.ts",
     "audience": [],
     "content_hash": "733d6c253a2c2a01935e1199bc25d1bc"
+  },
+  {
+    "doc_key": "rule:bucketCounts",
+    "kind": "rule",
+    "title": "Regra — bucketCounts",
+    "content": "Contadores do topo. Contam sempre o TOTAL, nunca o filtrado — é assim que\ndá pra trocar de faixa sem antes desligar a atual.\n\nPedido explícito: contador ZERADO não aparece. Como eles dividem a largura\nentre si, dois contadores ficam maiores e mais legíveis que quatro; o\nespaço não sobra, é redistribuído. Zerando todos, some a barra inteira.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "748887ff8081a2bed7f0ac2cf5200983"
   },
   {
     "doc_key": "rule:buildHourOptions",
@@ -870,6 +879,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "c8e37b8e68b965b3d8099f003d2eca5c"
   },
   {
+    "doc_key": "rule:isoDateSaoPaulo",
+    "kind": "rule",
+    "title": "Regra — isoDateSaoPaulo",
+    "content": "Data (YYYY-MM-DD) de um timestamp no fuso de São Paulo.\n\n`createdAt` vem em UTC. Cortar os 10 primeiros caracteres dava a data UTC —\ne uma pendência aberta às 22h daqui nasceria \"aberta há 1 dia\", porque em\nUTC já era o dia seguinte.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "11f231840136917937c3a2ea9d7f0b40"
+  },
+  {
     "doc_key": "rule:isTodayOrFutureDate",
     "kind": "rule",
     "title": "Regra — isTodayOrFutureDate",
@@ -1410,6 +1428,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "6e7d3457843ef1461150aef8b52b1c7f"
   },
   {
+    "doc_key": "rule:sortItems",
+    "kind": "rule",
+    "title": "Regra — sortItems",
+    "content": "Ordenação DENTRO do grupo. Em todas, a urgência entra como desempate —\nduas pendências de mesma prioridade não podem ficar em ordem arbitrária, e\na mais próxima de vencer é sempre a que se resolve primeiro.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "569b0cf603661abb00379cbdb1c68758"
+  },
+  {
     "doc_key": "rule:SOURCE_CONFIDENCE",
     "kind": "rule",
     "title": "Regra — SOURCE_CONFIDENCE",
@@ -1473,7 +1500,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ef3c1c66c3ef578b9b9e0522f86a4558"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:139144",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:139219",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "A Limpeza tem DUAS janelas na MESMA tela (últimos 7d / próximos 7d) e o\ntítulo precisa dizer qual está no ar (pedido explícito). Só o texto muda;\no resto da página é idêntico.",
@@ -1482,7 +1509,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "df381f0b82c9a345baeae12ba649c01f"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:150036",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:150111",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Destaque visual opt-in (só usado hoje por \"Fila de Limpeza\"): borda +\ngradiente âmbar + acento lateral + ícone em caixinha, sem negrito.\nNão afeta nenhum outro uso do KpiCard (compact ou não).",
@@ -1491,7 +1518,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ec0f34c7bfc0754666d9cc96f2f2a568"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:150271",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:150346",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Cards que devem continuar visíveis no popup mesmo que já não pertençam\nmais à lista — hoje só os que tiveram HORÁRIO/DATA PREVISTOS ajustados.",
@@ -1500,7 +1527,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "4b33a44930f947dea6060da94f816439"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:150463",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:150538",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Pedido explícito: os cards dentro do popup precisam ficar IDÊNTICOS ao\ncard do Kanban — em vez de manter uma segunda implementação (que já\ndivergiu do Kanban antes, ver o bug do bloqueio de check-in), o popup\nagora renderiza o MESMO <ArrivalGroup>/<ArrivalCard> do Kanban, com os\nMESMOS handlers. Vem de arrivalGroupPropsFor(colMode, rows) — a mesma\nfunção que já alimenta as colunas do Kanban.",
@@ -1509,7 +1536,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "dfd7cbf815d96bcf7c9214257a5e2387"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:192367",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:192442",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Rótulo de seção do formulário de pendência — dá hierarquia ao que antes\nera uma pilha de campos do mesmo tamanho (pedido explícito, 07/09/2026).",
@@ -1518,7 +1545,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "56b708e624e12bb9a26b2593234ea4c6"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:247111",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:266890",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Pedido explícito: os filtros (Período/Cidade/Proprietário) que antes\nficavam numa linha própria acima deste card viraram um botão único\n(`CalendarFiltersButton`) dentro do cabeçalho, ao lado do título — por\nisso o estado/opções continuam vindo do pai (`OperationWorkspace`),\nque é quem também usa esses mesmos filtros pros cards de limpeza.",
@@ -1527,7 +1554,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "67345afec21e651284020dbb8b2f7803"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:278413",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:298192",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Dialog de detalhe (quem viu / quem não viu) — extraído do BarRow original\npra poder ser reaproveitado também pelo EngagementCard (cards separados do\ndesktop), sem duplicar esse JSX nos dois lugares.",
@@ -1536,7 +1563,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "191a73d470b9e71e3339a0db344ffb5a"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:286250",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:306029",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Controlado de fora (pela coluna do Kanban) quando presente — permite\nrecolher os \"Detalhes da operação\" ao rolar a coluna. Sem isso, cai de\nvolta pro estado local de sempre.",
@@ -1545,7 +1572,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1420a71a82d71664b9b9257192bc6178"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:289572",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:309351",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Marca este card (Check-ins) como \"Não Compareceu\" — pedido explícito,\n05/09/2026: opção no menu \"⋮\", só nos cards de check-in ainda pendentes.",
@@ -1554,7 +1581,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "b858b5d3155e42847ae34a889b4053e2"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:290572",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:310351",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Modo \"Lista\" (pedido explícito): mostra só proprietário, imóvel e os\n botões de ação (bem menores) — some com nome do hóspede, código,\n período, previsto e alertas de iCal. Reaproveita o mesmo card e os\n mesmos handlers; só a apresentação muda.",
@@ -1563,7 +1590,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "943bbf38018e813c04eeb6799825fda6"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:305717",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:325496",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "HISTÓRICO DA RESERVA (pedido explícito, 08/09/2026).\n\nNa visão Lista, o clique no próprio card abre a jornada completa — é o\ngesto natural quando o card mostra pouca coisa. No modo Completo o card\nestá cheio de controles e um clique global roubaria o clique de todos\neles, então ali o caminho é o item do menu \"⋮\". Os dois abrem exatamente\na mesma tela.\n\nSó identificador real: a chave sintética \"ical:<id>\" não é um uuid de\nlog — nesses cards a reserva é quem identifica a estadia.",
@@ -1572,7 +1599,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "91b0393d11ad3250d65978789bbf0665"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:347460",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:367239",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Restringe de verdade os horários selecionáveis (inclusive) ao horário\n configurado do imóvel — pedido explícito do cliente (04/09/2026): antes\n só existia um aviso visual (âmbar) depois de já ter escolhido um\n horário fora da janela; agora o horário nem aparece como opção. `null`/\n omitido = sem limite (imóvel sem esse horário configurado).",
@@ -1581,7 +1608,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8ebe1ab97a0756cd4e0279b3025812c8"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:350178",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:369957",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Data e horário previstos são dois campos SEPARADOS de novo (pedido\nexplícito, 05/09/2026: \"quero que fiquem separados como antes, porém\nambos no layout padrão dos tooltips\") — cada botão abre seu próprio\ntooltip (só calendário / só horário, cada um com o mesmo visual dos\ntooltips padrão do sistema), não mais um painel único com os dois juntos.\n\nMas por baixo dos panos continua sendo UMA ÚNICA sessão de edição\n(`open`/pendingDate/pendingTime compartilhados): os dois botões só trocam\nQUAL conteúdo aparece dentro do mesmo Popover (ver `openField`), sem abrir\ne fechar de verdade um popover por vez. Isso é o que preserva o ajuste\nanterior (pedido explícito, mesma data): \"não é mover depois de fechar o\ncalendário, é mover depois de fechar o TOOLTIP inteiro\" — se cada campo\ntivesse seu próprio Popover independente, fechar o de Data já confirmaria\ne moveria o card antes do usuário conseguir abrir o de Horário, voltando\nao bug original. Nada é gravado (nem o card se move) enquanto QUALQUER um\ndos dois estiver \"aberto\" — só quando o usuário clica fora dos dois\nbotões (ou aperta \"Concluir\"/Esc) é que a data e o horário pendentes são\nconfirmados juntos, numa única leva.\n\nO piso/teto do horário reage à data QUE ESTÁ SENDO escolhida (ainda não\nconfirmada) — mesma regra de \"dia mudou → sem piso/teto\" do card, só que\ncalculada aqui em cima do valor pendente, senão a lista de horários\nficaria com a janela do dia errado enquanto o usuário ainda decide.",
@@ -1590,7 +1617,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "2b5d3cc828947c9353140290107ef27c"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:43614",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:43689",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Cards \"fixados\" no popup aberto: SÓ ajustes de data/horário previsto\nseguram o card na lista até o usuário fechar o popup no \"X\". Qualquer\noutra ação (check, não compareceu, limpeza não será realizada, desfazer)\ntira o card da tela na hora.",
@@ -1599,7 +1626,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "edce2904f3ccf71032151d09f19ecae0"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:61312",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:61387",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "A tela de Limpeza tem DUAS janelas, e é a MESMA tela nas duas (pedido\nexplícito, 09/09/2026: \"não quero que abra um tooltip ao clicar em\ntendência; quero que a tela seja a mesma da visão oficial, mas que os\ndados sejam mudados para os próximos 7 dias\").\n\nAntes a previsão vivia num popup com layout próprio — outra moldura, outra\ndensidade, outro jeito de ler os mesmos gráficos. Agora só a FONTE dos\ndados muda; cards, gráficos e ranking são os mesmos componentes.",
@@ -2589,6 +2616,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "4a63227ae8b6e0fa00edd75f687643fe"
   },
   {
+    "doc_key": "rule:TaskChoiceMenu",
+    "kind": "rule",
+    "title": "Regra — TaskChoiceMenu",
+    "content": "Seletor \"agrupar por\" / \"ordenar por\" — o mesmo botão para os dois, porque\nsão o mesmo gesto. O rótulo é sempre a escolha ATUAL: quem olha a barra sabe\ncomo a lista está organizada sem abrir nada, que era a vantagem desta opção\nsobre esconder tudo atrás de um botão só.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "7b21d5477bb8cf8fb021dacae42555a5"
+  },
+  {
     "doc_key": "rule:TaskCompletion",
     "kind": "rule",
     "title": "Regra — TaskCompletion",
@@ -2605,6 +2641,24 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
     "content_hash": "cfe839b931d891cf965c39d6d5d493ec"
+  },
+  {
+    "doc_key": "rule:TaskGroupBy",
+    "kind": "rule",
+    "title": "Regra — TaskGroupBy",
+    "content": "PENDÊNCIAS — O RACIONAL DA TELA (pedido explícito, 09/09/2026, com mockups\naprovados).\n\nA tela antiga agrupava por proprietário / imóvel / imóvel+hóspede. Isso\nresponde \"de quem é isto\", que é uma pergunta de ARQUIVO. Quem abre\nPendências no meio do dia está perguntando outra coisa: \"o que eu resolvo\nagora\". Por isso o eixo padrão passou a ser TEMPO + PRIORIDADE, e imóvel /\nproprietário viraram uma escolha de agrupamento — continuam ali, só deixaram\nde mandar na ordem.\n\nO problema de agrupar por imóvel é que isso QUEBRA A FILA: numa fila única a\npior pendência do dia é sempre a primeira linha; agrupada, ela pode estar no\nterceiro grupo. A saída é o cabeçalho do grupo CARREGAR a urgência (barra na\ncor do pior caso + pílulas \"N atrasada\"/\"N hoje\") e os grupos virem\nordenados pelo pior caso de cada um. A fila continua existindo — só passa a\nser entre imóveis, não entre pendências.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "4f58358fdfda86f9671072a193dad782"
+  },
+  {
+    "doc_key": "rule:taskGroupRail",
+    "kind": "rule",
+    "title": "Regra — taskGroupRail",
+    "content": "A barra vertical do cabeçalho do grupo: a cor do PIOR caso que ele contém.\nSem atrasada nem vencendo hoje, o grupo é verde — \"está tudo em dia\" precisa\nser uma informação visível, não a ausência de informação.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "81dcf69a2f14e7651457545c68eb151c"
   },
   {
     "doc_key": "rule:TaskResolveDialog",

@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { useAntiClipColumns } from "@/hooks/useAntiClipColumns";
 import { useAntiClipBar } from "@/hooks/useAntiClipBar";
-import { CARD_MUTED, CARD_PENDING_GUEST, periodColorClass, stageBarClass, type CardStage } from "@/components/dashboard/card-colors";
+import { CARD_MUTED, CARD_OWNER, CARD_PENDING_GUEST, periodColorClass, stageBarClass, type CardStage } from "@/components/dashboard/card-colors";
 import { ReservationJourneyDialog } from "@/components/dashboard/ReservationJourneyDialog";
 import {
   ResponsiveContainer,
@@ -62,6 +62,7 @@ import {
   Camera,
   LayoutList,
   LayoutGrid,
+  ArrowDownUp,
   Navigation,
   Download,
   Repeat,
@@ -70,6 +71,7 @@ import {
   History,
   Clock3,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { notifyAction } from "@/components/UndoActionBar";
 import { ReservationRecordsButton } from "@/components/dashboard/ReservationRecords";
@@ -4387,7 +4389,173 @@ const TASK_PRIORITY_DOT: Record<TaskPriority, string> = {
   high: "bg-rose-500",
 };
 
-type TaskGroupBy = "owner" | "property" | "guest";
+/**
+ * PENDÊNCIAS — O RACIONAL DA TELA (pedido explícito, 09/09/2026, com mockups
+ * aprovados).
+ *
+ * A tela antiga agrupava por proprietário / imóvel / imóvel+hóspede. Isso
+ * responde "de quem é isto", que é uma pergunta de ARQUIVO. Quem abre
+ * Pendências no meio do dia está perguntando outra coisa: "o que eu resolvo
+ * agora". Por isso o eixo padrão passou a ser TEMPO + PRIORIDADE, e imóvel /
+ * proprietário viraram uma escolha de agrupamento — continuam ali, só deixaram
+ * de mandar na ordem.
+ *
+ * O problema de agrupar por imóvel é que isso QUEBRA A FILA: numa fila única a
+ * pior pendência do dia é sempre a primeira linha; agrupada, ela pode estar no
+ * terceiro grupo. A saída é o cabeçalho do grupo CARREGAR a urgência (barra na
+ * cor do pior caso + pílulas "N atrasada"/"N hoje") e os grupos virem
+ * ordenados pelo pior caso de cada um. A fila continua existindo — só passa a
+ * ser entre imóveis, não entre pendências.
+ */
+type TaskGroupBy = "urgency" | "property" | "owner" | "guest";
+type TaskSortBy = "priority" | "due" | "created";
+
+/** Faixa de tempo de uma pendência — o eixo principal da tela. */
+type TaskBucket = "late" | "today" | "week" | "later" | "none";
+const TASK_BUCKET_ORDER: readonly TaskBucket[] = ["late", "today", "week", "later", "none"] as const;
+/** Rótulo do cabeçalho de grupo (agrupamento por urgência). */
+const TASK_BUCKET_LABEL: Record<TaskBucket, string> = {
+  late: "Atrasadas",
+  today: "Vence hoje",
+  week: "Próximos 7 dias",
+  later: "Depois",
+  none: "Sem prazo",
+};
+/** Rótulo curto do contador do topo — precisa caber em ~70px. */
+const TASK_BUCKET_SHORT: Record<TaskBucket, string> = {
+  late: "Atrasadas",
+  today: "Hoje",
+  week: "7 dias",
+  later: "Depois",
+  none: "Sem prazo",
+};
+const TASK_BUCKET_TEXT: Record<TaskBucket, string> = {
+  late: "text-rose-500",
+  today: "text-amber-500",
+  week: "text-sky-400",
+  later: "text-muted-foreground",
+  none: "text-muted-foreground",
+};
+/** Moldura do contador: só as duas faixas que exigem ação ganham cor de fundo. */
+const TASK_BUCKET_CARD: Record<TaskBucket, string> = {
+  late: "border-rose-500/45 bg-rose-500/10",
+  today: "border-amber-500/45 bg-amber-500/10",
+  week: "border-border bg-card",
+  later: "border-border bg-card",
+  none: "border-border bg-card",
+};
+
+function taskBucket(t: TaskRow, todayISO: string): TaskBucket {
+  if (!t.dueDate) return "none";
+  if (t.dueDate < todayISO) return "late";
+  if (t.dueDate === todayISO) return "today";
+  const limit = addDaysISO(todayISO, 7);
+  return limit && t.dueDate <= limit ? "week" : "later";
+}
+
+/**
+ * Data (YYYY-MM-DD) de um timestamp no fuso de São Paulo.
+ *
+ * `createdAt` vem em UTC. Cortar os 10 primeiros caracteres dava a data UTC —
+ * e uma pendência aberta às 22h daqui nasceria "aberta há 1 dia", porque em
+ * UTC já era o dia seguinte.
+ */
+function isoDateSaoPaulo(ts: string): string | null {
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(d);
+  const pick = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  return `${pick("year")}-${pick("month")}-${pick("day")}`;
+}
+
+/** Diferença em dias entre duas datas ISO (b − a). */
+function daysBetweenISO(a: string, b: string): number {
+  const [ay, am, ad] = a.split("-").map(Number);
+  const [by, bm, bd] = b.split("-").map(Number);
+  if (!ay || !by) return 0;
+  return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86_400_000);
+}
+
+const TASK_PRIORITY_WEIGHT: Record<TaskPriority, number> = { high: 0, medium: 1, low: 2 };
+
+/**
+ * A barra vertical do cabeçalho do grupo: a cor do PIOR caso que ele contém.
+ * Sem atrasada nem vencendo hoje, o grupo é verde — "está tudo em dia" precisa
+ * ser uma informação visível, não a ausência de informação.
+ */
+function taskGroupRail(worst: TaskBucket): string {
+  if (worst === "late") return "bg-rose-500";
+  if (worst === "today") return "bg-amber-500";
+  return "bg-emerald-500";
+}
+
+/** Palavra do subtítulo ("5 imóveis", "3 proprietários"…). */
+const GROUP_UNIT: Record<TaskGroupBy, (n: number) => string> = {
+  urgency: () => "",
+  property: (n) => (n === 1 ? "imóvel" : "imóveis"),
+  owner: (n) => (n === 1 ? "proprietário" : "proprietários"),
+  guest: (n) => (n === 1 ? "estadia" : "estadias"),
+};
+
+const TASK_GROUP_OPTIONS: ReadonlyArray<{ value: TaskGroupBy; label: string }> = [
+  { value: "urgency", label: "Urgência" },
+  { value: "property", label: "Imóvel" },
+  { value: "owner", label: "Proprietário" },
+  // Continua existindo (a tela sempre teve) — num menu não custa largura.
+  { value: "guest", label: "Imóvel + Hóspede" },
+];
+const TASK_SORT_OPTIONS: ReadonlyArray<{ value: TaskSortBy; label: string }> = [
+  { value: "priority", label: "Prioridade" },
+  { value: "due", label: "Prazo" },
+  { value: "created", label: "Abertura" },
+];
+
+/**
+ * Seletor "agrupar por" / "ordenar por" — o mesmo botão para os dois, porque
+ * são o mesmo gesto. O rótulo é sempre a escolha ATUAL: quem olha a barra sabe
+ * como a lista está organizada sem abrir nada, que era a vantagem desta opção
+ * sobre esconder tudo atrás de um botão só.
+ */
+function TaskChoiceMenu<T extends string>({
+  icon: Icon,
+  value,
+  onChange,
+  options,
+}: {
+  icon: LucideIcon;
+  value: T;
+  onChange: (v: T) => void;
+  options: ReadonlyArray<{ value: T; label: string }>;
+}) {
+  const current = options.find((o) => o.value === value) ?? options[0];
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="h-8 shrink-0 inline-flex items-center gap-1.5 rounded-[0.3rem] bg-card ds-3d px-2.5 text-[11px] font-bold leading-none text-foreground whitespace-nowrap"
+        >
+          <Icon className="size-3.5 text-muted-foreground" />
+          {current.label}
+          <ChevronDown className="size-3 text-muted-foreground" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-44">
+        {options.map((o) => (
+          <DropdownMenuItem key={o.value} onSelect={() => onChange(o.value)} className="text-xs">
+            <Check className={`size-3.5 mr-2 ${o.value === value ? "opacity-100" : "opacity-0"}`} />
+            {o.label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 /** Dialog "PENDÊNCIAS" do Kanban — 3 agrupamentos (Por Proprietário / Por
  * Imóvel / Imóvel + Hóspede) + formulário de criação. Toda pendência é
@@ -4431,40 +4599,159 @@ function TasksDialog({
    * skipTaskOccurrence). */
   onSkipOccurrence: (taskId: string) => void;
 }) {
-  const [groupBy, setGroupBy] = useState<TaskGroupBy>("owner");
+  const [groupBy, setGroupBy] = useState<TaskGroupBy>("urgency");
+  const [sortBy, setSortBy] = useState<TaskSortBy>("priority");
+  /** Contador do topo aceso — filtra a lista por faixa de tempo. */
+  const [bucketFilter, setBucketFilter] = useState<TaskBucket | null>(null);
   // Pedido explícito (09/09/2026): excluir uma pendência RECORRENTE pergunta
   // primeiro o alcance, como o Google Agenda faz com um evento que se repete.
   // Pendência sem recorrência continua sendo um clique só — perguntar ali
   // seria só um passo a mais sem escolha nenhuma pra fazer.
   const [deletePrompt, setDeletePrompt] = useState<TaskRow | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const scroll = useWholeCardsMaxHeight(99, `${open}:${loading}:${tasks.length}:${groupBy}:${showForm}`);
+  /* REGRA ANTI-CORTE: com cinco faixas visíveis os contadores não cabem numa
+     tela de celular. Ela rola na horizontal — sem comprimir, sem quebrar
+     rótulo e sem deixar contador pela metade na borda. Cabendo todos (o caso
+     comum, quatro ou menos), o hook não faz nada e o `flex-1` divide a
+     largura entre eles. */
+  const bucketsBarRef = useAntiClipBar<HTMLDivElement>();
+  const scroll = useWholeCardsMaxHeight(
+    99,
+    `${open}:${loading}:${tasks.length}:${groupBy}:${sortBy}:${bucketFilter}:${showForm}`,
+  );
   const todayISO = todayISOSaoPaulo();
 
   const activeTasks = useMemo(() => tasks.filter((t) => t.status !== "canceled"), [tasks]);
 
-  type Group = { key: string; label: string; items: TaskRow[] };
+  /**
+   * Contadores do topo. Contam sempre o TOTAL, nunca o filtrado — é assim que
+   * dá pra trocar de faixa sem antes desligar a atual.
+   *
+   * Pedido explícito: contador ZERADO não aparece. Como eles dividem a largura
+   * entre si, dois contadores ficam maiores e mais legíveis que quatro; o
+   * espaço não sobra, é redistribuído. Zerando todos, some a barra inteira.
+   */
+  const bucketCounts = useMemo(() => {
+    const acc: Record<TaskBucket, number> = { late: 0, today: 0, week: 0, later: 0, none: 0 };
+    for (const t of activeTasks) acc[taskBucket(t, todayISO)] += 1;
+    return acc;
+  }, [activeTasks, todayISO]);
+  const visibleBuckets = useMemo(
+    () => TASK_BUCKET_ORDER.filter((b) => bucketCounts[b] > 0),
+    [bucketCounts],
+  );
+  // A faixa filtrada pode zerar enquanto a tela está aberta (a última pendência
+  // atrasada foi concluída). Sem isto a lista ficaria vazia com um filtro que
+  // já não aparece em lugar nenhum — sem como desligar.
+  useEffect(() => {
+    if (bucketFilter && bucketCounts[bucketFilter] === 0) setBucketFilter(null);
+  }, [bucketFilter, bucketCounts]);
+
+  const filteredTasks = useMemo(
+    () => (bucketFilter ? activeTasks.filter((t) => taskBucket(t, todayISO) === bucketFilter) : activeTasks),
+    [activeTasks, bucketFilter, todayISO],
+  );
+
+  /**
+   * Ordenação DENTRO do grupo. Em todas, a urgência entra como desempate —
+   * duas pendências de mesma prioridade não podem ficar em ordem arbitrária, e
+   * a mais próxima de vencer é sempre a que se resolve primeiro.
+   */
+  const sortItems = useCallback(
+    (items: TaskRow[]): TaskRow[] => {
+      const urgency = (t: TaskRow) => TASK_BUCKET_ORDER.indexOf(taskBucket(t, todayISO));
+      const due = (t: TaskRow) => t.dueDate ?? "9999-12-31";
+      const created = (t: TaskRow) => t.createdAt ?? "";
+      return [...items].sort((a, b) => {
+        if (sortBy === "due") {
+          if (due(a) !== due(b)) return due(a) < due(b) ? -1 : 1;
+          return TASK_PRIORITY_WEIGHT[a.priority] - TASK_PRIORITY_WEIGHT[b.priority];
+        }
+        if (sortBy === "created") {
+          // Mais ANTIGA no topo: é ela que denuncia pendência esquecida.
+          if (created(a) !== created(b)) return created(a) < created(b) ? -1 : 1;
+          return TASK_PRIORITY_WEIGHT[a.priority] - TASK_PRIORITY_WEIGHT[b.priority];
+        }
+        if (a.priority !== b.priority) return TASK_PRIORITY_WEIGHT[a.priority] - TASK_PRIORITY_WEIGHT[b.priority];
+        if (urgency(a) !== urgency(b)) return urgency(a) - urgency(b);
+        return due(a) < due(b) ? -1 : due(a) > due(b) ? 1 : 0;
+      });
+    },
+    [sortBy, todayISO],
+  );
+
+  type Group = {
+    key: string;
+    label: string;
+    /** Linha rosa sob o título — proprietário do imóvel, ou nada. */
+    sublabel: string | null;
+    items: TaskRow[];
+    /** Pior faixa contida no grupo: dá a cor da barra e a ordem dos grupos. */
+    worst: TaskBucket;
+    counts: Record<TaskBucket, number>;
+    /** Cabeçalho de FAIXA (agrupamento por urgência) em vez de cartão. */
+    band: TaskBucket | null;
+  };
+
   const groups = useMemo<Group[]>(() => {
+    const emptyCounts = (): Record<TaskBucket, number> => ({ late: 0, today: 0, week: 0, later: 0, none: 0 });
     const map = new Map<string, Group>();
-    for (const t of activeTasks) {
-      if (groupBy === "guest") {
+    const push = (key: string, label: string, sublabel: string | null, band: TaskBucket | null, t: TaskRow) => {
+      let g = map.get(key);
+      if (!g) {
+        g = { key, label, sublabel, items: [], worst: "none", counts: emptyCounts(), band };
+        map.set(key, g);
+      }
+      g.items.push(t);
+      const b = taskBucket(t, todayISO);
+      g.counts[b] += 1;
+      if (TASK_BUCKET_ORDER.indexOf(b) < TASK_BUCKET_ORDER.indexOf(g.worst)) g.worst = b;
+    };
+
+    for (const t of filteredTasks) {
+      if (groupBy === "urgency") {
+        const b = taskBucket(t, todayISO);
+        push(b, TASK_BUCKET_LABEL[b], null, b, t);
+      } else if (groupBy === "guest") {
         if (!t.logId && !t.reservationId) continue;
-        const label = `${t.propertyName ?? "Sem imóvel"} · ${guestNameForTask(t)}`;
-        const key = `${t.propertyId ?? "?"}:${t.logId ?? t.reservationId}`;
-        if (!map.has(key)) map.set(key, { key, label, items: [] });
-        map.get(key)!.items.push(t);
+        push(
+          `${t.propertyId ?? "?"}:${t.logId ?? t.reservationId}`,
+          t.propertyName ?? "Sem imóvel",
+          guestNameForTask(t),
+          null,
+          t,
+        );
       } else if (groupBy === "property") {
         if (!t.propertyName) continue;
-        if (!map.has(t.propertyName)) map.set(t.propertyName, { key: t.propertyName, label: t.propertyName, items: [] });
-        map.get(t.propertyName)!.items.push(t);
+        push(t.propertyName, t.propertyName, t.ownerName, null, t);
       } else {
         if (!t.ownerName) continue;
-        if (!map.has(t.ownerName)) map.set(t.ownerName, { key: t.ownerName, label: t.ownerName, items: [] });
-        map.get(t.ownerName)!.items.push(t);
+        push(t.ownerName, t.ownerName, null, null, t);
       }
     }
-    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
-  }, [activeTasks, groupBy, guestNameForTask]);
+
+    const list = Array.from(map.values());
+    for (const g of list) g.items = sortItems(g.items);
+    if (groupBy === "urgency") {
+      // Ordem das faixas é fixa — é ela que dá sentido ao agrupamento.
+      return list.sort(
+        (a, b) => TASK_BUCKET_ORDER.indexOf(a.band ?? "none") - TASK_BUCKET_ORDER.indexOf(b.band ?? "none"),
+      );
+    }
+    // Fora da urgência: o PIOR CASO manda, não a ordem alfabética. Quem tem
+    // pendência atrasada aparece antes — é isso que impede o agrupamento de
+    // esconder o que importa. Empatando o pior caso, quem tem mais casos
+    // naquela faixa vem primeiro; só então o nome desempata.
+    return list.sort((a, b) => {
+      const wa = TASK_BUCKET_ORDER.indexOf(a.worst);
+      const wb = TASK_BUCKET_ORDER.indexOf(b.worst);
+      if (wa !== wb) return wa - wb;
+      const ca = a.counts[a.worst];
+      const cb = b.counts[b.worst];
+      if (ca !== cb) return cb - ca;
+      return a.label.localeCompare(b.label, "pt-BR");
+    });
+  }, [filteredTasks, groupBy, guestNameForTask, sortItems, todayISO]);
 
   // ----- Formulário de criação -----
   const [title, setTitle] = useState("");
@@ -4593,30 +4880,63 @@ function TasksDialog({
               </button>
             </div>
             <p className="ds-page-subtitle mt-1.5 truncate">
-              {activeTasks.length} {activeTasks.length === 1 ? "aberta" : "abertas"}
+              {bucketFilter
+                ? `${filteredTasks.length} de ${activeTasks.length} · ${TASK_BUCKET_LABEL[bucketFilter].toLowerCase()}`
+                : `${activeTasks.length} ${activeTasks.length === 1 ? "aberta" : "abertas"}${
+                    groups.length && groupBy !== "urgency"
+                      ? ` · ${groups.length} ${GROUP_UNIT[groupBy](groups.length)}`
+                      : ""
+                  }`}
             </p>
           </div>
 
+          {!showForm && visibleBuckets.length > 0 && (
+            /* CONTADORES = FILTRO. Tocar acende, tocar de novo apaga. Zerado
+               não entra (pedido explícito): com `flex-1` os que sobram esticam
+               e ficam maiores, em vez de deixar um "0" cinza ocupando um quarto
+               da barra pra dizer que não há nada ali. */
+            <div ref={bucketsBarRef} className="ds-scroll-x mt-3 gap-1.5">
+              {visibleBuckets.map((b) => {
+                const on = bucketFilter === b;
+                return (
+                  <button
+                    key={b}
+                    type="button"
+                    onClick={() => setBucketFilter(on ? null : b)}
+                    aria-pressed={on}
+                    data-state={on ? "active" : "inactive"}
+                    className={`flex-1 min-w-[72px] shrink-0 text-left rounded-[0.3rem] border px-2 py-1.5 transition-colors ${TASK_BUCKET_CARD[b]} ${
+                      on ? "ring-2 ring-offset-1 ring-offset-card ring-current" : "hover:bg-secondary/40"
+                    } ${TASK_BUCKET_TEXT[b]}`}
+                  >
+                    <span className="block font-display text-[17px] font-extrabold leading-none tabular-nums">
+                      {bucketCounts[b]}
+                    </span>
+                    <span className="mt-1 block text-[8.5px] font-bold uppercase tracking-[0.09em] text-muted-foreground">
+                      {TASK_BUCKET_SHORT[b]}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {!showForm && (
-            <div className="flex gap-1 mt-3 bg-foreground/5 p-1 rounded-[0.3rem]">
-              {(
-                [
-                  { key: "owner", label: "Por Proprietário" },
-                  { key: "property", label: "Por Imóvel" },
-                  { key: "guest", label: "Imóvel + Hóspede" },
-                ] as const
-              ).map((t) => (
-                <button
-                  key={t.key}
-                  type="button"
-                  onClick={() => setGroupBy(t.key)}
-                  className={`flex-1 text-center text-[11px] font-semibold py-1.5 rounded-[0.2rem] transition-colors ${
-                    groupBy === t.key ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
+            /* AS DUAS ESCOLHAS EM UMA LINHA SÓ (mockup aprovado, 09/09/2026).
+               Antes eram duas fileiras de pílulas — ~66px fixos no topo de um
+               diálogo cuja tela útil é a lista, gastos com controles que a
+               pessoa mexe uma vez e esquece. Viraram dois seletores: os rótulos
+               "AGRUPAR"/"ORDENAR" saíram do texto e viraram os ícones dos
+               próprios botões, que é o que compra a largura, e a escolha atual
+               continua à vista sem precisar abrir nada. */
+            <div className="ds-scroll-x mt-2 gap-1.5">
+              <TaskChoiceMenu
+                icon={LayoutGrid}
+                value={groupBy}
+                onChange={setGroupBy}
+                options={TASK_GROUP_OPTIONS}
+              />
+              <TaskChoiceMenu icon={ArrowDownUp} value={sortBy} onChange={setSortBy} options={TASK_SORT_OPTIONS} />
             </div>
           )}
         </div>
@@ -4953,65 +5273,175 @@ function TasksDialog({
                 <Loader2 className="size-5 animate-spin" />
               </div>
             ) : groups.length === 0 ? (
-              <div className="py-10 text-center text-sm text-muted-foreground">Nenhuma pendência por aqui.</div>
+              <div className="py-10 text-center text-sm text-muted-foreground">
+                {bucketFilter ? "Nada nesta faixa." : "Nenhuma pendência por aqui."}
+              </div>
             ) : (
               groups.map((g) => (
                 <div key={g.key} data-whole-card>
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <span className="text-xs font-bold text-pink-500 dark:text-pink-400 truncate">{g.label}</span>
-                    <span className="text-[10px] text-muted-foreground shrink-0">
-                      {g.items.length} {g.items.length === 1 ? "pendência" : "pendências"}
-                    </span>
-                  </div>
-                  <div className="space-y-1.5">
+                  {g.band ? (
+                    /* Agrupamento por urgência: a faixa é um rótulo, não um
+                       cartão — ela já é a própria informação. */
+                    <div
+                      className={`mb-1.5 flex items-center gap-2 text-[9.5px] font-extrabold uppercase tracking-[0.12em] ${TASK_BUCKET_TEXT[g.band]}`}
+                    >
+                      {g.label}
+                      <span className="font-bold tracking-normal text-muted-foreground">{g.items.length}</span>
+                      <span className="h-px flex-1 bg-border" />
+                    </div>
+                  ) : (
+                    /* Agrupamento por imóvel/proprietário/hóspede: o cabeçalho
+                       CARREGA a urgência do grupo — barra na cor do pior caso
+                       e, à direita, no máximo duas pílulas ("N atrasada",
+                       "N hoje"), com o resto colapsando num "+N" neutro para o
+                       cabeçalho nunca esticar nem cortar (regra anti-corte). */
+                    <div className="mb-1.5 flex items-center gap-2 overflow-hidden rounded-[0.3rem] bg-secondary/30">
+                      <span className={`w-[3px] self-stretch shrink-0 ${taskGroupRail(g.worst)}`} />
+                      <div className="min-w-0 flex-1 ds-card-lines py-2">
+                        <div className="ds-card-title truncate">{g.label}</div>
+                        {g.sublabel && <div className={`truncate text-[10px] ${CARD_OWNER}`}>{g.sublabel}</div>}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1 pr-2">
+                        {(() => {
+                          const pills: React.ReactNode[] = [];
+                          let shown = 0;
+                          if (g.counts.late > 0) {
+                            shown += g.counts.late;
+                            pills.push(
+                              <span
+                                key="late"
+                                className="rounded-[0.25rem] bg-rose-500/15 px-1.5 py-[3px] text-[9.5px] font-extrabold tabular-nums text-rose-500"
+                              >
+                                {g.counts.late} {g.counts.late === 1 ? "atrasada" : "atrasadas"}
+                              </span>,
+                            );
+                          }
+                          if (g.counts.today > 0) {
+                            shown += g.counts.today;
+                            pills.push(
+                              <span
+                                key="today"
+                                className="rounded-[0.25rem] bg-amber-500/15 px-1.5 py-[3px] text-[9.5px] font-extrabold tabular-nums text-amber-500"
+                              >
+                                {g.counts.today} hoje
+                              </span>,
+                            );
+                          }
+                          const rest = g.items.length - shown;
+                          if (rest > 0) {
+                            pills.push(
+                              <span
+                                key="rest"
+                                className="rounded-[0.25rem] bg-foreground/5 px-1.5 py-[3px] text-[9.5px] font-extrabold tabular-nums text-muted-foreground"
+                              >
+                                {pills.length ? `+${rest}` : `${rest} em dia`}
+                              </span>,
+                            );
+                          }
+                          return pills;
+                        })()}
+                      </div>
+                    </div>
+                  )}
+                  <div className={`space-y-1.5 ${g.band ? "" : "pl-2.5"}`}>
                     {g.items.map((t) => {
                       const isPontual = !!(t.logId || t.reservationId);
-                      const late = !!t.dueDate && t.dueDate < todayISO && t.status === "pending";
+                      const bucket = taskBucket(t, todayISO);
+                      // Nome do imóvel só quando o cabeçalho do grupo já não o
+                      // diz; proprietário só no agrupamento por urgência, onde
+                      // nenhum cabeçalho o carrega.
+                      const showProperty = groupBy === "urgency" || groupBy === "owner";
+                      const showOwner = groupBy === "urgency";
+                      // "Aberta há N dias" é a informação que a tela não tinha e
+                      // é o que denuncia pendência esquecida. Onde a linha de
+                      // apoio está cheia (urgência), ela vai para a coluna da
+                      // direita; nos demais casos, para a própria linha.
+                      const openedOn = t.createdAt ? isoDateSaoPaulo(t.createdAt) : null;
+                      const age = openedOn ? daysBetweenISO(openedOn, todayISO) : null;
+                      const ageLabel = age == null ? null : age <= 0 ? "aberta hoje" : `aberta ${age}d`;
+                      const delta = t.dueDate ? daysBetweenISO(todayISO, t.dueDate) : null;
+                      const big =
+                        bucket === "none"
+                          ? "—"
+                          : bucket === "late"
+                            ? `−${Math.abs(delta ?? 0)} d`
+                            : bucket === "today"
+                              ? "Hoje"
+                              : t.dueDate
+                                ? fmtDateBR(t.dueDate).slice(0, 5)
+                                : "—";
+                      const small = showOwner
+                        ? (ageLabel ?? "")
+                        : bucket === "none"
+                          ? "sem prazo"
+                          : bucket === "late" || bucket === "today"
+                            ? t.dueDate
+                              ? fmtDateBR(t.dueDate).slice(0, 5)
+                              : ""
+                            : `em ${delta ?? 0} d`;
                       return (
-                        <div key={t.id} className="flex items-start gap-2 rounded-lg bg-secondary/40 px-2.5 py-2">
-                          <span className={`mt-1 size-1.5 rounded-full shrink-0 ${TASK_PRIORITY_DOT[t.priority]}`} />
-                          <div className="min-w-0 flex-1 ds-card-lines">
-                            <div className={`text-xs font-semibold leading-snug ${t.status === "done" ? "line-through text-muted-foreground" : ""}`}>
-                              {t.title}
+                        <div key={t.id} className="flex overflow-hidden rounded-[0.3rem] bg-secondary/40">
+                          {/* Barra de prioridade — mesma linguagem das barras de
+                              etapa dos cards da operação. */}
+                          <span className={`w-[3px] self-stretch shrink-0 ${TASK_PRIORITY_DOT[t.priority]}`} />
+                          <div className="flex min-w-0 flex-1 items-center gap-2 px-2 py-2">
+                            <div className="min-w-0 flex-1 ds-card-lines">
+                              <div
+                                className={`truncate text-xs font-semibold leading-snug ${t.status === "done" ? "line-through text-muted-foreground" : ""}`}
+                              >
+                                {t.title}
+                              </div>
+                              <div className="truncate text-[10px] text-muted-foreground">
+                                {TASK_CATEGORY_LABEL[t.category]}
+                                {showProperty && t.propertyName ? ` · ${t.propertyName}` : ""}
+                                {!showOwner && ageLabel ? ` · ${ageLabel}` : ""}
+                                {t.amountSpentCents != null ? ` · ${centsToBRL(t.amountSpentCents)}` : ""}
+                                {t.recurrenceDays != null ? ` · repete ${t.recurrenceDays}d` : ""}
+                                {showOwner && t.ownerName ? " · " : ""}
+                                {showOwner && t.ownerName ? (
+                                  <span className={CARD_OWNER}>{t.ownerName}</span>
+                                ) : null}
+                              </div>
                             </div>
-                            <div className="text-[10.5px] text-muted-foreground flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                              <span>{TASK_CATEGORY_LABEL[t.category]}</span>
-                              {groupBy !== "property" && t.propertyName && <span>· {t.propertyName}</span>}
-                              {t.dueDate && (
-                                <span className={late ? "text-rose-500 font-semibold" : ""}>
-                                  · {late ? "Atrasada" : fmtDateBR(t.dueDate)}
-                                </span>
-                              )}
-                              {t.amountSpentCents != null && <span>· {centsToBRL(t.amountSpentCents)}</span>}
-                              {t.recurrenceDays != null && (
-                                <span className="inline-flex items-center gap-0.5">
-                                  · <Repeat className="size-2.5" /> {t.recurrenceDays}d
-                                </span>
-                              )}
+                            <div className="shrink-0 text-right min-w-[54px] whitespace-nowrap">
+                              <div
+                                className={`text-[11.5px] font-bold leading-tight tabular-nums ${
+                                  bucket === "late"
+                                    ? "text-rose-500"
+                                    : bucket === "today"
+                                      ? "text-amber-500"
+                                      : bucket === "none"
+                                        ? "text-muted-foreground"
+                                        : "text-foreground"
+                                }`}
+                              >
+                                {big}
+                              </div>
+                              {small && <div className="text-[9px] text-muted-foreground tabular-nums">{small}</div>}
                             </div>
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            {isPontual && (
+                            <div className="flex shrink-0 items-center gap-1">
+                              {isPontual && (
+                                <button
+                                  type="button"
+                                  onClick={() => onSetStatus(t.id, t.status === "done" ? "pending" : "done")}
+                                  title={t.status === "done" ? "Reabrir" : "Concluir"}
+                                  className="size-6 grid place-items-center rounded-[0.25rem] hover:bg-secondary text-muted-foreground hover:text-foreground"
+                                >
+                                  {t.status === "done" ? <Undo2 className="size-3.5" /> : <Check className="size-3.5" />}
+                                </button>
+                              )}
                               <button
                                 type="button"
-                                onClick={() => onSetStatus(t.id, t.status === "done" ? "pending" : "done")}
-                                title={t.status === "done" ? "Reabrir" : "Concluir"}
-                                className="size-6 grid place-items-center rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground"
+                                onClick={() => {
+                                  if (t.recurrenceDays != null) setDeletePrompt(t);
+                                  else onSetStatus(t.id, "canceled");
+                                }}
+                                title={t.recurrenceDays != null ? "Excluir recorrência" : "Arquivar"}
+                                className="size-6 grid place-items-center rounded-[0.25rem] hover:bg-secondary text-muted-foreground hover:text-rose-500"
                               >
-                                {t.status === "done" ? <Undo2 className="size-3.5" /> : <Check className="size-3.5" />}
+                                <Trash2 className="size-3.5" />
                               </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (t.recurrenceDays != null) setDeletePrompt(t);
-                                else onSetStatus(t.id, "canceled");
-                              }}
-                              title={t.recurrenceDays != null ? "Excluir recorrência" : "Arquivar"}
-                              className="size-6 grid place-items-center rounded-md hover:bg-secondary text-muted-foreground hover:text-rose-500"
-                            >
-                              <Trash2 className="size-3.5" />
-                            </button>
+                            </div>
                           </div>
                         </div>
                       );
