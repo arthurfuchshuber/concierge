@@ -67,7 +67,6 @@ import {
   ChevronRight,
   ChevronLeft,
   Camera,
-  LayoutList,
   LayoutGrid,
   ArrowDownUp,
   Navigation,
@@ -421,42 +420,6 @@ function InfoHint({ title, children }: { title?: string; children: React.ReactNo
         <div className="text-foreground/90">{children}</div>
       </PopoverContent>
     </Popover>
-  );
-}
-
-/**
- * Alterna "Completo" / "Lista" — usado no Kanban, nos popups dos 4 KPIs do
- * Dashboard e no tooltip "quais imóveis" da Limpeza. Puramente visual: quem
- * controla o estado é o componente pai (via `value`/`onChange`).
- *
- * Pedido explícito (07/09/2026): era um par de botões com rótulo
- * ("Completo" / "Lista"); virou UM botão só, com UM ícone, que alterna a
- * cada toque. O ícone mostrado é o do modo PARA ONDE o toque leva (em modo
- * Lista aparece a grade, e vice-versa), com o título explicando a ação —
- * assim o botão sempre responde "o que acontece se eu clicar", que é a
- * pergunta que importa num controle de estado único. Mesmo formato/curva do
- * botão de print ao lado, pra lerem como um par.
- */
-function ViewModeToggle({
-  value,
-  onChange,
-}: {
-  value: "full" | "list";
-  onChange: (v: "full" | "list") => void;
-}) {
-  const goingToList = value === "full";
-  const Icon = goingToList ? LayoutList : LayoutGrid;
-  const label = goingToList ? "Ver em modo lista" : "Ver em modo completo";
-  return (
-    <button
-      type="button"
-      onClick={() => onChange(goingToList ? "list" : "full")}
-      title={label}
-      aria-label={label}
-      className="inline-flex items-center justify-center rounded-[0.3rem] border border-border/60 bg-secondary/30 p-1.5 text-muted-foreground transition-colors hover:bg-secondary/50 hover:text-foreground"
-    >
-      <Icon className="size-3" />
-    </button>
   );
 }
 
@@ -1610,10 +1573,12 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // ---------------------------------------------------------------------
   const [pendenciasOpen, setPendenciasOpen] = useState(false);
   // Alternador "Completo"/"Lista" do Kanban — mesmo padrão já usado nos
-  // popups de KPI e no tooltip de Limpeza (ViewModeToggle). Pedido explícito
+  // popups de KPI e no tooltip de Limpeza. Pedido explícito
   // (07/09/2026): "Lista" é o padrão ao abrir o Kanban (mais compacto, cabe
   // mais cards por coluna sem rolar).
-  const [kanbanListMode, setKanbanListMode] = useState<"full" | "list">("list");
+  /* O alternador Completo/Lista foi REMOVIDO (pedido explícito, 09/09/2026):
+     cada card nasce compacto e abre no toque, então nada mais precisa decidir
+     por todos os cards de uma vez. */
   // Refs pro botão de print do Kanban: um alvo por layout (mobile mostra só a
   // aba ativa; desktop mostra as colunas todas lado a lado dentro do mesmo
   // container rolável já usado pra calcular a largura das colunas —
@@ -1951,6 +1916,36 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     for (const [propertyId, v] of best) out.set(propertyId, v.key);
     return out;
   }, [kanbanCoRowsAll]);
+
+  /**
+   * PRÓXIMA CHEGADA de cada imóvel — o outro lado da janela da limpeza.
+   *
+   * O card de limpeza é a linha de SAÍDA de uma estadia; quem entra depois é
+   * OUTRA reserva, que ele não conhece. Este mapa faz a ponte: para cada
+   * imóvel, a chegada mais próxima ainda pendente, com o horário PREVISTO
+   * quando alguém informou um.
+   *
+   * Base = `kanbanCiRowsAll` (chegadas com alcance "all", a mesma fonte que
+   * elege a próxima limpeza) e não a lista filtrada da tela — senão filtrar
+   * por "Hoje" apagaria a chegada de amanhã, que é justamente a que fecha a
+   * janela.
+   */
+  const nextCheckinByProperty = useMemo(() => {
+    const best = new Map<string, { date: string; time: string | null }>();
+    for (const r of kanbanCiRowsAll) {
+      if (!r.propertyId || r.status !== "pending") continue;
+      const current = best.get(r.propertyId);
+      if (!current || r.date < current.date) {
+        best.set(r.propertyId, {
+          date: r.date,
+          // Mesma precedência do resto do sistema: override do anfitrião,
+          // depois o horário que o próprio hóspede informou.
+          time: r.arrivalTimeOverride ?? r.guestArrivalTime ?? null,
+        });
+      }
+    }
+    return best;
+  }, [kanbanCiRowsAll]);
 
   const cleaningTasksData = useMemo(
     () => ({
@@ -2320,6 +2315,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       // Checklist de pendências — só a coluna de Limpeza usa isso de fato
       // (ArrivalCard ignora fora do modo "cleaning").
       cleaningTasks: colMode === "cleaning" ? cleaningTasksData : undefined,
+      nextCheckinByProperty: colMode === "cleaning" ? nextCheckinByProperty : undefined,
       onToggleCleaningTask: colMode === "cleaning" ? handleToggleCleaningTask : undefined,
     };
   }
@@ -2771,7 +2767,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     Limpeza. No desktop o alvo do print é o próprio container
                     rolável com as colunas do quadro (kanbanRowRef, abaixo). */}
                 <ScreenshotButton targetRef={kanbanRowRef} fileName="kanban" />
-                <ViewModeToggle value={kanbanListMode} onChange={setKanbanListMode} />
               </div>
             </div>
 
@@ -2812,7 +2807,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                       targetRef={kanbanMobileScreenshotRef}
                       fileName={`kanban-${mobileTab}`}
                     />
-                    <ViewModeToggle value={kanbanListMode} onChange={setKanbanListMode} />
                   </div>
                 </div>
                 {/* Wrapper relative só pra ancorar o degrade — regra
@@ -2934,7 +2928,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     <ArrivalGroup
                       title=""
                       {...arrivalGroupPropsFor("checkin", kanbanCheckinPendingRows)}
-                      compact={kanbanListMode === "list"}
+                      compact
                     />
                   ))}
                 {mobileTab === "checkout" &&
@@ -2946,7 +2940,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     <ArrivalGroup
                       title=""
                       {...arrivalGroupPropsFor("checkout", kanbanCheckoutPendingRows)}
-                      compact={kanbanListMode === "list"}
+                      compact
                     />
                   ))}
                 {mobileTab === "stay" &&
@@ -2958,7 +2952,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     <ArrivalGroup
                       title=""
                       {...arrivalGroupPropsFor("stay", kanbanStayRows)}
-                      compact={kanbanListMode === "list"}
+                      compact
                     />
                   ))}
                 {mobileTab === "cleaning" &&
@@ -2970,7 +2964,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     <ArrivalGroup
                       title=""
                       {...arrivalGroupPropsFor("cleaning", kanbanCleaningRows)}
-                      compact={kanbanListMode === "list"}
+                      compact
                     />
                   ))}
                 {mobileTab === "done" &&
@@ -2982,7 +2976,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     <ArrivalGroup
                       title=""
                       {...arrivalGroupPropsFor("done", kanbanConcludedRows)}
-                      compact={kanbanListMode === "list"}
+                      compact
                     />
                   ))}
                 {mobileTab === "no_show" &&
@@ -2994,7 +2988,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     <ArrivalGroup
                       title=""
                       {...arrivalGroupPropsFor("no_show", kanbanNoShowRows)}
-                      compact={kanbanListMode === "list"}
+                      compact
                     />
                   ))}
               </div>
@@ -3027,7 +3021,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     <ArrivalGroup
                       title=""
                       {...arrivalGroupPropsFor("checkin", kanbanCheckinPendingRows)}
-                      compact={kanbanListMode === "list"}
+                      compact
                     />
                   )}
                 </KanbanColumn>
@@ -3049,7 +3043,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     <ArrivalGroup
                       title=""
                       {...arrivalGroupPropsFor("checkout", kanbanCheckoutPendingRows)}
-                      compact={kanbanListMode === "list"}
+                      compact
                     />
                   )}
                 </KanbanColumn>
@@ -3071,7 +3065,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     <ArrivalGroup
                       title=""
                       {...arrivalGroupPropsFor("cleaning", kanbanCleaningRows)}
-                      compact={kanbanListMode === "list"}
+                      compact
                     />
                   )}
                 </KanbanColumn>
@@ -3093,7 +3087,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     <ArrivalGroup
                       title=""
                       {...arrivalGroupPropsFor("stay", kanbanStayRows)}
-                      compact={kanbanListMode === "list"}
+                      compact
                     />
                   )}
                 </KanbanColumn>
@@ -3144,7 +3138,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     <ArrivalGroup
                       title=""
                       {...arrivalGroupPropsFor("done", kanbanConcludedRows)}
-                      compact={kanbanListMode === "list"}
+                      compact
                     />
                   )}
                 </KanbanColumn>
@@ -3196,7 +3190,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     <ArrivalGroup
                       title=""
                       {...arrivalGroupPropsFor("no_show", kanbanNoShowRows)}
-                      compact={kanbanListMode === "list"}
+                      compact
                     />
                   )}
                 </KanbanColumn>
@@ -3680,7 +3674,6 @@ function KpiCard({
   // Modo "Lista" (pedido explícito) — só afeta o conteúdo do popup, não o
   // gatilho (compact/highlight) do card em si, que já usa a prop `compact`
   // pra outra coisa (faixa fina vs. quadrado).
-  const [listMode, setListMode] = useState<"full" | "list">("list");
   // A lista do popup é AO VIVO: qualquer ação de esteira (check, "não
   // compareceu", "limpeza não será realizada", desfazer) tira o card da tela
   // na hora do clique.
@@ -3715,7 +3708,7 @@ function KpiCard({
     return out;
   }, [frozenSnapshot, rows, pinnedIds]);
 
-  const list = useWholeCardsMaxHeight(2, `${open}:${displayRows.length}:${loading}:${listMode}`);
+  const list = useWholeCardsMaxHeight(2, `${open}:${displayRows.length}:${loading}`);
   const screenshotRef = useRef<HTMLDivElement | null>(null);
   const valueTone = tone === "primary" ? "text-accent" : "text-foreground";
   const valueColor =
@@ -3843,7 +3836,6 @@ function KpiCard({
                 receiptRows={displayRows}
                 receiptTitle={label}
               />
-              <ViewModeToggle value={listMode} onChange={setListMode} />
             </div>
           )}
         </DialogHeader>
@@ -3872,12 +3864,7 @@ function KpiCard({
             </div>
           ) : (
             <div className="pb-3">
-              <ArrivalGroup
-                title=""
-                {...cardProps}
-                rows={displayRows}
-                compact={listMode === "list"}
-              />
+              <ArrivalGroup title="" {...cardProps} rows={displayRows} compact />
             </div>
           )}
         </div>
@@ -3942,10 +3929,13 @@ function EngagementAlertDropdown({ flags }: { flags: Array<{ icon: typeof Eye; l
         /* Sem borda e com o canto do card (pedido explícito, 08/09/2026): a
            etiqueta passou a usar o mesmo desenho do resto do sistema, em vez
            da pílula contornada que era o único objeto assim na tela. */
-        className="inline-flex items-center gap-1 rounded-[0.3rem] border-0 bg-amber-500/20 dark:bg-amber-500/25 px-2 py-0.5 text-[9.5px] uppercase tracking-[0.1em] font-extrabold text-amber-700 dark:text-amber-300 shadow-sm transition-colors hover:bg-amber-500/30"
+        /* Etiqueta menor e mais baixa (pedido explícito, 09/09/2026): ela é um
+           aviso, não um título — cresceu além do peso que merece e passou a
+           competir com o nome do proprietário logo abaixo. */
+        className="inline-flex items-center gap-0.5 rounded-[0.25rem] border-0 bg-amber-500/20 dark:bg-amber-500/25 px-1 py-0 text-[7px] uppercase tracking-[0.08em] font-extrabold leading-[1.6] text-amber-700 dark:text-amber-300 shadow-sm transition-colors hover:bg-amber-500/30"
         title="Ver alertas"
       >
-        <AlertTriangle className="size-3 shrink-0" />
+        <AlertTriangle className="size-2 shrink-0" />
         {/* "Engajamento" virou "ALERTA" (pedido explícito, 08/09/2026): a
             etiqueta nomeia o que ela FAZ — avisar — e não a métrica de onde
             os avisos saíram. Quem lê um card no meio da operação não precisa
@@ -4074,7 +4064,6 @@ function CleaningBreakdownContent({
   label: string;
   breakdown: CleaningBreakdownItem[];
 }) {
-  const [listMode, setListMode] = useState<"full" | "list">("list");
   const screenshotRef = useRef<HTMLUListElement | null>(null);
   return (
     <>
@@ -4084,7 +4073,6 @@ function CleaningBreakdownContent({
           targetRef={screenshotRef}
           fileName={`${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-imoveis`}
         />
-        <ViewModeToggle value={listMode} onChange={setListMode} />
       </div>
       <ul
         ref={screenshotRef}
@@ -4094,30 +4082,20 @@ function CleaningBreakdownContent({
           const mapsHref = item.mapsUrl || item.garageMapsUrl;
           return (
             <li key={item.propertyId} className="flex items-center justify-between gap-2 py-0.5">
-              {listMode === "list" ? (
-                <span className="min-w-0 truncate">
-                  <span className="text-muted-foreground">
-                    {item.ownerName ?? "Sem proprietário"}
-                  </span>
-                  <span className="text-foreground/60"> · </span>
-                  <span className="text-foreground">{item.propertyName}</span>
+              {/* Uma apresentação só (o alternador saiu), e a contagem SEMPRE
+                  visível — ela era o único ganho real do modo "Completo", e num
+                  ranking é justamente o dado que ordena a lista. */}
+              <span className="min-w-0 truncate">
+                <span className="text-muted-foreground">
+                  {item.ownerName ?? "Sem proprietário"}
                 </span>
-              ) : (
-                <span className="min-w-0 truncate">
-                  <span className="block truncate">{item.propertyName}</span>
-                  {item.ownerName && (
-                    <span className="block truncate text-[10px] text-muted-foreground">
-                      {item.ownerName}
-                    </span>
-                  )}
-                </span>
-              )}
+                <span className="text-foreground/60"> · </span>
+                <span className="text-foreground">{item.propertyName}</span>
+              </span>
               <span className="shrink-0 flex items-center gap-1.5">
-                {listMode === "full" && (
-                  <span className="tabular-nums text-muted-foreground">
-                    {item.count}× · {centsToBRL(item.totalCents)}
-                  </span>
-                )}
+                <span className="tabular-nums text-muted-foreground">
+                  {item.count}× · {centsToBRL(item.totalCents)}
+                </span>
                 {mapsHref && (
                   <a
                     href={mapsHref}
@@ -4741,10 +4719,24 @@ const TASK_PRIORITY_LABEL: Record<TaskPriority, string> = {
   medium: "Média",
   high: "Alta",
 };
-const TASK_PRIORITY_DOT: Record<TaskPriority, string> = {
-  low: "bg-emerald-500",
-  medium: "bg-amber-500",
-  high: "bg-rose-500",
+/**
+ * CHECKBOX NA COR DA PRIORIDADE (mockup aprovado, 09/09/2026).
+ *
+ * A barra colorida da esquerda era o único lugar onde a prioridade aparecia.
+ * Trocando-a por um checkbox, a prioridade teria sumido — a saída foi pintar o
+ * próprio checkbox: um elemento diz duas coisas ("clique aqui para concluir" e
+ * "esta é a prioridade") sem gastar um pixel de largura, que é o recurso
+ * escasso numa lista com nomes de imóvel de 40 caracteres.
+ */
+const TASK_PRIORITY_BOX: Record<TaskPriority, string> = {
+  low: "border-emerald-500 text-emerald-500",
+  medium: "border-amber-500 text-amber-500",
+  high: "border-rose-500 text-rose-500",
+};
+const TASK_PRIORITY_BOX_ON: Record<TaskPriority, string> = {
+  low: "bg-emerald-500 border-emerald-500",
+  medium: "bg-amber-500 border-amber-500",
+  high: "bg-rose-500 border-rose-500",
 };
 
 /**
@@ -4801,12 +4793,33 @@ const TASK_BUCKET_TEXT: Record<TaskBucket, string> = {
   upcoming: "text-sky-400",
   none: "text-muted-foreground",
 };
-/** Moldura do contador: só as duas faixas que exigem ação ganham cor de fundo. */
+/** Fundo do contador: só as duas faixas que exigem ação ganham cor. */
 const TASK_BUCKET_CARD: Record<TaskBucket, string> = {
-  late: "border-rose-500/45 bg-rose-500/10",
-  today: "border-amber-500/45 bg-amber-500/10",
-  upcoming: "border-border bg-card",
-  none: "border-border bg-card",
+  late: "bg-rose-500/10",
+  today: "bg-amber-500/10",
+  upcoming: "bg-card",
+  none: "bg-card",
+};
+/**
+ * SELEÇÃO DO CONTADOR: um traço na borda DIREITA, e nada mais (pedido
+ * explícito, 09/09/2026).
+ *
+ * Antes era um anel fechado em volta do contador — que, dentro de um diálogo
+ * que já é uma caixa, virava caixa dentro de caixa dentro de caixa. O traço
+ * diz "é este" com um elemento só; o esfumado até ele existe para o traço não
+ * parecer um pedaço solto de borda.
+ */
+const TASK_BUCKET_SELECTED: Record<TaskBucket, string> = {
+  late: "bg-rose-500",
+  today: "bg-amber-500",
+  upcoming: "bg-sky-400",
+  none: "bg-muted-foreground",
+};
+const TASK_BUCKET_FADE: Record<TaskBucket, string> = {
+  late: "from-transparent to-rose-500/12",
+  today: "from-transparent to-amber-500/12",
+  upcoming: "from-transparent to-sky-400/12",
+  none: "from-transparent to-foreground/10",
 };
 
 function taskBucket(t: TaskRow, todayISO: string): TaskBucket {
@@ -5296,16 +5309,26 @@ function TasksDialog({
                     onClick={() => setBucketFilter(on ? null : b)}
                     aria-pressed={on}
                     data-state={on ? "active" : "inactive"}
-                    className={`flex-1 min-w-[72px] shrink-0 text-left rounded-[0.3rem] border px-2 py-1.5 transition-colors ${TASK_BUCKET_CARD[b]} ${
-                      on
-                        ? "ring-2 ring-offset-1 ring-offset-card ring-current"
-                        : "hover:bg-secondary/40"
+                    className={`relative flex-1 min-w-[72px] shrink-0 overflow-hidden text-left rounded-[0.3rem] border-0 px-2 py-1.5 transition-colors ${TASK_BUCKET_CARD[b]} ${
+                      on ? "" : "hover:bg-secondary/40"
                     } ${TASK_BUCKET_TEXT[b]}`}
                   >
-                    <span className="block font-display text-[17px] font-extrabold leading-none tabular-nums">
+                    {on && (
+                      <>
+                        <span
+                          aria-hidden
+                          className={`pointer-events-none absolute inset-y-0 right-0 w-[3px] ${TASK_BUCKET_SELECTED[b]}`}
+                        />
+                        <span
+                          aria-hidden
+                          className={`pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-gradient-to-r ${TASK_BUCKET_FADE[b]}`}
+                        />
+                      </>
+                    )}
+                    <span className="relative block font-display text-[17px] font-extrabold leading-none tabular-nums">
                       {bucketCounts[b]}
                     </span>
-                    <span className="mt-1 block text-[8.5px] font-bold uppercase tracking-[0.09em] text-muted-foreground">
+                    <span className="relative mt-1 block text-[8.5px] font-bold uppercase tracking-[0.09em] text-muted-foreground">
                       {TASK_BUCKET_SHORT[b]}
                     </span>
                   </button>
@@ -5782,12 +5805,33 @@ function TasksDialog({
                           key={t.id}
                           className="flex overflow-hidden rounded-[0.3rem] bg-secondary/40"
                         >
-                          {/* Barra de prioridade — mesma linguagem das barras de
-                              etapa dos cards da operação. */}
-                          <span
-                            className={`w-[3px] self-stretch shrink-0 ${TASK_PRIORITY_DOT[t.priority]}`}
-                          />
-                          <div className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5">
+                          {/* Recuo de 20px antes do checkbox (mockup aprovado):
+                              alinha a caixa com o corpo do texto do rótulo do
+                              grupo, então a lista inteira lê como uma coluna
+                              só. */}
+                          <div className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pl-5 pr-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onSetStatus(t.id, t.status === "done" ? "pending" : "done")
+                              }
+                              role="checkbox"
+                              aria-checked={t.status === "done"}
+                              aria-label={
+                                t.status === "done" ? "Reabrir pendência" : "Concluir pendência"
+                              }
+                              title={`${t.status === "done" ? "Reabrir" : "Concluir"} · prioridade ${TASK_PRIORITY_LABEL[t.priority].toLowerCase()}`}
+                              className={`grid size-4 shrink-0 place-items-center rounded-[0.25rem] border-2 transition-colors ${
+                                t.status === "done"
+                                  ? TASK_PRIORITY_BOX_ON[t.priority]
+                                  : `${TASK_PRIORITY_BOX[t.priority]} hover:bg-foreground/5`
+                              }`}
+                            >
+                              <Check
+                                className={`size-2.5 text-background ${t.status === "done" ? "" : "opacity-0"}`}
+                                strokeWidth={4}
+                              />
+                            </button>
                             <div className="min-w-0 flex-1 ds-card-lines">
                               <div
                                 className={`truncate text-xs font-semibold leading-snug ${t.status === "done" ? "line-through text-muted-foreground" : ""}`}
@@ -5828,29 +5872,12 @@ function TasksDialog({
                                 {due}
                               </span>
                             </div>
+                            {/* Só a lixeira à direita. O antigo ✓ daqui virou o
+                                checkbox da esquerda, que é onde a mão procura —
+                                e, de quebra, os dois botões deixam de ficar
+                                colados, o que reduz a chance de excluir
+                                querendo concluir. */}
                             <div className="flex shrink-0 items-center gap-1">
-                              {/* Concluir vale para QUALQUER pendência. Antes o
-                                  botão só aparecia nas ligadas a uma estadia, e
-                                  o efeito colateral aparecia justamente nas
-                                  criadas em lote (pendência de imóvel, sem
-                                  estadia): dava para excluir, nunca para
-                                  concluir. Numa recorrente, concluir empurra o
-                                  prazo para o próximo ciclo — não fecha para
-                                  sempre. */}
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  onSetStatus(t.id, t.status === "done" ? "pending" : "done")
-                                }
-                                title={t.status === "done" ? "Reabrir" : "Concluir"}
-                                className="size-6 grid place-items-center rounded-[0.25rem] hover:bg-secondary text-muted-foreground hover:text-foreground"
-                              >
-                                {t.status === "done" ? (
-                                  <Undo2 className="size-3.5" />
-                                ) : (
-                                  <Check className="size-3.5" />
-                                )}
-                              </button>
                               <button
                                 type="button"
                                 onClick={() => {
@@ -7409,6 +7436,7 @@ function ArrivalGroup({
   onExpandedChange,
   compact,
   cleaningTasks,
+  nextCheckinByProperty,
   onToggleCleaningTask,
 }: {
   title: string;
@@ -7452,6 +7480,8 @@ function ArrivalGroup({
     /** propertyId -> chave do card que é a PRÓXIMA limpeza daquele imóvel. */
     nextCleaningKeyByProperty: Map<string, string>;
   };
+  /** propertyId -> próxima chegada do imóvel (fecha a janela da limpeza). */
+  nextCheckinByProperty?: Map<string, { date: string; time: string | null }>;
   onToggleCleaningTask?: (task: TaskRow, row: ArrivalRow) => void;
 }) {
   // Somente UM card pode ficar com o quadro de detalhes aberto por vez.
@@ -7495,6 +7525,7 @@ function ArrivalGroup({
           }
           compact={compact}
           cleaningTasks={cleaningTasks}
+          nextCheckinByProperty={nextCheckinByProperty}
           onToggleCleaningTask={onToggleCleaningTask}
         />
       ))}
@@ -7523,8 +7554,9 @@ function ArrivalCard({
   expanded,
   onToggleExpanded,
   cleaningBlocked,
-  compact,
+  compact: compactProp,
   cleaningTasks,
+  nextCheckinByProperty,
   onToggleCleaningTask,
 }: {
   row: ArrivalRow;
@@ -7565,6 +7597,8 @@ function ArrivalCard({
     /** propertyId -> chave do card que é a PRÓXIMA limpeza daquele imóvel. */
     nextCleaningKeyByProperty: Map<string, string>;
   };
+  /** propertyId -> próxima chegada do imóvel (fecha a janela da limpeza). */
+  nextCheckinByProperty?: Map<string, { date: string; time: string | null }>;
   onToggleCleaningTask?: (task: TaskRow, row: ArrivalRow) => void;
 }) {
   const [noteOpen, setNoteOpen] = useState(false);
@@ -7825,6 +7859,27 @@ function ArrivalCard({
    * A etiqueta ALERTA é a exceção deliberada, por pedido explícito no mesmo
    * dia: ela aparece em todo e qualquer card, inclusive aqui.
    */
+  /**
+   * CARD SEMPRE COMPACTO, QUE ABRE NO TOQUE (pedido explícito, 09/09/2026,
+   * mockup aprovado).
+   *
+   * O botão de trocar visualização saiu do sistema. No lugar de uma escolha
+   * global entre "Completo" e "Lista" — que obrigava a pessoa a decidir de
+   * antemão, para TODOS os cards, quanta informação queria ver —, cada card
+   * nasce compacto e abre sozinho quando você toca nele. A escolha deixa de
+   * ser uma configuração e passa a ser um gesto, card a card.
+   *
+   * `compact` continua sendo a mesma variável de antes e continua governando o
+   * mesmo conjunto de detalhes; o que mudou é quem a define. A prop recebida
+   * (`compactProp`) segue valendo como PADRÃO, e o estado local só a sobrepõe
+   * quando a pessoa abre aquele card.
+   *
+   * O estado NÃO é lembrado entre aberturas da tela: tudo volta compacto.
+   * Lembrar significaria reabrir o quadro com metade dos cards expandidos, o
+   * que desfaz exatamente o ganho de espaço que motivou a mudança.
+   */
+  const [openFull, setOpenFull] = useState(false);
+  const compact = openFull ? false : (compactProp ?? true);
   const listBare = compact && (mode === "done" || mode === "no_show");
 
   /**
@@ -7871,13 +7926,50 @@ function ArrivalCard({
       row.date,
     todayISO,
   );
-  const allowedPhrase = predictionPrimary
-    ? allowedWindowPhrase(
-        predictionPrimary.kind,
-        predictionPrimary.standardTime,
-        predictionPrimary.standardTimeMax,
-      )
+  /**
+   * JANELA DA LIMPEZA (pedido explícito, 09/09/2026) — só na Fila de Limpeza.
+   *
+   * Nos outros cards, "Permitido" é a janela CONTRATUAL daquele lado
+   * (chegada ou saída). No card de limpeza essa frase não servia para nada:
+   * ela dizia a janela de saída do hóspede que JÁ SAIU. O que a pessoa que vai
+   * limpar precisa saber é outra coisa — de que horas até que horas o imóvel
+   * está vazio:
+   *
+   *   início = quando o hóspede sai → horário PREVISTO de saída se alguém
+   *            informou um; senão o limite de checkout do imóvel;
+   *   fim    = quando o próximo entra → horário PREVISTO de chegada da próxima
+   *            reserva se houver; senão o mínimo de check-in do imóvel.
+   *
+   * Previsão informada sempre ganha do padrão: o padrão é o contrato, a
+   * previsão é o que vai acontecer de verdade — e é sobre o que vai acontecer
+   * que se organiza uma limpeza.
+   */
+  const nextCheckin = mode === "cleaning" ? nextCheckinByProperty?.get(row.propertyId) : undefined;
+  const cleaningWindow =
+    mode === "cleaning"
+      ? {
+          from: row.arrivalTimeOverride ?? row.propertyCheckoutTime ?? row.standardTime ?? null,
+          to: nextCheckin?.time ?? row.propertyCheckinTime ?? null,
+        }
+      : null;
+  const cleaningWindowPhrase = cleaningWindow
+    ? cleaningWindow.from && cleaningWindow.to
+      ? `entre ${cleaningWindow.from} e ${cleaningWindow.to}`
+      : cleaningWindow.from
+        ? `a partir das ${cleaningWindow.from}`
+        : cleaningWindow.to
+          ? `até as ${cleaningWindow.to}`
+          : null
     : null;
+  const allowedPhrase =
+    cleaningWindowPhrase ??
+    (predictionPrimary
+      ? allowedWindowPhrase(
+          predictionPrimary.kind,
+          predictionPrimary.standardTime,
+          predictionPrimary.standardTimeMax,
+        )
+      : null);
   /**
    * HISTÓRICO DA RESERVA (pedido explícito, 08/09/2026).
    *
@@ -7960,19 +8052,25 @@ function ArrivalCard({
          vez de sair espalhando `stopPropagation` por cada controle — que
          alguém esqueceria no próximo botão adicionado —, o contêiner ignora
          qualquer clique que tenha nascido dentro de algo interativo. */
-      /* O clique no card abria o Histórico da reserva. DESATIVADO a pedido
-         (08/09/2026) enquanto o histórico é redesenhado — o caminho continua
-         existindo pelo item "Histórico da reserva" no menu "⋮", então nada se
-         perdeu; só o gesto acidental saiu do caminho. Para reativar, basta
-         devolver o onClick abaixo (o guarda de clique em elemento interativo
-         está preservado no comentário, era a parte difícil).
-
-         onClick={(e) => {
-           const el = e.target as HTMLElement | null;
-           const interactive = el?.closest("button, a, input, select, textarea, label, [role='button']");
-           if (interactive && interactive !== e.currentTarget) return;
-           setJourneyOpen(true);
-         }} */
+      /* O CLIQUE NO CARD ABRE E FECHA O CARD (pedido explícito, 09/09/2026).
+         O guarda abaixo é o que torna isso seguro, e é a parte difícil: o card
+         carrega botões que NÃO param a propagação (concluir, mapa, clipe de
+         registros, menu "⋮", ícone do chat, código da reserva, o editor de
+         previsão). Sem ele, concluir uma limpeza recolheria o card junto.
+         Em vez de espalhar `stopPropagation` por cada controle — que alguém
+         esqueceria no próximo botão adicionado —, o contêiner ignora qualquer
+         clique nascido dentro de algo interativo. A regra passa a valer por
+         construção: todo controle novo já nasce protegido.
+         (Este guarda é o mesmo que existia para o Histórico da reserva, que
+         hoje continua no item do menu "⋮".) */
+      onClick={(e) => {
+        const el = e.target as HTMLElement | null;
+        const interactive = el?.closest(
+          "button, a, input, select, textarea, label, [role='button'], [role='checkbox'], [data-radix-popper-content-wrapper]",
+        );
+        if (interactive && interactive !== e.currentTarget) return;
+        setOpenFull((v) => !v);
+      }}
       /* A curva de 0.3rem é a do Design System — o card era o único bloco
          quadrado do sistema. O acento lateral saiu daqui e virou a barra de
          ETAPA: antes só existia em "atrasado" e "data futura", agora vale
@@ -7983,7 +8081,7 @@ function ArrivalCard({
          próprio `rounded-l`. E `isolate` cria o contexto de empilhamento do
          card, para a etiqueta ficar acima do card de cima sem depender da
          ordem em que os cards aparecem no DOM. */
-      className="group relative isolate flex snap-start flex-col rounded-[0.3rem] bg-secondary/70 p-3 pl-3.5 gap-2 transition-colors hover:bg-secondary/90"
+      className="group relative isolate flex cursor-pointer snap-start flex-col rounded-[0.3rem] bg-secondary/70 p-3 pl-3.5 pb-0 gap-2 transition-colors hover:bg-secondary/90"
     >
       {journeyOpen && (
         <ReservationJourneyDialog
@@ -8049,7 +8147,7 @@ function ArrivalCard({
           `EngagementFlags` devolve `null` quando não há o que alertar, então
           o badge continua só aparecendo quando existe alerta — o que mudou é
           que ele não é mais escondido pela coluna nem pela vista. */}
-      <div className="absolute -top-2.5 left-1/2 z-30 -translate-x-1/2">
+      <div className="absolute -top-1.5 left-1/2 z-30 -translate-x-1/2">
         <EngagementFlags
           openedGuide={row.openedGuide}
           readInstructions={row.readInstructions}
@@ -8176,7 +8274,12 @@ function ArrivalCard({
                     </span>
                   </>
                 ) : (
-                  <span className="block text-[8.5px] font-extrabold uppercase leading-[1.35] tracking-[0.12em] text-muted-foreground/70">
+                  /* Duas palavras, duas linhas, ALINHADAS À DIREITA — a mesma
+                     margem de "PREVISÃO" e do horário (pedido explícito,
+                     09/09/2026). Centralizado, este bloco não encostava na
+                     mesma borda dos cards vizinhos e a coluna da direita
+                     parecia desalinhada de card para card. */
+                  <span className="block text-right text-[8.5px] font-extrabold uppercase leading-[1.35] tracking-[0.12em] text-muted-foreground/70">
                     Sem previsão
                   </span>
                 )}
@@ -8206,9 +8309,19 @@ function ArrivalCard({
           direita: "entre 15:00 e 23:00" precisa de ~130px, e ali roubaria do
           nome do imóvel justamente o espaço que o faz caber. */}
       {showPrediction && allowedPhrase && (
-        <div className="flex items-center gap-1.5 border-t border-border/40 pt-1.5 text-[9.5px] font-bold uppercase tracking-wide text-muted-foreground">
+        /* A janela da limpeza sai em ÂMBAR (pedido explícito): ali ela não é
+           uma regra de fundo como nos outros cards — é o prazo de quem vai
+           trabalhar, e precisa ser lida antes do resto. */
+        <div
+          className={`flex items-center gap-1.5 border-t border-border/40 pt-1.5 text-[9.5px] font-bold uppercase tracking-wide ${
+            cleaningWindowPhrase ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"
+          }`}
+        >
           <Clock3 className="size-2.5 shrink-0 opacity-70" />
-          Permitido <span className="font-semibold text-foreground/70">{allowedPhrase}</span>
+          Permitido{" "}
+          <span className={`font-semibold ${cleaningWindowPhrase ? "" : "text-foreground/70"}`}>
+            {allowedPhrase}
+          </span>
         </div>
       )}
 
@@ -8631,6 +8744,24 @@ function ArrivalCard({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+      </div>
+
+      {/* FAIXA DE ABRIR/FECHAR — opção "A" do mockup aprovado: um fio de 1px de
+          fora a fora e uma seta, nada mais.
+          A faixa é um CONVITE, não um controle: quem já sabe que o card abre
+          não precisa dela, e quem não sabe descobre no primeiro toque. Peso a
+          mais aqui multiplicaria por vinte cards na tela.
+          Ela é um `div` e não um `button` de propósito — quem executa o toque é
+          o clique do card inteiro. Um botão aqui dentro cairia no guarda de
+          elemento interativo e teria que repetir a mesma lógica. O `aria` fica
+          no card, que é quem de fato alterna. */}
+      <div
+        aria-hidden
+        className="-mx-3 -ml-3.5 mt-1 grid h-4 place-items-center border-t border-border/40 text-muted-foreground/70"
+      >
+        <ChevronDown
+          className={`size-3 transition-transform duration-200 ${openFull ? "rotate-180" : ""}`}
+        />
       </div>
 
       {/* Confirmação de check antecipado */}

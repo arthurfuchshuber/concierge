@@ -96,6 +96,29 @@ export type AssistantAction =
       };
     }
   | {
+      /**
+       * VÁRIAS pendências de uma vez: arquivar, reabrir ou EXCLUIR.
+       *
+       * Pedido explícito (09/09/2026): "remova todas as pendências que você
+       * criou agora… quero que exclua definitivamente, não arquivar".
+       * A IA respondeu que não tinha ferramenta — e estava certa: não tinha.
+       * O que limitava não era o cartão de confirmação, era de novo a
+       * COBERTURA. Sem ação em lote, desfazer uma criação em quinze imóveis
+       * eram quinze cartões; sem exclusão, o "desfazer" deixava quinze linhas
+       * mortas atrás de um filtro.
+       *
+       * `delete` apaga a linha (ver `deleteTasks`); `canceled`/`pending`
+       * arquivam e reabrem, como antes.
+       */
+      kind: "task_bulk";
+      payload: {
+        taskIds: string[];
+        operation: "delete" | "canceled" | "pending";
+        /** Só para o cartão: títulos do que será afetado. */
+        titles: string[];
+      };
+    }
+  | {
       /** Arquivar (status "canceled") ou reabrir (status "pending"). */
       kind: "set_task_status";
       payload: {

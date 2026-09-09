@@ -23,7 +23,7 @@ import {
   transcribeAssistantAudio,
 } from "@/lib/assistant.functions";
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
-import { createTask, setTaskStatus } from "@/lib/tasks.functions";
+import { createTask, deleteTasks, setTaskStatus, setTasksStatusBulk } from "@/lib/tasks.functions";
 import { advanceArrival, markNoShow, upsertArrivalStatus } from "@/lib/dashboard.functions";
 import type { AssistantMessage, PendingAction } from "@/lib/assistant-types";
 import { AiMarkdown } from "@/components/ai/AiMarkdown";
@@ -62,6 +62,8 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
   const startFn = useServerFn(startAssistantThread);
   const createTaskFn = useServerFn(createTask);
   const setStatusFn = useServerFn(setTaskStatus);
+  const deleteTasksFn = useServerFn(deleteTasks);
+  const setTasksBulkFn = useServerFn(setTasksStatusBulk);
   const noShowFn = useServerFn(markNoShow);
   const predictionFn = useServerFn(upsertArrivalStatus);
   const advanceFn = useServerFn(advanceArrival);
@@ -290,6 +292,23 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
             arrivalTimeOverride: a.payload.arrivalTimeOverride,
           },
         } as never);
+        return;
+      }
+      if (a.kind === "task_bulk") {
+        /**
+         * Uma chamada só para a lista inteira — não um laço de N chamadas como
+         * na criação em lote. Ali cada imóvel é uma linha nova e um erro no
+         * meio não pode derrubar o que já entrou; aqui é um único `IN (...)`
+         * sobre linhas que já existem, então o banco resolve de uma vez e o
+         * resultado é tudo-ou-nada, que é o que se espera de "apague estas".
+         */
+        if (a.payload.operation === "delete") {
+          await deleteTasksFn({ data: { taskIds: a.payload.taskIds } } as never);
+        } else {
+          await setTasksBulkFn({
+            data: { taskIds: a.payload.taskIds, status: a.payload.operation },
+          } as never);
+        }
         return;
       }
       if (a.kind === "advance") {

@@ -2060,6 +2060,10 @@ export const listConcludedArrivals = createServerFn({ method: "GET" })
         guestArrivalTime: (log?.["guest_arrival_time"] as string) ?? null,
         standardTime: null,
         standardTimeMax: null,
+        // Concluídos/Não compareceu não exibem janela — os horários padrão do
+        // imóvel não são consultados aqui.
+        propertyCheckinTime: null,
+        propertyCheckoutTime: null,
         cleaningPriceNormalCents: null,
         cleaningPriceFullCents: null,
         date: checkout ?? checkin,
@@ -2217,6 +2221,10 @@ export const listNoShowArrivals = createServerFn({ method: "GET" })
         guestArrivalTime: (log?.["guest_arrival_time"] as string) ?? null,
         standardTime: null,
         standardTimeMax: null,
+        // Concluídos/Não compareceu não exibem janela — os horários padrão do
+        // imóvel não são consultados aqui.
+        propertyCheckinTime: null,
+        propertyCheckoutTime: null,
         cleaningPriceNormalCents: null,
         cleaningPriceFullCents: null,
         date: checkin,

@@ -620,6 +620,136 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
       },
     },
     {
+      /**
+       * VÁRIAS pendências, UM cartão — arquivar, reabrir ou EXCLUIR de vez.
+       *
+       * Pedido explícito (09/09/2026): "remova todas as pendências que você
+       * criou agora, de todos os imóveis" e, na sequência, "exclua
+       * definitivamente, não quero arquivar". A IA respondeu que não conseguia
+       * — e estava certa: não havia ferramenta. Mesma lição da criação em
+       * lote: o que limita a autonomia quase nunca é o cartão de confirmação,
+       * é a COBERTURA. Sem ação em lote, desfazer uma criação em quinze
+       * imóveis eram quinze cartões; sem exclusão, "desfazer" deixava quinze
+       * linhas mortas atrás de um filtro.
+       *
+       * A busca é por TÍTULO normalizado (sem acento, sem caixa) porque é
+       * assim que a pessoa se refere a elas — "as de limpeza dos filtros" — e
+       * porque foi assim que o lote as criou. Sem busca, pega todas as abertas
+       * do escopo visível.
+       */
+      name: "preparar_acao_em_lote_pendencias",
+      description:
+        "Monta (SEM gravar) uma ação sobre VÁRIAS pendências ao mesmo tempo: arquivar, reabrir ou EXCLUIR DEFINITIVAMENTE. " +
+        "Use sempre que o pedido cobrir mais de uma pendência ('remova todas', 'apague as que você criou', 'arquive as de limpeza'). " +
+        "É PROIBIDO fazer uma por vez pedindo confirmação a cada uma. " +
+        "ARQUIVAR tira da lista mas mantém a linha no banco; EXCLUIR apaga de verdade e não tem desfazer — quando a pessoa disser " +
+        "'excluir', 'apagar', 'remover de vez' ou '100%', use excluir, não arquivar. A ferramenta devolve a lista do que será " +
+        "afetado: diga quantas e quais são antes de a pessoa confirmar.",
+      parameters: schema(
+        {
+          acao: { type: "string", enum: ["arquivar", "reabrir", "excluir"] },
+          busca: {
+            type: ["string", "null"],
+            description:
+              "Filtra pelo título da pendência (ex.: 'limpeza dos filtros'). Null = todas as pendências do estado escolhido.",
+          },
+          imovel: {
+            type: ["string", "null"],
+            description: "Filtra pelo nome do imóvel. Null = todos os imóveis visíveis.",
+          },
+        },
+        ["acao", "busca", "imovel"],
+      ),
+      execute: async (args) => {
+        if (!ctx.propertyIds.length) return { erro: "Você não tem imóveis visíveis." };
+        const acao = String(args.acao);
+        // Reabrir age sobre as arquivadas; as outras duas, sobre as vivas.
+        const statusAlvo = acao === "reabrir" ? ["canceled"] : ["pending", "done"];
+        const { data: rows } = await db
+          .from("tasks")
+          .select("id, title, status, property_id")
+          .in("property_id", ctx.propertyIds)
+          .in("status", statusAlvo)
+          .limit(500);
+        const norm = (v: string) =>
+          v
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .trim();
+        let alvos = (
+          (rows ?? []) as Array<{ id: string; title: string; property_id: string | null }>
+        ).map((t) => ({ id: t.id, title: t.title, propertyId: t.property_id }));
+        const termo =
+          typeof args.busca === "string" && args.busca.trim() ? args.busca.trim() : null;
+        if (termo) alvos = alvos.filter((t) => norm(t.title).includes(norm(termo)));
+        const imovel =
+          typeof args.imovel === "string" && args.imovel.trim() ? args.imovel.trim() : null;
+        if (imovel) {
+          const { data: props } = await db
+            .from("properties")
+            .select("id, name")
+            .in("id", ctx.propertyIds)
+            .limit(500);
+          const ids = new Set(
+            ((props ?? []) as Array<{ id: string; name: string | null }>)
+              .filter((p) => norm(p.name ?? "").includes(norm(imovel)))
+              .map((p) => p.id),
+          );
+          alvos = alvos.filter((t) => t.propertyId && ids.has(t.propertyId));
+        }
+        if (!alvos.length) return { erro: "Nenhuma pendência casa com esse filtro." };
+
+        const operation =
+          acao === "excluir" ? "delete" : acao === "reabrir" ? "pending" : "canceled";
+        const action: AssistantAction = {
+          kind: "task_bulk",
+          payload: {
+            taskIds: alvos.map((t) => t.id),
+            operation,
+            titles: alvos.map((t) => t.title),
+          },
+        };
+        const titulosUnicos = Array.from(new Set(alvos.map((t) => t.title)));
+        const preview = [
+          { label: "Pendências", value: `${alvos.length}` },
+          {
+            label: "Ação",
+            value:
+              acao === "excluir"
+                ? "EXCLUIR definitivamente"
+                : acao === "reabrir"
+                  ? "Reabrir"
+                  : "Arquivar",
+          },
+          {
+            label: "Quais",
+            value: titulosUnicos.slice(0, 6).join(" · ") + (titulosUnicos.length > 6 ? " …" : ""),
+          },
+        ];
+        if (operation === "delete") {
+          preview.push({ label: "Atenção", value: "Some do banco. Não tem como desfazer." });
+        }
+        ctx.prepared.current = {
+          action,
+          confirmLabel:
+            operation === "delete"
+              ? `Excluir ${alvos.length} ${alvos.length === 1 ? "pendência" : "pendências"}`
+              : operation === "pending"
+                ? `Reabrir ${alvos.length}`
+                : `Arquivar ${alvos.length}`,
+          preview,
+        };
+        return {
+          pronto: true,
+          total: alvos.length,
+          titulos: titulosUnicos.slice(0, 20),
+          irreversivel: operation === "delete",
+          resumo: preview,
+        };
+      },
+    },
+    {
       name: "preparar_arquivar_pendencia",
       description:
         "Monta (SEM gravar) o ARQUIVAMENTO de uma pendência (o mesmo botão da lixeira na lista de Pendências) ou a REABERTURA de uma já concluída. Use listar_pendencias antes para obter o id. A pessoa confirma na tela.",

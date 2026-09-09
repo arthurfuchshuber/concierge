@@ -45,81 +45,103 @@ const ScopeInput = z.object({ ownerId: z.string().uuid().nullable().optional() }
 export const listTaskLinkOptions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => ScopeInput.parse(i) ?? {})
-  .handler(async ({
-    data,
-    context,
-  }): Promise<{ properties: TaskLinkProperty[]; owners: TaskLinkOwner[]; providers: TaskLinkProvider[] }> => {
-    const { accessiblePropertyIds } = await import("@/lib/dashboard.functions");
-    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const db = context.supabase as unknown as AnyClient;
+  .handler(
+    async ({
+      data,
+      context,
+    }): Promise<{
+      properties: TaskLinkProperty[];
+      owners: TaskLinkOwner[];
+      providers: TaskLinkProvider[];
+    }> => {
+      const { accessiblePropertyIds } = await import("@/lib/dashboard.functions");
+      const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+      const db = context.supabase as unknown as AnyClient;
 
-    const [propIds, accountOwnerId] = await Promise.all([
-      accessiblePropertyIds(context.supabase as never, data.ownerId ?? null, context.userId),
-      resolveAuthorizedAccountOwnerId(context.supabase as never, context.userId, data.ownerId ?? null),
-    ]);
+      const [propIds, accountOwnerId] = await Promise.all([
+        accessiblePropertyIds(context.supabase as never, data.ownerId ?? null, context.userId),
+        resolveAuthorizedAccountOwnerId(
+          context.supabase as never,
+          context.userId,
+          data.ownerId ?? null,
+        ),
+      ]);
 
-    const [{ data: props }, { data: ownerRows }, { data: providerRows }] = await Promise.all([
-      propIds.length > 0
-        ? db.from("properties").select("id, name, owner_contact_id").in("id", propIds).order("name")
-        : Promise.resolve({ data: [] }),
-      db
-        .from("property_owners")
-        .select("id, name, trade_name")
-        .eq("account_owner_id", accountOwnerId)
-        .neq("status", "canceled")
-        .order("name"),
-      // Prestadores ativos — alimentam "quem resolveu" ao concluir uma
-      // pendência. Vêm junto nesta mesma função (em vez de uma busca à
-      // parte) porque a tela de Pendências já consome ela.
-      db
-        .from("service_providers")
-        .select("id, name, trade_name, category, categories, city, status")
-        .eq("account_owner_id", accountOwnerId)
-        .eq("status", "active")
-        .order("name"),
-    ]);
+      const [{ data: props }, { data: ownerRows }, { data: providerRows }] = await Promise.all([
+        propIds.length > 0
+          ? db
+              .from("properties")
+              .select("id, name, owner_contact_id")
+              .in("id", propIds)
+              .order("name")
+          : Promise.resolve({ data: [] }),
+        db
+          .from("property_owners")
+          .select("id, name, trade_name")
+          .eq("account_owner_id", accountOwnerId)
+          .neq("status", "canceled")
+          .order("name"),
+        // Prestadores ativos — alimentam "quem resolveu" ao concluir uma
+        // pendência. Vêm junto nesta mesma função (em vez de uma busca à
+        // parte) porque a tela de Pendências já consome ela.
+        db
+          .from("service_providers")
+          .select("id, name, trade_name, category, categories, city, status")
+          .eq("account_owner_id", accountOwnerId)
+          .eq("status", "active")
+          .order("name"),
+      ]);
 
-    const ownerNameById = new Map<string, string>();
-    for (const o of (ownerRows ?? []) as Array<{ id: string; name: string | null; trade_name: string | null }>) {
-      const label = (o.trade_name || o.name || "").trim();
-      if (label) ownerNameById.set(o.id, label);
-    }
+      const ownerNameById = new Map<string, string>();
+      for (const o of (ownerRows ?? []) as Array<{
+        id: string;
+        name: string | null;
+        trade_name: string | null;
+      }>) {
+        const label = (o.trade_name || o.name || "").trim();
+        if (label) ownerNameById.set(o.id, label);
+      }
 
-    const properties: TaskLinkProperty[] = ((props ?? []) as Array<{
-      id: string;
-      name: string | null;
-      owner_contact_id: string | null;
-    }>).map((p) => ({
-      id: p.id,
-      name: p.name ?? "Sem nome",
-      ownerContactId: p.owner_contact_id,
-      ownerName: p.owner_contact_id ? (ownerNameById.get(p.owner_contact_id) ?? null) : null,
-    }));
-
-    const owners: TaskLinkOwner[] = Array.from(ownerNameById.entries())
-      .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
-
-    const providers: TaskLinkProvider[] = ((providerRows ?? []) as Array<{
-      id: string;
-      name: string | null;
-      trade_name: string | null;
-      category: string | null;
-      categories: string[] | null;
-      city: string | null;
-    }>)
-      .map((p) => ({
+      const properties: TaskLinkProperty[] = (
+        (props ?? []) as Array<{
+          id: string;
+          name: string | null;
+          owner_contact_id: string | null;
+        }>
+      ).map((p) => ({
         id: p.id,
-        name: (p.trade_name || p.name || "").trim() || "Sem nome",
-        city: (p.city ?? "").trim() || null,
-        // `categories` (lista) é o campo atual; `category` (texto) é o
-        // legado de quando havia só uma — vale como reserva.
-        categories: (p.categories ?? (p.category ? [p.category] : [])).filter(Boolean),
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+        name: p.name ?? "Sem nome",
+        ownerContactId: p.owner_contact_id,
+        ownerName: p.owner_contact_id ? (ownerNameById.get(p.owner_contact_id) ?? null) : null,
+      }));
 
-    return { properties, owners, providers };
-  });
+      const owners: TaskLinkOwner[] = Array.from(ownerNameById.entries())
+        .map(([id, name]) => ({ id, name }))
+        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+
+      const providers: TaskLinkProvider[] = (
+        (providerRows ?? []) as Array<{
+          id: string;
+          name: string | null;
+          trade_name: string | null;
+          category: string | null;
+          categories: string[] | null;
+          city: string | null;
+        }>
+      )
+        .map((p) => ({
+          id: p.id,
+          name: (p.trade_name || p.name || "").trim() || "Sem nome",
+          city: (p.city ?? "").trim() || null,
+          // `categories` (lista) é o campo atual; `category` (texto) é o
+          // legado de quando havia só uma — vale como reserva.
+          categories: (p.categories ?? (p.category ? [p.category] : [])).filter(Boolean),
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+
+      return { properties, owners, providers };
+    },
+  );
 
 // ----- Listagem (dialog "PENDÊNCIAS" + checklist da Limpeza) -----
 
@@ -135,154 +157,172 @@ const ListTasksInput = z
 export const listTasks = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => ListTasksInput.parse(i) ?? {})
-  .handler(async ({ data, context }): Promise<{ tasks: TaskRow[]; completions: TaskCompletion[] }> => {
-    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const accountOwnerId = await resolveAuthorizedAccountOwnerId(
-      context.supabase as never,
-      context.userId,
-      data.ownerId ?? null,
-    );
-    const db = context.supabase as unknown as AnyClient;
+  .handler(
+    async ({ data, context }): Promise<{ tasks: TaskRow[]; completions: TaskCompletion[] }> => {
+      const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+      const accountOwnerId = await resolveAuthorizedAccountOwnerId(
+        context.supabase as never,
+        context.userId,
+        data.ownerId ?? null,
+      );
+      const db = context.supabase as unknown as AnyClient;
 
-    let query = db
-      .from("tasks")
-      .select(
-        "id, title, description, category, priority, due_date, show_in_cleaning, status, completed_at, created_at, property_id, owner_contact_id, log_id, reservation_id, amount_spent_cents, recurrence_days, resolved_by_provider_id, resolution_note",
-      )
-      .eq("account_owner_id", accountOwnerId)
-      .in("status", ["pending", "done"])
-      .order("due_date", { ascending: true, nullsFirst: false })
-      .order("created_at", { ascending: false });
-    if (data.onlyCleaning) query = query.eq("show_in_cleaning", true);
+      let query = db
+        .from("tasks")
+        .select(
+          "id, title, description, category, priority, due_date, show_in_cleaning, status, completed_at, created_at, property_id, owner_contact_id, log_id, reservation_id, amount_spent_cents, recurrence_days, resolved_by_provider_id, resolution_note",
+        )
+        .eq("account_owner_id", accountOwnerId)
+        .in("status", ["pending", "done"])
+        .order("due_date", { ascending: true, nullsFirst: false })
+        .order("created_at", { ascending: false });
+      if (data.onlyCleaning) query = query.eq("show_in_cleaning", true);
 
-    const { data: rows, error } = await query;
-    if (error) throw new Error(error.message);
-    const raw = (rows ?? []) as Array<{
-      id: string;
-      title: string;
-      description: string | null;
-      category: string;
-      priority: string;
-      due_date: string | null;
-      show_in_cleaning: boolean;
-      status: string;
-      completed_at: string | null;
-      created_at: string;
-      property_id: string | null;
-      owner_contact_id: string | null;
-      log_id: string | null;
-      reservation_id: string | null;
-      amount_spent_cents: number | null;
-      recurrence_days: number | null;
-      resolved_by_provider_id: string | null;
-      resolution_note: string | null;
-    }>;
+      const { data: rows, error } = await query;
+      if (error) throw new Error(error.message);
+      const raw = (rows ?? []) as Array<{
+        id: string;
+        title: string;
+        description: string | null;
+        category: string;
+        priority: string;
+        due_date: string | null;
+        show_in_cleaning: boolean;
+        status: string;
+        completed_at: string | null;
+        created_at: string;
+        property_id: string | null;
+        owner_contact_id: string | null;
+        log_id: string | null;
+        reservation_id: string | null;
+        amount_spent_cents: number | null;
+        recurrence_days: number | null;
+        resolved_by_provider_id: string | null;
+        resolution_note: string | null;
+      }>;
 
-    // Nomes de imóvel/proprietário em 2 buscas em lote (mesma técnica do
-    // getOccupancyBoard) — evita N+1. O "proprietário" de uma pendência
-    // vinculada só ao imóvel é herdado do dono cadastrado do imóvel.
-    const propIdsUsed = Array.from(new Set(raw.map((r) => r.property_id).filter((v): v is string => !!v)));
-    const { data: propRows } =
-      propIdsUsed.length > 0
-        ? await db.from("properties").select("id, name, owner_contact_id").in("id", propIdsUsed)
-        : { data: [] };
-    const propById = new Map(
-      ((propRows ?? []) as Array<{ id: string; name: string | null; owner_contact_id: string | null }>).map((p) => [
-        p.id,
-        p,
-      ]),
-    );
-    const ownerIdsUsed = Array.from(
-      new Set([
-        ...raw.map((r) => r.owner_contact_id).filter((v): v is string => !!v),
-        ...Array.from(propById.values())
-          .map((p) => p.owner_contact_id)
-          .filter((v): v is string => !!v),
-      ]),
-    );
-    const { data: ownerRows } =
-      ownerIdsUsed.length > 0
-        ? await db.from("property_owners").select("id, name, trade_name").in("id", ownerIdsUsed)
-        : { data: [] };
-    const ownerNameById = new Map<string, string>();
-    for (const o of (ownerRows ?? []) as Array<{ id: string; name: string | null; trade_name: string | null }>) {
-      const label = (o.trade_name || o.name || "").trim();
-      if (label) ownerNameById.set(o.id, label);
-    }
+      // Nomes de imóvel/proprietário em 2 buscas em lote (mesma técnica do
+      // getOccupancyBoard) — evita N+1. O "proprietário" de uma pendência
+      // vinculada só ao imóvel é herdado do dono cadastrado do imóvel.
+      const propIdsUsed = Array.from(
+        new Set(raw.map((r) => r.property_id).filter((v): v is string => !!v)),
+      );
+      const { data: propRows } =
+        propIdsUsed.length > 0
+          ? await db.from("properties").select("id, name, owner_contact_id").in("id", propIdsUsed)
+          : { data: [] };
+      const propById = new Map(
+        (
+          (propRows ?? []) as Array<{
+            id: string;
+            name: string | null;
+            owner_contact_id: string | null;
+          }>
+        ).map((p) => [p.id, p]),
+      );
+      const ownerIdsUsed = Array.from(
+        new Set([
+          ...raw.map((r) => r.owner_contact_id).filter((v): v is string => !!v),
+          ...Array.from(propById.values())
+            .map((p) => p.owner_contact_id)
+            .filter((v): v is string => !!v),
+        ]),
+      );
+      const { data: ownerRows } =
+        ownerIdsUsed.length > 0
+          ? await db.from("property_owners").select("id, name, trade_name").in("id", ownerIdsUsed)
+          : { data: [] };
+      const ownerNameById = new Map<string, string>();
+      for (const o of (ownerRows ?? []) as Array<{
+        id: string;
+        name: string | null;
+        trade_name: string | null;
+      }>) {
+        const label = (o.trade_name || o.name || "").trim();
+        if (label) ownerNameById.set(o.id, label);
+      }
 
-    // Nome de quem resolveu — mesma técnica em lote das duas buscas acima.
-    const providerIdsUsed = Array.from(
-      new Set(raw.map((r) => r.resolved_by_provider_id).filter((v): v is string => !!v)),
-    );
-    const { data: providerRows } =
-      providerIdsUsed.length > 0
-        ? await db.from("service_providers").select("id, name, trade_name").in("id", providerIdsUsed)
-        : { data: [] };
-    const providerNameById = new Map<string, string>();
-    for (const p of (providerRows ?? []) as Array<{ id: string; name: string | null; trade_name: string | null }>) {
-      const label = (p.trade_name || p.name || "").trim();
-      if (label) providerNameById.set(p.id, label);
-    }
+      // Nome de quem resolveu — mesma técnica em lote das duas buscas acima.
+      const providerIdsUsed = Array.from(
+        new Set(raw.map((r) => r.resolved_by_provider_id).filter((v): v is string => !!v)),
+      );
+      const { data: providerRows } =
+        providerIdsUsed.length > 0
+          ? await db
+              .from("service_providers")
+              .select("id, name, trade_name")
+              .in("id", providerIdsUsed)
+          : { data: [] };
+      const providerNameById = new Map<string, string>();
+      for (const p of (providerRows ?? []) as Array<{
+        id: string;
+        name: string | null;
+        trade_name: string | null;
+      }>) {
+        const label = (p.trade_name || p.name || "").trim();
+        if (label) providerNameById.set(p.id, label);
+      }
 
-    const tasks: TaskRow[] = raw.map((r) => {
-      const prop = r.property_id ? propById.get(r.property_id) : undefined;
-      const effectiveOwnerId = r.owner_contact_id ?? prop?.owner_contact_id ?? null;
-      return {
-        id: r.id,
-        title: r.title,
-        description: r.description,
-        category: r.category as TaskCategory,
-        priority: r.priority as TaskPriority,
-        dueDate: r.due_date,
-        showInCleaning: r.show_in_cleaning,
-        status: r.status as TaskStatus,
-        completedAt: r.completed_at,
-        createdAt: r.created_at,
-        propertyId: r.property_id,
-        propertyName: prop?.name ?? null,
-        ownerContactId: r.owner_contact_id,
-        ownerName: effectiveOwnerId ? (ownerNameById.get(effectiveOwnerId) ?? null) : null,
-        logId: r.log_id,
-        reservationId: r.reservation_id,
-        amountSpentCents: r.amount_spent_cents,
-        recurrenceDays: r.recurrence_days,
-        resolvedByProviderId: r.resolved_by_provider_id,
-        resolvedByProviderName: r.resolved_by_provider_id
-          ? (providerNameById.get(r.resolved_by_provider_id) ?? null)
-          : null,
-        resolutionNote: r.resolution_note,
-      };
-    });
+      const tasks: TaskRow[] = raw.map((r) => {
+        const prop = r.property_id ? propById.get(r.property_id) : undefined;
+        const effectiveOwnerId = r.owner_contact_id ?? prop?.owner_contact_id ?? null;
+        return {
+          id: r.id,
+          title: r.title,
+          description: r.description,
+          category: r.category as TaskCategory,
+          priority: r.priority as TaskPriority,
+          dueDate: r.due_date,
+          showInCleaning: r.show_in_cleaning,
+          status: r.status as TaskStatus,
+          completedAt: r.completed_at,
+          createdAt: r.created_at,
+          propertyId: r.property_id,
+          propertyName: prop?.name ?? null,
+          ownerContactId: r.owner_contact_id,
+          ownerName: effectiveOwnerId ? (ownerNameById.get(effectiveOwnerId) ?? null) : null,
+          logId: r.log_id,
+          reservationId: r.reservation_id,
+          amountSpentCents: r.amount_spent_cents,
+          recurrenceDays: r.recurrence_days,
+          resolvedByProviderId: r.resolved_by_provider_id,
+          resolvedByProviderName: r.resolved_by_provider_id
+            ? (providerNameById.get(r.resolved_by_provider_id) ?? null)
+            : null,
+          resolutionNote: r.resolution_note,
+        };
+      });
 
-    // Conclusões recentes das pendências RECORRENTES (sem log/reservation na
-    // própria linha) — só últimos 7 dias, suficiente pra saber o que já foi
-    // feito nas limpezas em andamento sem carregar histórico velho.
-    const recurringIds = raw.filter((r) => !r.log_id && !r.reservation_id).map((r) => r.id);
-    let completions: TaskCompletion[] = [];
-    if (recurringIds.length > 0) {
-      const since = `${addDaysISO(todayISO(), -7)}T00:00:00.000Z`;
-      const { data: compRows } = await db
-        .from("task_completions")
-        .select("task_id, log_id, reservation_id, amount_spent_cents")
-        .in("task_id", recurringIds)
-        .gte("completed_at", since);
-      completions = (
-        (compRows ?? []) as Array<{
-          task_id: string;
-          log_id: string | null;
-          reservation_id: string | null;
-          amount_spent_cents: number | null;
-        }>
-      ).map((c) => ({
-        taskId: c.task_id,
-        logId: c.log_id,
-        reservationId: c.reservation_id,
-        amountSpentCents: c.amount_spent_cents,
-      }));
-    }
+      // Conclusões recentes das pendências RECORRENTES (sem log/reservation na
+      // própria linha) — só últimos 7 dias, suficiente pra saber o que já foi
+      // feito nas limpezas em andamento sem carregar histórico velho.
+      const recurringIds = raw.filter((r) => !r.log_id && !r.reservation_id).map((r) => r.id);
+      let completions: TaskCompletion[] = [];
+      if (recurringIds.length > 0) {
+        const since = `${addDaysISO(todayISO(), -7)}T00:00:00.000Z`;
+        const { data: compRows } = await db
+          .from("task_completions")
+          .select("task_id, log_id, reservation_id, amount_spent_cents")
+          .in("task_id", recurringIds)
+          .gte("completed_at", since);
+        completions = (
+          (compRows ?? []) as Array<{
+            task_id: string;
+            log_id: string | null;
+            reservation_id: string | null;
+            amount_spent_cents: number | null;
+          }>
+        ).map((c) => ({
+          taskId: c.task_id,
+          logId: c.log_id,
+          reservationId: c.reservation_id,
+          amountSpentCents: c.amount_spent_cents,
+        }));
+      }
 
-    return { tasks, completions };
-  });
+      return { tasks, completions };
+    },
+  );
 
 // ----- Criar -----
 
@@ -292,7 +332,15 @@ const CreateTaskInput = z
     title: z.string().trim().min(1, "Título obrigatório.").max(200),
     description: z.string().trim().max(1000).nullable().optional(),
     category: z
-      .enum(["maintenance", "financial", "guest_request", "purchase", "inspection", "cleaning", "other"])
+      .enum([
+        "maintenance",
+        "financial",
+        "guest_request",
+        "purchase",
+        "inspection",
+        "cleaning",
+        "other",
+      ])
       .default("other"),
     priority: z.enum(["low", "medium", "high"]).default("medium"),
     dueDate: z
@@ -373,7 +421,8 @@ export const setTaskStatus = createServerFn({ method: "POST" })
       completed_at: data.status === "done" ? new Date().toISOString() : null,
     };
     if (data.amountSpentCents !== undefined) patch.amount_spent_cents = data.amountSpentCents;
-    if (data.resolvedByProviderId !== undefined) patch.resolved_by_provider_id = data.resolvedByProviderId;
+    if (data.resolvedByProviderId !== undefined)
+      patch.resolved_by_provider_id = data.resolvedByProviderId;
     if (data.resolutionNote !== undefined) patch.resolution_note = data.resolutionNote || null;
     // Reabrir limpa a prestação de contas da conclusão anterior — senão a
     // pendência volta pendente ainda exibindo "resolvida por Fulano".
@@ -392,7 +441,8 @@ export const setTaskStatus = createServerFn({ method: "POST" })
         .eq("id", data.taskId)
         .single();
       if (readErr) throw new Error("Pendência não encontrada ou sem acesso.");
-      const recurrenceDays = (row as { recurrence_days: number | null } | null)?.recurrence_days ?? null;
+      const recurrenceDays =
+        (row as { recurrence_days: number | null } | null)?.recurrence_days ?? null;
       if (recurrenceDays) {
         const next = new Date();
         next.setDate(next.getDate() + recurrenceDays);
@@ -425,7 +475,9 @@ const ToggleCleaningInput = z
     resolvedByProviderId: z.string().uuid().nullable().optional(),
     resolutionNote: z.string().max(2000).nullable().optional(),
   })
-  .refine((v) => !!v.logId || !!v.reservationId, { message: "Informe a estadia (log ou reserva)." });
+  .refine((v) => !!v.logId || !!v.reservationId, {
+    message: "Informe a estadia (log ou reserva).",
+  });
 
 export const toggleCleaningCompletion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -510,4 +562,64 @@ export const skipTaskOccurrence = createServerFn({ method: "POST" })
       .eq("id", data.taskId);
     if (error) throw new Error(error.message);
     return { dueDate: next };
+  });
+
+// ----- Excluir DEFINITIVAMENTE (não é arquivar) -----
+//
+// Pedido explícito (09/09/2026): "quero que você exclua definitivamente de
+// tudo, não quero arquivar, quero que você exclua 100%".
+//
+// Arquivar (`status = "canceled"`) some da tela mas a linha continua no banco,
+// e essa distinção importa: quando alguém cria por engano uma rotina em quinze
+// imóveis, arquivar deixa quinze lixos permanentes atrás de um filtro. O que
+// se quer ali é desfazer, não encerrar.
+//
+// As duas chaves estrangeiras já resolvem o que fica para trás — verificado no
+// banco antes de escrever isto: `task_completions.task_id` é ON DELETE CASCADE
+// (as marcas de "feito nesta limpeza" morrem com a pendência, que é o certo:
+// sozinhas não significam nada) e `reservation_records.task_id` é ON DELETE
+// SET NULL (o registro/comprovante da reserva SOBREVIVE, só deixa de apontar
+// para a pendência — apagar o comprovante junto seria apagar histórico).
+//
+// A permissão é a mesma de sempre: a policy "Account can manage tasks" cobre
+// ALL, então quem não pode gerir aquela pendência simplesmente não apaga
+// nenhuma linha.
+const DeleteTasksInput = z.object({ taskIds: z.array(z.string().uuid()).min(1).max(200) });
+
+export const deleteTasks = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => DeleteTasksInput.parse(i))
+  .handler(async ({ data, context }): Promise<{ deleted: number }> => {
+    const db = context.supabase as unknown as AnyClient;
+    const { data: rows, error } = await db
+      .from("tasks")
+      .delete()
+      .in("id", data.taskIds)
+      .select("id");
+    if (error) throw new Error(error.message);
+    return { deleted: (rows ?? []).length };
+  });
+
+// ----- Arquivar VÁRIAS de uma vez -----
+//
+// Mesmo raciocínio da criação em lote: "arquive todas as pendências que você
+// criou agora" é UM pedido, e virava N cartões de confirmação. Uma chamada,
+// uma confirmação, a lista inteira.
+const SetTasksStatusInput = z.object({
+  taskIds: z.array(z.string().uuid()).min(1).max(200),
+  status: z.enum(["pending", "canceled"]),
+});
+
+export const setTasksStatusBulk = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => SetTasksStatusInput.parse(i))
+  .handler(async ({ data, context }): Promise<{ updated: number }> => {
+    const db = context.supabase as unknown as AnyClient;
+    const { data: rows, error } = await db
+      .from("tasks")
+      .update({ status: data.status, completed_at: null })
+      .in("id", data.taskIds)
+      .select("id");
+    if (error) throw new Error(error.message);
+    return { updated: (rows ?? []).length };
   });

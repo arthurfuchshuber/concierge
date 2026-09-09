@@ -26,6 +26,18 @@ export type ArrivalRow = {
   guestArrivalTime: string | null; // HH:mm informado pelo hóspede
   standardTime: string | null; // horário padrão da propriedade
   standardTimeMax: string | null;
+  /**
+   * Horários padrão do IMÓVEL, sempre os dois, independente do `kind` da
+   * linha. `standardTime`/`standardTimeMax` mudam de significado conforme a
+   * linha é chegada ou saída; estes não mudam nunca.
+   *
+   * Existem porque a JANELA DA LIMPEZA precisa dos dois lados ao mesmo tempo
+   * (pedido explícito, 09/09/2026): ela começa quando o hóspede sai e termina
+   * quando o próximo pode entrar. Uma linha de checkout sozinha só conhece o
+   * lado da saída.
+   */
+  propertyCheckinTime: string | null; // checkin_time (mínimo de entrada)
+  propertyCheckoutTime: string | null; // checkout_time (limite de saída)
   /** Preço vigente da limpeza normal/completa do imóvel, em centavos — usado
    * só pra decidir quais opções aparecem no diálogo "Qual limpeza foi
    * realizada?" (uma opção sem preço configurado, ou com preço 0, não
