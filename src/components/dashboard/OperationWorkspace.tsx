@@ -7,7 +7,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { useAntiClipColumns } from "@/hooks/useAntiClipColumns";
 import { useAntiClipBar } from "@/hooks/useAntiClipBar";
-import { CARD_MUTED, CARD_OWNER, CARD_PENDING_GUEST, periodColorClass, stageBarClass, type CardStage } from "@/components/dashboard/card-colors";
+import {
+  CARD_MUTED,
+  CARD_OWNER,
+  CARD_PENDING_GUEST,
+  periodColorClass,
+  stageBarClass,
+  type CardStage,
+} from "@/components/dashboard/card-colors";
 import { ReservationJourneyDialog } from "@/components/dashboard/ReservationJourneyDialog";
 import {
   ResponsiveContainer,
@@ -89,7 +96,14 @@ import type { DateRange } from "react-day-picker";
 import { toBlob } from "html-to-image";
 
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Calendar as RangeCalendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -301,7 +315,10 @@ function clusterByProximity(group: ArrivalRow[]): ArrivalRow[] {
     let bestDist = Infinity;
     for (let k = 0; k < remaining.length; k++) {
       const cand = remaining[k];
-      const d = haversineMeters({ lat: last.lat as number, lng: last.lng as number }, { lat: cand.lat as number, lng: cand.lng as number });
+      const d = haversineMeters(
+        { lat: last.lat as number, lng: last.lng as number },
+        { lat: cand.lat as number, lng: cand.lng as number },
+      );
       if (d < bestDist) {
         bestDist = d;
         bestIdx = k;
@@ -402,13 +419,7 @@ function InfoHint({ title, children }: { title?: string; children: React.ReactNo
  * pergunta que importa num controle de estado único. Mesmo formato/curva do
  * botão de print ao lado, pra lerem como um par.
  */
-function ViewModeToggle({
-  value,
-  onChange,
-}: {
-  value: "full" | "list";
-  onChange: (v: "full" | "list") => void;
-}) {
+function ViewModeToggle({ value, onChange }: { value: "full" | "list"; onChange: (v: "full" | "list") => void }) {
   const goingToList = value === "full";
   const Icon = goingToList ? LayoutList : LayoutGrid;
   const label = goingToList ? "Ver em modo lista" : "Ver em modo completo";
@@ -426,11 +437,7 @@ function ViewModeToggle({
 }
 
 function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 function nowLabelBR(): string {
@@ -849,7 +856,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
   const occStart = periodRange?.start ?? todayISOSaoPaulo();
   const occDays = periodRange
-    ? Math.min(90, Math.max(3, differenceInCalendarDays(parseISODateLocal(periodRange.end), parseISODateLocal(periodRange.start)) + 1))
+    ? Math.min(
+        90,
+        Math.max(
+          3,
+          differenceInCalendarDays(parseISODateLocal(periodRange.end), parseISODateLocal(periodRange.start)) + 1,
+        ),
+      )
     : 21;
   const occupancyQ = useQuery({
     queryKey: ["dash-occupancy", activeOwnerId ?? "self", occStart, occDays],
@@ -866,9 +879,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const occupancyProperties: Array<{ id: string; name: string; city: string | null; ownerName?: string | null }> =
     occupancyQ.data?.properties ?? [];
   const ownerOptions = useMemo(() => {
-    const names: string[] = occupancyProperties
-      .map((p) => p.ownerName)
-      .filter((v): v is string => !!v);
+    const names: string[] = occupancyProperties.map((p) => p.ownerName).filter((v): v is string => !!v);
     return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [occupancyProperties]);
   const cityOptions = useMemo(() => {
@@ -889,7 +900,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // algum desses 2 filtros está ativo (sem filtro, o servidor já usa todos
   // os imóveis acessíveis da conta, sem precisar listar id por id).
   const cleaningStatsPropertyIds = useMemo(
-    () => (ownerFilters.length > 0 || cityFilters.length > 0 ? filteredOccupancyProperties.map((p) => p.id) : undefined),
+    () =>
+      ownerFilters.length > 0 || cityFilters.length > 0 ? filteredOccupancyProperties.map((p) => p.id) : undefined,
     [ownerFilters, cityFilters, filteredOccupancyProperties],
   );
   const cleaningStatsRange = periodRange ?? { start: todayISOSaoPaulo(), end: todayISOSaoPaulo() };
@@ -1115,7 +1127,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     [patchList],
   );
 
-
   function runAdvance(
     row: ArrivalRow,
     from: "checkin" | "stay" | "checkout" | "cleaning",
@@ -1184,7 +1195,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     });
   }
 
-
   /**
    * Antecipar um card com data futura (ex.: "Checkouts amanhã") é uma ação
    * fora do fluxo normal — antes ela acontecia no primeiro clique e o card
@@ -1229,7 +1239,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     });
   }
 
-
   // Realtime — sincroniza kanban e KPIs sem precisar recarregar a página quando
   // horários, notas ou reservas mudam (via outro membro da equipe, iCal etc).
   useEffect(() => {
@@ -1269,7 +1278,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     [ciRows, tomorrowCheckinListQ.data?.rows],
   );
   const checkoutPendingRows = useMemo(
-    () => sortCheckoutRows(coRows.filter((r) => r.status === "pending"), turnoverCheckinSources),
+    () =>
+      sortCheckoutRows(
+        coRows.filter((r) => r.status === "pending"),
+        turnoverCheckinSources,
+      ),
     [coRows, turnoverCheckinSources],
   );
   const rawTomorrowCheckinPendingRows = useMemo(
@@ -1587,9 +1600,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // nada. Substitui o antigo `expensePrompt`, mas mantém os dois gatilhos
   // que já existiam: concluir na lista de Pendências ("status") e marcar no
   // checklist do card de Limpeza ("cleaning", que fecha só a ocorrência).
-  type ResolvePromptState =
-    | { kind: "status"; task: TaskRow }
-    | { kind: "cleaning"; task: TaskRow; row: ArrivalRow };
+  type ResolvePromptState = { kind: "status"; task: TaskRow } | { kind: "cleaning"; task: TaskRow; row: ArrivalRow };
   const [resolvePrompt, setResolvePrompt] = useState<ResolvePromptState | null>(null);
   const attachTaskRecordFn = useServerFn(attachTaskRecord);
 
@@ -1735,10 +1746,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     );
     const released = inWindow.filter((r) => r.status === "done");
     const awaitingCheckout = inWindow.filter((r) => r.status !== "done");
-    return [
-      ...sortCheckoutRows(released, [kanbanCiRowsAll]),
-      ...sortCheckoutRows(awaitingCheckout, [kanbanCiRowsAll]),
-    ];
+    return [...sortCheckoutRows(released, [kanbanCiRowsAll]), ...sortCheckoutRows(awaitingCheckout, [kanbanCiRowsAll])];
   }, [kanbanCoRowsAll, matchesKanbanOwnerCity, kanbanPeriodStart, kanbanPeriodEnd, kanbanCiRowsAll]);
   // "Concluídos" nunca foi limitado por Hoje/Amanhã/7 dias/Todos (a busca de
   // concluídos já ignorava esse seletor antes) — só ganha os filtros de
@@ -1791,7 +1799,14 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       }
     }
     return map;
-  }, [kanbanCiRowsAll, kanbanCoRowsAll, concludedRows, noShowRows, tomorrowCheckinPendingRows, tomorrowCheckoutPendingRows]);
+  }, [
+    kanbanCiRowsAll,
+    kanbanCoRowsAll,
+    concludedRows,
+    noShowRows,
+    tomorrowCheckinPendingRows,
+    tomorrowCheckoutPendingRows,
+  ]);
   function guestNameForTask(t: TaskRow): string {
     if (t.logId) return guestNameByStayRef.get(`log:${t.logId}`) ?? "Hóspede";
     if (t.reservationId) return guestNameByStayRef.get(`res:${t.reservationId}`) ?? "Hóspede";
@@ -1896,7 +1911,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       // Mesma regra da leitura: sem linha DAQUELE lado, o valor anterior é
       // vazio — nunca o do outro lado (ver buildPredictionSide).
       const prev = rowByStay[side].get(key) ?? null;
-      const prevTime = prev ? (prev.arrivalTimeOverride ?? (side === "checkin" ? prev.guestArrivalTime : null) ?? null) : null;
+      const prevTime = prev
+        ? (prev.arrivalTimeOverride ?? (side === "checkin" ? prev.guestArrivalTime : null) ?? null)
+        : null;
       const dateChanged = date !== (prev?.arrivalDateOverride ?? null);
       const timeChanged = time !== prevTime;
       if (!dateChanged && !timeChanged) return;
@@ -1965,7 +1982,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         // Chegada: nunca antes da reserva, até um dia antes da saída
         // confirmada. Saída: até a data de saída confirmada — sair antes é
         // permitido, "esticar" a estadia por este campo não.
-        dateMin: (src.ical.icalCheckin ?? src.guestCheckin) ?? undefined,
+        dateMin: src.ical.icalCheckin ?? src.guestCheckin ?? undefined,
         dateMax:
           (side === "checkout"
             ? (src.ical.icalCheckout ?? src.guestCheckout)
@@ -2134,9 +2151,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         pinRow(row.logId);
 
         patchList(colKind, (rows: ArrivalRow[]) =>
-          rows.map((r) =>
-            r.logId === row.logId ? { ...r, arrivalDateOverride: null, arrivalTimeOverride: null } : r,
-          ),
+          rows.map((r) => (r.logId === row.logId ? { ...r, arrivalDateOverride: null, arrivalTimeOverride: null } : r)),
         );
         upsert.mutate({
           ...statusTarget(row),
@@ -2148,9 +2163,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           setBusyRowId(row.logId);
           patchList(colKind, (rows: ArrivalRow[]) =>
             rows.map((r) =>
-              r.logId === row.logId
-                ? { ...r, arrivalDateOverride: prevDate, arrivalTimeOverride: prevTime }
-                : r,
+              r.logId === row.logId ? { ...r, arrivalDateOverride: prevDate, arrivalTimeOverride: prevTime } : r,
             ),
           );
           upsert.mutate({
@@ -2187,7 +2200,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const engagementCardBg =
     "radial-gradient(120% 140% at 0% 0%, rgba(168,85,247,0.16), transparent 55%), radial-gradient(120% 140% at 100% 100%, rgba(236,72,153,0.12), transparent 55%)";
   const engagementAccentBar = (
-    <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-purple-500 to-pink-500" />
+    <span
+      aria-hidden="true"
+      className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-purple-500 to-pink-500"
+    />
   );
   function renderEngagementTop() {
     const hasData = (engQ.data?.checkinsInPeriod ?? 0) > 0 || (engQ.data?.checkinsWithCodes ?? 0) > 0;
@@ -2274,12 +2290,14 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     <div className="px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full space-y-1.5">
       <OperationShell
         view={view}
-        title={view === "limpeza" ? (cleaningWindow === "past" ? "Limpeza Últimos 7d" : "Limpeza Próximos 7d") : undefined}
+        title={
+          view === "limpeza" ? (cleaningWindow === "past" ? "Limpeza Últimos 7d" : "Limpeza Próximos 7d") : undefined
+        }
         subtitle={
           view === "limpeza"
             ? cleaningWindow === "past"
               ? "Histórico e custos das limpezas realizadas."
-              : "Previsão de limpezas e custos, com base nos checkouts já agendados."
+              : "Previsão de limpezas e custos próximos 7d."
             : undefined
         }
       />
@@ -2682,7 +2700,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                             e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
                           }}
                           className={`h-9 box-border shrink-0 snap-start inline-flex items-center gap-1.5 rounded-none border-0 border-b-2 bg-transparent px-3.5 text-xs font-medium leading-none whitespace-nowrap transition-colors ${
-                            active ? `${toneByKey[t.key]} border-b-current` : "border-b-transparent text-muted-foreground"
+                            active
+                              ? `${toneByKey[t.key]} border-b-current`
+                              : "border-b-transparent text-muted-foreground"
                           }`}
                         >
                           <Icon className="size-3.5" />
@@ -2701,54 +2721,78 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               {/* Ref só pro print (ScreenshotButton acima) — captura sempre a
                   aba atualmente montada, seja qual for. */}
               <div ref={kanbanMobileScreenshotRef}>
-              {mobileTab === "checkin" &&
-                (kanbanCheckinListQ.isLoading ? (
-                  <ColumnLoading />
-                ) : kanbanCheckinPendingRows.length === 0 ? (
-                  <ColumnEmpty />
-                ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("checkin", kanbanCheckinPendingRows)} compact={kanbanListMode === "list"} />
-                ))}
-              {mobileTab === "checkout" &&
-                (kanbanCheckoutListQ.isLoading ? (
-                  <ColumnLoading />
-                ) : kanbanCheckoutPendingRows.length === 0 ? (
-                  <ColumnEmpty />
-                ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("checkout", kanbanCheckoutPendingRows)} compact={kanbanListMode === "list"} />
-                ))}
-              {mobileTab === "stay" &&
-                (kanbanCheckinListQ.isLoading ? (
-                  <ColumnLoading />
-                ) : kanbanStayRows.length === 0 ? (
-                  <ColumnEmpty />
-                ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", kanbanStayRows)} compact={kanbanListMode === "list"} />
-                ))}
-              {mobileTab === "cleaning" &&
-                (kanbanCheckoutListQ.isLoading ? (
-                  <ColumnLoading />
-                ) : kanbanCleaningRows.length === 0 ? (
-                  <ColumnEmpty />
-                ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", kanbanCleaningRows)} compact={kanbanListMode === "list"} />
-                ))}
-              {mobileTab === "done" &&
-                (concludedQ.isLoading ? (
-                  <ColumnLoading />
-                ) : kanbanConcludedRows.length === 0 ? (
-                  <ColumnEmpty />
-                ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("done", kanbanConcludedRows)} compact={kanbanListMode === "list"} />
-                ))}
-              {mobileTab === "no_show" &&
-                (noShowQ.isLoading ? (
-                  <ColumnLoading />
-                ) : kanbanNoShowRows.length === 0 ? (
-                  <ColumnEmpty />
-                ) : (
-                  <ArrivalGroup title="" {...arrivalGroupPropsFor("no_show", kanbanNoShowRows)} compact={kanbanListMode === "list"} />
-                ))}
+                {mobileTab === "checkin" &&
+                  (kanbanCheckinListQ.isLoading ? (
+                    <ColumnLoading />
+                  ) : kanbanCheckinPendingRows.length === 0 ? (
+                    <ColumnEmpty />
+                  ) : (
+                    <ArrivalGroup
+                      title=""
+                      {...arrivalGroupPropsFor("checkin", kanbanCheckinPendingRows)}
+                      compact={kanbanListMode === "list"}
+                    />
+                  ))}
+                {mobileTab === "checkout" &&
+                  (kanbanCheckoutListQ.isLoading ? (
+                    <ColumnLoading />
+                  ) : kanbanCheckoutPendingRows.length === 0 ? (
+                    <ColumnEmpty />
+                  ) : (
+                    <ArrivalGroup
+                      title=""
+                      {...arrivalGroupPropsFor("checkout", kanbanCheckoutPendingRows)}
+                      compact={kanbanListMode === "list"}
+                    />
+                  ))}
+                {mobileTab === "stay" &&
+                  (kanbanCheckinListQ.isLoading ? (
+                    <ColumnLoading />
+                  ) : kanbanStayRows.length === 0 ? (
+                    <ColumnEmpty />
+                  ) : (
+                    <ArrivalGroup
+                      title=""
+                      {...arrivalGroupPropsFor("stay", kanbanStayRows)}
+                      compact={kanbanListMode === "list"}
+                    />
+                  ))}
+                {mobileTab === "cleaning" &&
+                  (kanbanCheckoutListQ.isLoading ? (
+                    <ColumnLoading />
+                  ) : kanbanCleaningRows.length === 0 ? (
+                    <ColumnEmpty />
+                  ) : (
+                    <ArrivalGroup
+                      title=""
+                      {...arrivalGroupPropsFor("cleaning", kanbanCleaningRows)}
+                      compact={kanbanListMode === "list"}
+                    />
+                  ))}
+                {mobileTab === "done" &&
+                  (concludedQ.isLoading ? (
+                    <ColumnLoading />
+                  ) : kanbanConcludedRows.length === 0 ? (
+                    <ColumnEmpty />
+                  ) : (
+                    <ArrivalGroup
+                      title=""
+                      {...arrivalGroupPropsFor("done", kanbanConcludedRows)}
+                      compact={kanbanListMode === "list"}
+                    />
+                  ))}
+                {mobileTab === "no_show" &&
+                  (noShowQ.isLoading ? (
+                    <ColumnLoading />
+                  ) : kanbanNoShowRows.length === 0 ? (
+                    <ColumnEmpty />
+                  ) : (
+                    <ArrivalGroup
+                      title=""
+                      {...arrivalGroupPropsFor("no_show", kanbanNoShowRows)}
+                      compact={kanbanListMode === "list"}
+                    />
+                  ))}
               </div>
             </div>
 
@@ -2773,7 +2817,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ) : kanbanCheckinPendingRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("checkin", kanbanCheckinPendingRows)} compact={kanbanListMode === "list"} />
+                    <ArrivalGroup
+                      title=""
+                      {...arrivalGroupPropsFor("checkin", kanbanCheckinPendingRows)}
+                      compact={kanbanListMode === "list"}
+                    />
                   )}
                 </KanbanColumn>
               </div>
@@ -2791,7 +2839,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ) : kanbanCheckoutPendingRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("checkout", kanbanCheckoutPendingRows)} compact={kanbanListMode === "list"} />
+                    <ArrivalGroup
+                      title=""
+                      {...arrivalGroupPropsFor("checkout", kanbanCheckoutPendingRows)}
+                      compact={kanbanListMode === "list"}
+                    />
                   )}
                 </KanbanColumn>
               </div>
@@ -2809,7 +2861,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ) : kanbanCleaningRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("cleaning", kanbanCleaningRows)} compact={kanbanListMode === "list"} />
+                    <ArrivalGroup
+                      title=""
+                      {...arrivalGroupPropsFor("cleaning", kanbanCleaningRows)}
+                      compact={kanbanListMode === "list"}
+                    />
                   )}
                 </KanbanColumn>
               </div>
@@ -2827,7 +2883,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   ) : kanbanStayRows.length === 0 ? (
                     <ColumnEmpty />
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("stay", kanbanStayRows)} compact={kanbanListMode === "list"} />
+                    <ArrivalGroup
+                      title=""
+                      {...arrivalGroupPropsFor("stay", kanbanStayRows)}
+                      compact={kanbanListMode === "list"}
+                    />
                   )}
                 </KanbanColumn>
               </div>
@@ -2872,7 +2932,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                       <ColumnEmpty />
                     )
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("done", kanbanConcludedRows)} compact={kanbanListMode === "list"} />
+                    <ArrivalGroup
+                      title=""
+                      {...arrivalGroupPropsFor("done", kanbanConcludedRows)}
+                      compact={kanbanListMode === "list"}
+                    />
                   )}
                 </KanbanColumn>
               </div>
@@ -2918,7 +2982,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                       <ColumnEmpty />
                     )
                   ) : (
-                    <ArrivalGroup title="" {...arrivalGroupPropsFor("no_show", kanbanNoShowRows)} compact={kanbanListMode === "list"} />
+                    <ArrivalGroup
+                      title=""
+                      {...arrivalGroupPropsFor("no_show", kanbanNoShowRows)}
+                      compact={kanbanListMode === "list"}
+                    />
                   )}
                 </KanbanColumn>
               </div>
@@ -3942,10 +4010,7 @@ function CleaningChartFrame({
         </div>
       ) : (
         <div ref={anti.ref} className="flex w-full">
-          <div
-            className="sg-elegant-scroll overflow-x-auto overflow-y-hidden"
-            style={{ width: anti.viewportWidth }}
-          >
+          <div className="sg-elegant-scroll overflow-x-auto overflow-y-hidden" style={{ width: anti.viewportWidth }}>
             <div className="h-32" style={{ width: anti.contentWidth }}>
               {anti.contentWidth ? children(anti.contentWidth) : null}
             </div>
@@ -3998,7 +4063,13 @@ function CleaningDailyBarChart({
             formatter={(value: number) => [`${value}`, "Limpezas"]}
             cursor={{ fill: "var(--muted)", opacity: 0.3 }}
           />
-          <Bar dataKey="count" fill={CLEANING_COUNT_COLOR} radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={false}>
+          <Bar
+            dataKey="count"
+            fill={CLEANING_COUNT_COLOR}
+            radius={[4, 4, 0, 0]}
+            maxBarSize={22}
+            isAnimationActive={false}
+          >
             {/* Substitui o eixo vertical removido: o número fica em cima da
                 própria barra, que é onde se olha. */}
             <LabelList
@@ -4102,7 +4173,9 @@ function CleaningTopProperties({ items, loading }: { items: CleaningBreakdownIte
                   style={{ width: `${(item.count / maxCount) * 100}%`, backgroundColor: CLEANING_COUNT_COLOR }}
                 />
               </span>
-              <span className="w-9 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground">{item.count}</span>
+              <span className="w-9 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground">
+                {item.count}
+              </span>
             </li>
           ))}
         </ul>
@@ -4240,7 +4313,9 @@ function TaskResolveDialog({
                   Responsável (opcional)
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className={`min-w-0 flex-1 truncate text-xs ${selected ? "font-semibold" : "text-muted-foreground"}`}>
+                  <span
+                    className={`min-w-0 flex-1 truncate text-xs ${selected ? "font-semibold" : "text-muted-foreground"}`}
+                  >
                     {selected ? selected.name : "Selecione o Responsável"}
                   </span>
                   <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
@@ -4626,10 +4701,7 @@ function TasksDialog({
     for (const t of activeTasks) acc[taskBucket(t, todayISO)] += 1;
     return acc;
   }, [activeTasks, todayISO]);
-  const visibleBuckets = useMemo(
-    () => TASK_BUCKET_ORDER.filter((b) => bucketCounts[b] > 0),
-    [bucketCounts],
-  );
+  const visibleBuckets = useMemo(() => TASK_BUCKET_ORDER.filter((b) => bucketCounts[b] > 0), [bucketCounts]);
   // A faixa filtrada pode zerar enquanto a tela está aberta (a última pendência
   // atrasada foi concluída). Sem isto a lista ficaria vazia com um filtro que
   // já não aparece em lugar nenhum — sem como desligar.
@@ -4920,12 +4992,7 @@ function TasksDialog({
                próprios botões, que é o que compra a largura, e a escolha atual
                continua à vista sem precisar abrir nada. */
             <div className="ds-scroll-x mt-2 gap-1.5">
-              <TaskChoiceMenu
-                icon={LayoutGrid}
-                value={groupBy}
-                onChange={setGroupBy}
-                options={TASK_GROUP_OPTIONS}
-              />
+              <TaskChoiceMenu icon={LayoutGrid} value={groupBy} onChange={setGroupBy} options={TASK_GROUP_OPTIONS} />
               <TaskChoiceMenu icon={ArrowDownUp} value={sortBy} onChange={setSortBy} options={TASK_SORT_OPTIONS} />
             </div>
           )}
@@ -5213,9 +5280,7 @@ function TasksDialog({
                       }}
                     />
                     <span className="min-w-0">
-                      <span className="block">
-                        {isMaintenance ? "Ocultar da limpeza" : "Mostrar na limpeza"}
-                      </span>
+                      <span className="block">{isMaintenance ? "Ocultar da limpeza" : "Mostrar na limpeza"}</span>
                       <span className="block text-[11px] leading-snug text-muted-foreground">
                         {isMaintenance
                           ? "Manutenção vai sozinha para a próxima limpeza do imóvel. Marque para deixá-la fora do checklist."
@@ -5388,9 +5453,7 @@ function TasksDialog({
                                 {t.amountSpentCents != null ? ` · ${centsToBRL(t.amountSpentCents)}` : ""}
                                 {t.recurrenceDays != null ? ` · repete ${t.recurrenceDays}d` : ""}
                                 {showOwner && t.ownerName ? " · " : ""}
-                                {showOwner && t.ownerName ? (
-                                  <span className={CARD_OWNER}>{t.ownerName}</span>
-                                ) : null}
+                                {showOwner && t.ownerName ? <span className={CARD_OWNER}>{t.ownerName}</span> : null}
                               </div>
                             </div>
                             <div className="shrink-0 text-right min-w-[54px] whitespace-nowrap">
@@ -5417,7 +5480,11 @@ function TasksDialog({
                                   title={t.status === "done" ? "Reabrir" : "Concluir"}
                                   className="size-6 grid place-items-center rounded-[0.25rem] hover:bg-secondary text-muted-foreground hover:text-foreground"
                                 >
-                                  {t.status === "done" ? <Undo2 className="size-3.5" /> : <Check className="size-3.5" />}
+                                  {t.status === "done" ? (
+                                    <Undo2 className="size-3.5" />
+                                  ) : (
+                                    <Check className="size-3.5" />
+                                  )}
                                 </button>
                               )}
                               <button
@@ -5704,7 +5771,9 @@ function CalendarFiltersButton({
   // Resincroniza quando o valor muda por FORA deste popover (ex.: "limpar
   // todos os filtros" no rodapé, ou o botão de limpar de outro lugar).
   useEffect(() => {
-    setDraft(periodRange ? { from: parseISODateLocal(periodRange.start), to: parseISODateLocal(periodRange.end) } : undefined);
+    setDraft(
+      periodRange ? { from: parseISODateLocal(periodRange.start), to: parseISODateLocal(periodRange.end) } : undefined,
+    );
   }, [periodRange]);
 
   function toggle(list: string[], value: string, onChange: (next: string[]) => void) {
@@ -5715,7 +5784,11 @@ function CalendarFiltersButton({
     ? `${format(parseISODateLocal(periodRange.start), "dd/MM", { locale: ptBR })} – ${format(parseISODateLocal(periodRange.end), "dd/MM", { locale: ptBR })}`
     : "Todos";
   const cityLabel =
-    cityFilters.length === 0 ? "Todas" : cityFilters.length === 1 ? cityFilters[0] : `${cityFilters.length} selecionadas`;
+    cityFilters.length === 0
+      ? "Todas"
+      : cityFilters.length === 1
+        ? cityFilters[0]
+        : `${cityFilters.length} selecionadas`;
   const ownerLabel =
     ownerFilters.length === 0
       ? "Todos"
@@ -6236,53 +6309,53 @@ function OccupancyPanel({
   }, [visibleProperties, dayList, byProperty, checkedInPropertyIds, todayISO]);
 
   return (
-      <section className="relative rounded-[0.3rem] border-0 bg-card ds-3d">
-        {/* Pedido explícito: o botão único de filtros (Período/Cidade/
+    <section className="relative rounded-[0.3rem] border-0 bg-card ds-3d">
+      {/* Pedido explícito: o botão único de filtros (Período/Cidade/
             Proprietário/limpar) fica AO LADO do título, entre o texto e a
             setinha de expandir/recolher — por isso o cabeçalho deixou de
             ser um único <button> cobrindo a linha toda e virou uma
             <div> com dois botões independentes (título+ícone / filtros),
             mais a setinha por último. Clicar no título OU na setinha
             expande/recolhe; clicar no botão de filtros não. */}
-        <div className="flex w-full items-center gap-2 px-3.5 py-3.5 text-left">
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-            // Pedido explícito: sem fundo no ícone, alinhado à esquerda igual
-            // ao ícone do card "Limpezas Realizadas" (mesmo padding px-3.5).
-            className="flex min-w-0 flex-1 items-center gap-2 text-left"
-          >
-            <CalendarRange className="size-3.5 shrink-0 text-foreground/70" strokeWidth={2} />
-            <span className="min-w-0 flex-1 truncate text-[13px] font-medium leading-snug text-foreground">
-              Calendário de ocupação
-            </span>
-          </button>
-          <CalendarFiltersButton
-            periodRange={periodRange}
-            onPeriodRangeChange={onPeriodRangeChange}
-            cityFilters={cityFilters}
-            onCityFiltersChange={onCityFiltersChange}
-            cityOptions={cityOptions}
-            ownerFilters={ownerFilters}
-            onOwnerFiltersChange={onOwnerFiltersChange}
-            ownerOptions={ownerOptions}
-            hasCustomFilters={hasCustomFilters}
-            onClearAll={onClearAllFilters}
+      <div className="flex w-full items-center gap-2 px-3.5 py-3.5 text-left">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          // Pedido explícito: sem fundo no ícone, alinhado à esquerda igual
+          // ao ícone do card "Limpezas Realizadas" (mesmo padding px-3.5).
+          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+        >
+          <CalendarRange className="size-3.5 shrink-0 text-foreground/70" strokeWidth={2} />
+          <span className="min-w-0 flex-1 truncate text-[13px] font-medium leading-snug text-foreground">
+            Calendário de ocupação
+          </span>
+        </button>
+        <CalendarFiltersButton
+          periodRange={periodRange}
+          onPeriodRangeChange={onPeriodRangeChange}
+          cityFilters={cityFilters}
+          onCityFiltersChange={onCityFiltersChange}
+          cityOptions={cityOptions}
+          ownerFilters={ownerFilters}
+          onOwnerFiltersChange={onOwnerFiltersChange}
+          ownerOptions={ownerOptions}
+          hasCustomFilters={hasCustomFilters}
+          onClearAll={onClearAllFilters}
+        />
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-label={open ? "Recolher calendário de ocupação" : "Expandir calendário de ocupação"}
+          className="shrink-0 p-0.5"
+        >
+          <ChevronDown
+            className={`size-3.5 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
           />
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-            aria-label={open ? "Recolher calendário de ocupação" : "Expandir calendário de ocupação"}
-            className="shrink-0 p-0.5"
-          >
-            <ChevronDown
-              className={`size-3.5 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
-            />
-          </button>
-        </div>
-        {open && (
+        </button>
+      </div>
+      {open && (
         <div className="border-t border-border/50 px-4 sm:px-5 pt-4 pb-5">
           {loading ? (
             <div className="py-10 grid place-items-center text-muted-foreground">
@@ -6443,8 +6516,8 @@ function OccupancyPanel({
             </>
           )}
         </div>
-        )}
-      </section>
+      )}
+    </section>
   );
 }
 
@@ -6602,7 +6675,10 @@ function EngagementCard({
           "radial-gradient(120% 140% at 0% 0%, rgba(168,85,247,0.16), transparent 55%), radial-gradient(120% 140% at 100% 100%, rgba(236,72,153,0.12), transparent 55%)",
       }}
     >
-      <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-purple-500 to-pink-500" />
+      <span
+        aria-hidden="true"
+        className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-purple-500 to-pink-500"
+      />
       <div className="mb-2 flex items-center justify-between gap-2">
         {labelEl}
         <span className="grid size-[22px] shrink-0 place-items-center rounded-md bg-purple-500/15 text-purple-600 dark:text-purple-300">
@@ -7511,10 +7587,7 @@ function ArrivalCard({
           inteira dá para ver em que fase cada reserva está sem parar em
           nenhuma. Substitui as antigas bordas de "atrasado"/"data futura",
           que só existiam em dois casos e deixavam o resto sem sinal. */}
-      <span
-        aria-hidden
-        className={`absolute inset-y-0 left-0 w-[3px] rounded-l-[0.3rem] ${stageBarClass(stage)}`}
-      />
+      <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] rounded-l-[0.3rem] ${stageBarClass(stage)}`} />
 
       <div className="flex items-start gap-3">
         {/* ds-card-lines: o espaçamento padrão entre linhas de card (styles.css). */}
@@ -7569,9 +7642,7 @@ function ArrivalCard({
 
               {/* O período, na cor do ESTADO — é ela que substituiu as antigas
                   etiquetas "Atrasado"/"Data futura". */}
-              <div
-                className={`flex flex-wrap items-center gap-1.5 text-[11.5px] tabular-nums ${periodoColorClass}`}
-              >
+              <div className={`flex flex-wrap items-center gap-1.5 text-[11.5px] tabular-nums ${periodoColorClass}`}>
                 <DateEditor
                   value={row.guestCheckin}
                   disabled={busy || isPendingFill}
@@ -7659,71 +7730,73 @@ function ArrivalCard({
       {/* Alertas de conferência com o Airbnb (iCal) — divergência de datas,
           reserva não encontrada e horário fora da janela padrão, com correção
           em um clique. Some no modo "Lista" (pedido explícito). */}
-      {!compact && mode !== "cleaning" && !isPendingFill && (() => {
-        const iIn = row.ical.icalCheckin;
-        const iOut = row.ical.icalCheckout;
-        const dateMismatch =
-          row.ical.hasIcal &&
-          row.ical.matched &&
-          !!iIn &&
-          (iIn !== row.guestCheckin || (!!iOut && !!row.guestCheckout && iOut !== row.guestCheckout));
-        if (!row.ical.hasIcal) return null;
-        const noMatch = !row.ical.matched;
-        // Pedido explícito: quando está tudo certo (reserva encontrada e
-        // datas batendo) não mostra mais nenhum aviso — a antiga linha
-        // "Confirmado via Airbnb" foi removida pra otimizar espaço nos
-        // cards. Os alertas acionáveis abaixo continuam aparecendo
-        // normalmente quando há algo a corrigir.
-        if (!noMatch && !dateMismatch && !divergent) return null;
-        return (
-          <div className="flex flex-col gap-1.5">
-            {noMatch ? (
-              <div className="flex items-center gap-1.5 rounded-none border border-red-500/30 bg-red-500/10 px-2.5 py-1.5 text-[11px] text-red-700 dark:text-red-400">
-                <AlertTriangle className="size-3 shrink-0" />
-                <span className="min-w-0">Sem reserva correspondente no iCal</span>
-              </div>
-            ) : dateMismatch ? (
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-none border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-700 dark:text-amber-400">
-                <span className="inline-flex items-center gap-1 font-medium">
+      {!compact &&
+        mode !== "cleaning" &&
+        !isPendingFill &&
+        (() => {
+          const iIn = row.ical.icalCheckin;
+          const iOut = row.ical.icalCheckout;
+          const dateMismatch =
+            row.ical.hasIcal &&
+            row.ical.matched &&
+            !!iIn &&
+            (iIn !== row.guestCheckin || (!!iOut && !!row.guestCheckout && iOut !== row.guestCheckout));
+          if (!row.ical.hasIcal) return null;
+          const noMatch = !row.ical.matched;
+          // Pedido explícito: quando está tudo certo (reserva encontrada e
+          // datas batendo) não mostra mais nenhum aviso — a antiga linha
+          // "Confirmado via Airbnb" foi removida pra otimizar espaço nos
+          // cards. Os alertas acionáveis abaixo continuam aparecendo
+          // normalmente quando há algo a corrigir.
+          if (!noMatch && !dateMismatch && !divergent) return null;
+          return (
+            <div className="flex flex-col gap-1.5">
+              {noMatch ? (
+                <div className="flex items-center gap-1.5 rounded-none border border-red-500/30 bg-red-500/10 px-2.5 py-1.5 text-[11px] text-red-700 dark:text-red-400">
                   <AlertTriangle className="size-3 shrink-0" />
-                  Data Divergente Hóspede-Airbnb
-                </span>
-                <span className="tabular-nums">
-                  Informada: {fmtDateBR(row.guestCheckin)}
-                  {row.guestCheckout ? ` → ${fmtDateBR(row.guestCheckout)}` : ""} · Correta: {fmtDateBR(iIn)}
-                  {iOut ? ` → ${fmtDateBR(iOut)}` : ""}
-                </span>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => onEditDates(row, { checkinDate: iIn, ...(iOut ? { checkoutDate: iOut } : {}) })}
-                  className="ml-auto rounded-md border border-amber-500/40 px-2 py-0.5 font-semibold hover:bg-amber-500/20 disabled:opacity-50"
-                >
-                  Usar Airbnb
-                </button>
-              </div>
-            ) : null}
+                  <span className="min-w-0">Sem reserva correspondente no iCal</span>
+                </div>
+              ) : dateMismatch ? (
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-none border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-700 dark:text-amber-400">
+                  <span className="inline-flex items-center gap-1 font-medium">
+                    <AlertTriangle className="size-3 shrink-0" />
+                    Data Divergente Hóspede-Airbnb
+                  </span>
+                  <span className="tabular-nums">
+                    Informada: {fmtDateBR(row.guestCheckin)}
+                    {row.guestCheckout ? ` → ${fmtDateBR(row.guestCheckout)}` : ""} · Correta: {fmtDateBR(iIn)}
+                    {iOut ? ` → ${fmtDateBR(iOut)}` : ""}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => onEditDates(row, { checkinDate: iIn, ...(iOut ? { checkoutDate: iOut } : {}) })}
+                    className="ml-auto rounded-md border border-amber-500/40 px-2 py-0.5 font-semibold hover:bg-amber-500/20 disabled:opacity-50"
+                  >
+                    Usar Airbnb
+                  </button>
+                </div>
+              ) : null}
 
-            {divergent && (
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-none border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-700 dark:text-amber-400">
-                <span className="inline-flex items-center gap-1">
-                  <AlertTriangle className="size-3 shrink-0" />
-                  Horário divergente do padrão{stdWindow ? ` (${stdWindow})` : ""}
-                </span>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => onSyncIcal(row)}
-                  className="ml-auto rounded-md border border-amber-500/40 px-2 py-0.5 font-semibold hover:bg-amber-500/20 disabled:opacity-50"
-                >
-                  Alinhar
-                </button>
-              </div>
-            )}
-          </div>
-        );
-      })()}
-
+              {divergent && (
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-none border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-700 dark:text-amber-400">
+                  <span className="inline-flex items-center gap-1">
+                    <AlertTriangle className="size-3 shrink-0" />
+                    Horário divergente do padrão{stdWindow ? ` (${stdWindow})` : ""}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => onSyncIcal(row)}
+                    className="ml-auto rounded-md border border-amber-500/40 px-2 py-0.5 font-semibold hover:bg-amber-500/20 disabled:opacity-50"
+                  >
+                    Alinhar
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
       {!listBare && row.note && !noteOpen && (
         <button
@@ -7798,11 +7871,7 @@ function ArrivalCard({
             </span>
           </div>
           {cleaningChecklist.map(({ task, done: taskDone }) => (
-            <label
-              key={task.id}
-              className="flex items-start gap-2 cursor-pointer"
-              onClick={(e) => e.stopPropagation()}
-            >
+            <label key={task.id} className="flex items-start gap-2 cursor-pointer" onClick={(e) => e.stopPropagation()}>
               <Checkbox
                 checked={taskDone}
                 onCheckedChange={() => onToggleCleaningTask?.(task, row)}
@@ -7843,7 +7912,9 @@ function ArrivalCard({
           <button
             onClick={() => {
               if (awaitingCheckout) {
-                toast.warning("Hóspede ainda não fez check-out. A limpeza libera assim que o check-out for confirmado.");
+                toast.warning(
+                  "Hóspede ainda não fez check-out. A limpeza libera assim que o check-out for confirmado.",
+                );
                 return;
               }
               if (cleaningBlock) {
@@ -8172,7 +8243,9 @@ function DateEditor({
           className={`relative inline-flex items-center cursor-pointer rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit ${blank ? "text-muted-foreground" : ""}`}
           title="Clique para corrigir a data"
         >
-          <span className={`tabular-nums ${valueClassName ?? ""}`}>{blank ? (placeholder ?? "—") : fmtDateBR(shown)}</span>
+          <span className={`tabular-nums ${valueClassName ?? ""}`}>
+            {blank ? (placeholder ?? "—") : fmtDateBR(shown)}
+          </span>
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-auto p-0" onClick={(e) => e.stopPropagation()}>
@@ -8384,9 +8457,10 @@ function PredictedEditor({
   const [editing, setEditing] = useState<"primary" | "secondary">("primary");
   const [expanded, setExpanded] = useState(false);
   // undefined = não tocado nesta sessão (mostra o valor gravado).
-  const [pending, setPending] = useState<
-    Record<"primary" | "secondary", { date?: string; time?: string | null }>
-  >({ primary: {}, secondary: {} });
+  const [pending, setPending] = useState<Record<"primary" | "secondary", { date?: string; time?: string | null }>>({
+    primary: {},
+    secondary: {},
+  });
 
   const sideOf = (slot: "primary" | "secondary") => (slot === "primary" ? primary : secondary);
   const shownDate = (slot: "primary" | "secondary") => {
@@ -8411,8 +8485,7 @@ function PredictedEditor({
       const side = sideOf(slot);
       if (!side) return;
       const finalDate = pending[slot].date !== undefined ? pending[slot].date || null : side.dateValue || null;
-      const finalTime =
-        pending[slot].time !== undefined ? (pending[slot].time ?? null) : (side.timeValue ?? null);
+      const finalTime = pending[slot].time !== undefined ? (pending[slot].time ?? null) : (side.timeValue ?? null);
       const dateChanged = finalDate !== (side.dateValue || null);
       const timeChanged = finalTime !== (side.timeValue ?? null);
       if (dateChanged || timeChanged) side.onCommit(finalDate, finalTime);
@@ -8565,10 +8638,7 @@ function PredictedEditor({
                   </span>
                   <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                     {shownDate("secondary") || shownTime("secondary")
-                      ? [
-                          shownDate("secondary") ? fmtDateBR(shownDate("secondary")) : null,
-                          shownTime("secondary"),
-                        ]
+                      ? [shownDate("secondary") ? fmtDateBR(shownDate("secondary")) : null, shownTime("secondary")]
                           .filter(Boolean)
                           .join(" · ")
                       : "não informada"}
