@@ -4769,43 +4769,43 @@ type TaskGroupBy = "urgency" | "property" | "owner" | "guest";
 type TaskSortBy = "priority" | "due" | "created";
 
 /** Faixa de tempo de uma pendência — o eixo principal da tela. */
-type TaskBucket = "late" | "today" | "week" | "later" | "none";
-const TASK_BUCKET_ORDER: readonly TaskBucket[] = [
-  "late",
-  "today",
-  "week",
-  "later",
-  "none",
-] as const;
+/**
+ * QUATRO faixas, não cinco (mockup aprovado, 09/09/2026).
+ *
+ * Uma versão anterior separava "próximos 7 dias" de "depois". A separação
+ * parecia mais informativa e não era: quem abre Pendências decide entre
+ * "resolver agora" e "não é para agora", e as duas faixas futuras respondiam a
+ * mesma coisa. Pior, elas obrigavam a um quinto contador que aparecia sozinho
+ * na barra com um rótulo — "DEPOIS" — que ninguém tinha visto antes. Uma
+ * faixa "A vencer" cobre as duas e a soma continua fechando com o total.
+ */
+type TaskBucket = "late" | "today" | "upcoming" | "none";
+const TASK_BUCKET_ORDER: readonly TaskBucket[] = ["late", "today", "upcoming", "none"] as const;
 /** Rótulo do cabeçalho de grupo (agrupamento por urgência). */
 const TASK_BUCKET_LABEL: Record<TaskBucket, string> = {
   late: "Atrasadas",
   today: "Vence hoje",
-  week: "Próximos 7 dias",
-  later: "Depois",
+  upcoming: "A vencer",
   none: "Sem prazo",
 };
 /** Rótulo curto do contador do topo — precisa caber em ~70px. */
 const TASK_BUCKET_SHORT: Record<TaskBucket, string> = {
   late: "Atrasadas",
   today: "Hoje",
-  week: "7 dias",
-  later: "Depois",
+  upcoming: "A vencer",
   none: "Sem prazo",
 };
 const TASK_BUCKET_TEXT: Record<TaskBucket, string> = {
   late: "text-rose-500",
   today: "text-amber-500",
-  week: "text-sky-400",
-  later: "text-muted-foreground",
+  upcoming: "text-sky-400",
   none: "text-muted-foreground",
 };
 /** Moldura do contador: só as duas faixas que exigem ação ganham cor de fundo. */
 const TASK_BUCKET_CARD: Record<TaskBucket, string> = {
   late: "border-rose-500/45 bg-rose-500/10",
   today: "border-amber-500/45 bg-amber-500/10",
-  week: "border-border bg-card",
-  later: "border-border bg-card",
+  upcoming: "border-border bg-card",
   none: "border-border bg-card",
 };
 
@@ -4813,9 +4813,18 @@ function taskBucket(t: TaskRow, todayISO: string): TaskBucket {
   if (!t.dueDate) return "none";
   if (t.dueDate < todayISO) return "late";
   if (t.dueDate === todayISO) return "today";
-  const limit = addDaysISO(todayISO, 7);
-  return limit && t.dueDate <= limit ? "week" : "later";
+  return "upcoming";
 }
+
+/**
+ * "Aberta há N dias" só entra na linha depois de uma semana.
+ *
+ * Foi a informação que o usuário pediu e a que mais poluiu quando apareceu em
+ * tudo: numa lista criada hoje, nove linhas dizendo "aberta hoje" não informam
+ * nada — só ocupam a linha de apoio. Data de abertura é sinal de pendência
+ * ESQUECIDA, e uma pendência só começa a ser esquecida depois de um tempo.
+ */
+const TASK_AGE_VISIBLE_DAYS = 7;
 
 /**
  * Data (YYYY-MM-DD) de um timestamp no fuso de São Paulo.
@@ -4846,17 +4855,6 @@ function daysBetweenISO(a: string, b: string): number {
 }
 
 const TASK_PRIORITY_WEIGHT: Record<TaskPriority, number> = { high: 0, medium: 1, low: 2 };
-
-/**
- * A barra vertical do cabeçalho do grupo: a cor do PIOR caso que ele contém.
- * Sem atrasada nem vencendo hoje, o grupo é verde — "está tudo em dia" precisa
- * ser uma informação visível, não a ausência de informação.
- */
-function taskGroupRail(worst: TaskBucket): string {
-  if (worst === "late") return "bg-rose-500";
-  if (worst === "today") return "bg-amber-500";
-  return "bg-emerald-500";
-}
 
 /** Palavra do subtítulo ("5 imóveis", "3 proprietários"…). */
 const GROUP_UNIT: Record<TaskGroupBy, (n: number) => string> = {
@@ -5004,7 +5002,7 @@ function TasksDialog({
    * espaço não sobra, é redistribuído. Zerando todos, some a barra inteira.
    */
   const bucketCounts = useMemo(() => {
-    const acc: Record<TaskBucket, number> = { late: 0, today: 0, week: 0, later: 0, none: 0 };
+    const acc: Record<TaskBucket, number> = { late: 0, today: 0, upcoming: 0, none: 0 };
     for (const t of activeTasks) acc[taskBucket(t, todayISO)] += 1;
     return acc;
   }, [activeTasks, todayISO]);
@@ -5073,8 +5071,7 @@ function TasksDialog({
     const emptyCounts = (): Record<TaskBucket, number> => ({
       late: 0,
       today: 0,
-      week: 0,
-      later: 0,
+      upcoming: 0,
       none: 0,
     });
     const map = new Map<string, Group>();
@@ -5695,92 +5692,67 @@ function TasksDialog({
             ) : (
               groups.map((g) => (
                 <div key={g.key} data-whole-card>
-                  {g.band ? (
-                    /* Agrupamento por urgência: a faixa é um rótulo, não um
-                       cartão — ela já é a própria informação. */
-                    <div
-                      className={`mb-1.5 flex items-center gap-2 text-[9.5px] font-extrabold uppercase tracking-[0.12em] ${TASK_BUCKET_TEXT[g.band]}`}
+                  {/* O GRUPO É UMA ETIQUETA, NÃO UM CARTÃO (mockup aprovado,
+                      09/09/2026).
+                      Aqui houve um cartão-termômetro — barra colorida, nome em
+                      ds-card-title, proprietário e pílulas — e ele quebrou na
+                      operação real: quase todo grupo tem UMA pendência, então o
+                      cabeçalho deixava de agrupar e virava uma segunda linha
+                      para cada item (nove pendências, dezoito blocos). Pior, ele
+                      punha o nome do imóvel maior e mais forte que o título da
+                      pendência: o assunto gritava e a tarefa sussurrava.
+                      A etiqueta custa ~16px em vez de ~46px, usa a MESMA forma
+                      da faixa de urgência (rótulo + traço até a borda) e não
+                      compete com a linha. O aviso à direita só existe quando
+                      existe: "em dia" é a AUSÊNCIA de aviso, não uma pílula
+                      cinza dizendo "1 em dia". */}
+                  <div className="mb-1.5 flex items-center gap-2 overflow-hidden">
+                    <span
+                      className={`shrink-0 truncate text-[9.5px] font-extrabold uppercase tracking-[0.11em] ${
+                        g.band ? TASK_BUCKET_TEXT[g.band] : "text-foreground/80"
+                      }`}
+                      style={{ maxWidth: g.band ? undefined : "58%" }}
                     >
                       {g.label}
-                      <span className="font-bold tracking-normal text-muted-foreground">
+                    </span>
+                    {g.sublabel && (
+                      <span className={`shrink truncate text-[9.5px] ${CARD_OWNER}`}>
+                        {g.sublabel}
+                      </span>
+                    )}
+                    {g.band && (
+                      <span className="shrink-0 text-[9.5px] font-bold text-muted-foreground tabular-nums">
                         {g.items.length}
                       </span>
-                      <span className="h-px flex-1 bg-border" />
-                    </div>
-                  ) : (
-                    /* Agrupamento por imóvel/proprietário/hóspede: o cabeçalho
-                       CARREGA a urgência do grupo — barra na cor do pior caso
-                       e, à direita, no máximo duas pílulas ("N atrasada",
-                       "N hoje"), com o resto colapsando num "+N" neutro para o
-                       cabeçalho nunca esticar nem cortar (regra anti-corte). */
-                    <div className="mb-1.5 flex items-center gap-2 overflow-hidden rounded-[0.3rem] bg-secondary/30">
-                      <span className={`w-[3px] self-stretch shrink-0 ${taskGroupRail(g.worst)}`} />
-                      <div className="min-w-0 flex-1 ds-card-lines py-2">
-                        <div className="ds-card-title truncate">{g.label}</div>
-                        {g.sublabel && (
-                          <div className={`truncate text-[10px] ${CARD_OWNER}`}>{g.sublabel}</div>
-                        )}
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1 pr-2">
-                        {(() => {
-                          const pills: React.ReactNode[] = [];
-                          let shown = 0;
-                          if (g.counts.late > 0) {
-                            shown += g.counts.late;
-                            pills.push(
-                              <span
-                                key="late"
-                                className="rounded-[0.25rem] bg-rose-500/15 px-1.5 py-[3px] text-[9.5px] font-extrabold tabular-nums text-rose-500"
-                              >
-                                {g.counts.late} {g.counts.late === 1 ? "atrasada" : "atrasadas"}
-                              </span>,
-                            );
-                          }
-                          if (g.counts.today > 0) {
-                            shown += g.counts.today;
-                            pills.push(
-                              <span
-                                key="today"
-                                className="rounded-[0.25rem] bg-amber-500/15 px-1.5 py-[3px] text-[9.5px] font-extrabold tabular-nums text-amber-500"
-                              >
-                                {g.counts.today} hoje
-                              </span>,
-                            );
-                          }
-                          const rest = g.items.length - shown;
-                          if (rest > 0) {
-                            pills.push(
-                              <span
-                                key="rest"
-                                className="rounded-[0.25rem] bg-foreground/5 px-1.5 py-[3px] text-[9.5px] font-extrabold tabular-nums text-muted-foreground"
-                              >
-                                {pills.length ? `+${rest}` : `${rest} em dia`}
-                              </span>,
-                            );
-                          }
-                          return pills;
-                        })()}
-                      </div>
-                    </div>
-                  )}
-                  <div className={`space-y-1.5 ${g.band ? "" : "pl-2.5"}`}>
+                    )}
+                    <span className="h-px flex-1 bg-border" />
+                    {!g.band && g.counts.late > 0 && (
+                      <span className="shrink-0 text-[9px] font-extrabold tracking-[0.04em] text-rose-500 tabular-nums">
+                        {g.counts.late} {g.counts.late === 1 ? "atrasada" : "atrasadas"}
+                      </span>
+                    )}
+                    {!g.band && g.counts.late === 0 && g.counts.today > 0 && (
+                      <span className="shrink-0 text-[9px] font-extrabold tracking-[0.04em] text-amber-500 tabular-nums">
+                        {g.counts.today} hoje
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-1">
                     {g.items.map((t) => {
                       const bucket = taskBucket(t, todayISO);
-                      // Nome do imóvel só quando o cabeçalho do grupo já não o
-                      // diz; proprietário só no agrupamento por urgência, onde
-                      // nenhum cabeçalho o carrega.
+                      // Imóvel e proprietário só quando NENHUM cabeçalho os diz.
                       const showProperty = groupBy === "urgency" || groupBy === "owner";
-                      const showOwner = groupBy === "urgency";
-                      // "Aberta há N dias" é a informação que a tela não tinha e
-                      // é o que denuncia pendência esquecida. Onde a linha de
-                      // apoio está cheia (urgência), ela vai para a coluna da
-                      // direita; nos demais casos, para a própria linha.
+                      const showOwner = groupBy === "urgency" || groupBy === "property";
+                      // Ver TASK_AGE_VISIBLE_DAYS: idade só a partir de 7 dias.
                       const openedOn = t.createdAt ? isoDateSaoPaulo(t.createdAt) : null;
                       const age = openedOn ? daysBetweenISO(openedOn, todayISO) : null;
                       const ageLabel =
-                        age == null ? null : age <= 0 ? "aberta hoje" : `aberta ${age}d`;
+                        age != null && age >= TASK_AGE_VISIBLE_DAYS ? `aberta há ${age} d` : null;
                       const delta = t.dueDate ? daysBetweenISO(todayISO, t.dueDate) : null;
-                      const big =
+                      /* UMA data por linha, nunca duas. Aqui havia "08/10" com
+                         "em 30 d" logo abaixo — a mesma informação escrita duas
+                         vezes, a 2px de distância. */
+                      const due =
                         bucket === "none"
                           ? "—"
                           : bucket === "late"
@@ -5790,15 +5762,11 @@ function TasksDialog({
                               : t.dueDate
                                 ? fmtDateBR(t.dueDate).slice(0, 5)
                                 : "—";
-                      const small = showOwner
-                        ? (ageLabel ?? "")
-                        : bucket === "none"
-                          ? "sem prazo"
-                          : bucket === "late" || bucket === "today"
-                            ? t.dueDate
-                              ? fmtDateBR(t.dueDate).slice(0, 5)
-                              : ""
-                            : `em ${delta ?? 0} d`;
+                      const meta = [
+                        showProperty ? t.propertyName : null,
+                        t.amountSpentCents != null ? centsToBRL(t.amountSpentCents) : null,
+                        ageLabel,
+                      ].filter(Boolean) as string[];
                       return (
                         <div
                           key={t.id}
@@ -5809,29 +5777,34 @@ function TasksDialog({
                           <span
                             className={`w-[3px] self-stretch shrink-0 ${TASK_PRIORITY_DOT[t.priority]}`}
                           />
-                          <div className="flex min-w-0 flex-1 items-center gap-2 px-2 py-2">
+                          <div className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5">
                             <div className="min-w-0 flex-1 ds-card-lines">
                               <div
                                 className={`truncate text-xs font-semibold leading-snug ${t.status === "done" ? "line-through text-muted-foreground" : ""}`}
                               >
                                 {t.title}
+                                {/* A recorrência era "· repete 30d" e comia o
+                                    texto do título. Como ícone, diz a mesma
+                                    coisa em 9px. */}
+                                {t.recurrenceDays != null && (
+                                  <Repeat
+                                    className="ml-1 inline size-2.5 shrink-0 align-[-1px] opacity-60"
+                                    aria-label={`Repete a cada ${t.recurrenceDays} dias`}
+                                  />
+                                )}
                               </div>
-                              <div className="truncate text-[10px] text-muted-foreground">
-                                {TASK_CATEGORY_LABEL[t.category]}
-                                {showProperty && t.propertyName ? ` · ${t.propertyName}` : ""}
-                                {!showOwner && ageLabel ? ` · ${ageLabel}` : ""}
-                                {t.amountSpentCents != null
-                                  ? ` · ${centsToBRL(t.amountSpentCents)}`
-                                  : ""}
-                                {t.recurrenceDays != null ? ` · repete ${t.recurrenceDays}d` : ""}
-                                {showOwner && t.ownerName ? " · " : ""}
-                                {showOwner && t.ownerName ? (
-                                  <span className={CARD_OWNER}>{t.ownerName}</span>
-                                ) : null}
-                              </div>
+                              {(meta.length > 0 || (showOwner && t.ownerName)) && (
+                                <div className="truncate text-[10px] text-muted-foreground">
+                                  {showOwner && t.ownerName && (
+                                    <span className={CARD_OWNER}>{t.ownerName}</span>
+                                  )}
+                                  {showOwner && t.ownerName && meta.length > 0 ? " · " : ""}
+                                  {meta.join(" · ")}
+                                </div>
+                              )}
                             </div>
-                            <div className="shrink-0 text-right min-w-[54px] whitespace-nowrap">
-                              <div
+                            <div className="shrink-0 whitespace-nowrap text-right">
+                              <span
                                 className={`text-[11.5px] font-bold leading-tight tabular-nums ${
                                   bucket === "late"
                                     ? "text-rose-500"
@@ -5842,13 +5815,8 @@ function TasksDialog({
                                         : "text-foreground"
                                 }`}
                               >
-                                {big}
-                              </div>
-                              {small && (
-                                <div className="text-[9px] text-muted-foreground tabular-nums">
-                                  {small}
-                                </div>
-                              )}
+                                {due}
+                              </span>
                             </div>
                             <div className="flex shrink-0 items-center gap-1">
                               {/* Concluir vale para QUALQUER pendência. Antes o
@@ -8053,7 +8021,7 @@ function ArrivalCard({
                               ? [side.dateValue ? fmtDateBR(side.dateValue) : null, side.timeValue]
                                   .filter(Boolean)
                                   .join(" · ")
-                              : "não informada"}
+                              : "sem previsão"}
                           </span>
                         </button>
                       }
@@ -8183,20 +8151,23 @@ function ArrivalCard({
                 title="Clique para ajustar a previsão"
                 className="w-[78px] shrink-0 rounded-[0.3rem] px-0.5 py-0.5 text-right transition-colors hover:bg-foreground/[0.05] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed"
               >
-                <span className="block text-[8.5px] font-extrabold uppercase leading-tight tracking-[0.12em] text-muted-foreground">
-                  Previsão
-                </span>
+                {/* Com previsão, o rótulo "PREVISÃO" encima o horário. SEM
+                    previsão, o rótulo sairia sobrando: "PREVISÃO / NÃO
+                    INFORMADA" são três linhas para dizer uma coisa só. Pedido
+                    explícito (09/09/2026): vira "SEM PREVISÃO", na mesma
+                    tipografia do rótulo. */}
                 {predictionTime ? (
-                  <span className="block font-display text-[16px] font-bold leading-tight tabular-nums text-amber-500 dark:text-amber-400">
-                    {predictionTime}
-                  </span>
+                  <>
+                    <span className="block text-[8.5px] font-extrabold uppercase leading-tight tracking-[0.12em] text-muted-foreground">
+                      Previsão
+                    </span>
+                    <span className="block font-display text-[16px] font-bold leading-tight tabular-nums text-amber-500 dark:text-amber-400">
+                      {predictionTime}
+                    </span>
+                  </>
                 ) : (
-                  /* MESMA tipografia do rótulo "Previsão" logo acima (pedido
-                     explícito): sem previsão, as duas linhas formam um bloco
-                     só — "PREVISÃO / NÃO INFORMADA" — em vez de um rótulo
-                     miúdo seguido de um texto de outro tamanho e outra caixa. */
                   <span className="block text-[8.5px] font-extrabold uppercase leading-[1.35] tracking-[0.12em] text-muted-foreground/70">
-                    não informada
+                    Sem previsão
                   </span>
                 )}
                 {predictionTime && predictionDay.label && (
@@ -9060,8 +9031,24 @@ function PredictedEditor({
       : (active?.standardTimeMax ?? null);
   const timeSlots = useMemo(() => {
     if (!liveMinTime && !liveMaxTime) return TIME_SLOTS;
-    const a = liveMinTime ? timeToMinutes(liveMinTime) : -Infinity;
-    const b = liveMaxTime ? timeToMinutes(liveMaxTime) : Infinity;
+    /**
+     * FOLGA DE 3 HORAS PARA CADA LADO da janela configurada do imóvel
+     * (pedido explícito, 09/09/2026).
+     *
+     * A janela do imóvel é o horário CONTRATADO, e a previsão é outra coisa:
+     * é o que de fato vai acontecer. Hóspede pedindo late checkout, voo de
+     * madrugada, chegada adiantada — a realidade fica fora da janela com
+     * frequência, e a lista travada nela obrigava a não registrar previsão
+     * nenhuma justamente nos casos que mais precisam de uma.
+     *
+     * Três horas, e não "liberar tudo", porque a janela ainda é a referência:
+     * ela continua sendo o que a lista mostra primeiro e o que a frase
+     * "Permitido: entre X e Y" no card afirma. A folga é margem, não a
+     * remoção do limite.
+     */
+    const SLACK_MIN = 3 * 60;
+    const a = liveMinTime ? timeToMinutes(liveMinTime) - SLACK_MIN : -Infinity;
+    const b = liveMaxTime ? timeToMinutes(liveMaxTime) + SLACK_MIN : Infinity;
     return TIME_SLOTS.filter((t) => {
       const v = timeToMinutes(t);
       return v >= a && v <= b;
@@ -9173,7 +9160,7 @@ function PredictedEditor({
                         ]
                           .filter(Boolean)
                           .join(" · ")
-                      : "não informada"}
+                      : "sem previsão"}
                     <ChevronRight className="size-3" />
                   </span>
                 </button>

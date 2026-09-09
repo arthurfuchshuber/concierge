@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-09T02:37:43.064Z";
+export const GENERATED_AT = "2026-09-09T19:22:09.858Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -1296,10 +1296,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:runAutoCheckoutScan",
     "kind": "rule",
     "title": "Regra — runAutoCheckoutScan",
-    "content": "Confirma automaticamente o checkout de um card assim que o horário\nPREVISTO chega — pedido explícito (06/09/2026): \"se um usuário colocar\n4h00 da manhã como prevista, então o card será dado como checkout\nconfirmado nesse horário (sempre horário local do guia — usando o\nprincipal horário do país em questão)\". Roda por cron (`cron.auto-\ncheckout`, a cada 5 minutos) — não depende de ninguém abrir o app.\n\n\"Horário previsto\" segue EXATAMENTE o mesmo critério já usado em todo o\nresto do sistema (ordenação inteligente dos checkouts, alertas de atraso\nem `runOpsPushScan`): override do anfitrião (`arrivalTimeOverride`) OU,\nna ausência dele, o horário que o próprio hóspede informou\n(`guestArrivalTime`). O horário PADRÃO do imóvel (`checkout_time`) nunca\nentra aqui — só dispara quando alguém de fato definiu uma previsão.\n\nO fuso usado é o do IMÓVEL (`propertyTimeZone`, cidade/país cadastrados),\na mesma função já usada pro guia do hóspede — nunca um fuso fixo de\nservidor. Isso cobre \"o principal horário do país em questão\" mesmo pra\nimóveis fora do Brasil.\n\nA ação em si reaproveita `runAdvanceArrival` — a MESMA lógica do clique\nmanual em \"Confirmar checkout\" (libera o imóvel, entra na fila de\nlimpeza, avisa os prestadores de limpeza) — só que com `supabaseAdmin`,\njá que não há usuário logado por trás de um cron. O \"silenciar\" do card\n(`mutedUntil`) NÃO afeta esta rotina: ele só existe pra parar de INCOMODAR\ncom alertas de atraso, não pra suspender a confirmação automática.",
+    "content": "Confirma automaticamente o checkout de um card assim que o horário\nPREVISTO chega — pedido explícito (06/09/2026): \"se um usuário colocar\n4h00 da manhã como prevista, então o card será dado como checkout\nconfirmado nesse horário (sempre horário local do guia — usando o\nprincipal horário do país em questão)\". Roda por cron (`cron.auto-\ncheckout`, a cada 5 minutos) — não depende de ninguém abrir o app.\n\nSÃO DOIS GATILHOS, e a diferença entre eles importa:\n\n 1. HÁ PREVISÃO — o anfitrião definiu horário de saída\n (`arrivalTimeOverride`). Confirma nesse horário. É o gatilho original.\n\n 2. NÃO HÁ PREVISÃO NENHUMA — nem data (`arrivalDateOverride`) nem horário\n previstos. Confirma no horário de checkout CONFIGURADO do imóvel\n (`properties.checkout_time`, que chega aqui como `standardTime`).\n Pedido explícito (09/09/2026): \"liberação para limpeza automática, ou\n seja, o check automático no checkout, quando chegar a hora exata do\n horário de checkout configurado em sistema — quando NÃO HOUVER data de\n checkout prevista inserida\".\n\nO comentário antigo aqui dizia que o horário padrão do imóvel \"nunca entra\"\n— e essa regra acabava de ser invertida de propósito, não por descuido. O\nraciocínio antigo era não confirmar nada que ninguém tivesse afirmado. Na\nprática ele deixava a fila de limpeza parada esperando um clique humano\njustamente no caso mais comum, que é o hóspede saindo no horário padrão sem\nninguém registrar nada. O horário contratual do imóvel É uma afirmação —\nestá no anúncio e o hóspede concordou com ele.\n\nO que continua valendo: uma previsão EXPLÍCITA sempre manda. Se o anfitrião\ninformou data ou horário de saída, o padrão do imóvel não entra — quem\ndisse \"esse hóspede sai às 15h\" não pode ter o card fechado às 11h. Por isso\no gatilho 2 exige que os DOIS overrides estejam vazios: com uma data\nprevista informada e sem horário, a confirmação continua manual, porque a\npessoa sinalizou que aquela saída foge do padrão.\n\nO fuso usado é o do IMÓVEL (`propertyTimeZone`, cidade/país cadastrados),\na mesma função já usada pro guia do hóspede — nunca um fuso fixo de\nservidor. Isso cobre \"o principal horário do país em questão\" mesmo pra\nimóveis fora do Brasil.\n\nA ação em si",
     "source_path": "src/lib/auto-checkout.server.ts",
     "audience": [],
-    "content_hash": "6b918eb3945f2967ef24006bb08b8495"
+    "content_hash": "3ec61b28b3d44ab66ba3c24cf1cc984a"
   },
   {
     "doc_key": "rule:runOpsPushScan",
@@ -1408,6 +1408,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
     "content_hash": "d4a1553d30fff796e6c716e62036fc7c"
+  },
+  {
+    "doc_key": "rule:SLACK_MIN",
+    "kind": "rule",
+    "title": "Regra — SLACK_MIN",
+    "content": "FOLGA DE 3 HORAS PARA CADA LADO da janela configurada do imóvel\n(pedido explícito, 09/09/2026).\n\nA janela do imóvel é o horário CONTRATADO, e a previsão é outra coisa:\né o que de fato vai acontecer. Hóspede pedindo late checkout, voo de\nmadrugada, chegada adiantada — a realidade fica fora da janela com\nfrequência, e a lista travada nela obrigava a não registrar previsão\nnenhuma justamente nos casos que mais precisam de uma.\n\nTrês horas, e não \"liberar tudo\", porque a janela ainda é a referência:\nela continua sendo o que a lista mostra primeiro e o que a frase\n\"Permitido: entre X e Y\" no card afirma. A folga é margem, não a\nremoção do limite.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "cb59db27e42cbf1f9aef3754cda8e7b6"
   },
   {
     "doc_key": "rule:sortCheckinRows",
@@ -1545,7 +1554,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "56b708e624e12bb9a26b2593234ea4c6"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:205516",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:205860",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Padrão = IMÓVEL, que é o que os dois mockups aprovados mostram selecionado.\nUrgência continua a um toque de distância, e é a escolha certa quando a\npergunta é \"o que eu resolvo agora\" — mas a operação abre esta tela quase\nsempre pensando num imóvel, e agrupada ela cabe muito mais no olho: nove\npendências iguais em nove imóveis viram nove cabeçalhos com uma linha cada,\nem vez de nove linhas repetindo o mesmo título.",
@@ -1554,7 +1563,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "59042beafabc7c04c6cad6bab466aea1"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:273794",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:272733",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Pedido explícito: os filtros (Período/Cidade/Proprietário) que antes\nficavam numa linha própria acima deste card viraram um botão único\n(`CalendarFiltersButton`) dentro do cabeçalho, ao lado do título — por\nisso o estado/opções continuam vindo do pai (`OperationWorkspace`),\nque é quem também usa esses mesmos filtros pros cards de limpeza.",
@@ -1563,7 +1572,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "67345afec21e651284020dbb8b2f7803"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:305639",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:304578",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Dialog de detalhe (quem viu / quem não viu) — extraído do BarRow original\npra poder ser reaproveitado também pelo EngagementCard (cards separados do\ndesktop), sem duplicar esse JSX nos dois lugares.",
@@ -1572,7 +1581,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "191a73d470b9e71e3339a0db344ffb5a"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:313581",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:312520",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Controlado de fora (pela coluna do Kanban) quando presente — permite\nrecolher os \"Detalhes da operação\" ao rolar a coluna. Sem isso, cai de\nvolta pro estado local de sempre.",
@@ -1581,7 +1590,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1420a71a82d71664b9b9257192bc6178"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:316927",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:315866",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Marca este card (Check-ins) como \"Não Compareceu\" — pedido explícito,\n05/09/2026: opção no menu \"⋮\", só nos cards de check-in ainda pendentes.",
@@ -1590,7 +1599,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "b858b5d3155e42847ae34a889b4053e2"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:317940",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:316879",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Modo \"Lista\" (pedido explícito): mostra só proprietário, imóvel e os\n botões de ação (bem menores) — some com nome do hóspede, código,\n período, previsto e alertas de iCal. Reaproveita o mesmo card e os\n mesmos handlers; só a apresentação muda.",
@@ -1599,7 +1608,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "943bbf38018e813c04eeb6799825fda6"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:333285",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:332224",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "HISTÓRICO DA RESERVA (pedido explícito, 08/09/2026).\n\nNa visão Lista, o clique no próprio card abre a jornada completa — é o\ngesto natural quando o card mostra pouca coisa. No modo Completo o card\nestá cheio de controles e um clique global roubaria o clique de todos\neles, então ali o caminho é o item do menu \"⋮\". Os dois abrem exatamente\na mesma tela.\n\nSó identificador real: a chave sintética \"ical:<id>\" não é um uuid de\nlog — nesses cards a reserva é quem identifica a estadia.",
@@ -1608,7 +1617,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "91b0393d11ad3250d65978789bbf0665"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:375546",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:374578",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Restringe de verdade os horários selecionáveis (inclusive) ao horário\n configurado do imóvel — pedido explícito do cliente (04/09/2026): antes\n só existia um aviso visual (âmbar) depois de já ter escolhido um\n horário fora da janela; agora o horário nem aparece como opção. `null`/\n omitido = sem limite (imóvel sem esse horário configurado).",
@@ -1617,7 +1626,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8ebe1ab97a0756cd4e0279b3025812c8"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:378310",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:377342",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Data e horário previstos são dois campos SEPARADOS de novo (pedido\nexplícito, 05/09/2026: \"quero que fiquem separados como antes, porém\nambos no layout padrão dos tooltips\") — cada botão abre seu próprio\ntooltip (só calendário / só horário, cada um com o mesmo visual dos\ntooltips padrão do sistema), não mais um painel único com os dois juntos.\n\nMas por baixo dos panos continua sendo UMA ÚNICA sessão de edição\n(`open`/pendingDate/pendingTime compartilhados): os dois botões só trocam\nQUAL conteúdo aparece dentro do mesmo Popover (ver `openField`), sem abrir\ne fechar de verdade um popover por vez. Isso é o que preserva o ajuste\nanterior (pedido explícito, mesma data): \"não é mover depois de fechar o\ncalendário, é mover depois de fechar o TOOLTIP inteiro\" — se cada campo\ntivesse seu próprio Popover independente, fechar o de Data já confirmaria\ne moveria o card antes do usuário conseguir abrir o de Horário, voltando\nao bug original. Nada é gravado (nem o card se move) enquanto QUALQUER um\ndos dois estiver \"aberto\" — só quando o usuário clica fora dos dois\nbotões (ou aperta \"Concluir\"/Esc) é que a data e o horário pendentes são\nconfirmados juntos, numa única leva.\n\nO piso/teto do horário reage à data QUE ESTÁ SENDO escolhida (ainda não\nconfirmada) — mesma regra de \"dia mudou → sem piso/teto\" do card, só que\ncalculada aqui em cima do valor pendente, senão a lista de horários\nficaria com a janela do dia errado enquanto o usuário ainda decide.",
@@ -2616,6 +2625,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "e4b58a484510d22147108fa1b06b17c5"
   },
   {
+    "doc_key": "rule:TASK_AGE_VISIBLE_DAYS",
+    "kind": "rule",
+    "title": "Regra — TASK_AGE_VISIBLE_DAYS",
+    "content": "\"Aberta há N dias\" só entra na linha depois de uma semana.\n\nFoi a informação que o usuário pediu e a que mais poluiu quando apareceu em\ntudo: numa lista criada hoje, nove linhas dizendo \"aberta hoje\" não informam\nnada — só ocupam a linha de apoio. Data de abertura é sinal de pendência\nESQUECIDA, e uma pendência só começa a ser esquecida depois de um tempo.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "68c61871b8996a0cedf9af8707e53392"
+  },
+  {
     "doc_key": "rule:TASK_RULES",
     "kind": "rule",
     "title": "Regra — TASK_RULES",
@@ -2623,6 +2641,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/reservation-records.functions.ts",
     "audience": [],
     "content_hash": "4a63227ae8b6e0fa00edd75f687643fe"
+  },
+  {
+    "doc_key": "rule:TaskBucket",
+    "kind": "rule",
+    "title": "Regra — TaskBucket",
+    "content": "QUATRO faixas, não cinco (mockup aprovado, 09/09/2026).\n\nUma versão anterior separava \"próximos 7 dias\" de \"depois\". A separação\nparecia mais informativa e não era: quem abre Pendências decide entre\n\"resolver agora\" e \"não é para agora\", e as duas faixas futuras respondiam a\nmesma coisa. Pior, elas obrigavam a um quinto contador que aparecia sozinho\nna barra com um rótulo — \"DEPOIS\" — que ninguém tinha visto antes. Uma\nfaixa \"A vencer\" cobre as duas e a soma continua fechando com o total.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "2c539d7907987fbd9b3419746ecfd83f"
   },
   {
     "doc_key": "rule:TaskChoiceMenu",
@@ -2659,15 +2686,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
     "content_hash": "4f58358fdfda86f9671072a193dad782"
-  },
-  {
-    "doc_key": "rule:taskGroupRail",
-    "kind": "rule",
-    "title": "Regra — taskGroupRail",
-    "content": "A barra vertical do cabeçalho do grupo: a cor do PIOR caso que ele contém.\nSem atrasada nem vencendo hoje, o grupo é verde — \"está tudo em dia\" precisa\nser uma informação visível, não a ausência de informação.",
-    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
-    "audience": [],
-    "content_hash": "81dcf69a2f14e7651457545c68eb151c"
   },
   {
     "doc_key": "rule:TaskResolveDialog",
