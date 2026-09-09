@@ -249,6 +249,9 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
       };
       let log: (typeof logs)[number] | null = null;
       if (target) {
+        // COM nome informado, só vale o que casa com ESTE hóspede. Cair para o
+        // formulário mais recente do imóvel devolveria as datas de outra
+        // pessoa como se fossem dele — pior que não achar nada.
         log =
           logs.find((l) => norm(l.guest_name) === target) ??
           logs.find((l) => {
@@ -257,8 +260,11 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
             return !!a && !!b && a === b;
           }) ??
           null;
+      } else {
+        // Sem nome no contexto, a estadia que cobre hoje é a única inferência
+        // defensável; nunca "a mais recente".
+        log = logs.find(covers) ?? null;
       }
-      if (!log) log = logs.find(covers) ?? logs[0] ?? null;
 
       ctx.collectSource({ source: "reservation", title: "Reserva do hóspede", confidence: confidenceOf("reservation") });
       if (!log?.checkin_date) {
