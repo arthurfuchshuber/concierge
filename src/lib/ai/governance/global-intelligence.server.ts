@@ -7,20 +7,28 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logSystemEvent } from "../audit/events.server";
 
+/** Colunas seguras: `evidence`/`metadata` podem conter trechos derivados de
+ * conversas de outros clientes e só são legíveis pelo serviço interno. */
+const SAFE_COLUMNS =
+  "id, title, insight, category, source_conversations, source_tenants, confidence, impact_estimate, impact_percentage, status, published_at, created_by, created_at, updated_at";
+
 export async function listGlobalIntelligence(params: {
   supabase: SupabaseClient;
   status?: string;
+  /** Só para clientes de serviço (admin): inclui evidências e metadados. */
+  includeEvidence?: boolean;
 }): Promise<Array<Record<string, unknown>>> {
   let q = params.supabase
     .from("ai_global_intelligence")
-    .select("*")
+    .select(params.includeEvidence ? "*" : SAFE_COLUMNS)
     .order("created_at", { ascending: false })
     .limit(300);
   if (params.status) q = q.eq("status", params.status);
   const { data, error } = await q;
   if (error) throw error;
-  return (data ?? []) as Array<Record<string, unknown>>;
+  return (data ?? []) as unknown as Array<Record<string, unknown>>;
 }
+
 
 export async function upsertGlobalIntelligence(params: {
   supabase: SupabaseClient;
