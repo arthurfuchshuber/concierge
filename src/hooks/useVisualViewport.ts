@@ -109,12 +109,28 @@ export function viewportOverlayStyle(box: ViewportBox): {
  */
 export function useLockBodyScroll(active: boolean): void {
   useEffect(() => {
-    if (!active || typeof document === "undefined") return;
+    if (!active || typeof document === "undefined" || typeof window === "undefined") return;
+    // Só no celular, onde o chat ocupa a tela inteira. No desktop os dois
+    // painéis são janelas flutuantes: a página atrás continua sendo usada e
+    // travar a rolagem dela deixaria o painel/lista congelados.
+    const mq = window.matchMedia("(max-width: 1023px)");
     const body = document.body;
     const prev = body.style.overflow;
-    body.style.overflow = "hidden";
+    let locked = false;
+    const apply = () => {
+      if (mq.matches && !locked) {
+        body.style.overflow = "hidden";
+        locked = true;
+      } else if (!mq.matches && locked) {
+        body.style.overflow = prev;
+        locked = false;
+      }
+    };
+    apply();
+    mq.addEventListener("change", apply);
     return () => {
-      body.style.overflow = prev;
+      mq.removeEventListener("change", apply);
+      if (locked) body.style.overflow = prev;
     };
   }, [active]);
 }
