@@ -68,6 +68,7 @@ import {
   ChevronLeft,
   Camera,
   LayoutGrid,
+  SlidersHorizontal,
   ArrowDownUp,
   Navigation,
   Download,
@@ -516,17 +517,28 @@ function buildReceiptNode(title: string, rows: ArrivalRow[]): HTMLDivElement {
  * (ex.: lista de imóveis do tooltip de Limpeza), continua capturando o
  * `targetRef` como antes.
  */
-function ScreenshotButton({
-  targetRef,
-  fileName,
-  receiptRows,
-  receiptTitle,
-}: {
+export type ScreenshotTarget = {
   targetRef: React.RefObject<HTMLElement | null>;
   fileName: string;
   receiptRows?: ArrivalRow[];
   receiptTitle?: string;
-}) {
+};
+
+/**
+ * A captura virou HOOK (09/09/2026) porque ela deixou de ter um botão só.
+ *
+ * Com as ações das telas indo para a linha do título, "tirar um print" perdeu
+ * o botão fixo e virou duas linhas dentro do menu de filtros — mas continua
+ * existindo como botão próprio nos popups de indicador e no tooltip da
+ * Limpeza, que não têm linha de título. Duas superfícies, uma lógica: era isso
+ * ou duplicar `html-to-image`, `toast` e o estado de ocupado em dois lugares.
+ */
+function useScreenshotActions({
+  targetRef,
+  fileName,
+  receiptRows,
+  receiptTitle,
+}: ScreenshotTarget) {
   const [busy, setBusy] = useState(false);
   const captureBlob = useCallback(async (): Promise<Blob | null> => {
     if (receiptRows) {
@@ -610,6 +622,13 @@ function ScreenshotButton({
       setBusy(false);
     }
   }, [captureBlob, busy]);
+  return { busy, handleSave, handleCopy };
+}
+
+/** O botão de print onde ele ainda existe sozinho (popups de indicador e
+ *  tooltip da Limpeza — telas sem linha de título para hospedar as ações). */
+function ScreenshotButton(props: ScreenshotTarget) {
+  const { busy, handleSave, handleCopy } = useScreenshotActions(props);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -618,15 +637,6 @@ function ScreenshotButton({
           disabled={busy}
           title="Tirar um print"
           aria-label="Tirar um print"
-          /* MESMO PADRÃO DOS BOTÕES DE FILTRO (pedido explícito, 09/09/2026):
-             sem fundo, sem borda, mesma altura de 32px e o ícone no mesmo
-             tamanho e opacidade dos ícones de "Filtros" e "Pendências".
-             O quadrado com fundo existia para parear com o alternador
-             Completo/Lista que ficava ao lado — e esse alternador não existe
-             mais. Sozinho, ele virava o único botão "de caixinha" numa linha de
-             botões soltos.
-             Esta é a ÚNICA definição do botão de print no sistema, então a
-             mudança vale em todos os lugares onde ele aparece. */
           className="inline-flex h-8 shrink-0 items-center justify-center rounded-[0.3rem] border-0 bg-transparent px-1.5 text-foreground/70 transition-colors hover:text-foreground disabled:opacity-50"
         >
           {busy ? (
@@ -692,6 +702,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // houver espaço pras 5 nessa largura, menos colunas aparecem (com scroll
   // horizontal), mas nenhuma fica mais estreita que 320px.
   const kanbanRowRef = useRef<HTMLDivElement>(null);
+  /** Alvo do print no Operacional e na Limpeza: a página inteira. No Kanban o
+   *  alvo continua sendo a fileira de colunas (kanbanRowRef). */
+  const pageRef = useRef<HTMLDivElement>(null);
   const [kanbanColWidth, setKanbanColWidth] = useState(320);
   useLayoutEffect(() => {
     const el = kanbanRowRef.current;
@@ -2431,9 +2444,73 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   return (
     // Alinhado à esquerda (sem mx-auto): com o menu recolhido a área fica mais
     // larga e o centramento aumentava a margem esquerda.
-    <div className="px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full space-y-1.5">
+    <div
+      ref={pageRef}
+      className="px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full space-y-1.5"
+    >
       <OperationShell
         view={view}
+        actions={
+          <>
+            {view === "limpeza" && (
+              /* Interruptor das duas janelas. Só ícone: o título ao lado já
+                 diz em qual delas você está ("Limpeza Últimos 7d"), então o
+                 botão só precisa mostrar que está LIGADO — daí o fundo âmbar
+                 quando a janela é a dos próximos 7 dias. */
+              <button
+                type="button"
+                onClick={() => setCleaningWindow((w) => (w === "past" ? "next" : "past"))}
+                title={
+                  cleaningWindow === "past" ? "Ver os próximos 7 dias" : "Voltar aos últimos 7 dias"
+                }
+                aria-pressed={cleaningWindow === "next"}
+                className={`grid size-[30px] shrink-0 place-items-center rounded-[0.4rem] transition-colors ${
+                  cleaningWindow === "next"
+                    ? "bg-amber-500/20 text-amber-600 dark:text-amber-400"
+                    : "bg-foreground/[0.06] text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+                }`}
+              >
+                <Sparkles className="size-3.5" />
+              </button>
+            )}
+            {view === "kanban" && (
+              /* Pendências NÃO entra no menu de filtros: o número dela é um
+                 alerta, e alerta dentro de menu fechado deixa de alertar. */
+              <button
+                type="button"
+                onClick={() => setPendenciasOpen(true)}
+                title="Pendências"
+                aria-label={`Pendências (${openTasksCount})`}
+                className="relative grid size-[30px] shrink-0 place-items-center rounded-[0.4rem] bg-foreground/[0.06] text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
+              >
+                <ListChecks className="size-3.5" />
+                {openTasksCount > 0 && (
+                  <span className="absolute -right-1 -top-1 grid h-[15px] min-w-[15px] place-items-center rounded-full bg-rose-600 px-1 text-[8px] font-extrabold leading-none text-white">
+                    {openTasksCount > 99 ? "99+" : openTasksCount}
+                  </span>
+                )}
+              </button>
+            )}
+            <CalendarFiltersButton
+              compactTrigger
+              periodRange={periodRange}
+              onPeriodRangeChange={setPeriodRange}
+              cityFilters={cityFilters}
+              onCityFiltersChange={setCityFilters}
+              cityOptions={cityOptions}
+              ownerFilters={ownerFilters}
+              onOwnerFiltersChange={setOwnerFilters}
+              ownerOptions={ownerOptions}
+              hasCustomFilters={hasCustomFilters}
+              onClearAll={clearAllFilters}
+              screenshot={
+                view === "kanban"
+                  ? { targetRef: kanbanRowRef, fileName: "kanban" }
+                  : { targetRef: pageRef, fileName: view === "limpeza" ? "limpeza" : "operacional" }
+              }
+            />
+          </>
+        }
         title={
           view === "limpeza"
             ? cleaningWindow === "past"
@@ -2634,36 +2711,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               Dashboard) viraram o MESMO botão único `CalendarFiltersButton`
               usado lá — mesmo estado (período/cidade/proprietário), só que
               aqui só afeta os cards desta aba. */}
-          <div className="flex justify-start items-center gap-1">
-            <CalendarFiltersButton
-              periodRange={periodRange}
-              onPeriodRangeChange={setPeriodRange}
-              cityFilters={cityFilters}
-              onCityFiltersChange={setCityFilters}
-              cityOptions={cityOptions}
-              ownerFilters={ownerFilters}
-              onOwnerFiltersChange={setOwnerFilters}
-              ownerOptions={ownerOptions}
-              hasCustomFilters={hasCustomFilters}
-              onClearAll={clearAllFilters}
-            />
-            {/* Abre a previsão de limpeza dos próximos 7 dias, baseada nos
-                checkouts já agendados. Pedido explícito: mesmo
-                formato/alinhamento do botão "Filtros" ao lado — sem
-                quadrante (fundo/borda), só ícone + texto soltos. */}
-            {/* Alternador entre as duas janelas. O rótulo é sempre o DESTINO,
-                como um interruptor: estando nos últimos 7 dias ele oferece os
-                próximos, e vice-versa. */}
-            <button
-              type="button"
-              onClick={() => setCleaningWindow((w) => (w === "past" ? "next" : "past"))}
-              className="relative h-8 shrink-0 inline-flex items-center gap-1.5 rounded-[0.3rem] border-0 bg-transparent px-1.5 text-xs font-medium leading-none text-foreground/70 hover:text-foreground transition-colors"
-            >
-              <Sparkles className="size-3.5 opacity-60" />
-              {cleaningWindow === "past" ? "PRÓXIMOS 7D" : "ÚLTIMOS 7D"}
-            </button>
-          </div>
-
           {/* Cards de limpeza — mais métricas chegam aqui conforme forem
               implementadas. */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5 mt-1.5">
@@ -2752,36 +2799,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               card de um status pro outro fica visual, não escondido atrás de um
               menu. */}
           <section className="rounded-none bg-transparent p-0 space-y-4">
-            {/* Sem título: as próprias abas/colunas já identificam o quadro.
-                Pedido explícito: o antigo dropdown "Hoje/Amanhã/7 dias/Todos"
-                foi substituído pelo mesmo botão "Filtros" (Período/Cidade/
-                Proprietário) do Dashboard/Limpeza — fica à direita no
-                desktop; no mobile ele migra pra dentro da linha de abas, ver
-                abaixo. */}
-            <div className="hidden sm:flex items-center gap-3">
-              <div className="ml-auto flex items-center gap-1">
-                <CalendarFiltersButton
-                  periodRange={periodRange}
-                  onPeriodRangeChange={setPeriodRange}
-                  cityFilters={cityFilters}
-                  onCityFiltersChange={setCityFilters}
-                  cityOptions={cityOptions}
-                  ownerFilters={ownerFilters}
-                  onOwnerFiltersChange={setOwnerFilters}
-                  ownerOptions={ownerOptions}
-                  hasCustomFilters={hasCustomFilters}
-                  onClearAll={clearAllFilters}
-                />
-                <PendenciasButton count={openTasksCount} onClick={() => setPendenciasOpen(true)} />
-                {/* Pedido explícito (07/09/2026): alternador Completo/Lista e
-                    print ficam à direita de Filtros/Pendências — mesmos
-                    componentes já usados nos popups de KPI e no tooltip de
-                    Limpeza. No desktop o alvo do print é o próprio container
-                    rolável com as colunas do quadro (kanbanRowRef, abaixo). */}
-                <ScreenshotButton targetRef={kanbanRowRef} fileName="kanban" />
-              </div>
-            </div>
-
+            {/* A faixa de Filtros/Pendências/print que ficava aqui SAIU: as três
+                ações moram na linha do título (ver OperationShell `actions`).
+                No desktop isso devolve uma faixa inteira ao quadro; no mobile,
+                além da faixa, as abas de status passam a ter a largura toda —
+                antes um botão fixo comia ~90px do lado direito delas. */}
             {/* Mobile: abas roláveis, uma coluna ativa por vez — 5 colunas lado a
                 lado não cabem numa tela estreita. O item ativo usa sempre o
                 gradiente da marca (mesmo tratamento de toda aba/badge ativo do
@@ -2790,37 +2812,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 já usam na aba Limpeza (irmã desta, no mesmo header). */}
             <div className="sm:hidden space-y-3">
               <div className="space-y-2">
-                <div className="flex items-center gap-1">
-                  <CalendarFiltersButton
-                    periodRange={periodRange}
-                    onPeriodRangeChange={setPeriodRange}
-                    cityFilters={cityFilters}
-                    onCityFiltersChange={setCityFilters}
-                    cityOptions={cityOptions}
-                    ownerFilters={ownerFilters}
-                    onOwnerFiltersChange={setOwnerFilters}
-                    ownerOptions={ownerOptions}
-                    hasCustomFilters={hasCustomFilters}
-                    onClearAll={clearAllFilters}
-                  />
-                  <PendenciasButton
-                    count={openTasksCount}
-                    onClick={() => setPendenciasOpen(true)}
-                  />
-                  {/* Pedido explícito (07/09/2026): print e alternador ficam
-                      encostados na BORDA DIREITA da linha (ml-auto), com
-                      Filtros/Pendências à esquerda — antes os quatro ficavam
-                      amontoados à esquerda. No mobile o print captura só a aba
-                      ativa (kanbanMobileScreenshotRef, ancorado no wrapper do
-                      conteúdo da aba, mais abaixo) — as outras colunas nem
-                      estão montadas na tela pra fotografar. */}
-                  <div className="ml-auto flex shrink-0 items-center gap-1">
-                    <ScreenshotButton
-                      targetRef={kanbanMobileScreenshotRef}
-                      fileName={`kanban-${mobileTab}`}
-                    />
-                  </div>
-                </div>
                 {/* Wrapper relative só pra ancorar o degrade — regra
                     "anti-corte" (peek): a barra continua rolável igual antes,
                     mas agora com uma pista visual de que há mais abas pra
@@ -3380,6 +3371,7 @@ function OperationShell({
   view,
   title,
   subtitle,
+  actions,
 }: {
   view: OperationView;
   /** A Limpeza tem DUAS janelas na MESMA tela (últimos 7d / próximos 7d) e o
@@ -3387,13 +3379,30 @@ function OperationShell({
    * o resto da página é idêntico. */
   title?: string;
   subtitle?: string;
+  /**
+   * AS AÇÕES DA TELA MORAM AQUI (mockup aprovado, 09/09/2026).
+   *
+   * As três telas gastavam uma faixa horizontal inteira só com dois ou três
+   * botões, e essa faixa empurrava o conteúdo para baixo justamente onde a
+   * tela é mais estreita. Encostadas à direita do bloco título+subtítulo elas
+   * não custam altura nenhuma — e, de quebra, passam a estar SEMPRE no mesmo
+   * canto nas três telas, que é o que faz a mão aprender um lugar só.
+   *
+   * `items-center`: alinhadas ao centro do bloco de duas linhas, não ao topo.
+   * Alinhado ao topo, o botão encosta no título e a dupla fica torta quando o
+   * subtítulo quebra.
+   */
+  actions?: React.ReactNode;
 }) {
   const copy = OPERATION_COPY[view];
   return (
     <div className="space-y-3">
-      <div>
-        <h1 className="ds-page-title truncate">{title ?? copy.title}</h1>
-        <p className="ds-page-subtitle mt-1.5">{subtitle ?? copy.subtitle}</p>
+      <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <h1 className="ds-page-title truncate">{title ?? copy.title}</h1>
+          <p className="ds-page-subtitle mt-1.5 truncate">{subtitle ?? copy.subtitle}</p>
+        </div>
+        {actions && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}
       </div>
 
       {/* Segmented control — Dashboard / Kanban (largura da página) */}
@@ -3944,10 +3953,10 @@ function EngagementAlertDropdown({ flags }: { flags: Array<{ icon: typeof Eye; l
         /* Etiqueta menor e mais baixa (pedido explícito, 09/09/2026): ela é um
            aviso, não um título — cresceu além do peso que merece e passou a
            competir com o nome do proprietário logo abaixo. */
-        className="inline-flex items-center gap-0.5 rounded-[0.25rem] border-0 bg-amber-500/20 dark:bg-amber-500/25 px-1 py-0 text-[7px] uppercase tracking-[0.08em] font-extrabold leading-[1.6] text-amber-700 dark:text-amber-300 shadow-sm transition-colors hover:bg-amber-500/30"
+        className="inline-flex items-center gap-1 rounded-[0.25rem] border-0 bg-amber-500/20 px-1.5 py-px text-[8.5px] font-extrabold uppercase leading-[1.5] tracking-[0.09em] text-amber-700 shadow-sm transition-colors hover:bg-amber-500/30 dark:bg-amber-500/25 dark:text-amber-300"
         title="Ver alertas"
       >
-        <AlertTriangle className="size-2 shrink-0" />
+        <AlertTriangle className="size-2.5 shrink-0" />
         {/* "Engajamento" virou "ALERTA" (pedido explícito, 08/09/2026): a
             etiqueta nomeia o que ela FAZ — avisar — e não a métrica de onde
             os avisos saíram. Quem lê um card no meio da operação não precisa
@@ -4458,26 +4467,6 @@ function CleaningTopProperties({
         </ul>
       )}
     </div>
-  );
-}
-
-// Botão "PENDÊNCIAS" — mesmo formato/alinhamento do "FILTROS" ao lado
-// (pedido explícito, mesmo tratamento já dado ao "TENDÊNCIA 7D" da Limpeza).
-function PendenciasButton({ count, onClick }: { count: number; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="relative h-8 shrink-0 inline-flex items-center gap-1.5 rounded-[0.3rem] border-0 bg-transparent px-1.5 text-xs font-medium leading-none text-foreground/70 hover:text-foreground transition-colors"
-    >
-      <ListChecks className="size-3.5 opacity-60" />
-      PENDÊNCIAS
-      {count > 0 && (
-        <span className="absolute -top-1 -right-1.5 min-w-[15px] h-[15px] px-[3px] rounded-full bg-rose-500 text-white text-[9px] font-bold leading-[15px] text-center">
-          {count}
-        </span>
-      )}
-    </button>
   );
 }
 
@@ -6179,6 +6168,8 @@ function CalendarFiltersButton({
   ownerOptions,
   hasCustomFilters,
   onClearAll,
+  screenshot,
+  compactTrigger,
 }: {
   periodRange: { start: string; end: string } | null;
   onPeriodRangeChange: (next: { start: string; end: string } | null) => void;
@@ -6190,6 +6181,10 @@ function CalendarFiltersButton({
   ownerOptions: string[];
   hasCustomFilters: boolean;
   onClearAll: () => void;
+  /** Print da tela — vira duas linhas dentro deste menu quando informado. */
+  screenshot?: ScreenshotTarget;
+  /** Ícone quadrado (linha do título) em vez do botão com o texto "FILTROS". */
+  compactTrigger?: boolean;
 }) {
   type Screen = "root" | "period" | "city" | "owner";
   const [screen, setScreen] = useState<Screen>("root");
@@ -6228,6 +6223,17 @@ function CalendarFiltersButton({
         ? ownerFilters[0]
         : `${ownerFilters.length} selecionados`;
 
+  /* O hook roda sempre (regra dos hooks); sem alvo, `shot` fica nulo e as
+     duas linhas do print não são desenhadas. */
+  const shotRef = useRef<HTMLElement | null>(null);
+  const shotActions = useScreenshotActions({
+    targetRef: screenshot?.targetRef ?? shotRef,
+    fileName: screenshot?.fileName ?? "tela",
+    receiptRows: screenshot?.receiptRows,
+    receiptTitle: screenshot?.receiptTitle,
+  });
+  const shot = screenshot ? shotActions : null;
+
   function BackRow({ label }: { label: string }) {
     return (
       <button
@@ -6253,14 +6259,33 @@ function CalendarFiltersButton({
         {/* Pedido explícito: sem "quadrante" (fundo/borda) — igual ao
             tratamento da borracha de limpar filtros, só ícone + texto
             soltos, sem caixinha ao redor, e SEM fundo nem no hover. */}
-        <button
-          type="button"
-          className="relative h-8 shrink-0 inline-flex items-center gap-1.5 rounded-[0.3rem] border-0 bg-transparent px-1.5 text-xs font-medium leading-none text-foreground/70 hover:text-foreground transition-colors"
-        >
-          <Filter className="size-3.5 opacity-60" />
-          FILTROS
-          {hasCustomFilters ? FILTER_DOT : null}
-        </button>
+        {compactTrigger ? (
+          /* AÇÕES NA LINHA DO TÍTULO (mockup aprovado, 09/09/2026): quadrado de
+             30px, só ícone. Sem rótulo porque é o texto que estoura a largura
+             quando o título é longo — e o ponto rosa devolve, de graça, algo
+             que a barra antiga não dava: dá para VER que a tela está filtrada
+             sem abrir o painel. */
+          <button
+            type="button"
+            title={hasCustomFilters ? "Filtros e print · há filtro ativo" : "Filtros e print"}
+            aria-label="Filtros e print"
+            className="relative grid size-[30px] shrink-0 place-items-center rounded-[0.4rem] bg-foreground/[0.06] text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
+          >
+            <SlidersHorizontal className="size-3.5" />
+            {hasCustomFilters && (
+              <span className="absolute right-1 top-1 size-[5px] rounded-full bg-accent" />
+            )}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="relative h-8 shrink-0 inline-flex items-center gap-1.5 rounded-[0.3rem] border-0 bg-transparent px-1.5 text-xs font-medium leading-none text-foreground/70 hover:text-foreground transition-colors"
+          >
+            <Filter className="size-3.5 opacity-60" />
+            FILTROS
+            {hasCustomFilters ? FILTER_DOT : null}
+          </button>
+        )}
       </PopoverTrigger>
       <PopoverContent
         align="end"
@@ -6320,6 +6345,31 @@ function CalendarFiltersButton({
                 <ChevronRight className="size-3.5 shrink-0 opacity-60" />
               </span>
             </button>
+            {shot && (
+              /* O PRINT VIRA ITEM DE MENU (mockup aprovado, 09/09/2026).
+                 Ele tinha botão fixo na barra e era a menos usada das três
+                 ações — perder o lugar fixo é o preço justo por a barra
+                 inteira sair da tela. Aqui ele fica em duas linhas diretas,
+                 sem o menu-dentro-do-menu que o botão antigo abria. */
+              <div className="border-t border-border">
+                <button
+                  type="button"
+                  disabled={shot.busy}
+                  onClick={shot.handleSave}
+                  className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-medium transition-colors hover:bg-secondary/30 disabled:opacity-50"
+                >
+                  <Download className="size-3.5 shrink-0 opacity-60" /> Salvar imagem
+                </button>
+                <button
+                  type="button"
+                  disabled={shot.busy}
+                  onClick={shot.handleCopy}
+                  className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-medium transition-colors hover:bg-secondary/30 disabled:opacity-50"
+                >
+                  <Copy className="size-3.5 shrink-0 opacity-60" /> Copiar imagem
+                </button>
+              </div>
+            )}
           </>
         ) : null}
 
