@@ -26,7 +26,7 @@ export async function listGlobalIntelligence(params: {
   if (params.status) q = q.eq("status", params.status);
   const { data, error } = await q;
   if (error) throw error;
-  return (data ?? []) as Array<Record<string, unknown>>;
+  return (data ?? []) as unknown as Array<Record<string, unknown>>;
 }
 
 
