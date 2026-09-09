@@ -2450,66 +2450,75 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     >
       <OperationShell
         view={view}
+        /* O Operacional NÃO tem ações no título (pedido explícito,
+           09/09/2026): ele não usa filtros de período/cidade/proprietário —
+           quem filtra ali é o próprio calendário de ocupação, com o botão
+           dele. Um botão de filtro que não filtra a tela seria pior do que
+           não ter botão. */
         actions={
-          <>
-            {view === "limpeza" && (
-              /* Interruptor das duas janelas. Só ícone: o título ao lado já
+          view === "resumo" ? undefined : (
+            <>
+              {view === "limpeza" && (
+                /* Interruptor das duas janelas. Só ícone: o título ao lado já
                  diz em qual delas você está ("Limpeza Últimos 7d"), então o
                  botão só precisa mostrar que está LIGADO — daí o fundo âmbar
                  quando a janela é a dos próximos 7 dias. */
-              <button
-                type="button"
-                onClick={() => setCleaningWindow((w) => (w === "past" ? "next" : "past"))}
-                title={
-                  cleaningWindow === "past" ? "Ver os próximos 7 dias" : "Voltar aos últimos 7 dias"
-                }
-                aria-pressed={cleaningWindow === "next"}
-                className={`grid size-[30px] shrink-0 place-items-center rounded-[0.4rem] transition-colors ${
-                  cleaningWindow === "next"
-                    ? "bg-amber-500/20 text-amber-600 dark:text-amber-400"
-                    : "bg-foreground/[0.06] text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
-                }`}
-              >
-                <Sparkles className="size-3.5" />
-              </button>
-            )}
-            {view === "kanban" && (
-              /* Pendências NÃO entra no menu de filtros: o número dela é um
+                <button
+                  type="button"
+                  onClick={() => setCleaningWindow((w) => (w === "past" ? "next" : "past"))}
+                  title={
+                    cleaningWindow === "past"
+                      ? "Ver os próximos 7 dias"
+                      : "Voltar aos últimos 7 dias"
+                  }
+                  aria-pressed={cleaningWindow === "next"}
+                  className={`grid size-[30px] shrink-0 place-items-center rounded-[0.4rem] transition-colors ${
+                    cleaningWindow === "next"
+                      ? "bg-amber-500/20 text-amber-600 dark:text-amber-400"
+                      : "bg-foreground/[0.06] text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+                  }`}
+                >
+                  <Sparkles className="size-3.5" />
+                </button>
+              )}
+              {view === "kanban" && (
+                /* Pendências NÃO entra no menu de filtros: o número dela é um
                  alerta, e alerta dentro de menu fechado deixa de alertar. */
-              <button
-                type="button"
-                onClick={() => setPendenciasOpen(true)}
-                title="Pendências"
-                aria-label={`Pendências (${openTasksCount})`}
-                className="relative grid size-[30px] shrink-0 place-items-center rounded-[0.4rem] bg-foreground/[0.06] text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
-              >
-                <ListChecks className="size-3.5" />
-                {openTasksCount > 0 && (
-                  <span className="absolute -right-1 -top-1 grid h-[15px] min-w-[15px] place-items-center rounded-full bg-rose-600 px-1 text-[8px] font-extrabold leading-none text-white">
-                    {openTasksCount > 99 ? "99+" : openTasksCount}
-                  </span>
-                )}
-              </button>
-            )}
-            <CalendarFiltersButton
-              compactTrigger
-              periodRange={periodRange}
-              onPeriodRangeChange={setPeriodRange}
-              cityFilters={cityFilters}
-              onCityFiltersChange={setCityFilters}
-              cityOptions={cityOptions}
-              ownerFilters={ownerFilters}
-              onOwnerFiltersChange={setOwnerFilters}
-              ownerOptions={ownerOptions}
-              hasCustomFilters={hasCustomFilters}
-              onClearAll={clearAllFilters}
-              screenshot={
-                view === "kanban"
-                  ? { targetRef: kanbanRowRef, fileName: "kanban" }
-                  : { targetRef: pageRef, fileName: view === "limpeza" ? "limpeza" : "operacional" }
-              }
-            />
-          </>
+                <button
+                  type="button"
+                  onClick={() => setPendenciasOpen(true)}
+                  title="Pendências"
+                  aria-label={`Pendências (${openTasksCount})`}
+                  className="relative grid size-[30px] shrink-0 place-items-center rounded-[0.4rem] bg-foreground/[0.06] text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
+                >
+                  <ListChecks className="size-3.5" />
+                  {openTasksCount > 0 && (
+                    <span className="absolute -right-1 -top-1 grid h-[15px] min-w-[15px] place-items-center rounded-full bg-rose-600 px-1 text-[8px] font-extrabold leading-none text-white">
+                      {openTasksCount > 99 ? "99+" : openTasksCount}
+                    </span>
+                  )}
+                </button>
+              )}
+              <CalendarFiltersButton
+                compactTrigger
+                periodRange={periodRange}
+                onPeriodRangeChange={setPeriodRange}
+                cityFilters={cityFilters}
+                onCityFiltersChange={setCityFilters}
+                cityOptions={cityOptions}
+                ownerFilters={ownerFilters}
+                onOwnerFiltersChange={setOwnerFilters}
+                ownerOptions={ownerOptions}
+                hasCustomFilters={hasCustomFilters}
+                onClearAll={clearAllFilters}
+                screenshot={
+                  view === "kanban"
+                    ? { targetRef: kanbanRowRef, fileName: "kanban" }
+                    : { targetRef: pageRef, fileName: "limpeza" }
+                }
+              />
+            </>
+          )
         }
         title={
           view === "limpeza"
@@ -3397,12 +3406,18 @@ function OperationShell({
   const copy = OPERATION_COPY[view];
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <div className="min-w-0 flex-1">
-          <h1 className="ds-page-title truncate">{title ?? copy.title}</h1>
-          <p className="ds-page-subtitle mt-1.5 truncate">{subtitle ?? copy.subtitle}</p>
+      <div>
+        {/* As ações dividem a LINHA DO TÍTULO — não o bloco de duas linhas.
+            Centradas no bloco inteiro (como estavam), elas caíam na altura do
+            vão entre título e subtítulo e ficavam visivelmente baixas em
+            relação ao título (print de 09/09/2026). Dentro da mesma linha do
+            h1, o alinhamento passa a ser exato por construção, sem depender de
+            medida nenhuma — e o subtítulo volta a ter a largura inteira. */}
+        <div className="flex items-center gap-2">
+          <h1 className="ds-page-title min-w-0 flex-1 truncate">{title ?? copy.title}</h1>
+          {actions && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}
         </div>
-        {actions && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}
+        <p className="ds-page-subtitle mt-1.5 truncate">{subtitle ?? copy.subtitle}</p>
       </div>
 
       {/* Segmented control — Dashboard / Kanban (largura da página) */}
