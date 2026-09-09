@@ -6,6 +6,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { useAntiClipColumns } from "@/hooks/useAntiClipColumns";
+import { useAntiClipBar } from "@/hooks/useAntiClipBar";
 import { CARD_MUTED, CARD_PENDING_GUEST, periodColorClass, stageBarClass, type CardStage } from "@/components/dashboard/card-colors";
 import { ReservationJourneyDialog } from "@/components/dashboard/ReservationJourneyDialog";
 import {
@@ -135,6 +136,7 @@ import {
   listTasks,
   createTask,
   setTaskStatus,
+  skipTaskOccurrence,
   toggleCleaningCompletion,
 } from "@/lib/tasks.functions";
 import { defaultShowInCleaning } from "@/lib/tasks-types";
@@ -656,6 +658,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const listTasksFn = useServerFn(listTasks);
   const createTaskFn = useServerFn(createTask);
   const setTaskStatusFn = useServerFn(setTaskStatus);
+  const skipTaskOccurrenceFn = useServerFn(skipTaskOccurrence);
   const toggleCleaningFn = useServerFn(toggleCleaningCompletion);
 
   const [range, setRange] = useState<"today" | "tomorrow" | "7d" | "all">("today");
@@ -674,6 +677,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // horizontal), mas nenhuma fica mais estreita que 320px.
   const kanbanRowRef = useRef<HTMLDivElement>(null);
   const [kanbanColWidth, setKanbanColWidth] = useState(320);
+  /** Barra de abas do Kanban no mobile — regra anti-corte (useAntiClipBar). */
+  const kanbanTabsRef = useAntiClipBar<HTMLDivElement>();
   useLayoutEffect(() => {
     const el = kanbanRowRef.current;
     if (!el) return;
@@ -1475,7 +1480,17 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       estimatedTotalCents: rows.reduce((sum: number, r: ArrivalRow) => sum + (r.cleaningPriceNormalCents ?? 0), 0),
     };
   }, [cleaningForecastListQ.data?.rows, matchesKanbanOwnerCity]);
-  const [forecastOpen, setForecastOpen] = useState(false);
+  /**
+   * A tela de Limpeza tem DUAS janelas, e é a MESMA tela nas duas (pedido
+   * explícito, 09/09/2026: "não quero que abra um tooltip ao clicar em
+   * tendência; quero que a tela seja a mesma da visão oficial, mas que os
+   * dados sejam mudados para os próximos 7 dias").
+   *
+   * Antes a previsão vivia num popup com layout próprio — outra moldura, outra
+   * densidade, outro jeito de ler os mesmos gráficos. Agora só a FONTE dos
+   * dados muda; cards, gráficos e ranking são os mesmos componentes.
+   */
+  const [cleaningWindow, setCleaningWindow] = useState<"past" | "next">("past");
 
   // ---------------------------------------------------------------------
   // Tarefas/Pendências — botão "PENDÊNCIAS" (Kanban, ao lado de "Filtros")
@@ -1542,6 +1557,16 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     }) => setTaskStatusFn({ data: v }),
     onSuccess: invalidateTasks,
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar pendência."),
+  });
+  // "Excluir só esta ocorrência" de uma pendência recorrente — ver
+  // skipTaskOccurrence em tasks.functions.ts.
+  const skipTaskOccurrenceMutation = useMutation({
+    mutationFn: (v: { taskId: string }) => skipTaskOccurrenceFn({ data: v }),
+    onSuccess: (res) => {
+      invalidateTasks();
+      toast.success(`Ocorrência pulada. Próximo prazo: ${fmtDateBR(res.dueDate)}.`);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao pular a ocorrência."),
   });
   const toggleCleaningTaskMutation = useMutation({
     mutationFn: (v: {
@@ -2247,7 +2272,17 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     // Alinhado à esquerda (sem mx-auto): com o menu recolhido a área fica mais
     // larga e o centramento aumentava a margem esquerda.
     <div className="px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full space-y-1.5">
-      <OperationShell view={view} />
+      <OperationShell
+        view={view}
+        title={view === "limpeza" ? (cleaningWindow === "past" ? "Limpeza Últimos 7d" : "Limpeza Próximos 7d") : undefined}
+        subtitle={
+          view === "limpeza"
+            ? cleaningWindow === "past"
+              ? "Histórico e custos das limpezas realizadas."
+              : "Previsão de limpezas e custos, com base nos checkouts já agendados."
+            : undefined
+        }
+      />
 
       {view === "resumo" ? (
         <>
@@ -2450,13 +2485,16 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 checkouts já agendados. Pedido explícito: mesmo
                 formato/alinhamento do botão "Filtros" ao lado — sem
                 quadrante (fundo/borda), só ícone + texto soltos. */}
+            {/* Alternador entre as duas janelas. O rótulo é sempre o DESTINO,
+                como um interruptor: estando nos últimos 7 dias ele oferece os
+                próximos, e vice-versa. */}
             <button
               type="button"
-              onClick={() => setForecastOpen(true)}
+              onClick={() => setCleaningWindow((w) => (w === "past" ? "next" : "past"))}
               className="relative h-8 shrink-0 inline-flex items-center gap-1.5 rounded-[0.3rem] border-0 bg-transparent px-1.5 text-xs font-medium leading-none text-foreground/70 hover:text-foreground transition-colors"
             >
               <Sparkles className="size-3.5 opacity-60" />
-              TENDÊNCIA 7D
+              {cleaningWindow === "past" ? "PRÓXIMOS 7D" : "ÚLTIMOS 7D"}
             </button>
           </div>
 
@@ -2465,18 +2503,26 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5 mt-1.5">
             <div className="col-span-1">
               <StatDisplayCard
-                label="Limpezas Realizadas"
-                value={cleaningStatsQ.data?.cleaningsDone ?? 0}
+                label={cleaningWindow === "past" ? "Limpezas Realizadas" : "Limpezas Previstas"}
+                value={
+                  cleaningWindow === "past"
+                    ? (cleaningStatsQ.data?.cleaningsDone ?? 0)
+                    : cleaningForecast.cleaningsExpected
+                }
                 icon={CheckCircle2}
-                loading={cleaningStatsQ.isLoading}
+                loading={cleaningWindow === "past" ? cleaningStatsQ.isLoading : cleaningForecastListQ.isLoading}
               />
             </div>
             <div className="col-span-1">
               <StatDisplayCard
-                label="Custo Total Limpeza"
-                value={centsToBRL(cleaningStatsQ.data?.totalCents ?? 0)}
+                label={cleaningWindow === "past" ? "Custo Total Limpeza" : "Custo Estimado"}
+                value={centsToBRL(
+                  cleaningWindow === "past"
+                    ? (cleaningStatsQ.data?.totalCents ?? 0)
+                    : cleaningForecast.estimatedTotalCents,
+                )}
                 icon={Banknote}
-                loading={cleaningStatsQ.isLoading}
+                loading={cleaningWindow === "past" ? cleaningStatsQ.isLoading : cleaningForecastListQ.isLoading}
               />
             </div>
           </div>
@@ -2484,20 +2530,25 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           {/* Gráficos de tendência (pedido explícito, combinando as opções A
               e C dos mockups aprovados) — sem mexer no layout dos cards
               acima, só adicionando estes logo abaixo. */}
+          {/* Os MESMOS componentes nas duas janelas — só a fonte muda. */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-1.5 mt-1.5">
-            <CleaningDailyBarChart data={cleaningTrendQ.data?.daily} loading={cleaningTrendQ.isLoading} />
-            <CleaningDailyAreaChart data={cleaningTrendQ.data?.daily} loading={cleaningTrendQ.isLoading} />
+            <CleaningDailyBarChart
+              title={cleaningWindow === "past" ? "Limpezas por dia" : "Limpezas previstas por dia"}
+              data={cleaningWindow === "past" ? cleaningTrendQ.data?.daily : cleaningForecast.daily}
+              loading={cleaningWindow === "past" ? cleaningTrendQ.isLoading : cleaningForecastListQ.isLoading}
+            />
+            <CleaningDailyAreaChart
+              title={cleaningWindow === "past" ? "Custo total por dia" : "Custo estimado por dia"}
+              data={cleaningWindow === "past" ? cleaningTrendQ.data?.daily : cleaningForecast.daily}
+              loading={cleaningWindow === "past" ? cleaningTrendQ.isLoading : cleaningForecastListQ.isLoading}
+            />
           </div>
           <div className="mt-1.5">
-            <CleaningTopProperties items={cleaningTrendQ.data?.breakdown} loading={cleaningTrendQ.isLoading} />
+            <CleaningTopProperties
+              items={cleaningWindow === "past" ? cleaningTrendQ.data?.breakdown : cleaningForecast.breakdown}
+              loading={cleaningWindow === "past" ? cleaningTrendQ.isLoading : cleaningForecastListQ.isLoading}
+            />
           </div>
-
-          <CleaningForecastDialog
-            open={forecastOpen}
-            onOpenChange={setForecastOpen}
-            data={cleaningForecast}
-            loading={cleaningForecastListQ.isLoading}
-          />
 
           <div className="h-1.5" />
         </>
@@ -2593,7 +2644,17 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     // usada no calendário de ocupação (scrollPaddingLeft), só
                     // que aqui nos dois lados — pedido explícito: as duas pontas
                     // com o mesmo espaçamento da borda da tela.
-                    className="ds-scroll-x w-full min-w-0 gap-1.5 snap-x scroll-px-3.5 pb-1 -mx-1 px-1"
+                    /* REGRA ANTI-CORTE (regra global do projeto): esta barra
+                       passou a usar `useAntiClipBar`, o MESMO hook das outras
+                       barras de abas do sistema. Antes ela tinha só um
+                       `scrollIntoView` no clique — que conserta a aba que você
+                       acabou de tocar, e não a barra: ao abrir a tela, a
+                       próxima aba continuava aparecendo pela metade na borda
+                       (print de 09/09/2026). O hook garante que nenhuma aba
+                       apareça cortada em nenhuma largura, e que a sobra vire
+                       espaçador invisível. */
+                    ref={kanbanTabsRef}
+                    className="ds-scroll-x w-full min-w-0 gap-1.5 pb-1 -mx-1 px-1"
                   >
                     {(
                       [
@@ -2621,15 +2682,12 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                         <button
                           key={t.key}
                           type="button"
-                          onClick={(e) => {
-                            setMobileTab(t.key);
-                            // Regra "anti-corte": ao selecionar uma aba, ela
-                            // precisa ficar totalmente visível — sem isso, uma
-                            // aba no meio/fim da lista (ex.: "Limpeza") podia
-                            // continuar parcialmente cortada na borda da tela
-                            // mesmo depois de virar a aba ativa.
-                            e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
-                          }}
+                          // O reencaixe da barra é do `useAntiClipBar`, que
+                          // observa a mudança de aba ativa — um
+                          // `scrollIntoView` aqui competiria com ele e traria
+                          // de volta o corte que o hook acabou de resolver.
+                          onClick={() => setMobileTab(t.key)}
+                          data-state={active ? "active" : "inactive"}
                           className={`h-9 box-border shrink-0 snap-start inline-flex items-center gap-1.5 rounded-none border-0 border-b-2 bg-transparent px-3.5 text-xs font-medium leading-none whitespace-nowrap transition-colors ${
                             active ? `${toneByKey[t.key]} border-b-current` : "border-b-transparent text-muted-foreground"
                           }`}
@@ -2641,9 +2699,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                       );
                     })}
                   </div>
-                  {/* Degrade sutil (Opção A) na borda direita — indica que há
-                      mais abas pra rolar sem precisar de seta/sombra dura. */}
-                  <div className="pointer-events-none absolute inset-y-0 right-1 w-8 bg-gradient-to-l from-background to-transparent" />
+                  {/* O degradê que existia nesta borda foi REMOVIDO: a regra
+                      anti-corte proíbe máscara/gradiente nas laterais (pedido
+                      do cliente). Quem sinaliza que há mais abas agora é o
+                      próprio hook, que nunca deixa uma aba pela metade. */}
                 </div>
               </div>
 
@@ -2884,6 +2943,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               onCreate={(v) => createTaskMutation.mutateAsync(v)}
               creating={createTaskMutation.isPending}
               onSetStatus={requestSetTaskStatus}
+              onSkipOccurrence={(taskId) => skipTaskOccurrenceMutation.mutate({ taskId })}
             />
 
             <TaskResolveDialog
@@ -3030,13 +3090,24 @@ const OPERATION_COPY: Record<OperationView, { title: string; subtitle: string }>
   limpeza: { title: "Limpeza", subtitle: "Histórico e custos das limpezas realizadas." },
 };
 
-function OperationShell({ view }: { view: OperationView }) {
+function OperationShell({
+  view,
+  title,
+  subtitle,
+}: {
+  view: OperationView;
+  /** A Limpeza tem DUAS janelas na MESMA tela (últimos 7d / próximos 7d) e o
+   * título precisa dizer qual está no ar (pedido explícito). Só o texto muda;
+   * o resto da página é idêntico. */
+  title?: string;
+  subtitle?: string;
+}) {
   const copy = OPERATION_COPY[view];
   return (
     <div className="space-y-3">
       <div>
-        <h1 className="ds-page-title truncate">{copy.title}</h1>
-        <p className="ds-page-subtitle mt-1.5">{copy.subtitle}</p>
+        <h1 className="ds-page-title truncate">{title ?? copy.title}</h1>
+        <p className="ds-page-subtitle mt-1.5">{subtitle ?? copy.subtitle}</p>
       </div>
 
       {/* Segmented control — Dashboard / Kanban (largura da página) */}
@@ -3904,9 +3975,19 @@ const CLEANING_TOOLTIP_STYLE = {
   color: "var(--popover-foreground)",
 } as const;
 
-function CleaningDailyBarChart({ data, loading }: { data: CleaningDailyPoint[] | undefined; loading: boolean }) {
+function CleaningDailyBarChart({
+  data,
+  loading,
+  title = "Limpezas por dia",
+}: {
+  data: CleaningDailyPoint[] | undefined;
+  loading: boolean;
+  /** A mesma tela serve às duas janelas (últimos 7d / próximos 7d); só o
+   * título muda. */
+  title?: string;
+}) {
   return (
-    <CleaningChartFrame title="Limpezas por dia" data={data} loading={loading}>
+    <CleaningChartFrame title={title} data={data} loading={loading}>
       {(width) => (
         <BarChart width={width} height={128} data={data} margin={{ top: 14, right: 8, left: 8, bottom: 0 }}>
           <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" vertical={false} />
@@ -3941,9 +4022,17 @@ function CleaningDailyBarChart({ data, loading }: { data: CleaningDailyPoint[] |
   );
 }
 
-function CleaningDailyAreaChart({ data, loading }: { data: CleaningDailyPoint[] | undefined; loading: boolean }) {
+function CleaningDailyAreaChart({
+  data,
+  loading,
+  title = "Custo total por dia",
+}: {
+  data: CleaningDailyPoint[] | undefined;
+  loading: boolean;
+  title?: string;
+}) {
   return (
-    <CleaningChartFrame title="Custo total por dia" data={data} loading={loading}>
+    <CleaningChartFrame title={title} data={data} loading={loading}>
       {(width) => (
         <AreaChart width={width} height={128} data={data} margin={{ top: 16, right: 8, left: 8, bottom: 0 }}>
           <defs>
@@ -4027,70 +4116,6 @@ function CleaningTopProperties({ items, loading }: { items: CleaningBreakdownIte
         </ul>
       )}
     </div>
-  );
-}
-
-/**
- * "Limpeza Prevista 7d" (pedido explícito) — mesma linguagem visual dos
- * gráficos de histórico logo acima, só que olhando pra FRENTE: baseado nos
- * checkouts já agendados pros próximos 7 dias (hoje → hoje+6), não em
- * limpezas já concluídas. O custo é uma ESTIMATIVA (preço da limpeza
- * normal de cada imóvel — o tipo real só é escolhido na hora de concluir).
- */
-function CleaningForecastDialog({
-  open,
-  onOpenChange,
-  data,
-  loading,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  data: { daily: CleaningDailyPoint[]; breakdown: CleaningBreakdownItem[]; cleaningsExpected: number; estimatedTotalCents: number };
-  loading: boolean;
-}) {
-  // Pedido explícito: nada de modal "tela cheia" nem cabeçalho com avatar
-  // colorido (estilo dos popups de KPI) — o título/subtítulo visíveis usam
-  // exatamente as mesmas classes (`ds-page-title`/`ds-page-subtitle`) da
-  // página "Limpeza" de verdade. A área rolável usa no máximo 70% da tela
-  // e a MESMA regra "anti-corte" dos popups de card (useWholeCardsMaxHeight):
-  // nunca corta um bloco (cards, gráfico ou ranking) ao meio, e sempre deixa
-  // uma folga visível antes da borda do modal.
-  const scroll = useWholeCardsMaxHeight(99, `${open}:${loading}:${data.daily.length}:${data.breakdown.length}`);
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-2.5rem)] sm:w-full sm:max-w-lg p-0 overflow-hidden rounded-lg border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
-        {/* Título/descrição "de verdade" pro leitor de tela — o cabeçalho
-            visível abaixo é só texto puro, sem papel semântico próprio. */}
-        <DialogTitle className="sr-only">Limpeza Prevista 7d</DialogTitle>
-        <DialogDescription className="sr-only">
-          Previsão de limpezas para os próximos 7 dias, com base nos checkouts já agendados.
-        </DialogDescription>
-        <div className="px-5 pt-5 pb-3">
-          <h2 className="ds-page-title truncate">Limpeza Prevista 7d</h2>
-          {/* No máximo 1 linha (pedido explícito). */}
-          <p className="ds-page-subtitle mt-1.5 truncate">Previsão para os próximos 7 dias, com base nos checkouts já agendados.</p>
-        </div>
-        <div
-          ref={scroll.ref}
-          style={scroll.maxHeight !== undefined ? { maxHeight: scroll.maxHeight } : undefined}
-          className="sg-elegant-scroll max-h-[70vh] overflow-y-auto px-5 pb-5 space-y-1.5"
-        >
-          <div data-whole-card className="grid grid-cols-2 gap-1.5">
-            <StatDisplayCard label="Limpezas Previstas" value={data.cleaningsExpected} icon={CheckCircle2} loading={loading} />
-            <StatDisplayCard label="Custo Estimado" value={centsToBRL(data.estimatedTotalCents)} icon={Banknote} loading={loading} />
-          </div>
-          <div data-whole-card>
-            <CleaningDailyBarChart data={data.daily} loading={loading} />
-          </div>
-          <div data-whole-card>
-            <CleaningDailyAreaChart data={data.daily} loading={loading} />
-          </div>
-          <div data-whole-card>
-            <CleaningTopProperties items={data.breakdown} loading={loading} />
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }
 
@@ -4379,6 +4404,7 @@ function TasksDialog({
   onCreate,
   creating,
   onSetStatus,
+  onSkipOccurrence,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -4401,8 +4427,16 @@ function TasksDialog({
   }) => Promise<{ id: string }>;
   creating: boolean;
   onSetStatus: (taskId: string, status: "pending" | "done" | "canceled") => void;
+  /** Pula SÓ o ciclo atual de uma pendência recorrente (ver
+   * skipTaskOccurrence). */
+  onSkipOccurrence: (taskId: string) => void;
 }) {
   const [groupBy, setGroupBy] = useState<TaskGroupBy>("owner");
+  // Pedido explícito (09/09/2026): excluir uma pendência RECORRENTE pergunta
+  // primeiro o alcance, como o Google Agenda faz com um evento que se repete.
+  // Pendência sem recorrência continua sendo um clique só — perguntar ali
+  // seria só um passo a mais sem escolha nenhuma pra fazer.
+  const [deletePrompt, setDeletePrompt] = useState<TaskRow | null>(null);
   const [showForm, setShowForm] = useState(false);
   const scroll = useWholeCardsMaxHeight(99, `${open}:${loading}:${tasks.length}:${groupBy}:${showForm}`);
   const todayISO = todayISOSaoPaulo();
@@ -4969,8 +5003,11 @@ function TasksDialog({
                             )}
                             <button
                               type="button"
-                              onClick={() => onSetStatus(t.id, "canceled")}
-                              title="Arquivar"
+                              onClick={() => {
+                                if (t.recurrenceDays != null) setDeletePrompt(t);
+                                else onSetStatus(t.id, "canceled");
+                              }}
+                              title={t.recurrenceDays != null ? "Excluir recorrência" : "Arquivar"}
                               className="size-6 grid place-items-center rounded-md hover:bg-secondary text-muted-foreground hover:text-rose-500"
                             >
                               <Trash2 className="size-3.5" />
@@ -4986,6 +5023,74 @@ function TasksDialog({
           </div>
         )}
       </DialogContent>
+
+      {/* Excluir pendência RECORRENTE — o alcance, primeiro (pedido explícito:
+          "tipo quando vai excluir uma agenda do Google"). Uma pendência
+          recorrente é UMA linha que reaparece com um prazo novo, então as
+          duas opções são de verdade diferentes: pular o ciclo atual mantém a
+          rotina viva; encerrar a recorrência arquiva a pendência de vez. */}
+      <Dialog
+        open={!!deletePrompt}
+        onOpenChange={(v) => {
+          if (!v) setDeletePrompt(null);
+        }}
+      >
+        <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base font-display">Excluir pendência recorrente</DialogTitle>
+          </DialogHeader>
+          <DialogDescription className="sr-only">
+            Escolha se a exclusão vale só para esta ocorrência ou para todas as futuras.
+          </DialogDescription>
+          {deletePrompt ? (
+            <div className="-mt-2 space-y-3">
+              <p className="text-sm text-muted-foreground ds-card-lines">
+                <strong className="text-foreground">{deletePrompt.title}</strong> se repete a cada{" "}
+                {deletePrompt.recurrenceDays} dias. O que você quer excluir?
+              </p>
+              <div className="space-y-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSkipOccurrence(deletePrompt.id);
+                    setDeletePrompt(null);
+                  }}
+                  className="ds-surface w-full bg-secondary/40 px-3 py-2.5 text-left hover:bg-secondary transition-colors"
+                >
+                  <span className="block text-[13px] font-semibold">Somente esta ocorrência</span>
+                  <span className="block text-[11px] text-muted-foreground ds-card-lines">
+                    O prazo pula {deletePrompt.recurrenceDays} dias à frente e a rotina continua ativa.
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSetStatus(deletePrompt.id, "canceled");
+                    setDeletePrompt(null);
+                  }}
+                  className="ds-surface w-full bg-secondary/40 px-3 py-2.5 text-left hover:bg-secondary transition-colors"
+                >
+                  <span className="block text-[13px] font-semibold text-rose-500">
+                    Esta e todas as recorrências futuras
+                  </span>
+                  <span className="block text-[11px] text-muted-foreground ds-card-lines">
+                    Encerra a recorrência e arquiva a pendência.
+                  </span>
+                </button>
+              </div>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setDeletePrompt(null)}
+                  className="ds-surface h-9 px-3 text-[13px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }

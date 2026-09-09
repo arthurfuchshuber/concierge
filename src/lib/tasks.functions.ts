@@ -460,3 +460,54 @@ export const toggleCleaningCompletion = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { checked: true };
   });
+
+// ----- Excluir UMA ocorrência de uma pendência recorrente -----
+//
+// Pedido explícito (09/09/2026): "ao clicar no botão excluir, se houver mais
+// de uma task vinculada, então o sistema deve perguntar se é para excluir só
+// aquela recorrência ou se todas as recorrências futuras — tipo quando vai
+// excluir uma agenda do Google".
+//
+// Vale dizer como o dado é, porque isso decide o que cada opção faz. Uma
+// pendência recorrente NÃO é uma fileira de linhas no banco: é UMA linha só,
+// com `recurrence_days`, que volta a ficar pendente com um prazo novo toda
+// vez que é concluída. Então:
+//
+//   • "todas as recorrências futuras" = arquivar a linha (setTaskStatus
+//     "canceled") — a que a tela já sabia fazer, e a única que existia;
+//   • "somente esta ocorrência"       = PULAR o ciclo atual: o prazo anda
+//     `recurrence_days` pra frente e a pendência continua viva. É esta.
+//
+// O prazo novo é contado a partir do prazo atual (não de hoje), pra a série
+// não escorregar um pouquinho a cada vez que alguém pula uma ocorrência. Sem
+// prazo registrado, hoje é o ponto de partida — é o melhor palpite disponível.
+const SkipTaskOccurrenceInput = z.object({ taskId: z.string().uuid() });
+
+export const skipTaskOccurrence = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => SkipTaskOccurrenceInput.parse(i))
+  .handler(async ({ data, context }): Promise<{ dueDate: string }> => {
+    const db = context.supabase as unknown as AnyClient;
+    const { data: row, error: readErr } = await db
+      .from("tasks")
+      .select("recurrence_days, due_date")
+      .eq("id", data.taskId)
+      .single();
+    if (readErr) throw new Error("Pendência não encontrada ou sem acesso.");
+    const task = row as { recurrence_days: number | null; due_date: string | null } | null;
+    const recurrenceDays = task?.recurrence_days ?? null;
+    if (!recurrenceDays) throw new Error("Esta pendência não é recorrente.");
+    const base = task?.due_date ?? todayISO();
+    let next = addDaysISO(base, recurrenceDays);
+    // Se o prazo estava atrasado, um único salto pode cair no passado. Anda
+    // até sair na frente de hoje — pular uma ocorrência nunca pode devolver
+    // uma pendência que já nasce vencida.
+    const hoje = todayISO();
+    while (next <= hoje) next = addDaysISO(next, recurrenceDays);
+    const { error } = await db
+      .from("tasks")
+      .update({ status: "pending", due_date: next })
+      .eq("id", data.taskId);
+    if (error) throw new Error(error.message);
+    return { dueDate: next };
+  });

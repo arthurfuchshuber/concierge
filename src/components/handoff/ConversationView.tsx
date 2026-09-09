@@ -65,7 +65,6 @@ import { KnowledgeFillDialog } from "@/components/handoff/KnowledgeFillDialog";
 import { TeachAiDialog } from "@/components/handoff/TeachAiDialog";
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
 import { COMPOSER_FIELD, COMPOSER_INPUT, COMPOSER_SEND_BTN } from "@/components/chat/composer-styles";
-import { useVisualViewport } from "@/hooks/useVisualViewport";
 import { AttachmentBubble, type AttachmentInfo } from "@/components/handoff/AttachmentBubble";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -136,8 +135,6 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const [transferOpen, setTransferOpen] = useState(false);
   const [channel, setChannel] = useState<"chat" | "whatsapp">("chat");
   const [reopenOpen, setReopenOpen] = useState(false);
-  const [inputFocused, setInputFocused] = useState(false);
-  const viewport = useVisualViewport();
   const [actionMsg, setActionMsg] = useState<{ id: string; content: string; mine: boolean } | null>(null);
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startLongPress = (m: { id: string; content: string; mine: boolean }) => {
@@ -467,8 +464,15 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
         ["--primary-foreground" as never]: "#ffffff",
       }}
     >
-      <div className={`sticky top-0 z-20 border-b border-zinc-200 shrink-0 bg-zinc-50 ${inputFocused ? "px-3 py-1.5" : "p-3 space-y-2"}`}>
-        <div className={`flex gap-2 ${inputFocused ? "items-center" : "items-start justify-between"}`}>
+      {/* Pedido explícito (09/09/2026): "os principais dados do hóspede também
+          precisam ser fixados". Antes este bloco ENCOLHIA ao focar o campo de
+          mensagem — proprietário, imóvel, check-in/check-out e código sumiam
+          justamente na hora de escrever a resposta, que é quando eles são mais
+          necessários. O cabeçalho agora é sempre o mesmo, com ou sem teclado
+          aberto: um só bloco fixo no topo, e quem rola é só a lista de
+          mensagens. */}
+      <div className="sticky top-0 z-20 border-b border-zinc-200 shrink-0 bg-zinc-50 p-3 space-y-2">
+        <div className="flex gap-2 items-start justify-between">
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-1.5">
               <span className="text-sm font-medium truncate">{guestName}</span>
@@ -476,9 +480,6 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
                   <PhoneActionButton phone={guest.phone} country={guest.phoneCountry} size={12} />
                 </span>
-              )}
-              {inputFocused && guest?.reservationCode && (
-                <span className="ml-1 text-[11px] font-normal text-muted-foreground">{guest.reservationCode}</span>
               )}
             </div>
 
@@ -490,14 +491,12 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
 
             <div className="text-[11px] text-muted-foreground truncate">
               {propertyName}
-              {!inputFocused && conv?.handoff_at
+              {conv?.handoff_at
                 ? ` · ${formatDistanceToNow(new Date(conv.handoff_at), { locale: ptBR, addSuffix: true })}`
                 : ""}
-              {inputFocused && checkinFmt ? ` · In ${checkinFmt}` : ""}
-              {inputFocused && checkoutFmt ? ` · Out ${checkoutFmt}` : ""}
             </div>
 
-            {!inputFocused && (checkinFmt || checkoutFmt || guest?.reservationCode) && (
+            {(checkinFmt || checkoutFmt || guest?.reservationCode) && (
               <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
 
 
@@ -521,7 +520,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
               </div>
             )}
 
-            {!inputFocused && conv?.handoff_reason && (
+            {conv?.handoff_reason && (
               <button
                 type="button"
                 onClick={() => setReasonOpen(true)}
@@ -532,12 +531,12 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
               </button>
             )}
 
-            {!inputFocused && isLockedByOther && (
+            {isLockedByOther && (
               <div className="text-[11px] mt-2 px-2 py-1 rounded bg-secondary text-foreground/80 border border-border inline-flex items-center gap-1">
                 <Lock className="size-3" /> Em atendimento por {assignedProfile?.displayName ?? "outro membro"}
               </div>
             )}
-            {!inputFocused && someoneRequestedFromMe && (
+            {someoneRequestedFromMe && (
               <div className="text-[11px] mt-2 px-2 py-1 rounded bg-primary/10 text-primary border border-primary/30 flex items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-1">
                   <UserPlus2 className="size-3" /> {claimReq?.displayName ?? "Um membro"} pediu acesso
@@ -1045,7 +1044,16 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
             style={{
               // Só o rodapé precisa da área segura; laterais e topo saem das
               // classes compartilhadas, iguais às do Assistente.
-              paddingBottom: viewport.keyboardOpen ? "0.5rem" : "max(0.5rem, env(safe-area-inset-bottom))",
+              //
+              // Pedido explícito (09/09/2026): "o rodapé com o teclado aberto
+              // precisa ficar IDÊNTICO ao rodapé com o teclado fechado". Aqui
+              // havia um `viewport.keyboardOpen ? …` que trocava a folga de
+              // baixo — sobra da época em que o teclado ficava POR CIMA do
+              // layout e a área segura era contada duas vezes. Com o
+              // `interactive-widget=resizes-content` no viewport (ver
+              // __root.tsx) a página encolhe de verdade, então a mesma medida
+              // serve nos dois estados — e o rodapé para de "pular".
+              paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
             }}
           >
             {uploading && (
@@ -1083,8 +1091,6 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 <TagMentionTextarea
                   value={text}
                   onChange={(e) => setText(e.target.value)}
-                  onFocus={() => setInputFocused(true)}
-                  onBlur={() => setInputFocused(false)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
