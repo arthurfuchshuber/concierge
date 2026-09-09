@@ -437,7 +437,13 @@ function InfoHint({ title, children }: { title?: string; children: React.ReactNo
  * pergunta que importa num controle de estado único. Mesmo formato/curva do
  * botão de print ao lado, pra lerem como um par.
  */
-function ViewModeToggle({ value, onChange }: { value: "full" | "list"; onChange: (v: "full" | "list") => void }) {
+function ViewModeToggle({
+  value,
+  onChange,
+}: {
+  value: "full" | "list";
+  onChange: (v: "full" | "list") => void;
+}) {
   const goingToList = value === "full";
   const Icon = goingToList ? LayoutList : LayoutGrid;
   const label = goingToList ? "Ver em modo lista" : "Ver em modo completo";
@@ -455,7 +461,11 @@ function ViewModeToggle({ value, onChange }: { value: "full" | "list"; onChange:
 }
 
 function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function nowLabelBR(): string {
@@ -895,14 +905,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         90,
         Math.max(
           3,
-<<<<<<< HEAD
           differenceInCalendarDays(
             parseISODateLocal(periodRange.end),
             parseISODateLocal(periodRange.start),
           ) + 1,
-=======
-          differenceInCalendarDays(parseISODateLocal(periodRange.end), parseISODateLocal(periodRange.start)) + 1,
->>>>>>> 6b65c6b9ce110a827af0a9b612fb81e9baed3487
         ),
       )
     : 21;
@@ -926,7 +932,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     ownerName?: string | null;
   }> = occupancyQ.data?.properties ?? [];
   const ownerOptions = useMemo(() => {
-    const names: string[] = occupancyProperties.map((p) => p.ownerName).filter((v): v is string => !!v);
+    const names: string[] = occupancyProperties
+      .map((p) => p.ownerName)
+      .filter((v): v is string => !!v);
     return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [occupancyProperties]);
   const cityOptions = useMemo(() => {
@@ -948,13 +956,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // os imóveis acessíveis da conta, sem precisar listar id por id).
   const cleaningStatsPropertyIds = useMemo(
     () =>
-<<<<<<< HEAD
       ownerFilters.length > 0 || cityFilters.length > 0
         ? filteredOccupancyProperties.map((p) => p.id)
         : undefined,
-=======
-      ownerFilters.length > 0 || cityFilters.length > 0 ? filteredOccupancyProperties.map((p) => p.id) : undefined,
->>>>>>> 6b65c6b9ce110a827af0a9b612fb81e9baed3487
     [ownerFilters, cityFilters, filteredOccupancyProperties],
   );
   const cleaningStatsRange = periodRange ?? { start: todayISOSaoPaulo(), end: todayISOSaoPaulo() };
@@ -1693,12 +1697,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // nada. Substitui o antigo `expensePrompt`, mas mantém os dois gatilhos
   // que já existiam: concluir na lista de Pendências ("status") e marcar no
   // checklist do card de Limpeza ("cleaning", que fecha só a ocorrência).
-<<<<<<< HEAD
   type ResolvePromptState =
     { kind: "status"; task: TaskRow } | { kind: "cleaning"; task: TaskRow; row: ArrivalRow };
-=======
-  type ResolvePromptState = { kind: "status"; task: TaskRow } | { kind: "cleaning"; task: TaskRow; row: ArrivalRow };
->>>>>>> 6b65c6b9ce110a827af0a9b612fb81e9baed3487
   const [resolvePrompt, setResolvePrompt] = useState<ResolvePromptState | null>(null);
   const attachTaskRecordFn = useServerFn(attachTaskRecord);
 
@@ -1844,7 +1844,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     );
     const released = inWindow.filter((r) => r.status === "done");
     const awaitingCheckout = inWindow.filter((r) => r.status !== "done");
-<<<<<<< HEAD
     return [
       ...sortCheckoutRows(released, [kanbanCiRowsAll]),
       ...sortCheckoutRows(awaitingCheckout, [kanbanCiRowsAll]),
@@ -1856,10 +1855,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     kanbanPeriodEnd,
     kanbanCiRowsAll,
   ]);
-=======
-    return [...sortCheckoutRows(released, [kanbanCiRowsAll]), ...sortCheckoutRows(awaitingCheckout, [kanbanCiRowsAll])];
-  }, [kanbanCoRowsAll, matchesKanbanOwnerCity, kanbanPeriodStart, kanbanPeriodEnd, kanbanCiRowsAll]);
->>>>>>> 6b65c6b9ce110a827af0a9b612fb81e9baed3487
   // "Concluídos" nunca foi limitado por Hoje/Amanhã/7 dias/Todos (a busca de
   // concluídos já ignorava esse seletor antes) — só ganha os filtros de
   // Cidade/Proprietário agora, mantendo o mesmo comportamento de período.
@@ -2283,15 +2278,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         pinRow(row.logId);
 
         patchList(colKind, (rows: ArrivalRow[]) =>
-<<<<<<< HEAD
           rows.map((r) =>
             r.logId === row.logId
               ? { ...r, arrivalDateOverride: null, arrivalTimeOverride: null }
               : r,
           ),
-=======
-          rows.map((r) => (r.logId === row.logId ? { ...r, arrivalDateOverride: null, arrivalTimeOverride: null } : r)),
->>>>>>> 6b65c6b9ce110a827af0a9b612fb81e9baed3487
         );
         upsert.mutate({
           ...statusTarget(row),
@@ -2303,7 +2294,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           setBusyRowId(row.logId);
           patchList(colKind, (rows: ArrivalRow[]) =>
             rows.map((r) =>
-              r.logId === row.logId ? { ...r, arrivalDateOverride: prevDate, arrivalTimeOverride: prevTime } : r,
+              r.logId === row.logId
+                ? { ...r, arrivalDateOverride: prevDate, arrivalTimeOverride: prevTime }
+                : r,
             ),
           );
           upsert.mutate({
@@ -2434,15 +2427,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       <OperationShell
         view={view}
         title={
-<<<<<<< HEAD
           view === "limpeza"
             ? cleaningWindow === "past"
               ? "Limpeza Últimos 7d"
               : "Limpeza Próximos 7d"
             : undefined
-=======
-          view === "limpeza" ? (cleaningWindow === "past" ? "Limpeza Últimos 7d" : "Limpeza Próximos 7d") : undefined
->>>>>>> 6b65c6b9ce110a827af0a9b612fb81e9baed3487
         }
         subtitle={
           view === "limpeza"
@@ -4277,7 +4266,10 @@ function CleaningChartFrame({
         </div>
       ) : (
         <div ref={anti.ref} className="flex w-full">
-          <div className="sg-elegant-scroll overflow-x-auto overflow-y-hidden" style={{ width: anti.viewportWidth }}>
+          <div
+            className="sg-elegant-scroll overflow-x-auto overflow-y-hidden"
+            style={{ width: anti.viewportWidth }}
+          >
             <div className="h-32" style={{ width: anti.contentWidth }}>
               {anti.contentWidth ? children(anti.contentWidth) : null}
             </div>
@@ -5016,7 +5008,10 @@ function TasksDialog({
     for (const t of activeTasks) acc[taskBucket(t, todayISO)] += 1;
     return acc;
   }, [activeTasks, todayISO]);
-  const visibleBuckets = useMemo(() => TASK_BUCKET_ORDER.filter((b) => bucketCounts[b] > 0), [bucketCounts]);
+  const visibleBuckets = useMemo(
+    () => TASK_BUCKET_ORDER.filter((b) => bucketCounts[b] > 0),
+    [bucketCounts],
+  );
   // A faixa filtrada pode zerar enquanto a tela está aberta (a última pendência
   // atrasada foi concluída). Sem isto a lista ficaria vazia com um filtro que
   // já não aparece em lugar nenhum — sem como desligar.
@@ -5331,7 +5326,6 @@ function TasksDialog({
                próprios botões, que é o que compra a largura, e a escolha atual
                continua à vista sem precisar abrir nada. */
             <div className="ds-scroll-x mt-2 gap-1.5">
-<<<<<<< HEAD
               <TaskChoiceMenu
                 icon={LayoutGrid}
                 value={groupBy}
@@ -5344,10 +5338,6 @@ function TasksDialog({
                 onChange={setSortBy}
                 options={TASK_SORT_OPTIONS}
               />
-=======
-              <TaskChoiceMenu icon={LayoutGrid} value={groupBy} onChange={setGroupBy} options={TASK_GROUP_OPTIONS} />
-              <TaskChoiceMenu icon={ArrowDownUp} value={sortBy} onChange={setSortBy} options={TASK_SORT_OPTIONS} />
->>>>>>> 6b65c6b9ce110a827af0a9b612fb81e9baed3487
             </div>
           )}
         </div>
@@ -5649,7 +5639,9 @@ function TasksDialog({
                       }}
                     />
                     <span className="min-w-0">
-                      <span className="block">{isMaintenance ? "Ocultar da limpeza" : "Mostrar na limpeza"}</span>
+                      <span className="block">
+                        {isMaintenance ? "Ocultar da limpeza" : "Mostrar na limpeza"}
+                      </span>
                       <span className="block text-[11px] leading-snug text-muted-foreground">
                         {isMaintenance
                           ? "Manutenção vai sozinha para a próxima limpeza do imóvel. Marque para deixá-la fora do checklist."
@@ -5833,7 +5825,9 @@ function TasksDialog({
                                   : ""}
                                 {t.recurrenceDays != null ? ` · repete ${t.recurrenceDays}d` : ""}
                                 {showOwner && t.ownerName ? " · " : ""}
-                                {showOwner && t.ownerName ? <span className={CARD_OWNER}>{t.ownerName}</span> : null}
+                                {showOwner && t.ownerName ? (
+                                  <span className={CARD_OWNER}>{t.ownerName}</span>
+                                ) : null}
                               </div>
                             </div>
                             <div className="shrink-0 text-right min-w-[54px] whitespace-nowrap">
@@ -5857,7 +5851,6 @@ function TasksDialog({
                               )}
                             </div>
                             <div className="flex shrink-0 items-center gap-1">
-<<<<<<< HEAD
                               {/* Concluir vale para QUALQUER pendência. Antes o
                                   botão só aparecia nas ligadas a uma estadia, e
                                   o efeito colateral aparecia justamente nas
@@ -5880,22 +5873,6 @@ function TasksDialog({
                                   <Check className="size-3.5" />
                                 )}
                               </button>
-=======
-                              {isPontual && (
-                                <button
-                                  type="button"
-                                  onClick={() => onSetStatus(t.id, t.status === "done" ? "pending" : "done")}
-                                  title={t.status === "done" ? "Reabrir" : "Concluir"}
-                                  className="size-6 grid place-items-center rounded-[0.25rem] hover:bg-secondary text-muted-foreground hover:text-foreground"
-                                >
-                                  {t.status === "done" ? (
-                                    <Undo2 className="size-3.5" />
-                                  ) : (
-                                    <Check className="size-3.5" />
-                                  )}
-                                </button>
-                              )}
->>>>>>> 6b65c6b9ce110a827af0a9b612fb81e9baed3487
                               <button
                                 type="button"
                                 onClick={() => {
@@ -6208,13 +6185,9 @@ function CalendarFiltersButton({
   // todos os filtros" no rodapé, ou o botão de limpar de outro lugar).
   useEffect(() => {
     setDraft(
-<<<<<<< HEAD
       periodRange
         ? { from: parseISODateLocal(periodRange.start), to: parseISODateLocal(periodRange.end) }
         : undefined,
-=======
-      periodRange ? { from: parseISODateLocal(periodRange.start), to: parseISODateLocal(periodRange.end) } : undefined,
->>>>>>> 6b65c6b9ce110a827af0a9b612fb81e9baed3487
     );
   }, [periodRange]);
 
@@ -8112,7 +8085,10 @@ function ArrivalCard({
           inteira dá para ver em que fase cada reserva está sem parar em
           nenhuma. Substitui as antigas bordas de "atrasado"/"data futura",
           que só existiam em dois casos e deixavam o resto sem sinal. */}
-      <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] rounded-l-[0.3rem] ${stageBarClass(stage)}`} />
+      <span
+        aria-hidden
+        className={`absolute inset-y-0 left-0 w-[3px] rounded-l-[0.3rem] ${stageBarClass(stage)}`}
+      />
 
       <div className="flex items-start gap-3">
         {/* ds-card-lines: o espaçamento padrão entre linhas de card (styles.css). */}
@@ -8168,7 +8144,9 @@ function ArrivalCard({
 
               {/* O período, na cor do ESTADO — é ela que substituiu as antigas
                   etiquetas "Atrasado"/"Data futura". */}
-              <div className={`flex flex-wrap items-center gap-1.5 text-[11.5px] tabular-nums ${periodoColorClass}`}>
+              <div
+                className={`flex flex-wrap items-center gap-1.5 text-[11.5px] tabular-nums ${periodoColorClass}`}
+              >
                 <DateEditor
                   value={row.guestCheckin}
                   disabled={busy || isPendingFill}
@@ -8266,12 +8244,8 @@ function ArrivalCard({
             row.ical.hasIcal &&
             row.ical.matched &&
             !!iIn &&
-<<<<<<< HEAD
             (iIn !== row.guestCheckin ||
               (!!iOut && !!row.guestCheckout && iOut !== row.guestCheckout));
-=======
-            (iIn !== row.guestCheckin || (!!iOut && !!row.guestCheckout && iOut !== row.guestCheckout));
->>>>>>> 6b65c6b9ce110a827af0a9b612fb81e9baed3487
           if (!row.ical.hasIcal) return null;
           const noMatch = !row.ical.matched;
           // Pedido explícito: quando está tudo certo (reserva encontrada e
@@ -8295,27 +8269,19 @@ function ArrivalCard({
                   </span>
                   <span className="tabular-nums">
                     Informada: {fmtDateBR(row.guestCheckin)}
-<<<<<<< HEAD
                     {row.guestCheckout ? ` → ${fmtDateBR(row.guestCheckout)}` : ""} · Correta:{" "}
                     {fmtDateBR(iIn)}
-=======
-                    {row.guestCheckout ? ` → ${fmtDateBR(row.guestCheckout)}` : ""} · Correta: {fmtDateBR(iIn)}
->>>>>>> 6b65c6b9ce110a827af0a9b612fb81e9baed3487
                     {iOut ? ` → ${fmtDateBR(iOut)}` : ""}
                   </span>
                   <button
                     type="button"
                     disabled={busy}
-<<<<<<< HEAD
                     onClick={() =>
                       onEditDates(row, {
                         checkinDate: iIn,
                         ...(iOut ? { checkoutDate: iOut } : {}),
                       })
                     }
-=======
-                    onClick={() => onEditDates(row, { checkinDate: iIn, ...(iOut ? { checkoutDate: iOut } : {}) })}
->>>>>>> 6b65c6b9ce110a827af0a9b612fb81e9baed3487
                     className="ml-auto rounded-md border border-amber-500/40 px-2 py-0.5 font-semibold hover:bg-amber-500/20 disabled:opacity-50"
                   >
                     Usar Airbnb
@@ -8419,7 +8385,11 @@ function ArrivalCard({
             </span>
           </div>
           {cleaningChecklist.map(({ task, done: taskDone }) => (
-            <label key={task.id} className="flex items-start gap-2 cursor-pointer" onClick={(e) => e.stopPropagation()}>
+            <label
+              key={task.id}
+              className="flex items-start gap-2 cursor-pointer"
+              onClick={(e) => e.stopPropagation()}
+            >
               <Checkbox
                 checked={taskDone}
                 onCheckedChange={() => onToggleCleaningTask?.(task, row)}
@@ -9015,10 +8985,9 @@ function PredictedEditor({
   const [editing, setEditing] = useState<"primary" | "secondary">("primary");
   const [expanded, setExpanded] = useState(false);
   // undefined = não tocado nesta sessão (mostra o valor gravado).
-  const [pending, setPending] = useState<Record<"primary" | "secondary", { date?: string; time?: string | null }>>({
-    primary: {},
-    secondary: {},
-  });
+  const [pending, setPending] = useState<
+    Record<"primary" | "secondary", { date?: string; time?: string | null }>
+  >({ primary: {}, secondary: {} });
 
   const sideOf = (slot: "primary" | "secondary") => (slot === "primary" ? primary : secondary);
   const shownDate = (slot: "primary" | "secondary") => {
@@ -9042,15 +9011,10 @@ function PredictedEditor({
     (["primary", "secondary"] as const).forEach((slot) => {
       const side = sideOf(slot);
       if (!side) return;
-<<<<<<< HEAD
       const finalDate =
         pending[slot].date !== undefined ? pending[slot].date || null : side.dateValue || null;
       const finalTime =
         pending[slot].time !== undefined ? (pending[slot].time ?? null) : (side.timeValue ?? null);
-=======
-      const finalDate = pending[slot].date !== undefined ? pending[slot].date || null : side.dateValue || null;
-      const finalTime = pending[slot].time !== undefined ? (pending[slot].time ?? null) : (side.timeValue ?? null);
->>>>>>> 6b65c6b9ce110a827af0a9b612fb81e9baed3487
       const dateChanged = finalDate !== (side.dateValue || null);
       const timeChanged = finalTime !== (side.timeValue ?? null);
       if (dateChanged || timeChanged) side.onCommit(finalDate, finalTime);
@@ -9203,7 +9167,10 @@ function PredictedEditor({
                   </span>
                   <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                     {shownDate("secondary") || shownTime("secondary")
-                      ? [shownDate("secondary") ? fmtDateBR(shownDate("secondary")) : null, shownTime("secondary")]
+                      ? [
+                          shownDate("secondary") ? fmtDateBR(shownDate("secondary")) : null,
+                          shownTime("secondary"),
+                        ]
                           .filter(Boolean)
                           .join(" · ")
                       : "não informada"}
