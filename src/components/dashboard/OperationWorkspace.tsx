@@ -662,7 +662,7 @@ function ScreenshotButton(props: ScreenshotTarget) {
 // viver dentro do "resumo" (Dashboard) — ver <OccupancyPanel> logo abaixo
 // dos cards, no bloco "view === 'resumo'". A rota /admin/dashboard/calendario
 // agora só redireciona pra lá; não existe mais uma tela própria pra ela.
-export type OperationView = "resumo" | "kanban" | "limpeza";
+export type OperationView = "resumo" | "kanban" | "limpeza" | "registros";
 
 export function OperationWorkspace({ view }: { view: OperationView }) {
   const engFn = useServerFn(getGuideEngagement);
@@ -2460,7 +2460,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             <>
               {view === "limpeza" && (
                 /* Interruptor das duas janelas. Só ícone: o título ao lado já
-                 diz em qual delas você está ("Limpeza Últimos 7d"), então o
+                 diz em qual delas você está ("Limpezas Concluídas"), então o
                  botão só precisa mostrar que está LIGADO — daí o fundo âmbar
                  quando a janela é a dos próximos 7 dias. */
                 <button
@@ -2523,8 +2523,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         title={
           view === "limpeza"
             ? cleaningWindow === "past"
-              ? "Limpeza Últimos 7d"
-              : "Limpeza Próximos 7d"
+              ? "Limpezas Concluídas"
+              : "Limpezas Previstas"
             : undefined
         }
         subtitle={
@@ -3362,6 +3362,10 @@ const OPERATION_TABS = [
   { view: "resumo" as const, label: "Operacional", to: "/admin/dashboard" },
   { view: "kanban" as const, label: "Kanban", to: "/admin/dashboard/kanban" },
   { view: "limpeza" as const, label: "Limpeza", to: "/admin/dashboard/limpeza" },
+  // "Registros" (09/09/2026): as três primeiras respondem O QUE FAZER; esta
+  // responde O QUE FOI FEITO — as fotos, vídeos, áudios e notas que hoje só
+  // existem dentro do clipe de uma reserva específica.
+  { view: "registros" as const, label: "Registros", to: "/admin/dashboard/registros" },
 ];
 
 const OPERATION_COPY: Record<OperationView, { title: string; subtitle: string }> = {
@@ -3374,9 +3378,13 @@ const OPERATION_COPY: Record<OperationView, { title: string; subtitle: string }>
     subtitle: "Cada reserva na etapa em que ela realmente está.",
   },
   limpeza: { title: "Limpeza", subtitle: "Histórico e custos das limpezas realizadas." },
+  registros: {
+    title: "Registros",
+    subtitle: "Fotos, vídeos, áudios e notas de todos os imóveis.",
+  },
 };
 
-function OperationShell({
+export function OperationShell({
   view,
   title,
   subtitle,
@@ -3404,6 +3412,12 @@ function OperationShell({
   actions?: React.ReactNode;
 }) {
   const copy = OPERATION_COPY[view];
+  // ANTI-CORTE (regra global). Com TRÊS abas os rótulos ainda cabiam em
+  // quatro fatias iguais; com a quarta ("Registros"), "Operacional" passa a
+  // não caber na fatia e seria comprimida/cortada no celular — exatamente o
+  // que a regra proíbe. A barra vira então a mesma barra rolável do resto do
+  // app: rótulos inteiros, sobra vira espaçador invisível, sem degradê.
+  const tabsRef = useAntiClipBar<HTMLElement>();
   return (
     <div className="space-y-3">
       <div>
@@ -3420,15 +3434,16 @@ function OperationShell({
         <p className="ds-page-subtitle mt-1.5 truncate">{subtitle ?? copy.subtitle}</p>
       </div>
 
-      {/* Segmented control — Dashboard / Kanban (largura da página) */}
-      <nav className="mb-5 flex w-full overflow-hidden rounded-[0.3rem] bg-foreground/5">
+      {/* Segmented control — Operacional / Kanban / Limpeza / Registros */}
+      <nav ref={tabsRef} className="ds-segmented mb-5 rounded-[0.3rem] bg-foreground/5 p-1">
         {OPERATION_TABS.map((t) => {
           const active = t.view === view;
           return (
             <Link
               key={t.view}
               to={t.to}
-              className={`flex-1 px-3 py-3.5 text-center text-sm font-semibold leading-none flex items-center justify-center min-h-[46px] transition-colors ${
+              data-state={active ? "active" : "inactive"}
+              className={`flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-[0.25rem] px-3 py-3.5 text-center text-sm font-semibold leading-none transition-colors ${
                 active
                   ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
                   : "text-muted-foreground hover:text-foreground"

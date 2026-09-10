@@ -15,12 +15,23 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouterState } from "@tanstack/react-router";
-import { Sparkles, Send, Loader2, X, RotateCcw, Paperclip, Mic } from "lucide-react";
+import {
+  Sparkles,
+  Send,
+  Loader2,
+  X,
+  RotateCcw,
+  Paperclip,
+  Mic,
+  ChevronUp,
+  Check,
+} from "lucide-react";
 import {
   askAssistant,
   listAssistantThread,
   startAssistantThread,
   transcribeAssistantAudio,
+  recordAssistantAction,
 } from "@/lib/assistant.functions";
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
 import { createTask, deleteTasks, setTaskStatus, setTasksStatusBulk } from "@/lib/tasks.functions";
@@ -62,6 +73,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
   const startFn = useServerFn(startAssistantThread);
   const createTaskFn = useServerFn(createTask);
   const setStatusFn = useServerFn(setTaskStatus);
+  const recordActionFn = useServerFn(recordAssistantAction);
   const deleteTasksFn = useServerFn(deleteTasks);
   const setTasksBulkFn = useServerFn(setTasksStatusBulk);
   const noShowFn = useServerFn(markNoShow);
@@ -90,13 +102,43 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
     staleTime: 60_000,
   });
 
+  /**
+   * HISTÓRICO PERMANENTE (pedido explícito, 09/09/2026).
+   *
+   * O servidor devolve a última página e diz se existem mensagens anteriores;
+   * `older` guarda as páginas já buscadas, na ordem certa. Nada é descartado —
+   * o que existe é uma janela que a pessoa vai abrindo para trás.
+   *
+   * Carregar tudo de uma vez seria a única maneira de "mostrar tudo" que
+   * trava o navegador depois de alguns meses de uso.
+   */
+  const [older, setOlder] = useState<AssistantMessage[]>([]);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const oldestLoaded = older[0]?.createdAt ?? history.data?.messages?.[0]?.createdAt ?? null;
+  const [moreBefore, setMoreBefore] = useState<boolean | null>(null);
+  const hasOlder = moreBefore ?? history.data?.hasMore ?? false;
+
+  async function loadOlder() {
+    if (loadingOlder || !oldestLoaded) return;
+    setLoadingOlder(true);
+    try {
+      const res = await listFn({ data: { before: oldestLoaded } });
+      setOlder((prev) => [...res.messages, ...prev]);
+      setMoreBefore(res.hasMore);
+    } catch {
+      toast.error("Não consegui carregar as mensagens anteriores.");
+    } finally {
+      setLoadingOlder(false);
+    }
+  }
+
   useEffect(() => {
     if (history.data?.threadId && !threadId) setThreadId(history.data.threadId);
   }, [history.data?.threadId, threadId]);
 
   const messages = useMemo(
-    () => [...(history.data?.messages ?? []), ...live],
-    [history.data?.messages, live],
+    () => [...older, ...(history.data?.messages ?? []), ...live],
+    [older, history.data?.messages, live],
   );
 
   useEffect(() => {
@@ -332,6 +374,24 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
     onSuccess: (_r, p) => {
       setDoneActions((prev) => new Set(prev).add(JSON.stringify(p.action)));
       setPending(null);
+      /* A decisão vira mensagem e fica no histórico para sempre — inclusive
+         quando a confirmação automática está ligada e cartão nenhum chegou a
+         aparecer na tela. Falha aqui não desfaz a gravação nem incomoda a
+         pessoa: o que foi gravado, foi. */
+      if (threadId) {
+        void recordActionFn({
+          data: {
+            threadId,
+            label: p.confirmLabel,
+            detail: p.preview
+              .map((r) => `${r.label}: ${r.value}`)
+              .join(" · ")
+              .slice(0, 2000),
+          },
+        } as never)
+          .then(() => qc.invalidateQueries({ queryKey: ["assistant-thread"] }))
+          .catch(() => undefined);
+      }
       // Com a confirmação dispensada, este aviso é o ÚNICO sinal de que algo
       // foi gravado — então ele diz o quê, não só "feito".
       toast.success(p.confirmLabel ? `${p.confirmLabel} — feito.` : "Feito.");
@@ -344,12 +404,23 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
     },
   });
 
+  /**
+   * Começa uma conversa nova SEM LIMPAR A TELA.
+   *
+   * Antes esta função zerava a lista e reescrevia o cache com `messages: []` —
+   * o passado continuava no banco, mas desaparecia da vista, que na prática é
+   * a mesma coisa para quem está olhando. Agora ela só troca a thread onde a
+   * próxima pergunta entra (o que serve para dar contexto limpo à IA) e
+   * recarrega o histórico, que volta com tudo e uma divisória marcando o
+   * ponto onde a conversa recomeçou.
+   */
   async function newThread() {
     const res = await startFn();
     setThreadId(res.threadId);
     setLive([]);
     setPending(null);
-    qc.setQueryData(["assistant-thread"], { threadId: res.threadId, messages: [] });
+    await qc.invalidateQueries({ queryKey: ["assistant-thread"] });
+    toast.success("Conversa nova. O histórico continua aqui.");
   }
 
   const empty = !messages.length && !history.isLoading;
@@ -364,7 +435,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
         <div className="ml-auto flex shrink-0 items-center gap-1">
           <button
             onClick={newThread}
-            title="Começar uma conversa nova"
+            title="Começar uma conversa nova (o histórico continua aqui)"
             aria-label="Começar uma conversa nova"
             className={CHAT_HEADER_BTN}
           >
@@ -397,9 +468,45 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        {messages.map((m) => (
-          <MessageBubble key={m.id} message={m} />
-        ))}
+        {/* O histórico é contínuo: a divisória marca onde alguém começou uma
+            conversa nova, sem esconder o que veio antes. */}
+        {hasOlder && (
+          <div className="flex justify-center pb-1">
+            <button
+              type="button"
+              onClick={loadOlder}
+              disabled={loadingOlder}
+              className="inline-flex items-center gap-1.5 rounded-[0.3rem] bg-secondary/60 px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-60"
+            >
+              {loadingOlder ? (
+                <Loader2 className="size-3 animate-spin" />
+              ) : (
+                <ChevronUp className="size-3" />
+              )}
+              Carregar mensagens anteriores
+            </button>
+          </div>
+        )}
+
+        {messages.map((m, i) => {
+          const prev = i > 0 ? messages[i - 1] : null;
+          const newConversation =
+            !!prev && !!m.threadId && !!prev.threadId && m.threadId !== prev.threadId;
+          return (
+            <div key={m.id}>
+              {newConversation && (
+                <div className="my-3 flex items-center gap-2">
+                  <span className="h-px flex-1 bg-border" />
+                  <span className="text-[9.5px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+                    Nova conversa
+                  </span>
+                  <span className="h-px flex-1 bg-border" />
+                </div>
+              )}
+              <MessageBubble message={m} />
+            </div>
+          );
+        })}
 
         {ask.isPending && (
           <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
@@ -516,6 +623,33 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
 
 function MessageBubble({ message }: { message: AssistantMessage }) {
   const mine = message.role === "user";
+
+  /**
+   * Uma DECISÃO não é uma fala — e não pode se parecer com uma.
+   *
+   * "Criar em 9 imóveis" dito pela IA é uma proposta; gravado no histórico é
+   * um fato. Como bolha de conversa os dois ficariam idênticos, e depois de
+   * meses ninguém saberia distinguir o que foi sugerido do que foi feito. Por
+   * isso o registro de execução sai como uma linha própria, com o ✓ na cor de
+   * confirmado e a lista do que foi gravado embaixo.
+   */
+  if (message.executedAction) {
+    const [label, ...rest] = message.content.split("\n");
+    return (
+      <div className="flex items-start gap-2 rounded-[0.3rem] border border-emerald-500/25 bg-emerald-500/[0.06] px-2.5 py-2">
+        <Check className="mt-[3px] size-3.5 shrink-0 text-emerald-500" strokeWidth={3} />
+        <div className="min-w-0 flex-1">
+          <div className="text-[12px] font-semibold leading-snug">{label}</div>
+          {rest.length > 0 && (
+            <div className="mt-0.5 text-[10.5px] leading-snug text-muted-foreground">
+              {rest.join(" ")}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`flex flex-col gap-1.5 ${mine ? "items-end" : "items-start"}`}>
       <div

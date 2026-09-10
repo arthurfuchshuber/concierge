@@ -85,6 +85,7 @@ import { Route as ApiPublicCronConversationRemindersRouteImport } from './routes
 import { Route as ApiPublicCronAutoCheckoutRouteImport } from './routes/api/public/cron.auto-checkout'
 import { Route as AuthenticatedAdminRecomendacoesSigmaCityKeyRouteImport } from './routes/_authenticated/admin.recomendacoes-sigma.$cityKey'
 import { Route as AuthenticatedAdminPropertiesIdRouteImport } from './routes/_authenticated/admin.properties.$id'
+import { Route as AuthenticatedAdminDashboardRegistrosRouteImport } from './routes/_authenticated/admin.dashboard.registros'
 import { Route as AuthenticatedAdminDashboardLimpezaRouteImport } from './routes/_authenticated/admin.dashboard.limpeza'
 import { Route as AuthenticatedAdminDashboardKanbanRouteImport } from './routes/_authenticated/admin.dashboard.kanban'
 import { Route as AuthenticatedAdminDashboardCalendarioRouteImport } from './routes/_authenticated/admin.dashboard.calendario'
@@ -511,6 +512,12 @@ const AuthenticatedAdminPropertiesIdRoute =
     path: '/properties/$id',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminDashboardRegistrosRoute =
+  AuthenticatedAdminDashboardRegistrosRouteImport.update({
+    id: '/registros',
+    path: '/registros',
+    getParentRoute: () => AuthenticatedAdminDashboardRoute,
+  } as any)
 const AuthenticatedAdminDashboardLimpezaRoute =
   AuthenticatedAdminDashboardLimpezaRouteImport.update({
     id: '/limpeza',
@@ -590,6 +597,7 @@ export interface FileRoutesByFullPath {
   '/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
   '/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
   '/admin/dashboard/limpeza': typeof AuthenticatedAdminDashboardLimpezaRoute
+  '/admin/dashboard/registros': typeof AuthenticatedAdminDashboardRegistrosRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
@@ -668,6 +676,7 @@ export interface FileRoutesByTo {
   '/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
   '/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
   '/admin/dashboard/limpeza': typeof AuthenticatedAdminDashboardLimpezaRoute
+  '/admin/dashboard/registros': typeof AuthenticatedAdminDashboardRegistrosRoute
   '/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
@@ -751,6 +760,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/dashboard/calendario': typeof AuthenticatedAdminDashboardCalendarioRoute
   '/_authenticated/admin/dashboard/kanban': typeof AuthenticatedAdminDashboardKanbanRoute
   '/_authenticated/admin/dashboard/limpeza': typeof AuthenticatedAdminDashboardLimpezaRoute
+  '/_authenticated/admin/dashboard/registros': typeof AuthenticatedAdminDashboardRegistrosRoute
   '/_authenticated/admin/properties/$id': typeof AuthenticatedAdminPropertiesIdRoute
   '/_authenticated/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
@@ -834,6 +844,7 @@ export interface FileRouteTypes {
     | '/admin/dashboard/calendario'
     | '/admin/dashboard/kanban'
     | '/admin/dashboard/limpeza'
+    | '/admin/dashboard/registros'
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/auto-checkout'
@@ -912,6 +923,7 @@ export interface FileRouteTypes {
     | '/admin/dashboard/calendario'
     | '/admin/dashboard/kanban'
     | '/admin/dashboard/limpeza'
+    | '/admin/dashboard/registros'
     | '/admin/properties/$id'
     | '/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/auto-checkout'
@@ -994,6 +1006,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/dashboard/calendario'
     | '/_authenticated/admin/dashboard/kanban'
     | '/_authenticated/admin/dashboard/limpeza'
+    | '/_authenticated/admin/dashboard/registros'
     | '/_authenticated/admin/properties/$id'
     | '/_authenticated/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/auto-checkout'
@@ -1611,6 +1624,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminPropertiesIdRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/dashboard/registros': {
+      id: '/_authenticated/admin/dashboard/registros'
+      path: '/registros'
+      fullPath: '/admin/dashboard/registros'
+      preLoaderRoute: typeof AuthenticatedAdminDashboardRegistrosRouteImport
+      parentRoute: typeof AuthenticatedAdminDashboardRoute
+    }
     '/_authenticated/admin/dashboard/limpeza': {
       id: '/_authenticated/admin/dashboard/limpeza'
       path: '/limpeza'
@@ -1646,6 +1666,7 @@ interface AuthenticatedAdminDashboardRouteChildren {
   AuthenticatedAdminDashboardCalendarioRoute: typeof AuthenticatedAdminDashboardCalendarioRoute
   AuthenticatedAdminDashboardKanbanRoute: typeof AuthenticatedAdminDashboardKanbanRoute
   AuthenticatedAdminDashboardLimpezaRoute: typeof AuthenticatedAdminDashboardLimpezaRoute
+  AuthenticatedAdminDashboardRegistrosRoute: typeof AuthenticatedAdminDashboardRegistrosRoute
   AuthenticatedAdminDashboardIndexRoute: typeof AuthenticatedAdminDashboardIndexRoute
 }
 
@@ -1657,6 +1678,8 @@ const AuthenticatedAdminDashboardRouteChildren: AuthenticatedAdminDashboardRoute
       AuthenticatedAdminDashboardKanbanRoute,
     AuthenticatedAdminDashboardLimpezaRoute:
       AuthenticatedAdminDashboardLimpezaRoute,
+    AuthenticatedAdminDashboardRegistrosRoute:
+      AuthenticatedAdminDashboardRegistrosRoute,
     AuthenticatedAdminDashboardIndexRoute:
       AuthenticatedAdminDashboardIndexRoute,
   }

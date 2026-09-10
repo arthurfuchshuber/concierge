@@ -15,7 +15,11 @@ const MAPS_GATEWAY = "https://connector-gateway.lovable.dev/google_maps";
 /** Busca a primeira foto real (Google Places) de um lugar pelo nome — mesmo
  * padrão usado no city-news, reaproveitado aqui pra ilustrar recomendações
  * no chat. Limitado a poucos lugares por chamada (custo/latência). */
-async function firstPlacePhoto(name: string, city: string, regionCode: string): Promise<string | null> {
+async function firstPlacePhoto(
+  name: string,
+  city: string,
+  regionCode: string,
+): Promise<string | null> {
   const key = process.env.LOVABLE_API_KEY;
   const mapsKey = process.env.GOOGLE_MAPS_API_KEY_2 ?? process.env.GOOGLE_MAPS_API_KEY;
   if (!key || !mapsKey) return null;
@@ -81,7 +85,12 @@ export type ToolContext = {
   checkoutDate: string | null;
   sensitiveLocked: boolean;
   /** Registra as fontes efetivamente consultadas (observabilidade + validação). */
-  collectSource: (entry: { source: string; title?: string | null; confidence: number; content?: string }) => void;
+  collectSource: (entry: {
+    source: string;
+    title?: string | null;
+    confidence: number;
+    content?: string;
+  }) => void;
   /** Marca que o atendimento precisa de humano. */
   requestHandoff: (reason: string, urgency: "low" | "normal" | "high") => void;
 };
@@ -96,7 +105,10 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
       "procedimentos e base de conhecimento do anfitrião. USE SEMPRE antes de afirmar qualquer coisa sobre a hospedagem.",
     parameters: schema(
       {
-        query: { type: "string", description: "Consulta objetiva sobre o que precisa ser verificado." },
+        query: {
+          type: "string",
+          description: "Consulta objetiva sobre o que precisa ser verificado.",
+        },
       },
       ["query"],
     ),
@@ -109,7 +121,12 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         query,
       });
       for (const p of passages) {
-        ctx.collectSource({ source: p.source, title: p.title, confidence: p.confidence, content: p.content });
+        ctx.collectSource({
+          source: p.source,
+          title: p.title,
+          confidence: p.confidence,
+          content: p.content,
+        });
       }
       return {
         found: passages.length,
@@ -131,7 +148,8 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
     parameters: schema({}, []),
     execute: async () => {
       const p = ctx.property;
-      const mask = (v: unknown) => (ctx.sensitiveLocked ? "[BLOQUEADO POR SENHA — hóspede deve liberar no guia]" : (v ?? null));
+      const mask = (v: unknown) =>
+        ctx.sensitiveLocked ? "[BLOQUEADO POR SENHA — hóspede deve liberar no guia]" : (v ?? null);
       // Instruções operacionais podem trazer o código escrito na frase: com o
       // guia bloqueado, qualquer sequência numérica sai antes de chegar à IA.
       const maskDigits = (v: unknown) => {
@@ -141,7 +159,11 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
           ? text.replace(/\d[\d\s.-]{2,}/g, "[BLOQUEADO — liberar no guia]")
           : text;
       };
-      ctx.collectSource({ source: "property", title: "Dados da residência", confidence: confidenceOf("property") });
+      ctx.collectSource({
+        source: "property",
+        title: "Dados da residência",
+        confidence: confidenceOf("property"),
+      });
       return {
         nome: p.name ?? null,
         cidade: p.city ?? null,
@@ -208,7 +230,11 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         .select("name, address, address_note")
         .eq("id", ctx.propertyId)
         .maybeSingle();
-      const p = prop as { name: string | null; address: string | null; address_note: string | null } | null;
+      const p = prop as {
+        name: string | null;
+        address: string | null;
+        address_note: string | null;
+      } | null;
       const unidade = {
         imovel: p?.name ?? null,
         endereco: [p?.address, p?.address_note].filter(Boolean).join(" — ") || null,
@@ -238,9 +264,15 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         created_at: string | null;
       }>;
       const norm = (v: string | null) =>
-        (v ?? "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        (v ?? "")
+          .trim()
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "");
       const target = norm(ctx.guestName ?? null);
-      const todayIso = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+      const todayIso = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(
+        new Date(),
+      );
       const covers = (l: (typeof logs)[number]) => {
         if (!l.checkin_date) return false;
         const ci = String(l.checkin_date).slice(0, 10);
@@ -249,6 +281,9 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
       };
       let log: (typeof logs)[number] | null = null;
       if (target) {
+        // COM nome informado, só vale o que casa com ESTE hóspede. Cair para o
+        // formulário mais recente do imóvel devolveria as datas de outra
+        // pessoa como se fossem dele — pior que não achar nada.
         log =
           logs.find((l) => norm(l.guest_name) === target) ??
           logs.find((l) => {
@@ -257,15 +292,23 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
             return !!a && !!b && a === b;
           }) ??
           null;
+      } else {
+        // Sem nome no contexto, a estadia que cobre hoje é a única inferência
+        // defensável; nunca "a mais recente".
+        log = logs.find(covers) ?? null;
       }
-      if (!log) log = logs.find(covers) ?? logs[0] ?? null;
 
-      ctx.collectSource({ source: "reservation", title: "Reserva do hóspede", confidence: confidenceOf("reservation") });
+      ctx.collectSource({
+        source: "reservation",
+        title: "Reserva do hóspede",
+        confidence: confidenceOf("reservation"),
+      });
       if (!log?.checkin_date) {
         return {
           ...unidade,
           encontrada: false,
-          motivo: "não há formulário de acesso casado com este hóspede — as DATAS não puderam ser confirmadas",
+          motivo:
+            "não há formulário de acesso casado com este hóspede — as DATAS não puderam ser confirmadas",
           observacao: "A unidade acima é a deste guia e vale mesmo sem o formulário.",
         };
       }
@@ -318,7 +361,9 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         `${row.category ?? ""} ${row.type ?? ""} ${row.name ?? ""}`.toLowerCase().includes(filter);
 
       const proximas = (recs ?? []).filter(matches).slice(0, 25);
-      const cidade = ((cityRefs ?? []) as Array<Record<string, unknown>>).filter(matches).slice(0, 30);
+      const cidade = ((cityRefs ?? []) as Array<Record<string, unknown>>)
+        .filter(matches)
+        .slice(0, 30);
 
       // Ilustra só os primeiros de cada grupo com foto real — o resto fica
       // sem foto (a IA não perde a lista, só não teria como decidir quais
@@ -339,8 +384,18 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         withPhotos(cidade, 4),
       ]);
 
-      if (proximas.length) ctx.collectSource({ source: "recommendation", title: "Recomendações próximas", confidence: confidenceOf("recommendation") });
-      if (cidade.length) ctx.collectSource({ source: "city_reference", title: "Referências da cidade", confidence: confidenceOf("city_reference") });
+      if (proximas.length)
+        ctx.collectSource({
+          source: "recommendation",
+          title: "Recomendações próximas",
+          confidence: confidenceOf("recommendation"),
+        });
+      if (cidade.length)
+        ctx.collectSource({
+          source: "city_reference",
+          title: "Referências da cidade",
+          confidence: confidenceOf("city_reference"),
+        });
 
       return { proximas: proximasComFoto, cidade: cidadeComFoto };
     },
@@ -365,7 +420,12 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
       const query = `${String(args.consulta ?? "").slice(0, 160)}${city ? ` em ${city}` : ""}`;
       try {
         const { throttledFetch } = await import("@/lib/places-throttle.server");
-        const body = JSON.stringify({ textQuery: query, languageCode: "pt-BR", regionCode: "BR", pageSize: 6 });
+        const body = JSON.stringify({
+          textQuery: query,
+          languageCode: "pt-BR",
+          regionCode: "BR",
+          pageSize: 6,
+        });
         const res = await throttledFetch(
           `${MAPS_GATEWAY}/places/v1/places:searchText`,
           {
@@ -405,7 +465,8 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
             foto,
           };
         });
-        if (lugares.length) ctx.collectSource({ source: "maps", title: query, confidence: confidenceOf("maps") });
+        if (lugares.length)
+          ctx.collectSource({ source: "maps", title: query, confidence: confidenceOf("maps") });
         return { disponivel: true, lugares };
       } catch (err) {
         console.error("[tool search_places]", err);
@@ -427,11 +488,13 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
       {
         consulta: {
           type: "string",
-          description: "Pergunta objetiva a pesquisar. Não inclua nome, telefone ou dados do hóspede.",
+          description:
+            "Pergunta objetiva a pesquisar. Não inclua nome, telefone ou dados do hóspede.",
         },
         recente: {
           type: ["boolean", "null"],
-          description: "true quando a resposta depende de algo desta semana (evento, agenda, horário sazonal).",
+          description:
+            "true quando a resposta depende de algo desta semana (evento, agenda, horário sazonal).",
         },
       },
       ["consulta", "recente"],
@@ -440,7 +503,9 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
       const key = process.env.FIRECRAWL_API_KEY;
       if (!key) return { disponivel: false, motivo: "busca externa indisponível" };
       const city = (ctx.property.city as string) ?? "";
-      const consulta = String(args.consulta ?? "").slice(0, 180).trim();
+      const consulta = String(args.consulta ?? "")
+        .slice(0, 180)
+        .trim();
       if (consulta.length < 3) return { disponivel: false };
       const query = city ? `${consulta} ${city}` : consulta;
       // Domínios que nunca servem de fonte para o hóspede (conteúdo gerado por
@@ -465,7 +530,9 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
           return { disponivel: false };
         }
         const j = (await res.json()) as {
-          data?: Array<{ url?: string; title?: string; description?: string }> | { web?: Array<{ url?: string; title?: string; description?: string }> };
+          data?:
+            | Array<{ url?: string; title?: string; description?: string }>
+            | { web?: Array<{ url?: string; title?: string; description?: string }> };
         };
         const list = Array.isArray(j.data) ? j.data : (j.data?.web ?? []);
         const seen = new Set<string>();
@@ -496,7 +563,11 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
             })(),
           }));
         if (!resultados.length) return { disponivel: false };
-        ctx.collectSource({ source: "web", title: `Busca externa: ${consulta}`, confidence: confidenceOf("web") });
+        ctx.collectSource({
+          source: "web",
+          title: `Busca externa: ${consulta}`,
+          confidence: confidenceOf("web"),
+        });
         return {
           disponivel: true,
           aviso:
@@ -510,15 +581,16 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
     },
   });
 
-
   tools.push({
     name: "get_weather",
-    description: "Previsão do tempo atual da cidade da hospedagem. Use para perguntas sobre clima e planejamento do dia.",
+    description:
+      "Previsão do tempo atual da cidade da hospedagem. Use para perguntas sobre clima e planejamento do dia.",
     parameters: schema({}, []),
     execute: async () => {
       const lat = ctx.property.lat != null ? Number(ctx.property.lat) : null;
       const lng = ctx.property.lng != null ? Number(ctx.property.lng) : null;
-      if (lat == null || lng == null || Number.isNaN(lat) || Number.isNaN(lng)) return { disponivel: false };
+      if (lat == null || lng == null || Number.isNaN(lat) || Number.isNaN(lng))
+        return { disponivel: false };
       try {
         const res = await fetch(
           `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&forecast_days=3&timezone=auto`,
@@ -526,7 +598,11 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         );
         if (!res.ok) return { disponivel: false };
         const j = (await res.json()) as Record<string, unknown>;
-        ctx.collectSource({ source: "weather", title: "Previsão do tempo", confidence: confidenceOf("weather") });
+        ctx.collectSource({
+          source: "weather",
+          title: "Previsão do tempo",
+          confidence: confidenceOf("weather"),
+        });
         return { disponivel: true, atual: j.current, proximos_dias: j.daily };
       } catch {
         return { disponivel: false };
@@ -556,7 +632,9 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
           .maybeSingle();
         const today = new Date().toISOString().slice(0, 10);
         const { filterUpcoming } = await import("@/lib/city-news.functions");
-        const raw = Array.isArray(data?.items) ? (data!.items as Array<Record<string, unknown>>) : [];
+        const raw = Array.isArray(data?.items)
+          ? (data!.items as Array<Record<string, unknown>>)
+          : [];
         // Nunca oferecemos ao hóspede algo que já aconteceu.
         const items = filterUpcoming(
           raw as unknown as Array<{ title: string; category: string }>,
@@ -599,7 +677,11 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
       "acontece, cada um continua isolado — isso é esperado, não avise como se fosse um erro.",
     parameters: schema(
       {
-        modo: { type: "string", enum: ["individual", "group"], description: "O que o hóspede escolheu." },
+        modo: {
+          type: "string",
+          enum: ["individual", "group"],
+          description: "O que o hóspede escolheu.",
+        },
       },
       ["modo"],
     ),
@@ -626,8 +708,17 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
     parameters: schema({}, []),
     execute: async () => {
       const { getItinerary } = await import("./itinerary.server");
-      const days = await getItinerary({ supabase: ctx.supabase, propertyId: ctx.propertyId, guestKey: ctx.guestKey });
-      if (days.length) ctx.collectSource({ source: "itinerary", title: "Roteiro do hóspede", confidence: confidenceOf("itinerary") });
+      const days = await getItinerary({
+        supabase: ctx.supabase,
+        propertyId: ctx.propertyId,
+        guestKey: ctx.guestKey,
+      });
+      if (days.length)
+        ctx.collectSource({
+          source: "itinerary",
+          title: "Roteiro do hóspede",
+          confidence: confidenceOf("itinerary"),
+        });
       return { dias: days };
     },
   });
@@ -636,18 +727,28 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
     name: "add_itinerary_item",
     description:
       "Adiciona um item ao roteiro do hóspede num dia específico. Use quando o hóspede confirmar interesse em " +
-      "algo (\"vamos fazer isso no sábado\", \"quero ir nesse restaurante\") ou pedir explicitamente pra você " +
+      'algo ("vamos fazer isso no sábado", "quero ir nesse restaurante") ou pedir explicitamente pra você ' +
       "montar/atualizar o roteiro — não adicione algo que o hóspede só mencionou de passagem sem confirmar.",
     parameters: schema(
       {
         data: { type: "string", description: "Data no formato YYYY-MM-DD." },
-        horario: { type: ["string", "null"], description: "Horário HH:MM, ou null se não tiver hora definida." },
-        titulo: { type: "string", description: "Nome curto do item (ex.: 'Cataratas do Iguaçu — trilha das Cataratas')." },
-        nota: { type: ["string", "null"], description: "Detalhe curto opcional (ex.: 'levar protetor solar')." },
+        horario: {
+          type: ["string", "null"],
+          description: "Horário HH:MM, ou null se não tiver hora definida.",
+        },
+        titulo: {
+          type: "string",
+          description: "Nome curto do item (ex.: 'Cataratas do Iguaçu — trilha das Cataratas').",
+        },
+        nota: {
+          type: ["string", "null"],
+          description: "Detalhe curto opcional (ex.: 'levar protetor solar').",
+        },
         origem: {
           type: "string",
           enum: ["recommendation", "maps", "guest_request", "ai"],
-          description: "De onde veio a sugestão: recommendation/maps = veio de list_recommendations/search_places; guest_request = o próprio hóspede pediu; ai = sugestão sua sem ferramenta.",
+          description:
+            "De onde veio a sugestão: recommendation/maps = veio de list_recommendations/search_places; guest_request = o próprio hóspede pediu; ai = sugestão sua sem ferramenta.",
         },
       },
       ["data", "horario", "titulo", "nota", "origem"],
@@ -664,11 +765,9 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         time: typeof args.horario === "string" ? args.horario : null,
         title: String(args.titulo ?? ""),
         note: typeof args.nota === "string" ? args.nota : null,
-        source: (["recommendation", "maps", "guest_request", "ai"].includes(String(args.origem)) ? args.origem : "ai") as
-          | "recommendation"
-          | "maps"
-          | "guest_request"
-          | "ai",
+        source: (["recommendation", "maps", "guest_request", "ai"].includes(String(args.origem))
+          ? args.origem
+          : "ai") as "recommendation" | "maps" | "guest_request" | "ai",
       });
       return { ok: true, dias: days };
     },
@@ -676,8 +775,12 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
 
   tools.push({
     name: "remove_itinerary_item",
-    description: "Remove um item do roteiro do hóspede pelo id (obtido via get_itinerary). Use quando o hóspede desistir de algo ou pedir pra tirar do roteiro.",
-    parameters: schema({ item_id: { type: "string", description: "id do item, como retornado por get_itinerary." } }, ["item_id"]),
+    description:
+      "Remove um item do roteiro do hóspede pelo id (obtido via get_itinerary). Use quando o hóspede desistir de algo ou pedir pra tirar do roteiro.",
+    parameters: schema(
+      { item_id: { type: "string", description: "id do item, como retornado por get_itinerary." } },
+      ["item_id"],
+    ),
     execute: async (args) => {
       const { removeItineraryItem } = await import("./itinerary.server");
       const { days, removed } = await removeItineraryItem({
@@ -700,7 +803,10 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
       "necessária NÃO estiver nas fontes oficiais consultadas. Melhor escalar do que arriscar resposta errada.",
     parameters: schema(
       {
-        reason: { type: "string", description: "Resumo em 3ª pessoa do que o hóspede precisa (máx 220 caracteres)." },
+        reason: {
+          type: "string",
+          description: "Resumo em 3ª pessoa do que o hóspede precisa (máx 220 caracteres).",
+        },
         urgency: { type: "string", enum: ["low", "normal", "high"] },
       },
       ["reason", "urgency"],

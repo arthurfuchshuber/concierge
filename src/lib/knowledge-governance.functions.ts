@@ -13,7 +13,10 @@ type Ctx = {
 };
 
 async function isPlatformAdmin(context: Ctx): Promise<boolean> {
-  const { data } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+  const { data } = await context.supabase.rpc("has_role", {
+    _user_id: context.userId,
+    _role: "admin",
+  });
   return data === true;
 }
 
@@ -67,7 +70,11 @@ export const listOperationKnowledge = createServerFn({ method: "POST" })
     const tenantId = await assertTenant(context as never, data.tenantId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { listTenantKnowledge } = await import("@/lib/ai/governance/tenant-knowledge.server");
-    const rows = await listTenantKnowledge({ supabase: supabaseAdmin, tenantId, status: data.status });
+    const rows = await listTenantKnowledge({
+      supabase: supabaseAdmin,
+      tenantId,
+      status: data.status,
+    });
     return rows.map((r) => ({
       id: String(r.id),
       title: String(r.title ?? ""),
@@ -108,7 +115,8 @@ export const saveOperationKnowledge = createServerFn({ method: "POST" })
     const tenantId = await assertTenant(context as never, data.tenantId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { upsertTenantKnowledge } = await import("@/lib/ai/governance/tenant-knowledge.server");
-    const email = ((context.claims as Record<string, unknown> | undefined)?.["email"] as string) ?? null;
+    const email =
+      ((context.claims as Record<string, unknown> | undefined)?.["email"] as string) ?? null;
     await upsertTenantKnowledge({
       supabase: supabaseAdmin,
       tenantId,
@@ -136,7 +144,8 @@ export const archiveOperationKnowledge = createServerFn({ method: "POST" })
     const tenantId = await assertTenant(context as never, data.tenantId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { archiveTenantKnowledge } = await import("@/lib/ai/governance/tenant-knowledge.server");
-    const email = ((context.claims as Record<string, unknown> | undefined)?.["email"] as string) ?? null;
+    const email =
+      ((context.claims as Record<string, unknown> | undefined)?.["email"] as string) ?? null;
     await archiveTenantKnowledge({
       supabase: supabaseAdmin,
       tenantId,
@@ -171,8 +180,13 @@ export const listGlobalInsights = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<GlobalInsightRow[]> => {
     await requireAdmin(context as never);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { listGlobalIntelligence } = await import("@/lib/ai/governance/global-intelligence.server");
-    const rows = await listGlobalIntelligence({ supabase: supabaseAdmin, status: data.status });
+    const { listGlobalIntelligence } =
+      await import("@/lib/ai/governance/global-intelligence.server");
+    const rows = await listGlobalIntelligence({
+      supabase: supabaseAdmin,
+      status: data.status,
+      includeEvidence: true,
+    });
     return rows.map((r) => ({
       id: String(r.id),
       title: String(r.title ?? ""),
@@ -211,8 +225,10 @@ export const saveGlobalInsight = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await requireAdmin(context as never);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { upsertGlobalIntelligence } = await import("@/lib/ai/governance/global-intelligence.server");
-    const email = ((context.claims as Record<string, unknown> | undefined)?.["email"] as string) ?? null;
+    const { upsertGlobalIntelligence } =
+      await import("@/lib/ai/governance/global-intelligence.server");
+    const email =
+      ((context.claims as Record<string, unknown> | undefined)?.["email"] as string) ?? null;
     await upsertGlobalIntelligence({
       supabase: supabaseAdmin,
       actorId: context.userId,
@@ -276,8 +292,10 @@ export const promoteLearningToGlobal = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await requireAdmin(context as never);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { promoteCandidateToGlobal } = await import("@/lib/ai/governance/global-intelligence.server");
-    const email = ((context.claims as Record<string, unknown> | undefined)?.["email"] as string) ?? null;
+    const { promoteCandidateToGlobal } =
+      await import("@/lib/ai/governance/global-intelligence.server");
+    const email =
+      ((context.claims as Record<string, unknown> | undefined)?.["email"] as string) ?? null;
     await promoteCandidateToGlobal({
       supabase: supabaseAdmin,
       candidateId: data.candidateId,
@@ -293,7 +311,8 @@ export const getAgentImprovement = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await requireAdmin(context as never);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { agentImprovementOverview } = await import("@/lib/ai/governance/global-intelligence.server");
+    const { agentImprovementOverview } =
+      await import("@/lib/ai/governance/global-intelligence.server");
     return agentImprovementOverview({ supabase: supabaseAdmin, days: data.days ?? 30 });
   });
 
@@ -347,7 +366,11 @@ export const reviewPromptEvolution = createServerFn({ method: "POST" })
     const { logSystemEvent } = await import("@/lib/ai/audit/events.server");
     const { error } = await supabaseAdmin
       .from("ai_prompt_change_candidates")
-      .update({ status: data.status, reviewed_by: context.userId, reviewed_at: new Date().toISOString() })
+      .update({
+        status: data.status,
+        reviewed_by: context.userId,
+        reviewed_at: new Date().toISOString(),
+      })
       .eq("id", data.id);
     if (error) throw error;
     await logSystemEvent(supabaseAdmin, {

@@ -7,19 +7,26 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logSystemEvent } from "../audit/events.server";
 
+/** Colunas seguras: `evidence`/`metadata` podem conter trechos derivados de
+ * conversas de outros clientes e só são legíveis pelo serviço interno. */
+const SAFE_COLUMNS =
+  "id, title, insight, category, source_conversations, source_tenants, confidence, impact_estimate, impact_percentage, status, published_at, created_by, created_at, updated_at";
+
 export async function listGlobalIntelligence(params: {
   supabase: SupabaseClient;
   status?: string;
+  /** Só para clientes de serviço (admin): inclui evidências e metadados. */
+  includeEvidence?: boolean;
 }): Promise<Array<Record<string, unknown>>> {
   let q = params.supabase
     .from("ai_global_intelligence")
-    .select("*")
+    .select(params.includeEvidence ? "*" : SAFE_COLUMNS)
     .order("created_at", { ascending: false })
     .limit(300);
   if (params.status) q = q.eq("status", params.status);
   const { data, error } = await q;
   if (error) throw error;
-  return (data ?? []) as Array<Record<string, unknown>>;
+  return (data ?? []) as unknown as Array<Record<string, unknown>>;
 }
 
 export async function upsertGlobalIntelligence(params: {
@@ -109,7 +116,9 @@ export async function promoteCandidateToGlobal(params: {
     },
   });
 
-  const history = Array.isArray(row.application_history) ? (row.application_history as unknown[]) : [];
+  const history = Array.isArray(row.application_history)
+    ? (row.application_history as unknown[])
+    : [];
   await params.supabase
     .from("ai_learning_candidates")
     .update({
@@ -147,15 +156,17 @@ export async function learningPipeline(params: {
 export async function agentImprovementOverview(params: {
   supabase: SupabaseClient;
   days?: number;
-}): Promise<Array<{
-  agent: string;
-  interactions: number;
-  resolutionRate: number | null;
-  escalations: number;
-  errors: number;
-  avgConfidence: number | null;
-  suggestions: number;
-}>> {
+}): Promise<
+  Array<{
+    agent: string;
+    interactions: number;
+    resolutionRate: number | null;
+    escalations: number;
+    errors: number;
+    avgConfidence: number | null;
+    suggestions: number;
+  }>
+> {
   const days = params.days ?? 30;
   const since = new Date(Date.now() - days * 86_400_000).toISOString();
   const { data } = await params.supabase
@@ -166,11 +177,25 @@ export async function agentImprovementOverview(params: {
 
   const map = new Map<
     string,
-    { interactions: number; resolved: number; escalations: number; errors: number; confSum: number; confN: number }
+    {
+      interactions: number;
+      resolved: number;
+      escalations: number;
+      errors: number;
+      confSum: number;
+      confN: number;
+    }
   >();
   for (const r of (data ?? []) as Array<Record<string, unknown>>) {
     const agent = String(r.selected_agent ?? "generalist");
-    const cur = map.get(agent) ?? { interactions: 0, resolved: 0, escalations: 0, errors: 0, confSum: 0, confN: 0 };
+    const cur = map.get(agent) ?? {
+      interactions: 0,
+      resolved: 0,
+      escalations: 0,
+      errors: 0,
+      confSum: 0,
+      confN: 0,
+    };
     cur.interactions += 1;
     if (r.needs_human !== true) cur.resolved += 1;
     if (r.escalation_triggered === true) cur.escalations += 1;

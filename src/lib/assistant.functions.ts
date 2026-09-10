@@ -283,7 +283,39 @@ export const askAssistant = createServerFn({ method: "POST" })
 
 // ----- Histórico -----
 
-const ThreadInput = z.object({ threadId: z.string().uuid().nullable().optional() }).optional();
+/**
+ * HISTÓRICO PERMANENTE (pedido explícito, 09/09/2026): "o histórico COMPLETO
+ * da conversa do usuário com a IA precisa permanecer eternamente no chat —
+ * todas as conversas, todas as decisões, tudo".
+ *
+ * Três coisas escondiam o passado, e nenhuma delas apagava nada — o que torna
+ * a correção puramente de leitura:
+ *
+ *   1. A consulta lia UMA thread só (a mais recente). Tudo que veio antes de
+ *      um "nova conversa" continuava no banco e sumia da tela.
+ *   2. Ela parava em 60 mensagens.
+ *   3. As ações CONFIRMADAS não viravam mensagem: o cartão sumia e, depois de
+ *      recarregar, não havia registro nenhum de que aquilo tinha sido feito.
+ *      O (3) está resolvido em `recordAssistantAction`, logo abaixo.
+ *
+ * Agora a leitura é por USUÁRIO, não por thread, e vem paginada do fim para o
+ * começo: a tela abre com as últimas `PAGE` mensagens e busca as anteriores
+ * conforme a pessoa sobe. Trazer dez mil mensagens de uma vez seria a única
+ * forma de "mostrar tudo" que trava o navegador — paginar é o que mantém a
+ * promessa de que nada some.
+ *
+ * `threadId` de cada mensagem vem junto para a interface desenhar a divisória
+ * de "nova conversa" onde ela existiu.
+ */
+const HISTORY_PAGE = 100;
+
+const ThreadInput = z
+  .object({
+    threadId: z.string().uuid().nullable().optional(),
+    /** Busca as mensagens ANTERIORES a este instante (paginação para trás). */
+    before: z.string().nullable().optional(),
+  })
+  .optional();
 
 export const listAssistantThread = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -292,9 +324,16 @@ export const listAssistantThread = createServerFn({ method: "GET" })
     async ({
       data,
       context,
-    }): Promise<{ threadId: string | null; messages: AssistantMessage[] }> => {
+    }): Promise<{
+      threadId: string | null;
+      messages: AssistantMessage[];
+      /** Existem mensagens mais antigas do que a primeira desta página. */
+      hasMore: boolean;
+    }> => {
       const db = context.supabase as unknown as AnyClient;
 
+      // A thread ATUAL (onde a próxima pergunta entra) continua sendo a mais
+      // recente — o histórico ser completo não muda onde a conversa continua.
       let threadId = data.threadId ?? null;
       if (!threadId) {
         const { data: last } = await db
@@ -304,38 +343,87 @@ export const listAssistantThread = createServerFn({ method: "GET" })
           .limit(1);
         threadId = (last?.[0] as { id: string } | undefined)?.id ?? null;
       }
-      if (!threadId) return { threadId: null, messages: [] };
 
-      const { data: rows } = await db
+      // Ordena DESC para pegar as mais recentes (ou as anteriores ao cursor) e
+      // inverte no fim — não dá para "pegar as últimas N" ordenando ASC.
+      let q = db
         .from("assistant_messages")
-        .select("id, role, content, meta, created_at")
-        .eq("thread_id", threadId)
-        .order("created_at", { ascending: true })
-        .limit(60);
+        .select("id, thread_id, role, content, meta, created_at")
+        .eq("user_id", context.userId)
+        .order("created_at", { ascending: false })
+        .limit(HISTORY_PAGE + 1);
+      if (data.before) q = q.lt("created_at", data.before);
+      const { data: rows } = await q;
 
-      const messages: AssistantMessage[] = (
-        (rows ?? []) as Array<{
-          id: string;
-          role: string;
-          content: string;
-          meta: Record<string, unknown> | null;
-          created_at: string;
-        }>
-      ).map((r) => ({
+      const raw = (rows ?? []) as Array<{
+        id: string;
+        thread_id: string | null;
+        role: string;
+        content: string;
+        meta: Record<string, unknown> | null;
+        created_at: string;
+      }>;
+      const hasMore = raw.length > HISTORY_PAGE;
+      const page = (hasMore ? raw.slice(0, HISTORY_PAGE) : raw).reverse();
+
+      const messages: AssistantMessage[] = page.map((r) => ({
         id: r.id,
+        threadId: r.thread_id,
         role: r.role === "user" ? "user" : "assistant",
         content: r.content,
         createdAt: r.created_at,
         sources: (r.meta?.sources as AssistantSource[]) ?? [],
-        // Ação preparada não sobrevive ao recarregar: os dados podem ter mudado
+        /** O que foi de fato GRAVADO naquele turno — ver recordAssistantAction. */
+        executedAction: (r.meta?.executedAction as string | undefined) ?? null,
+        // Ação PREPARADA não sobrevive ao recarregar: os dados podem ter mudado
         // desde então, e confirmar às cegas uma proposta velha é como a pessoa
-        // gravaria algo que já não faz sentido.
+        // gravaria algo que já não faz sentido. O que fica registrado para
+        // sempre é o que foi executado, não o que foi proposto.
         pendingAction: null,
       }));
 
-      return { threadId, messages };
+      return { threadId, messages, hasMore };
     },
   );
+
+/**
+ * Registra no histórico que uma ação foi EXECUTADA.
+ *
+ * Sem isto, "todas as decisões" não se sustentava: o cartão de confirmação era
+ * um objeto de tela: sumia ao confirmar e não deixava rastro nenhum na
+ * conversa. Depois de recarregar, a pergunta "isso chegou a ser feito?" não
+ * tinha resposta ali dentro — e com a confirmação automática ligada nem cartão
+ * existe para ver.
+ *
+ * Vira uma mensagem do assistente com `meta.executedAction`, na mesma thread.
+ * Fica no histórico como qualquer outra, para sempre.
+ */
+export const recordAssistantAction = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        threadId: z.string().uuid(),
+        label: z.string().trim().min(1).max(300),
+        detail: z.string().trim().max(2000).nullable().optional(),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    const db = context.supabase as unknown as AnyClient;
+    await db.from("assistant_messages").insert({
+      thread_id: data.threadId,
+      user_id: context.userId,
+      role: "assistant",
+      content: data.detail ? `${data.label}\n${data.detail}` : data.label,
+      meta: { executedAction: data.label },
+    });
+    await db
+      .from("assistant_threads")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", data.threadId);
+    return { ok: true };
+  });
 
 /**
  * Transcreve um áudio gravado no painel (pedido explícito, 07/09/2026).

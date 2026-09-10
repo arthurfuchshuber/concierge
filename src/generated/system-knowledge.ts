@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-09T21:47:10.417Z";
+export const GENERATED_AT = "2026-09-10T00:13:39.363Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -85,6 +85,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/routes/_authenticated/admin.dashboard.limpeza.tsx",
     "audience": [],
     "content_hash": "90714c885b613af323056da6061d15c5"
+  },
+  {
+    "doc_key": "route:/admin/dashboard/registros",
+    "kind": "route",
+    "title": "Registros — ConciergeIA — tela /admin/dashboard/registros",
+    "content": "Caminho no sistema: /admin/dashboard/registros\n\nFotos, vídeos, áudios e notas registrados em todos os imóveis.",
+    "source_path": "src/routes/_authenticated/admin.dashboard.registros.tsx",
+    "audience": [],
+    "content_hash": "0e6b71b1d4dbad55a319d66ce5d26778"
   },
   {
     "doc_key": "route:/admin/engajamento",
@@ -780,6 +789,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "4dea2f26097fe9d43ecd94ee106f5d8c"
   },
   {
+    "doc_key": "rule:GroupBy",
+    "kind": "rule",
+    "title": "Regra — GroupBy",
+    "content": "ABA \"REGISTROS\" (mockup aprovado, 09/09/2026 — a tela \"filtrado por dano,\nagrupado por imóvel\").\n\nO dado já era rico; o que faltava era a PORTA. Um registro só existia\ndentro do clipe de uma reserva: para achar qualquer coisa era preciso já\nsaber em qual reserva ela estava, e nenhuma pergunta transversal era\npossível (\"todos os danos\", \"os registros do Studio 101\", \"o que ainda\nnão foi tratado\").\n\nDuas decisões do cliente moldam a tela:\n 1. SEM recorte de período — abre com o histórico inteiro. Quem quiser\n recortar usa o botão de filtro, o mesmo das outras páginas.\n 2. A leitura estratégica (\"quantos e de quê\") mora na FILA DE CHIPS, com\n a contagem em cada categoria. É uma linha só: um segundo andar de\n controles foi justamente o que deixou as Pendências poluídas.\n\nO agrupamento por imóvel usa a MESMA etiqueta fina das Pendências — nome\nem caixa alta, proprietário em rosa, fio até a contagem — porque ali ela\njá provou que agrupa sem virar uma segunda linha por item.",
+    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
+    "audience": [],
+    "content_hash": "49c4cfe4f19ea199938193bfe831c78b"
+  },
+  {
     "doc_key": "rule:GuestMarkGroup",
     "kind": "rule",
     "title": "Regra — GuestMarkGroup",
@@ -814,6 +832,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/GuideAccessGate.tsx",
     "audience": [],
     "content_hash": "2dcd95af10c0c9277d0c95d8564c9d34"
+  },
+  {
+    "doc_key": "rule:HISTORY_PAGE",
+    "kind": "rule",
+    "title": "Regra — HISTORY_PAGE",
+    "content": "HISTÓRICO PERMANENTE (pedido explícito, 09/09/2026): \"o histórico COMPLETO\nda conversa do usuário com a IA precisa permanecer eternamente no chat —\ntodas as conversas, todas as decisões, tudo\".\n\nTrês coisas escondiam o passado, e nenhuma delas apagava nada — o que torna\na correção puramente de leitura:\n\n 1. A consulta lia UMA thread só (a mais recente). Tudo que veio antes de\n um \"nova conversa\" continuava no banco e sumia da tela.\n 2. Ela parava em 60 mensagens.\n 3. As ações CONFIRMADAS não viravam mensagem: o cartão sumia e, depois de\n recarregar, não havia registro nenhum de que aquilo tinha sido feito.\n O (3) está resolvido em `recordAssistantAction`, logo abaixo.\n\nAgora a leitura é por USUÁRIO, não por thread, e vem paginada do fim para o\ncomeço: a tela abre com as últimas `PAGE` mensagens e busca as anteriores\nconforme a pessoa sobe. Trazer dez mil mensagens de uma vez seria a única\nforma de \"mostrar tudo\" que trava o navegador — paginar é o que mantém a\npromessa de que nada some.\n\n`threadId` de cada mensagem vem junto para a interface desenhar a divisória\nde \"nova conversa\" onde ela existiu.",
+    "source_path": "src/lib/assistant.functions.ts",
+    "audience": [],
+    "content_hash": "d320ff76de3a6a8eda05d230e31ecb66"
   },
   {
     "doc_key": "rule:HoraPrevista",
@@ -967,6 +994,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
     "content_hash": "9c4874ae6312d801e917341e534c4da1"
+  },
+  {
+    "doc_key": "rule:newThread",
+    "kind": "rule",
+    "title": "Regra — newThread",
+    "content": "Começa uma conversa nova SEM LIMPAR A TELA.\n\nAntes esta função zerava a lista e reescrevia o cache com `messages: []` —\no passado continuava no banco, mas desaparecia da vista, que na prática é\na mesma coisa para quem está olhando. Agora ela só troca a thread onde a\npróxima pergunta entra (o que serve para dar contexto limpo à IA) e\nrecarrega o histórico, que volta com tudo e uma divisória marcando o\nponto onde a conversa recomeçou.",
+    "source_path": "src/components/assistant/AssistantPanel.tsx",
+    "audience": [],
+    "content_hash": "1cef1addc3cc42100e5e9ab5109b8360"
   },
   {
     "doc_key": "rule:nextCheckin",
@@ -1228,6 +1264,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/ai/reasoning.ts",
     "audience": [],
     "content_hash": "21463f078baac3321475523c21c8b704"
+  },
+  {
+    "doc_key": "rule:recordAssistantAction",
+    "kind": "rule",
+    "title": "Regra — recordAssistantAction",
+    "content": "Registra no histórico que uma ação foi EXECUTADA.\n\nSem isto, \"todas as decisões\" não se sustentava: o cartão de confirmação era\num objeto de tela: sumia ao confirmar e não deixava rastro nenhum na\nconversa. Depois de recarregar, a pergunta \"isso chegou a ser feito?\" não\ntinha resposta ali dentro — e com a confirmação automática ligada nem cartão\nexiste para ver.\n\nVira uma mensagem do assistente com `meta.executedAction`, na mesma thread.\nFica no histórico como qualquer outra, para sempre.",
+    "source_path": "src/lib/assistant.functions.ts",
+    "audience": [],
+    "content_hash": "20ddcef6f60560e7ea8f0e5b6257eef1"
   },
   {
     "doc_key": "rule:refreshStaleAirbnbListings",
@@ -1500,7 +1545,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1d6019faf67077787112e40ec8da6346"
   },
   {
-    "doc_key": "rule:src/components/assistant/AssistantPanel.tsx:11696",
+    "doc_key": "rule:src/components/assistant/AssistantPanel.tsx:13032",
     "kind": "rule",
     "title": "Regra em AssistantPanel.tsx",
     "content": "Uma chamada só para a lista inteira — não um laço de N chamadas como\nna criação em lote. Ali cada imóvel é uma linha nova e um erro no\nmeio não pode derrubar o que já entrou; aqui é um único `IN (...)`\nsobre linhas que já existem, então o banco resolve de uma vez e o\nresultado é tudo-ou-nada, que é o que se espera de \"apague estas\".",
@@ -1509,7 +1554,25 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "4fba9ff5bf0bc6d6c1139ad34a9b7f77"
   },
   {
-    "doc_key": "rule:src/components/assistant/AssistantPanel.tsx:4936",
+    "doc_key": "rule:src/components/assistant/AssistantPanel.tsx:23674",
+    "kind": "rule",
+    "title": "Regra em AssistantPanel.tsx",
+    "content": "Uma DECISÃO não é uma fala — e não pode se parecer com uma.\n\n\"Criar em 9 imóveis\" dito pela IA é uma proposta; gravado no histórico é\num fato. Como bolha de conversa os dois ficariam idênticos, e depois de\nmeses ninguém saberia distinguir o que foi sugerido do que foi feito. Por\nisso o registro de execução sai como uma linha própria, com o ✓ na cor de\nconfirmado e a lista do que foi gravado embaixo.",
+    "source_path": "src/components/assistant/AssistantPanel.tsx",
+    "audience": [],
+    "content_hash": "4ba661e6477dca474d48ff7716a78aaf"
+  },
+  {
+    "doc_key": "rule:src/components/assistant/AssistantPanel.tsx:4275",
+    "kind": "rule",
+    "title": "Regra em AssistantPanel.tsx",
+    "content": "HISTÓRICO PERMANENTE (pedido explícito, 09/09/2026).\n\nO servidor devolve a última página e diz se existem mensagens anteriores;\n`older` guarda as páginas já buscadas, na ordem certa. Nada é descartado —\no que existe é uma janela que a pessoa vai abrindo para trás.\n\nCarregar tudo de uma vez seria a única maneira de \"mostrar tudo\" que\ntrava o navegador depois de alguns meses de uso.",
+    "source_path": "src/components/assistant/AssistantPanel.tsx",
+    "audience": [],
+    "content_hash": "94590587e43020d767e9efd1ae3422b1"
+  },
+  {
+    "doc_key": "rule:src/components/assistant/AssistantPanel.tsx:6272",
     "kind": "rule",
     "title": "Regra em AssistantPanel.tsx",
     "content": "CONFIRMAÇÃO AUTOMÁTICA (pedido explícito, 09/09/2026: \"se o usuário\npedir 'dispense a confirmação', então ela tem que acatar e manter isso\nmemorizado para aquele usuário específico\").\n\nA ação segue exatamente o mesmo caminho de sempre — a mutation\n`confirm`, as mesmas server functions das telas, o mesmo RLS. O que\nmuda é só quem dispara: o clique da pessoa ou esta linha. Por isso a\nautonomia não vira privilégio: se ela não pode gravar aquilo, falha\naqui igual falharia no cartão, com o mesmo erro.\n\n`res.autoConfirm` é lido no servidor DEPOIS do turno, então \"dispense\na confirmação\" já vale para a ação preparada nesta mesma mensagem.",
@@ -1545,7 +1608,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ef3c1c66c3ef578b9b9e0522f86a4558"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:142027",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:142459",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "A Limpeza tem DUAS janelas na MESMA tela (últimos 7d / próximos 7d) e o\ntítulo precisa dizer qual está no ar (pedido explícito). Só o texto muda;\no resto da página é idêntico.",
@@ -1554,7 +1617,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "df381f0b82c9a345baeae12ba649c01f"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:142261",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:142693",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "AS AÇÕES DA TELA MORAM AQUI (mockup aprovado, 09/09/2026).\n\nAs três telas gastavam uma faixa horizontal inteira só com dois ou três\nbotões, e essa faixa empurrava o conteúdo para baixo justamente onde a\ntela é mais estreita. Encostadas à direita do bloco título+subtítulo elas\nnão custam altura nenhuma — e, de quebra, passam a estar SEMPRE no mesmo\ncanto nas três telas, que é o que faz a mão aprender um lugar só.\n\n`items-center`: alinhadas ao centro do bloco de duas linhas, não ao topo.\nAlinhado ao topo, o botão encosta no título e a dupla fica torta quando o\nsubtítulo quebra.",
@@ -1563,7 +1626,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "9fe3ad8ae446109e5ae90b0e1d1fb01d"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:154291",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:155244",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Destaque visual opt-in (só usado hoje por \"Fila de Limpeza\"): borda +\ngradiente âmbar + acento lateral + ícone em caixinha, sem negrito.\nNão afeta nenhum outro uso do KpiCard (compact ou não).",
@@ -1572,7 +1635,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ec0f34c7bfc0754666d9cc96f2f2a568"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:154526",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:155479",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Cards que devem continuar visíveis no popup mesmo que já não pertençam\nmais à lista — hoje só os que tiveram HORÁRIO/DATA PREVISTOS ajustados.",
@@ -1581,7 +1644,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "4b33a44930f947dea6060da94f816439"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:154718",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:155671",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Pedido explícito: os cards dentro do popup precisam ficar IDÊNTICOS ao\ncard do Kanban — em vez de manter uma segunda implementação (que já\ndivergiu do Kanban antes, ver o bug do bloqueio de check-in), o popup\nagora renderiza o MESMO <ArrivalGroup>/<ArrivalCard> do Kanban, com os\nMESMOS handlers. Vem de arrivalGroupPropsFor(colMode, rows) — a mesma\nfunção que já alimenta as colunas do Kanban.",
@@ -1590,7 +1653,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "dfd7cbf815d96bcf7c9214257a5e2387"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:196197",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:197150",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Rótulo de seção do formulário de pendência — dá hierarquia ao que antes\nera uma pilha de campos do mesmo tamanho (pedido explícito, 07/09/2026).",
@@ -1599,7 +1662,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "56b708e624e12bb9a26b2593234ea4c6"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:206016",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:206969",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Padrão = IMÓVEL, que é o que os dois mockups aprovados mostram selecionado.\nUrgência continua a um toque de distância, e é a escolha certa quando a\npergunta é \"o que eu resolvo agora\" — mas a operação abre esta tela quase\nsempre pensando num imóvel, e agrupada ela cabe muito mais no olho: nove\npendências iguais em nove imóveis viram nove cabeçalhos com uma linha cada,\nem vez de nove linhas repetindo o mesmo título.",
@@ -1608,7 +1671,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "59042beafabc7c04c6cad6bab466aea1"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:279009",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:279962",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Pedido explícito: os filtros (Período/Cidade/Proprietário) que antes\nficavam numa linha própria acima deste card viraram um botão único\n(`CalendarFiltersButton`) dentro do cabeçalho, ao lado do título — por\nisso o estado/opções continuam vindo do pai (`OperationWorkspace`),\nque é quem também usa esses mesmos filtros pros cards de limpeza.",
@@ -1617,7 +1680,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "67345afec21e651284020dbb8b2f7803"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:310854",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:311807",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Dialog de detalhe (quem viu / quem não viu) — extraído do BarRow original\npra poder ser reaproveitado também pelo EngagementCard (cards separados do\ndesktop), sem duplicar esse JSX nos dois lugares.",
@@ -1626,7 +1689,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "191a73d470b9e71e3339a0db344ffb5a"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:318821",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:319774",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Controlado de fora (pela coluna do Kanban) quando presente — permite\nrecolher os \"Detalhes da operação\" ao rolar a coluna. Sem isso, cai de\nvolta pro estado local de sempre.",
@@ -1635,7 +1698,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1420a71a82d71664b9b9257192bc6178"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:322417",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:323370",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Marca este card (Check-ins) como \"Não Compareceu\" — pedido explícito,\n05/09/2026: opção no menu \"⋮\", só nos cards de check-in ainda pendentes.",
@@ -1644,7 +1707,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "b858b5d3155e42847ae34a889b4053e2"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:323430",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:324383",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Modo \"Lista\" (pedido explícito): mostra só proprietário, imóvel e os\n botões de ação (bem menores) — some com nome do hóspede, código,\n período, previsto e alertas de iCal. Reaproveita o mesmo card e os\n mesmos handlers; só a apresentação muda.",
@@ -1653,7 +1716,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "943bbf38018e813c04eeb6799825fda6"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:336255",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:337208",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Lista + Concluídos/Não Compareceu = card mínimo (pedido explícito,\n08/09/2026): \"não deve ser apresentada qualquer info que não seja o nome\ndo proprietário, título do anúncio e botões\".\n\nSão as duas listas de ARQUIVO do quadro. Ali ninguém está operando nada:\nestá procurando um card específico para desfazer ou conferir. Período,\nprevisão, nota e alertas de iCal só alongam a linha e atrasam a busca —\no histórico completo continua a um clique (ver o popup de histórico).\n\nA etiqueta ALERTA é a exceção deliberada, por pedido explícito no mesmo\ndia: ela aparece em todo e qualquer card, inclusive aqui.",
@@ -1662,7 +1725,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1b25cf359cf9c187087b403bc46fefe6"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:336924",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:337877",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "CARD SEMPRE COMPACTO, QUE ABRE NO TOQUE (pedido explícito, 09/09/2026,\nmockup aprovado).\n\nO botão de trocar visualização saiu do sistema. No lugar de uma escolha\nglobal entre \"Completo\" e \"Lista\" — que obrigava a pessoa a decidir de\nantemão, para TODOS os cards, quanta informação queria ver —, cada card\nnasce compacto e abre sozinho quando você toca nele. A escolha deixa de\nser uma configuração e passa a ser um gesto, card a card.\n\n`compact` continua sendo a mesma variável de antes e continua governando o\nmesmo conjunto de detalhes; o que mudou é quem a define. A prop recebida\n(`compactProp`) segue valendo como PADRÃO, e o estado local só a sobrepõe\nquando a pessoa abre aquele card.\n\nO estado NÃO é lembrado entre aberturas da tela: tudo volta compacto.\nLembrar significaria reabrir o quadro com metade dos cards expandidos, o\nque desfaz exatamente o ganho de espaço que motivou a mudança.",
@@ -1671,7 +1734,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "74aa32f170f1ad76a18f288788d2b4cf"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:341668",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:342621",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "HISTÓRICO DA RESERVA (pedido explícito, 08/09/2026).\n\nNa visão Lista, o clique no próprio card abre a jornada completa — é o\ngesto natural quando o card mostra pouca coisa. No modo Completo o card\nestá cheio de controles e um clique global roubaria o clique de todos\neles, então ali o caminho é o item do menu \"⋮\". Os dois abrem exatamente\na mesma tela.\n\nSó identificador real: a chave sintética \"ical:<id>\" não é um uuid de\nlog — nesses cards a reserva é quem identifica a estadia.",
@@ -1680,7 +1743,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "91b0393d11ad3250d65978789bbf0665"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:387075",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:388028",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Restringe de verdade os horários selecionáveis (inclusive) ao horário\n configurado do imóvel — pedido explícito do cliente (04/09/2026): antes\n só existia um aviso visual (âmbar) depois de já ter escolhido um\n horário fora da janela; agora o horário nem aparece como opção. `null`/\n omitido = sem limite (imóvel sem esse horário configurado).",
@@ -1689,7 +1752,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8ebe1ab97a0756cd4e0279b3025812c8"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:389839",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:390792",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Data e horário previstos são dois campos SEPARADOS de novo (pedido\nexplícito, 05/09/2026: \"quero que fiquem separados como antes, porém\nambos no layout padrão dos tooltips\") — cada botão abre seu próprio\ntooltip (só calendário / só horário, cada um com o mesmo visual dos\ntooltips padrão do sistema), não mais um painel único com os dois juntos.\n\nMas por baixo dos panos continua sendo UMA ÚNICA sessão de edição\n(`open`/pendingDate/pendingTime compartilhados): os dois botões só trocam\nQUAL conteúdo aparece dentro do mesmo Popover (ver `openField`), sem abrir\ne fechar de verdade um popover por vez. Isso é o que preserva o ajuste\nanterior (pedido explícito, mesma data): \"não é mover depois de fechar o\ncalendário, é mover depois de fechar o TOOLTIP inteiro\" — se cada campo\ntivesse seu próprio Popover independente, fechar o de Data já confirmaria\ne moveria o card antes do usuário conseguir abrir o de Horário, voltando\nao bug original. Nada é gravado (nem o card se move) enquanto QUALQUER um\ndos dois estiver \"aberto\" — só quando o usuário clica fora dos dois\nbotões (ou aperta \"Concluir\"/Esc) é que a data e o horário pendentes são\nconfirmados juntos, numa única leva.\n\nO piso/teto do horário reage à data QUE ESTÁ SENDO escolhida (ainda não\nconfirmada) — mesma regra de \"dia mudou → sem piso/teto\" do card, só que\ncalculada aqui em cima do valor pendente, senão a lista de horários\nficaria com a janela do dia errado enquanto o usuário ainda decide.",
@@ -1698,7 +1761,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "2b5d3cc828947c9353140290107ef27c"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:43529",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:43543",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Cards \"fixados\" no popup aberto: SÓ ajustes de data/horário previsto\nseguram o card na lista até o usuário fechar o popup no \"X\". Qualquer\noutra ação (check, não compareceu, limpeza não será realizada, desfazer)\ntira o card da tela na hora.",
@@ -1707,7 +1770,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "edce2904f3ccf71032151d09f19ecae0"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:61556",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:61570",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "A tela de Limpeza tem DUAS janelas, e é a MESMA tela nas duas (pedido\nexplícito, 09/09/2026: \"não quero que abra um tooltip ao clicar em\ntendência; quero que a tela seja a mesma da visão oficial, mas que os\ndados sejam mudados para os próximos 7 dias\").\n\nAntes a previsão vivia num popup com layout próprio — outra moldura, outra\ndensidade, outro jeito de ler os mesmos gráficos. Agora só a FONTE dos\ndados muda; cards, gráficos e ranking são os mesmos componentes.",
@@ -2301,7 +2364,25 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "7cee7f992f02ee273378e324bee34b3f"
   },
   {
-    "doc_key": "rule:src/lib/assistant-types.ts:6949",
+    "doc_key": "rule:src/lib/assistant-types.ts:6849",
+    "kind": "rule",
+    "title": "Regra em assistant-types.ts",
+    "content": "Conversa a que a mensagem pertence — a interface usa para desenhar a\ndivisória de \"nova conversa\" no histórico contínuo. Só vem do histórico\ngravado; mensagens recém-criadas na tela não precisam dele.",
+    "source_path": "src/lib/assistant-types.ts",
+    "audience": [],
+    "content_hash": "322fda48734505a60f8aa0baac338d0f"
+  },
+  {
+    "doc_key": "rule:src/lib/assistant-types.ts:7197",
+    "kind": "rule",
+    "title": "Regra em assistant-types.ts",
+    "content": "O que foi EXECUTADO neste turno, em uma linha (\"Criar em 9 imóveis\").\n\nPedido explícito (09/09/2026): o histórico guarda \"todas as decisões\".\nO cartão de confirmação é objeto de tela — some ao confirmar e não deixa\nrastro. Isto é o rastro: fica gravado como mensagem e sobrevive a\nrecarregar, inclusive quando a confirmação automática está ligada e\ncartão nenhum chega a aparecer.",
+    "source_path": "src/lib/assistant-types.ts",
+    "audience": [],
+    "content_hash": "0609b0237b4cc6e11e79f334a5777c85"
+  },
+  {
+    "doc_key": "rule:src/lib/assistant-types.ts:7658",
     "kind": "rule",
     "title": "Regra em assistant-types.ts",
     "content": "A tela apontada pela resposta vira link dentro do próprio texto\n(07/09/2026) — não há mais um campo separado nem um chip embaixo da\nmensagem repetindo o mesmo caminho.",
@@ -2310,7 +2391,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "aea6e0dd752ab44bafbf64ca31f3132f"
   },
   {
-    "doc_key": "rule:src/lib/assistant-types.ts:7257",
+    "doc_key": "rule:src/lib/assistant-types.ts:7966",
     "kind": "rule",
     "title": "Regra em assistant-types.ts",
     "content": "A pessoa dispensou o cartão de confirmação (`profiles.assistant_auto_\nconfirm`). Com `true`, a interface executa a `pendingAction` na hora, em\nvez de esperar o clique.\n\nPedido explícito (09/09/2026): \"se o usuário pedir 'dispense a\nconfirmação', então ela tem que acatar e manter isso memorizado para\naquele usuário específico\".\n\nVem no envelope da resposta, e não de uma query separada, porque a\npreferência pode ter mudado NESTA mensagem — a IA tem uma ferramenta para\nligá-la, e o valor que interessa é o de depois da conversa.\n\nA autonomia é sobre o CLIQUE, não sobre permissão: a gravação continua\npassando pela mesma server function e pelo mesmo RLS da tela.",

@@ -20,7 +20,13 @@ const SIGN_TTL_SECONDS = 60 * 60; // 1h — mesmo prazo de signChatAttachmentUrl
  * Categorias na ORDEM definida pelo cliente (07/09/2026) — a mesma ordem em
  * que aparecem no seletor que abre ANTES da câmera/gravação.
  */
-export const RECORD_CATEGORIES = ["forgotten", "damage", "cleaning_audit", "maintenance", "other"] as const;
+export const RECORD_CATEGORIES = [
+  "forgotten",
+  "damage",
+  "cleaning_audit",
+  "maintenance",
+  "other",
+] as const;
 export type RecordCategory = (typeof RECORD_CATEGORIES)[number];
 
 const CategoryEnum = z.enum(RECORD_CATEGORIES);
@@ -56,9 +62,24 @@ const TASK_RULES: Record<
   // é a única categoria que vai automaticamente pra próxima limpeza, e um
   // dano é registro/prova pra cobrança, não tarefa da faxina. Se preferir
   // ver danos como Manutenção na lista de Pendências, é só trocar aqui.
-  forgotten: { taskCategory: "guest_request", priority: "medium", showInCleaning: true, prefix: "Objeto esquecido" },
-  damage: { taskCategory: "inspection", priority: "high", showInCleaning: false, prefix: "Dano/incidente" },
-  maintenance: { taskCategory: "maintenance", priority: "medium", showInCleaning: true, prefix: "Manutenção" },
+  forgotten: {
+    taskCategory: "guest_request",
+    priority: "medium",
+    showInCleaning: true,
+    prefix: "Objeto esquecido",
+  },
+  damage: {
+    taskCategory: "inspection",
+    priority: "high",
+    showInCleaning: false,
+    prefix: "Dano/incidente",
+  },
+  maintenance: {
+    taskCategory: "maintenance",
+    priority: "medium",
+    showInCleaning: true,
+    prefix: "Manutenção",
+  },
 };
 
 // Mesma identidade estável usada em toda a esteira (advanceArrival,
@@ -68,7 +89,9 @@ const TargetInput = z
     logId: z.string().uuid().optional(),
     reservationId: z.string().uuid().optional(),
   })
-  .refine((v) => !!v.logId || !!v.reservationId, { message: "Informe a reserva ou o registro do hóspede." });
+  .refine((v) => !!v.logId || !!v.reservationId, {
+    message: "Informe a reserva ou o registro do hóspede.",
+  });
 
 export type ReservationRecord = {
   id: string;
@@ -135,7 +158,9 @@ export const listReservationRecords = createServerFn({ method: "GET" })
     const paths = list.filter((r) => r.storage_path).map((r) => r.storage_path as string);
     const urlByPath = new Map<string, string>();
     if (paths.length > 0) {
-      const { data: signed } = await supabase.storage.from(BUCKET).createSignedUrls(paths, SIGN_TTL_SECONDS);
+      const { data: signed } = await supabase.storage
+        .from(BUCKET)
+        .createSignedUrls(paths, SIGN_TTL_SECONDS);
       for (const s of (signed ?? []) as Array<{ path: string | null; signedUrl: string | null }>) {
         if (s.path && s.signedUrl) urlByPath.set(s.path, s.signedUrl);
       }
@@ -147,8 +172,14 @@ export const listReservationRecords = createServerFn({ method: "GET" })
     const taskIds = Array.from(new Set(list.map((r) => r.task_id).filter((v): v is string => !!v)));
     const taskStatusById = new Map<string, "pending" | "done" | "canceled">();
     if (taskIds.length > 0) {
-      const { data: taskRows } = await supabase.from("tasks").select("id, status").in("id", taskIds);
-      for (const t of (taskRows ?? []) as Array<{ id: string; status: "pending" | "done" | "canceled" }>) {
+      const { data: taskRows } = await supabase
+        .from("tasks")
+        .select("id, status")
+        .in("id", taskIds);
+      for (const t of (taskRows ?? []) as Array<{
+        id: string;
+        status: "pending" | "done" | "canceled";
+      }>) {
         taskStatusById.set(t.id, t.status);
       }
     }
@@ -264,7 +295,9 @@ export const attachReservationRecord = createServerFn({ method: "POST" })
         fileName: z.string().max(200).optional().nullable(),
         caption: z.string().max(2000).optional().nullable(),
       })
-      .refine((v) => !!v.logId || !!v.reservationId, { message: "Informe a reserva ou o registro do hóspede." })
+      .refine((v) => !!v.logId || !!v.reservationId, {
+        message: "Informe a reserva ou o registro do hóspede.",
+      })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
@@ -323,7 +356,9 @@ export const createReservationRecordNote = createServerFn({ method: "POST" })
         category: CategoryEnum,
         body: z.string().trim().min(1).max(2000),
       })
-      .refine((v) => !!v.logId || !!v.reservationId, { message: "Informe a reserva ou o registro do hóspede." })
+      .refine((v) => !!v.logId || !!v.reservationId, {
+        message: "Informe a reserva ou o registro do hóspede.",
+      })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
@@ -422,7 +457,9 @@ export const listTaskRecords = createServerFn({ method: "GET" })
     const supabase = context.supabase as unknown as AnyClient;
     const { data: rows, error } = await supabase
       .from("reservation_records")
-      .select("id, kind, category, storage_path, mime, size_bytes, duration_ms, file_name, body, created_by_name, created_at, is_resolution")
+      .select(
+        "id, kind, category, storage_path, mime, size_bytes, duration_ms, file_name, body, created_by_name, created_at, is_resolution",
+      )
       .eq("task_id", data.taskId)
       .order("created_at", { ascending: true })
       .limit(200);
@@ -446,7 +483,9 @@ export const listTaskRecords = createServerFn({ method: "GET" })
     const paths = list.filter((r) => r.storage_path).map((r) => r.storage_path as string);
     const urlByPath = new Map<string, string>();
     if (paths.length > 0) {
-      const { data: signed } = await supabase.storage.from(BUCKET).createSignedUrls(paths, SIGN_TTL_SECONDS);
+      const { data: signed } = await supabase.storage
+        .from(BUCKET)
+        .createSignedUrls(paths, SIGN_TTL_SECONDS);
       for (const s of (signed ?? []) as Array<{ path: string | null; signedUrl: string | null }>) {
         if (s.path && s.signedUrl) urlByPath.set(s.path, s.signedUrl);
       }
@@ -500,4 +539,245 @@ export const deleteReservationRecord = createServerFn({ method: "POST" })
       }
     }
     return { ok: true };
+  });
+
+/* ---------------------------------------------------------------------- *
+ * ABA "REGISTROS" (09/09/2026) — a mesma tabela, vista de fora da reserva.
+ *
+ * Até aqui um registro só era alcançável de DENTRO do card da reserva (o
+ * clipe): para achar alguma coisa era preciso já saber em qual reserva ela
+ * estava. Nenhuma pergunta transversal era possível — "todos os danos",
+ * "os registros do Studio 101", "o que ainda não foi tratado".
+ *
+ * Esta função é essa porta. Sem recorte de período (pedido explícito): a
+ * aba abre com o histórico inteiro, e quem quiser recortar usa o mesmo
+ * botão de filtro das outras telas.
+ *
+ * O ALCANCE é o mesmo do resto do app — `accessiblePropertyIds` já resolve
+ * empresa (conta inteira), proprietário (só os imóveis dele) e prestador
+ * (só as residências que atende). Nada aqui recorta por perfil "na mão":
+ * quem enxerga menos imóveis conta menos registros, inclusive nos
+ * contadores das categorias.
+ * ---------------------------------------------------------------------- */
+
+/** Teto de linhas lidas. Cobre com folga o histórico de uma conta madura e
+ * mantém a leitura em UMA consulta — os contadores por categoria saem da
+ * mesma leitura, sem uma segunda ida ao banco. */
+const ACCOUNT_RECORDS_SCAN_LIMIT = 2000;
+/** Teto de linhas DEVOLVIDAS (e, portanto, de URLs assinadas em lote). */
+const ACCOUNT_RECORDS_PAGE = 300;
+
+export type AccountRecord = ReservationRecord & {
+  propertyId: string;
+  propertyName: string;
+  ownerName: string | null;
+  /** Comprovação de resolução anexada a uma pendência. */
+  isResolution: boolean;
+  /** Título da pendência gerada, quando houver. */
+  taskTitle: string | null;
+};
+
+export type AccountRecordsResult = {
+  records: AccountRecord[];
+  /** Total por categoria em TODO o histórico visível (alimenta os chips). */
+  counts: Record<RecordCategory, number>;
+  /** Quantos, por categoria, ainda têm pendência em aberto. */
+  openCounts: Record<RecordCategory, number>;
+  total: number;
+  totalOpen: number;
+  /** true quando o histórico passou do teto de leitura. */
+  truncated: boolean;
+};
+
+function emptyCounts(): Record<RecordCategory, number> {
+  return { forgotten: 0, damage: 0, cleaning_audit: 0, maintenance: 0, other: 0 };
+}
+
+export const listAccountRecords = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (i: unknown) =>
+      z
+        .object({
+          ownerId: z.string().uuid().nullable().optional(),
+          /** Vazio = todas as categorias. */
+          category: CategoryEnum.nullable().optional(),
+          /** Só os que ainda têm pendência em aberto. */
+          onlyOpen: z.boolean().optional(),
+        })
+        .optional()
+        .parse(i) ?? {},
+  )
+  .handler(async ({ data, context }): Promise<AccountRecordsResult> => {
+    const supabase = context.supabase as unknown as AnyClient;
+    const { accessiblePropertyIds } = await import("@/lib/dashboard.functions");
+    const propIds = await accessiblePropertyIds(
+      context.supabase as never,
+      data.ownerId ?? null,
+      context.userId,
+    );
+    const empty: AccountRecordsResult = {
+      records: [],
+      counts: emptyCounts(),
+      openCounts: emptyCounts(),
+      total: 0,
+      totalOpen: 0,
+      truncated: false,
+    };
+    if (propIds.length === 0) return empty;
+
+    const { data: rows, error } = await supabase
+      .from("reservation_records")
+      .select(
+        "id, property_id, kind, category, storage_path, mime, size_bytes, duration_ms, file_name, body, card_mode, created_by_name, created_at, task_id, is_resolution",
+      )
+      .in("property_id", propIds)
+      .order("created_at", { ascending: false })
+      .limit(ACCOUNT_RECORDS_SCAN_LIMIT);
+    if (error) throw new Error(error.message);
+
+    const all = (rows ?? []) as Array<{
+      id: string;
+      property_id: string;
+      kind: ReservationRecord["kind"];
+      category: RecordCategory;
+      storage_path: string | null;
+      mime: string | null;
+      size_bytes: number | null;
+      duration_ms: number | null;
+      file_name: string | null;
+      body: string | null;
+      card_mode: ReservationRecord["cardMode"];
+      created_by_name: string | null;
+      created_at: string;
+      task_id: string | null;
+      is_resolution: boolean;
+    }>;
+    if (all.length === 0) return empty;
+
+    // Status das pendências geradas — lido de `tasks`, nunca copiado: o que
+    // define "em aberto" é a pendência, não uma cópia guardada aqui.
+    const taskIds = Array.from(new Set(all.map((r) => r.task_id).filter((v): v is string => !!v)));
+    const taskById = new Map<
+      string,
+      { status: "pending" | "done" | "canceled"; title: string | null }
+    >();
+    if (taskIds.length > 0) {
+      const { data: taskRows } = await supabase
+        .from("tasks")
+        .select("id, status, title")
+        .in("id", taskIds);
+      for (const t of (taskRows ?? []) as Array<{
+        id: string;
+        status: "pending" | "done" | "canceled";
+        title: string | null;
+      }>) {
+        taskById.set(t.id, { status: t.status, title: t.title });
+      }
+    }
+
+    const isOpen = (taskId: string | null) =>
+      !!taskId && (taskById.get(taskId)?.status ?? null) === "pending";
+
+    const counts = emptyCounts();
+    const openCounts = emptyCounts();
+    for (const r of all) {
+      if (counts[r.category] === undefined) continue;
+      counts[r.category] += 1;
+      if (isOpen(r.task_id)) openCounts[r.category] += 1;
+    }
+
+    const selected = all
+      .filter((r) => (data.category ? r.category === data.category : true))
+      .filter((r) => (data.onlyOpen ? isOpen(r.task_id) : true))
+      .slice(0, ACCOUNT_RECORDS_PAGE);
+
+    // Imóvel + proprietário só das linhas que vão de fato aparecer.
+    const usedPropIds = Array.from(new Set(selected.map((r) => r.property_id)));
+    const propById = new Map<string, { name: string; ownerContactId: string | null }>();
+    if (usedPropIds.length > 0) {
+      const { data: props } = await supabase
+        .from("properties")
+        .select("id, name, owner_contact_id")
+        .in("id", usedPropIds);
+      for (const p of (props ?? []) as Array<{
+        id: string;
+        name: string | null;
+        owner_contact_id: string | null;
+      }>) {
+        propById.set(p.id, { name: p.name ?? "Sem nome", ownerContactId: p.owner_contact_id });
+      }
+    }
+    const ownerIds = Array.from(
+      new Set(
+        Array.from(propById.values())
+          .map((p) => p.ownerContactId)
+          .filter((v): v is string => !!v),
+      ),
+    );
+    const ownerNameById = new Map<string, string>();
+    if (ownerIds.length > 0) {
+      const { data: owners } = await supabase
+        .from("property_owners")
+        .select("id, name, trade_name")
+        .in("id", ownerIds);
+      for (const o of (owners ?? []) as Array<{
+        id: string;
+        name: string | null;
+        trade_name: string | null;
+      }>) {
+        const label = (o.trade_name || o.name || "").trim();
+        if (label) ownerNameById.set(o.id, label);
+      }
+    }
+
+    // Mesmo lote único de assinaturas usado em listReservationRecords.
+    const paths = selected.filter((r) => r.storage_path).map((r) => r.storage_path as string);
+    const urlByPath = new Map<string, string>();
+    if (paths.length > 0) {
+      const { data: signed } = await supabase.storage
+        .from(BUCKET)
+        .createSignedUrls(paths, SIGN_TTL_SECONDS);
+      for (const s of (signed ?? []) as Array<{ path: string | null; signedUrl: string | null }>) {
+        if (s.path && s.signedUrl) urlByPath.set(s.path, s.signedUrl);
+      }
+    }
+
+    const records: AccountRecord[] = selected.map((r) => {
+      const prop = propById.get(r.property_id);
+      const task = r.task_id ? (taskById.get(r.task_id) ?? null) : null;
+      return {
+        id: r.id,
+        kind: r.kind,
+        category: r.category,
+        storagePath: r.storage_path,
+        url: r.storage_path ? (urlByPath.get(r.storage_path) ?? null) : null,
+        mime: r.mime,
+        sizeBytes: r.size_bytes,
+        durationMs: r.duration_ms,
+        fileName: r.file_name,
+        body: r.body,
+        cardMode: r.card_mode,
+        createdByName: r.created_by_name,
+        createdAt: r.created_at,
+        taskId: r.task_id,
+        taskStatus: task?.status ?? null,
+        propertyId: r.property_id,
+        propertyName: prop?.name ?? "Sem nome",
+        ownerName: prop?.ownerContactId ? (ownerNameById.get(prop.ownerContactId) ?? null) : null,
+        isResolution: r.is_resolution,
+        taskTitle: task?.title ?? null,
+      };
+    });
+
+    const total = all.length;
+    const totalOpen = Object.values(openCounts).reduce((a, b) => a + b, 0);
+    return {
+      records,
+      counts,
+      openCounts,
+      total,
+      totalOpen,
+      truncated: all.length >= ACCOUNT_RECORDS_SCAN_LIMIT,
+    };
   });

@@ -173,10 +173,24 @@ export type AssistantSource = {
 
 export type AssistantMessage = {
   id: string;
+  /** Conversa a que a mensagem pertence — a interface usa para desenhar a
+   * divisória de "nova conversa" no histórico contínuo. Só vem do histórico
+   * gravado; mensagens recém-criadas na tela não precisam dele. */
+  threadId?: string | null;
   role: "user" | "assistant";
   content: string;
   createdAt: string;
   sources: AssistantSource[];
+  /**
+   * O que foi EXECUTADO neste turno, em uma linha ("Criar em 9 imóveis").
+   *
+   * Pedido explícito (09/09/2026): o histórico guarda "todas as decisões".
+   * O cartão de confirmação é objeto de tela — some ao confirmar e não deixa
+   * rastro. Isto é o rastro: fica gravado como mensagem e sobrevive a
+   * recarregar, inclusive quando a confirmação automática está ligada e
+   * cartão nenhum chega a aparecer.
+   */
+  executedAction?: string | null;
   /** A tela apontada pela resposta vira link dentro do próprio texto
    * (07/09/2026) — não há mais um campo separado nem um chip embaixo da
    * mensagem repetindo o mesmo caminho. */

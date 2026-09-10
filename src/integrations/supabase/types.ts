@@ -3413,6 +3413,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          assistant_auto_confirm: boolean
           avatar_url: string | null
           birth_date: string | null
           cpf: string | null
@@ -3427,6 +3428,7 @@ export type Database = {
           trade_name: string | null
         }
         Insert: {
+          assistant_auto_confirm?: boolean
           avatar_url?: string | null
           birth_date?: string | null
           cpf?: string | null
@@ -3441,6 +3443,7 @@ export type Database = {
           trade_name?: string | null
         }
         Update: {
+          assistant_auto_confirm?: boolean
           avatar_url?: string | null
           birth_date?: string | null
           cpf?: string | null
@@ -5363,6 +5366,7 @@ export type Database = {
         Args: { _user_id: string }
         Returns: boolean
       }
+      can_read_system_doc: { Args: { _audience: string[] }; Returns: boolean }
       current_verified_email: { Args: never; Returns: string }
       decline_my_account_invite: {
         Args: { _invite_id: string }
