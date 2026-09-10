@@ -126,10 +126,18 @@ function fmtShortDate(iso: string): string {
  *
  * O banco guarda um `body` só — o que a pessoa digita junto com a mídia — e
  * o nome do arquivo. Não há dois campos. Então a PRIMEIRA LINHA do texto vira
- * título e o RESTO vira descrição; sem texto digitado, o título é o nome do
- * arquivo e não há descrição. É reversível: no dia em que existir um campo
+ * título e o RESTO vira descrição. É reversível: no dia em que existir um campo
  * próprio de título, ele simplesmente passa na frente daqui.
+ *
+ * REGRA DA CASA (pedido explícito, 10/09/2026): "todo e qualquer registro
+ * precisa ter um título curto e uma descrição sobre o assunto... deve-se
+ * priorizar mostrar o título e não o nome do arquivo na página principal".
+ * Por isso o NOME DO ARQUIVO NUNCA vira título aqui — ele é identificador
+ * (CASACHARM-01), não assunto, e vive na meta do visualizador. Sem título
+ * gravado a linha diz "Sem título", que é a verdade e cobra o preenchimento.
  */
+const UNTITLED = "Sem título";
+
 function recordText(r: AccountRecord): { title: string; description: string | null } {
   const typed = (r.body ?? "").trim();
   if (typed) {
@@ -140,12 +148,16 @@ function recordText(r: AccountRecord): { title: string; description: string | nu
       description: typed.slice(nl + 1).trim() || null,
     };
   }
-  if (r.fileName) return { title: r.fileName, description: null };
-  return { title: CATEGORY_BY_KEY.get(r.category)?.label ?? "Registro", description: null };
+  return { title: UNTITLED, description: null };
 }
 
 function recordTitle(r: AccountRecord): string {
   return recordText(r).title;
+}
+
+/** Falso quando o título exibido é o marcador de ausência, não texto da pessoa. */
+function hasTitle(r: AccountRecord): boolean {
+  return recordTitle(r) !== UNTITLED;
 }
 
 /**
@@ -760,7 +772,11 @@ function PendingRow({
           <span className={`absolute inset-x-0 bottom-0 h-[3px] ${meta?.dot ?? "bg-muted"}`} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[11.5px] font-semibold leading-tight">
+          <span
+            className={`block truncate text-[11.5px] font-semibold leading-tight ${
+              hasTitle(record) ? "" : "italic text-muted-foreground"
+            }`}
+          >
             {recordTitle(record)}
           </span>
           <span className="mt-0.5 block truncate text-[9.5px] leading-tight text-muted-foreground">
@@ -933,13 +949,27 @@ function RecordViewerBody({
       </div>
 
       <div className="px-3.5 pb-3 pt-3">
-        <p className="text-[13px] font-bold leading-snug">{title}</p>
+        <p
+          className={`text-[13px] font-bold leading-snug ${
+            hasTitle(record) ? "" : "italic text-muted-foreground"
+          }`}
+        >
+          {title}
+        </p>
         {description && (
           <p className="mt-1 whitespace-pre-wrap break-words text-[11.5px] leading-relaxed text-muted-foreground">
             {description}
           </p>
         )}
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-border/60 pt-2.5 text-[9.5px] text-muted-foreground">
+          {/* O nome do arquivo é IDENTIFICADOR, não assunto: saiu do título e
+              vive aqui, junto com autor, hora e tamanho. */}
+          {record.fileName && (
+            <>
+              <span className="font-bold tabular-nums text-foreground/70">{record.fileName}</span>
+              <span className="opacity-45">·</span>
+            </>
+          )}
           <b className="font-bold text-foreground/80">{record.createdByName ?? "Equipe"}</b>
           {record.cardMode && (
             <>
@@ -1108,7 +1138,9 @@ function ResolveDialog({
           </DialogTitle>
           {record && (
             <span className="mt-0.5 block truncate text-[10.5px] text-muted-foreground">
-              {recordTitle(record)}
+              {/* Aqui é identificação, não leitura: sem título, o nome do
+                  arquivo diz de qual registro estamos falando. */}
+              {hasTitle(record) ? recordTitle(record) : (record.fileName ?? UNTITLED)}
             </span>
           )}
         </DialogHeader>
