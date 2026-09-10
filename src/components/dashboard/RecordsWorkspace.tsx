@@ -643,6 +643,58 @@ function CategoryCard({
  * Sem nada em aberto o primeiro andar não existe e o cartão fica igual ao de
  * antes — a mesma regra de sempre: o aviso só aparece quando há aviso.
  */
+/**
+ * A FAIXA LATERAL DO CARTÃO DO IMÓVEL (pedido explícito, 10/09/2026).
+ *
+ * Mesma barra de 3px dos cards do Kanban, mas dizendo outra coisa: aqui ela
+ * responde "o que mais tem neste imóvel?" antes de a pessoa ler qualquer
+ * linha. A cor é a da CATEGORIA MAIS FREQUENTE entre os registros daquele
+ * imóvel, com UMA exceção pedida pelo cliente:
+ *
+ *   "só nunca usar a cor da auditoria de limpeza quando tiver registro de
+ *    outras categorias junto. só usar a cor da auditoria da limpeza quando só
+ *    tiver isso no imóvel"
+ *
+ * Faz sentido: auditoria é ROTINA — todo imóvel limpo gera vídeo, então ela
+ * ganharia quase sempre na contagem e a faixa viraria uma fileira roxa que não
+ * informa nada. Tirando-a da disputa, a faixa passa a mostrar o que exige
+ * atenção; roxo então significa exatamente "aqui só há prova de limpeza, nada
+ * pendente".
+ *
+ * Empate: vence a mais grave — dano, depois manutenção, depois esquecidos,
+ * depois outros.
+ */
+const STRIPE_TONE: Record<RecordCategory, string> = {
+  damage: "bg-rose-500",
+  maintenance: "bg-sky-500",
+  forgotten: "bg-amber-400",
+  other: "bg-zinc-400",
+  cleaning_audit: "bg-violet-500",
+};
+
+/** Ordem de desempate, da mais grave para a menos. */
+const STRIPE_PRIORITY: RecordCategory[] = ["damage", "maintenance", "forgotten", "other"];
+
+function stripeCategory(records: ReadonlyArray<AccountRecord>): RecordCategory | null {
+  if (records.length === 0) return null;
+  const count = new Map<RecordCategory, number>();
+  for (const r of records) count.set(r.category, (count.get(r.category) ?? 0) + 1);
+
+  // Auditoria de limpeza fica FORA da disputa enquanto houver qualquer outra
+  // categoria no imóvel.
+  let best: RecordCategory | null = null;
+  let bestCount = 0;
+  for (const key of STRIPE_PRIORITY) {
+    const n = count.get(key) ?? 0;
+    if (n > bestCount) {
+      best = key;
+      bestCount = n;
+    }
+  }
+  if (best) return best;
+  return (count.get("cleaning_audit") ?? 0) > 0 ? "cleaning_audit" : null;
+}
+
 function PropertyCard({
   group,
   onOpen,
@@ -663,8 +715,15 @@ function PropertyCard({
   // cartão; sozinho, ele fica no tamanho de leitura de sempre.
   const thumbCap = hasPending ? 6 : THUMBS_PER_GROUP;
 
+  // A faixa lê o cartão INTEIRO — pendências e acervo —, não só o que está
+  // visível depois do corte das 3 linhas.
+  const stripe = stripeCategory([...group.pending, ...group.rest]);
+
   return (
-    <div className="ds-3d rounded-[0.3rem] bg-card p-3">
+    <div className="ds-3d relative overflow-hidden rounded-[0.3rem] bg-card p-3">
+      {stripe && (
+        <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] ${STRIPE_TONE[stripe]}`} />
+      )}
       {/* A ETIQUETA DIVIDE A LINHA DO TÍTULO, não o bloco de duas linhas
           (pedido explícito, 10/09/2026) — é a mesma correção já feita no
           cabeçalho das páginas: centrada no bloco inteiro, ela caía na altura
