@@ -1,17 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  Camera,
   Check,
   ChevronLeft,
   ChevronRight,
   FileText,
   Loader2,
-  Mic,
+  Play,
   SlidersHorizontal,
-  StickyNote,
-  Video,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -29,7 +26,12 @@ import { useImpersonation } from "@/hooks/useImpersonation";
 import { CARD_OWNER } from "@/components/dashboard/card-colors";
 import { OperationShell } from "@/components/dashboard/OperationWorkspace";
 import { RecordBlock } from "@/components/dashboard/ReservationRecords";
-import { CATEGORIES, CATEGORY_BY_KEY, fmtDayLabel } from "@/components/dashboard/record-categories";
+import {
+  CATEGORIES,
+  CATEGORY_BY_KEY,
+  MODE_LABEL,
+  fmtDayLabel,
+} from "@/components/dashboard/record-categories";
 import { listTaskLinkOptions } from "@/lib/tasks.functions";
 import {
   deleteReservationRecord,
@@ -46,18 +48,20 @@ import {
  * saber em qual reserva ela estava, e nenhuma pergunta transversal era
  * possível ("todos os danos", "os registros do Studio 101").
  *
- * A tela tem TRÊS andares, exatamente como no mockup:
- *   1. Quatro/cinco CONTADORES por categoria — a leitura estratégica
- *      ("quantos e de quê") e, ao mesmo tempo, o filtro. Mesmo cartão dos
- *      KPIs da tela Operacional (bg-card + ds-3d + ds-eyebrow).
- *   2. Dois seletores compactos — agrupar e período — no mesmo componente
- *      (`TaskChoiceMenu`) já usado pelas Pendências.
- *   3. Um CARTÃO POR IMÓVEL: nome, proprietário em rosa, contagem à direita
- *      e a fileira de MINIATURAS. É a miniatura que faz esta tela valer —
- *      lista de texto é o que já existe dentro da reserva.
+ * A tela tem DOIS andares:
+ *   1. CONTADORES por categoria, em duas linhas de três — a leitura
+ *      estratégica ("quantos e de quê") e, ao mesmo tempo, o filtro. Mesmo
+ *      cartão dos KPIs da tela Operacional (bg-card + ds-3d + ds-eyebrow).
+ *   2. Um CARTÃO POR IMÓVEL (ver `PropertyCard`): o que há para EXECUTAR em
+ *      cima, em linhas com título legível; o acervo embaixo, em miniaturas.
+ *
+ * Todo o resto dos filtros — categoria, agrupar, período, proprietário e
+ * imóvel — mora no botão único ao lado do título. Nenhuma faixa horizontal
+ * de controles: foi ela que deixou as Pendências poluídas.
  *
  * Sem recorte de período por padrão (pedido explícito): abre com o histórico
- * inteiro.
+ * inteiro, já filtrado pela categoria de maior prioridade que tenha registro
+ * (ver `AUTO_CATEGORY_PRIORITY`).
  */
 
 type GroupBy = "property" | "day";
@@ -76,19 +80,78 @@ const PERIOD_OPTIONS: ReadonlyArray<{ value: PeriodValue; label: string }> = [
   { value: "90", label: "90 dias" },
 ];
 
-/** Quantas miniaturas aparecem antes do "+N" — quatro, como no mockup. */
-const THUMBS_PER_GROUP = 4;
-/** Lado da miniatura. Fixo de propósito (ver comentário na tira). */
-const THUMB_SIZE = "size-[68px] sm:size-[76px]";
+/**
+ * A MINIATURA DO ACERVO TEM UM TAMANHO SÓ.
+ *
+ * Chegou a ter dois — 44px nos cartões com "a resolver" e 76px nos sem —
+ * para poupar altura. Visto na tela, dois cartões vizinhos com quadrados de
+ * tamanhos diferentes leem como desalinho, não como economia. Um tamanho só,
+ * e a tira fica igual em todo lugar.
+ */
+const THUMB_SIZE = "size-[52px]";
+/** Quantas miniaturas antes do "+N". Enche a linha do celular sem passar. */
+const THUMBS_PER_GROUP = 5;
 
-/** Ícone da miniatura quando não há imagem — diz o TIPO do registro. */
-const KIND_ICON = {
-  photo: Camera,
-  video: Video,
-  audio: Mic,
-  file: FileText,
-  note: StickyNote,
-} as const;
+/**
+ * A CAPA DO QUADRANTE (pedido explícito, 10/09/2026).
+ *
+ * Foto e vídeo mostram a própria imagem — o vídeo usa o primeiro quadro como
+ * capa (`#t=0.1` + `preload="metadata"`: o navegador busca só o cabeçalho e
+ * pinta esse quadro, sem baixar o arquivo) com um play por cima. Áudio, que
+ * não tem imagem nenhuma, ganha o play no centro do quadrante. Nota é a
+ * letra T. Só o arquivo genérico continua com ícone.
+ *
+ * `pointer-events-none` no <video>: o quadrante inteiro é um botão, e sem
+ * isso o clique no vídeo abriria os controles nativos em vez do registro.
+ */
+function RecordCover({ record, size }: { record: AccountRecord; size: "xs" | "sm" | "md" }) {
+  const iconClass = size === "xs" ? "size-3.5" : size === "sm" ? "size-4" : "size-5";
+  const playClass = size === "xs" ? "size-3.5" : size === "sm" ? "size-5" : "size-6";
+  const letterClass = size === "xs" ? "text-[13px]" : size === "sm" ? "text-[17px]" : "text-[22px]";
+
+  if (record.kind === "photo" && record.url) {
+    return <img src={record.url} alt="" className="size-full object-cover" />;
+  }
+  if (record.kind === "video" && record.url) {
+    return (
+      <>
+        <video
+          src={`${record.url}#t=0.1`}
+          preload="metadata"
+          muted
+          playsInline
+          className="pointer-events-none size-full object-cover"
+        />
+        <span className="absolute inset-0 grid place-items-center bg-black/25">
+          <Play className={`${playClass} fill-white text-white drop-shadow`} />
+        </span>
+      </>
+    );
+  }
+  if (record.kind === "audio") {
+    return (
+      <span className="grid size-full place-items-center">
+        <Play className={`${playClass} fill-foreground/70 text-foreground/70`} />
+      </span>
+    );
+  }
+  if (record.kind === "note") {
+    return <span className={`font-display font-bold text-muted-foreground ${letterClass}`}>T</span>;
+  }
+  return <FileText className={`${iconClass} text-muted-foreground`} />;
+}
+
+/** "hoje" / "ontem" / "08/09" — a data curta da linha e do rodapé. */
+function fmtShortDate(iso: string): string {
+  const d = new Date(iso);
+  const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const now = new Date();
+  const t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diff = Math.round((t0.getTime() - day.getTime()) / 86_400_000);
+  if (diff === 0) return "hoje";
+  if (diff === 1) return "ontem";
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+}
 
 /** Uma miniatura nunca fica sem legenda ao abrir: sem texto digitado, o nome
  * do arquivo; sem nome de arquivo, o rótulo da categoria. */
@@ -99,7 +162,47 @@ function recordTitle(r: AccountRecord): string {
   return CATEGORY_BY_KEY.get(r.category)?.label ?? "Registro";
 }
 
-type Group = { key: string; label: string; sublabel: string | null; items: AccountRecord[] };
+/**
+ * ORDEM DE PRIORIDADE do filtro que a tela escolhe sozinha ao abrir (pedido
+ * explícito): manutenção, depois dano, esquecidos, auditoria e outros. Cai
+ * para o próximo sempre que o anterior estiver zerado — e, se não houver
+ * registro nenhum, não seleciona nada.
+ *
+ * Nota: é a ordem de PRIORIDADE, não a ordem em que os cartões aparecem —
+ * essa continua sendo a ordem de `CATEGORIES`, definida pelo cliente em
+ * 07/09/2026.
+ */
+const AUTO_CATEGORY_PRIORITY: readonly RecordCategory[] = [
+  "maintenance",
+  "damage",
+  "forgotten",
+  "cleaning_audit",
+  "other",
+];
+
+/** Quantas pendências o cartão do imóvel lista antes de colapsar em "+N". */
+const PENDING_ROWS = 3;
+
+/**
+ * O QUE SOBE PARA "A RESOLVER" (pedido explícito, 10/09/2026): DANO e
+ * MANUTENÇÃO. Objeto esquecido também abre pendência no Kanban, mas ficou
+ * de fora daqui — é devolução, não conserto; continua no acervo e na tela de
+ * Pendências. Para incluí-lo, basta acrescentar "forgotten" nesta lista.
+ * Auditoria de limpeza nunca gera tarefa: é prova, não trabalho.
+ */
+const PENDING_CATEGORIES: readonly RecordCategory[] = ["damage", "maintenance"];
+
+type Group = {
+  key: string;
+  label: string;
+  sublabel: string | null;
+  propertyId: string;
+  /** Registros com pendência AINDA EM ABERTO — o que há para executar. */
+  pending: AccountRecord[];
+  /** Todo o resto: prova, não tarefa. */
+  rest: AccountRecord[];
+  total: number;
+};
 
 export function RecordsWorkspace() {
   const { impersonation } = useImpersonation();
@@ -190,6 +293,25 @@ export function RecordsWorkspace() {
   const counts = q.data?.counts;
   const openCounts = q.data?.openCounts;
 
+  /**
+   * FILTRO PADRÃO AO ABRIR (pedido explícito). Toda vez que se entra na aba,
+   * a tela já vem filtrada pela primeira categoria com registro na ordem de
+   * prioridade — manutenção, dano, esquecidos, auditoria, outros.
+   *
+   * Roda UMA vez por visita (o `useRef`), senão desmarcar o cartão no dedo
+   * seria desfeito no mesmo instante. Sair da aba desmonta o componente, e a
+   * próxima entrada escolhe de novo — inclusive se a operação mudou.
+   */
+  const autoPicked = useRef(false);
+  const [defaultCategory, setDefaultCategory] = useState<RecordCategory | null>(null);
+  useEffect(() => {
+    if (autoPicked.current || !counts) return;
+    autoPicked.current = true;
+    const first = AUTO_CATEGORY_PRIORITY.find((k) => (counts[k] ?? 0) > 0) ?? null;
+    setDefaultCategory(first);
+    if (first) setCategory(first);
+  }, [counts]);
+
   const groups = useMemo<Group[]>(() => {
     const map = new Map<string, Group>();
     for (const r of records) {
@@ -200,15 +322,26 @@ export function RecordsWorkspace() {
           key,
           label: groupBy === "property" ? r.propertyName : fmtDayLabel(r.createdAt),
           sublabel: groupBy === "property" ? r.ownerName : null,
-          items: [],
+          propertyId: r.propertyId,
+          pending: [],
+          rest: [],
+          total: 0,
         };
         map.set(key, g);
       }
-      g.items.push(r);
+      // O QUE É TRABALHO vs. O QUE É PROVA. Um registro só sobe para "a
+      // resolver" quando é dano/manutenção E a pendência que ele abriu no
+      // Kanban ainda está de pé. Concluída a pendência, ele desce sozinho
+      // para o acervo — o status é lido de `tasks`, nunca copiado.
+      if (r.taskStatus === "pending" && PENDING_CATEGORIES.includes(r.category)) g.pending.push(r);
+      else g.rest.push(r);
+      g.total += 1;
     }
-    // `records` já vem do banco do mais recente para o mais antigo; os grupos
-    // herdam a ordem de aparição — por data, isso já é a ordem cronológica
-    // invertida, sem nenhuma reordenação extra.
+    // Em "a resolver", o MAIS ANTIGO vem primeiro: ali antiguidade é atraso.
+    // No acervo vale a ordem que veio do banco (mais recente primeiro).
+    for (const g of map.values()) {
+      g.pending.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    }
     return Array.from(map.values());
   }, [records, groupBy]);
 
@@ -226,8 +359,11 @@ export function RecordsWorkspace() {
     return open > 0 ? `${base} · ${open} em aberto` : base;
   })();
 
+  // A categoria escolhida SOZINHA pela tela não conta como "filtro do
+  // usuário": se contasse, o pontinho no botão estaria sempre aceso e
+  // deixaria de significar alguma coisa.
   const hasCustomFilters =
-    category !== null ||
+    category !== defaultCategory ||
     onlyOpen ||
     period !== "all" ||
     groupBy !== "property" ||
@@ -235,7 +371,7 @@ export function RecordsWorkspace() {
     propertyFilters.length > 0;
 
   function clearAllFilters() {
-    setCategory(null);
+    setCategory(defaultCategory);
     setOnlyOpen(false);
     setPeriod("all");
     setGroupBy("property");
@@ -254,6 +390,8 @@ export function RecordsWorkspace() {
         subtitle={subtitle}
         actions={
           <RecordsFiltersButton
+            category={category}
+            onCategoryChange={setCategory}
             groupBy={groupBy}
             onGroupByChange={setGroupBy}
             period={period}
@@ -309,45 +447,19 @@ export function RecordsWorkspace() {
       ) : (
         <div className="space-y-1.5">
           {groups.map((g) => (
-            <div key={g.key} className="ds-3d rounded-[0.3rem] bg-card p-3">
-              <div className="flex items-center gap-2">
-                <div className="min-w-0 flex-1">
-                  <span className="ds-card-title">{g.label}</span>
-                  {g.sublabel && (
-                    <span className={`mt-0.5 block truncate text-[10.5px] ${CARD_OWNER}`}>
-                      {g.sublabel}
-                    </span>
-                  )}
-                </div>
-                <span className="shrink-0 text-[10.5px] font-bold tabular-nums text-muted-foreground">
-                  {g.items.length}
-                </span>
-              </div>
-
-              {/* Miniaturas de tamanho FIXO, não de largura proporcional: em
-                  quatro colunas elásticas elas viravam quadrados gigantes no
-                  desktop (a mesma tira que no celular tem 70px passava de
-                  300px). Fixas, a tira é sempre uma tira. */}
-              <div className="mt-2 flex flex-wrap gap-1">
-                {g.items.slice(0, THUMBS_PER_GROUP).map((r, i) => {
-                  const isLastSlot = i === THUMBS_PER_GROUP - 1;
-                  const rest = g.items.length - THUMBS_PER_GROUP;
-                  if (isLastSlot && rest > 0) {
-                    return (
-                      <button
-                        key="more"
-                        type="button"
-                        onClick={() => setOpened(r)}
-                        className={`${THUMB_SIZE} grid place-items-center rounded-[0.25rem] bg-secondary/40 text-[11px] font-bold tabular-nums text-muted-foreground transition-colors hover:bg-secondary/70`}
-                      >
-                        +{rest + 1}
-                      </button>
-                    );
-                  }
-                  return <Thumb key={r.id} record={r} onOpen={() => setOpened(r)} />;
-                })}
-              </div>
-            </div>
+            <PropertyCard
+              key={g.key}
+              group={g}
+              onOpen={setOpened}
+              onFocusPending={() => {
+                // "+N a resolver" recorta a própria tela para ESTE imóvel,
+                // só os abertos — em vez de abrir uma quarta tela para dizer
+                // o que os filtros já sabem dizer.
+                setPropertyFilters([g.propertyId]);
+                setOwnerFilters([]);
+                setOnlyOpen(true);
+              }}
+            />
           ))}
 
           {q.data?.truncated && (
@@ -428,9 +540,153 @@ function CategoryCard({
   );
 }
 
+/**
+ * O CARTÃO DO IMÓVEL EM DOIS ANDARES (mockup B, aprovado 10/09/2026).
+ *
+ * Antes era uma fileira de quadrados cinzentos com um ponto de 6px: um dano
+ * sem conserto e uma foto de auditoria eram visualmente o mesmo quadrado. O
+ * cartão passa a admitir que há duas naturezas ali dentro —
+ *
+ *   A RESOLVER  o que abriu pendência e ela ainda está de pé (dano,
+ *               manutenção, objeto esquecido). Vira LINHA, com título
+ *               legível, porque é trabalho e trabalho precisa de nome.
+ *   REGISTROS   o resto. Continua miniatura, porque é prova.
+ *
+ * Sem nada em aberto o primeiro andar não existe e o cartão fica igual ao de
+ * antes — a mesma regra de sempre: o aviso só aparece quando há aviso.
+ */
+function PropertyCard({
+  group,
+  onOpen,
+  onFocusPending,
+}: {
+  group: Group;
+  onOpen: (r: AccountRecord) => void;
+  onFocusPending: () => void;
+}) {
+  const hasPending = group.pending.length > 0;
+  const hiddenPending = group.pending.length - PENDING_ROWS;
+
+  return (
+    <div className="ds-3d rounded-[0.3rem] bg-card p-3">
+      <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <span className="ds-card-title">{group.label}</span>
+          {group.sublabel && (
+            <span className={`mt-0.5 block truncate text-[10.5px] ${CARD_OWNER}`}>
+              {group.sublabel}
+            </span>
+          )}
+        </div>
+        {hasPending ? (
+          <span className="shrink-0 rounded-[0.25rem] bg-rose-500/15 px-1.5 py-0.5 text-[9.5px] font-extrabold tabular-nums text-rose-600 dark:text-rose-400">
+            {group.pending.length} a resolver
+          </span>
+        ) : (
+          <span className="shrink-0 text-[10.5px] font-bold tabular-nums text-muted-foreground">
+            {group.total}
+          </span>
+        )}
+      </div>
+
+      {hasPending && (
+        <>
+          <div className="mb-1 mt-2.5 flex items-center gap-2">
+            <span className="shrink-0 text-[9px] font-extrabold uppercase tracking-[0.11em] text-rose-600 dark:text-rose-400">
+              A resolver
+            </span>
+            <span className="h-px flex-1 bg-border" />
+            <span className="shrink-0 text-[9px] font-bold tabular-nums text-muted-foreground">
+              {group.pending.length}
+            </span>
+          </div>
+          {group.pending.slice(0, PENDING_ROWS).map((r) => (
+            <PendingRow key={r.id} record={r} onOpen={() => onOpen(r)} />
+          ))}
+          {hiddenPending > 0 && (
+            <button
+              type="button"
+              onClick={onFocusPending}
+              className="mt-1 w-full rounded-[0.25rem] py-1 text-center text-[10px] font-bold text-muted-foreground transition-colors hover:bg-secondary/40 hover:text-foreground"
+            >
+              +{hiddenPending} a resolver
+            </button>
+          )}
+        </>
+      )}
+
+      {group.rest.length > 0 && (
+        <>
+          {hasPending && (
+            <div className="mb-1 mt-2.5 flex items-center gap-2">
+              <span className="shrink-0 text-[9px] font-extrabold uppercase tracking-[0.11em] text-muted-foreground">
+                Registros
+              </span>
+              <span className="h-px flex-1 bg-border" />
+              <span className="shrink-0 text-[9px] font-bold tabular-nums text-muted-foreground">
+                {group.rest.length}
+              </span>
+            </div>
+          )}
+          {/* Miniaturas de tamanho FIXO, não de largura proporcional: em
+              colunas elásticas elas viravam quadrados gigantes no desktop. */}
+          <div className={`flex flex-wrap gap-1 ${hasPending ? "" : "mt-2"}`}>
+            {group.rest.slice(0, THUMBS_PER_GROUP).map((r, i) => {
+              const isLastSlot = i === THUMBS_PER_GROUP - 1;
+              const hidden = group.rest.length - THUMBS_PER_GROUP;
+              if (isLastSlot && hidden > 0) {
+                return (
+                  <button
+                    key="more"
+                    type="button"
+                    onClick={() => onOpen(r)}
+                    className={`${THUMB_SIZE} grid place-items-center rounded-[0.25rem] bg-secondary/40 text-[11px] font-bold tabular-nums text-muted-foreground transition-colors hover:bg-secondary/70`}
+                  >
+                    +{hidden + 1}
+                  </button>
+                );
+              }
+              return <Thumb key={r.id} record={r} onOpen={() => onOpen(r)} />;
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Uma pendência do cartão: miniatura pequena, título legível, data. */
+function PendingRow({ record, onOpen }: { record: AccountRecord; onOpen: () => void }) {
+  const meta = CATEGORY_BY_KEY.get(record.category);
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="flex w-full items-center gap-2 border-t border-border/50 py-1.5 text-left transition-colors first:border-t-0 hover:bg-secondary/30"
+    >
+      <span className="relative grid size-[34px] shrink-0 place-items-center overflow-hidden rounded-[0.25rem] bg-gradient-to-br from-secondary/70 to-secondary/30">
+        <RecordCover record={record} size="xs" />
+        <span className={`absolute inset-x-0 bottom-0 h-[3px] ${meta?.dot ?? "bg-muted"}`} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[11.5px] font-semibold leading-tight">
+          {recordTitle(record)}
+        </span>
+        <span className="mt-0.5 block truncate text-[9.5px] leading-tight text-muted-foreground">
+          {meta?.short ?? "Registro"}
+          {record.createdByName ? ` · ${record.createdByName}` : ""}
+          {record.cardMode ? ` · ${MODE_LABEL[record.cardMode].toLowerCase()}` : ""}
+        </span>
+      </span>
+      <span className="shrink-0 text-[9.5px] tabular-nums text-muted-foreground">
+        {fmtShortDate(record.createdAt)}
+      </span>
+    </button>
+  );
+}
+
 function Thumb({ record, onOpen }: { record: AccountRecord; onOpen: () => void }) {
   const meta = CATEGORY_BY_KEY.get(record.category);
-  const Icon = KIND_ICON[record.kind] ?? StickyNote;
   const open = record.taskStatus === "pending";
   return (
     <button
@@ -439,11 +695,7 @@ function Thumb({ record, onOpen }: { record: AccountRecord; onOpen: () => void }
       title={recordTitle(record)}
       className={`${THUMB_SIZE} relative grid place-items-center overflow-hidden rounded-[0.25rem] bg-gradient-to-br from-secondary/70 to-secondary/30 transition-opacity hover:opacity-80`}
     >
-      {record.kind === "photo" && record.url ? (
-        <img src={record.url} alt="" className="size-full object-cover" />
-      ) : (
-        <Icon className="size-4 text-muted-foreground" />
-      )}
+      <RecordCover record={record} size="sm" />
       {/* Ponto da categoria: sem ele, com "todos" selecionado a fileira não
           diz mais o que cada miniatura é. */}
       <span
@@ -503,6 +755,8 @@ function RecordViewerDialog({
  * para cada um, com "voltar" no topo. Nada de menu-dentro-de-menu.
  */
 function RecordsFiltersButton({
+  category,
+  onCategoryChange,
   groupBy,
   onGroupByChange,
   period,
@@ -518,6 +772,8 @@ function RecordsFiltersButton({
   hasCustomFilters,
   onClearAll,
 }: {
+  category: RecordCategory | null;
+  onCategoryChange: (v: RecordCategory | null) => void;
   groupBy: GroupBy;
   onGroupByChange: (v: GroupBy) => void;
   period: PeriodValue;
@@ -533,13 +789,14 @@ function RecordsFiltersButton({
   hasCustomFilters: boolean;
   onClearAll: () => void;
 }) {
-  type Screen = "root" | "group" | "period" | "owner" | "property";
+  type Screen = "root" | "category" | "group" | "period" | "owner" | "property";
   const [screen, setScreen] = useState<Screen>("root");
 
   function toggle(list: string[], value: string, onChange: (next: string[]) => void) {
     onChange(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
   }
 
+  const categoryLabel = category ? (CATEGORY_BY_KEY.get(category)?.short ?? "Todas") : "Todas";
   const groupLabel = GROUP_OPTIONS.find((o) => o.value === groupBy)?.label ?? "Por imóvel";
   const periodLabel = PERIOD_OPTIONS.find((o) => o.value === period)?.label ?? "Todo o período";
   const ownerLabel =
@@ -638,6 +895,7 @@ function RecordsFiltersButton({
                 Limpar
               </button>
             </div>
+            <Row label="Categoria" value={categoryLabel} onClick={() => setScreen("category")} />
             <Row label="Agrupar" value={groupLabel} onClick={() => setScreen("group")} />
             <Row label="Período" value={periodLabel} onClick={() => setScreen("period")} />
             <Row label="Proprietário" value={ownerLabel} onClick={() => setScreen("owner")} />
@@ -650,6 +908,32 @@ function RecordsFiltersButton({
               <Checkbox checked={onlyOpen} className="pointer-events-none" />
               <span className="text-xs font-medium">Só os em aberto</span>
             </button>
+          </>
+        ) : null}
+
+        {screen === "category" ? (
+          <>
+            <BackRow />
+            <button
+              type="button"
+              onClick={() => onCategoryChange(null)}
+              className="flex w-full items-center gap-2 border-b border-border px-3 py-2.5 text-left text-xs transition-colors hover:bg-secondary/30"
+            >
+              <Check className={`size-3.5 ${category === null ? "opacity-100" : "opacity-0"}`} />
+              Todas
+            </button>
+            {CATEGORIES.map((c) => (
+              <button
+                key={c.key}
+                type="button"
+                onClick={() => onCategoryChange(c.key)}
+                className="flex w-full items-center gap-2 border-b border-border px-3 py-2.5 text-left text-xs transition-colors last:border-b-0 hover:bg-secondary/30"
+              >
+                <Check className={`size-3.5 ${c.key === category ? "opacity-100" : "opacity-0"}`} />
+                <span className={`size-1.5 shrink-0 rounded-full ${c.dot}`} />
+                {c.label}
+              </button>
+            ))}
           </>
         ) : null}
 

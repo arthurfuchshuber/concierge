@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-10T01:14:26.003Z";
+export const GENERATED_AT = "2026-09-10T01:47:01.506Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -310,6 +310,24 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/TaskAttachments.tsx",
     "audience": [],
     "content_hash": "54286623a751a461a23230c18cec34c1"
+  },
+  {
+    "doc_key": "rule:AUTO_CATEGORY_PRIORITY",
+    "kind": "rule",
+    "title": "Regra — AUTO_CATEGORY_PRIORITY",
+    "content": "ORDEM DE PRIORIDADE do filtro que a tela escolhe sozinha ao abrir (pedido\nexplícito): manutenção, depois dano, esquecidos, auditoria e outros. Cai\npara o próximo sempre que o anterior estiver zerado — e, se não houver\nregistro nenhum, não seleciona nada.\n\nNota: é a ordem de PRIORIDADE, não a ordem em que os cartões aparecem —\nessa continua sendo a ordem de `CATEGORIES`, definida pelo cliente em\n07/09/2026.",
+    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
+    "audience": [],
+    "content_hash": "f9fd3198bb6ced39fa62fe2fa524705d"
+  },
+  {
+    "doc_key": "rule:autoPicked",
+    "kind": "rule",
+    "title": "Regra — autoPicked",
+    "content": "FILTRO PADRÃO AO ABRIR (pedido explícito). Toda vez que se entra na aba,\na tela já vem filtrada pela primeira categoria com registro na ordem de\nprioridade — manutenção, dano, esquecidos, auditoria, outros.\n\nRoda UMA vez por visita (o `useRef`), senão desmarcar o cartão no dedo\nseria desfeito no mesmo instante. Sair da aba desmonta o componente, e a\npróxima entrada escolhe de novo — inclusive se a operação mudou.",
+    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
+    "audience": [],
+    "content_hash": "a40aefa50a71414d0b9af781c49ff632"
   },
   {
     "doc_key": "rule:bodyByCity",
@@ -792,10 +810,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:GroupBy",
     "kind": "rule",
     "title": "Regra — GroupBy",
-    "content": "ABA \"REGISTROS\" — mockup aprovado \"filtrado por dano, agrupado por imóvel\".\n\nO dado já era rico; o que faltava era a PORTA. Um registro só existia\ndentro do clipe de uma reserva: para achar qualquer coisa era preciso já\nsaber em qual reserva ela estava, e nenhuma pergunta transversal era\npossível (\"todos os danos\", \"os registros do Studio 101\").\n\nA tela tem TRÊS andares, exatamente como no mockup:\n 1. Quatro/cinco CONTADORES por categoria — a leitura estratégica\n (\"quantos e de quê\") e, ao mesmo tempo, o filtro. Mesmo cartão dos\n KPIs da tela Operacional (bg-card + ds-3d + ds-eyebrow).\n 2. Dois seletores compactos — agrupar e período — no mesmo componente\n (`TaskChoiceMenu`) já usado pelas Pendências.\n 3. Um CARTÃO POR IMÓVEL: nome, proprietário em rosa, contagem à direita\n e a fileira de MINIATURAS. É a miniatura que faz esta tela valer —\n lista de texto é o que já existe dentro da reserva.\n\nSem recorte de período por padrão (pedido explícito): abre com o histórico\ninteiro.",
+    "content": "ABA \"REGISTROS\" — mockup aprovado \"filtrado por dano, agrupado por imóvel\".\n\nO dado já era rico; o que faltava era a PORTA. Um registro só existia\ndentro do clipe de uma reserva: para achar qualquer coisa era preciso já\nsaber em qual reserva ela estava, e nenhuma pergunta transversal era\npossível (\"todos os danos\", \"os registros do Studio 101\").\n\nA tela tem DOIS andares:\n 1. CONTADORES por categoria, em duas linhas de três — a leitura\n estratégica (\"quantos e de quê\") e, ao mesmo tempo, o filtro. Mesmo\n cartão dos KPIs da tela Operacional (bg-card + ds-3d + ds-eyebrow).\n 2. Um CARTÃO POR IMÓVEL (ver `PropertyCard`): o que há para EXECUTAR em\n cima, em linhas com título legível; o acervo embaixo, em miniaturas.\n\nTodo o resto dos filtros — categoria, agrupar, período, proprietário e\nimóvel — mora no botão único ao lado do título. Nenhuma faixa horizontal\nde controles: foi ela que deixou as Pendências poluídas.\n\nSem recorte de período por padrão (pedido explícito): abre com o histórico\ninteiro, já filtrado pela categoria de maior prioridade que tenha registro\n(ver `AUTO_CATEGORY_PRIORITY`).",
     "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
     "audience": [],
-    "content_hash": "6e9f3afe71c91c0915589e7f0cfd9881"
+    "content_hash": "e774a807d3cd9161563ed0fbc84a1733"
   },
   {
     "doc_key": "rule:GuestMarkGroup",
@@ -1122,6 +1140,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "f35bf384dbc8476068735e46ff6c7bb5"
   },
   {
+    "doc_key": "rule:PENDING_CATEGORIES",
+    "kind": "rule",
+    "title": "Regra — PENDING_CATEGORIES",
+    "content": "O QUE SOBE PARA \"A RESOLVER\" (pedido explícito, 10/09/2026): DANO e\nMANUTENÇÃO. Objeto esquecido também abre pendência no Kanban, mas ficou\nde fora daqui — é devolução, não conserto; continua no acervo e na tela de\nPendências. Para incluí-lo, basta acrescentar \"forgotten\" nesta lista.\nAuditoria de limpeza nunca gera tarefa: é prova, não trabalho.",
+    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
+    "audience": [],
+    "content_hash": "720cb79ebe32956b8c460816124906fd"
+  },
+  {
     "doc_key": "rule:PendingAttachment",
     "kind": "rule",
     "title": "Regra — PendingAttachment",
@@ -1230,6 +1257,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "562deeb16089ca5cb76577d8936f84c7"
   },
   {
+    "doc_key": "rule:PropertyCard",
+    "kind": "rule",
+    "title": "Regra — PropertyCard",
+    "content": "O CARTÃO DO IMÓVEL EM DOIS ANDARES (mockup B, aprovado 10/09/2026).\n\nAntes era uma fileira de quadrados cinzentos com um ponto de 6px: um dano\nsem conserto e uma foto de auditoria eram visualmente o mesmo quadrado. O\ncartão passa a admitir que há duas naturezas ali dentro —\n\n A RESOLVER o que abriu pendência e ela ainda está de pé (dano,\n manutenção, objeto esquecido). Vira LINHA, com título\n legível, porque é trabalho e trabalho precisa de nome.\n REGISTROS o resto. Continua miniatura, porque é prova.\n\nSem nada em aberto o primeiro andar não existe e o cartão fica igual ao de\nantes — a mesma regra de sempre: o aviso só aparece quando há aviso.",
+    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
+    "audience": [],
+    "content_hash": "72837b77a75bd1a28f3d2fa466a2fb29"
+  },
+  {
     "doc_key": "rule:propertyCityById",
     "kind": "rule",
     "title": "Regra — propertyCityById",
@@ -1273,6 +1309,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/assistant.functions.ts",
     "audience": [],
     "content_hash": "20ddcef6f60560e7ea8f0e5b6257eef1"
+  },
+  {
+    "doc_key": "rule:RecordCover",
+    "kind": "rule",
+    "title": "Regra — RecordCover",
+    "content": "A CAPA DO QUADRANTE (pedido explícito, 10/09/2026).\n\nFoto e vídeo mostram a própria imagem — o vídeo usa o primeiro quadro como\ncapa (`#t=0.1` + `preload=\"metadata\"`: o navegador busca só o cabeçalho e\npinta esse quadro, sem baixar o arquivo) com um play por cima. Áudio, que\nnão tem imagem nenhuma, ganha o play no centro do quadrante. Nota é a\nletra T. Só o arquivo genérico continua com ícone.\n\n`pointer-events-none` no <video>: o quadrante inteiro é um botão, e sem\nisso o clique no vídeo abriria os controles nativos em vez do registro.",
+    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
+    "audience": [],
+    "content_hash": "364876a3bd5f3c2d288fdcdd712a9794"
   },
   {
     "doc_key": "rule:RecordsFiltersButton",
@@ -2938,6 +2983,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
     "content_hash": "467e94a80792c94f3d1d95de836383f6"
+  },
+  {
+    "doc_key": "rule:THUMB_SIZE",
+    "kind": "rule",
+    "title": "Regra — THUMB_SIZE",
+    "content": "A MINIATURA DO ACERVO TEM UM TAMANHO SÓ.\n\nChegou a ter dois — 44px nos cartões com \"a resolver\" e 76px nos sem —\npara poupar altura. Visto na tela, dois cartões vizinhos com quadrados de\ntamanhos diferentes leem como desalinho, não como economia. Um tamanho só,\ne a tira fica igual em todo lugar.",
+    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
+    "audience": [],
+    "content_hash": "64a74111083f0757e8170f04e86c91f1"
   },
   {
     "doc_key": "rule:transcribeAssistantAudio",
