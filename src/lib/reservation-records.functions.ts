@@ -204,6 +204,45 @@ export const listReservationRecords = createServerFn({ method: "GET" })
     return { records: out };
   });
 
+/**
+ * NOME DO REGISTRO (pedido explícito, 10/09/2026): as 10 primeiras letras do
+ * anúncio + o sequencial daquele imóvel — "STUDIO101-01".
+ *
+ * O nome que vinha da câmera do celular ("17890533261888326086821345931428
+ * .jpg") não dizia nada, e é ele que aparece como título quando o registro
+ * não tem texto digitado. Isto é só RÓTULO: a chave real do arquivo é
+ * `storage_path`, que não é tocado.
+ *
+ * A mesma regra está na migração 20260910150000, que renomeou o que já
+ * estava gravado. Se mudar aqui, mude lá.
+ */
+const ACCENT_FROM = "áàâãäéèêëíìîïóòôõöúùûüçÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ";
+const ACCENT_TO = "aaaaaeeeeiiiiooooouuuucAAAAAEEEEIIIIOOOOOUUUUC";
+
+function propertySlug(name: string | null): string {
+  const first10 = (name ?? "REGISTRO").slice(0, 10);
+  const noAccent = first10.replace(/./g, (ch) => {
+    const i = ACCENT_FROM.indexOf(ch);
+    return i === -1 ? ch : ACCENT_TO[i];
+  });
+  return noAccent.replace(/[^A-Za-z0-9]/g, "").toUpperCase() || "REGISTRO";
+}
+
+/** Próximo nome disponível para este imóvel. A contagem vem do banco, então
+ * dois envios simultâneos podem repetir o número — é rótulo, não chave, e
+ * repetir é preferível a segurar o envio numa transação. */
+async function nextRecordName(supabase: AnyClient, propertyId: string): Promise<string> {
+  const [{ data: prop }, { count }] = await Promise.all([
+    supabase.from("properties").select("name").eq("id", propertyId).maybeSingle(),
+    supabase
+      .from("reservation_records")
+      .select("id", { count: "exact", head: true })
+      .eq("property_id", propertyId),
+  ]);
+  const seq = (typeof count === "number" ? count : 0) + 1;
+  return `${propertySlug((prop as { name: string | null } | null)?.name ?? null)}-${String(seq).padStart(2, "0")}`;
+}
+
 /** Nome de quem está registrando — mesmo fallback usado no handoff. */
 async function resolveAuthorName(supabase: AnyClient, userId: string): Promise<string> {
   const { data: prof } = await supabase
@@ -329,7 +368,7 @@ export const attachReservationRecord = createServerFn({ method: "POST" })
       mime: data.mime,
       size_bytes: data.sizeBytes,
       duration_ms: data.durationMs ?? null,
-      file_name: data.fileName ?? null,
+      file_name: await nextRecordName(supabase, data.propertyId),
       body: data.caption ?? null,
       card_mode: data.cardMode,
       created_by: context.userId,
@@ -439,7 +478,7 @@ export const attachTaskRecord = createServerFn({ method: "POST" })
       mime: data.mime,
       size_bytes: data.sizeBytes,
       duration_ms: data.durationMs ?? null,
-      file_name: data.fileName ?? null,
+      file_name: await nextRecordName(supabase, data.propertyId),
       body: data.caption ?? null,
       card_mode: null,
       created_by: context.userId,

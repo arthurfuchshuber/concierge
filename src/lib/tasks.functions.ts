@@ -409,6 +409,13 @@ const SetTaskStatusInput = z.object({
    * dois OPCIONAIS: dá pra concluir sem informar nada, como antes. */
   resolvedByProviderId: z.string().uuid().nullable().optional(),
   resolutionNote: z.string().trim().max(2000).nullable().optional(),
+  /**
+   * QUEM ARCA COM O CUSTO (pedido explícito, 10/09/2026) — não é a mesma
+   * pergunta que "quem resolveu": um dano pode ser consertado pelo prestador
+   * e cobrado do proprietário, ou absorvido pela empresa.
+   */
+  costPayer: z.enum(["company", "owner", "provider"]).nullable().optional(),
+  costPayerId: z.string().uuid().nullable().optional(),
 });
 
 export const setTaskStatus = createServerFn({ method: "POST" })
@@ -424,11 +431,17 @@ export const setTaskStatus = createServerFn({ method: "POST" })
     if (data.resolvedByProviderId !== undefined)
       patch.resolved_by_provider_id = data.resolvedByProviderId;
     if (data.resolutionNote !== undefined) patch.resolution_note = data.resolutionNote || null;
+    if (data.costPayer !== undefined) patch.cost_payer = data.costPayer;
+    if (data.costPayerId !== undefined) patch.cost_payer_id = data.costPayerId;
+    // "A empresa paga" não tem id — guardar um id aqui seria mentira.
+    if (data.costPayer === "company") patch.cost_payer_id = null;
     // Reabrir limpa a prestação de contas da conclusão anterior — senão a
     // pendência volta pendente ainda exibindo "resolvida por Fulano".
     if (data.status === "pending") {
       patch.resolved_by_provider_id = null;
       patch.resolution_note = null;
+      patch.cost_payer = null;
+      patch.cost_payer_id = null;
     }
 
     if (data.status === "done") {

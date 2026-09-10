@@ -30,7 +30,7 @@ import { CARD_OWNER } from "@/components/dashboard/card-colors";
 import { OperationShell } from "@/components/dashboard/OperationWorkspace";
 import { AudioPlayer } from "@/components/dashboard/ReservationRecords";
 import { CATEGORY_BY_KEY, MODE_LABEL, fmtDayLabel } from "@/components/dashboard/record-categories";
-import { listTaskLinkOptions } from "@/lib/tasks.functions";
+import { listTaskLinkOptions, setTaskStatus } from "@/lib/tasks.functions";
 import {
   deleteReservationRecord,
   listAccountRecords,
@@ -154,6 +154,15 @@ function recordTitle(r: AccountRecord): string {
  * de ponta a ponta no topo do quadrado, centralizada — sobre foto ou vídeo a
  * translucidez deixa a imagem aparecer por baixo.
  */
+/** A mesma cor, sólida — para quando a etiqueta fica SOBRE uma imagem. */
+const CATEGORY_SOLID: Record<RecordCategory, string> = {
+  forgotten: "bg-orange-600",
+  damage: "bg-rose-600",
+  cleaning_audit: "bg-violet-600",
+  maintenance: "bg-sky-600",
+  other: "bg-zinc-600",
+};
+
 const CATEGORY_BAND: Record<RecordCategory, string> = {
   forgotten: "bg-orange-500/20 text-orange-300",
   damage: "bg-rose-500/20 text-rose-300",
@@ -236,6 +245,7 @@ export function RecordsWorkspace() {
   /** Ids de imóvel. */
   const [propertyFilters, setPropertyFilters] = useState<string[]>([]);
   const [opened, setOpened] = useState<AccountRecord | null>(null);
+  const [resolving, setResolving] = useState<AccountRecord | null>(null);
 
   const days = period === "all" ? null : Number(period);
 
@@ -451,7 +461,7 @@ export function RecordsWorkspace() {
       ) : (
         <div className="space-y-1.5">
           {groups.map((g) => (
-            <PropertyCard key={g.key} group={g} onOpen={setOpened} />
+            <PropertyCard key={g.key} group={g} onOpen={setOpened} onResolve={setResolving} />
           ))}
 
           {q.data?.truncated && (
@@ -467,6 +477,24 @@ export function RecordsWorkspace() {
         record={opened}
         onClose={() => setOpened(null)}
         onDelete={(id) => del.mutate(id)}
+        onResolve={() => {
+          // Fecha o visualizador antes: dois diálogos empilhados prendem o
+          // foco um no outro e o "voltar" do celular fecha os dois.
+          const r = opened;
+          setOpened(null);
+          setResolving(r);
+        }}
+      />
+
+      <ResolveDialog
+        record={resolving}
+        owners={optionsQ.data?.owners ?? []}
+        providers={optionsQ.data?.providers ?? []}
+        onClose={() => setResolving(null)}
+        onDone={() => {
+          setResolving(null);
+          void qc.invalidateQueries({ queryKey: ["account-records"] });
+        }}
       />
     </div>
   );
@@ -561,7 +589,15 @@ function CategoryCard({
  * Sem nada em aberto o primeiro andar não existe e o cartão fica igual ao de
  * antes — a mesma regra de sempre: o aviso só aparece quando há aviso.
  */
-function PropertyCard({ group, onOpen }: { group: Group; onOpen: (r: AccountRecord) => void }) {
+function PropertyCard({
+  group,
+  onOpen,
+  onResolve,
+}: {
+  group: Group;
+  onOpen: (r: AccountRecord) => void;
+  onResolve: (r: AccountRecord) => void;
+}) {
   // "+N a resolver" EXPANDE A PRÓPRIA LISTA (pedido explícito, 10/09/2026).
   // Antes ele recortava a página inteira para aquele imóvel — resolvia, mas
   // custava perder a visão dos outros. Abrir no lugar é mais barato e é o que
@@ -606,7 +642,12 @@ function PropertyCard({ group, onOpen }: { group: Group; onOpen: (r: AccountReco
             </span>
           </div>
           {(showAllPending ? group.pending : group.pending.slice(0, PENDING_ROWS)).map((r) => (
-            <PendingRow key={r.id} record={r} onOpen={() => onOpen(r)} />
+            <PendingRow
+              key={r.id}
+              record={r}
+              onOpen={() => onOpen(r)}
+              onResolve={() => onResolve(r)}
+            />
           ))}
           {hiddenPending > 0 && (
             <button
@@ -640,7 +681,7 @@ function PropertyCard({ group, onOpen }: { group: Group; onOpen: (r: AccountReco
           </div>
           {/* Miniaturas de tamanho FIXO, não de largura proporcional: em
               colunas elásticas elas viravam quadrados gigantes no desktop. */}
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1 pt-1.5">
             {group.rest.slice(0, thumbCap).map((r, i) => {
               const isLastSlot = i === thumbCap - 1;
               const hidden = group.rest.length - thumbCap;
@@ -689,42 +730,66 @@ function MoreThumb({
   );
 }
 
-/** Uma pendência do cartão: miniatura pequena, título legível, data. */
-function PendingRow({ record, onOpen }: { record: AccountRecord; onOpen: () => void }) {
+/**
+ * Uma pendência do cartão: miniatura, título legível, data — e, ABAIXO DA
+ * DATA, o quadradinho que resolve (pedido explícito, 10/09/2026).
+ *
+ * A linha deixou de ser um botão só: um checkbox dentro de um botão não é
+ * clicável de forma previsível (nem é HTML válido). Agora são dois alvos
+ * lado a lado — o corpo abre o registro, o quadradinho abre a resolução.
+ */
+function PendingRow({
+  record,
+  onOpen,
+  onResolve,
+}: {
+  record: AccountRecord;
+  onOpen: () => void;
+  onResolve?: () => void;
+}) {
   const meta = CATEGORY_BY_KEY.get(record.category);
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="flex w-full items-center gap-2 border-t border-border/50 py-1.5 text-left transition-colors first:border-t-0 hover:bg-secondary/30"
-    >
-      <span className="relative grid size-[34px] shrink-0 place-items-center overflow-hidden rounded-[0.25rem] bg-gradient-to-br from-secondary/70 to-secondary/30">
-        <RecordCover record={record} size="xs" />
-        <span className={`absolute inset-x-0 bottom-0 h-[3px] ${meta?.dot ?? "bg-muted"}`} />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[11.5px] font-semibold leading-tight">
-          {recordTitle(record)}
+    <div className="flex w-full items-start gap-2 border-t border-border/50 py-1.5 first:border-t-0">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex min-w-0 flex-1 items-start gap-2 text-left transition-colors hover:opacity-80"
+      >
+        <span className="relative grid size-[34px] shrink-0 place-items-center overflow-hidden rounded-[0.25rem] bg-gradient-to-br from-secondary/70 to-secondary/30">
+          <RecordCover record={record} size="xs" />
+          <span className={`absolute inset-x-0 bottom-0 h-[3px] ${meta?.dot ?? "bg-muted"}`} />
         </span>
-        <span className="mt-0.5 block truncate text-[9.5px] leading-tight text-muted-foreground">
-          {meta?.short ?? "Registro"}
-          {record.createdByName ? ` · ${record.createdByName}` : ""}
-          {record.cardMode ? ` · ${MODE_LABEL[record.cardMode].toLowerCase()}` : ""}
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[11.5px] font-semibold leading-tight">
+            {recordTitle(record)}
+          </span>
+          <span className="mt-0.5 block truncate text-[9.5px] leading-tight text-muted-foreground">
+            {meta?.short ?? "Registro"}
+            {record.createdByName ? ` · ${record.createdByName}` : ""}
+            {record.cardMode ? ` · ${MODE_LABEL[record.cardMode].toLowerCase()}` : ""}
+          </span>
         </span>
-      </span>
-      <span className="shrink-0 text-[9.5px] tabular-nums text-muted-foreground">
-        {fmtShortDate(record.createdAt)}
-      </span>
-    </button>
+      </button>
+
+      <div className="flex shrink-0 flex-col items-end gap-1.5">
+        {/* Alinhada à LINHA DO TÍTULO, não ao centro da linha inteira. */}
+        <span className="text-[9.5px] leading-tight tabular-nums text-muted-foreground">
+          {fmtShortDate(record.createdAt)}
+        </span>
+        {onResolve && (
+          <button
+            type="button"
+            onClick={onResolve}
+            aria-label="Marcar como resolvido"
+            title="Marcar como resolvido"
+            className="grid size-[15px] place-items-center rounded-[3px] border border-muted-foreground/60 transition-colors hover:border-emerald-500 hover:bg-emerald-500/15"
+          />
+        )}
+      </div>
+    </div>
   );
 }
 
-/**
- * O QUADRANTE, em dois andares: o quadrado com a FAIXA DA CATEGORIA dentro,
- * no topo, e a DATA logo abaixo, fora dele (pedido explícito, 10/09/2026).
- * O antigo pontinho colorido no canto saiu — a faixa diz a mesma coisa e diz
- * melhor, com o nome escrito.
- */
 function Thumb({
   record,
   small,
@@ -794,10 +859,12 @@ function RecordViewerDialog({
   record,
   onClose,
   onDelete,
+  onResolve,
 }: {
   record: AccountRecord | null;
   onClose: () => void;
   onDelete: (id: string) => void;
+  onResolve?: () => void;
 }) {
   return (
     <Dialog open={!!record} onOpenChange={(v) => !v && onClose()}>
@@ -805,7 +872,7 @@ function RecordViewerDialog({
         className="w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border-border/60 bg-card/95 p-0 backdrop-blur-xl sm:w-full sm:max-w-md"
         aria-describedby={undefined}
       >
-        {record && <RecordViewerBody record={record} onDelete={onDelete} />}
+        {record && <RecordViewerBody record={record} onDelete={onDelete} onResolve={onResolve} />}
       </DialogContent>
     </Dialog>
   );
@@ -814,9 +881,11 @@ function RecordViewerDialog({
 function RecordViewerBody({
   record,
   onDelete,
+  onResolve,
 }: {
   record: AccountRecord;
   onDelete: (id: string) => void;
+  onResolve?: () => void;
 }) {
   const meta = CATEGORY_BY_KEY.get(record.category);
   const { title, description } = recordText(record);
@@ -829,25 +898,34 @@ function RecordViewerBody({
 
   return (
     <>
-      <DialogHeader className="space-y-0 px-3.5 pb-2.5 pr-11 pt-3.5 text-left">
-        {/* Uma linha com reticências (pedido explícito): o nome do anúncio é
-            longo e, em duas linhas, empurrava a folha inteira. */}
-        <DialogTitle className="ds-card-title">{record.propertyName}</DialogTitle>
+      <DialogHeader className="space-y-0 px-3.5 pb-2 pr-11 pt-3.5 text-left">
+        {/* UMA LINHA, com reticências antes do X (pedido explícito). O
+            `ds-card-title` sozinho não bastava: o `DialogTitle` do Radix
+            entra com as próprias classes e o `white-space` acabava não
+            valendo. `truncate` explícito resolve, e o `pr-11` do cabeçalho
+            garante que as reticências caiam ANTES do botão de fechar. */}
+        <DialogTitle className="ds-card-title block w-full truncate">
+          {record.propertyName}
+        </DialogTitle>
         {record.ownerName && (
           <span className={`mt-0.5 block truncate text-[10.5px] ${CARD_OWNER}`}>
             {record.ownerName}
           </span>
         )}
-        <span className="mt-1 block truncate text-[10px] text-muted-foreground">
+        <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
           {reservationLine}
         </span>
       </DialogHeader>
 
       <div className={`relative ${VIEWER_STAGE} overflow-hidden bg-black`}>
         <ViewerStage record={record} />
+        {/* Aqui a etiqueta fica SOBRE a mídia, então ela é sólida (pedido
+            explícito): translúcida, sumia contra uma foto clara. Nos
+            quadrantes da lista ela segue translúcida — lá não há imagem
+            atrás. */}
         <span
-          className={`absolute left-2.5 top-2.5 z-10 inline-flex items-center gap-1 rounded-[0.25rem] px-1.5 py-1 text-[9px] font-extrabold uppercase tracking-[0.06em] backdrop-blur ${
-            CATEGORY_BAND[record.category] ?? CATEGORY_BAND.other
+          className={`absolute left-2.5 top-2.5 z-10 inline-flex items-center gap-1 rounded-[0.25rem] px-2 py-1 text-[9px] font-extrabold uppercase tracking-[0.06em] text-white shadow-sm ${
+            CATEGORY_SOLID[record.category] ?? CATEGORY_SOLID.other
           }`}
         >
           {meta?.label ?? "Registro"}
@@ -920,8 +998,243 @@ function RecordViewerBody({
         >
           Excluir
         </button>
+        {/* "Resolvido" só existe quando há o que resolver: registro sem
+            pendência, ou com a pendência já fechada, não mostra o botão. */}
+        {record.taskId && record.taskStatus === "pending" && onResolve && (
+          <button
+            type="button"
+            onClick={onResolve}
+            className="flex-1 rounded-[0.3rem] bg-emerald-500/15 py-2 text-center text-[10.5px] font-bold text-emerald-600 transition-colors hover:bg-emerald-500/25 dark:text-emerald-400"
+          >
+            Resolvido
+          </button>
+        )}
       </div>
     </>
+  );
+}
+
+/**
+ * DIÁLOGO DE RESOLUÇÃO (pedido explícito, 10/09/2026).
+ *
+ * Fechar uma pendência levanta duas perguntas que a operação sempre faz
+ * depois, quando já esqueceu a resposta: HOUVE CUSTO? e QUEM PAGA? Perguntar
+ * no momento em que se resolve é o único jeito de ter isso preenchido.
+ *
+ * "Quem paga" NÃO é "quem resolveu" — o prestador conserta, mas a conta pode
+ * ir para o proprietário ou ficar com a empresa. São duas colunas separadas
+ * em `tasks` (`cost_payer` / `cost_payer_id` e `resolved_by_provider_id`).
+ *
+ * Tudo é opcional: dá para resolver sem informar nada, como antes.
+ */
+type PayerKind = "company" | "owner" | "provider";
+
+function ResolveDialog({
+  record,
+  owners,
+  providers,
+  onClose,
+  onDone,
+}: {
+  record: AccountRecord | null;
+  owners: ReadonlyArray<{ id: string; name: string }>;
+  providers: ReadonlyArray<{ id: string; name: string }>;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const setStatusFn = useServerFn(setTaskStatus);
+  const [hasCost, setHasCost] = useState(false);
+  const [amount, setAmount] = useState("");
+  const [payer, setPayer] = useState<PayerKind>("company");
+  const [payerId, setPayerId] = useState<string | null>(null);
+  const [note, setNote] = useState("");
+
+  // Reabre sempre limpo — ninguém espera o formulário da pendência anterior.
+  const key = record?.id ?? null;
+  const [lastKey, setLastKey] = useState<string | null>(null);
+  if (key !== lastKey) {
+    setLastKey(key);
+    setHasCost(false);
+    setAmount("");
+    setPayer("company");
+    setPayerId(null);
+    setNote("");
+  }
+
+  const resolve = useMutation({
+    mutationFn: async () => {
+      if (!record?.taskId) throw new Error("Este registro não tem pendência.");
+      // "1.234,56" e "1234.56" chegam iguais em centavos.
+      const cents = hasCost
+        ? Math.round(Number(amount.replace(/\./g, "").replace(",", ".")) * 100)
+        : null;
+      if (hasCost && (!Number.isFinite(cents) || (cents ?? 0) < 0)) {
+        throw new Error("Informe um valor válido.");
+      }
+      await setStatusFn({
+        data: {
+          taskId: record.taskId,
+          status: "done",
+          amountSpentCents: cents,
+          costPayer: hasCost ? payer : null,
+          costPayerId: hasCost && payer !== "company" ? payerId : null,
+          // Quem resolveu continua sendo o prestador, quando for ele quem
+          // pagou ou executou — é a coluna que a tela de Pendências já lê.
+          resolvedByProviderId: payer === "provider" ? payerId : null,
+          resolutionNote: note.trim() || null,
+        },
+      });
+    },
+    onSuccess: () => {
+      toast.success("Pendência resolvida.");
+      onDone();
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Não foi possível resolver."),
+  });
+
+  const options = payer === "owner" ? owners : payer === "provider" ? providers : [];
+  const needsWho = hasCost && payer !== "company";
+
+  return (
+    <Dialog open={!!record} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent
+        className="w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border-border/60 bg-card/95 p-0 backdrop-blur-xl sm:w-full sm:max-w-sm"
+        aria-describedby={undefined}
+      >
+        <DialogHeader className="space-y-0 px-4 pb-2 pr-11 pt-4 text-left">
+          <DialogTitle className="ds-card-title block w-full truncate">
+            Resolver pendência
+          </DialogTitle>
+          {record && (
+            <span className="mt-0.5 block truncate text-[10.5px] text-muted-foreground">
+              {recordTitle(record)}
+            </span>
+          )}
+        </DialogHeader>
+
+        <div className="space-y-3 px-4 pb-4">
+          <button
+            type="button"
+            onClick={() => setHasCost((v) => !v)}
+            className="flex w-full items-center gap-2 rounded-[0.3rem] bg-foreground/[0.04] px-2.5 py-2 text-left transition-colors hover:bg-foreground/[0.08]"
+          >
+            <Checkbox checked={hasCost} className="pointer-events-none" />
+            <span className="text-xs font-medium">Houve custo para resolver</span>
+          </button>
+
+          {hasCost && (
+            <>
+              <label className="block">
+                <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">Valor</span>
+                <div className="mt-1 flex items-center gap-2 rounded-[0.3rem] bg-foreground/[0.04] px-2.5 py-2">
+                  <span className="text-[11px] font-bold text-muted-foreground">R$</span>
+                  <input
+                    inputMode="decimal"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder="0,00"
+                    className="w-full bg-transparent text-[13px] font-semibold tabular-nums outline-none placeholder:text-muted-foreground/60"
+                  />
+                </div>
+              </label>
+
+              <div>
+                <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">
+                  Quem paga
+                </span>
+                <div className="mt-1 grid grid-cols-3 gap-1">
+                  {(
+                    [
+                      { key: "company" as const, label: "A empresa" },
+                      { key: "owner" as const, label: "Proprietário" },
+                      { key: "provider" as const, label: "Prestador" },
+                    ] satisfies ReadonlyArray<{ key: PayerKind; label: string }>
+                  ).map((o) => (
+                    <button
+                      key={o.key}
+                      type="button"
+                      onClick={() => {
+                        setPayer(o.key);
+                        setPayerId(null);
+                      }}
+                      className={`rounded-[0.3rem] py-2 text-center text-[10.5px] font-bold transition-colors ${
+                        payer === o.key
+                          ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
+                          : "bg-foreground/[0.04] text-foreground/70 hover:bg-foreground/[0.08]"
+                      }`}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {needsWho && (
+                <div className="overflow-hidden rounded-[0.3rem] border border-border/60">
+                  <Command>
+                    <CommandInput
+                      placeholder={
+                        payer === "owner" ? "Buscar proprietário..." : "Buscar prestador..."
+                      }
+                    />
+                    <CommandList className="sg-elegant-scroll max-h-40">
+                      <CommandEmpty>Nenhum cadastrado.</CommandEmpty>
+                      <CommandGroup>
+                        {options.map((o) => (
+                          <CommandItem
+                            key={o.id}
+                            value={o.name}
+                            onSelect={() => setPayerId(o.id)}
+                            className="cursor-pointer gap-2"
+                          >
+                            <Check
+                              className={`size-3.5 ${payerId === o.id ? "opacity-100" : "opacity-0"}`}
+                            />
+                            <span className="truncate">{o.name}</span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </div>
+              )}
+            </>
+          )}
+
+          <label className="block">
+            <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">
+              Observação (opcional)
+            </span>
+            <textarea
+              rows={2}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="O que foi feito"
+              className="mt-1 w-full resize-none rounded-[0.3rem] bg-foreground/[0.04] px-2.5 py-2 text-[12px] outline-none placeholder:text-muted-foreground/60"
+            />
+          </label>
+
+          <div className="flex gap-1.5 pt-0.5">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded-[0.3rem] bg-foreground/[0.06] py-2 text-center text-[10.5px] font-bold text-foreground/80 transition-colors hover:bg-foreground/10"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={resolve.isPending || (needsWho && !payerId)}
+              onClick={() => resolve.mutate()}
+              className="flex-1 rounded-[0.3rem] bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] py-2 text-center text-[10.5px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              {resolve.isPending ? "Salvando…" : "Confirmar"}
+            </button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -971,12 +1284,13 @@ function ViewerStage({ record }: { record: AccountRecord }) {
       </div>
     );
   }
+  // NOTA: o palco NÃO repete o texto (pedido explícito, 10/09/2026). Ele
+  // aparecia aqui e de novo logo abaixo, como título e descrição — a mesma
+  // frase duas vezes, e a de cima ainda ficava escondida atrás da etiqueta.
   if (record.kind === "note") {
     return (
-      <div className="sg-elegant-scroll size-full overflow-y-auto bg-gradient-to-br from-secondary/60 to-secondary/20 px-4 py-4">
-        <p className="whitespace-pre-wrap break-words text-[12.5px] leading-relaxed text-foreground/90">
-          {record.body}
-        </p>
+      <div className="grid size-full place-items-center bg-gradient-to-br from-secondary/60 to-secondary/20 text-muted-foreground">
+        <StickyNote className="size-8" />
       </div>
     );
   }

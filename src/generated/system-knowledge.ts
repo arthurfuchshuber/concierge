@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-10T15:26:56.853Z";
+export const GENERATED_AT = "2026-09-10T16:14:45.201Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -231,6 +231,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "77b2d459ed19d7df676713e6ee86dc9d"
   },
   {
+    "doc_key": "rule:ACCENT_FROM",
+    "kind": "rule",
+    "title": "Regra — ACCENT_FROM",
+    "content": "NOME DO REGISTRO (pedido explícito, 10/09/2026): as 10 primeiras letras do\nanúncio + o sequencial daquele imóvel — \"STUDIO101-01\".\n\nO nome que vinha da câmera do celular (\"17890533261888326086821345931428\n.jpg\") não dizia nada, e é ele que aparece como título quando o registro\nnão tem texto digitado. Isto é só RÓTULO: a chave real do arquivo é\n`storage_path`, que não é tocado.\n\nA mesma regra está na migração 20260910150000, que renomeou o que já\nestava gravado. Se mudar aqui, mude lá.",
+    "source_path": "src/lib/reservation-records.functions.ts",
+    "audience": [],
+    "content_hash": "01d444953dcf5e7fce254d2e3265a71b"
+  },
+  {
     "doc_key": "rule:ACTION_OPTIONS",
     "kind": "rule",
     "title": "Regra — ACTION_OPTIONS",
@@ -409,15 +418,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/card-colors.ts",
     "audience": [],
     "content_hash": "c47eaa9424d89caa750b4901b33ec3df"
-  },
-  {
-    "doc_key": "rule:CATEGORY_BAND",
-    "kind": "rule",
-    "title": "Regra — CATEGORY_BAND",
-    "content": "A FAIXA DA CATEGORIA dentro do quadrante (pedido explícito, 10/09/2026):\nmesma cor da categoria, translúcida, com o texto na versão clara dela. Fica\nde ponta a ponta no topo do quadrado, centralizada — sobre foto ou vídeo a\ntranslucidez deixa a imagem aparecer por baixo.",
-    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
-    "audience": [],
-    "content_hash": "4c6740a4bb12fe958c8e9a8b03b68031"
   },
   {
     "doc_key": "rule:cellHalves",
@@ -1068,6 +1068,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "d5418ec6488d6c103f452ea45dca235f"
   },
   {
+    "doc_key": "rule:nextRecordName",
+    "kind": "rule",
+    "title": "Regra — nextRecordName",
+    "content": "Próximo nome disponível para este imóvel. A contagem vem do banco, então\ndois envios simultâneos podem repetir o número — é rótulo, não chave, e\nrepetir é preferível a segurar o envio numa transação.",
+    "source_path": "src/lib/reservation-records.functions.ts",
+    "audience": [],
+    "content_hash": "92b80f5cef668144ae7c910e67ea9361"
+  },
+  {
     "doc_key": "rule:normalizeText",
     "kind": "rule",
     "title": "Regra — normalizeText",
@@ -1158,6 +1167,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "f35bf384dbc8476068735e46ff6c7bb5"
   },
   {
+    "doc_key": "rule:PayerKind",
+    "kind": "rule",
+    "title": "Regra — PayerKind",
+    "content": "DIÁLOGO DE RESOLUÇÃO (pedido explícito, 10/09/2026).\n\nFechar uma pendência levanta duas perguntas que a operação sempre faz\ndepois, quando já esqueceu a resposta: HOUVE CUSTO? e QUEM PAGA? Perguntar\nno momento em que se resolve é o único jeito de ter isso preenchido.\n\n\"Quem paga\" NÃO é \"quem resolveu\" — o prestador conserta, mas a conta pode\nir para o proprietário ou ficar com a empresa. São duas colunas separadas\nem `tasks` (`cost_payer` / `cost_payer_id` e `resolved_by_provider_id`).\n\nTudo é opcional: dá para resolver sem informar nada, como antes.",
+    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
+    "audience": [],
+    "content_hash": "fd01a58493176eaa4dec1255ff1882bb"
+  },
+  {
     "doc_key": "rule:PENDING_CATEGORIES",
     "kind": "rule",
     "title": "Regra — PENDING_CATEGORIES",
@@ -1174,6 +1192,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/TaskAttachments.tsx",
     "audience": [],
     "content_hash": "b217301f9e76ab67b8cc8245fd323cea"
+  },
+  {
+    "doc_key": "rule:PendingRow",
+    "kind": "rule",
+    "title": "Regra — PendingRow",
+    "content": "Uma pendência do cartão: miniatura, título legível, data — e, ABAIXO DA\nDATA, o quadradinho que resolve (pedido explícito, 10/09/2026).\n\nA linha deixou de ser um botão só: um checkbox dentro de um botão não é\nclicável de forma previsível (nem é HTML válido). Agora são dois alvos\nlado a lado — o corpo abre o registro, o quadradinho abre a resolução.",
+    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
+    "audience": [],
+    "content_hash": "b6caeac52c7bb668e7f81507b5f92e5a"
   },
   {
     "doc_key": "rule:PER_PROPERTY_FIELDS",
@@ -1858,6 +1885,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/record-categories.ts",
     "audience": [],
     "content_hash": "1b50fd69dd824cce84da89a6a3bd6fb7"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:5810",
+    "kind": "rule",
+    "title": "Regra em RecordsWorkspace.tsx",
+    "content": "A FAIXA DA CATEGORIA dentro do quadrante (pedido explícito, 10/09/2026):\nmesma cor da categoria, translúcida, com o texto na versão clara dela. Fica\nde ponta a ponta no topo do quadrado, centralizada — sobre foto ou vídeo a\ntranslucidez deixa a imagem aparecer por baixo.",
+    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
+    "audience": [],
+    "content_hash": "1ab915fd3496a9a1fb5383c22880b593"
   },
   {
     "doc_key": "rule:src/components/dashboard/ReservationJourneyDialog.tsx:0",
@@ -2823,7 +2859,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8df8468b519bbea9643ac2223113b3c4"
   },
   {
-    "doc_key": "rule:src/lib/reservation-records.functions.ts:21772",
+    "doc_key": "rule:src/lib/reservation-records.functions.ts:23577",
     "kind": "rule",
     "title": "Regra em reservation-records.functions.ts",
     "content": "IDENTIDADE DA RESERVA — é por ela que a aba agrupa os registros no filtro\n\"Todos\". Vem de `guide_access_logs` (formulário do hóspede: nome, código\ne as duas datas) e, quando o registro só tem `reservation_id`, do próprio\n`property_reservations` (iCal: só a dica de nome e as datas).\n\n`reservationKey` vazio = registro preso apenas ao imóvel ou a uma\npendência. Esses caem no grupo \"Sem reserva\" — nada some.",
@@ -2848,6 +2884,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/tasks-types.ts",
     "audience": [],
     "content_hash": "8ed6b89b41faff137865671e57cb8069"
+  },
+  {
+    "doc_key": "rule:src/lib/tasks.functions.ts:15816",
+    "kind": "rule",
+    "title": "Regra em tasks.functions.ts",
+    "content": "QUEM ARCA COM O CUSTO (pedido explícito, 10/09/2026) — não é a mesma\npergunta que \"quem resolveu\": um dano pode ser consertado pelo prestador\ne cobrado do proprietário, ou absorvido pela empresa.",
+    "source_path": "src/lib/tasks.functions.ts",
+    "audience": [],
+    "content_hash": "00b2a2ec57599d6e53701307f98a1a48"
   },
   {
     "doc_key": "rule:src/lib/trail.functions.ts:0",
@@ -3010,15 +3055,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
     "content_hash": "467e94a80792c94f3d1d95de836383f6"
-  },
-  {
-    "doc_key": "rule:Thumb",
-    "kind": "rule",
-    "title": "Regra — Thumb",
-    "content": "O QUADRANTE, em dois andares: o quadrado com a FAIXA DA CATEGORIA dentro,\nno topo, e a DATA logo abaixo, fora dele (pedido explícito, 10/09/2026).\nO antigo pontinho colorido no canto saiu — a faixa diz a mesma coisa e diz\nmelhor, com o nome escrito.",
-    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
-    "audience": [],
-    "content_hash": "2a6d5206bceb9dfe01f447f743f798e7"
   },
   {
     "doc_key": "rule:transcribeAssistantAudio",
