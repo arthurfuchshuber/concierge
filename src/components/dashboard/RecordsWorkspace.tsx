@@ -652,12 +652,28 @@ function CategoryCard({
  * Empate: vence a mais grave — dano, depois manutenção, depois esquecidos,
  * depois outros.
  */
-const STRIPE_TONE: Record<RecordCategory, string> = {
-  damage: "bg-rose-500",
-  maintenance: "bg-sky-500",
-  forgotten: "bg-amber-400",
-  other: "bg-zinc-400",
-  cleaning_audit: "bg-violet-500",
+/**
+ * O DEGRADÊ MORA DENTRO DA BARRA (pedido explícito, 10/09/2026).
+ *
+ * A primeira tentativa deixava a cor sangrar para dentro do cartão e o
+ * cliente cortou na hora: "eu não quero que a cor vaze para o quadrante, eu
+ * só quero que o efeito da barra conceda uma leveza na cor, sem torná-la
+ * gritante".
+ *
+ * Então a faixa continua sendo SÓ a faixa — nada invade o conteúdo. O que
+ * mudou é que ela deixou de ser um bloco chapado: cheia na quina de fora e
+ * dissolvendo até quase transparente do lado de dentro. De longe continua
+ * dizendo a cor; de perto é um fio de luz, não um adesivo.
+ *
+ * Dois botões de ajuste, se quiser calibrar: a LARGURA (`w-[4px]`) e a
+ * OPACIDADE das duas pontas do degradê.
+ */
+const STRIPE_GRADIENT: Record<RecordCategory, string> = {
+  damage: "from-rose-500/80 to-rose-500/15",
+  maintenance: "from-sky-500/80 to-sky-500/15",
+  forgotten: "from-amber-400/80 to-amber-400/15",
+  other: "from-zinc-400/70 to-zinc-400/10",
+  cleaning_audit: "from-violet-500/80 to-violet-500/15",
 };
 
 /** Ordem de desempate, da mais grave para a menos. */
@@ -710,97 +726,108 @@ function PropertyCard({
   return (
     <div className="ds-3d relative overflow-hidden rounded-[0.3rem] bg-card p-3">
       {stripe && (
-        <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] ${STRIPE_TONE[stripe]}`} />
+        <span
+          aria-hidden
+          className={`pointer-events-none absolute inset-y-0 left-0 w-[4px] bg-gradient-to-r ${STRIPE_GRADIENT[stripe]}`}
+        />
       )}
-      {/* A ETIQUETA DIVIDE A LINHA DO TÍTULO, não o bloco de duas linhas
+      {/* `relative` mantém o conteúdo acima da faixa: elemento posicionado
+          pinta por cima de irmão não posicionado, mesmo vindo antes no DOM. */}
+      <div className="relative">
+        {/* A ETIQUETA DIVIDE A LINHA DO TÍTULO, não o bloco de duas linhas
           (pedido explícito, 10/09/2026) — é a mesma correção já feita no
           cabeçalho das páginas: centrada no bloco inteiro, ela caía na altura
           do vão entre o nome do imóvel e o proprietário e ficava visivelmente
           baixa. Dentro da mesma linha, o alinhamento é exato por construção. */}
-      <div className="flex items-center gap-2">
-        <span className="ds-card-title min-w-0 flex-1">{group.label}</span>
-        {hasPending && (
-          <span className="shrink-0 rounded-[0.25rem] bg-rose-500/15 px-1.5 py-0.5 text-[9.5px] font-extrabold tabular-nums text-rose-600 dark:text-rose-400">
-            {group.pending.length} a resolver
+        <div className="flex items-center gap-2">
+          <span className="ds-card-title min-w-0 flex-1">{group.label}</span>
+          {hasPending && (
+            <span className="shrink-0 rounded-[0.25rem] bg-rose-500/15 px-1.5 py-0.5 text-[9.5px] font-extrabold tabular-nums text-rose-600 dark:text-rose-400">
+              {group.pending.length} {group.pending.length === 1 ? "pendência" : "pendências"}
+            </span>
+          )}
+        </div>
+        {group.sublabel && (
+          <span className={`mt-0.5 block truncate text-[10.5px] ${CARD_OWNER}`}>
+            {group.sublabel}
           </span>
         )}
-      </div>
-      {group.sublabel && (
-        <span className={`mt-0.5 block truncate text-[10.5px] ${CARD_OWNER}`}>
-          {group.sublabel}
-        </span>
-      )}
 
-      {hasPending && (
-        <>
-          <div className="mb-1 mt-2.5 flex items-center gap-2">
-            <span className="shrink-0 text-[9px] font-extrabold uppercase tracking-[0.11em] text-rose-600 dark:text-rose-400">
-              A resolver
-            </span>
-            <span className="h-px flex-1 bg-border" />
-            <span className="shrink-0 text-[9px] font-bold tabular-nums text-muted-foreground">
-              {group.pending.length}
-            </span>
-          </div>
-          {(showAllPending ? group.pending : group.pending.slice(0, PENDING_ROWS)).map((r) => (
-            <PendingRow
-              key={r.id}
-              record={r}
-              onOpen={() => onOpen(r)}
-              onResolve={() => onResolve(r)}
-            />
-          ))}
-          {hiddenPending > 0 && (
-            <button
-              type="button"
-              onClick={() => setShowAllPending((v) => !v)}
-              aria-expanded={showAllPending}
-              className="mt-1 w-full rounded-[0.25rem] py-1 text-center text-[10px] font-bold text-muted-foreground transition-colors hover:bg-secondary/40 hover:text-foreground"
-            >
-              {showAllPending ? "Mostrar menos" : `+${hiddenPending} a resolver`}
-            </button>
-          )}
-        </>
-      )}
+        {hasPending && (
+          <>
+            {/* MESMA FORMA DE "REGISTROS" (pedido explícito, 10/09/2026):
+                mesma fonte, mesmo peso e a mesma cor de apoio — o que separa
+                os dois andares é o conteúdo, não a etiqueta gritando. E o nome
+                virou "Pendências", como a operação já chama no Kanban. */}
+            <div className="mb-1 mt-2.5 flex items-center gap-2">
+              <span className="shrink-0 text-[9px] font-extrabold uppercase tracking-[0.11em] text-muted-foreground">
+                Pendências
+              </span>
+              <span className="h-px flex-1 bg-border" />
+              <span className="shrink-0 text-[9px] font-bold tabular-nums text-muted-foreground">
+                {group.pending.length}
+              </span>
+            </div>
+            {(showAllPending ? group.pending : group.pending.slice(0, PENDING_ROWS)).map((r) => (
+              <PendingRow
+                key={r.id}
+                record={r}
+                onOpen={() => onOpen(r)}
+                onResolve={() => onResolve(r)}
+              />
+            ))}
+            {hiddenPending > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowAllPending((v) => !v)}
+                aria-expanded={showAllPending}
+                className="mt-1 w-full rounded-[0.25rem] py-1 text-center text-[10px] font-bold text-muted-foreground transition-colors hover:bg-secondary/40 hover:text-foreground"
+              >
+                {showAllPending ? "Mostrar menos" : `+${hiddenPending} pendências`}
+              </button>
+            )}
+          </>
+        )}
 
-      {group.rest.length > 0 && (
-        <>
-          {/* A ETIQUETA DE "REGISTROS" EXISTE SEMPRE (pedido explícito,
+        {group.rest.length > 0 && (
+          <>
+            {/* A ETIQUETA DE "REGISTROS" EXISTE SEMPRE (pedido explícito,
               10/09/2026), com o fio e a contagem à direita — a mesma forma de
-              "A resolver". Antes ela só aparecia quando havia pendências, e o
+              "Pendências". Antes ela só aparecia quando havia pendências, e o
               cartão sem pendência ficava com uma tira de quadrados sem nome.
               Com ela, a contagem some do canto superior: dizer o mesmo número
               duas vezes no mesmo cartão não ajuda ninguém. */}
-          <div className="mb-1 mt-2.5 flex items-center gap-2">
-            <span className="shrink-0 text-[9px] font-extrabold uppercase tracking-[0.11em] text-muted-foreground">
-              Registros
-            </span>
-            <span className="h-px flex-1 bg-border" />
-            <span className="shrink-0 text-[9px] font-bold tabular-nums text-muted-foreground">
-              {group.rest.length}
-            </span>
-          </div>
-          {/* Miniaturas de tamanho FIXO, não de largura proporcional: em
+            <div className="mb-1 mt-2.5 flex items-center gap-2">
+              <span className="shrink-0 text-[9px] font-extrabold uppercase tracking-[0.11em] text-muted-foreground">
+                Registros
+              </span>
+              <span className="h-px flex-1 bg-border" />
+              <span className="shrink-0 text-[9px] font-bold tabular-nums text-muted-foreground">
+                {group.rest.length}
+              </span>
+            </div>
+            {/* Miniaturas de tamanho FIXO, não de largura proporcional: em
               colunas elásticas elas viravam quadrados gigantes no desktop. */}
-          <div className="flex flex-wrap gap-1 pt-1.5">
-            {group.rest.slice(0, thumbCap).map((r, i) => {
-              const isLastSlot = i === thumbCap - 1;
-              const hidden = group.rest.length - thumbCap;
-              if (isLastSlot && hidden > 0) {
-                return (
-                  <MoreThumb
-                    key="more"
-                    small={hasPending}
-                    count={hidden + 1}
-                    onClick={() => onOpen(r)}
-                  />
-                );
-              }
-              return <Thumb key={r.id} record={r} small={hasPending} onOpen={() => onOpen(r)} />;
-            })}
-          </div>
-        </>
-      )}
+            <div className="flex flex-wrap gap-1 pt-1.5">
+              {group.rest.slice(0, thumbCap).map((r, i) => {
+                const isLastSlot = i === thumbCap - 1;
+                const hidden = group.rest.length - thumbCap;
+                if (isLastSlot && hidden > 0) {
+                  return (
+                    <MoreThumb
+                      key="more"
+                      small={hasPending}
+                      count={hidden + 1}
+                      onClick={() => onOpen(r)}
+                    />
+                  );
+                }
+                return <Thumb key={r.id} record={r} small={hasPending} onOpen={() => onOpen(r)} />;
+              })}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
