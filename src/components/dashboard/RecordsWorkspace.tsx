@@ -260,6 +260,13 @@ export function RecordsWorkspace() {
   const [ownerFilters, setOwnerFilters] = useState<string[]>([]);
   /** Ids de imóvel. */
   const [propertyFilters, setPropertyFilters] = useState<string[]>([]);
+  /**
+   * ACERVO RECOLHIDO POR PADRÃO, UM DE CADA VEZ (pedido explícito,
+   * 10/09/2026). A tela abre mostrando só o que há para EXECUTAR; as
+   * miniaturas de prova ficam a um toque. E abrir um imóvel fecha o anterior,
+   * senão a página volta a ser uma parede de quadradinhos.
+   */
+  const [openStrip, setOpenStrip] = useState<string | null>(null);
   const [opened, setOpened] = useState<AccountRecord | null>(null);
   const [resolving, setResolving] = useState<AccountRecord | null>(null);
 
@@ -508,7 +515,14 @@ export function RecordsWorkspace() {
       ) : (
         <div className="space-y-1.5">
           {groups.map((g) => (
-            <PropertyCard key={g.key} group={g} onOpen={setOpened} onResolve={setResolving} />
+            <PropertyCard
+              key={g.key}
+              group={g}
+              onOpen={setOpened}
+              onResolve={setResolving}
+              stripOpen={openStrip === g.key}
+              onToggleStrip={() => setOpenStrip((cur) => (cur === g.key ? null : g.key))}
+            />
           ))}
 
           {q.data?.truncated && (
@@ -703,10 +717,15 @@ function PropertyCard({
   group,
   onOpen,
   onResolve,
+  stripOpen,
+  onToggleStrip,
 }: {
   group: Group;
   onOpen: (r: AccountRecord) => void;
   onResolve: (r: AccountRecord) => void;
+  /** Acervo aberto? Quem decide é a página — só um imóvel por vez. */
+  stripOpen: boolean;
+  onToggleStrip: () => void;
 }) {
   // "+N a resolver" EXPANDE A PRÓPRIA LISTA (pedido explícito, 10/09/2026).
   // Antes ele recortava a página inteira para aquele imóvel — resolvia, mas
@@ -739,14 +758,10 @@ function PropertyCard({
           cabeçalho das páginas: centrada no bloco inteiro, ela caía na altura
           do vão entre o nome do imóvel e o proprietário e ficava visivelmente
           baixa. Dentro da mesma linha, o alinhamento é exato por construção. */}
-        <div className="flex items-center gap-2">
-          <span className="ds-card-title min-w-0 flex-1">{group.label}</span>
-          {hasPending && (
-            <span className="shrink-0 rounded-[0.25rem] bg-rose-500/15 px-1.5 py-0.5 text-[9.5px] font-extrabold tabular-nums text-rose-600 dark:text-rose-400">
-              {group.pending.length} {group.pending.length === 1 ? "pendência" : "pendências"}
-            </span>
-          )}
-        </div>
+        {/* A etiqueta de contagem saiu do topo (pedido explícito, 10/09/2026):
+            a linha "Pendências" logo abaixo já diz o mesmo número, e repetir no
+            mesmo cartão só roubava largura do nome do imóvel. */}
+        <span className="ds-card-title block">{group.label}</span>
         {group.sublabel && (
           <span className={`mt-0.5 block truncate text-[10.5px] ${CARD_OWNER}`}>
             {group.sublabel}
@@ -755,12 +770,13 @@ function PropertyCard({
 
         {hasPending && (
           <>
-            {/* MESMA FORMA DE "REGISTROS" (pedido explícito, 10/09/2026):
-                mesma fonte, mesmo peso e a mesma cor de apoio — o que separa
-                os dois andares é o conteúdo, não a etiqueta gritando. E o nome
-                virou "Pendências", como a operação já chama no Kanban. */}
+            {/* MESMA FONTE de "Registros" (pedido explícito, 10/09/2026) — e
+                SÓ a fonte: a cor continua sendo a de alerta ("mandei apenas
+                manter na mesma fonte... a cor precisa continuar sendo a
+                anterior"). O nome virou "Pendências", como a operação já chama
+                no Kanban. */}
             <div className="mb-1 mt-2.5 flex items-center gap-2">
-              <span className="shrink-0 text-[9px] font-extrabold uppercase tracking-[0.11em] text-muted-foreground">
+              <span className="shrink-0 text-[9px] font-extrabold uppercase tracking-[0.11em] text-rose-600 dark:text-rose-400">
                 Pendências
               </span>
               <span className="h-px flex-1 bg-border" />
@@ -797,7 +813,17 @@ function PropertyCard({
               cartão sem pendência ficava com uma tira de quadrados sem nome.
               Com ela, a contagem some do canto superior: dizer o mesmo número
               duas vezes no mesmo cartão não ajuda ninguém. */}
-            <div className="mb-1 mt-2.5 flex items-center gap-2">
+            {/* A LINHA INTEIRA É O BOTÃO (pedido explícito, 10/09/2026):
+                "a expansividade tem que acontecer ao clicar em cima da
+                palavra, linha ou número" — e SEM seta, que o cliente cortou.
+                O acervo abre RECOLHIDO e só um imóvel fica aberto por vez;
+                quem controla isso é a página, não o cartão. */}
+            <button
+              type="button"
+              onClick={onToggleStrip}
+              aria-expanded={stripOpen}
+              className="mb-1 mt-2.5 flex w-full items-center gap-2 text-left"
+            >
               <span className="shrink-0 text-[9px] font-extrabold uppercase tracking-[0.11em] text-muted-foreground">
                 Registros
               </span>
@@ -805,26 +831,30 @@ function PropertyCard({
               <span className="shrink-0 text-[9px] font-bold tabular-nums text-muted-foreground">
                 {group.rest.length}
               </span>
-            </div>
+            </button>
             {/* Miniaturas de tamanho FIXO, não de largura proporcional: em
               colunas elásticas elas viravam quadrados gigantes no desktop. */}
-            <div className="flex flex-wrap gap-1 pt-1.5">
-              {group.rest.slice(0, thumbCap).map((r, i) => {
-                const isLastSlot = i === thumbCap - 1;
-                const hidden = group.rest.length - thumbCap;
-                if (isLastSlot && hidden > 0) {
+            {stripOpen && (
+              <div className="flex flex-wrap gap-1 pt-1.5">
+                {group.rest.slice(0, thumbCap).map((r, i) => {
+                  const isLastSlot = i === thumbCap - 1;
+                  const hidden = group.rest.length - thumbCap;
+                  if (isLastSlot && hidden > 0) {
+                    return (
+                      <MoreThumb
+                        key="more"
+                        small={hasPending}
+                        count={hidden + 1}
+                        onClick={() => onOpen(r)}
+                      />
+                    );
+                  }
                   return (
-                    <MoreThumb
-                      key="more"
-                      small={hasPending}
-                      count={hidden + 1}
-                      onClick={() => onOpen(r)}
-                    />
+                    <Thumb key={r.id} record={r} small={hasPending} onOpen={() => onOpen(r)} />
                   );
-                }
-                return <Thumb key={r.id} record={r} small={hasPending} onOpen={() => onOpen(r)} />;
-              })}
-            </div>
+                })}
+              </div>
+            )}
           </>
         )}
       </div>
