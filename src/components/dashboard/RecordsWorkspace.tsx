@@ -2,11 +2,11 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  CalendarDays,
   Camera,
   Check,
+  ChevronLeft,
+  ChevronRight,
   FileText,
-  LayoutGrid,
   Loader2,
   Mic,
   SlidersHorizontal,
@@ -14,19 +14,23 @@ import {
   Video,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { CARD_OWNER } from "@/components/dashboard/card-colors";
-import { OperationShell, TaskChoiceMenu } from "@/components/dashboard/OperationWorkspace";
+import { OperationShell } from "@/components/dashboard/OperationWorkspace";
 import { RecordBlock } from "@/components/dashboard/ReservationRecords";
 import { CATEGORIES, CATEGORY_BY_KEY, fmtDayLabel } from "@/components/dashboard/record-categories";
+import { listTaskLinkOptions } from "@/lib/tasks.functions";
 import {
   deleteReservationRecord,
   listAccountRecords,
@@ -104,14 +108,59 @@ export function RecordsWorkspace() {
 
   const listFn = useServerFn(listAccountRecords);
   const deleteFn = useServerFn(deleteReservationRecord);
+  const optionsFn = useServerFn(listTaskLinkOptions);
 
   const [category, setCategory] = useState<RecordCategory | null>(null);
   const [onlyOpen, setOnlyOpen] = useState(false);
   const [groupBy, setGroupBy] = useState<GroupBy>("property");
   const [period, setPeriod] = useState<PeriodValue>("all");
+  /** Nomes (mesma chave do filtro de proprietário das outras telas). */
+  const [ownerFilters, setOwnerFilters] = useState<string[]>([]);
+  /** Ids de imóvel. */
+  const [propertyFilters, setPropertyFilters] = useState<string[]>([]);
   const [opened, setOpened] = useState<AccountRecord | null>(null);
 
   const days = period === "all" ? null : Number(period);
+
+  // Imóveis e proprietários da conta — a MESMA função que alimenta o
+  // vínculo das Pendências, já recortada por perfil.
+  const optionsQ = useQuery({
+    queryKey: ["records-link-options", activeOwnerId ?? "self"] as const,
+    queryFn: () => optionsFn({ data: { ownerId: activeOwnerId } }),
+    staleTime: 5 * 60_000,
+  });
+  const linkProperties = useMemo(() => optionsQ.data?.properties ?? [], [optionsQ.data]);
+  const ownerOptions = useMemo(
+    () => (optionsQ.data?.owners ?? []).map((o) => o.name),
+    [optionsQ.data],
+  );
+
+  /**
+   * O filtro de PROPRIETÁRIO vira lista de imóveis antes de ir ao servidor —
+   * é o mesmo recorte, e assim os contadores por categoria acompanham o
+   * filtro em vez de continuarem contando a conta inteira.
+   */
+  const propertyIds = useMemo<string[] | null>(() => {
+    const byOwner =
+      ownerFilters.length > 0
+        ? linkProperties.filter((p) => p.ownerName && ownerFilters.includes(p.ownerName))
+        : null;
+    const ids = new Set<string>();
+    if (byOwner) for (const p of byOwner) ids.add(p.id);
+    if (propertyFilters.length > 0) {
+      if (byOwner) {
+        // Os dois filtros juntos são uma INTERSEÇÃO: "os imóveis deste
+        // proprietário que também estão marcados".
+        const chosen = new Set(propertyFilters);
+        for (const id of Array.from(ids)) if (!chosen.has(id)) ids.delete(id);
+      } else {
+        for (const id of propertyFilters) ids.add(id);
+      }
+    }
+    if (!byOwner && propertyFilters.length === 0) return null;
+    // Interseção vazia: manda um id impossível para não cair no "sem filtro".
+    return ids.size > 0 ? Array.from(ids) : ["00000000-0000-0000-0000-000000000000"];
+  }, [ownerFilters, propertyFilters, linkProperties]);
 
   const q = useQuery({
     queryKey: [
@@ -120,8 +169,10 @@ export function RecordsWorkspace() {
       category ?? "all",
       onlyOpen,
       period,
+      (propertyIds ?? []).join(","),
     ] as const,
-    queryFn: () => listFn({ data: { ownerId: activeOwnerId, category, onlyOpen, days } }),
+    queryFn: () =>
+      listFn({ data: { ownerId: activeOwnerId, category, onlyOpen, days, propertyIds } }),
   });
 
   const del = useMutation({
@@ -175,7 +226,22 @@ export function RecordsWorkspace() {
     return open > 0 ? `${base} · ${open} em aberto` : base;
   })();
 
-  const hasCustomFilters = category !== null || onlyOpen || period !== "all";
+  const hasCustomFilters =
+    category !== null ||
+    onlyOpen ||
+    period !== "all" ||
+    groupBy !== "property" ||
+    ownerFilters.length > 0 ||
+    propertyFilters.length > 0;
+
+  function clearAllFilters() {
+    setCategory(null);
+    setOnlyOpen(false);
+    setPeriod("all");
+    setGroupBy("property");
+    setOwnerFilters([]);
+    setPropertyFilters([]);
+  }
 
   return (
     /* MESMA MOLDURA DE PÁGINA das outras três telas (Operacional / Kanban /
@@ -188,22 +254,31 @@ export function RecordsWorkspace() {
         subtitle={subtitle}
         actions={
           <RecordsFiltersButton
+            groupBy={groupBy}
+            onGroupByChange={setGroupBy}
+            period={period}
+            onPeriodChange={setPeriod}
             onlyOpen={onlyOpen}
             onOnlyOpenChange={setOnlyOpen}
+            ownerFilters={ownerFilters}
+            onOwnerFiltersChange={setOwnerFilters}
+            ownerOptions={ownerOptions}
+            propertyFilters={propertyFilters}
+            onPropertyFiltersChange={setPropertyFilters}
+            propertyOptions={linkProperties}
             hasCustomFilters={hasCustomFilters}
-            onClearAll={() => {
-              setCategory(null);
-              setOnlyOpen(false);
-              setPeriod("all");
-            }}
+            onClearAll={clearAllFilters}
           />
         }
       />
 
-      {/* 1 — CONTADORES. Mesmo cartão dos KPIs da Operacional; o número é da
-          cor da categoria e o cartão selecionado ganha um anel da mesma cor.
-          Tocar no que já está selecionado volta para "todos". */}
-      <div className="grid grid-cols-5 gap-1.5">
+      {/* 1 — CONTADORES, em DUAS LINHAS de três (pedido explícito): cinco
+          cartões numa linha só deixavam o rótulo cortado ("ESQUECID…",
+          "MANUTEN…") justamente nas categorias que mais importam. Em
+          `grid-cols-3` sobram três em cima e dois embaixo, com o rótulo
+          inteiro. O número é da cor da categoria e o cartão selecionado
+          ganha o anel da mesma cor; tocar no selecionado volta para "todos". */}
+      <div className="grid grid-cols-3 gap-1.5">
         {CATEGORIES.map((c) => (
           <CategoryCard
             key={c.key}
@@ -218,23 +293,7 @@ export function RecordsWorkspace() {
         ))}
       </div>
 
-      {/* 2 — SELETORES */}
-      <div className="flex items-center gap-1.5">
-        <TaskChoiceMenu
-          icon={LayoutGrid}
-          value={groupBy}
-          onChange={setGroupBy}
-          options={GROUP_OPTIONS}
-        />
-        <TaskChoiceMenu
-          icon={CalendarDays}
-          value={period}
-          onChange={setPeriod}
-          options={PERIOD_OPTIONS}
-        />
-      </div>
-
-      {/* 3 — UM CARTÃO POR GRUPO, com a fileira de miniaturas */}
+      {/* UM CARTÃO POR GRUPO, com a fileira de miniaturas */}
       {q.isLoading ? (
         <div className="grid place-items-center py-16 text-muted-foreground">
           <Loader2 className="size-5 animate-spin" />
@@ -432,25 +491,122 @@ function RecordViewerDialog({
   );
 }
 
-/** Mesmo gatilho compacto de filtro das outras páginas: quadrado de 30px com
- * o ponto rosa quando há algum filtro ativo. */
+/**
+ * FILTRO ÚNICO (pedido explícito): os dois seletores que viviam soltos abaixo
+ * dos contadores — agrupar e período — mudaram-se para DENTRO deste botão,
+ * junto com proprietário e imóvel. Uma faixa horizontal inteira de controles
+ * some da tela, e o lugar do filtro passa a ser o mesmo das outras páginas:
+ * o quadrado ao lado do título.
+ *
+ * A mecânica é a MESMA do `CalendarFiltersButton`: um resumo com uma linha
+ * por filtro (rótulo à esquerda, valor atual à direita) e uma tela interna
+ * para cada um, com "voltar" no topo. Nada de menu-dentro-de-menu.
+ */
 function RecordsFiltersButton({
+  groupBy,
+  onGroupByChange,
+  period,
+  onPeriodChange,
   onlyOpen,
   onOnlyOpenChange,
+  ownerFilters,
+  onOwnerFiltersChange,
+  ownerOptions,
+  propertyFilters,
+  onPropertyFiltersChange,
+  propertyOptions,
   hasCustomFilters,
   onClearAll,
 }: {
+  groupBy: GroupBy;
+  onGroupByChange: (v: GroupBy) => void;
+  period: PeriodValue;
+  onPeriodChange: (v: PeriodValue) => void;
   onlyOpen: boolean;
   onOnlyOpenChange: (v: boolean) => void;
+  ownerFilters: string[];
+  onOwnerFiltersChange: (next: string[]) => void;
+  ownerOptions: string[];
+  propertyFilters: string[];
+  onPropertyFiltersChange: (next: string[]) => void;
+  propertyOptions: ReadonlyArray<{ id: string; name: string; ownerName: string | null }>;
   hasCustomFilters: boolean;
   onClearAll: () => void;
 }) {
+  type Screen = "root" | "group" | "period" | "owner" | "property";
+  const [screen, setScreen] = useState<Screen>("root");
+
+  function toggle(list: string[], value: string, onChange: (next: string[]) => void) {
+    onChange(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
+  }
+
+  const groupLabel = GROUP_OPTIONS.find((o) => o.value === groupBy)?.label ?? "Por imóvel";
+  const periodLabel = PERIOD_OPTIONS.find((o) => o.value === period)?.label ?? "Todo o período";
+  const ownerLabel =
+    ownerFilters.length === 0
+      ? "Todos"
+      : ownerFilters.length === 1
+        ? ownerFilters[0]
+        : `${ownerFilters.length} selecionados`;
+  const propertyLabel =
+    propertyFilters.length === 0
+      ? "Todos"
+      : propertyFilters.length === 1
+        ? (propertyOptions.find((p) => p.id === propertyFilters[0])?.name ?? "1 selecionado")
+        : `${propertyFilters.length} selecionados`;
+
+  function BackRow() {
+    return (
+      <button
+        type="button"
+        onClick={() => setScreen("root")}
+        className="flex w-full items-center gap-1.5 border-b border-border px-3 py-2.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ChevronLeft className="size-3.5" />
+        Filtros
+      </button>
+    );
+  }
+
+  function Row({
+    label,
+    value,
+    onClick,
+    last,
+  }: {
+    label: string;
+    value: string;
+    onClick: () => void;
+    last?: boolean;
+  }) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={`flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors hover:bg-secondary/30 ${
+          last ? "" : "border-b border-border"
+        }`}
+      >
+        <span className="text-xs font-medium">{label}</span>
+        <span className="flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
+          <span className="max-w-[7rem] truncate">{value}</span>
+          <ChevronRight className="size-3.5 shrink-0 opacity-60" />
+        </span>
+      </button>
+    );
+  }
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <Popover
+      onOpenChange={(open) => {
+        // Sempre reabre no resumo — ninguém espera "continuar de onde parou"
+        // dentro de uma tela interna da última vez.
+        if (!open) setScreen("root");
+      }}
+    >
+      <PopoverTrigger asChild>
         {/* MESMO botão das outras telas (CalendarFiltersButton, compactTrigger):
-            quadrado de 30px, raio 0.4rem, fundo foreground/6%, ponto no accent.
-            Nada de uma segunda casca parecida-mas-diferente. */}
+            quadrado de 30px, raio 0.4rem, fundo foreground/6%, ponto no accent. */}
         <button
           type="button"
           title={hasCustomFilters ? "Filtros · há filtro ativo" : "Filtros"}
@@ -462,21 +618,165 @@ function RecordsFiltersButton({
             <span className="absolute right-1 top-1 size-[5px] rounded-full bg-accent" />
           )}
         </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuItem onSelect={() => onOnlyOpenChange(!onlyOpen)} className="text-xs">
-          <Check className={`mr-2 size-3.5 ${onlyOpen ? "opacity-100" : "opacity-0"}`} />
-          Só os em aberto
-        </DropdownMenuItem>
-        {hasCustomFilters && (
+      </PopoverTrigger>
+
+      <PopoverContent
+        align="end"
+        collisionPadding={12}
+        className="sg-elegant-scroll max-h-[min(28rem,70vh)] w-64 overflow-y-auto p-0"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        {screen === "root" ? (
           <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={onClearAll} className="text-xs text-muted-foreground">
-              Limpar filtros
-            </DropdownMenuItem>
+            <div className="flex items-center justify-start gap-2 border-b border-border px-3 py-2.5">
+              <button
+                type="button"
+                disabled={!hasCustomFilters}
+                onClick={onClearAll}
+                className="text-[11px] font-medium text-foreground/70 transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+              >
+                Limpar
+              </button>
+            </div>
+            <Row label="Agrupar" value={groupLabel} onClick={() => setScreen("group")} />
+            <Row label="Período" value={periodLabel} onClick={() => setScreen("period")} />
+            <Row label="Proprietário" value={ownerLabel} onClick={() => setScreen("owner")} />
+            <Row label="Imóvel" value={propertyLabel} onClick={() => setScreen("property")} />
+            <button
+              type="button"
+              onClick={() => onOnlyOpenChange(!onlyOpen)}
+              className="flex w-full items-center gap-2 border-t border-border px-3 py-2.5 text-left transition-colors hover:bg-secondary/30"
+            >
+              <Checkbox checked={onlyOpen} className="pointer-events-none" />
+              <span className="text-xs font-medium">Só os em aberto</span>
+            </button>
           </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+        ) : null}
+
+        {screen === "group" ? (
+          <>
+            <BackRow />
+            {GROUP_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => onGroupByChange(o.value)}
+                className="flex w-full items-center gap-2 border-b border-border px-3 py-2.5 text-left text-xs transition-colors last:border-b-0 hover:bg-secondary/30"
+              >
+                <Check
+                  className={`size-3.5 ${o.value === groupBy ? "opacity-100" : "opacity-0"}`}
+                />
+                {o.label}
+              </button>
+            ))}
+          </>
+        ) : null}
+
+        {screen === "period" ? (
+          <>
+            <BackRow />
+            {PERIOD_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => onPeriodChange(o.value)}
+                className="flex w-full items-center gap-2 border-b border-border px-3 py-2.5 text-left text-xs transition-colors last:border-b-0 hover:bg-secondary/30"
+              >
+                <Check className={`size-3.5 ${o.value === period ? "opacity-100" : "opacity-0"}`} />
+                {o.label}
+              </button>
+            ))}
+          </>
+        ) : null}
+
+        {screen === "owner" ? (
+          <>
+            <BackRow />
+            <Command>
+              <CommandInput placeholder="Buscar proprietário..." />
+              <div className="flex items-center justify-between gap-2 border-b border-border px-2 py-1.5">
+                <button
+                  type="button"
+                  className="text-[11px] text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
+                  onClick={() => onOwnerFiltersChange([...ownerOptions])}
+                >
+                  Selecionar todos
+                </button>
+                <button
+                  type="button"
+                  className="text-[11px] text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
+                  onClick={() => onOwnerFiltersChange([])}
+                >
+                  Limpar
+                </button>
+              </div>
+              <CommandList className="sg-elegant-scroll max-h-52">
+                <CommandEmpty>Nenhum resultado.</CommandEmpty>
+                <CommandGroup>
+                  {ownerOptions.map((o) => (
+                    <CommandItem
+                      key={o}
+                      value={o}
+                      onSelect={() => toggle(ownerFilters, o, onOwnerFiltersChange)}
+                      className="cursor-pointer gap-2"
+                    >
+                      <Checkbox
+                        checked={ownerFilters.includes(o)}
+                        className="pointer-events-none"
+                      />
+                      <span className="truncate">{o}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </>
+        ) : null}
+
+        {screen === "property" ? (
+          <>
+            <BackRow />
+            <Command>
+              <CommandInput placeholder="Buscar imóvel..." />
+              <div className="flex items-center justify-between gap-2 border-b border-border px-2 py-1.5">
+                <button
+                  type="button"
+                  className="text-[11px] text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
+                  onClick={() => onPropertyFiltersChange(propertyOptions.map((p) => p.id))}
+                >
+                  Selecionar todos
+                </button>
+                <button
+                  type="button"
+                  className="text-[11px] text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
+                  onClick={() => onPropertyFiltersChange([])}
+                >
+                  Limpar
+                </button>
+              </div>
+              <CommandList className="sg-elegant-scroll max-h-52">
+                <CommandEmpty>Nenhum resultado.</CommandEmpty>
+                <CommandGroup>
+                  {propertyOptions.map((p) => (
+                    <CommandItem
+                      key={p.id}
+                      value={`${p.name} ${p.ownerName ?? ""}`}
+                      onSelect={() => toggle(propertyFilters, p.id, onPropertyFiltersChange)}
+                      className="cursor-pointer gap-2"
+                    >
+                      <Checkbox
+                        checked={propertyFilters.includes(p.id)}
+                        className="pointer-events-none"
+                      />
+                      <span className="truncate">{p.name}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </>
+        ) : null}
+      </PopoverContent>
+    </Popover>
   );
 }

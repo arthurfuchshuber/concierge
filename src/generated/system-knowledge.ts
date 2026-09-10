@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-10T00:47:32.568Z";
+export const GENERATED_AT = "2026-09-10T01:14:26.003Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -1273,6 +1273,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/assistant.functions.ts",
     "audience": [],
     "content_hash": "20ddcef6f60560e7ea8f0e5b6257eef1"
+  },
+  {
+    "doc_key": "rule:RecordsFiltersButton",
+    "kind": "rule",
+    "title": "Regra — RecordsFiltersButton",
+    "content": "FILTRO ÚNICO (pedido explícito): os dois seletores que viviam soltos abaixo\ndos contadores — agrupar e período — mudaram-se para DENTRO deste botão,\njunto com proprietário e imóvel. Uma faixa horizontal inteira de controles\nsome da tela, e o lugar do filtro passa a ser o mesmo das outras páginas:\no quadrado ao lado do título.\n\nA mecânica é a MESMA do `CalendarFiltersButton`: um resumo com uma linha\npor filtro (rótulo à esquerda, valor atual à direita) e uma tela interna\npara cada um, com \"voltar\" no topo. Nada de menu-dentro-de-menu.",
+    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
+    "audience": [],
+    "content_hash": "640ff124c5e3c649ef223f4f69769c0c"
   },
   {
     "doc_key": "rule:refreshStaleAirbnbListings",

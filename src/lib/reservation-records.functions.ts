@@ -606,6 +606,13 @@ export const listAccountRecords = createServerFn({ method: "GET" })
           onlyOpen: z.boolean().optional(),
           /** Janela em dias. Vazio/0 = TODO o histórico (padrão pedido). */
           days: z.number().int().positive().max(3650).nullable().optional(),
+          /**
+           * Recorte por imóvel. O filtro de PROPRIETÁRIO também chega aqui,
+           * já resolvido para a lista de imóveis dele — assim os contadores
+           * por categoria refletem o recorte, em vez de continuarem contando
+           * a conta inteira enquanto a lista mostra um imóvel só.
+           */
+          propertyIds: z.array(z.string().uuid()).max(500).nullable().optional(),
         })
         .optional()
         .parse(i) ?? {},
@@ -613,11 +620,18 @@ export const listAccountRecords = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<AccountRecordsResult> => {
     const supabase = context.supabase as unknown as AnyClient;
     const { accessiblePropertyIds } = await import("@/lib/dashboard.functions");
-    const propIds = await accessiblePropertyIds(
+    const accessible = await accessiblePropertyIds(
       context.supabase as never,
       data.ownerId ?? null,
       context.userId,
     );
+    // O recorte pedido pelo usuário nunca AMPLIA o alcance: é sempre uma
+    // interseção com o que o perfil já podia ver.
+    const requested = data.propertyIds ?? null;
+    const propIds =
+      requested && requested.length > 0
+        ? accessible.filter((id) => requested.includes(id))
+        : accessible;
     const empty: AccountRecordsResult = {
       records: [],
       counts: emptyCounts(),
