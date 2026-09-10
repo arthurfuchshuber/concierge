@@ -604,6 +604,8 @@ export const listAccountRecords = createServerFn({ method: "GET" })
           category: CategoryEnum.nullable().optional(),
           /** Só os que ainda têm pendência em aberto. */
           onlyOpen: z.boolean().optional(),
+          /** Janela em dias. Vazio/0 = TODO o histórico (padrão pedido). */
+          days: z.number().int().positive().max(3650).nullable().optional(),
         })
         .optional()
         .parse(i) ?? {},
@@ -626,12 +628,16 @@ export const listAccountRecords = createServerFn({ method: "GET" })
     };
     if (propIds.length === 0) return empty;
 
-    const { data: rows, error } = await supabase
+    let scan = supabase
       .from("reservation_records")
       .select(
         "id, property_id, kind, category, storage_path, mime, size_bytes, duration_ms, file_name, body, card_mode, created_by_name, created_at, task_id, is_resolution",
       )
-      .in("property_id", propIds)
+      .in("property_id", propIds);
+    if (data.days) {
+      scan = scan.gte("created_at", new Date(Date.now() - data.days * 86_400_000).toISOString());
+    }
+    const { data: rows, error } = await scan
       .order("created_at", { ascending: false })
       .limit(ACCOUNT_RECORDS_SCAN_LIMIT);
     if (error) throw new Error(error.message);

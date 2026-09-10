@@ -3412,12 +3412,6 @@ export function OperationShell({
   actions?: React.ReactNode;
 }) {
   const copy = OPERATION_COPY[view];
-  // ANTI-CORTE (regra global). Com TRÊS abas os rótulos ainda cabiam em
-  // quatro fatias iguais; com a quarta ("Registros"), "Operacional" passa a
-  // não caber na fatia e seria comprimida/cortada no celular — exatamente o
-  // que a regra proíbe. A barra vira então a mesma barra rolável do resto do
-  // app: rótulos inteiros, sobra vira espaçador invisível, sem degradê.
-  const tabsRef = useAntiClipBar<HTMLElement>();
   return (
     <div className="space-y-3">
       <div>
@@ -3434,16 +3428,20 @@ export function OperationShell({
         <p className="ds-page-subtitle mt-1.5 truncate">{subtitle ?? copy.subtitle}</p>
       </div>
 
-      {/* Segmented control — Operacional / Kanban / Limpeza / Registros */}
-      <nav ref={tabsRef} className="ds-segmented mb-5 rounded-[0.3rem] bg-foreground/5 p-1">
+      {/* Segmented control — Operacional / Kanban / Limpeza / Registros.
+          Quatro fatias iguais, coladas, ocupando a largura inteira: é o
+          desenho que já estava no ar e o cliente aprovou. Uma tentativa de
+          transformar esta barra na barra ROLÁVEL (ds-segmented) por causa da
+          quarta aba foi rejeitada no teste — a sobra virava um vão morto
+          depois da última aba. Aqui não há sobra por construção. */}
+      <nav className="mb-5 flex w-full overflow-hidden rounded-[0.3rem] bg-foreground/5">
         {OPERATION_TABS.map((t) => {
           const active = t.view === view;
           return (
             <Link
               key={t.view}
               to={t.to}
-              data-state={active ? "active" : "inactive"}
-              className={`flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-[0.25rem] px-3 py-3.5 text-center text-sm font-semibold leading-none transition-colors ${
+              className={`flex-1 px-3 py-3.5 text-center text-sm font-semibold leading-none flex items-center justify-center min-h-[46px] transition-colors ${
                 active
                   ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
                   : "text-muted-foreground hover:text-foreground"
@@ -4908,7 +4906,7 @@ const TASK_SORT_OPTIONS: ReadonlyArray<{ value: TaskSortBy; label: string }> = [
  * como a lista está organizada sem abrir nada, que era a vantagem desta opção
  * sobre esconder tudo atrás de um botão só.
  */
-function TaskChoiceMenu<T extends string>({
+export function TaskChoiceMenu<T extends string>({
   icon: Icon,
   value,
   onChange,
