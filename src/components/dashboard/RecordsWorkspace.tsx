@@ -177,14 +177,6 @@ function fmtStayRange(checkin: string | null, checkout: string | null): string |
   return null;
 }
 
-/** Iniciais do hóspede para o disquinho da etiqueta da reserva. */
-function initialsOf(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
-
 /**
  * ORDEM DOS CARTÕES nesta tela (pedido explícito, 10/09/2026): manutenção,
  * dano, esquecidos, auditoria e outros — a ordem de PRIORIDADE da operação,
@@ -459,23 +451,7 @@ export function RecordsWorkspace() {
       ) : (
         <div className="space-y-1.5">
           {groups.map((g) => (
-            <PropertyCard
-              key={g.key}
-              group={g}
-              /* Só o "Todos" empacota por reserva — ver o comentário no
-                 próprio PropertyCard. Agrupando por DATA também não faz
-                 sentido: a etiqueta do grupo já é o dia. */
-              packByReservation={category === null && groupBy === "property"}
-              onOpen={setOpened}
-              onFocusPending={() => {
-                // "+N a resolver" recorta a própria tela para ESTE imóvel,
-                // só os abertos — em vez de abrir uma quarta tela para dizer
-                // o que os filtros já sabem dizer.
-                setPropertyFilters([g.propertyId]);
-                setOwnerFilters([]);
-                setOnlyOpen(true);
-              }}
-            />
+            <PropertyCard key={g.key} group={g} onOpen={setOpened} />
           ))}
 
           {q.data?.truncated && (
@@ -573,18 +549,12 @@ function CategoryCard({
  * Sem nada em aberto o primeiro andar não existe e o cartão fica igual ao de
  * antes — a mesma regra de sempre: o aviso só aparece quando há aviso.
  */
-function PropertyCard({
-  group,
-  packByReservation,
-  onOpen,
-  onFocusPending,
-}: {
-  group: Group;
-  /** Só no filtro "Todos": o acervo vem repartido por reserva. */
-  packByReservation: boolean;
-  onOpen: (r: AccountRecord) => void;
-  onFocusPending: () => void;
-}) {
+function PropertyCard({ group, onOpen }: { group: Group; onOpen: (r: AccountRecord) => void }) {
+  // "+N a resolver" EXPANDE A PRÓPRIA LISTA (pedido explícito, 10/09/2026).
+  // Antes ele recortava a página inteira para aquele imóvel — resolvia, mas
+  // custava perder a visão dos outros. Abrir no lugar é mais barato e é o que
+  // a pessoa espera de um "+N".
+  const [showAllPending, setShowAllPending] = useState(false);
   const hasPending = group.pending.length > 0;
   const hiddenPending = group.pending.length - PENDING_ROWS;
   // Com o andar de pendências em cima, o acervo encolhe para não esticar o
@@ -624,16 +594,17 @@ function PropertyCard({
               {group.pending.length}
             </span>
           </div>
-          {group.pending.slice(0, PENDING_ROWS).map((r) => (
+          {(showAllPending ? group.pending : group.pending.slice(0, PENDING_ROWS)).map((r) => (
             <PendingRow key={r.id} record={r} onOpen={() => onOpen(r)} />
           ))}
           {hiddenPending > 0 && (
             <button
               type="button"
-              onClick={onFocusPending}
+              onClick={() => setShowAllPending((v) => !v)}
+              aria-expanded={showAllPending}
               className="mt-1 w-full rounded-[0.25rem] py-1 text-center text-[10px] font-bold text-muted-foreground transition-colors hover:bg-secondary/40 hover:text-foreground"
             >
-              +{hiddenPending} a resolver
+              {showAllPending ? "Mostrar menos" : `+${hiddenPending} a resolver`}
             </button>
           )}
         </>
@@ -652,79 +623,25 @@ function PropertyCard({
               </span>
             </div>
           )}
-          {packByReservation ? (
-            /* PACOTES POR RESERVA (pedido explícito, 10/09/2026). Com "Todos"
-               selecionado a pergunta é "o que aconteceu nesta estadia", e a
-               resposta só existe se os registros da mesma reserva andarem
-               juntos. Numa categoria escolhida a pergunta é outra ("quais
-               manutenções"), e por isso lá o acervo continua corrido. */
-            packRecordsByReservation(group.rest).map((pack) => (
-              <div key={pack.key}>
-                <div className="mb-1 mt-2.5 flex items-center gap-2 overflow-hidden">
-                  <span
-                    className={`grid size-4 shrink-0 place-items-center rounded-full text-[7px] font-extrabold ${
-                      pack.guestName
-                        ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
-                        : "bg-foreground/10 text-muted-foreground"
-                    }`}
-                  >
-                    {pack.guestName ? initialsOf(pack.guestName) : "—"}
-                  </span>
-                  <span className="shrink truncate text-[9px] font-extrabold uppercase tracking-[0.1em] text-foreground/80">
-                    {pack.guestName ?? "Sem reserva"}
-                  </span>
-                  {pack.stay && (
-                    <span className="shrink-0 text-[9px] font-bold text-muted-foreground">
-                      · {pack.stay}
-                    </span>
-                  )}
-                  <span className="h-px flex-1 bg-border" />
-                  <span className="shrink-0 text-[9px] font-bold tabular-nums text-muted-foreground">
-                    {pack.items.length}
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {pack.items.slice(0, thumbCap).map((r, i) => {
-                    const isLastSlot = i === thumbCap - 1;
-                    const hidden = pack.items.length - thumbCap;
-                    if (isLastSlot && hidden > 0) {
-                      return (
-                        <MoreThumb
-                          key="more"
-                          small={hasPending}
-                          count={hidden + 1}
-                          onClick={() => onOpen(r)}
-                        />
-                      );
-                    }
-                    return (
-                      <Thumb key={r.id} record={r} small={hasPending} onOpen={() => onOpen(r)} />
-                    );
-                  })}
-                </div>
-              </div>
-            ))
-          ) : (
-            /* Miniaturas de tamanho FIXO, não de largura proporcional: em
-               colunas elásticas elas viravam quadrados gigantes no desktop. */
-            <div className={`flex flex-wrap gap-1 ${hasPending ? "" : "mt-2"}`}>
-              {group.rest.slice(0, thumbCap).map((r, i) => {
-                const isLastSlot = i === thumbCap - 1;
-                const hidden = group.rest.length - thumbCap;
-                if (isLastSlot && hidden > 0) {
-                  return (
-                    <MoreThumb
-                      key="more"
-                      small={hasPending}
-                      count={hidden + 1}
-                      onClick={() => onOpen(r)}
-                    />
-                  );
-                }
-                return <Thumb key={r.id} record={r} small={hasPending} onOpen={() => onOpen(r)} />;
-              })}
-            </div>
-          )}
+          {/* Miniaturas de tamanho FIXO, não de largura proporcional: em
+              colunas elásticas elas viravam quadrados gigantes no desktop. */}
+          <div className={`flex flex-wrap gap-1 ${hasPending ? "" : "mt-2"}`}>
+            {group.rest.slice(0, thumbCap).map((r, i) => {
+              const isLastSlot = i === thumbCap - 1;
+              const hidden = group.rest.length - thumbCap;
+              if (isLastSlot && hidden > 0) {
+                return (
+                  <MoreThumb
+                    key="more"
+                    small={hasPending}
+                    count={hidden + 1}
+                    onClick={() => onOpen(r)}
+                  />
+                );
+              }
+              return <Thumb key={r.id} record={r} small={hasPending} onOpen={() => onOpen(r)} />;
+            })}
+          </div>
         </>
       )}
     </div>
@@ -755,34 +672,6 @@ function MoreThumb({
       <span className="mt-1 block text-center text-[8.5px] text-transparent">·</span>
     </button>
   );
-}
-
-type ReservationPack = {
-  key: string;
-  guestName: string | null;
-  stay: string | null;
-  items: AccountRecord[];
-};
-
-/** Reparte os registros de um imóvel pelos vínculos de reserva, mantendo a
- * ordem de aparição (mais recente primeiro). Sem vínculo = "Sem reserva". */
-function packRecordsByReservation(items: AccountRecord[]): ReservationPack[] {
-  const map = new Map<string, ReservationPack>();
-  for (const r of items) {
-    const key = r.reservationKey ?? "__none__";
-    let pack = map.get(key);
-    if (!pack) {
-      pack = {
-        key,
-        guestName: r.reservationKey ? (r.guestName ?? "Reserva sem nome") : null,
-        stay: r.reservationKey ? fmtStayRange(r.checkinDate, r.checkoutDate) : null,
-        items: [],
-      };
-      map.set(key, pack);
-    }
-    pack.items.push(r);
-  }
-  return Array.from(map.values());
 }
 
 /** Uma pendência do cartão: miniatura pequena, título legível, data. */
@@ -847,11 +736,13 @@ function Thumb({
       >
         <RecordCover record={record} size={small ? "xs" : "sm"} />
         <span
-          className={`absolute inset-x-0 top-0 ${bandH} flex items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap px-1 text-[7.5px] font-extrabold uppercase tracking-[0.07em] ${
-            CATEGORY_BAND[record.category] ?? CATEGORY_BAND.other
-          }`}
+          className={`absolute inset-x-0 top-0 ${bandH} flex items-center justify-center font-extrabold uppercase ${
+            small ? "px-0.5 text-[6.5px] tracking-[0.01em]" : "px-1 text-[7px] tracking-[0.02em]"
+          } ${CATEGORY_BAND[record.category] ?? CATEGORY_BAND.other}`}
         >
-          {meta?.short ?? "Registro"}
+          {/* O `truncate` mora no FILHO: num flex centralizado, reticências no
+              container não cortam nada — o texto vaza pelos dois lados. */}
+          <span className="truncate">{meta?.short ?? "Registro"}</span>
         </span>
         {open && (
           <span
