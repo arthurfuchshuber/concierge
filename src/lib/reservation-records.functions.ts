@@ -95,6 +95,8 @@ const TargetInput = z
 
 export type ReservationRecord = {
   id: string;
+  /** Situação a que a mídia pertence (ver migração 20260910180000). */
+  groupId: string | null;
   kind: "photo" | "video" | "audio" | "file" | "note";
   category: RecordCategory;
   storagePath: string | null;
@@ -130,7 +132,7 @@ export const listReservationRecords = createServerFn({ method: "GET" })
     const { data: rows, error } = await supabase
       .from("reservation_records")
       .select(
-        "id, kind, category, storage_path, mime, size_bytes, duration_ms, file_name, body, card_mode, created_by_name, created_at, task_id",
+        "id, group_id, kind, category, storage_path, mime, size_bytes, duration_ms, file_name, body, card_mode, created_by_name, created_at, task_id",
       )
       .or(orParts.join(","))
       .order("created_at", { ascending: true })
@@ -139,6 +141,7 @@ export const listReservationRecords = createServerFn({ method: "GET" })
 
     const list = (rows ?? []) as Array<{
       id: string;
+      group_id: string | null;
       kind: ReservationRecord["kind"];
       category: RecordCategory;
       storage_path: string | null;
@@ -186,6 +189,7 @@ export const listReservationRecords = createServerFn({ method: "GET" })
 
     const out: ReservationRecord[] = list.map((r) => ({
       id: r.id,
+      groupId: r.group_id,
       kind: r.kind,
       category: r.category,
       storagePath: r.storage_path,
@@ -230,17 +234,39 @@ function propertySlug(name: string | null): string {
 
 /** Próximo nome disponível para este imóvel. A contagem vem do banco, então
  * dois envios simultâneos podem repetir o número — é rótulo, não chave, e
- * repetir é preferível a segurar o envio numa transação. */
+ * repetir é preferível a segurar o envio numa transação.
+ *
+ * Conta SITUAÇÕES, não arquivos: as linhas principais são aquelas em que
+ * `id = group_id`, então uma situação com 4 fotos consome UM número. As três
+ * mídias extras herdam o nome da principal (ver `createRecordSituation`).
+ */
 async function nextRecordName(supabase: AnyClient, propertyId: string): Promise<string> {
-  const [{ data: prop }, { count }] = await Promise.all([
+  const [{ data: prop }, { data: primaries }] = await Promise.all([
     supabase.from("properties").select("name").eq("id", propertyId).maybeSingle(),
-    supabase
-      .from("reservation_records")
-      .select("id", { count: "exact", head: true })
-      .eq("property_id", propertyId),
+    supabase.from("reservation_records").select("id, group_id").eq("property_id", propertyId),
   ]);
-  const seq = (typeof count === "number" ? count : 0) + 1;
+  const rows = (primaries ?? []) as Array<{ id: string; group_id: string | null }>;
+  const seq = rows.filter((r) => (r.group_id ?? r.id) === r.id).length + 1;
   return `${propertySlug((prop as { name: string | null } | null)?.name ?? null)}-${String(seq).padStart(2, "0")}`;
+}
+
+/**
+ * TÍTULO + DESCRIÇÃO em um campo só.
+ *
+ * O banco tem `body` e mais nada. A regra da casa (10/09/2026) é que todo
+ * registro tenha um título curto e uma descrição, e a página principal mostre
+ * o TÍTULO — nunca o nome do arquivo. Guardamos os dois no mesmo `body`, com
+ * o título na primeira linha, que é exatamente como a leitura já funciona.
+ */
+export const RECORD_TITLE_MAX = 50;
+
+function composeBody(title: string | null | undefined, description: string | null | undefined) {
+  const t = (title ?? "").trim().slice(0, RECORD_TITLE_MAX);
+  const d = (description ?? "").trim();
+  if (!t && !d) return null;
+  if (!d) return t;
+  if (!t) return d;
+  return `${t}\n${d}`;
 }
 
 /** Nome de quem está registrando — mesmo fallback usado no handoff. */
@@ -427,6 +453,204 @@ export const createReservationRecordNote = createServerFn({ method: "POST" })
     return { ok: true, taskCreated: !!taskId };
   });
 
+/* -----------------------------------------------------------------------
+ * A SITUAÇÃO — um registro com título, descrição e VÁRIAS mídias
+ *
+ * Pedido explícito (10/09/2026): "cada vez que o prestador for gravar
+ * video/audio/foto, etc.. criar uma folha para aquela situação e um botão
+ * 'registrar situação' para que ele consiga registrar uma nova".
+ *
+ * Antes, cada arquivo subia sozinho e virava um registro e uma pendência
+ * separados — três fotos do mesmo estrago = três pendências. Aqui é uma
+ * chamada só: N mídias já enviadas ao storage viram N linhas com o MESMO
+ * `group_id`, UMA pendência e UM nome (CASACHARM-05). A linha principal
+ * (`id = group_id`) guarda o texto.
+ * ----------------------------------------------------------------------- */
+
+/** Teto de mídias por situação (decisão do cliente, 10/09/2026). Mais que
+ * isso, com a internet de um imóvel no meio de uma limpeza, o envio trava e
+ * a pessoa desiste no meio. */
+export const SITUATION_MEDIA_MAX = 10;
+
+const SituationMedia = z.object({
+  path: z.string().min(3).max(500),
+  kind: z.enum(["photo", "video", "audio", "file"]),
+  mime: z.string().min(1).max(150),
+  sizeBytes: z.number().int().nonnegative(),
+  durationMs: z.number().int().nonnegative().optional().nullable(),
+});
+
+export const createRecordSituation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        propertyId: z.string().uuid(),
+        logId: z.string().uuid().optional(),
+        reservationId: z.string().uuid().optional(),
+        cardMode: CardMode,
+        category: CategoryEnum,
+        title: z.string().trim().max(RECORD_TITLE_MAX).optional().nullable(),
+        description: z.string().trim().max(4000).optional().nullable(),
+        media: z.array(SituationMedia).max(SITUATION_MEDIA_MAX),
+      })
+      .refine((v) => !!v.logId || !!v.reservationId, {
+        message: "Informe a reserva ou o registro do hóspede.",
+      })
+      .refine((v) => v.media.length > 0 || !!(v.title ?? "").trim(), {
+        message: "Uma situação precisa de pelo menos uma mídia ou um título.",
+      })
+      // TÍTULO OBRIGATÓRIO SÓ NAS PENDÊNCIAS (decisão do cliente, 10/09/2026):
+      // dano, manutenção e objeto esquecido viram trabalho para alguém — sem
+      // título ninguém sabe o que executar. Auditoria de limpeza é vídeo de
+      // rotina e segue podendo entrar sem texto.
+      .refine((v) => !TASK_RULES[v.category] || !!(v.title ?? "").trim(), {
+        message: "Dano, manutenção e objeto esquecido precisam de um título.",
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase as unknown as AnyClient;
+
+    // Mesma checagem de caminho do anexo avulso, para cada mídia.
+    for (const m of data.media) {
+      if (!m.path.startsWith(`${data.propertyId}/`)) throw new Error("Caminho de anexo inválido.");
+    }
+
+    const body = composeBody(data.title, data.description);
+    const who = await resolveAuthorName(supabase, context.userId);
+    const taskId = await createLinkedTask(supabase, context.userId, {
+      category: data.category,
+      propertyId: data.propertyId,
+      logId: data.logId,
+      reservationId: data.reservationId,
+      body: (data.title ?? "").trim() || null,
+    });
+    const fileName = await nextRecordName(supabase, data.propertyId);
+    const groupId = crypto.randomUUID();
+
+    const base = {
+      property_id: data.propertyId,
+      log_id: data.logId ?? null,
+      reservation_id: data.reservationId ?? null,
+      category: data.category,
+      card_mode: data.cardMode,
+      created_by: context.userId,
+      created_by_name: who,
+      task_id: taskId,
+      group_id: groupId,
+      file_name: fileName,
+    };
+
+    // Sem mídia é uma nota: a principal é a própria nota. Com mídia, a
+    // primeira é a principal — o texto e a pendência moram nela.
+    const rows =
+      data.media.length === 0
+        ? [{ ...base, id: groupId, kind: "note", body }]
+        : data.media.map((m, i) => ({
+            ...base,
+            ...(i === 0 ? { id: groupId, body } : { body: null }),
+            kind: m.kind,
+            storage_path: m.path,
+            mime: m.mime,
+            size_bytes: m.sizeBytes,
+            duration_ms: m.durationMs ?? null,
+          }));
+
+    const { error } = await supabase.from("reservation_records").insert(rows);
+    if (error) throw new Error(error.message);
+    return { ok: true, taskCreated: !!taskId, fileName, groupId };
+  });
+
+/**
+ * EDITAR o texto de uma situação já gravada (decisão do cliente, 10/09/2026:
+ * "pode manter 'Sem título informado', mas com a possibilidade do
+ * usuário/prestador editar posteriormente").
+ *
+ * Escreve sempre na LINHA PRINCIPAL do grupo, mesmo que o id recebido seja o
+ * de uma mídia secundária — quem edita clica no que está vendo, não no que
+ * está no banco. O título da pendência acompanha, senão o Kanban continua
+ * dizendo "Dano/incidente registrado" para sempre.
+ */
+export const updateRecordText = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        title: z.string().trim().max(RECORD_TITLE_MAX),
+        description: z.string().trim().max(4000).optional().nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase as unknown as AnyClient;
+    const { data: row, error: readErr } = await supabase
+      .from("reservation_records")
+      .select("id, group_id, category, task_id")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (readErr) throw new Error(readErr.message);
+    if (!row) throw new Error("Registro não encontrado.");
+
+    const r = row as {
+      id: string;
+      group_id: string | null;
+      category: RecordCategory;
+      task_id: string | null;
+    };
+    if (TASK_RULES[r.category] && !data.title.trim()) {
+      throw new Error("Dano, manutenção e objeto esquecido precisam de um título.");
+    }
+    const primaryId = r.group_id ?? r.id;
+    const body = composeBody(data.title, data.description);
+
+    // O RLS da tabela é quem decide se esta pessoa pode escrever aqui — não
+    // repetimos a regra de acesso em código.
+    const { error } = await supabase
+      .from("reservation_records")
+      .update({ body })
+      .eq("id", primaryId);
+    if (error) throw new Error(error.message);
+
+    if (r.task_id && data.title.trim()) {
+      const rule = TASK_RULES[r.category];
+      await supabase
+        .from("tasks")
+        .update({ title: `${rule?.prefix ?? "Registro"}: ${data.title.trim()}`.slice(0, 200) })
+        .eq("id", r.task_id);
+    }
+    return { ok: true };
+  });
+
+/**
+ * DITADO nos campos de título e descrição — o prestador fala, vira texto.
+ *
+ * Usa a MESMA transcrição das duas IAs (src/lib/ai/transcribe.server.ts), pelo
+ * mesmo motivo de sempre: falar tem que valer o mesmo que digitar. O áudio do
+ * ditado é usado e descartado; áudio que a pessoa queira GUARDAR entra como
+ * mídia da situação, pelo botão "+".
+ */
+export const transcribeRecordAudio = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        propertyId: z.string().uuid(),
+        audioBase64: z.string().min(100).max(20_000_000),
+        mimeType: z.string().max(120).default("audio/webm"),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    // Acesso ao imóvel pelo mesmo helper que recorta a aba Registros.
+    const { accessiblePropertyIds } = await import("@/lib/dashboard.functions");
+    const allowed = await accessiblePropertyIds(context.supabase as never, null, context.userId);
+    if (!allowed.includes(data.propertyId)) throw new Error("Sem acesso a este imóvel.");
+    const { transcribeAudioBase64 } = await import("@/lib/ai/transcribe.server");
+    return { text: await transcribeAudioBase64(data.audioBase64, data.mimeType) };
+  });
+
 /**
  * Anexo preso a uma PENDÊNCIA (não a uma reserva) — usado pela comprovação
  * da resolução e pelos anexos da criação de pendência (07/09/2026).
@@ -506,6 +730,7 @@ export const listTaskRecords = createServerFn({ method: "GET" })
 
     const list = (rows ?? []) as Array<{
       id: string;
+      group_id: string | null;
       kind: ReservationRecord["kind"];
       category: RecordCategory;
       storage_path: string | null;
@@ -628,6 +853,23 @@ export type AccountRecord = ReservationRecord & {
   reservationCode: string | null;
   checkinDate: string | null;
   checkoutDate: string | null;
+  /**
+   * TODAS as mídias da situação, em ordem cronológica — a própria incluída.
+   * Uma situação com quatro fotos é UMA linha na tela com quatro mídias
+   * dentro, não quatro linhas (ver `createRecordSituation`).
+   */
+  media: RecordMedia[];
+};
+
+export type RecordMedia = {
+  id: string;
+  kind: ReservationRecord["kind"];
+  storagePath: string | null;
+  url: string | null;
+  mime: string | null;
+  durationMs: number | null;
+  sizeBytes: number | null;
+  createdAt: string;
 };
 
 export type AccountRecordsResult = {
@@ -698,7 +940,7 @@ export const listAccountRecords = createServerFn({ method: "GET" })
     let scan = supabase
       .from("reservation_records")
       .select(
-        "id, property_id, log_id, reservation_id, kind, category, storage_path, mime, size_bytes, duration_ms, file_name, body, card_mode, created_by_name, created_at, task_id, is_resolution",
+        "id, group_id, property_id, log_id, reservation_id, kind, category, storage_path, mime, size_bytes, duration_ms, file_name, body, card_mode, created_by_name, created_at, task_id, is_resolution",
       )
       .in("property_id", propIds);
     if (data.days) {
@@ -711,6 +953,7 @@ export const listAccountRecords = createServerFn({ method: "GET" })
 
     const all = (rows ?? []) as Array<{
       id: string;
+      group_id: string | null;
       property_id: string;
       log_id: string | null;
       reservation_id: string | null;
@@ -754,15 +997,50 @@ export const listAccountRecords = createServerFn({ method: "GET" })
     const isOpen = (taskId: string | null) =>
       !!taskId && (taskById.get(taskId)?.status ?? null) === "pending";
 
+    /* UMA SITUAÇÃO = UMA LINHA NA TELA. As linhas vêm da mais nova para a
+     * mais velha; juntamos por `group_id` (registros antigos não têm grupo e
+     * viram grupos de um só) e elegemos a PRINCIPAL — a que tem `id =
+     * group_id`, ou, se ela tiver sido apagada, a mais antiga que sobrou.
+     * Os contadores das categorias contam situações, que é o que o usuário
+     * conta com o olho. */
+    const byGroup = new Map<string, typeof all>();
+    for (const r of all) {
+      const key = r.group_id ?? r.id;
+      const list = byGroup.get(key);
+      if (list) list.push(r);
+      else byGroup.set(key, [r]);
+    }
+    const primaries: typeof all = [];
+    const mediaByGroup = new Map<string, RecordMedia[]>();
+    for (const [key, list] of byGroup) {
+      const primary = list.find((r) => r.id === key) ?? list[list.length - 1];
+      primaries.push(primary);
+      const media = [...list]
+        .filter((r) => !!r.storage_path)
+        .sort((a, b) => a.created_at.localeCompare(b.created_at))
+        .map((r) => ({
+          id: r.id,
+          kind: r.kind,
+          storagePath: r.storage_path,
+          url: null as string | null,
+          mime: r.mime,
+          durationMs: r.duration_ms,
+          sizeBytes: r.size_bytes,
+          createdAt: r.created_at,
+        }));
+      mediaByGroup.set(key, media);
+    }
+    primaries.sort((a, b) => b.created_at.localeCompare(a.created_at));
+
     const counts = emptyCounts();
     const openCounts = emptyCounts();
-    for (const r of all) {
+    for (const r of primaries) {
       if (counts[r.category] === undefined) continue;
       counts[r.category] += 1;
       if (isOpen(r.task_id)) openCounts[r.category] += 1;
     }
 
-    const selected = all
+    const selected = primaries
       .filter((r) => (data.category ? r.category === data.category : true))
       .filter((r) => (data.onlyOpen ? isOpen(r.task_id) : true))
       .slice(0, ACCOUNT_RECORDS_PAGE);
@@ -865,8 +1143,25 @@ export const listAccountRecords = createServerFn({ method: "GET" })
       }
     }
 
-    // Mesmo lote único de assinaturas usado em listReservationRecords.
-    const paths = selected.filter((r) => r.storage_path).map((r) => r.storage_path as string);
+    // Mesmo lote único de assinaturas usado em listReservationRecords — agora
+    // cobrindo TODAS as mídias das situações que vão aparecer, e não só a
+    // principal, porque o visualizador navega entre elas. A capa de cada
+    // situação (a primeira mídia) entra antes das demais, para que um teto
+    // atingido tire as fotos do fim do carrossel, nunca a capa da lista.
+    const MAX_SIGNED = 900;
+    const coverPaths: string[] = [];
+    const extraPaths: string[] = [];
+    for (const r of selected) {
+      const media = mediaByGroup.get(r.group_id ?? r.id) ?? [];
+      media.forEach((m, i) => {
+        if (!m.storagePath) return;
+        (i === 0 ? coverPaths : extraPaths).push(m.storagePath);
+      });
+      if (r.storage_path && !media.some((m) => m.storagePath === r.storage_path)) {
+        coverPaths.push(r.storage_path);
+      }
+    }
+    const paths = Array.from(new Set([...coverPaths, ...extraPaths])).slice(0, MAX_SIGNED);
     const urlByPath = new Map<string, string>();
     if (paths.length > 0) {
       const { data: signed } = await supabase.storage
@@ -887,8 +1182,13 @@ export const listAccountRecords = createServerFn({ method: "GET" })
       // A chave do grupo é o vínculo, não o nome: dois hóspedes homônimos em
       // reservas diferentes continuam sendo dois pacotes.
       const reservationKey = r.log_id ?? r.reservation_id ?? null;
+      const media = (mediaByGroup.get(r.group_id ?? r.id) ?? []).map((m) => ({
+        ...m,
+        url: m.storagePath ? (urlByPath.get(m.storagePath) ?? null) : null,
+      }));
       return {
         id: r.id,
+        groupId: r.group_id,
         kind: r.kind,
         category: r.category,
         storagePath: r.storage_path,
@@ -913,10 +1213,11 @@ export const listAccountRecords = createServerFn({ method: "GET" })
         reservationCode: res?.code ?? null,
         checkinDate: res?.checkin ?? null,
         checkoutDate: res?.checkout ?? null,
+        media,
       };
     });
 
-    const total = all.length;
+    const total = primaries.length;
     const totalOpen = Object.values(openCounts).reduce((a, b) => a + b, 0);
     return {
       records,

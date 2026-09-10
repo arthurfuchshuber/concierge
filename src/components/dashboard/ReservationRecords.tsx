@@ -40,12 +40,12 @@ import {
 } from "@/components/dashboard/record-categories";
 import {
   listReservationRecords,
-  attachReservationRecord,
-  createReservationRecordNote,
   deleteReservationRecord,
   type ReservationRecord,
   type RecordCategory,
 } from "@/lib/reservation-records.functions";
+import { RecordSituationSheet } from "@/components/dashboard/RecordSituationSheet";
+import { draftItemFrom, type DraftItem } from "@/components/dashboard/record-draft";
 import type { ArrivalRow } from "@/lib/dashboard-arrival-types";
 
 /**
@@ -70,23 +70,6 @@ function resolveReservationTarget(row: { logId: string; reservationId: string | 
   const reservationId =
     row.reservationId ?? (row.logId.startsWith("ical:") ? row.logId.slice(5) : undefined);
   return { logId, reservationId: reservationId ?? undefined };
-}
-
-function inferKind(mime: string): "photo" | "video" | "audio" | "file" {
-  if (mime.startsWith("image/")) return "photo";
-  if (mime.startsWith("video/")) return "video";
-  if (mime.startsWith("audio/")) return "audio";
-  return "file";
-}
-
-function extFor(kind: string, mime: string): string {
-  if (kind === "audio") {
-    if (mime.includes("mp4")) return "m4a";
-    if (mime.includes("mpeg")) return "mp3";
-    return "webm";
-  }
-  const sub = mime.split("/")[1] ?? "bin";
-  return sub.replace("jpeg", "jpg").split(";")[0];
 }
 
 function fmtSize(bytes: number | null): string {
@@ -191,6 +174,11 @@ function groupRecords(records: ReservationRecord[]): RecordGroup[] {
   for (const r of records) {
     const last = out[out.length - 1];
     const lastItem = last?.items[last.items.length - 1];
+    // MESMA SITUAÇÃO: desde 10/09/2026 as mídias registradas juntas
+    // compartilham `groupId`, então o bloco é exato, sem adivinhação.
+    const sameSituation = !!lastItem && !!r.groupId && lastItem.groupId === r.groupId;
+    // Registros ANTIGOS não têm grupo — segue valendo a heurística de lote
+    // (mesmas fotos, mesma categoria, mesmo minuto, sem texto).
     const sameBatch =
       !!lastItem &&
       lastItem.kind === "photo" &&
@@ -199,7 +187,7 @@ function groupRecords(records: ReservationRecord[]): RecordGroup[] {
       !lastItem.body &&
       !r.body &&
       Math.abs(new Date(r.createdAt).getTime() - new Date(lastItem.createdAt).getTime()) < 120_000;
-    if (sameBatch) last.items.push(r);
+    if (sameSituation || sameBatch) last.items.push(r);
     else out.push({ key: r.id, items: [r] });
   }
   return out;
@@ -249,19 +237,66 @@ export function RecordBlock({
 
       <div className="px-2.5 pb-2.5">
         {photos ? (
-          <div className="grid grid-cols-2 gap-1">
-            {group.items.map((it) =>
-              it.url ? (
-                <a key={it.id} href={it.url} target="_blank" rel="noreferrer" className="block">
-                  <img
-                    src={it.url}
-                    alt={it.fileName ?? "Foto"}
-                    className="aspect-[4/3] w-full rounded-md border border-border/50 object-cover"
-                  />
-                </a>
-              ) : null,
+          /* SITUAÇÃO COM VÁRIAS MÍDIAS (10/09/2026): a grade não é mais só de
+             fotos — vídeo, áudio e arquivo entram na mesma situação, cada um
+             desenhado do seu jeito. E o texto aparece embaixo, uma vez só. */
+          <>
+            <div className="grid grid-cols-2 gap-1">
+              {group.items.map((it) => {
+                if (!it.url) return null;
+                if (it.kind === "photo") {
+                  return (
+                    <a key={it.id} href={it.url} target="_blank" rel="noreferrer" className="block">
+                      <img
+                        src={it.url}
+                        alt={it.fileName ?? "Foto"}
+                        className="aspect-[4/3] w-full rounded-md border border-border/50 object-cover"
+                      />
+                    </a>
+                  );
+                }
+                if (it.kind === "video") {
+                  return (
+                    <video
+                      key={it.id}
+                      src={it.url}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      className="aspect-[4/3] w-full rounded-md border border-border/50 bg-black object-cover"
+                    />
+                  );
+                }
+                if (it.kind === "audio") {
+                  return (
+                    <div key={it.id} className="col-span-2">
+                      <AudioPlayer url={it.url} durationMs={it.durationMs} />
+                    </div>
+                  );
+                }
+                return (
+                  <a
+                    key={it.id}
+                    href={it.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="col-span-2 flex items-center gap-2 rounded-md border border-border/50 bg-secondary/30 px-2 py-1.5 hover:bg-secondary/50"
+                  >
+                    <FileText className="size-4 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1 truncate text-xs">
+                      {it.fileName ?? "Arquivo"}
+                    </span>
+                    <Download className="size-3.5 shrink-0 text-muted-foreground" />
+                  </a>
+                );
+              })}
+            </div>
+            {head.body && (
+              <p className="mt-1.5 whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground/80">
+                {head.body}
+              </p>
             )}
-          </div>
+          </>
         ) : (
           <>
             {head.kind === "note" && (
@@ -346,7 +381,10 @@ export function RecordBlock({
         {photos && (
           <>
             <span className="opacity-50">·</span>
-            <span className="shrink-0">{group.items.length} fotos</span>
+            <span className="shrink-0">
+              {group.items.length}{" "}
+              {group.items.every((it) => it.kind === "photo") ? "fotos" : "mídias"}
+            </span>
           </>
         )}
         {!photos && head.sizeBytes ? (
@@ -431,8 +469,6 @@ function ReservationRecordsDialog({
 }) {
   const target = useMemo(() => resolveReservationTarget(row), [row.logId, row.reservationId]);
   const listFn = useServerFn(listReservationRecords);
-  const attachFn = useServerFn(attachReservationRecord);
-  const noteFn = useServerFn(createReservationRecordNote);
   const deleteFn = useServerFn(deleteReservationRecord);
   const qc = useQueryClient();
   const queryKey = ["reservation-records", target.logId ?? "", target.reservationId ?? ""];
@@ -444,14 +480,23 @@ function ReservationRecordsDialog({
     staleTime: 10_000,
   });
 
-  const [uploading, setUploading] = useState(false);
   const [text, setText] = useState("");
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [filter, setFilter] = useState<RecordCategory | "all">("all");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [pickedCategory, setPickedCategory] = useState<RecordCategory | null>(null);
   const [recordingAudio, setRecordingAudio] = useState(false);
+
+  /* A FOLHA DA SITUAÇÃO (10/09/2026). A captura não envia mais nada sozinha:
+   * ela monta um rascunho e abre a folha, onde a pessoa junta mais arquivos
+   * da MESMA situação, escreve título e descrição (falando, se quiser) e só
+   * então toca em "Registrar situação". Fechou, a próxima captura abre uma
+   * folha nova — "e assim por diante". */
+  const [situation, setSituation] = useState<{
+    category: RecordCategory;
+    item: DraftItem | null;
+    title: string;
+  } | null>(null);
 
   const photoInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -488,90 +533,41 @@ function ReservationRecordsDialog({
     else if (action === "video") videoInputRef.current?.click();
     else if (action === "file") fileInputRef.current?.click();
     else if (action === "audio") setRecordingAudio(true);
-    else if (action === "note") noteMutation.mutate({ body: text.trim(), category });
-  }
-
-  async function uploadAndAttach(
-    file: Blob,
-    category: RecordCategory,
-    opts: { name?: string | null; mime?: string; durationMs?: number },
-  ) {
-    const mime = opts.mime ?? (file as File).type ?? "application/octet-stream";
-    const kind = inferKind(mime);
-    setUploading(true);
-    setErrorMsg(null);
-    try {
-      const ext = extFor(kind, mime);
-      const folder = target.logId ?? target.reservationId;
-      const path = `${row.propertyId}/${folder}/${crypto.randomUUID()}.${ext}`;
-      const { error: upErr } = await supabase.storage
-        .from("reservation-records")
-        .upload(path, file, { contentType: mime, upsert: false });
-      if (upErr) throw new Error(upErr.message);
-      const res = await attachFn({
-        data: {
-          propertyId: row.propertyId,
-          logId: target.logId,
-          reservationId: target.reservationId,
-          cardMode: mode,
-          category,
-          path,
-          kind,
-          mime,
-          sizeBytes: file.size,
-          durationMs: opts.durationMs ?? null,
-          fileName: opts.name ?? null,
-          caption: null,
-        },
-      });
-      if (res?.taskCreated) toast.success("Registro salvo e pendência aberta no Kanban.");
-      invalidate();
-    } catch (e) {
-      setErrorMsg((e as Error).message || "Falha ao enviar o registro.");
-    } finally {
-      setUploading(false);
+    else if (action === "note") {
+      // Texto digitado também abre a folha: vira o título, e a pessoa
+      // completa a descrição (ou dita) antes de registrar.
+      setSituation({ category, item: null, title: text.trim().slice(0, 50) });
+      setText("");
     }
   }
 
-  async function onFilePicked(e: React.ChangeEvent<HTMLInputElement>) {
+  function onFilePicked(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     e.target.value = "";
     if (!f) return;
     // A categoria já foi escolhida na folha, antes da câmera abrir.
     const category = pickedCategory ?? FALLBACK_CATEGORY;
-    await uploadAndAttach(f, category, { name: f.name, mime: f.type });
-  }
-
-  async function onAudioRecorded(audio: RecordedAudio) {
-    const category = pickedCategory ?? FALLBACK_CATEGORY;
-    const filename = `audio-${Date.now()}.${audio.mime.includes("mp4") ? "m4a" : "webm"}`;
-    setRecordingAudio(false);
-    await uploadAndAttach(audio.blob, category, {
-      name: filename,
-      mime: audio.mime,
-      durationMs: audio.durationMs,
+    setSituation({
+      category,
+      item: draftItemFrom(f, { name: f.name, mime: f.type }),
+      title: "",
     });
   }
 
-  const noteMutation = useMutation({
-    mutationFn: (v: { body: string; category: RecordCategory }) =>
-      noteFn({
-        data: {
-          propertyId: row.propertyId,
-          logId: target.logId,
-          reservationId: target.reservationId,
-          cardMode: mode,
-          category: v.category,
-          body: v.body,
-        },
+  function onAudioRecorded(audio: RecordedAudio) {
+    const category = pickedCategory ?? FALLBACK_CATEGORY;
+    const filename = `audio-${Date.now()}.${audio.mime.includes("mp4") ? "m4a" : "webm"}`;
+    setRecordingAudio(false);
+    setSituation({
+      category,
+      item: draftItemFrom(audio.blob, {
+        name: filename,
+        mime: audio.mime,
+        durationMs: audio.durationMs,
       }),
-    onSuccess: (res) => {
-      setText("");
-      if (res?.taskCreated) toast.success("Registro salvo e pendência aberta no Kanban.");
-      invalidate();
-    },
-    onError: () => toast.error("Não consegui salvar a descrição."),
-  });
+      title: "",
+    });
+  }
 
   const records = q.data?.records ?? [];
   const counts = useMemo(() => {
@@ -682,13 +678,6 @@ function ReservationRecordsDialog({
           </div>
 
           <div className="border-t border-border/50 px-3 pb-3 pt-2.5">
-            {uploading && (
-              <div className="inline-flex items-center gap-1 pb-1.5 text-[10.5px] text-muted-foreground">
-                <Loader2 className="size-3 animate-spin" /> enviando…
-              </div>
-            )}
-            {errorMsg && <div className="pb-1.5 text-[10.5px] text-destructive">{errorMsg}</div>}
-
             <input
               ref={photoInputRef}
               type="file"
@@ -721,15 +710,13 @@ function ReservationRecordsDialog({
               <div className="mb-2 flex flex-wrap items-center gap-1.5">
                 <button
                   type="button"
-                  disabled={uploading}
                   onClick={() => requestAction("photo")}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-secondary/30 px-2.5 py-1.5 text-[11px] font-medium text-foreground/80 hover:bg-secondary/50 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-secondary/30 px-2.5 py-1.5 text-[11px] font-medium text-foreground/80 hover:bg-secondary/50 "
                 >
                   <Camera className="size-3.5" /> Foto
                 </button>
                 <button
                   type="button"
-                  disabled={uploading}
                   onClick={() => requestAction("video")}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-secondary/30 px-2.5 py-1.5 text-[11px] font-medium text-foreground/80 hover:bg-secondary/50 disabled:opacity-50"
                 >
@@ -737,7 +724,6 @@ function ReservationRecordsDialog({
                 </button>
                 <button
                   type="button"
-                  disabled={uploading}
                   onClick={() => requestAction("file")}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-secondary/30 px-2.5 py-1.5 text-[11px] font-medium text-foreground/80 hover:bg-secondary/50 disabled:opacity-50"
                 >
@@ -745,7 +731,6 @@ function ReservationRecordsDialog({
                 </button>
                 <button
                   type="button"
-                  disabled={uploading}
                   onClick={() => requestAction("audio")}
                   aria-label="Gravar áudio"
                   title="Gravar áudio"
@@ -759,7 +744,7 @@ function ReservationRecordsDialog({
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                if (!text.trim() || noteMutation.isPending) return;
+                if (!text.trim()) return;
                 requestAction("note");
               }}
               className="flex items-center gap-2"
@@ -775,15 +760,11 @@ function ReservationRecordsDialog({
               </div>
               <button
                 type="submit"
-                disabled={!text.trim() || noteMutation.isPending}
+                disabled={!text.trim()}
                 className="grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
-                aria-label="Salvar descrição"
+                aria-label="Descrever situação"
               >
-                {noteMutation.isPending ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Send className="size-4" />
-                )}
+                <Send className="size-4" />
               </button>
             </form>
           </div>
@@ -798,6 +779,21 @@ function ReservationRecordsDialog({
         }}
         onPick={handlePickCategory}
       />
+
+      {situation && (
+        <RecordSituationSheet
+          open
+          onOpenChange={(v) => !v && setSituation(null)}
+          propertyId={row.propertyId}
+          propertyLabel={row.propertyName ?? "Imóvel"}
+          target={target}
+          cardMode={mode}
+          category={situation.category}
+          initial={situation.item}
+          initialTitle={situation.title}
+          onSaved={invalidate}
+        />
+      )}
     </>
   );
 }

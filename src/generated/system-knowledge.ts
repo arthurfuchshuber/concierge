@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-10T16:14:45.201Z";
+export const GENERATED_AT = "2026-09-10T16:55:54.402Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -321,6 +321,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "54286623a751a461a23230c18cec34c1"
   },
   {
+    "doc_key": "rule:blobToBase64",
+    "kind": "rule",
+    "title": "Regra — blobToBase64",
+    "content": "A FOLHA DA SITUAÇÃO (pedido explícito, 10/09/2026).\n\n\"cada vez que o prestador for gravar video/audio/foto, etc.. criar uma\n 'folha' para aquela situação e um botão 'registrar situação' para que ele\n consiga registrar uma nova, e assim por diante\"\n\nAntes, a captura subia o arquivo na hora e acabava ali: sem título, sem\ndescrição, e cada toque virava um registro (e uma pendência) separado. Agora\na captura ABRE ESTA FOLHA e nada sai do aparelho até \"Registrar situação\":\n\n · a faixa de mídias, com o \"+\" para juntar mais arquivos DA MESMA situação\n (a categoria já é da situação — o \"+\" não pergunta de novo);\n · título curto e descrição, cada um com microfone que vira TEXTO;\n · um envio só, que cria UMA pendência com todas as provas dentro.\n\nMicrofone do CAMPO ≠ áudio pelo \"+\": o do campo é ditado (o áudio é usado e\ndescartado), o do \"+\" é mídia guardada.",
+    "source_path": "src/components/dashboard/RecordSituationSheet.tsx",
+    "audience": [],
+    "content_hash": "3a6b1ba2913aff9e720458f28df5e511"
+  },
+  {
     "doc_key": "rule:bodyByCity",
     "kind": "rule",
     "title": "Regra — bodyByCity",
@@ -627,6 +636,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "e57100511b0c10d3f65a8ad99e7ce441"
   },
   {
+    "doc_key": "rule:DictationField",
+    "kind": "rule",
+    "title": "Regra — DictationField",
+    "content": "Campo de texto com DITADO. O microfone monta o gravador já gravando; ao\nparar, o áudio vai para a transcrição e o texto cai no campo (somando ao\nque já estava escrito, nunca substituindo).",
+    "source_path": "src/components/dashboard/RecordSituationSheet.tsx",
+    "audience": [],
+    "content_hash": "a3e3bb3e1ff847e56bb3a4e65dae7545"
+  },
+  {
     "doc_key": "rule:diffPayload",
     "kind": "rule",
     "title": "Regra — diffPayload",
@@ -634,6 +652,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/stakeholders.functions.ts",
     "audience": [],
     "content_hash": "587d644cd63750935d1cba6ef32c1139"
+  },
+  {
+    "doc_key": "rule:DraftKind",
+    "kind": "rule",
+    "title": "Regra — DraftKind",
+    "content": "O RASCUNHO DA SITUAÇÃO — os arquivos que a pessoa já capturou e que ainda\nnão saíram do aparelho.\n\nVive fora do componente porque três telas o tocam (a folha da situação, a\nlinha do tempo da reserva e, no futuro, a unificação) e porque exportar\nfunção junto com componente quebra o fast refresh.",
+    "source_path": "src/components/dashboard/record-draft.ts",
+    "audience": [],
+    "content_hash": "63b9a471041fc1a614eb08df847578b4"
   },
   {
     "doc_key": "rule:earliestSignedAt",
@@ -1071,10 +1098,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:nextRecordName",
     "kind": "rule",
     "title": "Regra — nextRecordName",
-    "content": "Próximo nome disponível para este imóvel. A contagem vem do banco, então\ndois envios simultâneos podem repetir o número — é rótulo, não chave, e\nrepetir é preferível a segurar o envio numa transação.",
+    "content": "Próximo nome disponível para este imóvel. A contagem vem do banco, então\ndois envios simultâneos podem repetir o número — é rótulo, não chave, e\nrepetir é preferível a segurar o envio numa transação.\n\nConta SITUAÇÕES, não arquivos: as linhas principais são aquelas em que\n`id = group_id`, então uma situação com 4 fotos consome UM número. As três\nmídias extras herdam o nome da principal (ver `createRecordSituation`).",
     "source_path": "src/lib/reservation-records.functions.ts",
     "audience": [],
-    "content_hash": "92b80f5cef668144ae7c910e67ea9361"
+    "content_hash": "567222989a93b127cef6109bb24609dd"
   },
   {
     "doc_key": "rule:normalizeText",
@@ -1347,6 +1374,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "21463f078baac3321475523c21c8b704"
   },
   {
+    "doc_key": "rule:RECORD_TITLE_MAX",
+    "kind": "rule",
+    "title": "Regra — RECORD_TITLE_MAX",
+    "content": "TÍTULO + DESCRIÇÃO em um campo só.\n\nO banco tem `body` e mais nada. A regra da casa (10/09/2026) é que todo\nregistro tenha um título curto e uma descrição, e a página principal mostre\no TÍTULO — nunca o nome do arquivo. Guardamos os dois no mesmo `body`, com\no título na primeira linha, que é exatamente como a leitura já funciona.",
+    "source_path": "src/lib/reservation-records.functions.ts",
+    "audience": [],
+    "content_hash": "df641bb81f7c32ac1675b5782d443770"
+  },
+  {
     "doc_key": "rule:recordAssistantAction",
     "kind": "rule",
     "title": "Regra — recordAssistantAction",
@@ -1365,13 +1401,13 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "640ff124c5e3c649ef223f4f69769c0c"
   },
   {
-    "doc_key": "rule:recordText",
+    "doc_key": "rule:RecordTextEditor",
     "kind": "rule",
-    "title": "Regra — recordText",
-    "content": "TÍTULO E DESCRIÇÃO a partir do ÚNICO campo de texto que existe.\n\nO banco guarda um `body` só — o que a pessoa digita junto com a mídia — e\no nome do arquivo. Não há dois campos. Então a PRIMEIRA LINHA do texto vira\ntítulo e o RESTO vira descrição; sem texto digitado, o título é o nome do\narquivo e não há descrição. É reversível: no dia em que existir um campo\npróprio de título, ele simplesmente passa na frente daqui.",
+    "title": "Regra — RecordTextEditor",
+    "content": "EDITAR O TEXTO DE UM REGISTRO JÁ GRAVADO.\n\nDecisão do cliente (10/09/2026): \"pode manter 'Sem título informado', mas\ncom a possibilidade do usuário/prestador editar posteriormente\". Os mesmos\ndois campos da folha da situação, com o mesmo microfone — quem registrou\nfalando não tem por que ter de digitar para corrigir.",
     "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
     "audience": [],
-    "content_hash": "afe6cf103a0ddc98311a4da02e8146bf"
+    "content_hash": "2946b906bda28e9b1f75ac33d5ac658e"
   },
   {
     "doc_key": "rule:refreshStaleAirbnbListings",
@@ -1887,7 +1923,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1b50fd69dd824cce84da89a6a3bd6fb7"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:5810",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:6415",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "A FAIXA DA CATEGORIA dentro do quadrante (pedido explícito, 10/09/2026):\nmesma cor da categoria, translúcida, com o texto na versão clara dela. Fica\nde ponta a ponta no topo do quadrado, centralizada — sobre foto ou vídeo a\ntranslucidez deixa a imagem aparecer por baixo.",
@@ -2859,13 +2895,22 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8df8468b519bbea9643ac2223113b3c4"
   },
   {
-    "doc_key": "rule:src/lib/reservation-records.functions.ts:23577",
+    "doc_key": "rule:src/lib/reservation-records.functions.ts:32790",
     "kind": "rule",
     "title": "Regra em reservation-records.functions.ts",
     "content": "IDENTIDADE DA RESERVA — é por ela que a aba agrupa os registros no filtro\n\"Todos\". Vem de `guide_access_logs` (formulário do hóspede: nome, código\ne as duas datas) e, quando o registro só tem `reservation_id`, do próprio\n`property_reservations` (iCal: só a dica de nome e as datas).\n\n`reservationKey` vazio = registro preso apenas ao imóvel ou a uma\npendência. Esses caem no grupo \"Sem reserva\" — nada some.",
     "source_path": "src/lib/reservation-records.functions.ts",
     "audience": [],
     "content_hash": "23b7afe5ab85d98754e9b12e37d1bd4a"
+  },
+  {
+    "doc_key": "rule:src/lib/reservation-records.functions.ts:33400",
+    "kind": "rule",
+    "title": "Regra em reservation-records.functions.ts",
+    "content": "TODAS as mídias da situação, em ordem cronológica — a própria incluída.\nUma situação com quatro fotos é UMA linha na tela com quatro mídias\ndentro, não quatro linhas (ver `createRecordSituation`).",
+    "source_path": "src/lib/reservation-records.functions.ts",
+    "audience": [],
+    "content_hash": "9107dae32eda662cf6cded7aa55ac39c"
   },
   {
     "doc_key": "rule:src/lib/tasks-types.ts:1356",
@@ -3073,6 +3118,33 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/ai/transcribe.server.ts",
     "audience": [],
     "content_hash": "02b59ad68787e9d1c1e603b6c263328d"
+  },
+  {
+    "doc_key": "rule:transcribeRecordAudio",
+    "kind": "rule",
+    "title": "Regra — transcribeRecordAudio",
+    "content": "DITADO nos campos de título e descrição — o prestador fala, vira texto.\n\nUsa a MESMA transcrição das duas IAs (src/lib/ai/transcribe.server.ts), pelo\nmesmo motivo de sempre: falar tem que valer o mesmo que digitar. O áudio do\nditado é usado e descartado; áudio que a pessoa queira GUARDAR entra como\nmídia da situação, pelo botão \"+\".",
+    "source_path": "src/lib/reservation-records.functions.ts",
+    "audience": [],
+    "content_hash": "416922cd1ecd46498049deaa1ef770bb"
+  },
+  {
+    "doc_key": "rule:UNTITLED",
+    "kind": "rule",
+    "title": "Regra — UNTITLED",
+    "content": "TÍTULO E DESCRIÇÃO a partir do ÚNICO campo de texto que existe.\n\nO banco guarda um `body` só — o que a pessoa digita junto com a mídia — e\no nome do arquivo. Não há dois campos. Então a PRIMEIRA LINHA do texto vira\ntítulo e o RESTO vira descrição. É reversível: no dia em que existir um campo\npróprio de título, ele simplesmente passa na frente daqui.\n\nREGRA DA CASA (pedido explícito, 10/09/2026): \"todo e qualquer registro\nprecisa ter um título curto e uma descrição sobre o assunto... deve-se\npriorizar mostrar o título e não o nome do arquivo na página principal\".\nPor isso o NOME DO ARQUIVO NUNCA vira título aqui — ele é identificador\n(CASACHARM-01), não assunto, e vive na meta do visualizador. Sem título\ngravado a linha diz \"Sem título\", que é a verdade e cobra o preenchimento.",
+    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
+    "audience": [],
+    "content_hash": "9b0c205a1bbe5cfa06404953b651c945"
+  },
+  {
+    "doc_key": "rule:updateRecordText",
+    "kind": "rule",
+    "title": "Regra — updateRecordText",
+    "content": "EDITAR o texto de uma situação já gravada (decisão do cliente, 10/09/2026:\n\"pode manter 'Sem título informado', mas com a possibilidade do\nusuário/prestador editar posteriormente\").\n\nEscreve sempre na LINHA PRINCIPAL do grupo, mesmo que o id recebido seja o\nde uma mídia secundária — quem edita clica no que está vendo, não no que\nestá no banco. O título da pendência acompanha, senão o Kanban continua\ndizendo \"Dano/incidente registrado\" para sempre.",
+    "source_path": "src/lib/reservation-records.functions.ts",
+    "audience": [],
+    "content_hash": "86984cd0a2defd2f6039fb8f38f266a1"
   },
   {
     "doc_key": "rule:upsertNodes",

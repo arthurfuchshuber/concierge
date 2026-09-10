@@ -31,11 +31,7 @@ function maskSecret(s: string | null): string {
 
 function siteOrigin(): string {
   // Prefer VITE_APP_URL / SITE_URL if set; fallback to lovable.app project URL.
-  return (
-    process.env.SITE_URL ||
-    process.env.VITE_APP_URL ||
-    "https://sigmaconcierge.lovable.app"
-  );
+  return process.env.SITE_URL || process.env.VITE_APP_URL || "https://sigmaconcierge.lovable.app";
 }
 
 export const getMyWhatsappConfig = createServerFn({ method: "GET" })
@@ -48,7 +44,9 @@ export const getMyWhatsappConfig = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data } = await supabaseAdmin
       .from("host_whatsapp_config")
-      .select("provider, sender_number, service_plan_id, app_id, api_token_encrypted, webhook_secret, status, last_verified_at, last_error")
+      .select(
+        "provider, sender_number, service_plan_id, app_id, api_token_encrypted, webhook_secret, status, last_verified_at, last_error",
+      )
       .eq("owner_id", ownerId)
       .maybeSingle();
     const webhookUrl = `${siteOrigin()}/api/public/whatsapp/sinch-webhook?owner=${ownerId}`;
@@ -57,7 +55,7 @@ export const getMyWhatsappConfig = createServerFn({ method: "GET" })
       senderNumber: (data?.sender_number as string) ?? null,
       projectId: (data?.service_plan_id as string) ?? null,
       appId: (data?.app_id as string) ?? null,
-      status: ((data?.status as WhatsappConfigPublic["status"]) ?? "pending"),
+      status: (data?.status as WhatsappConfigPublic["status"]) ?? "pending",
       lastVerifiedAt: (data?.last_verified_at as string) ?? null,
       lastError: (data?.last_error as string) ?? null,
       webhookUrl,
@@ -76,9 +74,8 @@ export const saveMyWhatsappConfig = createServerFn({ method: "POST" })
       const { encryptToken } = await import("@/lib/whatsapp.server");
       encrypted = encryptToken(data.apiToken);
     }
-    const { error } = await supabase
-      .from("host_whatsapp_config")
-      .upsert({
+    const { error } = await supabase.from("host_whatsapp_config").upsert(
+      {
         owner_id: userId,
         provider: "sinch",
         sender_number: data.senderNumber.replace(/[^\d+]/g, ""),
@@ -88,7 +85,9 @@ export const saveMyWhatsappConfig = createServerFn({ method: "POST" })
         last_error: null,
         updated_at: new Date().toISOString(),
         ...(encrypted ? { api_token_encrypted: encrypted } : {}),
-      }, { onConflict: "owner_id" });
+      },
+      { onConflict: "owner_id" },
+    );
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -97,10 +96,7 @@ export const disconnectMyWhatsappConfig = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const { error } = await supabase
-      .from("host_whatsapp_config")
-      .delete()
-      .eq("owner_id", userId);
+    const { error } = await supabase.from("host_whatsapp_config").delete().eq("owner_id", userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -120,7 +116,9 @@ export const sendWhatsappFromConversation = createServerFn({ method: "POST" })
     // Load conversation + property + owner
     const { data: conv, error: convErr } = await supabase
       .from("property_chat_conversations")
-      .select("id, property_id, guest_session_id, guest_name, properties:property_id(id, owner_id, slug, checkin_time, checkin_time_max, checkout_time, checkout_time_min, wifi_ssid, wifi_password, gate_code, lock_code, pin_code, address, host_name, host_phone, house_rules, checkin_instructions, checkout_instructions, gate_instructions, lock_instructions, marketplace_links)")
+      .select(
+        "id, property_id, guest_session_id, guest_name, properties:property_id(id, owner_id, slug, checkin_time, checkin_time_max, checkout_time, checkout_time_min, wifi_ssid, wifi_password, gate_code, lock_code, pin_code, address, host_name, host_phone, house_rules, checkin_instructions, checkout_instructions, gate_instructions, lock_instructions, marketplace_links)",
+      )
       .eq("id", data.conversationId)
       .maybeSingle();
     if (convErr || !conv) throw new Error("Conversa não encontrada");
@@ -178,7 +176,9 @@ export const sendWhatsappFromConversation = createServerFn({ method: "POST" })
     if (!phone) throw new Error("Este hóspede ainda não informou telefone");
 
     // Load host config
-    const { data: cfg } = await supabase
+    const { data: cfg } = await (
+      await import("@/integrations/supabase/client.server")
+    ).supabaseAdmin
       .from("host_whatsapp_config")
       .select("provider, sender_number, service_plan_id, app_id, api_token_encrypted, status")
       .eq("owner_id", ownerId)
@@ -199,11 +199,15 @@ export const sendWhatsappFromConversation = createServerFn({ method: "POST" })
       ? expandTagsForWhatsapp(withInfo, { origin, slug: propertySlug })
       : withInfo;
 
-
     let sinchMsgId = "";
     try {
       const res = await sinchSendText(
-        { projectId: cfg.service_plan_id as string, appId: cfg.app_id as string, token, senderNumber: cfg.sender_number as string },
+        {
+          projectId: cfg.service_plan_id as string,
+          appId: cfg.app_id as string,
+          token,
+          senderNumber: cfg.sender_number as string,
+        },
         { toE164: to, text: finalText },
       );
       sinchMsgId = res.messageId;
@@ -243,11 +247,19 @@ export const sendWhatsappFromConversation = createServerFn({ method: "POST" })
 
     await supabase
       .from("property_chat_conversations")
-      .update({ ai_paused: true, status: "assigned", assigned_to: userId, last_message_at: new Date().toISOString() })
+      .update({
+        ai_paused: true,
+        status: "assigned",
+        assigned_to: userId,
+        last_message_at: new Date().toISOString(),
+      })
       .eq("id", data.conversationId);
 
     if (cfg.status !== "active") {
-      await supabase.from("host_whatsapp_config").update({ status: "active", last_verified_at: new Date().toISOString(), last_error: null }).eq("owner_id", ownerId);
+      await supabase
+        .from("host_whatsapp_config")
+        .update({ status: "active", last_verified_at: new Date().toISOString(), last_error: null })
+        .eq("owner_id", ownerId);
     }
 
     return { ok: true };

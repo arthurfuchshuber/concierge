@@ -36,7 +36,9 @@ async function freshDocUrl(
   try {
     const { decryptToken } = await import("@/lib/whatsapp.server");
     const cs = await import("@/lib/clicksign.server");
-    const { data: cred } = await supabase
+    const { data: cred } = await (
+      await import("@/integrations/supabase/client.server")
+    ).supabaseAdmin
       .from("host_integration_credentials")
       .select("api_token_encrypted")
       .eq("owner_id", userId)
@@ -106,7 +108,8 @@ export async function fillFromContract(
   if (patch["phone"] && !String((row as Record<string, unknown>)["phone_country"] ?? "").trim()) {
     patch["phone_country"] = "55";
   }
-  if (Object.keys(patch).length === 0) return { filled: [], docName: (doc["name"] as string) ?? null };
+  if (Object.keys(patch).length === 0)
+    return { filled: [], docName: (doc["name"] as string) ?? null };
 
   const { error } = await supabase
     .from(table)
@@ -157,7 +160,11 @@ async function earliestSignedAt(
     .map((r) => r.finished_at as string | null)
     .filter((v): v is string => Boolean(v))
     .sort();
-  return { suggested: signed[0] ? signed[0].slice(0, 10) : null, linkedDocs: rows.length, signedDocs: signed.length };
+  return {
+    suggested: signed[0] ? signed[0].slice(0, 10) : null,
+    linkedDocs: rows.length,
+    signedDocs: signed.length,
+  };
 }
 
 /**
@@ -182,7 +189,15 @@ export async function fillContractStartFromClicksign(
 }> {
   const table = kind === "provider" ? "service_providers" : "property_owners";
   const { suggested, linkedDocs, signedDocs } = await earliestSignedAt(supabase, userId, kind, id);
-  if (!suggested) return { status: "unchanged", name: null, current: null, suggested: null, linkedDocs, signedDocs };
+  if (!suggested)
+    return {
+      status: "unchanged",
+      name: null,
+      current: null,
+      suggested: null,
+      linkedDocs,
+      signedDocs,
+    };
 
   const { data: row } = await supabase
     .from(table)
@@ -190,18 +205,31 @@ export async function fillContractStartFromClicksign(
     .eq("id", id)
     .eq("account_owner_id", userId)
     .maybeSingle();
-  if (!row) return { status: "unchanged", name: null, current: null, suggested, linkedDocs, signedDocs };
+  if (!row)
+    return { status: "unchanged", name: null, current: null, suggested, linkedDocs, signedDocs };
 
-  const name = ((row as Record<string, unknown>)["trade_name"] as string) || ((row as Record<string, unknown>)["name"] as string) || null;
+  const name =
+    ((row as Record<string, unknown>)["trade_name"] as string) ||
+    ((row as Record<string, unknown>)["name"] as string) ||
+    null;
   const current = ((row as Record<string, unknown>)["contract_start"] as string | null) ?? null;
 
   if (!current) {
-    await supabase.from(table).update({ contract_start: suggested }).eq("id", id).eq("account_owner_id", userId);
+    await supabase
+      .from(table)
+      .update({ contract_start: suggested })
+      .eq("id", id)
+      .eq("account_owner_id", userId);
     return { status: "filled", name, current: null, suggested, linkedDocs, signedDocs };
   }
-  if (current === suggested) return { status: "unchanged", name, current, suggested, linkedDocs, signedDocs };
+  if (current === suggested)
+    return { status: "unchanged", name, current, suggested, linkedDocs, signedDocs };
   if (!overwrite) return { status: "conflict", name, current, suggested, linkedDocs, signedDocs };
 
-  await supabase.from(table).update({ contract_start: suggested }).eq("id", id).eq("account_owner_id", userId);
+  await supabase
+    .from(table)
+    .update({ contract_start: suggested })
+    .eq("id", id)
+    .eq("account_owner_id", userId);
   return { status: "overwritten", name, current, suggested, linkedDocs, signedDocs };
 }

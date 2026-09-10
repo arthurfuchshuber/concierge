@@ -35,14 +35,24 @@ export function parseSinchEvent(event: Record<string, unknown>): {
     e?.channel_identity?.identity ??
     e?.message?.sender?.identity ??
     null;
-  const messageId = e?.message?.id ?? e?.message_id ?? e?.message_delivery_report?.message_id ?? null;
+  const messageId =
+    e?.message?.id ?? e?.message_id ?? e?.message_delivery_report?.message_id ?? null;
   const rawStatus = String(e?.message_delivery_report?.status ?? e?.status ?? "").toLowerCase();
-  const deliveryStatus =
-    rawStatus.includes("delivered") ? "delivered" :
-    rawStatus.includes("read") ? "read" :
-    rawStatus.includes("failed") || rawStatus.includes("rejected") ? "failed" :
-    rawStatus.includes("dispatched") || rawStatus.includes("sent") ? "sent" : null;
-  return { text: text ? String(text) : null, fromIdentity: fromIdentity ? String(fromIdentity) : null, messageId, deliveryStatus };
+  const deliveryStatus = rawStatus.includes("delivered")
+    ? "delivered"
+    : rawStatus.includes("read")
+      ? "read"
+      : rawStatus.includes("failed") || rawStatus.includes("rejected")
+        ? "failed"
+        : rawStatus.includes("dispatched") || rawStatus.includes("sent")
+          ? "sent"
+          : null;
+  return {
+    text: text ? String(text) : null,
+    fromIdentity: fromIdentity ? String(fromIdentity) : null,
+    messageId,
+    deliveryStatus,
+  };
 }
 
 /** Adaptador registrado no Channel Gateway. */
@@ -74,7 +84,8 @@ export async function sendWhatsappText(params: {
   toPhone: string;
   text: string;
 }): Promise<{ messageId: string }> {
-  const { data: cfg } = await params.supabase
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: cfg } = await supabaseAdmin
     .from("host_whatsapp_config")
     .select("sender_number, service_plan_id, app_id, api_token_encrypted")
     .eq("owner_id", params.tenantId)
@@ -108,33 +119,37 @@ export async function upsertChannelConnection(params: {
   lastError?: string | null;
 }): Promise<void> {
   try {
-    await params.supabase
-      .from("ai_channel_connections")
-      .upsert(
-        {
-          tenant_id: params.tenantId,
-          channel_type: params.channelType,
-          provider: params.provider,
-          credentials_reference: params.credentialsReference,
-          external_identity: params.externalIdentity ?? null,
-          status: params.status,
-          last_error: params.lastError ?? null,
-          connected_at: params.status === "active" ? new Date().toISOString() : null,
-          last_seen_at: new Date().toISOString(),
-        },
-        { onConflict: "tenant_id,channel_type" },
-      );
+    await params.supabase.from("ai_channel_connections").upsert(
+      {
+        tenant_id: params.tenantId,
+        channel_type: params.channelType,
+        provider: params.provider,
+        credentials_reference: params.credentialsReference,
+        external_identity: params.externalIdentity ?? null,
+        status: params.status,
+        last_error: params.lastError ?? null,
+        connected_at: params.status === "active" ? new Date().toISOString() : null,
+        last_seen_at: new Date().toISOString(),
+      },
+      { onConflict: "tenant_id,channel_type" },
+    );
   } catch (err) {
     console.error("[whatsapp] registry falhou", err);
   }
 }
 
-export async function markChannelSeen(supabase: SupabaseClient, tenantId: string, channelType = "whatsapp"): Promise<void> {
+export async function markChannelSeen(
+  supabase: SupabaseClient,
+  tenantId: string,
+  channelType = "whatsapp",
+): Promise<void> {
   try {
     await supabase
       .from("ai_channel_connections")
       .update({ last_seen_at: new Date().toISOString(), status: "active", last_error: null })
       .eq("tenant_id", tenantId)
       .eq("channel_type", channelType);
-  } catch { /* silencioso */ }
+  } catch {
+    /* silencioso */
+  }
 }

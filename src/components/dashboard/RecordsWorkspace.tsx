@@ -9,6 +9,7 @@ import {
   FileText,
   Loader2,
   Mic,
+  Pencil,
   SlidersHorizontal,
   StickyNote,
   Video,
@@ -29,11 +30,14 @@ import { useImpersonation } from "@/hooks/useImpersonation";
 import { CARD_OWNER } from "@/components/dashboard/card-colors";
 import { OperationShell } from "@/components/dashboard/OperationWorkspace";
 import { AudioPlayer } from "@/components/dashboard/ReservationRecords";
+import { DictationField } from "@/components/dashboard/RecordSituationSheet";
 import { CATEGORY_BY_KEY, MODE_LABEL, fmtDayLabel } from "@/components/dashboard/record-categories";
 import { listTaskLinkOptions, setTaskStatus } from "@/lib/tasks.functions";
 import {
+  RECORD_TITLE_MAX,
   deleteReservationRecord,
   listAccountRecords,
+  updateRecordText,
   type AccountRecord,
   type RecordCategory,
 } from "@/lib/reservation-records.functions";
@@ -496,6 +500,10 @@ export function RecordsWorkspace() {
           setOpened(null);
           setResolving(r);
         }}
+        onEdited={() => {
+          setOpened(null);
+          qc.invalidateQueries({ queryKey: ["account-records"] });
+        }}
       />
 
       <ResolveDialog
@@ -762,14 +770,26 @@ function PendingRow({
   const meta = CATEGORY_BY_KEY.get(record.category);
   return (
     <div className="flex w-full items-start gap-2 border-t border-border/50 py-1.5 first:border-t-0">
+      {/* O QUADRANTE FICA CENTRADO no bloco título + subtítulo (pedido
+          explícito, 10/09/2026): ele é mais alto que uma linha, e alinhado ao
+          topo sobrava um degrau embaixo. A DATA continua alinhada à linha do
+          título — por isso o `items-start` fica só na linha de fora. */}
       <button
         type="button"
         onClick={onOpen}
-        className="flex min-w-0 flex-1 items-start gap-2 text-left transition-colors hover:opacity-80"
+        className="flex min-w-0 flex-1 items-center gap-2 text-left transition-colors hover:opacity-80"
       >
         <span className="relative grid size-[34px] shrink-0 place-items-center overflow-hidden rounded-[0.25rem] bg-gradient-to-br from-secondary/70 to-secondary/30">
           <RecordCover record={record} size="xs" />
           <span className={`absolute inset-x-0 bottom-0 h-[3px] ${meta?.dot ?? "bg-muted"}`} />
+          {record.media.length > 1 && (
+            <span
+              className="absolute right-0 top-0 grid h-[12px] min-w-[12px] place-items-center rounded-bl-[0.25rem] bg-black/65 px-0.5 text-[7.5px] font-extrabold tabular-nums text-white"
+              aria-label={`${record.media.length} mídias`}
+            >
+              {record.media.length}
+            </span>
+          )}
         </span>
         <span className="min-w-0 flex-1">
           <span
@@ -846,6 +866,20 @@ function Thumb({
             aria-label="Em aberto"
           />
         )}
+        {/* UMA SITUAÇÃO COM VÁRIAS MÍDIAS: o número avisa que tem mais coisa
+            ali dentro — sem ele, quatro fotos viram um quadrado só e ninguém
+            desconfia. */}
+        {record.media.length > 1 && (
+          <span
+            /* Acima da barra de "em aberto" (3px), nunca em cima dela. */
+            className={`absolute right-[3px] grid min-w-[14px] place-items-center rounded-full bg-black/65 px-1 font-extrabold tabular-nums text-white ${
+              small ? "bottom-[5px] h-[12px] text-[7.5px]" : "bottom-[6px] h-[14px] text-[8px]"
+            }`}
+            aria-label={`${record.media.length} mídias`}
+          >
+            {record.media.length}
+          </span>
+        )}
       </span>
       <span className="mt-1 block text-center text-[8.5px] tabular-nums text-muted-foreground">
         {fmtShortDate(record.createdAt)}
@@ -876,11 +910,13 @@ function RecordViewerDialog({
   onClose,
   onDelete,
   onResolve,
+  onEdited,
 }: {
   record: AccountRecord | null;
   onClose: () => void;
   onDelete: (id: string) => void;
   onResolve?: () => void;
+  onEdited?: () => void;
 }) {
   return (
     <Dialog open={!!record} onOpenChange={(v) => !v && onClose()}>
@@ -888,9 +924,101 @@ function RecordViewerDialog({
         className="w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border-border/60 bg-card/95 p-0 backdrop-blur-xl sm:w-full sm:max-w-md"
         aria-describedby={undefined}
       >
-        {record && <RecordViewerBody record={record} onDelete={onDelete} onResolve={onResolve} />}
+        {record && (
+          <RecordViewerBody
+            record={record}
+            onDelete={onDelete}
+            onResolve={onResolve}
+            onEdited={onEdited}
+          />
+        )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * EDITAR O TEXTO DE UM REGISTRO JÁ GRAVADO.
+ *
+ * Decisão do cliente (10/09/2026): "pode manter 'Sem título informado', mas
+ * com a possibilidade do usuário/prestador editar posteriormente". Os mesmos
+ * dois campos da folha da situação, com o mesmo microfone — quem registrou
+ * falando não tem por que ter de digitar para corrigir.
+ */
+function RecordTextEditor({
+  record,
+  initialTitle,
+  initialDescription,
+  onCancel,
+  onSaved,
+}: {
+  record: AccountRecord;
+  initialTitle: string;
+  initialDescription: string;
+  onCancel: () => void;
+  onSaved: () => void;
+}) {
+  const updateFn = useServerFn(updateRecordText);
+  const [title, setTitle] = useState(initialTitle);
+  const [description, setDescription] = useState(initialDescription);
+  const [saving, setSaving] = useState(false);
+  const requiresTitle = !!CATEGORY_BY_KEY.get(record.category)?.createsTask;
+
+  async function save() {
+    if (saving || (requiresTitle && !title.trim())) return;
+    setSaving(true);
+    try {
+      await updateFn({
+        data: { id: record.id, title: title.trim(), description: description.trim() || null },
+      });
+      toast.success("Registro atualizado.");
+      onSaved();
+    } catch (e) {
+      toast.error((e as Error).message || "Não consegui salvar.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2.5">
+      <DictationField
+        label="Título"
+        required={requiresTitle}
+        value={title}
+        onChange={setTitle}
+        placeholder="Em poucas palavras, o que houve"
+        propertyId={record.propertyId}
+        maxLength={RECORD_TITLE_MAX}
+      />
+      <DictationField
+        label="Descrição"
+        value={description}
+        onChange={setDescription}
+        placeholder="Onde, desde quando, o que precisa ser feito"
+        propertyId={record.propertyId}
+        multiline
+      />
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={saving}
+          className="rounded-[0.3rem] px-2.5 py-1.5 text-[10.5px] font-bold text-muted-foreground hover:text-foreground disabled:opacity-50"
+        >
+          Cancelar
+        </button>
+        <span className="flex-1" />
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving || (requiresTitle && !title.trim())}
+          className="rounded-[0.3rem] bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] px-3 py-1.5 text-[10.5px] font-bold text-white disabled:from-muted disabled:to-muted disabled:text-muted-foreground"
+        >
+          Salvar
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -898,10 +1026,12 @@ function RecordViewerBody({
   record,
   onDelete,
   onResolve,
+  onEdited,
 }: {
   record: AccountRecord;
   onDelete: (id: string) => void;
   onResolve?: () => void;
+  onEdited?: () => void;
 }) {
   const meta = CATEGORY_BY_KEY.get(record.category);
   const { title, description } = recordText(record);
@@ -911,6 +1041,27 @@ function RecordViewerBody({
   const reservationLine =
     [record.guestName, record.reservationCode, stay].filter(Boolean).join(" · ") ||
     "Sem reserva vinculada";
+
+  /* UMA SITUAÇÃO PODE TER VÁRIAS MÍDIAS (10/09/2026). O palco mostra uma de
+     cada vez e a fileira embaixo troca — registro antigo, de uma mídia só,
+     não ganha fileira nenhuma e continua igual. */
+  const media = record.media?.length
+    ? record.media
+    : [
+        {
+          id: record.id,
+          kind: record.kind,
+          url: record.url,
+          durationMs: record.durationMs,
+          mime: record.mime,
+          sizeBytes: record.sizeBytes,
+          storagePath: record.storagePath,
+          createdAt: record.createdAt,
+        },
+      ];
+  const [idx, setIdx] = useState(0);
+  const current = media[Math.min(idx, media.length - 1)];
+  const [editing, setEditing] = useState(false);
 
   return (
     <>
@@ -934,7 +1085,7 @@ function RecordViewerBody({
       </DialogHeader>
 
       <div className={`relative ${VIEWER_STAGE} overflow-hidden bg-black`}>
-        <ViewerStage record={record} />
+        <ViewerStage record={current} />
         {/* Aqui a etiqueta fica SOBRE a mídia, então ela é sólida (pedido
             explícito): translúcida, sumia contra uma foto clara. Nos
             quadrantes da lista ela segue translúcida — lá não há imagem
@@ -946,20 +1097,79 @@ function RecordViewerBody({
         >
           {meta?.label ?? "Registro"}
         </span>
+        {media.length > 1 && (
+          <span className="absolute right-2.5 top-2.5 z-10 rounded-full bg-black/60 px-2 py-0.5 text-[9px] font-extrabold tabular-nums text-white">
+            {Math.min(idx, media.length - 1) + 1} / {media.length}
+          </span>
+        )}
       </div>
 
+      {media.length > 1 && (
+        <div className="ds-scroll-x flex gap-1.5 px-3.5 pt-2.5">
+          {media.map((m, i) => {
+            const on = i === Math.min(idx, media.length - 1);
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setIdx(i)}
+                aria-label={`Mídia ${i + 1}`}
+                className={`relative grid size-[44px] shrink-0 place-items-center overflow-hidden rounded-[0.25rem] bg-gradient-to-br from-secondary/70 to-secondary/30 ${
+                  on ? "outline outline-2 -outline-offset-2 outline-[#E82DAE]" : "opacity-70"
+                }`}
+              >
+                {m.kind === "photo" && m.url ? (
+                  <img src={m.url} alt="" className="size-full object-cover" />
+                ) : (
+                  <RecordCover record={{ ...record, kind: m.kind }} size="xs" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div className="px-3.5 pb-3 pt-3">
-        <p
-          className={`text-[13px] font-bold leading-snug ${
-            hasTitle(record) ? "" : "italic text-muted-foreground"
-          }`}
-        >
-          {title}
-        </p>
-        {description && (
-          <p className="mt-1 whitespace-pre-wrap break-words text-[11.5px] leading-relaxed text-muted-foreground">
-            {description}
-          </p>
+        {editing ? (
+          /* EDITAR DEPOIS (decisão do cliente, 10/09/2026): o registro que
+             nasceu sem título — ou com o título errado — se conserta aqui,
+             sem passar pela captura de novo. */
+          <RecordTextEditor
+            record={record}
+            initialTitle={hasTitle(record) ? title : ""}
+            initialDescription={description ?? ""}
+            onCancel={() => setEditing(false)}
+            onSaved={() => {
+              setEditing(false);
+              onEdited?.();
+            }}
+          />
+        ) : (
+          <div className="flex items-start gap-2">
+            <div className="min-w-0 flex-1">
+              <p
+                className={`text-[13px] font-bold leading-snug ${
+                  hasTitle(record) ? "" : "italic text-muted-foreground"
+                }`}
+              >
+                {title}
+              </p>
+              {description && (
+                <p className="mt-1 whitespace-pre-wrap break-words text-[11.5px] leading-relaxed text-muted-foreground">
+                  {description}
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              aria-label="Editar título e descrição"
+              title="Editar título e descrição"
+              className="grid size-[26px] shrink-0 place-items-center rounded-[0.3rem] bg-foreground/[0.06] text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
+            >
+              <Pencil className="size-3.5" />
+            </button>
+          </div>
         )}
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-border/60 pt-2.5 text-[9.5px] text-muted-foreground">
           {/* O nome do arquivo é IDENTIFICADOR, não assunto: saiu do título e
@@ -1011,9 +1221,9 @@ function RecordViewerBody({
       </div>
 
       <div className="flex gap-1.5 px-3.5 pb-3.5">
-        {record.url && (
+        {current.url && (
           <a
-            href={record.url}
+            href={current.url}
             target="_blank"
             rel="noreferrer"
             className="flex-1 rounded-[0.3rem] bg-foreground/[0.06] py-2 text-center text-[10.5px] font-bold text-foreground/80 transition-colors hover:bg-foreground/10"
@@ -1271,7 +1481,17 @@ function ResolveDialog({
 }
 
 /** O conteúdo do palco, por tipo. */
-function ViewerStage({ record }: { record: AccountRecord }) {
+function ViewerStage({
+  record,
+}: {
+  /* Uma MÍDIA (a situação pode ter várias) — a forma casa tanto com
+     `AccountRecord` quanto com `RecordMedia`. */
+  record: {
+    kind: AccountRecord["kind"];
+    url: string | null;
+    durationMs: number | null;
+  };
+}) {
   if (record.kind === "photo" && record.url) {
     return (
       <>

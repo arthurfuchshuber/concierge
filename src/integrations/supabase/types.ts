@@ -4552,6 +4552,7 @@ export type Database = {
           created_by_name: string | null
           duration_ms: number | null
           file_name: string | null
+          group_id: string | null
           id: string
           is_resolution: boolean
           kind: string
@@ -4572,6 +4573,7 @@ export type Database = {
           created_by_name?: string | null
           duration_ms?: number | null
           file_name?: string | null
+          group_id?: string | null
           id?: string
           is_resolution?: boolean
           kind: string
@@ -4592,6 +4594,7 @@ export type Database = {
           created_by_name?: string | null
           duration_ms?: number | null
           file_name?: string | null
+          group_id?: string | null
           id?: string
           is_resolution?: boolean
           kind?: string
@@ -5189,6 +5192,8 @@ export type Database = {
           amount_spent_cents: number | null
           category: string
           completed_at: string | null
+          cost_payer: string | null
+          cost_payer_id: string | null
           created_at: string
           created_by: string | null
           description: string | null
@@ -5212,6 +5217,8 @@ export type Database = {
           amount_spent_cents?: number | null
           category?: string
           completed_at?: string | null
+          cost_payer?: string | null
+          cost_payer_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -5235,6 +5242,8 @@ export type Database = {
           amount_spent_cents?: number | null
           category?: string
           completed_at?: string | null
+          cost_payer?: string | null
+          cost_payer_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
