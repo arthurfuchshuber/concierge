@@ -472,7 +472,34 @@ export function RecordsWorkspace() {
   );
 }
 
-/** Contador/filtro de uma categoria. Mesma casca dos KPIs da Operacional. */
+/**
+ * Contador/filtro de uma categoria. Mesma casca dos KPIs da Operacional.
+ *
+ * A COR DO NÚMERO É UM SEMÁFORO, NÃO UMA ETIQUETA (pedido explícito,
+ * 10/09/2026): zerado é BRANCO em todas as categorias — não há nada ali, nada
+ * a sinalizar. Acima de zero, a cor diz o quanto aquilo pesa: manutenção e
+ * dano em vermelho (é trabalho parado), esquecidos e outros em âmbar (é
+ * atenção), auditoria de limpeza no violeta de sempre (é rotina, não alarme)
+ * e "Todos" sempre branco, porque somar tudo não é sinal de nada.
+ *
+ * Cartão zerado NÃO é mais esmaecido — todos têm a mesma tonalidade.
+ */
+const CARD_NUMBER_TONE: Record<RecordCategory, string> = {
+  maintenance: "text-rose-500 dark:text-rose-400",
+  damage: "text-rose-500 dark:text-rose-400",
+  forgotten: "text-amber-500 dark:text-amber-400",
+  cleaning_audit: "text-violet-600 dark:text-violet-400",
+  other: "text-amber-500 dark:text-amber-400",
+};
+
+const CARD_RING_TONE: Record<RecordCategory, string> = {
+  maintenance: "ring-sky-500/60",
+  damage: "ring-rose-500/60",
+  forgotten: "ring-orange-500/60",
+  cleaning_audit: "ring-violet-500/60",
+  other: "ring-muted-foreground/50",
+};
+
 function CategoryCard({
   label,
   count,
@@ -490,33 +517,18 @@ function CategoryCard({
   loading: boolean;
   onClick: () => void;
 }) {
-  const numberTone: Record<RecordCategory, string> = {
-    forgotten: "text-orange-600 dark:text-orange-400",
-    damage: "text-rose-600 dark:text-rose-400",
-    cleaning_audit: "text-violet-600 dark:text-violet-400",
-    maintenance: "text-sky-600 dark:text-sky-400",
-    other: "text-muted-foreground",
-  };
-  const ringTone: Record<RecordCategory, string> = {
-    forgotten: "ring-orange-500/60",
-    damage: "ring-rose-500/60",
-    cleaning_audit: "ring-violet-500/60",
-    maintenance: "ring-sky-500/60",
-    other: "ring-muted-foreground/50",
-  };
+  const numberClass = !tone || count === 0 ? "text-foreground" : CARD_NUMBER_TONE[tone];
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
       className={`ds-3d relative flex flex-col justify-between rounded-[0.3rem] bg-card px-2 py-2.5 text-left transition hover:bg-secondary/30 ${
-        active ? `ring-2 ring-inset ${tone ? ringTone[tone] : "ring-accent/70"}` : ""
-      } ${count === 0 && !active ? "opacity-55" : ""}`}
+        active ? `ring-2 ring-inset ${tone ? CARD_RING_TONE[tone] : "ring-accent/70"}` : ""
+      }`}
     >
       <span
-        className={`font-display text-[17px] font-bold leading-none tabular-nums ${
-          tone ? numberTone[tone] : "text-accent"
-        }`}
+        className={`font-display text-[17px] font-bold leading-none tabular-nums ${numberClass}`}
       >
         {loading ? "—" : count}
       </span>
@@ -563,25 +575,24 @@ function PropertyCard({ group, onOpen }: { group: Group; onOpen: (r: AccountReco
 
   return (
     <div className="ds-3d rounded-[0.3rem] bg-card p-3">
+      {/* A ETIQUETA DIVIDE A LINHA DO TÍTULO, não o bloco de duas linhas
+          (pedido explícito, 10/09/2026) — é a mesma correção já feita no
+          cabeçalho das páginas: centrada no bloco inteiro, ela caía na altura
+          do vão entre o nome do imóvel e o proprietário e ficava visivelmente
+          baixa. Dentro da mesma linha, o alinhamento é exato por construção. */}
       <div className="flex items-center gap-2">
-        <div className="min-w-0 flex-1">
-          <span className="ds-card-title">{group.label}</span>
-          {group.sublabel && (
-            <span className={`mt-0.5 block truncate text-[10.5px] ${CARD_OWNER}`}>
-              {group.sublabel}
-            </span>
-          )}
-        </div>
-        {hasPending ? (
+        <span className="ds-card-title min-w-0 flex-1">{group.label}</span>
+        {hasPending && (
           <span className="shrink-0 rounded-[0.25rem] bg-rose-500/15 px-1.5 py-0.5 text-[9.5px] font-extrabold tabular-nums text-rose-600 dark:text-rose-400">
             {group.pending.length} a resolver
           </span>
-        ) : (
-          <span className="shrink-0 text-[10.5px] font-bold tabular-nums text-muted-foreground">
-            {group.total}
-          </span>
         )}
       </div>
+      {group.sublabel && (
+        <span className={`mt-0.5 block truncate text-[10.5px] ${CARD_OWNER}`}>
+          {group.sublabel}
+        </span>
+      )}
 
       {hasPending && (
         <>
@@ -612,20 +623,24 @@ function PropertyCard({ group, onOpen }: { group: Group; onOpen: (r: AccountReco
 
       {group.rest.length > 0 && (
         <>
-          {hasPending && (
-            <div className="mb-1 mt-2.5 flex items-center gap-2">
-              <span className="shrink-0 text-[9px] font-extrabold uppercase tracking-[0.11em] text-muted-foreground">
-                Registros
-              </span>
-              <span className="h-px flex-1 bg-border" />
-              <span className="shrink-0 text-[9px] font-bold tabular-nums text-muted-foreground">
-                {group.rest.length}
-              </span>
-            </div>
-          )}
+          {/* A ETIQUETA DE "REGISTROS" EXISTE SEMPRE (pedido explícito,
+              10/09/2026), com o fio e a contagem à direita — a mesma forma de
+              "A resolver". Antes ela só aparecia quando havia pendências, e o
+              cartão sem pendência ficava com uma tira de quadrados sem nome.
+              Com ela, a contagem some do canto superior: dizer o mesmo número
+              duas vezes no mesmo cartão não ajuda ninguém. */}
+          <div className="mb-1 mt-2.5 flex items-center gap-2">
+            <span className="shrink-0 text-[9px] font-extrabold uppercase tracking-[0.11em] text-muted-foreground">
+              Registros
+            </span>
+            <span className="h-px flex-1 bg-border" />
+            <span className="shrink-0 text-[9px] font-bold tabular-nums text-muted-foreground">
+              {group.rest.length}
+            </span>
+          </div>
           {/* Miniaturas de tamanho FIXO, não de largura proporcional: em
               colunas elásticas elas viravam quadrados gigantes no desktop. */}
-          <div className={`flex flex-wrap gap-1 ${hasPending ? "" : "mt-2"}`}>
+          <div className="flex flex-wrap gap-1">
             {group.rest.slice(0, thumbCap).map((r, i) => {
               const isLastSlot = i === thumbCap - 1;
               const hidden = group.rest.length - thumbCap;
