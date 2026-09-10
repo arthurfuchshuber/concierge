@@ -329,7 +329,41 @@ export function RecordsWorkspace() {
       toast.error(e instanceof Error ? e.message : "Não foi possível excluir."),
   });
 
-  const records = useMemo(() => q.data?.records ?? [], [q.data]);
+  /**
+   * TODO REGISTRO CHEGA COM `media` — nem que seja uma lista de um.
+   *
+   * A aba quebrou em produção (10/09/2026) porque o servidor respondeu com o
+   * formato ANTIGO, de antes das situações com várias mídias, enquanto a tela
+   * já era a nova: `record.media.length` num `undefined` derruba a página
+   * inteira no ErrorComponent da raiz. Normalizar aqui, na porta de entrada,
+   * é mais barato e mais seguro do que espalhar `?.` por toda a tela — e a
+   * tela volta a funcionar sozinha assim que o servidor alcançar.
+   */
+  const records = useMemo<AccountRecord[]>(
+    () =>
+      (q.data?.records ?? []).map((r) =>
+        Array.isArray(r.media)
+          ? r
+          : {
+              ...r,
+              media: r.storagePath
+                ? [
+                    {
+                      id: r.id,
+                      kind: r.kind,
+                      storagePath: r.storagePath,
+                      url: r.url,
+                      mime: r.mime,
+                      durationMs: r.durationMs,
+                      sizeBytes: r.sizeBytes,
+                      createdAt: r.createdAt,
+                    },
+                  ]
+                : [],
+            },
+      ),
+    [q.data],
+  );
   const counts = q.data?.counts;
   const openCounts = q.data?.openCounts;
 
@@ -782,12 +816,12 @@ function PendingRow({
         <span className="relative grid size-[34px] shrink-0 place-items-center overflow-hidden rounded-[0.25rem] bg-gradient-to-br from-secondary/70 to-secondary/30">
           <RecordCover record={record} size="xs" />
           <span className={`absolute inset-x-0 bottom-0 h-[3px] ${meta?.dot ?? "bg-muted"}`} />
-          {record.media.length > 1 && (
+          {(record.media?.length ?? 0) > 1 && (
             <span
               className="absolute right-0 top-0 grid h-[12px] min-w-[12px] place-items-center rounded-bl-[0.25rem] bg-black/65 px-0.5 text-[7.5px] font-extrabold tabular-nums text-white"
-              aria-label={`${record.media.length} mídias`}
+              aria-label={`${record.media?.length ?? 0} mídias`}
             >
-              {record.media.length}
+              {record.media?.length ?? 0}
             </span>
           )}
         </span>
@@ -869,15 +903,15 @@ function Thumb({
         {/* UMA SITUAÇÃO COM VÁRIAS MÍDIAS: o número avisa que tem mais coisa
             ali dentro — sem ele, quatro fotos viram um quadrado só e ninguém
             desconfia. */}
-        {record.media.length > 1 && (
+        {(record.media?.length ?? 0) > 1 && (
           <span
             /* Acima da barra de "em aberto" (3px), nunca em cima dela. */
             className={`absolute right-[3px] grid min-w-[14px] place-items-center rounded-full bg-black/65 px-1 font-extrabold tabular-nums text-white ${
               small ? "bottom-[5px] h-[12px] text-[7.5px]" : "bottom-[6px] h-[14px] text-[8px]"
             }`}
-            aria-label={`${record.media.length} mídias`}
+            aria-label={`${record.media?.length ?? 0} mídias`}
           >
-            {record.media.length}
+            {record.media?.length ?? 0}
           </span>
         )}
       </span>

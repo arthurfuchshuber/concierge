@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-10T16:55:54.402Z";
+export const GENERATED_AT = "2026-09-10T17:37:53.533Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -324,10 +324,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:blobToBase64",
     "kind": "rule",
     "title": "Regra — blobToBase64",
-    "content": "A FOLHA DA SITUAÇÃO (pedido explícito, 10/09/2026).\n\n\"cada vez que o prestador for gravar video/audio/foto, etc.. criar uma\n 'folha' para aquela situação e um botão 'registrar situação' para que ele\n consiga registrar uma nova, e assim por diante\"\n\nAntes, a captura subia o arquivo na hora e acabava ali: sem título, sem\ndescrição, e cada toque virava um registro (e uma pendência) separado. Agora\na captura ABRE ESTA FOLHA e nada sai do aparelho até \"Registrar situação\":\n\n · a faixa de mídias, com o \"+\" para juntar mais arquivos DA MESMA situação\n (a categoria já é da situação — o \"+\" não pergunta de novo);\n · título curto e descrição, cada um com microfone que vira TEXTO;\n · um envio só, que cria UMA pendência com todas as provas dentro.\n\nMicrofone do CAMPO ≠ áudio pelo \"+\": o do campo é ditado (o áudio é usado e\ndescartado), o do \"+\" é mídia guardada.",
+    "content": "A FOLHA DA SITUAÇÃO (pedido explícito, 10/09/2026).\n\n\"cada vez que o prestador for gravar video/audio/foto, etc.. criar uma\n 'folha' para aquela situação e um botão 'registrar situação' para que ele\n consiga registrar uma nova, e assim por diante\"\n\nAntes, a captura subia o arquivo na hora e acabava ali: sem título, sem\ndescrição, e cada toque virava um registro (e uma pendência) separado. Agora\na captura ABRE ESTA FOLHA e nada sai do aparelho até \"Registrar situação\":\n\n · a faixa de mídias, com o \"+\" para juntar mais arquivos DA MESMA situação\n (a categoria já é da situação — o \"+\" não pergunta de novo);\n · título curto e descrição, cada um com microfone que vira TEXTO;\n · um envio só, que cria UMA pendência com todas as provas dentro.\n\nÁUDIO AQUI É SEMPRE DITADO (pedido explícito, 10/09/2026): \"esse botão de\náudio ali em mídias não tem que existir, pois há a descrição para caso a\npessoa queira explicar por áudio\". Ou seja, quem quiser falar fala no\nmicrofone do campo e o texto fica gravado — ninguém depois precisa parar a\noperação para escutar um anexo de voz só para saber do que se trata.",
     "source_path": "src/components/dashboard/RecordSituationSheet.tsx",
     "audience": [],
-    "content_hash": "3a6b1ba2913aff9e720458f28df5e511"
+    "content_hash": "2dc3086015b6a74b4631dea35d002a96"
   },
   {
     "doc_key": "rule:bodyByCity",
@@ -1390,6 +1390,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/assistant.functions.ts",
     "audience": [],
     "content_hash": "20ddcef6f60560e7ea8f0e5b6257eef1"
+  },
+  {
+    "doc_key": "rule:records",
+    "kind": "rule",
+    "title": "Regra — records",
+    "content": "TODO REGISTRO CHEGA COM `media` — nem que seja uma lista de um.\n\nA aba quebrou em produção (10/09/2026) porque o servidor respondeu com o\nformato ANTIGO, de antes das situações com várias mídias, enquanto a tela\njá era a nova: `record.media.length` num `undefined` derruba a página\ninteira no ErrorComponent da raiz. Normalizar aqui, na porta de entrada,\né mais barato e mais seguro do que espalhar `?.` por toda a tela — e a\ntela volta a funcionar sozinha assim que o servidor alcançar.",
+    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
+    "audience": [],
+    "content_hash": "d1bb45e5f60645dbd78794a022740cc7"
   },
   {
     "doc_key": "rule:RecordsFiltersButton",

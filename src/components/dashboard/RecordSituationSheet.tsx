@@ -437,10 +437,12 @@ export function RecordSituationSheet({
 
           <p className="flex items-start gap-1.5 text-[9.5px] leading-relaxed text-muted-foreground">
             <StickyNote className="mt-px size-3 shrink-0" />
+            {/* A faixa de mídias não tem mais microfone, então o texto que
+                comparava os dois deixou de fazer sentido. */}
             <span>
-              O microfone <b className="font-semibold text-foreground/80">do campo</b> vira texto. O
-              microfone da <b className="font-semibold text-foreground/80">faixa de mídias</b>{" "}
-              guarda o áudio junto da situação.
+              Prefere falar? Toque no microfone do campo —{" "}
+              <b className="font-semibold text-foreground/80">o que você falar vira texto</b> aqui
+              mesmo, e dá para corrigir antes de registrar.
             </span>
           </p>
         </div>
