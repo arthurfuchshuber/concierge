@@ -74,7 +74,8 @@ export async function sendWhatsappText(params: {
   toPhone: string;
   text: string;
 }): Promise<{ messageId: string }> {
-  const { data: cfg } = await params.supabase
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: cfg } = await supabaseAdmin
     .from("host_whatsapp_config")
     .select("sender_number, service_plan_id, app_id, api_token_encrypted")
     .eq("owner_id", params.tenantId)
