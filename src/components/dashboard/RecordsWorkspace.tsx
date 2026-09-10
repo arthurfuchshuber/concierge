@@ -1,14 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
+  Camera,
   Check,
   ChevronLeft,
   ChevronRight,
   FileText,
   Loader2,
-  Play,
+  Mic,
   SlidersHorizontal,
+  StickyNote,
+  Video,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -26,12 +29,7 @@ import { useImpersonation } from "@/hooks/useImpersonation";
 import { CARD_OWNER } from "@/components/dashboard/card-colors";
 import { OperationShell } from "@/components/dashboard/OperationWorkspace";
 import { RecordBlock } from "@/components/dashboard/ReservationRecords";
-import {
-  CATEGORIES,
-  CATEGORY_BY_KEY,
-  MODE_LABEL,
-  fmtDayLabel,
-} from "@/components/dashboard/record-categories";
+import { CATEGORY_BY_KEY, MODE_LABEL, fmtDayLabel } from "@/components/dashboard/record-categories";
 import { listTaskLinkOptions } from "@/lib/tasks.functions";
 import {
   deleteReservationRecord,
@@ -60,8 +58,7 @@ import {
  * de controles: foi ela que deixou as Pendências poluídas.
  *
  * Sem recorte de período por padrão (pedido explícito): abre com o histórico
- * inteiro, já filtrado pela categoria de maior prioridade que tenha registro
- * (ver `AUTO_CATEGORY_PRIORITY`).
+ * inteiro e com o cartão "TODOS" selecionado.
  */
 
 type GroupBy = "property" | "day";
@@ -80,65 +77,36 @@ const PERIOD_OPTIONS: ReadonlyArray<{ value: PeriodValue; label: string }> = [
   { value: "90", label: "90 dias" },
 ];
 
-/**
- * A MINIATURA DO ACERVO TEM UM TAMANHO SÓ.
- *
- * Chegou a ter dois — 44px nos cartões com "a resolver" e 76px nos sem —
- * para poupar altura. Visto na tela, dois cartões vizinhos com quadrados de
- * tamanhos diferentes leem como desalinho, não como economia. Um tamanho só,
- * e a tira fica igual em todo lugar.
- */
-const THUMB_SIZE = "size-[52px]";
-/** Quantas miniaturas antes do "+N". Enche a linha do celular sem passar. */
-const THUMBS_PER_GROUP = 5;
+/** Quantas miniaturas aparecem antes do "+N" — quatro, como no mockup. */
+const THUMBS_PER_GROUP = 4;
+/** Lado da miniatura. Fixo de propósito (ver comentário na tira). */
+const THUMB_SIZE = "size-[68px] sm:size-[76px]";
+/** Versão curta, quando o cartão já gastou altura com "a resolver". */
+const SMALL_THUMB_SIZE = "size-[44px]";
 
 /**
- * A CAPA DO QUADRANTE (pedido explícito, 10/09/2026).
+ * O ÍCONE DO QUADRANTE — diz o TIPO do registro (foto, vídeo, áudio, nota,
+ * arquivo).
  *
- * Foto e vídeo mostram a própria imagem — o vídeo usa o primeiro quadro como
- * capa (`#t=0.1` + `preload="metadata"`: o navegador busca só o cabeçalho e
- * pinta esse quadro, sem baixar o arquivo) com um play por cima. Áudio, que
- * não tem imagem nenhuma, ganha o play no centro do quadrante. Nota é a
- * letra T. Só o arquivo genérico continua com ícone.
- *
- * `pointer-events-none` no <video>: o quadrante inteiro é um botão, e sem
- * isso o clique no vídeo abriria os controles nativos em vez do registro.
+ * O quadrante NÃO mostra a mídia (pedido explícito, 10/09/2026). Chegou a
+ * mostrar: foto e vídeo viravam capa, áudio virava play, nota virava a letra
+ * T. Na tela real, com dezenas de miniaturas de origens diferentes, a tira
+ * virou uma colcha de retalhos — e o vídeo ainda obrigava o navegador a
+ * buscar o cabeçalho de cada arquivo só para pintar um quadro. O ícone é
+ * calmo, é instantâneo e diz o que interessa na lista: que tipo de registro
+ * é aquele. A MÍDIA abre no clique, no visualizador.
  */
-function RecordCover({ record, size }: { record: AccountRecord; size: "xs" | "sm" | "md" }) {
-  const iconClass = size === "xs" ? "size-3.5" : size === "sm" ? "size-4" : "size-5";
-  const playClass = size === "xs" ? "size-3.5" : size === "sm" ? "size-5" : "size-6";
-  const letterClass = size === "xs" ? "text-[13px]" : size === "sm" ? "text-[17px]" : "text-[22px]";
+const KIND_ICON = {
+  photo: Camera,
+  video: Video,
+  audio: Mic,
+  file: FileText,
+  note: StickyNote,
+} as const;
 
-  if (record.kind === "photo" && record.url) {
-    return <img src={record.url} alt="" className="size-full object-cover" />;
-  }
-  if (record.kind === "video" && record.url) {
-    return (
-      <>
-        <video
-          src={`${record.url}#t=0.1`}
-          preload="metadata"
-          muted
-          playsInline
-          className="pointer-events-none size-full object-cover"
-        />
-        <span className="absolute inset-0 grid place-items-center bg-black/25">
-          <Play className={`${playClass} fill-white text-white drop-shadow`} />
-        </span>
-      </>
-    );
-  }
-  if (record.kind === "audio") {
-    return (
-      <span className="grid size-full place-items-center">
-        <Play className={`${playClass} fill-foreground/70 text-foreground/70`} />
-      </span>
-    );
-  }
-  if (record.kind === "note") {
-    return <span className={`font-display font-bold text-muted-foreground ${letterClass}`}>T</span>;
-  }
-  return <FileText className={`${iconClass} text-muted-foreground`} />;
+function RecordCover({ record, size }: { record: AccountRecord; size: "xs" | "sm" }) {
+  const Icon = KIND_ICON[record.kind] ?? StickyNote;
+  return <Icon className={`${size === "xs" ? "size-3.5" : "size-4"} text-muted-foreground`} />;
 }
 
 /** "hoje" / "ontem" / "08/09" — a data curta da linha e do rodapé. */
@@ -163,22 +131,21 @@ function recordTitle(r: AccountRecord): string {
 }
 
 /**
- * ORDEM DE PRIORIDADE do filtro que a tela escolhe sozinha ao abrir (pedido
- * explícito): manutenção, depois dano, esquecidos, auditoria e outros. Cai
- * para o próximo sempre que o anterior estiver zerado — e, se não houver
- * registro nenhum, não seleciona nada.
+ * ORDEM DOS CARTÕES nesta tela (pedido explícito, 10/09/2026): manutenção,
+ * dano, esquecidos, auditoria e outros — a ordem de PRIORIDADE da operação,
+ * com "Todos" na frente de todos.
  *
- * Nota: é a ordem de PRIORIDADE, não a ordem em que os cartões aparecem —
- * essa continua sendo a ordem de `CATEGORIES`, definida pelo cliente em
- * 07/09/2026.
+ * Não mexe em `CATEGORIES`: aquela ordem é do SELETOR que abre antes da
+ * câmera (definida pelo cliente em 07/09/2026) e continua valendo lá.
  */
-const AUTO_CATEGORY_PRIORITY: readonly RecordCategory[] = [
+const CARD_ORDER: readonly RecordCategory[] = [
   "maintenance",
   "damage",
   "forgotten",
   "cleaning_audit",
   "other",
 ];
+const CARDS = CARD_ORDER.map((k) => CATEGORY_BY_KEY.get(k)!).filter(Boolean);
 
 /** Quantas pendências o cartão do imóvel lista antes de colapsar em "+N". */
 const PENDING_ROWS = 3;
@@ -293,25 +260,6 @@ export function RecordsWorkspace() {
   const counts = q.data?.counts;
   const openCounts = q.data?.openCounts;
 
-  /**
-   * FILTRO PADRÃO AO ABRIR (pedido explícito). Toda vez que se entra na aba,
-   * a tela já vem filtrada pela primeira categoria com registro na ordem de
-   * prioridade — manutenção, dano, esquecidos, auditoria, outros.
-   *
-   * Roda UMA vez por visita (o `useRef`), senão desmarcar o cartão no dedo
-   * seria desfeito no mesmo instante. Sair da aba desmonta o componente, e a
-   * próxima entrada escolhe de novo — inclusive se a operação mudou.
-   */
-  const autoPicked = useRef(false);
-  const [defaultCategory, setDefaultCategory] = useState<RecordCategory | null>(null);
-  useEffect(() => {
-    if (autoPicked.current || !counts) return;
-    autoPicked.current = true;
-    const first = AUTO_CATEGORY_PRIORITY.find((k) => (counts[k] ?? 0) > 0) ?? null;
-    setDefaultCategory(first);
-    if (first) setCategory(first);
-  }, [counts]);
-
   const groups = useMemo<Group[]>(() => {
     const map = new Map<string, Group>();
     for (const r of records) {
@@ -359,11 +307,8 @@ export function RecordsWorkspace() {
     return open > 0 ? `${base} · ${open} em aberto` : base;
   })();
 
-  // A categoria escolhida SOZINHA pela tela não conta como "filtro do
-  // usuário": se contasse, o pontinho no botão estaria sempre aceso e
-  // deixaria de significar alguma coisa.
   const hasCustomFilters =
-    category !== defaultCategory ||
+    category !== null ||
     onlyOpen ||
     period !== "all" ||
     groupBy !== "property" ||
@@ -371,7 +316,7 @@ export function RecordsWorkspace() {
     propertyFilters.length > 0;
 
   function clearAllFilters() {
-    setCategory(defaultCategory);
+    setCategory(null);
     setOnlyOpen(false);
     setPeriod("all");
     setGroupBy("property");
@@ -417,7 +362,19 @@ export function RecordsWorkspace() {
           inteiro. O número é da cor da categoria e o cartão selecionado
           ganha o anel da mesma cor; tocar no selecionado volta para "todos". */}
       <div className="grid grid-cols-3 gap-1.5">
-        {CATEGORIES.map((c) => (
+        {/* TODOS é o primeiro cartão e o filtro de entrada da aba (pedido
+            explícito, 10/09/2026). Ele não é "mais uma categoria": é a visão
+            em que os registros de uma MESMA RESERVA vêm empacotados. */}
+        <CategoryCard
+          label="Todos"
+          count={q.data?.total ?? 0}
+          openCount={q.data?.totalOpen ?? 0}
+          tone={null}
+          active={category === null}
+          loading={q.isLoading}
+          onClick={() => setCategory(null)}
+        />
+        {CARDS.map((c) => (
           <CategoryCard
             key={c.key}
             label={c.short}
@@ -493,7 +450,7 @@ function CategoryCard({
   label: string;
   count: number;
   openCount: number;
-  tone: RecordCategory;
+  tone: RecordCategory | null;
   active: boolean;
   loading: boolean;
   onClick: () => void;
@@ -518,11 +475,13 @@ function CategoryCard({
       onClick={onClick}
       aria-pressed={active}
       className={`ds-3d relative flex flex-col justify-between rounded-[0.3rem] bg-card px-2 py-2.5 text-left transition hover:bg-secondary/30 ${
-        active ? `ring-2 ring-inset ${ringTone[tone]}` : ""
+        active ? `ring-2 ring-inset ${tone ? ringTone[tone] : "ring-accent/70"}` : ""
       } ${count === 0 && !active ? "opacity-55" : ""}`}
     >
       <span
-        className={`font-display text-[17px] font-bold leading-none tabular-nums ${numberTone[tone]}`}
+        className={`font-display text-[17px] font-bold leading-none tabular-nums ${
+          tone ? numberTone[tone] : "text-accent"
+        }`}
       >
         {loading ? "—" : count}
       </span>
@@ -566,6 +525,9 @@ function PropertyCard({
 }) {
   const hasPending = group.pending.length > 0;
   const hiddenPending = group.pending.length - PENDING_ROWS;
+  // Com o andar de pendências em cima, o acervo encolhe para não esticar o
+  // cartão; sozinho, ele fica no tamanho de leitura de sempre.
+  const thumbCap = hasPending ? 6 : THUMBS_PER_GROUP;
 
   return (
     <div className="ds-3d rounded-[0.3rem] bg-card p-3">
@@ -631,22 +593,22 @@ function PropertyCard({
           {/* Miniaturas de tamanho FIXO, não de largura proporcional: em
               colunas elásticas elas viravam quadrados gigantes no desktop. */}
           <div className={`flex flex-wrap gap-1 ${hasPending ? "" : "mt-2"}`}>
-            {group.rest.slice(0, THUMBS_PER_GROUP).map((r, i) => {
-              const isLastSlot = i === THUMBS_PER_GROUP - 1;
-              const hidden = group.rest.length - THUMBS_PER_GROUP;
+            {group.rest.slice(0, thumbCap).map((r, i) => {
+              const isLastSlot = i === thumbCap - 1;
+              const hidden = group.rest.length - thumbCap;
               if (isLastSlot && hidden > 0) {
                 return (
                   <button
                     key="more"
                     type="button"
                     onClick={() => onOpen(r)}
-                    className={`${THUMB_SIZE} grid place-items-center rounded-[0.25rem] bg-secondary/40 text-[11px] font-bold tabular-nums text-muted-foreground transition-colors hover:bg-secondary/70`}
+                    className={`${hasPending ? SMALL_THUMB_SIZE : THUMB_SIZE} grid place-items-center rounded-[0.25rem] bg-secondary/40 text-[11px] font-bold tabular-nums text-muted-foreground transition-colors hover:bg-secondary/70`}
                   >
                     +{hidden + 1}
                   </button>
                 );
               }
-              return <Thumb key={r.id} record={r} onOpen={() => onOpen(r)} />;
+              return <Thumb key={r.id} record={r} small={hasPending} onOpen={() => onOpen(r)} />;
             })}
           </div>
         </>
@@ -685,7 +647,15 @@ function PendingRow({ record, onOpen }: { record: AccountRecord; onOpen: () => v
   );
 }
 
-function Thumb({ record, onOpen }: { record: AccountRecord; onOpen: () => void }) {
+function Thumb({
+  record,
+  small,
+  onOpen,
+}: {
+  record: AccountRecord;
+  small?: boolean;
+  onOpen: () => void;
+}) {
   const meta = CATEGORY_BY_KEY.get(record.category);
   const open = record.taskStatus === "pending";
   return (
@@ -693,9 +663,9 @@ function Thumb({ record, onOpen }: { record: AccountRecord; onOpen: () => void }
       type="button"
       onClick={onOpen}
       title={recordTitle(record)}
-      className={`${THUMB_SIZE} relative grid place-items-center overflow-hidden rounded-[0.25rem] bg-gradient-to-br from-secondary/70 to-secondary/30 transition-opacity hover:opacity-80`}
+      className={`${small ? SMALL_THUMB_SIZE : THUMB_SIZE} relative grid place-items-center overflow-hidden rounded-[0.25rem] bg-gradient-to-br from-secondary/70 to-secondary/30 transition-opacity hover:opacity-80`}
     >
-      <RecordCover record={record} size="sm" />
+      <RecordCover record={record} size={small ? "xs" : "sm"} />
       {/* Ponto da categoria: sem ele, com "todos" selecionado a fileira não
           diz mais o que cada miniatura é. */}
       <span
@@ -922,7 +892,7 @@ function RecordsFiltersButton({
               <Check className={`size-3.5 ${category === null ? "opacity-100" : "opacity-0"}`} />
               Todas
             </button>
-            {CATEGORIES.map((c) => (
+            {CARDS.map((c) => (
               <button
                 key={c.key}
                 type="button"
