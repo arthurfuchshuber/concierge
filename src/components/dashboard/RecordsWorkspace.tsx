@@ -178,7 +178,11 @@ export function RecordsWorkspace() {
   const hasCustomFilters = category !== null || onlyOpen || period !== "all";
 
   return (
-    <>
+    /* MESMA MOLDURA DE PÁGINA das outras três telas (Operacional / Kanban /
+       Limpeza) — este wrapper é o que dá o respiro lateral, o teto de
+       largura e o alinhamento do título com o conteúdo. Sem ele a tela
+       nasce colada nas bordas e desalinhada de todo o resto do app. */
+    <div className="w-full max-w-[1440px] space-y-1.5 px-2.5 py-5 sm:px-5 lg:px-8 lg:py-8">
       <OperationShell
         view="registros"
         subtitle={subtitle}
@@ -199,7 +203,7 @@ export function RecordsWorkspace() {
       {/* 1 — CONTADORES. Mesmo cartão dos KPIs da Operacional; o número é da
           cor da categoria e o cartão selecionado ganha um anel da mesma cor.
           Tocar no que já está selecionado volta para "todos". */}
-      <div className="mb-2 grid grid-cols-5 gap-1.5">
+      <div className="grid grid-cols-5 gap-1.5">
         {CATEGORIES.map((c) => (
           <CategoryCard
             key={c.key}
@@ -215,7 +219,7 @@ export function RecordsWorkspace() {
       </div>
 
       {/* 2 — SELETORES */}
-      <div className="mb-2.5 flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5">
         <TaskChoiceMenu
           icon={LayoutGrid}
           value={groupBy}
@@ -244,7 +248,7 @@ export function RecordsWorkspace() {
               : "Os registros feitos nos cards aparecem aqui."}
         </p>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {groups.map((g) => (
             <div key={g.key} className="ds-3d rounded-[0.3rem] bg-card p-3">
               <div className="flex items-center gap-2">
@@ -301,7 +305,7 @@ export function RecordsWorkspace() {
         onClose={() => setOpened(null)}
         onDelete={(id) => del.mutate(id)}
       />
-    </>
+    </div>
   );
 }
 
@@ -444,14 +448,18 @@ function RecordsFiltersButton({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
+        {/* MESMO botão das outras telas (CalendarFiltersButton, compactTrigger):
+            quadrado de 30px, raio 0.4rem, fundo foreground/6%, ponto no accent.
+            Nada de uma segunda casca parecida-mas-diferente. */}
         <button
           type="button"
+          title={hasCustomFilters ? "Filtros · há filtro ativo" : "Filtros"}
           aria-label="Filtros dos registros"
-          className="relative grid size-[30px] shrink-0 place-items-center rounded-[0.3rem] text-muted-foreground transition-colors hover:text-foreground"
+          className="relative grid size-[30px] shrink-0 place-items-center rounded-[0.4rem] bg-foreground/[0.06] text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
         >
           <SlidersHorizontal className="size-3.5" />
           {hasCustomFilters && (
-            <span className="absolute right-1 top-1 size-1.5 rounded-full bg-[#E82DAE]" />
+            <span className="absolute right-1 top-1 size-[5px] rounded-full bg-accent" />
           )}
         </button>
       </DropdownMenuTrigger>
