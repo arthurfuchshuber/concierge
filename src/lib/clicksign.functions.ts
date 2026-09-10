@@ -101,7 +101,7 @@ export const saveMyClicksignConfig = createServerFn({ method: "POST" })
 
     let token = data.apiToken ?? "";
     if (!token) {
-      const { data: existing } = await supabase
+      const { data: existing } = await (await import("@/integrations/supabase/client.server")).supabaseAdmin
         .from("host_integration_credentials")
         .select("api_token_encrypted")
         .eq("owner_id", userId)
@@ -126,7 +126,7 @@ export const saveMyClicksignConfig = createServerFn({ method: "POST" })
       throw new Error(`Chave inválida: ${msg}`);
     }
 
-    const { data: prev } = await supabase
+    const { data: prev } = await (await import("@/integrations/supabase/client.server")).supabaseAdmin
       .from("host_integration_credentials")
       .select("webhook_secret")
       .eq("owner_id", userId)
@@ -221,7 +221,7 @@ export const syncMyClicksignDocuments = createServerFn({ method: "POST" })
     const { decryptToken } = await import("@/lib/whatsapp.server");
     const cs = await import("@/lib/clicksign.server");
 
-    const { data: cred } = await supabase
+    const { data: cred } = await (await import("@/integrations/supabase/client.server")).supabaseAdmin
       .from("host_integration_credentials")
       .select("environment, api_token_encrypted")
       .eq("owner_id", userId)
@@ -482,7 +482,7 @@ export const getClicksignDocumentUrl = createServerFn({ method: "POST" })
     try {
       const { decryptToken } = await import("@/lib/whatsapp.server");
       const cs = await import("@/lib/clicksign.server");
-      const { data: cred } = await supabase
+      const { data: cred } = await (await import("@/integrations/supabase/client.server")).supabaseAdmin
         .from("host_integration_credentials")
         .select("api_token_encrypted")
         .eq("owner_id", userId)
@@ -536,7 +536,7 @@ export const getClicksignDocumentFile = createServerFn({ method: "POST" })
     try {
       const { decryptToken } = await import("@/lib/whatsapp.server");
       const cs = await import("@/lib/clicksign.server");
-      const { data: cred } = await supabase
+      const { data: cred } = await (await import("@/integrations/supabase/client.server")).supabaseAdmin
         .from("host_integration_credentials")
         .select("api_token_encrypted")
         .eq("owner_id", userId)
@@ -618,7 +618,7 @@ export const extractClicksignPartyData = createServerFn({ method: "POST" })
     try {
       const { decryptToken } = await import("@/lib/whatsapp.server");
       const cs = await import("@/lib/clicksign.server");
-      const { data: cred } = await supabase
+      const { data: cred } = await (await import("@/integrations/supabase/client.server")).supabaseAdmin
         .from("host_integration_credentials")
         .select("api_token_encrypted")
         .eq("owner_id", userId)

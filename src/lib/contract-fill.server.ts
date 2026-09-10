@@ -36,7 +36,7 @@ async function freshDocUrl(
   try {
     const { decryptToken } = await import("@/lib/whatsapp.server");
     const cs = await import("@/lib/clicksign.server");
-    const { data: cred } = await supabase
+    const { data: cred } = await (await import("@/integrations/supabase/client.server")).supabaseAdmin
       .from("host_integration_credentials")
       .select("api_token_encrypted")
       .eq("owner_id", userId)

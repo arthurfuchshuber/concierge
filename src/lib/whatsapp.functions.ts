@@ -178,7 +178,7 @@ export const sendWhatsappFromConversation = createServerFn({ method: "POST" })
     if (!phone) throw new Error("Este hóspede ainda não informou telefone");
 
     // Load host config
-    const { data: cfg } = await supabase
+    const { data: cfg } = await (await import("@/integrations/supabase/client.server")).supabaseAdmin
       .from("host_whatsapp_config")
       .select("provider, sender_number, service_plan_id, app_id, api_token_encrypted, status")
       .eq("owner_id", ownerId)
