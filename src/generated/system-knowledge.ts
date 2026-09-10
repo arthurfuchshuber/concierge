@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-10T02:02:07.317Z";
+export const GENERATED_AT = "2026-09-10T14:18:57.259Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -400,6 +400,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/card-colors.ts",
     "audience": [],
     "content_hash": "c47eaa9424d89caa750b4901b33ec3df"
+  },
+  {
+    "doc_key": "rule:CATEGORY_BAND",
+    "kind": "rule",
+    "title": "Regra — CATEGORY_BAND",
+    "content": "A FAIXA DA CATEGORIA dentro do quadrante (pedido explícito, 10/09/2026):\nmesma cor da categoria, translúcida, com o texto na versão clara dela. Fica\nde ponta a ponta no topo do quadrado, centralizada — sobre foto ou vídeo a\ntranslucidez deixa a imagem aparecer por baixo.",
+    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
+    "audience": [],
+    "content_hash": "4c6740a4bb12fe958c8e9a8b03b68031"
   },
   {
     "doc_key": "rule:cellHalves",
@@ -1318,6 +1327,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
     "audience": [],
     "content_hash": "640ff124c5e3c649ef223f4f69769c0c"
+  },
+  {
+    "doc_key": "rule:recordText",
+    "kind": "rule",
+    "title": "Regra — recordText",
+    "content": "TÍTULO E DESCRIÇÃO a partir do ÚNICO campo de texto que existe.\n\nO banco guarda um `body` só — o que a pessoa digita junto com a mídia — e\no nome do arquivo. Não há dois campos. Então a PRIMEIRA LINHA do texto vira\ntítulo e o RESTO vira descrição; sem texto digitado, o título é o nome do\narquivo e não há descrição. É reversível: no dia em que existir um campo\npróprio de título, ele simplesmente passa na frente daqui.",
+    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
+    "audience": [],
+    "content_hash": "afe6cf103a0ddc98311a4da02e8146bf"
   },
   {
     "doc_key": "rule:refreshStaleAirbnbListings",
@@ -2796,6 +2814,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8df8468b519bbea9643ac2223113b3c4"
   },
   {
+    "doc_key": "rule:src/lib/reservation-records.functions.ts:21772",
+    "kind": "rule",
+    "title": "Regra em reservation-records.functions.ts",
+    "content": "IDENTIDADE DA RESERVA — é por ela que a aba agrupa os registros no filtro\n\"Todos\". Vem de `guide_access_logs` (formulário do hóspede: nome, código\ne as duas datas) e, quando o registro só tem `reservation_id`, do próprio\n`property_reservations` (iCal: só a dica de nome e as datas).\n\n`reservationKey` vazio = registro preso apenas ao imóvel ou a uma\npendência. Esses caem no grupo \"Sem reserva\" — nada some.",
+    "source_path": "src/lib/reservation-records.functions.ts",
+    "audience": [],
+    "content_hash": "23b7afe5ab85d98754e9b12e37d1bd4a"
+  },
+  {
     "doc_key": "rule:src/lib/tasks-types.ts:1356",
     "kind": "rule",
     "title": "Regra em tasks-types.ts",
@@ -2976,6 +3003,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "467e94a80792c94f3d1d95de836383f6"
   },
   {
+    "doc_key": "rule:Thumb",
+    "kind": "rule",
+    "title": "Regra — Thumb",
+    "content": "O QUADRANTE, em dois andares: o quadrado com a FAIXA DA CATEGORIA dentro,\nno topo, e a DATA logo abaixo, fora dele (pedido explícito, 10/09/2026).\nO antigo pontinho colorido no canto saiu — a faixa diz a mesma coisa e diz\nmelhor, com o nome escrito.",
+    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
+    "audience": [],
+    "content_hash": "2a6d5206bceb9dfe01f447f743f798e7"
+  },
+  {
     "doc_key": "rule:transcribeAssistantAudio",
     "kind": "rule",
     "title": "Regra — transcribeAssistantAudio",
@@ -3055,6 +3091,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/city-news.functions.ts",
     "audience": [],
     "content_hash": "afca04ac8ec6f48953cefe9f6bcb2692"
+  },
+  {
+    "doc_key": "rule:VIEWER_STAGE",
+    "kind": "rule",
+    "title": "Regra — VIEWER_STAGE",
+    "content": "O VISUALIZADOR (mockup aprovado, 10/09/2026).\n\nTrês decisões moldam esta folha:\n\n 1. PALCO DE ALTURA FIXA. Vídeo vertical, vídeo horizontal, foto quadrada,\n áudio e nota abrem todos do mesmo tamanho. A folha parava de ser a\n mesma coisa a cada registro — pulava de altura e reposicionava os\n botões debaixo do dedo.\n 2. FUNDO FOSCO. A mídia entra INTEIRA (`object-contain`) e o vão que\n sobraria como tarja preta recebe uma cópia dela mesma, borrada e\n escurecida. Onde a mídia preenche o palco, não há fosco nenhum.\n 3. TÍTULO E DESCRIÇÃO ABAIXO da mídia, nunca por cima: sobre a imagem o\n texto some assim que o vídeo escurece.",
+    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
+    "audience": [],
+    "content_hash": "4bc230b8c3f56be83018e0251fd78ff1"
   },
   {
     "doc_key": "rule:visiblePropertyIds",

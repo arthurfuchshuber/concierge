@@ -107,7 +107,7 @@ function dayKey(iso: string): string {
 /** Player de áudio próprio — o controle nativo do navegador destoa do app
  * (aparece com "00:00 / 00:00", botão de AirPlay etc.) e muda de cara em
  * cada plataforma. */
-function AudioPlayer({ url, durationMs }: { url: string; durationMs: number | null }) {
+export function AudioPlayer({ url, durationMs }: { url: string; durationMs: number | null }) {
   const ref = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);

@@ -575,6 +575,20 @@ export type AccountRecord = ReservationRecord & {
   isResolution: boolean;
   /** Título da pendência gerada, quando houver. */
   taskTitle: string | null;
+  /**
+   * IDENTIDADE DA RESERVA — é por ela que a aba agrupa os registros no filtro
+   * "Todos". Vem de `guide_access_logs` (formulário do hóspede: nome, código
+   * e as duas datas) e, quando o registro só tem `reservation_id`, do próprio
+   * `property_reservations` (iCal: só a dica de nome e as datas).
+   *
+   * `reservationKey` vazio = registro preso apenas ao imóvel ou a uma
+   * pendência. Esses caem no grupo "Sem reserva" — nada some.
+   */
+  reservationKey: string | null;
+  guestName: string | null;
+  reservationCode: string | null;
+  checkinDate: string | null;
+  checkoutDate: string | null;
 };
 
 export type AccountRecordsResult = {
@@ -645,7 +659,7 @@ export const listAccountRecords = createServerFn({ method: "GET" })
     let scan = supabase
       .from("reservation_records")
       .select(
-        "id, property_id, kind, category, storage_path, mime, size_bytes, duration_ms, file_name, body, card_mode, created_by_name, created_at, task_id, is_resolution",
+        "id, property_id, log_id, reservation_id, kind, category, storage_path, mime, size_bytes, duration_ms, file_name, body, card_mode, created_by_name, created_at, task_id, is_resolution",
       )
       .in("property_id", propIds);
     if (data.days) {
@@ -659,6 +673,8 @@ export const listAccountRecords = createServerFn({ method: "GET" })
     const all = (rows ?? []) as Array<{
       id: string;
       property_id: string;
+      log_id: string | null;
+      reservation_id: string | null;
       kind: ReservationRecord["kind"];
       category: RecordCategory;
       storage_path: string | null;
@@ -711,6 +727,65 @@ export const listAccountRecords = createServerFn({ method: "GET" })
       .filter((r) => (data.category ? r.category === data.category : true))
       .filter((r) => (data.onlyOpen ? isOpen(r.task_id) : true))
       .slice(0, ACCOUNT_RECORDS_PAGE);
+
+    // IDENTIDADE DA RESERVA das linhas que vão aparecer. Duas fontes, na
+    // ordem de confiança: o formulário do hóspede (`guide_access_logs`, que
+    // tem nome, código e as duas datas) e, na falta dele, a reserva importada
+    // (`property_reservations`, que só tem a dica de nome e as datas).
+    const logIds = Array.from(
+      new Set(selected.map((r) => r.log_id).filter((v): v is string => !!v)),
+    );
+    const resIds = Array.from(
+      new Set(selected.map((r) => r.reservation_id).filter((v): v is string => !!v)),
+    );
+    type ResInfo = {
+      guestName: string | null;
+      code: string | null;
+      checkin: string | null;
+      checkout: string | null;
+    };
+    const resByLog = new Map<string, ResInfo>();
+    const resByRes = new Map<string, ResInfo>();
+    const iso = (v: unknown) => (v ? String(v).slice(0, 10) : null);
+    if (logIds.length > 0) {
+      const { data: logs } = await supabase
+        .from("guide_access_logs")
+        .select("id, guest_name, reservation_code, checkin_date, checkout_date")
+        .in("id", logIds);
+      for (const l of (logs ?? []) as Array<{
+        id: string;
+        guest_name: string | null;
+        reservation_code: string | null;
+        checkin_date: string | null;
+        checkout_date: string | null;
+      }>) {
+        resByLog.set(l.id, {
+          guestName: (l.guest_name ?? "").trim() || null,
+          code: (l.reservation_code ?? "").trim() || null,
+          checkin: iso(l.checkin_date),
+          checkout: iso(l.checkout_date),
+        });
+      }
+    }
+    if (resIds.length > 0) {
+      const { data: res } = await supabase
+        .from("property_reservations")
+        .select("id, guest_hint, checkin_date, checkout_date")
+        .in("id", resIds);
+      for (const r of (res ?? []) as Array<{
+        id: string;
+        guest_hint: string | null;
+        checkin_date: string | null;
+        checkout_date: string | null;
+      }>) {
+        resByRes.set(r.id, {
+          guestName: (r.guest_hint ?? "").trim() || null,
+          code: null,
+          checkin: iso(r.checkin_date),
+          checkout: iso(r.checkout_date),
+        });
+      }
+    }
 
     // Imóvel + proprietário só das linhas que vão de fato aparecer.
     const usedPropIds = Array.from(new Set(selected.map((r) => r.property_id)));
@@ -766,6 +841,13 @@ export const listAccountRecords = createServerFn({ method: "GET" })
     const records: AccountRecord[] = selected.map((r) => {
       const prop = propById.get(r.property_id);
       const task = r.task_id ? (taskById.get(r.task_id) ?? null) : null;
+      const res =
+        (r.log_id ? resByLog.get(r.log_id) : undefined) ??
+        (r.reservation_id ? resByRes.get(r.reservation_id) : undefined) ??
+        null;
+      // A chave do grupo é o vínculo, não o nome: dois hóspedes homônimos em
+      // reservas diferentes continuam sendo dois pacotes.
+      const reservationKey = r.log_id ?? r.reservation_id ?? null;
       return {
         id: r.id,
         kind: r.kind,
@@ -787,6 +869,11 @@ export const listAccountRecords = createServerFn({ method: "GET" })
         ownerName: prop?.ownerContactId ? (ownerNameById.get(prop.ownerContactId) ?? null) : null,
         isResolution: r.is_resolution,
         taskTitle: task?.title ?? null,
+        reservationKey,
+        guestName: res?.guestName ?? null,
+        reservationCode: res?.code ?? null,
+        checkinDate: res?.checkin ?? null,
+        checkoutDate: res?.checkout ?? null,
       };
     });
 

@@ -28,7 +28,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { CARD_OWNER } from "@/components/dashboard/card-colors";
 import { OperationShell } from "@/components/dashboard/OperationWorkspace";
-import { RecordBlock } from "@/components/dashboard/ReservationRecords";
+import { AudioPlayer } from "@/components/dashboard/ReservationRecords";
 import { CATEGORY_BY_KEY, MODE_LABEL, fmtDayLabel } from "@/components/dashboard/record-categories";
 import { listTaskLinkOptions } from "@/lib/tasks.functions";
 import {
@@ -121,13 +121,68 @@ function fmtShortDate(iso: string): string {
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 }
 
-/** Uma miniatura nunca fica sem legenda ao abrir: sem texto digitado, o nome
- * do arquivo; sem nome de arquivo, o rótulo da categoria. */
-function recordTitle(r: AccountRecord): string {
+/**
+ * TÍTULO E DESCRIÇÃO a partir do ÚNICO campo de texto que existe.
+ *
+ * O banco guarda um `body` só — o que a pessoa digita junto com a mídia — e
+ * o nome do arquivo. Não há dois campos. Então a PRIMEIRA LINHA do texto vira
+ * título e o RESTO vira descrição; sem texto digitado, o título é o nome do
+ * arquivo e não há descrição. É reversível: no dia em que existir um campo
+ * próprio de título, ele simplesmente passa na frente daqui.
+ */
+function recordText(r: AccountRecord): { title: string; description: string | null } {
   const typed = (r.body ?? "").trim();
-  if (typed) return typed;
-  if (r.fileName) return r.fileName;
-  return CATEGORY_BY_KEY.get(r.category)?.label ?? "Registro";
+  if (typed) {
+    const nl = typed.indexOf("\n");
+    if (nl === -1) return { title: typed, description: null };
+    return {
+      title: typed.slice(0, nl).trim(),
+      description: typed.slice(nl + 1).trim() || null,
+    };
+  }
+  if (r.fileName) return { title: r.fileName, description: null };
+  return { title: CATEGORY_BY_KEY.get(r.category)?.label ?? "Registro", description: null };
+}
+
+function recordTitle(r: AccountRecord): string {
+  return recordText(r).title;
+}
+
+/**
+ * A FAIXA DA CATEGORIA dentro do quadrante (pedido explícito, 10/09/2026):
+ * mesma cor da categoria, translúcida, com o texto na versão clara dela. Fica
+ * de ponta a ponta no topo do quadrado, centralizada — sobre foto ou vídeo a
+ * translucidez deixa a imagem aparecer por baixo.
+ */
+const CATEGORY_BAND: Record<RecordCategory, string> = {
+  forgotten: "bg-orange-500/20 text-orange-300",
+  damage: "bg-rose-500/20 text-rose-300",
+  cleaning_audit: "bg-violet-500/20 text-violet-300",
+  maintenance: "bg-sky-500/20 text-sky-300",
+  other: "bg-muted-foreground/20 text-muted-foreground",
+};
+
+/** "07–10 set" — a janela da reserva na etiqueta do grupo. */
+function fmtStayRange(checkin: string | null, checkout: string | null): string | null {
+  const fmt = (iso: string, withMonth: boolean) => {
+    const [y, m, d] = iso.split("-").map(Number);
+    const dt = new Date(y, (m ?? 1) - 1, d ?? 1);
+    return withMonth
+      ? dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }).replace(".", "")
+      : String(d).padStart(2, "0");
+  };
+  if (checkin && checkout) return `${fmt(checkin, false)}–${fmt(checkout, true)}`;
+  if (checkin) return fmt(checkin, true);
+  if (checkout) return fmt(checkout, true);
+  return null;
+}
+
+/** Iniciais do hóspede para o disquinho da etiqueta da reserva. */
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 /**
@@ -407,6 +462,10 @@ export function RecordsWorkspace() {
             <PropertyCard
               key={g.key}
               group={g}
+              /* Só o "Todos" empacota por reserva — ver o comentário no
+                 próprio PropertyCard. Agrupando por DATA também não faz
+                 sentido: a etiqueta do grupo já é o dia. */
+              packByReservation={category === null && groupBy === "property"}
               onOpen={setOpened}
               onFocusPending={() => {
                 // "+N a resolver" recorta a própria tela para ESTE imóvel,
@@ -516,10 +575,13 @@ function CategoryCard({
  */
 function PropertyCard({
   group,
+  packByReservation,
   onOpen,
   onFocusPending,
 }: {
   group: Group;
+  /** Só no filtro "Todos": o acervo vem repartido por reserva. */
+  packByReservation: boolean;
   onOpen: (r: AccountRecord) => void;
   onFocusPending: () => void;
 }) {
@@ -590,31 +652,137 @@ function PropertyCard({
               </span>
             </div>
           )}
-          {/* Miniaturas de tamanho FIXO, não de largura proporcional: em
-              colunas elásticas elas viravam quadrados gigantes no desktop. */}
-          <div className={`flex flex-wrap gap-1 ${hasPending ? "" : "mt-2"}`}>
-            {group.rest.slice(0, thumbCap).map((r, i) => {
-              const isLastSlot = i === thumbCap - 1;
-              const hidden = group.rest.length - thumbCap;
-              if (isLastSlot && hidden > 0) {
-                return (
-                  <button
-                    key="more"
-                    type="button"
-                    onClick={() => onOpen(r)}
-                    className={`${hasPending ? SMALL_THUMB_SIZE : THUMB_SIZE} grid place-items-center rounded-[0.25rem] bg-secondary/40 text-[11px] font-bold tabular-nums text-muted-foreground transition-colors hover:bg-secondary/70`}
+          {packByReservation ? (
+            /* PACOTES POR RESERVA (pedido explícito, 10/09/2026). Com "Todos"
+               selecionado a pergunta é "o que aconteceu nesta estadia", e a
+               resposta só existe se os registros da mesma reserva andarem
+               juntos. Numa categoria escolhida a pergunta é outra ("quais
+               manutenções"), e por isso lá o acervo continua corrido. */
+            packRecordsByReservation(group.rest).map((pack) => (
+              <div key={pack.key}>
+                <div className="mb-1 mt-2.5 flex items-center gap-2 overflow-hidden">
+                  <span
+                    className={`grid size-4 shrink-0 place-items-center rounded-full text-[7px] font-extrabold ${
+                      pack.guestName
+                        ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
+                        : "bg-foreground/10 text-muted-foreground"
+                    }`}
                   >
-                    +{hidden + 1}
-                  </button>
-                );
-              }
-              return <Thumb key={r.id} record={r} small={hasPending} onOpen={() => onOpen(r)} />;
-            })}
-          </div>
+                    {pack.guestName ? initialsOf(pack.guestName) : "—"}
+                  </span>
+                  <span className="shrink truncate text-[9px] font-extrabold uppercase tracking-[0.1em] text-foreground/80">
+                    {pack.guestName ?? "Sem reserva"}
+                  </span>
+                  {pack.stay && (
+                    <span className="shrink-0 text-[9px] font-bold text-muted-foreground">
+                      · {pack.stay}
+                    </span>
+                  )}
+                  <span className="h-px flex-1 bg-border" />
+                  <span className="shrink-0 text-[9px] font-bold tabular-nums text-muted-foreground">
+                    {pack.items.length}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {pack.items.slice(0, thumbCap).map((r, i) => {
+                    const isLastSlot = i === thumbCap - 1;
+                    const hidden = pack.items.length - thumbCap;
+                    if (isLastSlot && hidden > 0) {
+                      return (
+                        <MoreThumb
+                          key="more"
+                          small={hasPending}
+                          count={hidden + 1}
+                          onClick={() => onOpen(r)}
+                        />
+                      );
+                    }
+                    return (
+                      <Thumb key={r.id} record={r} small={hasPending} onOpen={() => onOpen(r)} />
+                    );
+                  })}
+                </div>
+              </div>
+            ))
+          ) : (
+            /* Miniaturas de tamanho FIXO, não de largura proporcional: em
+               colunas elásticas elas viravam quadrados gigantes no desktop. */
+            <div className={`flex flex-wrap gap-1 ${hasPending ? "" : "mt-2"}`}>
+              {group.rest.slice(0, thumbCap).map((r, i) => {
+                const isLastSlot = i === thumbCap - 1;
+                const hidden = group.rest.length - thumbCap;
+                if (isLastSlot && hidden > 0) {
+                  return (
+                    <MoreThumb
+                      key="more"
+                      small={hasPending}
+                      count={hidden + 1}
+                      onClick={() => onOpen(r)}
+                    />
+                  );
+                }
+                return <Thumb key={r.id} record={r} small={hasPending} onOpen={() => onOpen(r)} />;
+              })}
+            </div>
+          )}
         </>
       )}
     </div>
   );
+}
+
+/** O "+N" da tira — mesma caixa do quadrante, sem faixa e sem data. */
+function MoreThumb({
+  small,
+  count,
+  onClick,
+}: {
+  small?: boolean;
+  count: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`${small ? "w-[44px]" : "w-[68px] sm:w-[76px]"} shrink-0 text-left`}
+    >
+      <span
+        className={`${small ? SMALL_THUMB_SIZE : THUMB_SIZE} grid place-items-center rounded-[0.25rem] bg-secondary/40 text-[11px] font-bold tabular-nums text-muted-foreground transition-colors hover:bg-secondary/70`}
+      >
+        +{count}
+      </span>
+      <span className="mt-1 block text-center text-[8.5px] text-transparent">·</span>
+    </button>
+  );
+}
+
+type ReservationPack = {
+  key: string;
+  guestName: string | null;
+  stay: string | null;
+  items: AccountRecord[];
+};
+
+/** Reparte os registros de um imóvel pelos vínculos de reserva, mantendo a
+ * ordem de aparição (mais recente primeiro). Sem vínculo = "Sem reserva". */
+function packRecordsByReservation(items: AccountRecord[]): ReservationPack[] {
+  const map = new Map<string, ReservationPack>();
+  for (const r of items) {
+    const key = r.reservationKey ?? "__none__";
+    let pack = map.get(key);
+    if (!pack) {
+      pack = {
+        key,
+        guestName: r.reservationKey ? (r.guestName ?? "Reserva sem nome") : null,
+        stay: r.reservationKey ? fmtStayRange(r.checkinDate, r.checkoutDate) : null,
+        items: [],
+      };
+      map.set(key, pack);
+    }
+    pack.items.push(r);
+  }
+  return Array.from(map.values());
 }
 
 /** Uma pendência do cartão: miniatura pequena, título legível, data. */
@@ -647,6 +815,12 @@ function PendingRow({ record, onOpen }: { record: AccountRecord; onOpen: () => v
   );
 }
 
+/**
+ * O QUADRANTE, em dois andares: o quadrado com a FAIXA DA CATEGORIA dentro,
+ * no topo, e a DATA logo abaixo, fora dele (pedido explícito, 10/09/2026).
+ * O antigo pontinho colorido no canto saiu — a faixa diz a mesma coisa e diz
+ * melhor, com o nome escrito.
+ */
 function Thumb({
   record,
   small,
@@ -658,29 +832,58 @@ function Thumb({
 }) {
   const meta = CATEGORY_BY_KEY.get(record.category);
   const open = record.taskStatus === "pending";
+  const bandH = small ? "h-3.5" : "h-4";
   return (
     <button
       type="button"
       onClick={onOpen}
       title={recordTitle(record)}
-      className={`${small ? SMALL_THUMB_SIZE : THUMB_SIZE} relative grid place-items-center overflow-hidden rounded-[0.25rem] bg-gradient-to-br from-secondary/70 to-secondary/30 transition-opacity hover:opacity-80`}
+      className={`${small ? "w-[44px]" : "w-[68px] sm:w-[76px]"} shrink-0 text-left transition-opacity hover:opacity-80`}
     >
-      <RecordCover record={record} size={small ? "xs" : "sm"} />
-      {/* Ponto da categoria: sem ele, com "todos" selecionado a fileira não
-          diz mais o que cada miniatura é. */}
       <span
-        className={`absolute bottom-1 left-1 size-1.5 rounded-full ${meta?.dot ?? "bg-muted"}`}
-      />
-      {open && (
-        <span className="absolute inset-x-0 bottom-0 h-[3px] bg-rose-500" aria-label="Em aberto" />
-      )}
+        className={`${small ? SMALL_THUMB_SIZE : THUMB_SIZE} relative grid place-items-center overflow-hidden rounded-[0.25rem] bg-gradient-to-br from-secondary/70 to-secondary/30 ${
+          small ? "pt-3.5" : "pt-4"
+        }`}
+      >
+        <RecordCover record={record} size={small ? "xs" : "sm"} />
+        <span
+          className={`absolute inset-x-0 top-0 ${bandH} flex items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap px-1 text-[7.5px] font-extrabold uppercase tracking-[0.07em] ${
+            CATEGORY_BAND[record.category] ?? CATEGORY_BAND.other
+          }`}
+        >
+          {meta?.short ?? "Registro"}
+        </span>
+        {open && (
+          <span
+            className="absolute inset-x-0 bottom-0 h-[3px] bg-rose-500"
+            aria-label="Em aberto"
+          />
+        )}
+      </span>
+      <span className="mt-1 block text-center text-[8.5px] tabular-nums text-muted-foreground">
+        {fmtShortDate(record.createdAt)}
+      </span>
     </button>
   );
 }
 
-/** O registro aberto — o MESMO bloco da linha do tempo da reserva (mídia,
- * texto, vínculo com a pendência, rodapé). Nenhuma segunda implementação de
- * player/visualizador para manter em pé. */
+/**
+ * O VISUALIZADOR (mockup aprovado, 10/09/2026).
+ *
+ * Três decisões moldam esta folha:
+ *
+ *  1. PALCO DE ALTURA FIXA. Vídeo vertical, vídeo horizontal, foto quadrada,
+ *     áudio e nota abrem todos do mesmo tamanho. A folha parava de ser a
+ *     mesma coisa a cada registro — pulava de altura e reposicionava os
+ *     botões debaixo do dedo.
+ *  2. FUNDO FOSCO. A mídia entra INTEIRA (`object-contain`) e o vão que
+ *     sobraria como tarja preta recebe uma cópia dela mesma, borrada e
+ *     escurecida. Onde a mídia preenche o palco, não há fosco nenhum.
+ *  3. TÍTULO E DESCRIÇÃO ABAIXO da mídia, nunca por cima: sobre a imagem o
+ *     texto some assim que o vídeo escurece.
+ */
+const VIEWER_STAGE = "h-[250px]";
+
 function RecordViewerDialog({
   record,
   onClose,
@@ -692,25 +895,196 @@ function RecordViewerDialog({
 }) {
   return (
     <Dialog open={!!record} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border-border/60 bg-card/95 p-0 backdrop-blur-xl sm:w-full sm:max-w-md">
-        {record && (
-          <>
-            <DialogHeader className="px-4 pb-0 pt-4">
-              <DialogTitle className="ds-card-title pr-6">{record.propertyName}</DialogTitle>
-              {record.ownerName && (
-                <span className={`block truncate text-[11px] ${CARD_OWNER}`}>
-                  {record.ownerName}
-                </span>
-              )}
-            </DialogHeader>
-            <div className="px-4 pb-4 pt-3">
-              <RecordBlock group={{ key: record.id, items: [record] }} onDelete={onDelete} />
-            </div>
-          </>
-        )}
+      <DialogContent
+        className="w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border-border/60 bg-card/95 p-0 backdrop-blur-xl sm:w-full sm:max-w-md"
+        aria-describedby={undefined}
+      >
+        {record && <RecordViewerBody record={record} onDelete={onDelete} />}
       </DialogContent>
     </Dialog>
   );
+}
+
+function RecordViewerBody({
+  record,
+  onDelete,
+}: {
+  record: AccountRecord;
+  onDelete: (id: string) => void;
+}) {
+  const meta = CATEGORY_BY_KEY.get(record.category);
+  const { title, description } = recordText(record);
+  const stay = fmtStayRange(record.checkinDate, record.checkoutDate);
+  // Linha da reserva: hóspede · código · datas, sem os separadores dos
+  // pedaços que não existem.
+  const reservationLine =
+    [record.guestName, record.reservationCode, stay].filter(Boolean).join(" · ") ||
+    "Sem reserva vinculada";
+
+  return (
+    <>
+      <DialogHeader className="space-y-0 px-3.5 pb-2.5 pr-11 pt-3.5 text-left">
+        {/* Uma linha com reticências (pedido explícito): o nome do anúncio é
+            longo e, em duas linhas, empurrava a folha inteira. */}
+        <DialogTitle className="ds-card-title">{record.propertyName}</DialogTitle>
+        {record.ownerName && (
+          <span className={`mt-0.5 block truncate text-[10.5px] ${CARD_OWNER}`}>
+            {record.ownerName}
+          </span>
+        )}
+        <span className="mt-1 block truncate text-[10px] text-muted-foreground">
+          {reservationLine}
+        </span>
+      </DialogHeader>
+
+      <div className={`relative ${VIEWER_STAGE} overflow-hidden bg-black`}>
+        <ViewerStage record={record} />
+        <span
+          className={`absolute left-2.5 top-2.5 z-10 inline-flex items-center gap-1 rounded-[0.25rem] px-1.5 py-1 text-[9px] font-extrabold uppercase tracking-[0.06em] backdrop-blur ${
+            CATEGORY_BAND[record.category] ?? CATEGORY_BAND.other
+          }`}
+        >
+          {meta?.label ?? "Registro"}
+        </span>
+      </div>
+
+      <div className="px-3.5 pb-3 pt-3">
+        <p className="text-[13px] font-bold leading-snug">{title}</p>
+        {description && (
+          <p className="mt-1 whitespace-pre-wrap break-words text-[11.5px] leading-relaxed text-muted-foreground">
+            {description}
+          </p>
+        )}
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-border/60 pt-2.5 text-[9.5px] text-muted-foreground">
+          <b className="font-bold text-foreground/80">{record.createdByName ?? "Equipe"}</b>
+          {record.cardMode && (
+            <>
+              <span className="opacity-45">·</span>
+              <span>via {MODE_LABEL[record.cardMode]}</span>
+            </>
+          )}
+          <span className="opacity-45">·</span>
+          <span className="tabular-nums">
+            {new Date(record.createdAt).toLocaleTimeString("pt-BR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </span>
+          {!!record.sizeBytes && (
+            <>
+              <span className="opacity-45">·</span>
+              <span>{fmtSize(record.sizeBytes)}</span>
+            </>
+          )}
+          {record.taskId && (
+            <span
+              className={`ml-auto shrink-0 rounded-[0.25rem] px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-[0.04em] ${
+                record.taskStatus === "pending"
+                  ? "bg-rose-500/15 text-rose-600 dark:text-rose-400"
+                  : record.taskStatus === "canceled"
+                    ? "bg-muted-foreground/15 text-muted-foreground"
+                    : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+              }`}
+            >
+              {record.taskStatus === "pending"
+                ? "Em aberto"
+                : record.taskStatus === "canceled"
+                  ? "Cancelada"
+                  : "Resolvida"}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="flex gap-1.5 px-3.5 pb-3.5">
+        {record.url && (
+          <a
+            href={record.url}
+            target="_blank"
+            rel="noreferrer"
+            className="flex-1 rounded-[0.3rem] bg-foreground/[0.06] py-2 text-center text-[10.5px] font-bold text-foreground/80 transition-colors hover:bg-foreground/10"
+          >
+            Baixar
+          </a>
+        )}
+        <button
+          type="button"
+          onClick={() => onDelete(record.id)}
+          className="flex-1 rounded-[0.3rem] bg-foreground/[0.06] py-2 text-center text-[10.5px] font-bold text-foreground/80 transition-colors hover:bg-foreground/10"
+        >
+          Excluir
+        </button>
+      </div>
+    </>
+  );
+}
+
+/** O conteúdo do palco, por tipo. */
+function ViewerStage({ record }: { record: AccountRecord }) {
+  if (record.kind === "photo" && record.url) {
+    return (
+      <>
+        <div
+          aria-hidden
+          className="absolute -inset-5 scale-110 bg-cover bg-center blur-2xl brightness-[.55] saturate-125"
+          style={{ backgroundImage: `url(${JSON.stringify(record.url)})` }}
+        />
+        <img src={record.url} alt="" className="relative size-full object-contain" />
+      </>
+    );
+  }
+  if (record.kind === "video" && record.url) {
+    return (
+      <>
+        {/* O fosco é o PRÓPRIO vídeo, parado no primeiro quadro. Só metadados
+            são baixados aqui — o arquivo inteiro é do player da frente. */}
+        <video
+          aria-hidden
+          src={`${record.url}#t=0.1`}
+          preload="metadata"
+          muted
+          playsInline
+          className="pointer-events-none absolute -inset-5 size-[calc(100%+2.5rem)] scale-110 object-cover blur-2xl brightness-[.55] saturate-125"
+        />
+        <video
+          src={record.url}
+          controls
+          playsInline
+          preload="metadata"
+          className="relative size-full object-contain"
+        />
+      </>
+    );
+  }
+  if (record.kind === "audio" && record.url) {
+    return (
+      <div className="grid size-full place-items-center bg-gradient-to-br from-secondary/60 to-secondary/20 px-5">
+        <div className="w-full max-w-[16rem]">
+          <AudioPlayer url={record.url} durationMs={record.durationMs} />
+        </div>
+      </div>
+    );
+  }
+  if (record.kind === "note") {
+    return (
+      <div className="sg-elegant-scroll size-full overflow-y-auto bg-gradient-to-br from-secondary/60 to-secondary/20 px-4 py-4">
+        <p className="whitespace-pre-wrap break-words text-[12.5px] leading-relaxed text-foreground/90">
+          {record.body}
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="grid size-full place-items-center gap-2 bg-gradient-to-br from-secondary/60 to-secondary/20 text-muted-foreground">
+      <FileText className="size-8" />
+    </div>
+  );
+}
+
+/** "1,2 MB" — mesmo formato do rodapé da linha do tempo da reserva. */
+function fmtSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1).replace(".", ",")} MB`;
 }
 
 /**
