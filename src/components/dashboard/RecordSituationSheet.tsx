@@ -228,12 +228,17 @@ export function RecordSituationSheet({
   }, [open, initial, initialTitle]);
 
   // Os previews são object URLs; soltar ao desmontar evita segurar o vídeo
-  // inteiro na memória do celular.
+  // inteiro na memória do celular. O revoke só pode acontecer no unmount —
+  // se dependesse de `items`, adicionar a 2ª foto invalidaria a 1ª miniatura.
+  // (correção do Lovable, commit 9301f2d — o efeito com `[items]` rodava a
+  // limpeza a cada item novo e a foto anterior virava quadrado vazio.)
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
   useEffect(() => {
     return () => {
-      for (const it of items) if (it.previewUrl) URL.revokeObjectURL(it.previewUrl);
+      for (const it of itemsRef.current) if (it.previewUrl) URL.revokeObjectURL(it.previewUrl);
     };
-  }, [items]);
+  }, []);
 
   function addItem(item: DraftItem) {
     setItems((prev) => {

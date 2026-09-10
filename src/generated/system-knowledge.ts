@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-10T19:09:41.616Z";
+export const GENERATED_AT = "2026-09-10T20:16:46.749Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -634,6 +634,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/reservation-records.functions.ts",
     "audience": [],
     "content_hash": "e57100511b0c10d3f65a8ad99e7ce441"
+  },
+  {
+    "doc_key": "rule:DeliveryTicks",
+    "kind": "rule",
+    "title": "Regra — DeliveryTicks",
+    "content": "OS TIQUINHOS DO WHATSAPP (pedido explícito, 10/09/2026).\n\nO canal já guardava o recibo em `property_chat_messages.delivery_status` —\no webhook da Sinch escreve `sent`, `delivered`, `read` ou `failed` — mas\nnada disso aparecia na tela: o atendente mandava a mensagem e não sabia se\nela tinha chegado.\n\n ✓ enviada (saiu daqui, ainda sem confirmação do aparelho)\n ✓✓ entregue no aparelho\n ✓✓ azul lida\n ! falhou\n\nSem recibo (chat do próprio guia, que é tempo real e não tem confirmação de\nentrega), NADA é desenhado — um tique cinza eterno mentiria.",
+    "source_path": "src/components/handoff/ConversationView.tsx",
+    "audience": [],
+    "content_hash": "a56da7cf0a8af60eb9b3291ffb38a087"
   },
   {
     "doc_key": "rule:DictationField",
@@ -1923,7 +1932,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1b50fd69dd824cce84da89a6a3bd6fb7"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:23352",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:22911",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "O CARTÃO DO IMÓVEL EM DOIS ANDARES (mockup B, aprovado 10/09/2026).\n\nAntes era uma fileira de quadrados cinzentos com um ponto de 6px: um dano\nsem conserto e uma foto de auditoria eram visualmente o mesmo quadrado. O\ncartão passa a admitir que há duas naturezas ali dentro —\n\n A RESOLVER o que abriu pendência e ela ainda está de pé (dano,\n manutenção, objeto esquecido). Vira LINHA, com título\n legível, porque é trabalho e trabalho precisa de nome.\n REGISTROS o resto. Continua miniatura, porque é prova.\n\nSem nada em aberto o primeiro andar não existe e o cartão fica igual ao de\nantes — a mesma regra de sempre: o aviso só aparece quando há aviso.",

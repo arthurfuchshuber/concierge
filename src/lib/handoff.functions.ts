@@ -39,7 +39,6 @@ async function requireChatRespondForConversation(
   await requireMemberPermission(supabase, userId, ownerId, "chat_respond");
 }
 
-
 // -------- List conversations for the current user (filtered by queue) --------
 
 export const listHandoffConversations = createServerFn({ method: "POST" })
@@ -90,7 +89,8 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
         .limit(data.limit);
 
       if (data.queue === "needs_human") q = q.eq("status", "needs_human");
-      else if (data.queue === "assigned_to_me") q = q.eq("assigned_to", userId).in("status", ["assigned", "needs_human"]);
+      else if (data.queue === "assigned_to_me")
+        q = q.eq("assigned_to", userId).in("status", ["assigned", "needs_human"]);
       else if (data.queue === "all_active") q = q.in("status", ["needs_human", "assigned"]);
       else if (data.queue === "ai_only") q = q.eq("status", "ai");
       else if (data.queue === "resolved") q = q.eq("status", "resolved");
@@ -107,13 +107,14 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
       return emptyHandoffListResult("Não foi possível carregar as conversas agora.");
     }
 
-
     // Enriquece cada conversa com nome do hóspede, telefone e check-in.
     // A identidade primária vem de guest_name da conversa; quando ela não existe,
     // usamos guide_section_events pelo guest_session_id antes de qualquer fallback.
     // A unificação usa apenas identidade real/enriquecida; fallback é só visual.
-    const norm = (s: string | null | undefined) => (s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
-    const onlyDigits = (s: string | null | undefined) => (s ?? "").replace(/\D+/g, "").replace(/^0+/, "");
+    const norm = (s: string | null | undefined) =>
+      (s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+    const onlyDigits = (s: string | null | undefined) =>
+      (s ?? "").replace(/\D+/g, "").replace(/^0+/, "");
     const timeOf = (iso: string | null | undefined) => {
       const t = iso ? Date.parse(iso) : NaN;
       return Number.isFinite(t) ? t : 0;
@@ -127,21 +128,28 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
     if (list.length > 0) {
       try {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const propIds = Array.from(new Set(list.map((c) => c.property_id).filter(Boolean) as string[]));
+        const propIds = Array.from(
+          new Set(list.map((c) => c.property_id).filter(Boolean) as string[]),
+        );
         const [logsR, eventsR] = await Promise.all([
           supabaseAdmin
             .from("guide_access_logs")
-            .select("property_id, guest_name, guest_phone, guest_phone_country, checkin_date, checkout_date, reservation_code, created_at")
+            .select(
+              "property_id, guest_name, guest_phone, guest_phone_country, checkin_date, checkout_date, reservation_code, created_at",
+            )
             .in("property_id", propIds)
             .order("created_at", { ascending: false })
             .limit(5000),
-          (supabaseAdmin.from("guide_section_events" as never) as ReturnType<typeof supabaseAdmin.from>)
+          (
+            supabaseAdmin.from("guide_section_events" as never) as ReturnType<
+              typeof supabaseAdmin.from
+            >
+          )
             .select("property_id, guest_session_id, guest_name, guest_phone, created_at")
             .in("property_id", propIds)
             .order("created_at", { ascending: false })
             .limit(10000),
         ]);
-
 
         type LogRow = {
           property_id: string;
@@ -204,7 +212,10 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
           }
         }
 
-        const chooseLog = (conv: HandoffConversationSummary, identity: { name?: string | null; phone?: string | null }) => {
+        const chooseLog = (
+          conv: HandoffConversationSummary,
+          identity: { name?: string | null; phone?: string | null },
+        ) => {
           const propId = conv.property_id ?? "";
           const name = norm(identity.name);
           const phone = onlyDigits(identity.phone);
@@ -220,7 +231,10 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
             const da = Math.abs(timeOf(a.created_at) - convTime);
             const db = Math.abs(timeOf(b.created_at) - convTime);
             if (da !== db) return da - db;
-            return (b.checkin_date ?? "").localeCompare(a.checkin_date ?? "") || b.created_at.localeCompare(a.created_at);
+            return (
+              (b.checkin_date ?? "").localeCompare(a.checkin_date ?? "") ||
+              b.created_at.localeCompare(a.created_at)
+            );
           })[0];
         };
 
@@ -239,7 +253,10 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
             const da = Math.abs(timeOf(a.created_at) - anchor);
             const db = Math.abs(timeOf(b.created_at) - anchor);
             if (da !== db) return da - db;
-            return (b.checkin_date ?? "").localeCompare(a.checkin_date ?? "") || b.created_at.localeCompare(a.created_at);
+            return (
+              (b.checkin_date ?? "").localeCompare(a.checkin_date ?? "") ||
+              b.created_at.localeCompare(a.created_at)
+            );
           })[0];
         };
 
@@ -261,7 +278,9 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
             ? latestEventBySession.get(`${conv.property_id}|${conv.guest_session_id}`)
             : null;
           const identity = {
-            name: isPreviewName(conv.guest_name) ? (eventMatch?.guest_name ?? null) : (conv.guest_name ?? eventMatch?.guest_name ?? null),
+            name: isPreviewName(conv.guest_name)
+              ? (eventMatch?.guest_name ?? null)
+              : (conv.guest_name ?? eventMatch?.guest_name ?? null),
             phone: eventMatch?.guest_phone ?? null,
           };
           const matchedLog = chooseLog(conv, identity);
@@ -302,7 +321,6 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
               mergeDetails[conv.id as string] = details[conv.id as string];
             }
           }
-
         }
       } catch {
         // silencioso — se falhar, seguimos apenas com o que temos na conversa
@@ -358,11 +376,14 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
           .select("id, full_name, trade_name")
           .in("id", assignedIds);
         const byId = new Map<string, string>();
-        for (const p of (profs ?? []) as Array<{ id: string; full_name: string | null; trade_name: string | null }>) {
+        for (const p of (profs ?? []) as Array<{
+          id: string;
+          full_name: string | null;
+          trade_name: string | null;
+        }>) {
           const name = (p.trade_name || p.full_name || "").trim();
           if (name) byId.set(p.id, name);
         }
-
 
         for (const c of deduped) {
           if (c.assigned_to) {
@@ -376,9 +397,12 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
     }
 
     // Cruzamento com reservas Airbnb (iCal) — status por conversa.
-    const reservations: Record<string, import("@/lib/handoff.schemas").HandoffReservationMatch> = {};
+    const reservations: Record<string, import("@/lib/handoff.schemas").HandoffReservationMatch> =
+      {};
     try {
-      const propIds = Array.from(new Set(deduped.map((c) => c.property_id).filter((v): v is string => !!v)));
+      const propIds = Array.from(
+        new Set(deduped.map((c) => c.property_id).filter((v): v is string => !!v)),
+      );
       if (propIds.length > 0) {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const [propsR, resR] = await Promise.all([
@@ -390,11 +414,18 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
             .eq("source", "airbnb"),
         ]);
         const hasIcal = new Set<string>();
-        for (const p of (propsR.data ?? []) as Array<{ id: string; airbnb_ical_url: string | null }>) {
+        for (const p of (propsR.data ?? []) as Array<{
+          id: string;
+          airbnb_ical_url: string | null;
+        }>) {
           if (p.airbnb_ical_url && p.airbnb_ical_url.trim()) hasIcal.add(p.id);
         }
         const byProp = new Map<string, Array<{ checkin: string; checkout: string }>>();
-        for (const r of (resR.data ?? []) as Array<{ property_id: string; checkin_date: string; checkout_date: string }>) {
+        for (const r of (resR.data ?? []) as Array<{
+          property_id: string;
+          checkin_date: string;
+          checkout_date: string;
+        }>) {
           const list = byProp.get(r.property_id) ?? [];
           list.push({ checkin: r.checkin_date, checkout: r.checkout_date });
           byProp.set(r.property_id, list);
@@ -415,7 +446,11 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
           const rows = byProp.get(pid) ?? [];
           const exact = rows.find((r) => r.checkin === ci && (!co || r.checkout === co));
           if (exact) {
-            reservations[conv.id] = { status: "confirmed", checkin: exact.checkin, checkout: exact.checkout };
+            reservations[conv.id] = {
+              status: "confirmed",
+              checkin: exact.checkin,
+              checkout: exact.checkout,
+            };
             continue;
           }
           const loose = rows.find((r) => r.checkin === ci);
@@ -430,14 +465,13 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
 
     // Proprietário de cada imóvel — mesmo padrão já usado no quadro de
     // operação: properties.owner_contact_id → property_owners (nome/telefone).
-    const owners: Record<string, { name: string | null; phone: string | null; phoneCountry: string | null }> = {};
+    const owners: Record<
+      string,
+      { name: string | null; phone: string | null; phoneCountry: string | null }
+    > = {};
     try {
       const ownerContactIds = Array.from(
-        new Set(
-          deduped
-            .map((c) => c.properties?.owner_contact_id)
-            .filter((v): v is string => !!v),
-        ),
+        new Set(deduped.map((c) => c.properties?.owner_contact_id).filter((v): v is string => !!v)),
       );
       if (ownerContactIds.length > 0) {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -449,7 +483,8 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
           (ownerRows ?? []).map((o) => [
             o.id as string,
             {
-              name: (((o.trade_name as string | null) || (o.name as string | null) || "").trim()) || null,
+              name:
+                ((o.trade_name as string | null) || (o.name as string | null) || "").trim() || null,
               phone: (o.phone as string | null) ?? null,
               phoneCountry: (o.phone_country as string | null) ?? null,
             },
@@ -476,11 +511,6 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
     };
   });
 
-
-
-
-
-
 // -------- Get one conversation with messages --------
 
 export const getHandoffConversation = createServerFn({ method: "POST" })
@@ -500,7 +530,6 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
     if (cErr) throw new Error(cErr.message);
     if (!conv) throw new Error("Conversa não encontrada.");
 
-
     // Busca o registro de acesso mais recente (nome, telefone, checkin) via service-role
     // — a RLS de guide_access_logs só permite owner; usamos admin porque a RLS de
     // property_chat_conversations já confirmou que o usuário pode ver esta conversa.
@@ -511,7 +540,14 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
       checkinDate: string | null;
       checkoutDate: string | null;
       reservationCode: string | null;
-    } = { name: null, phone: null, phoneCountry: null, checkinDate: null, checkoutDate: null, reservationCode: null };
+    } = {
+      name: null,
+      phone: null,
+      phoneCountry: null,
+      checkinDate: null,
+      checkoutDate: null,
+      reservationCode: null,
+    };
     const isPreviewConv =
       isPreviewName(conv.guest_name) || String(conv.guest_session_id ?? "").startsWith("preview-");
     if (isPreviewConv) {
@@ -528,55 +564,88 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
       if (isPreviewConv) throw new Error("skip-enrichment");
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       if (conv.property_id) {
-        const norm = (s: string | null | undefined) => (s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
-        const onlyDigits = (s: string | null | undefined) => (s ?? "").replace(/\D+/g, "").replace(/^0+/, "");
+        const norm = (s: string | null | undefined) =>
+          (s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+        const onlyDigits = (s: string | null | undefined) =>
+          (s ?? "").replace(/\D+/g, "").replace(/^0+/, "");
         const timeOf = (iso: string | null | undefined) => {
           const t = iso ? Date.parse(iso) : NaN;
           return Number.isFinite(t) ? t : 0;
         };
-        let identity: { name: string | null; phone: string | null } = { name: isPreviewName(conv.guest_name) ? null : conv.guest_name, phone: null };
+        let identity: { name: string | null; phone: string | null } = {
+          name: isPreviewName(conv.guest_name) ? null : conv.guest_name,
+          phone: null,
+        };
         if ((!identity.name || !identity.phone) && conv.guest_session_id) {
-          const { data: events } = await (supabaseAdmin.from("guide_section_events" as never) as ReturnType<typeof supabaseAdmin.from>)
+          const { data: events } = await (
+            supabaseAdmin.from("guide_section_events" as never) as ReturnType<
+              typeof supabaseAdmin.from
+            >
+          )
             .select("guest_name, guest_phone, created_at")
             .eq("property_id", conv.property_id)
             .eq("guest_session_id", conv.guest_session_id)
             .or("guest_name.not.is.null,guest_phone.not.is.null")
             .order("created_at", { ascending: false })
             .limit(20);
-          const event = (events as Array<{ guest_name: string | null; guest_phone: string | null }> | null)
-            ?.find((e) => !isPreviewName(e.guest_name) && (!!e.guest_name || !!e.guest_phone));
+          const event = (
+            events as Array<{ guest_name: string | null; guest_phone: string | null }> | null
+          )?.find((e) => !isPreviewName(e.guest_name) && (!!e.guest_name || !!e.guest_phone));
           if (event) identity = { name: event.guest_name, phone: event.guest_phone };
         }
 
         const phone = onlyDigits(identity.phone);
         const name = norm(identity.name);
-        type AccessLog = { guest_name: string | null; guest_phone: string | null; guest_phone_country: string | null; checkin_date: string | null; checkout_date: string | null; reservation_code: string | null; created_at: string };
+        type AccessLog = {
+          guest_name: string | null;
+          guest_phone: string | null;
+          guest_phone_country: string | null;
+          checkin_date: string | null;
+          checkout_date: string | null;
+          reservation_code: string | null;
+          created_at: string;
+        };
         let log: AccessLog | null = null;
         if (name || phone) {
           const { data: logs } = await supabaseAdmin
             .from("guide_access_logs")
-            .select("guest_name, guest_phone, guest_phone_country, checkin_date, checkout_date, reservation_code, created_at")
+            .select(
+              "guest_name, guest_phone, guest_phone_country, checkin_date, checkout_date, reservation_code, created_at",
+            )
             .eq("property_id", conv.property_id)
             .order("checkin_date", { ascending: false, nullsFirst: false })
             .order("created_at", { ascending: false })
             .limit(100);
-          log = ((logs ?? []) as AccessLog[]).filter((l) => !isPreviewName(l.guest_name)).find((l) =>
-            (phone && onlyDigits(l.guest_phone) === phone) || (name && norm(l.guest_name) === name),
-          ) ?? null;
+          log =
+            ((logs ?? []) as AccessLog[])
+              .filter((l) => !isPreviewName(l.guest_name))
+              .find(
+                (l) =>
+                  (phone && onlyDigits(l.guest_phone) === phone) ||
+                  (name && norm(l.guest_name) === name),
+              ) ?? null;
         }
         if (!log) {
           const anchor = timeOf(conv.created_at) || timeOf(conv.last_message_at);
           const { data: logs } = await supabaseAdmin
             .from("guide_access_logs")
-            .select("guest_name, guest_phone, guest_phone_country, checkin_date, checkout_date, reservation_code, created_at")
+            .select(
+              "guest_name, guest_phone, guest_phone_country, checkin_date, checkout_date, reservation_code, created_at",
+            )
             .eq("property_id", conv.property_id)
             .order("created_at", { ascending: false })
             .limit(500);
-          log = ((logs ?? []) as AccessLog[]).filter((l) => {
-            if (isPreviewName(l.guest_name)) return false;
-            if (!anchor || (!l.guest_name && !l.guest_phone)) return false;
-            return Math.abs(timeOf(l.created_at) - anchor) <= 1000 * 60 * 60 * 96;
-          }).sort((a, b) => Math.abs(timeOf(a.created_at) - anchor) - Math.abs(timeOf(b.created_at) - anchor))[0] ?? null;
+          log =
+            ((logs ?? []) as AccessLog[])
+              .filter((l) => {
+                if (isPreviewName(l.guest_name)) return false;
+                if (!anchor || (!l.guest_name && !l.guest_phone)) return false;
+                return Math.abs(timeOf(l.created_at) - anchor) <= 1000 * 60 * 60 * 96;
+              })
+              .sort(
+                (a, b) =>
+                  Math.abs(timeOf(a.created_at) - anchor) - Math.abs(timeOf(b.created_at) - anchor),
+              )[0] ?? null;
         }
         if (log) {
           guestDetails = {
@@ -591,7 +660,6 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
           guestDetails = { ...guestDetails, name: identity.name, phone: identity.phone };
         }
       }
-
     } catch {
       // silencioso — se não achar, seguimos com o que temos
     }
@@ -601,8 +669,10 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
     // guia, entradas pelo dock, etc.). Aqui juntamos todas as conversas do mesmo
     // hóspede no mesmo imóvel para que qualquer porta de entrada mostre o MESMO
     // histórico.
-    const normName = (s: string | null | undefined) => (s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
-    const digitsOf = (s: string | null | undefined) => (s ?? "").replace(/\D+/g, "").replace(/^0+/, "");
+    const normName = (s: string | null | undefined) =>
+      (s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+    const digitsOf = (s: string | null | undefined) =>
+      (s ?? "").replace(/\D+/g, "").replace(/^0+/, "");
     const conversationIds = new Set<string>([data.conversationId]);
     try {
       const targetName = isPreviewConv ? "" : normName(guestDetails.name ?? conv.guest_name);
@@ -614,31 +684,46 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
           .select("id, guest_name, guest_session_id")
           .eq("property_id", conv.property_id)
           .limit(500);
-        const rows = (siblings ?? []) as Array<{ id: string; guest_name: string | null; guest_session_id: string | null }>;
+        const rows = (siblings ?? []) as Array<{
+          id: string;
+          guest_name: string | null;
+          guest_session_id: string | null;
+        }>;
         const unknownSessions = rows
           .filter((r) => !normName(r.guest_name) && r.guest_session_id)
           .map((r) => r.guest_session_id as string);
         const identityBySession = new Map<string, { name: string | null; phone: string | null }>();
         if (unknownSessions.length > 0) {
-          const { data: evs } = await (supabaseAdmin.from("guide_section_events" as never) as ReturnType<typeof supabaseAdmin.from>)
+          const { data: evs } = await (
+            supabaseAdmin.from("guide_section_events" as never) as ReturnType<
+              typeof supabaseAdmin.from
+            >
+          )
             .select("guest_session_id, guest_name, guest_phone, created_at")
             .eq("property_id", conv.property_id)
             .in("guest_session_id", unknownSessions.slice(0, 300))
             .order("created_at", { ascending: false })
             .limit(3000);
-          for (const e of (evs ?? []) as Array<{ guest_session_id: string | null; guest_name: string | null; guest_phone: string | null }>) {
+          for (const e of (evs ?? []) as Array<{
+            guest_session_id: string | null;
+            guest_name: string | null;
+            guest_phone: string | null;
+          }>) {
             if (!e.guest_session_id) continue;
             if (!e.guest_name && !e.guest_phone) continue;
             if (isPreviewName(e.guest_name)) continue;
             if (!identityBySession.has(e.guest_session_id)) {
-              identityBySession.set(e.guest_session_id, { name: e.guest_name, phone: e.guest_phone });
+              identityBySession.set(e.guest_session_id, {
+                name: e.guest_name,
+                phone: e.guest_phone,
+              });
             }
           }
         }
         for (const r of rows) {
           const ident = normName(r.guest_name)
             ? { name: r.guest_name, phone: null as string | null }
-            : (r.guest_session_id ? identityBySession.get(r.guest_session_id) : null) ?? null;
+            : ((r.guest_session_id ? identityBySession.get(r.guest_session_id) : null) ?? null);
           if (!ident) continue;
           const nameHit = !!targetName && normName(ident.name) === targetName;
           const phoneHit = !!targetPhone && digitsOf(ident.phone) === targetPhone;
@@ -664,11 +749,15 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
       attachment_duration_ms: number | null;
       attachment_size_bytes: number | null;
       attachment_name: string | null;
+      /** Recibo do canal (WhatsApp): sent → delivered → read, ou failed.
+       * Vazio no chat do próprio guia, que não tem recibo nenhum. */
+      delivery_status: string | null;
+      channel: string | null;
     };
     const { data: msgRows, error: mErr } = await supabase
       .from("property_chat_messages")
       .select(
-        "id, role, content, sender_type, sender_user_id, is_internal_note, created_at, edited_at, attachment_path, attachment_type, attachment_mime, attachment_duration_ms, attachment_size_bytes, attachment_name",
+        "id, role, content, sender_type, sender_user_id, is_internal_note, created_at, edited_at, attachment_path, attachment_type, attachment_mime, attachment_duration_ms, attachment_size_bytes, attachment_name, delivery_status, channel",
       )
       .in("conversation_id", Array.from(conversationIds))
       .order("created_at", { ascending: true });
@@ -676,7 +765,6 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
     const msgs = ((msgRows ?? []) as unknown as MsgRow[]).sort((a, b) =>
       a.created_at.localeCompare(b.created_at),
     );
-
 
     // Nome do solicitante do claim (se houver)
     let claimRequester: { userId: string; displayName: string | null } | null = null;
@@ -698,7 +786,10 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
         .select("id, full_name, trade_name")
         .eq("id", conv.assigned_to)
         .maybeSingle();
-      assignedProfile = { userId: conv.assigned_to, displayName: (prof?.trade_name || prof?.full_name) ?? null };
+      assignedProfile = {
+        userId: conv.assigned_to,
+        displayName: (prof?.trade_name || prof?.full_name) ?? null,
+      };
     }
 
     // Perfis de todos os remetentes humanos (para exibir o nome em negrito nas mensagens).
@@ -716,13 +807,16 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
         .select("id, full_name, trade_name")
         .in("id", senderIds);
       for (const p of profs ?? []) {
-        senderProfiles[p.id as string] = { displayName: ((p.trade_name as string) || (p.full_name as string)) ?? null };
+        senderProfiles[p.id as string] = {
+          displayName: ((p.trade_name as string) || (p.full_name as string)) ?? null,
+        };
       }
     }
 
     // Nome do proprietário do imóvel (stakeholder) para exibir no cabeçalho.
     let propertyOwnerName: string | null = null;
-    const ownerContactId = (conv.properties as { owner_contact_id?: string | null } | null)?.owner_contact_id ?? null;
+    const ownerContactId =
+      (conv.properties as { owner_contact_id?: string | null } | null)?.owner_contact_id ?? null;
     if (ownerContactId) {
       const { data: owner } = await supabase
         .from("property_owners")
@@ -778,7 +872,11 @@ export const claimHandoffConversation = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     if (takingOver) {
-      const { data: prof } = await supabase.from("profiles").select("full_name, trade_name").eq("id", userId).maybeSingle();
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("full_name, trade_name")
+        .eq("id", userId)
+        .maybeSingle();
       const who = (prof?.trade_name || prof?.full_name) ?? "Um membro da equipe";
       await supabase.from("property_chat_messages").insert({
         conversation_id: data.conversationId,
@@ -816,7 +914,11 @@ export const requestHandoffClaim = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     // Registra nota interna para o atendente atual visualizar o pedido.
-    const { data: prof } = await supabase.from("profiles").select("full_name, trade_name").eq("id", userId).maybeSingle();
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("full_name, trade_name")
+      .eq("id", userId)
+      .maybeSingle();
     const who = (prof?.trade_name || prof?.full_name) ?? "Um membro da equipe";
     await supabase.from("property_chat_messages").insert({
       conversation_id: data.conversationId,
@@ -858,7 +960,11 @@ export const transferHandoffConversation = createServerFn({ method: "POST" })
       .eq("id", data.conversationId);
     if (error) throw new Error(error.message);
 
-    const { data: prof } = await supabase.from("profiles").select("full_name, trade_name").eq("id", data.toUserId).maybeSingle();
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("full_name, trade_name")
+      .eq("id", data.toUserId)
+      .maybeSingle();
     const who = (prof?.trade_name || prof?.full_name) ?? "outro membro";
     await supabase.from("property_chat_messages").insert({
       conversation_id: data.conversationId,
@@ -954,9 +1060,6 @@ export const reopenHandoffConversation = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-
-
-
 // -------- Send a human/agent message --------
 
 export const sendHandoffMessage = createServerFn({ method: "POST" })
@@ -978,14 +1081,19 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
       )
       .eq("id", data.conversationId)
       .maybeSingle();
-    const joinedProperties = cur?.properties as Record<string, unknown> | Record<string, unknown>[] | null;
-    const propRow = Array.isArray(joinedProperties) ? (joinedProperties[0] ?? null) : joinedProperties;
+    const joinedProperties = cur?.properties as
+      Record<string, unknown> | Record<string, unknown>[] | null;
+    const propRow = Array.isArray(joinedProperties)
+      ? (joinedProperties[0] ?? null)
+      : joinedProperties;
     const ownerId = (propRow?.owner_id as string | undefined) ?? null;
 
     await requireChatRespondForConversation(supabase, userId, data.conversationId, ownerId);
 
     if (cur?.assigned_to && cur.assigned_to !== userId) {
-      throw new Error("Esta conversa está sendo atendida por outro membro. Solicite acesso ou peça uma transferência.");
+      throw new Error(
+        "Esta conversa está sendo atendida por outro membro. Solicite acesso ou peça uma transferência.",
+      );
     }
 
     // Fecha o ciclo do escalonamento "oficial" (tool ask_human_supervisor): quando a IA pergunta algo
@@ -1038,7 +1146,12 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
     if (!data.internalNote) {
       await supabase
         .from("property_chat_conversations")
-        .update({ ai_paused: true, status: "assigned", assigned_to: userId, last_message_at: new Date().toISOString() })
+        .update({
+          ai_paused: true,
+          status: "assigned",
+          assigned_to: userId,
+          last_message_at: new Date().toISOString(),
+        })
         .eq("id", data.conversationId);
 
       // Continuous Learning: TODA resposta humana ao hóspede (não só a primeira após uma
@@ -1088,7 +1201,8 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
           const propName = (conv?.properties as { name?: string } | null)?.name ?? "Anfitrião";
           const slug = (conv?.properties as { slug?: string } | null)?.slug ?? "";
           const { sendPushToGuest } = await import("@/lib/guest-push.server");
-          const preview = data.content.length > 120 ? `${data.content.slice(0, 117)}…` : data.content;
+          const preview =
+            data.content.length > 120 ? `${data.content.slice(0, 117)}…` : data.content;
           await sendPushToGuest(data.conversationId, {
             title: `Nova mensagem — ${propName}`,
             body: preview,
@@ -1113,7 +1227,11 @@ export const editHandoffMessage = createServerFn({ method: "POST" })
     if (!d?.conversationId || !d?.messageId) throw new Error("Mensagem inválida.");
     const content = (d.content ?? "").trim();
     if (!content) throw new Error("A mensagem não pode ficar vazia.");
-    return { conversationId: d.conversationId, messageId: d.messageId, content: content.slice(0, 4000) };
+    return {
+      conversationId: d.conversationId,
+      messageId: d.messageId,
+      content: content.slice(0, 4000),
+    };
   })
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
@@ -1125,17 +1243,21 @@ export const editHandoffMessage = createServerFn({ method: "POST" })
       .select("id, sender_type, conversation_id")
       .eq("id", data.messageId)
       .maybeSingle();
-    if (!msg || msg.conversation_id !== data.conversationId) throw new Error("Mensagem não encontrada.");
+    if (!msg || msg.conversation_id !== data.conversationId)
+      throw new Error("Mensagem não encontrada.");
     if (msg.sender_type === "guest") throw new Error("Não é possível editar mensagens do hóspede.");
 
     let content = data.content;
     try {
       const { data: propConv } = await supabase
         .from("property_chat_conversations")
-        .select("properties:property_id(slug, checkin_time, checkin_time_max, checkout_time, checkout_time_min, wifi_ssid, wifi_password, gate_code, lock_code, pin_code, address, host_name, host_phone, house_rules, checkin_instructions, checkout_instructions, gate_instructions, lock_instructions, marketplace_links)")
+        .select(
+          "properties:property_id(slug, checkin_time, checkin_time_max, checkout_time, checkout_time_min, wifi_ssid, wifi_password, gate_code, lock_code, pin_code, address, host_name, host_phone, house_rules, checkin_instructions, checkout_instructions, gate_instructions, lock_instructions, marketplace_links)",
+        )
         .eq("id", data.conversationId)
         .maybeSingle();
-      const joined = propConv?.properties as Record<string, unknown> | Record<string, unknown>[] | null;
+      const joined = propConv?.properties as
+        Record<string, unknown> | Record<string, unknown>[] | null;
       const propRow = Array.isArray(joined) ? (joined[0] ?? null) : joined;
       const slug = (propRow?.slug as string | undefined) ?? null;
       const { expandInfoTags, expandTagsAsMarkdown } = await import("@/lib/guide-tags");
@@ -1167,13 +1289,16 @@ export const deleteHandoffMessage = createServerFn({ method: "POST" })
       .select("id, sender_type, conversation_id")
       .eq("id", data.messageId)
       .maybeSingle();
-    if (!msg || msg.conversation_id !== data.conversationId) throw new Error("Mensagem não encontrada.");
+    if (!msg || msg.conversation_id !== data.conversationId)
+      throw new Error("Mensagem não encontrada.");
     if (msg.sender_type === "guest") throw new Error("Não é possível apagar mensagens do hóspede.");
-    const { error } = await supabase.from("property_chat_messages").delete().eq("id", data.messageId);
+    const { error } = await supabase
+      .from("property_chat_messages")
+      .delete()
+      .eq("id", data.messageId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
-
 
 // -------- Count of pending handoffs (for badge/dock) --------
 
@@ -1182,7 +1307,7 @@ export const countPendingHandoffs = createServerFn({ method: "GET" })
   .inputValidator((i: unknown) => ({
     accountOwnerId:
       typeof (i as { accountOwnerId?: unknown })?.accountOwnerId === "string"
-        ? ((i as { accountOwnerId: string }).accountOwnerId)
+        ? (i as { accountOwnerId: string }).accountOwnerId
         : undefined,
   }))
   .handler(async ({ data, context }) => {
@@ -1190,7 +1315,11 @@ export const countPendingHandoffs = createServerFn({ method: "GET" })
       const { supabase, userId } = context;
       // Mesmo isolamento da listagem: só imóveis da conta ativa.
       const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-      const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.accountOwnerId);
+      const accountId = await resolveAuthorizedAccountOwnerId(
+        supabase,
+        userId,
+        data.accountOwnerId,
+      );
       const { data: scopedProps } = await supabase
         .from("properties")
         .select("id")
@@ -1237,7 +1366,10 @@ export const getAtendimentoAccess = createServerFn({ method: "GET" })
     }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     for (const m of memberships) {
-      const p = await resolveUserPlan(supabaseAdmin as unknown as typeof supabase, m.owner_id as string);
+      const p = await resolveUserPlan(
+        supabaseAdmin as unknown as typeof supabase,
+        m.owner_id as string,
+      );
       if (p.plan === "business" || p.plan === "enterprise") {
         return { allowed: true as const, as: "member" as const, plan: p.plan };
       }
@@ -1267,7 +1399,10 @@ export const listConversationTransferTargets = createServerFn({ method: "POST" }
       .eq("owner_id", ownerId)
       .eq("status", "active");
 
-    const ids = new Set<string>([ownerId, ...((members ?? []).map((m) => m.member_user_id as string))]);
+    const ids = new Set<string>([
+      ownerId,
+      ...(members ?? []).map((m) => m.member_user_id as string),
+    ]);
     ids.delete(userId); // sem transferir para si mesmo
     const idList = Array.from(ids);
     if (idList.length === 0) return { targets: [] };
@@ -1277,7 +1412,8 @@ export const listConversationTransferTargets = createServerFn({ method: "POST" }
       .select("id, full_name, trade_name")
       .in("id", idList);
     const nameById = new Map<string, string | null>();
-    for (const p of profs ?? []) nameById.set(p.id as string, ((p.trade_name as string) || (p.full_name as string)) ?? null);
+    for (const p of profs ?? [])
+      nameById.set(p.id as string, ((p.trade_name as string) || (p.full_name as string)) ?? null);
 
     const roleById = new Map<string, string>();
     roleById.set(ownerId, "owner");
@@ -1320,19 +1456,29 @@ export const resolveConversationForGuest = createServerFn({ method: "POST" })
     if (phone || nameNorm) {
       try {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { data: events } = await (supabaseAdmin.from("guide_section_events" as never) as ReturnType<typeof supabaseAdmin.from>)
+        const { data: events } = await (
+          supabaseAdmin.from("guide_section_events" as never) as ReturnType<
+            typeof supabaseAdmin.from
+          >
+        )
           .select("guest_session_id, guest_phone, guest_name, created_at")
           .eq("property_id", data.propertyId)
           .not("guest_session_id", "is", null)
           .order("created_at", { ascending: false })
           .limit(300);
-        for (const e of (events ?? []) as Array<{ guest_session_id: string | null; guest_phone: string | null; guest_name: string | null }>) {
+        for (const e of (events ?? []) as Array<{
+          guest_session_id: string | null;
+          guest_phone: string | null;
+          guest_name: string | null;
+        }>) {
           if (!e.guest_session_id) continue;
           const pMatch = !!phone && onlyDigits(e.guest_phone) === phone;
           const nMatch = !!nameNorm && (e.guest_name ?? "").trim().toLowerCase() === nameNorm;
           if (pMatch || nMatch) sessionIds.add(e.guest_session_id);
         }
-      } catch { /* falls through */ }
+      } catch {
+        /* falls through */
+      }
     }
 
     const { data: convs } = await supabase
@@ -1342,7 +1488,11 @@ export const resolveConversationForGuest = createServerFn({ method: "POST" })
       .order("last_message_at", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false })
       .limit(50);
-    const rows = (convs ?? []) as Array<{ id: string; guest_session_id: string | null; guest_name: string | null }>;
+    const rows = (convs ?? []) as Array<{
+      id: string;
+      guest_session_id: string | null;
+      guest_name: string | null;
+    }>;
     if (rows.length === 0) return { conversationId: null as string | null };
 
     if (sessionIds.size > 0) {

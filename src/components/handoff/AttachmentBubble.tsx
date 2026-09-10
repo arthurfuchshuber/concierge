@@ -3,7 +3,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { signChatAttachmentUrl } from "@/lib/chat-attachments.functions";
 import { FileText, Download, Loader2 } from "lucide-react";
 
-
 export type AttachmentInfo = {
   type: "image" | "audio" | "video" | "document";
   mime: string | null;
@@ -101,27 +100,17 @@ export function AttachmentBubble({ attachment }: { attachment: AttachmentInfo })
     // e sempre expõe o botão de download como fallback quando o codec não é suportado
     // (ex.: webm/opus gravado no Chrome sendo aberto em iOS Safari).
     const mime = attachment.mime ?? undefined;
+    // A linha "Baixar" saiu (pedido explícito, 10/09/2026): ela ocupava uma
+    // altura inteira embaixo de cada áudio e o próprio player do navegador já
+    // tem o menu com "fazer download" no "⋮".
     return (
-      <div className="flex flex-col gap-1 min-w-[220px]">
-        <audio
-          controls
-          preload="metadata"
-          className="w-full max-w-[280px] h-10"
-        >
+      <div className="min-w-[220px]">
+        <audio controls preload="metadata" className="h-10 w-full max-w-[280px]">
           <source src={resolvedUrl} type={mime} />
           {/* Fallback sem type quando o mime do banco veio vazio/desconhecido */}
           <source src={resolvedUrl} />
           Seu navegador não suporta reprodução deste áudio.
         </audio>
-        <a
-          href={resolvedUrl}
-          download={attachment.name ?? "audio"}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground w-fit"
-        >
-          <Download className="size-3" /> Baixar
-        </a>
       </div>
     );
   }
@@ -148,4 +137,3 @@ export function AttachmentBubble({ attachment }: { attachment: AttachmentInfo })
     </a>
   );
 }
-

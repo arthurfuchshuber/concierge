@@ -45,6 +45,8 @@ import {
   MoreVertical,
   Copy,
   Camera,
+  Check,
+  AlertCircle,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -64,7 +66,11 @@ import { getTagItemsForConversation } from "@/lib/guide-tag-items.functions";
 import { KnowledgeFillDialog } from "@/components/handoff/KnowledgeFillDialog";
 import { TeachAiDialog } from "@/components/handoff/TeachAiDialog";
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
-import { COMPOSER_FIELD, COMPOSER_INPUT, COMPOSER_SEND_BTN } from "@/components/chat/composer-styles";
+import {
+  COMPOSER_FIELD,
+  COMPOSER_INPUT,
+  COMPOSER_SEND_BTN,
+} from "@/components/chat/composer-styles";
 import { AttachmentBubble, type AttachmentInfo } from "@/components/handoff/AttachmentBubble";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -86,6 +92,53 @@ function fmtCheckin(iso: string | null) {
   } catch {
     return iso;
   }
+}
+
+/**
+ * OS TIQUINHOS DO WHATSAPP (pedido explícito, 10/09/2026).
+ *
+ * O canal já guardava o recibo em `property_chat_messages.delivery_status` —
+ * o webhook da Sinch escreve `sent`, `delivered`, `read` ou `failed` — mas
+ * nada disso aparecia na tela: o atendente mandava a mensagem e não sabia se
+ * ela tinha chegado.
+ *
+ *   ✓        enviada (saiu daqui, ainda sem confirmação do aparelho)
+ *   ✓✓       entregue no aparelho
+ *   ✓✓ azul  lida
+ *   !        falhou
+ *
+ * Sem recibo (chat do próprio guia, que é tempo real e não tem confirmação de
+ * entrega), NADA é desenhado — um tique cinza eterno mentiria.
+ */
+function DeliveryTicks({ status }: { status: string | null | undefined }) {
+  if (!status) return null;
+  if (status === "failed") {
+    return (
+      <span className="inline-flex items-center gap-0.5 text-rose-200" title="Falha no envio">
+        <AlertCircle className="size-3" />
+      </span>
+    );
+  }
+  if (status === "sent") {
+    return (
+      <span className="inline-flex items-center" title="Enviada">
+        <Check className="size-3" />
+      </span>
+    );
+  }
+  if (status === "delivered" || status === "read") {
+    const read = status === "read";
+    return (
+      <span
+        className={`inline-flex items-center ${read ? "text-sky-300" : ""}`}
+        title={read ? "Lida" : "Entregue"}
+      >
+        <Check className="size-3" />
+        <Check className="-ml-1.5 size-3" />
+      </span>
+    );
+  }
+  return null;
 }
 
 export function ConversationView({ conversationId, compact, myUserId }: Props) {
@@ -135,7 +188,9 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const [transferOpen, setTransferOpen] = useState(false);
   const [channel, setChannel] = useState<"chat" | "whatsapp">("chat");
   const [reopenOpen, setReopenOpen] = useState(false);
-  const [actionMsg, setActionMsg] = useState<{ id: string; content: string; mine: boolean } | null>(null);
+  const [actionMsg, setActionMsg] = useState<{ id: string; content: string; mine: boolean } | null>(
+    null,
+  );
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startLongPress = (m: { id: string; content: string; mine: boolean }) => {
     if (longPressRef.current) clearTimeout(longPressRef.current);
@@ -189,7 +244,10 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
     setTranslations((p) => ({ ...p, [id]: { text: null, loading: true, showing: false } }));
     try {
       const r = await translateFn({ data: { text: content.slice(0, 2000), targetLang: myLang } });
-      setTranslations((p) => ({ ...p, [id]: { text: r.translated, loading: false, showing: true } }));
+      setTranslations((p) => ({
+        ...p,
+        [id]: { text: r.translated, loading: false, showing: true },
+      }));
     } catch (e) {
       setTranslations((p) => ({ ...p, [id]: { text: null, loading: false, showing: false } }));
       setErrorMsg(e instanceof Error ? e.message : "Não consegui traduzir agora.");
@@ -225,7 +283,12 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
       )
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "property_chat_conversations", filter: `id=eq.${conversationId}` },
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "property_chat_conversations",
+          filter: `id=eq.${conversationId}`,
+        },
         () => {
           qc.invalidateQueries({ queryKey: ["handoff-conv", conversationId] });
         },
@@ -319,7 +382,10 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
     return null;
   }
 
-  async function uploadAndAttach(file: Blob, opts: { name?: string; mime?: string; durationMs?: number }) {
+  async function uploadAndAttach(
+    file: Blob,
+    opts: { name?: string; mime?: string; durationMs?: number },
+  ) {
     if (!conv?.property_id) return;
     const MAX = 20 * 1024 * 1024;
     if (file.size > MAX) {
@@ -402,28 +468,42 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   const claimReq = q.data?.claimRequester;
   const assignedProfile = q.data?.assignedProfile;
   const senderProfiles =
-    (q.data as { senderProfiles?: Record<string, { displayName: string | null }> } | undefined)?.senderProfiles ?? {};
+    (q.data as { senderProfiles?: Record<string, { displayName: string | null }> } | undefined)
+      ?.senderProfiles ?? {};
   const propertyName = (conv?.properties as { name?: string } | null)?.name ?? "Guia";
-  const propertyOwnerName = (q.data as { propertyOwnerName?: string | null } | undefined)?.propertyOwnerName ?? null;
+  const propertyOwnerName =
+    (q.data as { propertyOwnerName?: string | null } | undefined)?.propertyOwnerName ?? null;
 
   const isMine = !!(conv?.assigned_to && myUserId && conv.assigned_to === myUserId);
   const isLockedByOther = !!(conv?.assigned_to && myUserId && conv.assigned_to !== myUserId);
   const isUnassigned = !conv?.assigned_to;
-  const iRequested = !!(conv?.claim_requested_by && myUserId && conv.claim_requested_by === myUserId);
-  const someoneRequestedFromMe = !!(isMine && conv?.claim_requested_by && conv.claim_requested_by !== myUserId);
+  const iRequested = !!(
+    conv?.claim_requested_by &&
+    myUserId &&
+    conv.claim_requested_by === myUserId
+  );
+  const someoneRequestedFromMe = !!(
+    isMine &&
+    conv?.claim_requested_by &&
+    conv.claim_requested_by !== myUserId
+  );
   const status = conv?.status;
 
   const guestName = guest?.name ?? conv?.guest_name ?? "Hóspede anônimo";
   const waHref = guest?.phone ? whatsappHref(guest.phone, guest.phoneCountry) : null;
   const checkinFmt = fmtCheckin(guest?.checkinDate ?? null);
-  const checkoutFmt = fmtCheckin((guest as { checkoutDate?: string | null } | undefined)?.checkoutDate ?? null);
+  const checkoutFmt = fmtCheckin(
+    (guest as { checkoutDate?: string | null } | undefined)?.checkoutDate ?? null,
+  );
 
   function handleClaim() {
     if (isLockedByOther) {
       const who = assignedProfile?.displayName ?? "outro membro";
       const ok =
         typeof window !== "undefined" &&
-        window.confirm(`Esta conversa está sendo atendida por ${who}. Tem certeza que deseja assumir?`);
+        window.confirm(
+          `Esta conversa está sendo atendida por ${who}. Tem certeza que deseja assumir?`,
+        );
       if (!ok) return;
     }
     claim.mutate();
@@ -484,7 +564,10 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
             </div>
 
             {propertyOwnerName && (
-              <div className="text-[11px] font-bold text-foreground truncate" title={propertyOwnerName}>
+              <div
+                className="text-[11px] font-bold text-foreground truncate"
+                title={propertyOwnerName}
+              >
                 {propertyOwnerName}
               </div>
             )}
@@ -498,8 +581,6 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
 
             {(checkinFmt || checkoutFmt || guest?.reservationCode) && (
               <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-
-
                 {checkinFmt && (
                   <span className="inline-flex items-center gap-1">
                     <Calendar className="size-3" /> Check-in {checkinFmt}
@@ -533,13 +614,15 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
 
             {isLockedByOther && (
               <div className="text-[11px] mt-2 px-2 py-1 rounded bg-secondary text-foreground/80 border border-border inline-flex items-center gap-1">
-                <Lock className="size-3" /> Em atendimento por {assignedProfile?.displayName ?? "outro membro"}
+                <Lock className="size-3" /> Em atendimento por{" "}
+                {assignedProfile?.displayName ?? "outro membro"}
               </div>
             )}
             {someoneRequestedFromMe && (
               <div className="text-[11px] mt-2 px-2 py-1 rounded bg-primary/10 text-primary border border-primary/30 flex items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-1">
-                  <UserPlus2 className="size-3" /> {claimReq?.displayName ?? "Um membro"} pediu acesso
+                  <UserPlus2 className="size-3" /> {claimReq?.displayName ?? "Um membro"} pediu
+                  acesso
                 </span>
                 <button
                   onClick={() => claimReq?.userId && transfer.mutate(claimReq.userId)}
@@ -650,7 +733,9 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
               </div>
             )}
             {targetsQ.data?.targets.length === 0 && (
-              <div className="text-xs text-muted-foreground px-1 py-1">Nenhum outro membro disponível.</div>
+              <div className="text-xs text-muted-foreground px-1 py-1">
+                Nenhum outro membro disponível.
+              </div>
             )}
             {targetsQ.data?.targets.map((t) => (
               <button
@@ -702,7 +787,9 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
           return (
             <div key={m.id} className={`flex flex-col ${isGuest ? "items-start" : "items-end"}`}>
               <div
-                onPointerDown={() => startLongPress({ id: m.id, content: m.content ?? "", mine: !isGuest })}
+                onPointerDown={() =>
+                  startLongPress({ id: m.id, content: m.content ?? "", mine: !isGuest })
+                }
                 onPointerUp={cancelLongPress}
                 onPointerLeave={cancelLongPress}
                 onPointerCancel={cancelLongPress}
@@ -729,7 +816,8 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                   <div className="text-[11px] mb-1">
                     {m.sender_type === "human" ? (
                       <span className="font-bold">
-                        {(m.sender_user_id && senderProfiles[m.sender_user_id]?.displayName) || "Atendente"}
+                        {(m.sender_user_id && senderProfiles[m.sender_user_id]?.displayName) ||
+                          "Atendente"}
                       </span>
                     ) : (
                       <span className="uppercase tracking-wide opacity-70">IA</span>
@@ -778,9 +866,13 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                     <Languages className="size-3" /> Traduzido automaticamente
                   </div>
                 )}
-                <div className="text-[10px] opacity-60 mt-1">
-                  {formatDistanceToNow(new Date(m.created_at), { locale: ptBR, addSuffix: true })}
-                  {m.edited_at ? " · editada" : ""}
+                <div className="mt-1 flex items-center gap-1 text-[10px] opacity-60">
+                  <span>
+                    {formatDistanceToNow(new Date(m.created_at), { locale: ptBR, addSuffix: true })}
+                    {m.edited_at ? " · editada" : ""}
+                  </span>
+                  {/* Só nas MINHAS mensagens: recibo do que o hóspede recebeu. */}
+                  {!isGuest && !isNote && <DeliveryTicks status={m.delivery_status} />}
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -792,7 +884,11 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                     className="mt-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-60"
                     title={`Mensagem em ${LANG_NAMES[detected as string] ?? detected}`}
                   >
-                    {tr?.loading ? <Loader2 className="size-3 animate-spin" /> : <Languages className="size-3" />}
+                    {tr?.loading ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                      <Languages className="size-3" />
+                    )}
                     {tr?.showing ? "Ver original" : "Traduzir"}
                   </button>
                 )}
@@ -998,8 +1094,8 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
         <div className="shrink-0 border-t border-border p-3 text-center text-xs text-muted-foreground bg-surface flex items-center justify-center gap-2">
           <Lock className="size-3" />
           <span>
-            Você não tem permissão para responder no chat. Peça ao dono da conta para habilitar em Administrativo →
-            Permissões.
+            Você não tem permissão para responder no chat. Peça ao dono da conta para habilitar em
+            Administrativo → Permissões.
           </span>
         </div>
       )}
@@ -1018,8 +1114,9 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
             <span>
               {isLockedByOther ? (
                 <>
-                  Somente <strong>{assignedProfile?.displayName ?? "o atendente responsável"}</strong> pode responder —
-                  você acompanha em tempo real.
+                  Somente{" "}
+                  <strong>{assignedProfile?.displayName ?? "o atendente responsável"}</strong> pode
+                  responder — você acompanha em tempo real.
                 </>
               ) : (
                 "Assuma a conversa para poder responder ao hóspede."
@@ -1105,19 +1202,26 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 />
               </div>
 
-
-
               {text.trim() ? (
                 <button
                   type="submit"
                   disabled={send.isPending}
                   className={`${COMPOSER_SEND_BTN} ${channel === "whatsapp" && !note ? "bg-emerald-600" : "bg-primary"}`}
                 >
-                  {send.isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+                  {send.isPending ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Send className="size-4" />
+                  )}
                 </button>
               ) : (
                 <div className="shrink-0">
-                  <AudioRecorderButton disabled={uploading} maxSeconds={60} onRecorded={onAudioRecorded} compact />
+                  <AudioRecorderButton
+                    disabled={uploading}
+                    maxSeconds={60}
+                    onRecorded={onAudioRecorded}
+                    compact
+                  />
                 </div>
               )}
             </div>
@@ -1160,10 +1264,17 @@ export function ConversationList({
   assignedNames?: Record<string, string>;
   reservations?: Record<
     string,
-    { status: "confirmed" | "loose" | "missing" | "no_ical"; checkin: string | null; checkout: string | null }
+    {
+      status: "confirmed" | "loose" | "missing" | "no_ical";
+      checkin: string | null;
+      checkout: string | null;
+    }
   >;
   /** Proprietário do imóvel de cada conversa — mesma fonte usada no Kanban. */
-  owners?: Record<string, { name: string | null; phone: string | null; phoneCountry: string | null }>;
+  owners?: Record<
+    string,
+    { name: string | null; phone: string | null; phoneCountry: string | null }
+  >;
   activeId: string | null;
   onSelect: (id: string) => void;
 }) {
@@ -1199,7 +1310,10 @@ export function ConversationList({
             {/* Mesma ordem do card do Kanban: proprietário → imóvel → hóspede → datas → reserva. */}
             {owner?.name && (
               <div className="flex items-center gap-1.5 min-w-0">
-                <span className="shrink text-[11px] font-bold text-primary truncate min-w-0" title={owner.name}>
+                <span
+                  className="shrink text-[11px] font-bold text-primary truncate min-w-0"
+                  title={owner.name}
+                >
                   {owner.name}
                 </span>
                 <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -1223,7 +1337,10 @@ export function ConversationList({
                 )}
               </div>
               <span className="text-[10px] text-muted-foreground shrink-0">
-                {formatDistanceToNow(new Date(c.handoff_at ?? c.last_message_at), { locale: ptBR, addSuffix: false })}
+                {formatDistanceToNow(new Date(c.handoff_at ?? c.last_message_at), {
+                  locale: ptBR,
+                  addSuffix: false,
+                })}
               </span>
             </div>
 
@@ -1273,7 +1390,9 @@ export function ConversationList({
               </div>
             )}
             {c.handoff_reason && (
-              <div className="text-[11px] text-foreground/70 truncate mt-0.5">{c.handoff_reason}</div>
+              <div className="text-[11px] text-foreground/70 truncate mt-0.5">
+                {c.handoff_reason}
+              </div>
             )}
           </div>
         );

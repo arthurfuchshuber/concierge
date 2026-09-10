@@ -365,7 +365,6 @@ export function RecordsWorkspace() {
     [q.data],
   );
   const counts = q.data?.counts;
-  const openCounts = q.data?.openCounts;
 
   const groups = useMemo<Group[]>(() => {
     const map = new Map<string, Group>();
@@ -475,7 +474,6 @@ export function RecordsWorkspace() {
         <CategoryCard
           label="Todos"
           count={q.data?.total ?? 0}
-          openCount={q.data?.totalOpen ?? 0}
           tone={null}
           active={category === null}
           loading={q.isLoading}
@@ -486,7 +484,6 @@ export function RecordsWorkspace() {
             key={c.key}
             label={c.short}
             count={counts?.[c.key] ?? 0}
-            openCount={openCounts?.[c.key] ?? 0}
             tone={c.key}
             active={category === c.key}
             loading={q.isLoading}
@@ -585,7 +582,6 @@ const CARD_RING_TONE: Record<RecordCategory, string> = {
 function CategoryCard({
   label,
   count,
-  openCount,
   tone,
   active,
   loading,
@@ -593,7 +589,6 @@ function CategoryCard({
 }: {
   label: string;
   count: number;
-  openCount: number;
   tone: RecordCategory | null;
   active: boolean;
   loading: boolean;
@@ -617,13 +612,6 @@ function CategoryCard({
       <span className="ds-eyebrow mt-1.5 truncate text-[8.5px] text-muted-foreground" title={label}>
         {label}
       </span>
-      {/* O aviso só existe quando existe — "0 em aberto" não vira etiqueta. */}
-      {openCount > 0 && (
-        <span
-          aria-label={`${openCount} em aberto`}
-          className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-rose-500"
-        />
-      )}
     </button>
   );
 }
@@ -1158,21 +1146,27 @@ function RecordViewerBody({
 
   return (
     <>
-      <DialogHeader className="space-y-0 px-3.5 pb-2 pr-11 pt-3.5 text-left">
-        {/* UMA LINHA, com reticências antes do X (pedido explícito). O
-            `ds-card-title` sozinho não bastava: o `DialogTitle` do Radix
-            entra com as próprias classes e o `white-space` acabava não
-            valendo. `truncate` explícito resolve, e o `pr-11` do cabeçalho
-            garante que as reticências caiam ANTES do botão de fechar. */}
-        <DialogTitle className="ds-card-title block w-full truncate">
+      {/* CABEÇALHO EM UMA LINHA CADA (pedido explícito, repetido 3x).
+          Duas coisas seguravam o título em duas linhas:
+            · `text-lg` do `DialogTitle` do Radix, que vencia o `ds-card-title`
+              — resolvido com um `text-[13.5px]` explícito, que o `twMerge`
+              reconhece e usa para descartar o `text-lg`;
+            · a regra global `text-wrap: pretty` dos `h1..h6` em styles.css,
+              que, fora de `@layer`, vencia o `truncate` e reativava a quebra
+              (`text-wrap` é atalho de `text-wrap-mode`). Lá agora é
+              `text-wrap-style`, que não mexe em quebrar/não quebrar.
+          Com o título em uma linha o cabeçalho encolheu; o `pt`/`pb` foram
+          junto. */}
+      <DialogHeader className="space-y-0 px-3.5 pb-1.5 pr-11 pt-2.5 text-left">
+        <DialogTitle className="ds-card-title block w-full truncate text-[13.5px] leading-tight">
           {record.propertyName}
         </DialogTitle>
         {record.ownerName && (
-          <span className={`mt-0.5 block truncate text-[10.5px] ${CARD_OWNER}`}>
+          <span className={`block truncate text-[10.5px] leading-tight ${CARD_OWNER}`}>
             {record.ownerName}
           </span>
         )}
-        <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
+        <span className="block truncate text-[10px] leading-tight text-muted-foreground">
           {reservationLine}
         </span>
       </DialogHeader>
@@ -1190,8 +1184,31 @@ function RecordViewerBody({
         >
           {meta?.label ?? "Registro"}
         </span>
+        {/* SITUAÇÃO DA PENDÊNCIA no canto oposto à categoria (pedido
+            explícito, 10/09/2026). Ela vivia lá embaixo, na ficha, empurrando
+            a linha de dados para duas alturas; aqui em cima é lida junto com
+            a categoria e não ocupa altura nenhuma. */}
+        {record.taskId && (
+          <span
+            className={`absolute right-2.5 top-2.5 z-10 rounded-[0.25rem] px-2 py-1 text-[9px] font-extrabold uppercase tracking-[0.06em] text-white shadow-sm ${
+              record.taskStatus === "pending"
+                ? "bg-rose-600"
+                : record.taskStatus === "canceled"
+                  ? "bg-zinc-600"
+                  : "bg-emerald-600"
+            }`}
+          >
+            {record.taskStatus === "pending"
+              ? "Em aberto"
+              : record.taskStatus === "canceled"
+                ? "Cancelada"
+                : "Resolvida"}
+          </span>
+        )}
         {media.length > 1 && (
-          <span className="absolute right-2.5 top-2.5 z-10 rounded-full bg-black/60 px-2 py-0.5 text-[9px] font-extrabold tabular-nums text-white">
+          /* O contador desceu para o pé do palco: em cima ele brigava com a
+             situação da pendência. */
+          <span className="absolute bottom-2.5 right-2.5 z-10 rounded-full bg-black/60 px-2 py-0.5 text-[9px] font-extrabold tabular-nums text-white">
             {Math.min(idx, media.length - 1) + 1} / {media.length}
           </span>
         )}
@@ -1292,23 +1309,6 @@ function RecordViewerBody({
               <span className="opacity-45">·</span>
               <span>{fmtSize(record.sizeBytes)}</span>
             </>
-          )}
-          {record.taskId && (
-            <span
-              className={`ml-auto shrink-0 rounded-[0.25rem] px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-[0.04em] ${
-                record.taskStatus === "pending"
-                  ? "bg-rose-500/15 text-rose-600 dark:text-rose-400"
-                  : record.taskStatus === "canceled"
-                    ? "bg-muted-foreground/15 text-muted-foreground"
-                    : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-              }`}
-            >
-              {record.taskStatus === "pending"
-                ? "Em aberto"
-                : record.taskStatus === "canceled"
-                  ? "Cancelada"
-                  : "Resolvida"}
-            </span>
           )}
         </div>
       </div>

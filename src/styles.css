@@ -486,6 +486,21 @@
 :root {
   hanging-punctuation: first allow-end last;
 }
+/*
+ * ATENÇÃO (10/09/2026): aqui é `text-wrap-style`, NUNCA `text-wrap`.
+ *
+ * `text-wrap: pretty` é atalho de `text-wrap-mode: wrap` + `text-wrap-style:
+ * pretty`, e `white-space: nowrap` (o que o `truncate` do Tailwind faz) é
+ * atalho de `white-space-collapse` + `text-wrap-mode: nowrap`. Como esta
+ * regra está FORA de qualquer `@layer`, ela vence qualquer utilitário — então
+ * o atalho reativava a quebra de linha e QUALQUER título de diálogo (`h2` do
+ * Radix) quebrava em duas linhas mesmo com `truncate`. Foi o que segurou por
+ * três pedidos seguidos o "título em uma linha só" do visualizador de
+ * registros.
+ *
+ * `text-wrap-style` sozinho só melhora o equilíbrio das linhas e não mexe em
+ * quebrar/não quebrar.
+ */
 h1,
 h2,
 h3,
@@ -498,7 +513,7 @@ blockquote,
 figcaption,
 dt,
 dd {
-  text-wrap: pretty;
+  text-wrap-style: pretty;
 }
 
 /* Amber mirror sweep — faixa "Liberado Limpeza" */
