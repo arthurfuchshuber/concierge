@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-10T20:55:28.903Z";
+export const GENERATED_AT = "2026-09-11T02:19:09.981Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -562,6 +562,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/contract-extract.server.ts",
     "audience": [],
     "content_hash": "81593a28310de075cb3d992a743ae6b4"
+  },
+  {
+    "doc_key": "rule:conversationId",
+    "kind": "rule",
+    "title": "Regra — conversationId",
+    "content": "A RESPOSTA CHEGA AO HÓSPEDE NA HORA (pedido explícito, 11/09/2026).\n\nAntes, a resposta ficava guardada esperando o hóspede mandar OUTRA\nmensagem para ser entregue — e quem não escrevia de novo simplesmente\nnunca recebia (foi o que aconteceu com a hóspede do Studio 103 em\n08/09, que até hoje está sem resposta). Agora o atendente responde à IA\ne ela fala com o hóspede imediatamente, no próprio tom.\n\nFalhar aqui não desfaz a resposta: ela fica gravada e o caminho antigo\n(entregar na próxima mensagem do hóspede) continua valendo como rede.",
+    "source_path": "src/lib/ai-supervision.functions.ts",
+    "audience": [],
+    "content_hash": "b034e7bb42387828367fcad7f38ced6b"
   },
   {
     "doc_key": "rule:countAccountGuides",
@@ -1446,6 +1455,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "2609d73eee708157058d5f5975617b5e"
   },
   {
+    "doc_key": "rule:resolveConversationId",
+    "kind": "rule",
+    "title": "Regra — resolveConversationId",
+    "content": "Qual conversa do guia é a desta reserva?\n\nA conversa do hóspede nasce da sessão dele no guia e não carrega o id da\nreserva — o vínculo possível é o TEMPO: a conversa daquele imóvel aberta na\njanela da estadia. É seguro porque um imóvel só tem uma estadia por vez.\nSe houver mais de uma candidata e o nome não desempatar, não envia: falar\ncom o hóspede errado é pior do que não falar.",
+    "source_path": "src/lib/ai/agents/proactive/sender.server.ts",
+    "audience": [],
+    "content_hash": "db148a5e60245f900625bcc4cbbbd425"
+  },
+  {
     "doc_key": "rule:resolveEffectivePlan",
     "kind": "rule",
     "title": "Regra — resolveEffectivePlan",
@@ -1660,6 +1678,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/ai/sources.ts",
     "audience": [],
     "content_hash": "f853da0ed1e11d46dea9ccc6fc7de1c4"
+  },
+  {
+    "doc_key": "rule:speakWithAgent",
+    "kind": "rule",
+    "title": "Regra — speakWithAgent",
+    "content": "Gera o texto COM a cabeça da IA (base de conhecimento, tom, regras) e\nentrega. É assim que a resposta do atendente sai \"pela boca da IA\" em vez de\nser colada crua na conversa.\n\n`instruction` não é uma mensagem do hóspede: é uma instrução interna, e o\nagente já sabe tratar resposta humana como verdade absoluta (ver\nhuman-loop/escalations.server.ts).",
+    "source_path": "src/lib/ai/outbound/speak.server.ts",
+    "audience": [],
+    "content_hash": "9272cb6e8d26bac211c881bbb6e108b2"
   },
   {
     "doc_key": "rule:src/components/ai/AiMarkdown.tsx:0",
@@ -2115,10 +2142,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:src/lib/ai/agents/proactive/sender.server.ts:0",
     "kind": "rule",
     "title": "Regra em sender.server.ts",
-    "content": "Execução real das ações proativas de baixa autonomia (FASE — envio real).\n\n`engine.server.ts` já grava, em `ai_proactive_actions`, ações de autonomia\n\"low\" já como `status: \"approved\"` (aprovação automática — é a própria\nregra que decide que dispensa humano, ver `approvalFor` em `./rules`).\n`markActionExecuted` já existia para marcar uma ação como executada, mas\nnada nunca chamava nem essa função nem disparava a mensagem em si — as\nações ficavam para sempre \"aprovadas\" e nunca chegavam ao hóspede. Este\nmódulo fecha esse último passo, só para as regras que são, de fato,\nmensagens ao hóspede (não para \"reservation_briefing\"/\"returning_guest_\nrecognition\", que são anotações internas, não texto a enviar).\n\nCanal: reaproveita o WhatsApp já conectado pelo anfitrião\n(`sendWhatsappText`, mesma credencial usada no atendimento humano/IA).\nSem WhatsApp conectado, ou sem telefone do hóspede localizado, a ação é\nmarcada como falha com o motivo — nunca fica reprocessando para sempre,\nmas também nunca finge ter enviado algo que não foi.\n\nTelefone do hóspede: reservas sincronizadas do Airbnb (`property_reservations`,\nfonte do gatilho checkin/checkout) não trazem telefone — o iCal do Airbnb\nnão expõe isso. O telefone só existe quando o hóspede preencheu o\nformulário de chegada no próprio guia (`guide_access_logs`). Por isso\ncruzamos pela MESMA janela de datas (check-in/check-out) do mesmo imóvel —\ncomo um imóvel só tem uma estadia ativa por vez, esse cruzamento é seguro.\nSem log correspondente com telefone, não há para quem enviar.",
+    "content": "Execução real das ações proativas de baixa autonomia (FASE — envio real).\n\n`engine.server.ts` já grava, em `ai_proactive_actions`, ações de autonomia\n\"low\" já como `status: \"approved\"` (aprovação automática — é a própria\nregra que decide que dispensa humano, ver `approvalFor` em `./rules`).\n`markActionExecuted` já existia para marcar uma ação como executada, mas\nnada nunca chamava nem essa função nem disparava a mensagem em si — as\nações ficavam para sempre \"aprovadas\" e nunca chegavam ao hóspede. Este\nmódulo fecha esse último passo, só para as regras que são, de fato,\nmensagens ao hóspede (não para \"reservation_briefing\"/\"returning_guest_\nrecognition\", que são anotações internas, não texto a enviar).\n\nCANAL (revisto em 11/09/2026 — \"a IA vai conseguir também chamar o hóspede\nem outro horário?\"): a entrega passa a tentar PRIMEIRO o chat do guia, que\né o canal que está de pé hoje — a mensagem entra na conversa como fala da\nIA e o celular do hóspede toca pelo push. O WhatsApp continua como segunda\nvia, para quando não existir conversa no guia e o anfitrião tiver o número\nconectado (`host_whatsapp_config` está vazio hoje, e era por isso que\n`ai_proactive_actions` nunca saía do \"aprovado\").\n\nE o texto não é mais um molde: quem escreve é o próprio agente, olhando a\nconversa e a base de conhecimento do imóvel — é a mesma voz que o hóspede\njá conhece. O molde fica só como rede de segurança se o agente falhar.\n\nSilêncio noturno e \"não falar duas vezes seguidas\" vivem em\n`speak.server.ts` e valem aqui também: quando a trava barra o envio, a ação\nNÃO é marcada como executada — ela volta na próxima varredura (de hora em\nhora), já dentro do horário civilizado.\n\nTelefone do hóspede: reservas sincronizadas do Airbnb (`property_reservations`,\nfonte do gatilho checkin/checkout) não trazem telefone — o iCal do Airbnb\nnão expõe isso. O telefone só existe quando o hóspede preencheu o\nformulário de chegada no próprio guia (`guide_access_logs`). Por isso\ncruzamos pela MESMA janela de datas (check-in/check-out) do mesmo imóvel —\ncomo um imóvel só tem uma estadia ativa por vez, esse cruzamento é seguro.\nSem log correspondente com telefone, não há para quem enviar.",
     "source_path": "src/lib/ai/agents/proactive/sender.server.ts",
     "audience": [],
-    "content_hash": "1517a837b46b66e93ebfeb037cc04b36"
+    "content_hash": "e7eeff2cce4d7ee0121d7baf6831cc3d"
   },
   {
     "doc_key": "rule:src/lib/ai/alerts/engine.server.ts:0",
@@ -2418,6 +2445,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "b2317eaba815caf04ea6f76f3bff779e"
   },
   {
+    "doc_key": "rule:src/lib/ai/outbound/speak.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em speak.server.ts",
+    "content": "VOZ ATIVA — a IA falando sem o hóspede ter falado.\n\nPedido explícito (11/09/2026): \"a IA vai conseguir também chamar o hóspede\nem outro horário quando não for acionado pelo hóspede?\". E, antes disso, o\npedido maior: a IA não sai da conversa — quem responde ao hóspede é sempre\nela, mesmo quando a informação veio de uma pessoa.\n\nAté aqui o sistema só sabia REAGIR: todo caminho que gerava mensagem\ncomeçava numa mensagem do hóspede. As consequências apareceram na auditoria\ndos 5 dias:\n\n · a resposta que o atendente deu à IA ficava guardada esperando o hóspede\n escrever de novo para ser entregue — e quando ele não escrevia, não era\n entregue nunca (Studio 103, 08/09: hóspede sem resposta até hoje);\n · um caso aberto (\"o técnico vai entre 14h e 16h\") nunca era acompanhado —\n ninguém voltava para saber se tinha resolvido;\n · o motor proativo (boas-vindas, instruções de saída, hóspede silencioso)\n aprovava as ações e não tinha por onde entregar: só sabia WhatsApp, e não\n há número conectado. `ai_proactive_actions` estava com ZERO linhas.\n\nEste módulo é a peça que faltava, e é UMA só para os três casos: grava a\nmensagem na conversa como se a IA tivesse falado e toca o celular do hóspede\npelo push do guia. Um caminho, um lugar para auditar.\n\nREGRAS DE CONVIVÊNCIA (o que impede isto de virar spam):\n · Nunca fala por cima de gente: conversa com humano no comando\n (`ai_paused`) não recebe voz ativa.\n · Nunca fala duas vezes seguidas sem resposta: se a última mensagem da\n conversa já é da IA e veio de voz ativa, a próxima é bloqueada (exceto a\n entrega de resposta do atendente, que é informação pedida pelo hóspede).\n · Silêncio noturno: nada entre 22h e 8h, salvo urgência real.\n · Tudo fica registrado como mensagem normal da conversa — o que a IA falou\n sozinha aparece no mesmo lugar que o resto, para o anfitrião auditar.",
+    "source_path": "src/lib/ai/outbound/speak.server.ts",
+    "audience": [],
+    "content_hash": "38484e62833bcf4d6da308efc1550f97"
+  },
+  {
     "doc_key": "rule:src/lib/ai/planner.server.ts:0",
     "kind": "rule",
     "title": "Regra em planner.server.ts",
@@ -2632,6 +2668,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/audit-fn-middleware.ts",
     "audience": [],
     "content_hash": "fce7a2b3d9ddfaa599f282005fa3bef2"
+  },
+  {
+    "doc_key": "rule:src/lib/chat-audio.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em chat-audio.server.ts",
+    "content": "A IA OUVINDO OS ÁUDIOS DA CONVERSA (pedido explícito, 11/09/2026).\n\n\"precisamos que a IA consiga LER os áudios para também colocá-los no\n contexto da base de conhecimento da conversa com aquele hóspede\"\n\nO problema era simples e grave: mensagem de áudio grava `content` vazio, e o\nhistórico enviado à IA lê `content`. Resultado — para ela, todo áudio era uma\nmensagem em branco. Na conversa da Izabela (10/09) o atendente negociou a\ndiária extra em SEIS áudios; a IA não fazia ideia do que tinha sido dito nem\ndo que havia sido combinado.\n\nAqui o áudio vira texto UMA vez, na hora em que é enviado, e fica guardado em\n`attachment_transcript`. A partir daí ele é contexto como qualquer mensagem:\nentra no histórico, na memória do hóspede e na tela de quem atende.\n\nDecisões que valem registro:\n · Transcrever no ENVIO, não na leitura. Transcrever toda vez que a IA monta\n o histórico custaria segundos e dinheiro a cada turno, e o áudio não muda.\n · Falhar em silêncio. Transcrição é enriquecimento: se a IA estiver fora do\n ar, o áudio tem que continuar sendo enviado. Fica sem transcrição e a\n conversa segue.\n · A MESMA transcrição das duas IAs (src/lib/ai/transcribe.server.ts), pelo\n motivo de sempre: falar tem que valer o mesmo que digitar.",
+    "source_path": "src/lib/chat-audio.server.ts",
+    "audience": [],
+    "content_hash": "580e2ac88550bb89c4ed92d615735c8d"
   },
   {
     "doc_key": "rule:src/lib/dashboard-arrival-types.ts:1579",

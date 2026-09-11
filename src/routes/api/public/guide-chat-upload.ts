@@ -27,7 +27,12 @@ const Meta = z.object({
   slug: z.string().regex(/^[a-z0-9-]{1,64}$/),
   sessionId: z.string().min(8).max(80),
   conversationId: z.string().uuid(),
-  durationMs: z.coerce.number().int().nonnegative().max(5 * 60_000).optional(),
+  durationMs: z.coerce
+    .number()
+    .int()
+    .nonnegative()
+    .max(5 * 60_000)
+    .optional(),
 });
 
 function extFromMime(mime: string): string {
@@ -115,7 +120,10 @@ export const Route = createFileRoute("/api/public/guide-chat-upload")({
           .eq("published", true)
           .maybeSingle();
         if (!prop) {
-          return new Response(JSON.stringify({ error: "not_found" }), { status: 404, headers: { "Content-Type": "application/json" } });
+          return new Response(JSON.stringify({ error: "not_found" }), {
+            status: 404,
+            headers: { "Content-Type": "application/json" },
+          });
         }
         const { data: conv } = await supabaseAdmin
           .from("property_chat_conversations")
@@ -123,7 +131,10 @@ export const Route = createFileRoute("/api/public/guide-chat-upload")({
           .eq("id", meta.conversationId)
           .maybeSingle();
         if (!conv || conv.property_id !== prop.id || conv.guest_session_id !== meta.sessionId) {
-          return new Response(JSON.stringify({ error: "not_found" }), { status: 404, headers: { "Content-Type": "application/json" } });
+          return new Response(JSON.stringify({ error: "not_found" }), {
+            status: 404,
+            headers: { "Content-Type": "application/json" },
+          });
         }
 
         // Only allow guest uploads while a human is handling — reduces abuse surface.
@@ -163,11 +174,23 @@ export const Route = createFileRoute("/api/public/guide-chat-upload")({
             attachment_type: kind,
             attachment_mime: mimeKey,
             attachment_size_bytes: file.size,
-            attachment_duration_ms: kind === "audio" || kind === "video" ? meta.durationMs ?? null : null,
+            attachment_duration_ms:
+              kind === "audio" || kind === "video" ? (meta.durationMs ?? null) : null,
             attachment_name: file.name || null,
           })
           .select("id")
           .single();
+        /* O ÁUDIO DO HÓSPEDE VIRA TEXTO NA HORA (11/09/2026) — é assim que
+           ele entra no histórico da IA e na memória daquele hóspede. */
+        if (inserted && (kind === "audio" || kind === "video")) {
+          const { transcribeChatAttachment } = await import("@/lib/chat-audio.server");
+          await transcribeChatAttachment(supabaseAdmin as never, {
+            messageId: inserted.id as string,
+            path,
+            mime: mimeKey,
+          });
+        }
+
         if (iErr || !inserted) {
           return new Response(JSON.stringify({ error: "persist_failed" }), {
             status: 500,

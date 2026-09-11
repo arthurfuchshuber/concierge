@@ -32,30 +32,37 @@ export const signChatAttachmentUrl = createServerFn({ method: "POST" })
  */
 export const attachStaffMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: {
-    conversationId: string;
-    path: string;
-    attachmentType: "image" | "audio" | "video" | "document";
-    mime: string;
-    sizeBytes: number;
-    durationMs?: number | null;
-    name?: string | null;
-    caption?: string | null;
-    internalNote?: boolean;
-  }) =>
-    z
-      .object({
-        conversationId: z.string().uuid(),
-        path: z.string().min(3).max(500),
-        attachmentType: AttachmentType,
-        mime: z.string().min(1).max(120),
-        sizeBytes: z.number().int().nonnegative().max(MAX_BYTES),
-        durationMs: z.number().int().nonnegative().max(5 * 60_000).optional().nullable(),
-        name: z.string().max(200).optional().nullable(),
-        caption: z.string().max(2000).optional().nullable(),
-        internalNote: z.boolean().optional(),
-      })
-      .parse(input),
+  .inputValidator(
+    (input: {
+      conversationId: string;
+      path: string;
+      attachmentType: "image" | "audio" | "video" | "document";
+      mime: string;
+      sizeBytes: number;
+      durationMs?: number | null;
+      name?: string | null;
+      caption?: string | null;
+      internalNote?: boolean;
+    }) =>
+      z
+        .object({
+          conversationId: z.string().uuid(),
+          path: z.string().min(3).max(500),
+          attachmentType: AttachmentType,
+          mime: z.string().min(1).max(120),
+          sizeBytes: z.number().int().nonnegative().max(MAX_BYTES),
+          durationMs: z
+            .number()
+            .int()
+            .nonnegative()
+            .max(5 * 60_000)
+            .optional()
+            .nullable(),
+          name: z.string().max(200).optional().nullable(),
+          caption: z.string().max(2000).optional().nullable(),
+          internalNote: z.boolean().optional(),
+        })
+        .parse(input),
   )
   .handler(async ({ data, context }) => {
     if (data.attachmentType === "audio" && (data.durationMs ?? 0) > MAX_AUDIO_MS) {
@@ -95,6 +102,21 @@ export const attachStaffMessage = createServerFn({ method: "POST" })
       .select("id")
       .single();
     if (iErr || !inserted) throw new Error("Não consegui salvar o anexo.");
+
+    /* ÁUDIO DO ATENDENTE TAMBÉM É CONTEXTO (pedido explícito, 11/09/2026).
+       Sem isto, o que o atendente combinou por áudio some para a IA: quando
+       ela voltar a atender essa conversa, vai ler uma mensagem em branco no
+       lugar da negociação inteira. Transcrever aqui custa uma vez; ler errado
+       custa toda vez. Falha na transcrição não impede o envio. */
+    if (data.attachmentType === "audio" || data.attachmentType === "video") {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { transcribeChatAttachment } = await import("@/lib/chat-audio.server");
+      await transcribeChatAttachment(supabaseAdmin as never, {
+        messageId: inserted.id as string,
+        path: data.path,
+        mime: data.mime,
+      });
+    }
 
     // If AI is currently handling, pause it — a human is stepping in.
     if (!data.internalNote) {

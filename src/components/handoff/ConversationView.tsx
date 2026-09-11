@@ -782,6 +782,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 sizeBytes: m.attachment_size_bytes,
                 name: m.attachment_name,
                 path: m.attachment_path,
+                transcript: m.attachment_transcript ?? null,
               }
             : null;
           return (

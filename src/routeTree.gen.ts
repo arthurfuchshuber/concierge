@@ -80,6 +80,7 @@ import { Route as ApiPublicCronRefreshAirbnbListingsRouteImport } from './routes
 import { Route as ApiPublicCronProactiveConciergeRouteImport } from './routes/api/public/cron.proactive-concierge'
 import { Route as ApiPublicCronOpsPushRouteImport } from './routes/api/public/cron.ops-push'
 import { Route as ApiPublicCronLearningLoopRouteImport } from './routes/api/public/cron.learning-loop'
+import { Route as ApiPublicCronGuestFollowupRouteImport } from './routes/api/public/cron.guest-followup'
 import { Route as ApiPublicCronEvaluationSuiteRouteImport } from './routes/api/public/cron.evaluation-suite'
 import { Route as ApiPublicCronConversationRemindersRouteImport } from './routes/api/public/cron.conversation-reminders'
 import { Route as ApiPublicCronAutoCheckoutRouteImport } from './routes/api/public/cron.auto-checkout'
@@ -482,6 +483,12 @@ const ApiPublicCronLearningLoopRoute =
     path: '/api/public/cron/learning-loop',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronGuestFollowupRoute =
+  ApiPublicCronGuestFollowupRouteImport.update({
+    id: '/api/public/cron/guest-followup',
+    path: '/api/public/cron/guest-followup',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronEvaluationSuiteRoute =
   ApiPublicCronEvaluationSuiteRouteImport.update({
     id: '/api/public/cron/evaluation-suite',
@@ -603,6 +610,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
   '/api/public/cron/evaluation-suite': typeof ApiPublicCronEvaluationSuiteRoute
+  '/api/public/cron/guest-followup': typeof ApiPublicCronGuestFollowupRoute
   '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
   '/api/public/cron/proactive-concierge': typeof ApiPublicCronProactiveConciergeRoute
@@ -682,6 +690,7 @@ export interface FileRoutesByTo {
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
   '/api/public/cron/evaluation-suite': typeof ApiPublicCronEvaluationSuiteRoute
+  '/api/public/cron/guest-followup': typeof ApiPublicCronGuestFollowupRoute
   '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
   '/api/public/cron/proactive-concierge': typeof ApiPublicCronProactiveConciergeRoute
@@ -766,6 +775,7 @@ export interface FileRoutesById {
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
   '/api/public/cron/evaluation-suite': typeof ApiPublicCronEvaluationSuiteRoute
+  '/api/public/cron/guest-followup': typeof ApiPublicCronGuestFollowupRoute
   '/api/public/cron/learning-loop': typeof ApiPublicCronLearningLoopRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
   '/api/public/cron/proactive-concierge': typeof ApiPublicCronProactiveConciergeRoute
@@ -850,6 +860,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/auto-checkout'
     | '/api/public/cron/conversation-reminders'
     | '/api/public/cron/evaluation-suite'
+    | '/api/public/cron/guest-followup'
     | '/api/public/cron/learning-loop'
     | '/api/public/cron/ops-push'
     | '/api/public/cron/proactive-concierge'
@@ -929,6 +940,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/auto-checkout'
     | '/api/public/cron/conversation-reminders'
     | '/api/public/cron/evaluation-suite'
+    | '/api/public/cron/guest-followup'
     | '/api/public/cron/learning-loop'
     | '/api/public/cron/ops-push'
     | '/api/public/cron/proactive-concierge'
@@ -1012,6 +1024,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/auto-checkout'
     | '/api/public/cron/conversation-reminders'
     | '/api/public/cron/evaluation-suite'
+    | '/api/public/cron/guest-followup'
     | '/api/public/cron/learning-loop'
     | '/api/public/cron/ops-push'
     | '/api/public/cron/proactive-concierge'
@@ -1070,6 +1083,7 @@ export interface RootRouteChildren {
   ApiPublicCronAutoCheckoutRoute: typeof ApiPublicCronAutoCheckoutRoute
   ApiPublicCronConversationRemindersRoute: typeof ApiPublicCronConversationRemindersRoute
   ApiPublicCronEvaluationSuiteRoute: typeof ApiPublicCronEvaluationSuiteRoute
+  ApiPublicCronGuestFollowupRoute: typeof ApiPublicCronGuestFollowupRoute
   ApiPublicCronLearningLoopRoute: typeof ApiPublicCronLearningLoopRoute
   ApiPublicCronOpsPushRoute: typeof ApiPublicCronOpsPushRoute
   ApiPublicCronProactiveConciergeRoute: typeof ApiPublicCronProactiveConciergeRoute
@@ -1589,6 +1603,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronLearningLoopRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/guest-followup': {
+      id: '/api/public/cron/guest-followup'
+      path: '/api/public/cron/guest-followup'
+      fullPath: '/api/public/cron/guest-followup'
+      preLoaderRoute: typeof ApiPublicCronGuestFollowupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/evaluation-suite': {
       id: '/api/public/cron/evaluation-suite'
       path: '/api/public/cron/evaluation-suite'
@@ -1803,6 +1824,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCronConversationRemindersRoute:
     ApiPublicCronConversationRemindersRoute,
   ApiPublicCronEvaluationSuiteRoute: ApiPublicCronEvaluationSuiteRoute,
+  ApiPublicCronGuestFollowupRoute: ApiPublicCronGuestFollowupRoute,
   ApiPublicCronLearningLoopRoute: ApiPublicCronLearningLoopRoute,
   ApiPublicCronOpsPushRoute: ApiPublicCronOpsPushRoute,
   ApiPublicCronProactiveConciergeRoute: ApiPublicCronProactiveConciergeRoute,

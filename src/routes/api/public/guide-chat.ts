@@ -249,16 +249,33 @@ async function runGuideChat(
       );
     }
 
-    // Load prior messages (latest 20)
+    /* O HISTÓRICO INCLUI O QUE FOI FALADO (11/09/2026).
+       Mensagem de áudio grava `content` vazio; lendo só `content`, a IA via um
+       buraco exatamente onde estava o combinado (ver a negociação por áudio da
+       Izabela, 10/09). Agora a transcrição entra no lugar, marcada como fala —
+       transcrição vem torta e a IA precisa saber disso antes de interpretar. */
     const { data: priorRaw } = await supabaseAdmin
       .from("property_chat_messages")
-      .select("role, content")
+      .select("role, content, attachment_type, attachment_transcript, attachment_duration_ms")
       .eq("conversation_id", conversationId)
       .order("created_at", { ascending: false })
       .limit(20);
+    const { transcriptAsContent } = await import("@/lib/chat-audio.server");
     const prior = (priorRaw ?? [])
       .filter((m) => m.role === "user" || m.role === "assistant")
-      .reverse();
+      .reverse()
+      .map((m) => ({
+        role: m.role,
+        content: transcriptAsContent({
+          content: m.content as string | null,
+          attachmentType: (m as { attachment_type?: string | null }).attachment_type ?? null,
+          transcript:
+            (m as { attachment_transcript?: string | null }).attachment_transcript ?? null,
+          durationMs:
+            (m as { attachment_duration_ms?: number | null }).attachment_duration_ms ?? null,
+        }),
+      }))
+      .filter((m) => m.content.trim().length > 0);
 
     await supabaseAdmin.from("property_chat_messages").insert({
       conversation_id: conversationId,
@@ -545,7 +562,7 @@ export const Route = createFileRoute("/api/public/guide-chat")({
         let q = supabaseAdmin
           .from("property_chat_messages")
           .select(
-            "id, role, content, sender_type, created_at, attachment_path, attachment_type, attachment_mime, attachment_duration_ms, attachment_size_bytes, attachment_name",
+            "id, role, content, sender_type, created_at, attachment_path, attachment_type, attachment_mime, attachment_duration_ms, attachment_size_bytes, attachment_name, attachment_transcript",
           )
           .eq("conversation_id", conversationId)
           .eq("is_internal_note", false)
@@ -584,6 +601,7 @@ export const Route = createFileRoute("/api/public/guide-chat")({
                     durationMs: m.attachment_duration_ms,
                     sizeBytes: m.attachment_size_bytes,
                     name: m.attachment_name,
+                    transcript: m.attachment_transcript ?? null,
                     url: signedMap.get(m.attachment_path as string) ?? null,
                   }
                 : null,

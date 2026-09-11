@@ -795,6 +795,209 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
     },
   });
 
+  /* ---------------------------------------------------------------------
+   * DISPONIBILIDADE — a IA resolvendo "posso ficar mais um dia?" sozinha
+   *
+   * Pedido explícito (11/09/2026), depois da auditoria: "a IA poderia muito
+   * bem resolver essa situação de ponta a ponta, lendo o calendário do imóvel
+   * em que ela se encontra e, ao ver que não tem disponibilidade, procurando
+   * outro imóvel por proximidade para sugerir a ela".
+   *
+   * O caso real: 10/09, Izabela pediu +1 diária no Studio 104. O calendário
+   * dizia que o 104 estava ocupado em 11–12/09 e que o Studio 105, no mesmo
+   * prédio, estava LIVRE. A IA tinha esse dado e não o usou: respondeu "vou
+   * confirmar" e escalou. O atendente levou vinte minutos e seis áudios para
+   * chegar na mesma conclusão e mandar o link do 105 na mão.
+   *
+   * FONTE: `property_reservations`, alimentada pelo iCal do Airbnb. Como é
+   * espelho, e espelho atrasa, as duas ferramentas devolvem `sincronizado_em`
+   * e um aviso quando o feed está velho — a IA informa, mas quem confirma de
+   * verdade é a plataforma. Preço NUNCA sai daqui: quem precifica é o anúncio.
+   * ------------------------------------------------------------------- */
+
+  /** Distância aproximada em km (Haversine) — só para ordenar por perto. */
+  const distanciaKm = (
+    a: { lat: number | null; lng: number | null },
+    b: { lat: number | null; lng: number | null },
+  ): number | null => {
+    if (a.lat == null || a.lng == null || b.lat == null || b.lng == null) return null;
+    const R = 6371;
+    const rad = (v: number) => (v * Math.PI) / 180;
+    const dLat = rad(b.lat - a.lat);
+    const dLng = rad(b.lng - a.lng);
+    const h =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+    return Number((2 * R * Math.asin(Math.sqrt(h))).toFixed(2));
+  };
+
+  /** Reservas que colidem com [entrada, saida) — a regra de hotelaria: o dia
+   * da saída de um é o dia da entrada do outro, então não conflita. */
+  const ocupacoes = async (propertyIds: string[], entrada: string, saida: string) => {
+    if (propertyIds.length === 0) return new Map<string, boolean>();
+    const { data } = await ctx.supabase
+      .from("property_reservations")
+      .select("property_id, checkin_date, checkout_date, status")
+      .in("property_id", propertyIds)
+      .lt("checkin_date", saida)
+      .gt("checkout_date", entrada);
+    const ocupado = new Map<string, boolean>();
+    for (const r of (data ?? []) as Array<{ property_id: string; status: string | null }>) {
+      if ((r.status ?? "confirmed") === "cancelled") continue;
+      ocupado.set(r.property_id, true);
+    }
+    return ocupado;
+  };
+
+  const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+  tools.push({
+    name: "check_availability",
+    description:
+      "Consulta o CALENDÁRIO do imóvel em que o hóspede está e diz se ele está livre em um período. Use para " +
+      "'posso ficar mais um dia', 'dá para estender', 'tem disponibilidade em tal data', 'posso sair mais tarde " +
+      "no dia X'. Datas no formato AAAA-MM-DD; `saida` é o dia da saída (não conta como noite ocupada). " +
+      "NUNCA informe preço a partir daqui — o valor é sempre o do anúncio.",
+    parameters: schema(
+      {
+        entrada: { type: "string", description: "Primeira noite pretendida (AAAA-MM-DD)." },
+        saida: { type: "string", description: "Dia da saída (AAAA-MM-DD)." },
+      },
+      ["entrada", "saida"],
+    ),
+    execute: async (args) => {
+      const entrada = String(args.entrada ?? "");
+      const saida = String(args.saida ?? "");
+      if (!ISO_DATE.test(entrada) || !ISO_DATE.test(saida) || saida <= entrada) {
+        return { erro: "Datas inválidas. Use AAAA-MM-DD, com saída depois da entrada." };
+      }
+
+      const ocupado = await ocupacoes([ctx.propertyId], entrada, saida);
+      const { data: prop } = await ctx.supabase
+        .from("properties")
+        .select("name, airbnb_ical_last_sync_at")
+        .eq("id", ctx.propertyId)
+        .maybeSingle();
+      const p = prop as { name: string | null; airbnb_ical_last_sync_at: string | null } | null;
+      const sync = p?.airbnb_ical_last_sync_at ?? null;
+      const horasDesdeSync = sync
+        ? Math.round((Date.now() - new Date(sync).getTime()) / 3_600_000)
+        : null;
+
+      const livre = !ocupado.get(ctx.propertyId);
+      ctx.collectSource({
+        source: "calendario",
+        title: `Calendário de ${p?.name ?? "imóvel"}`,
+        confidence: horasDesdeSync != null && horasDesdeSync <= 12 ? 0.95 : 0.8,
+        content: `${entrada} → ${saida}: ${livre ? "livre" : "ocupado"}`,
+      });
+
+      return {
+        imovel: p?.name ?? null,
+        periodo: { entrada, saida },
+        livre,
+        sincronizado_em: sync,
+        aviso:
+          horasDesdeSync != null && horasDesdeSync > 24
+            ? "O calendário não sincroniza há mais de um dia — trate como indicação, não como garantia."
+            : null,
+        observacao:
+          "Disponibilidade de calendário. Preço e confirmação da reserva são sempre na plataforma do anúncio.",
+      };
+    },
+  });
+
+  tools.push({
+    name: "find_available_stays",
+    description:
+      "Procura OUTROS imóveis do mesmo anfitrião livres em um período, ordenados por proximidade do imóvel atual. " +
+      "Use quando o imóvel do hóspede NÃO estiver livre e ele quiser estender, antecipar ou voltar em outra data — " +
+      "e também quando ele perguntar por outra unidade para acompanhantes. Devolve o link do anúncio quando " +
+      "cadastrado. NUNCA informe preço: mande o link, quem precifica é a plataforma.",
+    parameters: schema(
+      {
+        entrada: { type: "string", description: "Primeira noite pretendida (AAAA-MM-DD)." },
+        saida: { type: "string", description: "Dia da saída (AAAA-MM-DD)." },
+        hospedes: {
+          type: "number",
+          description:
+            "Quantas pessoas vão ficar. Opcional — filtra por capacidade quando informado.",
+        },
+      },
+      ["entrada", "saida"],
+    ),
+    execute: async (args) => {
+      const entrada = String(args.entrada ?? "");
+      const saida = String(args.saida ?? "");
+      if (!ISO_DATE.test(entrada) || !ISO_DATE.test(saida) || saida <= entrada) {
+        return { erro: "Datas inválidas. Use AAAA-MM-DD, com saída depois da entrada." };
+      }
+      const hospedes = typeof args.hospedes === "number" ? args.hospedes : null;
+
+      // Só imóveis DA MESMA CONTA e publicados — nunca concorrente.
+      const { data: irmaos } = await ctx.supabase
+        .from("properties")
+        .select(
+          "id, name, city, lat, lng, airbnb_listing_url, airbnb_guest_count, airbnb_bedroom_count",
+        )
+        .eq("owner_id", ctx.ownerId)
+        .eq("published", true);
+
+      type Prop = {
+        id: string;
+        name: string | null;
+        city: string | null;
+        lat: number | null;
+        lng: number | null;
+        airbnb_listing_url: string | null;
+        airbnb_guest_count: number | null;
+        airbnb_bedroom_count: number | null;
+      };
+      const lista = ((irmaos ?? []) as Prop[]).filter((x) => x.id !== ctx.propertyId);
+      const atual = ((irmaos ?? []) as Prop[]).find((x) => x.id === ctx.propertyId) ?? null;
+
+      const ocupado = await ocupacoes(
+        lista.map((x) => x.id),
+        entrada,
+        saida,
+      );
+
+      const livres = lista
+        .filter((x) => !ocupado.get(x.id))
+        .filter((x) => (hospedes ? (x.airbnb_guest_count ?? 99) >= hospedes : true))
+        .map((x) => ({
+          imovel: x.name,
+          cidade: x.city,
+          distancia_km: atual ? distanciaKm(atual, x) : null,
+          capacidade: x.airbnb_guest_count,
+          quartos: x.airbnb_bedroom_count,
+          link_anuncio: x.airbnb_listing_url,
+        }))
+        .sort((a, b) => (a.distancia_km ?? 999) - (b.distancia_km ?? 999))
+        .slice(0, 5);
+
+      ctx.collectSource({
+        source: "calendario",
+        title: "Disponibilidade na carteira do anfitrião",
+        confidence: 0.9,
+        content: `${entrada} → ${saida}: ${livres.length} imóvel(is) livre(s)`,
+      });
+
+      return {
+        periodo: { entrada, saida },
+        encontrados: livres.length,
+        opcoes: livres,
+        observacao:
+          livres.length > 0
+            ? "Ofereça as opções pelo nome e mande o link quando existir. Nunca cite preço — ele está no anúncio."
+            : "Nenhuma unidade livre no período. Aqui vale escalar para o anfitrião.",
+        sem_link: livres.some((o) => !o.link_anuncio)
+          ? "Alguma unidade livre está sem link de anúncio cadastrado — cite o nome e diga que o anfitrião envia o link."
+          : null,
+      };
+    },
+  });
+
   tools.push({
     name: "request_human_handoff",
     description:

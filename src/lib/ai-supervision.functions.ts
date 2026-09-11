@@ -47,6 +47,13 @@ export const answerEscalation = createServerFn({ method: "POST" })
     return { escalationId: input.escalationId, answer: answer.slice(0, 2000) };
   })
   .handler(async ({ data, context }) => {
+    const { data: esc, error: readErr } = await context.supabase
+      .from("ai_human_escalations")
+      .select("id, conversation_id, question_to_human")
+      .eq("id", data.escalationId)
+      .maybeSingle();
+    if (readErr) throw new Error(readErr.message);
+
     const { error } = await context.supabase
       .from("ai_human_escalations")
       .update({
@@ -57,7 +64,51 @@ export const answerEscalation = createServerFn({ method: "POST" })
       })
       .eq("id", data.escalationId);
     if (error) throw new Error(error.message);
-    return { ok: true };
+
+    /**
+     * A RESPOSTA CHEGA AO HÓSPEDE NA HORA (pedido explícito, 11/09/2026).
+     *
+     * Antes, a resposta ficava guardada esperando o hóspede mandar OUTRA
+     * mensagem para ser entregue — e quem não escrevia de novo simplesmente
+     * nunca recebia (foi o que aconteceu com a hóspede do Studio 103 em
+     * 08/09, que até hoje está sem resposta). Agora o atendente responde à IA
+     * e ela fala com o hóspede imediatamente, no próprio tom.
+     *
+     * Falhar aqui não desfaz a resposta: ela fica gravada e o caminho antigo
+     * (entregar na próxima mensagem do hóspede) continua valendo como rede.
+     */
+    const conversationId = (esc as { conversation_id?: string | null } | null)?.conversation_id;
+    let entregue = false;
+    if (conversationId) {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { speakWithAgent } = await import("@/lib/ai/outbound/speak.server");
+        const pergunta =
+          (esc as { question_to_human?: string | null } | null)?.question_to_human ?? "";
+        const r = await speakWithAgent({
+          supabase: supabaseAdmin as never,
+          conversationId,
+          reason: "human_answer",
+          pushTitle: "Resposta sobre o seu pedido",
+          instruction:
+            `A equipe respondeu internamente à sua pergunta "${pergunta}": "${data.answer}". ` +
+            "Leve essa resposta ao hóspede agora, na sua própria voz, como continuidade natural da conversa. " +
+            "Não diga que consultou ninguém, não mencione equipe nem transferência — do ponto de vista dele, " +
+            "quem sempre esteve na conversa é você. Se a resposta abrir um próximo passo, ofereça-o.",
+        });
+        entregue = r.sent;
+        if (entregue) {
+          await context.supabase
+            .from("ai_human_escalations")
+            .update({ applied_to_guest: true })
+            .eq("id", data.escalationId);
+        }
+      } catch (e) {
+        console.error("[supervision] entrega imediata falhou", (e as Error)?.message);
+      }
+    }
+
+    return { ok: true, entregue };
   });
 
 /** Conhecimento destilado aguardando aprovação humana. */
@@ -104,9 +155,8 @@ export const reviewLearningCandidate = createServerFn({ method: "POST" })
     if (!row) throw new Error("Candidata não encontrada");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { approveLearningCandidate, rejectLearningCandidate } = await import(
-      "./ai/human-loop/learning.server"
-    );
+    const { approveLearningCandidate, rejectLearningCandidate } =
+      await import("./ai/human-loop/learning.server");
 
     if (data.decision === "reject") {
       await rejectLearningCandidate({

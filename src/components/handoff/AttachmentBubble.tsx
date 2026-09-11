@@ -13,6 +13,8 @@ export type AttachmentInfo = {
   url?: string | null;
   /** For staff side we get the storage path and sign it here. */
   path?: string | null;
+  /** O que foi FALADO no áudio — a mesma transcrição que a IA lê. */
+  transcript?: string | null;
 };
 
 function formatSize(bytes: number | null): string {
@@ -111,6 +113,14 @@ export function AttachmentBubble({ attachment }: { attachment: AttachmentInfo })
           <source src={resolvedUrl} />
           Seu navegador não suporta reprodução deste áudio.
         </audio>
+        {/* A TRANSCRIÇÃO FICA À VISTA (11/09/2026): é o mesmo texto que a IA
+            passou a ler, então quem atende confere o que ela está "ouvindo" —
+            e quem prefere ler a ouvir resolve sem dar play. */}
+        {attachment.transcript && (
+          <p className="mt-1 max-w-[280px] whitespace-pre-wrap break-words text-[11px] italic leading-relaxed opacity-75">
+            “{attachment.transcript}”
+          </p>
+        )}
       </div>
     );
   }

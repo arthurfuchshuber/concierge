@@ -77,8 +77,21 @@ export const Route = createFileRoute("/api/public/guest-push")({
           .maybeSingle();
         if (!prop) return jsonResponse({ error: "Imóvel não encontrado" }, 404);
 
-        // Se conversationId informado, valida que pertence a esta property + sessão
+        // Se conversationId informado, valida que pertence a esta property + sessão.
+        // Se NÃO informado (o caso comum: o hóspede autoriza a notificação antes
+        // de abrir o chat), tenta achar a conversa daquela sessão — sem isso a
+        // inscrição nasce solta e o envio precisa procurá-la depois.
         let conversationId: string | null = null;
+        if (!b.conversationId) {
+          const { data: existente } = await supabaseAdmin
+            .from("property_chat_conversations")
+            .select("id")
+            .eq("property_id", (prop as { id: string }).id)
+            .eq("guest_session_id", b.sessionId)
+            .order("last_message_at", { ascending: false })
+            .limit(1);
+          conversationId = ((existente ?? []) as Array<{ id: string }>)[0]?.id ?? null;
+        }
         if (b.conversationId) {
           const { data: conv } = await supabaseAdmin
             .from("property_chat_conversations")
@@ -94,22 +107,20 @@ export const Route = createFileRoute("/api/public/guest-push")({
           }
         }
 
-        const { error } = await supabaseAdmin
-          .from("guest_push_subscriptions")
-          .upsert(
-            {
-              guest_session_id: b.sessionId,
-              property_id: (prop as { id: string }).id,
-              conversation_id: conversationId,
-              endpoint: b.endpoint,
-              p256dh: b.keys.p256dh,
-              auth: b.keys.auth,
-              user_agent: b.userAgent ?? null,
-              enabled: true,
-              last_used_at: new Date().toISOString(),
-            },
-            { onConflict: "endpoint" },
-          );
+        const { error } = await supabaseAdmin.from("guest_push_subscriptions").upsert(
+          {
+            guest_session_id: b.sessionId,
+            property_id: (prop as { id: string }).id,
+            conversation_id: conversationId,
+            endpoint: b.endpoint,
+            p256dh: b.keys.p256dh,
+            auth: b.keys.auth,
+            user_agent: b.userAgent ?? null,
+            enabled: true,
+            last_used_at: new Date().toISOString(),
+          },
+          { onConflict: "endpoint" },
+        );
 
         if (error) return jsonResponse({ error: error.message }, 500);
         return jsonResponse({ ok: true });

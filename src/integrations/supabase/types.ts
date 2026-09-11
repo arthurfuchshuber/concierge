@@ -3810,6 +3810,7 @@ export type Database = {
           handoff_reason: string | null
           handoff_urgency: string | null
           id: string
+          last_guest_followup_at: string | null
           last_message_at: string
           last_reminder_at: string | null
           property_id: string
@@ -3829,6 +3830,7 @@ export type Database = {
           handoff_reason?: string | null
           handoff_urgency?: string | null
           id?: string
+          last_guest_followup_at?: string | null
           last_message_at?: string
           last_reminder_at?: string | null
           property_id: string
@@ -3848,6 +3850,7 @@ export type Database = {
           handoff_reason?: string | null
           handoff_urgency?: string | null
           id?: string
+          last_guest_followup_at?: string | null
           last_message_at?: string
           last_reminder_at?: string | null
           property_id?: string
@@ -3872,6 +3875,7 @@ export type Database = {
           attachment_name: string | null
           attachment_path: string | null
           attachment_size_bytes: number | null
+          attachment_transcript: string | null
           attachment_type: string | null
           channel: string
           content: string
@@ -3893,6 +3897,7 @@ export type Database = {
           attachment_name?: string | null
           attachment_path?: string | null
           attachment_size_bytes?: number | null
+          attachment_transcript?: string | null
           attachment_type?: string | null
           channel?: string
           content: string
@@ -3914,6 +3919,7 @@ export type Database = {
           attachment_name?: string | null
           attachment_path?: string | null
           attachment_size_bytes?: number | null
+          attachment_transcript?: string | null
           attachment_type?: string | null
           channel?: string
           content?: string

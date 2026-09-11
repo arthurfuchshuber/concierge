@@ -749,6 +749,8 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
       attachment_duration_ms: number | null;
       attachment_size_bytes: number | null;
       attachment_name: string | null;
+      /** O que foi falado no áudio — a IA lê isto, e o painel mostra. */
+      attachment_transcript: string | null;
       /** Recibo do canal (WhatsApp): sent → delivered → read, ou failed.
        * Vazio no chat do próprio guia, que não tem recibo nenhum. */
       delivery_status: string | null;
@@ -757,7 +759,7 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
     const { data: msgRows, error: mErr } = await supabase
       .from("property_chat_messages")
       .select(
-        "id, role, content, sender_type, sender_user_id, is_internal_note, created_at, edited_at, attachment_path, attachment_type, attachment_mime, attachment_duration_ms, attachment_size_bytes, attachment_name, delivery_status, channel",
+        "id, role, content, sender_type, sender_user_id, is_internal_note, created_at, edited_at, attachment_path, attachment_type, attachment_mime, attachment_duration_ms, attachment_size_bytes, attachment_name, attachment_transcript, delivery_status, channel",
       )
       .in("conversation_id", Array.from(conversationIds))
       .order("created_at", { ascending: true });
