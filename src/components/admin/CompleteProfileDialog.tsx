@@ -6,6 +6,7 @@ import { Loader2, ShieldCheck, UserCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { getMyProfile, updateMyProfile, setMissingCpf } from "@/lib/profile.functions";
 import { formatCPF } from "@/lib/masks";
+import { useHasSession } from "@/hooks/useHasSession";
 
 export function CompleteProfileDialog() {
   const getFn = useServerFn(getMyProfile);
@@ -13,9 +14,11 @@ export function CompleteProfileDialog() {
   const cpfFn = useServerFn(setMissingCpf);
   const qc = useQueryClient();
 
+  const hasSession = useHasSession();
   const q = useQuery({
     queryKey: ["my-profile"],
     queryFn: () => getFn(),
+    enabled: hasSession === true,
     staleTime: 60_000,
     retry: false,
   });
