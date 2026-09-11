@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
 import { metaPixelTrack, metaPixelTrackCustom, metaPixelTrackCustomOnce } from "@/lib/meta-pixel";
+import { siteUrl } from "@/lib/site-url";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -40,9 +41,9 @@ export const Route = createFileRoute("/")({
         content:
           "Automatize o atendimento ao hóspede com IA. Respostas em 3 segundos, 24/7, em português, inglês e espanhol.",
       },
-      { property: "og:url", content: "https://guia.anfitriaosigma.com.br/" },
+      { property: "og:url", content: siteUrl("/") },
     ],
-    links: [{ rel: "canonical", href: "https://guia.anfitriaosigma.com.br/" }],
+    links: [{ rel: "canonical", href: siteUrl("/") }],
     scripts: [
       {
         type: "application/ld+json",

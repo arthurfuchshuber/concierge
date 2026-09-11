@@ -77,6 +77,7 @@ import { InlineTagText } from "@/components/tags/InlineTagText";
 import { slugForTag, expandInfoTags, type GuideTagKey } from "@/lib/guide-tags";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { guideUrl } from "@/lib/site-url";
 
 // Identificador estável da sessão do hóspede usado na analítica do guia.
 // Sempre tem ao menos 8 caracteres — o servidor rejeita valores curtos como "anon".
@@ -125,7 +126,7 @@ export const Route = createFileRoute("/g/$slug/")({
       baseDesc.length < 60
         ? `${baseDesc} Tudo o que você precisa para uma estadia tranquila${city ? ` em ${city}` : ""}.`
         : baseDesc;
-    const url = `https://guia.anfitriaosigma.com.br/g/${params.slug}`;
+    const url = guideUrl(params.slug);
     const address = (p.address as string | null) ?? null;
     const ldAccommodation: Record<string, unknown> = {
       "@context": "https://schema.org",

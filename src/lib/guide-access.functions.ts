@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getRequestHeader } from "@tanstack/react-start/server";
+import { guideUrl } from "@/lib/site-url";
 
 const VehicleSchema = z.object({
   plate: z.string().trim().max(20).optional().nullable(),
@@ -24,13 +25,25 @@ const AccessInput = z.object({
   guest_name: z.string().trim().min(2).max(200),
   reservation_code: z.string().trim().max(100).optional().nullable(),
   checkin_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  checkout_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  checkout_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional()
+    .nullable(),
 
   guest_phone: z.string().trim().max(40).optional().nullable(),
   guest_phone_country: z.string().trim().max(4).optional().nullable(),
   guest_arrival_time: z.string().trim().max(10).optional().nullable(),
-  predicted_checkin_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
-  predicted_checkout_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  predicted_checkin_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional()
+    .nullable(),
+  predicted_checkout_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional()
+    .nullable(),
   predicted_checkout_time: z.string().trim().max(10).optional().nullable(),
   guest_vehicles: z.array(VehicleSchema).max(10).optional().nullable(),
   guest_documents: z.array(DocumentSchema).max(20).optional().nullable(),
@@ -74,7 +87,8 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
     const { data: prop, error: propErr } = data.property_id
       ? await propQuery.eq("id", data.property_id).maybeSingle()
       : await propQuery.maybeSingle();
-    if (propErr) throw (await import("@/lib/db-errors.server")).safeDbError("guide_access_logs", propErr);
+    if (propErr)
+      throw (await import("@/lib/db-errors.server")).safeDbError("guide_access_logs", propErr);
     if (!prop) return { ok: false as const, reason: "not_found" };
 
     const hasIcal = !!((prop as { airbnb_ical_url?: string | null }).airbnb_ical_url ?? "").trim();
@@ -85,7 +99,8 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
     // acesso passam a vir da própria reserva, nunca da escolha do hóspede.
     const { ETIQUETA_CHECKIN_CHECKOUT } = await import("@/lib/publish-requirements");
     const requiresCode =
-      hasIcal && ((prop as { tagline?: string | null }).tagline ?? "").trim() === ETIQUETA_CHECKIN_CHECKOUT;
+      hasIcal &&
+      ((prop as { tagline?: string | null }).tagline ?? "").trim() === ETIQUETA_CHECKIN_CHECKOUT;
     if (requiresCode) {
       const codeRaw = (data.reservation_code ?? "").trim();
       if (!codeRaw) return { ok: false as const, reason: "code_required" };
@@ -122,7 +137,9 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
       // Captura o código HM… do iCal quando o par (imóvel, entrada, saída) é
       // único — assim o dashboard mapeia o log ao card certo mesmo quando o
       // formulário público não expõe o campo de código.
-      const rows = ((periods ?? []) as Array<{ guest_hint: string | null }>).filter((r) => !!r.guest_hint);
+      const rows = ((periods ?? []) as Array<{ guest_hint: string | null }>).filter(
+        (r) => !!r.guest_hint,
+      );
       const codes = Array.from(new Set(rows.map((r) => (r.guest_hint ?? "").toUpperCase())));
       if (codes.length === 1) icalReservationCode = codes[0];
     }
@@ -133,20 +150,23 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
       .insert({
         property_id: prop.id,
         guest_name: data.guest_name,
-        reservation_code: (data.reservation_code?.trim() || icalReservationCode) || null,
+        reservation_code: data.reservation_code?.trim() || icalReservationCode || null,
         checkin_date: data.checkin_date,
         checkout_date: data.checkout_date ?? null,
         guest_phone: data.guest_phone?.trim() || null,
 
         guest_phone_country: data.guest_phone_country?.trim() || null,
         guest_arrival_time: data.guest_arrival_time?.trim() || null,
-        guest_vehicles: data.guest_vehicles && data.guest_vehicles.length > 0 ? data.guest_vehicles : null,
-        guest_documents: data.guest_documents && data.guest_documents.length > 0 ? data.guest_documents : null,
+        guest_vehicles:
+          data.guest_vehicles && data.guest_vehicles.length > 0 ? data.guest_vehicles : null,
+        guest_documents:
+          data.guest_documents && data.guest_documents.length > 0 ? data.guest_documents : null,
         user_agent: userAgent,
       } as never)
       .select("id")
       .single();
-    if (error) throw (await import("@/lib/db-errors.server")).safeDbError("guide_access_logs", error);
+    if (error)
+      throw (await import("@/lib/db-errors.server")).safeDbError("guide_access_logs", error);
 
     // Previsão de chegada/saída informada pelo próprio hóspede no formulário
     // (mesmas regras já aplicadas no seletor do anfitrião): checkin nunca
@@ -181,12 +201,14 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
       };
       const arrivalTimeRaw = data.guest_arrival_time?.trim() || null;
       const arrivalTimeOverride =
-        arrivalTimeRaw && withinTimeBounds(arrivalTimeRaw, p.checkin_time ?? null, p.checkin_time_max ?? null)
+        arrivalTimeRaw &&
+        withinTimeBounds(arrivalTimeRaw, p.checkin_time ?? null, p.checkin_time_max ?? null)
           ? arrivalTimeRaw
           : null;
       const departureTimeRaw = data.predicted_checkout_time?.trim() || null;
       const departureTimeOverride =
-        departureTimeRaw && withinTimeBounds(departureTimeRaw, p.checkout_time_min ?? null, p.checkout_time ?? null)
+        departureTimeRaw &&
+        withinTimeBounds(departureTimeRaw, p.checkout_time_min ?? null, p.checkout_time ?? null)
           ? departureTimeRaw
           : null;
 
@@ -226,7 +248,6 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
       }
     }
 
-
     try {
       const { data: fullProp } = await supabaseAdmin
         .from("properties")
@@ -239,11 +260,14 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
         if (ownerEmail) {
           const guestLabel = data.guest_name;
           const checkinLabel = data.checkin_date
-            ? new Date(data.checkin_date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })
+            ? new Date(data.checkin_date + "T12:00:00").toLocaleDateString("pt-BR", {
+                day: "2-digit",
+                month: "short",
+              })
             : "data não informada";
-          const guideUrl = `https://guia.anfitriaosigma.com.br/g/${fullProp.slug}`;
+          const linkDoGuia = guideUrl(fullProp.slug);
           console.info(
-            `[guide-access] Guest "${guestLabel}" (check-in ${checkinLabel}) accessed guide "${fullProp.name}". Notify: ${ownerEmail} — ${guideUrl}`,
+            `[guide-access] Guest "${guestLabel}" (check-in ${checkinLabel}) accessed guide "${fullProp.name}". Notify: ${ownerEmail} — ${linkDoGuia}`,
           );
         }
       }
@@ -257,7 +281,6 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
       checkin_date: data.checkin_date,
       checkout_date: data.checkout_date ?? null,
     };
-
   });
 
 const CheckReservationInput = z.object({
@@ -281,7 +304,8 @@ export const getGuideCalendarAvailability = createServerFn({ method: "POST" })
       throw new Error("Muitas tentativas. Aguarde um instante e tente novamente.");
     }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { classifyCalendarPeriod, operationalTodayISO } = await import("@/lib/reservations.server");
+    const { classifyCalendarPeriod, operationalTodayISO } =
+      await import("@/lib/reservations.server");
     const propQuery = supabaseAdmin
       .from("properties")
       .select("id, airbnb_ical_url, airbnb_ical_last_sync_at")
@@ -290,9 +314,17 @@ export const getGuideCalendarAvailability = createServerFn({ method: "POST" })
     const { data: prop } = data.property_id
       ? await propQuery.eq("id", data.property_id).maybeSingle()
       : await propQuery.maybeSingle();
-    if (!prop) return { hasIcal: false as const, periods: [] as Array<{ checkin: string; checkout: string; type: "reservation" | "block" }> };
+    if (!prop)
+      return {
+        hasIcal: false as const,
+        periods: [] as Array<{ checkin: string; checkout: string; type: "reservation" | "block" }>,
+      };
     const hasIcal = !!((prop.airbnb_ical_url as string | null) ?? "").trim();
-    if (!hasIcal) return { hasIcal: false as const, periods: [] as Array<{ checkin: string; checkout: string; type: "reservation" | "block" }> };
+    if (!hasIcal)
+      return {
+        hasIcal: false as const,
+        periods: [] as Array<{ checkin: string; checkout: string; type: "reservation" | "block" }>,
+      };
     const { ensurePropertyIcalFresh } = await import("@/lib/airbnb-ical.server");
     await ensurePropertyIcalFresh(
       prop.id,
@@ -313,9 +345,15 @@ export const getGuideCalendarAvailability = createServerFn({ method: "POST" })
       .limit(500);
 
     const periods: Array<{ checkin: string; checkout: string; type: "reservation" | "block" }> = [];
-    for (const row of (rows ?? []) as Array<{ checkin_date: string; checkout_date: string; raw_summary: string | null; status: string | null }>) {
+    for (const row of (rows ?? []) as Array<{
+      checkin_date: string;
+      checkout_date: string;
+      raw_summary: string | null;
+      status: string | null;
+    }>) {
       const type = classifyCalendarPeriod(row);
-      if (type === "reservation") periods.push({ checkin: row.checkin_date, checkout: row.checkout_date, type });
+      if (type === "reservation")
+        periods.push({ checkin: row.checkin_date, checkout: row.checkout_date, type });
     }
 
     return { hasIcal: true as const, periods };
@@ -384,17 +422,16 @@ export const checkReservationBySlug = createServerFn({ method: "POST" })
     return { hasIcal: true as const, matched: false as const };
   });
 
-
-
-
-
-
 const StayStatusInput = z.object({
   slug: z.string().regex(/^[a-z0-9-]{1,64}$/),
   property_id: z.string().uuid().optional(),
   guest_name: z.string().trim().max(200).optional().nullable(),
   checkin_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  checkout_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  checkout_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional()
+    .nullable(),
 });
 
 /**
@@ -407,9 +444,14 @@ export const getGuideStayStatus = createServerFn({ method: "POST" })
     const empty = { checkinDone: false, checkoutDone: false };
     const { allowPublicRate, clientIpFrom } = await import("@/lib/public-rate-limit.server");
     const { getRequest } = await import("@tanstack/react-start/server");
-    if (!allowPublicRate(`guide-stay-status:${clientIpFrom(getRequest())}`, 60, 60_000)) return empty;
+    if (!allowPublicRate(`guide-stay-status:${clientIpFrom(getRequest())}`, 60, 60_000))
+      return empty;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const propQuery = supabaseAdmin.from("properties").select("id").eq("slug", data.slug).eq("published", true);
+    const propQuery = supabaseAdmin
+      .from("properties")
+      .select("id")
+      .eq("slug", data.slug)
+      .eq("published", true);
     const { data: prop } = data.property_id
       ? await propQuery.eq("id", data.property_id).maybeSingle()
       : await propQuery.maybeSingle();
@@ -433,9 +475,12 @@ export const getGuideStayStatus = createServerFn({ method: "POST" })
         .limit(50),
     ]);
 
-    const logIds = ((logs ?? []) as Array<{ id: string; guest_name: string | null; checkout_date: string | null }>)
+    const logIds = (
+      (logs ?? []) as Array<{ id: string; guest_name: string | null; checkout_date: string | null }>
+    )
       .filter((l) => {
-        if (data.checkout_date && l.checkout_date && l.checkout_date !== data.checkout_date) return false;
+        if (data.checkout_date && l.checkout_date && l.checkout_date !== data.checkout_date)
+          return false;
         if (guest && l.guest_name && norm(l.guest_name) !== guest) return false;
         return true;
       })
@@ -462,7 +507,8 @@ export const getGuideStayStatus = createServerFn({ method: "POST" })
       reservation_id: string | null;
     }>) {
       const belongs =
-        (s.log_id && logIds.includes(s.log_id)) || (s.reservation_id && resIds.includes(s.reservation_id));
+        (s.log_id && logIds.includes(s.log_id)) ||
+        (s.reservation_id && resIds.includes(s.reservation_id));
       if (!belongs) continue;
       const done = s.status === "done" || !!s.done_at;
       if (!done) continue;
@@ -483,9 +529,14 @@ export const markGuideStayStep = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { allowPublicRate, clientIpFrom } = await import("@/lib/public-rate-limit.server");
     const { getRequest } = await import("@tanstack/react-start/server");
-    if (!allowPublicRate(`guide-mark-step:${clientIpFrom(getRequest())}`, 20, 60_000)) return { ok: false as const };
+    if (!allowPublicRate(`guide-mark-step:${clientIpFrom(getRequest())}`, 20, 60_000))
+      return { ok: false as const };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const propQuery = supabaseAdmin.from("properties").select("id").eq("slug", data.slug).eq("published", true);
+    const propQuery = supabaseAdmin
+      .from("properties")
+      .select("id")
+      .eq("slug", data.slug)
+      .eq("published", true);
     const { data: prop } = data.property_id
       ? await propQuery.eq("id", data.property_id).maybeSingle()
       : await propQuery.maybeSingle();
@@ -499,13 +550,14 @@ export const markGuideStayStep = createServerFn({ method: "POST" })
       .eq("property_id", prop.id)
       .eq("checkin_date", data.checkin_date)
       .limit(200);
-    const match = ((logs ?? []) as Array<{ id: string; guest_name: string | null; checkout_date: string | null }>).find(
-      (l) => {
-        if (data.checkout_date && l.checkout_date && l.checkout_date !== data.checkout_date) return false;
-        if (guest && l.guest_name && norm(l.guest_name) !== guest) return false;
-        return true;
-      },
-    );
+    const match = (
+      (logs ?? []) as Array<{ id: string; guest_name: string | null; checkout_date: string | null }>
+    ).find((l) => {
+      if (data.checkout_date && l.checkout_date && l.checkout_date !== data.checkout_date)
+        return false;
+      if (guest && l.guest_name && norm(l.guest_name) !== guest) return false;
+      return true;
+    });
     if (!match) return { ok: false as const };
 
     const { error } = await supabaseAdmin.from("guest_arrival_status").upsert(
@@ -552,7 +604,9 @@ async function lookupReservationByCode(
     .select("id, airbnb_ical_url, airbnb_ical_last_sync_at")
     .eq("slug", slug)
     .eq("published", true);
-  const { data: prop } = propertyId ? await propQuery.eq("id", propertyId).maybeSingle() : await propQuery.maybeSingle();
+  const { data: prop } = propertyId
+    ? await propQuery.eq("id", propertyId).maybeSingle()
+    : await propQuery.maybeSingle();
   if (!prop) return { ok: false, reason: "not_found" };
   const icalUrl = ((prop as { airbnb_ical_url?: string | null }).airbnb_ical_url ?? "").trim();
   if (!icalUrl) return { ok: false, reason: "no_ical" };
@@ -619,6 +673,7 @@ export const getReservationLiveStatus = createServerFn({ method: "POST" })
     }
     const res = await lookupReservationByCode(data.slug, data.property_id, data.code);
     if (res.ok) return { active: true as boolean | null, checkout_date: res.checkout_date };
-    if (res.reason === "no_ical" || res.reason === "not_found") return { active: null as boolean | null };
+    if (res.reason === "no_ical" || res.reason === "not_found")
+      return { active: null as boolean | null };
     return { active: false as boolean | null, reason: res.reason };
   });

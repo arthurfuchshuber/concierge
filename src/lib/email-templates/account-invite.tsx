@@ -42,10 +42,10 @@ const AccountInviteEmail = ({
   inviterName,
   accountName,
   recipientEmail,
-  actionUrl = 'https://guia.anfitriaosigma.com.br/painel',
+  actionUrl = 'https://conciergeia.app/painel',
   existingUser = false,
   expiresAt,
-  siteUrl = 'https://guia.anfitriaosigma.com.br',
+  siteUrl = 'https://conciergeia.app',
 }: AccountInviteProps) => {
   const account = accountName || inviterName || 'uma equipe do ConciergeIA'
   const expires = formatDate(expiresAt)
@@ -128,7 +128,7 @@ const AccountInviteEmail = ({
             </Text>
             <Text style={footer}>
               <Link href={siteUrl} style={link}>
-                guia.anfitriaosigma.com.br
+                conciergeia.app
               </Link>
             </Text>
           </Section>
@@ -149,7 +149,7 @@ export const template = {
     inviterName: 'Anfitrião Sigma',
     accountName: 'Anfitrião Sigma',
     recipientEmail: 'pessoa@empresa.com',
-    actionUrl: 'https://guia.anfitriaosigma.com.br/definir-senha',
+    actionUrl: 'https://conciergeia.app/definir-senha',
     expiresAt: new Date(Date.now() + 7 * 864e5).toISOString(),
   },
 } satisfies TemplateEntry

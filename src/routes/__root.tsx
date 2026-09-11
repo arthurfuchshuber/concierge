@@ -21,6 +21,7 @@ import { supabase } from "../integrations/supabase/client";
 import { META_PIXEL_ID, initMetaPixel, metaPixelPageView } from "../lib/meta-pixel";
 import { startTrail, trackPageView } from "../lib/trail";
 import { useAppVersionWatcher } from "../lib/app-version";
+import { SITE_ORIGIN, siteUrl } from "@/lib/site-url";
 
 /** Prefixo das chaves de cache offline (uma por usuário). */
 const CACHE_PREFIX = "cia-cache-v2:";
@@ -160,14 +161,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
        * As páginas públicas de guia (g.$slug) sobrescrevem com a foto do imóvel,
        * que é o comportamento certo lá.
        */
-      { property: "og:image", content: "https://guia.anfitriaosigma.com.br/og-cover.png" },
+      { property: "og:image", content: siteUrl("/og-cover.png") },
       { property: "og:image:width", content: "1200" },
       { property: "og:image:height", content: "630" },
       {
         property: "og:image:alt",
         content: "ConciergeIA — seus hóspedes atendidos em 3 segundos, 24 horas por dia.",
       },
-      { name: "twitter:image", content: "https://guia.anfitriaosigma.com.br/og-cover.png" },
+      { name: "twitter:image", content: siteUrl("/og-cover.png") },
       { name: "google-site-verification", content: "o7m2Z68kLI_sgZFwkIsA1VQzKGI1OYfiqw6FKxsup5E" },
     ],
     links: [
@@ -191,8 +192,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "@context": "https://schema.org",
           "@type": "Organization",
           name: "ConciergeIA",
-          url: "https://guia.anfitriaosigma.com.br",
-          logo: "https://guia.anfitriaosigma.com.br/favicon.png",
+          url: SITE_ORIGIN,
+          logo: siteUrl("/favicon.png"),
         }),
       },
     ],

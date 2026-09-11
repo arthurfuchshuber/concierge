@@ -22,7 +22,7 @@ interface SignupEmailProps {
 }
 
 export const SignupEmail = ({
-  siteUrl = 'https://guia.anfitriaosigma.com.br',
+  siteUrl = 'https://conciergeia.app',
   recipient,
   confirmationUrl,
 }: SignupEmailProps) => (
@@ -50,7 +50,7 @@ export const SignupEmail = ({
           </Text>
           <Text style={footer}>
             <Link href={siteUrl} style={link}>
-              guia.anfitriaosigma.com.br
+              conciergeia.app
             </Link>
           </Text>
         </Section>

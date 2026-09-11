@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { SITE_ORIGIN } from "@/lib/site-url";
 
 // Public shape (safe to expose to client): no token.
 export type WhatsappConfigPublic = {
@@ -30,8 +31,8 @@ function maskSecret(s: string | null): string {
 }
 
 function siteOrigin(): string {
-  // Prefer VITE_APP_URL / SITE_URL if set; fallback to lovable.app project URL.
-  return process.env.SITE_URL || process.env.VITE_APP_URL || "https://sigmaconcierge.lovable.app";
+  // Fonte única do endereço do sistema — ver src/lib/site-url.ts.
+  return SITE_ORIGIN;
 }
 
 export const getMyWhatsappConfig = createServerFn({ method: "GET" })

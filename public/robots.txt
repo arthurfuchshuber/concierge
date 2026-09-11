@@ -8,4 +8,4 @@ Disallow: /mcp
 Disallow: /.mcp/
 Disallow: /.well-known/
 
-Sitemap: https://guia.anfitriaosigma.com.br/sitemap.xml
+Sitemap: https://conciergeia.app/sitemap.xml

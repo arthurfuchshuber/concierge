@@ -5,6 +5,7 @@
 
 import { classifyCalendarPeriod } from "@/lib/reservations.server";
 import { isAllowedIcalUrl } from "@/lib/airbnb-ical-url";
+import { SITE_ORIGIN } from "@/lib/site-url";
 
 export type ParsedEvent = {
   uid: string;
@@ -120,7 +121,7 @@ async function fetchWithTimeout(url: string, timeoutMs = 15000): Promise<Respons
   try {
     return await fetch(url, {
       signal: ctrl.signal,
-      headers: { "User-Agent": "ConciergeIA/1.0 (+https://sigmaconcierge.lovable.app)" },
+      headers: { "User-Agent": `ConciergeIA/1.0 (+${SITE_ORIGIN})` },
     });
   } finally {
     clearTimeout(t);
@@ -151,7 +152,9 @@ export async function ensurePropertyIcalFresh(
       .select("airbnb_ical_last_sync_at")
       .eq("id", propertyId)
       .maybeSingle();
-    currentLastSync = (data as { airbnb_ical_last_sync_at?: string | null } | null)?.airbnb_ical_last_sync_at ?? null;
+    currentLastSync =
+      (data as { airbnb_ical_last_sync_at?: string | null } | null)?.airbnb_ical_last_sync_at ??
+      null;
   }
   if (currentLastSync && Date.now() - new Date(currentLastSync).getTime() <= maxAgeMs) {
     return null;
@@ -176,12 +179,18 @@ export async function syncSecondaryIcal(propertyId: string): Promise<SyncOutcome
     .select("airbnb_ical_url_2")
     .eq("id", propertyId)
     .maybeSingle();
-  const url2 = ((data as { airbnb_ical_url_2?: string | null } | null)?.airbnb_ical_url_2 ?? "").trim();
+  const url2 = (
+    (data as { airbnb_ical_url_2?: string | null } | null)?.airbnb_ical_url_2 ?? ""
+  ).trim();
   if (!url2 || !isAllowedIcalUrl(url2)) return null;
   return syncPropertyIcal(propertyId, url2, 1);
 }
 
-export async function syncPropertyIcal(propertyId: string, icalUrl: string, feedIndex = 0): Promise<SyncOutcome> {
+export async function syncPropertyIcal(
+  propertyId: string,
+  icalUrl: string,
+  feedIndex = 0,
+): Promise<SyncOutcome> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const now = new Date().toISOString();
   try {
@@ -219,9 +228,14 @@ export async function syncPropertyIcal(propertyId: string, icalUrl: string, feed
         guest_hint: extractGuestHint(ev),
         reservation_url: ev.url,
         status:
-          classifyCalendarPeriod({ checkin_date: ev.checkin, checkout_date: ev.checkout, raw_summary: ev.summary, status: ev.status }) === "block"
+          classifyCalendarPeriod({
+            checkin_date: ev.checkin,
+            checkout_date: ev.checkout,
+            raw_summary: ev.summary,
+            status: ev.status,
+          }) === "block"
             ? "blocked"
-            : ev.status ?? "confirmed",
+            : (ev.status ?? "confirmed"),
         synced_at: now,
         feed_index: feedIndex,
       }));

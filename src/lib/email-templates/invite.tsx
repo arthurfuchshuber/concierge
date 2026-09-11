@@ -22,7 +22,7 @@ interface InviteEmailProps {
 }
 
 export const InviteEmail = ({
-  siteUrl = 'https://guia.anfitriaosigma.com.br',
+  siteUrl = 'https://conciergeia.app',
   recipient,
   confirmationUrl,
 }: InviteEmailProps) => (
@@ -66,7 +66,7 @@ export const InviteEmail = ({
           </Text>
           <Text style={footer}>
             <Link href={siteUrl} style={link}>
-              guia.anfitriaosigma.com.br
+              conciergeia.app
             </Link>
           </Text>
         </Section>

@@ -21,7 +21,7 @@ interface RecoveryEmailProps {
 }
 
 export const RecoveryEmail = ({
-  siteUrl = 'https://guia.anfitriaosigma.com.br',
+  siteUrl = 'https://conciergeia.app',
   confirmationUrl,
 }: RecoveryEmailProps) => (
   <Html lang="pt-BR" dir="ltr">
@@ -48,7 +48,7 @@ export const RecoveryEmail = ({
           </Text>
           <Text style={footer}>
             <Link href={siteUrl} style={link}>
-              guia.anfitriaosigma.com.br
+              conciergeia.app
             </Link>
           </Text>
         </Section>

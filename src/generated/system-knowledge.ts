@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-11T02:19:09.981Z";
+export const GENERATED_AT = "2026-09-11T02:41:58.872Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -1032,6 +1032,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "9866940972979b69fae923168a51521c"
   },
   {
+    "doc_key": "rule:LEGACY_HOSTS",
+    "kind": "rule",
+    "title": "Regra — LEGACY_HOSTS",
+    "content": "Domínios que já foram o endereço do sistema e agora só existem para levar\nao novo. Ficam listados explicitamente — e não por regra genérica — porque\num redirecionamento amplo demais derrubaria a prévia do Lovable e o\nambiente local.\n\nPode ser ampliado sem tocar no código pela variável `LEGACY_HOSTS`\n(separada por vírgula).",
+    "source_path": "src/lib/site-url.ts",
+    "audience": [],
+    "content_hash": "918a81feb9329321a5faff68010176f5"
+  },
+  {
     "doc_key": "rule:LEGACY_PREFIX",
     "kind": "rule",
     "title": "Regra — LEGACY_PREFIX",
@@ -1039,6 +1048,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/stakeholder-event-message.ts",
     "audience": [],
     "content_hash": "955f61e0beb3bdaa91d837fce14a2c28"
+  },
+  {
+    "doc_key": "rule:legacyHostRedirect",
+    "kind": "rule",
+    "title": "Regra — legacyHostRedirect",
+    "content": "Se a requisição chegou por um endereço antigo, devolve a resposta de\nredirecionamento para o MESMO caminho no endereço novo. Senão, devolve null.\n\nDetalhes que fazem isto funcionar \"perfeitamente\", que foi o pedido:\n · preserva caminho, query e âncora — um QR code que aponta para\n /g/studio105#senhas-acesso chega exatamente ali;\n · 301 para GET/HEAD (permanente: o Google transfere o histórico da página\n para o endereço novo) e 308 para os demais métodos, que é o único que\n obriga o cliente a repetir POST/PUT com o corpo intacto;\n · roda ANTES de qualquer rota, no ponto de entrada do servidor — vale para\n página, API e arquivo estático, sem depender de nada do roteador.\n\nATENÇÃO — o que isto exige do DNS: redirecionar só é possível enquanto o\nendereço antigo ainda CHEGAR aqui. \"Desligar\" o domínio antigo no registrador\nmata o link na origem, e nenhum código no mundo redireciona o que não chega.\nO caminho certo é o contrário: manter o domínio antigo apontado para o\nprojeto e deixar que ele responda só isto — um empurrão para o novo.",
+    "source_path": "src/lib/site-url.ts",
+    "audience": [],
+    "content_hash": "8177e0aee0541b4a2939a9293abb6f76"
   },
   {
     "doc_key": "rule:maskDigitsIfLocked",
@@ -2992,6 +3010,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/reservation-records.functions.ts",
     "audience": [],
     "content_hash": "9107dae32eda662cf6cded7aa55ac39c"
+  },
+  {
+    "doc_key": "rule:src/lib/site-url.ts:0",
+    "kind": "rule",
+    "title": "Regra em site-url.ts",
+    "content": "O ENDEREÇO DO SISTEMA — um lugar só (11/09/2026).\n\nPedido: \"comprei conciergeia.app e quero alterar no sistema inteiro (...) é\npossível corrigirmos em massa sem precisar alterar um a um?\".\n\nEra possível porque o link do guia nunca foi gravado em lugar nenhum: ele é\nmontado na hora, a partir do slug do imóvel. O problema é que o PEDAÇO DA\nFRENTE — o domínio — estava escrito à mão em 36 pontos do código, em quatro\nvariações diferentes que já tinham se desencontrado entre si:\n\n · guia.anfitriaosigma.com.br (o endereço real, na maioria dos lugares)\n · sigmaconcierge.lovable.app (WhatsApp e iCal)\n · sigmaguide.lovable.app (prévia de e-mail)\n · project--c6a0…lovable.app (envio proativo)\n\nQuatro respostas para uma pergunta só é como um sistema passa a mandar links\ndiferentes para o mesmo hóspede. Agora existe UMA resposta, aqui, e trocar\nde domínio de novo é editar uma linha — ou nem isso, bastando definir\n`SITE_URL` nas variáveis de ambiente do projeto.\n\nNada de `VITE_*` para isto: o valor é o mesmo para todo mundo e não é\nsegredo, mas a regra da casa vale — o que o navegador precisa saber, ele\ndescobre por `window.location`.",
+    "source_path": "src/lib/site-url.ts",
+    "audience": [],
+    "content_hash": "132659b2da4d0e0ed5ba9a5fe818acdd"
   },
   {
     "doc_key": "rule:src/lib/tasks-types.ts:1356",

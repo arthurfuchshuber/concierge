@@ -38,6 +38,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { markActionExecuted } from "./engine.server";
+import { guideUrl } from "@/lib/site-url";
 
 /** Só regras cuja ação recomendada é, de fato, uma mensagem ao hóspede. */
 const GUEST_MESSAGE_RULES = new Set([
@@ -45,14 +46,6 @@ const GUEST_MESSAGE_RULES = new Set([
   "checkout_instructions",
   "silent_guest_checkin",
 ]);
-
-function siteOrigin(): string {
-  return (
-    process.env.SITE_URL ||
-    process.env.VITE_APP_URL ||
-    "https://project--c6a061b9-4ae8-4241-9a99-3375bda32242.lovable.app"
-  );
-}
 
 type ActionRow = {
   id: string;
@@ -189,20 +182,20 @@ function messageFor(
 ): string | null {
   const who = guestName ? guestName.split(" ")[0] : null;
   const greeting = who ? `Olá, ${who}!` : "Olá!";
-  const guideUrl = `${siteOrigin()}/g/${property.slug}`;
+  const linkDoGuia = guideUrl(property.slug);
   switch (ruleKey) {
     case "welcome_pre_checkin":
       return (
         `${greeting} Seu check-in em ${property.name} está chegando` +
         (property.checkin_time ? ` (a partir das ${property.checkin_time})` : "") +
-        `. Preparamos um guia com todas as instruções de chegada e acesso: ${guideUrl}\n` +
+        `. Preparamos um guia com todas as instruções de chegada e acesso: ${linkDoGuia}\n` +
         `Qualquer dúvida, é só responder por aqui.`
       );
     case "checkout_instructions":
       return (
         `${greeting} Só um lembrete: o check-out em ${property.name} é` +
         (property.checkout_time ? ` até as ${property.checkout_time}` : " hoje") +
-        `. As instruções de saída estão no guia: ${guideUrl}\n` +
+        `. As instruções de saída estão no guia: ${linkDoGuia}\n` +
         `Precisando de algo antes de ir, é só chamar.`
       );
     case "silent_guest_checkin":

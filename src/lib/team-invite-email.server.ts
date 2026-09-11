@@ -1,11 +1,8 @@
 import { sendAppEmail } from "@/lib/email/send-app-email.server";
+import { SITE_ORIGIN } from "@/lib/site-url";
 
 export function resolveSiteUrl() {
-  const siteUrl =
-    process.env["SITE_URL"] ||
-    process.env["PUBLIC_SITE_URL"] ||
-    "https://guia.anfitriaosigma.com.br";
-  return siteUrl.replace(/\/$/, "");
+  return SITE_ORIGIN;
 }
 
 /**
@@ -54,9 +51,7 @@ export async function sendBrandedAccountInvite(params: {
   return sendAppEmail({
     templateName: "account-invite",
     recipientEmail: params.email,
-    idempotencyKey: params.inviteId
-      ? `account-invite-${params.inviteId}-${Date.now()}`
-      : undefined,
+    idempotencyKey: params.inviteId ? `account-invite-${params.inviteId}-${Date.now()}` : undefined,
     templateData: {
       inviterName: params.inviterName,
       accountName: params.accountName ?? params.inviterName,

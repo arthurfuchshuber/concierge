@@ -19,6 +19,7 @@ import {
   countAccountGuides,
 } from "@/lib/properties.functions";
 import { useMyPermissions } from "@/hooks/useMyPermissions";
+import { SITE_ORIGIN } from "@/lib/site-url";
 
 import { WorkspaceHeader } from "@/components/ds/WorkspaceHeader";
 import {
@@ -237,7 +238,7 @@ function Dashboard() {
       hostname.includes("id-preview--") ||
       hostname.endsWith(".lovable.dev")
     ) {
-      return "https://home-welcome-compass.lovable.app";
+      return SITE_ORIGIN;
     }
     return origin;
   }
