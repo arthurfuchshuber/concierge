@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-11T20:29:02.965Z";
+export const GENERATED_AT = "2026-09-11T20:45:23.197Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -1500,15 +1500,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ac3b24999636d5bba4bcaafa627526f7"
   },
   {
-    "doc_key": "rule:Plataforma",
-    "kind": "rule",
-    "title": "Regra — Plataforma",
-    "content": "O BECO SEM SAÍDA DO \"BLOQUEADO\" (11/09/2026).\n\nDe manhã o botão dizia \"Permissão negada\" para quem só tinha fechado a\ncaixinha do navegador. Isso foi corrigido — mas o estrago já estava feito:\nAndroid e Chrome BLOQUEIAM o site automaticamente depois de a pessoa\ndispensar o pedido duas ou três vezes, e a partir daí\n`Notification.requestPermission()` devolve \"denied\" NA HORA, sem nunca\nmostrar caixinha nenhuma. O bug da manhã criou o bloqueio da tarde.\n\nE aí o aviso ficava com um botão \"Ativar\" que não tinha como funcionar:\nnenhuma linha de código no mundo reabre uma permissão bloqueada. A saída é\nnas configurações do site, e ela é diferente em cada navegador.\n\nPor isso, ao receber \"denied\", o aviso TROCA DE ESTADO: mostra o passo a\npasso do aparelho em questão e um \"Já desbloqueei\" para tentar de novo sem\nprecisar caçar o aviso outra vez. A forma do cartão continua a mesma.",
-    "source_path": "src/components/PushNotificationBanner.tsx",
-    "audience": [],
-    "content_hash": "15eb1f2c143af3dea588600837454fa8"
-  },
-  {
     "doc_key": "rule:postResponses",
     "kind": "rule",
     "title": "Regra — postResponses",
@@ -1570,6 +1561,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
     "content_hash": "d836f92dfc9b771a74094215ed3616ad"
+  },
+  {
+    "doc_key": "rule:PushNotificationBanner",
+    "kind": "rule",
+    "title": "Regra — PushNotificationBanner",
+    "content": "O AVISO É CURTO, E CONTINUA CURTO (11/09/2026).\n\nTentei transformá-lo num cartão com passo a passo quando o navegador\nbloqueia o site. O cliente cortou na hora, e com razão: \"aquele banner\ncurto, bonito... agora você colocou algo extremamente grande\". Um aviso no\ntopo do painel é um convite, não um manual.\n\nEntão a forma é a de sempre: título, uma linha, Ativar e Agora não. O caso\ndo site bloqueado — em que nenhum código do mundo reabre a permissão — vira\num aviso de texto e some, como qualquer outro erro.\n\nA melhoria que ficou é INVISÍVEL, que é como ela deveria ter sido desde o\ncomeço: o app escuta a permissão mudar. Quem libera nas configurações do\nnavegador e volta encontra a notificação JÁ ativada e o aviso sumido, sem\napertar nada de novo.",
+    "source_path": "src/components/PushNotificationBanner.tsx",
+    "audience": [],
+    "content_hash": "1703644ed9d6de8b36b6deb3e44a8a49"
   },
   {
     "doc_key": "rule:RATE_WINDOW_MS",
@@ -2346,7 +2346,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "72ecc10611abbec39b47addf405d3ed6"
   },
   {
-    "doc_key": "rule:src/components/PushNotificationBanner.tsx:3137",
+    "doc_key": "rule:src/components/PushNotificationBanner.tsx:1689",
     "kind": "rule",
     "title": "Regra em PushNotificationBanner.tsx",
     "content": "ATIVAR SOZINHO ASSIM QUE A PERMISSÃO ABRIR (11/09/2026).\n\nPedido: \"quando clicar em ativar, já ative imediatamente\". Num aparelho\nnormal é exatamente o que acontece — a caixinha do navegador abre na mesma\ntela, a pessoa toca em Permitir e pronto.\n\nO problema é o aparelho BLOQUEADO: ali o navegador não mostra caixinha\nnenhuma, por definição. A única saída é a configuração do site, e isso\nsignifica sair do app e voltar. O que dá para eliminar é o TOQUE A MAIS na\nvolta: `navigator.permissions` avisa quando a permissão muda, mesmo que a\nmudança tenha acontecido na tela de configurações do navegador. Então a\npessoa libera lá, volta, e o aviso JÁ SUMIU — ativado sozinho.\n\n`visibilitychange` é a rede de segurança para os navegadores que não\ndisparam `onchange` (o Safari é um deles).",

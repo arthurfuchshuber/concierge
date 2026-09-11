@@ -285,9 +285,9 @@ function Lockable({ locked, children }: { locked: boolean; children: React.React
       </div>
       {/* Overlay — always fully visible, never clipped */}
       <div className="absolute inset-0 flex items-center justify-center px-3 py-2">
-        <div className="w-full rounded-2xl bg-background/95 backdrop-blur-sm border border-border/60 shadow-lg overflow-hidden">
+        <div className="w-full rounded-[0.3rem] bg-background/95 backdrop-blur-sm border border-border/60 shadow-lg overflow-hidden">
           <div className="flex items-center gap-3 px-4 py-3">
-            <div className="size-8 rounded-xl bg-muted grid place-items-center shrink-0">
+            <div className="size-8 rounded-[0.3rem] bg-muted grid place-items-center shrink-0">
               <Lock className="size-4 text-muted-foreground" strokeWidth={1.75} />
             </div>
             <div className="min-w-0">
@@ -592,6 +592,24 @@ function Guide({ data }: { data: GuideOk }) {
   // Check-in / check-out confirmados pelo próprio hóspede (persistidos no
   // dispositivo). Guiam a visibilidade das faixas, senhas e abas.
   const [checkinConcluded, setCheckinConcluded] = useState(false);
+  /**
+   * CONFIRMADO DE FATO — e por que não dá para reusar `checkinConcluded`
+   * (11/09/2026).
+   *
+   * `checkinConcluded` fica verdadeiro também quando o RELÓGIO passa do
+   * horário de check-in. Para esconder a faixa de chegada isso está certo: às
+   * 20h ninguém quer mais ler "seu check-in libera às 14h".
+   *
+   * Só que o aviso de check-out estava pendurado nesse mesmo valor — e a regra
+   * combinada é outra: "enquanto o card de check-in não for dado como
+   * CONFIRMADO, o quadrante de check-out não aparece". Com o relógio no meio,
+   * bastava o horário passar para os dois aparecerem juntos, que é exatamente
+   * o que o cliente viu em 11/09.
+   *
+   * Este aqui só vira verdadeiro quando alguém confirma: o hóspede tocando no
+   * card, ou o anfitrião marcando pelo painel.
+   */
+  const [checkinConfirmado, setCheckinConfirmado] = useState(false);
   const [checkoutConcluded, setCheckoutConcluded] = useState(false);
   // Status marcado pelo ANFITRIÃO no Kanban da Operação (fonte compartilhada).
   const [hostStatus, setHostStatus] = useState<{ checkinDone: boolean; checkoutDone: boolean }>({
@@ -663,16 +681,20 @@ function Guide({ data }: { data: GuideOk }) {
       return Date.now() >= start;
     };
     const evaluate = () => {
-      // Pré-visualização do anfitrião: nada fica bloqueado por etapa. Mostramos
-      // todas as telas e informações preenchidas, sem exigir confirmações.
-      if (isPreview) {
-        setCheckinConcluded(true);
-        setCheckoutConcluded(false);
-        return;
-      }
-      setCheckinConcluded(
-        confirmed() || passedCheckinMoment() || hostStatus.checkinDone || hostStatus.checkoutDone,
-      );
+      /* A PRÉ-VISUALIZAÇÃO SEGUE A MESMA SEQUÊNCIA (11/09/2026).
+       *
+       * Antes ela forçava "check-in concluído" e "check-out não concluído"
+       * para o anfitrião ver todo o conteúdo de uma vez. O efeito colateral é
+       * que a pré-visualização mostrava uma combinação que o hóspede NUNCA
+       * veria — a barra de chegada junto do aviso de saída —, e o botão "Já
+       * fiz o check-out" não respondia. Uma pré-visualização que mente sobre a
+       * ordem das telas não serve para conferir a ordem das telas.
+       *
+       * O anfitrião continua vendo tudo: é só tocar nos cards, na mesma ordem
+       * do hóspede. O que ele não vê mais é uma tela impossível. */
+      const confirmadoDeFato = confirmed() || hostStatus.checkinDone || hostStatus.checkoutDone;
+      setCheckinConfirmado(confirmadoDeFato);
+      setCheckinConcluded(confirmadoDeFato || passedCheckinMoment());
       setCheckoutConcluded(localStorage.getItem(outKey) === "1" || hostStatus.checkoutDone);
     };
     evaluate();
@@ -690,6 +712,7 @@ function Guide({ data }: { data: GuideOk }) {
     };
     const onDone = () => {
       localStorage.setItem(key, "1");
+      setCheckinConfirmado(true);
       setCheckinConcluded(true);
       syncHost("checkin");
     };
@@ -761,8 +784,9 @@ function Guide({ data }: { data: GuideOk }) {
   // dia do check-out e até as 15h00 do mesmo dia — só depois do check-in
   // concluído e some quando o hóspede confirma a saída.
   const checkoutNoticeVisible = (() => {
-    if (isPreview) return !!(p.checkout_note || p.checkout_time);
-    if (!checkinConcluded || checkoutConcluded) return false;
+    // Sem atalho para a pré-visualização: a ordem que o anfitrião confere
+    // precisa ser a ordem que o hóspede vive.
+    if (!checkinConfirmado || checkoutConcluded) return false;
     if (!accessRec?.checkoutDate) return false;
     if (!p.checkout_note && !p.checkout_time) return false;
     const [y, mo, d] = accessRec.checkoutDate.split("-").map(Number);
@@ -1325,11 +1349,11 @@ function Guide({ data }: { data: GuideOk }) {
                 (checkoutNoticeVisible && (p.checkout_note || p.checkout_time))) && (
                 <div className="px-4 md:px-10 lg:px-16 mt-3">
                   <div
-                    className={`rounded-[22px] border px-4 py-4 flex flex-col gap-4 ${theme === "dark" ? "border-amber-300/22 bg-amber-300/10 text-amber-50" : "border-amber-200/80 bg-amber-50/90 text-amber-950"}`}
+                    className={`rounded-[0.3rem] border px-4 py-4 flex flex-col gap-4 ${theme === "dark" ? "border-amber-300/22 bg-amber-300/10 text-amber-50" : "border-amber-200/80 bg-amber-50/90 text-amber-950"}`}
                   >
                     {checkinNoticeVisible && p.checkin_note && (
                       <div className="flex items-start gap-3 md:flex-1 md:min-w-0">
-                        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-400/15 text-amber-400">
+                        <span className="grid size-9 shrink-0 place-items-center rounded-[0.3rem] bg-amber-400/15 text-amber-400">
                           <LogIn className="size-[18px]" strokeWidth={2} />
                         </span>
                         <div className="min-w-0">
@@ -1348,7 +1372,7 @@ function Guide({ data }: { data: GuideOk }) {
                     )}
                     {checkoutNoticeVisible && (p.checkout_note || p.checkout_time) && (
                       <div className="flex items-start gap-3 md:flex-1 md:min-w-0">
-                        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-400/15 text-amber-400">
+                        <span className="grid size-9 shrink-0 place-items-center rounded-[0.3rem] bg-amber-400/15 text-amber-400">
                           <LogOut className="size-[18px]" strokeWidth={2} />
                         </span>
                         <div className="min-w-0">
@@ -1377,7 +1401,7 @@ function Guide({ data }: { data: GuideOk }) {
                             onClick={() =>
                               window.dispatchEvent(new CustomEvent("guide-checkout-done"))
                             }
-                            className={`mt-3 h-9 px-3.5 rounded-xl text-[12px] font-semibold transition-colors ${theme === "dark" ? "bg-amber-300/15 text-amber-100 hover:bg-amber-300/25" : "bg-amber-900/10 text-amber-950 hover:bg-amber-900/15"}`}
+                            className={`mt-3 h-9 px-3.5 rounded-[0.3rem] text-[12px] font-semibold transition-colors ${theme === "dark" ? "bg-amber-300/15 text-amber-100 hover:bg-amber-300/25" : "bg-amber-900/10 text-amber-950 hover:bg-amber-900/15"}`}
                           >
                             Já fiz o check-out ✓
                           </button>
@@ -1649,7 +1673,7 @@ function Guide({ data }: { data: GuideOk }) {
                                 hint={summary}
                               >
                                 {isFlex || isAgend ? (
-                                  <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-3.5">
+                                  <div className="rounded-[0.3rem] border border-border/60 bg-background/40 px-4 py-3.5">
                                     <p className="text-[14px] text-foreground/80 leading-relaxed">
                                       {isFlex
                                         ? "A chegada pode ser feita em qualquer horário — combine com o anfitrião quando estiver a caminho."
@@ -1657,7 +1681,7 @@ function Guide({ data }: { data: GuideOk }) {
                                     </p>
                                   </div>
                                 ) : (
-                                  <div className="rounded-2xl border border-border/60 bg-background/40 overflow-hidden divide-y divide-border/40">
+                                  <div className="rounded-[0.3rem] border border-border/60 bg-background/40 overflow-hidden divide-y divide-border/40">
                                     <div className="flex items-center justify-between px-4 py-3">
                                       <span className="text-[13px] uppercase tracking-wide text-muted-foreground">
                                         A partir de
@@ -1679,7 +1703,7 @@ function Guide({ data }: { data: GuideOk }) {
                                   </div>
                                 )}
                                 {p.checkin_note && (
-                                  <div className="mt-3 rounded-2xl border border-accent/30 bg-accent/[0.06] px-4 py-3">
+                                  <div className="mt-3 rounded-[0.3rem] border border-accent/30 bg-accent/[0.06] px-4 py-3">
                                     <p className="text-[10px] uppercase tracking-[0.2em] text-accent/75 font-semibold mb-1.5">
                                       Observação
                                     </p>
@@ -1729,7 +1753,7 @@ function Guide({ data }: { data: GuideOk }) {
                                 );
                                 if (!hasAnyLink) return null;
                                 return (
-                                  <div className="rounded-2xl bg-background/40 border border-border/60 overflow-hidden divide-y divide-border/40">
+                                  <div className="rounded-[0.3rem] bg-background/40 border border-border/60 overflow-hidden divide-y divide-border/40">
                                     {mapsHref && (
                                       <a
                                         href={mapsHref}
@@ -1737,7 +1761,7 @@ function Guide({ data }: { data: GuideOk }) {
                                         rel="noopener noreferrer"
                                         className="flex items-center gap-3 px-3.5 py-3.5 hover:bg-card/40 active:bg-card/60 transition-colors"
                                       >
-                                        <span className="size-8 rounded-lg bg-accent/10 text-accent/75 grid place-items-center shrink-0">
+                                        <span className="size-8 rounded-[0.3rem] bg-accent/10 text-accent/75 grid place-items-center shrink-0">
                                           <MapPin className="size-[14px]" strokeWidth={1.75} />
                                         </span>
                                         <div className="flex-1 min-w-0 text-left">
@@ -1762,7 +1786,7 @@ function Guide({ data }: { data: GuideOk }) {
                                         rel="noopener noreferrer"
                                         className="flex items-center gap-3 px-3.5 py-3.5 hover:bg-card/40 active:bg-card/60 transition-colors"
                                       >
-                                        <span className="size-8 rounded-lg bg-accent/10 text-accent/75 grid place-items-center shrink-0">
+                                        <span className="size-8 rounded-[0.3rem] bg-accent/10 text-accent/75 grid place-items-center shrink-0">
                                           <Car className="size-[14px]" strokeWidth={1.75} />
                                         </span>
                                         <div className="flex-1 min-w-0 text-left">
@@ -1781,7 +1805,7 @@ function Guide({ data }: { data: GuideOk }) {
                                         rel="noreferrer"
                                         className="flex items-center gap-3 px-3.5 py-3.5 hover:bg-card/40 active:bg-card/60 transition-colors"
                                       >
-                                        <span className="size-8 rounded-lg bg-foreground text-background grid place-items-center shrink-0">
+                                        <span className="size-8 rounded-[0.3rem] bg-foreground text-background grid place-items-center shrink-0">
                                           <Car className="size-[14px]" strokeWidth={1.75} />
                                         </span>
                                         <div className="flex-1 min-w-0 text-left">
@@ -1800,7 +1824,7 @@ function Guide({ data }: { data: GuideOk }) {
                                         rel="noreferrer"
                                         className="flex items-center gap-3 px-3.5 py-3.5 hover:bg-card/40 active:bg-card/60 transition-colors"
                                       >
-                                        <span className="size-8 rounded-lg bg-[#FFD400] text-black grid place-items-center shrink-0 font-bold text-[11px] tracking-tight">
+                                        <span className="size-8 rounded-[0.3rem] bg-[#FFD400] text-black grid place-items-center shrink-0 font-bold text-[11px] tracking-tight">
                                           99
                                         </span>
                                         <div className="flex-1 min-w-0 text-left">
@@ -1837,7 +1861,7 @@ function Guide({ data }: { data: GuideOk }) {
                             <Lockable locked={checkinLocked}>
                               <div className="space-y-4">
                                 {p.checkin_instructions && (
-                                  <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-4">
+                                  <div className="rounded-[0.3rem] border border-border/60 bg-background/40 px-4 py-4">
                                     <StepList
                                       text={expandInfoTags(
                                         String(p.checkin_instructions),
@@ -1857,7 +1881,7 @@ function Guide({ data }: { data: GuideOk }) {
                                     ).map((m, i) => (
                                       <div
                                         key={i}
-                                        className="rounded-xl overflow-hidden border border-border bg-muted/40 aspect-square"
+                                        className="rounded-[0.3rem] overflow-hidden border border-border bg-muted/40 aspect-square"
                                       >
                                         {m.type === "video" ? (
                                           <video
@@ -1928,9 +1952,9 @@ function Guide({ data }: { data: GuideOk }) {
                                   );
                                 })()}
                               {hasWifi && (
-                                <div className="rounded-xl bg-background/50 border border-border/50 overflow-hidden divide-y divide-border/40">
+                                <div className="rounded-[0.3rem] bg-background/50 border border-border/50 overflow-hidden divide-y divide-border/40">
                                   <div className="flex items-center gap-3 px-3.5 py-3">
-                                    <div className="size-9 rounded-lg bg-accent/10 text-accent/75 grid place-items-center shrink-0">
+                                    <div className="size-9 rounded-[0.3rem] bg-accent/10 text-accent/75 grid place-items-center shrink-0">
                                       <Wifi className="size-[18px]" strokeWidth={1.75} />
                                     </div>
                                     <div className="min-w-0">
@@ -2057,7 +2081,7 @@ function Guide({ data }: { data: GuideOk }) {
                                 hint={summary}
                               >
                                 {isFlex || isAgend ? (
-                                  <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-3.5">
+                                  <div className="rounded-[0.3rem] border border-border/60 bg-background/40 px-4 py-3.5">
                                     <p className="text-[14px] text-foreground/80 leading-relaxed">
                                       {isFlex
                                         ? "A saída pode ser feita em horário flexível — alinhe com o anfitrião."
@@ -2065,7 +2089,7 @@ function Guide({ data }: { data: GuideOk }) {
                                     </p>
                                   </div>
                                 ) : (
-                                  <div className="rounded-2xl border border-border/60 bg-background/40 overflow-hidden divide-y divide-border/40">
+                                  <div className="rounded-[0.3rem] border border-border/60 bg-background/40 overflow-hidden divide-y divide-border/40">
                                     {rawMin && (
                                       <div className="flex items-center justify-between px-4 py-3">
                                         <span className="text-[13px] uppercase tracking-wide text-muted-foreground">
@@ -2110,7 +2134,7 @@ function Guide({ data }: { data: GuideOk }) {
                             label="Check-out"
                             hint="Passo a passo da saída"
                           >
-                            <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-4">
+                            <div className="rounded-[0.3rem] border border-border/60 bg-background/40 px-4 py-4">
                               <StepList
                                 text={expandInfoTags(
                                   String(p.checkout_instructions ?? ""),
@@ -2188,7 +2212,7 @@ function Guide({ data }: { data: GuideOk }) {
                             <AccordionItem
                               key={m.id}
                               value={m.id}
-                              className="border border-border rounded-xl px-4"
+                              className="border border-border rounded-[0.3rem] px-4"
                             >
                               <AccordionTrigger className="text-sm font-medium">
                                 {m.title}
@@ -2219,7 +2243,7 @@ function Guide({ data }: { data: GuideOk }) {
                             {data.checkout.map((c: any) => (
                               <li
                                 key={c.id}
-                                className="flex items-start gap-3 bg-card border border-border rounded-xl p-3 text-sm"
+                                className="flex items-start gap-3 bg-card border border-border rounded-[0.3rem] p-3 text-sm"
                               >
                                 <Check className="size-4 mt-0.5 text-accent/75 shrink-0" />
                                 <span>{c.label}</span>
@@ -2248,7 +2272,7 @@ function Guide({ data }: { data: GuideOk }) {
                               key={f.id}
                               id={anchor}
                               value={f.id}
-                              className="border border-border/70 rounded-xl px-3.5 bg-card/30 hover:bg-card/60 transition-colors data-[state=open]:bg-card data-[state=open]:border-accent/40 scroll-mt-24"
+                              className="border border-border/70 rounded-[0.3rem] px-3.5 bg-card/30 hover:bg-card/60 transition-colors data-[state=open]:bg-card data-[state=open]:border-accent/40 scroll-mt-24"
                             >
                               <AccordionTrigger className="text-left hover:no-underline py-2.5 gap-3">
                                 <span className="flex items-center gap-2.5 min-w-0">
@@ -2288,7 +2312,7 @@ function Guide({ data }: { data: GuideOk }) {
                           <a
                             key={e.id}
                             href={`tel:${e.number}`}
-                            className="flex items-center gap-3 bg-card border border-border rounded-xl p-3 active:scale-[0.98] transition-transform hover:border-accent/50"
+                            className="flex items-center gap-3 bg-card border border-border rounded-[0.3rem] p-3 active:scale-[0.98] transition-transform hover:border-accent/50"
                           >
                             <span className="size-10 rounded-full bg-accent/10 text-accent/75 grid place-items-center shrink-0">
                               <Phone className="size-[18px]" strokeWidth={1.75} />
@@ -2312,7 +2336,7 @@ function Guide({ data }: { data: GuideOk }) {
                           Anfitrião
                         </h3>
                       </div>
-                      <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-card/40 p-3">
+                      <div className="flex items-center gap-3 rounded-[0.3rem] border border-border/70 bg-card/40 p-3">
                         <div className="size-10 rounded-full bg-accent/10 text-accent/75 grid place-items-center text-sm font-semibold shrink-0">
                           {(p.host_name as string | undefined)
                             ?.trim()
@@ -2471,7 +2495,7 @@ function LocWifiDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[400px] p-0 overflow-hidden rounded-[22px]">
+      <DialogContent className="max-w-[400px] p-0 overflow-hidden rounded-[0.3rem]">
         <div className="px-5 pt-5 pb-3 text-center border-b border-border/40">
           <div className="mx-auto mb-2.5 grid place-items-center size-11 rounded-full bg-emerald-500/12 ring-1 ring-emerald-500/25 text-emerald-500">
             <Wifi className="size-[18px]" strokeWidth={1.75} />
@@ -2491,7 +2515,7 @@ function LocWifiDialog({
                 Endereço
               </p>
               {address && (
-                <div className="rounded-2xl border border-border/60 bg-muted/30 px-4 py-3">
+                <div className="rounded-[0.3rem] border border-border/60 bg-muted/30 px-4 py-3">
                   <p className="text-[13.5px] leading-relaxed whitespace-pre-line">{address}</p>
                   {addressNote && (
                     <p className="text-[12px] text-muted-foreground mt-1.5 leading-relaxed whitespace-pre-line">
@@ -2545,7 +2569,7 @@ function LocWifiDialog({
                 <Wifi className="inline size-3 -mt-0.5 mr-1" strokeWidth={2} />
                 Wi-Fi
               </p>
-              <div className="rounded-2xl border border-border/60 bg-muted/30 px-4 py-3 space-y-2.5">
+              <div className="rounded-[0.3rem] border border-border/60 bg-muted/30 px-4 py-3 space-y-2.5">
                 {wifiSsid && (
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
@@ -2652,9 +2676,9 @@ function ResidenciaCard({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="group relative text-left bg-card border border-border rounded-2xl p-4 hover:border-accent/50 hover:shadow-[0_8px_24px_-12px_oklch(from_var(--accent)_l_c_h/0.5)] active:scale-[0.98] transition-all min-h-[120px] flex flex-col gap-3"
+        className="group relative text-left bg-card border border-border rounded-[0.3rem] p-4 hover:border-accent/50 hover:shadow-[0_8px_24px_-12px_oklch(from_var(--accent)_l_c_h/0.5)] active:scale-[0.98] transition-all min-h-[120px] flex flex-col gap-3"
       >
-        <span className="grid size-10 place-items-center rounded-xl bg-accent/10 text-accent/75 group-hover:bg-accent/15 transition-colors">
+        <span className="grid size-10 place-items-center rounded-[0.3rem] bg-accent/10 text-accent/75 group-hover:bg-accent/15 transition-colors">
           {residenciaIcon(item.title)}
         </span>
         <div className="flex-1 min-w-0">
@@ -2674,7 +2698,7 @@ function ResidenciaCard({
         <DialogContent className="max-w-md">
           <DialogHeader>
             <div className="flex items-center gap-3 text-left">
-              <span className="grid size-10 place-items-center rounded-xl bg-accent/10 text-accent/75 shrink-0">
+              <span className="grid size-10 place-items-center rounded-[0.3rem] bg-accent/10 text-accent/75 shrink-0">
                 {residenciaIcon(item.title)}
               </span>
               <DialogTitle className="font-serif text-xl leading-tight">{item.title}</DialogTitle>
@@ -2840,7 +2864,7 @@ function HeroCompact({
       </header>
 
       <div
-        className={`relative mt-4 md:mt-5 overflow-hidden rounded-[24px] border ${
+        className={`relative mt-4 md:mt-5 overflow-hidden rounded-[0.3rem] border ${
           isDark
             ? "border-white/8 shadow-[0_20px_58px_-28px_rgba(0,0,0,0.9)]"
             : "border-slate-900/[0.04] shadow-[0_22px_58px_-34px_rgba(49,36,96,0.32)]"
@@ -2848,7 +2872,13 @@ function HeroCompact({
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
-        <div className="relative h-[282px] md:h-[350px] w-full">
+        {/* ALTURA DO TOPO: -35% (pedido explícito, 11/09/2026 — "encurte em 35%
+            a altura da imagem do topo do guia a fim de economizar espaço").
+            282 → 183 no celular, 350 → 228 no computador. A foto continua
+            ambientando; o que ela deixou de fazer é empurrar para baixo da
+            dobra a barra de senhas e o aviso de check-out, que é o que o
+            hóspede realmente abre o guia para ver. */}
+        <div className="relative h-[183px] md:h-[228px] w-full">
           {photos.map((src, i) => (
             <img
               key={`${src}-${i}`}
@@ -3046,7 +3076,7 @@ function SectionCard({
   if (variant === "horizontal-wide") {
     return (
       <div
-        className={`relative flex min-h-[76px] items-center gap-3 overflow-hidden rounded-[20px] border px-4 py-3.5 transition-all duration-300 ease-out hover:-translate-y-0.5 active:scale-[0.99] ${surfaceBg} ${surfaceBorder} ${isDark ? `shadow-[0_16px_40px_-28px_rgba(0,0,0,0.9)] ${t.glow}` : "shadow-[0_14px_34px_-30px_rgba(31,24,74,0.32)]"}`}
+        className={`relative flex min-h-[76px] items-center gap-3 overflow-hidden rounded-[0.3rem] border px-4 py-3.5 transition-all duration-300 ease-out hover:-translate-y-0.5 active:scale-[0.99] ${surfaceBg} ${surfaceBorder} ${isDark ? `shadow-[0_16px_40px_-28px_rgba(0,0,0,0.9)] ${t.glow}` : "shadow-[0_14px_34px_-30px_rgba(31,24,74,0.32)]"}`}
       >
         {imageUrl && (
           <>
@@ -3105,7 +3135,7 @@ function SectionCard({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-[20px] border ${isHero ? "min-h-[132px]" : "min-h-[104px]"} ${pad} transition-all duration-300 ease-out hover:-translate-y-0.5 active:scale-[0.99] ${surfaceBg} ${surfaceBorder} ${isDark ? `shadow-[0_16px_40px_-28px_rgba(0,0,0,0.9)] ${t.glow}` : "shadow-[0_14px_34px_-30px_rgba(31,24,74,0.32)]"}`}
+      className={`relative overflow-hidden rounded-[0.3rem] border ${isHero ? "min-h-[132px]" : "min-h-[104px]"} ${pad} transition-all duration-300 ease-out hover:-translate-y-0.5 active:scale-[0.99] ${surfaceBg} ${surfaceBorder} ${isDark ? `shadow-[0_16px_40px_-28px_rgba(0,0,0,0.9)] ${t.glow}` : "shadow-[0_14px_34px_-30px_rgba(31,24,74,0.32)]"}`}
     >
       {/* Interior glow */}
       {isDark && (
@@ -3114,7 +3144,7 @@ function SectionCard({
             className={`pointer-events-none absolute -top-10 -right-10 h-28 w-28 rounded-full opacity-24 blur-3xl ${t.iconBg}`}
           />
           {isGold && (
-            <span className="pointer-events-none absolute inset-0 rounded-[20px] bg-gradient-to-br from-pink-400/[0.08] to-transparent" />
+            <span className="pointer-events-none absolute inset-0 rounded-[0.3rem] bg-gradient-to-br from-pink-400/[0.08] to-transparent" />
           )}
         </>
       )}
@@ -3167,7 +3197,7 @@ function SectionCard({
       ) : (
         badge && (
           <span
-            className={`absolute top-3 right-3 z-10 rounded-md px-2 py-0.5 text-[9.5px] font-black uppercase tracking-tighter ${
+            className={`absolute top-3 right-3 z-10 rounded-[0.3rem] px-2 py-0.5 text-[9.5px] font-black uppercase tracking-tighter ${
               isDark
                 ? "bg-amber-400 text-black shadow-[0_0_12px_rgba(251,191,36,0.5)]"
                 : "bg-amber-500 text-white"
@@ -3225,13 +3255,13 @@ function OnboardingArrivalHeader({
       {subtitle && (
         <p className="mt-0.5 text-[12.5px] text-muted-foreground [text-wrap:auto]">{subtitle}</p>
       )}
-      <div className="mt-3 grid grid-cols-2 gap-1.5 rounded-[15px] border border-border bg-foreground/[0.03] p-1">
+      <div className="mt-3 grid grid-cols-2 gap-1.5 rounded-[0.3rem] border border-border bg-foreground/[0.03] p-1">
         {(["steps", "passwords"] as const).map((k) => (
           <div
             key={k}
             aria-current={tab === k}
             className={cn(
-              "h-[38px] grid place-items-center rounded-[12px] text-[13px] font-bold transition-colors",
+              "h-[38px] grid place-items-center rounded-[0.3rem] text-[13px] font-bold transition-colors",
               tab === k
                 ? "text-white bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_8px_24px_-10px_rgba(232,45,174,0.6)]"
                 : "text-muted-foreground",
@@ -3302,14 +3332,14 @@ function OnboardingPasswordCard({
   }
 
   return (
-    <div className="rounded-[14px] border border-border bg-background/40 mb-2 overflow-hidden">
+    <div className="rounded-[0.3rem] border border-border bg-background/40 mb-2 overflow-hidden">
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={expanded}
         className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left"
       >
-        <span className="size-8 rounded-[10px] bg-secondary border border-border grid place-items-center text-[14px]">
+        <span className="size-8 rounded-[0.3rem] bg-secondary border border-border grid place-items-center text-[14px]">
           {icon}
         </span>
         <div className="min-w-0 flex-1">
@@ -3336,7 +3366,7 @@ function OnboardingPasswordCard({
               {detail}
             </div>
           )}
-          <div className="flex items-center justify-between gap-2 rounded-[10px] border border-border bg-secondary/60 px-3 py-2">
+          <div className="flex items-center justify-between gap-2 rounded-[0.3rem] border border-border bg-secondary/60 px-3 py-2">
             <span className="font-mono font-bold text-[13.5px] tracking-wider">
               {revealed ? value : "•".repeat(Math.max(5, Math.min(value.length, 9)))}
             </span>
@@ -3345,7 +3375,7 @@ function OnboardingPasswordCard({
                 type="button"
                 onClick={copy}
                 aria-label="Copiar"
-                className="size-7 rounded-[8px] bg-card border border-border grid place-items-center text-[12px]"
+                className="size-7 rounded-[0.3rem] bg-card border border-border grid place-items-center text-[12px]"
               >
                 {copied ? "✓" : "📋"}
               </button>
@@ -3353,7 +3383,7 @@ function OnboardingPasswordCard({
                 type="button"
                 onClick={reveal}
                 aria-label="Mostrar"
-                className="size-7 rounded-[8px] grid place-items-center bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white text-[12px]"
+                className="size-7 rounded-[0.3rem] grid place-items-center bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white text-[12px]"
               >
                 👁
               </button>
@@ -3597,7 +3627,7 @@ function PostAccessOnboarding({
           className={cn(
             step === 0
               ? ""
-              : "rounded-[22px] border border-[#a855f7]/25 bg-card/95 backdrop-blur-2xl shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65),0_0_60px_-20px_rgba(232,45,174,0.3)] p-5",
+              : "rounded-[0.3rem] border border-[#a855f7]/25 bg-card/95 backdrop-blur-2xl shadow-[0_28px_70px_-18px_rgba(0,0,0,0.65),0_0_60px_-20px_rgba(232,45,174,0.3)] p-5",
           )}
         >
           {current !== "intro" && current !== "final" && (
@@ -3629,7 +3659,7 @@ function PostAccessOnboarding({
                 Confere os dados e veja onde vai estar sua senha.
               </p>
 
-              <div className="rounded-[15px] border border-border bg-foreground/[0.03] px-3.5 mb-3">
+              <div className="rounded-[0.3rem] border border-border bg-foreground/[0.03] px-3.5 mb-3">
                 <div className="flex items-center justify-between gap-3 py-2.5 border-b border-border">
                   <p className="text-[12.5px] text-muted-foreground">Check-in</p>
                   <p className="text-[12.5px] font-bold text-foreground text-right [text-wrap:auto]">
@@ -3661,7 +3691,7 @@ function PostAccessOnboarding({
 
               <div
                 className={cn(
-                  "rounded-[15px] border border-[#a855f7]/35 bg-[#a855f7]/[0.08] p-3.5 flex items-start gap-2.5",
+                  "rounded-[0.3rem] border border-[#a855f7]/35 bg-[#a855f7]/[0.08] p-3.5 flex items-start gap-2.5",
                   !stageWording && "hidden",
                 )}
               >
@@ -3681,14 +3711,14 @@ function PostAccessOnboarding({
                 <button
                   type="button"
                   onClick={onBackToForm}
-                  className="h-[42px] px-4 rounded-2xl border-0 text-[12.5px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  className="h-[42px] px-4 rounded-[0.3rem] border-0 text-[12.5px] font-medium text-muted-foreground hover:text-foreground transition-colors"
                 >
                   ← Voltar
                 </button>
                 <button
                   type="button"
                   onClick={goNext}
-                  className="flex-1 h-[42px] rounded-2xl text-white font-semibold text-[13px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
+                  className="flex-1 h-[42px] rounded-[0.3rem] text-white font-semibold text-[13px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
                 >
                   Está tudo certo →
                 </button>
@@ -3709,14 +3739,14 @@ function PostAccessOnboarding({
                 <button
                   type="button"
                   onClick={goBack}
-                  className="h-[42px] px-4 rounded-2xl border-0 text-[12.5px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  className="h-[42px] px-4 rounded-[0.3rem] border-0 text-[12.5px] font-medium text-muted-foreground hover:text-foreground transition-colors"
                 >
                   ← Voltar
                 </button>
                 <button
                   type="button"
                   onClick={goNext}
-                  className="flex-1 h-[42px] rounded-2xl text-white font-semibold text-[13px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
+                  className="flex-1 h-[42px] rounded-[0.3rem] text-white font-semibold text-[13px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
                 >
                   Entendi →
                 </button>
@@ -3784,7 +3814,7 @@ function PostAccessOnboarding({
                   para uma etapa que o hóspede só quer atravessar. Ficou uma
                   frase: o que fazer (tocar no 👁) e até quando as senhas
                   valem. */}
-              <div className="rounded-[15px] border border-[#a855f7]/25 bg-[#a855f7]/10 p-3 flex items-start gap-2.5 mt-1 mb-4">
+              <div className="rounded-[0.3rem] border border-[#a855f7]/25 bg-[#a855f7]/10 p-3 flex items-start gap-2.5 mt-1 mb-4">
                 <span className="text-[14px] leading-none mt-0.5">🔐</span>
                 <p className="flex-1 text-[12.5px] leading-[1.5] text-foreground/85 [text-wrap:auto]">
                   {hasAccessPin ? (
@@ -3820,14 +3850,14 @@ function PostAccessOnboarding({
                 <button
                   type="button"
                   onClick={goBack}
-                  className="h-[42px] px-4 rounded-2xl border-0 text-[12.5px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  className="h-[42px] px-4 rounded-[0.3rem] border-0 text-[12.5px] font-medium text-muted-foreground hover:text-foreground transition-colors"
                 >
                   ← Voltar
                 </button>
                 <button
                   type="button"
                   onClick={goNext}
-                  className="flex-1 h-[42px] rounded-2xl text-white font-semibold text-[13px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
+                  className="flex-1 h-[42px] rounded-[0.3rem] text-white font-semibold text-[13px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
                 >
                   Perfeito →
                 </button>
@@ -3859,7 +3889,7 @@ function PostAccessOnboarding({
                   <button
                     type="button"
                     onClick={onDone}
-                    className="w-full h-[44px] rounded-2xl text-white font-semibold text-[13px] bg-gradient-to-r from-emerald-400 to-emerald-500 shadow-[0_10px_30px_-8px_rgba(16,185,129,0.55)] hover:brightness-110 transition-all"
+                    className="w-full h-[44px] rounded-[0.3rem] text-white font-semibold text-[13px] bg-gradient-to-r from-emerald-400 to-emerald-500 shadow-[0_10px_30px_-8px_rgba(16,185,129,0.55)] hover:brightness-110 transition-all"
                   >
                     Acessar o Guia Digital
                   </button>
@@ -3871,7 +3901,7 @@ function PostAccessOnboarding({
                         window.dispatchEvent(new CustomEvent("guide-checkin-done"));
                         onDone();
                       }}
-                      className="w-full h-[44px] rounded-2xl text-white font-semibold text-[13px] bg-gradient-to-r from-emerald-400 to-emerald-500 shadow-[0_10px_30px_-8px_rgba(16,185,129,0.55)] hover:brightness-110 transition-all"
+                      className="w-full h-[44px] rounded-[0.3rem] text-white font-semibold text-[13px] bg-gradient-to-r from-emerald-400 to-emerald-500 shadow-[0_10px_30px_-8px_rgba(16,185,129,0.55)] hover:brightness-110 transition-all"
                     >
                       Consegui fazer o check-in! 🎉
                     </button>
@@ -3879,7 +3909,7 @@ function PostAccessOnboarding({
                     <button
                       type="button"
                       onClick={openDifficultyChat}
-                      className="w-full h-[44px] rounded-2xl border border-border text-foreground/85 font-semibold text-[12.5px]"
+                      className="w-full h-[44px] rounded-[0.3rem] border border-border text-foreground/85 font-semibold text-[12.5px]"
                     >
                       Estou com dificuldade no check-in
                     </button>
@@ -3889,7 +3919,7 @@ function PostAccessOnboarding({
                   <button
                     type="button"
                     onClick={goBack}
-                    className="h-[38px] px-4 rounded-2xl border-0 text-[12.5px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    className="h-[38px] px-4 rounded-[0.3rem] border-0 text-[12.5px] font-medium text-muted-foreground hover:text-foreground transition-colors"
                   >
                     ← Voltar
                   </button>
@@ -4079,12 +4109,12 @@ function RulesGrid({ text }: { text: string }) {
         <AccordionItem
           key={cat.key}
           value={cat.key}
-          className="border border-border/60 rounded-2xl overflow-hidden bg-card/50 data-[state=open]:border-accent/40 transition-colors"
+          className="border border-border/60 rounded-[0.3rem] overflow-hidden bg-card/50 data-[state=open]:border-accent/40 transition-colors"
         >
           <AccordionTrigger className="px-4 py-3 hover:no-underline [&>svg]:hidden">
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <span
-                className={`grid size-8 shrink-0 place-items-center rounded-xl ring-1 ${cat.tone}`}
+                className={`grid size-8 shrink-0 place-items-center rounded-[0.3rem] ring-1 ${cat.tone}`}
               >
                 {cat.icon}
               </span>
@@ -4133,11 +4163,11 @@ function SubItem({
     <AccordionItem
       value={id}
       data-tour={dataTour}
-      className="border border-border/70 rounded-2xl overflow-hidden bg-card/60 backdrop-blur-sm data-[state=open]:border-accent/40 data-[state=open]:shadow-[0_8px_28px_-16px_oklch(from_var(--accent)_l_c_h/0.45)] transition-all"
+      className="border border-border/70 rounded-[0.3rem] overflow-hidden bg-card/60 backdrop-blur-sm data-[state=open]:border-accent/40 data-[state=open]:shadow-[0_8px_28px_-16px_oklch(from_var(--accent)_l_c_h/0.45)] transition-all"
     >
       <AccordionTrigger className="px-5 py-4 md:py-5 hover:no-underline">
         <div className="flex items-center gap-4 flex-1 min-w-0">
-          <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent/75 ring-1 ring-accent/15">
+          <span className="grid size-11 shrink-0 place-items-center rounded-[0.3rem] bg-accent/10 text-accent/75 ring-1 ring-accent/15">
             {icon}
           </span>
           <div className="flex-1 min-w-0 text-left">
@@ -4218,12 +4248,12 @@ function AccessBlock({
   }
 
   return (
-    <div className="rounded-2xl border border-border/60 bg-background/40 overflow-hidden">
+    <div className="rounded-[0.3rem] border border-border/60 bg-background/40 overflow-hidden">
       <div
         onClick={() => hasMore && setOpen((o) => !o)}
         className={`flex items-center gap-3 px-4 py-3.5 ${hasMore ? "cursor-pointer select-none hover:bg-card/30 active:bg-card/50 transition-colors" : ""}`}
       >
-        <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent/10 text-accent/75">
+        <div className="grid size-8 shrink-0 place-items-center rounded-[0.3rem] bg-accent/10 text-accent/75">
           <Icon className="size-[14px]" strokeWidth={1.75} />
         </div>
         <div className="flex-1 min-w-0">
@@ -4263,7 +4293,7 @@ function AccessBlock({
       {hasMore && open && (
         <div className="px-4 pb-4 pt-1 space-y-5">
           {instructions && (
-            <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-4">
+            <div className="rounded-[0.3rem] border border-border/60 bg-background/40 px-4 py-4">
               <StepList text={instructions} dense />
             </div>
           )}
@@ -4288,7 +4318,7 @@ function AccessBlock({
               {media.map((m, i) => (
                 <div
                   key={i}
-                  className="rounded-lg overflow-hidden border border-border/50 bg-muted/40 aspect-square"
+                  className="rounded-[0.3rem] overflow-hidden border border-border/50 bg-muted/40 aspect-square"
                 >
                   {m.type === "video" ? (
                     <video
@@ -4330,7 +4360,7 @@ function CopyCode({ value }: { value: string }) {
           })
           .catch(() => {});
       }}
-      className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-border/70 bg-background/60 px-3 py-2 text-[13px] font-medium text-foreground hover:bg-foreground/[0.04] active:bg-foreground/[0.06] transition-colors"
+      className="shrink-0 inline-flex items-center gap-1.5 rounded-[0.3rem] border border-border/70 bg-background/60 px-3 py-2 text-[13px] font-medium text-foreground hover:bg-foreground/[0.04] active:bg-foreground/[0.06] transition-colors"
     >
       {copied ? <Check className="size-3.5 text-accent" /> : <Copy className="size-3.5" />}
       <span>{copied ? "Copiado" : "Copiar"}</span>
@@ -4371,7 +4401,7 @@ function TaggedFaqs({
           <AccordionItem
             key={f.id}
             value={f.id}
-            className="border border-border/70 rounded-xl px-3.5 bg-card/30 hover:bg-card/60 transition-colors data-[state=open]:bg-card data-[state=open]:border-accent/40"
+            className="border border-border/70 rounded-[0.3rem] px-3.5 bg-card/30 hover:bg-card/60 transition-colors data-[state=open]:bg-card data-[state=open]:border-accent/40"
           >
             <AccordionTrigger className="text-left hover:no-underline py-2.5 gap-3">
               <span className="flex items-center gap-2.5 min-w-0">
@@ -4472,7 +4502,7 @@ function CopyCard({
       >
         <div className="flex items-center gap-3 min-w-0">
           {icon && (
-            <div className="size-9 rounded-lg bg-accent/10 text-accent/75 grid place-items-center shrink-0">
+            <div className="size-9 rounded-[0.3rem] bg-accent/10 text-accent/75 grid place-items-center shrink-0">
               {icon}
             </div>
           )}
@@ -4500,11 +4530,11 @@ function CopyCard({
   return (
     <button
       onClick={copy}
-      className="w-full bg-card border border-border rounded-2xl p-5 flex items-center justify-between gap-4 active:scale-[0.99] transition-transform hover:border-accent/40"
+      className="w-full bg-card border border-border rounded-[0.3rem] p-5 flex items-center justify-between gap-4 active:scale-[0.99] transition-transform hover:border-accent/40"
     >
       <div className="flex items-center gap-4 min-w-0">
         {icon && (
-          <div className="size-12 rounded-xl bg-gradient-to-br from-accent/12 to-accent/5 text-accent/75 grid place-items-center shrink-0">
+          <div className="size-12 rounded-[0.3rem] bg-gradient-to-br from-accent/12 to-accent/5 text-accent/75 grid place-items-center shrink-0">
             {icon}
           </div>
         )}
@@ -4575,7 +4605,7 @@ function GatedCopyCard({
     <div className="w-full flex items-center justify-between gap-3 px-3.5 py-3">
       <div className="flex items-center gap-3 min-w-0">
         {icon && (
-          <div className="size-9 rounded-lg bg-accent/10 text-accent/75 grid place-items-center shrink-0">
+          <div className="size-9 rounded-[0.3rem] bg-accent/10 text-accent/75 grid place-items-center shrink-0">
             {icon}
           </div>
         )}
@@ -4666,7 +4696,7 @@ function CodesTrigger({
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className={`block w-full text-left rounded-2xl border backdrop-blur-xl px-4 py-3 transition ${
+        className={`block w-full text-left rounded-[0.3rem] border backdrop-blur-xl px-4 py-3 transition ${
           isLight
             ? "border-border bg-card/70 hover:bg-card/90"
             : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
@@ -4758,7 +4788,7 @@ function WifiStrip({
 
   return (
     <div
-      className={`wifi-shimmer relative overflow-hidden rounded-[18px] border ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/25 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}
+      className={`wifi-shimmer relative overflow-hidden rounded-[0.3rem] border ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/25 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}
     >
       <div
         className={`pointer-events-none absolute inset-0 ${isLight ? "opacity-[0.04]" : "opacity-[0.07]"} [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]`}
@@ -4768,10 +4798,10 @@ function WifiStrip({
       />
       <div className="relative flex items-center gap-3 px-3 py-3">
         <span
-          className={`relative grid size-10 shrink-0 place-items-center rounded-xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-amber-400/10 text-amber-50 ring-amber-200/25"}`}
+          className={`relative grid size-10 shrink-0 place-items-center rounded-[0.3rem] ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-amber-400/10 text-amber-50 ring-amber-200/25"}`}
         >
           <span
-            className={`wifi-pulse pointer-events-none absolute -inset-1 rounded-xl ${isLight ? "bg-accent/15" : "bg-amber-400/12"} blur-md -z-10`}
+            className={`wifi-pulse pointer-events-none absolute -inset-1 rounded-[0.3rem] ${isLight ? "bg-accent/15" : "bg-amber-400/12"} blur-md -z-10`}
           />
           <Wifi className="relative size-[18px]" strokeWidth={2} />
         </span>
@@ -4908,7 +4938,7 @@ function AccessCodesStrip({
 
   return (
     <div
-      className={`wifi-shimmer relative overflow-hidden rounded-[18px] border ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/25 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}
+      className={`wifi-shimmer relative overflow-hidden rounded-[0.3rem] border ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/25 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}
     >
       <div
         className={`pointer-events-none absolute inset-0 ${isLight ? "opacity-[0.04]" : "opacity-[0.07]"} [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]`}
@@ -4918,7 +4948,7 @@ function AccessCodesStrip({
       />
       <div className="relative flex items-center gap-3 px-3 py-3">
         <span
-          className={`relative grid size-10 shrink-0 place-items-center rounded-xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-amber-400/10 text-amber-50 ring-amber-200/25"}`}
+          className={`relative grid size-10 shrink-0 place-items-center rounded-[0.3rem] ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-amber-400/10 text-amber-50 ring-amber-200/25"}`}
         >
           <KeyRound className="relative size-[18px]" strokeWidth={2} />
         </span>
@@ -4983,7 +5013,7 @@ function AccessCodesStrip({
       </div>
       {hasInstructions && (
         <Dialog open={instrOpen} onOpenChange={setInstrOpen}>
-          <DialogContent className="max-w-[380px] p-0 overflow-hidden rounded-[22px]">
+          <DialogContent className="max-w-[380px] p-0 overflow-hidden rounded-[0.3rem]">
             <div className="px-5 pt-5 pb-3 text-center border-b border-border/40">
               <div className="mx-auto mb-2.5 grid place-items-center size-11 rounded-full bg-accent/12 ring-1 ring-accent/25 text-accent">
                 <KeyRound className="size-[18px]" strokeWidth={1.75} />
@@ -5040,7 +5070,7 @@ function CheckoutNoticeStrip({
     : "Hoje é o seu dia de check-out";
   return (
     <div
-      className={`relative overflow-hidden rounded-[22px] border ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/25 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}
+      className={`relative overflow-hidden rounded-[0.3rem] border ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/25 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}
     >
       <div
         className={`pointer-events-none absolute inset-0 ${isLight ? "opacity-[0.04]" : "opacity-[0.07]"} [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]`}
@@ -5050,7 +5080,7 @@ function CheckoutNoticeStrip({
       />
       <div className="relative flex items-start gap-4 px-5 py-3.5 md:px-6 md:py-4">
         <span
-          className={`relative grid size-12 shrink-0 place-items-center rounded-2xl ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-accent/10 text-accent/75 ring-accent/15"}`}
+          className={`relative grid size-12 shrink-0 place-items-center rounded-[0.3rem] ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-accent/10 text-accent/75 ring-accent/15"}`}
         >
           <LogOut className="relative size-[20px]" strokeWidth={2} />
         </span>
@@ -5128,14 +5158,14 @@ function PinDialog({
       <DialogContent
         className={cn(
           "max-w-[380px] p-0 gap-0 overflow-hidden border-white/10",
-          "rounded-[24px]",
+          "rounded-[0.3rem]",
           "bg-[color-mix(in_oklab,hsl(var(--background))_78%,transparent)]",
           "backdrop-blur-2xl backdrop-saturate-150",
           "shadow-[0_28px_70px_-18px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.05)_inset]",
         )}
       >
         <div className="px-6 pt-6 pb-2">
-          <div className="mx-auto mb-4 grid size-11 place-items-center rounded-2xl bg-primary/12 ring-1 ring-primary/25 text-primary">
+          <div className="mx-auto mb-4 grid size-11 place-items-center rounded-[0.3rem] bg-primary/12 ring-1 ring-primary/25 text-primary">
             <KeyRound className="size-[18px]" strokeWidth={2} />
           </div>
           <DialogHeader className="text-center space-y-1.5">
@@ -5162,7 +5192,7 @@ function PinDialog({
             type="password"
             maxLength={32}
             className={cn(
-              "h-[52px] rounded-[14px] text-center text-[18px] tracking-[0.3em] font-semibold",
+              "h-[52px] rounded-[0.3rem] text-center text-[18px] tracking-[0.3em] font-semibold",
               "bg-white/[0.04] border-white/10 focus-visible:ring-4 focus-visible:ring-primary/15 focus-visible:border-primary/50",
             )}
           />
@@ -5229,7 +5259,7 @@ function AccessInstructionsSection({
       </div>
       {instr && <StepList text={instr} dense compact />}
       {videoUrl && (
-        <div className="mt-3 overflow-hidden rounded-xl border border-border/40 bg-muted/30 aspect-video">
+        <div className="mt-3 overflow-hidden rounded-[0.3rem] border border-border/40 bg-muted/30 aspect-video">
           {embed ? (
             <iframe
               src={embed}
@@ -5265,7 +5295,7 @@ function AccessInstructionsSection({
               type="button"
               onClick={() => setPreview(m)}
               onContextMenu={(e) => e.preventDefault()}
-              className="block overflow-hidden rounded-lg border border-border/40 bg-muted/30 aspect-square cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-accent/40"
+              className="block overflow-hidden rounded-[0.3rem] border border-border/40 bg-muted/30 aspect-square cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-accent/40"
               aria-label="Ampliar mídia"
             >
               {m.type === "video" ? (
@@ -5295,7 +5325,7 @@ function AccessInstructionsSection({
         }}
       >
         <DialogContent
-          className="max-w-[92vw] sm:max-w-[640px] p-0 overflow-hidden rounded-[20px] bg-black/95 border-white/10"
+          className="max-w-[92vw] sm:max-w-[640px] p-0 overflow-hidden rounded-[0.3rem] bg-black/95 border-white/10"
           onContextMenu={(e) => e.preventDefault()}
         >
           <DialogTitle className="sr-only">Visualização da mídia</DialogTitle>
