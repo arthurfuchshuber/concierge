@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-11T16:14:47.120Z";
+export const GENERATED_AT = "2026-09-11T16:36:26.278Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -1914,6 +1914,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ef3c1c66c3ef578b9b9e0522f86a4558"
   },
   {
+    "doc_key": "rule:src/components/dashboard/MediaLightbox.tsx:0",
+    "kind": "rule",
+    "title": "Regra em MediaLightbox.tsx",
+    "content": "TELA CHEIA COM ZOOM PARA OS REGISTROS (pedido de 11/09/2026).\n\n\"preciso que o usuário do sistema consiga visualizar em tela cheia os\n registros (fotos, vídeos) e que consiga dar zoom\"\n\nO visualizador do registro mostra a mídia num palco 4:3 com a ficha embaixo.\nServe para reconhecer o que é, não para examinar: um risco fino na parede, a\nplaca de um carro num vídeo de auditoria, o número de série de um aparelho —\nnada disso se lê ali.\n\nPOR QUE NÃO A TELA CHEIA DO NAVEGADOR: no Safari do iPhone a\n`requestFullscreen` não vale para um elemento qualquer — só para o próprio\n<video>. Como 71% dos acessos deste sistema vêm de iPhone, uma implementação\nbaseada nela funcionaria para a minoria. Esta camada ocupa a viewport\ninteira, que é o comportamento que existe em todo lugar.\n\nO ZOOM É PRÓPRIO, e não o do navegador, por um motivo prático: o zoom nativo\nda página ampliaria a interface junto (botões, etiquetas) e não deixaria\narrastar a imagem por baixo dos cantos. Aqui a transformação é só da mídia.\n\nDecisões tomadas com o produto (11/09):\n · a etiqueta da categoria e a situação da pendência CONTINUAM visíveis no\n topo — quem revisa vários registros seguidos perde o contexto sem elas;\n · existe download, porque a foto do dano costuma ir para o hóspede, para o\n seguro ou para o prestador.",
+    "source_path": "src/components/dashboard/MediaLightbox.tsx",
+    "audience": [],
+    "content_hash": "59823a76849d5b7930747f34a9a3cc3b"
+  },
+  {
     "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:142459",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
@@ -2103,7 +2112,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "5a43fe0e13d2e310b0e8f325a6d0a0f5"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:10148",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:10231",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "ACERVO RECOLHIDO POR PADRÃO, UM DE CADA VEZ (pedido explícito,\n10/09/2026). A tela abre mostrando só o que há para EXECUTAR; as\nminiaturas de prova ficam a um toque. E abrir um imóvel fecha o anterior,\nsenão a página volta a ser uma parede de quadradinhos.",
@@ -2112,7 +2121,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "da56a7e41911b71c751dc4fed78c2097"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:23471",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:23554",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "O CARTÃO DO IMÓVEL EM DOIS ANDARES (mockup B, aprovado 10/09/2026).\n\nAntes era uma fileira de quadrados cinzentos com um ponto de 6px: um dano\nsem conserto e uma foto de auditoria eram visualmente o mesmo quadrado. O\ncartão passa a admitir que há duas naturezas ali dentro —\n\n A RESOLVER o que abriu pendência e ela ainda está de pé (dano,\n manutenção, objeto esquecido). Vira LINHA, com título\n legível, porque é trabalho e trabalho precisa de nome.\n REGISTROS o resto. Continua miniatura, porque é prova.\n\nSem nada em aberto o primeiro andar não existe e o cartão fica igual ao de\nantes — a mesma regra de sempre: o aviso só aparece quando há aviso.",
@@ -2121,7 +2130,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1bede5e40def9ea40c009fa805397bcc"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:24198",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:24281",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "A FAIXA LATERAL DO CARTÃO DO IMÓVEL (pedido explícito, 10/09/2026).\n\nMesma barra de 3px dos cards do Kanban, mas dizendo outra coisa: aqui ela\nresponde \"o que mais tem neste imóvel?\" antes de a pessoa ler qualquer\nlinha. A cor é a da CATEGORIA MAIS FREQUENTE entre os registros daquele\nimóvel, com UMA exceção pedida pelo cliente:\n\n \"só nunca usar a cor da auditoria de limpeza quando tiver registro de\n outras categorias junto. só usar a cor da auditoria da limpeza quando só\n tiver isso no imóvel\"\n\nFaz sentido: auditoria é ROTINA — todo imóvel limpo gera vídeo, então ela\nganharia quase sempre na contagem e a faixa viraria uma fileira roxa que não\ninforma nada. Tirando-a da disputa, a faixa passa a mostrar o que exige\natenção; roxo então significa exatamente \"aqui só há prova de limpeza, nada\npendente\".\n\nEmpate: vence a mais grave — dano, depois manutenção, depois esquecidos,\ndepois outros.",
@@ -2130,7 +2139,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ac3013773b1e44cf4e096d38a8c66d5a"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:6415",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:6498",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "A FAIXA DA CATEGORIA dentro do quadrante (pedido explícito, 10/09/2026):\nmesma cor da categoria, translúcida, com o texto na versão clara dela. Fica\nde ponta a ponta no topo do quadrado, centralizada — sobre foto ou vídeo a\ntranslucidez deixa a imagem aparecer por baixo.",

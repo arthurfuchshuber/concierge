@@ -13,6 +13,7 @@ import {
   SlidersHorizontal,
   StickyNote,
   Video,
+  Maximize2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -30,6 +31,7 @@ import { useImpersonation } from "@/hooks/useImpersonation";
 import { CARD_OWNER } from "@/components/dashboard/card-colors";
 import { OperationShell } from "@/components/dashboard/OperationWorkspace";
 import { AudioPlayer } from "@/components/dashboard/ReservationRecords";
+import { MediaLightbox } from "@/components/dashboard/MediaLightbox";
 import { DictationField } from "@/components/dashboard/RecordSituationSheet";
 import { CATEGORY_BY_KEY, MODE_LABEL, fmtDayLabel } from "@/components/dashboard/record-categories";
 import { listTaskLinkOptions, setTaskStatus } from "@/lib/tasks.functions";
@@ -1198,6 +1200,10 @@ function RecordViewerBody({
         },
       ];
   const [idx, setIdx] = useState(0);
+  /* TELA CHEIA (11/09/2026). O palco do registro serve para reconhecer a
+     mídia; para EXAMINAR — um risco na parede, a placa de um carro no vídeo de
+     auditoria — é preciso a tela inteira e zoom. Ver `MediaLightbox`. */
+  const [cheia, setCheia] = useState(false);
   const current = media[Math.min(idx, media.length - 1)];
   const [editing, setEditing] = useState(false);
 
@@ -1230,6 +1236,29 @@ function RecordViewerBody({
 
       <div className={`relative ${VIEWER_STAGE} overflow-hidden bg-black`}>
         <ViewerStage record={current} />
+        {/* A mídia inteira abre a tela cheia. Fica ATRÁS das etiquetas e do
+            player de vídeo (z-0), então nem o controle do vídeo nem os
+            selos perdem o clique. */}
+        {(current.kind === "photo" || current.kind === "video") && current.url && (
+          <>
+            {current.kind === "photo" && (
+              <button
+                type="button"
+                onClick={() => setCheia(true)}
+                aria-label="Abrir em tela cheia"
+                className="absolute inset-0 z-0 cursor-zoom-in"
+              />
+            )}
+            <button
+              type="button"
+              onClick={() => setCheia(true)}
+              aria-label="Abrir em tela cheia"
+              className="absolute bottom-2.5 left-2.5 z-10 grid size-[30px] place-items-center rounded-[0.45rem] border border-white/25 bg-black/60 text-white backdrop-blur transition-colors hover:bg-black/80"
+            >
+              <Maximize2 className="size-[15px]" strokeWidth={2} />
+            </button>
+          </>
+        )}
         {/* Aqui a etiqueta fica SOBRE a mídia, então ela é sólida (pedido
             explícito): translúcida, sumia contra uma foto clara. Nos
             quadrantes da lista ela segue translúcida — lá não há imagem
@@ -1270,6 +1299,33 @@ function RecordViewerBody({
           </span>
         )}
       </div>
+
+      {cheia && (
+        <MediaLightbox
+          media={media.map((m) => ({ id: m.id, kind: m.kind, url: m.url, mime: m.mime }))}
+          startIndex={Math.min(idx, media.length - 1)}
+          categoryLabel={meta?.label ?? null}
+          categoryClass={CATEGORY_SOLID[record.category] ?? CATEGORY_SOLID.other}
+          statusLabel={
+            record.taskId
+              ? record.taskStatus === "pending"
+                ? "Em aberto"
+                : record.taskStatus === "canceled"
+                  ? "Cancelada"
+                  : "Resolvida"
+              : null
+          }
+          statusClass={
+            record.taskStatus === "pending"
+              ? "bg-rose-600"
+              : record.taskStatus === "canceled"
+                ? "bg-zinc-600"
+                : "bg-emerald-600"
+          }
+          fileBaseName={record.fileName}
+          onClose={() => setCheia(false)}
+        />
+      )}
 
       {media.length > 1 && (
         <div className="ds-scroll-x flex gap-1.5 px-3.5 pt-2.5">
