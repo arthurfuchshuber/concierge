@@ -11,7 +11,11 @@ export const listMyTeam = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data?.accountOwnerId ?? null);
+    const ownerId = await resolveAuthorizedAccountOwnerId(
+      supabase,
+      userId,
+      data?.accountOwnerId ?? null,
+    );
     const [{ data: members }, { data: invites }] = await Promise.all([
       supabase
         .from("account_members")
@@ -34,11 +38,16 @@ export const listMyTeam = createServerFn({ method: "GET" })
         .from("profiles")
         .select("id, full_name, trade_name")
         .in("id", ids);
-      for (const p of profs ?? []) emails[p.id as string] = { email: null, full_name: ((p.trade_name as string) || (p.full_name as string)) ?? null };
+      for (const p of profs ?? [])
+        emails[p.id as string] = {
+          email: null,
+          full_name: ((p.trade_name as string) || (p.full_name as string)) ?? null,
+        };
       // Fetch emails
       const users = { users: await (await import("@/lib/admin-users.server")).listAllAuthUsers() };
       for (const u of users?.users ?? []) {
-        if (ids.includes(u.id)) emails[u.id] = { email: u.email ?? null, full_name: emails[u.id]?.full_name ?? null };
+        if (ids.includes(u.id))
+          emails[u.id] = { email: u.email ?? null, full_name: emails[u.id]?.full_name ?? null };
       }
     }
     return { members: members ?? [], invites: invites ?? [], profiles: emails };
@@ -73,20 +82,19 @@ async function sendAccountInviteEmail(
   return { sent: true, via: "app-email" as const };
 }
 
-
-
-
-
-
 export const inviteTeamMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => InviteInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data?.accountOwnerId ?? null);
+    const ownerId = await resolveAuthorizedAccountOwnerId(
+      supabase,
+      userId,
+      data?.accountOwnerId ?? null,
+    );
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
-    await enforce(userId, "equipe.write", { });
+    await enforce(userId, "equipe.write", {});
     // Check plan limit
     const { resolveUserPlan } = await import("@/lib/plan-guard.server");
     const plan = await resolveUserPlan(supabase, ownerId);
@@ -100,7 +108,9 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
         .eq("owner_id", ownerId)
         .eq("status", "active");
       if ((count ?? 0) >= 2) {
-        throw new Error("O plano Business permite até 2 atendentes além do titular. Faça upgrade para o Enterprise.");
+        throw new Error(
+          "O plano Business permite até 2 atendentes além do titular. Faça upgrade para o Enterprise.",
+        );
       }
     }
     const { data: inserted, error } = await supabase
@@ -135,7 +145,6 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
         autoAccepted: false,
         existingUser: !!existingUserId,
       };
-
     } catch (e) {
       // Convite fica registrado mesmo se o envio falhar — o titular pode
       // usar o botão "Reenviar" na lista de convites pendentes.
@@ -148,11 +157,12 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
         emailError: (e as Error).message,
       };
     }
-
   });
 
-
-const RevokeInput = z.object({ accountOwnerId: z.string().uuid().optional(), inviteId: z.string().uuid() });
+const RevokeInput = z.object({
+  accountOwnerId: z.string().uuid().optional(),
+  inviteId: z.string().uuid(),
+});
 
 export const revokeTeamInvite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -160,7 +170,11 @@ export const revokeTeamInvite = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data?.accountOwnerId ?? null);
+    const ownerId = await resolveAuthorizedAccountOwnerId(
+      supabase,
+      userId,
+      data?.accountOwnerId ?? null,
+    );
     const { error } = await supabase
       .from("account_member_invites")
       .update({ status: "revoked" })
@@ -176,7 +190,11 @@ export const resendTeamInvite = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data?.accountOwnerId ?? null);
+    const ownerId = await resolveAuthorizedAccountOwnerId(
+      supabase,
+      userId,
+      data?.accountOwnerId ?? null,
+    );
     const { data: inv, error } = await supabase
       .from("account_member_invites")
       .select("id, email, status, expires_at")
@@ -209,10 +227,6 @@ export const resendTeamInvite = createServerFn({ method: "POST" })
       inviteId: inv.id as string,
     });
     return { ok: true, autoAccepted: false, existingUser: !!existingUserId, emailSent: true };
-
-
-
-
   });
 
 /**
@@ -226,7 +240,11 @@ export const getTeamInviteLink = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data?.accountOwnerId ?? null);
+    const ownerId = await resolveAuthorizedAccountOwnerId(
+      supabase,
+      userId,
+      data?.accountOwnerId ?? null,
+    );
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
     await enforce(userId, "equipe.write", {});
     const { data: inv, error } = await supabase
@@ -267,7 +285,11 @@ export const resendAllPendingInvites = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data?.accountOwnerId ?? null);
+    const ownerId = await resolveAuthorizedAccountOwnerId(
+      supabase,
+      userId,
+      data?.accountOwnerId ?? null,
+    );
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
     await enforce(userId, "equipe.write", {});
 
@@ -283,8 +305,7 @@ export const resendAllPendingInvites = createServerFn({ method: "POST" })
       .select("full_name, trade_name")
       .eq("id", ownerId)
       .maybeSingle();
-    const inviterName =
-      ((inviter?.trade_name as string) || (inviter?.full_name as string)) ?? null;
+    const inviterName = ((inviter?.trade_name as string) || (inviter?.full_name as string)) ?? null;
 
     const newExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     let sent = 0;
@@ -313,9 +334,10 @@ export const resendAllPendingInvites = createServerFn({ method: "POST" })
     return { ok: true, total: (invites ?? []).length, sent, failed };
   });
 
-
-
-const MemberOpInput = z.object({ accountOwnerId: z.string().uuid().optional(), memberId: z.string().uuid() });
+const MemberOpInput = z.object({
+  accountOwnerId: z.string().uuid().optional(),
+  memberId: z.string().uuid(),
+});
 
 export const removeTeamMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -323,9 +345,13 @@ export const removeTeamMember = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data?.accountOwnerId ?? null);
+    const ownerId = await resolveAuthorizedAccountOwnerId(
+      supabase,
+      userId,
+      data?.accountOwnerId ?? null,
+    );
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
-    await enforce(userId, "equipe.write", { });
+    await enforce(userId, "equipe.write", {});
     const { error } = await supabase
       .from("account_members")
       .update({ status: "revoked" })
@@ -335,7 +361,11 @@ export const removeTeamMember = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-const UpdateRoleInput = z.object({ accountOwnerId: z.string().uuid().optional(), memberId: z.string().uuid(), role: z.enum(["owner", "agent", "viewer"]) });
+const UpdateRoleInput = z.object({
+  accountOwnerId: z.string().uuid().optional(),
+  memberId: z.string().uuid(),
+  role: z.enum(["owner", "agent", "viewer"]),
+});
 
 export const updateTeamMemberRole = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -343,9 +373,13 @@ export const updateTeamMemberRole = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data?.accountOwnerId ?? null);
+    const ownerId = await resolveAuthorizedAccountOwnerId(
+      supabase,
+      userId,
+      data?.accountOwnerId ?? null,
+    );
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
-    await enforce(userId, "equipe.write", { });
+    await enforce(userId, "equipe.write", {});
     const { error } = await supabase
       .from("account_members")
       .update({ role: data.role })

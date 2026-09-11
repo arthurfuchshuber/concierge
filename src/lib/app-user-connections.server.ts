@@ -1,7 +1,11 @@
 // Armazenamento server-only das chaves de conexão dos conectores por anfitrião.
 import { encryptConnectionKey, decryptConnectionKey } from "@/lib/connection-key-crypto.server";
 
-export async function saveConnectionKeyForUser(userId: string, connectorId: string, connectionAPIKey: string) {
+export async function saveConnectionKeyForUser(
+  userId: string,
+  connectorId: string,
+  connectionAPIKey: string,
+) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { error } = await supabaseAdmin.from("app_user_connections").upsert(
     {
@@ -15,7 +19,10 @@ export async function saveConnectionKeyForUser(userId: string, connectorId: stri
   if (error) throw error;
 }
 
-export async function getConnectionKeyForUser(userId: string, connectorId: string): Promise<string | null> {
+export async function getConnectionKeyForUser(
+  userId: string,
+  connectorId: string,
+): Promise<string | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("app_user_connections")
@@ -29,5 +36,9 @@ export async function getConnectionKeyForUser(userId: string, connectorId: strin
 
 export async function deleteConnectionForUser(userId: string, connectorId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  await supabaseAdmin.from("app_user_connections").delete().eq("user_id", userId).eq("connector_id", connectorId);
+  await supabaseAdmin
+    .from("app_user_connections")
+    .delete()
+    .eq("user_id", userId)
+    .eq("connector_id", connectorId);
 }

@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, CreditCard, Loader2, ShieldCheck, Sparkles, ArrowLeft, BadgeCheck } from "lucide-react";
+import {
+  Check,
+  CreditCard,
+  Loader2,
+  ShieldCheck,
+  Sparkles,
+  ArrowLeft,
+  BadgeCheck,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePaddleCheckout } from "@/hooks/usePaddleCheckout";
 import { PLANS, type PlanKey } from "@/lib/payments.functions";
@@ -131,9 +139,7 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
             C
           </div>
 
-          <p className="ds-eyebrow text-accent">
-            Etapa {step} de 2
-          </p>
+          <p className="ds-eyebrow text-accent">Etapa {step} de 2</p>
           <h1 className="ds-page-title mt-1">
             {step === 1 ? "Confirme seu documento" : "Escolha seu plano"}
           </h1>
@@ -144,8 +150,10 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
           </p>
           {step === 2 && (
             <p className="ds-body mt-1 max-w-lg mx-auto">
-              <strong className="text-foreground">Você não será cobrado nos primeiros 7 dias</strong> — cancele
-              antes do fim do teste sem nenhum custo.
+              <strong className="text-foreground">
+                Você não será cobrado nos primeiros 7 dias
+              </strong>{" "}
+              — cancele antes do fim do teste sem nenhum custo.
             </p>
           )}
         </div>
@@ -169,9 +177,7 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
               ))}
             </div>
 
-            <label className="ds-meta">
-              Número do {docKind === "cpf" ? "CPF" : "CNPJ"}
-            </label>
+            <label className="ds-meta">Número do {docKind === "cpf" ? "CPF" : "CNPJ"}</label>
             <input
               inputMode="numeric"
               autoComplete="off"
@@ -185,9 +191,7 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
               className="mt-1 w-full ds-surface border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-foreground"
             />
 
-            {docError && (
-              <p className="mt-2 text-xs text-red-600 dark:text-red-400">{docError}</p>
-            )}
+            {docError && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{docError}</p>}
             {docCheck?.ok && (
               <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-400 inline-flex items-center gap-1">
                 <BadgeCheck className="size-3.5" /> Documento válido
@@ -208,7 +212,9 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
               className="mt-4 w-full h-11 rounded-full bg-gradient-to-br from-brand-purple to-brand-magenta text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50 inline-flex items-center justify-center gap-2 transition-opacity"
             >
               {validating ? (
-                <><Loader2 className="size-4 animate-spin" /> Validando na Receita…</>
+                <>
+                  <Loader2 className="size-4 animate-spin" /> Validando na Receita…
+                </>
               ) : (
                 <>Continuar</>
               )}
@@ -266,14 +272,13 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
                       <span className="text-2xl font-display font-bold">{p.priceLabel}</span>
                       <span className="text-xs text-muted-foreground">/mês</span>
                     </div>
-                    <p className="ds-meta mt-1">
-                      {p.featureList.slice(0, 3).join(" · ")}
-                    </p>
+                    <p className="ds-meta mt-1">{p.featureList.slice(0, 3).join(" · ")}</p>
                   </button>
                 );
               })}
               <div className="ds-meta flex items-center gap-1.5 px-1 pt-1.5">
-                <ShieldCheck className="size-3.5" /> Pagamento seguro · você pode trocar de plano depois
+                <ShieldCheck className="size-3.5" /> Pagamento seguro · você pode trocar de plano
+                depois
               </div>
               {onSignOut && (
                 <button
@@ -304,7 +309,8 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
                     </p>
                     {docCheck.name && (
                       <p className="text-muted-foreground truncate">
-                        {docCheck.name}{docCheck.status ? ` · ${docCheck.status}` : ""}
+                        {docCheck.name}
+                        {docCheck.status ? ` · ${docCheck.status}` : ""}
                       </p>
                     )}
                   </div>
@@ -316,7 +322,8 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
                 <div>
                   <p className="font-medium text-foreground">Sem cobrança nos próximos 7 dias</p>
                   <p className="text-muted-foreground mt-0.5">
-                    O cartão é necessário para garantir continuidade, mas só será cobrado depois do período de teste. Cancele antes e nada é debitado.
+                    O cartão é necessário para garantir continuidade, mas só será cobrado depois do
+                    período de teste. Cancele antes e nada é debitado.
                   </p>
                 </div>
               </div>
@@ -328,9 +335,13 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
                   className="w-full h-11 rounded-full bg-gradient-to-br from-brand-purple to-brand-magenta text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50 inline-flex items-center justify-center gap-2 transition-opacity"
                 >
                   {opening ? (
-                    <><Loader2 className="size-4 animate-spin" /> Abrindo checkout…</>
+                    <>
+                      <Loader2 className="size-4 animate-spin" /> Abrindo checkout…
+                    </>
                   ) : (
-                    <><CreditCard className="size-4" /> Continuar para pagamento</>
+                    <>
+                      <CreditCard className="size-4" /> Continuar para pagamento
+                    </>
                   )}
                 </button>
               )}
@@ -346,7 +357,9 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
         <div className="mt-6 flex justify-center">
           <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-3.5 py-1.5 border border-emerald-500/20">
             <Sparkles className="size-3.5" />
-            <span className="text-xs font-semibold uppercase tracking-wider">7 dias grátis · sem cobrança no cadastro</span>
+            <span className="text-xs font-semibold uppercase tracking-wider">
+              7 dias grátis · sem cobrança no cadastro
+            </span>
           </div>
         </div>
       </div>

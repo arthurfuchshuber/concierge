@@ -60,21 +60,19 @@ export async function bindConversationChannel(params: {
   metadata?: Record<string, unknown>;
 }): Promise<void> {
   try {
-    await params.supabase
-      .from("ai_conversation_channels")
-      .upsert(
-        {
-          conversation_id: params.conversationId,
-          tenant_id: params.tenant.tenantId,
-          property_id: params.tenant.propertyId,
-          channel_type: params.channel,
-          external_reference: params.externalReference ?? null,
-          external_thread_id: params.externalThreadId ?? null,
-          locale: params.locale ?? null,
-          metadata: (params.metadata ?? {}) as never,
-        },
-        { onConflict: "conversation_id" },
-      );
+    await params.supabase.from("ai_conversation_channels").upsert(
+      {
+        conversation_id: params.conversationId,
+        tenant_id: params.tenant.tenantId,
+        property_id: params.tenant.propertyId,
+        channel_type: params.channel,
+        external_reference: params.externalReference ?? null,
+        external_thread_id: params.externalThreadId ?? null,
+        locale: params.locale ?? null,
+        metadata: (params.metadata ?? {}) as never,
+      },
+      { onConflict: "conversation_id" },
+    );
   } catch (err) {
     console.error("[channel] falha ao vincular canal", err);
   }

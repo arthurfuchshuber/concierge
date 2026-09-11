@@ -8,7 +8,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { chatJson } from "../gateway.server";
 import { definePrompt } from "../prompts";
-import { SUGGESTED_SCOPES, type LearningCandidateDraft, type SuggestedScope, type ValidationVerdict } from "./types";
+import {
+  SUGGESTED_SCOPES,
+  type LearningCandidateDraft,
+  type SuggestedScope,
+  type ValidationVerdict,
+} from "./types";
 
 type Admin = SupabaseClient;
 
@@ -90,27 +95,29 @@ export async function validateKnowledge(input: ValidateInput): Promise<Validatio
 
     if (!data) return fallback;
 
-    let scope = (SUGGESTED_SCOPES.includes(data.scope as SuggestedScope)
-      ? data.scope
-      : draft.suggestedScope) as SuggestedScope;
+    let scope = (
+      SUGGESTED_SCOPES.includes(data.scope as SuggestedScope) ? data.scope : draft.suggestedScope
+    ) as SuggestedScope;
 
     // Nunca ampliar além do proposto.
-    if (BREADTH.indexOf(scope) > BREADTH.indexOf(draft.suggestedScope)) scope = draft.suggestedScope;
+    if (BREADTH.indexOf(scope) > BREADTH.indexOf(draft.suggestedScope))
+      scope = draft.suggestedScope;
 
     const memoryKind = String(data.memoryKind ?? draft.memoryKind);
     if (memoryKind === "temporary_exception") scope = "temporary_exception";
 
     const conflicts = (data.conflicts ?? []).map((c) => String(c)).slice(0, 5);
     const risk = (["low", "medium", "high"].includes(String(data.risk)) ? data.risk : "medium") as
-      | "low"
-      | "medium"
-      | "high";
+      "low" | "medium" | "high";
 
     return {
       approved: !!data.approved && conflicts.length === 0 && risk !== "high",
       scope,
       memoryKind,
-      confidence: Math.max(0, Math.min(1, Number(data.confidence ?? draft.confidence) || draft.confidence)),
+      confidence: Math.max(
+        0,
+        Math.min(1, Number(data.confidence ?? draft.confidence) || draft.confidence),
+      ),
       ttlDays:
         scope === "temporary_exception"
           ? Number(data.ttlDays ?? draft.ttlDays ?? 7) || 7
@@ -125,7 +132,9 @@ export async function validateKnowledge(input: ValidateInput): Promise<Validatio
   }
 }
 
-async function relatedMemories(input: ValidateInput): Promise<Array<{ title: string | null; content: string }>> {
+async function relatedMemories(
+  input: ValidateInput,
+): Promise<Array<{ title: string | null; content: string }>> {
   try {
     let query = input.supabase
       .from("ai_memories")

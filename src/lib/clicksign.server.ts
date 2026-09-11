@@ -8,7 +8,11 @@ const CS_SANDBOX = "https://sandbox.clicksign.com";
 
 export type CsEnv = "production" | "sandbox";
 
-export async function csFetch(token: string, env: CsEnv, path: string): Promise<Record<string, unknown>> {
+export async function csFetch(
+  token: string,
+  env: CsEnv,
+  path: string,
+): Promise<Record<string, unknown>> {
   const base = env === "sandbox" ? CS_SANDBOX : CS_PROD;
   const sep = path.includes("?") ? "&" : "?";
   const res = await fetch(`${base}${path}${sep}access_token=${encodeURIComponent(token)}`, {
@@ -54,7 +58,9 @@ function fingerprints(signer: Signer): string[] {
   const doc = signerDoc(signer);
   const email = normalize(signer?.["email"]);
   const name = normalize(signer?.["name"]);
-  return [doc && `doc:${doc}`, email && `email:${email}`, name && `name:${name}`].filter(Boolean) as string[];
+  return [doc && `doc:${doc}`, email && `email:${email}`, name && `name:${name}`].filter(
+    Boolean,
+  ) as string[];
 }
 
 function primaryFingerprint(signer: Signer): string | null {
@@ -77,7 +83,8 @@ export function buildInternalSignerSet(docs: Array<{ signers: Signer[] }>): Set<
   for (const d of docs) {
     for (const s of d.signers ?? []) {
       const fp = primaryFingerprint(s);
-      if (fp && (counts.get(fp) ?? 0) >= threshold) for (const a of fingerprints(s)) internal.add(a);
+      if (fp && (counts.get(fp) ?? 0) >= threshold)
+        for (const a of fingerprints(s)) internal.add(a);
     }
   }
   return internal;
@@ -105,10 +112,12 @@ export function selectCounterpartSigner(
   const eligible = (signers ?? []).filter(hasValidDoc);
   if (!eligible.length) return null;
 
-  const byRole = eligible.filter((s) => {
-    const role = String(s?.["sign_as"] ?? s?.["role"] ?? "").toLowerCase();
-    return ["contractee", "contratante", "customer", "client", "cliente"].includes(role);
-  }).filter((s) => !isInternal(s, internal));
+  const byRole = eligible
+    .filter((s) => {
+      const role = String(s?.["sign_as"] ?? s?.["role"] ?? "").toLowerCase();
+      return ["contractee", "contratante", "customer", "client", "cliente"].includes(role);
+    })
+    .filter((s) => !isInternal(s, internal));
   if (byRole.length === 1) return byRole[0]!;
 
   const byFile = eligible.filter((s) => nameMatchesFilename(s, filename));

@@ -24,9 +24,7 @@ export const ROUTE_PERMISSIONS: Array<{ prefix: string; permission: string }> = 
   { prefix: "/admin/admins", permission: "admin.admins" },
 ];
 
-export const ROUTE_PERMISSION_LIST = [
-  ...new Set(ROUTE_PERMISSIONS.map((r) => r.permission)),
-];
+export const ROUTE_PERMISSION_LIST = [...new Set(ROUTE_PERMISSIONS.map((r) => r.permission))];
 
 export function permissionForPath(pathname: string): string | null {
   const match = ROUTE_PERMISSIONS.filter((r) => pathname.startsWith(r.prefix)).sort(

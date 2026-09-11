@@ -110,7 +110,12 @@ export async function sweepLearningLoop(params: {
     .limit(1000);
 
   const seen = new Set<string>();
-  const targets: Array<{ conversationId: string; tenantId: string; ownerId: string; propertyId: string | null }> = [];
+  const targets: Array<{
+    conversationId: string;
+    tenantId: string;
+    ownerId: string;
+    propertyId: string | null;
+  }> = [];
   for (const row of (data ?? []) as Array<Record<string, unknown>>) {
     const cid = String(row.conversation_id ?? "");
     if (!cid || seen.has(cid)) continue;

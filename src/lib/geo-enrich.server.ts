@@ -22,7 +22,9 @@ type Addr = {
 const digits = (v: unknown) => String(v ?? "").replace(/\D/g, "");
 const blank = (v: unknown) => !String(v ?? "").trim();
 
-async function fromCep(cep: string): Promise<{ city?: string; state?: string; district?: string; street?: string } | null> {
+async function fromCep(
+  cep: string,
+): Promise<{ city?: string; state?: string; district?: string; street?: string } | null> {
   try {
     const res = await fetch(`https://brasilapi.com.br/api/cep/v2/${cep}`, {
       headers: { accept: "application/json" },
@@ -42,12 +44,33 @@ async function fromCep(cep: string): Promise<{ city?: string; state?: string; di
 }
 
 const UF_BY_NAME: Record<string, string> = {
-  acre: "AC", alagoas: "AL", amapá: "AP", amazonas: "AM", bahia: "BA", ceará: "CE",
-  "distrito federal": "DF", "espírito santo": "ES", goiás: "GO", maranhão: "MA",
-  "mato grosso": "MT", "mato grosso do sul": "MS", "minas gerais": "MG", pará: "PA",
-  paraíba: "PB", paraná: "PR", pernambuco: "PE", piauí: "PI", "rio de janeiro": "RJ",
-  "rio grande do norte": "RN", "rio grande do sul": "RS", rondônia: "RO", roraima: "RR",
-  "santa catarina": "SC", "são paulo": "SP", sergipe: "SE", tocantins: "TO",
+  acre: "AC",
+  alagoas: "AL",
+  amapá: "AP",
+  amazonas: "AM",
+  bahia: "BA",
+  ceará: "CE",
+  "distrito federal": "DF",
+  "espírito santo": "ES",
+  goiás: "GO",
+  maranhão: "MA",
+  "mato grosso": "MT",
+  "mato grosso do sul": "MS",
+  "minas gerais": "MG",
+  pará: "PA",
+  paraíba: "PB",
+  paraná: "PR",
+  pernambuco: "PE",
+  piauí: "PI",
+  "rio de janeiro": "RJ",
+  "rio grande do norte": "RN",
+  "rio grande do sul": "RS",
+  rondônia: "RO",
+  roraima: "RR",
+  "santa catarina": "SC",
+  "são paulo": "SP",
+  sergipe: "SE",
+  tocantins: "TO",
 };
 
 async function fromNominatim(query: string): Promise<{ city?: string; state?: string } | null> {
@@ -58,7 +81,10 @@ async function fromNominatim(query: string): Promise<{ city?: string; state?: st
     url.searchParams.set("addressdetails", "1");
     url.searchParams.set("limit", "1");
     const res = await fetch(url, {
-      headers: { accept: "application/json", "user-agent": "AnfitriaoSigma/1.0 (address-validation)" },
+      headers: {
+        accept: "application/json",
+        "user-agent": "AnfitriaoSigma/1.0 (address-validation)",
+      },
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return null;
@@ -97,7 +123,14 @@ export async function enrichAddress(input: Addr): Promise<Partial<Addr>> {
   }
 
   if ((needsCity && !out.city) || (needsState && !out.state)) {
-    const q = [input.address, input.district, input.city, input.state, cep ? `CEP ${cep}` : "", "Brasil"]
+    const q = [
+      input.address,
+      input.district,
+      input.city,
+      input.state,
+      cep ? `CEP ${cep}` : "",
+      "Brasil",
+    ]
       .filter((v) => !blank(v))
       .join(", ");
     if (q.replace(/Brasil/, "").trim().length > 4) {

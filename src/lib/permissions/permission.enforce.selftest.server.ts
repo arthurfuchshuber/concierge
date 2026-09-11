@@ -6,7 +6,11 @@
  * e sem tocar em dados reais.
  */
 import { bootstrapPermissionRegistry } from "./permission.bootstrap";
-import { clearEnforcementLog, readEnforcementLog, resolveOutcome } from "./permission.enforce.server";
+import {
+  clearEnforcementLog,
+  readEnforcementLog,
+  resolveOutcome,
+} from "./permission.enforce.server";
 import { evaluateWithSnapshot } from "./permission.guard.server";
 import { permissionRegistry } from "./permission.registry";
 import type { SubjectSnapshot } from "./permission.resolve.server";
@@ -90,7 +94,10 @@ export function runEnforcementSelfTests(): { ok: boolean; cases: Case[] } {
   run(
     "endpoint protegido bloqueia escopo incorreto",
     false,
-    snapshot({ assignments: [assignment("WRITE", "PROPERTY", PROPERTY_A)], properties: [PROPERTY_A] }, slug),
+    snapshot(
+      { assignments: [assignment("WRITE", "PROPERTY", PROPERTY_A)], properties: [PROPERTY_A] },
+      slug,
+    ),
     { propertyId: PROPERTY_B, required: "READ" },
   );
 
@@ -98,7 +105,10 @@ export function runEnforcementSelfTests(): { ok: boolean; cases: Case[] } {
   run(
     "endpoint protegido libera escopo correto",
     true,
-    snapshot({ assignments: [assignment("WRITE", "PROPERTY", PROPERTY_A)], properties: [PROPERTY_A] }, slug),
+    snapshot(
+      { assignments: [assignment("WRITE", "PROPERTY", PROPERTY_A)], properties: [PROPERTY_A] },
+      slug,
+    ),
     { propertyId: PROPERTY_A, required: "WRITE" },
   );
 
@@ -127,7 +137,11 @@ export function runEnforcementSelfTests(): { ok: boolean; cases: Case[] } {
   }
 
   const ok = cases.every((c) => c.ok);
-  if (!ok) console.error("[authz][enforce][selftest] falhas", cases.filter((c) => !c.ok));
+  if (!ok)
+    console.error(
+      "[authz][enforce][selftest] falhas",
+      cases.filter((c) => !c.ok),
+    );
   return { ok, cases };
 }
 

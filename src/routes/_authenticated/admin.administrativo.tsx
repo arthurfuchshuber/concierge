@@ -25,7 +25,6 @@ export const Route = createFileRoute("/_authenticated/admin/administrativo")({
   component: AdministrativoPage,
 });
 
-
 function AdministrativoPage() {
   const { tab } = useSearch({ from: "/_authenticated/admin/administrativo" });
   const navigate = useNavigate();
@@ -58,7 +57,10 @@ function AdministrativoPage() {
       <Tabs
         value={activeTab}
         onValueChange={(v) =>
-          navigate({ to: "/admin/administrativo", search: { tab: coerceTab(v), checkout: undefined } })
+          navigate({
+            to: "/admin/administrativo",
+            search: { tab: coerceTab(v), checkout: undefined },
+          })
         }
         className="w-full"
       >
@@ -101,4 +103,3 @@ function AdministrativoPage() {
     </div>
   );
 }
-

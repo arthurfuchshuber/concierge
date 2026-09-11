@@ -4,7 +4,10 @@ import { z } from "zod";
 const Input = z.object({
   propertyId: z.string().uuid(),
   // YYYY-MM-DD — se informado, forecast começa nessa data (data do check-in).
-  fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  fromDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
 });
 
 export type ForecastDay = {
@@ -68,7 +71,9 @@ export const getLiveWeather = createServerFn({ method: "POST" })
         const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${q}&count=1&language=pt&format=json`;
         const gr = await fetch(geoUrl, { signal: AbortSignal.timeout(3000) });
         if (gr.ok) {
-          const gj = (await gr.json()) as { results?: Array<{ latitude?: number; longitude?: number }> };
+          const gj = (await gr.json()) as {
+            results?: Array<{ latitude?: number; longitude?: number }>;
+          };
           const first = gj.results?.[0];
           if (first && typeof first.latitude === "number" && typeof first.longitude === "number") {
             lat = first.latitude;
@@ -104,7 +109,12 @@ export const getLiveWeather = createServerFn({ method: "POST" })
 
       const daily = j.daily;
       const forecast: ForecastDay[] = [];
-      if (daily?.time && daily.weather_code && daily.temperature_2m_max && daily.temperature_2m_min) {
+      if (
+        daily?.time &&
+        daily.weather_code &&
+        daily.temperature_2m_max &&
+        daily.temperature_2m_min
+      ) {
         // Determina o índice de início — data do check-in se estiver no range, senão hoje.
         let startIdx = 0;
         if (data.fromDate) {

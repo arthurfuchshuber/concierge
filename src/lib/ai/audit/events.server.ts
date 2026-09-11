@@ -10,14 +10,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type ActorType =
-  | "USER"
-  | "ADMIN"
-  | "OWNER"
-  | "GUEST"
-  | "AI_AGENT"
-  | "SYSTEM"
-  | "INTEGRATION"
-  | "CRON_JOB";
+  "USER" | "ADMIN" | "OWNER" | "GUEST" | "AI_AGENT" | "SYSTEM" | "INTEGRATION" | "CRON_JOB";
 
 export const ACTOR_TYPES: ActorType[] = [
   "USER",
@@ -78,7 +71,12 @@ export const EVENT_CATEGORIES: Record<EventCategory, { label: string; events: st
   },
   LEARNING: {
     label: "Aprendizado",
-    events: ["learning_candidate_created", "learning_approved", "learning_rejected", "knowledge_promoted"],
+    events: [
+      "learning_candidate_created",
+      "learning_approved",
+      "learning_rejected",
+      "knowledge_promoted",
+    ],
   },
   INTEGRATIONS: {
     label: "Integrações",
@@ -265,10 +263,14 @@ export async function queryEvents(
   if (filters.to) q = q.lte("created_at", filters.to);
   if (filters.search) {
     const s = filters.search.replace(/[%,]/g, " ");
-    q = q.or(`description.ilike.%${s}%,actor_name.ilike.%${s}%,entity_id.ilike.%${s}%,reason.ilike.%${s}%`);
+    q = q.or(
+      `description.ilike.%${s}%,actor_name.ilike.%${s}%,entity_id.ilike.%${s}%,reason.ilike.%${s}%`,
+    );
   }
 
-  const { data, error, count } = await q.order("created_at", { ascending: false }).range(offset, offset + limit - 1);
+  const { data, error, count } = await q
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
   if (error) throw error;
   return { rows: (data ?? []) as SystemEventRow[], total: count ?? 0 };
 }
@@ -327,7 +329,9 @@ export async function auditAnalytics(
 
   let q = supabase
     .from("ai_system_events")
-    .select("created_at, event_category, event_type, severity, actor_type, actor_id, actor_name, metadata")
+    .select(
+      "created_at, event_category, event_type, severity, actor_type, actor_id, actor_name, metadata",
+    )
     .gte("created_at", since)
     .order("created_at", { ascending: false })
     .limit(10000);
@@ -383,14 +387,23 @@ export async function auditAnalytics(
   return {
     periodDays: days,
     total: rows.length,
-    byDay: [...byDay.entries()].map(([day, count]) => ({ day, count })).sort((a, b) => a.day.localeCompare(b.day)),
-    byCategory: [...byCategory.entries()].map(([category, count]) => ({ category, count })).sort(sortDesc),
-    bySeverity: [...bySeverity.entries()].map(([severity, count]) => ({ severity, count })).sort(sortDesc),
+    byDay: [...byDay.entries()]
+      .map(([day, count]) => ({ day, count }))
+      .sort((a, b) => a.day.localeCompare(b.day)),
+    byCategory: [...byCategory.entries()]
+      .map(([category, count]) => ({ category, count }))
+      .sort(sortDesc),
+    bySeverity: [...bySeverity.entries()]
+      .map(([severity, count]) => ({ severity, count }))
+      .sort(sortDesc),
     topActors: [...actors.entries()]
       .map(([actor, v]) => ({ actor, actorType: v.actorType, count: v.count }))
       .sort(sortDesc)
       .slice(0, 10),
-    topAgents: [...agents.entries()].map(([agent, count]) => ({ agent, count })).sort(sortDesc).slice(0, 10),
+    topAgents: [...agents.entries()]
+      .map(([agent, count]) => ({ agent, count }))
+      .sort(sortDesc)
+      .slice(0, 10),
     integrationErrors: [...integrations.entries()]
       .map(([integration, count]) => ({ integration, count }))
       .sort(sortDesc)

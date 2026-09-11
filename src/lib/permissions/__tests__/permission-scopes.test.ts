@@ -68,7 +68,11 @@ describe("Escopos e acesso efetivo (FASE 4.3)", () => {
       subject: { userId: "member", tenantId: "tenant", status: "revoked" },
     };
 
-    const inactive = resolveOutcome(decision, { assignments: [], status: "revoked" }, "progressive");
+    const inactive = resolveOutcome(
+      decision,
+      { assignments: [], status: "revoked" },
+      "progressive",
+    );
     expect(inactive.allowed).toBe(false);
     expect(inactive.enforced).toBe(true);
   });

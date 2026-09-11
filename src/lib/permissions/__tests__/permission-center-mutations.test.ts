@@ -93,11 +93,19 @@ describe("Permission Center — gestão de atribuições (FASE 4.3)", () => {
 
     expect(res.ok).toBe(true);
     expect(upsertAssignment).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: "member", permissionNodeId: "node-1", accessLevel: "WRITE" }),
+      expect.objectContaining({
+        userId: "member",
+        permissionNodeId: "node-1",
+        accessLevel: "WRITE",
+      }),
     );
     // auditoria: usuário alterado, alteração, executor
     expect(recordAudit).toHaveBeenCalledWith(
-      expect.objectContaining({ actorId: "actor", targetUserId: "member", action: "permission.grant" }),
+      expect.objectContaining({
+        actorId: "actor",
+        targetUserId: "member",
+        action: "permission.grant",
+      }),
     );
   });
 

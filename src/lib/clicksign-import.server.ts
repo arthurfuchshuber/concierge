@@ -130,7 +130,8 @@ export function buildCandidates(
     const cNames = new Set(nameKeys(c.name));
     for (const { type, row } of rows) {
       if (c.doc && onlyDigits(row.doc) === c.doc) push(type, row, "doc");
-      else if (c.email && row.email && normalize(row.email) === normalize(c.email)) push(type, row, "email");
+      else if (c.email && row.email && normalize(row.email) === normalize(c.email))
+        push(type, row, "email");
       else if ([...nameKeys(row.name), ...nameKeys(row.trade_name)].some((n) => cNames.has(n))) {
         push(type, row, "name");
       }

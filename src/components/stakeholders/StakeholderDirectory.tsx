@@ -70,7 +70,6 @@ function fmtDateBR(d: string) {
   }
 }
 
-
 export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
   const isMobile = useIsMobile();
   const qc = useQueryClient();
@@ -87,7 +86,6 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
   const [form, setForm] = useState<StakeholderFormValues>(emptyStakeholderForm);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [createdOwner, setCreatedOwner] = useState<{ id: string; name: string } | null>(null);
-
 
   const queryKey = ["stakeholders", activeAccountId ?? "self", kind];
   const { data, isLoading } = useQuery({
@@ -125,7 +123,10 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     return rows.filter((r) => {
-      if (statusFilters.length > 0 && !statusFilters.includes(effectiveStatus(r.status, r.status_changed_at))) {
+      if (
+        statusFilters.length > 0 &&
+        !statusFilters.includes(effectiveStatus(r.status, r.status_changed_at))
+      ) {
         return false;
       }
       if (cityFilters.length > 0 && !cityFilters.includes(String(r.city ?? ""))) return false;
@@ -171,7 +172,6 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
     }
   }
 
-
   async function remove(id: string) {
     try {
       await delFn({ data: { kind, id, accountOwnerId: activeAccountId } });
@@ -197,17 +197,41 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
       label: "Em dia",
       test: (r) => r.status === "active" && (pendingByStakeholder.get(r.id) ?? 0) === 0,
     },
-    { key: "signature", label: "Assinatura", test: (r) => effectiveStatus(r.status, r.status_changed_at) === "signature" },
-    { key: "contract", label: "Contrato", test: (r) => effectiveStatus(r.status, r.status_changed_at) === "contract" },
+    {
+      key: "signature",
+      label: "Assinatura",
+      test: (r) => effectiveStatus(r.status, r.status_changed_at) === "signature",
+    },
+    {
+      key: "contract",
+      label: "Contrato",
+      test: (r) => effectiveStatus(r.status, r.status_changed_at) === "contract",
+    },
     {
       key: "documentation",
       label: "Documentação",
       test: (r) => effectiveStatus(r.status, r.status_changed_at) === "documentation",
     },
-    { key: "paused", label: "Pausados", test: (r) => effectiveStatus(r.status, r.status_changed_at) === "paused" },
-    { key: "canceling", label: "Cancelando", test: (r) => effectiveStatus(r.status, r.status_changed_at) === "canceling" },
-    { key: "canceled", label: "Cancelados", test: (r) => effectiveStatus(r.status, r.status_changed_at) === "canceled" },
-    { key: "inactive", label: "Inativos", test: (r) => effectiveStatus(r.status, r.status_changed_at) === "inactive" },
+    {
+      key: "paused",
+      label: "Pausados",
+      test: (r) => effectiveStatus(r.status, r.status_changed_at) === "paused",
+    },
+    {
+      key: "canceling",
+      label: "Cancelando",
+      test: (r) => effectiveStatus(r.status, r.status_changed_at) === "canceling",
+    },
+    {
+      key: "canceled",
+      label: "Cancelados",
+      test: (r) => effectiveStatus(r.status, r.status_changed_at) === "canceled",
+    },
+    {
+      key: "inactive",
+      label: "Inativos",
+      test: (r) => effectiveStatus(r.status, r.status_changed_at) === "inactive",
+    },
   ];
 
   const STATUS_FILTER_OPTIONS: Array<{ value: string; label: string }> = [
@@ -315,7 +339,11 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
             title={view === "list" ? "Ver em kanban" : "Ver em lista"}
             className="h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-none border-0 bg-secondary/50 px-3.5 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
           >
-            {view === "list" ? <Columns3 className="size-3.5 opacity-60" /> : <LayoutList className="size-3.5 opacity-60" />}
+            {view === "list" ? (
+              <Columns3 className="size-3.5 opacity-60" />
+            ) : (
+              <LayoutList className="size-3.5 opacity-60" />
+            )}
             <span className="hidden sm:inline">{view === "list" ? "Kanban" : "Lista"}</span>
           </button>
 
@@ -338,14 +366,17 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
         )}
       </div>
 
-
       {isLoading ? (
         <LoadingListState count={4} />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={Icon}
           title={`Nenhum ${labelSingular.toLowerCase()} cadastrado`}
-          description={q ? `Nenhum resultado para "${q}". Tente outro termo ou limpe os filtros.` : `Cadastre seu primeiro ${labelSingular.toLowerCase()} para começar.`}
+          description={
+            q
+              ? `Nenhum resultado para "${q}". Tente outro termo ou limpe os filtros.`
+              : `Cadastre seu primeiro ${labelSingular.toLowerCase()} para começar.`
+          }
           action={
             <Button onClick={openNew} variant="outline" className="rounded-none">
               <Plus className="size-4 mr-1.5" /> Cadastrar {labelSingular.toLowerCase()}
@@ -388,9 +419,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
                       onDelete={() => remove(r.id)}
                     />
                   ))}
-                  {items.length === 0 && (
-                    <p className="ds-meta px-1 py-6 text-center">Vazio</p>
-                  )}
+                  {items.length === 0 && <p className="ds-meta px-1 py-6 text-center">Vazio</p>}
                 </div>
               </div>
             );
@@ -443,7 +472,6 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
         </DialogContent>
       </Dialog>
 
-
       {/* Detail — bottom-sheet no mobile, painel lateral no desktop */}
       <Sheet open={!!detailId} onOpenChange={(o) => !o && setDetailId(null)}>
         <SheetContent
@@ -454,10 +482,20 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
               : "w-full sm:max-w-3xl overflow-y-auto p-0"
           }
         >
-          {detailId && <StakeholderDetailSheet kind={kind} id={detailId} accountOwnerId={activeAccountId} onEdit={() => {
-            const row = rows.find((r) => r.id === detailId);
-            if (row) { setDetailId(null); openEdit(row); }
-          }} />}
+          {detailId && (
+            <StakeholderDetailSheet
+              kind={kind}
+              id={detailId}
+              accountOwnerId={activeAccountId}
+              onEdit={() => {
+                const row = rows.find((r) => r.id === detailId);
+                if (row) {
+                  setDetailId(null);
+                  openEdit(row);
+                }
+              }}
+            />
+          )}
         </SheetContent>
       </Sheet>
     </div>
@@ -547,20 +585,25 @@ function StakeholderCard({
             encolhe a altura do card sem cortar nada na margem direita. */}
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
           <div className="min-w-0">
-            {row.contract_start && (() => {
-              const eff = effectiveStatus(row.status, row.status_changed_at);
-              // Cancelado/Cancelando sem data final preenchida à mão: a data em que
-              // o cancelamento foi (ou será) efetivado é o fim real da vigência.
-              const endsOnStatus = eff === "canceled" || eff === "canceling";
-              const end =
-                row.contract_end ??
-                (endsOnStatus && row.status_changed_at ? String(row.status_changed_at).slice(0, 10) : null);
-              return (
-                <p className={`truncate text-[12px] font-medium leading-[1.45] ${statusText(eff)}`}>
-                  {fmtDateBR(row.contract_start)} → {end ? fmtDateBR(end) : "momento"}
-                </p>
-              );
-            })()}
+            {row.contract_start &&
+              (() => {
+                const eff = effectiveStatus(row.status, row.status_changed_at);
+                // Cancelado/Cancelando sem data final preenchida à mão: a data em que
+                // o cancelamento foi (ou será) efetivado é o fim real da vigência.
+                const endsOnStatus = eff === "canceled" || eff === "canceling";
+                const end =
+                  row.contract_end ??
+                  (endsOnStatus && row.status_changed_at
+                    ? String(row.status_changed_at).slice(0, 10)
+                    : null);
+                return (
+                  <p
+                    className={`truncate text-[12px] font-medium leading-[1.45] ${statusText(eff)}`}
+                  >
+                    {fmtDateBR(row.contract_start)} → {end ? fmtDateBR(end) : "momento"}
+                  </p>
+                );
+              })()}
           </div>
 
           <DropdownMenu>
@@ -576,16 +619,29 @@ function StakeholderCard({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44 rounded-[8px]">
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onOpen(); }}>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpen();
+                }}
+              >
                 <Eye className="size-3.5" />
                 Ver detalhes
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(); }}>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit();
+                }}
+              >
                 <Pencil className="size-3.5" />
                 Editar
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
                 className="text-destructive focus:text-destructive"
               >
                 <Trash2 className="size-3.5" />
@@ -593,10 +649,8 @@ function StakeholderCard({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-
         </div>
       </div>
-
     </div>
   );
 }

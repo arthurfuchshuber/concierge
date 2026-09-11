@@ -1,3 +1,9 @@
+// O cache offline mora em `sw-cache.js` e é carregado aqui de propósito:
+// só existe UM service worker por escopo, e este arquivo pode ser o que
+// vence a disputa. Assim, tenha o aparelho ativado push ou não, o cache
+// existe. Nada abaixo desta linha mudou. (11/09/2026)
+importScripts("/sw-cache.js");
+
 // Service Worker dedicado a Web Push (isolado do PWA app-shell).
 // Recebe eventos push do backend e mostra notificação + envia mensagem
 // para clientes abertos tocarem som/atualizarem badge.

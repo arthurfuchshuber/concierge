@@ -20,7 +20,11 @@
  *
  * A troca para o modo estrito é apenas uma constante (`ENFORCEMENT_MODE`).
  */
-import { can, type AuthorizationContext, type AuthorizationDecision } from "./permission.guard.server";
+import {
+  can,
+  type AuthorizationContext,
+  type AuthorizationDecision,
+} from "./permission.guard.server";
 import { resolveSubjectSnapshot, type SubjectSnapshot } from "./permission.resolve.server";
 import { protectedOperation, type ProtectedOperationKey } from "./permission.operations";
 import type { AccessLevel, PermissionScope } from "./permission.types";
@@ -159,7 +163,10 @@ export function resolveOutcome(
 
 /** Modo efetivo do tenant (FASE 3.8) — default seguro: `progressive`.
  *  Cacheado por 60s: o modo muda raramente e era consultado em toda operação. */
-type TenantEnforcement = { mode: EnforcementMode; tenantMode: import("./permission.migration.server").TenantPermissionMode };
+type TenantEnforcement = {
+  mode: EnforcementMode;
+  tenantMode: import("./permission.migration.server").TenantPermissionMode;
+};
 const tenantModeCache = new Map<string, { at: number; value: TenantEnforcement }>();
 
 async function tenantEnforcement(tenantId: string) {
@@ -241,7 +248,6 @@ export async function checkAccess(
   const { mode } = await tenantEnforcement(snapshot.subject.tenantId);
   return resolveOutcome(decision, snapshot, mode);
 }
-
 
 /**
  * `withPermission` — envolve uma operação de backend com validação de permissão.

@@ -13,7 +13,10 @@ export function PresenceAvatars({ users }: { users: PresenceUser[] }) {
   const shown = users.slice(0, 4);
   const extra = users.length - shown.length;
   return (
-    <div className="flex items-center -space-x-2" title={users.map((u) => u.name).join(", ") + " também estão vendo esta tela"}>
+    <div
+      className="flex items-center -space-x-2"
+      title={users.map((u) => u.name).join(", ") + " também estão vendo esta tela"}
+    >
       {shown.map((u) => (
         <div
           key={u.userId}

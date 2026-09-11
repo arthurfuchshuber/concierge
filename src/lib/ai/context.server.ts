@@ -15,7 +15,8 @@ export type AgentContext = {
   keys: string[];
   sensitiveLocked: boolean;
   behavior: string;
-  stayPhase: "pre_checkin" | "checkin_day" | "in_stay" | "checkout_day" | "post_checkout" | "unknown";
+  stayPhase:
+    "pre_checkin" | "checkin_day" | "in_stay" | "checkout_day" | "post_checkout" | "unknown";
 };
 
 function parseHm(v: unknown, fallbackH: number): [number, number] {
@@ -114,7 +115,6 @@ export async function buildAgentContext(params: {
     console.warn("marketplace context failed", e);
   }
 
-
   const accessPin =
     typeof p.access_codes_pin === "string" ? (p.access_codes_pin as string).trim() : "";
   const sensitiveLocked = accessPin.length > 0;
@@ -134,7 +134,12 @@ export async function buildAgentContext(params: {
   let checkoutDone = false;
   const guestName = (params.guestName ?? "").trim();
   {
-    type AccessLog = { id: string; guest_name: string; checkin_date: string; checkout_date: string | null };
+    type AccessLog = {
+      id: string;
+      guest_name: string;
+      checkin_date: string;
+      checkout_date: string | null;
+    };
     const todayIso = todayInTZ(tz);
     const { data: rows } = await supabase
       .from("guide_access_logs")
@@ -185,7 +190,11 @@ export async function buildAgentContext(params: {
           .from("guest_arrival_status")
           .select("kind, status, done_at")
           .eq("log_id", log.id);
-        for (const s of (statuses ?? []) as Array<{ kind: string; status: string | null; done_at: string | null }>) {
+        for (const s of (statuses ?? []) as Array<{
+          kind: string;
+          status: string | null;
+          done_at: string | null;
+        }>) {
           if (!(s.status === "done" || s.done_at)) continue;
           if (s.kind === "checkin") checkinDone = true;
           if (s.kind === "checkout") checkoutDone = true;
@@ -200,7 +209,9 @@ export async function buildAgentContext(params: {
       else if (co && today > co) stayPhase = "post_checkout";
       else stayPhase = "in_stay";
       const dayMs = 86400000;
-      const daysTo = Math.round((Date.parse(`${ci}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / dayMs);
+      const daysTo = Math.round(
+        (Date.parse(`${ci}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / dayMs,
+      );
       const fmt = (d: string) => d.split("-").reverse().join("/");
       const phaseNote = checkoutDone
         ? "CHECK-OUT JÁ CONCLUÍDO (confirmado pelo hóspede ou pelo anfitrião). NÃO HÁ ESTADIA EM ANDAMENTO: " +
@@ -250,7 +261,6 @@ export async function buildAgentContext(params: {
         `\n## Reserva do hóspede (informada no acesso ao guia)\nHóspede: ${log.guest_name}\nHoje: ${fmt(today)}\nCheck-in: ${fmt(ci)}${co ? `\nCheck-out: ${fmt(co)}` : ""}\nCheck-in concluído: ${checkinDone ? "sim" : "não"}\nCheck-out concluído: ${checkoutDone ? "sim" : "não"}\nFase da estadia: ${stayPhase}\n${phaseNote}${checkinTimingNote}`,
       );
     }
-
   }
 
   // ── Senha de liberação do guia (código de visualização)
@@ -298,7 +308,6 @@ export async function buildAgentContext(params: {
       }
     }
   }
-
 
   if (params.memory) {
     keys.push("guest_memory");

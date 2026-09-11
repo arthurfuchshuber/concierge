@@ -28,4 +28,3 @@ export const createGuidePreviewToken = createServerFn({ method: "POST" })
     const { createGuidePreviewTokenFor } = await import("@/lib/guide-preview.server");
     return { token: await createGuidePreviewTokenFor(data.slug) };
   });
-

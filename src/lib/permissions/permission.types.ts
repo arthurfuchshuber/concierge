@@ -207,11 +207,5 @@ export type PermissionDecision = {
   reason: string;
   /** Origem da decisão — útil para auditoria futura. */
   source:
-    | "owner"
-    | "system_role"
-    | "assignment"
-    | "inherited"
-    | "default"
-    | "feature"
-    | "unknown_node";
+    "owner" | "system_role" | "assignment" | "inherited" | "default" | "feature" | "unknown_node";
 };

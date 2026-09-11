@@ -97,9 +97,10 @@ export function evaluate(input: EvaluationInput): PermissionDecision {
 
   // Administrador do SaaS só ignora a checagem em recursos `admin.*`. Dentro
   // de uma conta em que ele é MEMBRO, valem as permissões daquela conta.
-  const bypassRoles = subject.isTenantMember && !isSaasSlug(nodeSlug)
-    ? BYPASS_SYSTEM_ROLES.filter((r) => r !== "ADMIN_SAAS")
-    : BYPASS_SYSTEM_ROLES;
+  const bypassRoles =
+    subject.isTenantMember && !isSaasSlug(nodeSlug)
+      ? BYPASS_SYSTEM_ROLES.filter((r) => r !== "ADMIN_SAAS")
+      : BYPASS_SYSTEM_ROLES;
 
   for (const role of bypassRoles) {
     if (hasSystemRole(subject, role)) {

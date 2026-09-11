@@ -59,7 +59,10 @@ export function FilterSheetButton(props: FilterSheetProps) {
       </Button>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh] overflow-y-auto sm:max-w-md sm:mx-auto">
+        <SheetContent
+          side="bottom"
+          className="rounded-t-2xl max-h-[85vh] overflow-y-auto sm:max-w-md sm:mx-auto"
+        >
           <SheetHeader>
             <SheetTitle className="ds-section-title">Filtros</SheetTitle>
           </SheetHeader>
@@ -70,7 +73,11 @@ export function FilterSheetButton(props: FilterSheetProps) {
                 <Label>Ordenação</Label>
                 <div className="grid grid-cols-3 gap-2 mt-2">
                   {SORT_OPTS.map((o) => (
-                    <Chip key={o.key} active={props.sortBy === o.key} onClick={() => props.setSortBy(o.key)}>
+                    <Chip
+                      key={o.key}
+                      active={props.sortBy === o.key}
+                      onClick={() => props.setSortBy(o.key)}
+                    >
                       {o.label}
                     </Chip>
                   ))}
@@ -83,7 +90,11 @@ export function FilterSheetButton(props: FilterSheetProps) {
                 <Label>Mínimo de avaliações</Label>
                 <div className="ds-scroll-x gap-2 mt-2 py-0.5">
                   {props.reviewOptions.map((o) => (
-                    <Chip key={o.value} active={props.minReviews === o.value} onClick={() => props.setMinReviews(o.value)}>
+                    <Chip
+                      key={o.value}
+                      active={props.minReviews === o.value}
+                      onClick={() => props.setMinReviews(o.value)}
+                    >
                       {o.label}
                     </Chip>
                   ))}
@@ -96,12 +107,18 @@ export function FilterSheetButton(props: FilterSheetProps) {
                 <Label>Proximidade</Label>
                 <div className="ds-scroll-x gap-2 mt-2 py-0.5">
                   {(props.proximityCounts?.near ?? 0) > 0 && (
-                    <Chip active={props.showNear} onClick={() => props.setShowNear(!props.showNear)}>
+                    <Chip
+                      active={props.showNear}
+                      onClick={() => props.setShowNear(!props.showNear)}
+                    >
                       Pertinho
                     </Chip>
                   )}
                   {(props.proximityCounts?.refs ?? 0) > 0 && (
-                    <Chip active={props.showRefs} onClick={() => props.setShowRefs(!props.showRefs)}>
+                    <Chip
+                      active={props.showRefs}
+                      onClick={() => props.setShowRefs(!props.showRefs)}
+                    >
                       Referências na Cidade
                     </Chip>
                   )}
@@ -134,7 +151,15 @@ function Label({ children }: { children: React.ReactNode }) {
   return <div className="ds-eyebrow text-muted-foreground">{children}</div>;
 }
 
-function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function Chip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <button
       type="button"

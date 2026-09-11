@@ -17,7 +17,12 @@ export type GroupSummary = {
   name: string;
   city_key: string;
   member_count: number;
-  members: { property_id: string; property_name: string; property_slug: string | null; city: string | null }[];
+  members: {
+    property_id: string;
+    property_name: string;
+    property_slug: string | null;
+    city: string | null;
+  }[];
 };
 
 async function getMembershipForProperty(
@@ -30,7 +35,10 @@ async function getMembershipForProperty(
     .eq("id", propertyId)
     .maybeSingle();
   if (!prop) throw new Error("Imóvel não encontrado");
-  const { data: isAdmin } = await ctx.supabase.rpc("has_role", { _user_id: ctx.userId, _role: "admin" });
+  const { data: isAdmin } = await ctx.supabase.rpc("has_role", {
+    _user_id: ctx.userId,
+    _role: "admin",
+  });
   if (prop.owner_id !== ctx.userId && !isAdmin) throw new Error("Sem permissão");
   return { prop, isAdmin: !!isAdmin };
 }
@@ -58,14 +66,23 @@ export const getPropertyGroup = createServerFn({ method: "POST" })
       .from("city_reference_group_members")
       .select("property_id, properties(name, slug, city)")
       .eq("group_id", g.id);
-    type MemberRow = { property_id: string; properties: { name: string | null; slug: string | null; city: string | null } | null };
+    type MemberRow = {
+      property_id: string;
+      properties: { name: string | null; slug: string | null; city: string | null } | null;
+    };
     const list = ((members ?? []) as unknown as MemberRow[]).map((row) => ({
       property_id: row.property_id,
       property_name: row.properties?.name ?? "—",
       property_slug: row.properties?.slug ?? null,
       city: row.properties?.city ?? null,
     }));
-    return { id: g.id, name: g.name, city_key: g.city_key, member_count: list.length, members: list };
+    return {
+      id: g.id,
+      name: g.name,
+      city_key: g.city_key,
+      member_count: list.length,
+      members: list,
+    };
   });
 
 // Lista properties do usuário disponíveis para vincular (mesma cidade, sem grupo).
@@ -86,7 +103,8 @@ export const listLinkableProperties = createServerFn({ method: "POST" })
 
     // Filtra por mesma cidade e remove os que já estão em qualquer grupo
     const sameCity = (all ?? []).filter((p) => cityKey(p.city ?? "") === key);
-    if (sameCity.length === 0) return [] as Array<{ id: string; name: string; slug: string | null; city: string | null }>;
+    if (sameCity.length === 0)
+      return [] as Array<{ id: string; name: string; slug: string | null; city: string | null }>;
     const ids = sameCity.map((p) => p.id);
     const { data: existing } = await supabaseAdmin
       .from("city_reference_group_members")
@@ -175,12 +193,17 @@ export const linkPropertiesToGroup = createServerFn({ method: "POST" })
     // Adiciona os demais (filhos): RESET das refs individuais antes de
     // entrarem no grupo. Eles passam a ler exclusivamente do grupo (PAI).
     if (data.addPropertyIds.length > 0) {
-      const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+      const { data: isAdmin } = await context.supabase.rpc("has_role", {
+        _user_id: context.userId,
+        _role: "admin",
+      });
       const { data: rows } = await supabaseAdmin
         .from("properties")
         .select("id, owner_id, city")
         .in("id", data.addPropertyIds);
-      const allowed = (rows ?? []).filter((r) => (isAdmin || r.owner_id === context.userId) && cityKey(r.city ?? "") === key);
+      const allowed = (rows ?? []).filter(
+        (r) => (isAdmin || r.owner_id === context.userId) && cityKey(r.city ?? "") === key,
+      );
       if (allowed.length === 0) return { ok: true, group_id: groupId, added: 0 };
 
       for (const r of allowed) {
@@ -196,15 +219,18 @@ export const linkPropertiesToGroup = createServerFn({ method: "POST" })
     return { ok: true, group_id: groupId, added: 0 };
   });
 
-
-const UnlinkSchema = z.object({ propertyId: z.string().uuid(), removeIds: z.array(z.string().uuid()).optional() });
+const UnlinkSchema = z.object({
+  propertyId: z.string().uuid(),
+  removeIds: z.array(z.string().uuid()).optional(),
+});
 export const unlinkPropertyFromGroup = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => UnlinkSchema.parse(i))
   .handler(async ({ data, context }) => {
     await getMembershipForProperty(context, data.propertyId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const requested = data.removeIds && data.removeIds.length > 0 ? data.removeIds : [data.propertyId];
+    const requested =
+      data.removeIds && data.removeIds.length > 0 ? data.removeIds : [data.propertyId];
 
     // Only allow removing properties the caller owns (or admin). Being a
     // co-member of the same group does NOT grant permission to detach
@@ -229,10 +255,12 @@ export const unlinkPropertyFromGroup = createServerFn({ method: "POST" })
     }
 
     if (allowedTargets.length === 0) return { ok: true, removed: 0 };
-    await supabaseAdmin.from("city_reference_group_members").delete().in("property_id", allowedTargets);
+    await supabaseAdmin
+      .from("city_reference_group_members")
+      .delete()
+      .in("property_id", allowedTargets);
     return { ok: true, removed: allowedTargets.length };
   });
-
 
 const RenameSchema = z.object({ groupId: z.string().uuid(), name: z.string().min(1).max(120) });
 export const renameCityGroup = createServerFn({ method: "POST" })
@@ -245,8 +273,14 @@ export const renameCityGroup = createServerFn({ method: "POST" })
       _user_id: context.userId,
       _group_id: data.groupId,
     });
-    const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    const { data: isAdmin } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
     if (!ok && !isAdmin) throw new Error("Sem permissão");
-    await supabaseAdmin.from("city_reference_groups").update({ name: data.name.trim() }).eq("id", data.groupId);
+    await supabaseAdmin
+      .from("city_reference_groups")
+      .update({ name: data.name.trim() })
+      .eq("id", data.groupId);
     return { ok: true };
   });

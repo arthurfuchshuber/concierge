@@ -171,8 +171,10 @@ export async function listRecentMemories(params: {
       .order("last_seen_at", { ascending: false })
       .limit(params.limit ?? 10);
 
-    if (params.propertyId) query = query.or(`property_id.eq.${params.propertyId},property_id.is.null`);
-    if (params.subjectKey) query = query.or(`subject_key.eq.${params.subjectKey},subject_key.is.null`);
+    if (params.propertyId)
+      query = query.or(`property_id.eq.${params.propertyId},property_id.is.null`);
+    if (params.subjectKey)
+      query = query.or(`subject_key.eq.${params.subjectKey},subject_key.is.null`);
     if (params.kinds?.length) query = query.in("kind", params.kinds);
 
     const { data } = await query;

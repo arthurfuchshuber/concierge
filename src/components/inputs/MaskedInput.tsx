@@ -52,7 +52,9 @@ export const MaskedInput = React.forwardRef<HTMLInputElement, MaskedInputProps>(
         {label && <Label className="ds-meta">{label}</Label>}
         <div className="relative">
           {icon && (
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{icon}</div>
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+              {icon}
+            </div>
           )}
           <input
             ref={ref}

@@ -73,7 +73,6 @@ export type AgentLog = {
   rootCause?: unknown;
 };
 
-
 export async function logAgentRun(supabase: SupabaseClient, log: AgentLog): Promise<void> {
   try {
     await supabase.from("ai_agent_logs").insert({
@@ -119,7 +118,6 @@ export async function logAgentRun(supabase: SupabaseClient, log: AgentLog): Prom
       action_approval_status: log.actionApprovalStatus ?? null,
       root_cause: (log.rootCause ?? null) as never,
     });
-
   } catch (err) {
     // Observabilidade nunca pode quebrar o atendimento.
     console.error("[ai-log] falha ao registrar", err);

@@ -7,10 +7,14 @@ export const Route = createFileRoute("/_authenticated/admin/dashboard/")({
       { title: "Operação — ConciergeIA" },
       {
         name: "description",
-        content: "Painel operacional diário do anfitrião: check-ins, checkouts e engajamento do guia.",
+        content:
+          "Painel operacional diário do anfitrião: check-ins, checkouts e engajamento do guia.",
       },
       { property: "og:title", content: "Operação — ConciergeIA" },
-      { property: "og:description", content: "Check-ins, checkouts e engajamento do guia em um só lugar." },
+      {
+        property: "og:description",
+        content: "Check-ins, checkouts e engajamento do guia em um só lugar.",
+      },
     ],
   }),
   component: DashboardResumo,

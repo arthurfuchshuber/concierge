@@ -19,8 +19,7 @@ export const Route = createFileRoute("/api/public/place-photo")({
         }
 
         const apiKey = process.env.LOVABLE_API_KEY;
-        const mapsKey =
-          process.env.GOOGLE_MAPS_API_KEY_2 ?? process.env.GOOGLE_MAPS_API_KEY;
+        const mapsKey = process.env.GOOGLE_MAPS_API_KEY_2 ?? process.env.GOOGLE_MAPS_API_KEY;
         if (!apiKey || !mapsKey) {
           return new Response("Maps connector not configured", { status: 500 });
         }

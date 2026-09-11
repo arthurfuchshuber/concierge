@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-11T19:09:54.579Z";
+export const GENERATED_AT = "2026-09-11T19:47:28.054Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -364,6 +364,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     content_hash: "54286623a751a461a23230c18cec34c1",
   },
   {
+    doc_key: "rule:BANCO",
+    kind: "rule",
+    title: "Regra — BANCO",
+    content:
+      "UM DEPÓSITO CHAVE-VALOR EM IndexedDB, sem dependência nova (11/09/2026).\n\nPor que não `localStorage`: ele guarda só texto, tem uns 5 MB e é SÍNCRONO —\nescrever o retrato das consultas nele travaria a tela a cada gravação. E,\ndecisivo aqui, um rascunho de situação carrega BLOB de vídeo: 30-55 MB que\nnão cabem, e que em localStorage teriam que virar base64 (mais 33%).\n\nIndexedDB guarda Blob nativamente, é assíncrono e tem cota de verdade.\n\nPor que não uma biblioteca: `idb-keyval` resolveria em três linhas, mas\ntoda dependência nova é uma coisa a mais para o Lovable instalar e para o\nbuild quebrar. São 60 linhas; ficam aqui.",
+    source_path: "src/lib/offline/idb.ts",
+    audience: [],
+    content_hash: "7916cdbde5a1f756cc802b1bfd645106",
+  },
+  {
     doc_key: "rule:blobToBase64",
     kind: "rule",
     title: "Regra — blobToBase64",
@@ -444,6 +454,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     content_hash: "91cd1b68599a4403d23f1384b79bd2a3",
   },
   {
+    doc_key: "rule:CAMINHO",
+    kind: "rule",
+    title: "Regra — CAMINHO",
+    content:
+      'O REGISTRO DO CACHE OFFLINE — e o cuidado que ele exige (11/09/2026).\n\nREGRA DE OURO: não roubar o escopo de quem já está lá. Se já existe um\nservice worker registrado em "/", ele é um dos de push — e ele já carrega\n`sw-cache.js` por dentro (`importScripts`). Registrar outro arquivo no mesmo\nescopo criaria um registro NOVO e descartaria o antigo, levando junto a\ninscrição de push da pessoa. Ou seja: quem tem notificação perderia a\nnotificação para ganhar cache. Não.\n\nEntão só registramos quando o escopo está livre — o caso de quem nunca\nativou notificação, que é a maioria.\n\nE O BOTÃO DE DESLIGAMENTO. Service worker é a peça mais perigosa de um app\nna web: mal configurado, ele serve a versão velha para sempre e a correção\nque você publicar não chega em ninguém. Por isso existe `desligarOffline()`,\nexposto em `window.desligarOffline` — em qualquer aparelho, abrindo o\nconsole, uma chamada apaga os caches e remove o registro. Espero nunca\nprecisar; é justamente por isso que tem que existir antes.',
+    source_path: "src/lib/offline/sw-register.ts",
+    audience: [],
+    content_hash: "0e9e0d8d8cd588162603dd9220aff867",
+  },
+  {
     doc_key: "rule:CancellationReviewDialog",
     kind: "rule",
     title: "Regra — CancellationReviewDialog",
@@ -512,6 +532,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     source_path: "src/lib/ai/channels/types.ts",
     audience: [],
     content_hash: "ce1a505497fee1c4533be8de48881247",
+  },
+  {
+    doc_key: "rule:chave",
+    kind: "rule",
+    title: "Regra — chave",
+    content:
+      "RASCUNHO GUARDADO NO APARELHO (11/09/2026).\n\nEm 11/09 o app reiniciou sozinho com esta folha aberta e um vídeo de\nauditoria dentro — e levou o vídeo e o texto junto. A prestadora refilmou\ntudo. A partir daqui, cada mudança cai no IndexedDB COM os arquivos, e ao\nreabrir a folha oferecemos retomar.\n\nOferecer, e não restaurar sozinho: quem descartou de propósito não quer a\npia de meia hora atrás voltando por conta própria.",
+    source_path: "src/components/dashboard/RecordSituationSheet.tsx",
+    audience: [],
+    content_hash: "f5f64aa2df78bbb04a80ab1d3a3bac66",
   },
   {
     doc_key: "rule:checkinNoShowStays",
@@ -1154,6 +1184,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     content_hash: "0b895f93308ecf69916522d2fc66324f",
   },
   {
+    doc_key: "rule:idbLer",
+    kind: "rule",
+    title: "Regra — idbLer",
+    content:
+      "Todas as funções abaixo ENGOLEM o erro de propósito.\n\nGuardar offline é conforto, nunca requisito: em aba anônima, com cota cheia\nou com o armazenamento bloqueado pelo navegador, o app tem que continuar\nfuncionando exatamente como antes — só sem a rede de segurança.",
+    source_path: "src/lib/offline/idb.ts",
+    audience: [],
+    content_hash: "a7f8dff20477a30fd7b9fba13939be27",
+  },
+  {
     doc_key: "rule:InputSchema",
     kind: "rule",
     title: "Regra — InputSchema",
@@ -1424,6 +1464,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     content_hash: "e668d0cb202c0a9275b5fcfee24d5f43",
   },
   {
+    doc_key: "rule:OfflineBanner",
+    kind: "rule",
+    title: "Regra — OfflineBanner",
+    content:
+      'Faixa exibida quando o dispositivo perde a conexão.\nA tela continua mostrando as últimas informações carregadas (cache local).\n\nA HORA FOI ACRESCENTADA EM 11/09/2026, e é a parte que importa. Dizer\n"exibindo as últimas informações salvas" é verdade, mas não responde a\núnica pergunta que muda uma decisão: de QUANDO. Uma faxineira lendo a fila\nde limpeza de duas horas atrás, achando que é a de agora, limpa o imóvel\nerrado — e o cache, que existe para ajudar, teria causado o erro.\n\nForma, posição, cor e tamanho continuam exatamente os de antes: o cliente\npediu para não mexer no que já estava implementado.',
+    source_path: "src/components/OfflineBanner.tsx",
+    audience: [],
+    content_hash: "c98a3849a99b73e887abf2f8149a5d96",
+  },
+  {
     doc_key: "rule:onGuestAudio",
     kind: "rule",
     title: "Regra — onGuestAudio",
@@ -1642,6 +1692,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     source_path: "src/components/dashboard/OperationWorkspace.tsx",
     audience: [],
     content_hash: "a3f929b66db18b667b0c0ce1749f9e68",
+  },
+  {
+    doc_key: "rule:PREFIXO",
+    kind: "rule",
+    title: "Regra — PREFIXO",
+    content:
+      'DE QUANDO É O QUE ESTÁ NA TELA (11/09/2026).\n\nO cache persistente das consultas já existia e faz a coisa certa: sem\ninternet, a última visão continua desenhada. É aí que mora o perigo que\nninguém tinha endereçado — uma faxineira olhando a fila de limpeza de duas\nhoras atrás, achando que é a de agora, limpa o imóvel errado.\n\nA informação que faltava na faixa não é "você está offline". É "isto aqui é\nde 13:44".\n\nO retrato é gravado pelo `createSyncStoragePersister` (ver `__root.tsx`) com\numa chave por usuário e conta. Aqui a gente só lê o carimbo de hora — e\nvarre por prefixo em vez de remontar a chave, para não ter duas cópias da\nregra de nomenclatura que precisariam andar juntas para sempre.',
+    source_path: "src/lib/offline/cache-age.ts",
+    audience: [],
+    content_hash: "2de69cb5ba3bbe16ca3dfad964bbd1d8",
   },
   {
     doc_key: "rule:ProactiveAutonomy",
@@ -2354,7 +2414,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     content_hash: "1b50fd69dd824cce84da89a6a3bd6fb7",
   },
   {
-    doc_key: "rule:src/components/dashboard/RecordSituationSheet.tsx:7754",
+    doc_key: "rule:src/components/dashboard/RecordSituationSheet.tsx:7927",
     kind: "rule",
     title: "Regra em RecordSituationSheet.tsx",
     content:
@@ -2364,7 +2424,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     content_hash: "bb858acdfcfe0c71275a4ebad074241a",
   },
   {
-    doc_key: "rule:src/components/dashboard/RecordsWorkspace.tsx:10231",
+    doc_key: "rule:src/components/dashboard/RecordsWorkspace.tsx:10242",
     kind: "rule",
     title: "Regra em RecordsWorkspace.tsx",
     content:
@@ -2374,7 +2434,17 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     content_hash: "da56a7e41911b71c751dc4fed78c2097",
   },
   {
-    doc_key: "rule:src/components/dashboard/RecordsWorkspace.tsx:23554",
+    doc_key: "rule:src/components/dashboard/RecordsWorkspace.tsx:10598",
+    kind: "rule",
+    title: "Regra em RecordsWorkspace.tsx",
+    content:
+      'PENDÊNCIAS TAMBÉM RECOLHIDAS, PELA MESMA REGRA (pedido explícito,\n11/09/2026): "coloque também a linha PENDÊNCIAS recolhida seguindo as\nmesmas regras da linha REGISTROS". Mesma mecânica, estado separado — a\nlinha inteira é o botão, sem seta, e abrir um imóvel fecha o anterior.\nSeparado do acervo de propósito: são duas perguntas diferentes ("o que há\npara fazer aqui?" e "que provas existem aqui?"), e amarrar as duas faria\numa abrir a outra sem ninguém ter pedido.',
+    source_path: "src/components/dashboard/RecordsWorkspace.tsx",
+    audience: [],
+    content_hash: "921b94e2b28e53f61ef460f4945f7be2",
+  },
+  {
+    doc_key: "rule:src/components/dashboard/RecordsWorkspace.tsx:24294",
     kind: "rule",
     title: "Regra em RecordsWorkspace.tsx",
     content:
@@ -2384,7 +2454,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     content_hash: "1bede5e40def9ea40c009fa805397bcc",
   },
   {
-    doc_key: "rule:src/components/dashboard/RecordsWorkspace.tsx:24281",
+    doc_key: "rule:src/components/dashboard/RecordsWorkspace.tsx:25021",
     kind: "rule",
     title: "Regra em RecordsWorkspace.tsx",
     content:
@@ -2394,7 +2464,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     content_hash: "ac3013773b1e44cf4e096d38a8c66d5a",
   },
   {
-    doc_key: "rule:src/components/dashboard/RecordsWorkspace.tsx:6498",
+    doc_key: "rule:src/components/dashboard/RecordsWorkspace.tsx:6509",
     kind: "rule",
     title: "Regra em RecordsWorkspace.tsx",
     content:
@@ -3252,6 +3322,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     source_path: "src/lib/media-upload.ts",
     audience: [],
     content_hash: "2c80948e6babbc85eb5236de1a5124ab",
+  },
+  {
+    doc_key: "rule:src/lib/offline/situation-draft.ts:0",
+    kind: "rule",
+    title: "Regra em situation-draft.ts",
+    content:
+      "O RASCUNHO DA SITUAÇÃO, GUARDADO NO APARELHO (11/09/2026).\n\nIsto é o que teria salvado a gravação perdida às 13:45. A folha estava\naberta, com um vídeo de auditoria dentro, quando o app reiniciou sozinho\n(ver `_authenticated/route.tsx`) — e levou o vídeo e o texto junto. Ela\nrefilmou tudo.\n\nAgora cada mudança na folha cai aqui, com os ARQUIVOS. Blob de vídeo em\nIndexedDB é gravação direta, sem conversão: os mesmos 40 MB que em\nlocalStorage nem caberiam, e que virariam 53 MB de base64 se coubessem.\n\nUma chave por ALVO (imóvel + reserva), não uma global: duas situações de\nimóveis diferentes não podem se atropelar, e é normal a pessoa abrir uma,\nser interrompida, e voltar depois de passar em outro apartamento.\n\nSome sozinho em 48 horas e ao sair da conta. Rascunho velho é pior que\nrascunho nenhum — ninguém quer retomar a pia de anteontem.",
+    source_path: "src/lib/offline/situation-draft.ts",
+    audience: [],
+    content_hash: "f7b701acaa7291fef69903e82422f4d6",
   },
   {
     doc_key: "rule:src/lib/permissions/feature.access.ts:1332",

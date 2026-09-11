@@ -32,8 +32,10 @@ export const lookupCnpj = createServerFn({ method: "POST" })
       const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${d}`, {
         headers: { accept: "application/json" },
       });
-      if (res.status === 404) return { ok: false, error: "CNPJ não encontrado na Receita Federal." };
-      if (!res.ok) return { ok: false, error: "Não foi possível consultar a Receita Federal agora." };
+      if (res.status === 404)
+        return { ok: false, error: "CNPJ não encontrado na Receita Federal." };
+      if (!res.ok)
+        return { ok: false, error: "Não foi possível consultar a Receita Federal agora." };
       const j = (await res.json()) as Record<string, unknown>;
       const str = (v: unknown) => (v == null ? "" : String(v));
       const situacao = str(j["descricao_situacao_cadastral"] ?? j["situacao"]).toUpperCase();
@@ -45,7 +47,11 @@ export const lookupCnpj = createServerFn({ method: "POST" })
           nome_fantasia: str(j["nome_fantasia"]),
           telefone: ddd,
           email: str(j["email"]),
-          logradouro: [str(j["descricao_tipo_de_logradouro"]), str(j["logradouro"]), str(j["numero"])]
+          logradouro: [
+            str(j["descricao_tipo_de_logradouro"]),
+            str(j["logradouro"]),
+            str(j["numero"]),
+          ]
             .filter(Boolean)
             .join(" ")
             .trim(),

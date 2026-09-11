@@ -107,7 +107,5 @@ function InfoInline({
   }
 
   const display = label ? `${label} (${value})` : value;
-  return (
-    <span className={cn(protectedKey && "font-mono tracking-wider")}>{display}</span>
-  );
+  return <span className={cn(protectedKey && "font-mono tracking-wider")}>{display}</span>;
 }

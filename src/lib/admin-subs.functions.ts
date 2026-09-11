@@ -35,7 +35,6 @@ export const adminListUserProperties = createServerFn({ method: "POST" })
     return { properties: props ?? [] };
   });
 
-
 export type AdminCustomerRow = {
   userId: string;
   email: string | null;
@@ -75,7 +74,6 @@ export type AdminCustomerRow = {
   } | null;
 };
 
-
 export const adminListCustomers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<{ customers: AdminCustomerRow[] }> => {
@@ -84,12 +82,13 @@ export const adminListCustomers = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // Todas as páginas de usuários (sem teto de 1000).
-    const usersData = { users: await (await import("@/lib/admin-users.server")).listAllAuthUsers() };
+    const usersData = {
+      users: await (await import("@/lib/admin-users.server")).listAllAuthUsers(),
+    };
 
     const { data: profiles } = await supabaseAdmin
       .from("profiles")
       .select("id, full_name, trade_name, cpf, phone, phone_country");
-
 
     const { data: subs } = await supabaseAdmin
       .from("subscriptions")
@@ -101,7 +100,9 @@ export const adminListCustomers = createServerFn({ method: "GET" })
     // Enrich: fetch all properties with completeness signals
     const { data: allProps } = await supabaseAdmin
       .from("properties")
-      .select("id, owner_id, published, updated_at, name, wifi_ssid, wifi_password, checkin_instructions, house_rules, tagline, hero_image_url");
+      .select(
+        "id, owner_id, published, updated_at, name, wifi_ssid, wifi_password, checkin_instructions, house_rules, tagline, hero_image_url",
+      );
 
     // Guide access logs last 30 days — for guest activity per host
     const since30 = new Date(Date.now() - 30 * 86400_000).toISOString();
@@ -153,9 +154,10 @@ export const adminListCustomers = createServerFn({ method: "GET" })
       const props = propsByOwner.get(u.id) ?? [];
       const totalGuides = props.length;
       const publishedGuides = props.filter((p) => p.published).length;
-      const avgScore = totalGuides > 0
-        ? Math.round(props.reduce((sum, p) => sum + guideScore(p), 0) / totalGuides)
-        : 0;
+      const avgScore =
+        totalGuides > 0
+          ? Math.round(props.reduce((sum, p) => sum + guideScore(p), 0) / totalGuides)
+          : 0;
       const lastEditedAt = props.reduce<string | null>((acc, p) => {
         const t = p.updated_at as string | null;
         if (!t) return acc;
@@ -183,10 +185,14 @@ export const adminListCustomers = createServerFn({ method: "GET" })
       return {
         userId: u.id,
         email: u.email ?? null,
-        fullName: ((prof as { trade_name?: string | null } | undefined)?.trade_name) || (prof as { full_name?: string | null } | undefined)?.full_name || null,
+        fullName:
+          (prof as { trade_name?: string | null } | undefined)?.trade_name ||
+          (prof as { full_name?: string | null } | undefined)?.full_name ||
+          null,
         cpf: (prof as { cpf?: string | null } | undefined)?.cpf ?? null,
         phone: (prof as { phone?: string | null } | undefined)?.phone ?? null,
-        phoneCountry: (prof as { phone_country?: string | null } | undefined)?.phone_country ?? null,
+        phoneCountry:
+          (prof as { phone_country?: string | null } | undefined)?.phone_country ?? null,
         createdAt: u.created_at ?? null,
         lastSignInAt: lastLogin,
         userStatus,
@@ -238,36 +244,37 @@ const PlanKeySchema = z.enum(["starter", "pro", "business", "enterprise"]);
 
 export const adminUpdateSubscription = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: {
-    userId: string;
-    plan: PlanKey;
-    status: string;
-    environment: "sandbox" | "live";
-    trialEndsAt: string | null;
-    currentPeriodEnd: string | null;
-    customPriceCents: number | null;
-    customCurrency: string | null;
-    cancelAtPeriodEnd: boolean;
-    adminNotes: string | null;
-    maxGuidesOverride: number | null;
-    billingPaused: boolean;
-  }) =>
-    z
-      .object({
-        userId: z.string().uuid(),
-        plan: PlanKeySchema,
-        status: z.enum(["trialing", "active", "past_due", "paused", "canceled"]),
-        environment: z.enum(["sandbox", "live"]),
-        trialEndsAt: z.string().nullable(),
-        currentPeriodEnd: z.string().nullable(),
-        customPriceCents: z.number().int().min(0).max(100_000_00).nullable(),
-        customCurrency: z.string().length(3).nullable(),
-        cancelAtPeriodEnd: z.boolean(),
-        adminNotes: z.string().max(2000).nullable(),
-        maxGuidesOverride: z.number().int().min(1).max(100000).nullable(),
-        billingPaused: z.boolean(),
-      })
-      .parse(d),
+  .inputValidator(
+    (d: {
+      userId: string;
+      plan: PlanKey;
+      status: string;
+      environment: "sandbox" | "live";
+      trialEndsAt: string | null;
+      currentPeriodEnd: string | null;
+      customPriceCents: number | null;
+      customCurrency: string | null;
+      cancelAtPeriodEnd: boolean;
+      adminNotes: string | null;
+      maxGuidesOverride: number | null;
+      billingPaused: boolean;
+    }) =>
+      z
+        .object({
+          userId: z.string().uuid(),
+          plan: PlanKeySchema,
+          status: z.enum(["trialing", "active", "past_due", "paused", "canceled"]),
+          environment: z.enum(["sandbox", "live"]),
+          trialEndsAt: z.string().nullable(),
+          currentPeriodEnd: z.string().nullable(),
+          customPriceCents: z.number().int().min(0).max(100_000_00).nullable(),
+          customCurrency: z.string().length(3).nullable(),
+          cancelAtPeriodEnd: z.boolean(),
+          adminNotes: z.string().max(2000).nullable(),
+          maxGuidesOverride: z.number().int().min(1).max(100000).nullable(),
+          billingPaused: z.boolean(),
+        })
+        .parse(d),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
@@ -381,10 +388,12 @@ export const adminUpdateSubscription = createServerFn({ method: "POST" })
 export const adminApplyCustomTrial = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { userId: string; trialEndsAt: string | null }) =>
-    z.object({
-      userId: z.string().uuid(),
-      trialEndsAt: z.string().datetime().nullable(),
-    }).parse(d),
+    z
+      .object({
+        userId: z.string().uuid(),
+        trialEndsAt: z.string().datetime().nullable(),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
@@ -401,8 +410,7 @@ export const adminApplyCustomTrial = createServerFn({ method: "POST" })
     if (!sub) throw new Error("Cliente não tem assinatura para aplicar trial.");
 
     const paddleId = sub.paddle_subscription_id;
-    const isRealPaddleSub =
-      paddleId && !paddleId.startsWith("manual_") && !sub.is_manual;
+    const isRealPaddleSub = paddleId && !paddleId.startsWith("manual_") && !sub.is_manual;
 
     const resumeAt = data.trialEndsAt ? new Date(data.trialEndsAt) : null;
     const isFuture = resumeAt && resumeAt.getTime() > Date.now();
@@ -474,20 +482,28 @@ export const adminApplyCustomTrial = createServerFn({ method: "POST" })
 // "Editar assinatura" para permitir corrigir o nome exibido.
 export const adminUpdateCustomerProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: {
-    userId: string;
-    fullName: string | null;
-    cpf?: string | null;
-    phone?: string | null;
-    phoneCountry?: string | null;
-  }) =>
-    z.object({
-      userId: z.string().uuid(),
-      fullName: z.string().trim().max(120).nullable(),
-      cpf: z.string().trim().regex(/^[0-9]{11}$/, "CPF inválido").nullable().optional(),
-      phone: z.string().trim().max(40).nullable().optional(),
-      phoneCountry: z.string().trim().max(4).nullable().optional(),
-    }).parse(d),
+  .inputValidator(
+    (d: {
+      userId: string;
+      fullName: string | null;
+      cpf?: string | null;
+      phone?: string | null;
+      phoneCountry?: string | null;
+    }) =>
+      z
+        .object({
+          userId: z.string().uuid(),
+          fullName: z.string().trim().max(120).nullable(),
+          cpf: z
+            .string()
+            .trim()
+            .regex(/^[0-9]{11}$/, "CPF inválido")
+            .nullable()
+            .optional(),
+          phone: z.string().trim().max(40).nullable().optional(),
+          phoneCountry: z.string().trim().max(4).nullable().optional(),
+        })
+        .parse(d),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
@@ -505,9 +521,7 @@ export const adminUpdateCustomerProfile = createServerFn({ method: "POST" })
     if (data.cpf !== undefined) patch.cpf = data.cpf ?? null;
     if (data.phone !== undefined) patch.phone = data.phone ?? null;
     if (data.phoneCountry !== undefined) patch.phone_country = data.phoneCountry ?? null;
-    const { error } = await supabaseAdmin
-      .from("profiles")
-      .upsert(patch, { onConflict: "id" });
+    const { error } = await supabaseAdmin.from("profiles").upsert(patch, { onConflict: "id" });
 
     if (error) {
       if ((error as { code?: string }).code === "23505") {
@@ -542,9 +556,6 @@ export const adminUpdateCustomerProfile = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-
-
-
 // ───────────────── SaaS Admins (user_roles management) ─────────────────
 
 export type SaasAdminRow = {
@@ -573,9 +584,16 @@ export const adminListSaasAdmins = createServerFn({ method: "GET" })
       .from("profiles")
       .select("id, full_name, trade_name")
       .in("id", ids);
-    const profileMap = new Map((profiles ?? []).map((p) => [p.id, ((p as { trade_name?: string | null }).trade_name) || p.full_name]));
+    const profileMap = new Map(
+      (profiles ?? []).map((p) => [
+        p.id,
+        (p as { trade_name?: string | null }).trade_name || p.full_name,
+      ]),
+    );
 
-    const usersData = { users: await (await import("@/lib/admin-users.server")).listAllAuthUsers() };
+    const usersData = {
+      users: await (await import("@/lib/admin-users.server")).listAllAuthUsers(),
+    };
     const userMap = new Map((usersData?.users ?? []).map((u) => [u.id, u]));
 
     const admins: SaasAdminRow[] = ids.map((id) => {
@@ -593,9 +611,7 @@ export const adminListSaasAdmins = createServerFn({ method: "GET" })
 
 export const adminGrantSaasAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { email: string }) =>
-    z.object({ email: z.string().email() }).parse(d),
-  )
+  .inputValidator((d: { email: string }) => z.object({ email: z.string().email() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -603,14 +619,24 @@ export const adminGrantSaasAdmin = createServerFn({ method: "POST" })
     const target = data.email.trim().toLowerCase();
     let found: { id: string; email?: string | null } | null = null;
     for (let page = 1; page <= 10; page++) {
-      const { data: list, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
+      const { data: list, error } = await supabaseAdmin.auth.admin.listUsers({
+        page,
+        perPage: 1000,
+      });
       if (error) throw new Error("Erro ao buscar usuário");
       const match = list.users.find((u) => (u.email ?? "").toLowerCase() === target);
-      if (match) { found = match; break; }
+      if (match) {
+        found = match;
+        break;
+      }
       if (list.users.length < 1000) break;
     }
 
-    async function audit(action: string, entity_id: string | null, metadata: Record<string, unknown>) {
+    async function audit(
+      action: string,
+      entity_id: string | null,
+      metadata: Record<string, unknown>,
+    ) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (supabaseAdmin.from("audit_logs" as never) as any).insert({
         user_id: context.userId,
@@ -656,9 +682,7 @@ export const adminGrantSaasAdmin = createServerFn({ method: "POST" })
 
 export const adminRevokeSaasAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { userId: string }) =>
-    z.object({ userId: z.string().uuid() }).parse(d),
-  )
+  .inputValidator((d: { userId: string }) => z.object({ userId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
     if (data.userId === context.userId) {
@@ -705,11 +729,21 @@ export const adminListInvites = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false });
     if (error) throw new Error("Erro ao listar convites");
 
-    const rows = (data ?? []) as Array<{ id: string; email: string; status: string; created_at: string | null; invited_by: string | null }>;
-    const inviterIds = Array.from(new Set(rows.map((r) => r.invited_by).filter(Boolean) as string[]));
+    const rows = (data ?? []) as Array<{
+      id: string;
+      email: string;
+      status: string;
+      created_at: string | null;
+      invited_by: string | null;
+    }>;
+    const inviterIds = Array.from(
+      new Set(rows.map((r) => r.invited_by).filter(Boolean) as string[]),
+    );
     const emailMap = new Map<string, string>();
     if (inviterIds.length) {
-      const usersData = { users: await (await import("@/lib/admin-users.server")).listAllAuthUsers() };
+      const usersData = {
+        users: await (await import("@/lib/admin-users.server")).listAllAuthUsers(),
+      };
       for (const u of usersData?.users ?? []) {
         if (u.email) emailMap.set(u.id, u.email);
       }
@@ -721,7 +755,7 @@ export const adminListInvites = createServerFn({ method: "GET" })
         email: r.email,
         status: r.status,
         createdAt: r.created_at,
-        invitedByEmail: r.invited_by ? emailMap.get(r.invited_by) ?? null : null,
+        invitedByEmail: r.invited_by ? (emailMap.get(r.invited_by) ?? null) : null,
       })),
     };
   });
@@ -789,11 +823,16 @@ const ACTION_VERBS: Record<string, string> = {
   invited: "convidado",
 };
 
-function humanizeAction(action: string, entityType: string | null, ctx: { cityLabel?: string | null; itemName?: string | null }): string {
+function humanizeAction(
+  action: string,
+  entityType: string | null,
+  ctx: { cityLabel?: string | null; itemName?: string | null },
+): string {
   // action vem como "<tabela>.<verbo>" ou "admin.granted" etc.
   const [, verbRaw] = action.split(".");
   const verb = ACTION_VERBS[verbRaw] ?? verbRaw ?? "alterado";
-  const entityLabel = (entityType && ENTITY_LABELS[entityType]) ?? ENTITY_LABELS[action.split(".")[0]] ?? "Item";
+  const entityLabel =
+    (entityType && ENTITY_LABELS[entityType]) ?? ENTITY_LABELS[action.split(".")[0]] ?? "Item";
   const where = ctx.cityLabel ? ` em ${ctx.cityLabel}` : "";
   return `${entityLabel} ${verb}${where}`.trim();
 }
@@ -818,16 +857,31 @@ export const adminListAuditLogs = createServerFn({ method: "POST" })
       .limit(data.limit ?? 500);
     const s = data.search?.trim();
     if (s) {
-      q = q.or(`user_email.ilike.%${s}%,action.ilike.%${s}%,entity_type.ilike.%${s}%,entity_id.ilike.%${s}%`);
+      q = q.or(
+        `user_email.ilike.%${s}%,action.ilike.%${s}%,entity_type.ilike.%${s}%,entity_id.ilike.%${s}%`,
+      );
     }
     const { data: rows, error } = await q;
     if (error) throw new Error("Erro ao carregar registros de atividade");
-    const rowList = (rows ?? []) as Array<{ id: string; user_id: string | null; user_email: string | null; action: string; entity_type: string | null; entity_id: string | null; metadata: unknown; created_at: string }>;
+    const rowList = (rows ?? []) as Array<{
+      id: string;
+      user_id: string | null;
+      user_email: string | null;
+      action: string;
+      entity_type: string | null;
+      entity_id: string | null;
+      metadata: unknown;
+      created_at: string;
+    }>;
 
-    const missing = Array.from(new Set(rowList.filter((r) => r.user_id && !r.user_email).map((r) => r.user_id as string)));
+    const missing = Array.from(
+      new Set(rowList.filter((r) => r.user_id && !r.user_email).map((r) => r.user_id as string)),
+    );
     const emailMap = new Map<string, string>();
     if (missing.length) {
-      const usersData = { users: await (await import("@/lib/admin-users.server")).listAllAuthUsers() };
+      const usersData = {
+        users: await (await import("@/lib/admin-users.server")).listAllAuthUsers(),
+      };
       for (const u of usersData?.users ?? []) {
         if (u.email) emailMap.set(u.id, u.email);
       }
@@ -838,16 +892,22 @@ export const adminListAuditLogs = createServerFn({ method: "POST" })
       .from("sigma_city_packs")
       .select("city_key, city_label");
     const cityLabelByKey = new Map<string, string>(
-      (cityRows ?? []).map((r) => [(r as { city_key: string }).city_key, (r as { city_label: string }).city_label]),
+      (cityRows ?? []).map((r) => [
+        (r as { city_key: string }).city_key,
+        (r as { city_label: string }).city_label,
+      ]),
     );
 
-    function deriveContext(r: typeof rowList[number]): { cityLabel: string | null; itemName: string | null } {
+    function deriveContext(r: (typeof rowList)[number]): {
+      cityLabel: string | null;
+      itemName: string | null;
+    } {
       const meta = (r.metadata ?? {}) as Record<string, unknown>;
       const newRow = (meta.new ?? null) as Record<string, unknown> | null;
       const oldRow = (meta.old ?? null) as Record<string, unknown> | null;
       const pick = (k: string) => (newRow?.[k] ?? oldRow?.[k] ?? meta[k]) as unknown;
       const cityKey = pick("city_key") as string | undefined;
-      const cityLabel = cityKey ? cityLabelByKey.get(cityKey) ?? null : null;
+      const cityLabel = cityKey ? (cityLabelByKey.get(cityKey) ?? null) : null;
       const itemName =
         (pick("name") as string | undefined) ??
         (pick("city_label") as string | undefined) ??
@@ -866,7 +926,7 @@ export const adminListAuditLogs = createServerFn({ method: "POST" })
         return {
           id: r.id,
           userId: r.user_id,
-          userEmail: r.user_email ?? (r.user_id ? emailMap.get(r.user_id) ?? null : null),
+          userEmail: r.user_email ?? (r.user_id ? (emailMap.get(r.user_id) ?? null) : null),
           action: r.action,
           actionLabel,
           entityType: r.entity_type,
@@ -904,10 +964,12 @@ export const adminListUserPropertiesFull = createServerFn({ method: "POST" })
 export const adminGetUserSubscription = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) =>
-    z.object({
-      userId: z.string().uuid(),
-      environment: z.enum(["sandbox", "live"]),
-    }).parse(i),
+    z
+      .object({
+        userId: z.string().uuid(),
+        environment: z.enum(["sandbox", "live"]),
+      })
+      .parse(i),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
@@ -922,43 +984,64 @@ export const adminGetUserSubscription = createServerFn({ method: "POST" })
     if (error) throw new Error("Não foi possível carregar a assinatura deste cliente.");
     const list = rows ?? [];
     const match =
-      list.find((r) => r.environment === data.environment) ??
-      list.find((r) => r.is_manual) ??
-      null;
+      list.find((r) => r.environment === data.environment) ?? list.find((r) => r.is_manual) ?? null;
     if (!match) return { subscription: null, plan: null as PlanKey | null };
     return { subscription: match, plan: planFromProductId(match.product_id) };
   });
-
 
 // ───────────────── Exclusão total de cliente ─────────────────
 
 /** Tabelas com vínculo direto ao dono/tenant. Limpas antes de remover o usuário. */
 const OWNER_SCOPED_TABLES: Array<[table: string, column: string]> = [
-  ["ai_agent_learning_metrics", "owner_id"], ["ai_agent_logs", "owner_id"],
-  ["ai_conversation_summaries", "owner_id"], ["ai_guest_memory", "owner_id"],
-  ["ai_human_escalations", "owner_id"], ["ai_kb_chunks", "owner_id"],
-  ["ai_knowledge_gaps", "owner_id"], ["ai_learning_candidates", "owner_id"],
-  ["ai_learning_impact_logs", "owner_id"], ["ai_memories", "owner_id"],
-  ["ai_operational_memory", "owner_id"], ["ai_proactive_actions", "owner_id"],
-  ["ai_prompt_change_candidates", "owner_id"], ["ai_tenant_knowledge", "owner_id"],
-  ["chat_message_feedback", "owner_id"], ["host_behavior", "owner_id"],
-  ["host_faqs", "owner_id"], ["host_integration_credentials", "owner_id"],
-  ["host_knowledge", "owner_id"], ["host_whatsapp_config", "owner_id"],
-  ["ops_push_log", "owner_id"], ["whatsapp_templates", "owner_id"],
-  ["account_member_invites", "owner_id"], ["account_member_permissions", "owner_id"],
+  ["ai_agent_learning_metrics", "owner_id"],
+  ["ai_agent_logs", "owner_id"],
+  ["ai_conversation_summaries", "owner_id"],
+  ["ai_guest_memory", "owner_id"],
+  ["ai_human_escalations", "owner_id"],
+  ["ai_kb_chunks", "owner_id"],
+  ["ai_knowledge_gaps", "owner_id"],
+  ["ai_learning_candidates", "owner_id"],
+  ["ai_learning_impact_logs", "owner_id"],
+  ["ai_memories", "owner_id"],
+  ["ai_operational_memory", "owner_id"],
+  ["ai_proactive_actions", "owner_id"],
+  ["ai_prompt_change_candidates", "owner_id"],
+  ["ai_tenant_knowledge", "owner_id"],
+  ["chat_message_feedback", "owner_id"],
+  ["host_behavior", "owner_id"],
+  ["host_faqs", "owner_id"],
+  ["host_integration_credentials", "owner_id"],
+  ["host_knowledge", "owner_id"],
+  ["host_whatsapp_config", "owner_id"],
+  ["ops_push_log", "owner_id"],
+  ["whatsapp_templates", "owner_id"],
+  ["account_member_invites", "owner_id"],
+  ["account_member_permissions", "owner_id"],
   ["account_members", "owner_id"],
-  ["ai_agent_evaluations", "tenant_id"], ["ai_agent_metrics", "tenant_id"],
-  ["ai_alerts", "tenant_id"], ["ai_channel_connections", "tenant_id"],
-  ["ai_conversation_channels", "tenant_id"], ["ai_conversations", "tenant_id"],
-  ["ai_messages", "tenant_id"], ["ai_system_events", "tenant_id"],
-  ["permission_assignments", "tenant_id"], ["permission_audit", "tenant_id"],
-  ["permission_migration_status", "tenant_id"], ["property_assignments", "tenant_id"],
-  ["subscriptions", "user_id"], ["push_subscriptions", "user_id"],
-  ["app_user_connections", "user_id"], ["user_roles", "user_id"],
-  ["audit_logs", "user_id"], ["permission_assignments", "user_id"],
-  ["property_assignments", "user_id"], ["service_providers", "created_by"],
-  ["stakeholder_activities", "created_by"], ["stakeholder_events", "created_by"],
-  ["stakeholder_link_aliases", "created_by"], ["property_owners", "created_by"],
+  ["ai_agent_evaluations", "tenant_id"],
+  ["ai_agent_metrics", "tenant_id"],
+  ["ai_alerts", "tenant_id"],
+  ["ai_channel_connections", "tenant_id"],
+  ["ai_conversation_channels", "tenant_id"],
+  ["ai_conversations", "tenant_id"],
+  ["ai_messages", "tenant_id"],
+  ["ai_system_events", "tenant_id"],
+  ["permission_assignments", "tenant_id"],
+  ["permission_audit", "tenant_id"],
+  ["permission_migration_status", "tenant_id"],
+  ["property_assignments", "tenant_id"],
+  ["subscriptions", "user_id"],
+  ["push_subscriptions", "user_id"],
+  ["app_user_connections", "user_id"],
+  ["user_roles", "user_id"],
+  ["audit_logs", "user_id"],
+  ["permission_assignments", "user_id"],
+  ["property_assignments", "user_id"],
+  ["service_providers", "created_by"],
+  ["stakeholder_activities", "created_by"],
+  ["stakeholder_events", "created_by"],
+  ["stakeholder_link_aliases", "created_by"],
+  ["property_owners", "created_by"],
 ];
 
 export const adminDeleteCustomer = createServerFn({ method: "POST" })
@@ -973,7 +1056,9 @@ export const adminDeleteCustomer = createServerFn({ method: "POST" })
 
     // 1) Guias (propriedades) do dono — as tabelas filhas caem por cascade.
     const { data: props } = await supabaseAdmin
-      .from("properties").select("id").eq("owner_id", data.userId);
+      .from("properties")
+      .select("id")
+      .eq("owner_id", data.userId);
     const propertyIds = (props ?? []).map((p: { id: string }) => p.id);
 
     // Registro de auditoria ANTES de qualquer exclusão: esta é a operação
@@ -1010,7 +1095,9 @@ export const adminDeleteCustomer = createServerFn({ method: "POST" })
 
     if (propertyIds.length) {
       const { error: propErr } = await supabaseAdmin
-        .from("properties").delete().in("id", propertyIds);
+        .from("properties")
+        .delete()
+        .in("id", propertyIds);
       if (propErr) throw new Error("Não foi possível excluir os guias deste cliente.");
     }
 

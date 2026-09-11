@@ -1,4 +1,14 @@
-import { ScatterChart, Scatter, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine, Cell } from "recharts";
+import {
+  ScatterChart,
+  Scatter,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+  ReferenceLine,
+  Cell,
+} from "recharts";
 import { labelFor } from "./insights";
 
 type Row = { section: string; opens: number; sessions: number; autoResolveRate: number };
@@ -14,9 +24,12 @@ export function ContentImpactMatrix({ rows }: { rows: Row[] }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
       <header className="mb-2 pr-14">
-        <h3 className="text-sm font-semibold whitespace-nowrap truncate">Matriz de impacto de conteúdo</h3>
+        <h3 className="text-sm font-semibold whitespace-nowrap truncate">
+          Matriz de impacto de conteúdo
+        </h3>
         <p className="text-xs text-muted-foreground">
-          Volume × autonomia. Alto & alto = <span className="font-medium text-emerald-600 dark:text-emerald-400">estrelas</span>.
+          Volume × autonomia. Alto & alto ={" "}
+          <span className="font-medium text-emerald-600 dark:text-emerald-400">estrelas</span>.
           Baixo & baixo = ruído. Alto & baixo = gera atrito.
         </p>
       </header>
@@ -35,7 +48,15 @@ export function ContentImpactMatrix({ rows }: { rows: Row[] }) {
                 dataKey="x"
                 name="Aberturas"
                 tick={{ fontSize: 11, fill: "var(--foreground)", opacity: 0.9, fontWeight: 500 }}
-                label={{ value: "Aberturas", position: "insideBottom", offset: -8, fontSize: 11, fill: "var(--foreground)", opacity: 0.9, fontWeight: 500 }}
+                label={{
+                  value: "Aberturas",
+                  position: "insideBottom",
+                  offset: -8,
+                  fontSize: 11,
+                  fill: "var(--foreground)",
+                  opacity: 0.9,
+                  fontWeight: 500,
+                }}
               />
               <YAxis
                 type="number"
@@ -50,8 +71,16 @@ export function ContentImpactMatrix({ rows }: { rows: Row[] }) {
               <ReferenceLine y={70} stroke="var(--border)" strokeDasharray="4 4" />
               <Tooltip
                 cursor={{ strokeDasharray: "3 3" }}
-                contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid var(--border)", background: "var(--popover)", color: "var(--popover-foreground)" }}
-                formatter={(val: number | string, name) => name === "Auto-resolução" ? `${val}%` : val}
+                contentStyle={{
+                  fontSize: 12,
+                  borderRadius: 10,
+                  border: "1px solid var(--border)",
+                  background: "var(--popover)",
+                  color: "var(--popover-foreground)",
+                }}
+                formatter={(val: number | string, name) =>
+                  name === "Auto-resolução" ? `${val}%` : val
+                }
                 labelFormatter={() => ""}
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) return null;
@@ -59,7 +88,9 @@ export function ContentImpactMatrix({ rows }: { rows: Row[] }) {
                   return (
                     <div className="rounded-md border border-border bg-popover px-2.5 py-1.5 text-xs text-popover-foreground">
                       <div className="font-medium">{p.label}</div>
-                      <div className="text-muted-foreground">{p.x} aberturas · {p.y}% autonomia</div>
+                      <div className="text-muted-foreground">
+                        {p.x} aberturas · {p.y}% autonomia
+                      </div>
                     </div>
                   );
                 }}
@@ -71,8 +102,8 @@ export function ContentImpactMatrix({ rows }: { rows: Row[] }) {
                   const color = star
                     ? "var(--foreground)"
                     : friction
-                    ? "var(--destructive)"
-                    : "var(--foreground)";
+                      ? "var(--destructive)"
+                      : "var(--foreground)";
                   return <Cell key={i} fill={color} />;
                 })}
               </Scatter>

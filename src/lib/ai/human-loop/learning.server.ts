@@ -34,7 +34,12 @@ const VALID_KINDS: MemoryKind[] = [
   "temporary_exception",
 ];
 
-const VALID_SCOPES: LearningScope[] = ["property", "owner_portfolio", "company_global", "temporary_exception"];
+const VALID_SCOPES: LearningScope[] = [
+  "property",
+  "owner_portfolio",
+  "company_global",
+  "temporary_exception",
+];
 
 /** Escopo de aprovação → escopo da memória de longo prazo. */
 export function memoryScopeOf(scope: LearningScope): MemoryScope {
@@ -65,12 +70,14 @@ export async function distillHumanDecision(params: {
 
     if (!data || !data.shouldLearn || !data.proposedMemory) return null;
 
-    const kind = (VALID_KINDS.includes(data.memoryKind as MemoryKind)
-      ? data.memoryKind
-      : "operational_rule") as MemoryKind;
-    let scope = (VALID_SCOPES.includes(data.recommendedScope as LearningScope)
-      ? data.recommendedScope
-      : "property") as LearningScope;
+    const kind = (
+      VALID_KINDS.includes(data.memoryKind as MemoryKind) ? data.memoryKind : "operational_rule"
+    ) as MemoryKind;
+    let scope = (
+      VALID_SCOPES.includes(data.recommendedScope as LearningScope)
+        ? data.recommendedScope
+        : "property"
+    ) as LearningScope;
 
     // Exceção pontual jamais vira regra permanente.
     if (kind === "temporary_exception") scope = "temporary_exception";
@@ -83,7 +90,8 @@ export async function distillHumanDecision(params: {
       memoryKind: kind,
       recommendedScope: scope,
       confidence: Math.max(0, Math.min(1, Number(data.confidence ?? 0.7))),
-      ttlDays: scope === "temporary_exception" ? Number(data.ttlDays ?? 7) || 7 : (data.ttlDays ?? null),
+      ttlDays:
+        scope === "temporary_exception" ? Number(data.ttlDays ?? 7) || 7 : (data.ttlDays ?? null),
       rationale: (data.rationale ?? null) as string | null,
     };
   } catch (err) {
@@ -116,7 +124,11 @@ export async function queueLearningCandidate(params: {
   distilled: Distilled;
 }): Promise<string | null> {
   try {
-    const dedupeKey = buildDedupeKey(params.ownerId, params.propertyId, params.distilled.proposedMemory);
+    const dedupeKey = buildDedupeKey(
+      params.ownerId,
+      params.propertyId,
+      params.distilled.proposedMemory,
+    );
 
     // Mesmo aprendizado já pendente/aprovado? Não cria ruído na fila.
     const { data: dup } = await params.supabase
@@ -221,7 +233,10 @@ export async function approveLearningCandidate(params: {
   await writeMemories({
     supabase,
     ownerId: String(row.owner_id),
-    propertyId: scope === "company_global" || scope === "owner_portfolio" ? null : (row.property_id as string | null),
+    propertyId:
+      scope === "company_global" || scope === "owner_portfolio"
+        ? null
+        : (row.property_id as string | null),
     subjectKey: null,
     guestName: null,
     sourceRef: params.candidateId,

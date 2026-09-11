@@ -6,7 +6,13 @@ import { Check, Loader2, Pencil, Plus, Settings2, Trash2, X } from "lucide-react
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -156,7 +162,11 @@ export function PropertyTypeSelect({
                     >
                       <Check className="size-4" />
                     </button>
-                    <button type="button" onClick={() => setEditing(null)} className="text-muted-foreground">
+                    <button
+                      type="button"
+                      onClick={() => setEditing(null)}
+                      className="text-muted-foreground"
+                    >
                       <X className="size-4" />
                     </button>
                   </>

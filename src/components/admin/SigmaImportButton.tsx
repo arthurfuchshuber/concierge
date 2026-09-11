@@ -97,7 +97,8 @@ export function SigmaImportButton({ propertyId }: { propertyId: string }) {
           className="shrink-0 h-8 w-8 sm:w-auto rounded-full text-xs bg-amber-500/10 border-amber-400/40 text-amber-200 hover:bg-amber-500/20 px-2 sm:px-3"
           title="SigmaConcierge ativo — clique para desativar"
         >
-          <Lock className="size-3.5" /> <span className="hidden sm:inline">SigmaConcierge ativo</span>
+          <Lock className="size-3.5" />{" "}
+          <span className="hidden sm:inline">SigmaConcierge ativo</span>
         </Button>
         <AlertDialog
           open={confirmOff}
@@ -109,8 +110,8 @@ export function SigmaImportButton({ propertyId }: { propertyId: string }) {
             <AlertDialogHeader>
               <AlertDialogTitle>Desativar recomendação SigmaConcierge?</AlertDialogTitle>
               <AlertDialogDescription>
-                Você voltará a editar livremente os pontos da cidade e os links de reservas. Suas configurações
-                anteriores serão restauradas.
+                Você voltará a editar livremente os pontos da cidade e os links de reservas. Suas
+                configurações anteriores serão restauradas.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -134,7 +135,8 @@ export function SigmaImportButton({ propertyId }: { propertyId: string }) {
         className="shrink-0 h-8 w-8 sm:w-auto rounded-full text-xs border-amber-400/40 text-amber-200 hover:bg-amber-500/10 px-2 sm:px-3"
         title="Usar Recomendações do Sigma"
       >
-        <Star className="size-3.5" /> <span className="hidden sm:inline">Usar Recomendações do Sigma</span>
+        <Star className="size-3.5" />{" "}
+        <span className="hidden sm:inline">Usar Recomendações do Sigma</span>
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
@@ -143,38 +145,45 @@ export function SigmaImportButton({ propertyId }: { propertyId: string }) {
               <Star className="size-5 text-amber-400" /> Recomendação SigmaConcierge
             </DialogTitle>
             <DialogDescription>
-              Em 1 clique, importe a curadoria oficial para <strong>{state?.available_pack?.city_label}</strong>:
-              pontos, reservas e perguntas frequentes — tudo testado pela nossa equipe.
+              Em 1 clique, importe a curadoria oficial para{" "}
+              <strong>{state?.available_pack?.city_label}</strong>: pontos, reservas e perguntas
+              frequentes — tudo testado pela nossa equipe.
             </DialogDescription>
           </DialogHeader>
           {state?.counts && (
             <div className="grid grid-cols-3 gap-2 text-center text-xs">
               <div className="rounded-lg bg-muted/40 py-2">
                 <div className="text-lg font-display">{state.counts.recs}</div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Pontos</div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Pontos
+                </div>
               </div>
               <div className="rounded-lg bg-muted/40 py-2">
                 <div className="text-lg font-display">{state.counts.marketplace}</div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Reservas</div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Reservas
+                </div>
               </div>
               <div className="rounded-lg bg-muted/40 py-2">
                 <div className="text-lg font-display">{state.counts.faqs}</div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">FAQs</div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  FAQs
+                </div>
               </div>
             </div>
           )}
           <ul className="text-xs text-muted-foreground space-y-1.5">
             <li className="flex gap-2">
-              <Check className="size-3.5 text-emerald-400 mt-0.5 shrink-0" /> Conteúdo curado e atualizado pela equipe
-              SigmaConcierge.
+              <Check className="size-3.5 text-emerald-400 mt-0.5 shrink-0" /> Conteúdo curado e
+              atualizado pela equipe SigmaConcierge.
             </li>
             <li className="flex gap-2">
-              <Check className="size-3.5 text-emerald-400 mt-0.5 shrink-0" /> Suas edições atuais são salvas e
-              restauradas se desativar.
+              <Check className="size-3.5 text-emerald-400 mt-0.5 shrink-0" /> Suas edições atuais
+              são salvas e restauradas se desativar.
             </li>
             <li className="flex gap-2">
-              <Lock className="size-3.5 text-amber-300 mt-0.5 shrink-0" /> Enquanto ativo, esses campos ficam bloqueados
-              para edição.
+              <Lock className="size-3.5 text-amber-300 mt-0.5 shrink-0" /> Enquanto ativo, esses
+              campos ficam bloqueados para edição.
             </li>
           </ul>
           <DialogFooter>
@@ -202,8 +211,8 @@ export function SigmaActiveBanner({ propertyId }: { propertyId: string }) {
     <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2.5 flex items-center gap-2 text-xs text-amber-100">
       <Lock className="size-4 text-amber-300 shrink-0" />
       <span>
-        <strong>Recomendação SigmaConcierge ativa.</strong> Pontos da cidade e reservas estão bloqueados para edição
-        enquanto você usar esta curadoria.
+        <strong>Recomendação SigmaConcierge ativa.</strong> Pontos da cidade e reservas estão
+        bloqueados para edição enquanto você usar esta curadoria.
       </span>
     </div>
   );
@@ -259,9 +268,9 @@ export function SaveAsSigmaPackButton({ propertyId }: { propertyId: string }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Salvar como recomendação SigmaConcierge?</AlertDialogTitle>
             <AlertDialogDescription>
-              Os pontos da cidade, links de marketplace e FAQs deste guia serão copiados como a recomendação oficial
-              SigmaConcierge para a cidade. Se já existir uma recomendação para esta cidade, ela será{" "}
-              <strong>substituída</strong>.
+              Os pontos da cidade, links de marketplace e FAQs deste guia serão copiados como a
+              recomendação oficial SigmaConcierge para a cidade. Se já existir uma recomendação para
+              esta cidade, ela será <strong>substituída</strong>.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

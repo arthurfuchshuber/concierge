@@ -9,15 +9,12 @@ export const Route = createFileRoute("/api/public/version")({
   server: {
     handlers: {
       GET: async () => {
-        return new Response(
-          JSON.stringify({ buildId: __APP_BUILD_ID__ }),
-          {
-            headers: {
-              "content-type": "application/json",
-              "cache-control": "no-store, no-cache, must-revalidate",
-            },
+        return new Response(JSON.stringify({ buildId: __APP_BUILD_ID__ }), {
+          headers: {
+            "content-type": "application/json",
+            "cache-control": "no-store, no-cache, must-revalidate",
           },
-        );
+        });
       },
     },
   },

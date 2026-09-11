@@ -69,7 +69,9 @@ function Row({ node, depth }: { node: TreeNode; depth: number }) {
           <p className="truncate font-mono text-[11px] text-muted-foreground">{node.namespace}</p>
         </div>
         {node.origin === "inherited" && (
-          <span className="hidden shrink-0 text-[11px] text-muted-foreground sm:inline">Herdada</span>
+          <span className="hidden shrink-0 text-[11px] text-muted-foreground sm:inline">
+            Herdada
+          </span>
         )}
         {node.level && <AccessBadge level={node.level} />}
       </div>

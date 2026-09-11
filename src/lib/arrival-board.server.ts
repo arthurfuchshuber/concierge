@@ -49,7 +49,11 @@ function isRealReservation(row: { status?: string | null; raw_summary?: string |
   const summary = (row.raw_summary ?? "").toLowerCase();
   if (status.includes("cancel")) return false;
   if (status.includes("block")) return false;
-  if (summary.includes("not available") || summary.includes("unavailable") || summary.includes("bloqueado"))
+  if (
+    summary.includes("not available") ||
+    summary.includes("unavailable") ||
+    summary.includes("bloqueado")
+  )
     return false;
   return true;
 }
@@ -101,7 +105,12 @@ export function normalizeReservationCode(s: string | null | undefined): string |
  */
 export function findLogsForReservation<T extends ArrivalLogRow>(
   uniqueLogs: T[],
-  r: { property_id: string; checkin_date: string; checkout_date: string | null; guest_hint?: string | null },
+  r: {
+    property_id: string;
+    checkin_date: string;
+    checkout_date: string | null;
+    guest_hint?: string | null;
+  },
   kind: "checkin" | "checkout",
 ): { primary: T | null; extras: T[] } {
   const resCode = normalizeReservationCode(r.guest_hint);
@@ -154,7 +163,11 @@ export async function syncStaleIcals(supabase: AnyClient, propIds: string[]): Pr
     .in("id", propIds)
     .not("airbnb_ical_url", "is", null);
   const stale = (
-    (syncProps ?? []) as Array<{ id: string; airbnb_ical_url: string | null; airbnb_ical_last_sync_at: string | null }>
+    (syncProps ?? []) as Array<{
+      id: string;
+      airbnb_ical_url: string | null;
+      airbnb_ical_last_sync_at: string | null;
+    }>
   )
     .filter((p) => {
       const url = p.airbnb_ical_url?.trim();
@@ -180,122 +193,138 @@ export async function syncStaleIcals(supabase: AnyClient, propIds: string[]): Pr
  */
 export async function buildArrivalRows(
   supabase: AnyClient,
-  opts: { kind: "checkin" | "checkout"; range: "today" | "tomorrow" | "7d" | "all"; propIds: string[] },
+  opts: {
+    kind: "checkin" | "checkout";
+    range: "today" | "tomorrow" | "7d" | "all";
+    propIds: string[];
+  },
 ): Promise<{ rows: ArrivalRow[] }> {
   const data = { kind: opts.kind, range: opts.range };
   const propIds = opts.propIds;
   const context = { supabase } as { supabase: any };
-    if (propIds.length === 0) return { rows: [] };
+  if (propIds.length === 0) return { rows: [] };
 
-    const dateCol = data.kind === "checkin" ? "checkin_date" : "checkout_date";
-    const today = todayISO();
-    let from: string | null = today;
-    let to: string | null = today;
+  const dateCol = data.kind === "checkin" ? "checkin_date" : "checkout_date";
+  const today = todayISO();
+  let from: string | null = today;
+  let to: string | null = today;
+  if (data.range === "tomorrow") {
+    from = addDaysISO(today, 1);
+    to = from;
+  } else if (data.range === "7d") {
+    from = today;
+    to = addDaysISO(today, 6);
+  } else if (data.range === "all") {
+    from = today;
+    to = null;
+  }
+  // Para o filtro "Hoje", trazemos também os atrasados para que cards
+  // pendentes anteriores continuem visíveis com alerta — mas limitados à
+  // mesma janela de OVERDUE_WINDOW_DAYS que decide se um atraso ainda é
+  // mostrado (withinOverdueWindow, mais abaixo). Piso em 1970-01-01 aqui
+  // não mudava o resultado final (linhas mais antigas que a janela já
+  // eram descartadas depois), só fazia a query trazer histórico que nunca
+  // seria usado — e, combinado com ordenação ascendente + LIMIT, podia
+  // empurrar os check-ins/checkouts de HOJE para fora da página de 500/
+  // 10000 linhas em contas com muito histórico.
+  if (data.range === "today") {
+    from = addDaysISO(today, -OVERDUE_WINDOW_DAYS);
+  }
+
+  if (data.kind === "checkin" && data.range === "today") {
+    await syncStaleIcals(supabase, propIds);
+  }
+
+  let q = context.supabase
+    .from("guide_access_logs")
+    .select(
+      "id, property_id, guest_name, guest_phone, guest_phone_country, guest_arrival_time, checkin_date, checkout_date, reservation_code, created_at",
+    )
+    .in("property_id", propIds)
+    .gte(dateCol, from!);
+  if (to) q = q.lte(dateCol, to);
+  const { data: logs } = await q.order(dateCol, { ascending: true }).limit(500);
+
+  const rawLogs = (logs ?? []) as Array<{
+    id: string;
+    property_id: string;
+    guest_name: string;
+    guest_phone: string | null;
+    guest_phone_country: string | null;
+    guest_arrival_time: string | null;
+    checkin_date: string;
+    checkout_date: string | null;
+    reservation_code: string | null;
+    created_at: string;
+  }>;
+  let placeholderLogs = rawLogs.filter((l) => isPlaceholderGuest(l.guest_name));
+  const formLogs = rawLogs.filter((l) => !isPlaceholderGuest(l.guest_name));
+  // Dedupe only truly repeated form submissions for the same stay (helper
+  // compartilhado com getGuideEngagement — ver dedupeFormLogs acima).
+  // `let`: pode ganhar itens extras mais abaixo (ver "PREVISTO fora da
+  // janela" após o Promise.all) quando uma previsão movida pelo
+  // anfitrião/hóspede cai num dia que a busca principal, filtrada pela
+  // data BRUTA da reserva, não teria trazido.
+  let uniqueLogs = dedupeFormLogs(formLogs);
+
+  const reservationWindowStart = data.range === "tomorrow" ? addDaysISO(today, 1) : today;
+  const reservationWindowEnd =
+    data.range === "tomorrow"
+      ? reservationWindowStart
+      : data.range === "7d"
+        ? addDaysISO(today, 6)
+        : null;
+  let reservationsQuery = context.supabase
+    .from("property_reservations")
+    .select(
+      "id, property_id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at, created_at",
+    )
+    .in("property_id", propIds)
+    .eq("source", "airbnb");
+  if (data.kind === "checkin") {
     if (data.range === "tomorrow") {
-      from = addDaysISO(today, 1);
-      to = from;
-    } else if (data.range === "7d") {
-      from = today;
-      to = addDaysISO(today, 6);
-    } else if (data.range === "all") {
-      from = today;
-      to = null;
-    }
-    // Para o filtro "Hoje", trazemos também os atrasados para que cards
-    // pendentes anteriores continuem visíveis com alerta — mas limitados à
-    // mesma janela de OVERDUE_WINDOW_DAYS que decide se um atraso ainda é
-    // mostrado (withinOverdueWindow, mais abaixo). Piso em 1970-01-01 aqui
-    // não mudava o resultado final (linhas mais antigas que a janela já
-    // eram descartadas depois), só fazia a query trazer histórico que nunca
-    // seria usado — e, combinado com ordenação ascendente + LIMIT, podia
-    // empurrar os check-ins/checkouts de HOJE para fora da página de 500/
-    // 10000 linhas em contas com muito histórico.
-    if (data.range === "today") {
-      from = addDaysISO(today, -OVERDUE_WINDOW_DAYS);
-    }
-
-    if (data.kind === "checkin" && data.range === "today") {
-      await syncStaleIcals(supabase, propIds);
-    }
-
-
-    let q = context.supabase
-      .from("guide_access_logs")
-      .select(
-        "id, property_id, guest_name, guest_phone, guest_phone_country, guest_arrival_time, checkin_date, checkout_date, reservation_code, created_at",
-      )
-      .in("property_id", propIds)
-      .gte(dateCol, from!);
-    if (to) q = q.lte(dateCol, to);
-    const { data: logs } = await q.order(dateCol, { ascending: true }).limit(500);
-
-    const rawLogs = (logs ?? []) as Array<{
-      id: string;
-      property_id: string;
-      guest_name: string;
-      guest_phone: string | null;
-      guest_phone_country: string | null;
-      guest_arrival_time: string | null;
-      checkin_date: string;
-      checkout_date: string | null;
-      reservation_code: string | null;
-      created_at: string;
-    }>;
-    let placeholderLogs = rawLogs.filter((l) => isPlaceholderGuest(l.guest_name));
-    const formLogs = rawLogs.filter((l) => !isPlaceholderGuest(l.guest_name));
-    // Dedupe only truly repeated form submissions for the same stay (helper
-    // compartilhado com getGuideEngagement — ver dedupeFormLogs acima).
-    // `let`: pode ganhar itens extras mais abaixo (ver "PREVISTO fora da
-    // janela" após o Promise.all) quando uma previsão movida pelo
-    // anfitrião/hóspede cai num dia que a busca principal, filtrada pela
-    // data BRUTA da reserva, não teria trazido.
-    let uniqueLogs = dedupeFormLogs(formLogs);
-
-    const reservationWindowStart = data.range === "tomorrow" ? addDaysISO(today, 1) : today;
-    const reservationWindowEnd =
-      data.range === "tomorrow" ? reservationWindowStart : data.range === "7d" ? addDaysISO(today, 6) : null;
-    let reservationsQuery = context.supabase
-      .from("property_reservations")
-      .select(
-        "id, property_id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at, created_at",
-      )
-      .in("property_id", propIds)
-      .eq("source", "airbnb");
-    if (data.kind === "checkin") {
-      if (data.range === "tomorrow") {
-        reservationsQuery = reservationsQuery.gte("checkin_date", reservationWindowStart).lte("checkin_date", reservationWindowStart);
-      } else {
-        // Check-in lists also feed "Em Estadia". Fetch by interval overlap so
-        // active stays whose check-in happened before today are not silently
-        // dropped; reservationInRange below still decides the exact stage.
-        reservationsQuery = reservationsQuery.gte("checkout_date", today);
-        if (data.range !== "all") reservationsQuery = reservationsQuery.lte("checkin_date", reservationWindowEnd ?? today);
-        if (reservationWindowEnd) reservationsQuery = reservationsQuery.lte("checkin_date", reservationWindowEnd);
-      }
+      reservationsQuery = reservationsQuery
+        .gte("checkin_date", reservationWindowStart)
+        .lte("checkin_date", reservationWindowStart);
     } else {
-      // Check-outs pendentes anteriores (atrasados) precisam continuar visíveis
-      // no dashboard e no KPI "Checkouts Pendentes". Para tomorrow mantemos a
-      // janela exata; nos demais casos removemos o piso para não descartar
-      // reservas de dias anteriores que ainda não foram concluídas.
-      if (data.range === "tomorrow") {
-        reservationsQuery = reservationsQuery.gte("checkout_date", reservationWindowStart);
-      } else if (data.range === "today") {
-        // Sem NENHUM filtro de data aqui, esta query buscava todo o
-        // histórico de reservas do Airbnb (source='airbnb' nunca é apagado
-        // por sync, cresce pela vida útil da conta), ordenada de forma
-        // ascendente e limitada a 10000 linhas — em uma conta madura com
-        // muito histórico, os checkouts de HOJE podiam ficar fora das
-        // 10000 linhas mais antigas devolvidas. Aplicamos a mesma janela de
-        // OVERDUE_WINDOW_DAYS usada para decidir se um atraso ainda aparece
-        // (withinOverdueWindow) — reservas mais antigas que isso já eram
-        // descartadas depois de qualquer forma, então isto não muda o que é
-        // exibido, só garante que os checkouts recentes cabem no LIMIT.
-        reservationsQuery = reservationsQuery.gte("checkout_date", addDaysISO(today, -OVERDUE_WINDOW_DAYS));
-      }
-      if (reservationWindowEnd) reservationsQuery = reservationsQuery.lte("checkout_date", reservationWindowEnd);
+      // Check-in lists also feed "Em Estadia". Fetch by interval overlap so
+      // active stays whose check-in happened before today are not silently
+      // dropped; reservationInRange below still decides the exact stage.
+      reservationsQuery = reservationsQuery.gte("checkout_date", today);
+      if (data.range !== "all")
+        reservationsQuery = reservationsQuery.lte("checkin_date", reservationWindowEnd ?? today);
+      if (reservationWindowEnd)
+        reservationsQuery = reservationsQuery.lte("checkin_date", reservationWindowEnd);
     }
+  } else {
+    // Check-outs pendentes anteriores (atrasados) precisam continuar visíveis
+    // no dashboard e no KPI "Checkouts Pendentes". Para tomorrow mantemos a
+    // janela exata; nos demais casos removemos o piso para não descartar
+    // reservas de dias anteriores que ainda não foram concluídas.
+    if (data.range === "tomorrow") {
+      reservationsQuery = reservationsQuery.gte("checkout_date", reservationWindowStart);
+    } else if (data.range === "today") {
+      // Sem NENHUM filtro de data aqui, esta query buscava todo o
+      // histórico de reservas do Airbnb (source='airbnb' nunca é apagado
+      // por sync, cresce pela vida útil da conta), ordenada de forma
+      // ascendente e limitada a 10000 linhas — em uma conta madura com
+      // muito histórico, os checkouts de HOJE podiam ficar fora das
+      // 10000 linhas mais antigas devolvidas. Aplicamos a mesma janela de
+      // OVERDUE_WINDOW_DAYS usada para decidir se um atraso ainda aparece
+      // (withinOverdueWindow) — reservas mais antigas que isso já eram
+      // descartadas depois de qualquer forma, então isto não muda o que é
+      // exibido, só garante que os checkouts recentes cabem no LIMIT.
+      reservationsQuery = reservationsQuery.gte(
+        "checkout_date",
+        addDaysISO(today, -OVERDUE_WINDOW_DAYS),
+      );
+    }
+    if (reservationWindowEnd)
+      reservationsQuery = reservationsQuery.lte("checkout_date", reservationWindowEnd);
+  }
 
-    const [{ data: props }, { data: statuses }, { data: reservations }, sectionEvents] = await Promise.all([
+  const [{ data: props }, { data: statuses }, { data: reservations }, sectionEvents] =
+    await Promise.all([
       context.supabase
         .from("properties")
         .select(
@@ -305,10 +334,14 @@ export async function buildArrivalRows(
         .in("id", propIds),
       context.supabase
         .from("guest_arrival_status")
-        .select("log_id, reservation_id, kind, status, note, arrival_time_override, arrival_date_override, muted_until, done_at, concluded_at")
+        .select(
+          "log_id, reservation_id, kind, status, note, arrival_time_override, arrival_date_override, muted_until, done_at, concluded_at",
+        )
         .in("property_id", propIds)
         .limit(5000),
-      reservationsQuery.order(data.kind === "checkin" ? "checkin_date" : "checkout_date", { ascending: true }).limit(10000),
+      reservationsQuery
+        .order(data.kind === "checkin" ? "checkin_date" : "checkout_date", { ascending: true })
+        .limit(10000),
       uniqueLogs.length > 0
         ? import("@/lib/engagement-events.server").then(({ fetchEngagementSectionEvents }) =>
             fetchEngagementSectionEvents(context.supabase, propIds, [
@@ -327,118 +360,112 @@ export async function buildArrivalRows(
         : Promise.resolve([]),
     ]);
 
-    // PREVISTO fora da janela original (04/09/2026) — pedido explícito do
-    // cliente: quando o anfitrião (ou o hóspede) define uma previsão de
-    // chegada/saída num dia DIFERENTE do dia bruto da reserva (ex.: reserva
-    // confirmada pro dia 5, mas previsão movida pro dia 7), o card precisa
-    // aparecer no dia da previsão em TODO o dashboard — não só ficar com um
-    // texto "Previsto" divergente enquanto continua listado no dia antigo.
-    // As queries acima (logs e reservas) filtram pela data BRUTA da reserva
-    // (`dateCol`/`checkin_date`/`checkout_date`), então uma previsão que
-    // aponta pra fora da janela [from,to] pedida faz o registro nem ser
-    // buscado. `statuses` já foi carregado SEM filtro de data nenhum (query
-    // acima), então já temos todas as previsões em mãos — só falta buscar,
-    // à parte, os registros específicos que a previsão aponta pra dentro da
-    // janela mas que a busca principal descartou.
-    const knownLogIds = new Set(((logs ?? []) as Array<{ id: string }>).map((l) => l.id));
-    const knownReservationIds = new Set(((reservations ?? []) as Array<{ id: string }>).map((r) => r.id));
-    const missingLogIds = new Set<string>();
-    const missingReservationIds = new Set<string>();
-    for (const s of (statuses ?? []) as Array<{
-      log_id: string | null;
-      reservation_id: string | null;
-      kind: "checkin" | "checkout";
-      arrival_date_override: string | null;
-    }>) {
-      if (s.kind !== data.kind || !s.arrival_date_override) continue;
-      const od = s.arrival_date_override;
-      if (od < (from ?? today)) continue;
-      if (to && od > to) continue;
-      if (s.log_id && !knownLogIds.has(s.log_id)) missingLogIds.add(s.log_id);
-      if (s.reservation_id && !knownReservationIds.has(s.reservation_id)) missingReservationIds.add(s.reservation_id);
-    }
-    const [{ data: extraLogsData }, { data: extraReservationsData }] = await Promise.all([
-      missingLogIds.size > 0
-        ? context.supabase
-            .from("guide_access_logs")
-            .select(
-              "id, property_id, guest_name, guest_phone, guest_phone_country, guest_arrival_time, checkin_date, checkout_date, reservation_code, created_at",
-            )
-            .in("id", Array.from(missingLogIds))
-        : Promise.resolve({ data: [] as unknown[] }),
-      missingReservationIds.size > 0
-        ? context.supabase
-            .from("property_reservations")
-            .select(
-              "id, property_id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at, created_at",
-            )
-            .in("id", Array.from(missingReservationIds))
-        : Promise.resolve({ data: [] as unknown[] }),
-    ]);
-    if (extraLogsData && extraLogsData.length > 0) {
-      const extraRaw = extraLogsData as typeof rawLogs;
-      placeholderLogs = [...placeholderLogs, ...extraRaw.filter((l) => isPlaceholderGuest(l.guest_name))];
-      const extraForm = extraRaw.filter((l) => !isPlaceholderGuest(l.guest_name));
-      uniqueLogs = dedupeFormLogs([...formLogs, ...extraForm]);
-    }
-    const allReservationsRaw = [...((reservations ?? []) as unknown[]), ...((extraReservationsData ?? []) as unknown[])];
+  // PREVISTO fora da janela original (04/09/2026) — pedido explícito do
+  // cliente: quando o anfitrião (ou o hóspede) define uma previsão de
+  // chegada/saída num dia DIFERENTE do dia bruto da reserva (ex.: reserva
+  // confirmada pro dia 5, mas previsão movida pro dia 7), o card precisa
+  // aparecer no dia da previsão em TODO o dashboard — não só ficar com um
+  // texto "Previsto" divergente enquanto continua listado no dia antigo.
+  // As queries acima (logs e reservas) filtram pela data BRUTA da reserva
+  // (`dateCol`/`checkin_date`/`checkout_date`), então uma previsão que
+  // aponta pra fora da janela [from,to] pedida faz o registro nem ser
+  // buscado. `statuses` já foi carregado SEM filtro de data nenhum (query
+  // acima), então já temos todas as previsões em mãos — só falta buscar,
+  // à parte, os registros específicos que a previsão aponta pra dentro da
+  // janela mas que a busca principal descartou.
+  const knownLogIds = new Set(((logs ?? []) as Array<{ id: string }>).map((l) => l.id));
+  const knownReservationIds = new Set(
+    ((reservations ?? []) as Array<{ id: string }>).map((r) => r.id),
+  );
+  const missingLogIds = new Set<string>();
+  const missingReservationIds = new Set<string>();
+  for (const s of (statuses ?? []) as Array<{
+    log_id: string | null;
+    reservation_id: string | null;
+    kind: "checkin" | "checkout";
+    arrival_date_override: string | null;
+  }>) {
+    if (s.kind !== data.kind || !s.arrival_date_override) continue;
+    const od = s.arrival_date_override;
+    if (od < (from ?? today)) continue;
+    if (to && od > to) continue;
+    if (s.log_id && !knownLogIds.has(s.log_id)) missingLogIds.add(s.log_id);
+    if (s.reservation_id && !knownReservationIds.has(s.reservation_id))
+      missingReservationIds.add(s.reservation_id);
+  }
+  const [{ data: extraLogsData }, { data: extraReservationsData }] = await Promise.all([
+    missingLogIds.size > 0
+      ? context.supabase
+          .from("guide_access_logs")
+          .select(
+            "id, property_id, guest_name, guest_phone, guest_phone_country, guest_arrival_time, checkin_date, checkout_date, reservation_code, created_at",
+          )
+          .in("id", Array.from(missingLogIds))
+      : Promise.resolve({ data: [] as unknown[] }),
+    missingReservationIds.size > 0
+      ? context.supabase
+          .from("property_reservations")
+          .select(
+            "id, property_id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at, created_at",
+          )
+          .in("id", Array.from(missingReservationIds))
+      : Promise.resolve({ data: [] as unknown[] }),
+  ]);
+  if (extraLogsData && extraLogsData.length > 0) {
+    const extraRaw = extraLogsData as typeof rawLogs;
+    placeholderLogs = [
+      ...placeholderLogs,
+      ...extraRaw.filter((l) => isPlaceholderGuest(l.guest_name)),
+    ];
+    const extraForm = extraRaw.filter((l) => !isPlaceholderGuest(l.guest_name));
+    uniqueLogs = dedupeFormLogs([...formLogs, ...extraForm]);
+  }
+  const allReservationsRaw = [
+    ...((reservations ?? []) as unknown[]),
+    ...((extraReservationsData ?? []) as unknown[]),
+  ];
 
-    const ownerIdsForProps = Array.from(
-      new Set(
-        ((props ?? []) as Array<{ owner_contact_id: string | null }>)
-          .map((p) => p.owner_contact_id)
-          .filter((v): v is string => !!v),
-      ),
-    );
-    const ownerNameById = new Map<string, string>();
-    const ownerPhoneById = new Map<string, { phone: string | null; country: string | null }>();
-    if (ownerIdsForProps.length > 0) {
-      const { data: owners } = await context.supabase
-        .from("property_owners")
-        .select("id, name, trade_name, phone, phone_country")
-        .in("id", ownerIdsForProps);
-      for (const o of (owners ?? []) as Array<{ id: string; name: string | null; trade_name: string | null; phone: string | null; phone_country: string | null }>) {
-        const label = (o.trade_name || o.name || "").trim();
-        if (label) ownerNameById.set(o.id, label);
-        ownerPhoneById.set(o.id, { phone: o.phone ?? null, country: o.phone_country ?? null });
-      }
-    }
-
-    const propMap = new Map<
-      string,
-      {
-        name: string | null;
-        ownerName: string | null;
-        ownerPhone: string | null;
-        ownerPhoneCountry: string | null;
-        address: string | null;
-        maps_url: string | null;
-        garage_maps_url: string | null;
-        lat: number | null;
-        lng: number | null;
-        hasPasswords: boolean;
-        accessCodes: Array<"lock" | "gate">;
-        checkin_time: string | null;
-        checkin_time_max: string | null;
-        checkout_time: string | null;
-        checkout_time_min: string | null;
-        airbnb_ical_url: string | null;
-        cleaning_price_normal_cents: number | null;
-        cleaning_price_full_cents: number | null;
-      }
-    >();
-    for (const p of (props ?? []) as Array<{
+  const ownerIdsForProps = Array.from(
+    new Set(
+      ((props ?? []) as Array<{ owner_contact_id: string | null }>)
+        .map((p) => p.owner_contact_id)
+        .filter((v): v is string => !!v),
+    ),
+  );
+  const ownerNameById = new Map<string, string>();
+  const ownerPhoneById = new Map<string, { phone: string | null; country: string | null }>();
+  if (ownerIdsForProps.length > 0) {
+    const { data: owners } = await context.supabase
+      .from("property_owners")
+      .select("id, name, trade_name, phone, phone_country")
+      .in("id", ownerIdsForProps);
+    for (const o of (owners ?? []) as Array<{
       id: string;
       name: string | null;
+      trade_name: string | null;
+      phone: string | null;
+      phone_country: string | null;
+    }>) {
+      const label = (o.trade_name || o.name || "").trim();
+      if (label) ownerNameById.set(o.id, label);
+      ownerPhoneById.set(o.id, { phone: o.phone ?? null, country: o.phone_country ?? null });
+    }
+  }
+
+  const propMap = new Map<
+    string,
+    {
+      name: string | null;
+      ownerName: string | null;
+      ownerPhone: string | null;
+      ownerPhoneCountry: string | null;
       address: string | null;
-      owner_contact_id: string | null;
       maps_url: string | null;
       garage_maps_url: string | null;
       lat: number | null;
       lng: number | null;
-      wifi_password: string | null;
-      lock_code: string | null;
-      gate_code: string | null;
+      hasPasswords: boolean;
+      accessCodes: Array<"lock" | "gate">;
       checkin_time: string | null;
       checkin_time_max: string | null;
       checkout_time: string | null;
@@ -446,712 +473,834 @@ export async function buildArrivalRows(
       airbnb_ical_url: string | null;
       cleaning_price_normal_cents: number | null;
       cleaning_price_full_cents: number | null;
-    }>) {
-      propMap.set(p.id, {
-        name: p.name,
-        ownerName: p.owner_contact_id ? (ownerNameById.get(p.owner_contact_id) ?? null) : null,
-        ownerPhone: p.owner_contact_id ? (ownerPhoneById.get(p.owner_contact_id)?.phone ?? null) : null,
-        ownerPhoneCountry: p.owner_contact_id ? (ownerPhoneById.get(p.owner_contact_id)?.country ?? null) : null,
-        address: p.address,
-        maps_url: p.maps_url,
-        garage_maps_url: p.garage_maps_url,
-        lat: p.lat,
-        lng: p.lng,
-        // Senha de ACESSO ao imóvel = fechadura/portão (Wi-Fi não conta aqui).
-        hasPasswords: !!(p.lock_code?.trim() || p.gate_code?.trim()),
-        accessCodes: [
-          ...(p.lock_code?.trim() ? (["lock"] as const) : []),
-          ...(p.gate_code?.trim() ? (["gate"] as const) : []),
-        ] as Array<"lock" | "gate">,
-        checkin_time: p.checkin_time,
-        checkin_time_max: p.checkin_time_max,
-        checkout_time: p.checkout_time,
-        checkout_time_min: p.checkout_time_min,
-        airbnb_ical_url: p.airbnb_ical_url,
-        cleaning_price_normal_cents: p.cleaning_price_normal_cents,
-        cleaning_price_full_cents: p.cleaning_price_full_cents,
-      });
     }
+  >();
+  for (const p of (props ?? []) as Array<{
+    id: string;
+    name: string | null;
+    address: string | null;
+    owner_contact_id: string | null;
+    maps_url: string | null;
+    garage_maps_url: string | null;
+    lat: number | null;
+    lng: number | null;
+    wifi_password: string | null;
+    lock_code: string | null;
+    gate_code: string | null;
+    checkin_time: string | null;
+    checkin_time_max: string | null;
+    checkout_time: string | null;
+    checkout_time_min: string | null;
+    airbnb_ical_url: string | null;
+    cleaning_price_normal_cents: number | null;
+    cleaning_price_full_cents: number | null;
+  }>) {
+    propMap.set(p.id, {
+      name: p.name,
+      ownerName: p.owner_contact_id ? (ownerNameById.get(p.owner_contact_id) ?? null) : null,
+      ownerPhone: p.owner_contact_id
+        ? (ownerPhoneById.get(p.owner_contact_id)?.phone ?? null)
+        : null,
+      ownerPhoneCountry: p.owner_contact_id
+        ? (ownerPhoneById.get(p.owner_contact_id)?.country ?? null)
+        : null,
+      address: p.address,
+      maps_url: p.maps_url,
+      garage_maps_url: p.garage_maps_url,
+      lat: p.lat,
+      lng: p.lng,
+      // Senha de ACESSO ao imóvel = fechadura/portão (Wi-Fi não conta aqui).
+      hasPasswords: !!(p.lock_code?.trim() || p.gate_code?.trim()),
+      accessCodes: [
+        ...(p.lock_code?.trim() ? (["lock"] as const) : []),
+        ...(p.gate_code?.trim() ? (["gate"] as const) : []),
+      ] as Array<"lock" | "gate">,
+      checkin_time: p.checkin_time,
+      checkin_time_max: p.checkin_time_max,
+      checkout_time: p.checkout_time,
+      checkout_time_min: p.checkout_time_min,
+      airbnb_ical_url: p.airbnb_ical_url,
+      cleaning_price_normal_cents: p.cleaning_price_normal_cents,
+      cleaning_price_full_cents: p.cleaning_price_full_cents,
+    });
+  }
 
+  // Index section events by property_id + normalized guest identity.
+  // Casamos por chave estrita (nome+telefone) E por chave "solta" (só nome /
+  // só telefone), exatamente como as barras de engajamento do dashboard —
+  // caso contrário card e barra divergem para o mesmo hóspede.
+  const eventKey = (pid: string, name: string | null, phone: string | null) =>
+    `${pid}|${(name || "").trim().toLowerCase()}|${(phone || "").replace(/\D/g, "")}`;
+  const looseKey = (pid: string, name: string | null) =>
+    `${pid}|${(name || "").trim().toLowerCase()}`;
+  const phoneKey = (pid: string, phone: string | null) => {
+    const d = (phone || "").replace(/\D/g, "");
+    return d.length >= 8 ? `${pid}|${d.slice(-8)}` : null;
+  };
 
-    // Index section events by property_id + normalized guest identity.
-    // Casamos por chave estrita (nome+telefone) E por chave "solta" (só nome /
-    // só telefone), exatamente como as barras de engajamento do dashboard —
-    // caso contrário card e barra divergem para o mesmo hóspede.
-    const eventKey = (pid: string, name: string | null, phone: string | null) =>
-      `${pid}|${(name || "").trim().toLowerCase()}|${(phone || "").replace(/\D/g, "")}`;
-    const looseKey = (pid: string, name: string | null) => `${pid}|${(name || "").trim().toLowerCase()}`;
-    const phoneKey = (pid: string, phone: string | null) => {
-      const d = (phone || "").replace(/\D/g, "");
-      return d.length >= 8 ? `${pid}|${d.slice(-8)}` : null;
-    };
+  type SeenSets = { strict: Set<string>; loose: Set<string>; phones: Set<string> };
+  const newSeen = (): SeenSets => ({ strict: new Set(), loose: new Set(), phones: new Set() });
+  const addSeen = (set: SeenSets, pid: string, name: string | null, phone: string | null) => {
+    set.strict.add(eventKey(pid, name, phone));
+    if ((name || "").trim()) set.loose.add(looseKey(pid, name));
+    const pk = phoneKey(pid, phone);
+    if (pk) set.phones.add(pk);
+  };
+  const hasSeen = (set: SeenSets, pid: string, name: string | null, phone: string | null) => {
+    if (set.strict.has(eventKey(pid, name, phone))) return true;
+    if ((name || "").trim() && set.loose.has(looseKey(pid, name))) return true;
+    const pk = phoneKey(pid, phone);
+    return !!pk && set.phones.has(pk);
+  };
 
-    type SeenSets = { strict: Set<string>; loose: Set<string>; phones: Set<string> };
-    const newSeen = (): SeenSets => ({ strict: new Set(), loose: new Set(), phones: new Set() });
-    const addSeen = (set: SeenSets, pid: string, name: string | null, phone: string | null) => {
-      set.strict.add(eventKey(pid, name, phone));
-      if ((name || "").trim()) set.loose.add(looseKey(pid, name));
-      const pk = phoneKey(pid, phone);
-      if (pk) set.phones.add(pk);
-    };
-    const hasSeen = (set: SeenSets, pid: string, name: string | null, phone: string | null) => {
-      if (set.strict.has(eventKey(pid, name, phone))) return true;
-      if ((name || "").trim() && set.loose.has(looseKey(pid, name))) return true;
-      const pk = phoneKey(pid, phone);
-      return !!pk && set.phones.has(pk);
-    };
+  const openedCheckin = newSeen();
+  // Abriu o guia = existe QUALQUER evento de navegação do hóspede.
+  const openedGuide = newSeen();
+  // Leu as instruções = permaneceu ao menos 5s na aba Chegada (evento
+  // "checkin-lido", disparado pelo guia só depois desse tempo).
+  const readInstructions = newSeen();
+  // Senhas de ACESSO ao imóvel (fechadura/portão) — Wi-Fi não conta.
+  // Só marcamos como "viu" quando todas as senhas configuradas foram abertas.
+  const seenLock = newSeen();
+  const seenGate = newSeen();
+  const seenAnyPassword = newSeen();
+  for (const ev of sectionEvents as Array<{
+    property_id: string;
+    section: string;
+    guest_name: string | null;
+    guest_phone: string | null;
+  }>) {
+    const args = [ev.property_id, ev.guest_name, ev.guest_phone] as const;
+    addSeen(openedGuide, ...args);
+    if (ev.section === "checkin") addSeen(openedCheckin, ...args);
+    else if (ev.section === "checkin-lido") addSeen(readInstructions, ...args);
+    else if (ev.section === "senhas:lock") {
+      addSeen(seenLock, ...args);
+      addSeen(seenAnyPassword, ...args);
+    } else if (ev.section === "senhas:gate") {
+      addSeen(seenGate, ...args);
+      addSeen(seenAnyPassword, ...args);
+    } else if (ev.section === "senhas") addSeen(seenAnyPassword, ...args);
+  }
 
-    const openedCheckin = newSeen();
-    // Abriu o guia = existe QUALQUER evento de navegação do hóspede.
-    const openedGuide = newSeen();
-    // Leu as instruções = permaneceu ao menos 5s na aba Chegada (evento
-    // "checkin-lido", disparado pelo guia só depois desse tempo).
-    const readInstructions = newSeen();
-    // Senhas de ACESSO ao imóvel (fechadura/portão) — Wi-Fi não conta.
-    // Só marcamos como "viu" quando todas as senhas configuradas foram abertas.
-    const seenLock = newSeen();
-    const seenGate = newSeen();
-    const seenAnyPassword = newSeen();
-    for (const ev of sectionEvents as Array<{
-      property_id: string;
-      section: string;
-      guest_name: string | null;
-      guest_phone: string | null;
-    }>) {
-      const args = [ev.property_id, ev.guest_name, ev.guest_phone] as const;
-      addSeen(openedGuide, ...args);
-      if (ev.section === "checkin") addSeen(openedCheckin, ...args);
-      else if (ev.section === "checkin-lido") addSeen(readInstructions, ...args);
-      else if (ev.section === "senhas:lock") { addSeen(seenLock, ...args); addSeen(seenAnyPassword, ...args); }
-      else if (ev.section === "senhas:gate") { addSeen(seenGate, ...args); addSeen(seenAnyPassword, ...args); }
-      else if (ev.section === "senhas") addSeen(seenAnyPassword, ...args);
+  /** Viu TODAS as senhas de acesso configuradas no imóvel. */
+  const sawAllPasswords = (pid: string, name: string | null, phone: string | null) => {
+    const codes = propMap.get(pid)?.accessCodes ?? [];
+    if (codes.length === 0) return true;
+    // Registros antigos gravavam só "senhas" (sem detalhar qual). Nesses
+    // casos consideramos como visto para não reportar falso negativo.
+    if (codes.length === 1 && hasSeen(seenAnyPassword, pid, name, phone)) return true;
+    return codes.every((c) => hasSeen(c === "lock" ? seenLock : seenGate, pid, name, phone));
+  };
+
+  type StatusRow = {
+    log_id: string | null;
+    reservation_id: string | null;
+    kind: "checkin" | "checkout";
+    status: "pending" | "done";
+    note: string | null;
+    arrival_time_override: string | null;
+    arrival_date_override: string | null;
+    muted_until: string | null;
+    done_at: string | null;
+    concluded_at: string | null;
+  };
+  const statusMap = new Map<string, Omit<StatusRow, "log_id" | "reservation_id">>();
+  const reservationStatusMap = new Map<string, Omit<StatusRow, "log_id" | "reservation_id">>();
+  // Regra da esteira: um card só pode existir em UMA coluna por vez.
+  // Para saber se um checkout já pode "entrar" (Checkouts/Em Limpeza) precisamos
+  // conhecer o status do check-in correspondente — se check-in ainda não foi
+  // marcado como feito, o card fica retido em Check-ins (mesmo atrasado).
+  const checkinDoneLogs = new Set<string>();
+  const checkinDoneReservations = new Set<string>();
+  const checkinPendingLogs = new Set<string>();
+  const checkinPendingReservations = new Set<string>();
+  // "Não Compareceu" (guest_arrival_status kind="checkin" status="no_show",
+  // ver markNoShow em dashboard.functions.ts) precisa remover o card TANTO
+  // de Checkouts quanto de Fila de Limpeza — pedido explícito (07/09/2026):
+  // um hóspede que nunca chegou não tem saída nem faxina de verdade pra
+  // fazer. `status` aqui é tipado só como "pending"|"done" (StatusRow acima)
+  // mas o valor real gravado no banco também pode ser "no_show" — daí o
+  // cast pra string na comparação abaixo.
+  const checkinNoShowLogs = new Set<string>();
+  const checkinNoShowReservations = new Set<string>();
+  for (const s of (statuses ?? []) as StatusRow[]) {
+    if (s.kind === "checkin" && (s.status as string) === "no_show") {
+      if (s.log_id) checkinNoShowLogs.add(s.log_id);
+      if (s.reservation_id) checkinNoShowReservations.add(s.reservation_id);
     }
-
-    /** Viu TODAS as senhas de acesso configuradas no imóvel. */
-    const sawAllPasswords = (pid: string, name: string | null, phone: string | null) => {
-      const codes = propMap.get(pid)?.accessCodes ?? [];
-      if (codes.length === 0) return true;
-      // Registros antigos gravavam só "senhas" (sem detalhar qual). Nesses
-      // casos consideramos como visto para não reportar falso negativo.
-      if (codes.length === 1 && hasSeen(seenAnyPassword, pid, name, phone)) return true;
-      return codes.every((c) => hasSeen(c === "lock" ? seenLock : seenGate, pid, name, phone));
+    // (a chave por ESTADIA — imóvel + data de entrada — é montada logo
+    // depois deste laço, ver `checkinNoShowStays`)
+    if (s.kind === "checkin" && (s.status === "done" || !!s.done_at)) {
+      if (s.log_id) checkinDoneLogs.add(s.log_id);
+      if (s.reservation_id) checkinDoneReservations.add(s.reservation_id);
+    }
+    if (s.kind === "checkin" && s.status === "pending" && !s.done_at) {
+      if (s.log_id) checkinPendingLogs.add(s.log_id);
+      if (s.reservation_id) checkinPendingReservations.add(s.reservation_id);
+    }
+    if (s.kind !== data.kind) continue;
+    const value = {
+      kind: s.kind,
+      status: s.status,
+      note: s.note,
+      arrival_time_override: s.arrival_time_override,
+      arrival_date_override: s.arrival_date_override,
+      muted_until: s.muted_until,
+      done_at: s.done_at,
+      concluded_at: s.concluded_at,
     };
+    if (s.log_id) statusMap.set(s.log_id, value);
+    if (s.reservation_id) reservationStatusMap.set(s.reservation_id, value);
+  }
 
-    type StatusRow = {
-      log_id: string | null;
-      reservation_id: string | null;
-      kind: "checkin" | "checkout";
+  /**
+   * "Não Compareceu" identificado pela ESTADIA (imóvel + data de entrada),
+   * não só pelos identificadores gravados.
+   *
+   * Por que isto foi preciso (bug real relatado em 08/09/2026: "ao acionar
+   * não compareceu, o card continua espelhado na Fila de Limpeza"):
+   *
+   * O gate por id só funciona quando o card de CHECK-IN e o card de
+   * CHECKOUT da mesma estadia carregam o mesmo identificador — e nem
+   * sempre carregam. O casamento log↔reserva é FEITO DE FORMA DIFERENTE
+   * nos dois lados: `findLogsForReservation` tem a linha
+   * `if (resCode && !logCode && kind === "checkin") continue;`, ou seja,
+   * um formulário sem código de reserva casa com a reserva no lado da
+   * SAÍDA e não casa no lado da CHEGADA. Nesse caso o card de chegada é o
+   * do log (reservationId nulo) e o de saída é o da reserva — e
+   * `markNoShow`, que grava só o que o card clicado tinha, deixa o outro
+   * lado sem nenhuma chave em comum. O card sobrevive ao filtro e reaparece
+   * em Checkouts/Limpeza.
+   *
+   * A estadia resolve isso porque não depende de casamento nenhum: dois
+   * hóspedes diferentes não começam no MESMO imóvel no MESMO dia. É a
+   * mesma identidade que a pessoa enxerga na tela.
+   *
+   * As duas consultas abaixo só acontecem quando existe algum "não
+   * compareceu" na conta.
+   */
+  const checkinNoShowStays = new Set<string>();
+  if (checkinNoShowLogs.size > 0 || checkinNoShowReservations.size > 0) {
+    const stayKey = (propertyId: string | null, checkinDate: string | null) =>
+      propertyId && checkinDate ? `${propertyId}|${checkinDate}` : null;
+    const [logRows, resRows] = await Promise.all([
+      checkinNoShowLogs.size > 0
+        ? context.supabase
+            .from("guide_access_logs")
+            .select("id, property_id, checkin_date")
+            .in("id", Array.from(checkinNoShowLogs))
+        : Promise.resolve({ data: [] as Array<{ property_id: string; checkin_date: string }> }),
+      checkinNoShowReservations.size > 0
+        ? context.supabase
+            .from("property_reservations")
+            .select("id, property_id, checkin_date")
+            .in("id", Array.from(checkinNoShowReservations))
+        : Promise.resolve({ data: [] as Array<{ property_id: string; checkin_date: string }> }),
+    ]);
+    for (const row of [
+      ...((logRows.data ?? []) as Array<{
+        property_id: string | null;
+        checkin_date: string | null;
+      }>),
+      ...((resRows.data ?? []) as Array<{
+        property_id: string | null;
+        checkin_date: string | null;
+      }>),
+    ]) {
+      const key = stayKey(row.property_id, row.checkin_date);
+      if (key) checkinNoShowStays.add(key);
+    }
+  }
+
+  const placeholderStatus = new Map<
+    string,
+    {
       status: "pending" | "done";
       note: string | null;
       arrival_time_override: string | null;
-      arrival_date_override: string | null;
       muted_until: string | null;
       done_at: string | null;
       concluded_at: string | null;
-    };
-    const statusMap = new Map<string, Omit<StatusRow, "log_id" | "reservation_id">>();
-    const reservationStatusMap = new Map<string, Omit<StatusRow, "log_id" | "reservation_id">>();
-    // Regra da esteira: um card só pode existir em UMA coluna por vez.
-    // Para saber se um checkout já pode "entrar" (Checkouts/Em Limpeza) precisamos
-    // conhecer o status do check-in correspondente — se check-in ainda não foi
-    // marcado como feito, o card fica retido em Check-ins (mesmo atrasado).
-    const checkinDoneLogs = new Set<string>();
-    const checkinDoneReservations = new Set<string>();
-    const checkinPendingLogs = new Set<string>();
-    const checkinPendingReservations = new Set<string>();
-    // "Não Compareceu" (guest_arrival_status kind="checkin" status="no_show",
-    // ver markNoShow em dashboard.functions.ts) precisa remover o card TANTO
-    // de Checkouts quanto de Fila de Limpeza — pedido explícito (07/09/2026):
-    // um hóspede que nunca chegou não tem saída nem faxina de verdade pra
-    // fazer. `status` aqui é tipado só como "pending"|"done" (StatusRow acima)
-    // mas o valor real gravado no banco também pode ser "no_show" — daí o
-    // cast pra string na comparação abaixo.
-    const checkinNoShowLogs = new Set<string>();
-    const checkinNoShowReservations = new Set<string>();
-    for (const s of (statuses ?? []) as StatusRow[]) {
-      if (s.kind === "checkin" && (s.status as string) === "no_show") {
-        if (s.log_id) checkinNoShowLogs.add(s.log_id);
-        if (s.reservation_id) checkinNoShowReservations.add(s.reservation_id);
-      }
-      // (a chave por ESTADIA — imóvel + data de entrada — é montada logo
-      // depois deste laço, ver `checkinNoShowStays`)
-      if (s.kind === "checkin" && (s.status === "done" || !!s.done_at)) {
-        if (s.log_id) checkinDoneLogs.add(s.log_id);
-        if (s.reservation_id) checkinDoneReservations.add(s.reservation_id);
-      }
-      if (s.kind === "checkin" && s.status === "pending" && !s.done_at) {
-        if (s.log_id) checkinPendingLogs.add(s.log_id);
-        if (s.reservation_id) checkinPendingReservations.add(s.reservation_id);
-      }
-      if (s.kind !== data.kind) continue;
-      const value = {
-        kind: s.kind,
-        status: s.status,
-        note: s.note,
-        arrival_time_override: s.arrival_time_override,
-        arrival_date_override: s.arrival_date_override,
-        muted_until: s.muted_until,
-        done_at: s.done_at,
-        concluded_at: s.concluded_at,
-      };
-      if (s.log_id) statusMap.set(s.log_id, value);
-      if (s.reservation_id) reservationStatusMap.set(s.reservation_id, value);
     }
+  >();
+  const placeholderKey = (
+    propertyId: string,
+    checkin: string,
+    checkout: string | null,
+    kind: "checkin" | "checkout",
+  ) => `${propertyId}|${checkin}|${checkout ?? ""}|${kind}`;
+  for (const l of placeholderLogs) {
+    const s = statusMap.get(l.id);
+    if (!s) continue;
+    placeholderStatus.set(
+      placeholderKey(l.property_id, l.checkin_date, l.checkout_date, s.kind),
+      s,
+    );
+  }
 
-    /**
-     * "Não Compareceu" identificado pela ESTADIA (imóvel + data de entrada),
-     * não só pelos identificadores gravados.
-     *
-     * Por que isto foi preciso (bug real relatado em 08/09/2026: "ao acionar
-     * não compareceu, o card continua espelhado na Fila de Limpeza"):
-     *
-     * O gate por id só funciona quando o card de CHECK-IN e o card de
-     * CHECKOUT da mesma estadia carregam o mesmo identificador — e nem
-     * sempre carregam. O casamento log↔reserva é FEITO DE FORMA DIFERENTE
-     * nos dois lados: `findLogsForReservation` tem a linha
-     * `if (resCode && !logCode && kind === "checkin") continue;`, ou seja,
-     * um formulário sem código de reserva casa com a reserva no lado da
-     * SAÍDA e não casa no lado da CHEGADA. Nesse caso o card de chegada é o
-     * do log (reservationId nulo) e o de saída é o da reserva — e
-     * `markNoShow`, que grava só o que o card clicado tinha, deixa o outro
-     * lado sem nenhuma chave em comum. O card sobrevive ao filtro e reaparece
-     * em Checkouts/Limpeza.
-     *
-     * A estadia resolve isso porque não depende de casamento nenhum: dois
-     * hóspedes diferentes não começam no MESMO imóvel no MESMO dia. É a
-     * mesma identidade que a pessoa enxerga na tela.
-     *
-     * As duas consultas abaixo só acontecem quando existe algum "não
-     * compareceu" na conta.
-     */
-    const checkinNoShowStays = new Set<string>();
-    if (checkinNoShowLogs.size > 0 || checkinNoShowReservations.size > 0) {
-      const stayKey = (propertyId: string | null, checkinDate: string | null) =>
-        propertyId && checkinDate ? `${propertyId}|${checkinDate}` : null;
-      const [logRows, resRows] = await Promise.all([
-        checkinNoShowLogs.size > 0
-          ? context.supabase
-              .from("guide_access_logs")
-              .select("id, property_id, checkin_date")
-              .in("id", Array.from(checkinNoShowLogs))
-          : Promise.resolve({ data: [] as Array<{ property_id: string; checkin_date: string }> }),
-        checkinNoShowReservations.size > 0
-          ? context.supabase
-              .from("property_reservations")
-              .select("id, property_id, checkin_date")
-              .in("id", Array.from(checkinNoShowReservations))
-          : Promise.resolve({ data: [] as Array<{ property_id: string; checkin_date: string }> }),
-      ]);
-      for (const row of [
-        ...((logRows.data ?? []) as Array<{ property_id: string | null; checkin_date: string | null }>),
-        ...((resRows.data ?? []) as Array<{ property_id: string | null; checkin_date: string | null }>),
-      ]) {
-        const key = stayKey(row.property_id, row.checkin_date);
-        if (key) checkinNoShowStays.add(key);
-      }
-    }
-
-
-    const placeholderStatus = new Map<
-      string,
-      {
-        status: "pending" | "done";
-        note: string | null;
-        arrival_time_override: string | null;
-        muted_until: string | null;
-        done_at: string | null;
-        concluded_at: string | null;
-      }
-    >();
-    const placeholderKey = (
-      propertyId: string,
-      checkin: string,
-      checkout: string | null,
-      kind: "checkin" | "checkout",
-    ) => `${propertyId}|${checkin}|${checkout ?? ""}|${kind}`;
-    for (const l of placeholderLogs) {
-      const s = statusMap.get(l.id);
-      if (!s) continue;
-      placeholderStatus.set(placeholderKey(l.property_id, l.checkin_date, l.checkout_date, s.kind), s);
-    }
-
-    type ReservationRow = {
+  type ReservationRow = {
+    id: string;
+    property_id: string;
+    checkin_date: string;
+    checkout_date: string;
+    raw_summary: string | null;
+    guest_hint: string | null;
+    reservation_url: string | null;
+    status: string | null;
+    synced_at: string | null;
+    created_at: string | null;
+  };
+  const resByProp = new Map<
+    string,
+    Array<{
       id: string;
-      property_id: string;
-      checkin_date: string;
-      checkout_date: string;
+      checkin: string;
+      checkout: string;
       raw_summary: string | null;
-      guest_hint: string | null;
-      reservation_url: string | null;
       status: string | null;
-      synced_at: string | null;
-      created_at: string | null;
-    };
-    const resByProp = new Map<
-      string,
-      Array<{ id: string; checkin: string; checkout: string; raw_summary: string | null; status: string | null }>
-    >();
-    // `allReservationsRaw` = reserva buscada pela data bruta + reservas que a
-    // busca principal descartou mas cuja PREVISÃO cai dentro da janela
-    // pedida (ver bloco "PREVISTO fora da janela" logo após o Promise.all).
-    const reservationRows = (allReservationsRaw as ReservationRow[]).filter(isRealReservation);
-    for (const r of reservationRows) {
-      const arr = resByProp.get(r.property_id) ?? [];
-      arr.push({
-        id: r.id,
-        checkin: r.checkin_date,
-        checkout: r.checkout_date,
-        raw_summary: r.raw_summary,
-        status: r.status,
-      });
-      resByProp.set(r.property_id, arr);
-    }
-
-    function isCurrentStay(checkinDate: string, checkoutDate: string | null): boolean {
-      return !!checkoutDate && checkinDate <= today && checkoutDate > today;
-    }
-
-    // OVERDUE_WINDOW_DAYS agora é constante de módulo (topo do arquivo) —
-    // também usada como piso das queries "hoje", ver buildArrivalRows acima.
-    function withinOverdueWindow(checkinDate: string): boolean {
-      return checkinDate >= addDaysISO(today, -OVERDUE_WINDOW_DAYS);
-    }
-
-    function logCheckinDone(logId: string | null | undefined): boolean {
-      return !!logId && checkinDoneLogs.has(logId);
-    }
-    function reservationCheckinDone(r: ReservationRow): boolean {
-      if (checkinDoneReservations.has(r.id)) return true;
-      const legacy = placeholderStatus.get(placeholderKey(r.property_id, r.checkin_date, r.checkout_date, "checkin"));
-      if (legacy && (legacy.status === "done" || !!legacy.done_at)) return true;
-      const { primary, extras } = findLogsForReservation(uniqueLogs, r, data.kind);
-      return [primary, ...extras].some((l) => logCheckinDone(l?.id));
-    }
-
-    // Regra da esteira: uma reserva só pode aparecer em UM estágio. Enquanto a
-    // estadia ainda não terminou, o card fica retido em Check-ins (como
-    // atrasado) até o check manual. Mas quando o DIA DO CHECKOUT já chegou, a
-    // estadia acabou fisicamente e o card precisa migrar para Checkouts mesmo
-    // sem o check-in ter sido marcado — caso contrário a saída do dia some do
-    // painel.
-    function belongsToCheckoutStage(
-      checkinDate: string,
-      checkoutDate: string | null,
-      _checkinDone: boolean,
-    ): boolean {
-      if (!checkoutDate) return false;
-      return checkinDate <= today && checkoutDate <= today;
-    }
-
-
-    function reservationInRange(r: ReservationRow): boolean {
-      const resCheckinDone = data.kind === "checkin" ? reservationCheckinDone(r) : false;
-      if (data.kind === "checkin") {
-        if (belongsToCheckoutStage(r.checkin_date, r.checkout_date, resCheckinDone)) return false;
-      }
-      // Pedido explícito do cliente (04/09/2026): a previsão informada
-      // (arrival_date_override) manda no dia em que o card aparece — a data
-      // bruta da reserva só é usada de fallback quando não há previsão.
-      // A previsão preenchida pelo hóspede no formulário é gravada no LOG
-      // (guest_arrival_status.log_id), não na reserva — por isso o filtro
-      // precisa resolver o override na mesma ordem que rowFromReservation.
-      const inRangeLog = findLogsForReservation(uniqueLogs, r, data.kind).primary;
-      const legacyStatus = placeholderStatus.get(
-        placeholderKey(r.property_id, r.checkin_date, r.checkout_date, data.kind),
-      );
-      const resolved =
-        reservationStatusMap.get(r.id) ?? legacyStatus ?? (inRangeLog ? statusMap.get(inRangeLog.id) : undefined);
-      const override =
-        (resolved as { arrival_date_override?: string | null } | undefined)?.arrival_date_override ?? null;
-      const date = override ?? (data.kind === "checkin" ? r.checkin_date : r.checkout_date);
-      if (date < (from ?? today)) {
-        if (data.kind === "checkin" && data.range !== "tomorrow") {
-          // Estadia em andamento continua visível para alimentar "Em Estadia".
-          if (isCurrentStay(r.checkin_date, r.checkout_date)) return true;
-          // Check-in atrasado sem check permanece na lista de Check-ins.
-          if (!resCheckinDone && withinOverdueWindow(r.checkin_date)) return true;
-        }
-        return false;
-      }
-      if (to && date > to) return false;
-      return true;
-    }
-
-
-    // normalizeCode/findLogsForReservation agora são as funções exportadas no
-    // topo do arquivo (normalizeReservationCode/findLogsForReservation) —
-    // compartilhadas com getGuideEngagement (dashboard.functions.ts) para que
-    // os dois nunca "casem" hóspedes diferentes com a mesma reserva.
-    const normalizeCode = normalizeReservationCode;
-
-    const nowHM = nowHHMMSaoPaulo();
-    // Auto-distribuição APENAS na importação: quando uma reserva/registro é
-    // criado DEPOIS que a estadia já começou (integração nova sincronizando o
-    // histórico corrente), o card já nasce em "Em Estadia". Cards que já
-    // existiam quando o check-in chegou NUNCA mudam de lista sozinhos — só
-    // saem de "Check-ins" quando o usuário marca o check manualmente.
-    function isoDateSP(ts: string | null | undefined): string | null {
-      if (!ts) return null;
-      const d = new Date(ts);
-      if (Number.isNaN(d.getTime())) return null;
-      const parts = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "America/Sao_Paulo",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).formatToParts(d);
-      const pick = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
-      return `${pick("year")}-${pick("month")}-${pick("day")}`;
-    }
-    function autoStayDone(checkinDate: string, checkoutDate: string | null, createdAt: string | null): boolean {
-      if (data.kind !== "checkin") return false;
-      if (!checkoutDate || checkoutDate <= today) return false; // precisa estar em estadia (checkout no futuro)
-      if (checkinDate >= today) return false; // estadia precisa já ter começado
-      const created = isoDateSP(createdAt);
-      // Só promove automaticamente se o card foi criado depois do início da estadia.
-      return !!created && created > checkinDate;
-    }
-
-
-    function rowFromLog(
-      l: (typeof uniqueLogs)[number],
-      forceIcal?: { hasIcal: boolean; matched: boolean; icalCheckin: string | null; icalCheckout: string | null },
-      extras: (typeof uniqueLogs)[number][] = [],
-    ): ArrivalRow | null {
-      const p = propMap.get(l.property_id);
-      const s = statusMap.get(l.id);
-      if (s?.concluded_at) return null;
-      // Pedido explícito do cliente (04/09/2026): a previsão (override)
-      // manda no dia do card — a data bruta informada pelo hóspede só entra
-      // de fallback quando não há previsão registrada.
-      const date = s?.arrival_date_override ?? (data.kind === "checkin" ? l.checkin_date : (l.checkout_date ?? l.checkin_date));
-      const hasIcal = !!p?.airbnb_ical_url;
-      let matched = false;
-      let icalCheckin: string | null = null;
-      let icalCheckout: string | null = null;
-      if (hasIcal) {
-        const list = resByProp.get(l.property_id) ?? [];
-        // Always anchor the iCal match on the log's CHECK-IN date — guests are
-        // reliable about arrival, but often mistype checkout. Trying to match
-        // by checkout can snap to the previous/next reservation when the guest
-        // typed the wrong departure day.
-        const anchor = l.checkin_date;
-        const exact = list.find((r) => r.checkin === anchor);
-        const near =
-          exact ?? list.find((r) => r.checkin === addDaysISO(anchor, -1) || r.checkin === addDaysISO(anchor, 1));
-        if (near) {
-          matched = true;
-          icalCheckin = near.checkin;
-          icalCheckout = near.checkout;
-        }
-      }
-      const virtualStay = autoStayDone(l.checkin_date, l.checkout_date ?? null, l.created_at ?? null);
-      const logDone = logCheckinDone(l.id) || virtualStay;
-      const overduePending = data.kind === "checkin" && !logDone && withinOverdueWindow(l.checkin_date);
-      if (data.kind === "checkin" && belongsToCheckoutStage(l.checkin_date, l.checkout_date ?? null, logDone)) {
-        return null;
-      }
-      if (
-        data.kind === "checkin" &&
-        date < (from ?? today) &&
-        !(
-          data.range !== "tomorrow" &&
-          (isCurrentStay(l.checkin_date, l.checkout_date ?? null) || overduePending)
-        )
-      ) {
-        return null;
-      }
-      // Cards com data anterior a hoje só aparecem sem interação quando a estadia
-      // ainda está em andamento ou quando o check-in continua pendente (atrasado).
-      if (date < today && !s && !virtualStay && !(overduePending && data.range !== "tomorrow")) return null;
-
-      return {
-        logId: l.id,
-        reservationId: null,
-        propertyId: l.property_id,
-        propertyName: p?.name ?? null,
-        ownerName: p?.ownerName ?? null,
-        ownerPhone: p?.ownerPhone ?? null,
-        ownerPhoneCountry: p?.ownerPhoneCountry ?? null,
-        propertyAddress: p?.address ?? null,
-        mapsUrl: p?.maps_url ?? null,
-        garageMapsUrl: p?.garage_maps_url ?? null,
-        lat: p?.lat ?? null,
-        lng: p?.lng ?? null,
-        hasPasswords: !!p?.hasPasswords,
-        openedCheckin: hasSeen(openedCheckin, l.property_id, l.guest_name, l.guest_phone),
-        openedGuide: hasSeen(openedGuide, l.property_id, l.guest_name, l.guest_phone),
-        readInstructions: hasSeen(readInstructions, l.property_id, l.guest_name, l.guest_phone),
-        viewedPasswords: sawAllPasswords(l.property_id, l.guest_name, l.guest_phone),
-        guestName: l.guest_name,
-        guestPhone: l.guest_phone,
-        guestPhoneCountry: l.guest_phone_country,
-        guestArrivalTime: l.guest_arrival_time,
-        standardTime: data.kind === "checkin" ? (p?.checkin_time ?? null) : (p?.checkout_time ?? null),
-        standardTimeMax: data.kind === "checkin" ? (p?.checkin_time_max ?? null) : (p?.checkout_time_min ?? null),
-        propertyCheckinTime: p?.checkin_time ?? null,
-        propertyCheckoutTime: p?.checkout_time ?? null,
-        cleaningPriceNormalCents: p?.cleaning_price_normal_cents ?? null,
-        cleaningPriceFullCents: p?.cleaning_price_full_cents ?? null,
-        date,
-        guestCheckin: l.checkin_date,
-        guestCheckout: l.checkout_date ?? null,
-        reservationCode: l.reservation_code,
-        createdAt: l.created_at,
-        // Segurança: check-ins com data futura NUNCA podem estar como "done" no kanban.
-        // Se por engano foram marcados, voltam a aparecer como pendentes.
-        status:
-          data.kind === "checkin" && l.checkin_date > today && s?.status === "done"
-            ? "pending"
-            : s
-              ? s.status
-                : virtualStay
-                ? "done"
-                : "pending",
-        note: s?.note ?? null,
-        mutedUntil: s?.muted_until ?? null,
-        arrivalTimeOverride: s?.arrival_time_override ?? null,
-        arrivalDateOverride: (s as { arrival_date_override?: string | null } | undefined)?.arrival_date_override ?? null,
-        doneAt: s?.done_at ?? null,
-        pendingFill: false,
-        ical: forceIcal ?? { hasIcal, matched, icalCheckin, icalCheckout },
-        additionalGuests: extras.map((e) => ({
-          logId: e.id,
-          name: e.guest_name,
-          phone: e.guest_phone,
-          phoneCountry: e.guest_phone_country,
-          reservationCode: e.reservation_code,
-          arrivalTime: e.guest_arrival_time,
-        })),
-      };
-    }
-
-    function rowFromReservation(
-      r: ReservationRow,
-      matchedLog: (typeof uniqueLogs)[number] | null,
-      extras: (typeof uniqueLogs)[number][] = [],
-    ): ArrivalRow | null {
-      const p = propMap.get(r.property_id);
-      const legacy = placeholderStatus.get(placeholderKey(r.property_id, r.checkin_date, r.checkout_date, data.kind));
-      const logStatus = matchedLog ? statusMap.get(matchedLog.id) : undefined;
-      const s = reservationStatusMap.get(r.id) ?? legacy ?? logStatus;
-      if (s?.concluded_at) return null;
-      // Pedido explícito do cliente (04/09/2026): a previsão (override)
-      // manda no dia do card — a data bruta da reserva só entra de fallback
-      // quando não há previsão registrada. Cast pelo mesmo motivo de
-      // `arrivalDateOverride` logo abaixo: `s` pode vir de `legacy`, cujo
-      // tipo não lista esse campo (mesmo ele existindo em runtime).
-      const date =
-        (s as { arrival_date_override?: string | null } | undefined)?.arrival_date_override ??
-        (data.kind === "checkin" ? r.checkin_date : r.checkout_date);
-      // IMPORTANTE: nunca usar `synced_at` aqui — ele é reescrito a cada sync do iCal,
-      // o que promoveria toda estadia em curso automaticamente. Só a data real de
-      // criação do registro (integração nova) pode disparar a auto-distribuição.
-      const virtualStay = autoStayDone(r.checkin_date, r.checkout_date, matchedLog?.created_at ?? r.created_at ?? null);
-      const overduePending =
-        data.kind === "checkin" &&
-        data.range !== "tomorrow" &&
-        !reservationCheckinDone(r) &&
-        !virtualStay &&
-        withinOverdueWindow(r.checkin_date);
-      // Datas passadas só entram sem interação quando representam uma estadia
-      // vigente ou um check-in ainda pendente (atrasado).
-      if (date < today && !s && !virtualStay && !overduePending) return null;
-
-
-      return {
-        logId: matchedLog?.id ?? `ical:${r.id}`,
-        reservationId: r.id,
-        propertyId: r.property_id,
-        propertyName: p?.name ?? null,
-        ownerName: p?.ownerName ?? null,
-        ownerPhone: p?.ownerPhone ?? null,
-        ownerPhoneCountry: p?.ownerPhoneCountry ?? null,
-        propertyAddress: p?.address ?? null,
-        mapsUrl: p?.maps_url ?? null,
-        garageMapsUrl: p?.garage_maps_url ?? null,
-        lat: p?.lat ?? null,
-        lng: p?.lng ?? null,
-        hasPasswords: !!p?.hasPasswords,
-        openedCheckin: matchedLog ? hasSeen(openedCheckin, matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
-        openedGuide: matchedLog ? hasSeen(openedGuide, matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
-        readInstructions: matchedLog ? hasSeen(readInstructions, matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
-        viewedPasswords: matchedLog ? sawAllPasswords(matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone) : false,
-        guestName: matchedLog?.guest_name ?? r.guest_hint ?? "Reserva Airbnb",
-        guestPhone: matchedLog?.guest_phone ?? null,
-        guestPhoneCountry: matchedLog?.guest_phone_country ?? null,
-        guestArrivalTime: matchedLog?.guest_arrival_time ?? null,
-        standardTime: data.kind === "checkin" ? (p?.checkin_time ?? null) : (p?.checkout_time ?? null),
-        standardTimeMax: data.kind === "checkin" ? (p?.checkin_time_max ?? null) : (p?.checkout_time_min ?? null),
-        propertyCheckinTime: p?.checkin_time ?? null,
-        propertyCheckoutTime: p?.checkout_time ?? null,
-        cleaningPriceNormalCents: p?.cleaning_price_normal_cents ?? null,
-        cleaningPriceFullCents: p?.cleaning_price_full_cents ?? null,
-        date,
-        guestCheckin: r.checkin_date,
-        guestCheckout: r.checkout_date,
-        reservationCode: r.guest_hint ?? matchedLog?.reservation_code ?? null,
-        createdAt: matchedLog?.created_at ?? r.created_at ?? r.synced_at ?? new Date().toISOString(),
-        status:
-          data.kind === "checkin" && r.checkin_date > today && s?.status === "done"
-            ? "pending"
-            : s
-              ? s.status
-              : virtualStay
-                ? "done"
-                : "pending",
-        note: s?.note ?? null,
-        mutedUntil: s?.muted_until ?? null,
-        arrivalTimeOverride: s?.arrival_time_override ?? null,
-        arrivalDateOverride: (s as { arrival_date_override?: string | null } | undefined)?.arrival_date_override ?? null,
-        doneAt: s?.done_at ?? null,
-        pendingFill: !matchedLog,
-        ical: { hasIcal: true, matched: true, icalCheckin: r.checkin_date, icalCheckout: r.checkout_date },
-        additionalGuests: extras.map((e) => ({
-          logId: e.id,
-          name: e.guest_name,
-          phone: e.guest_phone,
-          phoneCountry: e.guest_phone_country,
-          reservationCode: e.reservation_code,
-          arrivalTime: e.guest_arrival_time,
-        })),
-      };
-    }
-
-    const rows: ArrivalRow[] = [];
-    const usedLogIds = new Set<string>();
-
-    const _filtered = reservationRows.filter(reservationInRange);
-    for (const r of _filtered) {
-      const p = propMap.get(r.property_id);
-      if (!p?.airbnb_ical_url) continue;
-      const { primary: matchedLog, extras } = findLogsForReservation(uniqueLogs, r, data.kind);
-      if (matchedLog) usedLogIds.add(matchedLog.id);
-      for (const e of extras) usedLogIds.add(e.id);
-      const row = rowFromReservation(r, matchedLog, extras);
-      if (row) rows.push(row);
-    }
-    // Não-iCal: agrupa logs manuais do mesmo grupo (mesmo imóvel + período +
-    // código) num único card, com os demais como acompanhantes.
-    const nonIcalGroups = new Map<string, (typeof uniqueLogs)[number][]>();
-    for (const l of uniqueLogs) {
-      if (usedLogIds.has(l.id)) continue;
-      const p = propMap.get(l.property_id);
-      if (p?.airbnb_ical_url) continue;
-      const code = normalizeCode(l.reservation_code);
-      const key = code
-        ? `${l.property_id}|code|${code}`
-        : `${l.property_id}|dates|${l.checkin_date}|${l.checkout_date ?? ""}`;
-      const arr = nonIcalGroups.get(key) ?? [];
-      arr.push(l);
-      nonIcalGroups.set(key, arr);
-    }
-    for (const group of nonIcalGroups.values()) {
-      // Principal = primeiro acesso ao guia (created_at mais antigo).
-      group.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-      const [primary, ...extras] = group;
-      const row = rowFromLog(primary, undefined, extras);
-      if (row) rows.push(row);
-    }
-
-    // Esteira: um card só pode aparecer em Checkouts/Em Limpeza depois que o
-    // check-in correspondente foi marcado como feito. Enquanto o check-in
-    // estiver pendente (mesmo atrasado), o card fica retido em Check-ins.
-    // Auto-promoção virtual: se a estadia já está em andamento (checkin no
-    // passado, ou hoje após o horário padrão de entrada), o check-in é
-    // considerado feito virtualmente para efeito da esteira — assim o card
-    // avança para Checkouts/Em Limpeza sem precisar de clique manual.
-    function virtualCheckinDone(r: ArrivalRow): boolean {
-      // Só há promoção automática quando o registro nasceu DEPOIS do início da
-      // estadia (integração nova importando histórico corrente). Cards que já
-      // existiam quando a data chegou exigem o check manual.
-      const ci = r.guestCheckin;
-      if (!ci) return false;
-      const created = isoDateSP(r.createdAt);
-      return !!created && created > ci;
-    }
-
-    const gatedRows =
-      data.kind === "checkout"
-        ? rows.filter((r) => {
-            // "Não Compareceu" nunca vira card de Checkout/Limpeza — sai da
-            // esteira ANTES de qualquer outra regra (inclusive "tomorrow" e
-            // estadia em curso, abaixo), independente de como o card chegou
-            // (log manual ou reserva do iCal).
-            const noShow =
-              !!(r.logId && !r.logId.startsWith("ical:") && checkinNoShowLogs.has(r.logId)) ||
-              !!(r.reservationId && checkinNoShowReservations.has(r.reservationId)) ||
-              // Rede de segurança por ESTADIA — pega o caso em que os dois
-              // lados não compartilham identificador (ver checkinNoShowStays).
-              !!(r.propertyId && r.guestCheckin && checkinNoShowStays.has(`${r.propertyId}|${r.guestCheckin}`));
-            if (noShow) return false;
-            const logDone = !!(r.logId && !r.logId.startsWith("ical:") && checkinDoneLogs.has(r.logId));
-            const resDone = !!(r.reservationId && checkinDoneReservations.has(r.reservationId));
-            const logExplicitlyPending = !!(r.logId && !r.logId.startsWith("ical:") && checkinPendingLogs.has(r.logId));
-            const resExplicitlyPending = !!(r.reservationId && checkinPendingReservations.has(r.reservationId));
-            if (data.range === "tomorrow") return true;
-            const vDone = virtualCheckinDone(r);
-            // O dia do checkout já chegou (ou passou) e a estadia começou: a
-            // saída é real e precisa aparecer, mesmo sem check-in marcado.
-            const stayEnded = !!(r.guestCheckout && r.guestCheckout <= today && r.guestCheckin && r.guestCheckin <= today);
-            if (stayEnded) return true;
-            // Estadia com check-in no passado (ou hoje após o horário padrão) já
-            // está em curso fisicamente — o card precisa aparecer em Checkouts
-            // mesmo que exista um status de check-in "pending" legado.
-            if (!logDone && !resDone && !vDone && (logExplicitlyPending || resExplicitlyPending)) return false;
-            return logDone || resDone || vDone;
-
-          })
-        : rows;
-    function isBetterOperationalRow(candidate: ArrivalRow, current: ArrivalRow): boolean {
-      const score = (r: ArrivalRow) => {
-        let v = 0;
-        if (r.status === "done") v += 100;
-        if (!r.pendingFill && r.guestName && r.guestName !== r.reservationCode) v += 40;
-        if (r.reservationCode) v += 20;
-        if (r.ical.matched) v += 10;
-        if (r.openedCheckin) v += 4;
-        if (r.viewedPasswords) v += 2;
-        return v;
-      };
-      const scoreDiff = score(candidate) - score(current);
-      if (scoreDiff !== 0) return scoreDiff > 0;
-      return new Date(candidate.createdAt).getTime() > new Date(current.createdAt).getTime();
-    }
-
-    function dedupeCheckoutRows(input: ArrivalRow[]): ArrivalRow[] {
-      if (data.kind !== "checkout") return [...input];
-      // Deduplica apenas a MESMA reserva quando ela chegou por caminhos
-      // diferentes (status por log legado + status por reservation_id). Não
-      // deduplicamos por imóvel+data: back-to-back e correções do iCal precisam
-      // continuar fiéis à identidade da reserva HM….
-      const byPropertyAndCheckout = new Map<string, ArrivalRow>();
-      for (const row of input) {
-        const key = `${row.reservationCode ?? row.reservationId ?? row.logId}|${row.propertyId}|${row.guestCheckin}|${row.guestCheckout ?? ""}|${row.date}`;
-        const current = byPropertyAndCheckout.get(key);
-        if (!current || isBetterOperationalRow(row, current)) {
-          byPropertyAndCheckout.set(key, row);
-        }
-      }
-      return Array.from(byPropertyAndCheckout.values());
-    }
-
-    const finalRows = dedupeCheckoutRows(gatedRows);
-    rows.length = 0;
-    rows.push(...finalRows);
-
-    // Prioridade: data → horário previsto (override do anfitrião ou informado pelo
-    // hóspede) → ordem alfabética da residência. O horário padrão da propriedade
-    // NÃO entra na chave de ordenação — só o previsto/manual manda.
-    const effTime = (r: ArrivalRow): string => r.arrivalTimeOverride ?? r.guestArrivalTime ?? "99:99";
-    rows.sort((a, b) => {
-      // Mais recente primeiro (data DESC). Empate: horário previsto DESC → residência A→Z.
-      const d = b.date.localeCompare(a.date);
-      if (d !== 0) return d;
-      const t = effTime(b).localeCompare(effTime(a));
-      if (t !== 0) return t;
-      return (a.propertyName ?? "").localeCompare(b.propertyName ?? "", "pt-BR");
+    }>
+  >();
+  // `allReservationsRaw` = reserva buscada pela data bruta + reservas que a
+  // busca principal descartou mas cuja PREVISÃO cai dentro da janela
+  // pedida (ver bloco "PREVISTO fora da janela" logo após o Promise.all).
+  const reservationRows = (allReservationsRaw as ReservationRow[]).filter(isRealReservation);
+  for (const r of reservationRows) {
+    const arr = resByProp.get(r.property_id) ?? [];
+    arr.push({
+      id: r.id,
+      checkin: r.checkin_date,
+      checkout: r.checkout_date,
+      raw_summary: r.raw_summary,
+      status: r.status,
     });
+    resByProp.set(r.property_id, arr);
+  }
 
-    return { rows };
+  function isCurrentStay(checkinDate: string, checkoutDate: string | null): boolean {
+    return !!checkoutDate && checkinDate <= today && checkoutDate > today;
+  }
+
+  // OVERDUE_WINDOW_DAYS agora é constante de módulo (topo do arquivo) —
+  // também usada como piso das queries "hoje", ver buildArrivalRows acima.
+  function withinOverdueWindow(checkinDate: string): boolean {
+    return checkinDate >= addDaysISO(today, -OVERDUE_WINDOW_DAYS);
+  }
+
+  function logCheckinDone(logId: string | null | undefined): boolean {
+    return !!logId && checkinDoneLogs.has(logId);
+  }
+  function reservationCheckinDone(r: ReservationRow): boolean {
+    if (checkinDoneReservations.has(r.id)) return true;
+    const legacy = placeholderStatus.get(
+      placeholderKey(r.property_id, r.checkin_date, r.checkout_date, "checkin"),
+    );
+    if (legacy && (legacy.status === "done" || !!legacy.done_at)) return true;
+    const { primary, extras } = findLogsForReservation(uniqueLogs, r, data.kind);
+    return [primary, ...extras].some((l) => logCheckinDone(l?.id));
+  }
+
+  // Regra da esteira: uma reserva só pode aparecer em UM estágio. Enquanto a
+  // estadia ainda não terminou, o card fica retido em Check-ins (como
+  // atrasado) até o check manual. Mas quando o DIA DO CHECKOUT já chegou, a
+  // estadia acabou fisicamente e o card precisa migrar para Checkouts mesmo
+  // sem o check-in ter sido marcado — caso contrário a saída do dia some do
+  // painel.
+  function belongsToCheckoutStage(
+    checkinDate: string,
+    checkoutDate: string | null,
+    _checkinDone: boolean,
+  ): boolean {
+    if (!checkoutDate) return false;
+    return checkinDate <= today && checkoutDate <= today;
+  }
+
+  function reservationInRange(r: ReservationRow): boolean {
+    const resCheckinDone = data.kind === "checkin" ? reservationCheckinDone(r) : false;
+    if (data.kind === "checkin") {
+      if (belongsToCheckoutStage(r.checkin_date, r.checkout_date, resCheckinDone)) return false;
+    }
+    // Pedido explícito do cliente (04/09/2026): a previsão informada
+    // (arrival_date_override) manda no dia em que o card aparece — a data
+    // bruta da reserva só é usada de fallback quando não há previsão.
+    // A previsão preenchida pelo hóspede no formulário é gravada no LOG
+    // (guest_arrival_status.log_id), não na reserva — por isso o filtro
+    // precisa resolver o override na mesma ordem que rowFromReservation.
+    const inRangeLog = findLogsForReservation(uniqueLogs, r, data.kind).primary;
+    const legacyStatus = placeholderStatus.get(
+      placeholderKey(r.property_id, r.checkin_date, r.checkout_date, data.kind),
+    );
+    const resolved =
+      reservationStatusMap.get(r.id) ??
+      legacyStatus ??
+      (inRangeLog ? statusMap.get(inRangeLog.id) : undefined);
+    const override =
+      (resolved as { arrival_date_override?: string | null } | undefined)?.arrival_date_override ??
+      null;
+    const date = override ?? (data.kind === "checkin" ? r.checkin_date : r.checkout_date);
+    if (date < (from ?? today)) {
+      if (data.kind === "checkin" && data.range !== "tomorrow") {
+        // Estadia em andamento continua visível para alimentar "Em Estadia".
+        if (isCurrentStay(r.checkin_date, r.checkout_date)) return true;
+        // Check-in atrasado sem check permanece na lista de Check-ins.
+        if (!resCheckinDone && withinOverdueWindow(r.checkin_date)) return true;
+      }
+      return false;
+    }
+    if (to && date > to) return false;
+    return true;
+  }
+
+  // normalizeCode/findLogsForReservation agora são as funções exportadas no
+  // topo do arquivo (normalizeReservationCode/findLogsForReservation) —
+  // compartilhadas com getGuideEngagement (dashboard.functions.ts) para que
+  // os dois nunca "casem" hóspedes diferentes com a mesma reserva.
+  const normalizeCode = normalizeReservationCode;
+
+  const nowHM = nowHHMMSaoPaulo();
+  // Auto-distribuição APENAS na importação: quando uma reserva/registro é
+  // criado DEPOIS que a estadia já começou (integração nova sincronizando o
+  // histórico corrente), o card já nasce em "Em Estadia". Cards que já
+  // existiam quando o check-in chegou NUNCA mudam de lista sozinhos — só
+  // saem de "Check-ins" quando o usuário marca o check manualmente.
+  function isoDateSP(ts: string | null | undefined): string | null {
+    if (!ts) return null;
+    const d = new Date(ts);
+    if (Number.isNaN(d.getTime())) return null;
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Sao_Paulo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(d);
+    const pick = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+    return `${pick("year")}-${pick("month")}-${pick("day")}`;
+  }
+  function autoStayDone(
+    checkinDate: string,
+    checkoutDate: string | null,
+    createdAt: string | null,
+  ): boolean {
+    if (data.kind !== "checkin") return false;
+    if (!checkoutDate || checkoutDate <= today) return false; // precisa estar em estadia (checkout no futuro)
+    if (checkinDate >= today) return false; // estadia precisa já ter começado
+    const created = isoDateSP(createdAt);
+    // Só promove automaticamente se o card foi criado depois do início da estadia.
+    return !!created && created > checkinDate;
+  }
+
+  function rowFromLog(
+    l: (typeof uniqueLogs)[number],
+    forceIcal?: {
+      hasIcal: boolean;
+      matched: boolean;
+      icalCheckin: string | null;
+      icalCheckout: string | null;
+    },
+    extras: (typeof uniqueLogs)[number][] = [],
+  ): ArrivalRow | null {
+    const p = propMap.get(l.property_id);
+    const s = statusMap.get(l.id);
+    if (s?.concluded_at) return null;
+    // Pedido explícito do cliente (04/09/2026): a previsão (override)
+    // manda no dia do card — a data bruta informada pelo hóspede só entra
+    // de fallback quando não há previsão registrada.
+    const date =
+      s?.arrival_date_override ??
+      (data.kind === "checkin" ? l.checkin_date : (l.checkout_date ?? l.checkin_date));
+    const hasIcal = !!p?.airbnb_ical_url;
+    let matched = false;
+    let icalCheckin: string | null = null;
+    let icalCheckout: string | null = null;
+    if (hasIcal) {
+      const list = resByProp.get(l.property_id) ?? [];
+      // Always anchor the iCal match on the log's CHECK-IN date — guests are
+      // reliable about arrival, but often mistype checkout. Trying to match
+      // by checkout can snap to the previous/next reservation when the guest
+      // typed the wrong departure day.
+      const anchor = l.checkin_date;
+      const exact = list.find((r) => r.checkin === anchor);
+      const near =
+        exact ??
+        list.find(
+          (r) => r.checkin === addDaysISO(anchor, -1) || r.checkin === addDaysISO(anchor, 1),
+        );
+      if (near) {
+        matched = true;
+        icalCheckin = near.checkin;
+        icalCheckout = near.checkout;
+      }
+    }
+    const virtualStay = autoStayDone(l.checkin_date, l.checkout_date ?? null, l.created_at ?? null);
+    const logDone = logCheckinDone(l.id) || virtualStay;
+    const overduePending =
+      data.kind === "checkin" && !logDone && withinOverdueWindow(l.checkin_date);
+    if (
+      data.kind === "checkin" &&
+      belongsToCheckoutStage(l.checkin_date, l.checkout_date ?? null, logDone)
+    ) {
+      return null;
+    }
+    if (
+      data.kind === "checkin" &&
+      date < (from ?? today) &&
+      !(
+        data.range !== "tomorrow" &&
+        (isCurrentStay(l.checkin_date, l.checkout_date ?? null) || overduePending)
+      )
+    ) {
+      return null;
+    }
+    // Cards com data anterior a hoje só aparecem sem interação quando a estadia
+    // ainda está em andamento ou quando o check-in continua pendente (atrasado).
+    if (date < today && !s && !virtualStay && !(overduePending && data.range !== "tomorrow"))
+      return null;
+
+    return {
+      logId: l.id,
+      reservationId: null,
+      propertyId: l.property_id,
+      propertyName: p?.name ?? null,
+      ownerName: p?.ownerName ?? null,
+      ownerPhone: p?.ownerPhone ?? null,
+      ownerPhoneCountry: p?.ownerPhoneCountry ?? null,
+      propertyAddress: p?.address ?? null,
+      mapsUrl: p?.maps_url ?? null,
+      garageMapsUrl: p?.garage_maps_url ?? null,
+      lat: p?.lat ?? null,
+      lng: p?.lng ?? null,
+      hasPasswords: !!p?.hasPasswords,
+      openedCheckin: hasSeen(openedCheckin, l.property_id, l.guest_name, l.guest_phone),
+      openedGuide: hasSeen(openedGuide, l.property_id, l.guest_name, l.guest_phone),
+      readInstructions: hasSeen(readInstructions, l.property_id, l.guest_name, l.guest_phone),
+      viewedPasswords: sawAllPasswords(l.property_id, l.guest_name, l.guest_phone),
+      guestName: l.guest_name,
+      guestPhone: l.guest_phone,
+      guestPhoneCountry: l.guest_phone_country,
+      guestArrivalTime: l.guest_arrival_time,
+      standardTime:
+        data.kind === "checkin" ? (p?.checkin_time ?? null) : (p?.checkout_time ?? null),
+      standardTimeMax:
+        data.kind === "checkin" ? (p?.checkin_time_max ?? null) : (p?.checkout_time_min ?? null),
+      propertyCheckinTime: p?.checkin_time ?? null,
+      propertyCheckoutTime: p?.checkout_time ?? null,
+      cleaningPriceNormalCents: p?.cleaning_price_normal_cents ?? null,
+      cleaningPriceFullCents: p?.cleaning_price_full_cents ?? null,
+      date,
+      guestCheckin: l.checkin_date,
+      guestCheckout: l.checkout_date ?? null,
+      reservationCode: l.reservation_code,
+      createdAt: l.created_at,
+      // Segurança: check-ins com data futura NUNCA podem estar como "done" no kanban.
+      // Se por engano foram marcados, voltam a aparecer como pendentes.
+      status:
+        data.kind === "checkin" && l.checkin_date > today && s?.status === "done"
+          ? "pending"
+          : s
+            ? s.status
+            : virtualStay
+              ? "done"
+              : "pending",
+      note: s?.note ?? null,
+      mutedUntil: s?.muted_until ?? null,
+      arrivalTimeOverride: s?.arrival_time_override ?? null,
+      arrivalDateOverride:
+        (s as { arrival_date_override?: string | null } | undefined)?.arrival_date_override ?? null,
+      doneAt: s?.done_at ?? null,
+      pendingFill: false,
+      ical: forceIcal ?? { hasIcal, matched, icalCheckin, icalCheckout },
+      additionalGuests: extras.map((e) => ({
+        logId: e.id,
+        name: e.guest_name,
+        phone: e.guest_phone,
+        phoneCountry: e.guest_phone_country,
+        reservationCode: e.reservation_code,
+        arrivalTime: e.guest_arrival_time,
+      })),
+    };
+  }
+
+  function rowFromReservation(
+    r: ReservationRow,
+    matchedLog: (typeof uniqueLogs)[number] | null,
+    extras: (typeof uniqueLogs)[number][] = [],
+  ): ArrivalRow | null {
+    const p = propMap.get(r.property_id);
+    const legacy = placeholderStatus.get(
+      placeholderKey(r.property_id, r.checkin_date, r.checkout_date, data.kind),
+    );
+    const logStatus = matchedLog ? statusMap.get(matchedLog.id) : undefined;
+    const s = reservationStatusMap.get(r.id) ?? legacy ?? logStatus;
+    if (s?.concluded_at) return null;
+    // Pedido explícito do cliente (04/09/2026): a previsão (override)
+    // manda no dia do card — a data bruta da reserva só entra de fallback
+    // quando não há previsão registrada. Cast pelo mesmo motivo de
+    // `arrivalDateOverride` logo abaixo: `s` pode vir de `legacy`, cujo
+    // tipo não lista esse campo (mesmo ele existindo em runtime).
+    const date =
+      (s as { arrival_date_override?: string | null } | undefined)?.arrival_date_override ??
+      (data.kind === "checkin" ? r.checkin_date : r.checkout_date);
+    // IMPORTANTE: nunca usar `synced_at` aqui — ele é reescrito a cada sync do iCal,
+    // o que promoveria toda estadia em curso automaticamente. Só a data real de
+    // criação do registro (integração nova) pode disparar a auto-distribuição.
+    const virtualStay = autoStayDone(
+      r.checkin_date,
+      r.checkout_date,
+      matchedLog?.created_at ?? r.created_at ?? null,
+    );
+    const overduePending =
+      data.kind === "checkin" &&
+      data.range !== "tomorrow" &&
+      !reservationCheckinDone(r) &&
+      !virtualStay &&
+      withinOverdueWindow(r.checkin_date);
+    // Datas passadas só entram sem interação quando representam uma estadia
+    // vigente ou um check-in ainda pendente (atrasado).
+    if (date < today && !s && !virtualStay && !overduePending) return null;
+
+    return {
+      logId: matchedLog?.id ?? `ical:${r.id}`,
+      reservationId: r.id,
+      propertyId: r.property_id,
+      propertyName: p?.name ?? null,
+      ownerName: p?.ownerName ?? null,
+      ownerPhone: p?.ownerPhone ?? null,
+      ownerPhoneCountry: p?.ownerPhoneCountry ?? null,
+      propertyAddress: p?.address ?? null,
+      mapsUrl: p?.maps_url ?? null,
+      garageMapsUrl: p?.garage_maps_url ?? null,
+      lat: p?.lat ?? null,
+      lng: p?.lng ?? null,
+      hasPasswords: !!p?.hasPasswords,
+      openedCheckin: matchedLog
+        ? hasSeen(
+            openedCheckin,
+            matchedLog.property_id,
+            matchedLog.guest_name,
+            matchedLog.guest_phone,
+          )
+        : false,
+      openedGuide: matchedLog
+        ? hasSeen(
+            openedGuide,
+            matchedLog.property_id,
+            matchedLog.guest_name,
+            matchedLog.guest_phone,
+          )
+        : false,
+      readInstructions: matchedLog
+        ? hasSeen(
+            readInstructions,
+            matchedLog.property_id,
+            matchedLog.guest_name,
+            matchedLog.guest_phone,
+          )
+        : false,
+      viewedPasswords: matchedLog
+        ? sawAllPasswords(matchedLog.property_id, matchedLog.guest_name, matchedLog.guest_phone)
+        : false,
+      guestName: matchedLog?.guest_name ?? r.guest_hint ?? "Reserva Airbnb",
+      guestPhone: matchedLog?.guest_phone ?? null,
+      guestPhoneCountry: matchedLog?.guest_phone_country ?? null,
+      guestArrivalTime: matchedLog?.guest_arrival_time ?? null,
+      standardTime:
+        data.kind === "checkin" ? (p?.checkin_time ?? null) : (p?.checkout_time ?? null),
+      standardTimeMax:
+        data.kind === "checkin" ? (p?.checkin_time_max ?? null) : (p?.checkout_time_min ?? null),
+      propertyCheckinTime: p?.checkin_time ?? null,
+      propertyCheckoutTime: p?.checkout_time ?? null,
+      cleaningPriceNormalCents: p?.cleaning_price_normal_cents ?? null,
+      cleaningPriceFullCents: p?.cleaning_price_full_cents ?? null,
+      date,
+      guestCheckin: r.checkin_date,
+      guestCheckout: r.checkout_date,
+      reservationCode: r.guest_hint ?? matchedLog?.reservation_code ?? null,
+      createdAt: matchedLog?.created_at ?? r.created_at ?? r.synced_at ?? new Date().toISOString(),
+      status:
+        data.kind === "checkin" && r.checkin_date > today && s?.status === "done"
+          ? "pending"
+          : s
+            ? s.status
+            : virtualStay
+              ? "done"
+              : "pending",
+      note: s?.note ?? null,
+      mutedUntil: s?.muted_until ?? null,
+      arrivalTimeOverride: s?.arrival_time_override ?? null,
+      arrivalDateOverride:
+        (s as { arrival_date_override?: string | null } | undefined)?.arrival_date_override ?? null,
+      doneAt: s?.done_at ?? null,
+      pendingFill: !matchedLog,
+      ical: {
+        hasIcal: true,
+        matched: true,
+        icalCheckin: r.checkin_date,
+        icalCheckout: r.checkout_date,
+      },
+      additionalGuests: extras.map((e) => ({
+        logId: e.id,
+        name: e.guest_name,
+        phone: e.guest_phone,
+        phoneCountry: e.guest_phone_country,
+        reservationCode: e.reservation_code,
+        arrivalTime: e.guest_arrival_time,
+      })),
+    };
+  }
+
+  const rows: ArrivalRow[] = [];
+  const usedLogIds = new Set<string>();
+
+  const _filtered = reservationRows.filter(reservationInRange);
+  for (const r of _filtered) {
+    const p = propMap.get(r.property_id);
+    if (!p?.airbnb_ical_url) continue;
+    const { primary: matchedLog, extras } = findLogsForReservation(uniqueLogs, r, data.kind);
+    if (matchedLog) usedLogIds.add(matchedLog.id);
+    for (const e of extras) usedLogIds.add(e.id);
+    const row = rowFromReservation(r, matchedLog, extras);
+    if (row) rows.push(row);
+  }
+  // Não-iCal: agrupa logs manuais do mesmo grupo (mesmo imóvel + período +
+  // código) num único card, com os demais como acompanhantes.
+  const nonIcalGroups = new Map<string, (typeof uniqueLogs)[number][]>();
+  for (const l of uniqueLogs) {
+    if (usedLogIds.has(l.id)) continue;
+    const p = propMap.get(l.property_id);
+    if (p?.airbnb_ical_url) continue;
+    const code = normalizeCode(l.reservation_code);
+    const key = code
+      ? `${l.property_id}|code|${code}`
+      : `${l.property_id}|dates|${l.checkin_date}|${l.checkout_date ?? ""}`;
+    const arr = nonIcalGroups.get(key) ?? [];
+    arr.push(l);
+    nonIcalGroups.set(key, arr);
+  }
+  for (const group of nonIcalGroups.values()) {
+    // Principal = primeiro acesso ao guia (created_at mais antigo).
+    group.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    const [primary, ...extras] = group;
+    const row = rowFromLog(primary, undefined, extras);
+    if (row) rows.push(row);
+  }
+
+  // Esteira: um card só pode aparecer em Checkouts/Em Limpeza depois que o
+  // check-in correspondente foi marcado como feito. Enquanto o check-in
+  // estiver pendente (mesmo atrasado), o card fica retido em Check-ins.
+  // Auto-promoção virtual: se a estadia já está em andamento (checkin no
+  // passado, ou hoje após o horário padrão de entrada), o check-in é
+  // considerado feito virtualmente para efeito da esteira — assim o card
+  // avança para Checkouts/Em Limpeza sem precisar de clique manual.
+  function virtualCheckinDone(r: ArrivalRow): boolean {
+    // Só há promoção automática quando o registro nasceu DEPOIS do início da
+    // estadia (integração nova importando histórico corrente). Cards que já
+    // existiam quando a data chegou exigem o check manual.
+    const ci = r.guestCheckin;
+    if (!ci) return false;
+    const created = isoDateSP(r.createdAt);
+    return !!created && created > ci;
+  }
+
+  const gatedRows =
+    data.kind === "checkout"
+      ? rows.filter((r) => {
+          // "Não Compareceu" nunca vira card de Checkout/Limpeza — sai da
+          // esteira ANTES de qualquer outra regra (inclusive "tomorrow" e
+          // estadia em curso, abaixo), independente de como o card chegou
+          // (log manual ou reserva do iCal).
+          const noShow =
+            !!(r.logId && !r.logId.startsWith("ical:") && checkinNoShowLogs.has(r.logId)) ||
+            !!(r.reservationId && checkinNoShowReservations.has(r.reservationId)) ||
+            // Rede de segurança por ESTADIA — pega o caso em que os dois
+            // lados não compartilham identificador (ver checkinNoShowStays).
+            !!(
+              r.propertyId &&
+              r.guestCheckin &&
+              checkinNoShowStays.has(`${r.propertyId}|${r.guestCheckin}`)
+            );
+          if (noShow) return false;
+          const logDone = !!(
+            r.logId &&
+            !r.logId.startsWith("ical:") &&
+            checkinDoneLogs.has(r.logId)
+          );
+          const resDone = !!(r.reservationId && checkinDoneReservations.has(r.reservationId));
+          const logExplicitlyPending = !!(
+            r.logId &&
+            !r.logId.startsWith("ical:") &&
+            checkinPendingLogs.has(r.logId)
+          );
+          const resExplicitlyPending = !!(
+            r.reservationId && checkinPendingReservations.has(r.reservationId)
+          );
+          if (data.range === "tomorrow") return true;
+          const vDone = virtualCheckinDone(r);
+          // O dia do checkout já chegou (ou passou) e a estadia começou: a
+          // saída é real e precisa aparecer, mesmo sem check-in marcado.
+          const stayEnded = !!(
+            r.guestCheckout &&
+            r.guestCheckout <= today &&
+            r.guestCheckin &&
+            r.guestCheckin <= today
+          );
+          if (stayEnded) return true;
+          // Estadia com check-in no passado (ou hoje após o horário padrão) já
+          // está em curso fisicamente — o card precisa aparecer em Checkouts
+          // mesmo que exista um status de check-in "pending" legado.
+          if (!logDone && !resDone && !vDone && (logExplicitlyPending || resExplicitlyPending))
+            return false;
+          return logDone || resDone || vDone;
+        })
+      : rows;
+  function isBetterOperationalRow(candidate: ArrivalRow, current: ArrivalRow): boolean {
+    const score = (r: ArrivalRow) => {
+      let v = 0;
+      if (r.status === "done") v += 100;
+      if (!r.pendingFill && r.guestName && r.guestName !== r.reservationCode) v += 40;
+      if (r.reservationCode) v += 20;
+      if (r.ical.matched) v += 10;
+      if (r.openedCheckin) v += 4;
+      if (r.viewedPasswords) v += 2;
+      return v;
+    };
+    const scoreDiff = score(candidate) - score(current);
+    if (scoreDiff !== 0) return scoreDiff > 0;
+    return new Date(candidate.createdAt).getTime() > new Date(current.createdAt).getTime();
+  }
+
+  function dedupeCheckoutRows(input: ArrivalRow[]): ArrivalRow[] {
+    if (data.kind !== "checkout") return [...input];
+    // Deduplica apenas a MESMA reserva quando ela chegou por caminhos
+    // diferentes (status por log legado + status por reservation_id). Não
+    // deduplicamos por imóvel+data: back-to-back e correções do iCal precisam
+    // continuar fiéis à identidade da reserva HM….
+    const byPropertyAndCheckout = new Map<string, ArrivalRow>();
+    for (const row of input) {
+      const key = `${row.reservationCode ?? row.reservationId ?? row.logId}|${row.propertyId}|${row.guestCheckin}|${row.guestCheckout ?? ""}|${row.date}`;
+      const current = byPropertyAndCheckout.get(key);
+      if (!current || isBetterOperationalRow(row, current)) {
+        byPropertyAndCheckout.set(key, row);
+      }
+    }
+    return Array.from(byPropertyAndCheckout.values());
+  }
+
+  const finalRows = dedupeCheckoutRows(gatedRows);
+  rows.length = 0;
+  rows.push(...finalRows);
+
+  // Prioridade: data → horário previsto (override do anfitrião ou informado pelo
+  // hóspede) → ordem alfabética da residência. O horário padrão da propriedade
+  // NÃO entra na chave de ordenação — só o previsto/manual manda.
+  const effTime = (r: ArrivalRow): string => r.arrivalTimeOverride ?? r.guestArrivalTime ?? "99:99";
+  rows.sort((a, b) => {
+    // Mais recente primeiro (data DESC). Empate: horário previsto DESC → residência A→Z.
+    const d = b.date.localeCompare(a.date);
+    if (d !== 0) return d;
+    const t = effTime(b).localeCompare(effTime(a));
+    if (t !== 0) return t;
+    return (a.propertyName ?? "").localeCompare(b.propertyName ?? "", "pt-BR");
+  });
+
+  return { rows };
 }

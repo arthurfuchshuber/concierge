@@ -19,7 +19,9 @@ const TabsList = React.forwardRef<
       ref={(node) => {
         barRef.current = node as HTMLDivElement | null;
         if (typeof ref === "function") ref(node);
-        else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node as HTMLDivElement | null;
+        else if (ref)
+          (ref as React.MutableRefObject<HTMLDivElement | null>).current =
+            node as HTMLDivElement | null;
       }}
       className={cn(
         // ANTI-CORTE: linha única; quando necessário, rola horizontalmente sem
@@ -32,7 +34,6 @@ const TabsList = React.forwardRef<
   );
 });
 TabsList.displayName = TabsPrimitive.List.displayName;
-
 
 const TabsTrigger = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Trigger>,

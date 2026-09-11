@@ -52,17 +52,18 @@ export function useAntiClipBar<T extends HTMLElement>() {
   const userScrollingRef = useRef(false);
   const pageEndRef = useRef(0);
 
-
-
   const items = useCallback((): HTMLElement[] => {
     const el = ref.current;
     if (!el) return [];
-    return Array.from(el.children).filter((c): c is HTMLElement => c instanceof HTMLElement && !isSpacer(c));
+    return Array.from(el.children).filter(
+      (c): c is HTMLElement => c instanceof HTMLElement && !isSpacer(c),
+    );
   }, []);
 
   const activeIndex = useCallback((): number => {
     return items().findIndex(
-      (b) => b.getAttribute("data-state") === "active" || b.getAttribute("aria-selected") === "true",
+      (b) =>
+        b.getAttribute("data-state") === "active" || b.getAttribute("aria-selected") === "true",
     );
   }, [items]);
 
@@ -202,7 +203,6 @@ export function useAntiClipBar<T extends HTMLElement>() {
     [activeIndex, applyPage, items],
   );
 
-
   useEffect(() => {
     const nav = ref.current;
     if (!nav) return;
@@ -245,7 +245,6 @@ export function useAntiClipBar<T extends HTMLElement>() {
     nav.addEventListener("touchstart", onPointerDown, { passive: true });
     window.addEventListener("pointerup", onPointerUp, { passive: true });
     window.addEventListener("touchend", onPointerUp, { passive: true });
-
 
     const ro = new ResizeObserver(() => realign(false));
     ro.observe(nav);

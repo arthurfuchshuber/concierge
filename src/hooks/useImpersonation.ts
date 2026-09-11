@@ -3,7 +3,6 @@ import { useQueryClient } from "@tanstack/react-query";
 
 export type Impersonation = { userId: string; name: string; email: string | null } | null;
 
-
 const KEY = "sg-impersonate";
 const EVT = "sg-impersonate-change";
 
@@ -72,7 +71,9 @@ export function useImpersonationQuerySync() {
           if (k.startsWith("cia-cache-v2:") || k === "cia-cache-v1") keys.push(k);
         }
         keys.forEach((k) => window.localStorage.removeItem(k));
-      } catch { /* noop */ }
+      } catch {
+        /* noop */
+      }
     };
     // Mesmo motivo do useImpersonation acima: só limpar o cache do painel
     // quando a chave que realmente muda é a de impersonação, não a cada
@@ -88,4 +89,3 @@ export function useImpersonationQuerySync() {
     };
   }, [queryClient]);
 }
-

@@ -1,8 +1,9 @@
+import { usePermission, type UsePermissionOptions } from "@/lib/permissions/usePermission";
 import {
-  usePermission,
-  type UsePermissionOptions,
-} from "@/lib/permissions/usePermission";
-import { requiredLevelFor, type AccessScope, type AccessState } from "@/lib/permissions/permissionClient";
+  requiredLevelFor,
+  type AccessScope,
+  type AccessState,
+} from "@/lib/permissions/permissionClient";
 
 export type UseAccessOptions = Omit<UsePermissionOptions, "required"> & AccessScope;
 

@@ -86,7 +86,9 @@ export const suggestKnowledgeFill = createServerFn({ method: "POST" })
         content: `Você ajuda um anfitrião a completar a base de conhecimento de uma hospedagem.
 Receberá o motivo pelo qual a IA não conseguiu responder e a pergunta do hóspede.
 Escolha o MELHOR lugar para guardar a informação faltante entre estas chaves:
-${Object.entries(KNOWLEDGE_TARGETS).map(([k, v]) => `- ${k}: ${v}`).join("\n")}
+${Object.entries(KNOWLEDGE_TARGETS)
+  .map(([k, v]) => `- ${k}: ${v}`)
+  .join("\n")}
 
 Responda APENAS JSON: {"target":"<chave>","title":"<título curto ou vazio>","content":"<texto pronto para salvar, em português, redigido para o hóspede, com lacunas explícitas entre colchetes quando você não souber o dado>","rationale":"<uma frase explicando a escolha>"}
 Nunca invente dados concretos (códigos, endereços, nomes): use [preencher] no lugar.`,
@@ -101,9 +103,11 @@ ${snapshot}`,
       },
     ]);
 
-    const target = (out?.target && (Object.keys(KNOWLEDGE_TARGETS) as string[]).includes(out.target)
-      ? out.target
-      : "property_detail") as KnowledgeTarget;
+    const target = (
+      out?.target && (Object.keys(KNOWLEDGE_TARGETS) as string[]).includes(out.target)
+        ? out.target
+        : "property_detail"
+    ) as KnowledgeTarget;
 
     return {
       target,
@@ -113,7 +117,10 @@ ${snapshot}`,
       rationale: out?.rationale ?? "",
       question: lastGuest,
       currentValue:
-        target === "checkin_instructions" || target === "checkout_instructions" || target === "house_rules" || target === "address_note"
+        target === "checkin_instructions" ||
+        target === "checkout_instructions" ||
+        target === "house_rules" ||
+        target === "address_note"
           ? String(p[target] ?? "")
           : "",
       targets: Object.entries(KNOWLEDGE_TARGETS).map(([value, label]) => ({ value, label })),
@@ -143,10 +150,17 @@ export const applyKnowledgeFill = createServerFn({ method: "POST" })
     const text = data.content.trim();
     const title = data.title?.trim() || null;
 
-    if (["checkin_instructions", "checkout_instructions", "house_rules", "address_note"].includes(data.target)) {
+    if (
+      ["checkin_instructions", "checkout_instructions", "house_rules", "address_note"].includes(
+        data.target,
+      )
+    ) {
       const current = String(p[data.target] ?? "").trim();
       const next = data.mode === "replace" || !current ? text : `${current}\n${text}`;
-      const { error } = await supabaseAdmin.from("properties").update({ [data.target]: next } as never).eq("id", propertyId);
+      const { error } = await supabaseAdmin
+        .from("properties")
+        .update({ [data.target]: next } as never)
+        .eq("id", propertyId);
       if (error) throw new Error(error.message);
     } else if (data.target === "manual") {
       const { error } = await supabaseAdmin.from("property_manual_items").insert({
@@ -192,7 +206,11 @@ export const applyKnowledgeFill = createServerFn({ method: "POST" })
     if (lastGuest) {
       try {
         const { runHospitalityAgent } = await import("@/lib/ai/orchestrator.server");
-        const { data: freshProp } = await supabaseAdmin.from("properties").select("*").eq("id", propertyId).maybeSingle();
+        const { data: freshProp } = await supabaseAdmin
+          .from("properties")
+          .select("*")
+          .eq("id", propertyId)
+          .maybeSingle();
         const result = await runHospitalityAgent({
           supabase: supabaseAdmin as never,
           property: (freshProp ?? prop) as unknown as Record<string, unknown>,

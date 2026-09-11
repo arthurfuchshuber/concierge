@@ -52,7 +52,11 @@ export async function applyOutcomeToMemories(params: {
       }
     }
     if (!ids.length) return 0;
-    await bumpMemoryUsage({ supabase: params.supabase, memoryIds: ids, outcome: outcomeToSignal(params.outcome) });
+    await bumpMemoryUsage({
+      supabase: params.supabase,
+      memoryIds: ids,
+      outcome: outcomeToSignal(params.outcome),
+    });
     return new Set(ids).size;
   } catch (err) {
     console.error("[learning:memory] falha ao aplicar desfecho", err);

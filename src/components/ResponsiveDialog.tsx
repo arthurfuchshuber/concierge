@@ -66,13 +66,17 @@ export function ResponsiveDialogContent({
   const isMobile = useIsMobile();
   if (isMobile) {
     return (
-      <DrawerContent className={cn("max-h-[92dvh] px-4 pb-[max(1rem,env(safe-area-inset-bottom))]", className)}>
+      <DrawerContent
+        className={cn("max-h-[92dvh] px-4 pb-[max(1rem,env(safe-area-inset-bottom))]", className)}
+      >
         {scrollable ? <div className="overflow-y-auto">{children}</div> : children}
       </DrawerContent>
     );
   }
   return (
-    <DialogContent className={cn(!scrollable && "p-0 sm:p-0 gap-0 overflow-y-hidden flex flex-col", className)}>
+    <DialogContent
+      className={cn(!scrollable && "p-0 sm:p-0 gap-0 overflow-y-hidden flex flex-col", className)}
+    >
       {children}
     </DialogContent>
   );
@@ -90,13 +94,25 @@ export function ResponsiveDialogHeader({
   return <Comp className={cn(isMobile && "px-0 text-left", className)}>{children}</Comp>;
 }
 
-export function ResponsiveDialogTitle({ children, className }: { children: React.ReactNode; className?: string }) {
+export function ResponsiveDialogTitle({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   const isMobile = useIsMobile();
   const Comp = isMobile ? DrawerTitle : DialogTitle;
   return <Comp className={className}>{children}</Comp>;
 }
 
-export function ResponsiveDialogDescription({ children, className }: { children: React.ReactNode; className?: string }) {
+export function ResponsiveDialogDescription({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   const isMobile = useIsMobile();
   const Comp = isMobile ? DrawerDescription : DialogDescription;
   return <Comp className={className}>{children}</Comp>;

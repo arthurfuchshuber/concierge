@@ -116,7 +116,6 @@ export async function sendOpsPush(
     return { sent: 0, skipped: false };
   }
 
-
   const { data: subs } = await admin
     .from("push_subscriptions")
     .select("id, endpoint, p256dh, auth")
@@ -144,7 +143,10 @@ export async function sendOpsPush(
   }
   if (res.stale.length) await admin.from("push_subscriptions").delete().in("id", res.stale);
 
-  await admin.from("ops_push_log").update({ sent_count: res.sent }).eq("dedupe_key", opts.dedupeKey);
+  await admin
+    .from("ops_push_log")
+    .update({ sent_count: res.sent })
+    .eq("dedupe_key", opts.dedupeKey);
   return { sent: res.sent, skipped: false };
 }
 
@@ -171,7 +173,6 @@ function bodyByCity(counts: Map<string, number>, suffix: string): string {
     .map(([city, n]) => `${n} em ${city}`);
   return lines.length > 0 ? `${lines.join("\n")}${suffix ? `\n${suffix}` : ""}` : suffix;
 }
-
 
 /**
  * Varredura operacional. Deve rodar a cada 30 minutos.
@@ -226,176 +227,183 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
   // "desistir" antes do fim mesmo com o endpoint funcionando normalmente.
   await Promise.all(
     Array.from(propsByOwner.entries()).map(async ([ownerId, ownerProps]) => {
-    const propById = new Map(ownerProps.map((p) => [p.id, p]));
-    const propIds = ownerProps.map((p) => p.id);
+      const propById = new Map(ownerProps.map((p) => [p.id, p]));
+      const propIds = ownerProps.map((p) => p.id);
 
-    const fire = async (kind: string, dedupeKey: string, payload: PushPayload) => {
-      const r = await sendOpsPush(admin, { ownerId, kind, dedupeKey, payload });
-      if (!r.skipped) {
-        notifications++;
-        owners.add(ownerId);
+      const fire = async (kind: string, dedupeKey: string, payload: PushPayload) => {
+        const r = await sendOpsPush(admin, { ownerId, kind, dedupeKey, payload });
+        if (!r.skipped) {
+          notifications++;
+          owners.add(ownerId);
+        }
+      };
+
+      const needTomorrow = t.hour === 20;
+      const [checkoutToday, checkinToday, checkoutTomorrow] = await Promise.all([
+        buildArrivalRows(admin as never, { kind: "checkout", range: "today", propIds }),
+        buildArrivalRows(admin as never, { kind: "checkin", range: "today", propIds }),
+        needTomorrow
+          ? buildArrivalRows(admin as never, { kind: "checkout", range: "tomorrow", propIds })
+          : Promise.resolve({ rows: [] as Awaited<ReturnType<typeof buildArrivalRows>>["rows"] }),
+      ]);
+
+      const pendingCheckouts = checkoutToday.rows.filter((r) => r.status === "pending");
+      const pendingCheckins = checkinToday.rows.filter((r) => r.status === "pending");
+
+      const cityOf = (propertyId: string, fallback: string | null) => {
+        const p = propById.get(propertyId);
+        return (p?.city || p?.name || fallback || "Imóvel sem cidade").trim();
+      };
+      const nameOf = (propertyId: string, fallback: string | null) =>
+        (propById.get(propertyId)?.name || fallback || "Imóvel").trim();
+      /** Card silenciado pelo usuário no Kanban (só afeta alertas de atraso). */
+      const isMuted = (r: { mutedUntil: string | null }) =>
+        !!r.mutedUntil && new Date(r.mutedUntil).getTime() > nowMs;
+      const tally = (map: Map<string, number>, city: string) =>
+        map.set(city, (map.get(city) ?? 0) + 1);
+
+      // 1. 20h — check-outs de amanhã (mesma lista do Kanban, filtro "Amanhã")
+      const tomorrowRows = checkoutTomorrow.rows.filter((r) => r.status === "pending");
+      const checkoutsTomorrow = tomorrowRows.length;
+      if (needTomorrow && checkoutsTomorrow > 0) {
+        const byCity = new Map<string, number>();
+        for (const r of tomorrowRows) tally(byCity, cityOf(r.propertyId, r.propertyName));
+        await fire("checkouts-tomorrow", `checkouts-tomorrow:${ownerId}:${today}`, {
+          title: `Amanhã: ${checkoutsTomorrow} ${plural(checkoutsTomorrow, "check-out", "check-outs")}`,
+          body: bodyByCity(byCity, "Prepare a equipe."),
+          data: { url, tag: "ops-checkouts-tomorrow" },
+        });
       }
-    };
 
-    const needTomorrow = t.hour === 20;
-    const [checkoutToday, checkinToday, checkoutTomorrow] = await Promise.all([
-      buildArrivalRows(admin as never, { kind: "checkout", range: "today", propIds }),
-      buildArrivalRows(admin as never, { kind: "checkin", range: "today", propIds }),
-      needTomorrow
-        ? buildArrivalRows(admin as never, { kind: "checkout", range: "tomorrow", propIds })
-        : Promise.resolve({ rows: [] as Awaited<ReturnType<typeof buildArrivalRows>>["rows"] }),
-    ]);
-
-    const pendingCheckouts = checkoutToday.rows.filter((r) => r.status === "pending");
-    const pendingCheckins = checkinToday.rows.filter((r) => r.status === "pending");
-
-    const cityOf = (propertyId: string, fallback: string | null) => {
-      const p = propById.get(propertyId);
-      return (p?.city || p?.name || fallback || "Imóvel sem cidade").trim();
-    };
-    const nameOf = (propertyId: string, fallback: string | null) =>
-      (propById.get(propertyId)?.name || fallback || "Imóvel").trim();
-    /** Card silenciado pelo usuário no Kanban (só afeta alertas de atraso). */
-    const isMuted = (r: { mutedUntil: string | null }) =>
-      !!r.mutedUntil && new Date(r.mutedUntil).getTime() > nowMs;
-    const tally = (map: Map<string, number>, city: string) => map.set(city, (map.get(city) ?? 0) + 1);
-
-    // 1. 20h — check-outs de amanhã (mesma lista do Kanban, filtro "Amanhã")
-    const tomorrowRows = checkoutTomorrow.rows.filter((r) => r.status === "pending");
-    const checkoutsTomorrow = tomorrowRows.length;
-    if (needTomorrow && checkoutsTomorrow > 0) {
-      const byCity = new Map<string, number>();
-      for (const r of tomorrowRows) tally(byCity, cityOf(r.propertyId, r.propertyName));
-      await fire("checkouts-tomorrow", `checkouts-tomorrow:${ownerId}:${today}`, {
-        title: `Amanhã: ${checkoutsTomorrow} ${plural(checkoutsTomorrow, "check-out", "check-outs")}`,
-        body: bodyByCity(byCity, "Prepare a equipe."),
-        data: { url, tag: "ops-checkouts-tomorrow" },
-      });
-    }
-
-    // 2. 07h — check-ins de hoje
-    const checkinTodayRows = pendingCheckins.filter((r) => r.date === today);
-    const checkinsToday = checkinTodayRows.length;
-    if (t.hour === 7 && checkinsToday > 0) {
-      const byCity = new Map<string, number>();
-      for (const r of checkinTodayRows) tally(byCity, cityOf(r.propertyId, r.propertyName));
-      await fire("checkins-today", `checkins-today:${ownerId}:${today}`, {
-        title: `Hoje: ${checkinsToday} ${plural(checkinsToday, "check-in", "check-ins")}`,
-        body: bodyByCity(byCity, "Confira a esteira de chegadas."),
-        data: { url, tag: "ops-checkins-today" },
-      });
-    }
-
-    // ----- atrasos (com base nos cards pendentes da esteira) -----
-    const lateCheckoutNames: string[] = [];
-    const lateCheckoutsByCity = new Map<string, number>();
-    const criticalCheckoutsByCity = new Map<string, number>();
-    let lateCheckouts = 0;
-    let criticalCheckouts = 0;
-    for (const r of pendingCheckouts) {
-      if (r.date > today) continue;
-      if (isMuted(r)) continue;
-      const p = propById.get(r.propertyId);
-      const limit = timeToMinutes(r.standardTime ?? p?.checkout_time ?? null, DEFAULT_CHECKOUT);
-      const lateBy = r.date < today ? 24 * 60 : t.minutes - limit;
-      if (lateBy <= 0) continue;
-      lateCheckouts++;
-      const city = cityOf(r.propertyId, r.propertyName);
-      tally(lateCheckoutsByCity, city);
-      if (lateCheckoutNames.length < 3) lateCheckoutNames.push(nameOf(r.propertyId, r.propertyName));
-      if (lateBy >= 120) {
-        criticalCheckouts++;
-        tally(criticalCheckoutsByCity, city);
+      // 2. 07h — check-ins de hoje
+      const checkinTodayRows = pendingCheckins.filter((r) => r.date === today);
+      const checkinsToday = checkinTodayRows.length;
+      if (t.hour === 7 && checkinsToday > 0) {
+        const byCity = new Map<string, number>();
+        for (const r of checkinTodayRows) tally(byCity, cityOf(r.propertyId, r.propertyName));
+        await fire("checkins-today", `checkins-today:${ownerId}:${today}`, {
+          title: `Hoje: ${checkinsToday} ${plural(checkinsToday, "check-in", "check-ins")}`,
+          body: bodyByCity(byCity, "Confira a esteira de chegadas."),
+          data: { url, tag: "ops-checkins-today" },
+        });
       }
-    }
 
-    const pendingCheckinNames: string[] = [];
-    const lateCheckinsByCity = new Map<string, number>();
-    const criticalCheckinsByCity = new Map<string, number>();
-    let latePendingCheckins = 0;
-    let criticalCheckins = 0;
-    for (const r of pendingCheckins) {
-      // Previsão de chegada posterior (o `date` do card já resolve o
-      // override): enquanto o dia previsto não chegou, nada está atrasado.
-      if (r.date > today) continue;
-      if (isMuted(r)) continue;
-      const p = propById.get(r.propertyId);
-      // Pedido explícito do cliente (05/09/2026): só é atraso depois do
-      // HORÁRIO LIMITE de check-in configurado para o imóvel — o horário
-      // inicial da janela (checkin_time) não serve de gatilho. Se o hóspede
-      // avisou uma chegada ainda mais tarde, ela prevalece.
-      const configuredLimit = timeToMinutes(
-        r.standardTimeMax ?? p?.checkin_time_max ?? r.standardTime ?? p?.checkin_time ?? null,
-        DEFAULT_CHECKIN,
+      // ----- atrasos (com base nos cards pendentes da esteira) -----
+      const lateCheckoutNames: string[] = [];
+      const lateCheckoutsByCity = new Map<string, number>();
+      const criticalCheckoutsByCity = new Map<string, number>();
+      let lateCheckouts = 0;
+      let criticalCheckouts = 0;
+      for (const r of pendingCheckouts) {
+        if (r.date > today) continue;
+        if (isMuted(r)) continue;
+        const p = propById.get(r.propertyId);
+        const limit = timeToMinutes(r.standardTime ?? p?.checkout_time ?? null, DEFAULT_CHECKOUT);
+        const lateBy = r.date < today ? 24 * 60 : t.minutes - limit;
+        if (lateBy <= 0) continue;
+        lateCheckouts++;
+        const city = cityOf(r.propertyId, r.propertyName);
+        tally(lateCheckoutsByCity, city);
+        if (lateCheckoutNames.length < 3)
+          lateCheckoutNames.push(nameOf(r.propertyId, r.propertyName));
+        if (lateBy >= 120) {
+          criticalCheckouts++;
+          tally(criticalCheckoutsByCity, city);
+        }
+      }
+
+      const pendingCheckinNames: string[] = [];
+      const lateCheckinsByCity = new Map<string, number>();
+      const criticalCheckinsByCity = new Map<string, number>();
+      let latePendingCheckins = 0;
+      let criticalCheckins = 0;
+      for (const r of pendingCheckins) {
+        // Previsão de chegada posterior (o `date` do card já resolve o
+        // override): enquanto o dia previsto não chegou, nada está atrasado.
+        if (r.date > today) continue;
+        if (isMuted(r)) continue;
+        const p = propById.get(r.propertyId);
+        // Pedido explícito do cliente (05/09/2026): só é atraso depois do
+        // HORÁRIO LIMITE de check-in configurado para o imóvel — o horário
+        // inicial da janela (checkin_time) não serve de gatilho. Se o hóspede
+        // avisou uma chegada ainda mais tarde, ela prevalece.
+        const configuredLimit = timeToMinutes(
+          r.standardTimeMax ?? p?.checkin_time_max ?? r.standardTime ?? p?.checkin_time ?? null,
+          DEFAULT_CHECKIN,
+        );
+        const predicted = r.arrivalTimeOverride ?? r.guestArrivalTime ?? null;
+        const predictedLimit = predicted
+          ? timeToMinutes(predicted, configuredLimit)
+          : configuredLimit;
+        const limit = Math.max(configuredLimit, predictedLimit);
+        const lateBy = r.date < today ? 24 * 60 : t.minutes - limit;
+        if (lateBy <= 0) continue;
+        latePendingCheckins++;
+        const city = cityOf(r.propertyId, r.propertyName);
+        tally(lateCheckinsByCity, city);
+        if (pendingCheckinNames.length < 3)
+          pendingCheckinNames.push(nameOf(r.propertyId, r.propertyName));
+        if (lateBy >= 180) {
+          criticalCheckins++;
+          tally(criticalCheckinsByCity, city);
+        }
+      }
+
+      // 5. alerta crítico (vermelho) — substitui os avisos normais correspondentes
+      const critical = criticalCheckouts + criticalCheckins;
+      if (critical > 0) {
+        const titulo =
+          criticalCheckouts > 0 && criticalCheckins > 0
+            ? `🔴 ${critical} ${plural(critical, "atraso crítico", "atrasos críticos")}`
+            : criticalCheckouts > 0
+              ? `🔴 ${criticalCheckouts} ${plural(criticalCheckouts, "Check-out atrasado", "Check-outs atrasados")}`
+              : `🔴 ${criticalCheckins} ${plural(criticalCheckins, "Check-in atrasado", "Check-ins atrasados")}`;
+        const byCity = new Map<string, number>();
+        for (const [c, n] of criticalCheckoutsByCity) byCity.set(c, (byCity.get(c) ?? 0) + n);
+        for (const [c, n] of criticalCheckinsByCity) byCity.set(c, (byCity.get(c) ?? 0) + n);
+        await fire("ops-critical", `ops-critical:${ownerId}:${slot30}`, {
+          title: titulo,
+          body: bodyByCity(byCity, "Ação imediata recomendada."),
+          data: { url, tag: "ops-critical", urgency: "high", critical: true },
+        });
+      }
+
+      // 3. a cada 30min — check-outs atrasados (só se não houver crítico de saída)
+      if (lateCheckouts > 0 && criticalCheckouts === 0) {
+        await fire("checkouts-late", `checkouts-late:${ownerId}:${slot30}`, {
+          title: `${lateCheckouts} ${plural(lateCheckouts, "Check-out atrasado", "Check-outs atrasados")}`,
+          body: bodyByCity(lateCheckoutsByCity, "Sem confirmação de saída."),
+          data: { url, tag: "ops-checkouts-late" },
+        });
+      }
+
+      // 4. a cada 1h — check-ins pendentes (só se não houver crítico de chegada)
+      if (latePendingCheckins > 0 && criticalCheckins === 0 && t.minute < 30) {
+        await fire("checkins-pending", `checkins-pending:${ownerId}:${slotHour}`, {
+          title: `${latePendingCheckins} ${plural(latePendingCheckins, "Check-in pendente", "Check-ins pendentes")}`,
+          body: bodyByCity(lateCheckinsByCity, "Sem confirmação de entrada."),
+          data: { url, tag: "ops-checkins-pending" },
+        });
+      }
+
+      // 5. a cada 2h (em hora cheia) — cards "Em Limpeza" (checkout já
+      // confirmado, faxina ainda sem "concluir"), o dia todo, sem depender de
+      // horário de checkin/checkout — mesma lista "Liberado para Limpeza" do
+      // Kanban: checkoutToday.rows com status "done" (buildArrivalRows já
+      // exclui o que tem concluded_at, ou seja, já saiu de "Em Limpeza").
+      const cleaningPendingRows = checkoutToday.rows.filter(
+        (r) => r.status === "done" && !isMuted(r),
       );
-      const predicted = r.arrivalTimeOverride ?? r.guestArrivalTime ?? null;
-      const predictedLimit = predicted ? timeToMinutes(predicted, configuredLimit) : configuredLimit;
-      const limit = Math.max(configuredLimit, predictedLimit);
-      const lateBy = r.date < today ? 24 * 60 : t.minutes - limit;
-      if (lateBy <= 0) continue;
-      latePendingCheckins++;
-      const city = cityOf(r.propertyId, r.propertyName);
-      tally(lateCheckinsByCity, city);
-      if (pendingCheckinNames.length < 3) pendingCheckinNames.push(nameOf(r.propertyId, r.propertyName));
-      if (lateBy >= 180) {
-        criticalCheckins++;
-        tally(criticalCheckinsByCity, city);
+      if (cleaningPendingRows.length > 0 && t.hour % 2 === 0 && t.minute < 30) {
+        const byCity = new Map<string, number>();
+        for (const r of cleaningPendingRows) tally(byCity, cityOf(r.propertyId, r.propertyName));
+        const n = cleaningPendingRows.length;
+        await fire("cleaning-pending", `cleaning-pending:${ownerId}:${slotHour}`, {
+          title: `🧹 ${n} ${plural(n, "imóvel em limpeza", "imóveis em limpeza")}`,
+          body: bodyByCity(byCity, "Ainda sem confirmação de limpeza concluída."),
+          data: { url, tag: "ops-cleaning-pending" },
+        });
       }
-    }
-
-    // 5. alerta crítico (vermelho) — substitui os avisos normais correspondentes
-    const critical = criticalCheckouts + criticalCheckins;
-    if (critical > 0) {
-      const titulo =
-        criticalCheckouts > 0 && criticalCheckins > 0
-          ? `🔴 ${critical} ${plural(critical, "atraso crítico", "atrasos críticos")}`
-          : criticalCheckouts > 0
-            ? `🔴 ${criticalCheckouts} ${plural(criticalCheckouts, "Check-out atrasado", "Check-outs atrasados")}`
-            : `🔴 ${criticalCheckins} ${plural(criticalCheckins, "Check-in atrasado", "Check-ins atrasados")}`;
-      const byCity = new Map<string, number>();
-      for (const [c, n] of criticalCheckoutsByCity) byCity.set(c, (byCity.get(c) ?? 0) + n);
-      for (const [c, n] of criticalCheckinsByCity) byCity.set(c, (byCity.get(c) ?? 0) + n);
-      await fire("ops-critical", `ops-critical:${ownerId}:${slot30}`, {
-        title: titulo,
-        body: bodyByCity(byCity, "Ação imediata recomendada."),
-        data: { url, tag: "ops-critical", urgency: "high", critical: true },
-      });
-    }
-
-    // 3. a cada 30min — check-outs atrasados (só se não houver crítico de saída)
-    if (lateCheckouts > 0 && criticalCheckouts === 0) {
-      await fire("checkouts-late", `checkouts-late:${ownerId}:${slot30}`, {
-        title: `${lateCheckouts} ${plural(lateCheckouts, "Check-out atrasado", "Check-outs atrasados")}`,
-        body: bodyByCity(lateCheckoutsByCity, "Sem confirmação de saída."),
-        data: { url, tag: "ops-checkouts-late" },
-      });
-    }
-
-    // 4. a cada 1h — check-ins pendentes (só se não houver crítico de chegada)
-    if (latePendingCheckins > 0 && criticalCheckins === 0 && t.minute < 30) {
-      await fire("checkins-pending", `checkins-pending:${ownerId}:${slotHour}`, {
-        title: `${latePendingCheckins} ${plural(latePendingCheckins, "Check-in pendente", "Check-ins pendentes")}`,
-        body: bodyByCity(lateCheckinsByCity, "Sem confirmação de entrada."),
-        data: { url, tag: "ops-checkins-pending" },
-      });
-    }
-
-    // 5. a cada 2h (em hora cheia) — cards "Em Limpeza" (checkout já
-    // confirmado, faxina ainda sem "concluir"), o dia todo, sem depender de
-    // horário de checkin/checkout — mesma lista "Liberado para Limpeza" do
-    // Kanban: checkoutToday.rows com status "done" (buildArrivalRows já
-    // exclui o que tem concluded_at, ou seja, já saiu de "Em Limpeza").
-    const cleaningPendingRows = checkoutToday.rows.filter((r) => r.status === "done" && !isMuted(r));
-    if (cleaningPendingRows.length > 0 && t.hour % 2 === 0 && t.minute < 30) {
-      const byCity = new Map<string, number>();
-      for (const r of cleaningPendingRows) tally(byCity, cityOf(r.propertyId, r.propertyName));
-      const n = cleaningPendingRows.length;
-      await fire("cleaning-pending", `cleaning-pending:${ownerId}:${slotHour}`, {
-        title: `🧹 ${n} ${plural(n, "imóvel em limpeza", "imóveis em limpeza")}`,
-        body: bodyByCity(byCity, "Ainda sem confirmação de limpeza concluída."),
-        data: { url, tag: "ops-cleaning-pending" },
-      });
-    }
     }),
   );
 
@@ -406,11 +414,16 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
   };
 }
 
-
 /** Aviso de que um hóspede iniciou uma conversa com a IA. */
 export async function sendConversationStartedPush(
   admin: Admin,
-  opts: { propertyId: string; propertyName: string | null; conversationId: string; guestName: string | null; firstMessage: string | null },
+  opts: {
+    propertyId: string;
+    propertyName: string | null;
+    conversationId: string;
+    guestName: string | null;
+    firstMessage: string | null;
+  },
 ) {
   const { data: prop } = await admin
     .from("properties")
@@ -447,12 +460,16 @@ export async function sendConversationStartedPush(
 
 const CLEANING_RE = /limp|faxin|clean|housekeep/i;
 
-function isCleaningCategory(row: { category?: string | null; categories?: string[] | null }): boolean {
+function isCleaningCategory(row: {
+  category?: string | null;
+  categories?: string[] | null;
+}): boolean {
   if (row.category && CLEANING_RE.test(row.category)) return true;
   return (row.categories ?? []).some((c) => CLEANING_RE.test(c ?? ""));
 }
 
-const COUNTRY_RE = /\b(brasil|brazil|br|portugal|pt|argentina|espanha|spain|usa|eua|estados unidos|united states)\b/i;
+const COUNTRY_RE =
+  /\b(brasil|brazil|br|portugal|pt|argentina|espanha|spain|usa|eua|estados unidos|united states)\b/i;
 
 /** Remove sufixos de país (ex.: "Florianópolis, Brasil" → "Florianópolis"). */
 function cleanCity(city?: string | null): string {
@@ -471,16 +488,14 @@ async function getPropertyBasics(admin: Admin, propertyId: string) {
     .select("id, owner_id, name, city, address, owner_contact_id")
     .eq("id", propertyId)
     .maybeSingle();
-  const prop = data as
-    | {
-        id: string;
-        owner_id: string;
-        name: string | null;
-        city: string | null;
-        address: string | null;
-        owner_contact_id: string | null;
-      }
-    | null;
+  const prop = data as {
+    id: string;
+    owner_id: string;
+    name: string | null;
+    city: string | null;
+    address: string | null;
+    owner_contact_id: string | null;
+  } | null;
   if (!prop) return null;
 
   let ownerName = "";
@@ -505,7 +520,10 @@ async function getPropertyBasics(admin: Admin, propertyId: string) {
 
 /** "Proprietário · Imóvel · Cidade · Bairro" (só o que existir). */
 function locLine(parts: (string | null | undefined)[]): string {
-  return parts.map((p) => (p ?? "").trim()).filter(Boolean).join(" · ");
+  return parts
+    .map((p) => (p ?? "").trim())
+    .filter(Boolean)
+    .join(" · ");
 }
 
 /**
@@ -541,7 +559,11 @@ export async function notifyCleaningReady(
     .eq("property_id", opts.propertyId)
     .in("user_id", cleanerIds);
   const targets = Array.from(
-    new Set((assignments ?? []).filter((a) => (a.status ?? "active") !== "inactive").map((a) => a.user_id as string)),
+    new Set(
+      (assignments ?? [])
+        .filter((a) => (a.status ?? "active") !== "inactive")
+        .map((a) => a.user_id as string),
+    ),
   );
   if (targets.length === 0) return { sent: 0, skipped: true };
 

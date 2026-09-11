@@ -50,7 +50,9 @@ export function KnowledgeFillDialog({ conversationId, open, onOpenChange, onAppl
       }),
     onSuccess: (res) => {
       toast.success(
-        res.reply ? "Informação salva — a IA já respondeu ao hóspede." : "Informação salva e aprendida pela IA.",
+        res.reply
+          ? "Informação salva — a IA já respondeu ao hóspede."
+          : "Informação salva e aprendida pela IA.",
       );
       onOpenChange(false);
       onApplied?.();
@@ -58,7 +60,12 @@ export function KnowledgeFillDialog({ conversationId, open, onOpenChange, onAppl
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const isField = ["checkin_instructions", "checkout_instructions", "house_rules", "address_note"].includes(target);
+  const isField = [
+    "checkin_instructions",
+    "checkout_instructions",
+    "house_rules",
+    "address_note",
+  ].includes(target);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -71,13 +78,15 @@ export function KnowledgeFillDialog({ conversationId, open, onOpenChange, onAppl
 
         {isLoading || !suggestion ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground py-6">
-            <Loader2 className="size-4 animate-spin" /> A IA está analisando onde guardar essa informação…
+            <Loader2 className="size-4 animate-spin" /> A IA está analisando onde guardar essa
+            informação…
           </div>
         ) : (
           <div className="space-y-3">
             {suggestion.question && (
               <p className="text-xs text-muted-foreground">
-                Pergunta do hóspede: <span className="text-foreground">“{suggestion.question}”</span>
+                Pergunta do hóspede:{" "}
+                <span className="text-foreground">“{suggestion.question}”</span>
               </p>
             )}
             {suggestion.rationale && (
@@ -104,22 +113,42 @@ export function KnowledgeFillDialog({ conversationId, open, onOpenChange, onAppl
             {!isField && (
               <div className="space-y-1.5">
                 <Label className="text-xs">Título</Label>
-                <Input value={title} maxLength={160} onChange={(e) => setTitle(e.target.value)} placeholder="Opcional" />
+                <Input
+                  value={title}
+                  maxLength={160}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Opcional"
+                />
               </div>
             )}
 
             <div className="space-y-1.5">
               <Label className="text-xs">Informação</Label>
-              <Textarea rows={6} value={content} maxLength={8000} onChange={(e) => setContent(e.target.value)} />
+              <Textarea
+                rows={6}
+                value={content}
+                maxLength={8000}
+                onChange={(e) => setContent(e.target.value)}
+              />
             </div>
 
             {isField && suggestion.currentValue && (
               <div className="flex items-center gap-3 text-[11px]">
                 <label className="inline-flex items-center gap-1.5">
-                  <input type="radio" checked={mode === "append"} onChange={() => setMode("append")} /> Adicionar ao final
+                  <input
+                    type="radio"
+                    checked={mode === "append"}
+                    onChange={() => setMode("append")}
+                  />{" "}
+                  Adicionar ao final
                 </label>
                 <label className="inline-flex items-center gap-1.5">
-                  <input type="radio" checked={mode === "replace"} onChange={() => setMode("replace")} /> Substituir tudo
+                  <input
+                    type="radio"
+                    checked={mode === "replace"}
+                    onChange={() => setMode("replace")}
+                  />{" "}
+                  Substituir tudo
                 </label>
               </div>
             )}
@@ -128,8 +157,16 @@ export function KnowledgeFillDialog({ conversationId, open, onOpenChange, onAppl
               <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
                 Cancelar
               </Button>
-              <Button size="sm" disabled={apply.isPending || content.trim().length < 3} onClick={() => apply.mutate()}>
-                {apply.isPending ? <Loader2 className="size-3.5 animate-spin mr-1.5" /> : <Check className="size-3.5 mr-1.5" />}
+              <Button
+                size="sm"
+                disabled={apply.isPending || content.trim().length < 3}
+                onClick={() => apply.mutate()}
+              >
+                {apply.isPending ? (
+                  <Loader2 className="size-3.5 animate-spin mr-1.5" />
+                ) : (
+                  <Check className="size-3.5 mr-1.5" />
+                )}
                 Salvar e responder
               </Button>
             </div>

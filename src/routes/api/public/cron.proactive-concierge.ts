@@ -31,8 +31,10 @@ export const Route = createFileRoute("/api/public/cron/proactive-concierge")({
 
         try {
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          const { scanProactiveOpportunities } = await import("@/lib/ai/agents/proactive/engine.server");
-          const { computeOperationalMetrics } = await import("@/lib/ai/observability/metrics.server");
+          const { scanProactiveOpportunities } =
+            await import("@/lib/ai/agents/proactive/engine.server");
+          const { computeOperationalMetrics } =
+            await import("@/lib/ai/observability/metrics.server");
 
           const scan = await scanProactiveOpportunities({ supabase: supabaseAdmin, propertyLimit });
 
@@ -41,7 +43,9 @@ export const Route = createFileRoute("/api/public/cron/proactive-concierge")({
             .select("owner_id")
             .eq("published", true)
             .limit(500);
-          const tenantIds = [...new Set((owners ?? []).map((o) => o.owner_id).filter(Boolean))] as string[];
+          const tenantIds = [
+            ...new Set((owners ?? []).map((o) => o.owner_id).filter(Boolean)),
+          ] as string[];
           for (const tenantId of tenantIds.slice(0, 100)) {
             await computeOperationalMetrics({ supabase: supabaseAdmin, tenantId, days: 1 });
           }
@@ -49,7 +53,8 @@ export const Route = createFileRoute("/api/public/cron/proactive-concierge")({
           // Envio real das ações de baixa autonomia já aprovadas pelo motor
           // (welcome/checkout/silent-guest) — antes desta correção, ficavam
           // aprovadas para sempre sem nunca chegar ao hóspede.
-          const { sendApprovedProactiveActions } = await import("@/lib/ai/agents/proactive/sender.server");
+          const { sendApprovedProactiveActions } =
+            await import("@/lib/ai/agents/proactive/sender.server");
           const send = await sendApprovedProactiveActions({ supabase: supabaseAdmin, limit: 200 });
 
           return Response.json({ ok: true, scan, send, tenantsMeasured: tenantIds.length });

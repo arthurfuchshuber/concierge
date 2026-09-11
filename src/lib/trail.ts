@@ -69,7 +69,6 @@ async function flush(): Promise<void> {
   }
 }
 
-
 function schedule(): void {
   if (timer) return;
   timer = setTimeout(() => {
@@ -139,7 +138,6 @@ function describe(
   };
 }
 
-
 /** Inicia a captura global. Idempotente. */
 export function startTrail(slug?: string): () => void {
   if (typeof window === "undefined" || started) return () => {};
@@ -159,7 +157,8 @@ export function startTrail(slug?: string): () => void {
     },
   });
 
-  const pageName = () => (document.title || window.location.pathname).replace(/\s*[—–|-]\s*ConciergeIA\s*$/i, "");
+  const pageName = () =>
+    (document.title || window.location.pathname).replace(/\s*[—–|-]\s*ConciergeIA\s*$/i, "");
   const where = () => `na página "${pageName()}"`;
   const inside = (ctx: string | null) => (ctx ? ` em "${ctx}"` : "");
   const KIND_PT: Record<string, string> = {
@@ -210,7 +209,6 @@ export function startTrail(slug?: string): () => void {
     });
   };
 
-
   const onSubmit = (e: Event) => {
     const form = e.target as HTMLFormElement | null;
     const fields = form
@@ -228,7 +226,6 @@ export function startTrail(slug?: string): () => void {
   };
 
   const onCopy = () => track({ type: "copy", label: `Copiou conteúdo ${where()}` });
-
 
   const onVisibility = () =>
     track({
@@ -261,7 +258,11 @@ export function startTrail(slug?: string): () => void {
     const bucket = Math.floor(pct / 25) * 25;
     if (bucket > maxDepth && bucket > 0) {
       maxDepth = bucket;
-      track({ type: "scroll_depth", label: `Rolou ${bucket}% da página`, metadata: { depth: bucket } });
+      track({
+        type: "scroll_depth",
+        label: `Rolou ${bucket}% da página`,
+        metadata: { depth: bucket },
+      });
     }
   };
 
@@ -306,5 +307,3 @@ export function trackPageView(path: string, title?: string): void {
     metadata: { page_title: t },
   });
 }
-
-

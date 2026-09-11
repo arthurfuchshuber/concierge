@@ -297,12 +297,19 @@ const Ctx = createContext<{ lang: Lang; setLang: (l: Lang) => void; t: (k: Key) 
   t: (k) => k,
 });
 
-export function I18nProvider({ children, defaultLang = "pt" }: { children: ReactNode; defaultLang?: Lang }) {
+export function I18nProvider({
+  children,
+  defaultLang = "pt",
+}: {
+  children: ReactNode;
+  defaultLang?: Lang;
+}) {
   const [lang, setLangState] = useState<Lang>(defaultLang);
   useEffect(() => {
     if (typeof window === "undefined") return;
     const saved = localStorage.getItem("sg-lang") as Lang | null;
-    if (saved === "pt" || saved === "en" || saved === "es" || saved === "fr") setLangState(saved as Lang);
+    if (saved === "pt" || saved === "en" || saved === "es" || saved === "fr")
+      setLangState(saved as Lang);
   }, []);
   const setLang = (l: Lang) => {
     setLangState(l);

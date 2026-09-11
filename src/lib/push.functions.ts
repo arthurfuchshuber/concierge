@@ -24,20 +24,18 @@ export const subscribePush = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => SubscribeInput.parse(i))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { error } = await supabase
-      .from("push_subscriptions")
-      .upsert(
-        {
-          user_id: userId,
-          endpoint: data.endpoint,
-          p256dh: data.keys.p256dh,
-          auth: data.keys.auth,
-          user_agent: data.userAgent ?? null,
-          enabled: true,
-          last_used_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id,endpoint" },
-      );
+    const { error } = await supabase.from("push_subscriptions").upsert(
+      {
+        user_id: userId,
+        endpoint: data.endpoint,
+        p256dh: data.keys.p256dh,
+        auth: data.keys.auth,
+        user_agent: data.userAgent ?? null,
+        enabled: true,
+        last_used_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,endpoint" },
+    );
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -81,10 +79,7 @@ export const updatePushPrefs = createServerFn({ method: "POST" })
     if (data.quietHoursStart !== undefined) patch.quiet_hours_start = data.quietHoursStart;
     if (data.quietHoursEnd !== undefined) patch.quiet_hours_end = data.quietHoursEnd;
     if (Object.keys(patch).length === 0) return { ok: true };
-    const { error } = await supabase
-      .from("push_subscriptions")
-      .update(patch)
-      .eq("user_id", userId);
+    const { error } = await supabase.from("push_subscriptions").update(patch).eq("user_id", userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -95,7 +90,9 @@ export const listMyPushSubscriptions = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const { data, error } = await supabase
       .from("push_subscriptions")
-      .select("id, endpoint, user_agent, enabled, sound_enabled, quiet_hours_start, quiet_hours_end, created_at, last_used_at")
+      .select(
+        "id, endpoint, user_agent, enabled, sound_enabled, quiet_hours_start, quiet_hours_end, created_at, last_used_at",
+      )
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);

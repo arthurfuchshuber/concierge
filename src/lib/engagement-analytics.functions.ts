@@ -34,9 +34,13 @@ function daysFor(period: "7d" | "30d" | "90d" | "all"): number {
 }
 
 function completenessScore(p: {
-  published?: boolean | null; hero_image_url?: string | null; tagline?: string | null;
-  wifi_ssid?: string | null; wifi_password?: string | null;
-  checkin_instructions?: string | null; house_rules?: string | null;
+  published?: boolean | null;
+  hero_image_url?: string | null;
+  tagline?: string | null;
+  wifi_ssid?: string | null;
+  wifi_password?: string | null;
+  checkin_instructions?: string | null;
+  house_rules?: string | null;
 }): number {
   let s = 0;
   if (p.published) s += 20;
@@ -55,7 +59,12 @@ function completenessScore(p: {
 const GAP_MS = 20 * 60 * 1000;
 const MIN_MS = 5 * 1000;
 
-type SectionEvt = { property_id: string; section: string; guest_session_id: string | null; created_at: string };
+type SectionEvt = {
+  property_id: string;
+  section: string;
+  guest_session_id: string | null;
+  created_at: string;
+};
 type Session = { sid: string; propertyId: string; start: number; end: number; sections: string[] };
 
 function sessionize(events: SectionEvt[]): Session[] {
@@ -63,7 +72,8 @@ function sessionize(events: SectionEvt[]): Session[] {
   for (const e of events) {
     if (!e.guest_session_id) continue;
     const arr = bySid.get(e.guest_session_id) ?? [];
-    arr.push(e); bySid.set(e.guest_session_id, arr);
+    arr.push(e);
+    bySid.set(e.guest_session_id, arr);
   }
   const out: Session[] = [];
   for (const [sid, arr] of bySid) {
@@ -76,7 +86,8 @@ function sessionize(events: SectionEvt[]): Session[] {
       const t = new Date(arr[i].created_at).getTime();
       if (t - last > GAP_MS) {
         out.push({ sid, propertyId: pid, start, end: last, sections });
-        start = t; sections = [];
+        start = t;
+        sections = [];
       }
       sections.push(arr[i].section);
       last = t;
@@ -104,12 +115,18 @@ async function runAnalytics(
 ) {
   // Admin impersonation: quando asUserId/asUserIds é informado, o solicitante precisa ser
   // admin — passamos a agir como aquele(s) usuário(s), usando supabaseAdmin p/ bypass RLS.
-  const requestedOwners = (input.asUserIds && input.asUserIds.length > 0)
-    ? input.asUserIds
-    : (input.asUserId ? [input.asUserId] : []);
+  const requestedOwners =
+    input.asUserIds && input.asUserIds.length > 0
+      ? input.asUserIds
+      : input.asUserId
+        ? [input.asUserId]
+        : [];
   let ownerIds: string[] = [ctx.userId];
   let db = ctx.supabase;
-  if (requestedOwners.length > 0 && !(requestedOwners.length === 1 && requestedOwners[0] === ctx.userId)) {
+  if (
+    requestedOwners.length > 0 &&
+    !(requestedOwners.length === 1 && requestedOwners[0] === ctx.userId)
+  ) {
     // Cada conta pedida precisa ser validada: titular, membro ativo ou admin.
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
     const authorized = await Promise.all(
@@ -126,19 +143,25 @@ async function runAnalytics(
 
   const { data: propsRaw, error: pErr } = await supabase
     .from("properties")
-      .select("id, name, slug, published, wifi_ssid, wifi_password, checkin_instructions, house_rules, tagline, hero_image_url, marketplace_links")
+    .select(
+      "id, name, slug, published, wifi_ssid, wifi_password, checkin_instructions, house_rules, tagline, hero_image_url, marketplace_links",
+    )
     .in("owner_id", ownerIds)
     .order("name", { ascending: true });
   if (pErr) throw pErr;
   const properties = (propsRaw ?? []).map((p) => ({
-    id: p.id as string, name: p.name as string, slug: p.slug as string,
-    published: !!p.published, completeness: completenessScore(p),
+    id: p.id as string,
+    name: p.name as string,
+    slug: p.slug as string,
+    published: !!p.published,
+    completeness: completenessScore(p),
   }));
   const propertyName = new Map(properties.map((p) => [p.id, p.name]));
   const marketplaceNameByUrl = new Map<string, string>();
   for (const p of propsRaw ?? []) {
     const links = Array.isArray((p as { marketplace_links?: unknown }).marketplace_links)
-      ? ((p as { marketplace_links?: Array<{ url?: unknown; label?: unknown }> }).marketplace_links ?? [])
+      ? ((p as { marketplace_links?: Array<{ url?: unknown; label?: unknown }> })
+          .marketplace_links ?? [])
       : [];
     for (const link of links) {
       const url = typeof link.url === "string" ? link.url.trim() : "";
@@ -149,39 +172,65 @@ async function runAnalytics(
 
   const allIds = properties.map((p) => p.id);
   const req = input.propertyIds ?? null;
-  const filteredIds = req && req.length > 0 && !req.includes("all") ? req.filter((id) => allIds.includes(id)) : allIds;
+  const filteredIds =
+    req && req.length > 0 && !req.includes("all")
+      ? req.filter((id) => allIds.includes(id))
+      : allIds;
 
   if (filteredIds.length === 0) return emptyPayload(properties);
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const [logsQ, prevLogsQ, convsQ, msgsQ, feedbackQ, sectionsQ, poiQ, recsQ] = await Promise.all([
-    supabase.from("guide_access_logs")
+    supabase
+      .from("guide_access_logs")
       .select("id, property_id, guest_name, user_agent, created_at")
-      .in("property_id", filteredIds).gte("created_at", since.toISOString())
-      .order("created_at", { ascending: false }).limit(20000),
-    supabase.from("guide_access_logs")
+      .in("property_id", filteredIds)
+      .gte("created_at", since.toISOString())
+      .order("created_at", { ascending: false })
+      .limit(20000),
+    supabase
+      .from("guide_access_logs")
       .select("id, property_id, created_at")
-      .in("property_id", filteredIds).gte("created_at", prevSince.toISOString())
-      .lt("created_at", since.toISOString()).limit(20000),
-    supabase.from("property_chat_conversations")
+      .in("property_id", filteredIds)
+      .gte("created_at", prevSince.toISOString())
+      .lt("created_at", since.toISOString())
+      .limit(20000),
+    supabase
+      .from("property_chat_conversations")
       .select("id, property_id, guest_session_id, created_at, last_message_at")
-      .in("property_id", filteredIds).gte("created_at", since.toISOString()).limit(10000),
-    supabase.from("property_chat_messages")
-      .select("id, conversation_id, role, created_at, property_chat_conversations!inner(property_id)")
+      .in("property_id", filteredIds)
+      .gte("created_at", since.toISOString())
+      .limit(10000),
+    supabase
+      .from("property_chat_messages")
+      .select(
+        "id, conversation_id, role, created_at, property_chat_conversations!inner(property_id)",
+      )
       .in("property_chat_conversations.property_id", filteredIds)
-      .gte("created_at", since.toISOString()).limit(20000),
-    supabase.from("chat_message_feedback")
+      .gte("created_at", since.toISOString())
+      .limit(20000),
+    supabase
+      .from("chat_message_feedback")
       .select("message_id, conversation_id, property_id, reason, resolved, created_at")
-      .in("property_id", filteredIds).gte("created_at", since.toISOString()),
+      .in("property_id", filteredIds)
+      .gte("created_at", since.toISOString()),
     (supabaseAdmin.from("guide_section_events" as never) as ReturnType<typeof supabaseAdmin.from>)
       .select("property_id, section, guest_session_id, created_at")
-      .in("property_id", filteredIds).gte("created_at", since.toISOString())
-      .order("created_at", { ascending: true }).limit(40000) as Promise<{ data: SectionEvt[] | null }>,
-    supabase.from("poi_engagement_events")
+      .in("property_id", filteredIds)
+      .gte("created_at", since.toISOString())
+      .order("created_at", { ascending: true })
+      .limit(40000) as Promise<{ data: SectionEvt[] | null }>,
+    supabase
+      .from("poi_engagement_events")
       .select("property_id, poi_key, poi_type, event_type, created_at")
-      .in("property_id", filteredIds).gte("created_at", since.toISOString()).limit(20000),
-    supabase.from("property_recommendations")
-      .select("id, property_id, place_id, name").in("property_id", filteredIds).limit(5000),
+      .in("property_id", filteredIds)
+      .gte("created_at", since.toISOString())
+      .limit(20000),
+    supabase
+      .from("property_recommendations")
+      .select("id, property_id, place_id, name")
+      .in("property_id", filteredIds)
+      .limit(5000),
   ]);
   const logs = logsQ.data ?? [];
   const prevLogs = prevLogsQ.data ?? [];
@@ -192,14 +241,16 @@ async function runAnalytics(
   const poiEvents = poiQ.data ?? [];
   const recs = recsQ.data ?? [];
 
-  const logsF = input.device === "all" ? logs : logs.filter((l) => detectDevice(l.user_agent) === input.device);
+  const logsF =
+    input.device === "all" ? logs : logs.filter((l) => detectDevice(l.user_agent) === input.device);
 
   // ---- sessionization ---------------------------------------------------
   const sessions = sessionize(sectionsRaw);
   const sessionsById = new Map<string, Session[]>();
   for (const s of sessions) {
     const arr = sessionsById.get(s.sid) ?? [];
-    arr.push(s); sessionsById.set(s.sid, arr);
+    arr.push(s);
+    sessionsById.set(s.sid, arr);
   }
   const sessionsWithChat = new Set<string>();
   for (const c of convs) if (c.guest_session_id) sessionsWithChat.add(c.guest_session_id);
@@ -210,17 +261,21 @@ async function runAnalytics(
   const totalChats = convs.length;
   const openFeedback = feedback.filter((f) => !f.resolved).length;
   const chatRate = totalAccesses > 0 ? Math.round((totalChats / totalAccesses) * 100) : 0;
-  const autoResolveRate = totalAccesses > 0
-    ? Math.round(((totalAccesses - totalChats) / totalAccesses) * 100) : 0;
+  const autoResolveRate =
+    totalAccesses > 0 ? Math.round(((totalAccesses - totalChats) / totalAccesses) * 100) : 0;
 
   const durations = sessions.map(sessionDurationSeconds).sort((a, b) => a - b);
   const avgSessionSeconds = Math.round(percentile(durations, 0.5));
   const p90SessionSeconds = Math.round(percentile(durations, 0.9));
   const depthValues = sessions.map((s) => new Set(s.sections).size);
-  const depthAvg = depthValues.length > 0
-    ? Math.round((depthValues.reduce((a, b) => a + b, 0) / depthValues.length) * 10) / 10 : 0;
-  const depthEngagedRate = depthValues.length > 0
-    ? Math.round((depthValues.filter((v) => v >= 3).length / depthValues.length) * 100) : 0;
+  const depthAvg =
+    depthValues.length > 0
+      ? Math.round((depthValues.reduce((a, b) => a + b, 0) / depthValues.length) * 10) / 10
+      : 0;
+  const depthEngagedRate =
+    depthValues.length > 0
+      ? Math.round((depthValues.filter((v) => v >= 3).length / depthValues.length) * 100)
+      : 0;
 
   function pct(cur: number, prev: number): number | null {
     if (prev === 0) return cur > 0 ? 100 : null;
@@ -230,20 +285,29 @@ async function runAnalytics(
   // ---- séries temporais -------------------------------------------------
   const dayKeys: string[] = [];
   for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i);
+    const d = new Date();
+    d.setDate(d.getDate() - i);
     dayKeys.push(d.toISOString().slice(0, 10));
   }
-  const dayMap = new Map<string, { date: string; accesses: number; sessions: number; chats: number; avgDurSec: number }>();
-  for (const k of dayKeys) dayMap.set(k, { date: k, accesses: 0, sessions: 0, chats: 0, avgDurSec: 0 });
+  const dayMap = new Map<
+    string,
+    { date: string; accesses: number; sessions: number; chats: number; avgDurSec: number }
+  >();
+  for (const k of dayKeys)
+    dayMap.set(k, { date: k, accesses: 0, sessions: 0, chats: 0, avgDurSec: 0 });
   for (const l of logsF) {
     const k = String(l.created_at).slice(0, 10);
-    const row = dayMap.get(k); if (row) row.accesses++;
+    const row = dayMap.get(k);
+    if (row) row.accesses++;
   }
   const durByDay = new Map<string, number[]>();
   for (const s of sessions) {
     const k = new Date(s.start).toISOString().slice(0, 10);
-    const row = dayMap.get(k); if (row) row.sessions++;
-    const arr = durByDay.get(k) ?? []; arr.push(sessionDurationSeconds(s)); durByDay.set(k, arr);
+    const row = dayMap.get(k);
+    if (row) row.sessions++;
+    const arr = durByDay.get(k) ?? [];
+    arr.push(sessionDurationSeconds(s));
+    durByDay.set(k, arr);
   }
   for (const [k, arr] of durByDay) {
     const row = dayMap.get(k);
@@ -251,7 +315,8 @@ async function runAnalytics(
   }
   for (const c of convs) {
     const k = String(c.created_at).slice(0, 10);
-    const row = dayMap.get(k); if (row) row.chats++;
+    const row = dayMap.get(k);
+    if (row) row.chats++;
   }
   const timeseries = Array.from(dayMap.values());
 
@@ -264,7 +329,11 @@ async function runAnalytics(
     { label: "> 15min", from: 900, to: Infinity, count: 0 },
   ];
   for (const d of durations) {
-    for (const b of durationBuckets) if (d >= b.from && d < b.to) { b.count++; break; }
+    for (const b of durationBuckets)
+      if (d >= b.from && d < b.to) {
+        b.count++;
+        break;
+      }
   }
 
   // ---- curva de profundidade -------------------------------------------
@@ -290,26 +359,48 @@ async function runAnalytics(
     sectionOpens.set(s.section, (sectionOpens.get(s.section) ?? 0) + 1);
     if (s.guest_session_id) {
       let set = sectionSessions.get(s.section);
-      if (!set) { set = new Set(); sectionSessions.set(s.section, set); }
+      if (!set) {
+        set = new Set();
+        sectionSessions.set(s.section, set);
+      }
       set.add(s.guest_session_id);
     }
   }
-  const sectionEntries = Array.from(sectionOpens.entries()).map(([section, opens]) => {
-    const sessSet = sectionSessions.get(section) ?? new Set<string>();
-    const sess = sessSet.size;
-    let sessChat = 0;
-    for (const sid of sessSet) if (sessionsWithChat.has(sid)) sessChat++;
-    const autoResolve = sess > 0 ? Math.round(((sess - sessChat) / sess) * 100) : 0;
-    return { section, opens, sessions: sess, autoResolveRate: autoResolve };
-  }).sort((a, b) => b.opens - a.opens);
+  const sectionEntries = Array.from(sectionOpens.entries())
+    .map(([section, opens]) => {
+      const sessSet = sectionSessions.get(section) ?? new Set<string>();
+      const sess = sessSet.size;
+      let sessChat = 0;
+      for (const sid of sessSet) if (sessionsWithChat.has(sid)) sessChat++;
+      const autoResolve = sess > 0 ? Math.round(((sess - sessChat) / sess) * 100) : 0;
+      return { section, opens, sessions: sess, autoResolveRate: autoResolve };
+    })
+    .sort((a, b) => b.opens - a.opens);
 
-  const KNOWN_SECTIONS = ["wifi", "checkin", "checkout", "house_rules", "manual", "faqs", "emergency", "recommendations", "nearby", "city", "marketplace", "chat"];
+  const KNOWN_SECTIONS = [
+    "wifi",
+    "checkin",
+    "checkout",
+    "house_rules",
+    "manual",
+    "faqs",
+    "emergency",
+    "recommendations",
+    "nearby",
+    "city",
+    "marketplace",
+    "chat",
+  ];
   const seenSections = new Set(sectionEntries.map((s) => s.section));
   const silentSections = KNOWN_SECTIONS.filter((s) => !seenSections.has(s));
 
   // ---- funil ----------------------------------------------------------
-  const engagedSessionIds = new Set(sessions.filter((s) => new Set(s.sections).size >= 2).map((s) => s.sid));
-  const chatSessionIds = new Set(sessions.filter((s) => sessionsWithChat.has(s.sid)).map((s) => s.sid));
+  const engagedSessionIds = new Set(
+    sessions.filter((s) => new Set(s.sections).size >= 2).map((s) => s.sid),
+  );
+  const chatSessionIds = new Set(
+    sessions.filter((s) => sessionsWithChat.has(s.sid)).map((s) => s.sid),
+  );
   const badConversations = new Set<string>();
   for (const f of feedback) if (!f.resolved) badConversations.add(f.conversation_id as string);
   const usefulChatSessionIds = new Set<string>();
@@ -328,7 +419,8 @@ async function runAnalytics(
   const sessionsByProp = new Map<string, Session[]>();
   for (const s of sessions) {
     const arr = sessionsByProp.get(s.propertyId) ?? [];
-    arr.push(s); sessionsByProp.set(s.propertyId, arr);
+    arr.push(s);
+    sessionsByProp.set(s.propertyId, arr);
   }
   const perProperty = properties
     .filter((p) => filteredIds.includes(p.id))
@@ -338,11 +430,19 @@ async function runAnalytics(
       const ss = sessionsByProp.get(p.id) ?? [];
       const durs = ss.map(sessionDurationSeconds).sort((a, b) => a - b);
       const avg = Math.round(percentile(durs, 0.5));
-      const sectionsPerSession = ss.length > 0
-        ? Math.round((ss.reduce((n, s) => n + new Set(s.sections).size, 0) / ss.length) * 10) / 10 : 0;
+      const sectionsPerSession =
+        ss.length > 0
+          ? Math.round((ss.reduce((n, s) => n + new Set(s.sections).size, 0) / ss.length) * 10) / 10
+          : 0;
       return {
-        id: p.id, name: p.name, slug: p.slug, published: p.published, completeness: p.completeness,
-        accesses: acc, chats, sessions: ss.length,
+        id: p.id,
+        name: p.name,
+        slug: p.slug,
+        published: p.published,
+        completeness: p.completeness,
+        accesses: acc,
+        chats,
+        sessions: ss.length,
         chatRate: acc > 0 ? Math.round((chats / acc) * 100) : 0,
         sectionsPerSession,
         avgSessionSeconds: avg,
@@ -372,23 +472,53 @@ async function runAnalytics(
     if (rid && nm) recNameById.set(rid, nm);
     if (pid && nm) recNameByPlace.set(pid, nm);
   }
-  const poiKeys = Array.from(new Set(poiEvents.map((e) => String(e.poi_key ?? "").trim()).filter(Boolean)));
-  const poiCandidates = Array.from(new Set(poiKeys.flatMap((k) => {
-    const parts = k.split(":");
-    const candidate = parts.length > 1 ? parts.slice(1).join(":") : k;
-    return [k, candidate];
-  })));
-  const uuidCandidates = poiCandidates.filter((k) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(k));
+  const poiKeys = Array.from(
+    new Set(poiEvents.map((e) => String(e.poi_key ?? "").trim()).filter(Boolean)),
+  );
+  const poiCandidates = Array.from(
+    new Set(
+      poiKeys.flatMap((k) => {
+        const parts = k.split(":");
+        const candidate = parts.length > 1 ? parts.slice(1).join(":") : k;
+        return [k, candidate];
+      }),
+    ),
+  );
+  const uuidCandidates = poiCandidates.filter((k) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(k),
+  );
   const cityNameById = new Map<string, string>();
   const cityNameByPlace = new Map<string, string>();
   if (poiCandidates.length > 0) {
-    const cityResults: Array<{ data: Array<{ id?: string | null; place_id?: string | null; name?: string | null }> | null }> = [];
+    const cityResults: Array<{
+      data: Array<{ id?: string | null; place_id?: string | null; name?: string | null }> | null;
+    }> = [];
     if (uuidCandidates.length > 0) {
-      const byId = await supabaseAdmin.from("city_references").select("id, place_id, name").in("id", uuidCandidates).limit(5000);
-      cityResults.push(byId as { data: Array<{ id?: string | null; place_id?: string | null; name?: string | null }> | null });
+      const byId = await supabaseAdmin
+        .from("city_references")
+        .select("id, place_id, name")
+        .in("id", uuidCandidates)
+        .limit(5000);
+      cityResults.push(
+        byId as {
+          data: Array<{
+            id?: string | null;
+            place_id?: string | null;
+            name?: string | null;
+          }> | null;
+        },
+      );
     }
-    const byPlace = await supabaseAdmin.from("city_references").select("id, place_id, name").in("place_id", poiCandidates).limit(5000);
-    cityResults.push(byPlace as { data: Array<{ id?: string | null; place_id?: string | null; name?: string | null }> | null });
+    const byPlace = await supabaseAdmin
+      .from("city_references")
+      .select("id, place_id, name")
+      .in("place_id", poiCandidates)
+      .limit(5000);
+    cityResults.push(
+      byPlace as {
+        data: Array<{ id?: string | null; place_id?: string | null; name?: string | null }> | null;
+      },
+    );
     for (const result of cityResults) {
       for (const r of result.data ?? []) {
         const id = typeof r.id === "string" ? r.id : null;
@@ -399,7 +529,10 @@ async function runAnalytics(
       }
     }
   }
-  const poiCounts = new Map<string, { key: string; displayName: string; views: number; likes: number; dislikes: number }>();
+  const poiCounts = new Map<
+    string,
+    { key: string; displayName: string; views: number; likes: number; dislikes: number }
+  >();
   for (const e of poiEvents) {
     const k = e.poi_key as string;
     let entry = poiCounts.get(k);
@@ -421,7 +554,8 @@ async function runAnalytics(
       // Fallback: se o poi_key parece uma URL ou UUID cru, mostra rótulo genérico
       const isUrl = /^https?:\/\//i.test(k) || k.startsWith("//");
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(k);
-      const finalDisplay = display ?? (isUrl ? "Link externo" : isUuid ? "Recomendação sem nome" : candidate);
+      const finalDisplay =
+        display ?? (isUrl ? "Link externo" : isUuid ? "Recomendação sem nome" : candidate);
       entry = { key: k, displayName: finalDisplay, views: 0, likes: 0, dislikes: 0 };
       poiCounts.set(k, entry);
     }
@@ -430,22 +564,32 @@ async function runAnalytics(
     else if (t === "like") entry.likes++;
     else if (t === "dislike") entry.dislikes++;
   }
-  const poiArr = Array.from(poiCounts.values()).sort((a, b) => (b.views + b.likes) - (a.views + a.likes));
+  const poiArr = Array.from(poiCounts.values()).sort(
+    (a, b) => b.views + b.likes - (a.views + a.likes),
+  );
   const topPois = poiArr.slice(0, 10);
   const coldPois = poiArr.filter((p) => p.views === 0 && p.likes === 0).slice(0, 10);
 
   const _ = msgs; // reservado para futuras métricas de mensagem
-  void _; void prevLogs; void propertyName;
+  void _;
+  void prevLogs;
+  void propertyName;
 
   return {
     filters: { period: input.period, propertyIds: input.propertyIds ?? null, device: input.device },
     properties,
     kpis: {
-      totalAccesses, uniqueSessions, totalChats,
-      chatRate, autoResolveRate, openFeedback,
+      totalAccesses,
+      uniqueSessions,
+      totalChats,
+      chatRate,
+      autoResolveRate,
+      openFeedback,
       accessesDelta: pct(totalAccesses, prevLogs.length),
-      avgSessionSeconds, p90SessionSeconds,
-      depthAvg, depthEngagedRate,
+      avgSessionSeconds,
+      p90SessionSeconds,
+      depthAvg,
+      depthEngagedRate,
     },
     timeseries,
     durationBuckets: durationBuckets.map((b) => ({ label: b.label, count: b.count })),
@@ -460,25 +604,86 @@ async function runAnalytics(
   };
 }
 
-function emptyPayload(properties: Array<{ id: string; name: string; slug: string; published: boolean; completeness: number }>) {
+function emptyPayload(
+  properties: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    published: boolean;
+    completeness: number;
+  }>,
+) {
   return {
-    filters: { period: "30d" as const, propertyIds: null as string[] | null, device: "all" as const },
+    filters: {
+      period: "30d" as const,
+      propertyIds: null as string[] | null,
+      device: "all" as const,
+    },
     properties,
     kpis: {
-      totalAccesses: 0, uniqueSessions: 0, totalChats: 0, chatRate: 0,
-      autoResolveRate: 0, openFeedback: 0, accessesDelta: null as number | null,
-      avgSessionSeconds: 0, p90SessionSeconds: 0, depthAvg: 0, depthEngagedRate: 0,
+      totalAccesses: 0,
+      uniqueSessions: 0,
+      totalChats: 0,
+      chatRate: 0,
+      autoResolveRate: 0,
+      openFeedback: 0,
+      accessesDelta: null as number | null,
+      avgSessionSeconds: 0,
+      p90SessionSeconds: 0,
+      depthAvg: 0,
+      depthEngagedRate: 0,
     },
-    timeseries: [] as Array<{ date: string; accesses: number; sessions: number; chats: number; avgDurSec: number }>,
+    timeseries: [] as Array<{
+      date: string;
+      accesses: number;
+      sessions: number;
+      chats: number;
+      avgDurSec: number;
+    }>,
     durationBuckets: [] as Array<{ label: string; count: number }>,
     depthCurve: [] as Array<{ label: string; count: number }>,
-    sections: [] as Array<{ section: string; opens: number; sessions: number; autoResolveRate: number }>,
+    sections: [] as Array<{
+      section: string;
+      opens: number;
+      sessions: number;
+      autoResolveRate: number;
+    }>,
     silentSections: [] as string[],
     funnel: [] as Array<{ key: string; label: string; value: number }>,
-    perProperty: [] as Array<{ id: string; name: string; slug: string; published: boolean; completeness: number; accesses: number; chats: number; sessions: number; chatRate: number; sectionsPerSession: number; avgSessionSeconds: number }>,
-    openFeedbackList: [] as Array<{ message_id: string; conversation_id: string; property_id: string; reason: string | null; created_at: string }>,
-    topPois: [] as Array<{ key: string; displayName: string; views: number; likes: number; dislikes: number }>,
-    coldPois: [] as Array<{ key: string; displayName: string; views: number; likes: number; dislikes: number }>,
+    perProperty: [] as Array<{
+      id: string;
+      name: string;
+      slug: string;
+      published: boolean;
+      completeness: number;
+      accesses: number;
+      chats: number;
+      sessions: number;
+      chatRate: number;
+      sectionsPerSession: number;
+      avgSessionSeconds: number;
+    }>,
+    openFeedbackList: [] as Array<{
+      message_id: string;
+      conversation_id: string;
+      property_id: string;
+      reason: string | null;
+      created_at: string;
+    }>,
+    topPois: [] as Array<{
+      key: string;
+      displayName: string;
+      views: number;
+      likes: number;
+      dislikes: number;
+    }>,
+    coldPois: [] as Array<{
+      key: string;
+      displayName: string;
+      views: number;
+      likes: number;
+      dislikes: number;
+    }>,
   };
 }
 

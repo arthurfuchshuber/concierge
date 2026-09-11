@@ -74,43 +74,38 @@ function TrustPage() {
           </div>
           <h1 className="font-display text-4xl mt-4">Central de Confiança</h1>
           <p className="text-sm text-muted-foreground mt-2 max-w-2xl">
-            Esta página é mantida pela equipe do ConciergeIA para responder dúvidas
-            comuns sobre segurança, privacidade e operação do produto. Não constitui
-            certificação independente; é um descritivo dos controles atualmente em
-            uso no aplicativo.
+            Esta página é mantida pela equipe do ConciergeIA para responder dúvidas comuns sobre
+            segurança, privacidade e operação do produto. Não constitui certificação independente; é
+            um descritivo dos controles atualmente em uso no aplicativo.
           </p>
         </header>
 
         <section className="mt-10 space-y-8 text-sm leading-relaxed">
-          <Block
-            icon={<KeyRound className="size-4" />}
-            title="Autenticação e contas"
-          >
+          <Block icon={<KeyRound className="size-4" />} title="Autenticação e contas">
             <ul className="list-disc pl-6 space-y-1.5">
               <li>Login por e-mail/senha e por conta Google.</li>
               <li>Senhas são armazenadas com hash; nunca em texto puro.</li>
               <li>Sessões usam tokens JWT de curta duração com renovação automática.</li>
-              <li>O painel administrativo é acessível apenas após autenticação e seleção de plano.</li>
+              <li>
+                O painel administrativo é acessível apenas após autenticação e seleção de plano.
+              </li>
             </ul>
           </Block>
 
-          <Block
-            icon={<Lock className="size-4" />}
-            title="Dados sensíveis dentro dos guias"
-          >
+          <Block icon={<Lock className="size-4" />} title="Dados sensíveis dentro dos guias">
             <ul className="list-disc pl-6 space-y-1.5">
               <li>
-                Senhas de Wi-Fi, códigos de portão, códigos de fechadura e códigos
-                de acesso podem ser protegidos por PIN definido pelo anfitrião.
+                Senhas de Wi-Fi, códigos de portão, códigos de fechadura e códigos de acesso podem
+                ser protegidos por PIN definido pelo anfitrião.
               </li>
               <li>
-                Quando o PIN está ativo, o conteúdo só é revelado após o hóspede
-                informar o código correto; nenhum mecanismo do app (incluindo a
-                assistente de IA) revela dados bloqueados.
+                Quando o PIN está ativo, o conteúdo só é revelado após o hóspede informar o código
+                correto; nenhum mecanismo do app (incluindo a assistente de IA) revela dados
+                bloqueados.
               </li>
               <li>
-                O anfitrião controla a expiração do PIN e pode trocá-lo a qualquer
-                momento pelo painel.
+                O anfitrião controla a expiração do PIN e pode trocá-lo a qualquer momento pelo
+                painel.
               </li>
             </ul>
           </Block>
@@ -121,25 +116,21 @@ function TrustPage() {
           >
             <ul className="list-disc pl-6 space-y-1.5">
               <li>
-                Cada anfitrião só enxerga seus próprios imóveis, conversas e
-                configurações. O isolamento é enforced no banco de dados via
-                Row Level Security.
+                Cada anfitrião só enxerga seus próprios imóveis, conversas e configurações. O
+                isolamento é enforced no banco de dados via Row Level Security.
               </li>
               <li>
-                Operações administrativas privilegiadas exigem verificação
-                explícita de papel no servidor.
+                Operações administrativas privilegiadas exigem verificação explícita de papel no
+                servidor.
               </li>
               <li>
-                Webhooks externos (pagamentos) são verificados por assinatura
-                criptográfica antes de qualquer escrita.
+                Webhooks externos (pagamentos) são verificados por assinatura criptográfica antes de
+                qualquer escrita.
               </li>
             </ul>
           </Block>
 
-          <Block
-            icon={<Globe className="size-4" />}
-            title="Infraestrutura e subprocessadores"
-          >
+          <Block icon={<Globe className="size-4" />} title="Infraestrutura e subprocessadores">
             <ul className="list-disc pl-6 space-y-1.5">
               <li>Hospedagem da aplicação: Lovable (Cloudflare edge).</li>
               <li>Banco de dados, autenticação e armazenamento: Supabase.</li>
@@ -148,44 +139,38 @@ function TrustPage() {
               <li>Assistente de IA: provedores acessados via Lovable AI Gateway.</li>
             </ul>
             <p className="text-xs text-muted-foreground mt-3">
-              O tráfego entre o navegador e nossos servidores ocorre via HTTPS
-              (TLS). Dados em repouso ficam nos provedores listados acima, que
-              aplicam seus próprios controles de criptografia e isolamento.
+              O tráfego entre o navegador e nossos servidores ocorre via HTTPS (TLS). Dados em
+              repouso ficam nos provedores listados acima, que aplicam seus próprios controles de
+              criptografia e isolamento.
             </p>
           </Block>
 
           <Block icon={<ShieldCheck className="size-4" />} title="Retenção e exclusão">
             <ul className="list-disc pl-6 space-y-1.5">
               <li>
-                Você pode editar ou excluir qualquer guia, foto ou recomendação a
-                qualquer momento pelo painel.
+                Você pode editar ou excluir qualquer guia, foto ou recomendação a qualquer momento
+                pelo painel.
               </li>
               <li>
-                Para excluir sua conta e dados associados, envie a solicitação por
-                e-mail (abaixo). Confirmamos a exclusão por e-mail e processamos em
-                até 30 dias.
+                Para excluir sua conta e dados associados, envie a solicitação por e-mail (abaixo).
+                Confirmamos a exclusão por e-mail e processamos em até 30 dias.
               </li>
               <li>
-                Dados de cobrança ficam retidos pelo período exigido pela
-                legislação fiscal aplicável, sob responsabilidade do processador
-                de pagamentos.
+                Dados de cobrança ficam retidos pelo período exigido pela legislação fiscal
+                aplicável, sob responsabilidade do processador de pagamentos.
               </li>
             </ul>
           </Block>
 
           <Block icon={<Mail className="size-4" />} title="Reportar uma vulnerabilidade">
             <p>
-              Encontrou algo que parece um problema de segurança? Escreva para nós
-              descrevendo o cenário e os passos para reproduzir. Pedimos que não
-              divulgue publicamente a falha antes de termos a oportunidade de
-              corrigi-la.
+              Encontrou algo que parece um problema de segurança? Escreva para nós descrevendo o
+              cenário e os passos para reproduzir. Pedimos que não divulgue publicamente a falha
+              antes de termos a oportunidade de corrigi-la.
             </p>
             <p className="mt-2">
               Contato:{" "}
-              <a
-                className="underline"
-                href="mailto:seguranca@sigmaguide.app"
-              >
+              <a className="underline" href="mailto:seguranca@sigmaguide.app">
                 seguranca@sigmaguide.app
               </a>
             </p>

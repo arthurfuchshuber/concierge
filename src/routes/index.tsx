@@ -142,7 +142,6 @@ function LandingPage() {
   );
 }
 
-
 /* ---------- HEADER ---------- */
 function Header() {
   const [open, setOpen] = useState(false);
@@ -158,10 +157,18 @@ function Header() {
         </Link>
 
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-black/70">
-          <a href="#recursos" className="hover:text-black transition">Recursos</a>
-          <a href="#planos" className="hover:text-black transition">Planos</a>
-          <a href="#faq" className="hover:text-black transition">FAQ</a>
-          <Link to="/auth" search={{ next: undefined }} className="hover:text-black transition">Login</Link>
+          <a href="#recursos" className="hover:text-black transition">
+            Recursos
+          </a>
+          <a href="#planos" className="hover:text-black transition">
+            Planos
+          </a>
+          <a href="#faq" className="hover:text-black transition">
+            FAQ
+          </a>
+          <Link to="/auth" search={{ next: undefined }} className="hover:text-black transition">
+            Login
+          </Link>
         </nav>
 
         <div className="flex items-center gap-2">
@@ -185,10 +192,18 @@ function Header() {
       {open && (
         <div className="md:hidden border-t border-black/5 bg-white/95 backdrop-blur">
           <div className="px-5 py-4 flex flex-col gap-3 text-sm font-medium">
-            <a href="#recursos" onClick={() => setOpen(false)}>Recursos</a>
-            <a href="#planos" onClick={() => setOpen(false)}>Planos</a>
-            <a href="#faq" onClick={() => setOpen(false)}>FAQ</a>
-            <Link to="/auth" search={{ next: undefined }} onClick={() => setOpen(false)}>Login</Link>
+            <a href="#recursos" onClick={() => setOpen(false)}>
+              Recursos
+            </a>
+            <a href="#planos" onClick={() => setOpen(false)}>
+              Planos
+            </a>
+            <a href="#faq" onClick={() => setOpen(false)}>
+              FAQ
+            </a>
+            <Link to="/auth" search={{ next: undefined }} onClick={() => setOpen(false)}>
+              Login
+            </Link>
             <Link
               to="/auth"
               search={{ next: undefined }}
@@ -238,8 +253,8 @@ function Hero() {
           </h1>
 
           <p className="mt-5 text-[15px] sm:text-lg text-black/70 leading-relaxed text-pretty">
-            O ConciergeIA responde dúvidas do check-in ao check-out — no idioma do hóspede
-            e com o tom da sua marca. Você recupera seu tempo. Eles ficam encantados.
+            O ConciergeIA responde dúvidas do check-in ao check-out — no idioma do hóspede e com o
+            tom da sua marca. Você recupera seu tempo. Eles ficam encantados.
           </p>
 
           <div className="mt-8 flex flex-col sm:flex-row gap-3 w-full sm:w-auto justify-center">
@@ -249,7 +264,9 @@ function Hero() {
               className="btn-shine inline-flex items-center justify-center gap-2 rounded-full h-12 px-7 text-white text-sm font-semibold shadow-xl hover:opacity-95 transition"
               style={{ background: BRAND_GRADIENT }}
             >
-              <span className="inline-flex items-center gap-2">Testar 7 dias grátis <ArrowRight className="size-4" /></span>
+              <span className="inline-flex items-center gap-2">
+                Testar 7 dias grátis <ArrowRight className="size-4" />
+              </span>
             </Link>
 
             <a
@@ -293,7 +310,6 @@ function Hero() {
   );
 }
 
-
 /* Phone mockup with a fake chat conversation */
 function PhoneMockup() {
   return (
@@ -330,8 +346,8 @@ function PhoneMockup() {
           <div className="px-4 py-4 space-y-2.5 min-h-[340px]">
             <ChatBubble side="user">Oi! A que horas é o check-in?</ChatBubble>
             <ChatBubble side="ai">
-              Olá, Marina! 🌊 O check-in é a partir das <b>15h</b>. Se chegar antes, deixa a mala com o
-              porteiro. Posso te enviar o mapa de acesso?
+              Olá, Marina! 🌊 O check-in é a partir das <b>15h</b>. Se chegar antes, deixa a mala
+              com o porteiro. Posso te enviar o mapa de acesso?
             </ChatBubble>
             <ChatBubble side="user">Sim! E tem restaurante bom perto?</ChatBubble>
             <ChatBubble side="ai">
@@ -347,7 +363,10 @@ function PhoneMockup() {
           <div className="px-3 pb-4">
             <div className="rounded-full bg-white border border-black/10 flex items-center gap-2 pl-4 pr-1 py-1">
               <span className="text-[12px] text-black/40 flex-1">Escreva sua mensagem…</span>
-              <div className="size-8 rounded-full grid place-items-center" style={{ background: BRAND_GRADIENT }}>
+              <div
+                className="size-8 rounded-full grid place-items-center"
+                style={{ background: BRAND_GRADIENT }}
+              >
                 <Send className="size-3.5 text-white" />
               </div>
             </div>
@@ -357,11 +376,16 @@ function PhoneMockup() {
 
       {/* Floating badge */}
       <div className="absolute -left-4 top-24 hidden sm:flex items-center gap-2 bg-white rounded-2xl border border-black/5 shadow-xl px-3 py-2">
-        <div className="size-8 rounded-full grid place-items-center" style={{ background: BRAND_GRADIENT }}>
+        <div
+          className="size-8 rounded-full grid place-items-center"
+          style={{ background: BRAND_GRADIENT }}
+        >
           <Zap className="size-4 text-white" />
         </div>
         <div>
-          <div className="text-[10px] uppercase tracking-widest text-black/50 font-semibold">Resposta em</div>
+          <div className="text-[10px] uppercase tracking-widest text-black/50 font-semibold">
+            Resposta em
+          </div>
           <div className="text-sm font-bold">2.7s</div>
         </div>
       </div>
@@ -370,7 +394,9 @@ function PhoneMockup() {
           <Star className="size-4 fill-amber-500 text-amber-500" />
         </div>
         <div>
-          <div className="text-[10px] uppercase tracking-widest text-black/50 font-semibold">Avaliação</div>
+          <div className="text-[10px] uppercase tracking-widest text-black/50 font-semibold">
+            Avaliação
+          </div>
           <div className="text-sm font-bold">4.9 / 5</div>
         </div>
       </div>
@@ -503,22 +529,19 @@ function Showcase() {
     {
       tag: "IA treinada na sua casa",
       title: "Ela conhece cada detalhe — do wifi ao seu restaurante favorito.",
-      body:
-        "Você preenche uma vez. A IA aprende endereço, regras, café da manhã, indicações e responde como se fosse você — inclusive nos detalhes que só um bom anfitrião sabe.",
+      body: "Você preenche uma vez. A IA aprende endereço, regras, café da manhã, indicações e responde como se fosse você — inclusive nos detalhes que só um bom anfitrião sabe.",
       mockup: <MockupBrain />,
     },
     {
       tag: "Dashboard vivo",
       title: "Enxergue tudo o que a IA está resolvendo — e o que precisa de você.",
-      body:
-        "Você recebe alerta só quando o hóspede precisa de decisão humana. O resto, o ConciergeIA resolve em segundos e reporta.",
+      body: "Você recebe alerta só quando o hóspede precisa de decisão humana. O resto, o ConciergeIA resolve em segundos e reporta.",
       mockup: <MockupDashboard />,
     },
     {
       tag: "3 idiomas nativos",
       title: "Português, inglês e espanhol — sem parecer tradução automática.",
-      body:
-        "Cada mensagem soa natural no idioma do hóspede. Sua nota de comunicação sobe. Suas reviews viram elogio.",
+      body: "Cada mensagem soa natural no idioma do hóspede. Sua nota de comunicação sobe. Suas reviews viram elogio.",
       mockup: <MockupLanguages />,
     },
   ];
@@ -539,7 +562,9 @@ function Showcase() {
                 <h3 className="mt-4 font-display font-bold text-[22px] sm:text-4xl leading-[1.2] tracking-tight text-balance">
                   {b.title}
                 </h3>
-                <p className="mt-4 text-[15px] sm:text-lg text-black/70 leading-relaxed text-pretty">{b.body}</p>
+                <p className="mt-4 text-[15px] sm:text-lg text-black/70 leading-relaxed text-pretty">
+                  {b.body}
+                </p>
               </div>
               <div className="flex justify-center w-full">{b.mockup}</div>
             </div>
@@ -549,7 +574,6 @@ function Showcase() {
     </section>
   );
 }
-
 
 /* --- fake product mockups --- */
 function MockupBrain() {
@@ -564,7 +588,9 @@ function MockupBrain() {
           <div className="size-2 rounded-full bg-red-400" />
           <div className="size-2 rounded-full bg-amber-400" />
           <div className="size-2 rounded-full bg-emerald-400" />
-          <div className="ml-3 text-[11px] font-mono text-black/40">conciergeia.app / minha-casa</div>
+          <div className="ml-3 text-[11px] font-mono text-black/40">
+            conciergeia.app / minha-casa
+          </div>
         </div>
         <div className="text-xs uppercase tracking-widest font-semibold text-black/40 mb-2">
           Conhecimento da casa
@@ -577,9 +603,14 @@ function MockupBrain() {
             { k: "Restaurante favorito", v: "Sal Marinho 🍤" },
             { k: "Praia mais próxima", v: "80m — descida da Rua 3" },
           ].map((row) => (
-            <div key={row.k} className="flex items-center justify-between text-sm py-1.5 border-b border-black/5 last:border-0">
+            <div
+              key={row.k}
+              className="flex items-center justify-between text-sm py-1.5 border-b border-black/5 last:border-0"
+            >
               <span className="text-black/60">{row.k}</span>
-              <span className="font-semibold text-black text-right ml-3 truncate max-w-[60%]">{row.v}</span>
+              <span className="font-semibold text-black text-right ml-3 truncate max-w-[60%]">
+                {row.v}
+              </span>
             </div>
           ))}
         </div>
@@ -604,7 +635,9 @@ function MockupDashboard() {
       <div className="relative rounded-3xl bg-white border border-black/5 shadow-2xl p-5">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <div className="text-xs uppercase tracking-widest font-semibold text-black/40">Hoje</div>
+            <div className="text-xs uppercase tracking-widest font-semibold text-black/40">
+              Hoje
+            </div>
             <div className="font-display font-bold text-lg">Casa Verão · Ilhabela</div>
           </div>
           <img src={conciergeLogo} alt="" className="size-9 object-contain" />
@@ -617,7 +650,9 @@ function MockupDashboard() {
             { label: "Tempo médio", value: "2.9s" },
           ].map((s) => (
             <div key={s.label} className="rounded-xl bg-[#FDF9F2] p-3">
-              <div className="text-[9px] uppercase tracking-widest text-black/50 font-semibold">{s.label}</div>
+              <div className="text-[9px] uppercase tracking-widest text-black/50 font-semibold">
+                {s.label}
+              </div>
               <div className="font-display font-bold text-lg">{s.value}</div>
             </div>
           ))}
@@ -653,7 +688,10 @@ function MockupDashboard() {
           ))}
         </div>
 
-        <div className="mt-4 h-16 rounded-2xl relative overflow-hidden" style={{ background: BRAND_GRADIENT }}>
+        <div
+          className="mt-4 h-16 rounded-2xl relative overflow-hidden"
+          style={{ background: BRAND_GRADIENT }}
+        >
           <svg viewBox="0 0 200 60" className="w-full h-full opacity-70">
             <polyline
               points="0,45 20,38 40,42 60,30 80,32 100,20 120,25 140,15 160,18 180,10 200,12"
@@ -688,10 +726,15 @@ function MockupLanguages() {
           Mesma mensagem · idioma do hóspede
         </div>
         {items.map((it) => (
-          <div key={it.lang} className="flex items-start gap-3 bg-white rounded-2xl p-3 border border-black/5">
+          <div
+            key={it.lang}
+            className="flex items-start gap-3 bg-white rounded-2xl p-3 border border-black/5"
+          >
             <div className="text-2xl">{it.flag}</div>
             <div className="flex-1">
-              <div className="text-[10px] uppercase tracking-widest font-bold text-black/40">{it.lang}</div>
+              <div className="text-[10px] uppercase tracking-widest font-bold text-black/40">
+                {it.lang}
+              </div>
               <div className="text-sm">{it.text}</div>
             </div>
           </div>
@@ -721,7 +764,9 @@ function Metrics() {
               >
                 {s.value}
               </div>
-              <div className="mt-2 text-sm text-black/60 max-w-[180px] mx-auto sm:mx-0">{s.label}</div>
+              <div className="mt-2 text-sm text-black/60 max-w-[180px] mx-auto sm:mx-0">
+                {s.label}
+              </div>
             </div>
           ))}
         </div>
@@ -803,7 +848,6 @@ function Testimonials() {
 }
 
 /* ---------- PRICING ---------- */
-
 
 type PricingCard = {
   key: PlanKey;
@@ -909,7 +953,9 @@ function Pricing() {
         "Onboarding dedicado e SLA 24/7",
       ],
       cta: "Falar com vendas",
-      ctaHref: "https://wa.me/5547996759381?text=" + encodeURIComponent("Olá! Tenho interesse no plano Enterprise do ConciergeIA."),
+      ctaHref:
+        "https://wa.me/5547996759381?text=" +
+        encodeURIComponent("Olá! Tenho interesse no plano Enterprise do ConciergeIA."),
       dark: true,
     },
   ];
@@ -951,23 +997,47 @@ function Pricing() {
                     Mais popular
                   </div>
                 )}
-                <div className={`text-xs uppercase tracking-widest font-bold ${isDark ? "text-white/70" : "text-black/50"}`}>
+                <div
+                  className={`text-xs uppercase tracking-widest font-bold ${isDark ? "text-white/70" : "text-black/50"}`}
+                >
                   {p.name}
                 </div>
                 <div className="mt-3 flex items-baseline gap-1">
                   <span className="font-display font-extrabold text-4xl">{p.price}</span>
-                  {p.period && <span className={isDark ? "text-white/60 text-sm" : "text-black/50 text-sm"}>{p.period}</span>}
+                  {p.period && (
+                    <span className={isDark ? "text-white/60 text-sm" : "text-black/50 text-sm"}>
+                      {p.period}
+                    </span>
+                  )}
                 </div>
-                <p className={`mt-2 text-sm min-h-[48px] ${isDark ? "text-white/70" : "text-black/60"}`}>{p.desc}</p>
+                <p
+                  className={`mt-2 text-sm min-h-[48px] ${isDark ? "text-white/70" : "text-black/60"}`}
+                >
+                  {p.desc}
+                </p>
                 <ul className="mt-6 space-y-2.5 flex-1">
                   {p.features.map((f, idx) => (
                     <li key={f} className="flex items-start gap-2 text-sm">
-                      <Check className={`size-4 mt-0.5 shrink-0 ${idx === 0 && f.startsWith("Tudo do") ? (isDark ? "text-white" : "text-black") : (isDark ? "text-white/80" : "text-[#7C1AD8]")}`} />
-                      <span className={isDark ? "text-white/90" : (idx === 0 && f.startsWith("Tudo do") ? "text-black font-semibold" : "text-black/80")}>{f}</span>
+                      <Check
+                        className={`size-4 mt-0.5 shrink-0 ${idx === 0 && f.startsWith("Tudo do") ? (isDark ? "text-white" : "text-black") : isDark ? "text-white/80" : "text-[#7C1AD8]"}`}
+                      />
+                      <span
+                        className={
+                          isDark
+                            ? "text-white/90"
+                            : idx === 0 && f.startsWith("Tudo do")
+                              ? "text-black font-semibold"
+                              : "text-black/80"
+                        }
+                      >
+                        {f}
+                      </span>
                     </li>
                   ))}
                   {p.lockedNext && (
-                    <li className={`flex items-start gap-2 text-sm ${isDark ? "text-white/40" : "text-black/30"} line-through`}>
+                    <li
+                      className={`flex items-start gap-2 text-sm ${isDark ? "text-white/40" : "text-black/30"} line-through`}
+                    >
                       <span className="size-4 mt-0.5 shrink-0 grid place-items-center">×</span>
                       <span>{p.lockedNext}</span>
                     </li>
@@ -980,10 +1050,14 @@ function Pricing() {
                     rel="noopener noreferrer"
                     onClick={() => metaPixelTrack("InitiateCheckout", { plan: p.name })}
                     className={`btn-shine mt-8 inline-flex items-center justify-center gap-2 rounded-full h-12 text-sm font-semibold transition ${
-                      isDark ? "bg-white text-black hover:opacity-90" : "bg-black text-white hover:opacity-90"
+                      isDark
+                        ? "bg-white text-black hover:opacity-90"
+                        : "bg-black text-white hover:opacity-90"
                     }`}
                   >
-                    <span className="inline-flex items-center gap-2">{p.cta} <ArrowRight className="size-4" /></span>
+                    <span className="inline-flex items-center gap-2">
+                      {p.cta} <ArrowRight className="size-4" />
+                    </span>
                   </a>
                 ) : (
                   <Link
@@ -991,7 +1065,9 @@ function Pricing() {
                     onClick={() => metaPixelTrack("InitiateCheckout", { plan: p.name })}
                     className="btn-shine mt-8 inline-flex items-center justify-center gap-2 rounded-full h-12 text-sm font-semibold transition bg-black text-white hover:opacity-90"
                   >
-                    <span className="inline-flex items-center gap-2">{p.cta} <ArrowRight className="size-4" /></span>
+                    <span className="inline-flex items-center gap-2">
+                      {p.cta} <ArrowRight className="size-4" />
+                    </span>
                   </Link>
                 )}
               </div>
@@ -1011,9 +1087,13 @@ function Pricing() {
             <table className="w-full text-left border-collapse min-w-[720px]">
               <thead>
                 <tr className="border-b border-black/5 bg-black/[0.02]">
-                  <th className="p-4 sm:p-5 text-xs uppercase tracking-wider font-semibold text-black/50 w-[38%]">Recurso</th>
+                  <th className="p-4 sm:p-5 text-xs uppercase tracking-wider font-semibold text-black/50 w-[38%]">
+                    Recurso
+                  </th>
                   <th className="p-4 sm:p-5 text-sm font-semibold text-center">Starter</th>
-                  <th className="p-4 sm:p-5 text-sm font-semibold text-center bg-black/[0.04]">Pro</th>
+                  <th className="p-4 sm:p-5 text-sm font-semibold text-center bg-black/[0.04]">
+                    Pro
+                  </th>
                   <th className="p-4 sm:p-5 text-sm font-semibold text-center">Business</th>
                   <th className="p-4 sm:p-5 text-sm font-semibold text-center">Enterprise</th>
                 </tr>
@@ -1022,13 +1102,18 @@ function Pricing() {
                 {PLAN_COMPARISON_GROUPS.map((group) => (
                   <Fragment key={group.group}>
                     <tr key={`g-${group.group}`} className="bg-black/[0.02]">
-                      <td colSpan={5} className="px-4 sm:px-5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-black/45">
+                      <td
+                        colSpan={5}
+                        className="px-4 sm:px-5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-black/45"
+                      >
                         {group.group}
                       </td>
                     </tr>
                     {group.rows.map((row) => (
                       <tr key={row.label}>
-                        <td className="p-4 sm:p-5 text-sm font-medium text-black/80">{row.label}</td>
+                        <td className="p-4 sm:p-5 text-sm font-medium text-black/80">
+                          {row.label}
+                        </td>
                         {(["starter", "pro", "business", "enterprise"] as PlanKey[]).map((k) => (
                           <td
                             key={k}
@@ -1057,7 +1142,6 @@ function Pricing() {
     </section>
   );
 }
-
 
 /* ---------- FAQ ---------- */
 function FAQ() {
@@ -1119,9 +1203,7 @@ function FAQ() {
                     style={{ color: "#7C1AD8" }}
                   />
                 </div>
-                {isOpen && (
-                  <p className="mt-3 text-sm text-black/70 leading-relaxed">{it.a}</p>
-                )}
+                {isOpen && <p className="mt-3 text-sm text-black/70 leading-relaxed">{it.a}</p>}
               </button>
             );
           })}
@@ -1147,11 +1229,11 @@ function Purpose() {
         </h2>
 
         <p className="mt-4 text-[15px] sm:text-lg text-black/70 leading-relaxed text-pretty">
-          O <strong>ConciergeIA</strong> é um aplicativo web de gestão e atendimento para
-          anfitriões de aluguel por temporada, desenvolvido e operado pela{" "}
-          <strong>Anfitrião Sigma</strong> (Brasil). Ele centraliza o guia digital do imóvel,
-          o atendimento automatizado por IA aos hóspedes, o controle operacional de check-in
-          e check-out e o relacionamento com proprietários e prestadores de serviço.
+          O <strong>ConciergeIA</strong> é um aplicativo web de gestão e atendimento para anfitriões
+          de aluguel por temporada, desenvolvido e operado pela <strong>Anfitrião Sigma</strong>{" "}
+          (Brasil). Ele centraliza o guia digital do imóvel, o atendimento automatizado por IA aos
+          hóspedes, o controle operacional de check-in e check-out e o relacionamento com
+          proprietários e prestadores de serviço.
         </p>
 
         <h3 className="mt-10 font-display font-bold text-xl">Para que serve</h3>
@@ -1175,12 +1257,11 @@ function Purpose() {
         <p className="mt-4 text-[15px] text-black/70 leading-relaxed text-pretty">
           A integração com o <strong>Google Agenda</strong> é opcional e só é ativada quando o
           próprio anfitrião autoriza sua conta Google dentro do painel. Com a autorização, o
-          ConciergeIA lê os eventos da agenda do usuário para exibir, em uma linha do tempo
-          única, os compromissos relacionados a cada imóvel, proprietário ou prestador de
-          serviço (visitas, manutenções, vistorias e limpezas). Os dados obtidos são usados
-          exclusivamente para essa finalidade dentro da conta do usuário, não são vendidos,
-          não são usados para publicidade e podem ser revogados a qualquer momento
-          desconectando a integração no painel.
+          ConciergeIA lê os eventos da agenda do usuário para exibir, em uma linha do tempo única,
+          os compromissos relacionados a cada imóvel, proprietário ou prestador de serviço (visitas,
+          manutenções, vistorias e limpezas). Os dados obtidos são usados exclusivamente para essa
+          finalidade dentro da conta do usuário, não são vendidos, não são usados para publicidade e
+          podem ser revogados a qualquer momento desconectando a integração no painel.
         </p>
 
         <div className="mt-8 flex flex-wrap gap-4 text-sm font-semibold">
@@ -1205,7 +1286,6 @@ function Purpose() {
 }
 
 function FinalCTA() {
-
   return (
     <section className="py-20 sm:py-28">
       <div className="max-w-5xl mx-auto px-5 sm:px-8">
@@ -1213,9 +1293,13 @@ function FinalCTA() {
           className="relative rounded-[2.5rem] p-10 sm:p-16 text-center text-white overflow-hidden shadow-2xl"
           style={{ background: BRAND_GRADIENT }}
         >
-          <div className="absolute inset-0 opacity-20 pointer-events-none" style={{
-            backgroundImage: "radial-gradient(circle at 20% 20%, white 0, transparent 40%), radial-gradient(circle at 80% 80%, white 0, transparent 40%)"
-          }} />
+          <div
+            className="absolute inset-0 opacity-20 pointer-events-none"
+            style={{
+              backgroundImage:
+                "radial-gradient(circle at 20% 20%, white 0, transparent 40%), radial-gradient(circle at 80% 80%, white 0, transparent 40%)",
+            }}
+          />
           <div className="relative">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/15 backdrop-blur px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-widest">
               <Sparkles className="size-3.5" /> 7 dias grátis · sem cartão
@@ -1250,21 +1334,38 @@ function Footer() {
           <span className="font-display font-bold text-base">ConciergeIA</span>
         </div>
         <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-black/70">
-          <a href="#recursos" className="hover:text-black">Recursos</a>
-          <a href="#planos" className="hover:text-black">Planos</a>
-          <a href="#faq" className="hover:text-black">FAQ</a>
-          <a href="#sobre" className="hover:text-black">Sobre o app</a>
+          <a href="#recursos" className="hover:text-black">
+            Recursos
+          </a>
+          <a href="#planos" className="hover:text-black">
+            Planos
+          </a>
+          <a href="#faq" className="hover:text-black">
+            FAQ
+          </a>
+          <a href="#sobre" className="hover:text-black">
+            Sobre o app
+          </a>
 
-          <Link to="/privacidade" className="hover:text-black">Privacidade</Link>
-          <Link to="/termos" className="hover:text-black">Termos</Link>
-          <Link to="/reembolso" className="hover:text-black">Reembolso</Link>
-          <Link to="/confianca" className="hover:text-black">Confiança</Link>
+          <Link to="/privacidade" className="hover:text-black">
+            Privacidade
+          </Link>
+          <Link to="/termos" className="hover:text-black">
+            Termos
+          </Link>
+          <Link to="/reembolso" className="hover:text-black">
+            Reembolso
+          </Link>
+          <Link to="/confianca" className="hover:text-black">
+            Confiança
+          </Link>
         </nav>
       </div>
       <div className="max-w-6xl mx-auto px-5 sm:px-8 mt-5 pt-5 border-t border-black/5 flex flex-col sm:flex-row justify-between gap-2 text-xs text-black/50">
         <p>© {new Date().getFullYear()} ConciergeIA — Todos os direitos reservados.</p>
         <p className="flex items-center gap-1 flex-wrap">
-          Feito com <Heart className="size-3 fill-current" style={{ color: "#E82DAE" }} /> no Brasil by{" "}
+          Feito com <Heart className="size-3 fill-current" style={{ color: "#E82DAE" }} /> no Brasil
+          by{" "}
           <a
             href="https://www.anfitriaosigma.com.br"
             target="_blank"
@@ -1279,7 +1380,6 @@ function Footer() {
   );
 }
 
-
 /* ---------- FLOATING CONTACT (AI chat + WhatsApp handoff) ---------- */
 const WHATSAPP_NUMBER = "5547996759381";
 const WHATSAPP_DISPLAY = "(47) 99675-9381";
@@ -1292,7 +1392,8 @@ const SUGGESTED_QUESTIONS = [
   "Como é o período de teste grátis?",
 ];
 
-const HUMAN_INTENT_REGEX = /\b(humano|atendente|pessoa|falar com (a )?equipe|suporte humano|whats?app|telefone|ligar|contato direto|vendedor|consultor)\b/i;
+const HUMAN_INTENT_REGEX =
+  /\b(humano|atendente|pessoa|falar com (a )?equipe|suporte humano|whats?app|telefone|ligar|contato direto|vendedor|consultor)\b/i;
 
 function buildWhatsappLink(text: string) {
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
@@ -1300,7 +1401,9 @@ function buildWhatsappLink(text: string) {
 
 function FloatingContact() {
   const [chatOpen, setChatOpen] = useState(false);
-  const [messages, setMessages] = useState<{ role: "user" | "ai"; text: string; showHandoff?: boolean; showWhats?: boolean }[]>([
+  const [messages, setMessages] = useState<
+    { role: "user" | "ai"; text: string; showHandoff?: boolean; showWhats?: boolean }[]
+  >([
     {
       role: "ai",
       text: "Olá! 👋 Sou a IA do ConciergeIA. Posso tirar dúvidas sobre planos, funcionalidades e integrações — o que quiser antes de contratar.",
@@ -1328,7 +1431,9 @@ function FloatingContact() {
     if (awaitingHandoff) {
       setAwaitingHandoff(false);
       if (/\b(sim|quero|pode|claro|isso|manda|bora|ok|beleza)\b/i.test(clean)) {
-        pushAi("Perfeito! Clique no botão abaixo pra falar direto com nosso time no WhatsApp 👇", { showWhats: true });
+        pushAi("Perfeito! Clique no botão abaixo pra falar direto com nosso time no WhatsApp 👇", {
+          showWhats: true,
+        });
         return;
       }
       if (/\b(n[aã]o|depois|agora n[aã]o)\b/i.test(clean)) {
@@ -1340,7 +1445,9 @@ function FloatingContact() {
     // Detect intent for human handoff BEFORE calling AI
     if (HUMAN_INTENT_REGEX.test(clean)) {
       setAwaitingHandoff(true);
-      pushAi("Quer que eu te conecte direto com nossa equipe no WhatsApp? (responda sim ou não)", { showHandoff: true });
+      pushAi("Quer que eu te conecte direto com nossa equipe no WhatsApp? (responda sim ou não)", {
+        showHandoff: true,
+      });
       return;
     }
 
@@ -1370,11 +1477,16 @@ function FloatingContact() {
       pushAi(reply);
       if (wantsHandoff) {
         setAwaitingHandoff(true);
-        pushAi("Quer que eu te conecte direto com nossa equipe no WhatsApp? (responda sim ou não)", { showHandoff: true });
+        pushAi(
+          "Quer que eu te conecte direto com nossa equipe no WhatsApp? (responda sim ou não)",
+          { showHandoff: true },
+        );
       }
     } catch {
       setAwaitingHandoff(true);
-      pushAi("Não consegui responder agora. Quer falar direto com nosso time no WhatsApp?", { showHandoff: true });
+      pushAi("Não consegui responder agora. Quer falar direto com nosso time no WhatsApp?", {
+        showHandoff: true,
+      });
     } finally {
       setSending(false);
     }
@@ -1397,7 +1509,10 @@ function FloatingContact() {
           className="fixed bottom-24 right-4 sm:right-6 z-[60] w-[calc(100vw-2rem)] max-w-sm rounded-3xl bg-white shadow-2xl border border-black/10 overflow-hidden flex flex-col"
           style={{ maxHeight: "min(560px, calc(100vh - 8rem))" }}
         >
-          <div className="px-4 py-3 flex items-center gap-3 text-white" style={{ background: BRAND_GRADIENT }}>
+          <div
+            className="px-4 py-3 flex items-center gap-3 text-white"
+            style={{ background: BRAND_GRADIENT }}
+          >
             <div className="size-9 rounded-full bg-white/20 grid place-items-center">
               <Sparkles className="size-4" />
             </div>
@@ -1405,7 +1520,11 @@ function FloatingContact() {
               <div className="text-sm font-semibold">Falar com a IA</div>
               <div className="text-[11px] text-white/85">Tire dúvidas antes de contratar</div>
             </div>
-            <button onClick={() => setChatOpen(false)} className="size-8 grid place-items-center rounded-full hover:bg-white/15" aria-label="Fechar">
+            <button
+              onClick={() => setChatOpen(false)}
+              className="size-8 grid place-items-center rounded-full hover:bg-white/15"
+              aria-label="Fechar"
+            >
               <X className="size-4" />
             </button>
           </div>
@@ -1444,7 +1563,9 @@ function FloatingContact() {
                 {m.showWhats && (
                   <div className="mt-2 flex justify-start pl-1">
                     <a
-                      href={buildWhatsappLink("Olá! Vim pelo site do ConciergeIA e gostaria de falar com a equipe.")}
+                      href={buildWhatsappLink(
+                        "Olá! Vim pelo site do ConciergeIA e gostaria de falar com a equipe.",
+                      )}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 rounded-full bg-[#25D366] text-white pl-3 pr-4 h-9 shadow-md hover:opacity-95 transition text-[12.5px] font-semibold"
@@ -1483,7 +1604,9 @@ function FloatingContact() {
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") submit();
+                }}
                 placeholder="Pergunte sobre planos, IA, integrações…"
                 className="flex-1 bg-transparent text-sm outline-none py-1.5"
               />
@@ -1518,5 +1641,3 @@ function FloatingContact() {
     </>
   );
 }
-
-

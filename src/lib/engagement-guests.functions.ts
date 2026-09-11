@@ -46,15 +46,31 @@ function guestKeyOf(input: { propertyId: string; phone: string; name: string }):
 const GAP_MS = 20 * 60 * 1000;
 const MIN_MS = 5 * 1000;
 
-type Evt = { property_id: string; section: string; guest_session_id: string | null; guest_name: string | null; guest_phone: string | null; created_at: string };
-type Session = { sid: string; propertyId: string; start: number; end: number; sections: Array<{ section: string; at: string }>; phone: string; name: string };
+type Evt = {
+  property_id: string;
+  section: string;
+  guest_session_id: string | null;
+  guest_name: string | null;
+  guest_phone: string | null;
+  created_at: string;
+};
+type Session = {
+  sid: string;
+  propertyId: string;
+  start: number;
+  end: number;
+  sections: Array<{ section: string; at: string }>;
+  phone: string;
+  name: string;
+};
 
 function sessionize(events: Evt[]): Session[] {
   const bySid = new Map<string, Evt[]>();
   for (const e of events) {
     if (!e.guest_session_id) continue;
     const arr = bySid.get(e.guest_session_id) ?? [];
-    arr.push(e); bySid.set(e.guest_session_id, arr);
+    arr.push(e);
+    bySid.set(e.guest_session_id, arr);
   }
   const out: Session[] = [];
   for (const [sid, arr] of bySid) {
@@ -63,12 +79,15 @@ function sessionize(events: Evt[]): Session[] {
     const name = normalizeName(arr.find((e) => e.guest_name)?.guest_name ?? null);
     let start = new Date(arr[0].created_at).getTime();
     let last = start;
-    let sections: Array<{ section: string; at: string }> = [{ section: arr[0].section, at: arr[0].created_at }];
+    let sections: Array<{ section: string; at: string }> = [
+      { section: arr[0].section, at: arr[0].created_at },
+    ];
     for (let i = 1; i < arr.length; i++) {
       const t = new Date(arr[i].created_at).getTime();
       if (t - last > GAP_MS) {
         out.push({ sid, propertyId: arr[0].property_id, start, end: last, sections, phone, name });
-        start = t; sections = [];
+        start = t;
+        sections = [];
       }
       sections.push({ section: arr[i].section, at: arr[i].created_at });
       last = t;
@@ -87,14 +106,20 @@ async function loadCommon(
   input: z.infer<typeof InputSchema>,
 ) {
   // Determinar universo de owner_ids
-  const requestedOwners = (input.asUserIds && input.asUserIds.length > 0)
-    ? input.asUserIds
-    : (input.asUserId ? [input.asUserId] : []);
+  const requestedOwners =
+    input.asUserIds && input.asUserIds.length > 0
+      ? input.asUserIds
+      : input.asUserId
+        ? [input.asUserId]
+        : [];
 
   let supabase = ctx.supabase;
   let ownerIds: string[] = [ctx.userId];
 
-  if (requestedOwners.length > 0 && !(requestedOwners.length === 1 && requestedOwners[0] === ctx.userId)) {
+  if (
+    requestedOwners.length > 0 &&
+    !(requestedOwners.length === 1 && requestedOwners[0] === ctx.userId)
+  ) {
     // Cada conta pedida precisa ser validada: titular, membro ativo ou admin.
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
     const authorized = await Promise.all(
@@ -109,70 +134,159 @@ async function loadCommon(
   const since = new Date(Date.now() - days * 86400_000);
 
   const { data: props, error: pErr } = await supabase
-    .from("properties").select("id, name, city, owner_id").in("owner_id", ownerIds);
+    .from("properties")
+    .select("id, name, city, owner_id")
+    .in("owner_id", ownerIds);
   if (pErr) throw pErr;
 
   const allIds = (props ?? []).map((p) => p.id as string);
-  const nameById = new Map<string, string>((props ?? []).map((p) => [p.id as string, p.name as string]));
-  const cityById = new Map<string, string | null>((props ?? []).map((p) => [p.id as string, (p as { city: string | null }).city]));
-  const ownerByPropId = new Map<string, string>((props ?? []).map((p) => [p.id as string, (p as { owner_id: string }).owner_id]));
+  const nameById = new Map<string, string>(
+    (props ?? []).map((p) => [p.id as string, p.name as string]),
+  );
+  const cityById = new Map<string, string | null>(
+    (props ?? []).map((p) => [p.id as string, (p as { city: string | null }).city]),
+  );
+  const ownerByPropId = new Map<string, string>(
+    (props ?? []).map((p) => [p.id as string, (p as { owner_id: string }).owner_id]),
+  );
 
   // Nome das contas via profiles
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const accountNameById = new Map<string, string>();
   if (ownerIds.length > 0) {
-    const { data: profiles } = await (supabaseAdmin.from("profiles") as ReturnType<typeof supabaseAdmin.from>)
+    const { data: profiles } = await (
+      supabaseAdmin.from("profiles") as ReturnType<typeof supabaseAdmin.from>
+    )
       .select("id, full_name, trade_name")
       .in("id", ownerIds);
-    for (const p of ((profiles ?? []) as Array<{ id: string; full_name: string | null; trade_name: string | null }>)) {
+    for (const p of (profiles ?? []) as Array<{
+      id: string;
+      full_name: string | null;
+      trade_name: string | null;
+    }>) {
       accountNameById.set(p.id, (p.trade_name || p.full_name) ?? "");
     }
   }
 
   const req = input.propertyIds ?? null;
-  const filteredIds = req && req.length > 0 && !req.includes("all") ? req.filter((id) => allIds.includes(id)) : allIds;
+  const filteredIds =
+    req && req.length > 0 && !req.includes("all")
+      ? req.filter((id) => allIds.includes(id))
+      : allIds;
 
   if (filteredIds.length === 0) {
-    return { filteredIds, nameById, cityById, ownerByPropId, accountNameById, ownerIds, since, logs: [], events: [], convs: [], msgs: [], feedback: [] };
+    return {
+      filteredIds,
+      nameById,
+      cityById,
+      ownerByPropId,
+      accountNameById,
+      ownerIds,
+      since,
+      logs: [],
+      events: [],
+      convs: [],
+      msgs: [],
+      feedback: [],
+    };
   }
 
   const [logsQ, eventsQ, convsQ, msgsQ, feedbackQ] = await Promise.all([
-    supabase.from("guide_access_logs")
-      .select("id, property_id, guest_name, reservation_code, checkin_date, guest_phone, guest_phone_country, user_agent, created_at")
-      .in("property_id", filteredIds).gte("created_at", since.toISOString()).limit(20000),
+    supabase
+      .from("guide_access_logs")
+      .select(
+        "id, property_id, guest_name, reservation_code, checkin_date, guest_phone, guest_phone_country, user_agent, created_at",
+      )
+      .in("property_id", filteredIds)
+      .gte("created_at", since.toISOString())
+      .limit(20000),
     (supabaseAdmin.from("guide_section_events" as never) as ReturnType<typeof supabaseAdmin.from>)
       .select("property_id, section, guest_session_id, guest_name, guest_phone, created_at")
-      .in("property_id", filteredIds).gte("created_at", since.toISOString())
-      .order("created_at", { ascending: true }).limit(40000) as Promise<{ data: Evt[] | null }>,
-    supabase.from("property_chat_conversations")
+      .in("property_id", filteredIds)
+      .gte("created_at", since.toISOString())
+      .order("created_at", { ascending: true })
+      .limit(40000) as Promise<{ data: Evt[] | null }>,
+    supabase
+      .from("property_chat_conversations")
       .select("id, property_id, guest_session_id, guest_name, created_at, last_message_at")
-      .in("property_id", filteredIds).gte("created_at", since.toISOString()).limit(10000),
-    supabase.from("property_chat_messages")
-      .select("id, conversation_id, role, content, created_at, sender_type, sender_user_id, property_chat_conversations!inner(property_id)")
+      .in("property_id", filteredIds)
+      .gte("created_at", since.toISOString())
+      .limit(10000),
+    supabase
+      .from("property_chat_messages")
+      .select(
+        "id, conversation_id, role, content, created_at, sender_type, sender_user_id, property_chat_conversations!inner(property_id)",
+      )
       .in("property_chat_conversations.property_id", filteredIds)
-      .gte("created_at", since.toISOString()).order("created_at", { ascending: true }).limit(30000),
-    supabase.from("chat_message_feedback")
+      .gte("created_at", since.toISOString())
+      .order("created_at", { ascending: true })
+      .limit(30000),
+    supabase
+      .from("chat_message_feedback")
       .select("message_id, conversation_id, property_id, reason, resolved, created_at")
-      .in("property_id", filteredIds).gte("created_at", since.toISOString()),
+      .in("property_id", filteredIds)
+      .gte("created_at", since.toISOString()),
   ]);
   return {
-    filteredIds, nameById, cityById, ownerByPropId, accountNameById, ownerIds, since,
-    logs: (logsQ.data ?? []) as Array<{ id: string; property_id: string; guest_name: string; reservation_code: string | null; checkin_date: string; guest_phone: string | null; guest_phone_country: string | null; created_at: string }>,
+    filteredIds,
+    nameById,
+    cityById,
+    ownerByPropId,
+    accountNameById,
+    ownerIds,
+    since,
+    logs: (logsQ.data ?? []) as Array<{
+      id: string;
+      property_id: string;
+      guest_name: string;
+      reservation_code: string | null;
+      checkin_date: string;
+      guest_phone: string | null;
+      guest_phone_country: string | null;
+      created_at: string;
+    }>,
     events: (eventsQ.data ?? []) as Evt[],
-    convs: (convsQ.data ?? []) as Array<{ id: string; property_id: string; guest_session_id: string; guest_name: string | null; created_at: string; last_message_at: string }>,
-    msgs: (msgsQ.data ?? []) as Array<{ id: string; conversation_id: string; role: string; content: string | null; created_at: string; sender_type?: string | null; sender_user_id?: string | null }>,
-    feedback: (feedbackQ.data ?? []) as Array<{ message_id: string; conversation_id: string; resolved: boolean }>,
+    convs: (convsQ.data ?? []) as Array<{
+      id: string;
+      property_id: string;
+      guest_session_id: string;
+      guest_name: string | null;
+      created_at: string;
+      last_message_at: string;
+    }>,
+    msgs: (msgsQ.data ?? []) as Array<{
+      id: string;
+      conversation_id: string;
+      role: string;
+      content: string | null;
+      created_at: string;
+      sender_type?: string | null;
+      sender_user_id?: string | null;
+    }>,
+    feedback: (feedbackQ.data ?? []) as Array<{
+      message_id: string;
+      conversation_id: string;
+      resolved: boolean;
+    }>,
   };
 }
 
 type GuestAgg = {
   key: string;
-  propertyId: string; propertyName: string; propertyCity: string | null;
-  accountId: string; accountName: string;
-  guestName: string; phone: string; phoneCountry: string | null;
-  reservationCode: string | null; checkinDate: string;
-  firstAccess: string; lastActivity: string;
-  totalSeconds: number; sessionsCount: number;
+  propertyId: string;
+  propertyName: string;
+  propertyCity: string | null;
+  accountId: string;
+  accountName: string;
+  guestName: string;
+  phone: string;
+  phoneCountry: string | null;
+  reservationCode: string | null;
+  checkinDate: string;
+  firstAccess: string;
+  lastActivity: string;
+  totalSeconds: number;
+  sessionsCount: number;
   sectionsCount: number;
   messagesCount: number;
   conversationsCount: number;
@@ -188,26 +302,43 @@ const SECTION_GAP_MS = 20 * 60 * 1000;
 const SECTION_MIN_MS = 5 * 1000;
 
 function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
-  const { logs, events, convs, msgs, feedback, nameById, cityById, ownerByPropId, accountNameById } = data;
+  const {
+    logs,
+    events,
+    convs,
+    msgs,
+    feedback,
+    nameById,
+    cityById,
+    ownerByPropId,
+    accountNameById,
+  } = data;
 
   const sessions = sessionize(events);
   const sessionByPhoneName = new Map<string, Session[]>();
   for (const s of sessions) {
-    const idKey = s.phone ? `${s.propertyId}|p:${s.phone}` : (s.name ? `${s.propertyId}|n:${s.name}` : `${s.propertyId}|sid:${s.sid}`);
+    const idKey = s.phone
+      ? `${s.propertyId}|p:${s.phone}`
+      : s.name
+        ? `${s.propertyId}|n:${s.name}`
+        : `${s.propertyId}|sid:${s.sid}`;
     const arr = sessionByPhoneName.get(idKey) ?? [];
-    arr.push(s); sessionByPhoneName.set(idKey, arr);
+    arr.push(s);
+    sessionByPhoneName.set(idKey, arr);
   }
 
-  const convBySid = new Map<string, Array<typeof convs[number]>>();
+  const convBySid = new Map<string, Array<(typeof convs)[number]>>();
   for (const c of convs) {
     if (!c.guest_session_id) continue;
     const arr = convBySid.get(c.guest_session_id) ?? [];
-    arr.push(c); convBySid.set(c.guest_session_id, arr);
+    arr.push(c);
+    convBySid.set(c.guest_session_id, arr);
   }
   const msgsByConv = new Map<string, typeof msgs>();
   for (const m of msgs) {
     const arr = msgsByConv.get(m.conversation_id) ?? [];
-    arr.push(m); msgsByConv.set(m.conversation_id, arr);
+    arr.push(m);
+    msgsByConv.set(m.conversation_id, arr);
   }
   const unresolvedByConv = new Set<string>();
   for (const f of feedback) if (!f.resolved) unresolvedByConv.add(f.conversation_id);
@@ -231,28 +362,43 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
         existing.reservationCode = l.reservation_code;
       }
       if (l.guest_name && !existing.guestName) existing.guestName = l.guest_name;
-      if (l.guest_phone_country && !existing.phoneCountry) existing.phoneCountry = l.guest_phone_country;
+      if (l.guest_phone_country && !existing.phoneCountry)
+        existing.phoneCountry = l.guest_phone_country;
       existing.accessesCount++;
     } else {
       guests.set(key, {
         key,
-        propertyId: l.property_id, propertyName, propertyCity: cityById.get(l.property_id) ?? null,
-        accountId: ownerId, accountName: accountNameById.get(ownerId) ?? "",
-        guestName: l.guest_name, phone, phoneCountry: l.guest_phone_country,
-        reservationCode: l.reservation_code, checkinDate: l.checkin_date,
-        firstAccess: l.created_at, lastActivity: l.created_at,
-        totalSeconds: 0, sessionsCount: 0, sectionsCount: 0,
-        messagesCount: 0, conversationsCount: 0,
+        propertyId: l.property_id,
+        propertyName,
+        propertyCity: cityById.get(l.property_id) ?? null,
+        accountId: ownerId,
+        accountName: accountNameById.get(ownerId) ?? "",
+        guestName: l.guest_name,
+        phone,
+        phoneCountry: l.guest_phone_country,
+        reservationCode: l.reservation_code,
+        checkinDate: l.checkin_date,
+        firstAccess: l.created_at,
+        lastActivity: l.created_at,
+        totalSeconds: 0,
+        sessionsCount: 0,
+        sectionsCount: 0,
+        messagesCount: 0,
+        conversationsCount: 0,
         hasUnresolvedFeedback: false,
         accessesCount: 1,
-        avgSessionSeconds: 0, maxSessionSeconds: 0,
-        topSection: null, topSectionSeconds: 0,
+        avgSessionSeconds: 0,
+        maxSessionSeconds: 0,
+        topSection: null,
+        topSectionSeconds: 0,
       });
     }
   }
 
   for (const g of guests.values()) {
-    const idKey = g.phone ? `${g.propertyId}|p:${g.phone}` : `${g.propertyId}|n:${normalizeName(g.guestName)}`;
+    const idKey = g.phone
+      ? `${g.propertyId}|p:${g.phone}`
+      : `${g.propertyId}|n:${normalizeName(g.guestName)}`;
     const ss = sessionByPhoneName.get(idKey) ?? [];
     const uniqueSections = new Set<string>();
     const secondsBySection = new Map<string, number>();
@@ -266,7 +412,8 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
       for (let i = 0; i < items.length; i++) {
         uniqueSections.add(items[i].section);
         const tCur = new Date(items[i].at).getTime();
-        const tNext = i < items.length - 1 ? new Date(items[i + 1].at).getTime() : tCur + SECTION_MIN_MS;
+        const tNext =
+          i < items.length - 1 ? new Date(items[i + 1].at).getTime() : tCur + SECTION_MIN_MS;
         const dur = Math.min(SECTION_GAP_MS, Math.max(SECTION_MIN_MS, tNext - tCur)) / 1000;
         secondsBySection.set(items[i].section, (secondsBySection.get(items[i].section) ?? 0) + dur);
       }
@@ -281,7 +428,10 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
     let topName: string | null = null;
     let topSec = 0;
     for (const [k, v] of secondsBySection) {
-      if (v > topSec) { topSec = v; topName = k; }
+      if (v > topSec) {
+        topSec = v;
+        topName = k;
+      }
     }
     g.topSection = topName;
     g.topSectionSeconds = Math.round(topSec);
@@ -303,17 +453,24 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
   const logsByProp = new Map<string, typeof logs>();
   for (const l of logs) {
     const arr = logsByProp.get(l.property_id) ?? [];
-    arr.push(l); logsByProp.set(l.property_id, arr);
+    arr.push(l);
+    logsByProp.set(l.property_id, arr);
   }
-  function resolveGuestForConv(c: typeof convs[number]): GuestAgg | null {
+  function resolveGuestForConv(c: (typeof convs)[number]): GuestAgg | null {
     const ident = c.guest_session_id ? identBySid.get(c.guest_session_id) : null;
     if (ident && (ident.phone || ident.name)) {
       const k = guestKeyOf({ propertyId: c.property_id, phone: ident.phone, name: ident.name });
-      const g = guests.get(k); if (g) return g;
+      const g = guests.get(k);
+      if (g) return g;
     }
     if (c.guest_name) {
-      const k = guestKeyOf({ propertyId: c.property_id, phone: "", name: normalizeName(c.guest_name) });
-      const g = guests.get(k); if (g) return g;
+      const k = guestKeyOf({
+        propertyId: c.property_id,
+        phone: "",
+        name: normalizeName(c.guest_name),
+      });
+      const g = guests.get(k);
+      if (g) return g;
     }
     // Fallback determinístico: o acesso mais RECENTE que ocorreu ANTES (ou no
     // mesmo instante) do início da conversa, dentro de 96h. Usar o "mais
@@ -327,7 +484,10 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
       const t = new Date(l.created_at).getTime();
       if (t > target) continue;
       const d = target - t;
-      if (d < bestDiff) { bestDiff = d; best = l; }
+      if (d < bestDiff) {
+        bestDiff = d;
+        best = l;
+      }
     }
     if (best && bestDiff <= 96 * 3600_000) {
       const k = guestKeyOf({
@@ -354,11 +514,14 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
   const convIdsByGuest = new Map<string, Set<string>>();
   const addConv = (key: string, convId: string) => {
     const set = convIdsByGuest.get(key) ?? new Set<string>();
-    set.add(convId); convIdsByGuest.set(key, set);
+    set.add(convId);
+    convIdsByGuest.set(key, set);
   };
   for (const [convId, key] of convGuestKey) addConv(key, convId);
   for (const g of guests.values()) {
-    const idKey = g.phone ? `${g.propertyId}|p:${g.phone}` : `${g.propertyId}|n:${normalizeName(g.guestName)}`;
+    const idKey = g.phone
+      ? `${g.propertyId}|p:${g.phone}`
+      : `${g.propertyId}|n:${normalizeName(g.guestName)}`;
     for (const s of sessionByPhoneName.get(idKey) ?? []) {
       for (const c of convBySid.get(s.sid) ?? []) addConv(g.key, c.id);
     }
@@ -370,9 +533,19 @@ function buildGuestIndex(data: Awaited<ReturnType<typeof loadCommon>>) {
     for (const id of ids ?? []) g.messagesCount += (msgsByConv.get(id) ?? []).length;
   }
 
-  return { guests, sessions, convs, msgs, msgsByConv, unresolvedByConv, sessionByPhoneName, convBySid, convGuestKey, convIdsByGuest };
+  return {
+    guests,
+    sessions,
+    convs,
+    msgs,
+    msgsByConv,
+    unresolvedByConv,
+    sessionByPhoneName,
+    convBySid,
+    convGuestKey,
+    convIdsByGuest,
+  };
 }
-
 
 export const getEngagementGuests = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -438,11 +611,17 @@ export const getGuestDetail = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
     await enforce(context.userId, "hospedes.ficha.read", { resource: data.guestKey });
-    const common = await loadCommon(context, { period: "all", propertyIds: null, asUserId: data.asUserId ?? null });
+    const common = await loadCommon(context, {
+      period: "all",
+      propertyIds: null,
+      asUserId: data.asUserId ?? null,
+    });
     const built = buildGuestIndex(common);
     const g = built.guests.get(data.guestKey);
     if (!g) throw new Error("Hóspede não encontrado");
-    const idKey = g.phone ? `${g.propertyId}|p:${g.phone}` : `${g.propertyId}|n:${normalizeName(g.guestName)}`;
+    const idKey = g.phone
+      ? `${g.propertyId}|p:${g.phone}`
+      : `${g.propertyId}|n:${normalizeName(g.guestName)}`;
     const ss = (built.sessionByPhoneName.get(idKey) ?? []).sort((a, b) => a.start - b.start);
     const sessions = ss.map((s) => ({
       sid: s.sid,
@@ -452,8 +631,17 @@ export const getGuestDetail = createServerFn({ method: "POST" })
       sectionsSequence: s.sections.map((it) => ({ section: it.section, at: it.at })),
     }));
     const conversations: Array<{
-      id: string; startedAt: string; lastMessageAt: string;
-      messages: Array<{ id: string; role: string; content: string; createdAt: string; senderName?: string | null; feedback?: { reason: string | null; resolved: boolean } | null }>;
+      id: string;
+      startedAt: string;
+      lastMessageAt: string;
+      messages: Array<{
+        id: string;
+        role: string;
+        content: string;
+        createdAt: string;
+        senderName?: string | null;
+        feedback?: { reason: string | null; resolved: boolean } | null;
+      }>;
     }> = [];
 
     // Nomes dos atendentes humanos que participaram das conversas deste hóspede.
@@ -467,22 +655,37 @@ export const getGuestDetail = createServerFn({ method: "POST" })
     const staffNameById = new Map<string, string>();
     if (staffIds.length > 0) {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: profs } = await (supabaseAdmin.from("profiles") as ReturnType<typeof supabaseAdmin.from>)
+      const { data: profs } = await (
+        supabaseAdmin.from("profiles") as ReturnType<typeof supabaseAdmin.from>
+      )
         .select("id, full_name, trade_name")
         .in("id", staffIds);
-      for (const p of ((profs ?? []) as Array<{ id: string; full_name: string | null; trade_name: string | null }>)) {
+      for (const p of (profs ?? []) as Array<{
+        id: string;
+        full_name: string | null;
+        trade_name: string | null;
+      }>) {
         const n = (p.trade_name || p.full_name || "").trim();
         if (n) staffNameById.set(p.id, n);
       }
     }
-    const mapMsg = (m: { id: string; role: string; content: string | null; created_at: string; sender_type?: string | null; sender_user_id?: string | null }) => ({
+    const mapMsg = (m: {
+      id: string;
+      role: string;
+      content: string | null;
+      created_at: string;
+      sender_type?: string | null;
+      sender_user_id?: string | null;
+    }) => ({
       id: m.id,
       role: m.role,
       content: m.content ?? "",
       createdAt: m.created_at,
       senderName:
         m.sender_type === "human"
-          ? (m.sender_user_id ? staffNameById.get(m.sender_user_id) ?? "Atendente" : "Atendente")
+          ? m.sender_user_id
+            ? (staffNameById.get(m.sender_user_id) ?? "Atendente")
+            : "Atendente"
           : null,
     });
 
@@ -492,7 +695,12 @@ export const getGuestDetail = createServerFn({ method: "POST" })
     for (const c of built.convs) {
       if (!convIds.has(c.id)) continue;
       const msgs = (built.msgsByConv.get(c.id) ?? []).map(mapMsg);
-      conversations.push({ id: c.id, startedAt: c.created_at, lastMessageAt: c.last_message_at, messages: msgs });
+      conversations.push({
+        id: c.id,
+        startedAt: c.created_at,
+        lastMessageAt: c.last_message_at,
+        messages: msgs,
+      });
     }
     conversations.sort((a, b) => a.startedAt.localeCompare(b.startedAt));
 

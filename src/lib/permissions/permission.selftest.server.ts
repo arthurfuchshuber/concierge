@@ -6,7 +6,11 @@
  * qualquer ativação do guard em produção (Fase 4).
  */
 import { bootstrapPermissionRegistry } from "./permission.bootstrap";
-import { evaluateWithSnapshot, clearDeniedDecisions, readDeniedDecisions } from "./permission.guard.server";
+import {
+  evaluateWithSnapshot,
+  clearDeniedDecisions,
+  readDeniedDecisions,
+} from "./permission.guard.server";
 import { permissionRegistry } from "./permission.registry";
 import type { SubjectSnapshot } from "./permission.resolve.server";
 import type { AccessLevel, PermissionAssignment, ScopeType } from "./permission.types";
@@ -65,7 +69,11 @@ export function runAuthorizationSelfTests(): { ok: boolean; cases: Case[] } {
   const cases: Case[] = [];
   clearDeniedDecisions();
 
-  const check = (name: string, expected: boolean, decision: ReturnType<typeof evaluateWithSnapshot>) => {
+  const check = (
+    name: string,
+    expected: boolean,
+    decision: ReturnType<typeof evaluateWithSnapshot>,
+  ) => {
     cases.push({
       name,
       ok: decision.allowed === expected,
@@ -111,7 +119,10 @@ export function runAuthorizationSelfTests(): { ok: boolean; cases: Case[] } {
     "property assignment removido",
     false,
     evaluateWithSnapshot(
-      snapshot({ properties: [], assignments: [assignment(slug, "WRITE", "PROPERTY", PROPERTY)] }, slug),
+      snapshot(
+        { properties: [], assignments: [assignment(slug, "WRITE", "PROPERTY", PROPERTY)] },
+        slug,
+      ),
       slug,
       { propertyId: PROPERTY },
     ),
@@ -122,7 +133,10 @@ export function runAuthorizationSelfTests(): { ok: boolean; cases: Case[] } {
     "owner com acesso total",
     true,
     evaluateWithSnapshot(
-      snapshot({ subject: { userId: TENANT, tenantId: TENANT, systemRoles: ["OWNER"], plan: null } }, slug),
+      snapshot(
+        { subject: { userId: TENANT, tenantId: TENANT, systemRoles: ["OWNER"], plan: null } },
+        slug,
+      ),
       slug,
       { required: "WRITE" },
     ),
@@ -137,7 +151,10 @@ export function runAuthorizationSelfTests(): { ok: boolean; cases: Case[] } {
 
   const ok = cases.every((c) => c.ok);
   if (!ok) {
-    console.error("[authz][selftest] falhas detectadas", cases.filter((c) => !c.ok));
+    console.error(
+      "[authz][selftest] falhas detectadas",
+      cases.filter((c) => !c.ok),
+    );
   }
   return { ok, cases };
 }

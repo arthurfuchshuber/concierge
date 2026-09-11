@@ -7,13 +7,34 @@ const SlugInput = z.object({
   previewToken: z.string().max(300).optional().nullable(),
 });
 
-async function loadFullGuide(supabaseAdmin: typeof import("@/integrations/supabase/client.server").supabaseAdmin, propertyId: string) {
+async function loadFullGuide(
+  supabaseAdmin: typeof import("@/integrations/supabase/client.server").supabaseAdmin,
+  propertyId: string,
+) {
   const [manual, recs, emerg, faqs, checkout] = await Promise.all([
-    supabaseAdmin.from("property_manual_items").select("*").eq("property_id", propertyId).order("position"),
-    supabaseAdmin.from("property_recommendations").select("*").eq("property_id", propertyId).eq("scope", "nearby").order("type").order("position"),
-    supabaseAdmin.from("property_emergency_contacts").select("*").eq("property_id", propertyId).order("position"),
+    supabaseAdmin
+      .from("property_manual_items")
+      .select("*")
+      .eq("property_id", propertyId)
+      .order("position"),
+    supabaseAdmin
+      .from("property_recommendations")
+      .select("*")
+      .eq("property_id", propertyId)
+      .eq("scope", "nearby")
+      .order("type")
+      .order("position"),
+    supabaseAdmin
+      .from("property_emergency_contacts")
+      .select("*")
+      .eq("property_id", propertyId)
+      .order("position"),
     supabaseAdmin.from("property_faqs").select("*").eq("property_id", propertyId).order("position"),
-    supabaseAdmin.from("property_checkout_items").select("*").eq("property_id", propertyId).order("position"),
+    supabaseAdmin
+      .from("property_checkout_items")
+      .select("*")
+      .eq("property_id", propertyId)
+      .order("position"),
   ]);
   return {
     manual: manual.data ?? [],
@@ -38,7 +59,9 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     // First fetch only access-control + display fields (no credentials, no pin_code).
     let baseQuery = supabaseAdmin
       .from("properties")
-      .select("id,owner_id,slug,name,tagline,hero_image_url,gallery_images,theme_images,marketplace_links,address,maps_url,garage_maps_url,lat,lng,city,state,country,checkin_time,checkin_time_max,checkin_note,checkout_time,checkout_time_min,checkout_note,address_note,checkin_instructions,checkout_instructions,checkin_media,house_rules,gate_instructions,gate_media,gate_video_url,lock_instructions,lock_media,lock_video_url,host_name,brand_name,brand_logo_url,access_mode,pin_expires_at,default_language,guide_theme,require_access_gate,collect_arrival_time,collect_vehicles,vehicles_max,collect_document,document_scope,published,created_at,updated_at")
+      .select(
+        "id,owner_id,slug,name,tagline,hero_image_url,gallery_images,theme_images,marketplace_links,address,maps_url,garage_maps_url,lat,lng,city,state,country,checkin_time,checkin_time_max,checkin_note,checkout_time,checkout_time_min,checkout_note,address_note,checkin_instructions,checkout_instructions,checkin_media,house_rules,gate_instructions,gate_media,gate_video_url,lock_instructions,lock_media,lock_video_url,host_name,brand_name,brand_logo_url,access_mode,pin_expires_at,default_language,guide_theme,require_access_gate,collect_arrival_time,collect_vehicles,vehicles_max,collect_document,document_scope,published,created_at,updated_at",
+      )
       .eq("slug", data.slug);
     if (!isPreview) baseQuery = baseQuery.eq("published", true);
     const { data: prop, error } = await baseQuery.maybeSingle();
@@ -46,7 +69,11 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     if (!prop) {
       // Link antigo: o anfitrião renomeou o guia. Redirecionamos para o slug atual
       // para que hóspedes que já receberam o link anterior continuem chegando.
-      const { data: hist } = await (supabaseAdmin.from("property_slug_history" as never) as ReturnType<typeof supabaseAdmin.from>)
+      const { data: hist } = await (
+        supabaseAdmin.from("property_slug_history" as never) as ReturnType<
+          typeof supabaseAdmin.from
+        >
+      )
         .select("property_id")
         .eq("old_slug", data.slug)
         .maybeSingle();
@@ -64,15 +91,23 @@ export const getPublicGuide = createServerFn({ method: "POST" })
       return { status: "not_found" as const };
     }
 
-
-    if (!isPreview && prop.access_mode === "pin" && prop.pin_expires_at && new Date(prop.pin_expires_at) < new Date()) {
+    if (
+      !isPreview &&
+      prop.access_mode === "pin" &&
+      prop.pin_expires_at &&
+      new Date(prop.pin_expires_at) < new Date()
+    ) {
       return { status: "expired" as const, propertyName: prop.name };
     }
 
     if (!isPreview && prop.access_mode === "pin") {
       const cookie = getCookie(`sg-pin-${prop.id}`);
       if (cookie !== "ok") {
-        return { status: "locked" as const, propertyName: prop.name, expiresAt: prop.pin_expires_at };
+        return {
+          status: "locked" as const,
+          propertyName: prop.name,
+          expiresAt: prop.pin_expires_at,
+        };
       }
     }
 
@@ -114,7 +149,13 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     }
 
     // Strip the PIN out of the payload no matter what.
-    const { access_codes_pin: _omit, wifi_password, lock_code, gate_code, ...credsPublic } = (creds ?? {}) as Record<string, unknown> & {
+    const {
+      access_codes_pin: _omit,
+      wifi_password,
+      lock_code,
+      gate_code,
+      ...credsPublic
+    } = (creds ?? {}) as Record<string, unknown> & {
       access_codes_pin?: string | null;
       wifi_password?: string | null;
       lock_code?: string | null;
@@ -122,7 +163,11 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     };
     // Only reveal protected codes when the visitor has unlocked them.
     const protectedCodes = accessUnlocked
-      ? { wifi_password: wifi_password ?? null, lock_code: lock_code ?? null, gate_code: gate_code ?? null }
+      ? {
+          wifi_password: wifi_password ?? null,
+          lock_code: lock_code ?? null,
+          gate_code: gate_code ?? null,
+        }
       : { wifi_password: null, lock_code: null, gate_code: null };
     // Booleans so the UI can render gated/masked slots even before unlock.
     const setFlags = {
@@ -133,13 +178,23 @@ export const getPublicGuide = createServerFn({ method: "POST" })
 
     // owner_id é uso interno (plano/dono) e nunca deve chegar ao hóspede.
     const { owner_id: _ownerId, ...propPublic } = prop as Record<string, unknown>;
-    const safeProp = { ...propPublic, ...credsPublic, ...protectedCodes, ...setFlags, hasAccessPin, accessUnlocked };
+    const safeProp = {
+      ...propPublic,
+      ...credsPublic,
+      ...protectedCodes,
+      ...setFlags,
+      hasAccessPin,
+      accessUnlocked,
+    };
     const children = await loadFullGuide(supabaseAdmin, prop.id);
     const { signPropertyImages } = await import("@/lib/storage.server");
     const signedProp = await signPropertyImages(supabaseAdmin, safeProp);
     // Resolve owner plan to gate AI chat in the public guide UI.
     const { resolveOwnerPlanAdmin } = await import("@/lib/plan-guard.server");
-    const ownerPlan = await resolveOwnerPlanAdmin(supabaseAdmin as any, (prop as any).owner_id as string);
+    const ownerPlan = await resolveOwnerPlanAdmin(
+      supabaseAdmin as any,
+      (prop as any).owner_id as string,
+    );
     const aiEnabled = !!ownerPlan.features.guestChat;
 
     // Referências macro da cidade — escopo POR IMÓVEL OU POR GRUPO de guias
@@ -155,7 +210,9 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     {
       let q = supabaseAdmin
         .from("city_references")
-        .select("id, category, type, name, note, address, rating, user_ratings_total, image_url, maps_url, opening_hours, lat, lng, place_id, display_order")
+        .select(
+          "id, category, type, name, note, address, rating, user_ratings_total, image_url, maps_url, opening_hours, lat, lng, place_id, display_order",
+        )
         .eq("is_hidden", false)
         .order("type")
         .order("display_order")
@@ -165,7 +222,6 @@ export const getPublicGuide = createServerFn({ method: "POST" })
       const { data } = await q;
       cityReferences = data ?? [];
     }
-
 
     return { status: "ok" as const, property: signedProp, ...children, aiEnabled, cityReferences };
   });
@@ -181,7 +237,9 @@ export const submitAccessPin = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: prop, error } = await supabaseAdmin
       .from("properties")
-      .select("id, access_codes_pin, wifi_password, lock_code, gate_code, city, country, checkin_time, checkout_time")
+      .select(
+        "id, access_codes_pin, wifi_password, lock_code, gate_code, city, country, checkin_time, checkout_time",
+      )
       .eq("slug", data.slug)
       .eq("published", true)
       .maybeSingle();
@@ -223,7 +281,6 @@ export const submitAccessPin = createServerFn({ method: "POST" })
       gate_code: (prop as any).gate_code ?? null,
     };
   });
-
 
 const PinSubmit = z.object({
   slug: z.string().regex(/^[a-z0-9-]{1,64}$/),

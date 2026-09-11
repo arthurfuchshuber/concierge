@@ -77,20 +77,34 @@ export function AiMarkdown({
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          p: ({ node, ...props }) => <p {...props} className="my-1.5 whitespace-pre-line leading-relaxed" />,
+          p: ({ node, ...props }) => (
+            <p {...props} className="my-1.5 whitespace-pre-line leading-relaxed" />
+          ),
           strong: ({ node, ...props }) => <strong {...props} className="font-semibold" />,
           em: ({ node, ...props }) => <em {...props} className="italic" />,
-          ul: ({ node, ...props }) => <ul {...props} className="my-1.5 list-disc space-y-0.5 pl-4" />,
-          ol: ({ node, ...props }) => <ol {...props} className="my-1.5 list-decimal space-y-0.5 pl-4" />,
-          li: ({ node, ...props }) => <li {...props} className="whitespace-pre-line leading-relaxed" />,
+          ul: ({ node, ...props }) => (
+            <ul {...props} className="my-1.5 list-disc space-y-0.5 pl-4" />
+          ),
+          ol: ({ node, ...props }) => (
+            <ol {...props} className="my-1.5 list-decimal space-y-0.5 pl-4" />
+          ),
+          li: ({ node, ...props }) => (
+            <li {...props} className="whitespace-pre-line leading-relaxed" />
+          ),
           h1: ({ node, ...props }) => <p {...props} className="mb-1 mt-2 font-semibold" />,
           h2: ({ node, ...props }) => <p {...props} className="mb-1 mt-2 font-semibold" />,
           h3: ({ node, ...props }) => <p {...props} className="mb-1 mt-2 font-semibold" />,
           code: ({ node, ...props }) => (
-            <code {...props} className="rounded bg-black/10 px-1 py-0.5 text-[0.92em] dark:bg-white/15" />
+            <code
+              {...props}
+              className="rounded bg-black/10 px-1 py-0.5 text-[0.92em] dark:bg-white/15"
+            />
           ),
           pre: ({ node, ...props }) => (
-            <pre {...props} className="my-1.5 overflow-x-auto rounded-lg bg-black/10 p-2 text-[0.9em] dark:bg-white/10" />
+            <pre
+              {...props}
+              className="my-1.5 overflow-x-auto rounded-lg bg-black/10 p-2 text-[0.9em] dark:bg-white/10"
+            />
           ),
           a: ({ node, href, children: label, ...props }) =>
             href && href.startsWith("/") ? (
@@ -108,7 +122,10 @@ export function AiMarkdown({
             ),
           hr: () => <hr className="my-2 border-current opacity-20" />,
           blockquote: ({ node, ...props }) => (
-            <blockquote {...props} className="my-1.5 border-l-2 border-current/30 pl-2.5 opacity-90" />
+            <blockquote
+              {...props}
+              className="my-1.5 border-l-2 border-current/30 pl-2.5 opacity-90"
+            />
           ),
           table: ({ node, ...props }) => (
             <div className="my-1.5 overflow-x-auto">
@@ -116,9 +133,14 @@ export function AiMarkdown({
             </div>
           ),
           th: ({ node, ...props }) => (
-            <th {...props} className="border border-current/20 px-1.5 py-1 text-left font-semibold" />
+            <th
+              {...props}
+              className="border border-current/20 px-1.5 py-1 text-left font-semibold"
+            />
           ),
-          td: ({ node, ...props }) => <td {...props} className="border border-current/20 px-1.5 py-1" />,
+          td: ({ node, ...props }) => (
+            <td {...props} className="border border-current/20 px-1.5 py-1" />
+          ),
           ...(extraComponents ?? {}),
         }}
       >

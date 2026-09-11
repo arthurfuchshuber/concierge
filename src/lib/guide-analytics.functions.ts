@@ -23,7 +23,9 @@ export const trackGuideEvent = createServerFn({ method: "POST" })
         .eq("published", true)
         .maybeSingle();
       if (!prop) return { ok: false };
-      await (supabaseAdmin.from("guide_section_events" as never) as ReturnType<typeof supabaseAdmin.from>)
+      await (
+        supabaseAdmin.from("guide_section_events" as never) as ReturnType<typeof supabaseAdmin.from>
+      )
         .insert({
           property_id: prop.id,
           section: data.section,
@@ -52,28 +54,36 @@ export const getLivePresence = createServerFn({ method: "GET" })
       .select("id, name, slug")
       .eq("owner_id", userId);
     const propertyIds = (props ?? []).map((p) => p.id);
-    if (propertyIds.length === 0) return { sessions: [] as Array<{
-      session_id: string;
-      guest_name: string | null;
-      guest_phone: string | null;
-      section: string;
-      page_path: string | null;
-      property_id: string;
-      property_name: string;
-      property_slug: string;
-      last_seen: string;
-      first_seen: string;
-      events_count: number;
-    }> };
+    if (propertyIds.length === 0)
+      return {
+        sessions: [] as Array<{
+          session_id: string;
+          guest_name: string | null;
+          guest_phone: string | null;
+          section: string;
+          page_path: string | null;
+          property_id: string;
+          property_name: string;
+          property_slug: string;
+          last_seen: string;
+          first_seen: string;
+          events_count: number;
+        }>,
+      };
 
     const since = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: events } = await (supabaseAdmin.from("guide_section_events" as never) as ReturnType<typeof supabaseAdmin.from>)
-      .select("property_id, section, guest_session_id, guest_name, guest_phone, page_path, created_at")
+    const { data: events } = (await (
+      supabaseAdmin.from("guide_section_events" as never) as ReturnType<typeof supabaseAdmin.from>
+    )
+      .select(
+        "property_id, section, guest_session_id, guest_name, guest_phone, page_path, created_at",
+      )
       .in("property_id", propertyIds)
       .gte("created_at", since)
       .order("created_at", { ascending: false })
-      .limit(2000) as { data: Array<{
+      .limit(2000)) as {
+      data: Array<{
         property_id: string;
         section: string;
         guest_session_id: string | null;
@@ -81,22 +91,26 @@ export const getLivePresence = createServerFn({ method: "GET" })
         guest_phone: string | null;
         page_path: string | null;
         created_at: string;
-      }> | null };
+      }> | null;
+    };
 
     const propMap = new Map((props ?? []).map((p) => [p.id, p]));
-    const map = new Map<string, {
-      session_id: string;
-      guest_name: string | null;
-      guest_phone: string | null;
-      section: string;
-      page_path: string | null;
-      property_id: string;
-      property_name: string;
-      property_slug: string;
-      last_seen: string;
-      first_seen: string;
-      events_count: number;
-    }>();
+    const map = new Map<
+      string,
+      {
+        session_id: string;
+        guest_name: string | null;
+        guest_phone: string | null;
+        section: string;
+        page_path: string | null;
+        property_id: string;
+        property_name: string;
+        property_slug: string;
+        last_seen: string;
+        first_seen: string;
+        events_count: number;
+      }
+    >();
     for (const e of events ?? []) {
       const sid = e.guest_session_id ?? "anon";
       const key = `${e.property_id}:${sid}`;
@@ -123,6 +137,8 @@ export const getLivePresence = createServerFn({ method: "GET" })
         // events are desc, so last_seen already set
       }
     }
-    const sessions = Array.from(map.values()).sort((a, b) => b.last_seen.localeCompare(a.last_seen));
+    const sessions = Array.from(map.values()).sort((a, b) =>
+      b.last_seen.localeCompare(a.last_seen),
+    );
     return { sessions };
   });

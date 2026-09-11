@@ -3,7 +3,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, AlertTriangle, Check } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -65,7 +71,12 @@ export function ClicksignImportDialog({
         next[c.key] =
           c.status === "new"
             ? { action: "create", type: c.suggestedType }
-            : { action: "link", type: c.suggestedType, targetType: c.matches[0]?.type, targetId: c.matches[0]?.id };
+            : {
+                action: "link",
+                type: c.suggestedType,
+                targetType: c.matches[0]?.type,
+                targetId: c.matches[0]?.id,
+              };
       }
       return next;
     });
@@ -111,8 +122,8 @@ export function ClicksignImportDialog({
         <DialogHeader>
           <DialogTitle className="text-base">Importar cadastros do ClickSign</DialogTitle>
           <DialogDescription className="text-xs">
-            Identificamos os signatários dos contratos. Confirme o que deve virar cadastro — possíveis duplicados
-            precisam da sua decisão.
+            Identificamos os signatários dos contratos. Confirme o que deve virar cadastro —
+            possíveis duplicados precisam da sua decisão.
           </DialogDescription>
         </DialogHeader>
 
@@ -136,7 +147,9 @@ export function ClicksignImportDialog({
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">{c.name}</p>
                         <p className="truncate text-[11px] text-muted-foreground">
-                          {[c.doc, c.email, `${c.documents} contrato(s)`].filter(Boolean).join(" · ")}
+                          {[c.doc, c.email, `${c.documents} contrato(s)`]
+                            .filter(Boolean)
+                            .join(" · ")}
                         </p>
                       </div>
                       {c.status === "duplicate" ? (
@@ -144,7 +157,6 @@ export function ClicksignImportDialog({
                           <AlertTriangle className="size-3" /> Possível duplicado
                         </Badge>
                       ) : null}
-
                     </div>
 
                     {c.matches.length > 0 ? (
@@ -153,7 +165,9 @@ export function ClicksignImportDialog({
                           <button
                             key={`${m.type}:${m.id}`}
                             type="button"
-                            onClick={() => set(c.key, { action: "link", targetType: m.type, targetId: m.id })}
+                            onClick={() =>
+                              set(c.key, { action: "link", targetType: m.type, targetId: m.id })
+                            }
                             className={`flex w-full items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-left text-[11px] transition-colors ${
                               d?.action === "link" && d.targetId === m.id
                                 ? "border-primary bg-primary/10"
@@ -163,7 +177,8 @@ export function ClicksignImportDialog({
                             <span className="min-w-0 truncate">
                               Vincular a <strong>{m.label}</strong>{" "}
                               <span className="text-muted-foreground">
-                                ({m.type === "owner" ? "proprietário" : "prestador"} · {REASON[m.reason]})
+                                ({m.type === "owner" ? "proprietário" : "prestador"} ·{" "}
+                                {REASON[m.reason]})
                               </span>
                             </span>
                             {d?.action === "link" && d.targetId === m.id ? (
@@ -220,10 +235,20 @@ export function ClicksignImportDialog({
                 {alreadyLinked > 0 ? ` · ${alreadyLinked} já cadastrados` : ""}
               </p>
               <div className="flex gap-2">
-                <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => onOpenChange(false)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => onOpenChange(false)}
+                >
                   Cancelar
                 </Button>
-                <Button size="sm" className="h-8 text-xs" disabled={run.isPending} onClick={() => run.mutate()}>
+                <Button
+                  size="sm"
+                  className="h-8 text-xs"
+                  disabled={run.isPending}
+                  onClick={() => run.mutate()}
+                >
                   {run.isPending ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : null}
                   Confirmar importação
                 </Button>

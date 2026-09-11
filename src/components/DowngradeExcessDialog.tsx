@@ -84,8 +84,10 @@ export function DowngradeExcessDialog({
           </DialogTitle>
           <DialogDescription>
             O plano {targetCfg.name} permite até {targetCfg.maxGuides} guias. Selecione
-            {mustRemove > 0 ? ` pelo menos ${mustRemove} guia(s) para excluir` : " guias para excluir"} antes
-            de fazer o downgrade.
+            {mustRemove > 0
+              ? ` pelo menos ${mustRemove} guia(s) para excluir`
+              : " guias para excluir"}{" "}
+            antes de fazer o downgrade.
           </DialogDescription>
         </DialogHeader>
 
@@ -104,7 +106,6 @@ export function DowngradeExcessDialog({
             </ul>
           </div>
         )}
-
 
         {impactQuery.isLoading ? (
           <div className="h-40 grid place-items-center">
@@ -143,7 +144,9 @@ export function DowngradeExcessDialog({
             <div className="text-xs flex items-center justify-between">
               <span className="text-muted-foreground">
                 Restará{" "}
-                <strong className={remaining > impact.targetMax ? "text-destructive" : "text-foreground"}>
+                <strong
+                  className={remaining > impact.targetMax ? "text-destructive" : "text-foreground"}
+                >
                   {remaining}
                 </strong>{" "}
                 de {impact.targetMax} permitidos.

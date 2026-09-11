@@ -73,7 +73,9 @@ function safeFbq(): Fbq | null {
 export function metaPixelPageView(path?: string): void {
   const fbq = safeFbq();
   if (!fbq) return;
-  const current = path ?? (typeof window !== "undefined" ? window.location.pathname + window.location.search : "");
+  const current =
+    path ??
+    (typeof window !== "undefined" ? window.location.pathname + window.location.search : "");
   if (typeof window !== "undefined" && window.__metaPixelLastPath === current) return;
   if (typeof window !== "undefined") window.__metaPixelLastPath = current;
   try {

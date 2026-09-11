@@ -58,7 +58,6 @@ export function filterUpcoming(items: NewsItem[], today: string): NewsItem[] {
   });
 }
 
-
 export type CityNews = { items: NewsItem[] };
 
 type FirecrawlSearchResult = {
@@ -70,7 +69,10 @@ type FirecrawlSearchResult = {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function firecrawlSearch(query: string, tbs: string = "qdr:w"): Promise<FirecrawlSearchResult[]> {
+async function firecrawlSearch(
+  query: string,
+  tbs: string = "qdr:w",
+): Promise<FirecrawlSearchResult[]> {
   const key = process.env.FIRECRAWL_API_KEY;
   if (!key) {
     console.error("[city-news] FIRECRAWL_API_KEY ausente — busca de fontes desativada.");
@@ -89,10 +91,14 @@ async function firecrawlSearch(query: string, tbs: string = "qdr:w"): Promise<Fi
       continue;
     }
     if (!r.ok) {
-      console.error(`[city-news] Firecrawl respondeu ${r.status} para "${query}": ${(await r.text().catch(() => "")).slice(0, 300)}`);
+      console.error(
+        `[city-news] Firecrawl respondeu ${r.status} para "${query}": ${(await r.text().catch(() => "")).slice(0, 300)}`,
+      );
       return [];
     }
-    const j = (await r.json()) as { data?: FirecrawlSearchResult[] | { web?: FirecrawlSearchResult[] } };
+    const j = (await r.json()) as {
+      data?: FirecrawlSearchResult[] | { web?: FirecrawlSearchResult[] };
+    };
     const list = Array.isArray(j.data)
       ? j.data
       : Array.isArray((j.data as { web?: FirecrawlSearchResult[] })?.web)
@@ -109,7 +115,10 @@ async function firecrawlSearch(query: string, tbs: string = "qdr:w"): Promise<Fi
  * comércios locais com atrativos, gastronomia e experiências), deduplicadas por
  * URL. Roda em lotes pequenos para respeitar o rate limit do Firecrawl.
  */
-async function deepCitySearch(cityLabel: string, country: string | null): Promise<FirecrawlSearchResult[]> {
+async function deepCitySearch(
+  cityLabel: string,
+  country: string | null,
+): Promise<FirecrawlSearchResult[]> {
   const city = `"${cityLabel}"${country ? ` ${country}` : ""}`;
   const queries: Array<{ q: string; tbs: string }> = [
     { q: `${city} agenda cultural eventos desta semana programação`, tbs: "qdr:w" },
@@ -137,7 +146,6 @@ async function deepCitySearch(cityLabel: string, country: string | null): Promis
     if (i + BATCH < queries.length) await sleep(1200);
   }
 
-
   const seen = new Set<string>();
   const merged: FirecrawlSearchResult[] = [];
   for (const list of results) {
@@ -152,8 +160,6 @@ async function deepCitySearch(cityLabel: string, country: string | null): Promis
   return merged.slice(0, 90);
 }
 
-
-
 async function curateWithAi(params: {
   cityLabel: string;
   country: string | null;
@@ -167,7 +173,12 @@ async function curateWithAi(params: {
     return [];
   }
   if (params.candidates.length === 0) return [];
-  const langNames = { pt: "português brasileiro", en: "English", es: "español", fr: "français" } as const;
+  const langNames = {
+    pt: "português brasileiro",
+    en: "English",
+    es: "español",
+    fr: "français",
+  } as const;
   const langName = langNames[params.lang as keyof typeof langNames] ?? "português brasileiro";
 
   const feed = params.candidates
@@ -229,7 +240,9 @@ ${feed}`;
     signal: AbortSignal.timeout(45000),
   });
   if (!r.ok) {
-    console.error(`[city-news] AI Gateway respondeu ${r.status} (modelo ${AI_MODELS.cityPulse}): ${(await r.text().catch(() => "")).slice(0, 400)}`);
+    console.error(
+      `[city-news] AI Gateway respondeu ${r.status} (modelo ${AI_MODELS.cityPulse}): ${(await r.text().catch(() => "")).slice(0, 400)}`,
+    );
     return [];
   }
   const j = (await r.json()) as { choices?: Array<{ message?: { content?: string } }> };
@@ -250,12 +263,18 @@ ${feed}`;
   try {
     parsed = JSON.parse(raw);
   } catch (e) {
-    console.error("[city-news] Resposta da IA não é JSON válido:", raw.slice(0, 300), e instanceof Error ? e.message : e);
+    console.error(
+      "[city-news] Resposta da IA não é JSON válido:",
+      raw.slice(0, 300),
+      e instanceof Error ? e.message : e,
+    );
     return [];
   }
   const items: NewsItem[] = (parsed.items ?? []).map((it) => {
     const src = typeof it.sourceIndex === "number" ? params.candidates[it.sourceIndex] : undefined;
-    const siteName = src?.metadata?.ogSiteName ?? (src?.url ? new URL(src.url).hostname.replace(/^www\./, "") : null);
+    const siteName =
+      src?.metadata?.ogSiteName ??
+      (src?.url ? new URL(src.url).hostname.replace(/^www\./, "") : null);
     return {
       title: (it.title ?? "").slice(0, 90),
       category: (it.category ?? "passeio").slice(0, 20).toLowerCase(),
@@ -360,14 +379,16 @@ async function verifyEventDates(items: NewsItem[], today: string): Promise<NewsI
   );
 
   // Eventos sem confirmação na fonte são removidos.
-  return items.filter(
-    (it, i) => (it.category ?? "").toLowerCase() !== "evento" || verified.has(i),
-  );
+  return items.filter((it, i) => (it.category ?? "").toLowerCase() !== "evento" || verified.has(i));
 }
 
 // Busca uma foto real do Google Places para cada item, usando o título + cidade
 // como query. Se não encontrar, deixa imageUrl null (o cliente mostra fallback).
-async function attachPlacePhotos(items: NewsItem[], cityLabel: string, country: string | null): Promise<NewsItem[]> {
+async function attachPlacePhotos(
+  items: NewsItem[],
+  cityLabel: string,
+  country: string | null,
+): Promise<NewsItem[]> {
   const apiKey = process.env.LOVABLE_API_KEY;
   const mapsKey = process.env.GOOGLE_MAPS_API_KEY_2 ?? process.env.GOOGLE_MAPS_API_KEY;
   if (!apiKey || !mapsKey) return items;
@@ -409,7 +430,8 @@ async function attachPlacePhotos(items: NewsItem[], cityLabel: string, country: 
         const j = (await res.json()) as { places?: Array<{ photos?: Array<{ name?: string }> }> };
         const photoName = j.places?.[0]?.photos?.[0]?.name;
         if (photoName && /^places\/[A-Za-z0-9_-]+\/photos\/[A-Za-z0-9_-]+$/.test(photoName)) {
-          items[idx].imageUrl = `/api/public/place-photo?name=${encodeURIComponent(photoName)}&w=800`;
+          items[idx].imageUrl =
+            `/api/public/place-photo?name=${encodeURIComponent(photoName)}&w=800`;
         }
       } catch {
         // ignora — mantém fallback
@@ -421,7 +443,10 @@ async function attachPlacePhotos(items: NewsItem[], cityLabel: string, country: 
 
 // Evita que vários hóspedes disparem a mesma geração ao mesmo tempo
 // (isso estourava o rate limit do Firecrawl e devolvia lista vazia a todos).
-const inflight = new Map<string, Promise<{ items: NewsItem[] | null; cached: boolean; generated: boolean }>>();
+const inflight = new Map<
+  string,
+  Promise<{ items: NewsItem[] | null; cached: boolean; generated: boolean }>
+>();
 
 // Núcleo compartilhado — usado pelo server fn e pelo cron diário.
 // Retorna { items, cached, generated } para o cron logar o que fez.
@@ -458,7 +483,9 @@ export async function generateAndCacheCityNews(input: {
       // troca por fotos reais do Google Places e re-salva.
       const needsPhotoMigration =
         isToday &&
-        (cachedItems.some((it) => it.imageUrl && !it.imageUrl.startsWith("/api/public/place-photo")) ||
+        (cachedItems.some(
+          (it) => it.imageUrl && !it.imageUrl.startsWith("/api/public/place-photo"),
+        ) ||
           cachedItems.every((it) => !it.imageUrl));
       if (needsPhotoMigration) {
         try {
@@ -469,7 +496,10 @@ export async function generateAndCacheCityNews(input: {
           );
           await supabaseAdmin
             .from("city_daily_news")
-            .upsert({ city_key: input.cityKey, date: today, items: cachedItems }, { onConflict: "city_key,date" });
+            .upsert(
+              { city_key: input.cityKey, date: today, items: cachedItems },
+              { onConflict: "city_key,date" },
+            );
         } catch {
           // segue com o cache original
         }
@@ -483,22 +513,28 @@ export async function generateAndCacheCityNews(input: {
     const lockKey = `${input.cityKey}:${today}`;
     const running = inflight.get(lockKey);
     if (running) return running;
-    const p = generateAndCacheCityNews({ ...input, force: true }).finally(() => inflight.delete(lockKey));
+    const p = generateAndCacheCityNews({ ...input, force: true }).finally(() =>
+      inflight.delete(lockKey),
+    );
     inflight.set(lockKey, p);
     return p;
   }
-
 
   let candidates: FirecrawlSearchResult[] = [];
   try {
     candidates = await deepCitySearch(input.cityLabel, input.country ?? null);
   } catch (e) {
-    console.error(`[city-news] deepCitySearch falhou para "${input.cityLabel}":`, e instanceof Error ? e.message : e);
+    console.error(
+      `[city-news] deepCitySearch falhou para "${input.cityLabel}":`,
+      e instanceof Error ? e.message : e,
+    );
     candidates = [];
   }
 
   if (candidates.length === 0) {
-    console.warn(`[city-news] Nenhum candidato encontrado para "${input.cityLabel}" — nada a curar.`);
+    console.warn(
+      `[city-news] Nenhum candidato encontrado para "${input.cityLabel}" — nada a curar.`,
+    );
     return { items: null, cached: false, generated: false };
   }
 
@@ -512,11 +548,16 @@ export async function generateAndCacheCityNews(input: {
       candidates,
     });
   } catch (e) {
-    console.error(`[city-news] curateWithAi falhou para "${input.cityLabel}":`, e instanceof Error ? e.message : e);
+    console.error(
+      `[city-news] curateWithAi falhou para "${input.cityLabel}":`,
+      e instanceof Error ? e.message : e,
+    );
     items = [];
   }
   if (items.length === 0) {
-    console.warn(`[city-news] IA não retornou itens válidos para "${input.cityLabel}" (${candidates.length} candidatos brutos).`);
+    console.warn(
+      `[city-news] IA não retornou itens válidos para "${input.cityLabel}" (${candidates.length} candidatos brutos).`,
+    );
     return { items: null, cached: false, generated: false };
   }
 
@@ -525,13 +566,18 @@ export async function generateAndCacheCityNews(input: {
   try {
     items = await verifyEventDates(items, today);
   } catch (e) {
-    console.error(`[city-news] verifyEventDates falhou para "${input.cityLabel}" — descartando eventos:`, e instanceof Error ? e.message : e);
+    console.error(
+      `[city-news] verifyEventDates falhou para "${input.cityLabel}" — descartando eventos:`,
+      e instanceof Error ? e.message : e,
+    );
     // Sem verificação não há garantia de calendário — descartamos os eventos.
     items = items.filter((it) => (it.category ?? "").toLowerCase() !== "evento");
   }
   items = filterUpcoming(items, today);
   if (items.length === 0) {
-    console.warn(`[city-news] Todos os itens de "${input.cityLabel}" foram descartados no filtro de calendário.`);
+    console.warn(
+      `[city-news] Todos os itens de "${input.cityLabel}" foram descartados no filtro de calendário.`,
+    );
     return { items: null, cached: false, generated: false };
   }
 
@@ -539,7 +585,10 @@ export async function generateAndCacheCityNews(input: {
   try {
     items = await attachPlacePhotos(items, input.cityLabel, input.country ?? null);
   } catch (e) {
-    console.error(`[city-news] attachPlacePhotos falhou para "${input.cityLabel}" — segue sem fotos:`, e instanceof Error ? e.message : e);
+    console.error(
+      `[city-news] attachPlacePhotos falhou para "${input.cityLabel}" — segue sem fotos:`,
+      e instanceof Error ? e.message : e,
+    );
   }
 
   await supabaseAdmin

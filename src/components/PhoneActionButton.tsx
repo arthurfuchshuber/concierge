@@ -23,7 +23,13 @@ type Props = {
  * Botão único e padronizado para telefones em todo o app: ícone verde de
  * mensagem que abre as opções "WhatsApp" e "Copiar". Nunca exibe o número.
  */
-export function PhoneActionButton({ phone, country, className, size = 14, showNumber = false }: Props) {
+export function PhoneActionButton({
+  phone,
+  country,
+  className,
+  size = 14,
+  showNumber = false,
+}: Props) {
   if (!phone) return null;
   const waNumber = toWhatsappNumber(phone, country);
   const label = formatIntlPhone(phone, country) || phone;

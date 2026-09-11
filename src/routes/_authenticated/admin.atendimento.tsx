@@ -3,17 +3,17 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { z } from "zod";
+import { listHandoffConversations, getAtendimentoAccess } from "@/lib/handoff.functions";
 import {
-  listHandoffConversations,
-  getAtendimentoAccess,
-} from "@/lib/handoff.functions";
-import { ConversationList, ConversationView, useMyUserId } from "@/components/handoff/ConversationView";
+  ConversationList,
+  ConversationView,
+  useMyUserId,
+} from "@/components/handoff/ConversationView";
 import { Headphones, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { QUEUES, type Queue } from "@/lib/handoff-queues";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { PageHeader } from "@/components/ds/PageHeader";
-
 
 const searchSchema = z.object({
   conv: z.string().uuid().optional(),
@@ -24,7 +24,6 @@ export const Route = createFileRoute("/_authenticated/admin/atendimento")({
   component: AtendimentoPage,
 });
 
-
 function AtendimentoPage() {
   const { conv } = useSearch({ from: "/_authenticated/admin/atendimento" });
   const accessFn = useServerFn(getAtendimentoAccess);
@@ -34,7 +33,11 @@ function AtendimentoPage() {
   const access = useQuery({
     queryKey: ["handoff-access"],
     queryFn: async () => {
-      try { return await accessFn(); } catch { return { allowed: false as const, as: null, plan: null }; }
+      try {
+        return await accessFn();
+      } catch {
+        return { allowed: false as const, as: null, plan: null };
+      }
     },
     staleTime: 5 * 60_000,
     retry: false,
@@ -46,22 +49,23 @@ function AtendimentoPage() {
   const [activeId, setActiveId] = useState<string | null>(conv ?? null);
   const [search, setSearch] = useState("");
 
-
-  useEffect(() => { if (conv) setActiveId(conv); }, [conv]);
+  useEffect(() => {
+    if (conv) setActiveId(conv);
+  }, [conv]);
 
   const list = useQuery({
     queryKey: ["handoff-list", queue, activeAccountId ?? "self"],
     queryFn: async () => {
       try {
         return await listFn({ data: { queue, limit: 100, accountOwnerId: activeAccountId } });
+      } catch {
+        return { conversations: [], details: {} };
       }
-      catch { return { conversations: [], details: {} }; }
     },
     enabled: access.data?.allowed === true,
     refetchInterval: 15_000,
     retry: false,
   });
-
 
   if (access.isLoading) {
     return <div className="p-8 text-sm text-muted-foreground">Carregando…</div>;
@@ -76,9 +80,13 @@ function AtendimentoPage() {
             <h1 className="font-display text-2xl">Central de atendimento</h1>
           </div>
           <p className="text-sm text-muted-foreground mb-4">
-            A Central de Atendimento humano com handoff da IA está disponível nos planos <strong>Business</strong> e <strong>Enterprise</strong>.
+            A Central de Atendimento humano com handoff da IA está disponível nos planos{" "}
+            <strong>Business</strong> e <strong>Enterprise</strong>.
           </p>
-          <a href="/admin/assinatura" className="inline-flex items-center rounded-xl px-4 py-2 bg-primary text-primary-foreground font-medium">
+          <a
+            href="/admin/assinatura"
+            className="inline-flex items-center rounded-xl px-4 py-2 bg-primary text-primary-foreground font-medium"
+          >
             Fazer upgrade
           </a>
         </div>
@@ -104,13 +112,14 @@ function AtendimentoPage() {
         c.handoff_reason ?? "",
         checkin ?? "",
         checkin ? new Date(checkin).toLocaleDateString("pt-BR") : "",
-      ].join(" ").toLowerCase();
+      ]
+        .join(" ")
+        .toLowerCase();
       if (hay.includes(term)) return true;
       if (digits && d?.phone && d.phone.replace(/\D+/g, "").includes(digits)) return true;
       return false;
     });
   })();
-
 
   return (
     <div className="h-[calc(100vh-0px)] lg:h-screen flex flex-col">
@@ -169,8 +178,6 @@ function AtendimentoPage() {
             activeId={activeId}
             onSelect={setActiveId}
           />
-
-
         </div>
 
         {/* Chat */}
@@ -188,7 +195,12 @@ function AtendimentoPage() {
         {activeId && (
           <div className="md:hidden fixed inset-0 z-30 bg-background flex flex-col">
             <div className="border-b border-border p-2 flex items-center gap-2">
-              <button onClick={() => setActiveId(null)} className="text-sm px-3 py-1.5 rounded-md border border-border">← Voltar</button>
+              <button
+                onClick={() => setActiveId(null)}
+                className="text-sm px-3 py-1.5 rounded-md border border-border"
+              >
+                ← Voltar
+              </button>
             </div>
             <div className="flex-1 min-h-0">
               <ConversationView conversationId={activeId} myUserId={myUserId} />

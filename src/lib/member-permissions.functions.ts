@@ -101,23 +101,47 @@ export const PERMISSION_META: Record<
     description: "Ver guias, manual, recomendações, FAQs.",
     group: "operational",
   },
-  library_edit: { label: "Editar biblioteca", description: "Criar/editar guias e conteúdo.", group: "operational" },
-  ai_view: { label: "Ver IA", description: "Consultar base de conhecimento e comportamento.", group: "operational" },
-  ai_train: { label: "Treinar IA", description: "Editar base, FAQs e comportamento.", group: "operational" },
+  library_edit: {
+    label: "Editar biblioteca",
+    description: "Criar/editar guias e conteúdo.",
+    group: "operational",
+  },
+  ai_view: {
+    label: "Ver IA",
+    description: "Consultar base de conhecimento e comportamento.",
+    group: "operational",
+  },
+  ai_train: {
+    label: "Treinar IA",
+    description: "Editar base, FAQs e comportamento.",
+    group: "operational",
+  },
   chat_view: { label: "Ver chat", description: "Ver conversas e histórico.", group: "operational" },
   chat_respond: {
     label: "Responder no chat",
     description: "Assumir e responder no atendimento humano.",
     group: "operational",
   },
-  operation_view: { label: "Ver operação", description: "Ver dashboard, KPIs e Kanban.", group: "operational" },
+  operation_view: {
+    label: "Ver operação",
+    description: "Ver dashboard, KPIs e Kanban.",
+    group: "operational",
+  },
   operation_edit: {
     label: "Agir na operação",
     description: "Marcar check-in/out/limpeza e editar horários.",
     group: "operational",
   },
-  guests_view: { label: "Ver hóspedes", description: "Ver lista de hóspedes e captação.", group: "operational" },
-  guests_edit: { label: "Editar hóspedes", description: "Editar e exportar dados de captação.", group: "operational" },
+  guests_view: {
+    label: "Ver hóspedes",
+    description: "Ver lista de hóspedes e captação.",
+    group: "operational",
+  },
+  guests_edit: {
+    label: "Editar hóspedes",
+    description: "Editar e exportar dados de captação.",
+    group: "operational",
+  },
   clients_manage: {
     label: "Gerenciar clientes",
     description: "Alterar planos e informações de clientes.",
@@ -165,7 +189,11 @@ export const listMemberPermissions = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data?.accountOwnerId ?? null);
+    const ownerId = await resolveAuthorizedAccountOwnerId(
+      supabase,
+      userId,
+      data?.accountOwnerId ?? null,
+    );
     const { data: members } = await supabase
       .from("account_members")
       .select("id, member_user_id, role, status, created_at")
@@ -182,9 +210,15 @@ export const listMemberPermissions = createServerFn({ method: "GET" })
     let profiles: Record<string, { email: string | null; full_name: string | null }> = {};
     if (ids.length) {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: profs } = await supabaseAdmin.from("profiles").select("id, full_name, trade_name").in("id", ids);
+      const { data: profs } = await supabaseAdmin
+        .from("profiles")
+        .select("id, full_name, trade_name")
+        .in("id", ids);
       for (const p of profs ?? [])
-        profiles[p.id as string] = { email: null, full_name: ((p.trade_name as string) || (p.full_name as string)) ?? null };
+        profiles[p.id as string] = {
+          email: null,
+          full_name: ((p.trade_name as string) || (p.full_name as string)) ?? null,
+        };
       const users = { users: await (await import("@/lib/admin-users.server")).listAllAuthUsers() };
       for (const u of users?.users ?? []) {
         if (ids.includes(u.id))
@@ -220,9 +254,13 @@ export const updateMemberPermission = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.accountOwnerId ?? null);
+    const ownerId = await resolveAuthorizedAccountOwnerId(
+      supabase,
+      userId,
+      data.accountOwnerId ?? null,
+    );
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
-    await enforce(userId, "equipe.permissoes", { });
+    await enforce(userId, "equipe.permissoes", {});
     // Ensure the target is actually a member of this account
     const { data: m } = await supabase
       .from("account_members")
@@ -246,7 +284,9 @@ export const updateMemberPermission = createServerFn({ method: "POST" })
 
     // Cascata view↔edit: ligar EDIT liga o VIEW correspondente;
     // desligar VIEW desliga o EDIT correspondente. Mantém coerência.
-    const area = PERMISSION_AREAS.find((a) => a.view === data.permission || a.edit === data.permission);
+    const area = PERMISSION_AREAS.find(
+      (a) => a.view === data.permission || a.edit === data.permission,
+    );
     const rowsToUpsert: {
       owner_id: string;
       member_user_id: string;
@@ -301,7 +341,9 @@ export const updateMemberPermission = createServerFn({ method: "POST" })
         actorType: "OWNER",
         actorId: userId,
         actorRole: "owner",
-        permissionSnapshot: { changed: rowsToUpsert.map((r) => ({ permission: r.permission, granted: r.granted })) },
+        permissionSnapshot: {
+          changed: rowsToUpsert.map((r) => ({ permission: r.permission, granted: r.granted })),
+        },
         eventType: "permission_changed",
         eventCategory: "PERMISSIONS",
         entityType: "account_member_permissions",
@@ -310,9 +352,15 @@ export const updateMemberPermission = createServerFn({ method: "POST" })
         reason: "Alteração manual de permissão de membro da equipe",
         source: "admin_panel",
         severity: "notice",
-        metadata: { member_user_id: data.memberUserId, permission: data.permission, granted: data.granted },
+        metadata: {
+          member_user_id: data.memberUserId,
+          permission: data.permission,
+          granted: data.granted,
+        },
       });
-    } catch { /* auditoria nunca bloqueia a operação */ }
+    } catch {
+      /* auditoria nunca bloqueia a operação */
+    }
 
     return { ok: true };
   });

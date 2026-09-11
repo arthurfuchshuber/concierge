@@ -31,7 +31,13 @@ function unavailableValidation(highRisk: boolean): Validation {
         needsHuman: true,
         confidence: 0,
       }
-    : { approved: true, reason: "validador indisponível", issues: [], needsHuman: false, confidence: 0.5 };
+    : {
+        approved: true,
+        reason: "validador indisponível",
+        issues: [],
+        needsHuman: false,
+        confidence: 0.5,
+      };
 }
 
 export async function validateAnswer(params: {
@@ -49,7 +55,13 @@ export async function validateAnswer(params: {
 
   if (!params.answer.trim()) {
     return {
-      validation: { approved: false, reason: "resposta vazia", issues: ["empty"], needsHuman: true, confidence: 0 },
+      validation: {
+        approved: false,
+        reason: "resposta vazia",
+        issues: ["empty"],
+        needsHuman: true,
+        confidence: 0,
+      },
       usage: EMPTY_USAGE,
       model: "",
     };

@@ -79,7 +79,9 @@ export function ClientSwitcher() {
           }`}
         >
           <Users className="size-4 shrink-0" />
-          <span className={`flex-1 truncate ${impersonation ? "text-foreground font-medium" : "text-foreground/80"}`}>
+          <span
+            className={`flex-1 truncate ${impersonation ? "text-foreground font-medium" : "text-foreground/80"}`}
+          >
             {label}
           </span>
           {impersonation ? (

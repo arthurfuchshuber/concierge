@@ -6,7 +6,9 @@ const TTL_SECONDS = 60 * 60; // 1h
 function extractPath(url: string | null | undefined): string | null {
   if (!url || typeof url !== "string") return null;
   // Matches public, sign, or authenticated storage URLs for our bucket
-  const m = url.match(/\/storage\/v1\/object\/(?:public|sign|authenticated)\/property-images\/([^?#]+)/);
+  const m = url.match(
+    /\/storage\/v1\/object\/(?:public|sign|authenticated)\/property-images\/([^?#]+)/,
+  );
   return m ? decodeURIComponent(m[1]) : null;
 }
 
@@ -15,10 +17,7 @@ function extractPath(url: string | null | undefined): string | null {
  * Non-bucket URLs (e.g. Google Maps photo URLs) pass through unchanged.
  * Accepts string, string[], or plain object whose string leaves may be image URLs.
  */
-export async function signPropertyImages<T>(
-  supabase: SupabaseClient,
-  value: T,
-): Promise<T> {
+export async function signPropertyImages<T>(supabase: SupabaseClient, value: T): Promise<T> {
   const paths: string[] = [];
   const collect = (v: unknown): void => {
     if (!v) return;

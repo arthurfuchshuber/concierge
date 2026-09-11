@@ -12,7 +12,8 @@ export const Route = createFileRoute("/termos")({
       { property: "og:title", content: "Termos e Condições — ConciergeIA" },
       {
         property: "og:description",
-        content: "Termos de uso do ConciergeIA, incluindo assinatura, pagamentos via Paddle e suporte.",
+        content:
+          "Termos de uso do ConciergeIA, incluindo assinatura, pagamentos via Paddle e suporte.",
       },
       { property: "og:url", content: "/termos" },
     ],
@@ -34,38 +35,43 @@ function TermsPage() {
         <section className="mt-8 space-y-4 text-sm leading-relaxed">
           <h2 className="font-display text-2xl mt-6">1. O serviço e o prestador</h2>
           <p>
-            <strong>ConciergeIA</strong> ("nós", "serviço") é o nome legal do prestador responsável por este SaaS,
-            que permite a anfitriões de aluguel por temporada criarem guias digitais editoriais para seus hóspedes.
-            Contato: <strong>sigma@anfitriaosigma.com.br</strong>. Ao usar o serviço, você concorda com estes Termos e
-            contrata diretamente com a ConciergeIA.
+            <strong>ConciergeIA</strong> ("nós", "serviço") é o nome legal do prestador responsável
+            por este SaaS, que permite a anfitriões de aluguel por temporada criarem guias digitais
+            editoriais para seus hóspedes. Contato: <strong>sigma@anfitriaosigma.com.br</strong>. Ao
+            usar o serviço, você concorda com estes Termos e contrata diretamente com a ConciergeIA.
           </p>
 
           <h2 className="font-display text-2xl mt-6">2. Uso aceitável</h2>
           <p>
-            Você concorda em não usar o serviço para: atividades ilegais, fraude, spam, violação de propriedade
-            intelectual, ou interferir na segurança do sistema (malware, sondagem, scraping não autorizado).
+            Você concorda em não usar o serviço para: atividades ilegais, fraude, spam, violação de
+            propriedade intelectual, ou interferir na segurança do sistema (malware, sondagem,
+            scraping não autorizado).
           </p>
 
           <h2 className="font-display text-2xl mt-6">3. Conta</h2>
           <p>
-            Você é responsável pela confidencialidade de suas credenciais e por todas as atividades em sua conta.
-            Forneça informações precisas e atualizadas.
+            Você é responsável pela confidencialidade de suas credenciais e por todas as atividades
+            em sua conta. Forneça informações precisas e atualizadas.
           </p>
 
           <h2 className="font-display text-2xl mt-6">4. Propriedade intelectual</h2>
           <p>
-            O ConciergeIA retém todos os direitos sobre o software, documentação e marca. Concedemos a você uma
-            licença limitada, não exclusiva e intransferível para usar o serviço dentro do plano contratado.
+            O ConciergeIA retém todos os direitos sobre o software, documentação e marca. Concedemos
+            a você uma licença limitada, não exclusiva e intransferível para usar o serviço dentro
+            do plano contratado.
           </p>
 
           <h2 className="font-display text-2xl mt-6">5. Pagamentos e assinatura</h2>
           <p>
-            Nosso processo de pedido é conduzido pelo nosso revendedor online <strong>Paddle.com</strong>. A Paddle.com
-            é o <strong>Comerciante de Registro (Merchant of Record)</strong> de todos os nossos pedidos. A Paddle
-            gerencia consultas de suporte ao cliente relacionadas a cobrança e processa reembolsos.
+            Nosso processo de pedido é conduzido pelo nosso revendedor online{" "}
+            <strong>Paddle.com</strong>. A Paddle.com é o{" "}
+            <strong>Comerciante de Registro (Merchant of Record)</strong> de todos os nossos
+            pedidos. A Paddle gerencia consultas de suporte ao cliente relacionadas a cobrança e
+            processa reembolsos.
           </p>
           <p>
-            Os termos de pagamento, cobrança, tributação e cancelamento são regidos pelos Termos do Comprador da Paddle:{" "}
+            Os termos de pagamento, cobrança, tributação e cancelamento são regidos pelos Termos do
+            Comprador da Paddle:{" "}
             <a
               className="underline"
               href="https://www.paddle.com/legal/checkout-buyer-terms"
@@ -77,32 +83,33 @@ function TermsPage() {
             .
           </p>
           <p>
-            Assinaturas são renovadas automaticamente conforme o ciclo de cobrança escolhido. Você pode cancelar a
-            qualquer momento pelo portal do cliente.
+            Assinaturas são renovadas automaticamente conforme o ciclo de cobrança escolhido. Você
+            pode cancelar a qualquer momento pelo portal do cliente.
           </p>
 
           <h2 className="font-display text-2xl mt-6">6. Nível de serviço</h2>
           <p>
-            Nos esforçamos para manter o serviço disponível, mas não garantimos funcionamento ininterrupto ou livre de
-            erros. Não nos responsabilizamos por danos indiretos, consequenciais ou lucros cessantes.
+            Nos esforçamos para manter o serviço disponível, mas não garantimos funcionamento
+            ininterrupto ou livre de erros. Não nos responsabilizamos por danos indiretos,
+            consequenciais ou lucros cessantes.
           </p>
 
           <h2 className="font-display text-2xl mt-6">7. Suspensão e rescisão</h2>
           <p>
-            Podemos suspender ou encerrar seu acesso em caso de: violação destes Termos, falta de pagamento, risco de
-            segurança ou fraude, ou violações repetidas das políticas.
+            Podemos suspender ou encerrar seu acesso em caso de: violação destes Termos, falta de
+            pagamento, risco de segurança ou fraude, ou violações repetidas das políticas.
           </p>
 
           <h2 className="font-display text-2xl mt-6">8. Limitação de responsabilidade</h2>
           <p>
-            Nossa responsabilidade agregada está limitada ao valor pago por você nos 12 meses anteriores à reclamação,
-            exceto onde a lei exigir o contrário.
+            Nossa responsabilidade agregada está limitada ao valor pago por você nos 12 meses
+            anteriores à reclamação, exceto onde a lei exigir o contrário.
           </p>
 
           <h2 className="font-display text-2xl mt-6">9. Lei aplicável</h2>
           <p>
-            Estes Termos são regidos pelas leis do Brasil. Qualquer disputa será resolvida no foro da comarca do
-            prestador.
+            Estes Termos são regidos pelas leis do Brasil. Qualquer disputa será resolvida no foro
+            da comarca do prestador.
           </p>
 
           <h2 className="font-display text-2xl mt-6">10. Contato</h2>

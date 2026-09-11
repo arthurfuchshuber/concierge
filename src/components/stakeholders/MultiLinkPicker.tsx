@@ -106,7 +106,9 @@ export function MultiLinkPicker({
                   onClick={() => toggle(o.id)}
                   aria-pressed={on}
                   className={`grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-[0.3rem] border px-3 py-2.5 text-left transition-colors ${
-                    on ? "border-primary/50 bg-primary/10" : "border-border bg-card hover:bg-secondary/50"
+                    on
+                      ? "border-primary/50 bg-primary/10"
+                      : "border-border bg-card hover:bg-secondary/50"
                   }`}
                 >
                   <span
@@ -117,7 +119,9 @@ export function MultiLinkPicker({
                     {on && <Check className="size-3" />}
                   </span>
                   <span className="min-w-0">
-                    <span className="block truncate text-[13.5px] font-medium text-foreground">{o.label}</span>
+                    <span className="block truncate text-[13.5px] font-medium text-foreground">
+                      {o.label}
+                    </span>
                     {o.hint && <span className="block truncate ds-meta">{o.hint}</span>}
                   </span>
                 </button>

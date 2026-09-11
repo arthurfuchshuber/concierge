@@ -16,7 +16,9 @@ export function SectionsBar({ rows, silent }: { rows: Row[]; silent: string[] })
       <div className="rounded-2xl border border-border bg-card p-4">
         <header className="mb-3">
           <h3 className="text-sm font-semibold whitespace-nowrap truncate">Seções consumidas</h3>
-          <p className="text-xs text-muted-foreground">Aberturas no período — o que realmente é lido</p>
+          <p className="text-xs text-muted-foreground">
+            Aberturas no período — o que realmente é lido
+          </p>
         </header>
 
         {rows.length === 0 ? (
@@ -33,7 +35,11 @@ export function SectionsBar({ rows, silent }: { rows: Row[]; silent: string[] })
                   <div className="flex items-center justify-between text-xs">
                     <span className="flex items-center gap-2 font-medium">
                       {labelFor(r.section)}
-                      {hot && <Badge variant="secondary" className="text-[9px] py-0 h-4">hotspot</Badge>}
+                      {hot && (
+                        <Badge variant="secondary" className="text-[9px] py-0 h-4">
+                          hotspot
+                        </Badge>
+                      )}
                     </span>
                     <span className="tabular-nums text-muted-foreground">
                       <span className="text-foreground font-semibold mr-2">{r.opens}</span>
@@ -53,7 +59,9 @@ export function SectionsBar({ rows, silent }: { rows: Row[]; silent: string[] })
       <div className="rounded-2xl border border-border bg-card p-4">
         <header className="mb-3">
           <h3 className="text-sm font-semibold whitespace-nowrap truncate">Seções silenciosas</h3>
-          <p className="text-xs text-muted-foreground">Existem no produto mas não receberam aberturas</p>
+          <p className="text-xs text-muted-foreground">
+            Existem no produto mas não receberam aberturas
+          </p>
         </header>
 
         {silent.length === 0 ? (

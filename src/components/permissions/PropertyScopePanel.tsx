@@ -59,8 +59,7 @@ export function PropertyScopePanel({
     [properties],
   );
   const owners = useMemo(
-    () =>
-      [...new Set(properties.map((p) => p.ownerName).filter((o): o is string => !!o))].sort(),
+    () => [...new Set(properties.map((p) => p.ownerName).filter((o): o is string => !!o))].sort(),
     [properties],
   );
 
@@ -88,7 +87,8 @@ export function PropertyScopePanel({
   const locked = disabled || allProperties;
   const filteredIds = filtered.map((p) => p.id);
   const selectedVisible = selected.filter((id) => filteredIds.includes(id));
-  const allVisibleSelected = filteredIds.length > 0 && selectedVisible.length === filteredIds.length;
+  const allVisibleSelected =
+    filteredIds.length > 0 && selectedVisible.length === filteredIds.length;
 
   function toggleSelect(id: string, on: boolean) {
     setSelected((prev) => (on ? [...new Set([...prev, id])] : prev.filter((x) => x !== id)));
@@ -204,7 +204,6 @@ export function PropertyScopePanel({
             </div>
           </div>
 
-
           <div className="overflow-hidden rounded-lg border">
             {filtered.length === 0 ? (
               <p className="p-4 text-sm text-muted-foreground">
@@ -229,7 +228,6 @@ export function PropertyScopePanel({
                         />
                       </span>
                       <AccordionTrigger className="min-w-0 flex-1 overflow-hidden py-1 hover:no-underline [&>svg]:shrink-0">
-
                         {/* ds-card-lines: espaçamento padrão entre linhas de
                             card (styles.css) — pedido explícito, vale para
                             TODOS os cards do sistema. */}

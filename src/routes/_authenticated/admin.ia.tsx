@@ -17,7 +17,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   listOperationKnowledge,
   saveOperationKnowledge,
@@ -43,7 +49,8 @@ export const Route = createFileRoute("/_authenticated/admin/ia")({
       { property: "og:title", content: "IA Concierge — Governança de Conhecimento" },
       {
         property: "og:description",
-        content: "Veja o que a IA aprendeu, aprove novos conhecimentos e mantenha as regras da sua operação.",
+        content:
+          "Veja o que a IA aprendeu, aprove novos conhecimentos e mantenha as regras da sua operação.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -109,7 +116,8 @@ function IaTabs() {
                 : "border border-border text-foreground hover:bg-secondary"
             }`}
           >
-            <Sparkles className="size-4" /> Aprendizados{pendingCount > 0 ? ` · ${pendingCount}` : ""}
+            <Sparkles className="size-4" /> Aprendizados
+            {pendingCount > 0 ? ` · ${pendingCount}` : ""}
           </button>
         </div>
         {tab === "conhecimento" && (
@@ -210,7 +218,10 @@ function KnowledgeTab({ openNewSignal }: { openNewSignal: number }) {
       ) : (
         <div className="ds-list grid gap-1.5 sm:grid-cols-2">
           {data.map((k) => (
-            <article key={k.id} className="ds-surface border border-border bg-card p-4 space-y-2 shadow-sm">
+            <article
+              key={k.id}
+              className="ds-surface border border-border bg-card p-4 space-y-2 shadow-sm"
+            >
               <div className="flex items-start justify-between gap-3">
                 <h3 className="ds-card-title leading-snug min-w-0 truncate">{k.title}</h3>
                 <Badge variant="secondary" className="shrink-0">
@@ -232,7 +243,9 @@ function KnowledgeTab({ openNewSignal }: { openNewSignal: number }) {
                       category: k.category,
                       content: k.content,
                       knowledgeScope:
-                        k.knowledge_scope === "PORTFOLIO_KNOWLEDGE" ? "PORTFOLIO_KNOWLEDGE" : "TENANT_KNOWLEDGE",
+                        k.knowledge_scope === "PORTFOLIO_KNOWLEDGE"
+                          ? "PORTFOLIO_KNOWLEDGE"
+                          : "TENANT_KNOWLEDGE",
                       priority: k.priority,
                     })
                   }
@@ -288,7 +301,10 @@ function KnowledgeTab({ openNewSignal }: { openNewSignal: number }) {
                   <Select
                     value={form.knowledgeScope}
                     onValueChange={(v) => {
-                      setForm({ ...form, knowledgeScope: v as "TENANT_KNOWLEDGE" | "PORTFOLIO_KNOWLEDGE" });
+                      setForm({
+                        ...form,
+                        knowledgeScope: v as "TENANT_KNOWLEDGE" | "PORTFOLIO_KNOWLEDGE",
+                      });
                       presence.broadcastTyping(
                         "knowledgeScope",
                         v === "PORTFOLIO_KNOWLEDGE" ? "Carteira de imóveis" : "Toda a empresa",
@@ -296,7 +312,9 @@ function KnowledgeTab({ openNewSignal }: { openNewSignal: number }) {
                     }}
                     onOpenChange={(open) => !open && presence.broadcastFieldBlur("knowledgeScope")}
                   >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="TENANT_KNOWLEDGE">Toda a empresa</SelectItem>
                       <SelectItem value="PORTFOLIO_KNOWLEDGE">Carteira de imóveis</SelectItem>
@@ -338,7 +356,9 @@ function KnowledgeTab({ openNewSignal }: { openNewSignal: number }) {
             </div>
           )}
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setForm(null)}>Cancelar</Button>
+            <Button variant="ghost" onClick={() => setForm(null)}>
+              Cancelar
+            </Button>
             <Button onClick={save} disabled={saving}>
               {saving && <Loader2 className="size-4 animate-spin" />} Salvar
             </Button>
@@ -377,7 +397,9 @@ function QueueTab() {
     setBusy(id);
     try {
       await reviewFn({ data: { candidateId: id, action, tenantId } });
-      toast.success(action === "approve" ? "Aprendizado aprovado e aplicado" : "Aprendizado descartado");
+      toast.success(
+        action === "approve" ? "Aprendizado aprovado e aplicado" : "Aprendizado descartado",
+      );
       await qc.invalidateQueries({ queryKey: ["ia-learning-queue"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível revisar");
@@ -402,15 +424,24 @@ function QueueTab() {
       {rows.map((c) => {
         const id = String(c.id);
         return (
-          <article key={id} className="ds-surface border border-border bg-card p-4 space-y-2 shadow-sm">
+          <article
+            key={id}
+            className="ds-surface border border-border bg-card p-4 space-y-2 shadow-sm"
+          >
             <div className="flex flex-wrap items-start justify-between gap-2">
-              <h3 className="ds-card-title min-w-0 truncate">{String(c.title ?? "Novo aprendizado")}</h3>
-              <Badge className="shrink-0 border-emerald-500/30 bg-emerald-500/10 text-emerald-600" variant="outline">
+              <h3 className="ds-card-title min-w-0 truncate">
+                {String(c.title ?? "Novo aprendizado")}
+              </h3>
+              <Badge
+                className="shrink-0 border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
+                variant="outline"
+              >
                 {Math.round(Number(c.confidence ?? 0) * 100)}% confiança
               </Badge>
             </div>
             <p className="ds-meta">
-              {String(c.learning_type ?? "Regra")} · abrangência sugerida: {String(c.recommended_scope ?? c.suggested_scope ?? "imóvel")}
+              {String(c.learning_type ?? "Regra")} · abrangência sugerida:{" "}
+              {String(c.recommended_scope ?? c.suggested_scope ?? "imóvel")}
             </p>
             <p className="ds-card-desc whitespace-pre-wrap">
               {String(c.extracted_information ?? c.proposed_memory ?? "")}
@@ -424,7 +455,12 @@ function QueueTab() {
               >
                 <Check className="size-4" /> Aprovar
               </Button>
-              <Button className="flex-1" variant="outline" disabled={busy === id} onClick={() => review(id, "reject")}>
+              <Button
+                className="flex-1"
+                variant="outline"
+                disabled={busy === id}
+                onClick={() => review(id, "reject")}
+              >
                 <X className="size-4" /> Descartar
               </Button>
             </div>

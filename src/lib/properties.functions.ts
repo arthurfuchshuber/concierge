@@ -29,9 +29,15 @@ const HttpsUrlRequired = z.preprocess(
 
 const HttpsUrl = z.preprocess(
   normalizeHttpsInput,
-  z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido").optional().nullable(),
+  z
+    .string()
+    .trim()
+    .url()
+    .max(2048)
+    .refine(isHttpsUrl, "Use um link HTTPS válido")
+    .optional()
+    .nullable(),
 );
-
 
 // Aceita URL HTTPS absoluta OU caminho relativo interno (ex.: /api/public/place-photo?...)
 // usado para fotos do Google Places servidas via proxy do próprio app.
@@ -49,8 +55,6 @@ const ImageUrl = z.preprocess(
     .nullable(),
 );
 
-
-
 const PropertyInput = z.object({
   name: z.string().trim().min(1).max(120),
   tagline: z.string().trim().max(200).optional().nullable(),
@@ -64,17 +68,25 @@ const PropertyInput = z.object({
   slug: z.string().regex(slugRe, "Slug inválido (use letras minúsculas, números e hífens)"),
   hero_image_url: HttpsUrl,
   gallery_images: z.array(HttpsUrlRequired).max(4).default([]),
-  theme_images: z.object({
-    checkin: HttpsUrl,
-    residencia: HttpsUrl,
-    faq: HttpsUrl,
-    explore: HttpsUrl,
-  }).partial().default({}),
-  marketplace_links: z.array(z.object({
-    label: z.string().trim().min(1).max(120),
-    url: HttpsUrlRequired,
-    description: z.string().trim().max(280).optional().nullable(),
-  })).max(20).default([]),
+  theme_images: z
+    .object({
+      checkin: HttpsUrl,
+      residencia: HttpsUrl,
+      faq: HttpsUrl,
+      explore: HttpsUrl,
+    })
+    .partial()
+    .default({}),
+  marketplace_links: z
+    .array(
+      z.object({
+        label: z.string().trim().min(1).max(120),
+        url: HttpsUrlRequired,
+        description: z.string().trim().max(280).optional().nullable(),
+      }),
+    )
+    .max(20)
+    .default([]),
   address: z.string().max(500).optional().nullable(),
   maps_url: HttpsUrl,
   garage_maps_url: HttpsUrl,
@@ -98,21 +110,36 @@ const PropertyInput = z.object({
   checkin_instructions: z.string().max(3000).optional().nullable(),
   checkout_instructions: z.string().max(3000).optional().nullable(),
   house_rules: z.string().max(3000).optional().nullable(),
-  checkin_media: z.array(z.object({
-    url: HttpsUrlRequired,
-    type: z.enum(["image", "video"]),
-  })).max(8).default([]),
+  checkin_media: z
+    .array(
+      z.object({
+        url: HttpsUrlRequired,
+        type: z.enum(["image", "video"]),
+      }),
+    )
+    .max(8)
+    .default([]),
   gate_instructions: z.string().max(3000).optional().nullable(),
-  gate_media: z.array(z.object({
-    url: HttpsUrlRequired,
-    type: z.enum(["image", "video"]),
-  })).max(8).default([]),
+  gate_media: z
+    .array(
+      z.object({
+        url: HttpsUrlRequired,
+        type: z.enum(["image", "video"]),
+      }),
+    )
+    .max(8)
+    .default([]),
   gate_video_url: HttpsUrl,
   lock_instructions: z.string().max(3000).optional().nullable(),
-  lock_media: z.array(z.object({
-    url: HttpsUrlRequired,
-    type: z.enum(["image", "video"]),
-  })).max(8).default([]),
+  lock_media: z
+    .array(
+      z.object({
+        url: HttpsUrlRequired,
+        type: z.enum(["image", "video"]),
+      }),
+    )
+    .max(8)
+    .default([]),
   lock_video_url: HttpsUrl,
   wifi_ssid: z.string().max(64).optional().nullable(),
   wifi_password: z.string().max(64).optional().nullable(),
@@ -170,8 +197,22 @@ const PropertyInput = z.object({
   // prazo estimado (uma completa costuma levar mais tempo que uma normal).
   cleaning_price_normal_cents: z.number().int().min(0).max(100_000_00).optional().nullable(),
   cleaning_price_full_cents: z.number().int().min(0).max(100_000_00).optional().nullable(),
-  cleaning_duration_normal_minutes: z.number().int().min(30).max(480).multipleOf(30).optional().nullable(),
-  cleaning_duration_full_minutes: z.number().int().min(30).max(480).multipleOf(30).optional().nullable(),
+  cleaning_duration_normal_minutes: z
+    .number()
+    .int()
+    .min(30)
+    .max(480)
+    .multipleOf(30)
+    .optional()
+    .nullable(),
+  cleaning_duration_full_minutes: z
+    .number()
+    .int()
+    .min(30)
+    .max(480)
+    .multipleOf(30)
+    .optional()
+    .nullable(),
   // Campos "ampliados" da importação/sincronização do Airbnb (só leitura na
   // tela — ver aba Airbnb). Mesmo bug do `short_description` acima: existiam
   // no formulário e no botão "Importar", mas por faltarem aqui eram
@@ -211,11 +252,21 @@ const PropertyInput = z.object({
   airbnb_safety_info: z.string().max(10_000).optional().nullable(),
 });
 
-
-
 const RecInput = z.object({
   scope: z.enum(["nearby", "city"]),
-  type: z.enum(["restaurant","bar","cafe","beach","attraction","market","pharmacy","park","nightlife","shopping","other"]),
+  type: z.enum([
+    "restaurant",
+    "bar",
+    "cafe",
+    "beach",
+    "attraction",
+    "market",
+    "pharmacy",
+    "park",
+    "nightlife",
+    "shopping",
+    "other",
+  ]),
   name: z.string().min(1).max(200),
   category: z.string().max(80).optional().nullable(),
   rating: z.number().min(0).max(5).optional().nullable(),
@@ -232,7 +283,6 @@ const RecInput = z.object({
   place_id: z.string().max(200).optional().nullable(),
 });
 
-
 export const listMyProperties = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -245,7 +295,9 @@ export const listMyProperties = createServerFn({ method: "GET" })
     // contas quando nenhum "cliente" está selecionado no switcher.
     const { data, error } = await context.supabase
       .from("properties")
-      .select("id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at, wifi_ssid, checkin_time, checkout_time, owner_contact_id, guide_created")
+      .select(
+        "id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at, wifi_ssid, checkin_time, checkout_time, owner_contact_id, guide_created",
+      )
       .eq("owner_id", userId)
       .order("updated_at", { ascending: false });
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
@@ -273,7 +325,9 @@ export const listPropertiesForAccount = createServerFn({ method: "POST" })
     );
     const { data: rows, error } = await context.supabase
       .from("properties")
-      .select("id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at, wifi_ssid, checkin_time, checkout_time, owner_contact_id, guide_created")
+      .select(
+        "id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at, wifi_ssid, checkin_time, checkout_time, owner_contact_id, guide_created",
+      )
       .eq("owner_id", accountId)
       .order("updated_at", { ascending: false });
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
@@ -287,8 +341,6 @@ export const listPropertiesForAccount = createServerFn({ method: "POST" })
     const { attachOwnerNames } = await import("@/lib/property-owner-names.server");
     return await attachOwnerNames(context.supabase as never, signed);
   });
-
-
 
 /**
  * Contagem GLOBAL de guias da conta (número total de imóveis do titular),
@@ -326,9 +378,6 @@ export const countAccountGuides = createServerFn({ method: "POST" })
     return { count: count ?? 0 };
   });
 
-
-
-
 // Versão leve: apenas os campos necessários para seleção de imóveis em UIs
 // como o CopyRecsDialog. Não carrega imagens assinadas, reduz payload.
 export const listMyPropertiesBrief = createServerFn({ method: "GET" })
@@ -341,69 +390,90 @@ export const listMyPropertiesBrief = createServerFn({ method: "GET" })
       .eq("owner_id", userId)
       .order("name", { ascending: true });
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
-    return (data ?? []) as Array<{ id: string; name: string; city: string | null; published: boolean }>;
+    return (data ?? []) as Array<{
+      id: string;
+      name: string;
+      city: string | null;
+      published: boolean;
+    }>;
   });
 
-const BulkPatch = z.object({
-  checkin_time: z.string().max(8).optional(),
-  checkin_time_max: z.string().max(8).optional(),
-  checkin_note: z.string().max(1000).optional(),
-  checkout_time: z.string().max(8).optional(),
-  checkout_time_min: z.string().max(8).optional(),
-  checkout_note: z.string().max(1000).optional(),
-  address_note: z.string().max(1000).optional(),
-  checkin_instructions: z.string().max(3000).optional(),
-  checkout_instructions: z.string().max(3000).optional(),
-  gate_code: z.string().max(40).optional(),
-  gate_label: z.string().max(40).optional(),
-  gate_instructions: z.string().max(3000).optional(),
-  lock_code: z.string().max(40).optional(),
-  lock_label: z.string().max(40).optional(),
-  lock_instructions: z.string().max(3000).optional(),
-  access_codes_pin: z.string().max(20).optional(),
-  wifi_ssid: z.string().max(64).optional(),
-  wifi_password: z.string().max(64).optional(),
-  host_name: z.string().max(120).optional(),
-  host_phone: z.string().max(40).optional(),
-  brand_name: z.string().max(120).optional(),
-  brand_logo_url: HttpsUrl.optional(),
-  guide_theme: z.enum(["dark", "light"]).optional(),
-  // Regras do espaço
-  house_rules: z.string().max(3000).optional(),
-  // Endereço e localização
-  address: z.string().max(500).optional(),
-  maps_url: HttpsUrl.optional(),
-  garage_maps_url: HttpsUrl.optional(),
-  city: z.string().max(120).optional(),
-  state: z.string().max(60).optional(),
-  country: z.string().max(120).optional(),
-  // Tipo do guia
-  default_language: z.enum(["pt", "en"]).optional(),
-  published: z.boolean().optional(),
-  // Modo de acesso
-  access_mode: z.enum(["public", "pin"]).optional(),
-  pin_code: z.string().max(20).optional(),
-  require_access_gate: z.boolean().optional(),
-  collect_arrival_time: z.enum(["off", "optional", "required"]).optional(),
-  collect_vehicles: z.enum(["off", "optional", "required"]).optional(),
-  vehicles_max: z.number().int().min(0).max(10).optional(),
-  collect_document: z.enum(["off", "optional", "required"]).optional(),
-  document_scope: z.enum(["main", "all"]).optional(),
-  // Identificação do imóvel
-  property_type_id: z.string().uuid().optional(),
-  // Proprietário: normalmente travado (só via "Transferir", com confirmação
-  // explícita) — liberado aqui a pedido explícito do cliente para a edição em
-  // massa. A validação de que o proprietário pertence à conta de CADA imóvel
-  // selecionado roda no handler abaixo, não fica só a cargo do zod.
-  owner_contact_id: z.string().uuid().optional(),
-  // Custos e Duração da Limpeza — nullable: "sem valor definido" é um estado
-  // válido (mesma semântica do editor individual), então o campo pode ser
-  // explicitamente limpo em vez de forçar 0.
-  cleaning_price_normal_cents: z.number().int().min(0).max(100_000_00).nullable().optional(),
-  cleaning_price_full_cents: z.number().int().min(0).max(100_000_00).nullable().optional(),
-  cleaning_duration_normal_minutes: z.number().int().min(30).max(480).multipleOf(30).nullable().optional(),
-  cleaning_duration_full_minutes: z.number().int().min(30).max(480).multipleOf(30).nullable().optional(),
-}).strict();
+const BulkPatch = z
+  .object({
+    checkin_time: z.string().max(8).optional(),
+    checkin_time_max: z.string().max(8).optional(),
+    checkin_note: z.string().max(1000).optional(),
+    checkout_time: z.string().max(8).optional(),
+    checkout_time_min: z.string().max(8).optional(),
+    checkout_note: z.string().max(1000).optional(),
+    address_note: z.string().max(1000).optional(),
+    checkin_instructions: z.string().max(3000).optional(),
+    checkout_instructions: z.string().max(3000).optional(),
+    gate_code: z.string().max(40).optional(),
+    gate_label: z.string().max(40).optional(),
+    gate_instructions: z.string().max(3000).optional(),
+    lock_code: z.string().max(40).optional(),
+    lock_label: z.string().max(40).optional(),
+    lock_instructions: z.string().max(3000).optional(),
+    access_codes_pin: z.string().max(20).optional(),
+    wifi_ssid: z.string().max(64).optional(),
+    wifi_password: z.string().max(64).optional(),
+    host_name: z.string().max(120).optional(),
+    host_phone: z.string().max(40).optional(),
+    brand_name: z.string().max(120).optional(),
+    brand_logo_url: HttpsUrl.optional(),
+    guide_theme: z.enum(["dark", "light"]).optional(),
+    // Regras do espaço
+    house_rules: z.string().max(3000).optional(),
+    // Endereço e localização
+    address: z.string().max(500).optional(),
+    maps_url: HttpsUrl.optional(),
+    garage_maps_url: HttpsUrl.optional(),
+    city: z.string().max(120).optional(),
+    state: z.string().max(60).optional(),
+    country: z.string().max(120).optional(),
+    // Tipo do guia
+    default_language: z.enum(["pt", "en"]).optional(),
+    published: z.boolean().optional(),
+    // Modo de acesso
+    access_mode: z.enum(["public", "pin"]).optional(),
+    pin_code: z.string().max(20).optional(),
+    require_access_gate: z.boolean().optional(),
+    collect_arrival_time: z.enum(["off", "optional", "required"]).optional(),
+    collect_vehicles: z.enum(["off", "optional", "required"]).optional(),
+    vehicles_max: z.number().int().min(0).max(10).optional(),
+    collect_document: z.enum(["off", "optional", "required"]).optional(),
+    document_scope: z.enum(["main", "all"]).optional(),
+    // Identificação do imóvel
+    property_type_id: z.string().uuid().optional(),
+    // Proprietário: normalmente travado (só via "Transferir", com confirmação
+    // explícita) — liberado aqui a pedido explícito do cliente para a edição em
+    // massa. A validação de que o proprietário pertence à conta de CADA imóvel
+    // selecionado roda no handler abaixo, não fica só a cargo do zod.
+    owner_contact_id: z.string().uuid().optional(),
+    // Custos e Duração da Limpeza — nullable: "sem valor definido" é um estado
+    // válido (mesma semântica do editor individual), então o campo pode ser
+    // explicitamente limpo em vez de forçar 0.
+    cleaning_price_normal_cents: z.number().int().min(0).max(100_000_00).nullable().optional(),
+    cleaning_price_full_cents: z.number().int().min(0).max(100_000_00).nullable().optional(),
+    cleaning_duration_normal_minutes: z
+      .number()
+      .int()
+      .min(30)
+      .max(480)
+      .multipleOf(30)
+      .nullable()
+      .optional(),
+    cleaning_duration_full_minutes: z
+      .number()
+      .int()
+      .min(30)
+      .max(480)
+      .multipleOf(30)
+      .nullable()
+      .optional(),
+  })
+  .strict();
 
 /**
  * Campos que são EXCLUSIVOS de cada residência (senhas, Wi-Fi, endereço, links
@@ -411,38 +481,69 @@ const BulkPatch = z.object({
  * código de outro — por isso são bloqueados quando há mais de um selecionado.
  */
 export const PER_PROPERTY_FIELDS = [
-  "gate_code", "lock_code", "access_codes_pin", "pin_code",
-  "wifi_ssid", "wifi_password",
-  "address", "maps_url", "garage_maps_url",
+  "gate_code",
+  "lock_code",
+  "access_codes_pin",
+  "pin_code",
+  "wifi_ssid",
+  "wifi_password",
+  "address",
+  "maps_url",
+  "garage_maps_url",
 ] as const;
 
-
-
-const BulkListsInput = z.object({
-  manual: z.array(z.object({
-    title: z.string().min(1).max(120),
-    description: z.string().max(300).optional().nullable(),
-    body: z.string().max(4000).optional().nullable(),
-  })).max(40).optional(),
-  emergency: z.array(z.object({
-    label: z.string().min(1).max(120),
-    number: z.string().min(1).max(40),
-  })).max(20).optional(),
-  faqs: z.array(z.object({
-    question: z.string().min(1).max(200),
-    answer: z.string().min(1).max(2000),
-    tags: z.array(z.string().max(40)).max(8).default([]),
-  })).max(40).optional(),
-  checkout: z.array(z.object({
-    label: z.string().min(1).max(200),
-  })).max(40).optional(),
-  // Detalhamento do Imóvel: bulk edit só cobre título + texto (sem
-  // imagens/áudio — mesma simplificação já aplicada ao Manual da casa acima).
-  property_details: z.array(z.object({
-    title: z.string().max(160).optional().nullable(),
-    content: z.string().max(40000),
-  })).max(60).optional(),
-}).strict();
+const BulkListsInput = z
+  .object({
+    manual: z
+      .array(
+        z.object({
+          title: z.string().min(1).max(120),
+          description: z.string().max(300).optional().nullable(),
+          body: z.string().max(4000).optional().nullable(),
+        }),
+      )
+      .max(40)
+      .optional(),
+    emergency: z
+      .array(
+        z.object({
+          label: z.string().min(1).max(120),
+          number: z.string().min(1).max(40),
+        }),
+      )
+      .max(20)
+      .optional(),
+    faqs: z
+      .array(
+        z.object({
+          question: z.string().min(1).max(200),
+          answer: z.string().min(1).max(2000),
+          tags: z.array(z.string().max(40)).max(8).default([]),
+        }),
+      )
+      .max(40)
+      .optional(),
+    checkout: z
+      .array(
+        z.object({
+          label: z.string().min(1).max(200),
+        }),
+      )
+      .max(40)
+      .optional(),
+    // Detalhamento do Imóvel: bulk edit só cobre título + texto (sem
+    // imagens/áudio — mesma simplificação já aplicada ao Manual da casa acima).
+    property_details: z
+      .array(
+        z.object({
+          title: z.string().max(160).optional().nullable(),
+          content: z.string().max(40000),
+        }),
+      )
+      .max(60)
+      .optional(),
+  })
+  .strict();
 
 // Retorna o conteúdo atual dos guias selecionados para exibir preview
 // no popup de edição em massa (valores por guia + contagem de listas).
@@ -453,26 +554,43 @@ export const bulkFetchProperties = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const sb = context.supabase;
-    const cols = [
-      "id","name",
-      ...Object.keys(BulkPatch.shape),
-    ].join(",");
-    const q = await sb
-      .from("properties")
-      .select(cols)
-      .in("id", data.ids);
+    const cols = ["id", "name", ...Object.keys(BulkPatch.shape)].join(",");
+    const q = await sb.from("properties").select(cols).in("id", data.ids);
     if (q.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", q.error);
-    const rows = (q.data ?? []) as unknown as Array<{ id: string; name: string } & Record<string, string | number | boolean | null>>;
+    const rows = (q.data ?? []) as unknown as Array<
+      { id: string; name: string } & Record<string, string | number | boolean | null>
+    >;
     const propIds = rows.map((r) => r.id);
     const [manual, emerg, faqs, checkout, details] = await Promise.all([
-      sb.from("property_manual_items").select("property_id,title,description,body,position").in("property_id", propIds).order("position"),
-      sb.from("property_emergency_contacts").select("property_id,label,number,position").in("property_id", propIds).order("position"),
-      sb.from("property_faqs").select("property_id,question,answer,tags,position").in("property_id", propIds).order("position"),
-      sb.from("property_checkout_items").select("property_id,label,position").in("property_id", propIds).order("position"),
-      sb.from("property_details").select("property_id,title,content,position").in("property_id", propIds).order("position"),
+      sb
+        .from("property_manual_items")
+        .select("property_id,title,description,body,position")
+        .in("property_id", propIds)
+        .order("position"),
+      sb
+        .from("property_emergency_contacts")
+        .select("property_id,label,number,position")
+        .in("property_id", propIds)
+        .order("position"),
+      sb
+        .from("property_faqs")
+        .select("property_id,question,answer,tags,position")
+        .in("property_id", propIds)
+        .order("position"),
+      sb
+        .from("property_checkout_items")
+        .select("property_id,label,position")
+        .in("property_id", propIds)
+        .order("position"),
+      sb
+        .from("property_details")
+        .select("property_id,title,content,position")
+        .in("property_id", propIds)
+        .order("position"),
     ]);
     for (const result of [manual, emerg, faqs, checkout, details]) {
-      if (result.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", result.error);
+      if (result.error)
+        throw (await import("@/lib/db-errors.server")).safeDbError("properties", result.error);
     }
     function tally(arr: unknown): Record<string, number> {
       const m: Record<string, number> = {};
@@ -499,16 +617,17 @@ export const bulkFetchProperties = createServerFn({ method: "POST" })
     };
   });
 
-
 export const bulkUpdateProperties = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) =>
-    z.object({
-      ids: z.array(z.string().uuid()).min(1).max(200),
-      patch: BulkPatch,
-      lists: BulkListsInput.optional(),
-      mode: z.enum(["overwrite", "fill-empty"]).default("overwrite"),
-    }).parse(i),
+    z
+      .object({
+        ids: z.array(z.string().uuid()).min(1).max(200),
+        patch: BulkPatch,
+        lists: BulkListsInput.optional(),
+        mode: z.enum(["overwrite", "fill-empty"]).default("overwrite"),
+      })
+      .parse(i),
   )
   .handler(async ({ data, context }) => {
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
@@ -526,7 +645,8 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
     if (typeof patch.owner_contact_id === "string") {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const targets = await sb.from("properties").select("id, owner_id").in("id", data.ids);
-      if (targets.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", targets.error);
+      if (targets.error)
+        throw (await import("@/lib/db-errors.server")).safeDbError("properties", targets.error);
       const accountOwnerIds = Array.from(
         new Set((targets.data ?? []).map((r) => (r as { owner_id: string }).owner_id)),
       );
@@ -537,7 +657,12 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
         .eq("status", "active")
         .maybeSingle();
       if (ownerErr) throw new Error("Não foi possível validar o proprietário selecionado.");
-      if (!ownerRow || accountOwnerIds.some((oid) => oid !== (ownerRow as { account_owner_id: string }).account_owner_id)) {
+      if (
+        !ownerRow ||
+        accountOwnerIds.some(
+          (oid) => oid !== (ownerRow as { account_owner_id: string }).account_owner_id,
+        )
+      ) {
         throw new Error(
           "Proprietário inválido ou não pertence à conta de um ou mais guias selecionados. Selecione um proprietário cadastrado em Stakeholders → Proprietários.",
         );
@@ -546,12 +671,12 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
 
     // Publicar só é permitido com todos os campos obrigatórios preenchidos.
     if (patch.published === true) {
-      const { PUBLISH_REQUIRED_COLUMNS, missingPublishFields, publishBlockMessage } = await import(
-        "@/lib/publish-requirements"
-      );
+      const { PUBLISH_REQUIRED_COLUMNS, missingPublishFields, publishBlockMessage } =
+        await import("@/lib/publish-requirements");
       const cols = Array.from(new Set(["id", "name", ...PUBLISH_REQUIRED_COLUMNS])).join(",");
       const chk = await sb.from("properties").select(cols).in("id", data.ids);
-      if (chk.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", chk.error);
+      if (chk.error)
+        throw (await import("@/lib/db-errors.server")).safeDbError("properties", chk.error);
       for (const row of (chk.data ?? []) as unknown as Array<Record<string, unknown>>) {
         const merged = { ...row, ...patch };
         const missing = missingPublishFields(merged);
@@ -570,7 +695,10 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
 
     // Guarda os valores anteriores para permitir recuperação em caso de engano.
     if (patchKeys.length > 0) {
-      const before = await sb.from("properties").select(["id", ...patchKeys].join(",")).in("id", data.ids);
+      const before = await sb
+        .from("properties")
+        .select(["id", ...patchKeys].join(","))
+        .in("id", data.ids);
       if (!before.error && before.data) {
         // audit_logs é escrito apenas via service role (RLS sem policy de INSERT).
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -583,8 +711,6 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
         });
       }
     }
-
-
 
     function isEmpty(v: unknown): boolean {
       return v === null || v === undefined || v === "";
@@ -604,7 +730,9 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
           updatedSet.add(id);
         }
         if (propertyUpdatedSet.size !== data.ids.length) {
-          throw new Error(`Não foi possível confirmar a alteração em ${data.ids.length - propertyUpdatedSet.size} guia(s).`);
+          throw new Error(
+            `Não foi possível confirmar a alteração em ${data.ids.length - propertyUpdatedSet.size} guia(s).`,
+          );
         }
       } else {
         // fill-empty: por campo, aplica apenas onde o valor atual está vazio.
@@ -612,8 +740,11 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
           .from("properties")
           .select(["id", ...patchKeys].join(","))
           .in("id", data.ids);
-        if (cq.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", cq.error);
-        const current = (cq.data ?? []) as unknown as Array<{ id: string } & Record<string, unknown>>;
+        if (cq.error)
+          throw (await import("@/lib/db-errors.server")).safeDbError("properties", cq.error);
+        const current = (cq.data ?? []) as unknown as Array<
+          { id: string } & Record<string, unknown>
+        >;
         for (const key of patchKeys) {
           const targetIds = current.filter((r) => isEmpty(r[key])).map((r) => r.id);
           if (!targetIds.length) continue;
@@ -645,9 +776,14 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
           ["property_details", "property_details"],
         ] as const;
         for (const [key, table] of tables) {
-          const { data: rows } = await sb.from(table).select("property_id").in("property_id", data.ids);
+          const { data: rows } = await sb
+            .from(table)
+            .select("property_id")
+            .in("property_id", data.ids);
           const m: Record<string, number> = {};
-          for (const r of rows ?? []) m[(r as { property_id: string }).property_id] = (m[(r as { property_id: string }).property_id] ?? 0) + 1;
+          for (const r of rows ?? [])
+            m[(r as { property_id: string }).property_id] =
+              (m[(r as { property_id: string }).property_id] ?? 0) + 1;
           listCounts[key] = m;
         }
       }
@@ -668,7 +804,8 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
           .from("properties")
           .select("id, owner_id")
           .in("id", data.ids);
-        if (ownerRowsErr) throw (await import("@/lib/db-errors.server")).safeDbError("properties", ownerRowsErr);
+        if (ownerRowsErr)
+          throw (await import("@/lib/db-errors.server")).safeDbError("properties", ownerRowsErr);
         for (const r of (ownerRows ?? []) as unknown as Array<{ id: string; owner_id: string }>) {
           ownerIdByProperty[r.id] = r.owner_id;
         }
@@ -686,7 +823,9 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
           if (items.length) {
             const rows = items.map((m, i) => {
               const base = { ...(m as object), property_id: id, position: i };
-              return key === "property_details" ? { ...base, owner_id: ownerIdByProperty[id] } : base;
+              return key === "property_details"
+                ? { ...base, owner_id: ownerIdByProperty[id] }
+                : base;
             });
             const inserted = await sb.from(table).insert(rows as never);
             if (inserted.error) {
@@ -700,7 +839,6 @@ export const bulkUpdateProperties = createServerFn({ method: "POST" })
     return { updated: updatedSet.size };
   });
 
-
 export const getMyProperty = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({ id: z.string().uuid() }).parse(i))
@@ -709,11 +847,33 @@ export const getMyProperty = createServerFn({ method: "POST" })
     await enforce(context.userId, "imoveis.editor.read", { propertyId: data.id });
     const [p, manual, recs, emerg, faqs, checkout] = await Promise.all([
       context.supabase.from("properties").select("*").eq("id", data.id).maybeSingle(),
-      context.supabase.from("property_manual_items").select("*").eq("property_id", data.id).order("position"),
-      context.supabase.from("property_recommendations").select("*").eq("property_id", data.id).order("scope").order("type").order("position"),
-      context.supabase.from("property_emergency_contacts").select("*").eq("property_id", data.id).order("position"),
-      context.supabase.from("property_faqs").select("*").eq("property_id", data.id).order("position"),
-      context.supabase.from("property_checkout_items").select("*").eq("property_id", data.id).order("position"),
+      context.supabase
+        .from("property_manual_items")
+        .select("*")
+        .eq("property_id", data.id)
+        .order("position"),
+      context.supabase
+        .from("property_recommendations")
+        .select("*")
+        .eq("property_id", data.id)
+        .order("scope")
+        .order("type")
+        .order("position"),
+      context.supabase
+        .from("property_emergency_contacts")
+        .select("*")
+        .eq("property_id", data.id)
+        .order("position"),
+      context.supabase
+        .from("property_faqs")
+        .select("*")
+        .eq("property_id", data.id)
+        .order("position"),
+      context.supabase
+        .from("property_checkout_items")
+        .select("*")
+        .eq("property_id", data.id)
+        .order("position"),
     ]);
     if (p.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", p.error);
     if (!p.data) throw new Error("Guia não encontrado.");
@@ -744,11 +904,33 @@ export const getPropertyForQuickEdit = createServerFn({ method: "POST" })
     await enforce(context.userId, "imoveis.editor.read", { propertyId: data.id });
     const [p, manual, recs, emerg, faqs, checkout] = await Promise.all([
       context.supabase.from("properties").select("*").eq("id", data.id).maybeSingle(),
-      context.supabase.from("property_manual_items").select("*").eq("property_id", data.id).order("position"),
-      context.supabase.from("property_recommendations").select("*").eq("property_id", data.id).order("scope").order("type").order("position"),
-      context.supabase.from("property_emergency_contacts").select("*").eq("property_id", data.id).order("position"),
-      context.supabase.from("property_faqs").select("*").eq("property_id", data.id).order("position"),
-      context.supabase.from("property_checkout_items").select("*").eq("property_id", data.id).order("position"),
+      context.supabase
+        .from("property_manual_items")
+        .select("*")
+        .eq("property_id", data.id)
+        .order("position"),
+      context.supabase
+        .from("property_recommendations")
+        .select("*")
+        .eq("property_id", data.id)
+        .order("scope")
+        .order("type")
+        .order("position"),
+      context.supabase
+        .from("property_emergency_contacts")
+        .select("*")
+        .eq("property_id", data.id)
+        .order("position"),
+      context.supabase
+        .from("property_faqs")
+        .select("*")
+        .eq("property_id", data.id)
+        .order("position"),
+      context.supabase
+        .from("property_checkout_items")
+        .select("*")
+        .eq("property_id", data.id)
+        .order("position"),
     ]);
     if (p.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", p.error);
     if (!p.data) throw new Error("Imóvel não encontrado.");
@@ -767,26 +949,45 @@ const SavePropertyInput = z.object({
   ownerId: z.string().uuid().optional().nullable(),
   property: PropertyInput,
   recommendations: z.array(RecInput).max(2000).default([]),
-  manual: z.array(z.object({
-    title: z.string().min(1).max(120),
-    description: z.string().max(300).optional().nullable(),
-    body: z.string().max(4000).optional().nullable(),
-    images: z.array(z.string().max(500)).max(12).optional().default([]),
-  })).max(40).default([]),
-  emergency: z.array(z.object({
-    label: z.string().min(1).max(120),
-    number: z.string().min(1).max(40),
-  })).max(20).default([]),
-  faqs: z.array(z.object({
-    question: z.string().min(1).max(200),
-    answer: z.string().min(1).max(2000),
-    tags: z.array(z.string().max(40)).max(8).default([]),
-  })).max(40).default([]),
-  checkout: z.array(z.object({
-    label: z.string().min(1).max(200),
-  })).max(40).default([]),
+  manual: z
+    .array(
+      z.object({
+        title: z.string().min(1).max(120),
+        description: z.string().max(300).optional().nullable(),
+        body: z.string().max(4000).optional().nullable(),
+        images: z.array(z.string().max(500)).max(12).optional().default([]),
+      }),
+    )
+    .max(40)
+    .default([]),
+  emergency: z
+    .array(
+      z.object({
+        label: z.string().min(1).max(120),
+        number: z.string().min(1).max(40),
+      }),
+    )
+    .max(20)
+    .default([]),
+  faqs: z
+    .array(
+      z.object({
+        question: z.string().min(1).max(200),
+        answer: z.string().min(1).max(2000),
+        tags: z.array(z.string().max(40)).max(8).default([]),
+      }),
+    )
+    .max(40)
+    .default([]),
+  checkout: z
+    .array(
+      z.object({
+        label: z.string().min(1).max(200),
+      }),
+    )
+    .max(40)
+    .default([]),
 });
-
 
 export const upsertProperty = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -834,7 +1035,9 @@ export const upsertProperty = createServerFn({ method: "POST" })
           .eq("permission", "library_edit")
           .eq("granted", true)
           .in("owner_id", ownerIds);
-        const editableOwnerIds = Array.from(new Set((editRows ?? []).map((r) => r.owner_id as string)));
+        const editableOwnerIds = Array.from(
+          new Set((editRows ?? []).map((r) => r.owner_id as string)),
+        );
         if (editableOwnerIds.length === 1) effectiveOwnerId = editableOwnerIds[0];
       }
     }
@@ -906,8 +1109,6 @@ export const upsertProperty = createServerFn({ method: "POST" })
       }
     }
 
-
-
     // Quando o operador é membro atuando dentro de outra conta, valida a
     // permissão `library_edit` e escreve com o cliente admin (as policies
     // RLS de properties/child tables permitem apenas o titular ou admin).
@@ -916,7 +1117,8 @@ export const upsertProperty = createServerFn({ method: "POST" })
     if (actingAsMember) {
       const { requireMemberPermission } = await import("@/lib/member-permissions.server");
       await requireMemberPermission(supabase, userId, effectiveOwnerId, "library_edit");
-      writeClient = (await import("@/integrations/supabase/client.server")).supabaseAdmin as unknown as typeof supabase;
+      writeClient = (await import("@/integrations/supabase/client.server"))
+        .supabaseAdmin as unknown as typeof supabase;
     }
 
     if (propertyId) {
@@ -927,7 +1129,8 @@ export const upsertProperty = createServerFn({ method: "POST" })
         .select("id")
         .maybeSingle();
       if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
-      if (!updated) throw new Error("O guia não foi atualizado. Verifique sua permissão e tente novamente.");
+      if (!updated)
+        throw new Error("O guia não foi atualizado. Verifique sua permissão e tente novamente.");
     } else {
       await assertCanCreateGuide(supabase, userId, { ownerId: effectiveOwnerId });
       const { data: inserted, error } = await writeClient
@@ -960,7 +1163,12 @@ export const upsertProperty = createServerFn({ method: "POST" })
     const id = propertyId;
     const { safeDbError } = await import("@/lib/db-errors.server");
     const replaceChild = async (
-      table: "property_recommendations" | "property_manual_items" | "property_emergency_contacts" | "property_faqs" | "property_checkout_items",
+      table:
+        | "property_recommendations"
+        | "property_manual_items"
+        | "property_emergency_contacts"
+        | "property_faqs"
+        | "property_checkout_items",
       items: Record<string, unknown>[],
     ) => {
       const del = await (writeClient.from(table) as any).delete().eq("property_id", id);
@@ -972,11 +1180,20 @@ export const upsertProperty = createServerFn({ method: "POST" })
     };
 
     await Promise.all([
-      replaceChild("property_recommendations", data.recommendations as unknown as Record<string, unknown>[]),
+      replaceChild(
+        "property_recommendations",
+        data.recommendations as unknown as Record<string, unknown>[],
+      ),
       replaceChild("property_manual_items", data.manual as unknown as Record<string, unknown>[]),
-      replaceChild("property_emergency_contacts", data.emergency as unknown as Record<string, unknown>[]),
+      replaceChild(
+        "property_emergency_contacts",
+        data.emergency as unknown as Record<string, unknown>[],
+      ),
       replaceChild("property_faqs", data.faqs as unknown as Record<string, unknown>[]),
-      replaceChild("property_checkout_items", data.checkout as unknown as Record<string, unknown>[]),
+      replaceChild(
+        "property_checkout_items",
+        data.checkout as unknown as Record<string, unknown>[],
+      ),
     ]);
 
     // Reindexa a base de conhecimento (RAG) para a IA refletir as mudanças do guia.
@@ -994,9 +1211,7 @@ export const upsertProperty = createServerFn({ method: "POST" })
     })();
 
     return { id };
-
   });
-
 
 /**
  * Transferência DELIBERADA do proprietário (property_owners) de um imóvel —
@@ -1008,10 +1223,12 @@ export const upsertProperty = createServerFn({ method: "POST" })
 export const transferPropertyOwner = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) =>
-    z.object({
-      propertyId: z.string().uuid(),
-      newOwnerContactId: z.string().uuid(),
-    }).parse(i),
+    z
+      .object({
+        propertyId: z.string().uuid(),
+        newOwnerContactId: z.string().uuid(),
+      })
+      .parse(i),
   )
   .handler(async ({ data, context }) => {
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
@@ -1051,19 +1268,23 @@ export const transferPropertyOwner = createServerFn({ method: "POST" })
     if (updErr) throw (await import("@/lib/db-errors.server")).safeDbError("properties", updErr);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabaseAdmin.from("audit_logs" as never) as any).insert({
-      user_id: context.userId,
-      user_email: (context as { claims?: { email?: string } }).claims?.email ?? null,
-      action: "property.owner_transferred",
-      entity_type: "properties",
-      entity_id: data.propertyId,
-      metadata: {
-        propertyName: (prop as { name: string }).name,
-        previousOwnerContactId,
-        newOwnerContactId: data.newOwnerContactId,
-        newOwnerName: (newOwner as { name: string }).name,
-      },
-    }).catch(() => { /* auditoria nunca bloqueia a transferência */ });
+    await (supabaseAdmin.from("audit_logs" as never) as any)
+      .insert({
+        user_id: context.userId,
+        user_email: (context as { claims?: { email?: string } }).claims?.email ?? null,
+        action: "property.owner_transferred",
+        entity_type: "properties",
+        entity_id: data.propertyId,
+        metadata: {
+          propertyName: (prop as { name: string }).name,
+          previousOwnerContactId,
+          newOwnerContactId: data.newOwnerContactId,
+          newOwnerName: (newOwner as { name: string }).name,
+        },
+      })
+      .catch(() => {
+        /* auditoria nunca bloqueia a transferência */
+      });
 
     return { ok: true };
   });
@@ -1086,10 +1307,12 @@ export const deleteProperty = createServerFn({ method: "POST" })
 export const copyCityRecsToProperties = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) =>
-    z.object({
-      sourcePropertyId: z.string().uuid(),
-      targetPropertyIds: z.array(z.string().uuid()).min(1).max(50),
-    }).parse(i),
+    z
+      .object({
+        sourcePropertyId: z.string().uuid(),
+        targetPropertyIds: z.array(z.string().uuid()).min(1).max(50),
+      })
+      .parse(i),
   )
   .handler(async ({ data, context }) => {
     // Usa supabaseAdmin para garantir permissão de leitura/escrita
@@ -1177,10 +1400,12 @@ export const copyCityRecsToProperties = createServerFn({ method: "POST" })
 export const duplicateProperty = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) =>
-    z.object({
-      id: z.string().uuid(),
-      copies: z.number().int().min(1).max(20),
-    }).parse(i),
+    z
+      .object({
+        id: z.string().uuid(),
+        copies: z.number().int().min(1).max(20),
+      })
+      .parse(i),
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -1224,13 +1449,28 @@ export const duplicateProperty = createServerFn({ method: "POST" })
     const toCreate = Math.min(data.copies, remaining);
     const skipped = data.copies - toCreate;
 
-
     const [manual, recs, emerg, faqs, checkout] = await Promise.all([
-      supabaseAdmin.from("property_manual_items").select("*").eq("property_id", data.id).order("position"),
-      supabaseAdmin.from("property_recommendations").select("*").eq("property_id", data.id).order("position"),
-      supabaseAdmin.from("property_emergency_contacts").select("*").eq("property_id", data.id).order("position"),
+      supabaseAdmin
+        .from("property_manual_items")
+        .select("*")
+        .eq("property_id", data.id)
+        .order("position"),
+      supabaseAdmin
+        .from("property_recommendations")
+        .select("*")
+        .eq("property_id", data.id)
+        .order("position"),
+      supabaseAdmin
+        .from("property_emergency_contacts")
+        .select("*")
+        .eq("property_id", data.id)
+        .order("position"),
       supabaseAdmin.from("property_faqs").select("*").eq("property_id", data.id).order("position"),
-      supabaseAdmin.from("property_checkout_items").select("*").eq("property_id", data.id).order("position"),
+      supabaseAdmin
+        .from("property_checkout_items")
+        .select("*")
+        .eq("property_id", data.id)
+        .order("position"),
     ]);
 
     // Strip fields that must NOT be copied verbatim.
@@ -1255,7 +1495,6 @@ export const duplicateProperty = createServerFn({ method: "POST" })
       .like("slug", `${baseSlug}-copia%`);
     const taken = new Set<string>(((existing ?? []) as Array<{ slug: string }>).map((r) => r.slug));
 
-
     function nextSlug(): string {
       let n = 1;
       while (true) {
@@ -1276,7 +1515,13 @@ export const duplicateProperty = createServerFn({ method: "POST" })
       const { data: inserted, error: insErr } = await supabase
         .from("properties")
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .insert({ ...(stripped as any), owner_id: sourceOwnerId, slug: newSlug, name: newName, published: false })
+        .insert({
+          ...(stripped as any),
+          owner_id: sourceOwnerId,
+          slug: newSlug,
+          name: newName,
+          published: false,
+        })
         .select("id")
         .single();
       if (insErr) throw (await import("@/lib/db-errors.server")).safeDbError("properties", insErr);
@@ -1284,9 +1529,7 @@ export const duplicateProperty = createServerFn({ method: "POST" })
       createdIds.push(newId);
 
       // Copy child tables via admin (owner_id is inherited via property_id + RLS).
-      const cloneRows = (
-        rows: unknown[] | null | undefined,
-      ): Array<Record<string, unknown>> =>
+      const cloneRows = (rows: unknown[] | null | undefined): Array<Record<string, unknown>> =>
         (rows ?? []).map((r) => {
           const row = { ...(r as Record<string, unknown>) };
           delete row.id;
@@ -1304,17 +1547,32 @@ export const duplicateProperty = createServerFn({ method: "POST" })
 
       await Promise.all([
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        manualRows.length ? supabaseAdmin.from("property_manual_items").insert(manualRows as any) : Promise.resolve(),
+        manualRows.length
+          ? supabaseAdmin.from("property_manual_items").insert(manualRows as any)
+          : Promise.resolve(),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        recsRows.length ? supabaseAdmin.from("property_recommendations").insert(recsRows as any) : Promise.resolve(),
+        recsRows.length
+          ? supabaseAdmin.from("property_recommendations").insert(recsRows as any)
+          : Promise.resolve(),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        emergRows.length ? supabaseAdmin.from("property_emergency_contacts").insert(emergRows as any) : Promise.resolve(),
+        emergRows.length
+          ? supabaseAdmin.from("property_emergency_contacts").insert(emergRows as any)
+          : Promise.resolve(),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        faqsRows.length ? supabaseAdmin.from("property_faqs").insert(faqsRows as any) : Promise.resolve(),
+        faqsRows.length
+          ? supabaseAdmin.from("property_faqs").insert(faqsRows as any)
+          : Promise.resolve(),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        checkoutRows.length ? supabaseAdmin.from("property_checkout_items").insert(checkoutRows as any) : Promise.resolve(),
+        checkoutRows.length
+          ? supabaseAdmin.from("property_checkout_items").insert(checkoutRows as any)
+          : Promise.resolve(),
       ]);
     }
 
-    return { created: createdIds.length, skipped, requested: data.copies, remainingBefore: remaining };
+    return {
+      created: createdIds.length,
+      skipped,
+      requested: data.copies,
+      remainingBefore: remaining,
+    };
   });

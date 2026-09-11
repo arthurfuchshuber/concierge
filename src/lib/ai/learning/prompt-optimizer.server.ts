@@ -124,10 +124,16 @@ export async function proposePromptImprovement(params: {
   }
 }
 
-export async function listPromptSuggestions(params: { supabase: Admin; tenantId: string; limit?: number }) {
+export async function listPromptSuggestions(params: {
+  supabase: Admin;
+  tenantId: string;
+  limit?: number;
+}) {
   const { data } = await params.supabase
     .from("ai_prompt_change_candidates")
-    .select("id, prompt_key, prompt_version, suggestion, reason, expected_impact, sample_size, confidence, status, created_at")
+    .select(
+      "id, prompt_key, prompt_version, suggestion, reason, expected_impact, sample_size, confidence, status, created_at",
+    )
     .eq("tenant_id", params.tenantId)
     .eq("status", "pending")
     .order("created_at", { ascending: false })
@@ -144,7 +150,11 @@ export async function reviewPromptSuggestion(params: {
 }): Promise<void> {
   await params.supabase
     .from("ai_prompt_change_candidates")
-    .update({ status: params.status, reviewed_by: params.reviewerId, reviewed_at: new Date().toISOString() })
+    .update({
+      status: params.status,
+      reviewed_by: params.reviewerId,
+      reviewed_at: new Date().toISOString(),
+    })
     .eq("id", params.suggestionId)
     .eq("tenant_id", params.tenantId);
 }

@@ -23,8 +23,7 @@ type OAuthApi = {
     error: { message: string } | null;
   }>;
 };
-const oauthApi = () =>
-  (supabase.auth as unknown as { oauth: OAuthApi }).oauth;
+const oauthApi = () => (supabase.auth as unknown as { oauth: OAuthApi }).oauth;
 
 export const Route = createFileRoute("/.lovable/oauth/consent")({
   ssr: false,
@@ -95,9 +94,9 @@ function Consent() {
         <h1 className="font-display text-2xl">Conectar {clientName}</h1>
         <p className="text-sm text-muted-foreground mt-2">
           Isso permite que <strong>{clientName}</strong> acesse, em seu nome, o conteúdo e as
-          configurações dos seus guias e a atividade recente dos hóspedes. Isso <strong>não inclui</strong>{" "}
-          senha do Wi-Fi, códigos de portão/fechadura nem o código de acesso do guia — esses dados
-          nunca são compartilhados com apps conectados.
+          configurações dos seus guias e a atividade recente dos hóspedes. Isso{" "}
+          <strong>não inclui</strong> senha do Wi-Fi, códigos de portão/fechadura nem o código de
+          acesso do guia — esses dados nunca são compartilhados com apps conectados.
         </p>
         {error && (
           <p role="alert" className="mt-4 text-sm text-destructive">
@@ -108,7 +107,12 @@ function Consent() {
           <Button onClick={() => decide(true)} disabled={busy} className="flex-1">
             Aprovar
           </Button>
-          <Button onClick={() => decide(false)} disabled={busy} variant="outline" className="flex-1">
+          <Button
+            onClick={() => decide(false)}
+            disabled={busy}
+            variant="outline"
+            className="flex-1"
+          >
             Negar
           </Button>
         </div>

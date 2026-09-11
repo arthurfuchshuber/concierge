@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -269,6 +269,16 @@ export function RecordsWorkspace() {
    * senão a página volta a ser uma parede de quadradinhos.
    */
   const [openStrip, setOpenStrip] = useState<string | null>(null);
+  /**
+   * PENDÊNCIAS TAMBÉM RECOLHIDAS, PELA MESMA REGRA (pedido explícito,
+   * 11/09/2026): "coloque também a linha PENDÊNCIAS recolhida seguindo as
+   * mesmas regras da linha REGISTROS". Mesma mecânica, estado separado — a
+   * linha inteira é o botão, sem seta, e abrir um imóvel fecha o anterior.
+   * Separado do acervo de propósito: são duas perguntas diferentes ("o que há
+   * para fazer aqui?" e "que provas existem aqui?"), e amarrar as duas faria
+   * uma abrir a outra sem ninguém ter pedido.
+   */
+  const [openPending, setOpenPending] = useState<string | null>(null);
   const [opened, setOpened] = useState<AccountRecord | null>(null);
   const [resolving, setResolving] = useState<AccountRecord | null>(null);
 
@@ -524,6 +534,8 @@ export function RecordsWorkspace() {
               onResolve={setResolving}
               stripOpen={openStrip === g.key}
               onToggleStrip={() => setOpenStrip((cur) => (cur === g.key ? null : g.key))}
+              pendingOpen={openPending === g.key}
+              onTogglePending={() => setOpenPending((cur) => (cur === g.key ? null : g.key))}
             />
           ))}
 
@@ -721,6 +733,8 @@ function PropertyCard({
   onResolve,
   stripOpen,
   onToggleStrip,
+  pendingOpen,
+  onTogglePending,
 }: {
   group: Group;
   onOpen: (r: AccountRecord) => void;
@@ -728,12 +742,20 @@ function PropertyCard({
   /** Acervo aberto? Quem decide é a página — só um imóvel por vez. */
   stripOpen: boolean;
   onToggleStrip: () => void;
+  /** Pendências abertas? Mesma regra do acervo, estado próprio. */
+  pendingOpen: boolean;
+  onTogglePending: () => void;
 }) {
   // "+N a resolver" EXPANDE A PRÓPRIA LISTA (pedido explícito, 10/09/2026).
   // Antes ele recortava a página inteira para aquele imóvel — resolvia, mas
   // custava perder a visão dos outros. Abrir no lugar é mais barato e é o que
   // a pessoa espera de um "+N".
   const [showAllPending, setShowAllPending] = useState(false);
+  // Recolher zera o "+N": reabrir depois mostrando a lista inteira, sem
+  // ninguém ter pedido, é surpresa — e surpresa em tela de operação é ruído.
+  useEffect(() => {
+    if (!pendingOpen) setShowAllPending(false);
+  }, [pendingOpen]);
   const hasPending = group.pending.length > 0;
   const hiddenPending = group.pending.length - PENDING_ROWS;
   // Com o andar de pendências em cima, o acervo encolhe para não esticar o
@@ -777,7 +799,17 @@ function PropertyCard({
                 manter na mesma fonte... a cor precisa continuar sendo a
                 anterior"). O nome virou "Pendências", como a operação já chama
                 no Kanban. */}
-            <div className="mb-1 mt-2.5 flex items-center gap-2">
+            {/* A LINHA INTEIRA É O BOTÃO, sem seta — igualzinho à de
+                "Registros" (pedido explícito, 11/09/2026: "a linha PENDÊNCIAS
+                recolhida seguindo as mesmas regras da linha REGISTROS"). A
+                forma não muda em nada: mesma fonte, mesmo fio, mesma contagem
+                à direita, e a cor de alerta continua sendo a de antes. */}
+            <button
+              type="button"
+              onClick={onTogglePending}
+              aria-expanded={pendingOpen}
+              className="mb-1 mt-2.5 flex w-full items-center gap-2 text-left"
+            >
               <span className="shrink-0 text-[9px] font-extrabold uppercase tracking-[0.11em] text-rose-600 dark:text-rose-400">
                 Pendências
               </span>
@@ -785,24 +817,30 @@ function PropertyCard({
               <span className="shrink-0 text-[9px] font-bold tabular-nums text-muted-foreground">
                 {group.pending.length}
               </span>
-            </div>
-            {(showAllPending ? group.pending : group.pending.slice(0, PENDING_ROWS)).map((r) => (
-              <PendingRow
-                key={r.id}
-                record={r}
-                onOpen={() => onOpen(r)}
-                onResolve={() => onResolve(r)}
-              />
-            ))}
-            {hiddenPending > 0 && (
-              <button
-                type="button"
-                onClick={() => setShowAllPending((v) => !v)}
-                aria-expanded={showAllPending}
-                className="mt-1 w-full rounded-[0.25rem] py-1 text-center text-[10px] font-bold text-muted-foreground transition-colors hover:bg-secondary/40 hover:text-foreground"
-              >
-                {showAllPending ? "Mostrar menos" : `+${hiddenPending} pendências`}
-              </button>
+            </button>
+            {pendingOpen && (
+              <>
+                {(showAllPending ? group.pending : group.pending.slice(0, PENDING_ROWS)).map(
+                  (r) => (
+                    <PendingRow
+                      key={r.id}
+                      record={r}
+                      onOpen={() => onOpen(r)}
+                      onResolve={() => onResolve(r)}
+                    />
+                  ),
+                )}
+                {hiddenPending > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllPending((v) => !v)}
+                    aria-expanded={showAllPending}
+                    className="mt-1 w-full rounded-[0.25rem] py-1 text-center text-[10px] font-bold text-muted-foreground transition-colors hover:bg-secondary/40 hover:text-foreground"
+                  >
+                    {showAllPending ? "Mostrar menos" : `+${hiddenPending} pendências`}
+                  </button>
+                )}
+              </>
             )}
           </>
         )}

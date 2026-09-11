@@ -1,5 +1,11 @@
 import { AlertTriangle, Loader2 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
 const VINCULO: Record<string, string> = {
@@ -49,8 +55,8 @@ export function ClicksignContractStartConflictDialog({
             <AlertTriangle className="size-4 text-amber-500" /> Datas de início divergentes
           </DialogTitle>
           <DialogDescription className="text-xs">
-            {conflicts.length} cadastro(s) já têm uma "Início do contrato" definida manualmente, diferente da data do
-            primeiro documento assinado no ClickSign. O que deseja fazer?
+            {conflicts.length} cadastro(s) já têm uma "Início do contrato" definida manualmente,
+            diferente da data do primeiro documento assinado no ClickSign. O que deseja fazer?
           </DialogDescription>
         </DialogHeader>
 
@@ -58,7 +64,8 @@ export function ClicksignContractStartConflictDialog({
           {conflicts.map((c) => (
             <div key={`${c.kind}:${c.id}`} className="rounded-lg bg-muted/50 px-3 py-2 text-[11px]">
               <p className="font-medium text-foreground">
-                {c.name ?? "Cadastro"} <span className="text-muted-foreground">· {VINCULO[c.kind]}</span>
+                {c.name ?? "Cadastro"}{" "}
+                <span className="text-muted-foreground">· {VINCULO[c.kind]}</span>
               </p>
               <p className="text-muted-foreground">
                 Atual: {fmtDate(c.current)} → ClickSign sugere: {fmtDate(c.suggested)}

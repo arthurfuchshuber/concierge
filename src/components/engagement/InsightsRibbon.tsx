@@ -20,7 +20,8 @@ export function InsightsRibbon({ insights }: { insights: Insight[] }) {
   if (insights.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border p-6 text-sm text-muted-foreground">
-        Nenhum padrão relevante detectado ainda no período. Aumente o intervalo ou aguarde mais visitas.
+        Nenhum padrão relevante detectado ainda no período. Aumente o intervalo ou aguarde mais
+        visitas.
       </div>
     );
   }

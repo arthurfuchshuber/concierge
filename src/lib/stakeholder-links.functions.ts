@@ -16,14 +16,20 @@ export const listStakeholderOptions = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<StakeholderOption[]> => {
     const { supabase, userId } = context;
     const [{ data: owners }, { data: providers }] = await Promise.all([
-      supabase.from("property_owners").select("id, name, trade_name, email, doc").eq("account_owner_id", userId),
-      supabase.from("service_providers").select("id, name, trade_name, email, doc").eq("account_owner_id", userId),
+      supabase
+        .from("property_owners")
+        .select("id, name, trade_name, email, doc")
+        .eq("account_owner_id", userId),
+      supabase
+        .from("service_providers")
+        .select("id, name, trade_name, email, doc")
+        .eq("account_owner_id", userId),
     ]);
     const map = (rows: typeof owners, type: "owner" | "provider"): StakeholderOption[] =>
       (rows ?? []).map((r) => ({
         type,
         id: r.id as string,
-        label: ((r.trade_name as string) || (r.name as string) || "Sem nome"),
+        label: (r.trade_name as string) || (r.name as string) || "Sem nome",
         email: (r.email as string) ?? null,
         doc: (r.doc as string) ?? null,
       }));

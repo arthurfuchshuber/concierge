@@ -187,7 +187,12 @@ export const PLAN_COMPARISON_GROUPS: Array<{
       },
       {
         label: "Formulário de captação de hóspedes",
-        values: { starter: "Básico", pro: "Avançado", business: "Avançado", enterprise: "Avançado" },
+        values: {
+          starter: "Básico",
+          pro: "Avançado",
+          business: "Avançado",
+          enterprise: "Avançado",
+        },
       },
       {
         label: "Validação de documentos por IA",
@@ -274,10 +279,7 @@ export function planFromPriceId(priceId: string | null | undefined): PlanKey | n
  * Given a source plan (or none) and a target plan, returns the list of
  * feature labels the user will lose by switching. Used on downgrade dialog.
  */
-export function featuresLostOnDowngrade(
-  current: PlanKey | null,
-  target: PlanKey | null,
-): string[] {
+export function featuresLostOnDowngrade(current: PlanKey | null, target: PlanKey | null): string[] {
   if (!current) return [];
   const currFeatures = PLANS[current].features;
   const nextFeatures = target ? PLANS[target].features : FEATURES_NONE;

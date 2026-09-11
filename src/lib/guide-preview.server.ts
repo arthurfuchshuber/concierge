@@ -37,7 +37,10 @@ export async function createGuidePreviewTokenFor(slug: string): Promise<string> 
   return `${exp}.${sig}`;
 }
 
-export async function verifyGuidePreviewToken(slug: string, token: string | null | undefined): Promise<boolean> {
+export async function verifyGuidePreviewToken(
+  slug: string,
+  token: string | null | undefined,
+): Promise<boolean> {
   if (!token) return false;
   const idx = token.indexOf(".");
   if (idx <= 0) return false;

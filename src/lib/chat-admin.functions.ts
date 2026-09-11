@@ -4,11 +4,18 @@ import { z } from "zod";
 
 export const listPropertyConversations = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { propertyId: string }) => z.object({ propertyId: z.string().uuid() }).parse(d))
+  .inputValidator((d: { propertyId: string }) =>
+    z.object({ propertyId: z.string().uuid() }).parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const prop = await supabase.from("properties").select("id,name,owner_id").eq("id", data.propertyId).single();
-    if (prop.error || !prop.data || prop.data.owner_id !== userId) throw new Error("Não autorizado");
+    const prop = await supabase
+      .from("properties")
+      .select("id,name,owner_id")
+      .eq("id", data.propertyId)
+      .single();
+    if (prop.error || !prop.data || prop.data.owner_id !== userId)
+      throw new Error("Não autorizado");
     const { data: convs, error } = await supabase
       .from("property_chat_conversations")
       .select("id,guest_name,guest_session_id,created_at,last_message_at")
@@ -21,18 +28,27 @@ export const listPropertyConversations = createServerFn({ method: "POST" })
 
 export const getConversationMessages = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { conversationId: string }) => z.object({ conversationId: z.string().uuid() }).parse(d))
+  .inputValidator((d: { conversationId: string }) =>
+    z.object({ conversationId: z.string().uuid() }).parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const conv = await supabase
       .from("property_chat_conversations")
-      .select("id,property_id,guest_name,guest_session_id,created_at,last_message_at,properties!inner(owner_id,name)")
+      .select(
+        "id,property_id,guest_name,guest_session_id,created_at,last_message_at,properties!inner(owner_id,name)",
+      )
       .eq("id", data.conversationId)
       .single();
     if (conv.error || !conv.data) throw new Error("Conversa não encontrada");
     const c = conv.data as unknown as {
-      id: string; property_id: string; guest_name: string | null; guest_session_id: string;
-      created_at: string; last_message_at: string; properties: { owner_id: string; name: string };
+      id: string;
+      property_id: string;
+      guest_name: string | null;
+      guest_session_id: string;
+      created_at: string;
+      last_message_at: string;
+      properties: { owner_id: string; name: string };
     };
     if (c.properties.owner_id !== userId) throw new Error("Não autorizado");
     const { data: msgs, error } = await supabase

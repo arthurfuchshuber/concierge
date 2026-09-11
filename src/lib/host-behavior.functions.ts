@@ -3,7 +3,6 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireMemberPermission } from "@/lib/member-permissions.server";
 import { z } from "zod";
 
-
 const BehaviorInput = z.object({
   id: z.string().uuid().optional().nullable(),
   title: z.string().trim().min(1).max(200),
@@ -17,7 +16,9 @@ export const listHostBehavior = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("host_behavior")
-      .select("id, title, body, enabled, source, source_property_id, scope_property_id, position, created_at, updated_at")
+      .select(
+        "id, title, body, enabled, source, source_property_id, scope_property_id, position, created_at, updated_at",
+      )
       .order("position", { ascending: true });
     if (error) throw new Error(error.message);
     return data ?? [];
@@ -45,7 +46,10 @@ export const saveHostBehavior = createServerFn({ method: "POST" })
       position: i,
       scope_property_id: it.scope_property_id ?? null,
     }));
-    const { error, data: inserted } = await supabase.from("host_behavior").insert(rows).select("id");
+    const { error, data: inserted } = await supabase
+      .from("host_behavior")
+      .insert(rows)
+      .select("id");
     if (error) throw new Error(error.message);
     return { saved: inserted?.length ?? 0 };
   });

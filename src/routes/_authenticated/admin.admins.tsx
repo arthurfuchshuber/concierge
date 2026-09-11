@@ -14,12 +14,21 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Shield, ShieldCheck, Trash2, Loader2, UserPlus, Mail, Activity, Search, XCircle } from "lucide-react";
+import {
+  Shield,
+  ShieldCheck,
+  Trash2,
+  Loader2,
+  UserPlus,
+  Mail,
+  Activity,
+  Search,
+  XCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
 import { PermissionCenterPage } from "@/components/admin-pages/PermissionCenterPage";
 import { PageHeader } from "@/components/ds/PageHeader";
-
 
 export const Route = createFileRoute("/_authenticated/admin/admins")({
   beforeLoad: async () => {
@@ -117,10 +126,16 @@ function AdminsPage() {
   return (
     <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-[1440px] mx-auto w-full">
       <PageHeader
-        title={<span className="inline-flex items-center gap-2.5"><ShieldCheck className="size-6 text-muted-foreground" /> Administradores</span>}
+        title={
+          <span className="inline-flex items-center gap-2.5">
+            <ShieldCheck className="size-6 text-muted-foreground" /> Administradores
+          </span>
+        }
         subtitle={
           <>
-            <span className="ds-eyebrow inline-flex items-center gap-1.5 text-accent mb-1"><Shield className="size-3" /> Admin SaaS</span>
+            <span className="ds-eyebrow inline-flex items-center gap-1.5 text-accent mb-1">
+              <Shield className="size-3" /> Admin SaaS
+            </span>
             <br />
             Gerencie quem tem acesso de administrador e veja tudo o que cada pessoa fez no SaaS.
           </>
@@ -129,10 +144,27 @@ function AdminsPage() {
 
       <Tabs value={tab} onValueChange={setTab} className="mt-8">
         <TabsList className="ds-segmented h-auto">
-          <TabsTrigger value="admins"><ShieldCheck className="size-4 mr-1.5" />Administradores</TabsTrigger>
-          <TabsTrigger value="invites"><Mail className="size-4 mr-1.5" />Convites {invites.length > 0 && <span className="ml-1 text-[10px] bg-accent text-accent-foreground px-1.5 rounded-full">{invites.length}</span>}</TabsTrigger>
-          <TabsTrigger value="permissoes"><Shield className="size-4 mr-1.5" />Permissões</TabsTrigger>
-          <TabsTrigger value="logs"><Activity className="size-4 mr-1.5" />Log de atividades</TabsTrigger>
+          <TabsTrigger value="admins">
+            <ShieldCheck className="size-4 mr-1.5" />
+            Administradores
+          </TabsTrigger>
+          <TabsTrigger value="invites">
+            <Mail className="size-4 mr-1.5" />
+            Convites{" "}
+            {invites.length > 0 && (
+              <span className="ml-1 text-[10px] bg-accent text-accent-foreground px-1.5 rounded-full">
+                {invites.length}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="permissoes">
+            <Shield className="size-4 mr-1.5" />
+            Permissões
+          </TabsTrigger>
+          <TabsTrigger value="logs">
+            <Activity className="size-4 mr-1.5" />
+            Log de atividades
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="permissoes" className="mt-6">
@@ -142,7 +174,6 @@ function AdminsPage() {
           </div>
           <PermissionCenterPage context="saas" />
         </TabsContent>
-
 
         <TabsContent value="admins" className="mt-6 space-y-6">
           <form
@@ -162,7 +193,11 @@ function AdminsPage() {
               />
             </div>
             <Button type="submit" disabled={granting} className="rounded-full">
-              {granting ? <Loader2 className="size-4 animate-spin" /> : <UserPlus className="size-4" />}
+              {granting ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <UserPlus className="size-4" />
+              )}
               Conceder ou convidar
             </Button>
           </form>
@@ -173,7 +208,9 @@ function AdminsPage() {
               <span className="ds-meta">{admins.length} no total</span>
             </div>
             {query.isLoading ? (
-              <div className="p-8 grid place-items-center text-muted-foreground"><Loader2 className="size-5 animate-spin" /></div>
+              <div className="p-8 grid place-items-center text-muted-foreground">
+                <Loader2 className="size-5 animate-spin" />
+              </div>
             ) : admins.length === 0 ? (
               <div className="p-8 text-center ds-body">Nenhum admin.</div>
             ) : (
@@ -200,7 +237,11 @@ function AdminsPage() {
                           onClick={() => handleRevoke(a.userId, label)}
                           className="text-destructive hover:text-destructive"
                         >
-                          {revokingId === a.userId ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                          {revokingId === a.userId ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="size-4" />
+                          )}
                           <span className="hidden sm:inline">Revogar</span>
                         </Button>
                       )}
@@ -219,7 +260,9 @@ function AdminsPage() {
               <span className="ds-meta">{invites.length} no total</span>
             </div>
             {invitesQuery.isLoading ? (
-              <div className="p-8 grid place-items-center text-muted-foreground"><Loader2 className="size-5 animate-spin" /></div>
+              <div className="p-8 grid place-items-center text-muted-foreground">
+                <Loader2 className="size-5 animate-spin" />
+              </div>
             ) : invites.length === 0 ? (
               <div className="p-8 text-center ds-body">Nenhum convite pendente.</div>
             ) : (
@@ -231,7 +274,9 @@ function AdminsPage() {
                       <div className="ds-card-title truncate">{inv.email}</div>
                       <div className="ds-meta">
                         Convidado{inv.invitedByEmail ? ` por ${inv.invitedByEmail}` : ""}
-                        {inv.createdAt ? ` • ${new Date(inv.createdAt).toLocaleString("pt-BR")}` : ""}
+                        {inv.createdAt
+                          ? ` • ${new Date(inv.createdAt).toLocaleString("pt-BR")}`
+                          : ""}
                       </div>
                     </div>
                     <Button
@@ -241,7 +286,11 @@ function AdminsPage() {
                       onClick={() => handleRevokeInvite(inv.id, inv.email)}
                       className="text-destructive hover:text-destructive"
                     >
-                      {revokingInvite === inv.id ? <Loader2 className="size-4 animate-spin" /> : <XCircle className="size-4" />}
+                      {revokingInvite === inv.id ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <XCircle className="size-4" />
+                      )}
                       <span className="hidden sm:inline">Cancelar</span>
                     </Button>
                   </li>
@@ -262,7 +311,11 @@ function AdminsPage() {
                 className="pl-9"
               />
             </div>
-            <Button variant="outline" size="sm" onClick={() => qc.invalidateQueries({ queryKey: ["admin-audit-logs"] })}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => qc.invalidateQueries({ queryKey: ["admin-audit-logs"] })}
+            >
               Atualizar
             </Button>
           </div>
@@ -273,7 +326,9 @@ function AdminsPage() {
               <span className="ds-meta">{logs.length} registros</span>
             </div>
             {logsQuery.isLoading ? (
-              <div className="p-8 grid place-items-center text-muted-foreground"><Loader2 className="size-5 animate-spin" /></div>
+              <div className="p-8 grid place-items-center text-muted-foreground">
+                <Loader2 className="size-5 animate-spin" />
+              </div>
             ) : logs.length === 0 ? (
               <div className="p-8 text-center ds-body">Nenhum registro encontrado.</div>
             ) : (
@@ -281,9 +336,13 @@ function AdminsPage() {
                 <table className="w-full text-sm">
                   <thead className="bg-muted/30 text-xs uppercase tracking-wider text-muted-foreground">
                     <tr>
-                      <th className="text-left px-4 py-2.5 font-medium whitespace-nowrap w-[150px]">Quando</th>
+                      <th className="text-left px-4 py-2.5 font-medium whitespace-nowrap w-[150px]">
+                        Quando
+                      </th>
                       <th className="text-left px-4 py-2.5 font-medium w-[280px]">Usuário</th>
-                      <th className="text-left px-4 py-2.5 font-medium whitespace-nowrap w-[240px]">Ação</th>
+                      <th className="text-left px-4 py-2.5 font-medium whitespace-nowrap w-[240px]">
+                        Ação
+                      </th>
                       <th className="text-left px-4 py-2.5 font-medium">Item</th>
                     </tr>
                   </thead>
@@ -294,8 +353,17 @@ function AdminsPage() {
                           {new Date(l.createdAt).toLocaleString("pt-BR")}
                         </td>
                         <td className="px-4 py-3">
-                          <div className="text-xs font-medium truncate" title={l.userEmail ?? ""}>{l.userEmail ?? "—"}</div>
-                          {l.userId && <div className="text-[10px] text-muted-foreground font-mono truncate" title={l.userId}>{l.userId.slice(0, 8)}…</div>}
+                          <div className="text-xs font-medium truncate" title={l.userEmail ?? ""}>
+                            {l.userEmail ?? "—"}
+                          </div>
+                          {l.userId && (
+                            <div
+                              className="text-[10px] text-muted-foreground font-mono truncate"
+                              title={l.userId}
+                            >
+                              {l.userId.slice(0, 8)}…
+                            </div>
+                          )}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-accent/10 text-accent text-[11px] font-medium whitespace-nowrap">

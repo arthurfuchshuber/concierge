@@ -8,10 +8,14 @@ const Toaster = ({ ...props }: ToasterProps) => {
       className="toaster group"
       icons={{
         success: (
-          <span className="grid size-6 shrink-0 place-items-center rounded-full bg-emerald-500/15 text-emerald-500">✓</span>
+          <span className="grid size-6 shrink-0 place-items-center rounded-full bg-emerald-500/15 text-emerald-500">
+            ✓
+          </span>
         ),
         error: (
-          <span className="grid size-6 shrink-0 place-items-center rounded-full bg-destructive/15 text-destructive">✕</span>
+          <span className="grid size-6 shrink-0 place-items-center rounded-full bg-destructive/15 text-destructive">
+            ✕
+          </span>
         ),
       }}
       toastOptions={{

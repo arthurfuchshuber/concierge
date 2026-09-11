@@ -16,8 +16,14 @@ export const previewClicksignStakeholders = createServerFn({ method: "GET" })
         .select("name, signers")
         .eq("account_owner_id", userId)
         .limit(2000),
-      supabase.from("property_owners").select("id, name, trade_name, email, doc").eq("account_owner_id", userId),
-      supabase.from("service_providers").select("id, name, trade_name, email, doc").eq("account_owner_id", userId),
+      supabase
+        .from("property_owners")
+        .select("id, name, trade_name, email, doc")
+        .eq("account_owner_id", userId),
+      supabase
+        .from("service_providers")
+        .select("id, name, trade_name, email, doc")
+        .eq("account_owner_id", userId),
     ]);
     const { buildCandidates } = await import("@/lib/clicksign-import.server");
     const candidates = buildCandidates(
@@ -94,7 +100,8 @@ export const importClicksignStakeholders = createServerFn({ method: "POST" })
       // Aprende o vínculo para as próximas sincronizações.
       const aliases: Array<{ kind: string; value: string }> = [];
       const digits = d.doc.replace(/\D/g, "");
-      if (digits.length === 11 || digits.length === 14) aliases.push({ kind: "doc", value: digits });
+      if (digits.length === 11 || digits.length === 14)
+        aliases.push({ kind: "doc", value: digits });
       if (d.email.includes("@")) aliases.push({ kind: "email", value: d.email.toLowerCase() });
       for (const a of aliases) {
         await supabase.from("stakeholder_link_aliases").upsert(
@@ -118,9 +125,14 @@ export const importClicksignStakeholders = createServerFn({ method: "POST" })
         .is("stakeholder_id", null)
         .limit(2000);
 
-      const norm = (s: unknown) => String(s ?? "").toLowerCase().trim();
+      const norm = (s: unknown) =>
+        String(s ?? "")
+          .toLowerCase()
+          .trim();
       const targets = (docs ?? []).filter((row) => {
-        const signers = (Array.isArray(row.signers) ? row.signers : []) as Array<Record<string, unknown>>;
+        const signers = (Array.isArray(row.signers) ? row.signers : []) as Array<
+          Record<string, unknown>
+        >;
         return signers.some((s) => {
           const sDoc = String(s["documentation"] ?? s["cpf"] ?? s["cnpj"] ?? "").replace(/\D/g, "");
           return (digits && sDoc === digits) || (d.email && norm(s["email"]) === norm(d.email));
@@ -130,7 +142,10 @@ export const importClicksignStakeholders = createServerFn({ method: "POST" })
         await supabase
           .from("clicksign_documents")
           .update({ stakeholder_type: type, stakeholder_id: id })
-          .in("id", targets.map((t) => t.id));
+          .in(
+            "id",
+            targets.map((t) => t.id),
+          );
       }
 
       // Linha do tempo do cadastro: registra a origem e o que foi vinculado.
@@ -162,9 +177,7 @@ export const importClicksignStakeholders = createServerFn({ method: "POST" })
         } as never,
         created_by: userId,
       });
-
     }
-
 
     return { created, linked };
   });
@@ -175,11 +188,20 @@ export const getClicksignPurgePreview = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const [docs, owners, providers] = await Promise.all([
-      supabase.from("clicksign_documents").select("id", { count: "exact", head: true }).eq("account_owner_id", userId),
-      supabase.from("property_owners").select("id", { count: "exact", head: true })
-        .eq("account_owner_id", userId).eq("created_via", "clicksign"),
-      supabase.from("service_providers").select("id", { count: "exact", head: true })
-        .eq("account_owner_id", userId).eq("created_via", "clicksign"),
+      supabase
+        .from("clicksign_documents")
+        .select("id", { count: "exact", head: true })
+        .eq("account_owner_id", userId),
+      supabase
+        .from("property_owners")
+        .select("id", { count: "exact", head: true })
+        .eq("account_owner_id", userId)
+        .eq("created_via", "clicksign"),
+      supabase
+        .from("service_providers")
+        .select("id", { count: "exact", head: true })
+        .eq("account_owner_id", userId)
+        .eq("created_via", "clicksign"),
     ]);
     return {
       documents: docs.count ?? 0,

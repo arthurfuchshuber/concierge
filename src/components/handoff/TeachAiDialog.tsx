@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { teachAiFromMessage, listOwnerPropertiesForTeaching } from "@/lib/teach-ai.functions";
 import { Loader2, Sparkles, Check, AlertCircle } from "lucide-react";
 
@@ -71,15 +78,14 @@ export function TeachAiDialog({
   function toggle(id: string) {
     setSelected((prev) => {
       const n = new Set(prev);
-      if (n.has(id)) n.delete(id); else n.add(id);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
       return n;
     });
   }
 
   const canSave =
-    content.trim().length >= 3 &&
-    !save.isPending &&
-    (scope !== "select" || selected.size > 0);
+    content.trim().length >= 3 && !save.isPending && (scope !== "select" || selected.size > 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -89,13 +95,16 @@ export function TeachAiDialog({
             <Sparkles className="size-4 text-primary" /> Ensinar IA
           </DialogTitle>
           <DialogDescription>
-            Este conteúdo entra na base de conhecimento e passa a orientar as respostas da IA daqui em diante.
+            Este conteúdo entra na base de conhecimento e passa a orientar as respostas da IA daqui
+            em diante.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
           <div>
-            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Aprendizado</label>
+            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+              Aprendizado
+            </label>
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
@@ -106,7 +115,9 @@ export function TeachAiDialog({
           </div>
 
           <div>
-            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Onde aplicar</label>
+            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+              Onde aplicar
+            </label>
             <div className="mt-1 space-y-1.5">
               <ScopeRow
                 active={scope === "current"}
@@ -137,7 +148,9 @@ export function TeachAiDialog({
                 </div>
               )}
               {!propsQ.isLoading && properties.length === 0 && (
-                <div className="p-3 text-xs text-muted-foreground">Nenhum outro guia encontrado.</div>
+                <div className="p-3 text-xs text-muted-foreground">
+                  Nenhum outro guia encontrado.
+                </div>
               )}
               {properties.map((p) => {
                 const on = selected.has(p.id);
@@ -186,7 +199,11 @@ export function TeachAiDialog({
             disabled={!canSave}
             className="px-3 py-2 text-sm rounded-md bg-primary text-primary-foreground inline-flex items-center gap-2 disabled:opacity-40"
           >
-            {save.isPending ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+            {save.isPending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Sparkles className="size-4" />
+            )}
             Ensinar IA
           </button>
         </DialogFooter>
@@ -196,8 +213,16 @@ export function TeachAiDialog({
 }
 
 function ScopeRow({
-  active, onSelect, title, subtitle,
-}: { active: boolean; onSelect: () => void; title: string; subtitle: string }) {
+  active,
+  onSelect,
+  title,
+  subtitle,
+}: {
+  active: boolean;
+  onSelect: () => void;
+  title: string;
+  subtitle: string;
+}) {
   return (
     <button
       type="button"

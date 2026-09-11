@@ -36,9 +36,7 @@ export const getMyAccessDecisions = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => CheckInput.parse(i))
   .handler(async ({ data, context }) => {
     const { checkAccess } = await import("@/lib/permissions/permission.enforce.server");
-    const { resolveSubjectSnapshot } = await import(
-      "@/lib/permissions/permission.resolve.server"
-    );
+    const { resolveSubjectSnapshot } = await import("@/lib/permissions/permission.resolve.server");
 
     const snapshot = await resolveSubjectSnapshot(context.userId);
     const scopeCtx = {

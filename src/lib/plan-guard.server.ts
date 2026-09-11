@@ -37,7 +37,6 @@ function getRuntimeEnv(): PaddleEnv {
   return import.meta.env.PROD ? "live" : "sandbox";
 }
 
-
 /**
  * Uma assinatura só concede acesso se o período for válido. Para trials, o
  * limite é `trial_ends_at` (o `current_period_end` costuma vir nulo em trials
@@ -80,7 +79,9 @@ export async function resolveUserPlan(
   const runtimeEnv = getRuntimeEnv();
   const { data: subs } = await supabase
     .from("subscriptions")
-    .select("status, product_id, current_period_end, trial_ends_at, environment, max_guides_override, created_at")
+    .select(
+      "status, product_id, current_period_end, trial_ends_at, environment, max_guides_override, created_at",
+    )
     .eq("user_id", userId)
     .eq("environment", runtimeEnv)
     .order("created_at", { ascending: false });
@@ -97,7 +98,6 @@ export async function resolveUserPlan(
   }
   return FREE;
 }
-
 
 /**
  * Resolve o plano EFETIVO para uma operação. Diferente de `resolveUserPlan`
@@ -200,7 +200,6 @@ export async function assertFeature(
   }
 }
 
-
 /**
  * Resolves a property owner's plan using the service role client. For use in
  * unauthenticated public routes (guide page, public chat). Mirrors
@@ -223,7 +222,9 @@ export async function resolveOwnerPlanAdmin(
   const runtimeEnv = getRuntimeEnv();
   const { data: subs } = await supabaseAdmin
     .from("subscriptions")
-    .select("status, product_id, current_period_end, trial_ends_at, environment, is_manual, max_guides_override, created_at")
+    .select(
+      "status, product_id, current_period_end, trial_ends_at, environment, is_manual, max_guides_override, created_at",
+    )
     .eq("user_id", ownerId)
     .order("created_at", { ascending: false });
   const list = subs ?? [];
@@ -244,7 +245,12 @@ export async function resolveOwnerPlanAdmin(
     if (!plan) continue;
     const cfg = PLANS[plan];
     const override = (sub.max_guides_override as number | null) ?? null;
-    return remember({ plan, status, maxGuides: override ?? cfg.maxGuides, features: { ...cfg.features } });
+    return remember({
+      plan,
+      status,
+      maxGuides: override ?? cfg.maxGuides,
+      features: { ...cfg.features },
+    });
   }
   return remember(FREE);
 }

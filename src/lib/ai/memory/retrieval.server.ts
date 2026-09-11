@@ -55,9 +55,15 @@ function tierOf(
   const sameProperty = !!ctx.propertyId && memory.propertyId === ctx.propertyId;
   const recentDays = (Date.now() - Date.parse(memory.lastSeenAt)) / 86400000;
 
-  if (sameGuest && (memory.kind === "issue" || memory.kind === "resolution") && recentDays <= 30) return 1;
+  if (sameGuest && (memory.kind === "issue" || memory.kind === "resolution") && recentDays <= 30)
+    return 1;
   if (sameGuest && memory.kind === "operational_decision" && recentDays <= 30) return 1;
-  if (sameProperty && (memory.kind === "issue" || memory.kind === "resolution") && recentDays <= 120) return 2;
+  if (
+    sameProperty &&
+    (memory.kind === "issue" || memory.kind === "resolution") &&
+    recentDays <= 120
+  )
+    return 2;
   if (sameGuest && memory.kind === "preference") return 3;
   if (memory.kind === "property_fact" && sameProperty) return 3;
   if (sameGuest || sameProperty) return 4;
@@ -89,7 +95,12 @@ export async function retrieveMemories(params: {
   query: string;
   category?: string | null;
   limit?: number;
-}): Promise<{ memories: ScoredMemory[]; usage: Usage; retrievalUsed: string[]; confidence: number }> {
+}): Promise<{
+  memories: ScoredMemory[];
+  usage: Usage;
+  retrievalUsed: string[];
+  confidence: number;
+}> {
   const { supabase } = params;
   const limit = params.limit ?? 8;
   const retrievalUsed: string[] = [];

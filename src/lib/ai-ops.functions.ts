@@ -41,7 +41,11 @@ export const explainAiInteraction = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { explainInteraction } = await import("@/lib/ai/observability/root-cause.server");
-    return explainInteraction({ supabase: supabaseAdmin, tenantId: context.userId, logId: data.logId });
+    return explainInteraction({
+      supabase: supabaseAdmin,
+      tenantId: context.userId,
+      logId: data.logId,
+    });
   });
 
 export const runAiEvaluation = createServerFn({ method: "POST" })
@@ -71,7 +75,11 @@ export const getAiQualityHistory = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { qualityHistory } = await import("@/lib/ai/evaluation/regression.server");
-    return qualityHistory({ supabase: supabaseAdmin, tenantId: context.userId, days: data.days ?? 30 });
+    return qualityHistory({
+      supabase: supabaseAdmin,
+      tenantId: context.userId,
+      days: data.days ?? 30,
+    });
   });
 
 export const listProactiveActions = createServerFn({ method: "POST" })

@@ -105,7 +105,6 @@ export type CenterScopes = {
   properties: CenterProperty[];
 };
 
-
 export type CenterAudit = {
   allowed: true;
   rows: Array<{
@@ -203,7 +202,9 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 function labelOf(namespace: string): string {
-  return permissionRegistry.get(namespace)?.label ?? permissionRegistry.get(namespace)?.name ?? namespace;
+  return (
+    permissionRegistry.get(namespace)?.label ?? permissionRegistry.get(namespace)?.name ?? namespace
+  );
 }
 
 function domainOf(namespace: string): string {
@@ -241,7 +242,11 @@ async function buildUser(
   };
 }
 
-async function resolveContext(supabase: SupabaseClient, userId: string, requestedTenantId?: string) {
+async function resolveContext(
+  supabase: SupabaseClient,
+  userId: string,
+  requestedTenantId?: string,
+) {
   const saas = await isSaasAdmin(supabase, userId);
   const tenantId = requestedTenantId ?? (await resolveTenantOf(userId)).tenantId;
   const profiles = await profilesFor([tenantId]);
@@ -276,7 +281,15 @@ export async function loadCenterOverview(
 
   const users: CenterUser[] = [];
   users.push(
-    await buildUser(tenantId, tenantId, tenantName, profiles[tenantId], "owner", "active", kind === "saas" ? ["Administrador do SaaS"] : []),
+    await buildUser(
+      tenantId,
+      tenantId,
+      tenantName,
+      profiles[tenantId],
+      "owner",
+      "active",
+      kind === "saas" ? ["Administrador do SaaS"] : [],
+    ),
   );
   for (const m of members ?? []) {
     const id = m.member_user_id as string;
@@ -330,7 +343,9 @@ async function propertiesOf(tenantId: string, assigned: string[], all = false) {
     published: boolean | null;
   }>;
 
-  const ownerIds = [...new Set(rows.map((r) => r.owner_contact_id).filter((v): v is string => !!v))];
+  const ownerIds = [
+    ...new Set(rows.map((r) => r.owner_contact_id).filter((v): v is string => !!v)),
+  ];
   const ownerById = new Map<
     string,
     { name: string | null; phone: string | null; country: string | null }
@@ -373,7 +388,6 @@ async function propertiesOf(tenantId: string, assigned: string[], all = false) {
   });
 }
 
-
 function scopeSummary(snapshot: SubjectSnapshot) {
   const byType = new Map<ScopeType, number>();
   for (const a of snapshot.assignments) {
@@ -407,7 +421,8 @@ export async function loadCenterUserDetail(
       .eq("owner_id", tenantId)
       .eq("member_user_id", targetUserId)
       .maybeSingle();
-    if (!member) return { allowed: false, reason: "Usuário não pertence a este contexto de permissões." };
+    if (!member)
+      return { allowed: false, reason: "Usuário não pertence a este contexto de permissões." };
     role = (member.role as string) ?? "agent";
     status = (member.status as string) ?? "active";
   }
@@ -513,7 +528,9 @@ export async function loadCenterAudit(
   ];
   const profiles = await profilesFor(ids);
 
-  const nodeIdBySlug = await permissionRepository.nodeIdBySlug().catch(() => ({}) as Record<string, string>);
+  const nodeIdBySlug = await permissionRepository
+    .nodeIdBySlug()
+    .catch(() => ({}) as Record<string, string>);
   const slugByNodeId: Record<string, string> = {};
   for (const [slug, id] of Object.entries(nodeIdBySlug)) slugByNodeId[id] = slug;
 
@@ -522,9 +539,13 @@ export async function loadCenterAudit(
     rows: rows.map((r) => ({
       id: r.id,
       createdAt: r.created_at,
-      actorName: r.actor_name ?? (r.actor_id ? (profiles[r.actor_id]?.name ?? profiles[r.actor_id]?.email ?? null) : null),
+      actorName:
+        r.actor_name ??
+        (r.actor_id ? (profiles[r.actor_id]?.name ?? profiles[r.actor_id]?.email ?? null) : null),
       targetName: r.target_user_id
-        ? (profiles[r.target_user_id]?.name ?? profiles[r.target_user_id]?.email ?? r.target_user_id)
+        ? (profiles[r.target_user_id]?.name ??
+          profiles[r.target_user_id]?.email ??
+          r.target_user_id)
         : null,
       action: r.action,
       namespace: r.permission_node_id ? (slugByNodeId[r.permission_node_id] ?? null) : null,

@@ -161,8 +161,6 @@ export function evaluateWithSnapshot(
     );
   }
 
-
-
   // 4) Nó precisa existir e ser permissionável.
   const node = permissionRegistry.get(slug);
   if (!node) {

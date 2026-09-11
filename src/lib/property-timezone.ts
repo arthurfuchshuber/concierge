@@ -66,10 +66,7 @@ const COUNTRY_TZ: Record<string, string> = {
   mx: "America/Mexico_City",
 };
 
-export function propertyTimeZone(
-  city?: string | null,
-  country?: string | null,
-): string {
+export function propertyTimeZone(city?: string | null, country?: string | null): string {
   const c = norm(city);
   if (c) {
     // Só match exato ou por palavra inicial: "includes" solto fazia

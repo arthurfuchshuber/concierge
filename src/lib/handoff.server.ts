@@ -10,7 +10,10 @@ type Admin = SupabaseClient<Database>;
  * em uma dada propriedade: o owner + os account_members ativos com
  * papel owner/agent (viewers não recebem push).
  */
-export async function getPropertyNotifiableUsers(admin: Admin, propertyId: string): Promise<string[]> {
+export async function getPropertyNotifiableUsers(
+  admin: Admin,
+  propertyId: string,
+): Promise<string[]> {
   const { data: prop } = await admin
     .from("properties")
     .select("owner_id")
@@ -34,7 +37,16 @@ export async function getPropertyNotifiableUsers(admin: Admin, propertyId: strin
 
 export async function sendHandoffPush(
   admin: Admin,
-  opts: { userIds: string[]; conversationId: string; propertyName: string | null; guestName: string | null; guestMessage: string | null; checkinDate: string | null; reason: string | null; urgency: string | null },
+  opts: {
+    userIds: string[];
+    conversationId: string;
+    propertyName: string | null;
+    guestName: string | null;
+    guestMessage: string | null;
+    checkinDate: string | null;
+    reason: string | null;
+    urgency: string | null;
+  },
 ) {
   if (opts.userIds.length === 0) return { sent: 0, failed: 0 };
   const { data: subs } = await admin
@@ -49,7 +61,8 @@ export async function sendHandoffPush(
   if (opts.checkinDate) {
     try {
       const [y, m, d] = opts.checkinDate.split("-").map(Number);
-      if (y && m && d) checkinLabel = ` • check-in ${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}`;
+      if (y && m && d)
+        checkinLabel = ` • check-in ${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}`;
     } catch {
       // ignore
     }
@@ -57,7 +70,11 @@ export async function sendHandoffPush(
   // Preferimos o `reason` (resumo gerado pela IA em 3ª pessoa: "Hóspede está
   // perguntando sobre X…") — é mais útil para o anfitrião do que a mensagem
   // crua do hóspede. Cai para a mensagem original se o resumo não veio.
-  const bodyText = (opts.reason?.trim() || opts.guestMessage?.trim() || `${guest} pediu atendimento humano.`).slice(0, 220);
+  const bodyText = (
+    opts.reason?.trim() ||
+    opts.guestMessage?.trim() ||
+    `${guest} pediu atendimento humano.`
+  ).slice(0, 220);
   const payload: PushPayload = {
     title: `${guest}${checkinLabel}`,
     body: bodyText,
@@ -70,7 +87,12 @@ export async function sendHandoffPush(
   };
 
   const res = await sendPushToSubscriptions(
-    subs.map((s) => ({ id: s.id as string, endpoint: s.endpoint as string, p256dh: s.p256dh as string, auth: s.auth as string })),
+    subs.map((s) => ({
+      id: s.id as string,
+      endpoint: s.endpoint as string,
+      p256dh: s.p256dh as string,
+      auth: s.auth as string,
+    })),
     payload,
   );
 
@@ -118,7 +140,12 @@ export async function sendGuestReplyPush(
   };
 
   const res = await sendPushToSubscriptions(
-    subs.map((s) => ({ id: s.id as string, endpoint: s.endpoint as string, p256dh: s.p256dh as string, auth: s.auth as string })),
+    subs.map((s) => ({
+      id: s.id as string,
+      endpoint: s.endpoint as string,
+      p256dh: s.p256dh as string,
+      auth: s.auth as string,
+    })),
     payload,
   );
 
@@ -142,7 +169,9 @@ export async function sendOpenConversationReminders(admin: Admin, now = new Date
   const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
   const { data: convs } = await admin
     .from("property_chat_conversations")
-    .select("id, assigned_to, guest_name, handoff_at, last_reminder_at, properties:property_id(name)")
+    .select(
+      "id, assigned_to, guest_name, handoff_at, last_reminder_at, properties:property_id(name)",
+    )
     .not("assigned_to", "is", null)
     .in("status", ["assigned", "needs_human"])
     .lte("handoff_at", oneHourAgo)
@@ -161,7 +190,10 @@ export async function sendOpenConversationReminders(admin: Admin, now = new Date
       .eq("enabled", true);
     // Mesmo sem inscrição de push ativa, marca como "lembrado" agora — evita
     // ficar reconsultando a mesma conversa a cada execução do cron.
-    await admin.from("property_chat_conversations").update({ last_reminder_at: now.toISOString() }).eq("id", c.id);
+    await admin
+      .from("property_chat_conversations")
+      .update({ last_reminder_at: now.toISOString() })
+      .eq("id", c.id);
     if (!subs || subs.length === 0) continue;
     const guest = (c.guest_name as string | null)?.trim() || "Hóspede";
     const payload: PushPayload = {
@@ -174,7 +206,12 @@ export async function sendOpenConversationReminders(admin: Admin, now = new Date
       },
     };
     const res = await sendPushToSubscriptions(
-      subs.map((s) => ({ id: s.id as string, endpoint: s.endpoint as string, p256dh: s.p256dh as string, auth: s.auth as string })),
+      subs.map((s) => ({
+        id: s.id as string,
+        endpoint: s.endpoint as string,
+        p256dh: s.p256dh as string,
+        auth: s.auth as string,
+      })),
       payload,
     );
     sent += res.sent;

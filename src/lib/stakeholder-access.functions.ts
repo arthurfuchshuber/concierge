@@ -65,11 +65,18 @@ const ProvisionalInput = z.object({
   email: z.string().trim().toLowerCase().email().max(200),
   password: z.string().min(8).max(72),
   name: z.string().trim().max(200).optional(),
-  cpf: z.string().trim().regex(/^\d{11}$/).optional(),
-  birth_date: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  cpf: z
+    .string()
+    .trim()
+    .regex(/^\d{11}$/)
+    .optional(),
+  birth_date: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
   phone: z.string().trim().max(20).optional(),
 });
-
 
 export const createStakeholderProvisionalAccess = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -138,7 +145,9 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
         user_metadata: { must_change_password: true, full_name: data.name ?? null },
       });
       if (error || !created.user) {
-        throw new Error(`Não foi possível criar o acesso: ${error?.message ?? "erro desconhecido"}`);
+        throw new Error(
+          `Não foi possível criar o acesso: ${error?.message ?? "erro desconhecido"}`,
+        );
       }
       memberUserId = created.user.id;
     }
@@ -154,20 +163,17 @@ export const createStakeholderProvisionalAccess = createServerFn({ method: "POST
       await supabaseAdmin.from("profiles").upsert(profilePatch as never, { onConflict: "id" });
     }
 
-
-    const { error: memberError } = await supabaseAdmin
-      .from("account_members")
-      .upsert(
-        {
-          owner_id: userId,
-          member_user_id: memberUserId,
-          role: "agent" as const,
-          status: "active" as const,
-          invited_by: userId,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "owner_id,member_user_id" },
-      );
+    const { error: memberError } = await supabaseAdmin.from("account_members").upsert(
+      {
+        owner_id: userId,
+        member_user_id: memberUserId,
+        role: "agent" as const,
+        status: "active" as const,
+        invited_by: userId,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "owner_id,member_user_id" },
+    );
     if (memberError) throw new Error(`Acesso criado, mas o vínculo falhou: ${memberError.message}`);
 
     // Remove convite pendente antigo para o mesmo e-mail, se existir.

@@ -44,7 +44,14 @@ export function CheckinCountdown({
   const dayISO = checkinDate ?? todayInTZ(timeZone, now);
   const dateParts = dayISO.split("-").map(Number);
   if (dateParts.length !== 3 || dateParts.some(Number.isNaN)) return null;
-  const target = zonedTimeToUtc(dateParts[0], dateParts[1], dateParts[2], parsed.h, parsed.m, timeZone);
+  const target = zonedTimeToUtc(
+    dateParts[0],
+    dateParts[1],
+    dateParts[2],
+    parsed.h,
+    parsed.m,
+    timeZone,
+  );
   const diffMs = target.getTime() - now.getTime();
 
   // Janela de progresso: da meia-noite do dia do check-in (ou até 7 dias antes,
@@ -54,7 +61,6 @@ export function CheckinCountdown({
     startOfWindow = new Date(startOfWindow.getTime() - 7 * 86_400_000);
   }
   const isLight = theme === "light";
-
 
   const Wrapper = ({ children }: { children: React.ReactNode }) =>
     expandable ? (
@@ -132,19 +138,14 @@ export function CheckinCountdown({
   const hhmm = `${String(parsed.h).padStart(2, "0")}:${String(parsed.m).padStart(2, "0")}`;
   const tp = partsInTZ(target, timeZone);
   const targetLabel =
-    days > 0
-      ? `${String(tp.d).padStart(2, "0")}/${String(tp.mo).padStart(2, "0")} ${hhmm}`
-      : hhmm;
-
+    days > 0 ? `${String(tp.d).padStart(2, "0")}/${String(tp.mo).padStart(2, "0")} ${hhmm}` : hhmm;
 
   return (
     <div className="mx-4 md:mx-10 lg:mx-16 mb-3 md:mb-4 relative z-10">
       <Wrapper>
         <div
           className={`btn-shine relative overflow-hidden rounded-2xl border backdrop-blur-xl px-4 py-3 ${
-            isLight
-              ? "border-border bg-card/70"
-              : "border-white/10 bg-white/[0.04]"
+            isLight ? "border-border bg-card/70" : "border-white/10 bg-white/[0.04]"
           }`}
         >
           <span className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-amber-400/20 blur-2xl" />
@@ -182,4 +183,3 @@ export function CheckinCountdown({
     </div>
   );
 }
-

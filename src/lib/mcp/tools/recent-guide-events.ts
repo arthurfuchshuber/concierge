@@ -31,7 +31,11 @@ export default defineTool({
       .eq("id", propertyId)
       .maybeSingle();
     if (propErr) return { content: [{ type: "text", text: propErr.message }], isError: true };
-    if (!prop) return { content: [{ type: "text", text: "Property not found or not yours." }], isError: true };
+    if (!prop)
+      return {
+        content: [{ type: "text", text: "Property not found or not yours." }],
+        isError: true,
+      };
 
     const { data, error } = await supabase
       .from("guide_section_events")

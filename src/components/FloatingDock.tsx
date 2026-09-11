@@ -15,12 +15,22 @@
  * conversa, e o FloatingHandoffDock — que segue montado, só que sem botão
  * próprio — responde. Uma porta de entrada, uma implementação.
  */
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { createPortal } from "react-dom";
 import { Sparkles, Headphones, X } from "lucide-react";
 import { HANDOFF_DOCK_OPEN_EVENT } from "@/lib/handoff-dock";
 import { AssistantPanel } from "@/components/assistant/AssistantPanel";
-import { useLockBodyScroll, useVisualViewport, viewportOverlayStyle } from "@/hooks/useVisualViewport";
+import {
+  useLockBodyScroll,
+  useVisualViewport,
+  viewportOverlayStyle,
+} from "@/hooks/useVisualViewport";
 
 const POSITION_KEY = "handoff-dock-position-v1";
 
@@ -105,7 +115,10 @@ export function FloatingDock({
           const nextTop = drag.rect.top + dy;
           const nextBottom = Math.max(
             24,
-            Math.min(window.innerHeight - drag.rect.height - 24, window.innerHeight - (nextTop + drag.rect.height)),
+            Math.min(
+              window.innerHeight - drag.rect.height - 24,
+              window.innerHeight - (nextTop + drag.rect.height),
+            ),
           );
           setDockBottom(nextBottom);
           saveDockBottom(nextBottom);
@@ -172,7 +185,10 @@ export function FloatingDock({
         <div
           onPointerDown={(e) => e.stopPropagation()}
           className="fixed right-4 w-56 overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl lg:right-6"
-          style={{ ...anchor, bottom: `calc(env(safe-area-inset-bottom,0px) + ${dockBottom + 64}px)` }}
+          style={{
+            ...anchor,
+            bottom: `calc(env(safe-area-inset-bottom,0px) + ${dockBottom + 64}px)`,
+          }}
         >
           <button
             onClick={() => {
@@ -183,7 +199,9 @@ export function FloatingDock({
           >
             <Headphones className="size-4 shrink-0 text-primary" />
             <span className="flex-1">Atendimento</span>
-            {pendingCount > 0 && <span className="text-[11px] font-semibold text-red-500">{pendingCount}</span>}
+            {pendingCount > 0 && (
+              <span className="text-[11px] font-semibold text-red-500">{pendingCount}</span>
+            )}
           </button>
           <div className="h-px bg-border" />
           <button

@@ -20,11 +20,18 @@ import {
 async function blobToBase64(blob: Blob): Promise<string> {
   const buf = new Uint8Array(await blob.arrayBuffer());
   let bin = "";
-  for (let i = 0; i < buf.length; i += 8192) bin += String.fromCharCode(...buf.subarray(i, i + 8192));
+  for (let i = 0; i < buf.length; i += 8192)
+    bin += String.fromCharCode(...buf.subarray(i, i + 8192));
   return btoa(bin);
 }
 
-export function DetailImages({ paths, onRemove }: { paths: string[]; onRemove?: (p: string) => void }) {
+export function DetailImages({
+  paths,
+  onRemove,
+}: {
+  paths: string[];
+  onRemove?: (p: string) => void;
+}) {
   const { data: urls } = useQuery({
     queryKey: ["detail-images", paths],
     enabled: paths.length > 0,
@@ -41,7 +48,10 @@ export function DetailImages({ paths, onRemove }: { paths: string[]; onRemove?: 
   return (
     <div className="flex flex-wrap gap-2">
       {paths.map((p) => (
-        <div key={p} className="relative size-20 rounded-lg overflow-hidden border border-border bg-muted/40">
+        <div
+          key={p}
+          className="relative size-20 rounded-lg overflow-hidden border border-border bg-muted/40"
+        >
           {urls?.[p] ? <img src={urls[p]} alt="" className="size-full object-cover" /> : null}
           {onRemove && (
             <button
@@ -161,25 +171,36 @@ export function PropertyDetailsEditor({
       if (saved?.id) createdIdRef.current = saved.id;
       // Cache local reflete o novo estado sem nenhuma ida extra ao servidor.
       qc.setQueryData(["property-details", propertyId], (prev: unknown) => {
-        const list = ((prev as { details?: Array<Record<string, unknown>> } | undefined)?.details ?? []).slice(0, 1);
+        const list = (
+          (prev as { details?: Array<Record<string, unknown>> } | undefined)?.details ?? []
+        ).slice(0, 1);
         const base = list[0] ?? {};
         return {
           ...(prev as Record<string, unknown> | undefined),
           details: savedId
-            ? [{ ...base, id: savedId, title: null, content: value.text.trim(), images: value.images }]
+            ? [
+                {
+                  ...base,
+                  id: savedId,
+                  title: null,
+                  content: value.text.trim(),
+                  images: value.images,
+                },
+              ]
             : [],
         };
       });
       if (!legacyCleanedRef.current && legacyIds.length) {
         legacyCleanedRef.current = true;
-        void Promise.all(legacyIds.map((id) => deleteFn({ data: { id, propertyId } }))).catch(() => {
-          legacyCleanedRef.current = false;
-        });
+        void Promise.all(legacyIds.map((id) => deleteFn({ data: { id, propertyId } }))).catch(
+          () => {
+            legacyCleanedRef.current = false;
+          },
+        );
       }
     },
     { enabled: loaded, delay: 250 },
   );
-
 
   async function handleFiles(files: FileList) {
     setUploading(true);
@@ -228,57 +249,64 @@ export function PropertyDetailsEditor({
       <div className="flex items-start gap-2 rounded-lg bg-muted/50 border border-border/60 px-3 py-2.5">
         <Sparkles className="size-4 text-primary mt-0.5 shrink-0" />
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Escreva livremente todos os micro detalhes desta residência — o que não aparece no guia público. Tudo aqui
-          vira conhecimento da IA.
+          Escreva livremente todos os micro detalhes desta residência — o que não aparece no guia
+          público. Tudo aqui vira conhecimento da IA.
         </p>
       </div>
 
       <>
-          <textarea
-            ref={taRef}
-            value={text}
-            maxLength={40000}
-            onChange={(e) => {
-              dirtyRef.current = true;
-              setLoaded(true);
-              setText(e.target.value);
-              presence?.broadcastTyping("property_details_text", e.target.value);
-            }}
-            onBlur={() => presence?.broadcastFieldBlur("property_details_text")}
-            placeholder="Ex: O aquecedor da piscina fica no armário externo à direita; leva cerca de 40 minutos para aquecer. A fechadura da porta dos fundos emperra quando chove — basta puxar e girar…"
-            className="w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm leading-relaxed outline-none focus:border-primary/60 focus:ring-0 overflow-hidden"
-          />
-          {presence && <FieldTypingBadge typing={presence.typing["property_details_text"]} />}
+        <textarea
+          ref={taRef}
+          value={text}
+          maxLength={40000}
+          onChange={(e) => {
+            dirtyRef.current = true;
+            setLoaded(true);
+            setText(e.target.value);
+            presence?.broadcastTyping("property_details_text", e.target.value);
+          }}
+          onBlur={() => presence?.broadcastFieldBlur("property_details_text")}
+          placeholder="Ex: O aquecedor da piscina fica no armário externo à direita; leva cerca de 40 minutos para aquecer. A fechadura da porta dos fundos emperra quando chove — basta puxar e girar…"
+          className="w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm leading-relaxed outline-none focus:border-primary/60 focus:ring-0 overflow-hidden"
+        />
+        {presence && <FieldTypingBadge typing={presence.typing["property_details_text"]} />}
 
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={(e) => e.target.files && handleFiles(e.target.files)}
-          />
-          <DetailImages paths={images} onRemove={(p) => setImages((prev) => prev.filter((x) => x !== p))} />
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => e.target.files && handleFiles(e.target.files)}
+        />
+        <DetailImages
+          paths={images}
+          onRemove={(p) => setImages((prev) => prev.filter((x) => x !== p))}
+        />
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              disabled={uploading || images.length >= 12}
-              onClick={() => fileRef.current?.click()}
-            >
-              {uploading ? <Loader2 className="size-3.5 animate-spin mr-1.5" /> : <ImagePlus className="size-3.5 mr-1.5" />}
-              Imagens
-            </Button>
-            <div className="flex items-center gap-1 rounded-full border border-border px-1.5 py-0.5">
-              <AudioRecorderButton compact maxSeconds={180} onRecorded={handleAudio} />
-              <span className="text-[11px] text-muted-foreground pr-2">Ditar</span>
-            </div>
-            <div className="ml-auto">
-              <AutosaveIndicator status={autosave.status} />
-            </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={uploading || images.length >= 12}
+            onClick={() => fileRef.current?.click()}
+          >
+            {uploading ? (
+              <Loader2 className="size-3.5 animate-spin mr-1.5" />
+            ) : (
+              <ImagePlus className="size-3.5 mr-1.5" />
+            )}
+            Imagens
+          </Button>
+          <div className="flex items-center gap-1 rounded-full border border-border px-1.5 py-0.5">
+            <AudioRecorderButton compact maxSeconds={180} onRecorded={handleAudio} />
+            <span className="text-[11px] text-muted-foreground pr-2">Ditar</span>
           </div>
+          <div className="ml-auto">
+            <AutosaveIndicator status={autosave.status} />
+          </div>
+        </div>
       </>
     </div>
   );

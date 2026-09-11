@@ -92,7 +92,6 @@ export function useSubscription(opts?: { impersonateUserId?: string | null }) {
         : fetchSelf({ data: { environment: env } }),
   });
 
-
   useEffect(() => {
     const target = ownerForQuery ?? userId;
     if (!target) return;
@@ -110,7 +109,6 @@ export function useSubscription(opts?: { impersonateUserId?: string | null }) {
       supabase.removeChannel(channel);
     };
   }, [userId, env, qc, channelId, ownerForQuery]);
-
 
   const data = query.data;
   const sub = data?.subscription ?? null;
@@ -131,14 +129,16 @@ export function useSubscription(opts?: { impersonateUserId?: string | null }) {
 
   const planConfig = plan ? PLANS[plan] : null;
 
-  const subAny = sub as (typeof sub & {
-    custom_price_cents?: number | null;
-    custom_currency?: string | null;
-    trial_ends_at?: string | null;
-    max_guides_override?: number | null;
-    admin_notes?: string | null;
-    is_manual?: boolean | null;
-  }) | null;
+  const subAny = sub as
+    | (typeof sub & {
+        custom_price_cents?: number | null;
+        custom_currency?: string | null;
+        trial_ends_at?: string | null;
+        max_guides_override?: number | null;
+        admin_notes?: string | null;
+        is_manual?: boolean | null;
+      })
+    | null;
   const override = subAny?.max_guides_override ?? null;
   const baseMax = planConfig ? planConfig.maxGuides : 0;
 

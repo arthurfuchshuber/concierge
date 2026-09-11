@@ -27,19 +27,24 @@ export async function computeLearningInsights(params: {
   const since = new Date(Date.now() - days * 86_400_000).toISOString();
   const { supabase, tenantId } = params;
 
-  const [pending, approved, rejected, memTotal, memNew, gapsOpen, gapsRecurring] = await Promise.all([
-    count(supabase, "ai_learning_candidates", (q) => q.eq("tenant_id", tenantId).eq("approval_status", "pending")),
-    count(supabase, "ai_learning_candidates", (q) =>
-      q.eq("tenant_id", tenantId).eq("approval_status", "approved").gte("created_at", since),
-    ),
-    count(supabase, "ai_learning_candidates", (q) =>
-      q.eq("tenant_id", tenantId).eq("approval_status", "rejected").gte("created_at", since),
-    ),
-    count(supabase, "ai_memories", (q) => q.eq("tenant_id", tenantId)),
-    count(supabase, "ai_memories", (q) => q.eq("tenant_id", tenantId).gte("created_at", since)),
-    count(supabase, "ai_knowledge_gaps", (q) => q.eq("tenant_id", tenantId).eq("status", "open")),
-    count(supabase, "ai_knowledge_gaps", (q) => q.eq("tenant_id", tenantId).eq("status", "recurring")),
-  ]);
+  const [pending, approved, rejected, memTotal, memNew, gapsOpen, gapsRecurring] =
+    await Promise.all([
+      count(supabase, "ai_learning_candidates", (q) =>
+        q.eq("tenant_id", tenantId).eq("approval_status", "pending"),
+      ),
+      count(supabase, "ai_learning_candidates", (q) =>
+        q.eq("tenant_id", tenantId).eq("approval_status", "approved").gte("created_at", since),
+      ),
+      count(supabase, "ai_learning_candidates", (q) =>
+        q.eq("tenant_id", tenantId).eq("approval_status", "rejected").gte("created_at", since),
+      ),
+      count(supabase, "ai_memories", (q) => q.eq("tenant_id", tenantId)),
+      count(supabase, "ai_memories", (q) => q.eq("tenant_id", tenantId).gte("created_at", since)),
+      count(supabase, "ai_knowledge_gaps", (q) => q.eq("tenant_id", tenantId).eq("status", "open")),
+      count(supabase, "ai_knowledge_gaps", (q) =>
+        q.eq("tenant_id", tenantId).eq("status", "recurring"),
+      ),
+    ]);
 
   const { data: impacts } = await supabase
     .from("ai_learning_impact_logs")
@@ -69,7 +74,8 @@ export async function computeLearningInsights(params: {
     knowledgeGrowth: {
       memoriesTotal: memTotal,
       memoriesNew: memNew,
-      growthPercentage: previousTotal > 0 ? Number(((memNew / previousTotal) * 100).toFixed(2)) : null,
+      growthPercentage:
+        previousTotal > 0 ? Number(((memNew / previousTotal) * 100).toFixed(2)) : null,
     },
     gaps: { open: gapsOpen, recurring: gapsRecurring },
     approvalRate: reviewed > 0 ? Number((approved / reviewed).toFixed(4)) : null,
@@ -95,7 +101,9 @@ async function count(
 ): Promise<number> {
   try {
     const base = supabase.from(table).select("id", { count: "exact", head: true });
-    const query = build(base as unknown as QueryBuilder) as unknown as PromiseLike<{ count: number | null }>;
+    const query = build(base as unknown as QueryBuilder) as unknown as PromiseLike<{
+      count: number | null;
+    }>;
     const { count: n } = await query;
     return n ?? 0;
   } catch {

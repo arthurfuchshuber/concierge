@@ -41,14 +41,17 @@ export const listMyAccounts = createServerFn({ method: "GET" })
         const next = (s.status as string) ?? null;
         if (!next) continue;
         // Assinatura ativa/trial sempre prevalece sobre estados encerrados.
-        if (!current || next === "active" || next === "trialing") statusById.set(s.user_id as string, next);
+        if (!current || next === "active" || next === "trialing")
+          statusById.set(s.user_id as string, next);
       }
       const nameById = new Map<string, string | null>();
-      for (const p of profs ?? []) nameById.set(p.id as string, ((p.trade_name as string) || (p.full_name as string)) ?? null);
+      for (const p of profs ?? [])
+        nameById.set(p.id as string, ((p.trade_name as string) || (p.full_name as string)) ?? null);
       const emailById = new Map<string, string | null>();
       for (const u of users) emailById.set(u.id, u.email);
       const roleById = new Map<string, string>();
-      for (const m of memberships ?? []) roleById.set(m.owner_id as string, (m.role as string) ?? "collaborator");
+      for (const m of memberships ?? [])
+        roleById.set(m.owner_id as string, (m.role as string) ?? "collaborator");
       accounts = ownerIds.map((id) => ({
         ownerId: id,
         name: nameById.get(id) ?? null,

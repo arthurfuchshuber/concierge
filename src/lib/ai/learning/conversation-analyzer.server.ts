@@ -46,7 +46,9 @@ export type AnalyzeInput = {
   propertyId?: string | null;
 };
 
-export async function analyzeConversation(input: AnalyzeInput): Promise<ConversationAnalysis | null> {
+export async function analyzeConversation(
+  input: AnalyzeInput,
+): Promise<ConversationAnalysis | null> {
   const { supabase, conversationId } = input;
   try {
     const { data: logs } = await supabase
@@ -61,25 +63,28 @@ export async function analyzeConversation(input: AnalyzeInput): Promise<Conversa
     const rows = (logs ?? []) as Array<Record<string, unknown>>;
     if (!rows.length) return null;
 
-    const confidences = rows
-      .map((r) => Number(r.confidence))
-      .filter((n) => Number.isFinite(n));
+    const confidences = rows.map((r) => Number(r.confidence)).filter((n) => Number.isFinite(n));
     const avgConfidence = confidences.length
       ? confidences.reduce((a, b) => a + b, 0) / confidences.length
       : null;
 
     const toolsUsed = uniq(
-      rows.flatMap((r) => asArray(r.tools_used).map((t) => String((t as Record<string, unknown>)?.name ?? t))),
+      rows.flatMap((r) =>
+        asArray(r.tools_used).map((t) => String((t as Record<string, unknown>)?.name ?? t)),
+      ),
     );
     const sourcesUsed = uniq(
-      rows.flatMap((r) => asArray(r.sources).map((s) => String((s as Record<string, unknown>)?.source ?? s))),
+      rows.flatMap((r) =>
+        asArray(r.sources).map((s) => String((s as Record<string, unknown>)?.source ?? s)),
+      ),
     );
     const escalations = rows.filter((r) => r.escalation_triggered === true).length;
     const humanIntervened = rows.some((r) => r.human_response_used === true) || escalations > 0;
     const needsHumanCount = rows.filter((r) => r.needs_human === true).length;
     const mainIntent = pickIntent(rows);
     const agent =
-      ([...rows].reverse().find((r) => !!r.selected_agent)?.selected_agent as string | null) ?? null;
+      ([...rows].reverse().find((r) => !!r.selected_agent)?.selected_agent as string | null) ??
+      null;
 
     const feedback = await negativeFeedbackCount(supabase, conversationId);
 
@@ -125,7 +130,10 @@ export async function analyzeConversation(input: AnalyzeInput): Promise<Conversa
       { role: "user", content: JSON.stringify(trace) },
     ]);
 
-    if (data?.outcome && ["SUCCESS", "PARTIAL", "FAILURE", "LEARNING_OPPORTUNITY"].includes(data.outcome)) {
+    if (
+      data?.outcome &&
+      ["SUCCESS", "PARTIAL", "FAILURE", "LEARNING_OPPORTUNITY"].includes(data.outcome)
+    ) {
       outcome = data.outcome as ConversationOutcome;
       qualityScore = clamp01(Number(data.qualityScore ?? heuristic.quality));
       satisfaction = normalizeSatisfaction(data.satisfaction) ?? satisfaction;
@@ -140,7 +148,7 @@ export async function analyzeConversation(input: AnalyzeInput): Promise<Conversa
       conversationId,
       tenantId: input.tenantId,
       ownerId: input.ownerId,
-      propertyId: input.propertyId ?? ((rows[0]?.property_id as string | null) ?? null),
+      propertyId: input.propertyId ?? (rows[0]?.property_id as string | null) ?? null,
       outcome,
       qualityScore,
       mainIntent,

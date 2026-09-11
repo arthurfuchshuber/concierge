@@ -3,7 +3,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, Link2, Search } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { listStakeholderOptions, saveStakeholderAlias } from "@/lib/stakeholder-links.functions";
@@ -20,8 +26,36 @@ type Scope = "event" | "keyword" | "suggested";
 
 /** Sugere palavras-chave a partir do título, ignorando conectivos e datas. */
 const STOP = new Set([
-  "de","da","do","das","dos","com","para","por","no","na","nos","nas","e","a","o","as","os",
-  "em","um","uma","reuniao","reunião","call","meet","google","sem","titulo","título","novo","nova",
+  "de",
+  "da",
+  "do",
+  "das",
+  "dos",
+  "com",
+  "para",
+  "por",
+  "no",
+  "na",
+  "nos",
+  "nas",
+  "e",
+  "a",
+  "o",
+  "as",
+  "os",
+  "em",
+  "um",
+  "uma",
+  "reuniao",
+  "reunião",
+  "call",
+  "meet",
+  "google",
+  "sem",
+  "titulo",
+  "título",
+  "novo",
+  "nova",
 ]);
 function suggestKeywords(title: string): string[] {
   return Array.from(
@@ -77,7 +111,9 @@ export function LinkEventDialog({
     const term = q.trim().toLowerCase();
     const rows = options.data ?? [];
     if (!term) return rows;
-    return rows.filter((r) => `${r.label} ${r.email ?? ""} ${r.doc ?? ""}`.toLowerCase().includes(term));
+    return rows.filter((r) =>
+      `${r.label} ${r.email ?? ""} ${r.doc ?? ""}`.toLowerCase().includes(term),
+    );
   }, [options.data, q]);
 
   const cleanKeywords = keywords
@@ -117,7 +153,12 @@ export function LinkEventDialog({
   });
 
   const scopes: Array<{ value: Scope; label: string; hint: string; enabled: boolean }> = [
-    { value: "event", label: "Só este evento", hint: "Vincula apenas este convite.", enabled: true },
+    {
+      value: "event",
+      label: "Só este evento",
+      hint: "Vincula apenas este convite.",
+      enabled: true,
+    },
     {
       value: "keyword",
       label: "Por palavras-chave",
@@ -173,8 +214,8 @@ export function LinkEventDialog({
                 className="h-9 text-xs"
               />
               <p className="text-[10px] leading-snug text-muted-foreground">
-                Separe por vírgula. Vale se <strong>qualquer</strong> termo aparecer no título ou na descrição do
-                evento (não diferencia maiúsculas nem acentos).
+                Separe por vírgula. Vale se <strong>qualquer</strong> termo aparecer no título ou na
+                descrição do evento (não diferencia maiúsculas nem acentos).
               </p>
               {suggestions.length > 0 ? (
                 <div className="flex flex-wrap gap-1">
@@ -184,7 +225,10 @@ export function LinkEventDialog({
                       type="button"
                       onClick={() =>
                         setKeywords((prev) => {
-                          const list = prev.split(",").map((k) => k.trim()).filter(Boolean);
+                          const list = prev
+                            .split(",")
+                            .map((k) => k.trim())
+                            .filter(Boolean);
                           return list.includes(s)
                             ? list.filter((k) => k !== s).join(", ")
                             : [...list, s].join(", ");
@@ -200,8 +244,6 @@ export function LinkEventDialog({
             </div>
           ) : null}
 
-
-
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -216,7 +258,9 @@ export function LinkEventDialog({
             {options.isLoading ? (
               <p className="px-3 py-4 text-[11px] text-muted-foreground">Carregando cadastros…</p>
             ) : filtered.length === 0 ? (
-              <p className="px-3 py-4 text-[11px] text-muted-foreground">Nenhum cadastro encontrado.</p>
+              <p className="px-3 py-4 text-[11px] text-muted-foreground">
+                Nenhum cadastro encontrado.
+              </p>
             ) : (
               filtered.map((s) => (
                 <button
@@ -243,7 +287,12 @@ export function LinkEventDialog({
             )}
           </div>
 
-          <Button variant="ghost" size="sm" className="h-8 rounded-full text-xs" onClick={() => onOpenChange(false)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 rounded-full text-xs"
+            onClick={() => onOpenChange(false)}
+          >
             Cancelar
           </Button>
         </div>

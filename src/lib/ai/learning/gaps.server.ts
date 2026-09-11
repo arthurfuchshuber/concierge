@@ -58,7 +58,8 @@ export async function recordKnowledgeGaps(params: {
             occurrences,
             sample_questions: [...samples, topic].slice(-8) as never,
             avg_confidence: Number(nextAvg.toFixed(4)),
-            escalation_count: Number(existing.escalation_count ?? 0) + (analysis.escalations > 0 ? 1 : 0),
+            escalation_count:
+              Number(existing.escalation_count ?? 0) + (analysis.escalations > 0 ? 1 : 0),
             last_seen_at: new Date().toISOString(),
             status: occurrences >= 3 ? "recurring" : "open",
           })
@@ -92,7 +93,9 @@ export async function listKnowledgeGaps(params: {
 }) {
   const { data } = await params.supabase
     .from("ai_knowledge_gaps")
-    .select("id, property_id, topic, occurrences, avg_confidence, escalation_count, status, first_seen_at, last_seen_at")
+    .select(
+      "id, property_id, topic, occurrences, avg_confidence, escalation_count, status, first_seen_at, last_seen_at",
+    )
     .eq("tenant_id", params.tenantId)
     .is("resolved_at", null)
     .order("occurrences", { ascending: false })

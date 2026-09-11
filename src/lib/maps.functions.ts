@@ -59,7 +59,6 @@ type PlaceItem = {
   note: string | null;
 };
 
-
 type EnrichResult = {
   address: string;
   lat: number;
@@ -98,7 +97,10 @@ async function detectLinkedRecommendations(propertyId: string): Promise<string |
     .select("sigma_pack_activated_at, sigma_pack_city_key")
     .eq("id", propertyId)
     .maybeSingle();
-  const p = prop as { sigma_pack_activated_at: string | null; sigma_pack_city_key: string | null } | null;
+  const p = prop as {
+    sigma_pack_activated_at: string | null;
+    sigma_pack_city_key: string | null;
+  } | null;
   if (p?.sigma_pack_activated_at || p?.sigma_pack_city_key) {
     return "Este imóvel usa o pacote de recomendações do Sigma.";
   }
@@ -116,7 +118,6 @@ async function detectLinkedRecommendations(propertyId: string): Promise<string |
   return null;
 }
 
-
 // `placesTypes` é o filtro enviado ao Places (includedTypes/includedType).
 // `acceptedPrimaryTypes` é o que validamos no resultado — Google às vezes devolve
 // estabelecimentos cujo primaryType não bate (ex.: salão de beleza retornado em "bar").
@@ -131,16 +132,181 @@ export let TYPE_MAP: {
   category: string;
   queryVariants?: string[];
 }[] = [
-  { type: "restaurant", placesTypes: ["restaurant"], acceptedPrimaryTypes: ["restaurant", "pizza_restaurant", "italian_restaurant", "brazilian_restaurant", "steak_house", "seafood_restaurant", "japanese_restaurant", "sushi_restaurant", "mexican_restaurant", "fast_food_restaurant", "hamburger_restaurant", "barbecue_restaurant", "vegetarian_restaurant", "vegan_restaurant", "meal_takeaway", "meal_delivery", "fine_dining_restaurant", "american_restaurant", "chinese_restaurant", "french_restaurant"], category: "Restaurantes", queryVariants: ["melhores restaurantes em", "restaurantes famosos em", "restaurantes tradicionais em", "alta gastronomia em"] },
-  { type: "attraction", placesTypes: ["tourist_attraction"], acceptedPrimaryTypes: ["tourist_attraction", "museum", "art_gallery", "amusement_park", "aquarium", "zoo", "historical_landmark", "monument", "cultural_center", "national_park", "observation_deck", "performing_arts_theater", "planetarium", "amusement_center", "water_park", "wildlife_park", "ecological_park", "garden", "botanical_garden", "stadium", "arena", "skydiving_center", "scenic_lookout"], category: "Atrações", queryVariants: ["pontos turísticos em", "atrações turísticas famosas em", "o que fazer em", "passeios imperdíveis em", "marcos históricos em", "museus famosos em", "mirantes em", "experiências turísticas em", "tours em"] },
-  { type: "nightlife", placesTypes: ["night_club"], acceptedPrimaryTypes: ["night_club", "comedy_club", "dance_club", "karaoke"], category: "Vida noturna", queryVariants: ["vida noturna em", "baladas em", "casas noturnas em", "clubes noturnos em", "danceterias em"] },
-  { type: "bar", placesTypes: ["bar"], acceptedPrimaryTypes: ["bar", "pub", "wine_bar", "sports_bar", "bar_and_grill"], category: "Bares", queryVariants: ["melhores bares em", "bares famosos em", "pubs em", "wine bars em", "happy hour em"] },
-  { type: "cafe", placesTypes: ["cafe", "coffee_shop"], acceptedPrimaryTypes: ["cafe", "coffee_shop", "bakery", "tea_house", "dessert_shop", "ice_cream_shop", "donut_shop"], category: "Cafés", queryVariants: ["melhores cafés em", "cafeterias famosas em", "padarias artesanais em", "doceria em"] },
-  { type: "beach", placesTypes: ["beach"], acceptedPrimaryTypes: ["beach"], category: "Praias", queryVariants: ["melhores praias em", "praias famosas em", "praias para visitar em"] },
-  { type: "market", placesTypes: ["supermarket", "grocery_store"], acceptedPrimaryTypes: ["supermarket", "grocery_store", "convenience_store", "food_store", "market"], category: "Mercados", queryVariants: ["supermercados em", "mercados em", "hipermercados em"] },
-  { type: "pharmacy", placesTypes: ["pharmacy"], acceptedPrimaryTypes: ["pharmacy", "drugstore"], category: "Farmácias", queryVariants: ["farmácias em", "drogarias em", "farmácia 24 horas em", "drogaria 24h em", "rede de farmácia em"] },
-  { type: "park", placesTypes: ["park"], acceptedPrimaryTypes: ["park", "state_park", "dog_park", "city_park", "plaza", "town_square"], category: "Praças, Lagos e Parques", queryVariants: ["praças famosas em", "parques urbanos em", "parques municipais em", "lagos em", "áreas verdes em", "espaços públicos de lazer em", "jardins públicos em"] },
-  { type: "shopping", placesTypes: ["shopping_mall"], acceptedPrimaryTypes: ["shopping_mall", "department_store"], category: "Compras", queryVariants: ["shoppings em", "shopping centers em", "centros de compras em"] },
+  {
+    type: "restaurant",
+    placesTypes: ["restaurant"],
+    acceptedPrimaryTypes: [
+      "restaurant",
+      "pizza_restaurant",
+      "italian_restaurant",
+      "brazilian_restaurant",
+      "steak_house",
+      "seafood_restaurant",
+      "japanese_restaurant",
+      "sushi_restaurant",
+      "mexican_restaurant",
+      "fast_food_restaurant",
+      "hamburger_restaurant",
+      "barbecue_restaurant",
+      "vegetarian_restaurant",
+      "vegan_restaurant",
+      "meal_takeaway",
+      "meal_delivery",
+      "fine_dining_restaurant",
+      "american_restaurant",
+      "chinese_restaurant",
+      "french_restaurant",
+    ],
+    category: "Restaurantes",
+    queryVariants: [
+      "melhores restaurantes em",
+      "restaurantes famosos em",
+      "restaurantes tradicionais em",
+      "alta gastronomia em",
+    ],
+  },
+  {
+    type: "attraction",
+    placesTypes: ["tourist_attraction"],
+    acceptedPrimaryTypes: [
+      "tourist_attraction",
+      "museum",
+      "art_gallery",
+      "amusement_park",
+      "aquarium",
+      "zoo",
+      "historical_landmark",
+      "monument",
+      "cultural_center",
+      "national_park",
+      "observation_deck",
+      "performing_arts_theater",
+      "planetarium",
+      "amusement_center",
+      "water_park",
+      "wildlife_park",
+      "ecological_park",
+      "garden",
+      "botanical_garden",
+      "stadium",
+      "arena",
+      "skydiving_center",
+      "scenic_lookout",
+    ],
+    category: "Atrações",
+    queryVariants: [
+      "pontos turísticos em",
+      "atrações turísticas famosas em",
+      "o que fazer em",
+      "passeios imperdíveis em",
+      "marcos históricos em",
+      "museus famosos em",
+      "mirantes em",
+      "experiências turísticas em",
+      "tours em",
+    ],
+  },
+  {
+    type: "nightlife",
+    placesTypes: ["night_club"],
+    acceptedPrimaryTypes: ["night_club", "comedy_club", "dance_club", "karaoke"],
+    category: "Vida noturna",
+    queryVariants: [
+      "vida noturna em",
+      "baladas em",
+      "casas noturnas em",
+      "clubes noturnos em",
+      "danceterias em",
+    ],
+  },
+  {
+    type: "bar",
+    placesTypes: ["bar"],
+    acceptedPrimaryTypes: ["bar", "pub", "wine_bar", "sports_bar", "bar_and_grill"],
+    category: "Bares",
+    queryVariants: [
+      "melhores bares em",
+      "bares famosos em",
+      "pubs em",
+      "wine bars em",
+      "happy hour em",
+    ],
+  },
+  {
+    type: "cafe",
+    placesTypes: ["cafe", "coffee_shop"],
+    acceptedPrimaryTypes: [
+      "cafe",
+      "coffee_shop",
+      "bakery",
+      "tea_house",
+      "dessert_shop",
+      "ice_cream_shop",
+      "donut_shop",
+    ],
+    category: "Cafés",
+    queryVariants: [
+      "melhores cafés em",
+      "cafeterias famosas em",
+      "padarias artesanais em",
+      "doceria em",
+    ],
+  },
+  {
+    type: "beach",
+    placesTypes: ["beach"],
+    acceptedPrimaryTypes: ["beach"],
+    category: "Praias",
+    queryVariants: ["melhores praias em", "praias famosas em", "praias para visitar em"],
+  },
+  {
+    type: "market",
+    placesTypes: ["supermarket", "grocery_store"],
+    acceptedPrimaryTypes: [
+      "supermarket",
+      "grocery_store",
+      "convenience_store",
+      "food_store",
+      "market",
+    ],
+    category: "Mercados",
+    queryVariants: ["supermercados em", "mercados em", "hipermercados em"],
+  },
+  {
+    type: "pharmacy",
+    placesTypes: ["pharmacy"],
+    acceptedPrimaryTypes: ["pharmacy", "drugstore"],
+    category: "Farmácias",
+    queryVariants: [
+      "farmácias em",
+      "drogarias em",
+      "farmácia 24 horas em",
+      "drogaria 24h em",
+      "rede de farmácia em",
+    ],
+  },
+  {
+    type: "park",
+    placesTypes: ["park"],
+    acceptedPrimaryTypes: ["park", "state_park", "dog_park", "city_park", "plaza", "town_square"],
+    category: "Praças, Lagos e Parques",
+    queryVariants: [
+      "praças famosas em",
+      "parques urbanos em",
+      "parques municipais em",
+      "lagos em",
+      "áreas verdes em",
+      "espaços públicos de lazer em",
+      "jardins públicos em",
+    ],
+  },
+  {
+    type: "shopping",
+    placesTypes: ["shopping_mall"],
+    acceptedPrimaryTypes: ["shopping_mall", "department_store"],
+    category: "Compras",
+    queryVariants: ["shoppings em", "shopping centers em", "centros de compras em"],
+  },
 ];
 
 export type TypeMapEntry = (typeof TYPE_MAP)[number];
@@ -185,7 +351,6 @@ async function hydrateTypeMap(): Promise<void> {
   }
 }
 
-
 export function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
   const R = 6371000;
   const toRad = (n: number) => (n * Math.PI) / 180;
@@ -197,17 +362,21 @@ export function haversineMeters(a: { lat: number; lng: number }, b: { lat: numbe
   return Math.round(2 * R * Math.asin(Math.sqrt(h)));
 }
 
-export function formatDistance(meters: number): { text: string; driveMin: number | null; walkMin: number } {
+export function formatDistance(meters: number): {
+  text: string;
+  driveMin: number | null;
+  walkMin: number;
+} {
   // 80 m/min ≈ 4.8 km/h — caminhada conservadora.
   const walkMin = Math.max(1, Math.round(meters / 80));
   if (meters < 1000) return { text: `${meters} m · ${walkMin} min a pé`, driveMin: null, walkMin };
   const km = meters / 1000;
-  if (meters <= 1500) return { text: `${km.toFixed(1)} km · ${walkMin} min a pé`, driveMin: null, walkMin };
+  if (meters <= 1500)
+    return { text: `${km.toFixed(1)} km · ${walkMin} min a pé`, driveMin: null, walkMin };
   // ~40 km/h average urban speed
   const driveMin = Math.max(2, Math.round((km / 40) * 60));
   return { text: `${km.toFixed(1)} km · ${driveMin} min de carro`, driveMin, walkMin };
 }
-
 
 async function resolveShortUrl(url: string): Promise<string> {
   let parsed: URL;
@@ -249,7 +418,10 @@ function extractCoords(url: string): { lat: number; lng: number } | null {
 async function gatewayFetch(path: string, init: RequestInit = {}) {
   const apiKey = process.env.LOVABLE_API_KEY;
   const mapsKey = process.env.GOOGLE_MAPS_API_KEY_2 ?? process.env.GOOGLE_MAPS_API_KEY;
-  if (!apiKey || !mapsKey) throw new Error("Google Maps connector não configurado. Verifique LOVABLE_API_KEY e GOOGLE_MAPS_API_KEY nas variáveis de ambiente.");
+  if (!apiKey || !mapsKey)
+    throw new Error(
+      "Google Maps connector não configurado. Verifique LOVABLE_API_KEY e GOOGLE_MAPS_API_KEY nas variáveis de ambiente.",
+    );
   const headers = new Headers(init.headers);
   headers.set("Authorization", `Bearer ${apiKey}`);
   headers.set("X-Connection-Api-Key", mapsKey);
@@ -263,29 +435,41 @@ async function gatewayFetch(path: string, init: RequestInit = {}) {
     cacheKey = `${path}::${fieldMask}::${init.body}`;
   }
   const res = isPlaces
-    ? await (await import("@/lib/places-throttle.server")).throttledFetch(url, { ...init, headers }, cacheKey)
+    ? await (
+        await import("@/lib/places-throttle.server")
+      ).throttledFetch(url, { ...init, headers }, cacheKey)
     : await fetch(url, { ...init, headers });
   if (!res.ok) {
-    const body = await res.clone().text().catch(() => "");
+    const body = await res
+      .clone()
+      .text()
+      .catch(() => "");
     console.error(`[Maps Gateway] ${res.status} ${path}`, body.slice(0, 300));
   }
   return res;
 }
-
 
 type GeoComponent = { types: string[]; long_name: string; short_name?: string };
 
 async function geocodeText(text: string) {
   const res = await gatewayFetch(`/maps/api/geocode/json?address=${encodeURIComponent(text)}`);
   if (!res.ok) return null;
-  const j = (await res.json()) as { results?: Array<{ geometry?: { location?: { lat: number; lng: number } }; formatted_address?: string; address_components?: GeoComponent[] }> };
+  const j = (await res.json()) as {
+    results?: Array<{
+      geometry?: { location?: { lat: number; lng: number } };
+      formatted_address?: string;
+      address_components?: GeoComponent[];
+    }>;
+  };
   return j.results?.[0] ?? null;
 }
 
 async function reverseGeocode(lat: number, lng: number) {
   const res = await gatewayFetch(`/maps/api/geocode/json?latlng=${lat},${lng}`);
   if (!res.ok) return null;
-  const j = (await res.json()) as { results?: Array<{ formatted_address?: string; address_components?: GeoComponent[] }> };
+  const j = (await res.json()) as {
+    results?: Array<{ formatted_address?: string; address_components?: GeoComponent[] }>;
+  };
   return j.results?.[0] ?? null;
 }
 
@@ -298,7 +482,7 @@ function extractCityCountry(comps: GeoComponent[] | undefined) {
       city ||= c.long_name;
     }
     if (c.types.includes("administrative_area_level_1")) {
-      state ||= (c.short_name && /^[A-Z]{2}$/.test(c.short_name)) ? c.short_name : c.long_name;
+      state ||= c.short_name && /^[A-Z]{2}$/.test(c.short_name) ? c.short_name : c.long_name;
     }
     if (c.types.includes("country")) country = c.long_name;
   }
@@ -335,11 +519,20 @@ function extractAddressPartsV1(comps: PlaceAddressComponent[] | undefined) {
     pickAddressComponent(comps, "sublocality") ||
     pickAddressComponent(comps, "sublocality_level_1") ||
     pickAddressComponent(comps, "neighborhood");
-  const city = pickAddressComponent(comps, "locality") || pickAddressComponent(comps, "administrative_area_level_2");
+  const city =
+    pickAddressComponent(comps, "locality") ||
+    pickAddressComponent(comps, "administrative_area_level_2");
   const state = pickAddressComponent(comps, "administrative_area_level_1", true);
   const cep = pickAddressComponent(comps, "postal_code").replace(/\D/g, "");
   const country = pickAddressComponent(comps, "country");
-  return { address: [route, streetNumber].filter(Boolean).join(", "), district, city, state, cep, country };
+  return {
+    address: [route, streetNumber].filter(Boolean).join(", "),
+    district,
+    city,
+    state,
+    cep,
+    country,
+  };
 }
 
 export type GoogleAddressSuggestion = {
@@ -362,12 +555,15 @@ export type GoogleAddressSuggestion = {
  * de Prestadores/Proprietários (ver `address-lookup.functions.ts`) — um
  * único ponto de integração com o Google pra manter os dois consistentes.
  */
-export async function searchAddressCandidatesGoogle(query: string): Promise<GoogleAddressSuggestion[]> {
+export async function searchAddressCandidatesGoogle(
+  query: string,
+): Promise<GoogleAddressSuggestion[]> {
   const res = await gatewayFetch(`/places/v1/places:searchText`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Goog-FieldMask": "places.id,places.formattedAddress,places.location,places.addressComponents,places.googleMapsUri",
+      "X-Goog-FieldMask":
+        "places.id,places.formattedAddress,places.location,places.addressComponents,places.googleMapsUri",
     },
     body: JSON.stringify({
       textQuery: query,
@@ -401,7 +597,8 @@ export async function searchAddressCandidatesGoogle(query: string): Promise<Goog
         country: parts.country || "BR",
         lat: p.location?.latitude ?? null,
         lng: p.location?.longitude ?? null,
-        maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
+        maps_url:
+          p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
         place_id: p.id ?? null,
       };
     });
@@ -416,12 +613,7 @@ const PLACE_FIELD_MASK =
 const DEFAULT_LANGUAGE = "pt-BR";
 const DEFAULT_REGION = "BR";
 
-async function placesNearby(
-  lat: number,
-  lng: number,
-  includedTypes: string[],
-  radius = 6000,
-) {
+async function placesNearby(lat: number, lng: number, includedTypes: string[], radius = 6000) {
   const res = await gatewayFetch(`/places/v1/places:searchNearby`, {
     method: "POST",
     headers: {
@@ -518,8 +710,6 @@ type PlaceRaw = {
   regularOpeningHours?: { weekdayDescriptions?: string[] };
 };
 
-
-
 function buildPhotoUrl(photoName: string | undefined): string | null {
   if (!photoName) return null;
   // Servimos via proxy server-side (/api/public/place-photo) que usa o
@@ -602,7 +792,11 @@ Responda APENAS com JSON válido (sem markdown) no formato:
       body: JSON.stringify({
         model: AI_MODELS.recommendations,
         messages: [
-          { role: "system", content: "Você é um concierge local que conhece em profundidade as cidades brasileiras e seus estados. Responda sempre com JSON válido, sem markdown." },
+          {
+            role: "system",
+            content:
+              "Você é um concierge local que conhece em profundidade as cidades brasileiras e seus estados. Responda sempre com JSON válido, sem markdown.",
+          },
           { role: "user", content: prompt },
         ],
         response_format: { type: "json_object" },
@@ -614,14 +808,19 @@ Responda APENAS com JSON válido (sem markdown) no formato:
     }
     const j = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
     const content = j.choices?.[0]?.message?.content ?? "";
-    const cleaned = content.replace(/^```json\s*/i, "").replace(/```\s*$/, "").trim();
+    const cleaned = content
+      .replace(/^```json\s*/i, "")
+      .replace(/```\s*$/, "")
+      .trim();
     const parsed = JSON.parse(cleaned) as Record<string, unknown>;
     const out: Record<string, string[]> = {};
     for (const cat of TYPE_MAP) {
       const arr = parsed[cat.type];
       if (Array.isArray(arr)) {
         const limit = cat.type === "attraction" ? 30 : 25;
-        out[cat.type] = arr.filter((x): x is string => typeof x === "string" && x.trim().length > 0).slice(0, limit);
+        out[cat.type] = arr
+          .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+          .slice(0, limit);
       }
     }
     return out;
@@ -646,7 +845,12 @@ function inferCategoryFromPrimaryType(primaryType: string | undefined) {
       }
     }
   }
-  return { type: "other", placesTypes: [], acceptedPrimaryTypes: [], category: "Outros" } as typeof TYPE_MAP[number];
+  return {
+    type: "other",
+    placesTypes: [],
+    acceptedPrimaryTypes: [],
+    category: "Outros",
+  } as (typeof TYPE_MAP)[number];
 }
 
 export type PlaceSearchResult = Omit<PlaceItem, "scope"> & { formatted_address: string | null };
@@ -707,14 +911,13 @@ export const searchPlacesForRec = createServerFn({ method: "POST" })
           walk_minutes: fmt.walkMin,
           opening_hours: p.regularOpeningHours?.weekdayDescriptions ?? null,
           image_url: pickBestPlacePhoto(p.photos),
-          maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
+          maps_url:
+            p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
           note: note && note.length > 240 ? note.slice(0, 237).trimEnd() + "…" : note,
           formatted_address: p.formattedAddress ?? null,
         };
       });
   });
-
-
 
 export const enrichFromMapsLink = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -732,11 +935,17 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
         const g = await geocodeText(q);
         if (g?.geometry?.location) {
           coords = { lat: g.geometry.location.lat, lng: g.geometry.location.lng };
-          geocoded = { formatted_address: g.formatted_address, address_components: g.address_components } as never;
+          geocoded = {
+            formatted_address: g.formatted_address,
+            address_components: g.address_components,
+          } as never;
         }
       }
     }
-    if (!coords) throw new Error("Não consegui ler as coordenadas desse link. Cole um link do Google Maps que aponte para o endereço do imóvel.");
+    if (!coords)
+      throw new Error(
+        "Não consegui ler as coordenadas desse link. Cole um link do Google Maps que aponte para o endereço do imóvel.",
+      );
 
     if (!geocoded) geocoded = await reverseGeocode(coords.lat, coords.lng);
     const { city, country, state } = extractCityCountry(geocoded?.address_components);
@@ -746,15 +955,14 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     let tagline = "";
     let hero_image_url: string | null = null;
     let gallery_images: string[] = [];
-    const placeNameFromUrl = decodeURIComponent(resolved.split("/place/")[1]?.split("/")[0] ?? "").replace(/\+/g, " ");
+    const placeNameFromUrl = decodeURIComponent(
+      resolved.split("/place/")[1]?.split("/")[0] ?? "",
+    ).replace(/\+/g, " ");
     const hint = placeNameFromUrl || address;
     if (hint) {
       const self = await findPropertyPlace(coords.lat, coords.lng, hint);
       if (self) {
-        tagline =
-          self.editorialSummary?.text ??
-          self.generativeSummary?.overview?.text ??
-          "";
+        tagline = self.editorialSummary?.text ?? self.generativeSummary?.overview?.text ?? "";
         const photoUrls = (self.photos ?? [])
           .slice(0, 8)
           .map((p) => pickBestPlacePhoto([p]))
@@ -771,8 +979,15 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       const linkReason = await detectLinkedRecommendations(data.propertyId);
       if (linkReason) {
         return {
-          address, lat: coords.lat, lng: coords.lng, city, country, state,
-          tagline, hero_image_url, gallery_images,
+          address,
+          lat: coords.lat,
+          lng: coords.lng,
+          city,
+          country,
+          state,
+          tagline,
+          hero_image_url,
+          gallery_images,
           recommendations: [],
           recommendations_skipped: true,
           skip_reason: linkReason,
@@ -785,12 +1000,11 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     // "pertinho": no máximo 2km do imóvel. Lugares city-wide ficam em
     // city_references, exibidos na seção "Na Cidade" do guia.
     const MIN_RATING = 4.0;
-    const MIN_REVIEWS_GLOBAL = 150;  // curadoria: só pontos consolidados
-    const MAX_PER_TYPE = 500;       // sem limite prático — Google text/nearby retornam até 20 por busca
-    const PERTINHO_MAX_M = 2000;     // limite rígido: 2km do imóvel
+    const MIN_REVIEWS_GLOBAL = 150; // curadoria: só pontos consolidados
+    const MAX_PER_TYPE = 500; // sem limite prático — Google text/nearby retornam até 20 por busca
+    const PERTINHO_MAX_M = 2000; // limite rígido: 2km do imóvel
     const NEARBY_RADIUS_M = 2000;
     const NEARBY_TEXT_RADIUS_M = 2000;
-
 
     // Usa o classificador global (com BLOCKED_PRIMARY_TYPES) — definido mais abaixo.
     // Hotéis/agências/eventos/lojas são descartados mesmo quando aparecem no Nearby.
@@ -808,7 +1022,12 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     };
 
     const normalizeName = (s: string) =>
-      s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+      s
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
 
     const byCategory = new Map<string, Array<PlaceRaw & { _dist: number; _cat: TypeMapEntry }>>();
     const seenIds = new Set<string>();
@@ -819,7 +1038,10 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       if (seenIds.has(p.id)) return;
       const cat = classifyByPrimaryType(p.primaryType);
       if (!cat) return;
-      const dist = haversineMeters(coords!, { lat: p.location.latitude, lng: p.location.longitude });
+      const dist = haversineMeters(coords!, {
+        lat: p.location.latitude,
+        lng: p.location.longitude,
+      });
       if (dist > PERTINHO_MAX_M) return; // só pertinho entra no guia
       const nm = normalizeName(p.displayName?.text ?? "");
       if (!nm || seenNames.has(nm)) return;
@@ -833,7 +1055,12 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     // 1) Nearby por categoria — raio de 1,6km (pertinho).
     await Promise.all(
       TYPE_MAP.map(async (cat) => {
-        const items = await placesNearby(coords!.lat, coords!.lng, cat.placesTypes, NEARBY_RADIUS_M);
+        const items = await placesNearby(
+          coords!.lat,
+          coords!.lng,
+          cat.placesTypes,
+          NEARBY_RADIUS_M,
+        );
         for (const p of items) ingest(p);
       }),
     );
@@ -850,7 +1077,9 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     for (let i = 0; i < textTasks.length; i += TEXT_CONCURRENCY) {
       const batch = textTasks.slice(i, i + TEXT_CONCURRENCY);
       const results = await Promise.all(
-        batch.map(({ q }) => placesTextRestricted(q, coords!.lat, coords!.lng, NEARBY_TEXT_RADIUS_M)),
+        batch.map(({ q }) =>
+          placesTextRestricted(q, coords!.lat, coords!.lng, NEARBY_TEXT_RADIUS_M),
+        ),
       );
       for (const items of results) {
         for (const p of items) ingest(p);
@@ -894,7 +1123,8 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
           walk_minutes: walkMin,
           opening_hours: openingHours && openingHours.length > 0 ? openingHours : null,
           image_url: pickBestPlacePhoto(p.photos),
-          maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
+          maps_url:
+            p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
           note: buildNote(p),
         });
       }
@@ -926,7 +1156,10 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       ]);
       const cityPlaceIds = new Set<string>();
       const cityNames = new Set<string>();
-      for (const r of ([...(cityRows ?? []), ...(refRows ?? [])] as Array<{ place_id: string | null; name: string | null }>)) {
+      for (const r of [...(cityRows ?? []), ...(refRows ?? [])] as Array<{
+        place_id: string | null;
+        name: string | null;
+      }>) {
         if (r.place_id) cityPlaceIds.add(r.place_id);
         if (r.name) cityNames.add(normalizeName(r.name));
       }
@@ -960,7 +1193,6 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
       recommendations_skipped: false,
       skip_reason: null,
     };
-
   });
 
 // ============= Sincronização automática com Google =============
@@ -1016,7 +1248,8 @@ async function refreshRecommendationsForProperty(
             return;
           }
           const noteText = p.editorialSummary?.text ?? p.generativeSummary?.overview?.text ?? null;
-          const noteTrimmed = noteText && noteText.length > 240 ? noteText.slice(0, 237).trimEnd() + "…" : noteText;
+          const noteTrimmed =
+            noteText && noteText.length > 240 ? noteText.slice(0, 237).trimEnd() + "…" : noteText;
           const patch: Record<string, unknown> = {
             // NOTE: nome NUNCA é atualizado automaticamente — pode estar personalizado pelo usuário.
             rating: typeof p.rating === "number" ? Number(p.rating.toFixed(1)) : null,
@@ -1098,7 +1331,12 @@ export const refreshRecommendationsFromGoogle = createServerFn({ method: "POST" 
 
     const list: RecRow[] = (recs ?? [])
       .filter((r) => !!r.place_id)
-      .map((r) => ({ id: r.id, place_id: r.place_id, property_id: r.property_id, type: r.type as string | null }));
+      .map((r) => ({
+        id: r.id,
+        place_id: r.place_id,
+        property_id: r.property_id,
+        type: r.type as string | null,
+      }));
 
     if (list.length === 0) return { updated: 0, failed: 0, total: 0 };
 
@@ -1125,7 +1363,12 @@ export async function refreshStaleRecommendations(limit: number) {
   if (error) throw error;
   const list: RecRow[] = (recs ?? [])
     .filter((r) => !!r.place_id)
-    .map((r) => ({ id: r.id, place_id: r.place_id, property_id: r.property_id, type: r.type as string | null }));
+    .map((r) => ({
+      id: r.id,
+      place_id: r.place_id,
+      property_id: r.property_id,
+      type: r.type as string | null,
+    }));
 
   if (list.length === 0) return { updated: 0, failed: 0, total: 0, properties: 0 };
 
@@ -1144,7 +1387,11 @@ export async function refreshStaleRecommendations(limit: number) {
     .in("id", propIds);
   const propMap = new Map<string, { id: string; lat: number | null; lng: number | null }>();
   for (const p of props ?? []) {
-    propMap.set(p.id as string, { id: p.id as string, lat: p.lat as number | null, lng: p.lng as number | null });
+    propMap.set(p.id as string, {
+      id: p.id as string,
+      lat: p.lat as number | null,
+      lng: p.lng as number | null,
+    });
   }
 
   let updated = 0;
@@ -1201,15 +1448,38 @@ function cityMinReviewsForType(type: string) {
 // que "Iguazzu Falls Park" e "Parque Cataratas" caiam no mesmo bucket quando
 // combinados com proximidade geográfica.
 const DEDUPE_STOPWORDS = new Set([
-  "de", "do", "da", "dos", "das", "the", "of", "and", "e",
-  "park", "parque", "national", "nacional",
-  "falls", "cataratas", "cataract", "waterfall", "waterfalls",
-  "tour", "visit", "passeio",
-  "mirante", "viewpoint", "lookout",
-  "binacional", "binational",
-  "centro", "center",
-  "museu", "museum",
-  "complexo", "complex",
+  "de",
+  "do",
+  "da",
+  "dos",
+  "das",
+  "the",
+  "of",
+  "and",
+  "e",
+  "park",
+  "parque",
+  "national",
+  "nacional",
+  "falls",
+  "cataratas",
+  "cataract",
+  "waterfall",
+  "waterfalls",
+  "tour",
+  "visit",
+  "passeio",
+  "mirante",
+  "viewpoint",
+  "lookout",
+  "binacional",
+  "binational",
+  "centro",
+  "center",
+  "museu",
+  "museum",
+  "complexo",
+  "complex",
 ]);
 function dedupeKey(name: string): string {
   return name
@@ -1224,7 +1494,9 @@ function dedupeKey(name: string): string {
 }
 
 // Busca textual SEM bias geográfico — usada internamente como fallback
-async function placesTextNoBias(query: string): Promise<(PlaceRaw & { formattedAddress?: string })[]> {
+async function placesTextNoBias(
+  query: string,
+): Promise<(PlaceRaw & { formattedAddress?: string })[]> {
   const res = await gatewayFetch(`/places/v1/places:searchText`, {
     method: "POST",
     headers: {
@@ -1278,23 +1550,63 @@ async function placesTextRestricted(
 // — esses costumam aparecer em buscas por "pontos turísticos" e poluir o resultado.
 const BLOCKED_PRIMARY_TYPES = new Set<string>([
   // Hospedagem
-  "lodging", "hotel", "resort_hotel", "motel", "extended_stay_hotel",
-  "bed_and_breakfast", "guest_house", "hostel", "campground", "rv_park",
-  "cottage", "inn", "private_guest_room",
+  "lodging",
+  "hotel",
+  "resort_hotel",
+  "motel",
+  "extended_stay_hotel",
+  "bed_and_breakfast",
+  "guest_house",
+  "hostel",
+  "campground",
+  "rv_park",
+  "cottage",
+  "inn",
+  "private_guest_room",
   // Turismo / agências / eventos
-  "travel_agency", "tour_agency", "tourist_information_center",
-  "event_venue", "wedding_venue", "banquet_hall", "convention_center",
-  "auditorium", "conference_center",
+  "travel_agency",
+  "tour_agency",
+  "tourist_information_center",
+  "event_venue",
+  "wedding_venue",
+  "banquet_hall",
+  "convention_center",
+  "auditorium",
+  "conference_center",
   // Lojas/serviços genéricos
-  "store", "book_store", "stationery_store", "office_supply_store",
-  "clothing_store", "shoe_store", "electronics_store", "furniture_store",
-  "hardware_store", "home_goods_store", "jewelry_store", "gift_shop",
-  "beauty_salon", "hair_salon", "spa", "gym", "fitness_center",
+  "store",
+  "book_store",
+  "stationery_store",
+  "office_supply_store",
+  "clothing_store",
+  "shoe_store",
+  "electronics_store",
+  "furniture_store",
+  "hardware_store",
+  "home_goods_store",
+  "jewelry_store",
+  "gift_shop",
+  "beauty_salon",
+  "hair_salon",
+  "spa",
+  "gym",
+  "fitness_center",
   // Saúde/serviços
-  "hospital", "doctor", "dentist", "veterinary_care", "bank", "atm",
-  "real_estate_agency", "insurance_agency", "lawyer", "post_office",
+  "hospital",
+  "doctor",
+  "dentist",
+  "veterinary_care",
+  "bank",
+  "atm",
+  "real_estate_agency",
+  "insurance_agency",
+  "lawyer",
+  "post_office",
   // POIs genéricos sem categoria útil
-  "point_of_interest", "establishment", "premise", "subpremise",
+  "point_of_interest",
+  "establishment",
+  "premise",
+  "subpremise",
 ]);
 
 // Decide a categoria FINAL de um lugar com base em primaryType, respeitando
@@ -1312,7 +1624,10 @@ function classifyByPrimaryType(primaryType: string | undefined): TypeMapEntry | 
 // para desambiguar nomes idênticos (ex.: Iguaçu BR vs Iguazú AR).
 function extractLocationSuffix(address: string | null | undefined): string {
   if (!address) return "";
-  const parts = address.split(",").map((s) => s.trim()).filter(Boolean);
+  const parts = address
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   if (parts.length === 0) return "";
   // Pega últimos 2 segmentos (geralmente "Estado/UF, País")
   const tail = parts.slice(-2).join(", ");
@@ -1328,9 +1643,7 @@ export async function generateCityReferencesFromMaps(input: {
   await hydrateTypeMap();
   const { city_label, state, country, type } = input;
   const cityQ = state ? `${city_label}, ${state}` : city_label;
-  const targetTypes = type
-    ? TYPE_MAP.filter((c) => c.type === type)
-    : TYPE_MAP;
+  const targetTypes = type ? TYPE_MAP.filter((c) => c.type === type) : TYPE_MAP;
 
   // Geocodifica a cidade para obter coordenadas centrais.
   // Isso permite usar um viés geográfico forte e validar distância no nosso código.
@@ -1356,34 +1669,71 @@ export async function generateCityReferencesFromMaps(input: {
 
   // Agrupa por categoria final (decidida via primaryType) para respeitar a
   // prioridade do TYPE_MAP — mesmo lugar nunca duplica entre Atrações/Parques.
-  const byCategory = new Map<string, Array<PlaceRaw & { formattedAddress?: string; _cat: TypeMapEntry }>>();
+  const byCategory = new Map<
+    string,
+    Array<PlaceRaw & { formattedAddress?: string; _cat: TypeMapEntry }>
+  >();
   const seenIds = new Set<string>();
 
   // Diagnóstico — contadores para entender por que algo é descartado.
-  const drop = { noLoc: 0, lowQuality: 0, dup: 0, noClass: 0, wrongType: 0, outOfScope: 0, tooFar: 0, kept: 0 };
+  const drop = {
+    noLoc: 0,
+    lowQuality: 0,
+    dup: 0,
+    noClass: 0,
+    wrongType: 0,
+    outOfScope: 0,
+    tooFar: 0,
+    kept: 0,
+  };
 
   const ingest = (p: PlaceRaw & { formattedAddress?: string }, _hintCat: TypeMapEntry) => {
-    if (!p.id || !p.location) { drop.noLoc++; return; }
-    if (seenIds.has(p.id)) { drop.dup++; return; }
+    if (!p.id || !p.location) {
+      drop.noLoc++;
+      return;
+    }
+    if (seenIds.has(p.id)) {
+      drop.dup++;
+      return;
+    }
     // Classificação ESTRITA pelo primaryType. Se o Google não devolve um tipo
     // que bate exatamente com alguma categoria do TYPE_MAP (ou se for um tipo
     // explicitamente bloqueado — hotéis, agências, eventos, lojas), DESCARTA.
     // Antes caíamos no hintCat e isso poluía o resultado (hotel virando "ponto turístico").
     const realCat = classifyByPrimaryType(p.primaryType);
-    if (!realCat) { drop.noClass++; return; }
+    if (!realCat) {
+      drop.noClass++;
+      return;
+    }
     // Se o usuário pediu apenas 1 tipo (regen por categoria), filtra.
-    if (type && realCat.type !== type) { drop.wrongType++; return; }
-    if (!targetTypes.some((c) => c.type === realCat.type)) { drop.outOfScope++; return; }
-    if (!isQuality(p, realCat)) { drop.lowQuality++; return; }
+    if (type && realCat.type !== type) {
+      drop.wrongType++;
+      return;
+    }
+    if (!targetTypes.some((c) => c.type === realCat.type)) {
+      drop.outOfScope++;
+      return;
+    }
+    if (!isQuality(p, realCat)) {
+      drop.lowQuality++;
+      return;
+    }
 
     // Validação geográfica extra: se temos coordenadas da cidade, descarta
     // qualquer lugar que esteja além do raio permitido para a categoria.
     if (cityCenter) {
-      const dist = haversineMeters(cityCenter, { lat: p.location.latitude, lng: p.location.longitude });
-      const maxDist = realCat.type === "attraction" || realCat.type === "beach"
-        ? ATTRACTION_RADIUS_M
-        : CITY_RADIUS_M;
-      if (dist > maxDist) { drop.tooFar++; return; }
+      const dist = haversineMeters(cityCenter, {
+        lat: p.location.latitude,
+        lng: p.location.longitude,
+      });
+      const maxDist =
+        realCat.type === "attraction" || realCat.type === "beach"
+          ? ATTRACTION_RADIUS_M
+          : CITY_RADIUS_M;
+      if (dist > maxDist) {
+        drop.tooFar++;
+        return;
+      }
     }
 
     seenIds.add(p.id);
@@ -1397,9 +1747,8 @@ export async function generateCityReferencesFromMaps(input: {
   // ampla quando a API não devolve itens para a cidade.
   const searchForCity = async (query: string, cat: TypeMapEntry) => {
     if (!cityCenter) return placesTextNoBias(query);
-    const radius = cat.type === "attraction" || cat.type === "beach"
-      ? ATTRACTION_RADIUS_M
-      : CITY_RADIUS_M;
+    const radius =
+      cat.type === "attraction" || cat.type === "beach" ? ATTRACTION_RADIUS_M : CITY_RADIUS_M;
     const biased = await placesTextRestricted(query, cityCenter.lat, cityCenter.lng, radius);
     return biased.length > 0 ? biased : placesTextNoBias(query);
   };
@@ -1458,7 +1807,10 @@ export async function generateCityReferencesFromMaps(input: {
   // Dedupe global por chave semântica (mesmo lugar em variantes de nome).
   // Mantém o de maior score. Aplica ANTES de cortar top N para não desperdiçar
   // slots com duplicatas (Cataratas / Iguazzu Falls / Iguazu National Park ...).
-  const globalDedupe = new Map<string, { p: PlaceRaw & { formattedAddress?: string; _cat: TypeMapEntry }; score: number }>();
+  const globalDedupe = new Map<
+    string,
+    { p: PlaceRaw & { formattedAddress?: string; _cat: TypeMapEntry }; score: number }
+  >();
   for (const cat of targetTypes) {
     const arr = byCategory.get(cat.type) ?? [];
     for (const p of arr) {
@@ -1480,7 +1832,12 @@ export async function generateCityReferencesFromMaps(input: {
     // Desambiguação por nome: se houver mais de um lugar com o mesmo nome
     // normalizado, anexa o sufixo de localidade (Estado/País) ao nome.
     const normalize = (s: string) =>
-      s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+      s
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
     const nameCounts = new Map<string, number>();
     for (const p of arr) {
       const nm = normalize(p.displayName?.text ?? "");
@@ -1507,20 +1864,20 @@ export async function generateCityReferencesFromMaps(input: {
         lat: p.location!.latitude,
         lng: p.location!.longitude,
         image_url: pickBestPlacePhoto(p.photos),
-        maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
+        maps_url:
+          p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
         opening_hours: p.regularOpeningHours?.weekdayDescriptions ?? null,
       });
     }
   }
 
   console.log(
-    `[CityRefs] ${cityQ} center=${cityCenter ? `${cityCenter.lat.toFixed(3)},${cityCenter.lng.toFixed(3)}` : "null"} `
-    + `drop=${JSON.stringify(drop)} out=${out.length}`,
+    `[CityRefs] ${cityQ} center=${cityCenter ? `${cityCenter.lat.toFixed(3)},${cityCenter.lng.toFixed(3)}` : "null"} ` +
+      `drop=${JSON.stringify(drop)} out=${out.length}`,
   );
 
   return out;
 }
-
 
 // Geocoder público — usado para validar/centralizar uma cidade quando admin
 // cadastra manualmente. Reaproveita o geocode existente.
@@ -1548,7 +1905,10 @@ export async function refreshStaleCityReferencesByPlaceId(limit: number) {
     .order("last_synced_at", { ascending: true, nullsFirst: true })
     .limit(cap);
   if (error) throw error;
-  const list = (refs ?? []).filter((r) => !!(r as { place_id: string | null }).place_id) as Array<{ id: string; place_id: string }>;
+  const list = (refs ?? []).filter((r) => !!(r as { place_id: string | null }).place_id) as Array<{
+    id: string;
+    place_id: string;
+  }>;
   if (list.length === 0) return { updated: 0, failed: 0, total: 0 };
 
   let updated = 0;
@@ -1569,7 +1929,8 @@ export async function refreshStaleCityReferencesByPlaceId(limit: number) {
             return;
           }
           const noteText = p.editorialSummary?.text ?? p.generativeSummary?.overview?.text ?? null;
-          const note = noteText && noteText.length > 240 ? noteText.slice(0, 237).trimEnd() + "…" : noteText;
+          const note =
+            noteText && noteText.length > 240 ? noteText.slice(0, 237).trimEnd() + "…" : noteText;
           const patch: Record<string, unknown> = {
             // NOTE: nome NUNCA é atualizado automaticamente — pode estar personalizado pelo usuário.
             rating: typeof p.rating === "number" ? Number(p.rating.toFixed(1)) : null,
@@ -1578,7 +1939,8 @@ export async function refreshStaleCityReferencesByPlaceId(limit: number) {
             image_url: pickBestPlacePhoto(p.photos) ?? undefined,
             note,
             primary_type: p.primaryType ?? undefined,
-            maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
+            maps_url:
+              p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
             lat: p.location.latitude,
             lng: p.location.longitude,
             last_synced_at: new Date().toISOString(),
@@ -1591,7 +1953,10 @@ export async function refreshStaleCityReferencesByPlaceId(limit: number) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .update(patch as any)
             .eq("id", r.id);
-          if (upErr) { failed += 1; return; }
+          if (upErr) {
+            failed += 1;
+            return;
+          }
           updated += 1;
         } catch {
           failed += 1;
@@ -1631,7 +1996,10 @@ async function coordsFromMapsUrl(mapsUrl: string): Promise<{ lat: number; lng: n
   const resolved = await resolveShortUrl(mapsUrl);
   const coords = extractCoords(resolved);
   if (coords) return coords;
-  const q = decodeURIComponent(resolved.split("/place/")[1]?.split("/")[0] ?? "").replace(/\+/g, " ");
+  const q = decodeURIComponent(resolved.split("/place/")[1]?.split("/")[0] ?? "").replace(
+    /\+/g,
+    " ",
+  );
   if (!q) return null;
   const g = await geocodeText(q);
   const loc = g?.geometry?.location;
@@ -1659,7 +2027,11 @@ export const backfillPropertyCoords = createServerFn({ method: "GET" })
     const { data: rows, error } = await query;
     if (error) throw new Error(`Falha ao listar imóveis: ${error.message}`);
 
-    const list = (rows ?? []) as Array<{ id: string; name: string | null; maps_url: string | null }>;
+    const list = (rows ?? []) as Array<{
+      id: string;
+      name: string | null;
+      maps_url: string | null;
+    }>;
     const failures: BackfillFailure[] = [];
     const skipped: BackfillFailure[] = [];
     let updated = 0;
@@ -1667,13 +2039,21 @@ export const backfillPropertyCoords = createServerFn({ method: "GET" })
     for (const p of list) {
       const url = (p.maps_url ?? "").trim();
       if (!url || !isAllowedMapsUrl(url)) {
-        skipped.push({ id: p.id, name: p.name, reason: "Link do Google Maps ausente ou inválido." });
+        skipped.push({
+          id: p.id,
+          name: p.name,
+          reason: "Link do Google Maps ausente ou inválido.",
+        });
         continue;
       }
       try {
         const coords = await coordsFromMapsUrl(url);
         if (!coords) {
-          failures.push({ id: p.id, name: p.name, reason: "Não foi possível extrair coordenadas do link." });
+          failures.push({
+            id: p.id,
+            name: p.name,
+            reason: "Não foi possível extrair coordenadas do link.",
+          });
           continue;
         }
         const { error: upErr } = await supabaseAdmin
@@ -1686,7 +2066,11 @@ export const backfillPropertyCoords = createServerFn({ method: "GET" })
         }
         updated += 1;
       } catch (e) {
-        failures.push({ id: p.id, name: p.name, reason: e instanceof Error ? e.message : String(e) });
+        failures.push({
+          id: p.id,
+          name: p.name,
+          reason: e instanceof Error ? e.message : String(e),
+        });
       }
     }
 

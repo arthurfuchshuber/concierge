@@ -86,7 +86,11 @@ export type OperationalSnapshot = {
     avgResolutionMinutes: number;
     recurrenceRate: number;
   };
-  volume: { interactions: number; byAgent: Record<string, number>; byChannel: Record<string, number> };
+  volume: {
+    interactions: number;
+    byAgent: Record<string, number>;
+    byChannel: Record<string, number>;
+  };
 };
 
 /** Calcula o retrato operacional do período e (opcionalmente) persiste. */
@@ -127,7 +131,9 @@ export async function computeOperationalMetrics(params: {
 
   const latencies = rows.map((r) => Number(r.latency_ms ?? 0)).sort((a, b) => a - b);
   const avgLatency = avg(latencies);
-  const p95 = latencies.length ? latencies[Math.floor(latencies.length * 0.95)] ?? latencies.at(-1)! : 0;
+  const p95 = latencies.length
+    ? (latencies[Math.floor(latencies.length * 0.95)] ?? latencies.at(-1)!)
+    : 0;
 
   const latencyByAgent: Record<string, { total: number; count: number }> = {};
   const latencyByTool: Record<string, { total: number; count: number }> = {};
@@ -145,7 +151,9 @@ export async function computeOperationalMetrics(params: {
     la.total += Number(row.latency_ms ?? 0);
     la.count += 1;
 
-    const tools = Array.isArray(row.tools_used) ? (row.tools_used as Array<Record<string, unknown>>) : [];
+    const tools = Array.isArray(row.tools_used)
+      ? (row.tools_used as Array<Record<string, unknown>>)
+      : [];
     for (const tool of tools) {
       const name = String(tool.name ?? "unknown");
       const ms = Number(tool.durationMs ?? 0);
@@ -163,9 +171,7 @@ export async function computeOperationalMetrics(params: {
   const confidences = rows.map((r) => Number(r.confidence ?? 0)).filter((n) => n > 0);
 
   const opRows = ops ?? [];
-  const resolutions = opRows
-    .map((r) => Number(r.resolution_minutes ?? 0))
-    .filter((n) => n > 0);
+  const resolutions = opRows.map((r) => Number(r.resolution_minutes ?? 0)).filter((n) => n > 0);
   const recurrences = opRows.filter((r) => Number(r.recurrence_count ?? 0) > 1).length;
 
   const snapshot: OperationalSnapshot = {
@@ -193,19 +199,73 @@ export async function computeOperationalMetrics(params: {
 
   if (params.persist !== false) {
     const points: MetricPoint[] = [
-      { agentType: "all", metricName: "avg_latency_ms", metricValue: snapshot.performance.avgLatencyMs, sampleSize: rows.length },
-      { agentType: "all", metricName: "p95_latency_ms", metricValue: snapshot.performance.p95LatencyMs, sampleSize: rows.length },
-      { agentType: "all", metricName: "escalation_rate", metricValue: snapshot.quality.escalationRate, sampleSize: rows.length },
-      { agentType: "all", metricName: "auto_resolution_rate", metricValue: snapshot.quality.autoResolutionRate, sampleSize: rows.length },
-      { agentType: "all", metricName: "avg_confidence", metricValue: snapshot.quality.averageConfidence, sampleSize: rows.length },
-      { agentType: "all", metricName: "human_correction_rate", metricValue: snapshot.quality.humanCorrectionRate, sampleSize: rows.length },
-      { agentType: "all", metricName: "tickets_created", metricValue: snapshot.operations.ticketsCreated, sampleSize: opRows.length },
-      { agentType: "all", metricName: "avg_resolution_minutes", metricValue: snapshot.operations.avgResolutionMinutes, sampleSize: resolutions.length },
-      { agentType: "all", metricName: "recurrence_rate", metricValue: snapshot.operations.recurrenceRate, sampleSize: opRows.length },
-      { agentType: "all", metricName: "pending_escalations", metricValue: (escalations ?? []).filter((e) => e.status === "pending").length },
+      {
+        agentType: "all",
+        metricName: "avg_latency_ms",
+        metricValue: snapshot.performance.avgLatencyMs,
+        sampleSize: rows.length,
+      },
+      {
+        agentType: "all",
+        metricName: "p95_latency_ms",
+        metricValue: snapshot.performance.p95LatencyMs,
+        sampleSize: rows.length,
+      },
+      {
+        agentType: "all",
+        metricName: "escalation_rate",
+        metricValue: snapshot.quality.escalationRate,
+        sampleSize: rows.length,
+      },
+      {
+        agentType: "all",
+        metricName: "auto_resolution_rate",
+        metricValue: snapshot.quality.autoResolutionRate,
+        sampleSize: rows.length,
+      },
+      {
+        agentType: "all",
+        metricName: "avg_confidence",
+        metricValue: snapshot.quality.averageConfidence,
+        sampleSize: rows.length,
+      },
+      {
+        agentType: "all",
+        metricName: "human_correction_rate",
+        metricValue: snapshot.quality.humanCorrectionRate,
+        sampleSize: rows.length,
+      },
+      {
+        agentType: "all",
+        metricName: "tickets_created",
+        metricValue: snapshot.operations.ticketsCreated,
+        sampleSize: opRows.length,
+      },
+      {
+        agentType: "all",
+        metricName: "avg_resolution_minutes",
+        metricValue: snapshot.operations.avgResolutionMinutes,
+        sampleSize: resolutions.length,
+      },
+      {
+        agentType: "all",
+        metricName: "recurrence_rate",
+        metricValue: snapshot.operations.recurrenceRate,
+        sampleSize: opRows.length,
+      },
+      {
+        agentType: "all",
+        metricName: "pending_escalations",
+        metricValue: (escalations ?? []).filter((e) => e.status === "pending").length,
+      },
     ];
     for (const [agent, count] of Object.entries(byAgent)) {
-      points.push({ agentType: agent, metricName: "interactions", metricValue: count, sampleSize: count });
+      points.push({
+        agentType: agent,
+        metricName: "interactions",
+        metricValue: count,
+        sampleSize: count,
+      });
       points.push({
         agentType: agent,
         metricName: "avg_latency_ms",
@@ -214,7 +274,12 @@ export async function computeOperationalMetrics(params: {
       });
     }
     for (const [tool, value] of Object.entries(snapshot.performance.latencyByTool)) {
-      points.push({ agentType: "all", metricName: "tool_latency_ms", metricValue: value, dimension: tool });
+      points.push({
+        agentType: "all",
+        metricName: "tool_latency_ms",
+        metricValue: value,
+        dimension: tool,
+      });
     }
     await recordMetrics({ supabase, tenantId, points });
   }

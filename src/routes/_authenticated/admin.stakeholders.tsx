@@ -53,9 +53,7 @@ function StakeholdersPage() {
         subtitle={SUBTITLES[tab]}
         tabs={TABS}
         activeTab={tab}
-        onTabChange={(k) =>
-          navigate({ to: "/admin/stakeholders", search: { tab: coerceTab(k) } })
-        }
+        onTabChange={(k) => navigate({ to: "/admin/stakeholders", search: { tab: coerceTab(k) } })}
       />
 
       {tab === "proprietarios" && <StakeholderDirectory kind="owner" />}

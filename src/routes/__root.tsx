@@ -21,6 +21,13 @@ import { supabase } from "../integrations/supabase/client";
 import { META_PIXEL_ID, initMetaPixel, metaPixelPageView } from "../lib/meta-pixel";
 import { startTrail, trackPageView } from "../lib/trail";
 import { useAppVersionWatcher } from "../lib/app-version";
+import {
+  esquecerRota,
+  lembrarRota,
+  limparCachesDoNavegador,
+  registrarCacheOffline,
+} from "@/lib/offline/sw-register";
+import { idbLimparTudo } from "@/lib/offline/idb";
 import { SITE_ORIGIN, siteUrl } from "@/lib/site-url";
 
 /** Prefixo das chaves de cache offline (uma por usuário). */
@@ -42,7 +49,9 @@ function currentAuthUserIdSync(): string | null {
       const id = parsed?.user?.id ?? parsed?.currentSession?.user?.id ?? null;
       if (id) return String(id);
     }
-  } catch { /* noop */ }
+  } catch {
+    /* noop */
+  }
   return null;
 }
 
@@ -69,19 +78,27 @@ function purgePersistedCache() {
       if (k.startsWith(CACHE_PREFIX) || k === "cia-cache-v1") keys.push(k);
     }
     keys.forEach((k) => window.localStorage.removeItem(k));
-  } catch { /* noop */ }
+  } catch {
+    /* noop */
+  }
+  /* SAIR APAGA TUDO (decisão do cliente, 11/09/2026). Celular de operação é
+     compartilhado, e a partir de agora o aparelho guarda bem mais do que
+     antes: as páginas e imagens no cache do navegador, e os rascunhos de
+     situação com os vídeos dentro. Nada disso pode sobreviver ao logout. */
+  esquecerRota();
+  void limparCachesDoNavegador();
+  void idbLimparTudo();
 }
 
 function NotFoundComponent() {
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-6">
       <div className="max-w-md text-center">
-        <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">404</p>
-        <h1 className="font-display text-4xl">Página não encontrada</h1>
-        <p className="mt-3 text-sm text-muted-foreground">
-          O caminho que você procura não existe.
+        <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-2">
+          404
         </p>
+        <h1 className="font-display text-4xl">Página não encontrada</h1>
+        <p className="mt-3 text-sm text-muted-foreground">O caminho que você procura não existe.</p>
         <a
           href="/"
           className="mt-6 inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground"
@@ -107,7 +124,10 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
           Não conseguimos carregar esta página. Tente novamente.
         </p>
         <button
-          onClick={() => { router.invalidate(); reset(); }}
+          onClick={() => {
+            router.invalidate();
+            reset();
+          }}
           className="mt-6 rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground"
         >
           Tentar de novo
@@ -197,7 +217,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         }),
       },
     ],
-
   }),
   shellComponent: RootShell,
   component: RootComponent,
@@ -238,13 +257,19 @@ function RootComponent() {
   const router = useRouter();
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
       if (event === "SIGNED_OUT") {
         // Nada do usuário anterior pode sobreviver no aparelho: sem isso, o
         // próximo login enxergava a última visão em cache de outra empresa.
         purgePersistedCache();
-        try { window.sessionStorage.removeItem("sg-impersonate"); } catch { /* noop */ }
+        try {
+          window.sessionStorage.removeItem("sg-impersonate");
+        } catch {
+          /* noop */
+        }
         queryClient.clear();
       }
       router.invalidate();
@@ -253,15 +278,11 @@ function RootComponent() {
     return () => subscription.unsubscribe();
   }, [router, queryClient]);
 
-
   // Tratamento global de PERMISSION_DENIED (não quebra a aplicação).
   useEffect(() => installPermissionDeniedHandler(), []);
 
   // Nova versão publicada: recarrega automaticamente a página de todos.
   useAppVersionWatcher();
-
-
-
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.visualViewport) return;
@@ -303,9 +324,28 @@ function RootComponent() {
   }, []);
   useEffect(() => {
     trackPageView(pathname);
+    // A última rota aberta, para a rede de segurança de quando o app abrir
+    // sem internet numa página que ele nunca guardou.
+    lembrarRota(pathname);
   }, [pathname]);
 
-
+  /**
+   * O CACHE DE PÁGINAS E ARQUIVOS (11/09/2026).
+   *
+   * O cache de CONSULTAS abaixo já existia e faz a última visão continuar
+   * desenhada. Só que ele mora dentro do app — e sem internet o app não
+   * chegava a carregar: o navegador pedia o HTML e o JavaScript, não tinha
+   * quem respondesse, e a pessoa via a tela em branco. O retrato estava
+   * guardado, e inalcançável.
+   *
+   * É esse o buraco que o service worker fecha: ele guarda a própria página e
+   * os arquivos do build. Ver `public/sw-cache.js`, inclusive para o botão de
+   * desligamento, que existe porque service worker mal configurado é a
+   * maneira mais eficiente de impedir uma correção de chegar em alguém.
+   */
+  useEffect(() => {
+    void registrarCacheOffline();
+  }, []);
 
   /**
    * Cache persistente: guardamos TUDO no aparelho para que a última visão
@@ -329,14 +369,14 @@ function RootComponent() {
   // O cache offline é POR USUÁRIO. Com uma chave única, o próximo login no
   // mesmo aparelho reidratava a última visão da conta anterior (vazamento
   // entre empresas). A chave carrega o id do usuário da sessão atual.
-  const persister = typeof window !== "undefined"
-    ? createSyncStoragePersister({
-        storage: window.localStorage,
-        key: `${CACHE_PREFIX}${currentAuthUserIdSync() ?? "anon"}:${activeAccountIdSync() ?? "own"}`,
-        throttleTime: 1000,
-      })
-    : null;
-
+  const persister =
+    typeof window !== "undefined"
+      ? createSyncStoragePersister({
+          storage: window.localStorage,
+          key: `${CACHE_PREFIX}${currentAuthUserIdSync() ?? "anon"}:${activeAccountIdSync() ?? "own"}`,
+          throttleTime: 1000,
+        })
+      : null;
 
   const content = (
     <I18nProvider>
@@ -375,8 +415,6 @@ function RootComponent() {
       {content}
     </PersistQueryClientProvider>
   ) : (
-
     <QueryClientProvider client={queryClient}>{content}</QueryClientProvider>
   );
 }
-

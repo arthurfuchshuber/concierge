@@ -18,11 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -46,7 +42,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Trash2, Plus, Lock, ChevronDown, ChevronRight, Loader2, MoveRight, CheckSquare, Pencil, X as XIcon } from "lucide-react";
+import {
+  Trash2,
+  Plus,
+  Lock,
+  ChevronDown,
+  ChevronRight,
+  Loader2,
+  MoveRight,
+  CheckSquare,
+  Pencil,
+  X as XIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 
 export const TAXONOMY_QUERY_KEY = ["poi-taxonomy"] as const;
@@ -85,12 +92,18 @@ export function TagPicker({ value, onChange, className }: Props) {
           <ChevronDown className="size-3.5 text-muted-foreground shrink-0" />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="p-0 w-[340px] max-h-[520px] overflow-hidden flex flex-col">
+      <PopoverContent
+        align="end"
+        className="p-0 w-[340px] max-h-[520px] overflow-hidden flex flex-col"
+      >
         <TaxonomyTree
           categories={categories}
           tags={tags}
           selectedSlug={value}
-          onPickTag={(slug) => { onChange(slug); setOpen(false); }}
+          onPickTag={(slug) => {
+            onChange(slug);
+            setOpen(false);
+          }}
         />
       </PopoverContent>
     </Popover>
@@ -136,7 +149,8 @@ export function TaxonomyTree({
   function toggleId(id: string) {
     setSelectedIds((s) => {
       const n = new Set(s);
-      if (n.has(id)) n.delete(id); else n.add(id);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
       return n;
     });
   }
@@ -153,7 +167,8 @@ export function TaxonomyTree({
     }
   }
   async function bulkDelete() {
-    if (!confirm(`Excluir ${selectedIds.size} tag(s)? Tags padrão do Google são preservadas.`)) return;
+    if (!confirm(`Excluir ${selectedIds.size} tag(s)? Tags padrão do Google são preservadas.`))
+      return;
     try {
       const r = await delFn({ data: { tag_ids: Array.from(selectedIds) } });
       toast.success(`${r.deleted} excluída(s)${r.skipped ? `, ${r.skipped} preservada(s)` : ""}`);
@@ -195,12 +210,25 @@ export function TaxonomyTree({
                       ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-destructive" onClick={bulkDelete}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs text-destructive"
+                    onClick={bulkDelete}
+                  >
                     <Trash2 className="size-3" /> excluir
                   </Button>
                 </>
               )}
-              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => { setSelectMode(false); setSelectedIds(new Set()); }}>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-xs"
+                onClick={() => {
+                  setSelectMode(false);
+                  setSelectedIds(new Set());
+                }}
+              >
                 cancelar
               </Button>
             </div>
@@ -211,24 +239,58 @@ export function TaxonomyTree({
               <Pencil className="size-3" /> Editando
             </span>
             <div className="flex items-center gap-0.5 overflow-x-auto -mr-1">
-              <Button size="icon" variant="ghost" className="size-7 shrink-0" title="Selecionar várias tags" onClick={() => setSelectMode(true)}>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-7 shrink-0"
+                title="Selecionar várias tags"
+                onClick={() => setSelectMode(true)}
+              >
                 <CheckSquare className="size-3.5" />
               </Button>
-              <Button size="icon" variant="ghost" className="size-7 shrink-0" title="Nova categoria" onClick={() => setNewCatOpen(true)}>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-7 shrink-0"
+                title="Nova categoria"
+                onClick={() => setNewCatOpen(true)}
+              >
                 <Plus className="size-3.5" />
               </Button>
-              <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px] shrink-0" title="Nova tag" onClick={() => { setNewTagPresetCat(null); setNewTagOpen(true); }}>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-[11px] shrink-0"
+                title="Nova tag"
+                onClick={() => {
+                  setNewTagPresetCat(null);
+                  setNewTagOpen(true);
+                }}
+              >
                 <Plus className="size-3" /> tag
               </Button>
-              <Button size="icon" variant="ghost" className="size-7 shrink-0" title="Concluir edição" onClick={() => setManageMode(false)}>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-7 shrink-0"
+                title="Concluir edição"
+                onClick={() => setManageMode(false)}
+              >
                 <XIcon className="size-3.5" />
               </Button>
             </div>
           </>
         ) : (
           <>
-            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Escolher tag</span>
-            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setManageMode(true)}>
+            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              Escolher tag
+            </span>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-xs"
+              onClick={() => setManageMode(true)}
+            >
               <Pencil className="size-3" /> Editar
             </Button>
           </>
@@ -237,7 +299,9 @@ export function TaxonomyTree({
 
       {manageMode && (
         <p className="px-3 py-1.5 text-[10.5px] text-muted-foreground bg-muted/30 border-b">
-          Clique no ícone <Pencil className="inline size-2.5" /> para renomear · <MoveRight className="inline size-2.5" /> para mover · <Trash2 className="inline size-2.5" /> para excluir.
+          Clique no ícone <Pencil className="inline size-2.5" /> para renomear ·{" "}
+          <MoveRight className="inline size-2.5" /> para mover ·{" "}
+          <Trash2 className="inline size-2.5" /> para excluir.
         </p>
       )}
 
@@ -253,7 +317,10 @@ export function TaxonomyTree({
                 manageMode={manageMode}
                 onToggle={() => setExpanded(isOpen ? null : cat.id)}
                 onRequestDelete={() => setDeleteCat(cat)}
-                onAddTag={() => { setNewTagPresetCat(cat.id); setNewTagOpen(true); }}
+                onAddTag={() => {
+                  setNewTagPresetCat(cat.id);
+                  setNewTagOpen(true);
+                }}
                 onRenamed={invalidate}
               />
               {isOpen && (
@@ -289,13 +356,19 @@ export function TaxonomyTree({
           categories={categories}
           presetCategoryId={newTagPresetCat}
           onClose={() => setNewTagOpen(false)}
-          onSaved={() => { setNewTagOpen(false); invalidate(); }}
+          onSaved={() => {
+            setNewTagOpen(false);
+            invalidate();
+          }}
         />
       )}
       {newCatOpen && (
         <NewCategoryDialog
           onClose={() => setNewCatOpen(false)}
-          onSaved={() => { setNewCatOpen(false); invalidate(); }}
+          onSaved={() => {
+            setNewCatOpen(false);
+            invalidate();
+          }}
         />
       )}
       {deleteCat && (
@@ -304,7 +377,10 @@ export function TaxonomyTree({
           categories={categories}
           tagCount={tags.filter((t) => t.category_id === deleteCat.id).length}
           onClose={() => setDeleteCat(null)}
-          onDeleted={() => { setDeleteCat(null); invalidate(); }}
+          onDeleted={() => {
+            setDeleteCat(null);
+            invalidate();
+          }}
         />
       )}
     </>
@@ -315,7 +391,14 @@ export function TaxonomyTree({
    Category row (header) — inline rename + delete + add tag
    ============================================================ */
 function CategoryRow({
-  cat, count, isOpen, manageMode, onToggle, onRequestDelete, onAddTag, onRenamed,
+  cat,
+  count,
+  isOpen,
+  manageMode,
+  onToggle,
+  onRequestDelete,
+  onAddTag,
+  onRenamed,
 }: {
   cat: PoiCategory;
   count: number;
@@ -331,7 +414,10 @@ function CategoryRow({
 
   async function commit(newLabel: string) {
     const trimmed = newLabel.trim();
-    if (!trimmed || trimmed === cat.label) { setEditing(false); return; }
+    if (!trimmed || trimmed === cat.label) {
+      setEditing(false);
+      return;
+    }
     try {
       await updateFn({ data: { id: cat.id, label: trimmed } });
       toast.success("Categoria renomeada");
@@ -350,15 +436,22 @@ function CategoryRow({
         onClick={onToggle}
         className="flex items-center gap-1 flex-1 min-w-0 text-left"
       >
-        {isOpen
-          ? <ChevronDown className="size-3 text-muted-foreground shrink-0" />
-          : <ChevronRight className="size-3 text-muted-foreground shrink-0" />}
+        {isOpen ? (
+          <ChevronDown className="size-3 text-muted-foreground shrink-0" />
+        ) : (
+          <ChevronRight className="size-3 text-muted-foreground shrink-0" />
+        )}
         {editing ? (
           <InlineRename initial={cat.label} onCommit={commit} onCancel={() => setEditing(false)} />
         ) : (
           <span
             className="text-[11px] uppercase tracking-wider font-medium truncate"
-            onDoubleClick={(e) => { if (manageMode) { e.stopPropagation(); setEditing(true); } }}
+            onDoubleClick={(e) => {
+              if (manageMode) {
+                e.stopPropagation();
+                setEditing(true);
+              }
+            }}
           >
             {cat.label}
           </span>
@@ -373,7 +466,10 @@ function CategoryRow({
               type="button"
               aria-label="Renomear categoria"
               title="Renomear categoria"
-              onClick={(e) => { e.stopPropagation(); setEditing(true); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditing(true);
+              }}
               className="p-1 text-muted-foreground hover:text-foreground"
             >
               <Pencil className="size-3" />
@@ -383,7 +479,10 @@ function CategoryRow({
             type="button"
             aria-label="Adicionar tag nesta categoria"
             title="Adicionar tag nesta categoria"
-            onClick={(e) => { e.stopPropagation(); onAddTag(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddTag();
+            }}
             className="p-1 text-muted-foreground hover:text-foreground"
           >
             <Plus className="size-3" />
@@ -392,7 +491,10 @@ function CategoryRow({
             <button
               type="button"
               aria-label="Excluir categoria"
-              onClick={(e) => { e.stopPropagation(); onRequestDelete(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onRequestDelete();
+              }}
               className="p-1 text-muted-foreground hover:text-destructive"
             >
               <Trash2 className="size-3" />
@@ -408,7 +510,15 @@ function CategoryRow({
    Tag row — pick / rename / move / delete inline
    ============================================================ */
 function TagRow({
-  tag, categories, selected, manageMode, selectMode, checked, onToggleCheck, onPick, onChanged,
+  tag,
+  categories,
+  selected,
+  manageMode,
+  selectMode,
+  checked,
+  onToggleCheck,
+  onPick,
+  onChanged,
 }: {
   tag: PoiTag;
   categories: PoiCategory[];
@@ -426,7 +536,10 @@ function TagRow({
 
   async function commitLabel(newLabel: string) {
     const trimmed = newLabel.trim();
-    if (!trimmed || trimmed === tag.label) { setEditing(false); return; }
+    if (!trimmed || trimmed === tag.label) {
+      setEditing(false);
+      return;
+    }
     try {
       await updateFn({ data: { id: tag.id, label: trimmed } });
       toast.success("Tag renomeada");
@@ -460,24 +573,39 @@ function TagRow({
   }
 
   return (
-    <div className={`group/tag flex items-center gap-1 pl-5 pr-2 ${selected ? "bg-accent/30" : "hover:bg-muted/30"}`}>
+    <div
+      className={`group/tag flex items-center gap-1 pl-5 pr-2 ${selected ? "bg-accent/30" : "hover:bg-muted/30"}`}
+    >
       {selectMode && (
         <Checkbox checked={checked} onCheckedChange={onToggleCheck} className="size-3.5" />
       )}
       {editing ? (
         <div className="flex-1 py-1">
-          <InlineRename initial={tag.label} onCommit={commitLabel} onCancel={() => setEditing(false)} />
+          <InlineRename
+            initial={tag.label}
+            onCommit={commitLabel}
+            onCancel={() => setEditing(false)}
+          />
         </div>
       ) : (
         <button
           type="button"
-          onClick={() => { if (selectMode) onToggleCheck(); else onPick(); }}
+          onClick={() => {
+            if (selectMode) onToggleCheck();
+            else onPick();
+          }}
           onDoubleClick={(e) => {
             if (!manageMode || tag.is_protected) return;
             e.stopPropagation();
             setEditing(true);
           }}
-          title={manageMode ? (tag.is_protected ? "Tag padrão do Google — não editável" : "Duplo-clique para renomear") : "Clique para selecionar"}
+          title={
+            manageMode
+              ? tag.is_protected
+                ? "Tag padrão do Google — não editável"
+                : "Duplo-clique para renomear"
+              : "Clique para selecionar"
+          }
           className={`flex-1 text-left text-sm py-1.5 px-1 truncate ${selected ? "font-medium" : ""}`}
         >
           {tag.label}
@@ -490,7 +618,11 @@ function TagRow({
             type="button"
             aria-label="Renomear tag"
             title={tag.is_protected ? "Tag padrão — não editável" : "Renomear tag"}
-            onClick={(e) => { if (tag.is_protected) return; e.stopPropagation(); setEditing(true); }}
+            onClick={(e) => {
+              if (tag.is_protected) return;
+              e.stopPropagation();
+              setEditing(true);
+            }}
             disabled={tag.is_protected}
             className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
           >
@@ -498,23 +630,34 @@ function TagRow({
           </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button type="button" aria-label="Mover" className="p-1 text-muted-foreground hover:text-foreground">
+              <button
+                type="button"
+                aria-label="Mover"
+                className="p-1 text-muted-foreground hover:text-foreground"
+              >
                 <MoveRight className="size-3" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Mover para</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {categories.filter((c) => c.id !== tag.category_id).map((c) => (
-                <DropdownMenuItem key={c.id} onClick={() => moveTo(c.id)}>{c.label}</DropdownMenuItem>
-              ))}
+              {categories
+                .filter((c) => c.id !== tag.category_id)
+                .map((c) => (
+                  <DropdownMenuItem key={c.id} onClick={() => moveTo(c.id)}>
+                    {c.label}
+                  </DropdownMenuItem>
+                ))}
             </DropdownMenuContent>
           </DropdownMenu>
           {!tag.is_protected && (
             <button
               type="button"
               aria-label="Excluir"
-              onClick={(e) => { e.stopPropagation(); remove(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                remove();
+              }}
               className="p-1 text-muted-foreground hover:text-destructive"
             >
               <Trash2 className="size-3" />
@@ -526,14 +669,21 @@ function TagRow({
   );
 }
 
-function InlineRename({ initial, onCommit, onCancel }: {
+function InlineRename({
+  initial,
+  onCommit,
+  onCancel,
+}: {
   initial: string;
   onCommit: (v: string) => void;
   onCancel: () => void;
 }) {
   const [v, setV] = useState(initial);
   const ref = useRef<HTMLInputElement>(null);
-  useEffect(() => { ref.current?.focus(); ref.current?.select(); }, []);
+  useEffect(() => {
+    ref.current?.focus();
+    ref.current?.select();
+  }, []);
   return (
     <Input
       ref={ref}
@@ -541,8 +691,14 @@ function InlineRename({ initial, onCommit, onCancel }: {
       onChange={(e) => setV(e.target.value)}
       onBlur={() => onCommit(v)}
       onKeyDown={(e) => {
-        if (e.key === "Enter") { e.preventDefault(); onCommit(v); }
-        if (e.key === "Escape") { e.preventDefault(); onCancel(); }
+        if (e.key === "Enter") {
+          e.preventDefault();
+          onCommit(v);
+        }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          onCancel();
+        }
       }}
       className="h-7 text-sm py-1"
       maxLength={60}
@@ -553,7 +709,12 @@ function InlineRename({ initial, onCommit, onCancel }: {
 /* ============================================================
    New tag — supports preset category + multiple labels at once
    ============================================================ */
-export function NewTagDialog({ categories, presetCategoryId, onClose, onSaved }: {
+export function NewTagDialog({
+  categories,
+  presetCategoryId,
+  onClose,
+  onSaved,
+}: {
   categories: PoiCategory[];
   presetCategoryId: string | null;
   onClose: () => void;
@@ -570,7 +731,10 @@ export function NewTagDialog({ categories, presetCategoryId, onClose, onSaved }:
   const createFn = useServerFn(createPoiTag);
 
   async function save() {
-    const list = labels.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean);
+    const list = labels
+      .split(/[\n,]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
     if (list.length === 0 || !catId) return;
     setSaving(true);
     try {
@@ -579,9 +743,18 @@ export function NewTagDialog({ categories, presetCategoryId, onClose, onSaved }:
           data: {
             label,
             category_id: catId,
-            accepted_primary_types: primary.split(",").map((s) => s.trim()).filter(Boolean),
-            places_types: places.split(",").map((s) => s.trim()).filter(Boolean),
-            query_variants: variants.split(",").map((s) => s.trim()).filter(Boolean),
+            accepted_primary_types: primary
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean),
+            places_types: places
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean),
+            query_variants: variants
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean),
             min_reviews: minR,
           },
         });
@@ -595,10 +768,18 @@ export function NewTagDialog({ categories, presetCategoryId, onClose, onSaved }:
     }
   }
   return (
-    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Dialog
+      open
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
       <DialogContent className="max-w-md">
-        <DialogHeader><DialogTitle>Novas tags</DialogTitle>
-          <DialogDescription>Uma por linha (ou separadas por vírgula) para criar várias de uma vez.</DialogDescription>
+        <DialogHeader>
+          <DialogTitle>Novas tags</DialogTitle>
+          <DialogDescription>
+            Uma por linha (ou separadas por vírgula) para criar várias de uma vez.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div>
@@ -614,39 +795,69 @@ export function NewTagDialog({ categories, presetCategoryId, onClose, onSaved }:
           <div>
             <Label className="text-xs">Categoria</Label>
             <Select value={catId} onValueChange={setCatId}>
-              <SelectTrigger><SelectValue placeholder="Escolha" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Escolha" />
+              </SelectTrigger>
               <SelectContent>
-                {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}
+                {categories.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
-          <button type="button" onClick={() => setShowAi(!showAi)} className="text-[11px] text-muted-foreground underline">
+          <button
+            type="button"
+            onClick={() => setShowAi(!showAi)}
+            className="text-[11px] text-muted-foreground underline"
+          >
             {showAi ? "Ocultar" : "Mostrar"} mapeamento avançado (para IA)
           </button>
           {showAi && (
             <div className="space-y-2 border-l-2 border-border pl-3">
-              <p className="text-[11px] text-muted-foreground">Aplicado a todas as tags criadas agora.</p>
+              <p className="text-[11px] text-muted-foreground">
+                Aplicado a todas as tags criadas agora.
+              </p>
               <div>
                 <Label className="text-xs">Primary types do Google (vírgula)</Label>
-                <Input value={primary} onChange={(e) => setPrimary(e.target.value)} placeholder="waterfall, scenic_lookout" />
+                <Input
+                  value={primary}
+                  onChange={(e) => setPrimary(e.target.value)}
+                  placeholder="waterfall, scenic_lookout"
+                />
               </div>
               <div>
                 <Label className="text-xs">Places types (busca, vírgula)</Label>
-                <Input value={places} onChange={(e) => setPlaces(e.target.value)} placeholder="tourist_attraction" />
+                <Input
+                  value={places}
+                  onChange={(e) => setPlaces(e.target.value)}
+                  placeholder="tourist_attraction"
+                />
               </div>
               <div>
                 <Label className="text-xs">Variantes de busca (vírgula)</Label>
-                <Input value={variants} onChange={(e) => setVariants(e.target.value)} placeholder="cachoeiras em" />
+                <Input
+                  value={variants}
+                  onChange={(e) => setVariants(e.target.value)}
+                  placeholder="cachoeiras em"
+                />
               </div>
               <div>
                 <Label className="text-xs">Mínimo de avaliações</Label>
-                <Input type="number" value={minR} onChange={(e) => setMinR(Number(e.target.value) || 0)} />
+                <Input
+                  type="number"
+                  value={minR}
+                  onChange={(e) => setMinR(Number(e.target.value) || 0)}
+                />
               </div>
             </div>
           )}
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+          <Button variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
           <Button onClick={save} disabled={saving || !labels.trim() || !catId}>
             {saving && <Loader2 className="size-3.5 animate-spin" />} Criar
           </Button>
@@ -656,7 +867,10 @@ export function NewTagDialog({ categories, presetCategoryId, onClose, onSaved }:
   );
 }
 
-export function NewCategoryDialog({ onClose, onSaved }: {
+export function NewCategoryDialog({
+  onClose,
+  onSaved,
+}: {
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -671,17 +885,35 @@ export function NewCategoryDialog({ onClose, onSaved }: {
       onSaved();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro");
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   }
   return (
-    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Dialog
+      open
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
       <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>Nova categoria</DialogTitle></DialogHeader>
-        <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Ex: Aventura" maxLength={60} autoFocus
-          onKeyDown={(e) => { if (e.key === "Enter" && label.trim()) save(); }}
+        <DialogHeader>
+          <DialogTitle>Nova categoria</DialogTitle>
+        </DialogHeader>
+        <Input
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          placeholder="Ex: Aventura"
+          maxLength={60}
+          autoFocus
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && label.trim()) save();
+          }}
         />
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+          <Button variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
           <Button onClick={save} disabled={saving || !label.trim()}>
             {saving && <Loader2 className="size-3.5 animate-spin" />} Criar
           </Button>
@@ -694,7 +926,13 @@ export function NewCategoryDialog({ onClose, onSaved }: {
 /* ============================================================
    Delete category — prompts for reassignment when tags exist
    ============================================================ */
-function DeleteCategoryDialog({ cat, categories, tagCount, onClose, onDeleted }: {
+function DeleteCategoryDialog({
+  cat,
+  categories,
+  tagCount,
+  onClose,
+  onDeleted,
+}: {
   cat: PoiCategory;
   categories: PoiCategory[];
   tagCount: number;
@@ -709,41 +947,65 @@ function DeleteCategoryDialog({ cat, categories, tagCount, onClose, onDeleted }:
   async function confirm() {
     setSaving(true);
     try {
-      await deleteFn({ data: { id: cat.id, reassign_to_category_id: tagCount > 0 ? target : undefined } });
+      await deleteFn({
+        data: { id: cat.id, reassign_to_category_id: tagCount > 0 ? target : undefined },
+      });
       toast.success("Categoria excluída");
       onDeleted();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro");
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
-    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Dialog
+      open
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>Excluir “{cat.label}”</DialogTitle>
           {tagCount > 0 ? (
             <DialogDescription>
-              Esta categoria tem <b>{tagCount} tag(s)</b>. Escolha para qual categoria as tags devem ser movidas antes da exclusão.
+              Esta categoria tem <b>{tagCount} tag(s)</b>. Escolha para qual categoria as tags devem
+              ser movidas antes da exclusão.
             </DialogDescription>
           ) : (
-            <DialogDescription>Esta categoria não tem tags. A exclusão é definitiva.</DialogDescription>
+            <DialogDescription>
+              Esta categoria não tem tags. A exclusão é definitiva.
+            </DialogDescription>
           )}
         </DialogHeader>
         {tagCount > 0 && (
           <div>
             <Label className="text-xs">Mover tags para</Label>
             <Select value={target} onValueChange={setTarget}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
-                {others.map((c) => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}
+                {others.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
         )}
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-          <Button variant="destructive" onClick={confirm} disabled={saving || (tagCount > 0 && !target)}>
+          <Button variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={confirm}
+            disabled={saving || (tagCount > 0 && !target)}
+          >
             {saving && <Loader2 className="size-3.5 animate-spin" />} Excluir
           </Button>
         </DialogFooter>

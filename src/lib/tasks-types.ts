@@ -1,13 +1,7 @@
 // Tipos compartilhados de Tarefas/Pendências (botão "PENDÊNCIAS" do Kanban +
 // checklist do card de Limpeza).
 export type TaskCategory =
-  | "maintenance"
-  | "financial"
-  | "guest_request"
-  | "purchase"
-  | "inspection"
-  | "cleaning"
-  | "other";
+  "maintenance" | "financial" | "guest_request" | "purchase" | "inspection" | "cleaning" | "other";
 
 export type TaskPriority = "low" | "medium" | "high";
 export type TaskStatus = "pending" | "done" | "canceled";

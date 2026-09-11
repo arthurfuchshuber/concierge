@@ -93,7 +93,8 @@ export function FirstVisitTour({ active, onDone }: { active: boolean; onDone: ()
   };
 
   const tooltipTop = placement === "bottom" ? rect.top + rect.height + pad + 12 : undefined;
-  const tooltipBottom = placement === "top" ? window.innerHeight - (rect.top - pad) + 12 : undefined;
+  const tooltipBottom =
+    placement === "top" ? window.innerHeight - (rect.top - pad) + 12 : undefined;
 
   return (
     <>
@@ -128,7 +129,7 @@ export function FirstVisitTour({ active, onDone }: { active: boolean; onDone: ()
         <p className="text-[14px] leading-relaxed text-foreground/90 pr-4">
           {step === 1
             ? "Toque aqui para ver o passo a passo da chegada e as senhas de acesso."
-            : "Agora toque em \"Senhas\" para ver o código do portão e do Wi-Fi."}
+            : 'Agora toque em "Senhas" para ver o código do portão e do Wi-Fi.'}
         </p>
         <button
           type="button"

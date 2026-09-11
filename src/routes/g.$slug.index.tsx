@@ -3,14 +3,23 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getPublicGuide, submitPin, submitAccessPin } from "@/lib/guide.functions";
-import { getGuideStayStatus, markGuideStayStep, getReservationLiveStatus } from "@/lib/guide-access.functions";
+import {
+  getGuideStayStatus,
+  markGuideStayStep,
+  getReservationLiveStatus,
+} from "@/lib/guide-access.functions";
 import { ETIQUETA_CHECKIN_CHECKOUT } from "@/lib/publish-requirements";
 import { trackGuideEvent } from "@/lib/guide-analytics.functions";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
 import {
   Lock,
   MapPin,
@@ -95,7 +104,6 @@ function getGuideSessionId(slug: string): string {
   return generated;
 }
 
-
 export const Route = createFileRoute("/g/$slug/")({
   validateSearch: (search: Record<string, unknown>): { preview?: string; t?: string } => ({
     ...(typeof search["preview"] === "string" ? { preview: search["preview"] as string } : {}),
@@ -112,7 +120,9 @@ export const Route = createFileRoute("/g/$slug/")({
   },
   head: ({ loaderData, params }) => {
     if (!loaderData || loaderData.status !== "ok") {
-      return { meta: [{ title: "ConciergeIA — ConciergeIA" }, { name: "robots", content: "noindex" }] };
+      return {
+        meta: [{ title: "ConciergeIA — ConciergeIA" }, { name: "robots", content: "noindex" }],
+      };
     }
     const p = loaderData.property as Record<string, unknown>;
     const name = p.name as string;
@@ -162,7 +172,9 @@ export const Route = createFileRoute("/g/$slug/")({
         { property: "og:description", content: desc },
         { property: "og:type", content: "website" },
         { property: "og:url", content: url },
-        ...(p.hero_image_url ? [{ property: "og:image", content: p.hero_image_url as string }] : []),
+        ...(p.hero_image_url
+          ? [{ property: "og:image", content: p.hero_image_url as string }]
+          : []),
       ],
       links: [{ rel: "canonical", href: url }],
       scripts: [
@@ -184,7 +196,15 @@ function GuidePage() {
   return <Guide data={r} />;
 }
 
-function PinGate({ slug, status, name }: { slug: string; status: "locked" | "expired"; name: string }) {
+function PinGate({
+  slug,
+  status,
+  name,
+}: {
+  slug: string;
+  status: "locked" | "expired";
+  name: string;
+}) {
   const submit = useServerFn(submitPin);
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
@@ -271,7 +291,9 @@ function Lockable({ locked, children }: { locked: boolean; children: React.React
               <Lock className="size-4 text-muted-foreground" strokeWidth={1.75} />
             </div>
             <div className="min-w-0">
-              <p className="text-[13px] font-semibold text-foreground leading-tight">Acesso encerrado</p>
+              <p className="text-[13px] font-semibold text-foreground leading-tight">
+                Acesso encerrado
+              </p>
               <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
                 Disponível 24h antes até 12h após o check-in.
               </p>
@@ -293,7 +315,9 @@ function Guide({ data }: { data: GuideOk }) {
   const p = useMemo(() => {
     if (
       !revealedCodes ||
-      (revealedCodes.wifi_password == null && revealedCodes.lock_code == null && revealedCodes.gate_code == null)
+      (revealedCodes.wifi_password == null &&
+        revealedCodes.lock_code == null &&
+        revealedCodes.gate_code == null)
     ) {
       return baseProp;
     }
@@ -450,12 +474,12 @@ function Guide({ data }: { data: GuideOk }) {
   // Guias do tipo "Check-In & Check-Out": o acesso depende de um código de
   // reserva ativo no Airbnb, revalidado continuamente enquanto o hóspede usa
   // o guia (reserva cancelada = acesso derrubado na hora).
-  const reservationCodeGate = String((p as { tagline?: string | null }).tagline ?? "").trim() === ETIQUETA_CHECKIN_CHECKOUT;
+  const reservationCodeGate =
+    String((p as { tagline?: string | null }).tagline ?? "").trim() === ETIQUETA_CHECKIN_CHECKOUT;
   // Modo "preview" para admin do SaaS dentro do iframe (?preview=1): pula o gate
   // e mostra o conteúdo do guia diretamente, sem exigir preenchimento.
   const [isPreview, setIsPreview] = useState(false);
   const [accessRec, setAccessRec] = useState<AccessRecord | null>(null);
-
 
   // "Leu as instruções": só conta se o hóspede ficar ao menos 5 segundos na
   // aba Chegada. Sai antes disso, não registramos nada.
@@ -592,7 +616,8 @@ function Guide({ data }: { data: GuideOk }) {
             checkout_date: accessRec?.checkoutDate ?? null,
           },
         });
-        if (!cancelled && res) setHostStatus({ checkinDone: !!res.checkinDone, checkoutDone: !!res.checkoutDone });
+        if (!cancelled && res)
+          setHostStatus({ checkinDone: !!res.checkinDone, checkoutDone: !!res.checkoutDone });
       } catch {
         /* offline: mantém o último estado conhecido */
       }
@@ -606,7 +631,14 @@ function Guide({ data }: { data: GuideOk }) {
       window.clearInterval(id);
       window.removeEventListener("focus", onFocus);
     };
-  }, [slug, isPreview, accessRec?.name, accessRec?.checkinDate, accessRec?.checkoutDate, fetchStayStatus]);
+  }, [
+    slug,
+    isPreview,
+    accessRec?.name,
+    accessRec?.checkinDate,
+    accessRec?.checkoutDate,
+    fetchStayStatus,
+  ]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -619,7 +651,15 @@ function Guide({ data }: { data: GuideOk }) {
       const [y, mo, day] = d.split("-").map(Number);
       if (!y || !mo || !day) return false;
       const t = String(p.checkin_time ?? "").match(/^(\d{1,2}):(\d{2})/);
-      const start = new Date(y, mo - 1, day, t ? Number(t[1]) : 15, t ? Number(t[2]) : 0, 0, 0).getTime();
+      const start = new Date(
+        y,
+        mo - 1,
+        day,
+        t ? Number(t[1]) : 15,
+        t ? Number(t[2]) : 0,
+        0,
+        0,
+      ).getTime();
       return Date.now() >= start;
     };
     const evaluate = () => {
@@ -630,7 +670,9 @@ function Guide({ data }: { data: GuideOk }) {
         setCheckoutConcluded(false);
         return;
       }
-      setCheckinConcluded(confirmed() || passedCheckinMoment() || hostStatus.checkinDone || hostStatus.checkoutDone);
+      setCheckinConcluded(
+        confirmed() || passedCheckinMoment() || hostStatus.checkinDone || hostStatus.checkoutDone,
+      );
       setCheckoutConcluded(localStorage.getItem(outKey) === "1" || hostStatus.checkoutDone);
     };
     evaluate();
@@ -676,7 +718,6 @@ function Guide({ data }: { data: GuideOk }) {
     markStayStep,
   ]);
 
-
   // Janela de senhas: liberadas 24h ANTES do horário previsto de check-in e
   // encerradas no horário previsto de check-out (ou assim que o check-out for
   // dado como feito pelo hóspede ou pelo anfitrião).
@@ -708,7 +749,6 @@ function Guide({ data }: { data: GuideOk }) {
     return false;
   })();
 
-
   // Faixas da home (Wi-Fi/Acesso e aviso de check-in): visíveis sempre que
   // o hóspede já preencheu o formulário de acesso — sem janela temporal.
   // A revelação das senhas continua gated por `checkinLocked`.
@@ -732,7 +772,6 @@ function Guide({ data }: { data: GuideOk }) {
     const now = Date.now();
     return now >= start && now <= end;
   })();
-
 
   // Shared "access PIN unlock" state — once unlocked, all gated codes/Wi-Fi reveal.
   // The actual PIN never reaches the browser; only the boolean flags do.
@@ -780,7 +819,10 @@ function Guide({ data }: { data: GuideOk }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, [codesOpen]);
 
-  const [pinDialog, setPinDialog] = useState<{ open: boolean; cb: (() => void) | null }>({ open: false, cb: null });
+  const [pinDialog, setPinDialog] = useState<{ open: boolean; cb: (() => void) | null }>({
+    open: false,
+    cb: null,
+  });
   const requestUnlock = (cb?: () => void) => {
     if (!hasAccessPin || unlocked) {
       if (!unlocked) setUnlocked(true);
@@ -822,7 +864,11 @@ function Guide({ data }: { data: GuideOk }) {
   }
 
   const galleryRaw: string[] = Array.isArray(p.gallery_images) ? p.gallery_images : [];
-  const photos: string[] = galleryRaw.length ? galleryRaw : p.hero_image_url ? [p.hero_image_url] : [];
+  const photos: string[] = galleryRaw.length
+    ? galleryRaw
+    : p.hero_image_url
+      ? [p.hero_image_url]
+      : [];
   const heroImg = photos[0];
   const heroParts = splitGuideHeroTitle(cleanGuideTitle(p.name, p.city), p.tagline);
 
@@ -865,7 +911,8 @@ function Guide({ data }: { data: GuideOk }) {
     !hasResidencia &&
     !checkoutConcluded &&
     !!(p.address || p.maps_url || p.wifi_ssid || (p as any).wifi_password_set);
-  const hasFaq = !!(p.host_name || p.host_phone) || data.emergency.length > 0 || data.faqs.length > 0;
+  const hasFaq =
+    !!(p.host_name || p.host_phone) || data.emergency.length > 0 || data.faqs.length > 0;
   const hasExplore =
     (Array.isArray(data.recommendations) && data.recommendations.length > 0) ||
     (Array.isArray((data as any).cityReferences) && (data as any).cityReferences.length > 0);
@@ -880,7 +927,8 @@ function Guide({ data }: { data: GuideOk }) {
     const parts: string[] = [];
     if (p.checkin_time) {
       const t = String(p.checkin_time).match(/^(\d{1,2}):(\d{2})/);
-      if (t) parts.push(`Check-in a partir das ${t[1].padStart(2, "0")}h${t[2] !== "00" ? t[2] : ""}`);
+      if (t)
+        parts.push(`Check-in a partir das ${t[1].padStart(2, "0")}h${t[2] !== "00" ? t[2] : ""}`);
     }
     if (p.wifi_ssid) parts.push(`Wi-Fi: ${p.wifi_ssid}`);
     return parts[0] ?? "Endereço, códigos de acesso e horários.";
@@ -903,7 +951,8 @@ function Guide({ data }: { data: GuideOk }) {
     const total =
       (Array.isArray(data.recommendations) ? data.recommendations.length : 0) +
       (Array.isArray((data as any).cityReferences) ? (data as any).cityReferences.length : 0);
-    if (total > 0) return `${total} ${total === 1 ? "lugar curado" : "lugares curados"} pelo anfitrião`;
+    if (total > 0)
+      return `${total} ${total === 1 ? "lugar curado" : "lugares curados"} pelo anfitrião`;
     return "Restaurantes, atrações e experiências.";
   })();
 
@@ -923,7 +972,10 @@ function Guide({ data }: { data: GuideOk }) {
     tone: "gold" | "blue" | "green" | "purple" | "rose";
     badge?: string;
     visible: boolean;
-    to?: { kind: "section"; value: Section } | { kind: "link"; to: string } | { kind: "dialog"; value: "locwifi" };
+    to?:
+      | { kind: "section"; value: Section }
+      | { kind: "link"; to: string }
+      | { kind: "dialog"; value: "locwifi" };
   }> = [
     {
       key: "checkin",
@@ -1000,8 +1052,11 @@ function Guide({ data }: { data: GuideOk }) {
   // quanto no formulário de identificação e no onboarding pós-formulário
   // (ambos agora em tela cheia, com o mesmo menu real embaixo, travado em
   // "Chegada" até o hóspede terminar).
-  const guideNavItems: Array<{ key: BottomNavKey; label: string }> = [{ key: "home", label: "Início" }];
-  if (hasCheckinData && !checkoutConcluded) guideNavItems.push({ key: "checkin", label: "Chegada" });
+  const guideNavItems: Array<{ key: BottomNavKey; label: string }> = [
+    { key: "home", label: "Início" },
+  ];
+  if (hasCheckinData && !checkoutConcluded)
+    guideNavItems.push({ key: "checkin", label: "Chegada" });
   if (hasSaidaData && !checkoutConcluded) guideNavItems.push({ key: "saida", label: "Saída" });
   if (hasResidencia) guideNavItems.push({ key: "residencia", label: "Residência" });
   if (hasExplore) guideNavItems.push({ key: "explore", label: "Explorar" });
@@ -1010,9 +1065,10 @@ function Guide({ data }: { data: GuideOk }) {
   useEffect(() => {
     if (!checkoutConcluded) return;
     setLocWifiOpen(false);
-    setSectionRaw((cur) => (cur === "checkin" || cur === "saida" || cur === "residencia" ? "home" : cur));
+    setSectionRaw((cur) =>
+      cur === "checkin" || cur === "saida" || cur === "residencia" ? "home" : cur,
+    );
   }, [checkoutConcluded]);
-
 
   return (
     <div
@@ -1029,17 +1085,17 @@ function Guide({ data }: { data: GuideOk }) {
           collection={{
             arrivalTime:
               ((p as unknown as { collect_arrival_time?: string }).collect_arrival_time as
-                | "off"
-                | "optional"
-                | "required") ?? "off",
+                "off" | "optional" | "required") ?? "off",
             vehicles:
-              ((p as unknown as { collect_vehicles?: string }).collect_vehicles as "off" | "optional" | "required") ??
-              "off",
+              ((p as unknown as { collect_vehicles?: string }).collect_vehicles as
+                "off" | "optional" | "required") ?? "off",
             vehiclesMax: (p as unknown as { vehicles_max?: number }).vehicles_max ?? 2,
             document:
-              ((p as unknown as { collect_document?: string }).collect_document as "off" | "optional" | "required") ??
-              "off",
-            documentScope: ((p as unknown as { document_scope?: string }).document_scope as "main" | "all") ?? "main",
+              ((p as unknown as { collect_document?: string }).collect_document as
+                "off" | "optional" | "required") ?? "off",
+            documentScope:
+              ((p as unknown as { document_scope?: string }).document_scope as "main" | "all") ??
+              "main",
           }}
           onUnlock={(rec) => {
             setAccessRec(rec);
@@ -1079,7 +1135,12 @@ function Guide({ data }: { data: GuideOk }) {
         address={(p.address as string | null) ?? null}
         hasAccessPin={hasAccessPin}
         checkinAlreadyConfirmed={checkinConcluded || checkoutConcluded}
-        hasCheckinSteps={!!(p.checkin_instructions || (Array.isArray(p.checkin_media) && p.checkin_media.length > 0))}
+        hasCheckinSteps={
+          !!(
+            p.checkin_instructions ||
+            (Array.isArray(p.checkin_media) && p.checkin_media.length > 0)
+          )
+        }
         checkinInstructionsText={p.checkin_instructions ? String(p.checkin_instructions) : null}
         lockCode={p.lock_code ? String(p.lock_code) : null}
         gateCode={p.gate_code ? String(p.gate_code) : null}
@@ -1131,13 +1192,20 @@ function Guide({ data }: { data: GuideOk }) {
                 <div className="mt-3 md:mt-4">
                   {(() => {
                     const hasCodes =
-                      p.wifi_ssid || (p as any).gate_code_set || (p as any).lock_code_set || p.gate_code || p.lock_code;
+                      p.wifi_ssid ||
+                      (p as any).gate_code_set ||
+                      (p as any).lock_code_set ||
+                      p.gate_code ||
+                      p.lock_code;
                     if (!hasCodes) {
                       return (
                         <CheckinCountdown
                           checkinTime={p.checkin_time as string | null}
                           checkinDate={accessRec?.checkinDate ?? null}
-                          timeZone={propertyTimeZone(p.city as string | null, (p as any).country as string | null)}
+                          timeZone={propertyTimeZone(
+                            p.city as string | null,
+                            (p as any).country as string | null,
+                          )}
                           theme={theme}
                         />
                       );
@@ -1147,7 +1215,10 @@ function Guide({ data }: { data: GuideOk }) {
                         <CheckinCountdown
                           checkinTime={p.checkin_time as string | null}
                           checkinDate={accessRec?.checkinDate ?? null}
-                          timeZone={propertyTimeZone(p.city as string | null, (p as any).country as string | null)}
+                          timeZone={propertyTimeZone(
+                            p.city as string | null,
+                            (p as any).country as string | null,
+                          )}
                           theme={theme}
                           expandable
                           open={codesOpen}
@@ -1155,7 +1226,10 @@ function Guide({ data }: { data: GuideOk }) {
                         />
                         {/* Trigger neutro — aparece quando o countdown não está visível (fora da janela) */}
                         <CodesTrigger
-                          timeZone={propertyTimeZone(p.city as string | null, (p as any).country as string | null)}
+                          timeZone={propertyTimeZone(
+                            p.city as string | null,
+                            (p as any).country as string | null,
+                          )}
                           theme={theme}
                           open={codesOpen}
                           onToggle={() => setCodesOpen((v) => !v)}
@@ -1197,7 +1271,10 @@ function Guide({ data }: { data: GuideOk }) {
                                 />
                               </div>
                             )}
-                            {((p as any).gate_code_set || (p as any).lock_code_set || p.gate_code || p.lock_code) && (
+                            {((p as any).gate_code_set ||
+                              (p as any).lock_code_set ||
+                              p.gate_code ||
+                              p.lock_code) && (
                               <div className="md:flex-1 md:min-w-0">
                                 <AccessCodesStrip
                                   gateCode={p.gate_code as string | null}
@@ -1219,12 +1296,18 @@ function Guide({ data }: { data: GuideOk }) {
                                   lockVideoUrl={p.lock_video_url as string | null}
                                   gateMedia={
                                     Array.isArray(p.gate_media)
-                                      ? (p.gate_media as Array<{ url: string; type: "image" | "video" }>)
+                                      ? (p.gate_media as Array<{
+                                          url: string;
+                                          type: "image" | "video";
+                                        }>)
                                       : []
                                   }
                                   lockMedia={
                                     Array.isArray(p.lock_media)
-                                      ? (p.lock_media as Array<{ url: string; type: "image" | "video" }>)
+                                      ? (p.lock_media as Array<{
+                                          url: string;
+                                          type: "image" | "video";
+                                        }>)
                                       : []
                                   }
                                 />
@@ -1254,7 +1337,11 @@ function Guide({ data }: { data: GuideOk }) {
                             Importante · Check-in
                           </p>
                           <p className="text-[13px] leading-relaxed font-medium mt-1 whitespace-pre-line">
-                            <InlineTagText text={String(p.checkin_note)} onNavigate={navigateGuideTag} info={infoCtx} />
+                            <InlineTagText
+                              text={String(p.checkin_note)}
+                              onNavigate={navigateGuideTag}
+                              info={infoCtx}
+                            />
                           </p>
                         </div>
                       </div>
@@ -1267,8 +1354,12 @@ function Guide({ data }: { data: GuideOk }) {
                         <div className="min-w-0">
                           <p className="text-[10px] uppercase tracking-[0.18em] font-black opacity-75 truncate whitespace-nowrap">
                             {(() => {
-                              const t = p.checkout_time ? String(p.checkout_time).match(/^(\d{1,2}):(\d{2})/) : null;
-                              const time = t ? `${t[1].padStart(2, "0")}h${t[2] !== "00" ? t[2] : ""}` : null;
+                              const t = p.checkout_time
+                                ? String(p.checkout_time).match(/^(\d{1,2}):(\d{2})/)
+                                : null;
+                              const time = t
+                                ? `${t[1].padStart(2, "0")}h${t[2] !== "00" ? t[2] : ""}`
+                                : null;
                               return `Importante · Check-out${time ? ` até ${time}` : ""}`;
                             })()}
                           </p>
@@ -1283,7 +1374,9 @@ function Guide({ data }: { data: GuideOk }) {
                           )}
                           <button
                             type="button"
-                            onClick={() => window.dispatchEvent(new CustomEvent("guide-checkout-done"))}
+                            onClick={() =>
+                              window.dispatchEvent(new CustomEvent("guide-checkout-done"))
+                            }
                             className={`mt-3 h-9 px-3.5 rounded-xl text-[12px] font-semibold transition-colors ${theme === "dark" ? "bg-amber-300/15 text-amber-100 hover:bg-amber-300/25" : "bg-amber-900/10 text-amber-950 hover:bg-amber-900/15"}`}
                           >
                             Já fiz o check-out ✓
@@ -1295,7 +1388,10 @@ function Guide({ data }: { data: GuideOk }) {
                 </div>
               )}
 
-              <section id="guide-actions" className="px-4 md:px-10 lg:px-16 mt-3.5 md:mt-5 relative z-10">
+              <section
+                id="guide-actions"
+                className="px-4 md:px-10 lg:px-16 mt-3.5 md:mt-5 relative z-10"
+              >
                 <div className="flex items-center gap-3 mb-3.5 md:mb-4">
                   <p
                     className={`shrink-0 whitespace-nowrap text-[9.5px] md:text-[10px] uppercase tracking-[0.24em] font-black ${theme === "dark" ? "text-white/76" : "text-slate-950/78"}`}
@@ -1310,7 +1406,10 @@ function Guide({ data }: { data: GuideOk }) {
 
                 <div className="grid grid-cols-2 gap-3">
                   {quickCards.map((c) => {
-                    const span = c.variant === "hero-wide" || c.variant === "horizontal-wide" ? "col-span-2" : "";
+                    const span =
+                      c.variant === "hero-wide" || c.variant === "horizontal-wide"
+                        ? "col-span-2"
+                        : "";
                     const inner = (
                       <SectionCard
                         title={c.title}
@@ -1320,11 +1419,18 @@ function Guide({ data }: { data: GuideOk }) {
                         tone={c.tone}
                         badge={c.badge}
                         theme={theme}
-                        imageUrl={c.key === "explore" ? themeImages.explore || waterfallImg : undefined}
+                        imageUrl={
+                          c.key === "explore" ? themeImages.explore || waterfallImg : undefined
+                        }
                       />
                     );
                     return c.to?.kind === "link" ? (
-                      <Link key={c.key} to="/g/$slug/explorar" params={{ slug }} className={`block ${span}`}>
+                      <Link
+                        key={c.key}
+                        to="/g/$slug/explorar"
+                        params={{ slug }}
+                        className={`block ${span}`}
+                      >
                         {inner}
                       </Link>
                     ) : (
@@ -1332,7 +1438,8 @@ function Guide({ data }: { data: GuideOk }) {
                         key={c.key}
                         onClick={() => {
                           if (c.to?.kind === "section") gotoSection(c.to.value);
-                          else if (c.to?.kind === "dialog" && c.to.value === "locwifi") setLocWifiOpen(true);
+                          else if (c.to?.kind === "dialog" && c.to.value === "locwifi")
+                            setLocWifiOpen(true);
                         }}
                         className={`w-full text-left ${span}`}
                       >
@@ -1369,7 +1476,11 @@ function Guide({ data }: { data: GuideOk }) {
 
               {faqCard && (
                 <section className="px-4 md:px-10 lg:px-16 mt-3 relative z-10">
-                  <button type="button" onClick={() => gotoSection("faq")} className="w-full text-left">
+                  <button
+                    type="button"
+                    onClick={() => gotoSection("faq")}
+                    className="w-full text-left"
+                  >
                     <SectionCard
                       title={faqCard.title}
                       desc={faqCard.desc}
@@ -1453,11 +1564,20 @@ function Guide({ data }: { data: GuideOk }) {
                       lockCodeSet &&
                       (p.lock_instructions || p.lock_video_url || lockMedia.length > 0)
                     );
-                    const hasAcesso = !!(gateCodeSet || lockCodeSet || hasGateExtras || hasLockExtras);
+                    const hasAcesso = !!(
+                      gateCodeSet ||
+                      lockCodeSet ||
+                      hasGateExtras ||
+                      hasLockExtras
+                    );
                     const hasWifi = !!p.wifi_ssid;
                     const hasRules = !!(p as Record<string, unknown>).house_rules;
                     if (!hasHorario && !hasChegada && !hasAcesso && !hasWifi && !hasRules) {
-                      return <p className="text-sm text-muted-foreground">Sem informações cadastradas.</p>;
+                      return (
+                        <p className="text-sm text-muted-foreground">
+                          Sem informações cadastradas.
+                        </p>
+                      );
                     }
                     const hasCoords = p.lat != null && p.lng != null;
                     // Prefer lat/lng-based search URL — reliable on any device and not blocked.
@@ -1485,7 +1605,10 @@ function Guide({ data }: { data: GuideOk }) {
                       uberParams.set("dropoff[formatted_address]", String(p.address));
                       uberParams.set("dropoff[nickname]", String(p.address).slice(0, 60));
                     }
-                    const uberUrl = hasCoords || p.address ? `https://m.uber.com/ul/?${uberParams.toString()}` : null;
+                    const uberUrl =
+                      hasCoords || p.address
+                        ? `https://m.uber.com/ul/?${uberParams.toString()}`
+                        : null;
                     // 99 deep link — abre o app com destino preenchido
                     const noveNoveParams = new URLSearchParams();
                     noveNoveParams.set("deep_link_value", "open_ride_estimate");
@@ -1497,7 +1620,9 @@ function Guide({ data }: { data: GuideOk }) {
                       noveNoveParams.set("dropoff_title", String(p.address));
                     }
                     const noveNoveUrl =
-                      hasCoords || p.address ? `https://99app.com/open/?${noveNoveParams.toString()}` : null;
+                      hasCoords || p.address
+                        ? `https://99app.com/open/?${noveNoveParams.toString()}`
+                        : null;
 
                     return (
                       <SubList>
@@ -1584,14 +1709,24 @@ function Guide({ data }: { data: GuideOk }) {
                                     .split(/\n\s*\n/)
                                     .map((para: string, i: number) => (
                                       <p key={i} className="whitespace-pre-line">
-                                        <InlineTagText text={para} onNavigate={navigateGuideTag} info={infoCtx} />
+                                        <InlineTagText
+                                          text={para}
+                                          onNavigate={navigateGuideTag}
+                                          info={infoCtx}
+                                        />
                                       </p>
                                     ))}
                                 </div>
                               )}
                               {(() => {
                                 const garageHref = safeHttpsHref(p.garage_maps_url);
-                                const hasAnyLink = !!(p.address || p.maps_url || garageHref || uberUrl || noveNoveUrl);
+                                const hasAnyLink = !!(
+                                  p.address ||
+                                  p.maps_url ||
+                                  garageHref ||
+                                  uberUrl ||
+                                  noveNoveUrl
+                                );
                                 if (!hasAnyLink) return null;
                                 return (
                                   <div className="rounded-2xl bg-background/40 border border-border/60 overflow-hidden divide-y divide-border/40">
@@ -1607,7 +1742,9 @@ function Guide({ data }: { data: GuideOk }) {
                                         </span>
                                         <div className="flex-1 min-w-0 text-left">
                                           <p className="ds-card-title">
-                                            {garageHref ? "Como chegar — Entrada principal" : "Abrir no Google Maps"}
+                                            {garageHref
+                                              ? "Como chegar — Entrada principal"
+                                              : "Abrir no Google Maps"}
                                           </p>
                                           {p.address && (
                                             <p className="text-[12px] text-muted-foreground truncate mt-1">
@@ -1701,36 +1838,45 @@ function Guide({ data }: { data: GuideOk }) {
                               <div className="space-y-4">
                                 {p.checkin_instructions && (
                                   <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-4">
-                                    <StepList text={expandInfoTags(String(p.checkin_instructions), p as never)} dense />
+                                    <StepList
+                                      text={expandInfoTags(
+                                        String(p.checkin_instructions),
+                                        p as never,
+                                      )}
+                                      dense
+                                    />
                                   </div>
                                 )}
                                 {Array.isArray(p.checkin_media) && p.checkin_media.length > 0 && (
                                   <div className="grid grid-cols-2 gap-2">
-                                    {(p.checkin_media as Array<{ url: string; type: "image" | "video" }>).map(
-                                      (m, i) => (
-                                        <div
-                                          key={i}
-                                          className="rounded-xl overflow-hidden border border-border bg-muted/40 aspect-square"
-                                        >
-                                          {m.type === "video" ? (
-                                            <video
-                                              src={m.url}
-                                              className="size-full object-cover"
-                                              controls
-                                              playsInline
-                                              preload="metadata"
-                                            />
-                                          ) : (
-                                            <img
-                                              src={m.url}
-                                              alt={`Instruções de check-in da hospedagem${p.name ? ` ${p.name}` : ""} — foto ${i + 1}`}
-                                              className="size-full object-cover"
-                                              loading="lazy"
-                                            />
-                                          )}
-                                        </div>
-                                      ),
-                                    )}
+                                    {(
+                                      p.checkin_media as Array<{
+                                        url: string;
+                                        type: "image" | "video";
+                                      }>
+                                    ).map((m, i) => (
+                                      <div
+                                        key={i}
+                                        className="rounded-xl overflow-hidden border border-border bg-muted/40 aspect-square"
+                                      >
+                                        {m.type === "video" ? (
+                                          <video
+                                            src={m.url}
+                                            className="size-full object-cover"
+                                            controls
+                                            playsInline
+                                            preload="metadata"
+                                          />
+                                        ) : (
+                                          <img
+                                            src={m.url}
+                                            alt={`Instruções de check-in da hospedagem${p.name ? ` ${p.name}` : ""} — foto ${i + 1}`}
+                                            className="size-full object-cover"
+                                            loading="lazy"
+                                          />
+                                        )}
+                                      </div>
+                                    ))}
                                   </div>
                                 )}
                               </div>
@@ -1740,9 +1886,12 @@ function Guide({ data }: { data: GuideOk }) {
                             <div className="space-y-5">
                               {hasAcesso &&
                                 (() => {
-                                  const gateLabel = ((p.gate_label as string | null) || "Portão").trim() || "Portão";
+                                  const gateLabel =
+                                    ((p.gate_label as string | null) || "Portão").trim() ||
+                                    "Portão";
                                   const lockLabel =
-                                    ((p.lock_label as string | null) || "Fechadura").trim() || "Fechadura";
+                                    ((p.lock_label as string | null) || "Fechadura").trim() ||
+                                    "Fechadura";
                                   return (
                                     <Lockable locked={checkinLocked}>
                                       <div className="space-y-4">
@@ -1796,7 +1945,9 @@ function Guide({ data }: { data: GuideOk }) {
                                   {((p as any).wifi_password_set || p.wifi_password) && (
                                     <Lockable locked={checkinLocked}>
                                       <GatedCopyCard
-                                        icon={<KeyRound className="size-[18px]" strokeWidth={1.75} />}
+                                        icon={
+                                          <KeyRound className="size-[18px]" strokeWidth={1.75} />
+                                        }
                                         eyebrow="Senha"
                                         value={p.wifi_password ?? ""}
                                         unlocked={unlocked}
@@ -1851,7 +2002,10 @@ function Guide({ data }: { data: GuideOk }) {
                             hint="O que não é permitido durante a estadia"
                           >
                             <RulesGrid
-                              text={expandInfoTags(String((p as Record<string, unknown>).house_rules), p as never)}
+                              text={expandInfoTags(
+                                String((p as Record<string, unknown>).house_rules),
+                                p as never,
+                              )}
                             />
                           </SubItem>
                         ) : null}
@@ -1862,13 +2016,21 @@ function Guide({ data }: { data: GuideOk }) {
                 </TabsContent>
 
                 <TabsContent value="saida" className="space-y-5">
-                  <SectionTitle eyebrow="Estadia" title="Saída" intro="Tudo o que você precisa para o check-out." />
+                  <SectionTitle
+                    eyebrow="Estadia"
+                    title="Saída"
+                    intro="Tudo o que você precisa para o check-out."
+                  />
 
                   {(() => {
                     const hasHorarioOut = !!p.checkout_time;
                     const hasInstr = !!p.checkout_instructions;
                     if (!hasHorarioOut && !hasInstr) {
-                      return <p className="text-sm text-muted-foreground">Sem informações cadastradas.</p>;
+                      return (
+                        <p className="text-sm text-muted-foreground">
+                          Sem informações cadastradas.
+                        </p>
+                      );
                     }
                     return (
                       <SubList>
@@ -1950,7 +2112,10 @@ function Guide({ data }: { data: GuideOk }) {
                           >
                             <div className="rounded-2xl border border-border/60 bg-background/40 px-4 py-4">
                               <StepList
-                                text={expandInfoTags(String(p.checkout_instructions ?? ""), p as never)}
+                                text={expandInfoTags(
+                                  String(p.checkout_instructions ?? ""),
+                                  p as never,
+                                )}
                                 dense
                               />
                             </div>
@@ -1963,7 +2128,11 @@ function Guide({ data }: { data: GuideOk }) {
                 </TabsContent>
 
                 <TabsContent value="wifi" className="space-y-4">
-                  <SectionTitle eyebrow="Conexão" title="Wi-Fi" intro="Conecte-se à rede da casa." />
+                  <SectionTitle
+                    eyebrow="Conexão"
+                    title="Wi-Fi"
+                    intro="Conecte-se à rede da casa."
+                  />
                   {p.wifi_ssid ? (
                     <>
                       <CopyCard
@@ -2004,7 +2173,11 @@ function Guide({ data }: { data: GuideOk }) {
                 </TabsContent>
 
                 <TabsContent value="regras" className="space-y-4">
-                  <SectionTitle eyebrow="Combinados" title="Regras" intro="Para uma boa convivência." />
+                  <SectionTitle
+                    eyebrow="Combinados"
+                    title="Regras"
+                    intro="Para uma boa convivência."
+                  />
                   {rules.length === 0 && data.checkout.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Sem regras cadastradas.</p>
                   ) : (
@@ -2012,11 +2185,25 @@ function Guide({ data }: { data: GuideOk }) {
                       {rules.length > 0 && (
                         <Accordion type="single" collapsible className="space-y-2">
                           {rules.map((m: any) => (
-                            <AccordionItem key={m.id} value={m.id} className="border border-border rounded-xl px-4">
-                              <AccordionTrigger className="text-sm font-medium">{m.title}</AccordionTrigger>
+                            <AccordionItem
+                              key={m.id}
+                              value={m.id}
+                              className="border border-border rounded-xl px-4"
+                            >
+                              <AccordionTrigger className="text-sm font-medium">
+                                {m.title}
+                              </AccordionTrigger>
                               <AccordionContent>
-                                {m.description && <p className="text-sm text-muted-foreground mb-2">{m.description}</p>}
-                                {m.body && <p className="text-sm whitespace-pre-line leading-relaxed">{m.body}</p>}
+                                {m.description && (
+                                  <p className="text-sm text-muted-foreground mb-2">
+                                    {m.description}
+                                  </p>
+                                )}
+                                {m.body && (
+                                  <p className="text-sm whitespace-pre-line leading-relaxed">
+                                    {m.body}
+                                  </p>
+                                )}
                               </AccordionContent>
                             </AccordionItem>
                           ))}
@@ -2026,9 +2213,7 @@ function Guide({ data }: { data: GuideOk }) {
                         <>
                           <div className="mt-6 mb-3 flex items-center gap-2">
                             <ListChecks className="size-4 text-muted-foreground" />
-                            <h3 className="ds-eyebrow text-muted-foreground">
-                              Antes de sair
-                            </h3>
+                            <h3 className="ds-eyebrow text-muted-foreground">Antes de sair</h3>
                           </div>
                           <ul className="space-y-2">
                             {data.checkout.map((c: any) => (
@@ -2053,9 +2238,7 @@ function Guide({ data }: { data: GuideOk }) {
                     <div>
                       <div className="mb-3 flex items-center gap-2">
                         <HelpCircle className="size-4 text-muted-foreground" />
-                        <h3 className="ds-eyebrow text-muted-foreground">
-                          Perguntas frequentes
-                        </h3>
+                        <h3 className="ds-eyebrow text-muted-foreground">Perguntas frequentes</h3>
                       </div>
                       <Accordion type="single" collapsible className="space-y-1.5">
                         {data.faqs.map((f: any, idx: number) => {
@@ -2098,9 +2281,7 @@ function Guide({ data }: { data: GuideOk }) {
                     <div>
                       <div className="mb-3 flex items-center gap-2">
                         <LifeBuoy className="size-4 text-muted-foreground" />
-                        <h3 className="ds-eyebrow text-muted-foreground">
-                          Emergências
-                        </h3>
+                        <h3 className="ds-eyebrow text-muted-foreground">Emergências</h3>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {data.emergency.map((e: any) => (
@@ -2114,7 +2295,9 @@ function Guide({ data }: { data: GuideOk }) {
                             </span>
                             <div className="min-w-0 flex-1">
                               <p className="text-sm font-medium truncate">{e.label}</p>
-                              <p className="text-[13px] text-muted-foreground font-mono tracking-wider">{e.number}</p>
+                              <p className="text-[13px] text-muted-foreground font-mono tracking-wider">
+                                {e.number}
+                              </p>
                             </div>
                           </a>
                         ))}
@@ -2131,14 +2314,13 @@ function Guide({ data }: { data: GuideOk }) {
                       </div>
                       <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-card/40 p-3">
                         <div className="size-10 rounded-full bg-accent/10 text-accent/75 grid place-items-center text-sm font-semibold shrink-0">
-                          {(p.host_name as string | undefined)?.trim()?.charAt(0)?.toUpperCase() ?? (
-                            <UserRound className="size-4" />
-                          )}
+                          {(p.host_name as string | undefined)
+                            ?.trim()
+                            ?.charAt(0)
+                            ?.toUpperCase() ?? <UserRound className="size-4" />}
                         </div>
                         <div className="min-w-0 flex-1">
-                          {p.host_name && (
-                            <p className="ds-card-title truncate">{p.host_name}</p>
-                          )}
+                          {p.host_name && <p className="ds-card-title truncate">{p.host_name}</p>}
                           {p.host_phone && (
                             <p className="text-[11.5px] text-muted-foreground font-mono tracking-wider mt-0.5 truncate">
                               {p.host_phone}
@@ -2168,9 +2350,12 @@ function Guide({ data }: { data: GuideOk }) {
                       </div>
                     </div>
                   )}
-                  {!p.host_name && !p.host_phone && data.emergency.length === 0 && data.faqs.length === 0 && (
-                    <p className="text-sm text-muted-foreground">Sem informações de suporte.</p>
-                  )}
+                  {!p.host_name &&
+                    !p.host_phone &&
+                    data.emergency.length === 0 &&
+                    data.faqs.length === 0 && (
+                      <p className="text-sm text-muted-foreground">Sem informações de suporte.</p>
+                    )}
                 </TabsContent>
               </Tabs>
             </motion.div>
@@ -2178,16 +2363,19 @@ function Guide({ data }: { data: GuideOk }) {
         </AnimatePresence>
       </div>
       {(() => {
-        const items: Array<{ key: import("@/components/guide/BottomNav").BottomNavKey; label: string }> = [
-          { key: "home", label: "Início" },
-        ];
+        const items: Array<{
+          key: import("@/components/guide/BottomNav").BottomNavKey;
+          label: string;
+        }> = [{ key: "home", label: "Início" }];
         if (hasCheckinData && !checkoutConcluded) items.push({ key: "checkin", label: "Chegada" });
         if (hasSaidaData && !checkoutConcluded) items.push({ key: "saida", label: "Saída" });
         if (hasResidencia) items.push({ key: "residencia", label: "Residência" });
         if (hasExplore) items.push({ key: "explore", label: "Explorar" });
         if (items.length <= 1) return null;
         const active: import("@/components/guide/BottomNav").BottomNavKey =
-          section === "home" ? "home" : (section as import("@/components/guide/BottomNav").BottomNavKey);
+          section === "home"
+            ? "home"
+            : (section as import("@/components/guide/BottomNav").BottomNavKey);
         return (
           <BottomNav
             theme={theme}
@@ -2288,8 +2476,12 @@ function LocWifiDialog({
           <div className="mx-auto mb-2.5 grid place-items-center size-11 rounded-full bg-emerald-500/12 ring-1 ring-emerald-500/25 text-emerald-500">
             <Wifi className="size-[18px]" strokeWidth={1.75} />
           </div>
-          <DialogTitle className="font-display text-[18px] tracking-tight">Localização & Wi-Fi</DialogTitle>
-          <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">Onde estamos e como se conectar.</p>
+          <DialogTitle className="font-display text-[18px] tracking-tight">
+            Localização & Wi-Fi
+          </DialogTitle>
+          <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">
+            Onde estamos e como se conectar.
+          </p>
         </div>
         <div className="px-5 py-4 max-h-[65vh] overflow-y-auto sg-elegant-scroll space-y-5">
           {hasLoc && (
@@ -2312,7 +2504,11 @@ function LocWifiDialog({
                       onClick={() => copy("address", address)}
                       className="inline-flex items-center gap-1.5 rounded-full bg-foreground/8 hover:bg-foreground/12 px-3 py-1.5 text-[11.5px] font-semibold"
                     >
-                      {copied === "address" ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                      {copied === "address" ? (
+                        <Check className="size-3.5" />
+                      ) : (
+                        <Copy className="size-3.5" />
+                      )}
                       {copied === "address" ? "Copiado" : "Copiar"}
                     </button>
                     {mapsUrl && (
@@ -2353,7 +2549,9 @@ function LocWifiDialog({
                 {wifiSsid && (
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Rede</p>
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                        Rede
+                      </p>
                       <p className="text-[14px] font-semibold truncate">{wifiSsid}</p>
                     </div>
                     <button
@@ -2361,18 +2559,28 @@ function LocWifiDialog({
                       onClick={() => copy("ssid", wifiSsid)}
                       className="inline-flex items-center gap-1.5 rounded-full bg-foreground/8 hover:bg-foreground/12 px-3 py-1.5 text-[11.5px] font-semibold shrink-0"
                     >
-                      {copied === "ssid" ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                      {copied === "ssid" ? (
+                        <Check className="size-3.5" />
+                      ) : (
+                        <Copy className="size-3.5" />
+                      )}
                     </button>
                   </div>
                 )}
                 {(wifiPasswordSet || wifiPassword) && (
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Senha</p>
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                        Senha
+                      </p>
                       {showWifiPass ? (
-                        <p className="text-[14px] font-mono font-semibold tracking-wider truncate">{wifiPassword}</p>
+                        <p className="text-[14px] font-mono font-semibold tracking-wider truncate">
+                          {wifiPassword}
+                        </p>
                       ) : (
-                        <p className="text-[14px] font-mono tracking-[0.3em] text-foreground/50">••••••••</p>
+                        <p className="text-[14px] font-mono tracking-[0.3em] text-foreground/50">
+                          ••••••••
+                        </p>
                       )}
                     </div>
                     {showWifiPass ? (
@@ -2381,7 +2589,11 @@ function LocWifiDialog({
                         onClick={() => copy("pass", wifiPassword!)}
                         className="inline-flex items-center gap-1.5 rounded-full bg-foreground/8 hover:bg-foreground/12 px-3 py-1.5 text-[11.5px] font-semibold shrink-0"
                       >
-                        {copied === "pass" ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                        {copied === "pass" ? (
+                          <Check className="size-3.5" />
+                        ) : (
+                          <Copy className="size-3.5" />
+                        )}
                       </button>
                     ) : (
                       <button
@@ -2406,20 +2618,26 @@ function LocWifiDialog({
 
 function residenciaIcon(title: string): React.ReactNode {
   const t = title.toLowerCase();
-  if (/cozinha|fog(ã|a)o|forno|micro|panela/.test(t)) return <UtensilsCrossed className="size-5" strokeWidth={1.5} />;
+  if (/cozinha|fog(ã|a)o|forno|micro|panela/.test(t))
+    return <UtensilsCrossed className="size-5" strokeWidth={1.5} />;
   if (/geladeira|freezer/.test(t)) return <Refrigerator className="size-5" strokeWidth={1.5} />;
-  if (/ar[\s-]?cond|climati|ventil|aquece/.test(t)) return <Wind className="size-5" strokeWidth={1.5} />;
-  if (/tv|televis|streaming|netflix|controle/.test(t)) return <Tv className="size-5" strokeWidth={1.5} />;
+  if (/ar[\s-]?cond|climati|ventil|aquece/.test(t))
+    return <Wind className="size-5" strokeWidth={1.5} />;
+  if (/tv|televis|streaming|netflix|controle/.test(t))
+    return <Tv className="size-5" strokeWidth={1.5} />;
   if (/chuveiro|banheir|toalha/.test(t)) return <ShowerHead className="size-5" strokeWidth={1.5} />;
   if (/banhei/.test(t)) return <Bath className="size-5" strokeWidth={1.5} />;
   if (/pet|cachorro|gato|animal/.test(t)) return <PawPrint className="size-5" strokeWidth={1.5} />;
   if (/lavanderia|m(á|a)quina|lavar|rouparia|secad/.test(t))
     return <WashingMachine className="size-5" strokeWidth={1.5} />;
   if (/piscina|hidro|jacuzzi|spa/.test(t)) return <Waves className="size-5" strokeWidth={1.5} />;
-  if (/churras|grill|fog(ã|a)o a lenha/.test(t)) return <Flame className="size-5" strokeWidth={1.5} />;
-  if (/luz|iluminaç|l(â|a)mpada|interruptor/.test(t)) return <Lightbulb className="size-5" strokeWidth={1.5} />;
+  if (/churras|grill|fog(ã|a)o a lenha/.test(t))
+    return <Flame className="size-5" strokeWidth={1.5} />;
+  if (/luz|iluminaç|l(â|a)mpada|interruptor/.test(t))
+    return <Lightbulb className="size-5" strokeWidth={1.5} />;
   if (/lixo|reciclag|coleta/.test(t)) return <Trash2 className="size-5" strokeWidth={1.5} />;
-  if (/cama|quarto|colch(ã|a)o|len(ç|c)ol/.test(t)) return <BedDouble className="size-5" strokeWidth={1.5} />;
+  if (/cama|quarto|colch(ã|a)o|len(ç|c)ol/.test(t))
+    return <BedDouble className="size-5" strokeWidth={1.5} />;
   return <Home className="size-5" strokeWidth={1.5} />;
 }
 
@@ -2440,9 +2658,13 @@ function ResidenciaCard({
           {residenciaIcon(item.title)}
         </span>
         <div className="flex-1 min-w-0">
-          <h3 className="font-serif text-[15px] leading-snug text-foreground line-clamp-2">{item.title}</h3>
+          <h3 className="font-serif text-[15px] leading-snug text-foreground line-clamp-2">
+            {item.title}
+          </h3>
           {item.description && (
-            <p className="text-[11.5px] text-muted-foreground mt-1 line-clamp-2 leading-snug">{item.description}</p>
+            <p className="text-[11.5px] text-muted-foreground mt-1 line-clamp-2 leading-snug">
+              {item.description}
+            </p>
           )}
         </div>
         <ChevronRight className="absolute top-3 right-3 size-4 text-muted-foreground/60 group-hover:text-accent/75 transition-colors" />
@@ -2460,10 +2682,14 @@ function ResidenciaCard({
           </DialogHeader>
           <div className="space-y-3 mt-1">
             {item.description && (
-              <p className="text-[13.5px] text-muted-foreground leading-relaxed">{item.description}</p>
+              <p className="text-[13.5px] text-muted-foreground leading-relaxed">
+                {item.description}
+              </p>
             )}
             {item.body && (
-              <div className="text-[14px] leading-relaxed whitespace-pre-line text-foreground/90">{item.body}</div>
+              <div className="text-[14px] leading-relaxed whitespace-pre-line text-foreground/90">
+                {item.body}
+              </div>
             )}
             {!item.description && !item.body && (
               <p className="text-sm text-muted-foreground">Sem detalhes adicionais.</p>
@@ -2480,7 +2706,9 @@ function cleanGuideTitle(name?: string, city?: string) {
     String(name ?? "")
       .replace(/^Entrada\/Saída\s+da\s+/i, "")
       .replace(
-        city ? new RegExp(`\\s+em\\s+${String(city).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") : /\s+em\s+[^,]+$/i,
+        city
+          ? new RegExp(`\\s+em\\s+${String(city).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i")
+          : /\s+em\s+[^,]+$/i,
         "",
       )
       .trim() || String(name ?? "Guia")
@@ -2918,7 +3146,9 @@ function SectionCard({
       )}
 
       <div className={`relative flex items-start ${isHero ? "gap-4" : "gap-3"}`}>
-        <div className={`grid ${iconSize} shrink-0 place-items-center rounded-full border ${iconBgCls} ${iconRingCls}`}>
+        <div
+          className={`grid ${iconSize} shrink-0 place-items-center rounded-full border ${iconBgCls} ${iconRingCls}`}
+        >
           <span className={`${iconColorCls} ${iconSvg}`}>{icon}</span>
         </div>
         <div className="min-w-0 flex-1">
@@ -2938,7 +3168,9 @@ function SectionCard({
         badge && (
           <span
             className={`absolute top-3 right-3 z-10 rounded-md px-2 py-0.5 text-[9.5px] font-black uppercase tracking-tighter ${
-              isDark ? "bg-amber-400 text-black shadow-[0_0_12px_rgba(251,191,36,0.5)]" : "bg-amber-500 text-white"
+              isDark
+                ? "bg-amber-400 text-black shadow-[0_0_12px_rgba(251,191,36,0.5)]"
+                : "bg-amber-500 text-white"
             }`}
           >
             {badge}
@@ -2987,8 +3219,12 @@ function OnboardingArrivalHeader({
   const subtitle = [propertyName, city].filter(Boolean).join(" · ");
   return (
     <div>
-      <h2 className="text-[22px] font-bold leading-[1.14] tracking-tight text-foreground">Chegada</h2>
-      {subtitle && <p className="mt-0.5 text-[12.5px] text-muted-foreground [text-wrap:auto]">{subtitle}</p>}
+      <h2 className="text-[22px] font-bold leading-[1.14] tracking-tight text-foreground">
+        Chegada
+      </h2>
+      {subtitle && (
+        <p className="mt-0.5 text-[12.5px] text-muted-foreground [text-wrap:auto]">{subtitle}</p>
+      )}
       <div className="mt-3 grid grid-cols-2 gap-1.5 rounded-[15px] border border-border bg-foreground/[0.03] p-1">
         {(["steps", "passwords"] as const).map((k) => (
           <div
@@ -3087,12 +3323,19 @@ function OnboardingPasswordCard({
           )}
         </div>
         <ChevronDown
-          className={cn("size-4 shrink-0 text-muted-foreground transition-transform", expanded && "rotate-180")}
+          className={cn(
+            "size-4 shrink-0 text-muted-foreground transition-transform",
+            expanded && "rotate-180",
+          )}
         />
       </button>
       {expanded && (
         <div className="px-3 pb-3">
-          {detail && ready && <div className="text-[10px] text-muted-foreground mb-1.5 [text-wrap:auto]">{detail}</div>}
+          {detail && ready && (
+            <div className="text-[10px] text-muted-foreground mb-1.5 [text-wrap:auto]">
+              {detail}
+            </div>
+          )}
           <div className="flex items-center justify-between gap-2 rounded-[10px] border border-border bg-secondary/60 px-3 py-2">
             <span className="font-mono font-bold text-[13.5px] tracking-wider">
               {revealed ? value : "•".repeat(Math.max(5, Math.min(value.length, 9)))}
@@ -3140,7 +3383,13 @@ function fmtOnbDate(iso: string): string {
  * arredondada para baixo até a borda inferior do último item COMPLETO que cabe
  * no espaço disponível (mesmo critério usado nos tooltips do painel).
  */
-function WholeItemsScroll({ children, className }: { children: React.ReactNode; className?: string }) {
+function WholeItemsScroll({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [maxHeight, setMaxHeight] = useState<number | undefined>(undefined);
 
@@ -3257,7 +3506,11 @@ function PostAccessOnboarding({
   // O fluxo é montado a partir do que REALMENTE existe cadastrado: sem
   // instruções, a etapa "Passo a passo" não existe; sem nenhuma senha, a etapa
   // "Senhas" não existe. Nunca mostramos uma etapa vazia para o hóspede.
-  const hasStepsStage = !!(hasCheckinSteps && checkinInstructionsText && checkinInstructionsText.trim());
+  const hasStepsStage = !!(
+    hasCheckinSteps &&
+    checkinInstructionsText &&
+    checkinInstructionsText.trim()
+  );
   const hasPasswordsStage = !!(lockCode || wifiPassword || gateCode);
   const flow = useMemo(
     () =>
@@ -3308,7 +3561,14 @@ function PostAccessOnboarding({
     const [y, m, d] = checkinDate.split("-").map(Number);
     if (!y || !m || !d) return false;
     const [hh, mm] = (checkinTime || "15:00").split(":").map(Number);
-    const start = new Date(y, m - 1, d, Number.isFinite(hh) ? hh : 15, Number.isFinite(mm) ? mm : 0, 0);
+    const start = new Date(
+      y,
+      m - 1,
+      d,
+      Number.isFinite(hh) ? hh : 15,
+      Number.isFinite(mm) ? mm : 0,
+      0,
+    );
     return Date.now() >= start.getTime() - 6 * 60 * 60 * 1000;
   })();
 
@@ -3347,7 +3607,9 @@ function PostAccessOnboarding({
                   key={k}
                   className={cn(
                     "h-1 rounded-full transition-all",
-                    i === stepIndex ? "w-6 bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]" : "w-3 bg-[#a855f7]/25",
+                    i === stepIndex
+                      ? "w-6 bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]"
+                      : "w-3 bg-[#a855f7]/25",
                   )}
                 />
               ))}
@@ -3407,11 +3669,13 @@ function PostAccessOnboarding({
                   🔑
                 </span>
                 <p className="flex-1 text-[12.5px] leading-[1.5] text-foreground/90 [text-wrap:auto]">
-                  Tudo que você precisa para entrar fica na aba <b className="font-bold text-foreground">Chegada</b>
-                  {stageWording ? `: ${stageWording}, liberados automaticamente no horário do seu check-in.` : "."}
+                  Tudo que você precisa para entrar fica na aba{" "}
+                  <b className="font-bold text-foreground">Chegada</b>
+                  {stageWording
+                    ? `: ${stageWording}, liberados automaticamente no horário do seu check-in.`
+                    : "."}
                 </p>
               </div>
-
 
               <div className="flex gap-2 mt-4">
                 <button
@@ -3525,8 +3789,9 @@ function PostAccessOnboarding({
                 <p className="flex-1 text-[12.5px] leading-[1.5] text-foreground/85 [text-wrap:auto]">
                   {hasAccessPin ? (
                     <>
-                      Toque em 👁 e informe o <b className="text-foreground">código de visualização</b> do anfitrião —
-                      as senhas valem até o check-out
+                      Toque em 👁 e informe o{" "}
+                      <b className="text-foreground">código de visualização</b> do anfitrião — as
+                      senhas valem até o check-out
                       {checkoutTime ? (
                         <>
                           {" "}
@@ -3537,7 +3802,8 @@ function PostAccessOnboarding({
                     </>
                   ) : (
                     <>
-                      Toque em 👁 para revelar cada senha — elas ficam ocultas até você pedir e valem até o check-out
+                      Toque em 👁 para revelar cada senha — elas ficam ocultas até você pedir e valem
+                      até o check-out
                       {checkoutTime ? (
                         <>
                           {" "}
@@ -3549,7 +3815,6 @@ function PostAccessOnboarding({
                   )}
                 </p>
               </div>
-
 
               <div className="flex gap-2">
                 <button
@@ -3570,15 +3835,15 @@ function PostAccessOnboarding({
             </>
           )}
 
-
-
           {/* Passo 4: encerramento — pergunta direta, chat só aqui, por último */}
           {current === "final" && (
             <div className="text-center">
               <div className="mx-auto mb-4 size-13 rounded-full bg-emerald-500/15 border-2 border-emerald-500 grid place-items-center text-[22px]">
                 ✓
               </div>
-              <DialogTitleFallback className="mb-1.5 text-[19px]">Tudo pronto, {firstName}!</DialogTitleFallback>
+              <DialogTitleFallback className="mb-1.5 text-[19px]">
+                Tudo pronto, {firstName}!
+              </DialogTitleFallback>
               <p className="text-[12.5px] leading-relaxed text-muted-foreground mb-5 max-w-[300px] mx-auto [text-wrap:auto]">
                 {!canAskCheckin
                   ? stageWording
@@ -3634,20 +3899,45 @@ function PostAccessOnboarding({
           )}
         </div>
       </div>
-      <BottomNav theme={theme} active="checkin" items={navItems} onSelect={() => {}} lockedTo="checkin" />
+      <BottomNav
+        theme={theme}
+        active="checkin"
+        items={navItems}
+        onSelect={() => {}}
+        lockedTo="checkin"
+      />
     </div>
   );
 }
 
-function DialogTitleFallback({ children, className }: { children: React.ReactNode; className?: string }) {
+function DialogTitleFallback({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <h2 className={cn("font-serif text-[22px] leading-[1.15] tracking-tight text-foreground", className)}>
+    <h2
+      className={cn(
+        "font-serif text-[22px] leading-[1.15] tracking-tight text-foreground",
+        className,
+      )}
+    >
       {children}
     </h2>
   );
 }
 
-function StepList({ text, dense = false, compact = false }: { text: string; dense?: boolean; compact?: boolean }) {
+function StepList({
+  text,
+  dense = false,
+  compact = false,
+}: {
+  text: string;
+  dense?: boolean;
+  compact?: boolean;
+}) {
   const steps = text
     .split(/\r?\n/)
     .map((s) => s.trim())
@@ -3658,10 +3948,14 @@ function StepList({ text, dense = false, compact = false }: { text: string; dens
   const badge = compact ? "size-6 text-[11px]" : "size-9 text-[13px]";
   const lineLeft = compact ? "left-[12px]" : "left-[18px]";
   const gap = compact ? "gap-3" : "gap-4";
-  const labelCls = compact ? "text-[9px] tracking-[0.2em] mb-0.5" : "text-[10px] tracking-[0.22em] mb-1";
+  const labelCls = compact
+    ? "text-[9px] tracking-[0.2em] mb-0.5"
+    : "text-[10px] tracking-[0.22em] mb-1";
   const textCls = compact ? "text-[13px] leading-[1.55]" : "text-[14.5px] leading-[1.6]";
   return (
-    <ol className={`relative ${dense ? "space-y-5" : "space-y-6"} ${compact ? "space-y-3.5" : ""} pl-2`}>
+    <ol
+      className={`relative ${dense ? "space-y-5" : "space-y-6"} ${compact ? "space-y-3.5" : ""} pl-2`}
+    >
       <span
         aria-hidden
         className={`pointer-events-none absolute ${lineLeft} top-3 bottom-3 w-px bg-gradient-to-b from-accent/50 via-accent/25 to-transparent`}
@@ -3698,7 +3992,15 @@ const RULE_CATEGORIES: RuleCategory[] = [
     label: "Silêncio e vizinhos",
     icon: <Moon className="size-[14px]" strokeWidth={1.9} />,
     tone: "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 ring-indigo-200/60 dark:ring-indigo-400/20",
-    patterns: [/sil[êe]ncio/i, /barulh/i, /vizinh/i, /som\b/i, /m[úu]sica/i, /festa/i, /22h|23h|noite/i],
+    patterns: [
+      /sil[êe]ncio/i,
+      /barulh/i,
+      /vizinh/i,
+      /som\b/i,
+      /m[úu]sica/i,
+      /festa/i,
+      /22h|23h|noite/i,
+    ],
   },
   {
     key: "substancias",
@@ -3781,13 +4083,17 @@ function RulesGrid({ text }: { text: string }) {
         >
           <AccordionTrigger className="px-4 py-3 hover:no-underline [&>svg]:hidden">
             <div className="flex items-center gap-3 flex-1 min-w-0">
-              <span className={`grid size-8 shrink-0 place-items-center rounded-xl ring-1 ${cat.tone}`}>
+              <span
+                className={`grid size-8 shrink-0 place-items-center rounded-xl ring-1 ${cat.tone}`}
+              >
                 {cat.icon}
               </span>
               <h4 className="flex-1 min-w-0 truncate text-[12px] font-semibold uppercase tracking-[0.18em] text-foreground/85 text-left">
                 {cat.label}
               </h4>
-              <span className="text-[11px] font-medium tabular-nums text-muted-foreground">{items.length}</span>
+              <span className="text-[11px] font-medium tabular-nums text-muted-foreground">
+                {items.length}
+              </span>
               <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform duration-200" />
             </div>
           </AccordionTrigger>
@@ -3835,7 +4141,9 @@ function SubItem({
             {icon}
           </span>
           <div className="flex-1 min-w-0 text-left">
-            <p className="text-[15.5px] leading-tight font-semibold text-foreground tracking-tight">{label}</p>
+            <p className="text-[15.5px] leading-tight font-semibold text-foreground tracking-tight">
+              {label}
+            </p>
             {hint && <p className="text-[12.5px] text-muted-foreground mt-1 truncate">{hint}</p>}
           </div>
         </div>
@@ -3936,7 +4244,11 @@ function AccessBlock({
               aria-label={showing ? `Ocultar ${resolvedLabel}` : `Visualizar ${resolvedLabel}`}
               className="grid size-8 place-items-center rounded-full bg-foreground text-background hover:opacity-90 transition-all"
             >
-              {showing ? <EyeOff className="size-3.5" strokeWidth={2} /> : <Eye className="size-3.5" strokeWidth={2} />}
+              {showing ? (
+                <EyeOff className="size-3.5" strokeWidth={2} />
+              ) : (
+                <Eye className="size-3.5" strokeWidth={2} />
+              )}
             </button>
           )}
         </div>
@@ -3957,7 +4269,12 @@ function AccessBlock({
           )}
 
           {videoUrl && (
-            <a href={videoUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 group">
+            <a
+              href={videoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2.5 group"
+            >
               <PlayCircle className="size-[18px] text-accent/75 shrink-0" strokeWidth={1.75} />
               <span className="text-[14px] font-medium text-foreground flex-1 group-hover:text-accent/75 transition-colors">
                 Assistir tutorial em vídeo
@@ -3969,9 +4286,18 @@ function AccessBlock({
           {media.length > 0 && (
             <div className="grid grid-cols-3 gap-1.5">
               {media.map((m, i) => (
-                <div key={i} className="rounded-lg overflow-hidden border border-border/50 bg-muted/40 aspect-square">
+                <div
+                  key={i}
+                  className="rounded-lg overflow-hidden border border-border/50 bg-muted/40 aspect-square"
+                >
                   {m.type === "video" ? (
-                    <video src={m.url} className="size-full object-cover" controls playsInline preload="metadata" />
+                    <video
+                      src={m.url}
+                      className="size-full object-cover"
+                      controls
+                      playsInline
+                      preload="metadata"
+                    />
                   ) : (
                     <img
                       src={m.url}
@@ -4016,21 +4342,29 @@ function SectionTitle({ title, intro }: { eyebrow?: string; title: string; intro
   return (
     <div className="pt-2 pb-1">
       <h2 className="font-serif text-[1.9rem] leading-[1.1] tracking-tight">{title}</h2>
-      {intro && <p className="text-[13px] text-muted-foreground mt-2 leading-relaxed max-w-[36ch]">{intro}</p>}
+      {intro && (
+        <p className="text-[13px] text-muted-foreground mt-2 leading-relaxed max-w-[36ch]">
+          {intro}
+        </p>
+      )}
     </div>
   );
 }
 
-function TaggedFaqs({ faqs, tag }: { faqs: any[]; tag: "chegada" | "saida" | "residencia" | "explore" }) {
+function TaggedFaqs({
+  faqs,
+  tag,
+}: {
+  faqs: any[];
+  tag: "chegada" | "saida" | "residencia" | "explore";
+}) {
   const filtered = (faqs ?? []).filter((f) => Array.isArray(f?.tags) && f.tags.includes(tag));
   if (filtered.length === 0) return null;
   return (
     <div className="pt-2">
       <div className="mb-3 flex items-center gap-2">
         <HelpCircle className="size-4 text-muted-foreground" />
-        <h3 className="ds-eyebrow text-muted-foreground">
-          Perguntas frequentes
-        </h3>
+        <h3 className="ds-eyebrow text-muted-foreground">Perguntas frequentes</h3>
       </div>
       <Accordion type="single" collapsible className="space-y-1.5">
         {filtered.map((f: any, idx: number) => (
@@ -4060,7 +4394,9 @@ function TaggedFaqs({ faqs, tag }: { faqs: any[]; tag: "chegada" | "saida" | "re
 function InfoTile({ label, value, border }: { label: string; value: string; border?: boolean }) {
   return (
     <div className={`px-4 py-3 ${border ? "border-l border-border/40" : ""}`}>
-      <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">{label}</p>
+      <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">
+        {label}
+      </p>
       <p className="text-[14px] mt-1 font-medium leading-snug text-foreground/95">{value}</p>
     </div>
   );
@@ -4088,7 +4424,9 @@ function TimeRow({
         <Icon className="size-[16px] text-foreground/70" strokeWidth={1.7} />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[10.5px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">{label}</p>
+        <p className="text-[10.5px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">
+          {label}
+        </p>
         {hasRange ? (
           <div className="mt-0.5 flex items-baseline gap-1.5 text-[15px] font-medium text-foreground/95 leading-snug">
             <span className="tabular-nums">{from}</span>
@@ -4134,17 +4472,27 @@ function CopyCard({
       >
         <div className="flex items-center gap-3 min-w-0">
           {icon && (
-            <div className="size-9 rounded-lg bg-accent/10 text-accent/75 grid place-items-center shrink-0">{icon}</div>
+            <div className="size-9 rounded-lg bg-accent/10 text-accent/75 grid place-items-center shrink-0">
+              {icon}
+            </div>
           )}
           <div className="min-w-0">
             {eyebrow && (
-              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">{eyebrow}</p>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">
+                {eyebrow}
+              </p>
             )}
-            <p className="text-[15px] font-semibold tracking-tight mt-0.5 break-all leading-snug">{value}</p>
+            <p className="text-[15px] font-semibold tracking-tight mt-0.5 break-all leading-snug">
+              {value}
+            </p>
           </div>
         </div>
         <div className="size-8 rounded-full bg-secondary grid place-items-center shrink-0">
-          {copied ? <Check className="size-3.5 text-accent" /> : <Copy className="size-3.5 text-muted-foreground" />}
+          {copied ? (
+            <Check className="size-3.5 text-accent" />
+          ) : (
+            <Copy className="size-3.5 text-muted-foreground" />
+          )}
         </div>
       </button>
     );
@@ -4162,14 +4510,22 @@ function CopyCard({
         )}
         <div className="min-w-0 text-left">
           {eyebrow && (
-            <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">{eyebrow}</p>
+            <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-semibold">
+              {eyebrow}
+            </p>
           )}
-          <p className="text-lg sm:text-xl font-semibold tracking-tight mt-0.5 break-all leading-snug">{value}</p>
+          <p className="text-lg sm:text-xl font-semibold tracking-tight mt-0.5 break-all leading-snug">
+            {value}
+          </p>
           <p className="text-[11px] text-muted-foreground mt-0.5">{label}</p>
         </div>
       </div>
       <div className="size-9 rounded-full bg-secondary grid place-items-center shrink-0">
-        {copied ? <Check className="size-4 text-accent" /> : <Copy className="size-4 text-muted-foreground" />}
+        {copied ? (
+          <Check className="size-4 text-accent" />
+        ) : (
+          <Copy className="size-4 text-muted-foreground" />
+        )}
       </div>
     </button>
   );
@@ -4219,11 +4575,15 @@ function GatedCopyCard({
     <div className="w-full flex items-center justify-between gap-3 px-3.5 py-3">
       <div className="flex items-center gap-3 min-w-0">
         {icon && (
-          <div className="size-9 rounded-lg bg-accent/10 text-accent/75 grid place-items-center shrink-0">{icon}</div>
+          <div className="size-9 rounded-lg bg-accent/10 text-accent/75 grid place-items-center shrink-0">
+            {icon}
+          </div>
         )}
         <div className="min-w-0">
           {eyebrow && (
-            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">{eyebrow}</p>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">
+              {eyebrow}
+            </p>
           )}
           <p
             className={`text-[15px] font-semibold tracking-tight mt-0.5 break-all leading-snug ${showing ? "" : "text-foreground/60"}`}
@@ -4233,8 +4593,16 @@ function GatedCopyCard({
         </div>
       </div>
       <div className="flex items-center gap-1.5 shrink-0">
-        <button onClick={copy} aria-label="Copiar" className="size-8 rounded-full bg-secondary grid place-items-center">
-          {copied ? <Check className="size-3.5 text-accent" /> : <Copy className="size-3.5 text-muted-foreground" />}
+        <button
+          onClick={copy}
+          aria-label="Copiar"
+          className="size-8 rounded-full bg-secondary grid place-items-center"
+        >
+          {copied ? (
+            <Check className="size-3.5 text-accent" />
+          ) : (
+            <Copy className="size-3.5 text-muted-foreground" />
+          )}
         </button>
         {hasPin && (
           <button
@@ -4242,7 +4610,11 @@ function GatedCopyCard({
             aria-label={showing ? "Ocultar" : "Visualizar"}
             className="size-8 rounded-full bg-foreground text-background grid place-items-center"
           >
-            {showing ? <EyeOff className="size-3.5" strokeWidth={2} /> : <Eye className="size-3.5" strokeWidth={2} />}
+            {showing ? (
+              <EyeOff className="size-3.5" strokeWidth={2} />
+            ) : (
+              <Eye className="size-3.5" strokeWidth={2} />
+            )}
           </button>
         )}
       </div>
@@ -4404,7 +4776,9 @@ function WifiStrip({
           <Wifi className="relative size-[18px]" strokeWidth={2} />
         </span>
         <div className="flex-1 min-w-0">
-          <p className="text-[12px] text-foreground/85 truncate font-medium">{ssid || "Rede da casa"}</p>
+          <p className="text-[12px] text-foreground/85 truncate font-medium">
+            {ssid || "Rede da casa"}
+          </p>
           <p
             className={`font-mono text-[13px] font-semibold tracking-[0.22em] truncate ${showing ? "text-foreground" : "text-foreground/60"}`}
           >
@@ -4529,7 +4903,8 @@ function AccessCodesStrip({
     requestUnlock(() => setRevealed(true));
   }
 
-  const hint = hasGate && hasLock ? `${gLabel} e ${lLabel.toLowerCase()}` : hasGate ? gLabel : lLabel;
+  const hint =
+    hasGate && hasLock ? `${gLabel} e ${lLabel.toLowerCase()}` : hasGate ? gLabel : lLabel;
 
   return (
     <div
@@ -4553,7 +4928,9 @@ function AccessCodesStrip({
             <div className="space-y-0.5">
               {gateCode && (
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] text-foreground/70 font-medium shrink-0 truncate">{gLabel}</span>
+                  <span className="text-[11px] text-foreground/70 font-medium shrink-0 truncate">
+                    {gLabel}
+                  </span>
                   <span className="font-mono text-[13px] font-semibold tracking-[0.22em] text-foreground truncate">
                     {gateCode}
                   </span>
@@ -4561,7 +4938,9 @@ function AccessCodesStrip({
               )}
               {lockCode && (
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] text-foreground/70 font-medium shrink-0 truncate">{lLabel}</span>
+                  <span className="text-[11px] text-foreground/70 font-medium shrink-0 truncate">
+                    {lLabel}
+                  </span>
                   <span className="font-mono text-[13px] font-semibold tracking-[0.22em] text-foreground truncate">
                     {lockCode}
                   </span>
@@ -4609,18 +4988,30 @@ function AccessCodesStrip({
               <div className="mx-auto mb-2.5 grid place-items-center size-11 rounded-full bg-accent/12 ring-1 ring-accent/25 text-accent">
                 <KeyRound className="size-[18px]" strokeWidth={1.75} />
               </div>
-              <DialogTitle className="font-display text-[18px] tracking-tight">Instruções de acesso</DialogTitle>
+              <DialogTitle className="font-display text-[18px] tracking-tight">
+                Instruções de acesso
+              </DialogTitle>
               <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">
                 Passo a passo para utilizar cada acesso.
               </p>
             </div>
             <div className="px-5 py-4 max-h-[60vh] overflow-y-auto sg-elegant-scroll space-y-5">
               {hasGateBlock && (
-                <AccessInstructionsSection label={gLabel} instr={gateInstr} videoUrl={gateVid} media={gateMed} />
+                <AccessInstructionsSection
+                  label={gLabel}
+                  instr={gateInstr}
+                  videoUrl={gateVid}
+                  media={gateMed}
+                />
               )}
               {hasGateBlock && hasLockBlock && <div className="h-px bg-border/50" />}
               {hasLockBlock && (
-                <AccessInstructionsSection label={lLabel} instr={lockInstr} videoUrl={lockVid} media={lockMed} />
+                <AccessInstructionsSection
+                  label={lLabel}
+                  instr={lockInstr}
+                  videoUrl={lockVid}
+                  media={lockMed}
+                />
               )}
             </div>
           </DialogContent>
@@ -4644,7 +5035,9 @@ function CheckoutNoticeStrip({
     const m = s.match(/^(\d{1,2}):(\d{2})/);
     return m ? `${m[1].padStart(2, "0")}h${m[2] !== "00" ? m[2] : ""}` : s;
   };
-  const summary = checkoutTime ? `Check-out hoje até ${fmt(String(checkoutTime))}` : "Hoje é o seu dia de check-out";
+  const summary = checkoutTime
+    ? `Check-out hoje até ${fmt(String(checkoutTime))}`
+    : "Hoje é o seu dia de check-out";
   return (
     <div
       className={`relative overflow-hidden rounded-[22px] border ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/25 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}
@@ -4662,9 +5055,17 @@ function CheckoutNoticeStrip({
           <LogOut className="relative size-[20px]" strokeWidth={2} />
         </span>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] uppercase tracking-[0.32em] text-accent/75 font-semibold">Aviso de check-out</p>
-          <p className="text-[14px] text-foreground/90 font-semibold mt-1 leading-snug">{summary}</p>
-          {note && <p className="text-[13px] text-foreground/80 leading-relaxed whitespace-pre-line mt-1.5">{note}</p>}
+          <p className="text-[10px] uppercase tracking-[0.32em] text-accent/75 font-semibold">
+            Aviso de check-out
+          </p>
+          <p className="text-[14px] text-foreground/90 font-semibold mt-1 leading-snug">
+            {summary}
+          </p>
+          {note && (
+            <p className="text-[13px] text-foreground/80 leading-relaxed whitespace-pre-line mt-1.5">
+              {note}
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -4680,7 +5081,11 @@ function PinDialog({
   open: boolean;
   onOpenChange: (o: boolean) => void;
   slug: string;
-  onSuccess: (codes?: { wifi_password?: string | null; lock_code?: string | null; gate_code?: string | null }) => void;
+  onSuccess: (codes?: {
+    wifi_password?: string | null;
+    lock_code?: string | null;
+    gate_code?: string | null;
+  }) => void;
 }) {
   const [value, setValue] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -4699,7 +5104,9 @@ function PinDialog({
           gate_code: res.gate_code,
         });
       } else if ((res as any)?.reason === "window_closed") {
-        toast.error("Este código ainda não está liberado ou a estadia já foi encerrada. Confira com o anfitrião.");
+        toast.error(
+          "Este código ainda não está liberado ou a estadia já foi encerrada. Confira com o anfitrião.",
+        );
       } else {
         toast.error("Senha incorreta. Confira com o anfitrião.");
       }
@@ -4736,7 +5143,8 @@ function PinDialog({
               Código de Visualização
             </DialogTitle>
             <p className="text-[12.5px] text-muted-foreground leading-relaxed px-2">
-              Digite o código de visualização enviado pelo anfitrião para obter as senhas de acesso do imóvel.
+              Digite o código de visualização enviado pelo anfitrião para obter as senhas de acesso
+              do imóvel.
             </p>
           </DialogHeader>
         </div>
@@ -4861,7 +5269,12 @@ function AccessInstructionsSection({
               aria-label="Ampliar mídia"
             >
               {m.type === "video" ? (
-                <video src={m.url} className="size-full object-cover pointer-events-none" muted playsInline />
+                <video
+                  src={m.url}
+                  className="size-full object-cover pointer-events-none"
+                  muted
+                  playsInline
+                />
               ) : (
                 <img
                   src={m.url}

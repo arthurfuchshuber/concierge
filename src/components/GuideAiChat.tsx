@@ -1,7 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ComposerPlusMenu } from "@/components/handoff/ComposerPlusMenu";
-import { MessageCircleMore, Send, X, Loader2, Paperclip, Copy, Check, CalendarDays, ArrowLeft } from "lucide-react";
+import {
+  MessageCircleMore,
+  Send,
+  X,
+  Loader2,
+  Paperclip,
+  Copy,
+  Check,
+  CalendarDays,
+  ArrowLeft,
+} from "lucide-react";
 import { AiMarkdown } from "@/components/ai/AiMarkdown";
 import { GuestNotificationsPrompt } from "@/components/GuestNotificationsPrompt";
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
@@ -28,9 +38,7 @@ type Msg = {
 /** Código/senha em linha com botão de copiar ao lado. */
 function CopyableCode({ children, ...props }: React.ComponentProps<"code">) {
   const [copied, setCopied] = useState(false);
-  const text = String(
-    Array.isArray(children) ? children.join("") : (children ?? ""),
-  ).trim();
+  const text = String(Array.isArray(children) ? children.join("") : (children ?? "")).trim();
   return (
     <span className="inline-flex items-center gap-1 align-middle">
       <code
@@ -110,7 +118,6 @@ function saveCachedMessages(slug: string, conversationId: string | undefined, me
   }
 }
 
-
 function addDaysISO(iso: string, days: number): string {
   const [y, m, d] = iso.split("-").map(Number);
   const dt = new Date(y, (m ?? 1) - 1, (d ?? 1) + days);
@@ -127,14 +134,26 @@ function getGuestContext(
   checkoutDate: string | null | undefined,
 ): { greeting: string; question: string; hint: string; cta: string } {
   const h = new Date().getHours();
-  const greeting = h >= 5 && h < 12 ? "Bom dia" : h >= 12 && h < 18 ? "Boa tarde" : h >= 18 && h < 23 ? "Boa noite" : "Olá";
+  const greeting =
+    h >= 5 && h < 12
+      ? "Bom dia"
+      : h >= 12 && h < 18
+        ? "Boa tarde"
+        : h >= 18 && h < 23
+          ? "Boa noite"
+          : "Olá";
   const todayISO = (() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   })();
 
   // Check-in hoje ou amanhã — fase "quase iniciando o check-in".
-  if (checkinDate && checkinDate >= todayISO && checkinDate <= addDaysISO(todayISO, 1) && (!checkoutDate || checkoutDate > todayISO)) {
+  if (
+    checkinDate &&
+    checkinDate >= todayISO &&
+    checkinDate <= addDaysISO(todayISO, 1) &&
+    (!checkoutDate || checkoutDate > todayISO)
+  ) {
     return {
       greeting,
       question: "Você já leu as instruções de check-in?",
@@ -152,10 +171,33 @@ function getGuestContext(
     };
   }
   // Em estadia (ou sem dados suficientes) — recomendação por horário do dia, como já era.
-  if (h >= 5 && h < 12) return { greeting, question: "Quer uma recomendação personalizada?", hint: "Posso sugerir cafés, padarias e um roteiro leve para começar bem o dia.", cta: "Pedir sugestões agora →" };
-  if (h >= 12 && h < 18) return { greeting, question: "Quer uma recomendação personalizada?", hint: "Posso indicar restaurantes abertos agora, passeios próximos e experiências para hoje.", cta: "Pedir sugestões agora →" };
-  if (h >= 18 && h < 23) return { greeting, question: "Quer uma recomendação personalizada?", hint: "Posso recomendar jantar, drinks, delivery ou um programa especial perto daqui.", cta: "Pedir sugestões agora →" };
-  return { greeting, question: "Quer uma recomendação personalizada?", hint: "Posso resolver dúvidas da estadia e sugerir boas escolhas ao seu redor.", cta: "Pedir sugestões agora →" };
+  if (h >= 5 && h < 12)
+    return {
+      greeting,
+      question: "Quer uma recomendação personalizada?",
+      hint: "Posso sugerir cafés, padarias e um roteiro leve para começar bem o dia.",
+      cta: "Pedir sugestões agora →",
+    };
+  if (h >= 12 && h < 18)
+    return {
+      greeting,
+      question: "Quer uma recomendação personalizada?",
+      hint: "Posso indicar restaurantes abertos agora, passeios próximos e experiências para hoje.",
+      cta: "Pedir sugestões agora →",
+    };
+  if (h >= 18 && h < 23)
+    return {
+      greeting,
+      question: "Quer uma recomendação personalizada?",
+      hint: "Posso recomendar jantar, drinks, delivery ou um programa especial perto daqui.",
+      cta: "Pedir sugestões agora →",
+    };
+  return {
+    greeting,
+    question: "Quer uma recomendação personalizada?",
+    hint: "Posso resolver dúvidas da estadia e sugerir boas escolhas ao seu redor.",
+    cta: "Pedir sugestões agora →",
+  };
 }
 
 export function GuideAiChat({
@@ -187,7 +229,10 @@ export function GuideAiChat({
   const [messages, setMessages] = useState<Msg[]>([]);
   const [showItinerary, setShowItinerary] = useState(false);
   const [itineraryDays, setItineraryDays] = useState<
-    Array<{ date: string; items: Array<{ id: string; time: string | null; title: string; note: string | null }> }>
+    Array<{
+      date: string;
+      items: Array<{ id: string; time: string | null; title: string; note: string | null }>;
+    }>
   >([]);
   const [itineraryLoading, setItineraryLoading] = useState(false);
   // Mensagens do atendente sempre no idioma do hóspede.
@@ -212,7 +257,9 @@ export function GuideAiChat({
       const id = m.id as string;
       translatingRef.current.add(id);
       try {
-        const r = await translateMessage({ data: { text: m.content.slice(0, 2000), targetLang: myLang } });
+        const r = await translateMessage({
+          data: { text: m.content.slice(0, 2000), targetLang: myLang },
+        });
         setAutoTranslated((p) => ({ ...p, [id]: r.translated }));
       } catch {
         /* mantém o original */
@@ -232,7 +279,9 @@ export function GuideAiChat({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const forceAiNextRef = useRef(false);
   const openRef = useRef(open);
-  useEffect(() => { openRef.current = open; }, [open]);
+  useEffect(() => {
+    openRef.current = open;
+  }, [open]);
   const { greeting, question, hint, cta } = getGuestContext(checkinDate, checkoutDate);
 
   // Draggable launcher position (persistent). side + distance from bottom in px.
@@ -244,12 +293,17 @@ export function GuideAiChat({
         const p = JSON.parse(raw);
         if ((p.side === "left" || p.side === "right") && typeof p.bottom === "number") return p;
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     return { side: "right", bottom: 96 };
   });
   const [dragOffset, setDragOffset] = useState<{ dy: number } | null>(null);
   const dragStateRef = useRef<{
-    x: number; y: number; moved: boolean; pointerId: number;
+    x: number;
+    y: number;
+    moved: boolean;
+    pointerId: number;
     startRect: DOMRect;
     button: HTMLButtonElement;
     move: (ev: PointerEvent) => void;
@@ -263,8 +317,12 @@ export function GuideAiChat({
     const button = e.currentTarget;
     const startRect = button.getBoundingClientRect();
     const state = {
-      x: e.clientX, y: e.clientY, moved: false, pointerId: e.pointerId,
-      startRect, button,
+      x: e.clientX,
+      y: e.clientY,
+      moved: false,
+      pointerId: e.pointerId,
+      startRect,
+      button,
       move: (ev: PointerEvent) => {
         if (ev.pointerId !== state.pointerId) return;
         const dx = ev.clientX - state.x;
@@ -284,16 +342,25 @@ export function GuideAiChat({
         if (state.moved) {
           const dy = ev.clientY - state.y;
           const newTop = state.startRect.top + dy;
-          const bottomPx = Math.max(24, Math.min(
-            window.innerHeight - state.startRect.height - 24,
-            window.innerHeight - (newTop + state.startRect.height),
-          ));
+          const bottomPx = Math.max(
+            24,
+            Math.min(
+              window.innerHeight - state.startRect.height - 24,
+              window.innerHeight - (newTop + state.startRect.height),
+            ),
+          );
           const next = { side: pos.side, bottom: bottomPx };
           setPos(next);
           setDragOffset(null);
-          try { window.localStorage.setItem("guide-chat-pos", JSON.stringify(next)); } catch { /* ignore */ }
+          try {
+            window.localStorage.setItem("guide-chat-pos", JSON.stringify(next));
+          } catch {
+            /* ignore */
+          }
           justDraggedRef.current = true;
-          window.setTimeout(() => { justDraggedRef.current = false; }, 80);
+          window.setTimeout(() => {
+            justDraggedRef.current = false;
+          }, 80);
         } else {
           setDragOffset(null);
         }
@@ -305,11 +372,9 @@ export function GuideAiChat({
     window.addEventListener("pointercancel", state.up);
   }
 
-
   useEffect(() => {
     setMounted(true);
   }, []);
-
 
   useEffect(() => {
     setSessionId(getSessionId(slug));
@@ -352,7 +417,6 @@ export function GuideAiChat({
     setShowNudge(false);
     persistDismissed();
   }
-
 
   useEffect(() => {
     if (open && scrollRef.current) {
@@ -397,7 +461,10 @@ export function GuideAiChat({
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const lastFetchedAtRef = useRef<string | undefined>(undefined);
 
-  async function uploadGuestAttachment(blob: Blob, opts: { filename: string; mime: string; durationMs?: number }) {
+  async function uploadGuestAttachment(
+    blob: Blob,
+    opts: { filename: string; mime: string; durationMs?: number },
+  ) {
     if (!conversationId) {
       setUploadErr("Envie primeiro uma mensagem para o atendente humano.");
       return;
@@ -495,7 +562,8 @@ export function GuideAiChat({
           body: JSON.stringify({ slug, sessionId, audioBase64: base64, mimeType: audio.mime }),
         });
         const data = (await res.json()) as { text?: string; error?: string };
-        if (!res.ok || !data.text) throw new Error(data.error ?? "Não consegui transcrever o áudio.");
+        if (!res.ok || !data.text)
+          throw new Error(data.error ?? "Não consegui transcrever o áudio.");
         setTranscribing(false);
         void send(data.text);
       } catch (e) {
@@ -513,7 +581,6 @@ export function GuideAiChat({
     });
   }
 
-
   async function openItinerary() {
     setShowItinerary(true);
     if (!sessionId) {
@@ -522,7 +589,9 @@ export function GuideAiChat({
     }
     setItineraryLoading(true);
     try {
-      const res = await fetch(`/api/public/itinerary?slug=${encodeURIComponent(slug)}&sessionId=${encodeURIComponent(sessionId)}`);
+      const res = await fetch(
+        `/api/public/itinerary?slug=${encodeURIComponent(slug)}&sessionId=${encodeURIComponent(sessionId)}`,
+      );
       const data = (await res.json().catch(() => ({}))) as { days?: typeof itineraryDays };
       setItineraryDays(Array.isArray(data.days) ? data.days : []);
     } catch {
@@ -573,10 +642,20 @@ export function GuideAiChat({
       const ctype = res.headers.get("Content-Type") ?? "";
       if (!res.ok || !res.body || !ctype.includes("text/event-stream")) {
         // Fallback: resposta JSON (erro de rate limit, validação, etc.)
-        const data = (await res.json().catch(() => ({}))) as { conversationId?: string; reply?: string; error?: string; handoff?: boolean; humanMode?: boolean; quickReplies?: string[] };
+        const data = (await res.json().catch(() => ({}))) as {
+          conversationId?: string;
+          reply?: string;
+          error?: string;
+          handoff?: boolean;
+          humanMode?: boolean;
+          quickReplies?: string[];
+        };
         if (data.conversationId) setConversationId(data.conversationId);
         const content = data.error || data.reply || "Não consegui responder agora.";
-        finishWith([...next, { role: "assistant" as const, content, quickReplies: data.quickReplies }], data.conversationId);
+        finishWith(
+          [...next, { role: "assistant" as const, content, quickReplies: data.quickReplies }],
+          data.conversationId,
+        );
         lastFetchedAtRef.current = new Date().toISOString();
         return;
       }
@@ -660,7 +739,10 @@ export function GuideAiChat({
       // next poll doesn't re-append the AI reply we already rendered optimistically.
       lastFetchedAtRef.current = new Date().toISOString();
     } catch {
-      finishWith([...next, { role: "assistant" as const, content: "Sem conexão. Tente novamente." }]);
+      finishWith([
+        ...next,
+        { role: "assistant" as const, content: "Sem conexão. Tente novamente." },
+      ]);
     } finally {
       setStageLabel(null);
       setStreamingText("");
@@ -668,7 +750,6 @@ export function GuideAiChat({
       setTimeout(() => inputRef.current?.focus(), 30);
     }
   }
-
 
   // Poll for new agent/AI messages when we have a conversation. Ensures human
   // replies after handoff show up in the guest widget without a reload.
@@ -705,7 +786,10 @@ export function GuideAiChat({
             // without an id (send() pushes `{ role, content }`). Match by content
             // against the tail so the polled copy of the same reply doesn't duplicate.
             const recentContents = new Set(
-              prev.slice(-6).filter((p) => !p.id && p.role === "assistant").map((p) => (p.content || "").trim()),
+              prev
+                .slice(-6)
+                .filter((p) => !p.id && p.role === "assistant")
+                .map((p) => (p.content || "").trim()),
             );
             const additions = incoming
               .filter(
@@ -763,14 +847,16 @@ export function GuideAiChat({
   const launcher = !open ? (
     <div
       className={`fixed flex flex-col ${pos.side === "left" ? "items-start" : "items-end"} gap-3 pointer-events-none`}
-      style={{
-        bottom: `calc(env(safe-area-inset-bottom, 0px) + ${pos.bottom}px)`,
-        [pos.side]: "16px",
-        transform: dragOffset ? `translateY(${dragOffset.dy}px)` : undefined,
-        transition: dragOffset ? "none" : "transform 200ms ease",
-        touchAction: "none",
-        zIndex: 2147483600,
-      } as React.CSSProperties}
+      style={
+        {
+          bottom: `calc(env(safe-area-inset-bottom, 0px) + ${pos.bottom}px)`,
+          [pos.side]: "16px",
+          transform: dragOffset ? `translateY(${dragOffset.dy}px)` : undefined,
+          transition: dragOffset ? "none" : "transform 200ms ease",
+          touchAction: "none",
+          zIndex: 2147483600,
+        } as React.CSSProperties
+      }
     >
       {/* Popup preview when AI replies while chat is closed */}
       {pendingPreview && (
@@ -793,7 +879,10 @@ export function GuideAiChat({
             </p>
             <button
               type="button"
-              onClick={() => { setPendingPreview(null); setOpen(true); }}
+              onClick={() => {
+                setPendingPreview(null);
+                setOpen(true);
+              }}
               className="mt-2.5 inline-flex items-center gap-1 text-[11.5px] font-bold text-emerald-700 hover:text-emerald-800 transition-colors"
             >
               Abrir chat →
@@ -816,9 +905,12 @@ export function GuideAiChat({
               <X className="size-3" />
             </button>
 
-            <p className="text-[10px] font-semibold text-accent/80 uppercase tracking-[0.18em] mb-1">Concierge IA</p>
+            <p className="text-[10px] font-semibold text-accent/80 uppercase tracking-[0.18em] mb-1">
+              Concierge IA
+            </p>
             <p className="text-[13px] leading-snug font-medium">
-              {greeting}{guestName ? `, ${guestName.split(" ")[0]}` : ""}! 👋
+              {greeting}
+              {guestName ? `, ${guestName.split(" ")[0]}` : ""}! 👋
             </p>
             <p className="text-[12px] text-foreground/85 mt-1 leading-snug font-medium">
               {question}
@@ -826,7 +918,10 @@ export function GuideAiChat({
             <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">{hint}</p>
             <button
               type="button"
-              onClick={() => { setShowNudge(false); setOpen(true); }}
+              onClick={() => {
+                setShowNudge(false);
+                setOpen(true);
+              }}
               className="mt-2.5 w-full text-[11.5px] font-semibold text-foreground hover:text-accent transition-colors text-left"
             >
               {cta}
@@ -849,9 +944,15 @@ export function GuideAiChat({
         className="group relative inline-flex items-center justify-center size-14 rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white shadow-[0_0_0_8px_rgba(232,45,174,0.18),0_16px_38px_-14px_rgba(124,26,216,0.7)] hover:shadow-[0_0_0_10px_rgba(232,45,174,0.22),0_20px_46px_-16px_rgba(124,26,216,0.85)] active:scale-95 transition-all pointer-events-auto cursor-grab active:cursor-grabbing touch-none select-none"
       >
         {loading && (
-          <span className="absolute -top-1 -right-1 size-3.5 rounded-full bg-amber-400 ring-2 ring-background animate-pulse" title="Pensando…" />
+          <span
+            className="absolute -top-1 -right-1 size-3.5 rounded-full bg-amber-400 ring-2 ring-background animate-pulse"
+            title="Pensando…"
+          />
         )}
-        <MessageCircleMore className="relative size-6 group-hover:scale-110 transition-transform" strokeWidth={2.1} />
+        <MessageCircleMore
+          className="relative size-6 group-hover:scale-110 transition-transform"
+          strokeWidth={2.1}
+        />
       </button>
     </div>
   ) : null;
@@ -895,7 +996,9 @@ export function GuideAiChat({
             <MessageCircleMore className="size-3.5" strokeWidth={2} />
           </span>
           <span className="truncate text-sm font-medium text-zinc-900">Concierge</span>
-          <span className="ml-auto min-w-0 truncate pl-2 text-[11px] text-zinc-500">{propertyName}</span>
+          <span className="ml-auto min-w-0 truncate pl-2 text-[11px] text-zinc-500">
+            {propertyName}
+          </span>
           <div className="flex shrink-0 items-center gap-1">
             <button
               type="button"
@@ -904,7 +1007,11 @@ export function GuideAiChat({
               title="Meu roteiro"
               className="grid size-7 place-items-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-200/70 hover:text-zinc-900"
             >
-              {showItinerary ? <ArrowLeft className="size-3.5" /> : <CalendarDays className="size-3.5" />}
+              {showItinerary ? (
+                <ArrowLeft className="size-3.5" />
+              ) : (
+                <CalendarDays className="size-3.5" />
+              )}
             </button>
             <button
               type="button"
@@ -919,7 +1026,9 @@ export function GuideAiChat({
 
         {showItinerary ? (
           <div className="flex-1 overflow-y-auto px-4 py-5">
-            <p className="text-[10px] uppercase tracking-[0.24em] text-emerald-700/80 font-semibold mb-3">Meu roteiro</p>
+            <p className="text-[10px] uppercase tracking-[0.24em] text-emerald-700/80 font-semibold mb-3">
+              Meu roteiro
+            </p>
             {itineraryLoading ? (
               <div className="flex items-center gap-2 text-zinc-500 text-[12.5px] py-6 justify-center">
                 <Loader2 className="size-3.5 animate-spin" /> carregando…
@@ -928,7 +1037,8 @@ export function GuideAiChat({
               <div className="text-center py-10">
                 <CalendarDays className="size-8 mx-auto text-zinc-300 mb-2" strokeWidth={1.5} />
                 <p className="text-[13px] text-zinc-500 max-w-[26ch] mx-auto leading-relaxed">
-                  Ainda não há nada marcado. Conversa comigo sobre passeios e vou anotando aqui conforme você for decidindo.
+                  Ainda não há nada marcado. Conversa comigo sobre passeios e vou anotando aqui
+                  conforme você for decidindo.
                 </p>
               </div>
             ) : (
@@ -936,17 +1046,30 @@ export function GuideAiChat({
                 {itineraryDays.map((day) => (
                   <div key={day.date}>
                     <p className="text-[12px] font-semibold text-zinc-900 mb-2">
-                      {new Date(`${day.date}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" })}
+                      {new Date(`${day.date}T12:00:00`).toLocaleDateString("pt-BR", {
+                        weekday: "short",
+                        day: "2-digit",
+                        month: "short",
+                      })}
                     </p>
                     <div className="space-y-1.5">
                       {day.items.map((item) => (
-                        <div key={item.id} className="flex items-start gap-2.5 rounded-xl bg-zinc-50 border border-zinc-100 px-3 py-2.5">
+                        <div
+                          key={item.id}
+                          className="flex items-start gap-2.5 rounded-xl bg-zinc-50 border border-zinc-100 px-3 py-2.5"
+                        >
                           {item.time && (
-                            <span className="text-[11px] font-semibold text-emerald-700 shrink-0 mt-0.5 tabular-nums">{item.time}</span>
+                            <span className="text-[11px] font-semibold text-emerald-700 shrink-0 mt-0.5 tabular-nums">
+                              {item.time}
+                            </span>
                           )}
                           <div className="min-w-0">
                             <p className="text-[13px] text-zinc-900 leading-snug">{item.title}</p>
-                            {item.note && <p className="text-[11.5px] text-zinc-500 mt-0.5 leading-snug">{item.note}</p>}
+                            {item.note && (
+                              <p className="text-[11.5px] text-zinc-500 mt-0.5 leading-snug">
+                                {item.note}
+                              </p>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -957,60 +1080,67 @@ export function GuideAiChat({
             )}
           </div>
         ) : (
-        <>
-        {/* Messages */}
-        <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3">
-          {messages.length === 0 && (
-            <div className="text-center py-6">
-              <div className="mx-auto size-12 rounded-2xl bg-emerald-100 text-emerald-700 grid place-items-center mb-3 ring-1 ring-emerald-200">
-                <MessageCircleMore className="size-5" strokeWidth={1.9} />
-              </div>
-              <p className="font-serif text-lg leading-tight text-zinc-900">
-                {greeting}{guestName ? `, ${guestName.split(" ")[0]}` : ""}!
-              </p>
-              <p className="text-[12.5px] text-zinc-500 mt-2 max-w-[28ch] mx-auto leading-relaxed">
-                {hint}
-              </p>
-              <div className="mt-4 flex flex-wrap gap-1.5 justify-center">
-                {["Onde fica a casa?", "Qual a senha do Wi-Fi?", "O que fazer perto?"].map((q) => (
-                  <button
-                    key={q}
-                    type="button"
-                    onClick={() => setInput(q)}
-                    className="text-[11.5px] px-3 py-1.5 rounded-full border border-zinc-200 bg-white text-zinc-700 hover:border-emerald-400/60 hover:text-emerald-700 transition-colors"
+          <>
+            {/* Messages */}
+            <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3">
+              {messages.length === 0 && (
+                <div className="text-center py-6">
+                  <div className="mx-auto size-12 rounded-2xl bg-emerald-100 text-emerald-700 grid place-items-center mb-3 ring-1 ring-emerald-200">
+                    <MessageCircleMore className="size-5" strokeWidth={1.9} />
+                  </div>
+                  <p className="font-serif text-lg leading-tight text-zinc-900">
+                    {greeting}
+                    {guestName ? `, ${guestName.split(" ")[0]}` : ""}!
+                  </p>
+                  <p className="text-[12.5px] text-zinc-500 mt-2 max-w-[28ch] mx-auto leading-relaxed">
+                    {hint}
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-1.5 justify-center">
+                    {["Onde fica a casa?", "Qual a senha do Wi-Fi?", "O que fazer perto?"].map(
+                      (q) => (
+                        <button
+                          key={q}
+                          type="button"
+                          onClick={() => setInput(q)}
+                          className="text-[11.5px] px-3 py-1.5 rounded-full border border-zinc-200 bg-white text-zinc-700 hover:border-emerald-400/60 hover:text-emerald-700 transition-colors"
+                        >
+                          {q}
+                        </button>
+                      ),
+                    )}
+                  </div>
+                </div>
+              )}
+              {(() => {
+                const visible = messages.filter(
+                  (m) => (m.content ?? "").trim().length > 0 || m.attachment,
+                );
+                const lastAssistantIdx = visible.reduce(
+                  (acc, m, idx) => (m.role === "assistant" ? idx : acc),
+                  -1,
+                );
+                return visible.map((m, i) => (
+                  <div
+                    key={m.id ?? i}
+                    className={`flex ${m.role === "user" ? "justify-end" : m.role === "system" ? "justify-center" : "justify-start"}`}
                   >
-                    {q}
-                  </button>
-                ))}
-              </div>
-
-            </div>
-          )}
-          {(() => {
-            const visible = messages.filter((m) => (m.content ?? "").trim().length > 0 || m.attachment);
-            const lastAssistantIdx = visible.reduce(
-              (acc, m, idx) => (m.role === "assistant" ? idx : acc),
-              -1,
-            );
-            return visible.map((m, i) => (
-            <div key={m.id ?? i} className={`flex ${m.role === "user" ? "justify-end" : m.role === "system" ? "justify-center" : "justify-start"}`}>
-              {m.role === "user" ? (
-                <div className="max-w-[85%] flex flex-col items-end gap-1">
-                  {m.attachment && <AttachmentBubble attachment={m.attachment} />}
-                  {m.content && (
-                    <div className="rounded-xl bg-zinc-900 px-3 py-2 text-[14px] leading-relaxed whitespace-pre-line text-white">
-                      {m.content}
-                    </div>
-                  )}
-                </div>
-              ) : m.role === "system" ? (
-                <div className="max-w-[92%] text-center text-[11.5px] text-zinc-500 italic px-3 py-1.5 rounded-full bg-zinc-100">
-                  {m.content}
-                </div>
-              ) : (
-                <div className="max-w-[88%] w-full flex flex-col items-start gap-2">
-                <div className="text-[13.5px] leading-relaxed text-zinc-800 prose prose-sm max-w-none [&_p]:my-1 [&_p]:leading-relaxed [&_strong]:font-semibold [&_strong]:text-zinc-900 [&_a]:text-emerald-700 [&_a]:underline [&_a]:underline-offset-2 [&_ul]:my-1.5 [&_ul]:pl-4 [&_ol]:my-1.5 [&_ol]:pl-4 [&_li]:my-1 [&_li]:pl-0.5 [&_li>p]:my-0.5 [&_h1]:text-[14.5px] [&_h2]:text-[14.5px] [&_h3]:text-[14.5px] [&_h4]:text-[14px] [&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold [&_h4]:font-semibold [&_h1]:text-zinc-900 [&_h2]:text-zinc-900 [&_h3]:text-zinc-900 [&_h4]:text-zinc-900 [&_h1]:mt-3 [&_h2]:mt-3 [&_h3]:mt-3 [&_h4]:mt-3 [&_h1]:mb-1 [&_h2]:mb-1 [&_h3]:mb-1 [&_h4]:mb-1 [&_h1:first-child]:mt-0 [&_h2:first-child]:mt-0 [&_h3:first-child]:mt-0">
-                  {/* O selo "Atendente" foi removido em 11/09/2026.
+                    {m.role === "user" ? (
+                      <div className="max-w-[85%] flex flex-col items-end gap-1">
+                        {m.attachment && <AttachmentBubble attachment={m.attachment} />}
+                        {m.content && (
+                          <div className="rounded-xl bg-zinc-900 px-3 py-2 text-[14px] leading-relaxed whitespace-pre-line text-white">
+                            {m.content}
+                          </div>
+                        )}
+                      </div>
+                    ) : m.role === "system" ? (
+                      <div className="max-w-[92%] text-center text-[11.5px] text-zinc-500 italic px-3 py-1.5 rounded-full bg-zinc-100">
+                        {m.content}
+                      </div>
+                    ) : (
+                      <div className="max-w-[88%] w-full flex flex-col items-start gap-2">
+                        <div className="text-[13.5px] leading-relaxed text-zinc-800 prose prose-sm max-w-none [&_p]:my-1 [&_p]:leading-relaxed [&_strong]:font-semibold [&_strong]:text-zinc-900 [&_a]:text-emerald-700 [&_a]:underline [&_a]:underline-offset-2 [&_ul]:my-1.5 [&_ul]:pl-4 [&_ol]:my-1.5 [&_ol]:pl-4 [&_li]:my-1 [&_li]:pl-0.5 [&_li>p]:my-0.5 [&_h1]:text-[14.5px] [&_h2]:text-[14.5px] [&_h3]:text-[14.5px] [&_h4]:text-[14px] [&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold [&_h4]:font-semibold [&_h1]:text-zinc-900 [&_h2]:text-zinc-900 [&_h3]:text-zinc-900 [&_h4]:text-zinc-900 [&_h1]:mt-3 [&_h2]:mt-3 [&_h3]:mt-3 [&_h4]:mt-3 [&_h1]:mb-1 [&_h2]:mb-1 [&_h3]:mb-1 [&_h4]:mb-1 [&_h1:first-child]:mt-0 [&_h2:first-child]:mt-0 [&_h3:first-child]:mt-0">
+                          {/* O selo "Atendente" foi removido em 11/09/2026.
                       Para o hóspede existe UMA voz do começo ao fim — é a regra
                       do produto. Rotular metade das mensagens como vindas de
                       outra pessoa era anunciar a transferência de novo, agora
@@ -1018,82 +1148,85 @@ export function GuideAiChat({
                       `sender_type` e visível no painel de quem atende: quem
                       perde o rótulo é só o hóspede, que nunca precisou dele. */}
 
-                  {m.attachment && (
-                    <div className="mb-1">
-                      <AttachmentBubble attachment={m.attachment} />
-                    </div>
-                  )}
-                  {m.content && (
-                    /* Mesmo renderizador do Assistente do Painel (07/09/2026):
+                          {m.attachment && (
+                            <div className="mb-1">
+                              <AttachmentBubble attachment={m.attachment} />
+                            </div>
+                          )}
+                          {m.content && (
+                            /* Mesmo renderizador do Assistente do Painel (07/09/2026):
                        as duas IAs escrevem Markdown, então as duas devem exibir
                        negrito, lista e link do mesmo jeito. As duas exceções do
                        guia — código copiável e foto que some quando expira —
                        continuam aqui, porque só fazem sentido para o hóspede. */
-                    <AiMarkdown
-                      extraComponents={{
-                        code: ({ node, children, ...props }: any) => (
-                          <CopyableCode {...props}>{children}</CopyableCode>
-                        ),
-                        img: ({ node, alt, ...props }: any) => (
-                          <img
-                            {...props}
-                            alt={alt ?? ""}
-                            loading="lazy"
-                            className="block w-full max-w-[240px] rounded-xl border border-zinc-200 my-1.5 object-cover aspect-[4/3]"
-                            onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                              // Foto indisponível/expirada — some em vez de mostrar ícone quebrado.
-                              (e.currentTarget as HTMLImageElement).style.display = "none";
-                            }}
-                          />
-                        ),
-                      }}
-                    >
-                      {(m.id && autoTranslated[m.id]) || m.content}
-                    </AiMarkdown>
-                  )}
-
-                </div>
-                {/* Botões de resposta rápida — só na última mensagem do
+                            <AiMarkdown
+                              extraComponents={{
+                                code: ({ node, children, ...props }: any) => (
+                                  <CopyableCode {...props}>{children}</CopyableCode>
+                                ),
+                                img: ({ node, alt, ...props }: any) => (
+                                  <img
+                                    {...props}
+                                    alt={alt ?? ""}
+                                    loading="lazy"
+                                    className="block w-full max-w-[240px] rounded-xl border border-zinc-200 my-1.5 object-cover aspect-[4/3]"
+                                    onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                                      // Foto indisponível/expirada — some em vez de mostrar ícone quebrado.
+                                      (e.currentTarget as HTMLImageElement).style.display = "none";
+                                    }}
+                                  />
+                                ),
+                              }}
+                            >
+                              {(m.id && autoTranslated[m.id]) || m.content}
+                            </AiMarkdown>
+                          )}
+                        </div>
+                        {/* Botões de resposta rápida — só na última mensagem do
                     assistente, e só enquanto não há nada em andamento (senão
                     o hóspede podia clicar num botão de uma pergunta antiga
                     enquanto uma resposta nova já está chegando). O campo de
                     digitar continua sempre disponível ao lado. */}
-                {!!m.quickReplies?.length && i === lastAssistantIdx && !loading && !streamingText && (
-                  <div className="flex flex-wrap gap-1.5 mt-0.5">
-                    {m.quickReplies.map((opt, oi) => (
-                      <button
-                        key={oi}
-                        type="button"
-                        onClick={() => send(opt)}
-                        className="px-3 py-1.5 rounded-full border border-emerald-600/30 bg-emerald-50 text-emerald-800 text-[12.5px] font-medium hover:bg-emerald-100 active:scale-[0.97] transition-all"
-                      >
-                        {opt}
-                      </button>
-                    ))}
+                        {!!m.quickReplies?.length &&
+                          i === lastAssistantIdx &&
+                          !loading &&
+                          !streamingText && (
+                            <div className="flex flex-wrap gap-1.5 mt-0.5">
+                              {m.quickReplies.map((opt, oi) => (
+                                <button
+                                  key={oi}
+                                  type="button"
+                                  onClick={() => send(opt)}
+                                  className="px-3 py-1.5 rounded-full border border-emerald-600/30 bg-emerald-50 text-emerald-800 text-[12.5px] font-medium hover:bg-emerald-100 active:scale-[0.97] transition-all"
+                                >
+                                  {opt}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                      </div>
+                    )}
                   </div>
-                )}
+                ));
+              })()}
+              {streamingText && (
+                <div className="flex justify-start">
+                  <div className="max-w-[88%] rounded-xl bg-zinc-100 px-3 py-2 text-[14px] leading-relaxed">
+                    {streamingText}
+                    <span className="ml-0.5 inline-block h-3.5 w-[2px] translate-y-[2px] bg-emerald-500 animate-pulse" />
+                  </div>
+                </div>
+              )}
+              {loading && !streamingText && (
+                <div className="flex items-center gap-2 text-zinc-500 text-[12.5px]">
+                  <Loader2 className="size-3.5 animate-spin" />
+                  <span className="animate-pulse">
+                    {stageLabel ? `${stageLabel}…` : "pensando…"}
+                  </span>
                 </div>
               )}
             </div>
-            ));
-          })()}
-          {streamingText && (
-            <div className="flex justify-start">
-              <div className="max-w-[88%] rounded-xl bg-zinc-100 px-3 py-2 text-[14px] leading-relaxed">
-                {streamingText}
-                <span className="ml-0.5 inline-block h-3.5 w-[2px] translate-y-[2px] bg-emerald-500 animate-pulse" />
-              </div>
-            </div>
-          )}
-          {loading && !streamingText && (
-            <div className="flex items-center gap-2 text-zinc-500 text-[12.5px]">
-              <Loader2 className="size-3.5 animate-spin" />
-              <span className="animate-pulse">{stageLabel ? `${stageLabel}…` : "pensando…"}</span>
-            </div>
-          )}
-
-        </div>
-        </>
+          </>
         )}
 
         <GuestNotificationsPrompt
@@ -1110,13 +1243,17 @@ export function GuideAiChat({
             // Com o teclado aberto o painel já encolheu (ver useVisualViewport),
             // então a área segura do aparelho deixa de valer — ela só existe
             // quando não há teclado por cima.
-            paddingBottom: viewport.keyboardOpen ? "0.5rem" : "max(0.75rem, env(safe-area-inset-bottom))",
+            paddingBottom: viewport.keyboardOpen
+              ? "0.5rem"
+              : "max(0.75rem, env(safe-area-inset-bottom))",
           }}
         >
           {uploadErr && (
             <div className="text-[11px] text-red-600 mb-1.5 px-1 flex items-center justify-between">
               <span>{uploadErr}</span>
-              <button onClick={() => setUploadErr(null)} className="ml-2"><X className="size-3" /></button>
+              <button onClick={() => setUploadErr(null)} className="ml-2">
+                <X className="size-3" />
+              </button>
             </div>
           )}
           <div className="flex items-center gap-1.5">
@@ -1144,7 +1281,9 @@ export function GuideAiChat({
                 altura, pílula com borda fina. O texto continua em 16px porque
                 abaixo disso o iOS dá zoom ao focar o campo — no painel isso
                 não importa, aqui sim. */}
-            <div className={`${COMPOSER_FIELD} !border-zinc-200 !bg-zinc-50 transition-colors focus-within:!border-emerald-400/50`}>
+            <div
+              className={`${COMPOSER_FIELD} !border-zinc-200 !bg-zinc-50 transition-colors focus-within:!border-emerald-400/50`}
+            >
               <textarea
                 ref={inputRef}
                 value={input}
@@ -1152,7 +1291,9 @@ export function GuideAiChat({
                 onKeyDown={onKey}
                 rows={1}
                 maxLength={2000}
-                placeholder={transcribing ? "transcrevendo…" : uploading ? "Enviando anexo…" : "Mensagem…"}
+                placeholder={
+                  transcribing ? "transcrevendo…" : uploading ? "Enviando anexo…" : "Mensagem…"
+                }
                 aria-label="Mensagem para o concierge"
                 disabled={uploading || transcribing}
                 className={`${COMPOSER_INPUT} !text-[16px] text-zinc-900 placeholder:text-zinc-400`}
@@ -1166,7 +1307,11 @@ export function GuideAiChat({
                 aria-label="Enviar"
                 className="grid size-8 shrink-0 place-items-center rounded-full bg-emerald-600 text-white transition-all hover:bg-emerald-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {loading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" strokeWidth={2} />}
+                {loading ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Send className="size-4" strokeWidth={2} />
+                )}
               </button>
             ) : transcribing ? (
               <span className="grid size-8 shrink-0 place-items-center text-zinc-500">
@@ -1189,7 +1334,6 @@ export function GuideAiChat({
           </p>
         </div>
       </div>
-
     </>
   ) : null;
 

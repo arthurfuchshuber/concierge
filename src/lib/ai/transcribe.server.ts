@@ -20,14 +20,16 @@
 function extFor(mimeType: string): string {
   const base = mimeType.split(";")[0];
   return (
-    ({
-      "audio/webm": "webm",
-      "audio/mp4": "mp4",
-      "audio/m4a": "m4a",
-      "audio/mpeg": "mp3",
-      "audio/wav": "wav",
-      "audio/ogg": "ogg",
-    } as Record<string, string>)[base] ?? "webm"
+    (
+      {
+        "audio/webm": "webm",
+        "audio/mp4": "mp4",
+        "audio/m4a": "m4a",
+        "audio/mpeg": "mp3",
+        "audio/wav": "wav",
+        "audio/ogg": "ogg",
+      } as Record<string, string>
+    )[base] ?? "webm"
   );
 }
 
@@ -38,16 +40,17 @@ export class TranscriptionError extends Error {}
  * formato mais barato à mão (o guia tem o arquivo, o painel decodifica uma
  * vez só) e evita uma cópia extra em memória para cada áudio.
  */
-export async function transcribeAudio(
-  bytes: Uint8Array,
-  mimeType = "audio/webm",
-): Promise<string> {
+export async function transcribeAudio(bytes: Uint8Array, mimeType = "audio/webm"): Promise<string> {
   const apiKey = process.env["LOVABLE_API_KEY"];
   if (!apiKey) throw new TranscriptionError("IA não configurada.");
 
   const form = new FormData();
   form.append("model", "openai/gpt-4o-transcribe");
-  form.append("file", new Blob([bytes as unknown as BlobPart], { type: mimeType }), `audio.${extFor(mimeType)}`);
+  form.append(
+    "file",
+    new Blob([bytes as unknown as BlobPart], { type: mimeType }),
+    `audio.${extFor(mimeType)}`,
+  );
 
   const res = await fetch("https://ai.gateway.lovable.dev/v1/audio/transcriptions", {
     method: "POST",
@@ -68,7 +71,10 @@ export async function transcribeAudio(
 }
 
 /** Variante para quem só tem o base64 (o navegador manda assim). */
-export async function transcribeAudioBase64(base64: string, mimeType = "audio/webm"): Promise<string> {
+export async function transcribeAudioBase64(
+  base64: string,
+  mimeType = "audio/webm",
+): Promise<string> {
   const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
   return transcribeAudio(bytes, mimeType);
 }

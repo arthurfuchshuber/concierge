@@ -62,7 +62,10 @@ export async function updateGuestMemory(params: {
       .map((m) => `${m.role === "user" ? "Hóspede" : "IA"}: ${m.content}`)
       .join("\n");
 
-    const { data, usage } = await chatJson<{ summary?: string; preferences?: Record<string, unknown> }>("memory", [
+    const { data, usage } = await chatJson<{
+      summary?: string;
+      preferences?: Record<string, unknown>;
+    }>("memory", [
       {
         role: "system",
         content:
@@ -120,16 +123,19 @@ export async function summarizeConversation(params: {
       .map((m) => `${m.role === "user" ? "Hóspede" : "Atendimento"}: ${m.content}`)
       .join("\n");
 
-    const { data, usage } = await chatJson<{ summary?: string; sentiment?: string; risk?: string }>("summary", [
-      {
-        role: "system",
-        content:
-          "Resuma o atendimento para memória interna (máx 700 caracteres), em português. Identifique o " +
-          "sentimento geral (positivo|neutro|negativo) e o risco de avaliação negativa (baixo|medio|alto). " +
-          'Responda APENAS JSON: {"summary":"...","sentiment":"...","risk":"..."}',
-      },
-      { role: "user", content: text },
-    ]);
+    const { data, usage } = await chatJson<{ summary?: string; sentiment?: string; risk?: string }>(
+      "summary",
+      [
+        {
+          role: "system",
+          content:
+            "Resuma o atendimento para memória interna (máx 700 caracteres), em português. Identifique o " +
+            "sentimento geral (positivo|neutro|negativo) e o risco de avaliação negativa (baixo|medio|alto). " +
+            'Responda APENAS JSON: {"summary":"...","sentiment":"...","risk":"..."}',
+        },
+        { role: "user", content: text },
+      ],
+    );
 
     if (!data) return usage;
 
@@ -167,7 +173,11 @@ export async function analyzeSentiment(message: string): Promise<{
       },
       { role: "user", content: message },
     ]);
-    return { sentiment: data?.sentiment ?? "neutro", risk: data?.risk ?? "baixo", usage: mergeUsage(EMPTY_USAGE, usage) };
+    return {
+      sentiment: data?.sentiment ?? "neutro",
+      risk: data?.risk ?? "baixo",
+      usage: mergeUsage(EMPTY_USAGE, usage),
+    };
   } catch {
     return { sentiment: "neutro", risk: "baixo", usage: EMPTY_USAGE };
   }

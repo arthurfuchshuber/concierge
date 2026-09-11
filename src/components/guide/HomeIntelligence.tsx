@@ -46,29 +46,65 @@ function chipsForCity(city: string | null): ChipDef[] {
 
   if (c.includes("foz do iguacu") || c.includes("iguacu")) {
     return [
-      { label: "Cataratas hoje", prompt: "Como visitar as Cataratas do Iguaçu hoje?", icon: <Mountain /> },
-      { label: "Ir ao Paraguai", prompt: "Como atravesso para o Paraguai (Ciudad del Este)?", icon: <MapPin /> },
-      { label: "Onde jantar?", prompt: "Melhor restaurante para jantar perto daqui?", icon: <Utensils /> },
+      {
+        label: "Cataratas hoje",
+        prompt: "Como visitar as Cataratas do Iguaçu hoje?",
+        icon: <Mountain />,
+      },
+      {
+        label: "Ir ao Paraguai",
+        prompt: "Como atravesso para o Paraguai (Ciudad del Este)?",
+        icon: <MapPin />,
+      },
+      {
+        label: "Onde jantar?",
+        prompt: "Melhor restaurante para jantar perto daqui?",
+        icon: <Utensils />,
+      },
     ];
   }
   if (c.includes("rio de janeiro") || c.includes("rio")) {
     return [
-      { label: "Praias hoje", prompt: "Qual a melhor praia para hoje aqui no Rio?", icon: <Waves /> },
+      {
+        label: "Praias hoje",
+        prompt: "Qual a melhor praia para hoje aqui no Rio?",
+        icon: <Waves />,
+      },
       { label: "Cristo Redentor", prompt: "Como chegar ao Cristo Redentor?", icon: <Mountain /> },
-      { label: "Onde jantar?", prompt: "Melhor restaurante para jantar perto daqui?", icon: <Utensils /> },
+      {
+        label: "Onde jantar?",
+        prompt: "Melhor restaurante para jantar perto daqui?",
+        icon: <Utensils />,
+      },
     ];
   }
   if (c.includes("sao paulo") || c === "sp") {
     return [
-      { label: "O que fazer hoje?", prompt: "O que fazer em São Paulo hoje?", icon: <CalendarDays /> },
-      { label: "Melhor restaurante", prompt: "Melhor restaurante perto daqui?", icon: <Utensils /> },
+      {
+        label: "O que fazer hoje?",
+        prompt: "O que fazer em São Paulo hoje?",
+        icon: <CalendarDays />,
+      },
+      {
+        label: "Melhor restaurante",
+        prompt: "Melhor restaurante perto daqui?",
+        icon: <Utensils />,
+      },
       { label: "Vida noturna", prompt: "Onde curtir a noite em São Paulo?", icon: <Music /> },
     ];
   }
   if (c.includes("gramado") || c.includes("canela")) {
     return [
-      { label: "Passeios hoje", prompt: "Melhores passeios em Gramado/Canela hoje?", icon: <TreePine /> },
-      { label: "Fondue & vinho", prompt: "Onde comer fondue e tomar vinho na região?", icon: <Wine /> },
+      {
+        label: "Passeios hoje",
+        prompt: "Melhores passeios em Gramado/Canela hoje?",
+        icon: <TreePine />,
+      },
+      {
+        label: "Fondue & vinho",
+        prompt: "Onde comer fondue e tomar vinho na região?",
+        icon: <Wine />,
+      },
       { label: "Cascatas", prompt: "Como chego nas cascatas próximas?", icon: <Mountain /> },
     ];
   }
@@ -90,7 +126,11 @@ function chipsForCity(city: string | null): ChipDef[] {
     return [
       { label: "Bares hoje", prompt: "Melhores bares em BH hoje?", icon: <Wine /> },
       { label: "Inhotim", prompt: "Como chegar a Inhotim daqui?", icon: <Camera /> },
-      { label: "Comida mineira", prompt: "Onde comer comida mineira autêntica?", icon: <Utensils /> },
+      {
+        label: "Comida mineira",
+        prompt: "Onde comer comida mineira autêntica?",
+        icon: <Utensils />,
+      },
     ];
   }
   if (c.includes("curitiba")) {
@@ -102,7 +142,11 @@ function chipsForCity(city: string | null): ChipDef[] {
   }
   if (c.includes("brasilia")) {
     return [
-      { label: "Monumentos", prompt: "Quais monumentos visitar em Brasília hoje?", icon: <Landmark /> },
+      {
+        label: "Monumentos",
+        prompt: "Quais monumentos visitar em Brasília hoje?",
+        icon: <Landmark />,
+      },
       { label: "Onde comer?", prompt: "Melhor restaurante perto daqui?", icon: <Utensils /> },
       { label: "Passeios", prompt: "Passeios interessantes para hoje?", icon: <CalendarDays /> },
     ];
@@ -118,7 +162,11 @@ function chipsForCity(city: string | null): ChipDef[] {
   return [
     { label: "O que fazer hoje?", prompt: "O que fazer hoje aqui?", icon: <CalendarDays /> },
     { label: "Onde jantar?", prompt: "Melhor restaurante perto daqui?", icon: <Utensils /> },
-    { label: "Passeios", prompt: "Melhores passeios/pontos turísticos perto daqui?", icon: <Camera /> },
+    {
+      label: "Passeios",
+      prompt: "Melhores passeios/pontos turísticos perto daqui?",
+      icon: <Camera />,
+    },
   ];
 }
 
@@ -205,7 +253,9 @@ export function HomeIntelligence({
             </span>
             <div className="min-w-0">
               <div className="flex items-baseline gap-1.5">
-                <p className={`text-[16px] font-black leading-none tabular-nums ${isDark ? "text-white" : "text-slate-950"}`}>
+                <p
+                  className={`text-[16px] font-black leading-none tabular-nums ${isDark ? "text-white" : "text-slate-950"}`}
+                >
                   {weather.tempC}°C
                 </p>
                 {live && (
@@ -215,7 +265,9 @@ export function HomeIntelligence({
                   </span>
                 )}
               </div>
-              <p className={`mt-1 text-[11px] leading-snug truncate ${isDark ? "text-white/62" : "text-slate-700/80"}`}>
+              <p
+                className={`mt-1 text-[11px] leading-snug truncate ${isDark ? "text-white/62" : "text-slate-700/80"}`}
+              >
                 {weather.label || "Clima local"}
               </p>
             </div>
@@ -232,20 +284,33 @@ export function HomeIntelligence({
                 <div
                   key={d.date}
                   className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 px-1 ${
-                    i < 2 ? (isDark ? "border-r border-white/6" : "border-r border-slate-900/[0.06]") : ""
+                    i < 2
+                      ? isDark
+                        ? "border-r border-white/6"
+                        : "border-r border-slate-900/[0.06]"
+                      : ""
                   }`}
                 >
-                  <span className={`text-[9px] font-black uppercase tracking-[0.14em] ${isDark ? "text-white/55" : "text-slate-600/85"}`}>
+                  <span
+                    className={`text-[9px] font-black uppercase tracking-[0.14em] ${isDark ? "text-white/55" : "text-slate-600/85"}`}
+                  >
                     {dayLabel(d.date, i)}
                   </span>
                   <span className="text-[20px] leading-none">{d.icon}</span>
-                  <span className={`text-[10.5px] font-bold tabular-nums leading-none ${isDark ? "text-white/92" : "text-slate-950"}`}>
-                    {d.tempMax}° <span className={isDark ? "text-white/45" : "text-slate-500"}>{d.tempMin}°</span>
+                  <span
+                    className={`text-[10.5px] font-bold tabular-nums leading-none ${isDark ? "text-white/92" : "text-slate-950"}`}
+                  >
+                    {d.tempMax}°{" "}
+                    <span className={isDark ? "text-white/45" : "text-slate-500"}>
+                      {d.tempMin}°
+                    </span>
                   </span>
                 </div>
               ))
             ) : (
-              <div className={`flex-1 grid place-items-center text-[11px] ${isDark ? "text-white/50" : "text-slate-600"}`}>
+              <div
+                className={`flex-1 grid place-items-center text-[11px] ${isDark ? "text-white/50" : "text-slate-600"}`}
+              >
                 Previsão indisponível
               </div>
             )}
@@ -287,9 +352,7 @@ export function HomeIntelligence({
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 {/* AI sparkle avatar */}
-                <div
-                    className="grid size-12 shrink-0 place-items-center rounded-full border border-white/25 bg-gradient-to-br from-fuchsia-500/90 via-violet-500/90 to-pink-500/90 shadow-[0_12px_30px_-14px_rgba(217,70,239,0.55)]"
-                >
+                <div className="grid size-12 shrink-0 place-items-center rounded-full border border-white/25 bg-gradient-to-br from-fuchsia-500/90 via-violet-500/90 to-pink-500/90 shadow-[0_12px_30px_-14px_rgba(217,70,239,0.55)]">
                   <Sparkles className="size-6 text-white" strokeWidth={2.2} aria-hidden="true" />
                 </div>
                 <div className="min-w-0">
@@ -319,7 +382,12 @@ export function HomeIntelligence({
 
             <div className="mt-4 grid grid-cols-3 gap-2.5">
               {chips.map((c) => (
-                <Chip key={c.label} icon={c.icon} label={c.label} onClick={() => openChat(c.prompt)} />
+                <Chip
+                  key={c.label}
+                  icon={c.icon}
+                  label={c.label}
+                  onClick={() => openChat(c.prompt)}
+                />
               ))}
             </div>
           </div>
@@ -341,4 +409,3 @@ function Chip({ label, onClick, icon }: { label: string; onClick: () => void; ic
     </button>
   );
 }
-

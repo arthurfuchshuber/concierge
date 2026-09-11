@@ -19,9 +19,7 @@ type DocEntry = {
   legible?: boolean | null;
 };
 
-async function signGuestDocs<T extends { guest_documents: unknown }>(
-  rows: T[],
-): Promise<T[]> {
+async function signGuestDocs<T extends { guest_documents: unknown }>(rows: T[]): Promise<T[]> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const allPaths: string[] = [];
   for (const r of rows) {
@@ -43,7 +41,9 @@ async function signGuestDocs<T extends { guest_documents: unknown }>(
     if (!docs) return r;
     const enriched = docs.map((d) => ({
       ...d,
-      file_url: d.file_path ? urlMap.get(d.file_path) ?? d.file_url ?? null : d.file_url ?? null,
+      file_url: d.file_path
+        ? (urlMap.get(d.file_path) ?? d.file_url ?? null)
+        : (d.file_url ?? null),
     }));
     return { ...r, guest_documents: enriched };
   });
@@ -159,7 +159,9 @@ export const listOwnerGuestForms = createServerFn({ method: "GET" })
         portaria_email: p?.portaria_email ?? null,
       };
     });
-    const signed = (await signGuestDocs(enriched as unknown as { guest_documents: unknown }[])) as unknown as EnrichedLog[];
+    const signed = (await signGuestDocs(
+      enriched as unknown as { guest_documents: unknown }[],
+    )) as unknown as EnrichedLog[];
 
     return {
       accountId,

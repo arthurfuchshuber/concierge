@@ -103,17 +103,26 @@ export const Route = createFileRoute("/api/public/landing-chat")({
         try {
           body = Body.parse(await request.json());
         } catch {
-          return new Response(JSON.stringify({ error: "Entrada inválida." }), { status: 400, headers: { "Content-Type": "application/json" } });
+          return new Response(JSON.stringify({ error: "Entrada inválida." }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          });
         }
 
         const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anon";
         if (!checkRateLimit(clientIp)) {
-          return new Response(JSON.stringify({ error: "Muitas mensagens em pouco tempo. Aguarde um instante." }), { status: 429, headers: { "Content-Type": "application/json" } });
+          return new Response(
+            JSON.stringify({ error: "Muitas mensagens em pouco tempo. Aguarde um instante." }),
+            { status: 429, headers: { "Content-Type": "application/json" } },
+          );
         }
 
         const apiKey = process.env.LOVABLE_API_KEY;
         if (!apiKey) {
-          return new Response(JSON.stringify({ error: "IA indisponível no momento." }), { status: 500, headers: { "Content-Type": "application/json" } });
+          return new Response(JSON.stringify({ error: "IA indisponível no momento." }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          });
         }
 
         // Descarta qualquer system que o cliente tenha mandado — nosso prompt é fixo.
@@ -124,28 +133,39 @@ export const Route = createFileRoute("/api/public/landing-chat")({
           headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
           body: JSON.stringify({
             model: AI_MODELS.content,
-            messages: [
-              { role: "system", content: SYSTEM_PROMPT },
-              ...userMessages,
-            ],
+            messages: [{ role: "system", content: SYSTEM_PROMPT }, ...userMessages],
           }),
         });
 
         if (aiRes.status === 429) {
-          return new Response(JSON.stringify({ error: "Muitas perguntas. Tente de novo em instantes." }), { status: 429, headers: { "Content-Type": "application/json" } });
+          return new Response(
+            JSON.stringify({ error: "Muitas perguntas. Tente de novo em instantes." }),
+            { status: 429, headers: { "Content-Type": "application/json" } },
+          );
         }
         if (aiRes.status === 402) {
-          return new Response(JSON.stringify({ error: "Créditos de IA esgotados." }), { status: 402, headers: { "Content-Type": "application/json" } });
+          return new Response(JSON.stringify({ error: "Créditos de IA esgotados." }), {
+            status: 402,
+            headers: { "Content-Type": "application/json" },
+          });
         }
         if (!aiRes.ok) {
           const errText = await aiRes.text().catch(() => "");
           console.error("Landing AI Gateway error", aiRes.status, errText);
-          return new Response(JSON.stringify({ error: "Não consegui responder agora." }), { status: 502, headers: { "Content-Type": "application/json" } });
+          return new Response(JSON.stringify({ error: "Não consegui responder agora." }), {
+            status: 502,
+            headers: { "Content-Type": "application/json" },
+          });
         }
 
-        const json = (await aiRes.json()) as { choices?: Array<{ message?: { content?: string } }> };
+        const json = (await aiRes.json()) as {
+          choices?: Array<{ message?: { content?: string } }>;
+        };
         const reply = json.choices?.[0]?.message?.content?.trim() ?? "";
-        return new Response(JSON.stringify({ reply }), { status: 200, headers: { "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ reply }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
       },
     },
   },

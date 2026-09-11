@@ -33,7 +33,6 @@ type Payload = {
   actorName?: string;
 };
 
-
 const MAX_EVENTS = 50;
 
 /**
@@ -108,7 +107,6 @@ export const ingestTrail = createServerFn({ method: "POST" })
       return { ok: true, stored: 0, throttled: true };
     }
 
-
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { logSystemEvents } = await import("@/lib/ai/audit/events.server");
 
@@ -152,7 +150,10 @@ export const ingestTrail = createServerFn({ method: "POST" })
           occurred_at: e.at ?? new Date().toISOString(),
           ...(e.metadata ?? {}),
         },
-        result: e.severity === "error" || e.severity === "critical" ? ("failure" as const) : ("success" as const),
+        result:
+          e.severity === "error" || e.severity === "critical"
+            ? ("failure" as const)
+            : ("success" as const),
       })),
     );
 

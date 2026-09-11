@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   AlertTriangle,
   Camera,
+  RotateCcw,
   FileText,
   Loader2,
   Mic,
@@ -15,6 +16,14 @@ import {
 import { toast } from "sonner";
 import { track } from "@/lib/trail";
 import { enviarMidia, garantirToken } from "@/lib/media-upload";
+import {
+  apagarRascunho,
+  chaveRascunho,
+  gravarRascunho,
+  lerRascunho,
+  resumoRascunho,
+  type RascunhoSituacao,
+} from "@/lib/offline/situation-draft";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
 import { CATEGORY_BY_KEY } from "@/components/dashboard/record-categories";
@@ -236,6 +245,20 @@ export function RecordSituationSheet({
    *  abra uma segunda situação com as mesmas provas. */
   const grupoRef = useRef<string | null>(null);
 
+  /**
+   * RASCUNHO GUARDADO NO APARELHO (11/09/2026).
+   *
+   * Em 11/09 o app reiniciou sozinho com esta folha aberta e um vídeo de
+   * auditoria dentro — e levou o vídeo e o texto junto. A prestadora refilmou
+   * tudo. A partir daqui, cada mudança cai no IndexedDB COM os arquivos, e ao
+   * reabrir a folha oferecemos retomar.
+   *
+   * Oferecer, e não restaurar sozinho: quem descartou de propósito não quer a
+   * pia de meia hora atrás voltando por conta própria.
+   */
+  const chave = chaveRascunho(propertyId, target);
+  const [rascunho, setRascunho] = useState<RascunhoSituacao | null>(null);
+
   const photoRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -248,8 +271,67 @@ export function RecordSituationSheet({
     setTitle(initialTitle ?? "");
     setDescription("");
     setErro(null);
+    setRascunho(null);
     grupoRef.current = null;
-  }, [open, initial, initialTitle]);
+    let vivo = true;
+    void lerRascunho(chave).then((r) => {
+      if (vivo && r) setRascunho(r);
+    });
+    return () => {
+      vivo = false;
+    };
+  }, [open, initial, initialTitle, chave]);
+
+  /* Grava o rascunho a cada respiro. O atraso evita escrever a cada tecla
+     digitada no título — e o que realmente precisa sobreviver (os arquivos)
+     muda poucas vezes. */
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => {
+      void gravarRascunho(chave, {
+        criadoEm: Date.now(),
+        propertyId,
+        logId: target.logId,
+        reservationId: target.reservationId,
+        cardMode,
+        category,
+        title,
+        description,
+        midias: items.map((i) => ({
+          key: i.key,
+          blob: i.blob,
+          kind: i.kind,
+          mime: i.mime,
+          name: i.name,
+          durationMs: i.durationMs,
+        })),
+      });
+    }, 900);
+    return () => clearTimeout(t);
+  }, [open, chave, propertyId, target, cardMode, category, title, description, items]);
+
+  function retomarRascunho() {
+    if (!rascunho) return;
+    setTitle(rascunho.title);
+    setDescription(rascunho.description);
+    setItems(
+      rascunho.midias.map((m) => ({
+        key: m.key,
+        blob: m.blob,
+        kind: m.kind,
+        mime: m.mime,
+        name: m.name,
+        durationMs: m.durationMs,
+        previewUrl: m.kind === "photo" || m.kind === "video" ? URL.createObjectURL(m.blob) : null,
+      })),
+    );
+    setRascunho(null);
+  }
+
+  function descartarRascunho() {
+    setRascunho(null);
+    void apagarRascunho(chave);
+  }
 
   // Os previews são object URLs; soltar ao desmontar evita segurar o vídeo
   // inteiro na memória do celular. O revoke só pode acontecer no unmount —
@@ -470,6 +552,8 @@ export function RecordSituationSheet({
       }
 
       if (items.length > 0) toast.success("Situação registrada.");
+      // Deu tudo certo: o rascunho cumpriu o papel e sai de cena.
+      void apagarRascunho(chave);
       onSaved();
       onOpenChange(false);
     } catch (e) {
@@ -504,6 +588,42 @@ export function RecordSituationSheet({
         </DialogHeader>
 
         <div className="max-h-[62vh] space-y-3.5 overflow-y-auto px-3.5 py-3">
+          {/* O QUE FICOU PARA TRÁS (11/09/2026). Aparece só quando existe algo
+              guardado deste mesmo imóvel e reserva — na folha limpa do dia a
+              dia esta faixa não existe. */}
+          {rascunho && (
+            <div className="rounded-[0.35rem] border border-[#E82DAE]/30 bg-[#7C1AD8]/[0.07] px-3 py-2.5">
+              <div className="flex items-start gap-2">
+                <RotateCcw className="mt-px size-3.5 shrink-0 text-[#c084fc]" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11.5px] font-bold leading-snug text-foreground">
+                    Você tem um registro não enviado
+                  </p>
+                  <p className="mt-0.5 text-[10.5px] leading-snug text-muted-foreground">
+                    {resumoRascunho(rascunho)} — ficou guardado neste aparelho. Nada foi perdido.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={descartarRascunho}
+                  className="px-1.5 py-1 text-[10.5px] font-semibold text-muted-foreground hover:text-foreground"
+                >
+                  Começar do zero
+                </button>
+                <span className="flex-1" />
+                <button
+                  type="button"
+                  onClick={retomarRascunho}
+                  className="rounded-[0.3rem] bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] px-3 py-1.5 text-[11px] font-bold text-white"
+                >
+                  Retomar
+                </button>
+              </div>
+            </div>
+          )}
+
           <div>
             <div className="mb-1.5 flex items-center gap-1.5">
               <span className="ds-eyebrow text-muted-foreground">Mídias</span>

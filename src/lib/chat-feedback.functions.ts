@@ -18,7 +18,9 @@ const TeachInput = z.object({
 async function loadMessageOwner(supabase: any, messageId: string, userId: string) {
   const { data: msg, error } = await supabase
     .from("property_chat_messages")
-    .select("id, conversation_id, role, content, property_chat_conversations!inner(id, property_id, properties!inner(id, owner_id))")
+    .select(
+      "id, conversation_id, role, content, property_chat_conversations!inner(id, property_id, properties!inner(id, owner_id))",
+    )
     .eq("id", messageId)
     .single();
   if (error || !msg) throw new Error("Mensagem não encontrada");

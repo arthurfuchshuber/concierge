@@ -13,7 +13,17 @@ const CREDENTIAL_REQUEST =
   /\b(senha(?: do)? (?:wi-?fi|port[aã]o|port[aã]ozinho|cadeado|cofre)|c[oó]digo(?: de)? (?:acesso|port[aã]o|fechadura|cofre)|pin|ver senha|qual (?:a )?senha)\b/i;
 
 /** Palavras que indicam que um item do manual/FAQ trata de chegada/acesso (não do conteúdo em si, só do título). */
-const ARRIVAL_KEYWORDS = ["acesso", "chave", "chegada", "chegar", "entrada", "port", "cadeado", "cofre", "fechadura"];
+const ARRIVAL_KEYWORDS = [
+  "acesso",
+  "chave",
+  "chegada",
+  "chegar",
+  "entrada",
+  "port",
+  "cadeado",
+  "cofre",
+  "fechadura",
+];
 
 function guideLink(slug: string): string {
   return `/g/${encodeURIComponent(slug)}#senhas-acesso`;
@@ -33,17 +43,26 @@ function scrubPossibleCode(text: string): string {
  * procedimento de chegada para este imóvel — só para apontar o hóspede ao item certo
  * dentro do guia, nunca para substituir a leitura dele.
  */
-async function findArrivalPointers(supabase: SupabaseClient, propertyId: string): Promise<string[]> {
+async function findArrivalPointers(
+  supabase: SupabaseClient,
+  propertyId: string,
+): Promise<string[]> {
   try {
     const [manualR, faqsR] = await Promise.all([
-      supabase.from("property_manual_items").select("title").eq("property_id", propertyId).limit(30),
+      supabase
+        .from("property_manual_items")
+        .select("title")
+        .eq("property_id", propertyId)
+        .limit(30),
       supabase.from("property_faqs").select("question").eq("property_id", propertyId).limit(30),
     ]);
     const candidates: string[] = [
       ...((manualR.data ?? []) as Array<{ title: string | null }>).map((r) => r.title ?? ""),
       ...((faqsR.data ?? []) as Array<{ question: string | null }>).map((r) => r.question ?? ""),
     ].filter(Boolean);
-    const matches = candidates.filter((t) => ARRIVAL_KEYWORDS.some((k) => t.toLowerCase().includes(k)));
+    const matches = candidates.filter((t) =>
+      ARRIVAL_KEYWORDS.some((k) => t.toLowerCase().includes(k)),
+    );
     return [...new Set(matches)].slice(0, 3).map(scrubPossibleCode);
   } catch (err) {
     console.error("[ai] findArrivalPointers falhou", err);
@@ -69,15 +88,13 @@ export async function guestSafetyDecision(
     }
     return {
       kind: "access_incident",
-      reply:
-        `Entendi que você está sem acesso. Eu não consigo abrir portões, confirmar abertura remota ou validar códigos pelo chat. Consulte [Chegada e senhas de acesso](${link}) e siga as instruções de check-in exibidas ali; a equipe responsável acompanhará esta ocorrência por aqui.${pointers}`,
+      reply: `Entendi que você está sem acesso. Eu não consigo abrir portões, confirmar abertura remota ou validar códigos pelo chat. Consulte [Chegada e senhas de acesso](${link}) e siga as instruções de check-in exibidas ali; a equipe responsável acompanhará esta ocorrência por aqui.${pointers}`,
     };
   }
   if (CREDENTIAL_REQUEST.test(message)) {
     return {
       kind: "credential_guidance",
-      reply:
-        `Para proteger seu acesso, não envio senhas ou códigos pelo chat. Abra [Ver senhas e códigos no guia](${link}) e siga as instruções de chegada mostradas ali — elas informam como o anfitrião libera a visualização.`,
+      reply: `Para proteger seu acesso, não envio senhas ou códigos pelo chat. Abra [Ver senhas e códigos no guia](${link}) e siga as instruções de chegada mostradas ali — elas informam como o anfitrião libera a visualização.`,
     };
   }
   return { kind: "none", reply: "" };

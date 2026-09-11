@@ -21,9 +21,10 @@ export function AccountSwitcher() {
   // Nothing to switch: user is a plain host with only their own account.
   if (accounts.length === 0) return null;
 
-
   const totalOptions = accounts.length + (hasOwn ? 1 : 0);
-  const activeLabel = impersonation ? (impersonation.name || impersonation.email || "Conta") : "Minha conta";
+  const activeLabel = impersonation
+    ? impersonation.name || impersonation.email || "Conta"
+    : "Minha conta";
 
   function pickOwn() {
     setImpersonation(null);
@@ -44,7 +45,9 @@ export function AccountSwitcher() {
         >
           <Building2 className="size-4 shrink-0 text-primary" />
           <div className="flex-1 min-w-0">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground leading-none">Empresa ativa</div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground leading-none">
+              Empresa ativa
+            </div>
             <div className="text-sm truncate mt-0.5">{activeLabel}</div>
           </div>
           {totalOptions > 1 && <ChevronDown className="size-4 shrink-0 opacity-60" />}
@@ -74,7 +77,9 @@ export function AccountSwitcher() {
                 >
                   <div className="flex-1 min-w-0">
                     <div className="text-sm truncate">{name}</div>
-                    <div className="text-[11px] text-muted-foreground truncate uppercase tracking-wider">{a.role}</div>
+                    <div className="text-[11px] text-muted-foreground truncate uppercase tracking-wider">
+                      {a.role}
+                    </div>
                   </div>
                   {active && <Check className="size-4 text-primary" />}
                 </button>

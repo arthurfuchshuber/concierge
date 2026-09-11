@@ -1,7 +1,20 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, ArrowLeft, Eye, Lock, Pencil, ShieldOff, Home, Mail, RotateCw, Trash2, Link2, Users } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Eye,
+  Lock,
+  Pencil,
+  ShieldOff,
+  Home,
+  Mail,
+  RotateCw,
+  Trash2,
+  Link2,
+  Users,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,7 +59,8 @@ function DeniedState({ reason }: { reason?: string }) {
       <Lock className="h-8 w-8 text-muted-foreground" />
       <p className="font-medium">Você não tem permissão para gerenciar os acessos desta conta</p>
       <p className="max-w-md text-sm text-muted-foreground">
-        {reason || "Esta área só pode ser gerenciada pelo titular da conta. Peça a ele para liberar seu acesso."}
+        {reason ||
+          "Esta área só pode ser gerenciada pelo titular da conta. Peça a ele para liberar seu acesso."}
       </p>
     </Card>
   );
@@ -79,8 +93,18 @@ function LoadingState() {
 
 const OPTIONS: Array<{ value: Level; label: string; icon: typeof Eye; active: string }> = [
   { value: "NONE", label: "Sem acesso", icon: ShieldOff, active: "bg-muted text-foreground" },
-  { value: "READ", label: "Visualizar", icon: Eye, active: "bg-sky-500/15 text-sky-600 dark:text-sky-300" },
-  { value: "WRITE", label: "Editar", icon: Pencil, active: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300" },
+  {
+    value: "READ",
+    label: "Visualizar",
+    icon: Eye,
+    active: "bg-sky-500/15 text-sky-600 dark:text-sky-300",
+  },
+  {
+    value: "WRITE",
+    label: "Editar",
+    icon: Pencil,
+    active: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300",
+  },
 ];
 
 function LevelSwitch({
@@ -178,12 +202,10 @@ function AreaRow({
         />
       </div>
     </div>
-
   );
 }
 
 /* -------------------------------------------------------- acesso do usuário */
-
 
 export function UserAccess({
   userId,
@@ -201,7 +223,6 @@ export function UserAccess({
   const grant = useServerFn(grantPermissionCenterPermission);
   const setProperty = useServerFn(setPermissionCenterPropertyScope);
   const setAllProps = useServerFn(setPermissionCenterAllProperties);
-  
 
   const q = useQuery({
     queryKey: ["permission-center-user", accountOwnerId, userId],
@@ -238,12 +259,17 @@ export function UserAccess({
       });
     },
     onSuccess: (res) => {
-      toast.success((res as { message?: string })?.message ?? "Pronto! O acesso desta pessoa foi atualizado.");
+      toast.success(
+        (res as { message?: string })?.message ?? "Pronto! O acesso desta pessoa foi atualizado.",
+      );
       qc.invalidateQueries({ queryKey: ["permission-center-user", userId] });
       qc.invalidateQueries({ queryKey: ["permission-center-overview"] });
       qc.invalidateQueries({ queryKey: ["area-access"] });
     },
-    onError: (e: Error) => toast.error(e.message || "Não conseguimos salvar essa alteração agora. Tente de novo em instantes."),
+    onError: (e: Error) =>
+      toast.error(
+        e.message || "Não conseguimos salvar essa alteração agora. Tente de novo em instantes.",
+      ),
   });
 
   /** Liberação em massa: aplica o mesmo nível a todas as áreas da categoria. */
@@ -269,7 +295,10 @@ export function UserAccess({
       qc.invalidateQueries({ queryKey: ["permission-center-overview"] });
       qc.invalidateQueries({ queryKey: ["area-access"] });
     },
-    onError: (e: Error) => toast.error(e.message || "Não conseguimos salvar as áreas agora. Tente de novo em instantes."),
+    onError: (e: Error) =>
+      toast.error(
+        e.message || "Não conseguimos salvar as áreas agora. Tente de novo em instantes.",
+      ),
   });
 
   /** Liga/desliga "atende todas as residências (inclusive as futuras)". */
@@ -287,10 +316,15 @@ export function UserAccess({
     mutationFn: (input: { propertyId: string; assigned: boolean }) =>
       setProperty({ data: { targetUserId: userId, ...input } }),
     onSuccess: (res) => {
-      toast.success((res as { message?: string })?.message ?? "Pronto! A residência foi atualizada.");
+      toast.success(
+        (res as { message?: string })?.message ?? "Pronto! A residência foi atualizada.",
+      );
       qc.invalidateQueries({ queryKey: ["permission-center-user", userId] });
     },
-    onError: (e: Error) => toast.error(e.message || "Não conseguimos atualizar essa residência agora. Tente de novo em instantes."),
+    onError: (e: Error) =>
+      toast.error(
+        e.message || "Não conseguimos atualizar essa residência agora. Tente de novo em instantes.",
+      ),
   });
 
   /** Ativa ou desativa várias residências de uma vez. */
@@ -307,9 +341,11 @@ export function UserAccess({
       );
       qc.invalidateQueries({ queryKey: ["permission-center-user", userId] });
     },
-    onError: (e: Error) => toast.error(e.message || "Não conseguimos atualizar as residências agora. Tente de novo em instantes."),
+    onError: (e: Error) =>
+      toast.error(
+        e.message || "Não conseguimos atualizar as residências agora. Tente de novo em instantes.",
+      ),
   });
-
 
   if (q.isLoading) return <LoadingState />;
   if (q.isError) return <ErrorState message={(q.error as Error)?.message} />;
@@ -406,7 +442,6 @@ export function UserAccess({
                           </AccordionTrigger>
                         </div>
                         <div className="ml-auto shrink-0">
-
                           <LevelSwitch
                             value={
                               isOwner
@@ -430,7 +465,6 @@ export function UserAccess({
                             }
                           />
                         </div>
-
                       </div>
                       <AccordionContent className="pb-0">
                         <div className="divide-y border-t bg-muted/20">
@@ -453,7 +487,6 @@ export function UserAccess({
                 </Accordion>
               </div>
             </AccordionContent>
-
           </AccordionItem>
         ))}
       </Accordion>
@@ -471,7 +504,6 @@ export function UserAccess({
         onToggle={(propertyId, assigned) => propertyMutation.mutate({ propertyId, assigned })}
         onBulk={(propertyIds, assigned) => bulkPropertyMutation.mutate({ propertyIds, assigned })}
       />
-
     </div>
   );
 }
@@ -491,8 +523,7 @@ export function PermissionCenterPage({
   const resendFn = useServerFn(resendTeamInvite);
   const revokeFn = useServerFn(revokeTeamInvite);
   const qc = useQueryClient();
-  const refreshOverview = () =>
-    qc.invalidateQueries({ queryKey: ["permission-center-overview"] });
+  const refreshOverview = () => qc.invalidateQueries({ queryKey: ["permission-center-overview"] });
   const resendMutation = useMutation({
     mutationFn: (inviteId: string) => resendFn({ data: { inviteId } }),
     onSuccess: () => {
@@ -577,7 +608,11 @@ export function PermissionCenterPage({
               <div className="flex items-center gap-2">
                 {u.isOwner ? <Badge variant="outline">Titular</Badge> : null}
                 <Badge variant={u.status === "active" ? "secondary" : "outline"}>
-                  {u.status === "active" ? "Ativo" : u.status === "pending" ? "Pendente" : "Inativo"}
+                  {u.status === "active"
+                    ? "Ativo"
+                    : u.status === "pending"
+                      ? "Pendente"
+                      : "Inativo"}
                 </Badge>
               </div>
             </button>

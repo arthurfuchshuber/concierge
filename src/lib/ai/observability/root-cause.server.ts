@@ -22,7 +22,11 @@ export type RootCause = {
   tools: unknown;
   sources: unknown;
   channel: { origin: string; reference: string | null };
-  proactive: { trigger: string | null; autonomyLevel: string | null; approvalStatus: string | null };
+  proactive: {
+    trigger: string | null;
+    autonomyLevel: string | null;
+    approvalStatus: string | null;
+  };
 };
 
 export function buildRootCause(input: RootCause): RootCause {
@@ -68,7 +72,9 @@ export async function explainInteraction(params: {
   const row = data as Record<string, unknown>;
   const intent = (row.intent ?? {}) as Record<string, unknown>;
   const agent = String(row.selected_agent ?? "generalist");
-  const tools = Array.isArray(row.tools_used) ? (row.tools_used as Array<Record<string, unknown>>) : [];
+  const tools = Array.isArray(row.tools_used)
+    ? (row.tools_used as Array<Record<string, unknown>>)
+    : [];
   const sources = Array.isArray(row.sources) ? (row.sources as Array<Record<string, unknown>>) : [];
 
   const narrative = [

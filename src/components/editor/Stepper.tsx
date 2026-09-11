@@ -54,7 +54,8 @@ export function Stepper({
             onClick={() => !locked && onChange(s.value)}
             title={
               locked
-                ? (lockedTitle ?? 'Complete as informações obrigatórias em "A casa" para desbloquear')
+                ? (lockedTitle ??
+                  'Complete as informações obrigatórias em "A casa" para desbloquear')
                 : undefined
             }
             className={`whitespace-nowrap px-3 py-2 text-center text-[13px] font-normal leading-none flex items-center justify-center gap-1.5 min-h-[34px] rounded-[0.25rem] transition-colors ${

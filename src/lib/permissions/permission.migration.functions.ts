@@ -19,9 +19,8 @@ export const getTenantMigrationStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({ tenantId: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
-    const { assertSaasAdmin, getTenantPermissionMode, readDivergences } = await import(
-      "./permission.migration.server"
-    );
+    const { assertSaasAdmin, getTenantPermissionMode, readDivergences } =
+      await import("./permission.migration.server");
     await assertSaasAdmin(context.userId);
     const status = await getTenantPermissionMode(data.tenantId);
     const divergenceCount = readDivergences(300).filter((d) => d.tenantId === data.tenantId).length;

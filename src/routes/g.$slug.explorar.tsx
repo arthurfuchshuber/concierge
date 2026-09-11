@@ -26,7 +26,12 @@ import {
   Map as MapIcon,
   X,
 } from "lucide-react";
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
 import { GuideAiChat } from "@/components/GuideAiChat";
 import { BottomNav, type BottomNavKey } from "@/components/guide/BottomNav";
 
@@ -64,7 +69,13 @@ function getAnonIdClient(): string {
 }
 
 const REVIEW_THRESHOLDS = [0, 50, 200, 1000, 5000];
-const REVIEW_LABELS: Record<number, string> = { 0: "Todas", 50: "50+", 200: "200+", 1000: "1k+", 5000: "5k+" };
+const REVIEW_LABELS: Record<number, string> = {
+  0: "Todas",
+  50: "50+",
+  200: "200+",
+  1000: "1k+",
+  5000: "5k+",
+};
 function computeReviewOptions(items: { user_ratings_total?: number | null }[]) {
   if (!items.length) return REVIEW_THRESHOLDS.map((v) => ({ value: v, label: REVIEW_LABELS[v] }));
   const counts = items.map((r) => r.user_ratings_total ?? 0);
@@ -90,7 +101,9 @@ export const Route = createFileRoute("/g/$slug/explorar")({
   },
   head: ({ loaderData, params }) => {
     if (!loaderData || loaderData.status !== "ok") {
-      return { meta: [{ title: "Explorar — ConciergeIA" }, { name: "robots", content: "noindex" }] };
+      return {
+        meta: [{ title: "Explorar — ConciergeIA" }, { name: "robots", content: "noindex" }],
+      };
     }
     const p = loaderData.property as Record<string, unknown>;
     const name = p.name as string;
@@ -106,7 +119,9 @@ export const Route = createFileRoute("/g/$slug/explorar")({
         { property: "og:description", content: desc },
         { property: "og:type", content: "website" },
         { property: "og:url", content: url },
-        ...(p.hero_image_url ? [{ property: "og:image", content: p.hero_image_url as string }] : []),
+        ...(p.hero_image_url
+          ? [{ property: "og:image", content: p.hero_image_url as string }]
+          : []),
       ],
       links: [{ rel: "canonical", href: url }],
     };
@@ -173,7 +188,8 @@ function hasMeaningfulInfo(r: Rec): boolean {
 
 // "Pertinho" — top-level helper, usado nos cards para destaque visual.
 function isPertinhoRec(r: Rec): boolean {
-  if (typeof r.distance_meters === "number" && r.distance_meters > 0 && r.distance_meters <= 1500) return true;
+  if (typeof r.distance_meters === "number" && r.distance_meters > 0 && r.distance_meters <= 1500)
+    return true;
   if (typeof r.walk_minutes === "number" && r.walk_minutes > 0 && r.walk_minutes <= 20) return true;
   return false;
 }
@@ -204,7 +220,10 @@ function formatDriving(r: Rec): string | null {
   return null;
 }
 
-function safeHttpsHref(value: string | null | undefined, fallbackName?: string): string | undefined {
+function safeHttpsHref(
+  value: string | null | undefined,
+  fallbackName?: string,
+): string | undefined {
   if (value) {
     try {
       const url = new URL(value);
@@ -234,7 +253,10 @@ function OpeningHours({ hours }: { hours: string[] | null | undefined }) {
   const today = todayOpening(hours);
   if (!today) return null;
   return (
-    <details className="group/oh text-[11.5px] text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+    <details
+      className="group/oh text-[11.5px] text-muted-foreground"
+      onClick={(e) => e.stopPropagation()}
+    >
       <summary
         className="inline-flex items-center gap-1.5 cursor-pointer list-none hover:text-foreground transition-colors"
         onClick={(e) => e.stopPropagation()}
@@ -259,7 +281,10 @@ function OpeningHours({ hours }: { hours: string[] | null | undefined }) {
 //   2) nota ≥ 4.5 → maior score bayesiano (equilibra nota e popularidade);
 //   3) qualquer item com imagem → mesmo score bayesiano.
 // Score: (v/(v+m))·R + (m/(v+m))·C, com m=150 (peso mínimo) e C=4.3 (média global).
-function bayesianScore(rating: number | null | undefined, reviews: number | null | undefined): number {
+function bayesianScore(
+  rating: number | null | undefined,
+  reviews: number | null | undefined,
+): number {
   const R = rating ?? 0;
   const v = reviews ?? 0;
   const m = 150;
@@ -271,11 +296,15 @@ function pickBestPhoto(nearby: Rec[], city: Rec[]): string | null {
   if (pool.length === 0) return null;
   const tier1 = pool.filter((x) => (x.rating ?? 0) >= 4.8);
   if (tier1.length > 0) {
-    return tier1.sort((a, b) => (b.user_ratings_total ?? 0) - (a.user_ratings_total ?? 0))[0].image_url ?? null;
+    return (
+      tier1.sort((a, b) => (b.user_ratings_total ?? 0) - (a.user_ratings_total ?? 0))[0]
+        .image_url ?? null
+    );
   }
   const tier2 = pool.filter((x) => (x.rating ?? 0) >= 4.5);
   const fallback = (tier2.length > 0 ? tier2 : pool).sort(
-    (a, b) => bayesianScore(b.rating, b.user_ratings_total) - bayesianScore(a.rating, a.user_ratings_total),
+    (a, b) =>
+      bayesianScore(b.rating, b.user_ratings_total) - bayesianScore(a.rating, a.user_ratings_total),
   );
   return fallback[0]?.image_url ?? null;
 }
@@ -359,7 +388,9 @@ function ExplorePage() {
 
   // Tema herdado da página inicial do guia (definido pelo visitante).
   const adminTheme: "dark" | "light" =
-    r.status === "ok" && (r.property as Record<string, unknown>).guide_theme === "light" ? "light" : "dark";
+    r.status === "ok" && (r.property as Record<string, unknown>).guide_theme === "light"
+      ? "light"
+      : "dark";
   const [theme] = useState<"dark" | "light">(() => {
     if (typeof window === "undefined") return adminTheme;
     const stored = window.localStorage.getItem(`guide-theme:${slug}`);
@@ -369,7 +400,8 @@ function ExplorePage() {
   useEffect(() => {
     setAccessRec(readAccessRecord(slug));
   }, [slug]);
-  const realtimePropertyId = r.status === "ok" ? ((r.property as Record<string, unknown>).id as string | null) : null;
+  const realtimePropertyId =
+    r.status === "ok" ? ((r.property as Record<string, unknown>).id as string | null) : null;
   useCityReferencesRealtime({ propertyId: realtimePropertyId }, () => {
     void router.invalidate();
   });
@@ -421,7 +453,6 @@ function ExplorePage() {
     }).catch(() => {});
   }, [slug, activeKey, trackEvent]);
 
-
   if (r.status !== "ok") {
     return (
       <div className="min-h-screen grid place-items-center bg-background px-6 text-center">
@@ -467,7 +498,9 @@ function ExplorePage() {
   // Calcula distance_meters/walk_minutes quando temos lat/lng da residência
   // e da referência, para que possam também aparecer em "Pertinho" se couberem.
   const cityRefs: Rec[] = useMemo(() => {
-    const list = ((r as Record<string, unknown>).cityReferences ?? []) as Array<Record<string, unknown>>;
+    const list = ((r as Record<string, unknown>).cityReferences ?? []) as Array<
+      Record<string, unknown>
+    >;
     return list
       .map((c) => {
         const lat = typeof c.lat === "number" ? (c.lat as number) : null;
@@ -534,7 +567,8 @@ function ExplorePage() {
   // - property_recommendations: apenas "Pertinho" do imóvel;
   // - city_references: apenas "Referências na Cidade", compartilhadas.
   const buildBuckets = (meta: MetaCategory, applyMinReviews: boolean) => {
-    const passesReviews = (x: Rec) => !applyMinReviews || minReviews <= 0 || (x.user_ratings_total ?? 0) >= minReviews;
+    const passesReviews = (x: Rec) =>
+      !applyMinReviews || minReviews <= 0 || (x.user_ratings_total ?? 0) >= minReviews;
     const passesQuery = (x: Rec) => matchesQuery(x, query);
     const knownLabels = new Set(dynamicMetas.map((m) => m.title));
     const inMeta = (rec: Rec) => {
@@ -542,8 +576,12 @@ function ExplorePage() {
       if (meta.key === "__outros__") return !knownLabels.has(label);
       return label === meta.title;
     };
-    const recsInType = allRecs.filter((rec) => inMeta(rec) && passesReviews(rec) && passesQuery(rec));
-    const cityInType = cityRefs.filter((rec) => inMeta(rec) && passesReviews(rec) && passesQuery(rec));
+    const recsInType = allRecs.filter(
+      (rec) => inMeta(rec) && passesReviews(rec) && passesQuery(rec),
+    );
+    const cityInType = cityRefs.filter(
+      (rec) => inMeta(rec) && passesReviews(rec) && passesQuery(rec),
+    );
 
     const nearbyFromRecs = recsInType.filter(isPertinho);
 
@@ -610,7 +648,8 @@ function ExplorePage() {
     });
   }, [taxonomy]);
 
-  const active = (activeKey ? categoriesUnfiltered.find((c) => c.meta.key === activeKey) : null) ?? null;
+  const active =
+    (activeKey ? categoriesUnfiltered.find((c) => c.meta.key === activeKey) : null) ?? null;
 
   return (
     <EngagementCtx.Provider value={{ slug, counts: engCounts, reactions: engReactions }}>
@@ -641,14 +680,18 @@ function ExplorePage() {
           )}
 
           <header className="mt-6 mb-8">
-            <p className="text-[10px] uppercase tracking-[0.32em] text-accent font-semibold mb-3">ConciergeIA</p>
+            <p className="text-[10px] uppercase tracking-[0.32em] text-accent font-semibold mb-3">
+              ConciergeIA
+            </p>
             <div className="flex items-start justify-between gap-4">
               <h1 className="font-serif text-[2.1rem] md:text-[2.8rem] leading-[1.02] tracking-tight">
                 {active ? active.meta.title : "Explore a Região"}
               </h1>
             </div>
             <p className="text-[13px] md:text-[14px] text-muted-foreground mt-3 leading-relaxed max-w-[52ch]">
-              {active ? active.meta.desc : `Uma curadoria de lugares e experiências próximas a ${p.name}.`}
+              {active
+                ? active.meta.desc
+                : `Uma curadoria de lugares e experiências próximas a ${p.name}.`}
             </p>
           </header>
 
@@ -702,16 +745,18 @@ function ExplorePage() {
             if (active) return null;
             const links = (Array.isArray(p.marketplace_links) ? p.marketplace_links : []).filter(
               (m: any) =>
-                m && typeof m.label === "string" && m.label.trim() && typeof m.url === "string" && m.url.trim(),
+                m &&
+                typeof m.label === "string" &&
+                m.label.trim() &&
+                typeof m.url === "string" &&
+                m.url.trim(),
             );
             if (links.length === 0) return null;
             return (
               <div className="mt-10">
                 <div className="mb-3 flex items-center gap-2">
                   <Ticket className="size-4 text-muted-foreground" />
-                  <h3 className="ds-eyebrow text-muted-foreground">
-                    Reservas & experiências
-                  </h3>
+                  <h3 className="ds-eyebrow text-muted-foreground">Reservas & experiências</h3>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {links.map((m: any, i: number) => (
@@ -743,7 +788,9 @@ function ExplorePage() {
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-1.5">
-                          <span className="font-medium text-[14px] leading-tight truncate">{m.label}</span>
+                          <span className="font-medium text-[14px] leading-tight truncate">
+                            {m.label}
+                          </span>
                           <ExternalLink className="size-3 text-muted-foreground shrink-0 group-hover:text-accent transition-colors" />
                         </span>
                         {typeof m.description === "string" && m.description.trim() && (
@@ -775,15 +822,15 @@ function ExplorePage() {
 
           {!active &&
             (() => {
-              const tagged = (r.faqs ?? []).filter((f: any) => Array.isArray(f?.tags) && f.tags.includes("explore"));
+              const tagged = (r.faqs ?? []).filter(
+                (f: any) => Array.isArray(f?.tags) && f.tags.includes("explore"),
+              );
               if (tagged.length === 0) return null;
               return (
                 <div className="mt-10">
                   <div className="mb-3 flex items-center gap-2">
                     <HelpCircle className="size-4 text-muted-foreground" />
-                    <h3 className="ds-eyebrow text-muted-foreground">
-                      Perguntas frequentes
-                    </h3>
+                    <h3 className="ds-eyebrow text-muted-foreground">Perguntas frequentes</h3>
                   </div>
                   <Accordion type="single" collapsible className="space-y-1.5">
                     {tagged.map((f: any, idx: number) => (
@@ -797,7 +844,9 @@ function ExplorePage() {
                             <span className="text-[10px] font-mono text-accent/70 tabular-nums tracking-wider shrink-0">
                               {String(idx + 1).padStart(2, "0")}
                             </span>
-                            <span className="text-[13.5px] font-medium leading-snug truncate">{f.question}</span>
+                            <span className="text-[13.5px] font-medium leading-snug truncate">
+                              {f.question}
+                            </span>
                           </span>
                         </AccordionTrigger>
                         <AccordionContent className="text-[13.5px] leading-relaxed whitespace-pre-line text-foreground/80 pl-6 pr-1 pb-3.5 max-w-prose">
@@ -811,7 +860,11 @@ function ExplorePage() {
             })()}
         </div>
         {(r as { aiEnabled?: boolean }).aiEnabled ? (
-          <GuideAiChat slug={slug} propertyName={(p.name as string) ?? "Guia"} guestName={accessRec?.name ?? null} />
+          <GuideAiChat
+            slug={slug}
+            propertyName={(p.name as string) ?? "Guia"}
+            guestName={accessRec?.name ?? null}
+          />
         ) : null}
         {(() => {
           const hasCheckinData = !!(
@@ -821,15 +874,17 @@ function ExplorePage() {
             (p.wifi_ssid && p.wifi_password_set)
           );
           const hasSaidaData = !!(p.checkout_time || p.checkout_note || p.checkout_instructions);
-          const manualList = (r as { manual?: Array<{ title: string; description?: string | null }> }).manual ?? [];
+          const manualList =
+            (r as { manual?: Array<{ title: string; description?: string | null }> }).manual ?? [];
           const isRuleItem = (m: { title: string; description?: string | null }) => {
             const s = `${m.title} ${m.description ?? ""}`.toLowerCase();
             return /(regra|norma|polít|proibi|não\s+|no\s+smoking|rule|policy)/i.test(s);
           };
           const hasResidencia = manualList.some((m) => !isRuleItem(m));
-          const items: Array<{ key: import("@/components/guide/BottomNav").BottomNavKey; label: string }> = [
-            { key: "home", label: "Início" },
-          ];
+          const items: Array<{
+            key: import("@/components/guide/BottomNav").BottomNavKey;
+            label: string;
+          }> = [{ key: "home", label: "Início" }];
           if (hasCheckinData) items.push({ key: "checkin", label: "Chegada" });
           if (hasSaidaData) items.push({ key: "saida", label: "Saída" });
           if (hasResidencia) items.push({ key: "residencia", label: "Residência" });
@@ -852,7 +907,6 @@ function ExplorePage() {
     </EngagementCtx.Provider>
   );
 }
-
 
 function SkeletonCard() {
   return (
@@ -933,8 +987,12 @@ function CategoryGrid({
               </div>
             </div>
             <div className="p-5">
-              <h2 className="font-serif text-[1.4rem] md:text-[1.55rem] leading-tight">{meta.title}</h2>
-              <p className="text-[12.5px] text-muted-foreground mt-1.5 leading-relaxed">{meta.desc}</p>
+              <h2 className="font-serif text-[1.4rem] md:text-[1.55rem] leading-tight">
+                {meta.title}
+              </h2>
+              <p className="text-[12.5px] text-muted-foreground mt-1.5 leading-relaxed">
+                {meta.desc}
+              </p>
               <div className="mt-3 inline-flex items-center gap-1.5 text-[10.5px] uppercase tracking-[0.24em] font-semibold text-accent">
                 Explorar
                 <span aria-hidden className="transition-transform group-hover:translate-x-0.5">
@@ -993,7 +1051,9 @@ function CategoryList({
                 {count} {count === 1 ? "lugar" : "lugares"}
               </p>
               <h2 className="font-serif text-[1.3rem] leading-tight">{meta.title}</h2>
-              <p className="text-[12.5px] text-muted-foreground leading-relaxed line-clamp-2">{meta.desc}</p>
+              <p className="text-[12.5px] text-muted-foreground leading-relaxed line-clamp-2">
+                {meta.desc}
+              </p>
             </div>
           </button>
         );
@@ -1089,7 +1149,9 @@ function CategoryDetail({
 
       <div className="mt-5">
         {sorted.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-8 text-center">Nenhum lugar com esses filtros.</p>
+          <p className="text-sm text-muted-foreground py-8 text-center">
+            Nenhum lugar com esses filtros.
+          </p>
         ) : viewMode === "grid" ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {sorted.map((rec) => (
@@ -1124,7 +1186,13 @@ function ProximityFilters({
   refsCount: number;
 }) {
   const opts = [
-    { key: "near", label: "Pertinho", on: showNear, toggle: () => setShowNear(!showNear), count: nearCount },
+    {
+      key: "near",
+      label: "Pertinho",
+      on: showNear,
+      toggle: () => setShowNear(!showNear),
+      count: nearCount,
+    },
     {
       key: "refs",
       label: "Referências na Cidade",
@@ -1142,7 +1210,9 @@ function ProximityFilters({
           type="button"
           onClick={o.toggle}
           className={`px-3 py-1.5 rounded-full text-[11.5px] font-medium transition-colors ${
-            o.on ? "bg-accent text-accent-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            o.on
+              ? "bg-accent text-accent-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
           }`}
         >
           {o.label}
@@ -1152,7 +1222,15 @@ function ProximityFilters({
   );
 }
 
-function MinReviewsFilter({ value, onChange, items }: { value: number; onChange: (n: number) => void; items?: Rec[] }) {
+function MinReviewsFilter({
+  value,
+  onChange,
+  items,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  items?: Rec[];
+}) {
   const all: { v: number; label: string }[] = [
     { v: 0, label: "Todas" },
     { v: 50, label: "50+" },
@@ -1192,7 +1270,9 @@ function MinReviewsFilter({ value, onChange, items }: { value: number; onChange:
             type="button"
             onClick={() => onChange(o.v)}
             className={`px-2.5 py-1.5 rounded-full text-[11.5px] font-medium transition-colors ${
-              on ? "bg-accent text-accent-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              on
+                ? "bg-accent text-accent-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {o.label}
@@ -1226,7 +1306,9 @@ function ViewToggle({
             onClick={() => setViewMode(o.key)}
             aria-label={o.label}
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11.5px] font-medium transition-colors ${
-              on ? "bg-accent text-accent-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              on
+                ? "bg-accent text-accent-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <Icon className="size-3.5" />
@@ -1254,7 +1336,9 @@ function SortBar({ sortBy, setSortBy }: { sortBy: SortKey; setSortBy: (s: SortKe
             type="button"
             onClick={() => setSortBy(o.key)}
             className={`px-3 py-1.5 rounded-full text-[11.5px] font-medium transition-colors ${
-              on ? "bg-accent text-accent-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              on
+                ? "bg-accent text-accent-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {o.label}
@@ -1296,7 +1380,9 @@ function CollapsibleSection({
         aria-expanded={open}
       >
         <div className="min-w-0">
-          <p className="text-[10px] uppercase tracking-[0.28em] text-accent font-semibold">{eyebrow}</p>
+          <p className="text-[10px] uppercase tracking-[0.28em] text-accent font-semibold">
+            {eyebrow}
+          </p>
           <h3 className="font-serif text-[1.35rem] md:text-[1.55rem] leading-tight mt-0.5">
             {title}
             <span className="ml-2 text-[12px] text-muted-foreground font-sans font-normal">
@@ -1555,7 +1641,9 @@ function CityMap({ items }: { items: Rec[] }) {
                 loading="lazy"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-              <div className={`absolute top-1.5 left-1.5 size-2 rounded-full ${color} ring-1 ring-white/50`} />
+              <div
+                className={`absolute top-1.5 left-1.5 size-2 rounded-full ${color} ring-1 ring-white/50`}
+              />
               <p className="absolute bottom-1.5 left-1.5 right-1.5 text-[10px] font-medium text-white leading-tight line-clamp-2">
                 {it.name}
               </p>
@@ -1598,7 +1686,8 @@ function EmbeddedMapModal({
   // location as center + all maps_url links listed below the map.
   const GOOGLE_MAPS_KEY = (
     typeof window !== "undefined"
-      ? ((window as unknown as { __ENV__?: { VITE_GOOGLE_MAPS_KEY?: string } }).__ENV__?.VITE_GOOGLE_MAPS_KEY ?? null)
+      ? ((window as unknown as { __ENV__?: { VITE_GOOGLE_MAPS_KEY?: string } }).__ENV__
+          ?.VITE_GOOGLE_MAPS_KEY ?? null)
       : null
   ) as string | null;
 
@@ -1639,7 +1728,9 @@ function EmbeddedMapModal({
           <div className="flex items-center gap-2.5">
             <MapIcon className="size-4.5 text-accent" strokeWidth={1.75} />
             <div>
-              <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">Mapa</p>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">
+                Mapa
+              </p>
               <p className="text-[14px] font-medium leading-tight">Recomendações próximas</p>
             </div>
           </div>

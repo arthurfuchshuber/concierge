@@ -1,7 +1,10 @@
 // Server-only helper to map Supabase/Postgres errors to safe, generic messages.
 // Logs the raw error for debugging without leaking schema details to clients.
 
-type PgErrorLike = { code?: string; message?: string; details?: string | null; hint?: string | null } | null | undefined;
+type PgErrorLike =
+  | { code?: string; message?: string; details?: string | null; hint?: string | null }
+  | null
+  | undefined;
 
 export function safeDbError(scope: string, error: PgErrorLike): Error {
   // Always log the raw error server-side for operators.

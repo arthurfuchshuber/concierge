@@ -15,7 +15,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  */
 export type KnowledgeScope = "property" | "owner_portfolio" | "company_tenant" | "global";
 
-export const SCOPE_ORDER: KnowledgeScope[] = ["property", "owner_portfolio", "company_tenant", "global"];
+export const SCOPE_ORDER: KnowledgeScope[] = [
+  "property",
+  "owner_portfolio",
+  "company_tenant",
+  "global",
+];
 
 export type TenantContext = {
   /** Empresa (conta proprietária). */
@@ -45,7 +50,11 @@ export async function resolveTenantByProperty(
   if (error || !data?.owner_id) {
     throw new TenantBoundaryError(`Tenant não resolvido para o imóvel ${propertyId}`);
   }
-  return { tenantId: String(data.owner_id), ownerId: String(data.owner_id), propertyId: String(data.id) };
+  return {
+    tenantId: String(data.owner_id),
+    ownerId: String(data.owner_id),
+    propertyId: String(data.id),
+  };
 }
 
 /** Deriva o tenant de um registro já carregado (evita ida ao banco). */
@@ -56,7 +65,11 @@ export function tenantOf(property: Record<string, unknown>): TenantContext {
 }
 
 /** Falha ruidosamente se um registro de outro tenant entrar no pipeline. */
-export function assertSameTenant(ctx: TenantContext, recordTenantId: string | null | undefined, what: string): void {
+export function assertSameTenant(
+  ctx: TenantContext,
+  recordTenantId: string | null | undefined,
+  what: string,
+): void {
   if (!recordTenantId) return; // registro legado, ainda sem tenant atribuído
   if (recordTenantId !== ctx.tenantId) {
     throw new TenantBoundaryError(`Vazamento de tenant bloqueado em ${what}`);

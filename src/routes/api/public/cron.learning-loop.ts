@@ -17,10 +17,13 @@ export const Route = createFileRoute("/api/public/cron/learning-loop")({
         }
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { sweepLearningLoop } = await import("@/lib/ai/learning/loop.server");
-        const { refreshAgentLearningMetrics } = await import("@/lib/ai/learning/agent-performance.server");
+        const { refreshAgentLearningMetrics } =
+          await import("@/lib/ai/learning/agent-performance.server");
         const { measureLearningImpact } = await import("@/lib/ai/learning/impact.server");
-        const { quarantineFailingMemories } = await import("@/lib/ai/learning/memory-intelligence.server");
-        const { proposePromptImprovement } = await import("@/lib/ai/learning/prompt-optimizer.server");
+        const { quarantineFailingMemories } =
+          await import("@/lib/ai/learning/memory-intelligence.server");
+        const { proposePromptImprovement } =
+          await import("@/lib/ai/learning/prompt-optimizer.server");
 
         try {
           const sweep = await sweepLearningLoop({ supabase: supabaseAdmin, hours: 24, limit: 25 });
@@ -41,11 +44,19 @@ export const Route = createFileRoute("/api/public/cron/learning-loop")({
 
           let quarantined = 0;
           for (const [tenantId, ownerId] of tenants) {
-            await refreshAgentLearningMetrics({ supabase: supabaseAdmin, tenantId, ownerId, days: 7 }).catch(
+            await refreshAgentLearningMetrics({
+              supabase: supabaseAdmin,
+              tenantId,
+              ownerId,
+              days: 7,
+            }).catch(() => undefined);
+            await measureLearningImpact({ supabase: supabaseAdmin, tenantId }).catch(
               () => undefined,
             );
-            await measureLearningImpact({ supabase: supabaseAdmin, tenantId }).catch(() => undefined);
-            quarantined += await quarantineFailingMemories({ supabase: supabaseAdmin, tenantId }).catch(() => 0);
+            quarantined += await quarantineFailingMemories({
+              supabase: supabaseAdmin,
+              tenantId,
+            }).catch(() => 0);
             await proposePromptImprovement({ supabase: supabaseAdmin, tenantId }).catch(() => null);
           }
 

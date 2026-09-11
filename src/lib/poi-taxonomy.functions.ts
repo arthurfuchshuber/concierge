@@ -13,7 +13,6 @@ export type PoiCategory = {
   is_protected: boolean;
 };
 
-
 export type PoiTag = {
   id: string;
   slug: string;
@@ -35,35 +34,42 @@ export type Taxonomy = {
 };
 
 function publicClient() {
-  return createClient<Database>(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_PUBLISHABLE_KEY!,
-    { auth: { storage: undefined, persistSession: false, autoRefreshToken: false } },
-  );
+  return createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
+    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+  });
 }
 
 // ============== Public reader (anon) ==============
-export const getPoiTaxonomy = createServerFn({ method: "GET" }).handler(async (): Promise<Taxonomy> => {
-  const supabase = publicClient();
-  const [catsRes, tagsRes] = await Promise.all([
-    supabase.from("poi_categories").select("id,slug,label,description,display_order,is_protected").order("display_order"),
-    supabase
-      .from("poi_tags")
-      .select("id,slug,label,category_id,accepted_primary_types,places_types,query_variants,min_reviews,is_protected,display_order")
-      .order("display_order"),
-  ]);
-  const categories = (catsRes.data ?? []) as PoiCategory[];
-  const catById = new Map(categories.map((c) => [c.id, c]));
-  const tags: PoiTag[] = ((tagsRes.data ?? []) as Array<Omit<PoiTag, "category_slug" | "category_label">>).map((t) => {
-    const c = catById.get(t.category_id);
-    return {
-      ...t,
-      category_slug: c?.slug ?? "",
-      category_label: c?.label ?? "Outros",
-    };
-  });
-  return { categories, tags };
-});
+export const getPoiTaxonomy = createServerFn({ method: "GET" }).handler(
+  async (): Promise<Taxonomy> => {
+    const supabase = publicClient();
+    const [catsRes, tagsRes] = await Promise.all([
+      supabase
+        .from("poi_categories")
+        .select("id,slug,label,description,display_order,is_protected")
+        .order("display_order"),
+      supabase
+        .from("poi_tags")
+        .select(
+          "id,slug,label,category_id,accepted_primary_types,places_types,query_variants,min_reviews,is_protected,display_order",
+        )
+        .order("display_order"),
+    ]);
+    const categories = (catsRes.data ?? []) as PoiCategory[];
+    const catById = new Map(categories.map((c) => [c.id, c]));
+    const tags: PoiTag[] = (
+      (tagsRes.data ?? []) as Array<Omit<PoiTag, "category_slug" | "category_label">>
+    ).map((t) => {
+      const c = catById.get(t.category_id);
+      return {
+        ...t,
+        category_slug: c?.slug ?? "",
+        category_label: c?.label ?? "Outros",
+      };
+    });
+    return { categories, tags };
+  },
+);
 
 // ============== Server-side cache for TYPE_MAP (used by maps.functions) ==============
 let _cache: { taxonomy: Taxonomy; at: number } | null = null;
@@ -73,15 +79,22 @@ export async function loadTaxonomyCached(): Promise<Taxonomy> {
   if (_cache && Date.now() - _cache.at < CACHE_TTL_MS) return _cache.taxonomy;
   const supabase = publicClient();
   const [catsRes, tagsRes] = await Promise.all([
-    supabase.from("poi_categories").select("id,slug,label,description,display_order,is_protected").order("display_order"),
+    supabase
+      .from("poi_categories")
+      .select("id,slug,label,description,display_order,is_protected")
+      .order("display_order"),
     supabase
       .from("poi_tags")
-      .select("id,slug,label,category_id,accepted_primary_types,places_types,query_variants,min_reviews,is_protected,display_order")
+      .select(
+        "id,slug,label,category_id,accepted_primary_types,places_types,query_variants,min_reviews,is_protected,display_order",
+      )
       .order("display_order"),
   ]);
   const categories = (catsRes.data ?? []) as PoiCategory[];
   const catById = new Map(categories.map((c) => [c.id, c]));
-  const tags: PoiTag[] = ((tagsRes.data ?? []) as Array<Omit<PoiTag, "category_slug" | "category_label">>).map((t) => {
+  const tags: PoiTag[] = (
+    (tagsRes.data ?? []) as Array<Omit<PoiTag, "category_slug" | "category_label">>
+  ).map((t) => {
     const c = catById.get(t.category_id);
     return {
       ...t,
@@ -98,13 +111,22 @@ export function invalidateTaxonomyCache() {
 }
 
 // ============== Admin CRUD ==============
-async function assertAdmin(ctx: { supabase: ReturnType<typeof createClient<Database>>; userId: string }) {
+async function assertAdmin(ctx: {
+  supabase: ReturnType<typeof createClient<Database>>;
+  userId: string;
+}) {
   const { data } = await ctx.supabase.rpc("has_role", { _user_id: ctx.userId, _role: "admin" });
   if (!data) throw new Error("Forbidden");
 }
 
 const slugify = (s: string) =>
-  s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+  s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 60);
 
 // ---- Categories ----
 const CreateCategorySchema = z.object({ label: z.string().min(1).max(60) });
@@ -137,12 +159,10 @@ export const updatePoiCategory = createServerFn({ method: "POST" })
     type CatUpdate = Database["public"]["Tables"]["poi_categories"]["Update"];
     const patch: CatUpdate = {};
     if (data.label !== undefined) patch.label = data.label.trim();
-    if (data.description !== undefined) patch.description = data.description?.trim() ? data.description.trim() : null;
+    if (data.description !== undefined)
+      patch.description = data.description?.trim() ? data.description.trim() : null;
     if (Object.keys(patch).length === 0) return { ok: true };
-    const { error } = await context.supabase
-      .from("poi_categories")
-      .update(patch)
-      .eq("id", data.id);
+    const { error } = await context.supabase.from("poi_categories").update(patch).eq("id", data.id);
     if (error) throw new Error(error.message);
     invalidateTaxonomyCache();
     return { ok: true };
@@ -299,7 +319,8 @@ export const updatePoiTag = createServerFn({ method: "POST" })
     const patch: TagUpdate = {};
     if (data.label !== undefined) patch.label = data.label.trim();
     if (data.category_id !== undefined) patch.category_id = data.category_id;
-    if (data.accepted_primary_types !== undefined) patch.accepted_primary_types = data.accepted_primary_types;
+    if (data.accepted_primary_types !== undefined)
+      patch.accepted_primary_types = data.accepted_primary_types;
     if (data.places_types !== undefined) patch.places_types = data.places_types;
     if (data.query_variants !== undefined) patch.query_variants = data.query_variants;
     if (data.min_reviews !== undefined) patch.min_reviews = data.min_reviews;
@@ -356,16 +377,21 @@ export const mergePoiCategories = createServerFn({ method: "POST" })
 
     // Se houver alguma protegida entre as absorvidas, recusa — protegidas não podem desaparecer.
     if (absorbed.some((c) => c.is_protected)) {
-      throw new Error("Categorias padrão não podem ser absorvidas. Use-as como categoria principal.");
+      throw new Error(
+        "Categorias padrão não podem ser absorvidas. Use-as como categoria principal.",
+      );
     }
 
-    const newLabel = (data.new_label?.trim()) || cats.map((c) => c.label).join(", ");
+    const newLabel = data.new_label?.trim() || cats.map((c) => c.label).join(", ");
 
     // 1. move tags absorvidas para a primária
     const { error: tagErr } = await context.supabase
       .from("poi_tags")
       .update({ category_id: primary.id })
-      .in("category_id", absorbed.map((c) => c.id));
+      .in(
+        "category_id",
+        absorbed.map((c) => c.id),
+      );
     if (tagErr) throw new Error(tagErr.message);
 
     // 2. atualiza label da primária
@@ -379,7 +405,10 @@ export const mergePoiCategories = createServerFn({ method: "POST" })
     const { error: delErr } = await context.supabase
       .from("poi_categories")
       .delete()
-      .in("id", absorbed.map((c) => c.id));
+      .in(
+        "id",
+        absorbed.map((c) => c.id),
+      );
     if (delErr) throw new Error(delErr.message);
 
     invalidateTaxonomyCache();

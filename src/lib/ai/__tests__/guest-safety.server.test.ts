@@ -26,7 +26,9 @@ describe("guestSafetyDecision — incidentes de acesso físico", () => {
     ];
     for (const msg of cases) {
       const decision = await guestSafetyDecision(msg, SLUG);
-      expect(decision.kind, `mensagem "${msg}" deveria disparar o guardrail`).toBe("access_incident");
+      expect(decision.kind, `mensagem "${msg}" deveria disparar o guardrail`).toBe(
+        "access_incident",
+      );
     }
   });
 

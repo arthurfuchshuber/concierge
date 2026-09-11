@@ -47,7 +47,10 @@ function normalizeDevice(v: string): EngagementFilters["device"] {
 }
 function parsePropertyCsv(v: string): string[] {
   if (!v || v === "all") return ["all"];
-  const parts = v.split(",").map((s) => s.trim()).filter(Boolean);
+  const parts = v
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   return parts.length === 0 ? ["all"] : parts;
 }
 function serializeProperty(ids: string[]): string {
@@ -91,7 +94,10 @@ function EngagementPage() {
   const tab = search.tab || "panorama";
   const q = search.q ?? "";
   const accountIds: string[] = search.account
-    ? search.account.split(",").map((s: string) => s.trim()).filter(Boolean)
+    ? search.account
+        .split(",")
+        .map((s: string) => s.trim())
+        .filter(Boolean)
     : [];
 
   const backendPropIds = filters.propertyIds.includes("all") ? null : filters.propertyIds;
@@ -100,10 +106,22 @@ function EngagementPage() {
 
   const analyticsFn = useServerFn(getEngagementAnalytics);
   const analyticsQ = useQuery({
-    queryKey: ["engagement-analytics", filters.period, filters.propertyIds.join(","), filters.device, accountsKey],
-    queryFn: () => analyticsFn({
-      data: { period: filters.period, propertyIds: backendPropIds, device: filters.device, asUserIds: backendUserIds },
-    }),
+    queryKey: [
+      "engagement-analytics",
+      filters.period,
+      filters.propertyIds.join(","),
+      filters.device,
+      accountsKey,
+    ],
+    queryFn: () =>
+      analyticsFn({
+        data: {
+          period: filters.period,
+          propertyIds: backendPropIds,
+          device: filters.device,
+          asUserIds: backendUserIds,
+        },
+      }),
     staleTime: 30_000,
   });
   const data = analyticsQ.data;
@@ -111,10 +129,15 @@ function EngagementPage() {
   const guestsFn = useServerFn(getEngagementGuests);
   const guestsQ = useQuery({
     queryKey: ["engagement-guests", filters.period, filters.propertyIds.join(","), accountsKey],
-    queryFn: () => guestsFn({
-      data: { period: filters.period, propertyIds: backendPropIds, q: null, asUserIds: backendUserIds },
-
-    }),
+    queryFn: () =>
+      guestsFn({
+        data: {
+          period: filters.period,
+          propertyIds: backendPropIds,
+          q: null,
+          asUserIds: backendUserIds,
+        },
+      }),
     enabled: tab === "hospedes",
     staleTime: 30_000,
   });
@@ -122,7 +145,9 @@ function EngagementPage() {
   const [detail, setDetail] = useState<DetailTarget>(null);
   const insights = useMemo(() => (data ? computeInsights(data) : []), [data]);
 
-  function patch(p: Partial<EngagementFilters> & { tab?: string; q?: string; accountIds?: string[] }) {
+  function patch(
+    p: Partial<EngagementFilters> & { tab?: string; q?: string; accountIds?: string[] },
+  ) {
     navigate({
       search: (prev: SearchShape) => ({
         period: p.period ?? prev.period,
@@ -158,7 +183,9 @@ function EngagementPage() {
         subtitle="Como seus hóspedes usam o guia."
         actions={
           <Button asChild variant="ghost" size="sm">
-            <Link to="/admin"><ArrowLeft className="size-4 mr-1" /> Voltar</Link>
+            <Link to="/admin">
+              <ArrowLeft className="size-4 mr-1" /> Voltar
+            </Link>
           </Button>
         }
       />
@@ -172,7 +199,9 @@ function EngagementPage() {
       {analyticsQ.isError && (
         <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6 text-sm space-y-2">
           <p>Não foi possível carregar os dados.</p>
-          <Button size="sm" variant="outline" onClick={() => analyticsQ.refetch()}>Tentar novamente</Button>
+          <Button size="sm" variant="outline" onClick={() => analyticsQ.refetch()}>
+            Tentar novamente
+          </Button>
         </div>
       )}
 
@@ -183,64 +212,73 @@ function EngagementPage() {
           ) : (
             <Tabs value={tab} onValueChange={(v) => patch({ tab: v })} className="w-full">
               <TabsList className="ds-segmented h-auto">
-                <TabsTrigger value="panorama" className="text-xs flex-1">Panorama</TabsTrigger>
-                <TabsTrigger value="jornada" className="text-xs flex-1">Jornada</TabsTrigger>
-                <TabsTrigger value="conteudo" className="text-xs flex-1">Conteúdo</TabsTrigger>
-                <TabsTrigger value="hospedes" className="text-xs flex-1">Hóspedes</TabsTrigger>
+                <TabsTrigger value="panorama" className="text-xs flex-1">
+                  Panorama
+                </TabsTrigger>
+                <TabsTrigger value="jornada" className="text-xs flex-1">
+                  Jornada
+                </TabsTrigger>
+                <TabsTrigger value="conteudo" className="text-xs flex-1">
+                  Conteúdo
+                </TabsTrigger>
+                <TabsTrigger value="hospedes" className="text-xs flex-1">
+                  Hóspedes
+                </TabsTrigger>
               </TabsList>
 
               <div className="relative">
                 <div className="absolute right-3 top-3 z-20">{filtersBtn}</div>
 
-
-              <TabsContent value="panorama" className="space-y-5 mt-5">
-                <InsightsRibbon insights={insights} />
-                <KpiStrip kpis={data.kpis} timeseries={data.timeseries} />
-                <div className="grid lg:grid-cols-[1.7fr_1fr] gap-4">
-                  <TrendChart data={data.timeseries} />
-                  <PropertiesDotPlot rows={data.perProperty} onSelect={(id) => setDetail({ kind: "property", id })} />
-                </div>
-              </TabsContent>
-
-              <TabsContent value="jornada" className="space-y-5 mt-5">
-                <div className="grid lg:grid-cols-2 gap-4">
-                  <DurationBuckets buckets={data.durationBuckets} />
-                  <DepthCurve curve={data.depthCurve} />
-                </div>
-                <Funnel steps={data.funnel} />
-                <SectionsBar rows={data.sections} silent={data.silentSections} />
-              </TabsContent>
-
-              <TabsContent value="conteudo" className="space-y-5 mt-5">
-                <ContentImpactMatrix rows={data.sections} />
-                <AiPlanLock locked={aiLocked}>
-                  <FeedbackList items={data.openFeedbackList} properties={data.properties} />
-                </AiPlanLock>
-                <PoiInsights top={data.topPois} cold={data.coldPois} />
-              </TabsContent>
-
-              <TabsContent value="hospedes" className="space-y-5 mt-5">
-                {guestsQ.isLoading ? (
-                  <div className="py-12 flex items-center justify-center text-sm text-muted-foreground">
-                    <Loader2 className="size-4 animate-spin mr-2" /> Consolidando hóspedes…
-                  </div>
-                ) : guestsQ.isError ? (
-                  <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6 text-sm">
-                    Não foi possível carregar os hóspedes.
-                  </div>
-                ) : guestsQ.data ? (
-                  <>
-                    <GuestsTable
-                      guests={guestsQ.data.guests}
-                      onSelect={(guestKey) => {
-                        const g = guestsQ.data?.guests.find((x) => x.key === guestKey);
-                        setDetail({ kind: "guest", guestKey, accountId: g?.accountId ?? null });
-                      }}
+                <TabsContent value="panorama" className="space-y-5 mt-5">
+                  <InsightsRibbon insights={insights} />
+                  <KpiStrip kpis={data.kpis} timeseries={data.timeseries} />
+                  <div className="grid lg:grid-cols-[1.7fr_1fr] gap-4">
+                    <TrendChart data={data.timeseries} />
+                    <PropertiesDotPlot
+                      rows={data.perProperty}
+                      onSelect={(id) => setDetail({ kind: "property", id })}
                     />
+                  </div>
+                </TabsContent>
 
-                  </>
-                ) : null}
-              </TabsContent>
+                <TabsContent value="jornada" className="space-y-5 mt-5">
+                  <div className="grid lg:grid-cols-2 gap-4">
+                    <DurationBuckets buckets={data.durationBuckets} />
+                    <DepthCurve curve={data.depthCurve} />
+                  </div>
+                  <Funnel steps={data.funnel} />
+                  <SectionsBar rows={data.sections} silent={data.silentSections} />
+                </TabsContent>
+
+                <TabsContent value="conteudo" className="space-y-5 mt-5">
+                  <ContentImpactMatrix rows={data.sections} />
+                  <AiPlanLock locked={aiLocked}>
+                    <FeedbackList items={data.openFeedbackList} properties={data.properties} />
+                  </AiPlanLock>
+                  <PoiInsights top={data.topPois} cold={data.coldPois} />
+                </TabsContent>
+
+                <TabsContent value="hospedes" className="space-y-5 mt-5">
+                  {guestsQ.isLoading ? (
+                    <div className="py-12 flex items-center justify-center text-sm text-muted-foreground">
+                      <Loader2 className="size-4 animate-spin mr-2" /> Consolidando hóspedes…
+                    </div>
+                  ) : guestsQ.isError ? (
+                    <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6 text-sm">
+                      Não foi possível carregar os hóspedes.
+                    </div>
+                  ) : guestsQ.data ? (
+                    <>
+                      <GuestsTable
+                        guests={guestsQ.data.guests}
+                        onSelect={(guestKey) => {
+                          const g = guestsQ.data?.guests.find((x) => x.key === guestKey);
+                          setDetail({ kind: "guest", guestKey, accountId: g?.accountId ?? null });
+                        }}
+                      />
+                    </>
+                  ) : null}
+                </TabsContent>
               </div>
             </Tabs>
           )}
@@ -261,7 +299,8 @@ function EmptyState() {
       <div>
         <h3 className="text-sm font-semibold">Nenhum guia publicado ainda</h3>
         <p className="text-xs text-muted-foreground max-w-md mx-auto mt-1">
-          Crie e publique seu primeiro guia. Assim que os hóspedes começarem a navegar, esse painel se torna vivo com padrões, dúvidas e oportunidades.
+          Crie e publique seu primeiro guia. Assim que os hóspedes começarem a navegar, esse painel
+          se torna vivo com padrões, dúvidas e oportunidades.
         </p>
       </div>
       <Button asChild size="sm">
