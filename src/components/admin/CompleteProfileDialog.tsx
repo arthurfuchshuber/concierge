@@ -13,9 +13,11 @@ export function CompleteProfileDialog() {
   const cpfFn = useServerFn(setMissingCpf);
   const qc = useQueryClient();
 
+  const hasSession = useHasSession();
   const q = useQuery({
     queryKey: ["my-profile"],
     queryFn: () => getFn(),
+    enabled: hasSession === true,
     staleTime: 60_000,
     retry: false,
   });
