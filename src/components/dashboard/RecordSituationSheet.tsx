@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { track } from "@/lib/trail";
-import { enviarMidia, garantirToken } from "@/lib/media-upload";
+import { comPrazo, enviarMidia, garantirToken, PRAZO_SERVIDOR_MS } from "@/lib/media-upload";
 import {
   apagarRascunho,
   chaveRascunho,
@@ -413,19 +413,27 @@ export function RecordSituationSheet({
       // mesmo grupo, senão cada toque viraria uma situação repetida.
       let groupId = grupoRef.current;
       if (!groupId) {
-        const criada = await createFn({
-          data: {
-            propertyId,
-            logId: target.logId,
-            reservationId: target.reservationId,
-            cardMode,
-            category,
-            title: title.trim() || null,
-            description: description.trim() || null,
-            media: [],
-            pendingMedia: items.length,
-          },
-        });
+        /* COM PRAZO (11/09/2026): esta é a PRIMEIRA chamada de rede do
+           caminho. Sem prazo, uma rede congelada travaria o botão aqui, antes
+           mesmo de qualquer arquivo — exatamente o sintoma relatado, só que um
+           passo antes. Ver `comPrazo` em `media-upload.ts`. */
+        const criada = await comPrazo(
+          createFn({
+            data: {
+              propertyId,
+              logId: target.logId,
+              reservationId: target.reservationId,
+              cardMode,
+              category,
+              title: title.trim() || null,
+              description: description.trim() || null,
+              media: [],
+              pendingMedia: items.length,
+            },
+          }),
+          PRAZO_SERVIDOR_MS,
+          ctrl.signal,
+        );
         groupId = (criada as { groupId?: string })?.groupId ?? null;
         if (!groupId) throw new Error("Não consegui abrir o registro.");
         grupoRef.current = groupId;
@@ -473,17 +481,21 @@ export function RecordSituationSheet({
 
         if (r.ok) {
           try {
-            await appendFn({
-              data: {
-                groupId,
-                propertyId,
-                path,
-                kind: it.kind,
-                mime: it.mime || "application/octet-stream",
-                sizeBytes: it.blob.size,
-                durationMs: it.durationMs,
-              },
-            });
+            await comPrazo(
+              appendFn({
+                data: {
+                  groupId,
+                  propertyId,
+                  path,
+                  kind: it.kind,
+                  mime: it.mime || "application/octet-stream",
+                  sizeBytes: it.blob.size,
+                  durationMs: it.durationMs,
+                },
+              }),
+              PRAZO_SERVIDOR_MS,
+              ctrl.signal,
+            );
             enviados.push(it.key);
           } catch (e) {
             falharam.push(it.name || it.kind);
@@ -557,7 +569,14 @@ export function RecordSituationSheet({
       onSaved();
       onOpenChange(false);
     } catch (e) {
-      setErro((e as Error).message || "Não consegui registrar a situação.");
+      const m = (e as Error)?.message ?? "";
+      setErro(
+        m === "PRAZO"
+          ? "O servidor demorou demais para responder. Toque em “Tentar de novo” — nada foi perdido."
+          : m === "CANCELADO"
+            ? "Envio cancelado. O que você digitou continua aqui."
+            : m || "Não consegui registrar a situação.",
+      );
     } finally {
       cancelarRef.current = null;
       setProgresso(null);

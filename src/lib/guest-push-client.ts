@@ -129,7 +129,12 @@ export async function enableGuestPush(params: {
       if (perm !== "granted") return { ok: false, reason: "dismissed" };
     }
 
-    // 3. Service worker.
+    // 3. Service worker. Espera o registro do cache terminar antes: no
+    //    primeiro acesso esta tela aparece segundos depois do boot, e as duas
+    //    chamadas cruzadas deixariam o escopo com o script sem tratador de
+    //    push — inscrição viva e nenhuma notificação chegando.
+    const { aguardarRegistroDeCache } = await import("@/lib/offline/sw-register");
+    await aguardarRegistroDeCache();
     const reg = await navigator.serviceWorker.register("/sw-guest-push.js", { scope: "/" });
     await navigator.serviceWorker.ready;
 

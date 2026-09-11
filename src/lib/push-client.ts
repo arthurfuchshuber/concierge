@@ -3,6 +3,7 @@
 // de um botão em Configurações → Notificações.
 
 import { getVapidPublicKey, subscribePush, unsubscribePush } from "./push.functions";
+import { aguardarRegistroDeCache } from "@/lib/offline/sw-register";
 
 const SW_URL = "/sw-push.js";
 const SW_SCOPE = "/";
@@ -23,6 +24,9 @@ export function isPushSupported(): boolean {
 
 export async function registerPushServiceWorker(): Promise<ServiceWorkerRegistration> {
   if (!isPushSupported()) throw new Error("Push não suportado neste navegador");
+  // Só depois que o registro do cache terminar — senão os dois podem se
+  // cruzar e o escopo acabar com o script errado. Ver `sw-register.ts`.
+  await aguardarRegistroDeCache();
   const reg = await navigator.serviceWorker.register(SW_URL, { scope: SW_SCOPE });
   await navigator.serviceWorker.ready;
   return reg;

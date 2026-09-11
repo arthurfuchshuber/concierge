@@ -17,7 +17,7 @@ vi.mock("@/integrations/supabase/client", () => ({
   supabase: { auth: { getSession, refreshSession } },
 }));
 
-import { enviarMidia, garantirToken } from "@/lib/media-upload";
+import { comPrazo, enviarMidia, garantirToken } from "@/lib/media-upload";
 
 type Cenario = { status: number; erroDeRede?: boolean; nuncaResponde?: boolean };
 
@@ -153,5 +153,23 @@ describe("garantirToken", () => {
     });
     refreshSession.mockResolvedValue({ data: { session: null } });
     await expect(garantirToken()).resolves.toBe("velho");
+  });
+});
+
+describe("comPrazo", () => {
+  it("deixa a promessa normal passar intacta", async () => {
+    await expect(comPrazo(Promise.resolve("ok"), 1000)).resolves.toBe("ok");
+  });
+
+  it("uma promessa que nunca resolve vira erro — nunca spinner eterno", async () => {
+    const eterna = new Promise(() => {});
+    await expect(comPrazo(eterna, 30)).rejects.toThrow("PRAZO");
+  });
+
+  it("cancelar interrompe na hora, sem esperar o prazo", async () => {
+    const ctrl = new AbortController();
+    const p = comPrazo(new Promise(() => {}), 60_000, ctrl.signal);
+    ctrl.abort();
+    await expect(p).rejects.toThrow("CANCELADO");
   });
 });

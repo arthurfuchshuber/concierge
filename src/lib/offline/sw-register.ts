@@ -58,7 +58,38 @@ export async function desligarOffline(): Promise<void> {
   }
 }
 
+/**
+ * A CORRIDA QUE PRECISAVA SER ELIMINADA (11/09/2026).
+ *
+ * O registro do cache acontece no boot; o registro do push acontece quando a
+ * pessoa toca em "Ativar". Normalmente há segundos entre um e outro — MENOS no
+ * primeiro acesso do hóspede, onde a tela de notificações aparece logo na
+ * abertura. Se as duas chamadas se cruzarem e a do cache resolver por último,
+ * o script que fica valendo no escopo é o `sw-cache.js`, que não tem tratador
+ * de `push`: a inscrição existiria e nenhuma notificação chegaria. Silencioso,
+ * intermitente e quase impossível de reproduzir.
+ *
+ * Por isso quem vai registrar push ESPERA o registro do cache terminar. Os
+ * dois fluxos de push chamam isto antes de `register()`.
+ */
+let registroEmAndamento: Promise<void> | null = null;
+
+export function aguardarRegistroDeCache(): Promise<void> {
+  // O `.catch` não é decoração: quem chama isto é o fluxo de ATIVAR
+  // NOTIFICAÇÃO. Se esta promessa rejeitasse, o `await` lá estouraria e a
+  // pessoa veria "Erro ao ativar notificações" por causa do cache — que não
+  // tem nada a ver com push. O registro do cache nunca pode atrapalhar o
+  // caminho feliz do botão Ativar.
+  return (registroEmAndamento ?? Promise.resolve()).catch(() => {});
+}
+
 export async function registrarCacheOffline(): Promise<void> {
+  if (registroEmAndamento) return registroEmAndamento;
+  registroEmAndamento = registrarAgora();
+  return registroEmAndamento;
+}
+
+async function registrarAgora(): Promise<void> {
   if (!suportado()) return;
   // Em desenvolvimento o service worker só atrapalha: ele guarda o bundle e
   // esconde a recarga a quente.

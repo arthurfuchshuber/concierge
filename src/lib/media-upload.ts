@@ -57,6 +57,43 @@ const MENSAGEM: Record<MotivoFalha, string> = {
 };
 
 /**
+ * PRAZO PARA QUALQUER PROMESSA — e por que ela existe (11/09/2026).
+ *
+ * Todo `fetch` do navegador é eterno por padrão: numa rede móvel que congela,
+ * ele não resolve NEM rejeita. Foi assim que o botão "Registrar situação"
+ * ficou girando sem nunca liberar. Trocar o upload por XHR resolveu o envio do
+ * arquivo — mas sobraram as outras três chamadas do mesmo caminho (renovar o
+ * token, criar a situação, anexar a mídia), todas com o mesmo defeito.
+ *
+ * Daqui em diante NADA no caminho de gravar um registro pode ficar pendurado.
+ * Estourou o prazo, vira erro visível com "Tentar de novo" — que é o pior
+ * cenário aceitável. Spinner eterno não é.
+ */
+export function comPrazo<T>(promessa: Promise<T>, ms: number, signal?: AbortSignal): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    let pronto = false;
+    const encerra = (fn: () => void) => {
+      if (pronto) return;
+      pronto = true;
+      clearTimeout(t);
+      signal?.removeEventListener("abort", aoCancelar);
+      fn();
+    };
+    const t = setTimeout(() => encerra(() => reject(new Error("PRAZO"))), ms);
+    const aoCancelar = () => encerra(() => reject(new Error("CANCELADO")));
+    signal?.addEventListener("abort", aoCancelar);
+    promessa.then(
+      (v) => encerra(() => resolve(v)),
+      (e) => encerra(() => reject(e)),
+    );
+  });
+}
+
+/** Quanto esperar a sessão e as chamadas ao servidor. Generoso, mas finito. */
+export const PRAZO_AUTH_MS = 12_000;
+export const PRAZO_SERVIDOR_MS = 30_000;
+
+/**
  * Garante que existe um token válido AGORA.
  *
  * É o que faltava em 11/09: o envio saía com a sessão ainda não restaurada e a
@@ -65,18 +102,23 @@ const MENSAGEM: Record<MotivoFalha, string> = {
  */
 export async function garantirToken(): Promise<string | null> {
   try {
-    const { data } = await supabase.auth.getSession();
+    const { data } = await comPrazo(supabase.auth.getSession(), PRAZO_AUTH_MS);
     const sessao = data.session;
     if (!sessao?.access_token) return null;
 
     const agora = Math.floor(Date.now() / 1000);
     if (sessao.expires_at && sessao.expires_at - 60 > agora) return sessao.access_token;
 
-    // Vencido ou quase: tenta renovar. Falhando por rede, devolve o token
-    // antigo mesmo — melhor tentar e receber um 401 claro do que desistir
-    // antes de perguntar.
-    const { data: novo } = await supabase.auth.refreshSession();
-    return novo?.session?.access_token ?? sessao.access_token;
+    // Vencido ou quase: tenta renovar. Falhando por rede OU estourando o
+    // prazo, devolve o token antigo mesmo — melhor tentar e receber um 401
+    // claro do que desistir antes de perguntar, e melhor ainda do que ficar
+    // pendurado esperando uma renovação que nunca volta.
+    try {
+      const { data: novo } = await comPrazo(supabase.auth.refreshSession(), PRAZO_AUTH_MS);
+      return novo?.session?.access_token ?? sessao.access_token;
+    } catch {
+      return sessao.access_token;
+    }
   } catch {
     return null;
   }
