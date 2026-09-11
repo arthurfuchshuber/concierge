@@ -1,6 +1,6 @@
 import { ComposerPlusMenu } from "@/components/handoff/ComposerPlusMenu";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { CopyButton } from "@/components/CopyButton";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -20,6 +20,9 @@ import {
 } from "@/lib/handoff.functions";
 import { MessageText } from "@/components/handoff/MessageText";
 import { attachStaffMessage } from "@/lib/chat-attachments.functions";
+import { listConversationEscalations, answerEscalation } from "@/lib/ai-supervision.functions";
+import { dismissEscalation } from "@/lib/handoff.functions";
+import { minutesLeft } from "@/lib/ai/pause";
 import {
   Send,
   UserCheck,
@@ -165,6 +168,44 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
     refetchOnWindowFocus: true,
   });
 
+  /* A FILA DE PERGUNTAS DA IA (11/09/2026).
+   *
+   * Até aqui, `ai_human_escalations` existia no banco e não tinha um único
+   * consumidor de tela: a IA perguntava e ninguém via. O atendente lia o
+   * `handoff_reason` — que é o motivo de ROTEAMENTO, escrito para máquina — e
+   * respondia ao hóspede por fora. "O humano é consultor interno da IA" não
+   * tinha por onde acontecer. */
+  const escalationsFn = useServerFn(listConversationEscalations);
+  const answerFn = useServerFn(answerEscalation);
+  const dismissFn = useServerFn(dismissEscalation);
+  const escQ = useQuery({
+    queryKey: ["conv-escalations", conversationId],
+    queryFn: () => escalationsFn({ data: { conversationId } }),
+    refetchInterval: 8000,
+  });
+  const escalations = useMemo(
+    () =>
+      ((escQ.data ?? []) as Array<{
+        id: string;
+        question_to_human: string | null;
+        human_response: string | null;
+        status: string | null;
+        created_at: string | null;
+        resolved_at: string | null;
+      }>) ?? [],
+    [escQ.data],
+  );
+  const respondidas = useMemo(
+    () => escalations.filter((e) => e.status === "answered" || e.status === "dismissed"),
+    [escalations],
+  );
+  const pendingAsk = useMemo(
+    () => escalations.find((e) => e.status === "pending") ?? null,
+    [escalations],
+  );
+  const [askText, setAskText] = useState("");
+  const [saveKnowledge, setSaveKnowledge] = useState(true);
+
   const tagItemsFn = useServerFn(getTagItemsForConversation);
   const { data: tagItemsData } = useQuery({
     queryKey: ["tag-items", "conv", conversationId],
@@ -300,6 +341,8 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   }, [conversationId, qc]);
 
   const invalidateAll = () => {
+    qc.invalidateQueries({ queryKey: ["conv-escalations", conversationId] });
+    qc.invalidateQueries({ queryKey: ["ai-escalation-queue"] });
     qc.invalidateQueries({ queryKey: ["handoff-conv", conversationId] });
     qc.invalidateQueries({ queryKey: ["handoff-list"] });
     qc.invalidateQueries({ queryKey: ["handoff-pending-count"] });
@@ -316,6 +359,42 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
     },
     onError: (e) => setErrorMsg((e as Error).message),
   });
+  /* Responder À IA: o atendente escreve uma linha e ela leva ao hóspede na
+   * própria voz. A entrega é imediata (`speakWithAgent`), não fica esperando o
+   * hóspede escrever de novo — foi assim que a hóspede do Studio 103 ficou sem
+   * resposta desde 08/09. */
+  const answer = useMutation({
+    mutationFn: async () => {
+      if (!pendingAsk) throw new Error("Nenhuma pergunta pendente.");
+      return answerFn({
+        data: {
+          escalationId: pendingAsk.id,
+          answer: askText.trim(),
+          saveAsKnowledge: saveKnowledge,
+        },
+      });
+    },
+    onSuccess: (r) => {
+      setAskText("");
+      if (r && (r as { entregue?: boolean }).entregue === false) {
+        setErrorMsg(
+          "Resposta salva, mas não consegui entregar ao hóspede agora. Vou tentar de novo.",
+        );
+      }
+      invalidateAll();
+    },
+    onError: (e) => setErrorMsg((e as Error).message),
+  });
+
+  const dismiss = useMutation({
+    mutationFn: async () => {
+      if (!pendingAsk) return null;
+      return dismissFn({ data: { escalationId: pendingAsk.id, reason: null } });
+    },
+    onSuccess: invalidateAll,
+    onError: (e) => setErrorMsg((e as Error).message),
+  });
+
   const reopen = useMutation({
     mutationFn: async (ch: "chat" | "whatsapp") => {
       await reopenFn({ data: { conversationId } });
@@ -475,6 +554,10 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
     (q.data as { propertyOwnerName?: string | null } | undefined)?.propertyOwnerName ?? null;
 
   const isMine = !!(conv?.assigned_to && myUserId && conv.assigned_to === myUserId);
+  /* Minutos que faltam para a IA voltar. `null` quando ela não está pausada —
+   * ou quando a pausa é das antigas, sem prazo. Recalculado a cada refetch da
+   * conversa (4s), então o contador anda sozinho. */
+  const pausaMinutos = minutesLeft(conv);
   const isLockedByOther = !!(conv?.assigned_to && myUserId && conv.assigned_to !== myUserId);
   const isUnassigned = !conv?.assigned_to;
   const iRequested = !!(
@@ -767,7 +850,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
             <Loader2 className="size-3 animate-spin" /> Carregando…
           </div>
         )}
-        {msgs.map((m) => {
+        {msgs.map((m, i) => {
           const isGuest = m.sender_type === "guest";
           const isNote = m.is_internal_note;
           const canTeach = !isNote && typeof m.content === "string" && m.content.trim().length > 2;
@@ -785,129 +868,162 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                 transcript: m.attachment_transcript ?? null,
               }
             : null;
+          /* CONSULTAS INTERNAS NO HISTÓRICO (11/09/2026).
+             Decisão do produto: a pergunta da IA aparece nos DOIS lugares —
+             cartão ativo acima do campo enquanto pendente, e aqui, discreta,
+             depois de respondida, para quem lê a conversa depois entender por
+             que a IA respondeu aquilo. Fica entre a mensagem atual e a
+             próxima, pelo horário em que foi resolvida. */
+          const consultas = respondidas.filter((e) => {
+            const quando = new Date(e.resolved_at ?? e.created_at ?? 0).getTime();
+            const agora = new Date(m.created_at ?? 0).getTime();
+            const proxima = msgs[i + 1]
+              ? new Date(msgs[i + 1].created_at ?? 0).getTime()
+              : Infinity;
+            return quando >= agora && quando < proxima;
+          });
           return (
-            <div key={m.id} className={`flex flex-col ${isGuest ? "items-start" : "items-end"}`}>
-              <div
-                onPointerDown={() =>
-                  startLongPress({ id: m.id, content: m.content ?? "", mine: !isGuest })
-                }
-                onPointerUp={cancelLongPress}
-                onPointerLeave={cancelLongPress}
-                onPointerCancel={cancelLongPress}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  setActionMsg({ id: m.id, content: m.content ?? "", mine: !isGuest });
-                }}
-                className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words select-none ${
-                  isNote
-                    ? "bg-yellow-500/15 border border-yellow-500/30 text-foreground"
-                    : isGuest
-                      ? "bg-secondary text-foreground"
-                      : m.sender_type === "human"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-accent text-accent-foreground"
-                }`}
-              >
-                {isNote && (
-                  <div className="text-[10px] uppercase tracking-wide opacity-70 mb-1 flex items-center gap-1">
-                    <StickyNote className="size-3" /> Nota interna
-                  </div>
-                )}
-                {!isNote && !isGuest && (
-                  <div className="text-[11px] mb-1">
-                    {m.sender_type === "human" ? (
-                      <span className="font-bold">
-                        {(m.sender_user_id && senderProfiles[m.sender_user_id]?.displayName) ||
-                          "Atendente"}
-                      </span>
-                    ) : (
-                      <span className="uppercase tracking-wide opacity-70">IA</span>
-                    )}
-                  </div>
-                )}
-                {attachment && (
-                  <div className="mb-1">
-                    <AttachmentBubble attachment={attachment} />
-                  </div>
-                )}
-                {editingId === m.id ? (
-                  <div className="space-y-1">
-                    <textarea
-                      value={editingText}
-                      onChange={(e) => setEditingText(e.target.value)}
-                      rows={3}
-                      className="w-full min-w-[220px] rounded-lg bg-background text-foreground border border-border p-2 text-sm"
-                    />
-                    <div className="flex items-center gap-2 justify-end">
-                      <button
-                        type="button"
-                        className="text-[11px] opacity-70 hover:opacity-100"
-                        onClick={() => {
-                          setEditingId(null);
-                          setEditingText("");
-                        }}
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        type="button"
-                        disabled={editMsg.isPending || !editingText.trim()}
-                        className="text-[11px] px-2 py-1 rounded bg-foreground text-background disabled:opacity-50"
-                        onClick={() => editMsg.mutate({ messageId: m.id, content: editingText })}
-                      >
-                        {editMsg.isPending ? "Salvando…" : "Salvar"}
-                      </button>
+            <Fragment key={m.id}>
+              <div className={`flex flex-col ${isGuest ? "items-start" : "items-end"}`}>
+                <div
+                  onPointerDown={() =>
+                    startLongPress({ id: m.id, content: m.content ?? "", mine: !isGuest })
+                  }
+                  onPointerUp={cancelLongPress}
+                  onPointerLeave={cancelLongPress}
+                  onPointerCancel={cancelLongPress}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setActionMsg({ id: m.id, content: m.content ?? "", mine: !isGuest });
+                  }}
+                  className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words select-none ${
+                    isNote
+                      ? "bg-yellow-500/15 border border-yellow-500/30 text-foreground"
+                      : isGuest
+                        ? "bg-secondary text-foreground"
+                        : m.sender_type === "human"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-accent text-accent-foreground"
+                  }`}
+                >
+                  {isNote && (
+                    <div className="text-[10px] uppercase tracking-wide opacity-70 mb-1 flex items-center gap-1">
+                      <StickyNote className="size-3" /> Nota interna
                     </div>
+                  )}
+                  {!isNote && !isGuest && (
+                    <div className="text-[11px] mb-1">
+                      {m.sender_type === "human" ? (
+                        <span className="font-bold">
+                          {(m.sender_user_id && senderProfiles[m.sender_user_id]?.displayName) ||
+                            "Atendente"}
+                        </span>
+                      ) : (
+                        <span className="uppercase tracking-wide opacity-70">IA</span>
+                      )}
+                    </div>
+                  )}
+                  {attachment && (
+                    <div className="mb-1">
+                      <AttachmentBubble attachment={attachment} />
+                    </div>
+                  )}
+                  {editingId === m.id ? (
+                    <div className="space-y-1">
+                      <textarea
+                        value={editingText}
+                        onChange={(e) => setEditingText(e.target.value)}
+                        rows={3}
+                        className="w-full min-w-[220px] rounded-lg bg-background text-foreground border border-border p-2 text-sm"
+                      />
+                      <div className="flex items-center gap-2 justify-end">
+                        <button
+                          type="button"
+                          className="text-[11px] opacity-70 hover:opacity-100"
+                          onClick={() => {
+                            setEditingId(null);
+                            setEditingText("");
+                          }}
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          disabled={editMsg.isPending || !editingText.trim()}
+                          className="text-[11px] px-2 py-1 rounded bg-foreground text-background disabled:opacity-50"
+                          onClick={() => editMsg.mutate({ messageId: m.id, content: editingText })}
+                        >
+                          {editMsg.isPending ? "Salvando…" : "Salvar"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    m.content && <MessageText text={tr?.showing && tr.text ? tr.text : m.content} />
+                  )}
+                  {tr?.showing && tr.text && (
+                    <div className="text-[10px] opacity-60 mt-1 flex items-center gap-1">
+                      <Languages className="size-3" /> Traduzido automaticamente
+                    </div>
+                  )}
+                  <div className="mt-1 flex items-center gap-1 text-[10px] opacity-60">
+                    <span>
+                      {formatDistanceToNow(new Date(m.created_at), {
+                        locale: ptBR,
+                        addSuffix: true,
+                      })}
+                      {m.edited_at ? " · editada" : ""}
+                    </span>
+                    {/* Só nas MINHAS mensagens: recibo do que o hóspede recebeu. */}
+                    {!isGuest && !isNote && <DeliveryTicks status={m.delivery_status} />}
                   </div>
-                ) : (
-                  m.content && <MessageText text={tr?.showing && tr.text ? tr.text : m.content} />
-                )}
-                {tr?.showing && tr.text && (
-                  <div className="text-[10px] opacity-60 mt-1 flex items-center gap-1">
-                    <Languages className="size-3" /> Traduzido automaticamente
-                  </div>
-                )}
-                <div className="mt-1 flex items-center gap-1 text-[10px] opacity-60">
-                  <span>
-                    {formatDistanceToNow(new Date(m.created_at), { locale: ptBR, addSuffix: true })}
-                    {m.edited_at ? " · editada" : ""}
-                  </span>
-                  {/* Só nas MINHAS mensagens: recibo do que o hóspede recebeu. */}
-                  {!isGuest && !isNote && <DeliveryTicks status={m.delivery_status} />}
+                </div>
+                <div className="flex items-center gap-2">
+                  {canTranslate && (
+                    <button
+                      type="button"
+                      onClick={() => toggleTranslation(m.id, m.content ?? "")}
+                      disabled={tr?.loading}
+                      className="mt-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-60"
+                      title={`Mensagem em ${LANG_NAMES[detected as string] ?? detected}`}
+                    >
+                      {tr?.loading ? (
+                        <Loader2 className="size-3 animate-spin" />
+                      ) : (
+                        <Languages className="size-3" />
+                      )}
+                      {tr?.showing ? "Ver original" : "Traduzir"}
+                    </button>
+                  )}
+                  {canTeach && conv?.property_id && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTeachSource({ id: m.id, content: m.content ?? "" });
+                        setTeachOpen(true);
+                      }}
+                      className="mt-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                      title="Adicionar este conteúdo à base de conhecimento da IA"
+                    >
+                      <Sparkles className="size-3" /> Ensinar IA
+                    </button>
+                  )}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                {canTranslate && (
-                  <button
-                    type="button"
-                    onClick={() => toggleTranslation(m.id, m.content ?? "")}
-                    disabled={tr?.loading}
-                    className="mt-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-60"
-                    title={`Mensagem em ${LANG_NAMES[detected as string] ?? detected}`}
-                  >
-                    {tr?.loading ? (
-                      <Loader2 className="size-3 animate-spin" />
-                    ) : (
-                      <Languages className="size-3" />
-                    )}
-                    {tr?.showing ? "Ver original" : "Traduzir"}
-                  </button>
-                )}
-                {canTeach && conv?.property_id && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTeachSource({ id: m.id, content: m.content ?? "" });
-                      setTeachOpen(true);
-                    }}
-                    className="mt-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                    title="Adicionar este conteúdo à base de conhecimento da IA"
-                  >
-                    <Sparkles className="size-3" /> Ensinar IA
-                  </button>
-                )}
-              </div>
-            </div>
+              {consultas.map((e) => (
+                <div
+                  key={e.id}
+                  className="mx-auto w-full max-w-[92%] rounded-lg border border-violet-500/30 bg-violet-500/[0.05] px-2.5 py-1.5 text-[11px] leading-snug"
+                >
+                  <div className="mb-0.5 inline-flex items-center gap-1 text-[9.5px] font-bold uppercase tracking-[0.13em] text-violet-600 dark:text-violet-300">
+                    <Sparkles className="size-2.5" /> consulta interna
+                  </div>
+                  <p className="text-muted-foreground">{e.question_to_human}</p>
+                  <p className="mt-0.5 font-medium">
+                    {e.status === "dismissed" ? "Descartada." : e.human_response}
+                  </p>
+                </div>
+              ))}
+            </Fragment>
           );
         })}
       </div>
@@ -1100,6 +1216,74 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
           </span>
         </div>
       )}
+      {/* ------------------------------------------------------------------
+          A PERGUNTA DA IA (11/09/2026)
+
+          Toma o lugar que era do botão "Assumir": quando a IA perguntou algo,
+          a ação principal da tela é RESPONDER A ELA, não assumir a conversa.
+          Aparece para qualquer pessoa com permissão de chat — consultar não é
+          tomar posse. Some sozinho quando respondido.
+          ------------------------------------------------------------------ */}
+      {status !== "resolved" && canChat && pendingAsk && (
+        <div className="shrink-0 border-t border-border bg-surface px-3 pb-2 pt-2.5">
+          <div className="rounded-xl border border-violet-500/45 bg-violet-500/[0.07] p-3">
+            <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.13em] text-violet-600 dark:text-violet-300">
+              <Sparkles className="size-3" /> a IA está te perguntando
+            </div>
+            <p className="text-[13px] font-semibold leading-snug">
+              {pendingAsk.question_to_human || "A IA precisa de uma decisão sua."}
+            </p>
+            <form
+              className="mt-2.5 flex items-center gap-2 rounded-lg border border-border bg-surface-elevated px-2.5 py-1.5"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!askText.trim() || answer.isPending) return;
+                answer.mutate();
+              }}
+            >
+              <input
+                id="resposta-a-ia"
+                value={askText}
+                onChange={(e) => setAskText(e.target.value)}
+                placeholder="Responda à IA — ela leva ao hóspede na voz dela…"
+                className="min-w-0 flex-1 bg-transparent text-[12.5px] outline-none placeholder:text-muted-foreground"
+              />
+              <button
+                type="submit"
+                disabled={!askText.trim() || answer.isPending}
+                className="inline-flex shrink-0 items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-[11.5px] font-semibold text-primary-foreground disabled:opacity-45"
+              >
+                {answer.isPending ? <Loader2 className="size-3 animate-spin" /> : null}
+                Enviar
+              </button>
+            </form>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+              <label
+                htmlFor="salvar-regra"
+                className="inline-flex cursor-pointer items-center gap-1.5 text-[10.5px] text-muted-foreground"
+              >
+                <input
+                  id="salvar-regra"
+                  type="checkbox"
+                  checked={saveKnowledge}
+                  onChange={(e) => setSaveKnowledge(e.target.checked)}
+                  className="size-3 accent-violet-600"
+                />
+                Salvar como regra, para ela não perguntar de novo
+              </label>
+              <button
+                type="button"
+                onClick={() => dismiss.mutate()}
+                disabled={dismiss.isPending}
+                className="text-[10.5px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              >
+                Descartar pergunta
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {status !== "resolved" &&
         canChat &&
         (!isMine ? (
@@ -1119,6 +1303,10 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
                   <strong>{assignedProfile?.displayName ?? "o atendente responsável"}</strong> pode
                   responder — você acompanha em tempo real.
                 </>
+              ) : pendingAsk ? (
+                // Com pergunta da IA na tela, falar direto é a SEGUNDA opção —
+                // o texto e o peso do botão mudam para dizer isso.
+                "Prefere falar você mesmo?"
               ) : (
                 "Assuma a conversa para poder responder ao hóspede."
               )}
@@ -1126,107 +1314,136 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
             <button
               onClick={handleClaim}
               disabled={claim.isPending}
-              className="ml-1 text-[11px] px-2 py-1 rounded-md bg-primary text-primary-foreground inline-flex items-center gap-1"
+              className={
+                pendingAsk
+                  ? "ml-1 inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] text-foreground/80 hover:bg-secondary"
+                  : "ml-1 inline-flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-[11px] text-primary-foreground"
+              }
             >
-              <UserCheck className="size-3" /> Assumir
+              <UserCheck className="size-3" /> {pendingAsk ? "Falar direto" : "Assumir"}
             </button>
           </div>
         ) : (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!text.trim() || send.isPending) return;
-              send.mutate();
-            }}
-            className="sticky bottom-0 z-10 shrink-0 border-t border-border bg-surface px-3 pt-2"
-            style={{
-              // Só o rodapé precisa da área segura; laterais e topo saem das
-              // classes compartilhadas, iguais às do Assistente.
-              //
-              // Pedido explícito (09/09/2026): "o rodapé com o teclado aberto
-              // precisa ficar IDÊNTICO ao rodapé com o teclado fechado". Aqui
-              // havia um `viewport.keyboardOpen ? …` que trocava a folga de
-              // baixo — sobra da época em que o teclado ficava POR CIMA do
-              // layout e a área segura era contada duas vezes. Com o
-              // `interactive-widget=resizes-content` no viewport (ver
-              // __root.tsx) a página encolhe de verdade, então a mesma medida
-              // serve nos dois estados — e o rodapé para de "pular".
-              paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
-            }}
-          >
-            {uploading && (
-              <div className="px-2 pb-1 text-[10px] text-muted-foreground inline-flex items-center gap-1">
-                <Loader2 className="size-3 animate-spin" /> enviando anexo…
+          <>
+            {/* MODO DIRETO COM PRAZO (11/09/2026).
+                A pausa deixou de ser eterna: 30 minutos, renovados a cada
+                mensagem sua. Aqui ela fica VISÍVEL — antes, nada na tela dizia
+                que a IA estava calada, e havia conversa muda desde 10/09. */}
+            {pausaMinutos !== null && (
+              <div className="shrink-0 border-t border-border bg-surface px-3 pt-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-secondary px-2.5 py-1.5 text-[11.5px]">
+                  <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                    <Lock className="size-3" />
+                    Você está falando direto. A IA volta em{" "}
+                    <strong className="tabular-nums text-foreground">{pausaMinutos} min</strong>.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => release.mutate()}
+                    disabled={release.isPending}
+                    className="rounded-md border border-border px-2 py-0.5 text-[10.5px] hover:bg-surface-elevated"
+                  >
+                    Devolver agora
+                  </button>
+                </div>
               </div>
             )}
-            {note && (
-              <div className="px-2 pb-1 text-[10px] text-yellow-700 inline-flex items-center gap-1">
-                <StickyNote className="size-3" /> nota interna (só a equipe vê)
-              </div>
-            )}
-            <div className="flex items-center gap-2">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*,application/pdf,video/mp4,video/webm,video/quicktime"
-                className="hidden"
-                onChange={onFilePicked}
-              />
-              <input
-                ref={cameraInputRef}
-                type="file"
-                accept="image/*,video/*"
-                capture="environment"
-                className="hidden"
-                onChange={onFilePicked}
-              />
-              <ComposerPlusMenu
-                disabled={uploading}
-                onAttach={() => fileInputRef.current?.click()}
-                onCamera={() => cameraInputRef.current?.click()}
-              />
-              <div className={`${COMPOSER_FIELD} ${note ? "!border-yellow-500/50" : ""}`}>
-                <TagMentionTextarea
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      if (text.trim()) send.mutate();
-                    }
-                  }}
-                  items={tagItems}
-                  placeholder={note ? "Nota interna…" : "Mensagem…"}
-                  rows={1}
-                  containerClassName="flex-1 min-w-0"
-                  className={`${COMPOSER_INPUT} border-0 px-0`}
-                />
-              </div>
-
-              {text.trim() ? (
-                <button
-                  type="submit"
-                  disabled={send.isPending}
-                  className={`${COMPOSER_SEND_BTN} ${channel === "whatsapp" && !note ? "bg-emerald-600" : "bg-primary"}`}
-                >
-                  {send.isPending ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Send className="size-4" />
-                  )}
-                </button>
-              ) : (
-                <div className="shrink-0">
-                  <AudioRecorderButton
-                    disabled={uploading}
-                    maxSeconds={60}
-                    onRecorded={onAudioRecorded}
-                    compact
-                  />
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!text.trim() || send.isPending) return;
+                send.mutate();
+              }}
+              className="sticky bottom-0 z-10 shrink-0 border-t border-border bg-surface px-3 pt-2"
+              style={{
+                // Só o rodapé precisa da área segura; laterais e topo saem das
+                // classes compartilhadas, iguais às do Assistente.
+                //
+                // Pedido explícito (09/09/2026): "o rodapé com o teclado aberto
+                // precisa ficar IDÊNTICO ao rodapé com o teclado fechado". Aqui
+                // havia um `viewport.keyboardOpen ? …` que trocava a folga de
+                // baixo — sobra da época em que o teclado ficava POR CIMA do
+                // layout e a área segura era contada duas vezes. Com o
+                // `interactive-widget=resizes-content` no viewport (ver
+                // __root.tsx) a página encolhe de verdade, então a mesma medida
+                // serve nos dois estados — e o rodapé para de "pular".
+                paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
+              }}
+            >
+              {uploading && (
+                <div className="px-2 pb-1 text-[10px] text-muted-foreground inline-flex items-center gap-1">
+                  <Loader2 className="size-3 animate-spin" /> enviando anexo…
                 </div>
               )}
-            </div>
-          </form>
+              {note && (
+                <div className="px-2 pb-1 text-[10px] text-yellow-700 inline-flex items-center gap-1">
+                  <StickyNote className="size-3" /> nota interna (só a equipe vê)
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,application/pdf,video/mp4,video/webm,video/quicktime"
+                  className="hidden"
+                  onChange={onFilePicked}
+                />
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={onFilePicked}
+                />
+                <ComposerPlusMenu
+                  disabled={uploading}
+                  onAttach={() => fileInputRef.current?.click()}
+                  onCamera={() => cameraInputRef.current?.click()}
+                />
+                <div className={`${COMPOSER_FIELD} ${note ? "!border-yellow-500/50" : ""}`}>
+                  <TagMentionTextarea
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        if (text.trim()) send.mutate();
+                      }
+                    }}
+                    items={tagItems}
+                    placeholder={note ? "Nota interna…" : "Mensagem…"}
+                    rows={1}
+                    containerClassName="flex-1 min-w-0"
+                    className={`${COMPOSER_INPUT} border-0 px-0`}
+                  />
+                </div>
+
+                {text.trim() ? (
+                  <button
+                    type="submit"
+                    disabled={send.isPending}
+                    className={`${COMPOSER_SEND_BTN} ${channel === "whatsapp" && !note ? "bg-emerald-600" : "bg-primary"}`}
+                  >
+                    {send.isPending ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Send className="size-4" />
+                    )}
+                  </button>
+                ) : (
+                  <div className="shrink-0">
+                    <AudioRecorderButton
+                      disabled={uploading}
+                      maxSeconds={60}
+                      onRecorded={onAudioRecorded}
+                      compact
+                    />
+                  </div>
+                )}
+              </div>
+            </form>
+          </>
         ))}
     </div>
   );

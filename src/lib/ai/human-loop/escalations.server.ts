@@ -7,6 +7,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentKey } from "../agents/types";
+import { continuityLine } from "../continuity";
 
 type Admin = SupabaseClient;
 
@@ -132,9 +133,13 @@ export function renderHumanAnswers(answers: AnsweredEscalation[]): string {
   );
 }
 
-/** Aviso honesto ao hóspede enquanto a equipe não responde. */
-export function pendingNotice(language: string): string {
-  if (language?.startsWith("en")) return "I'm confirming this with the host's team so I can give you the right answer — I'll get back to you shortly.";
-  if (language?.startsWith("es")) return "Estoy confirmando esto con el equipo del anfitrión para darte la respuesta correcta — te aviso enseguida.";
-  return "Estou confirmando isso com a equipe do anfitrião para te passar a informação certa — já te retorno.";
+/**
+ * Aviso honesto ao hóspede enquanto a consulta interna não volta.
+ *
+ * ANTES dizia "com a equipe do anfitrião" — nomeava um terceiro e, para quem
+ * lê, isso É a transferência que a regra do produto proíbe. O texto agora vem
+ * de `continuity.ts`, em primeira pessoa e com variação. Ver o cabeçalho de lá.
+ */
+export function pendingNotice(language: string, seed = 0): string {
+  return continuityLine("pending", language, seed);
 }

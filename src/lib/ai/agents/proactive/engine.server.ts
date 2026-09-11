@@ -49,7 +49,9 @@ export async function collectSignals(params: {
       .limit(100),
     supabase
       .from("ai_operational_memory")
-      .select("id, category, recurrence_count, satisfaction, status, guest_key, guest_name, conversation_id")
+      .select(
+        "id, category, recurrence_count, satisfaction, status, guest_key, guest_name, conversation_id",
+      )
       .eq("owner_id", ownerId)
       .eq("property_id", propertyId)
       .gte("recurrence_count", 2)
@@ -66,7 +68,10 @@ export async function collectSignals(params: {
   const stayCount = new Map<string, number>();
   for (const g of guests ?? []) {
     const prefs = (g.preferences ?? {}) as Record<string, unknown>;
-    stayCount.set(String(g.guest_name ?? g.guest_key ?? "").toLowerCase(), Number(prefs.stays ?? 1));
+    stayCount.set(
+      String(g.guest_name ?? g.guest_key ?? "").toLowerCase(),
+      Number(prefs.stays ?? 1),
+    );
   }
 
   for (const r of reservations ?? []) {
@@ -77,7 +82,11 @@ export async function collectSignals(params: {
     const common = { ...base, reservationId: r.id, guestId: guestName, guestName };
 
     if (now - new Date(r.created_at).getTime() < 24 * HOUR) {
-      signals.push({ ...common, trigger: "reservation_created", payload: { checkin: r.checkin_date, checkout: r.checkout_date } });
+      signals.push({
+        ...common,
+        trigger: "reservation_created",
+        payload: { checkin: r.checkin_date, checkout: r.checkout_date },
+      });
     }
     if (checkin > now) {
       signals.push({
@@ -90,7 +99,10 @@ export async function collectSignals(params: {
       signals.push({
         ...common,
         trigger: "checkout_upcoming",
-        payload: { hoursToCheckout: Math.round((checkout - now) / HOUR), checkout: r.checkout_date },
+        payload: {
+          hoursToCheckout: Math.round((checkout - now) / HOUR),
+          checkout: r.checkout_date,
+        },
       });
     }
     const previousStays = stayCount.get(String(guestName ?? "").toLowerCase()) ?? 0;
@@ -170,7 +182,19 @@ export async function scanProactiveOpportunities(params: {
   const { supabase } = params;
   let query = supabase
     .from("properties")
-    .select("id, owner_id, title")
+    // `title` NÃO EXISTE nesta tabela — a coluna é `name` (11/09/2026).
+    //
+    // O PostgREST não derruba a requisição por isso: devolve erro e `data`
+    // nulo. O laço abaixo então não itera sobre nada, a varredura termina com
+    // `tenants: 0, signals: 0` e responde `ok: true`. Uma falha que se veste
+    // de sucesso.
+    //
+    // Esta foi a TERCEIRA camada do mesmo sintoma. `ai_proactive_actions`
+    // estava vazia porque (1) o agendamento não existia, (2) quando passou a
+    // existir, morria no timeout de 5s do pg_net, e (3) mesmo com tempo de
+    // sobra, a consulta que abre tudo pedia uma coluna inexistente. Cada
+    // camada escondia a seguinte.
+    .select("id, owner_id, name")
     .eq("published", true)
     .limit(params.propertyLimit ?? 50);
   if (params.tenantId) query = query.eq("owner_id", params.tenantId);
@@ -187,7 +211,7 @@ export async function scanProactiveOpportunities(params: {
       tenantId: property.owner_id,
       ownerId: property.owner_id,
       propertyId: property.id,
-      propertyName: property.title,
+      propertyName: property.name,
     });
     result.signals += signals.length;
     for (const signal of signals) {
@@ -237,7 +261,13 @@ export async function markActionExecuted(params: {
 
 function dedupeKey(signal: ProactiveSignal, ruleKey: string): string {
   const day = new Date().toISOString().slice(0, 10);
-  return [signal.tenantId, signal.propertyId, signal.reservationId ?? signal.guestId ?? "-", ruleKey, day].join("|");
+  return [
+    signal.tenantId,
+    signal.propertyId,
+    signal.reservationId ?? signal.guestId ?? "-",
+    ruleKey,
+    day,
+  ].join("|");
 }
 
 export type { ProactiveTrigger };

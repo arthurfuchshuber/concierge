@@ -40,7 +40,8 @@ import { classifyForMemory } from "./memory/policy.server";
 import { writeMemories } from "./memory/longterm.server";
 import { recordOperationalRequest } from "./memory/operational.server";
 import { AI_MODELS } from "./models";
-import { PROMPTS, stampVersions, HANDOFF_FALLBACK } from "./prompts";
+import { PROMPTS, stampVersions } from "./prompts";
+import { continuityLine } from "./continuity";
 import { planExecution, renderPlan, type ExecutionPlan } from "./planner.server";
 import { reflectOnAnswer, type Reflection } from "./reflection.server";
 import { aggregateSourceWeight, confidenceOf, renderSourceRanking } from "./sources";
@@ -53,7 +54,12 @@ import {
   tierFor,
   type ConfidenceTier,
 } from "./confidence";
-import { allowedToolsOf, getAgent, renderAgentBriefing, stampAgentPrompt } from "./agents/registry.server";
+import {
+  allowedToolsOf,
+  getAgent,
+  renderAgentBriefing,
+  stampAgentPrompt,
+} from "./agents/registry.server";
 import { describeRouting, routeToAgent } from "./agents/supervisor.server";
 import { buildAgentTools } from "./agents/tools.server";
 import type { AgentRouting } from "./agents/types";
@@ -100,10 +106,27 @@ export type OrchestratorResult = {
   quickReplies: string[];
 };
 
-
-/** Pedido explícito de humano — único gatilho que sempre escala, em qualquer tema. */
-const EXPLICIT_HUMAN_REQUEST =
-  /\b(falar|conversar|conversa)\s+com\s+(algu[eé]m|uma?\s+pessoa|humano|atendente|anfitri[ãa]o|propriet[áa]ri[oa]|respons[áa]vel|gerente|suporte)|quero\s+(um\s+)?(humano|atendente|anfitri[ãa]o)|chama(r)?\s+(o\s+)?(anfitri[ãa]o|respons[áa]vel|algu[eé]m)|tem\s+algu[eé]m\s+a[íi]|me\s+transfere|atendimento\s+humano/i;
+/**
+ * Pedido explícito de humano — único gatilho que sempre aciona a consulta
+ * interna, em qualquer tema. (A IA continua respondendo: escalar é sobre quem
+ * DECIDE, não sobre quem fala. Ver o bloco de handoff mais abaixo.)
+ *
+ * `tem alguém aí` foi RETIRADO em 11/09/2026. Ele casava com a pergunta mais
+ * comum de quem só quer saber se o chat está vivo — "oi, tem alguém aí?" — e
+ * transformava uma saudação em escalonamento. Nos logs dos últimos 14 dias há
+ * um handoff cujo motivo registrado é, literalmente, "o hóspede enviou apenas
+ * uma saudação inicial sem uma solicitação específica". As outras alternativas
+ * já cobrem o pedido de verdade ("falar com alguém", "quero um atendente",
+ * "chamar o responsável", "me transfere", "atendimento humano").
+ *
+ * E o ARTIGO passou a ser previsto. A expressão exigia "falar com" colado no
+ * substantivo, então a forma mais natural em português — "quero falar com O
+ * anfitrião", "queria falar com A responsável" — simplesmente não casava. O
+ * gatilho de pedido explícito perdia metade dos pedidos explícitos, calado,
+ * desde sempre. Encontrado pelo teste desta mesma entrega.
+ */
+export const EXPLICIT_HUMAN_REQUEST =
+  /\b(?:falar|conversar|conversa)\s+com\s+(?:o|a|os|as|um|uma)?\s*(?:algu[eé]m|pessoa|humano|atendente|anfitri[ãa]o|propriet[áa]ri[oa]|respons[áa]vel|gerente|suporte)|quero\s+(?:um\s+|uma\s+|o\s+|a\s+)?(?:humano|atendente|anfitri[ãa]o|respons[áa]vel)|chama(?:r)?\s+(?:o\s+|a\s+)?(?:anfitri[ãa]o|respons[áa]vel|algu[eé]m)|me\s+transfere|atendimento\s+humano/i;
 
 export async function runHospitalityAgent(params: {
   supabase: Admin;
@@ -145,9 +168,6 @@ export async function runHospitalityAgent(params: {
   };
   stage("intent", "Entendendo sua pergunta");
 
-
-
-
   let usage = EMPTY_USAGE;
   const models: Record<string, string> = { agent: AI_MODELS.agent };
   const sources: Array<{ source: string; title?: string | null; confidence: number }> = [];
@@ -156,7 +176,11 @@ export async function runHospitalityAgent(params: {
   let handoffUrgency: "low" | "normal" | "high" = "normal";
 
   // 1) Intenção
-  const { intent, usage: intentUsage, model: intentModel } = await classifyIntent(params.message, params.history);
+  const {
+    intent,
+    usage: intentUsage,
+    model: intentModel,
+  } = await classifyIntent(params.message, params.history);
   usage = mergeUsage(usage, intentUsage);
   models.intent = intentModel;
 
@@ -170,19 +194,29 @@ export async function runHospitalityAgent(params: {
   // roda de qualquer forma, no primeiro turno — identifica a pergunta como
   // sobre a cidade ou pedido de recomendação.
   const explorationMode =
-    params.explorationMode === true || intent.category === "cidade" || intent.category === "recomendacao";
+    params.explorationMode === true ||
+    intent.category === "cidade" ||
+    intent.category === "recomendacao";
 
   const guestKey = guestKeyOf(params.sessionId, params.guestName);
   rememberMessage(params.conversationId, "user", params.message);
   rememberIntent(params.conversationId, intent);
 
   // Guardrail determinístico: acesso físico e credenciais não dependem de decisão do modelo.
-  const safety = await guestSafetyDecision(params.message, String(property.slug ?? ""), { supabase, propertyId });
+  const safety = await guestSafetyDecision(params.message, String(property.slug ?? ""), {
+    supabase,
+    propertyId,
+  });
   if (safety.kind !== "none") {
     const handoff = safety.kind === "access_incident";
     const plan: ExecutionPlan = {
-      objective: safety.kind === "access_incident" ? "Proteger o hóspede em incidente de acesso" : "Orientar o acesso seguro ao guia",
-      tools: handoff ? [{ name: "request_human_handoff", reason: "incidente de acesso físico" }] : [],
+      objective:
+        safety.kind === "access_incident"
+          ? "Proteger o hóspede em incidente de acesso"
+          : "Orientar o acesso seguro ao guia",
+      tools: handoff
+        ? [{ name: "request_human_handoff", reason: "incidente de acesso físico" }]
+        : [],
       parallel: false,
       needsHuman: handoff,
       riskLevel: handoff ? "high" : "normal",
@@ -206,7 +240,12 @@ export async function runHospitalityAgent(params: {
         guestName: params.guestName,
         category: "acesso",
         request: params.message.slice(0, 800),
-        metadata: { intent: intent.intent, urgency: "high", handoff: true, source: "deterministic_guest_safety" },
+        metadata: {
+          intent: intent.intent,
+          urgency: "high",
+          handoff: true,
+          source: "deterministic_guest_safety",
+        },
       }).catch(() => undefined);
     }
     return {
@@ -290,8 +329,12 @@ export async function runHospitalityAgent(params: {
   if (plannerModel) models.planner = plannerModel;
   rememberPlan(params.conversationId, plan);
 
-  const context = await buildAgentContext({ supabase, property, guestName: params.guestName, memory });
-
+  const context = await buildAgentContext({
+    supabase,
+    property,
+    guestName: params.guestName,
+    memory,
+  });
 
   stage("retrieval", "Consultando o guia da residência");
   // 4) Pré-recuperação Hybrid RAG (indexa sob demanda na primeira vez)
@@ -319,7 +362,11 @@ export async function runHospitalityAgent(params: {
     }
   }
 
-  const { passages, usage: ragUsage, retrievalUsed } = await hybridRetrieve({
+  const {
+    passages,
+    usage: ragUsage,
+    retrievalUsed,
+  } = await hybridRetrieve({
     supabase,
     ownerId,
     propertyId,
@@ -342,10 +389,15 @@ export async function runHospitalityAgent(params: {
       try {
         const { listTenantKnowledge } = await import("./governance/tenant-knowledge.server");
         const rows = await listTenantKnowledge({ supabase, tenantId: ownerId, status: "active" });
-        const scoped = rows.filter((r) => !r.property_id || r.property_id === propertyId).slice(0, 20);
+        const scoped = rows
+          .filter((r) => !r.property_id || r.property_id === propertyId)
+          .slice(0, 20);
         if (!scoped.length) return "";
         return scoped
-          .map((r) => `- [${r.category ?? "geral"}] ${r.title}: ${String(r.content ?? "").slice(0, 500)}`)
+          .map(
+            (r) =>
+              `- [${r.category ?? "geral"}] ${r.title}: ${String(r.content ?? "").slice(0, 500)}`,
+          )
           .join("\n");
       } catch (err) {
         console.error("[agent] falha ao ler conhecimento da empresa", err);
@@ -376,7 +428,11 @@ export async function runHospitalityAgent(params: {
   for (const g of globalIntelPassages) {
     // Insight agregado da plataforma, não fato oficial deste imóvel: fica no tier
     // mais baixo do ranking de fontes (ver sources.ts) — nunca sobrepõe dado oficial.
-    sources.push({ source: "global_intelligence", title: g.title, confidence: confidenceOf("global_intelligence") });
+    sources.push({
+      source: "global_intelligence",
+      title: g.title,
+      confidence: confidenceOf("global_intelligence"),
+    });
     evidence.push(`[global_intelligence] ${g.title}: ${g.content}`);
   }
 
@@ -469,7 +525,6 @@ export async function runHospitalityAgent(params: {
     `\n\nPLANO DE EXECUÇÃO (definido pelo planejador)\n${renderPlan(plan)}` +
     `\n\nEVIDÊNCIAS PRÉ-RECUPERADAS (busca híbrida: ${retrievalUsed.join("+") || "nenhuma"})\n${renderPassages(passages)}`;
 
-
   const input = [
     ...params.history.slice(-12).map((m) => ({
       type: "message",
@@ -480,7 +535,12 @@ export async function runHospitalityAgent(params: {
   ];
 
   let reply = "";
-  let toolsUsed: Array<{ name: string; args?: unknown; durationMs?: number; parallelBatch?: number }> = [];
+  let toolsUsed: Array<{
+    name: string;
+    args?: unknown;
+    durationMs?: number;
+    parallelBatch?: number;
+  }> = [];
   let errorMsg: string | null = null;
 
   const effort = reasoningFor(params.message, {
@@ -540,17 +600,25 @@ export async function runHospitalityAgent(params: {
   );
 
   // Perguntou a um humano: responde com honestidade, nunca inventa.
-  if (escalationId && !reply) reply = pendingNotice(intent.language);
+  // A semente faz a frase variar entre uma ocorrência e a seguinte — duas
+  // iguais em sequência denunciam o script (ver continuity.ts).
+  const sementeFrase = params.history.length;
+  if (escalationId && !reply) reply = pendingNotice(intent.language, sementeFrase);
   // Handoff NÃO é mais silencioso: a IA entrega a resposta parcial que
   // conseguiu montar e sinaliza a consulta interna. Só usamos o fallback
   // quando o modelo não produziu nada aproveitável.
-  if (handoffReason && !reply) reply = HANDOFF_FALLBACK;
+  //
+  // O texto fixo de antes ("...a equipe responsável seguirá com o atendimento
+  // por aqui") anunciava transferência, contra a regra do produto e contra o
+  // próprio prompt. Agora vem de continuity.ts, em primeira pessoa.
+  if (handoffReason && !reply) reply = continuityLine("no_answer", intent.language, sementeFrase);
 
   // Decisões humanas já entregues ao hóspede não voltam ao contexto.
   if (humanAnswers.length && reply) {
-    void markAnswersApplied({ supabase, ids: humanAnswers.map((a) => a.id) }).catch(() => undefined);
+    void markAnswersApplied({ supabase, ids: humanAnswers.map((a) => a.id) }).catch(
+      () => undefined,
+    );
   }
-
 
   stage("review", "Revisando os detalhes");
   // 6) Validação + 7) Reflection (puladas quando já escalamos para humano)
@@ -568,6 +636,8 @@ export async function runHospitalityAgent(params: {
       };
 
   const evidenceText = evidence.slice(0, 24).join("\n\n") || "(nenhuma evidência recuperada)";
+  /** O bloco de confiança já validou e já montou o texto final deste turno. */
+  let jaValidado = false;
   let validationResult: unknown = null;
   let reflection: Reflection | null = null;
   let confidence = 0.8;
@@ -673,16 +743,38 @@ export async function runHospitalityAgent(params: {
         `${finalValidation.reason || reflection.issues.join("; ") || "inconsistência"}. ` +
         `Pergunta: ${params.message.slice(0, 160)}`;
       handoffUrgency = intent.urgency === "high" ? "high" : "normal";
-      reply = "";
+
+      /* A IA NÃO EMUDECE (correção de 11/09/2026).
+       *
+       * Aqui estava `reply = ""` — e esse vazio nunca era reposto, porque os
+       * dois fallbacks lá em cima já tinham rodado e a trava de mais abaixo é
+       * `if (reply && handoffReason)`, que não entra com string vazia. O efeito
+       * medido: NENHUMA mensagem gravada na conversa, e o widget do hóspede
+       * preenchendo o silêncio com "um atendente humano vai responder". Ou
+       * seja, no momento mais delicado o sistema fazia exatamente as duas
+       * coisas proibidas: sumia e anunciava transferência.
+       *
+       * Pior: jogava fora até texto APROVADO pelo validador, só porque o tema
+       * era sensível. Escalar é sobre quem DECIDE, não sobre quem fala.
+       *
+       * Agora: se o texto passou na checagem, ele vai — acrescido da frase que
+       * diz que a confirmação está em andamento. Se não passou (ou não havia
+       * texto), sai só a frase, em primeira pessoa e variando a cada
+       * ocorrência. Em nenhum caso o hóspede fica sem resposta. */
+      const semente = params.history.length;
+      const aprovado = finalValidation.approved && reply.trim().length > 0;
+      const aviso = continuityLine("pending", intent.language, semente);
+      reply = aprovado
+        ? `${reply.trim()}\n\n${aviso}`
+        : continuityLine("no_answer", intent.language, semente);
       tier = "handoff";
+      jaValidado = true;
     } else if (tier !== "auto" && !explorationMode) {
       // Confiança mediana ou baixa fora de tema sensível: responde mesmo assim,
       // com a ressalva padrão — nunca deixa o hóspede sem resposta.
       reply = `${reply}${hedgeNotice(intent.language)}`;
       tier = "hedged";
     }
-
-
   } else if (handoffReason) {
     tier = "handoff";
     confidence = 1;
@@ -704,7 +796,11 @@ export async function runHospitalityAgent(params: {
    * Reprovado, o texto não é remendado: cai para uma frase curta e honesta.
    * Quem continua a conversa é a pessoa que recebeu a escalação.
    */
-  if (reply && handoffReason) {
+  // `jaValidado` evita revalidar o que o bloco de confiança acabou de validar:
+  // aquele caminho já passou pelo validador e já montou o texto final. Sem esta
+  // trava, gastaríamos uma chamada extra para reprovar a nossa própria frase de
+  // continuidade — e o `handoffFallback` abaixo jogaria fora o texto aprovado.
+  if (reply && handoffReason && !jaValidado) {
     const guard = await validateAnswer({
       question: params.message,
       answer: reply,
@@ -742,7 +838,11 @@ export async function runHospitalityAgent(params: {
     if (!handoffReason) clearOpenTopic(params.conversationId);
   }
 
-  const transcript = [...params.history, { role: "user", content: params.message }, { role: "assistant", content: reply }];
+  const transcript = [
+    ...params.history,
+    { role: "user", content: params.message },
+    { role: "assistant", content: reply },
+  ];
   void updateGuestMemory({
     supabase,
     ownerId,
@@ -933,7 +1033,11 @@ export async function runHospitalityAgent(params: {
               description: `${guestContext.memories.length} memória(s) utilizada(s)`,
               reason: "Contexto recuperado por relevância semântica e temporal",
               metadata: {
-                memories: guestContext.memories.map((m) => ({ id: m.id, tier: m.tier, score: m.score })),
+                memories: guestContext.memories.map((m) => ({
+                  id: m.id,
+                  tier: m.tier,
+                  score: m.score,
+                })),
               },
             },
           ]
@@ -955,7 +1059,9 @@ export async function runHospitalityAgent(params: {
               eventType: "source_used",
               description: `${sources.length} fonte(s) consultada(s)`,
               reason: "Evidências utilizadas na resposta",
-              metadata: { sources: sources.map((s) => ({ source: s.source, confidence: s.confidence })) },
+              metadata: {
+                sources: sources.map((s) => ({ source: s.source, confidence: s.confidence })),
+              },
             },
           ]
         : []),
@@ -981,7 +1087,6 @@ export async function runHospitalityAgent(params: {
         : []),
     ]);
   })().catch(() => undefined);
-
 
   // Continuous Learning: memórias usadas ganham/perdem peso conforme o desfecho
   // imediato desta resposta (o loop completo roda no cron, fora do caminho crítico).
@@ -1024,4 +1129,3 @@ export async function runHospitalityAgent(params: {
     quickReplies,
   };
 }
-

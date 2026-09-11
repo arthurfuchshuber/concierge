@@ -18,11 +18,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 
 export function isPushSupported(): boolean {
   if (typeof window === "undefined") return false;
-  return (
-    "serviceWorker" in navigator &&
-    "PushManager" in window &&
-    "Notification" in window
-  );
+  return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 }
 
 export async function registerPushServiceWorker(): Promise<ServiceWorkerRegistration> {
@@ -42,8 +38,20 @@ export async function currentPushSubscription(): Promise<PushSubscription | null
 export async function enablePush(): Promise<{ ok: true } | { ok: false; reason: string }> {
   if (!isPushSupported()) return { ok: false, reason: "unsupported" };
 
+  /* FECHAR O AVISO NÃO É NEGAR (11/09/2026).
+   *
+   * `requestPermission()` tem TRÊS respostas, e aqui duas viravam a mesma
+   * coisa: "denied" (o navegador bloqueou este site) e "default" (a pessoa
+   * fechou a caixinha sem responder). Quem só fechou o aviso lia "Permissão
+   * negada pelo navegador" e concluía que o recurso estava quebrado — foi
+   * exatamente o que aconteceu em 11/09, num caso em que a ativação deu certo
+   * na tentativa seguinte.
+   *
+   * São situações com saídas diferentes: uma se resolve tocando de novo; a
+   * outra exige ir nas permissões do site. A mensagem precisa saber qual é. */
   const permission = await Notification.requestPermission();
-  if (permission !== "granted") return { ok: false, reason: "denied" };
+  if (permission === "denied") return { ok: false, reason: "denied" };
+  if (permission !== "granted") return { ok: false, reason: "dismissed" };
 
   const reg = await registerPushServiceWorker();
 

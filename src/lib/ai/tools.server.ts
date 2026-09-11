@@ -919,12 +919,19 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         entrada: { type: "string", description: "Primeira noite pretendida (AAAA-MM-DD)." },
         saida: { type: "string", description: "Dia da saída (AAAA-MM-DD)." },
         hospedes: {
-          type: "number",
+          // ATENÇÃO: o gateway envia todo tool def com `strict: true`, e nesse
+          // modo a API exige que TODA chave de `properties` esteja em
+          // `required`. Campo opcional se declara assim — tipo anulável e
+          // presente na lista — e não ficando de fora dela. Deixar `hospedes`
+          // fora do `required` fazia a API rejeitar a REQUISIÇÃO INTEIRA, ou
+          // seja, derrubava todas as mensagens do agente, não só as de
+          // disponibilidade. (11/09/2026)
+          type: ["number", "null"],
           description:
-            "Quantas pessoas vão ficar. Opcional — filtra por capacidade quando informado.",
+            "Quantas pessoas vão ficar. Use null quando o hóspede não informar; filtra por capacidade quando vier preenchido.",
         },
       },
-      ["entrada", "saida"],
+      ["entrada", "saida", "hospedes"],
     ),
     execute: async (args) => {
       const entrada = String(args.entrada ?? "");

@@ -189,22 +189,31 @@ async function runGuideChat(
     // will surface new agent messages via polling / realtime.
     const { data: convState } = await supabaseAdmin
       .from("property_chat_conversations")
-      .select("ai_paused, status, assigned_to")
+      .select("ai_paused, paused_until, status, assigned_to")
       .eq("id", conversationId)
       .maybeSingle();
+
+    /* A PAUSA EXPIRA SOZINHA (11/09/2026).
+     *
+     * `ai_paused` não tinha prazo: quem clicava em "Assumir" calava a IA para
+     * sempre, e ninguém lembrava de devolver. Agora falar direto pausa por 30
+     * minutos e a expiração é lida AQUI, no momento do uso — se já passou, a
+     * conversa volta para a IA neste mesmo instante. Ver `lib/ai/pause.ts`. */
+    const { resolvePause, resumePatch } = await import("@/lib/ai/pause");
+    const humanoNoComando = await resolvePause(supabaseAdmin, conversationId, convState);
 
     // Se a conversa está "resolvida" e o hóspede envia nova mensagem, reabrir com a IA.
     if (convState?.status === "resolved") {
       await supabaseAdmin
         .from("property_chat_conversations")
-        .update({ status: "ai", ai_paused: false, resolved_at: null, assigned_to: null })
+        .update({ status: "ai", ...resumePatch(), resolved_at: null, assigned_to: null })
         .eq("id", conversationId);
     }
 
     // Se um humano assumiu a conversa (ai_paused), NUNCA devolvemos para a IA
     // — mesmo que o hóspede clique em uma dica com forceAi. A mensagem é
     // apenas persistida para o atendente responder.
-    if (convState?.ai_paused) {
+    if (humanoNoComando) {
       await supabaseAdmin.from("property_chat_messages").insert({
         conversation_id: conversationId,
         role: "user",
@@ -229,7 +238,7 @@ async function runGuideChat(
       try {
         const { getPropertyNotifiableUsers, sendGuestReplyPush } =
           await import("@/lib/handoff.server");
-        const userIds = convState.assigned_to
+        const userIds = convState?.assigned_to
           ? [convState.assigned_to as string]
           : await getPropertyNotifiableUsers(supabaseAdmin, prop.id);
         await sendGuestReplyPush(supabaseAdmin, {
@@ -254,28 +263,8 @@ async function runGuideChat(
        buraco exatamente onde estava o combinado (ver a negociação por áudio da
        Izabela, 10/09). Agora a transcrição entra no lugar, marcada como fala —
        transcrição vem torta e a IA precisa saber disso antes de interpretar. */
-    const { data: priorRaw } = await supabaseAdmin
-      .from("property_chat_messages")
-      .select("role, content, attachment_type, attachment_transcript, attachment_duration_ms")
-      .eq("conversation_id", conversationId)
-      .order("created_at", { ascending: false })
-      .limit(20);
-    const { transcriptAsContent } = await import("@/lib/chat-audio.server");
-    const prior = (priorRaw ?? [])
-      .filter((m) => m.role === "user" || m.role === "assistant")
-      .reverse()
-      .map((m) => ({
-        role: m.role,
-        content: transcriptAsContent({
-          content: m.content as string | null,
-          attachmentType: (m as { attachment_type?: string | null }).attachment_type ?? null,
-          transcript:
-            (m as { attachment_transcript?: string | null }).attachment_transcript ?? null,
-          durationMs:
-            (m as { attachment_duration_ms?: number | null }).attachment_duration_ms ?? null,
-        }),
-      }))
-      .filter((m) => m.content.trim().length > 0);
+    const { loadAgentHistory } = await import("@/lib/chat-audio.server");
+    const prior = await loadAgentHistory(supabaseAdmin, conversationId, 20);
 
     await supabaseAdmin.from("property_chat_messages").insert({
       conversation_id: conversationId,
@@ -336,9 +325,17 @@ async function runGuideChat(
         .from("property_chat_conversations")
         .update({
           status: "needs_human",
-          // Com resposta parcial a IA continua na conversa (consulta
-          // interna); só travamos a IA quando não houve nada a dizer.
-          ai_paused: !partialReply,
+          /* ESCALAR NÃO CALA A IA (11/09/2026).
+           *
+           * Aqui era `ai_paused: !partialReply` — a IA se auto-silenciava
+           * sempre que o texto saía vazio, SEM nenhum humano ter tocado na
+           * conversa. E como a pausa não expirava, uma escalação automática às
+           * 3h da manhã deixava o hóspede falando sozinho até alguém abrir o
+           * painel. Duas coisas mudaram: o orquestrador não devolve mais texto
+           * vazio (ver `continuity.ts`), e a regra do produto é que só uma
+           * fala direta de gente silencia a IA. Escalar é sobre quem DECIDE,
+           * não sobre quem fala. */
+          ai_paused: false,
           handoff_reason: reason,
           handoff_urgency: urgency,
           handoff_at: new Date().toISOString(),

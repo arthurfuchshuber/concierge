@@ -31,23 +31,113 @@ export const Route = createFileRoute("/api/public/cron/evaluation-suite")({
           return new Response("Unauthorized", { status: 401 });
         }
 
-        const propertyIds = (process.env["AI_EVALUATION_PROPERTY_IDS"] ?? "")
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+        /* O IMÓVEL DE TESTE MORA NO DADO, NÃO NA VARIÁVEL (11/09/2026).
+         *
+         * A exigência de um imóvel dedicado continua de pé — rodar 21 cenários
+         * contra um imóvel com hóspede geraria conversas de teste no painel de
+         * alguém. O que mudou foi ONDE essa escolha vive: `properties.
+         * ai_evaluation_target`, uma marca no próprio imóvel.
+         *
+         * Motivo: aquilo nunca foi segredo (é o id de um imóvel do cliente), e
+         * como variável de ambiente só o dono do projeto conseguia configurar
+         * — num SaaS, cada cliente precisaria abrir um chamado para ligar a
+         * própria avaliação.
+         *
+         * A variável continua valendo e tem prioridade, para não quebrar quem
+         * já a tiver configurado. */
+        const doAmbiente = (process.env["AI_EVALUATION_PROPERTY_IDS"] ?? "")
           .split(",")
           .map((s) => s.trim())
           .filter(Boolean);
 
+        let propertyIds = doAmbiente;
         if (!propertyIds.length) {
+          const { data: marcados } = await supabaseAdmin
+            .from("properties")
+            .select("id")
+            .eq("ai_evaluation_target", true)
+            .limit(10);
+          propertyIds = ((marcados ?? []) as Array<{ id: string }>).map((p) => p.id);
+        }
+
+        if (!propertyIds.length) {
+          /* O SILÊNCIO ERA O PROBLEMA (11/09/2026).
+           *
+           * A decisão de exigir um imóvel dedicado continua certa: rodar os 21
+           * cenários contra um imóvel real geraria conversas de teste, uso de
+           * memória e ruído no painel de um anfitrião de verdade. Escolher "no
+           * escuro" seria pior do que não rodar.
+           *
+           * O que estava errado era o jeito de não rodar: um `console.warn`
+           * que ninguém lê e um `ok: true` que parece sucesso. Resultado — a
+           * suíte ficou agendada e inerte, e ninguém soube. Agora a ausência
+           * vira alerta no painel, uma vez por semana, com o texto do que
+           * fazer. Um sistema que precisa de configuração tem que PEDIR. */
+          try {
+            const seteDiasAtras = new Date(Date.now() - 7 * 864e5).toISOString();
+            const { data: jaAvisado } = await supabaseAdmin
+              .from("ai_alerts")
+              .select("id")
+              .eq("kind", "evaluation_suite_off")
+              .eq("status", "open")
+              .gte("created_at", seteDiasAtras)
+              .limit(1);
+
+            if (!((jaAvisado ?? []) as unknown[]).length) {
+              const { data: donos } = await supabaseAdmin
+                .from("properties")
+                .select("owner_id")
+                .eq("published", true)
+                .limit(200);
+              const tenants = [
+                ...new Set(
+                  ((donos ?? []) as Array<{ owner_id: string | null }>)
+                    .map((d) => d.owner_id)
+                    .filter(Boolean),
+                ),
+              ] as string[];
+
+              for (const tenantId of tenants.slice(0, 20)) {
+                await supabaseAdmin.from("ai_alerts").insert({
+                  tenant_id: tenantId,
+                  kind: "evaluation_suite_off",
+                  severity: "warning",
+                  status: "open",
+                  title: "A avaliação automática da IA está desligada",
+                  detail:
+                    "Os 21 cenários de regressão não rodam porque nenhum imóvel está marcado como imóvel " +
+                    "de teste da IA. Marque um imóvel SEM hóspedes (um despublicado serve) e a avaliação " +
+                    "passa a rodar toda semana. Sem isso, uma piora na qualidade da IA só aparece quando " +
+                    "um hóspede reclama.",
+                });
+              }
+            }
+          } catch (e) {
+            console.error("[cron:evaluation-suite] falha ao registrar alerta", e);
+          }
+
           console.warn(
             "[cron:evaluation-suite] AI_EVALUATION_PROPERTY_IDS não configurada — nada para rodar. " +
               "Configure com o(s) UUID(s) de imóvel(is) dedicados a QA para ativar a regressão automática.",
           );
-          return Response.json({ ok: true, skipped: true, reason: "AI_EVALUATION_PROPERTY_IDS não configurada" });
+          return Response.json({
+            ok: true,
+            skipped: true,
+            reason: "AI_EVALUATION_PROPERTY_IDS não configurada",
+            alerta: "registrado no painel",
+          });
         }
 
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { runEvaluationSuite } = await import("@/lib/ai/evaluation/engine.server");
 
-        const results: Array<{ propertyId: string; ok: boolean; error?: string; summary?: unknown }> = [];
+        const results: Array<{
+          propertyId: string;
+          ok: boolean;
+          error?: string;
+          summary?: unknown;
+        }> = [];
         for (const propertyId of propertyIds) {
           try {
             const run = await runEvaluationSuite({
@@ -68,11 +158,17 @@ export const Route = createFileRoute("/api/public/cron/evaluation-suite")({
               },
             });
             if (run.failed > 0) {
-              console.warn(`[cron:evaluation-suite] ${run.failed} cenário(s) reprovado(s) para o imóvel ${propertyId}`);
+              console.warn(
+                `[cron:evaluation-suite] ${run.failed} cenário(s) reprovado(s) para o imóvel ${propertyId}`,
+              );
             }
           } catch (err) {
             console.error(`[cron:evaluation-suite] falhou para o imóvel ${propertyId}`, err);
-            results.push({ propertyId, ok: false, error: err instanceof Error ? err.message : String(err) });
+            results.push({
+              propertyId,
+              ok: false,
+              error: err instanceof Error ? err.message : String(err),
+            });
           }
         }
 

@@ -1,14 +1,29 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
-  Sparkles, Loader2, Globe2, GitBranch, Bot, Wand2, ArrowUpRight, Check, X, Plus,
-  ScrollText, Search, Activity, BrainCircuit, SlidersHorizontal,
+  Sparkles,
+  Loader2,
+  Globe2,
+  GitBranch,
+  Bot,
+  Wand2,
+  ArrowUpRight,
+  Check,
+  X,
+  Plus,
+  ScrollText,
+  Search,
+  Activity,
+  BrainCircuit,
+  SlidersHorizontal,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PageHeader, ActionBar } from "@/components/ds/PageHeader";
+import { listPendingEscalations, answerEscalation } from "@/lib/ai-supervision.functions";
+import { dismissEscalation } from "@/lib/handoff.functions";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -16,9 +31,21 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { usePresence } from "@/hooks/usePresence";
 import { PresenceAvatars } from "@/components/presence/PresenceAvatars";
 import { FieldTypingBadge } from "@/components/presence/FieldTypingBadge";
@@ -78,10 +105,7 @@ function IntelligencePage() {
 
       {/* Dois grupos, cada um com suas próprias abas */}
       <ActionBar>
-        <Button
-          variant={group === "ia" ? "default" : "outline"}
-          onClick={() => setGroup("ia")}
-        >
+        <Button variant={group === "ia" ? "default" : "outline"} onClick={() => setGroup("ia")}>
           <Sparkles className="size-4" /> Melhoria da IA
         </Button>
         <Button
@@ -103,17 +127,39 @@ function AiGroup() {
       <p className="ds-body">
         Inteligência agregada de toda a plataforma — sem expor dados de nenhum cliente específico.
       </p>
-      <Tabs defaultValue="global">
+      <Tabs defaultValue="perguntas">
         <TabsList className="ds-segmented h-auto">
-          <TabsTrigger value="global" className="shrink-0">Global Intelligence</TabsTrigger>
-          <TabsTrigger value="pipeline" className="shrink-0">Pipeline de Aprendizado</TabsTrigger>
-          <TabsTrigger value="agentes" className="shrink-0">Evolução dos Agentes</TabsTrigger>
-          <TabsTrigger value="prompts" className="shrink-0">Evolução dos Prompts</TabsTrigger>
+          <TabsTrigger value="perguntas" className="shrink-0">
+            Perguntas da IA
+          </TabsTrigger>
+          <TabsTrigger value="global" className="shrink-0">
+            Global Intelligence
+          </TabsTrigger>
+          <TabsTrigger value="pipeline" className="shrink-0">
+            Pipeline de Aprendizado
+          </TabsTrigger>
+          <TabsTrigger value="agentes" className="shrink-0">
+            Evolução dos Agentes
+          </TabsTrigger>
+          <TabsTrigger value="prompts" className="shrink-0">
+            Evolução dos Prompts
+          </TabsTrigger>
         </TabsList>
-        <TabsContent value="global" className="mt-5"><GlobalTab /></TabsContent>
-        <TabsContent value="pipeline" className="mt-5"><PipelineTab /></TabsContent>
-        <TabsContent value="agentes" className="mt-5"><AgentsTab /></TabsContent>
-        <TabsContent value="prompts" className="mt-5"><PromptsTab /></TabsContent>
+        <TabsContent value="perguntas" className="mt-5">
+          <EscalationQueueTab />
+        </TabsContent>
+        <TabsContent value="global" className="mt-5">
+          <GlobalTab />
+        </TabsContent>
+        <TabsContent value="pipeline" className="mt-5">
+          <PipelineTab />
+        </TabsContent>
+        <TabsContent value="agentes" className="mt-5">
+          <AgentsTab />
+        </TabsContent>
+        <TabsContent value="prompts" className="mt-5">
+          <PromptsTab />
+        </TabsContent>
       </Tabs>
     </section>
   );
@@ -127,11 +173,19 @@ function AuditGroup() {
       </p>
       <Tabs defaultValue="eventos">
         <TabsList className="ds-segmented h-auto">
-          <TabsTrigger value="eventos" className="shrink-0">Eventos</TabsTrigger>
-          <TabsTrigger value="analytics" className="shrink-0">Analytics de Logs</TabsTrigger>
+          <TabsTrigger value="eventos" className="shrink-0">
+            Eventos
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="shrink-0">
+            Analytics de Logs
+          </TabsTrigger>
         </TabsList>
-        <TabsContent value="eventos" className="mt-5"><EventsTab /></TabsContent>
-        <TabsContent value="analytics" className="mt-5"><AnalyticsTab /></TabsContent>
+        <TabsContent value="eventos" className="mt-5">
+          <EventsTab />
+        </TabsContent>
+        <TabsContent value="analytics" className="mt-5">
+          <AnalyticsTab />
+        </TabsContent>
       </Tabs>
     </section>
   );
@@ -164,7 +218,11 @@ function GlobalTab() {
   const { data, isLoading } = useQuery({
     queryKey: ["saas-global-insights"],
     queryFn: async () => {
-      try { return await listFn({ data: {} }); } catch { return [] as GlobalInsightRow[]; }
+      try {
+        return await listFn({ data: {} });
+      } catch {
+        return [] as GlobalInsightRow[];
+      }
     },
     staleTime: 60_000,
   });
@@ -189,24 +247,37 @@ function GlobalTab() {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button onClick={() => setForm({ ...EMPTY_INSIGHT })}><Plus className="size-4" /> Novo insight</Button>
+        <Button onClick={() => setForm({ ...EMPTY_INSIGHT })}>
+          <Plus className="size-4" /> Novo insight
+        </Button>
       </div>
       {!data?.length ? (
-        <Empty icon={<Globe2 className="size-5" />} title="Nenhum insight global" text="Promova aprendizados do pipeline ou cadastre boas práticas manualmente." />
+        <Empty
+          icon={<Globe2 className="size-5" />}
+          title="Nenhum insight global"
+          text="Promova aprendizados do pipeline ou cadastre boas práticas manualmente."
+        />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {data.map((g) => (
-            <article key={g.id} className="rounded-2xl border border-border bg-surface p-4 space-y-2 shadow-sm">
+            <article
+              key={g.id}
+              className="rounded-2xl border border-border bg-surface p-4 space-y-2 shadow-sm"
+            >
               <div className="flex items-start justify-between gap-3">
                 <h3 className="ds-card-title leading-snug">{g.title}</h3>
-                <Badge variant={g.status === "published" ? "default" : "secondary"}>{g.status}</Badge>
+                <Badge variant={g.status === "published" ? "default" : "secondary"}>
+                  {g.status}
+                </Badge>
               </div>
               <p className="ds-card-desc whitespace-pre-wrap">{g.insight}</p>
               <p className="ds-meta">
-                {g.category} · {Math.round(g.confidence * 100)}% confiança · {g.source_tenants} conta(s) ·{" "}
-                {g.source_conversations} conversa(s)
+                {g.category} · {Math.round(g.confidence * 100)}% confiança · {g.source_tenants}{" "}
+                conta(s) · {g.source_conversations} conversa(s)
               </p>
-              {g.impact_estimate && <p className="text-xs rounded-lg bg-secondary/60 px-2 py-1">{g.impact_estimate}</p>}
+              {g.impact_estimate && (
+                <p className="text-xs rounded-lg bg-secondary/60 px-2 py-1">{g.impact_estimate}</p>
+              )}
               <Button
                 size="sm"
                 variant="outline"
@@ -280,7 +351,10 @@ function GlobalTab() {
                 <div className="space-y-1.5">
                   <Label>Confiança (0-1)</Label>
                   <Input
-                    type="number" step="0.05" min={0} max={1}
+                    type="number"
+                    step="0.05"
+                    min={0}
+                    max={1}
                     value={form.confidence}
                     onChange={(e) => {
                       const next = Number(e.target.value) || 0;
@@ -307,8 +381,12 @@ function GlobalTab() {
             </div>
           )}
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setForm(null)}>Cancelar</Button>
-            <Button onClick={save} disabled={saving}>{saving && <Loader2 className="size-4 animate-spin" />} Salvar</Button>
+            <Button variant="ghost" onClick={() => setForm(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={save} disabled={saving}>
+              {saving && <Loader2 className="size-4 animate-spin" />} Salvar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -325,7 +403,11 @@ function PipelineTab() {
   const { data, isLoading } = useQuery({
     queryKey: ["saas-learning-pipeline"],
     queryFn: async () => {
-      try { return await listFn({ data: {} }); } catch { return [] as PipelineRow[]; }
+      try {
+        return await listFn({ data: {} });
+      } catch {
+        return [] as PipelineRow[];
+      }
     },
     staleTime: 30_000,
   });
@@ -345,12 +427,22 @@ function PipelineTab() {
   }
 
   if (isLoading) return <Loading />;
-  if (!data?.length) return <Empty icon={<GitBranch className="size-5" />} title="Pipeline vazio" text="Nenhum aprendizado registrado no período." />;
+  if (!data?.length)
+    return (
+      <Empty
+        icon={<GitBranch className="size-5" />}
+        title="Pipeline vazio"
+        text="Nenhum aprendizado registrado no período."
+      />
+    );
 
   return (
     <div className="space-y-3">
       {data.map((p) => (
-        <article key={p.id} className="rounded-2xl border border-border bg-surface p-4 space-y-2 shadow-sm">
+        <article
+          key={p.id}
+          className="rounded-2xl border border-border bg-surface p-4 space-y-2 shadow-sm"
+        >
           <div className="flex flex-wrap items-start justify-between gap-2">
             <h3 className="ds-card-title">{p.title ?? "Aprendizado"}</h3>
             <div className="flex gap-2">
@@ -365,7 +457,12 @@ function PipelineTab() {
             {new Date(p.created_at).toLocaleDateString("pt-BR")}
           </p>
           {p.approval_status === "approved" && !p.promoted_global_id && (
-            <Button size="sm" variant="outline" disabled={busy === p.id} onClick={() => promote(p.id)}>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy === p.id}
+              onClick={() => promote(p.id)}
+            >
               <ArrowUpRight className="size-4" /> Promover para global
             </Button>
           )}
@@ -380,13 +477,24 @@ function AgentsTab() {
   const { data, isLoading } = useQuery({
     queryKey: ["saas-agent-improvement"],
     queryFn: async () => {
-      try { return await fn({ data: { days: 30 } }); } catch { return []; }
+      try {
+        return await fn({ data: { days: 30 } });
+      } catch {
+        return [];
+      }
     },
     staleTime: 60_000,
   });
 
   if (isLoading) return <Loading />;
-  if (!data?.length) return <Empty icon={<Bot className="size-5" />} title="Sem dados de agentes" text="Ainda não há interações suficientes nos últimos 30 dias." />;
+  if (!data?.length)
+    return (
+      <Empty
+        icon={<Bot className="size-5" />}
+        title="Sem dados de agentes"
+        text="Ainda não há interações suficientes nos últimos 30 dias."
+      />
+    );
 
   return (
     <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
@@ -407,15 +515,200 @@ function AgentsTab() {
             <tr key={a.agent} className="border-t border-border">
               <td className="px-4 py-3 font-medium">{a.agent}</td>
               <td className="px-4 py-3 text-right">{a.interactions}</td>
-              <td className="px-4 py-3 text-right">{a.resolutionRate == null ? "—" : `${Math.round(a.resolutionRate * 100)}%`}</td>
+              <td className="px-4 py-3 text-right">
+                {a.resolutionRate == null ? "—" : `${Math.round(a.resolutionRate * 100)}%`}
+              </td>
               <td className="px-4 py-3 text-right">{a.escalations}</td>
               <td className="px-4 py-3 text-right">{a.errors}</td>
-              <td className="px-4 py-3 text-right">{a.avgConfidence == null ? "—" : a.avgConfidence.toFixed(2)}</td>
+              <td className="px-4 py-3 text-right">
+                {a.avgConfidence == null ? "—" : a.avgConfidence.toFixed(2)}
+              </td>
               <td className="px-4 py-3 text-right">{a.suggestions}</td>
             </tr>
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/**
+ * A FILA DE PERGUNTAS DA IA (11/09/2026).
+ *
+ * `ai_human_escalations` guarda o que a IA perguntou a um humano e, até aqui,
+ * NENHUMA tela lia essa tabela — a pergunta existia, o hóspede esperava, e
+ * ninguém via. Há uma sem resposta desde 08/09.
+ *
+ * Ordenada pela mais antiga de propósito: a pergunta velha é a que tem alguém
+ * esperando do outro lado há mais tempo.
+ */
+function EscalationQueueTab() {
+  const qc = useQueryClient();
+  const listFn = useServerFn(listPendingEscalations);
+  const answerFn = useServerFn(answerEscalation);
+  const dismissFn = useServerFn(dismissEscalation);
+  const [aberta, setAberta] = useState<string | null>(null);
+  const [texto, setTexto] = useState("");
+  const [salvarRegra, setSalvarRegra] = useState(true);
+
+  const q = useQuery({
+    queryKey: ["ai-escalation-queue"],
+    queryFn: () => listFn(),
+    refetchInterval: 15000,
+  });
+
+  type Linha = {
+    id: string;
+    property_id: string | null;
+    conversation_id: string | null;
+    guest_name: string | null;
+    question_to_human: string | null;
+    status: string | null;
+    created_at: string | null;
+  };
+  const pendentes = ((q.data ?? []) as Linha[])
+    .filter((e) => e.status === "pending")
+    .sort((a, b) => String(a.created_at ?? "").localeCompare(String(b.created_at ?? "")));
+
+  const responder = useMutation({
+    mutationFn: async (id: string) =>
+      answerFn({ data: { escalationId: id, answer: texto.trim(), saveAsKnowledge: salvarRegra } }),
+    onSuccess: (r) => {
+      setAberta(null);
+      setTexto("");
+      qc.invalidateQueries({ queryKey: ["ai-escalation-queue"] });
+      qc.invalidateQueries({ queryKey: ["handoff-list"] });
+      toast.success(
+        (r as { entregue?: boolean })?.entregue
+          ? "Respondido — a IA já levou ao hóspede."
+          : "Resposta salva. A IA entrega assim que conseguir.",
+      );
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+  const descartar = useMutation({
+    mutationFn: async (id: string) => dismissFn({ data: { escalationId: id, reason: null } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["ai-escalation-queue"] });
+      toast.success("Pergunta descartada.");
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+  function idade(iso: string | null) {
+    if (!iso) return "";
+    const h = (Date.now() - new Date(iso).getTime()) / 3_600_000;
+    if (h < 1) return `há ${Math.max(1, Math.round(h * 60))} min`;
+    if (h < 24) return `há ${Math.round(h)} h`;
+    return `há ${Math.round(h / 24)} dias`;
+  }
+
+  if (q.isLoading) {
+    return (
+      <div className="ds-body flex items-center gap-2">
+        <Loader2 className="size-4 animate-spin" /> Carregando…
+      </div>
+    );
+  }
+
+  if (!pendentes.length) {
+    return (
+      <div className="rounded-xl border border-border bg-surface p-6 text-center">
+        <p className="ds-body">Nenhuma pergunta esperando. A IA está resolvendo sozinha.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-surface">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+        <div className="ds-card-title">
+          Perguntas da IA{" "}
+          <span className="text-muted-foreground">· {pendentes.length} esperando</span>
+        </div>
+        <span className="text-[11.5px] text-muted-foreground">
+          Responder aqui é o mesmo que responder na conversa
+        </span>
+      </div>
+      {pendentes.map((e) => {
+        const velha = e.created_at
+          ? Date.now() - new Date(e.created_at).getTime() > 24 * 3_600_000
+          : false;
+        return (
+          <div key={e.id} className="border-b border-border px-4 py-3 last:border-b-0">
+            <p className="text-[13px] font-semibold leading-snug">{e.question_to_human}</p>
+            <div className="mt-1 flex flex-wrap items-center gap-3 text-[10.5px] text-muted-foreground">
+              {e.guest_name && <span>{e.guest_name}</span>}
+              <span className={velha ? "font-semibold text-rose-600 dark:text-rose-400" : ""}>
+                {idade(e.created_at)}
+              </span>
+              {velha && <span>o hóspede segue esperando</span>}
+            </div>
+
+            {aberta === e.id ? (
+              <form
+                className="mt-2.5 flex flex-col gap-2"
+                onSubmit={(ev) => {
+                  ev.preventDefault();
+                  if (!texto.trim() || responder.isPending) return;
+                  responder.mutate(e.id);
+                }}
+              >
+                <Textarea
+                  value={texto}
+                  onChange={(ev) => setTexto(ev.target.value)}
+                  rows={2}
+                  autoFocus
+                  placeholder="Responda à IA — ela leva ao hóspede na voz dela…"
+                  className="text-[13px]"
+                />
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="inline-flex cursor-pointer items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={salvarRegra}
+                      onChange={(ev) => setSalvarRegra(ev.target.checked)}
+                      className="size-3"
+                    />
+                    Salvar como regra, para ela não perguntar de novo
+                  </label>
+                  <div className="flex gap-2">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setAberta(null)}>
+                      Cancelar
+                    </Button>
+                    <Button type="submit" size="sm" disabled={!texto.trim() || responder.isPending}>
+                      {responder.isPending && <Loader2 className="mr-1 size-3 animate-spin" />}
+                      Enviar
+                    </Button>
+                  </div>
+                </div>
+              </form>
+            ) : (
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setAberta(e.id);
+                    setTexto("");
+                    setSalvarRegra(true);
+                  }}
+                >
+                  Responder
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={descartar.isPending}
+                  onClick={() => descartar.mutate(e.id)}
+                >
+                  Descartar
+                </Button>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -429,7 +722,11 @@ function PromptsTab() {
   const { data, isLoading } = useQuery({
     queryKey: ["saas-prompt-evolution"],
     queryFn: async () => {
-      try { return await listFn({ data: {} }); } catch { return [] as PromptSuggestionRow[]; }
+      try {
+        return await listFn({ data: {} });
+      } catch {
+        return [] as PromptSuggestionRow[];
+      }
     },
     staleTime: 30_000,
   });
@@ -448,25 +745,49 @@ function PromptsTab() {
   }
 
   if (isLoading) return <Loading />;
-  if (!data?.length) return <Empty icon={<Wand2 className="size-5" />} title="Nenhuma sugestão de prompt" text="O otimizador cria sugestões quando detecta padrões repetidos de falha." />;
+  if (!data?.length)
+    return (
+      <Empty
+        icon={<Wand2 className="size-5" />}
+        title="Nenhuma sugestão de prompt"
+        text="O otimizador cria sugestões quando detecta padrões repetidos de falha."
+      />
+    );
 
   return (
     <div className="space-y-3">
       {data.map((s) => (
-        <article key={s.id} className="rounded-2xl border border-border bg-surface p-4 space-y-2 shadow-sm">
+        <article
+          key={s.id}
+          className="rounded-2xl border border-border bg-surface p-4 space-y-2 shadow-sm"
+        >
           <div className="flex flex-wrap items-start justify-between gap-2">
             <h3 className="ds-card-title">
-              {s.prompt_key} {s.prompt_version ? <span className="text-muted-foreground">· {s.prompt_version}</span> : null}
+              {s.prompt_key}{" "}
+              {s.prompt_version ? (
+                <span className="text-muted-foreground">· {s.prompt_version}</span>
+              ) : null}
             </h3>
             <Badge variant="secondary">{s.status}</Badge>
           </div>
           <p className="ds-card-desc whitespace-pre-wrap">{s.suggestion}</p>
           {s.reason && <p className="ds-meta">Motivo: {s.reason}</p>}
-          {s.expected_impact && <p className="text-xs rounded-lg bg-secondary/60 px-2 py-1">{s.expected_impact}</p>}
+          {s.expected_impact && (
+            <p className="text-xs rounded-lg bg-secondary/60 px-2 py-1">{s.expected_impact}</p>
+          )}
           {s.status === "pending" && (
             <div className="flex gap-2 pt-1">
-              <Button size="sm" disabled={busy === s.id} onClick={() => review(s.id, "approved")}><Check className="size-4" /> Aprovar</Button>
-              <Button size="sm" variant="ghost" disabled={busy === s.id} onClick={() => review(s.id, "rejected")}><X className="size-4" /> Rejeitar</Button>
+              <Button size="sm" disabled={busy === s.id} onClick={() => review(s.id, "approved")}>
+                <Check className="size-4" /> Aprovar
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={busy === s.id}
+                onClick={() => review(s.id, "rejected")}
+              >
+                <X className="size-4" /> Rejeitar
+              </Button>
             </div>
           )}
         </article>
@@ -493,7 +814,6 @@ const CATEGORIES = [
   "SERVER_CALL",
   "ERROR",
 ] as const;
-
 
 const SEVERITIES = ["info", "notice", "warning", "error", "critical"] as const;
 
@@ -523,7 +843,11 @@ function EventsTab() {
   const tenants = useQuery({
     queryKey: ["audit-tenants"],
     queryFn: async () => {
-      try { return await tenantsFn(); } catch { return []; }
+      try {
+        return await tenantsFn();
+      } catch {
+        return [];
+      }
     },
     staleTime: 5 * 60_000,
   });
@@ -553,7 +877,11 @@ function EventsTab() {
     queryKey: ["audit-timeline", selected],
     enabled: !!selected,
     queryFn: async () => {
-      try { return await timelineFn({ data: { eventId: selected as string } }); } catch { return null; }
+      try {
+        return await timelineFn({ data: { eventId: selected as string } });
+      } catch {
+        return null;
+      }
     },
   });
 
@@ -573,12 +901,22 @@ function EventsTab() {
             placeholder="Buscar por descrição, autor ou motivo"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") { setPage(0); setApplied(search); } }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                setPage(0);
+                setApplied(search);
+              }
+            }}
           />
         </div>
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="icon" className="relative shrink-0" aria-label="Filtros">
+            <Button
+              variant="outline"
+              size="icon"
+              className="relative shrink-0"
+              aria-label="Filtros"
+            >
               <SlidersHorizontal className="size-4" />
               {activeFilters > 0 && (
                 <span className="absolute -top-1 -right-1 size-4 rounded-full bg-primary text-primary-foreground text-[10px] grid place-items-center">
@@ -590,32 +928,68 @@ function EventsTab() {
           <PopoverContent align="end" className="w-72 space-y-3">
             <div className="space-y-1.5">
               <Label className="text-xs">Categoria</Label>
-              <Select value={category} onValueChange={(v) => { setCategory(v); setPage(0); }}>
-                <SelectTrigger><SelectValue placeholder="Categoria" /></SelectTrigger>
+              <Select
+                value={category}
+                onValueChange={(v) => {
+                  setCategory(v);
+                  setPage(0);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Categoria" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as categorias</SelectItem>
-                  {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  {CATEGORIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Severidade</Label>
-              <Select value={severity} onValueChange={(v) => { setSeverity(v); setPage(0); }}>
-                <SelectTrigger><SelectValue placeholder="Severidade" /></SelectTrigger>
+              <Select
+                value={severity}
+                onValueChange={(v) => {
+                  setSeverity(v);
+                  setPage(0);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Severidade" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas</SelectItem>
-                  {SEVERITIES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  {SEVERITIES.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             {(tenants.data?.length ?? 0) > 0 && (
               <div className="space-y-1.5">
                 <Label className="text-xs">Conta</Label>
-                <Select value={tenantId} onValueChange={(v) => { setTenantId(v); setPage(0); }}>
-                  <SelectTrigger><SelectValue placeholder="Conta" /></SelectTrigger>
+                <Select
+                  value={tenantId}
+                  onValueChange={(v) => {
+                    setTenantId(v);
+                    setPage(0);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Conta" />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todas as contas</SelectItem>
-                    {(tenants.data ?? []).map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                    {(tenants.data ?? []).map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -625,11 +999,23 @@ function EventsTab() {
                 variant="ghost"
                 size="sm"
                 className="flex-1"
-                onClick={() => { setCategory("all"); setSeverity("all"); setTenantId("all"); setPage(0); }}
+                onClick={() => {
+                  setCategory("all");
+                  setSeverity("all");
+                  setTenantId("all");
+                  setPage(0);
+                }}
               >
                 Limpar
               </Button>
-              <Button size="sm" className="flex-1" onClick={() => { setPage(0); setApplied(search); }}>
+              <Button
+                size="sm"
+                className="flex-1"
+                onClick={() => {
+                  setPage(0);
+                  setApplied(search);
+                }}
+              >
                 Aplicar
               </Button>
             </div>
@@ -663,34 +1049,36 @@ function EventsTab() {
               {rows.map((r) => {
                 const when = new Date(String(r.created_at));
                 return (
-                <tr
-                  key={String(r.id)}
-                  className="border-t border-border hover:bg-secondary/40 cursor-pointer align-top"
-                  onClick={() => setSelected(String(r.id))}
-                >
-                  <td className="px-4 py-3 whitespace-nowrap text-muted-foreground tabular-nums">
-                    {when.toLocaleDateString("pt-BR")}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-muted-foreground tabular-nums">
-                    {when.toLocaleTimeString("pt-BR")}
-                  </td>
-                  <td className="px-4 py-3 font-medium whitespace-nowrap">
-                    {String(r.actor_name ?? r.actor_id ?? "visitante")}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                    {String(r.actor_type ?? "—")}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">{String(r.event_type ?? "")}</td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                    {String(r.event_category ?? "")}
-                  </td>
-                  <td className="px-4 py-3 min-w-[280px]">{String(r.description ?? "—")}</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-xs ${SEVERITY_STYLE[String(r.severity ?? "info")] ?? ""}`}>
-                      {String(r.severity ?? "info")}
-                    </span>
-                  </td>
-                </tr>
+                  <tr
+                    key={String(r.id)}
+                    className="border-t border-border hover:bg-secondary/40 cursor-pointer align-top"
+                    onClick={() => setSelected(String(r.id))}
+                  >
+                    <td className="px-4 py-3 whitespace-nowrap text-muted-foreground tabular-nums">
+                      {when.toLocaleDateString("pt-BR")}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-muted-foreground tabular-nums">
+                      {when.toLocaleTimeString("pt-BR")}
+                    </td>
+                    <td className="px-4 py-3 font-medium whitespace-nowrap">
+                      {String(r.actor_name ?? r.actor_id ?? "visitante")}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                      {String(r.actor_type ?? "—")}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">{String(r.event_type ?? "")}</td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                      {String(r.event_category ?? "")}
+                    </td>
+                    <td className="px-4 py-3 min-w-[280px]">{String(r.description ?? "—")}</td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-xs ${SEVERITY_STYLE[String(r.severity ?? "info")] ?? ""}`}
+                      >
+                        {String(r.severity ?? "info")}
+                      </span>
+                    </td>
+                  </tr>
                 );
               })}
             </tbody>
@@ -698,18 +1086,33 @@ function EventsTab() {
         </div>
       )}
 
-
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span>{total} evento(s)</span>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>Anterior</Button>
-          <Button variant="outline" size="sm" disabled={(page + 1) * 50 >= total} onClick={() => setPage((p) => p + 1)}>Próxima</Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page === 0}
+            onClick={() => setPage((p) => p - 1)}
+          >
+            Anterior
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={(page + 1) * 50 >= total}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Próxima
+          </Button>
         </div>
       </div>
 
       <Sheet open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
         <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
-          <SheetHeader><SheetTitle>Timeline de investigação</SheetTitle></SheetHeader>
+          <SheetHeader>
+            <SheetTitle>Timeline de investigação</SheetTitle>
+          </SheetHeader>
           {timeline.isLoading ? (
             <Loading />
           ) : !timeline.data ? (
@@ -738,11 +1141,16 @@ function EventCard({ row, highlight }: { row: Row; highlight?: boolean }) {
         <Badge variant="secondary">{String(row.event_category ?? "")}</Badge>
       </div>
       <p className="text-xs text-muted-foreground">
-        {new Date(String(row.created_at)).toLocaleString("pt-BR")} · {String(row.actor_name ?? row.actor_id ?? "sistema")}
+        {new Date(String(row.created_at)).toLocaleString("pt-BR")} ·{" "}
+        {String(row.actor_name ?? row.actor_id ?? "sistema")}
       </p>
       {row.description ? <p className="text-sm">{String(row.description)}</p> : null}
-      {row.reason ? <p className="text-xs text-muted-foreground">Motivo: {String(row.reason)}</p> : null}
-      {row.channel ? <p className="text-xs text-muted-foreground">Canal: {String(row.channel)}</p> : null}
+      {row.reason ? (
+        <p className="text-xs text-muted-foreground">Motivo: {String(row.reason)}</p>
+      ) : null}
+      {row.channel ? (
+        <p className="text-xs text-muted-foreground">Canal: {String(row.channel)}</p>
+      ) : null}
     </article>
   );
 }
@@ -752,13 +1160,22 @@ function AnalyticsTab() {
   const { data, isLoading } = useQuery({
     queryKey: ["audit-analytics"],
     queryFn: async () => {
-      try { return await fn({ data: { days: 30 } }); } catch { return null; }
+      try {
+        return await fn({ data: { days: 30 } });
+      } catch {
+        return null;
+      }
     },
     staleTime: 60_000,
   });
 
   if (isLoading) return <Loading />;
-  if (!data) return <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">Sem dados no período.</div>;
+  if (!data)
+    return (
+      <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
+        Sem dados no período.
+      </div>
+    );
 
   return (
     <div className="space-y-5">
@@ -771,11 +1188,29 @@ function AnalyticsTab() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <ListCard title="Por categoria" rows={data.byCategory.map((c) => ({ label: c.category, value: c.count }))} />
-        <ListCard title="Por severidade" rows={data.bySeverity.map((c) => ({ label: c.severity, value: c.count }))} />
-        <ListCard title="Usuários mais ativos" rows={data.topActors.map((a) => ({ label: `${a.actor} (${a.actorType})`, value: a.count }))} />
-        <ListCard title="Agentes mais acionados" rows={data.topAgents.map((a) => ({ label: a.agent, value: a.count }))} />
-        <ListCard title="Erros por integração" rows={data.integrationErrors.map((i) => ({ label: i.integration, value: i.count }))} />
+        <ListCard
+          title="Por categoria"
+          rows={data.byCategory.map((c) => ({ label: c.category, value: c.count }))}
+        />
+        <ListCard
+          title="Por severidade"
+          rows={data.bySeverity.map((c) => ({ label: c.severity, value: c.count }))}
+        />
+        <ListCard
+          title="Usuários mais ativos"
+          rows={data.topActors.map((a) => ({
+            label: `${a.actor} (${a.actorType})`,
+            value: a.count,
+          }))}
+        />
+        <ListCard
+          title="Agentes mais acionados"
+          rows={data.topAgents.map((a) => ({ label: a.agent, value: a.count }))}
+        />
+        <ListCard
+          title="Erros por integração"
+          rows={data.integrationErrors.map((i) => ({ label: i.integration, value: i.count }))}
+        />
       </div>
     </div>
   );
@@ -790,7 +1225,13 @@ function Kpi({ label, value }: { label: string; value: number }) {
   );
 }
 
-function ListCard({ title, rows }: { title: string; rows: Array<{ label: string; value: number }> }) {
+function ListCard({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: Array<{ label: string; value: number }>;
+}) {
   return (
     <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm space-y-2">
       <h3 className="font-medium flex items-center gap-2 text-sm">

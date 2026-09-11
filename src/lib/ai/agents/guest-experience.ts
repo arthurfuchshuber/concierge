@@ -13,6 +13,11 @@ export const guestExperienceAgent: AgentDefinition = {
     "get_city_news",
     "search_places",
     "get_weather",
+    // O prompt manda usar search_web para assunto de cidade (evento, horário,
+    // atração, transporte) e nomeia a ferramenta em duas seções. Ela existia e
+    // não estava liberada para ninguém — inclusive para este agente, que é o
+    // dono desses assuntos.
+    "search_web",
     "search_knowledge_base",
     "get_property_facts",
     "get_itinerary",

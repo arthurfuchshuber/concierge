@@ -7,6 +7,8 @@
  * escalar obrigatoriamente para humano.
  */
 
+import { continuityLine } from "./continuity";
+
 export type ConfidenceTier = "auto" | "hedged" | "handoff";
 
 export type ConfidenceThresholds = {
@@ -35,7 +37,11 @@ export function thresholdsFor(params: {
 }): ConfidenceThresholds {
   if (params.explorationMode) return EXPLORATION_THRESHOLDS;
   if (params.urgency === "high") return STRICT_THRESHOLDS;
-  if (params.category === "acesso" || params.category === "reserva" || params.category === "financeiro") {
+  if (
+    params.category === "acesso" ||
+    params.category === "reserva" ||
+    params.category === "financeiro"
+  ) {
     return STRICT_THRESHOLDS;
   }
   return DEFAULT_THRESHOLDS;
@@ -104,17 +110,18 @@ export function aggregateConfidence(params: {
  * precisa saber disso, e por isso a frase não menciona transferência nem
  * equipe (proibido pelo prompt).
  */
-export function handoffFallback(language: string): string {
-  if (language?.startsWith("en")) return "Let me confirm this properly and come right back to you.";
-  if (language?.startsWith("es")) return "Voy a confirmarlo bien y te respondo enseguida.";
-  return "Vou confirmar isso direitinho e já te respondo.";
+export function handoffFallback(language: string, seed = 0): string {
+  return continuityLine("confirming", language, seed);
 }
 
 /** Ressalva adicionada quando a confiança fica na faixa intermediária. */
 export function hedgeNotice(language: string): string {
-  const pt = "\n\n_Confirme comigo ou com o anfitrião antes de contar com essa informação — quero ter certeza de que está tudo certo para você._";
-  const en = "\n\n_Please double-check this with me or your host — I want to make sure everything is right for you._";
-  const es = "\n\n_Confírmalo conmigo o con el anfitrión — quiero asegurarme de que todo esté correcto._";
+  const pt =
+    "\n\n_Confirme comigo ou com o anfitrião antes de contar com essa informação — quero ter certeza de que está tudo certo para você._";
+  const en =
+    "\n\n_Please double-check this with me or your host — I want to make sure everything is right for you._";
+  const es =
+    "\n\n_Confírmalo conmigo o con el anfitrión — quiero asegurarme de que todo esté correcto._";
   if (language?.startsWith("en")) return en;
   if (language?.startsWith("es")) return es;
   return pt;

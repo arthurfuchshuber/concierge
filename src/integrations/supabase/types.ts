@@ -3467,6 +3467,7 @@ export type Database = {
           address_note: string | null
           airbnb_amenities: Json
           airbnb_bathroom_count: number | null
+          ai_evaluation_target: boolean
           airbnb_bed_count: number | null
           airbnb_bedroom_count: number | null
           airbnb_cancellation_policy: string | null
@@ -3560,6 +3561,7 @@ export type Database = {
           address_note?: string | null
           airbnb_amenities?: Json
           airbnb_bathroom_count?: number | null
+          ai_evaluation_target?: boolean
           airbnb_bed_count?: number | null
           airbnb_bedroom_count?: number | null
           airbnb_cancellation_policy?: string | null
@@ -3653,6 +3655,7 @@ export type Database = {
           address_note?: string | null
           airbnb_amenities?: Json
           airbnb_bathroom_count?: number | null
+          ai_evaluation_target?: boolean
           airbnb_bed_count?: number | null
           airbnb_bedroom_count?: number | null
           airbnb_cancellation_policy?: string | null
@@ -3811,6 +3814,7 @@ export type Database = {
           handoff_urgency: string | null
           id: string
           last_guest_followup_at: string | null
+          paused_until: string | null
           last_message_at: string
           last_reminder_at: string | null
           property_id: string
@@ -3831,6 +3835,7 @@ export type Database = {
           handoff_urgency?: string | null
           id?: string
           last_guest_followup_at?: string | null
+          paused_until?: string | null
           last_message_at?: string
           last_reminder_at?: string | null
           property_id: string
@@ -3851,6 +3856,7 @@ export type Database = {
           handoff_urgency?: string | null
           id?: string
           last_guest_followup_at?: string | null
+          paused_until?: string | null
           last_message_at?: string
           last_reminder_at?: string | null
           property_id?: string

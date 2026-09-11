@@ -32,6 +32,13 @@ export const generalistAgent: AgentDefinition = {
     "set_reservation_mode",
     "add_itinerary_item",
     "remove_itinerary_item",
+    // O generalista é o AGENTE DE QUEDA: recebe tudo que o supervisor não
+    // classificou e tudo que ele classificou errado. Se o calendário e a busca
+    // externa só existirem nos especialistas, uma pergunta mal roteada morre
+    // aqui — que foi o que aconteceu a cada vez que o roteamento errou.
+    "check_availability",
+    "find_available_stays",
+    "search_web",
     "request_human_handoff",
   ],
   autonomy: "medium",
@@ -66,7 +73,10 @@ export function getAgent(key: string | null | undefined): AgentDefinition {
 }
 
 /** Filtra o catálogo global de ferramentas pela whitelist do agente. */
-export function allowedToolsOf<T extends { name: string }>(agent: AgentDefinition, tools: T[]): T[] {
+export function allowedToolsOf<T extends { name: string }>(
+  agent: AgentDefinition,
+  tools: T[],
+): T[] {
   return tools.filter((t) => agent.allowedTools.includes(t.name));
 }
 

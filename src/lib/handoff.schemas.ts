@@ -22,6 +22,7 @@ export type HandoffConversationSummary = {
   guest_name: string | null;
   status: string;
   ai_paused: boolean | null;
+  paused_until: string | null;
   assigned_to: string | null;
   handoff_reason: string | null;
   handoff_urgency: string | null;
@@ -29,7 +30,13 @@ export type HandoffConversationSummary = {
   last_message_at: string;
   created_at: string | null;
   resolved_at: string | null;
-  properties: { id: string | null; name: string | null; owner_id: string | null; owner_contact_id: string | null; slug: string | null } | null;
+  properties: {
+    id: string | null;
+    name: string | null;
+    owner_id: string | null;
+    owner_contact_id: string | null;
+    slug: string | null;
+  } | null;
 };
 
 export type HandoffReservationMatch = {
@@ -48,8 +55,6 @@ export type HandoffListResult = {
   error?: string;
 };
 
-
-
 type RawHandoffRow = {
   id?: unknown;
   property_id?: unknown;
@@ -57,6 +62,7 @@ type RawHandoffRow = {
   guest_name?: unknown;
   status?: unknown;
   ai_paused?: unknown;
+  paused_until?: unknown;
   assigned_to?: unknown;
   handoff_reason?: unknown;
   handoff_urgency?: unknown;
@@ -78,7 +84,13 @@ function requiredString(value: unknown, fallback = ""): string {
 function normalizeProperty(value: unknown): HandoffConversationSummary["properties"] {
   const raw = Array.isArray(value) ? value[0] : value;
   if (!raw || typeof raw !== "object") return null;
-  const prop = raw as { id?: unknown; name?: unknown; owner_id?: unknown; owner_contact_id?: unknown; slug?: unknown };
+  const prop = raw as {
+    id?: unknown;
+    name?: unknown;
+    owner_id?: unknown;
+    owner_contact_id?: unknown;
+    slug?: unknown;
+  };
   return {
     id: nullableString(prop.id),
     name: nullableString(prop.name),
@@ -94,9 +106,9 @@ export function emptyHandoffListResult(error?: string): HandoffListResult {
     : { conversations: [], details: {}, assignedNames: {}, reservations: {}, owners: {} };
 }
 
-
-
-export function normalizeHandoffConversationRows(rows: RawHandoffRow[] | null | undefined): HandoffConversationSummary[] {
+export function normalizeHandoffConversationRows(
+  rows: RawHandoffRow[] | null | undefined,
+): HandoffConversationSummary[] {
   return (rows ?? []).map((row) => ({
     id: requiredString(row.id),
     property_id: nullableString(row.property_id),
@@ -104,11 +116,15 @@ export function normalizeHandoffConversationRows(rows: RawHandoffRow[] | null | 
     guest_name: nullableString(row.guest_name),
     status: requiredString(row.status, "needs_human"),
     ai_paused: typeof row.ai_paused === "boolean" ? row.ai_paused : null,
+    paused_until: nullableString(row.paused_until),
     assigned_to: nullableString(row.assigned_to),
     handoff_reason: nullableString(row.handoff_reason),
     handoff_urgency: nullableString(row.handoff_urgency),
     handoff_at: nullableString(row.handoff_at),
-    last_message_at: requiredString(row.last_message_at, requiredString(row.created_at, new Date(0).toISOString())),
+    last_message_at: requiredString(
+      row.last_message_at,
+      requiredString(row.created_at, new Date(0).toISOString()),
+    ),
     created_at: nullableString(row.created_at),
     resolved_at: nullableString(row.resolved_at),
     properties: normalizeProperty(row.properties),
@@ -124,12 +140,17 @@ const HandoffListInput = z.object({
   accountOwnerId: z.string().uuid().optional().nullable(),
 });
 
-
 const HandoffConversationInput = z.object({ conversationId: z.string().uuid() });
 
 const HandoffTransferInput = z.object({
   conversationId: z.string().uuid(),
   toUserId: z.string().uuid(),
+});
+
+/** Descarte de uma pergunta que a IA fez ao humano e não faz mais sentido. */
+const DismissEscalationInput = z.object({
+  escalationId: z.string().uuid(),
+  reason: z.string().trim().max(400).nullish(),
 });
 
 const HandoffSendInput = z.object({
@@ -144,6 +165,10 @@ export function parseHandoffListInput(input: unknown) {
 
 export function parseHandoffConversationInput(input: unknown) {
   return HandoffConversationInput.parse(input);
+}
+
+export function parseDismissEscalationInput(input: unknown) {
+  return DismissEscalationInput.parse(input);
 }
 
 export function parseHandoffTransferInput(input: unknown) {

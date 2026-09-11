@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { pausePatch } from "@/lib/ai/pause";
 
 const AttachmentType = z.enum(["image", "audio", "video", "document"]);
 
@@ -124,7 +125,7 @@ export const attachStaffMessage = createServerFn({ method: "POST" })
         .from("property_chat_conversations")
         .update({
           last_message_at: new Date().toISOString(),
-          ai_paused: true,
+          ...pausePatch(),
         })
         .eq("id", data.conversationId);
     }

@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { resumePatch } from "@/lib/ai/pause";
 
 /**
  * Preenchimento guiado a partir de um escalonamento da IA.
@@ -184,7 +185,7 @@ export const applyKnowledgeFill = createServerFn({ method: "POST" })
     // Devolve a conversa para a IA e pede que ela responda com o novo dado.
     await supabaseAdmin
       .from("property_chat_conversations")
-      .update({ status: "ai", ai_paused: false, handoff_reason: null, assigned_to: null })
+      .update({ status: "ai", ...resumePatch(), handoff_reason: null, assigned_to: null })
       .eq("id", data.conversationId);
 
     let reply = "";

@@ -10,12 +10,18 @@ import { HOUSE_RULES, HOUSE_RULES_VERSION } from "./house-rules";
  * REGRA: ao editar o texto de um prompt, incremente a `version` correspondente.
  */
 
-/**
- * Fallback quando a IA escala sem ter conseguido produzir nenhuma resposta
- * parcial. Nunca anuncia transferência: fala em consulta interna.
+/*
+ * HANDOFF_FALLBACK foi REMOVIDO em 11/09/2026.
+ *
+ * O texto era: "Não consigo confirmar isso com segurança pelo chat. Consulte
+ * as instruções do guia e a equipe responsável seguirá com o atendimento por
+ * aqui." — ou seja, o anúncio de transferência que a seção IDENTIDADE, logo
+ * abaixo neste mesmo arquivo, proíbe em letras maiúsculas. Uma constante
+ * contradizendo o prompt que ela acompanha.
+ *
+ * As frases de continuidade agora vivem em `src/lib/ai/continuity.ts`, em
+ * primeira pessoa e com variação entre ocorrências. Não recrie esta constante.
  */
-export const HANDOFF_FALLBACK =
-  "Não consigo confirmar isso com segurança pelo chat. Consulte as instruções do guia e a equipe responsável seguirá com o atendimento por aqui.";
 
 export type PromptEntry = {
   id: string;

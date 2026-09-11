@@ -27,7 +27,11 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
         }
 
         let event: any;
-        try { event = JSON.parse(raw); } catch { return new Response("Bad JSON", { status: 400 }); }
+        try {
+          event = JSON.parse(raw);
+        } catch {
+          return new Response("Bad JSON", { status: 400 });
+        }
 
         // Delivery report (message we sent)
         const eventType: string = event?.event_type || event?.trigger || "";
@@ -35,12 +39,18 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
           event?.message?.id || event?.message_id || event?.message_delivery_report?.message_id;
 
         if (eventType.includes("DELIVERY") && messageId) {
-          const status = String(event?.message_delivery_report?.status || event?.status || "").toLowerCase();
-          const mapped =
-            status.includes("delivered") ? "delivered" :
-            status.includes("read") ? "read" :
-            status.includes("failed") || status.includes("rejected") ? "failed" :
-            status.includes("dispatched") || status.includes("sent") ? "sent" : null;
+          const status = String(
+            event?.message_delivery_report?.status || event?.status || "",
+          ).toLowerCase();
+          const mapped = status.includes("delivered")
+            ? "delivered"
+            : status.includes("read")
+              ? "read"
+              : status.includes("failed") || status.includes("rejected")
+                ? "failed"
+                : status.includes("dispatched") || status.includes("sent")
+                  ? "sent"
+                  : null;
           if (mapped) {
             await supabaseAdmin
               .from("property_chat_messages")
@@ -51,9 +61,10 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
         }
 
         // Inbound message
-        const inbound = event?.message?.contact_message?.text_message?.text
-          || event?.message?.text_message?.text
-          || event?.text_message?.text;
+        const inbound =
+          event?.message?.contact_message?.text_message?.text ||
+          event?.message?.text_message?.text ||
+          event?.text_message?.text;
         const fromIdentity: string | undefined =
           event?.message?.channel_identity?.identity ||
           event?.channel_identity?.identity ||
@@ -89,14 +100,16 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
         let aiPaused = false;
         const { data: existingConv } = await supabaseAdmin
           .from("property_chat_conversations")
-          .select("id, ai_paused, assigned_to")
+          .select("id, ai_paused, paused_until, assigned_to")
           .eq("property_id", log.property_id)
           .eq("guest_session_id", guestSessionId)
           .maybeSingle();
 
         if (existingConv?.id) {
           convId = existingConv.id as string;
-          aiPaused = existingConv.ai_paused === true;
+          // Expiração preguiçosa da pausa — mesma regra do guia.
+          const { resolvePause } = await import("@/lib/ai/pause");
+          aiPaused = await resolvePause(supabaseAdmin, String(existingConv.id), existingConv);
         } else {
           const { data: newConv, error: convErr } = await supabaseAdmin
             .from("property_chat_conversations")
@@ -125,7 +138,8 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
 
         // Espelho no Conversation Core: mesma entidade de conversa do chat web.
         try {
-          const { resolveCoreConversation, appendCoreMessage } = await import("@/lib/ai/conversation/core.server");
+          const { resolveCoreConversation, appendCoreMessage } =
+            await import("@/lib/ai/conversation/core.server");
           const { markChannelSeen } = await import("@/lib/ai/channels/whatsapp/provider.server");
           const coreConv = await resolveCoreConversation({
             supabase: supabaseAdmin,
@@ -166,9 +180,13 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
         // por WhatsApp, silenciosamente sem push nenhum.
         if (aiPaused) {
           try {
-            const { getPropertyNotifiableUsers, sendGuestReplyPush } = await import("@/lib/handoff.server");
-            const assignedTo = (existingConv as { assigned_to?: string | null } | null)?.assigned_to ?? null;
-            const userIds = assignedTo ? [assignedTo] : await getPropertyNotifiableUsers(supabaseAdmin, log.property_id as string);
+            const { getPropertyNotifiableUsers, sendGuestReplyPush } =
+              await import("@/lib/handoff.server");
+            const assignedTo =
+              (existingConv as { assigned_to?: string | null } | null)?.assigned_to ?? null;
+            const userIds = assignedTo
+              ? [assignedTo]
+              : await getPropertyNotifiableUsers(supabaseAdmin, log.property_id as string);
             const { data: propRow } = await supabaseAdmin
               .from("properties")
               .select("name")
@@ -205,15 +223,12 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
             .maybeSingle();
           if (!prop) return new Response("ok");
 
-          const { data: priorRaw } = await supabaseAdmin
-            .from("property_chat_messages")
-            .select("role, content")
-            .eq("conversation_id", convId)
-            .order("created_at", { ascending: false })
-            .limit(20);
-          const prior = (priorRaw ?? [])
-            .filter((m) => m.role === "user" || m.role === "assistant")
-            .reverse();
+          // Histórico COM as transcrições de áudio. Antes este caminho lia só
+          // `content` — e mensagem de áudio grava `content` vazio, então todo
+          // áudio do WhatsApp era um buraco no contexto da IA, mesmo depois de
+          // a transcrição existir. Ver `loadAgentHistory`.
+          const { loadAgentHistory } = await import("@/lib/chat-audio.server");
+          const prior = await loadAgentHistory(supabaseAdmin, convId, 20);
 
           const { runHospitalityAgent } = await import("@/lib/ai/orchestrator.server");
           const result = await runHospitalityAgent({
@@ -223,7 +238,7 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
             sessionId: guestSessionId,
             guestName: (log.guest_name as string | null) ?? null,
             message: inbound,
-            history: prior.map((m) => ({ role: m.role as string, content: m.content ?? "" })),
+            history: prior,
             surface: "whatsapp",
             channel: "whatsapp",
             channelReference: phoneDigits,
@@ -237,15 +252,21 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
               .from("property_chat_conversations")
               .update({
                 status: "needs_human",
-                ai_paused: !finalReply,
+                // Escalar não cala a IA — ver o comentário longo no
+                // equivalente em `guide-chat.ts`.
+                ai_paused: false,
                 handoff_reason: result.handoffReason ?? "Hóspede pediu atendimento humano.",
                 handoff_urgency: result.handoffUrgency,
                 handoff_at: new Date().toISOString(),
               })
               .eq("id", convId);
             try {
-              const { getPropertyNotifiableUsers, sendHandoffPush } = await import("@/lib/handoff.server");
-              const userIds = await getPropertyNotifiableUsers(supabaseAdmin, log.property_id as string);
+              const { getPropertyNotifiableUsers, sendHandoffPush } =
+                await import("@/lib/handoff.server");
+              const userIds = await getPropertyNotifiableUsers(
+                supabaseAdmin,
+                log.property_id as string,
+              );
               await sendHandoffPush(supabaseAdmin, {
                 userIds,
                 conversationId: convId,
@@ -266,7 +287,8 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
             // sendWhatsappText existia mas nunca era chamada em lugar nenhum.
             let externalId: string | null = null;
             try {
-              const { sendWhatsappText } = await import("@/lib/ai/channels/whatsapp/provider.server");
+              const { sendWhatsappText } =
+                await import("@/lib/ai/channels/whatsapp/provider.server");
               const sent = await sendWhatsappText({
                 supabase: supabaseAdmin,
                 tenantId: ownerId,
@@ -289,7 +311,8 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
             });
 
             try {
-              const { resolveCoreConversation, appendCoreMessage } = await import("@/lib/ai/conversation/core.server");
+              const { resolveCoreConversation, appendCoreMessage } =
+                await import("@/lib/ai/conversation/core.server");
               const coreConv = await resolveCoreConversation({
                 supabase: supabaseAdmin,
                 tenantId: ownerId,
@@ -321,7 +344,6 @@ export const Route = createFileRoute("/api/public/whatsapp/sinch-webhook")({
         }
 
         return new Response("ok");
-
       },
     },
   },

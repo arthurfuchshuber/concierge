@@ -28,9 +28,13 @@ import { getPermissionCenterOverview } from "@/lib/permission-center.functions";
 import { PlanLockCard } from "@/components/ds/PlanLockCard";
 import { getAtendimentoAccess } from "@/lib/handoff.functions";
 
-
 import { useSubscription } from "@/hooks/useSubscription";
-import { enablePush, disablePush, isPushSupported, currentPushSubscription } from "@/lib/push-client";
+import {
+  enablePush,
+  disablePush,
+  isPushSupported,
+  currentPushSubscription,
+} from "@/lib/push-client";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Accordion,
@@ -39,9 +43,18 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 import { Switch } from "@/components/ui/switch";
-import { Users, Bell, BellOff, Loader2, Trash2, Mail, Send as SendIcon, ShieldCheck, Home } from "lucide-react";
+import {
+  Users,
+  Bell,
+  BellOff,
+  Loader2,
+  Trash2,
+  Mail,
+  Send as SendIcon,
+  ShieldCheck,
+  Home,
+} from "lucide-react";
 import { toast } from "sonner";
-
 
 export { EquipePage };
 
@@ -49,7 +62,6 @@ const OPERATIONAL_PERMS = MEMBER_PERMISSIONS.filter(
   (p) => PERMISSION_META[p].group === "operational",
 );
 const TOTAL_TOGGLES = PERMISSION_AREAS.length * 2;
-
 
 function EquipePage() {
   const accessFn = useServerFn(getAtendimentoAccess);
@@ -70,8 +82,16 @@ function EquipePage() {
   const planFeatures = sub.features;
   const planName = sub.plan ? sub.plan.charAt(0).toUpperCase() + sub.plan.slice(1) : "atual";
 
-  const access = useQuery({ queryKey: ["handoff-access"], queryFn: () => accessFn(), staleTime: 5 * 60_000 });
-  const team = useQuery({ queryKey: ["my-team", acctId], queryFn: () => listFn({ data: scope }), enabled: access.data?.allowed === true });
+  const access = useQuery({
+    queryKey: ["handoff-access"],
+    queryFn: () => accessFn(),
+    staleTime: 5 * 60_000,
+  });
+  const team = useQuery({
+    queryKey: ["my-team", acctId],
+    queryFn: () => listFn({ data: scope }),
+    enabled: access.data?.allowed === true,
+  });
   const perms = useQuery({
     queryKey: ["member-permissions", acctId],
     queryFn: () => permsFn({ data: scope }),
@@ -89,13 +109,17 @@ function EquipePage() {
   const [openMemberId, setOpenMemberId] = useState<string>("");
   const [openSection, setOpenSection] = useState<string>("");
 
-
   const invite = useMutation({
-    mutationFn: async () => inviteFn({ data: { ...scope, email: email.trim().toLowerCase(), role } }),
+    mutationFn: async () =>
+      inviteFn({ data: { ...scope, email: email.trim().toLowerCase(), role } }),
     onSuccess: (res) => {
       setEmail("");
       qc.invalidateQueries({ queryKey: ["my-team", acctId] });
-      setFeedback(res?.emailSent ? "Convite enviado por email." : "Convite criado, mas o email não foi enviado. Use “Reenviar”.");
+      setFeedback(
+        res?.emailSent
+          ? "Convite enviado por email."
+          : "Convite criado, mas o email não foi enviado. Use “Reenviar”.",
+      );
       setTimeout(() => setFeedback(null), 4500);
     },
   });
@@ -139,7 +163,8 @@ function EquipePage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["my-team", acctId] }),
   });
   const changeRole = useMutation({
-    mutationFn: async (v: { id: string; r: "owner" | "agent" | "viewer" }) => updateRoleFn({ data: { ...scope, memberId: v.id, role: v.r } }),
+    mutationFn: async (v: { id: string; r: "owner" | "agent" | "viewer" }) =>
+      updateRoleFn({ data: { ...scope, memberId: v.id, role: v.r } }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["my-team", acctId] });
       toast.success("Permissão atualizada");
@@ -155,7 +180,9 @@ function EquipePage() {
       const prev = qc.getQueryData<any>(["member-permissions", acctId]);
       if (prev?.matrix?.[v.memberUserId]) {
         // Cascade espelho do servidor: ligar EDIT liga VIEW; desligar VIEW desliga EDIT.
-        const area = PERMISSION_AREAS.find((a) => a.view === v.permission || a.edit === v.permission);
+        const area = PERMISSION_AREAS.find(
+          (a) => a.view === v.permission || a.edit === v.permission,
+        );
         const patch: Record<string, boolean> = { [v.permission]: v.granted };
         if (area) {
           if (v.permission === area.edit && v.granted) patch[area.view] = true;
@@ -184,7 +211,10 @@ function EquipePage() {
   const [pushOn, setPushOn] = useState<boolean | null>(null);
   const [pushBusy, setPushBusy] = useState(false);
   useEffect(() => {
-    if (!isPushSupported()) { setPushOn(false); return; }
+    if (!isPushSupported()) {
+      setPushOn(false);
+      return;
+    }
     currentPushSubscription().then((s) => setPushOn(!!s));
   }, []);
 
@@ -198,26 +228,41 @@ function EquipePage() {
         return;
       }
       if (!isPushSupported()) {
-        const isIOS = typeof navigator !== "undefined" && /iPhone|iPad|iPod/.test(navigator.userAgent);
-        const nav = typeof window !== "undefined" ? (window.navigator as Navigator & { standalone?: boolean }) : null;
-        const standalone = nav?.standalone || window.matchMedia?.("(display-mode: standalone)").matches;
+        const isIOS =
+          typeof navigator !== "undefined" && /iPhone|iPad|iPod/.test(navigator.userAgent);
+        const nav =
+          typeof window !== "undefined"
+            ? (window.navigator as Navigator & { standalone?: boolean })
+            : null;
+        const standalone =
+          nav?.standalone || window.matchMedia?.("(display-mode: standalone)").matches;
         if (isIOS && !standalone) {
-          toast.error("No iPhone/iPad, adicione o app à Tela de Início e abra por ali para ativar notificações.");
+          toast.error(
+            "No iPhone/iPad, adicione o app à Tela de Início e abra por ali para ativar notificações.",
+          );
         } else {
           toast.error("Este navegador não suporta notificações push.");
         }
         return;
       }
       if (typeof Notification !== "undefined" && Notification.permission === "denied") {
-        toast.error("Notificações bloqueadas. Ative nas configurações do navegador para este site.");
+        toast.error(
+          "Notificações bloqueadas. Ative nas configurações do navegador para este site.",
+        );
         return;
       }
       const r = await enablePush();
       if (r.ok) {
         setPushOn(true);
         toast.success("Notificações ativadas neste dispositivo");
+      } else if (r.reason === "dismissed") {
+        // Fechou a caixinha sem responder — não é bloqueio, é só tocar de novo.
+        toast.info("Toque de novo e escolha Permitir na caixinha do navegador.");
       } else if (r.reason === "denied") {
-        toast.error("Você negou a permissão de notificações.");
+        toast.error(
+          "Este site está bloqueado para notificações. Toque no cadeado ao lado do endereço → Permissões → Notificações → Permitir.",
+          { duration: 9000 },
+        );
       } else {
         toast.error("Não foi possível ativar notificações (" + r.reason + ")");
       }
@@ -255,8 +300,6 @@ function EquipePage() {
 
   return (
     <div className="w-full space-y-8">
-
-
       <Accordion
         type="single"
         collapsible
@@ -264,23 +307,31 @@ function EquipePage() {
         onValueChange={setOpenSection}
         className="flex flex-col gap-1.5"
       >
-
         <AccordionItem
           value="push"
           className="glass border border-border overflow-hidden data-[state=open]:border-primary/40"
         >
           <AccordionTrigger className="px-4 lg:px-6 py-4 hover:no-underline">
             <span className="ds-card-title flex items-center gap-2">
-              {pushOn ? <Bell className="size-4 text-primary" /> : <BellOff className="size-4 text-muted-foreground" />}
+              {pushOn ? (
+                <Bell className="size-4 text-primary" />
+              ) : (
+                <BellOff className="size-4 text-muted-foreground" />
+              )}
               Notificações neste dispositivo
             </span>
           </AccordionTrigger>
           <AccordionContent className="pb-0">
             <div className="px-4 lg:px-6 pb-5 pt-1 border-t border-border/60">
               <p className="text-sm text-muted-foreground mb-3 mt-3">
-                Receba um alerta com som e badge no ícone quando um hóspede pedir atendimento humano.
+                Receba um alerta com som e badge no ícone quando um hóspede pedir atendimento
+                humano.
                 {typeof window !== "undefined" && /iPhone|iPad|iPod/.test(navigator.userAgent) && (
-                  <> No iPhone/iPad, primeiro adicione o app à tela de início ("Adicionar à Tela de Início") e abra por ali.</>
+                  <>
+                    {" "}
+                    No iPhone/iPad, primeiro adicione o app à tela de início ("Adicionar à Tela de
+                    Início") e abra por ali.
+                  </>
                 )}
               </p>
               <button
@@ -307,7 +358,10 @@ function EquipePage() {
           <AccordionContent className="pb-0">
             <div className="px-4 lg:px-6 pb-5 pt-4 border-t border-border/60">
               <form
-                onSubmit={(e) => { e.preventDefault(); if (email.trim() && !invite.isPending) invite.mutate(); }}
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (email.trim() && !invite.isPending) invite.mutate();
+                }}
                 className="flex flex-col sm:flex-row gap-2"
               >
                 <input
@@ -326,10 +380,13 @@ function EquipePage() {
                   {invite.isPending ? "Enviando…" : "Convidar"}
                 </button>
               </form>
-              {invite.isError && <p className="text-xs text-red-500 mt-2">{(invite.error as Error).message}</p>}
+              {invite.isError && (
+                <p className="text-xs text-red-500 mt-2">{(invite.error as Error).message}</p>
+              )}
               {feedback && <p className="text-xs text-primary mt-2">{feedback}</p>}
               <p className="text-[11px] text-muted-foreground mt-2">
-                Business: até 2 atendentes além do titular. Enterprise: ilimitado. O convidado precisa se cadastrar com o mesmo e-mail para ativar.
+                Business: até 2 atendentes além do titular. Enterprise: ilimitado. O convidado
+                precisa se cadastrar com o mesmo e-mail para ativar.
               </p>
             </div>
           </AccordionContent>
@@ -350,9 +407,17 @@ function EquipePage() {
           <AccordionContent className="pb-0">
             <div className="px-4 lg:px-6 pb-5 pt-4 border-t border-border/60">
               {members.length === 0 ? (
-                <div className="text-sm text-muted-foreground py-2">Nenhum membro ainda. Envie um convite acima.</div>
+                <div className="text-sm text-muted-foreground py-2">
+                  Nenhum membro ainda. Envie um convite acima.
+                </div>
               ) : (
-                <Accordion type="single" collapsible value={openMemberId} onValueChange={setOpenMemberId} className="flex flex-col gap-1.5">
+                <Accordion
+                  type="single"
+                  collapsible
+                  value={openMemberId}
+                  onValueChange={setOpenMemberId}
+                  className="flex flex-col gap-1.5"
+                >
                   {members.map((m) => {
                     const id = m.member_user_id as string;
                     const prof = profiles[id];
@@ -371,9 +436,17 @@ function EquipePage() {
                             <div className="flex-1 min-w-0">
                               <div className="text-sm font-medium truncate">
                                 {prof?.full_name || prof?.email || id}
-                                {isSelf && <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground">(você · titular)</span>}
+                                {isSelf && (
+                                  <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+                                    (você · titular)
+                                  </span>
+                                )}
                               </div>
-                              {prof?.email && <div className="text-[11px] text-muted-foreground truncate">{prof.email}</div>}
+                              {prof?.email && (
+                                <div className="text-[11px] text-muted-foreground truncate">
+                                  {prof.email}
+                                </div>
+                              )}
                             </div>
                             {!isSelf && (
                               <span className="text-[11px] px-2 py-0.5 rounded-full bg-secondary border border-border">
@@ -387,7 +460,10 @@ function EquipePage() {
                             {!isSelf && (
                               <div className="flex items-center justify-end">
                                 <button
-                                  onClick={() => { if (confirm("Remover este atendente?")) remove.mutate(m.id as string); }}
+                                  onClick={() => {
+                                    if (confirm("Remover este atendente?"))
+                                      remove.mutate(m.id as string);
+                                  }}
                                   className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md text-red-500 hover:bg-red-500/10 border border-transparent hover:border-red-500/30"
                                 >
                                   <Trash2 className="size-3.5" /> Remover
@@ -404,13 +480,19 @@ function EquipePage() {
                                   {PERMISSION_AREAS.map((area) => {
                                     const viewVal = !!perms[area.view];
                                     const editVal = !!perms[area.edit];
-                                    const feature = PERMISSION_FEATURE[area.edit] ?? PERMISSION_FEATURE[area.view];
+                                    const feature =
+                                      PERMISSION_FEATURE[area.edit] ??
+                                      PERMISSION_FEATURE[area.view];
                                     const locked = !!feature && !planFeatures[feature];
                                     return (
                                       <li
                                         key={area.area}
                                         className={`flex items-center gap-3 px-3 py-2 ${locked ? "opacity-60" : ""}`}
-                                        title={locked ? `Disponível em planos superiores ao ${planName}` : area.description}
+                                        title={
+                                          locked
+                                            ? `Disponível em planos superiores ao ${planName}`
+                                            : area.description
+                                        }
                                       >
                                         <div className="flex-1 min-w-0">
                                           <div className="text-[13px] font-medium truncate flex items-center gap-1.5">
@@ -423,22 +505,34 @@ function EquipePage() {
                                           </div>
                                         </div>
                                         <label className="flex items-center gap-1.5 shrink-0">
-                                          <span className="text-[11px] text-muted-foreground">Ver</span>
+                                          <span className="text-[11px] text-muted-foreground">
+                                            Ver
+                                          </span>
                                           <Switch
                                             checked={locked ? false : viewVal}
                                             disabled={updPerm.isPending || locked}
                                             onCheckedChange={(checked) =>
-                                              updPerm.mutate({ memberUserId: id, permission: area.view, granted: checked })
+                                              updPerm.mutate({
+                                                memberUserId: id,
+                                                permission: area.view,
+                                                granted: checked,
+                                              })
                                             }
                                           />
                                         </label>
                                         <label className="flex items-center gap-1.5 shrink-0 pl-2 border-l border-border/60">
-                                          <span className="text-[11px] text-muted-foreground">Editar</span>
+                                          <span className="text-[11px] text-muted-foreground">
+                                            Editar
+                                          </span>
                                           <Switch
                                             checked={locked ? false : editVal}
                                             disabled={updPerm.isPending || locked}
                                             onCheckedChange={(checked) =>
-                                              updPerm.mutate({ memberUserId: id, permission: area.edit, granted: checked })
+                                              updPerm.mutate({
+                                                memberUserId: id,
+                                                permission: area.edit,
+                                                granted: checked,
+                                              })
                                             }
                                           />
                                         </label>
@@ -451,7 +545,8 @@ function EquipePage() {
 
                             {isSelf && (
                               <p className="text-xs text-muted-foreground">
-                                Como titular da conta, você tem acesso total. Permissões são configuradas por membro convidado.
+                                Como titular da conta, você tem acesso total. Permissões são
+                                configuradas por membro convidado.
                               </p>
                             )}
                           </div>
@@ -501,25 +596,37 @@ function EquipePage() {
                 </div>
               )}
               <div className="divide-y divide-border">
-
-                {team.data?.invites?.length === 0 && <div className="text-sm text-muted-foreground py-2">Nenhum convite pendente.</div>}
+                {team.data?.invites?.length === 0 && (
+                  <div className="text-sm text-muted-foreground py-2">Nenhum convite pendente.</div>
+                )}
                 {(team.data?.invites ?? []).map((i) => {
                   const isResending = resend.isPending && resend.variables === (i.id as string);
                   return (
                     <div key={i.id} className="py-3 flex items-center gap-3 flex-wrap">
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium truncate">{i.email as string}</div>
-                        <div className="text-[11px] text-muted-foreground">Expira {new Date(i.expires_at as string).toLocaleDateString("pt-BR")}</div>
+                        <div className="text-[11px] text-muted-foreground">
+                          Expira {new Date(i.expires_at as string).toLocaleDateString("pt-BR")}
+                        </div>
                       </div>
                       <button
                         onClick={() => resend.mutate(i.id as string)}
                         disabled={isResending}
                         className="text-xs px-2 py-1 rounded-md border border-border hover:bg-secondary inline-flex items-center gap-1 disabled:opacity-60"
                       >
-                        {isResending ? <Loader2 className="size-3 animate-spin" /> : <SendIcon className="size-3" />}
+                        {isResending ? (
+                          <Loader2 className="size-3 animate-spin" />
+                        ) : (
+                          <SendIcon className="size-3" />
+                        )}
                         Reenviar
                       </button>
-                      <button onClick={() => revoke.mutate(i.id as string)} className="text-xs px-2 py-1 rounded-md border border-border hover:bg-secondary">Revogar</button>
+                      <button
+                        onClick={() => revoke.mutate(i.id as string)}
+                        className="text-xs px-2 py-1 rounded-md border border-border hover:bg-secondary"
+                      >
+                        Revogar
+                      </button>
                     </div>
                   );
                 })}
@@ -564,17 +671,14 @@ function EquipePage() {
           <AccordionContent className="pb-0">
             <div className="px-4 lg:px-6 pb-5 pt-4 border-t border-border/60">
               <p className="ds-body text-muted-foreground mb-4">
-                Controle fino de área (visualizar ou editar) e de quais imóveis cada pessoa
-                enxerga. O titular da conta sempre tem acesso total.
+                Controle fino de área (visualizar ou editar) e de quais imóveis cada pessoa enxerga.
+                O titular da conta sempre tem acesso total.
               </p>
               <AreaPropertyAccessList />
             </div>
           </AccordionContent>
         </AccordionItem>
       </Accordion>
-
-
-
     </div>
   );
 }
@@ -640,7 +744,13 @@ function AreaPropertyAccessList() {
   }
 
   return (
-    <Accordion type="single" collapsible value={open} onValueChange={setOpen} className="flex flex-col gap-1.5">
+    <Accordion
+      type="single"
+      collapsible
+      value={open}
+      onValueChange={setOpen}
+      className="flex flex-col gap-1.5"
+    >
       {users.map((u) => (
         <AccordionItem
           key={u.userId}

@@ -1,10 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireMemberPermission } from "@/lib/member-permissions.server";
+import { pausePatch, resumePatch } from "@/lib/ai/pause";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   emptyHandoffListResult,
   normalizeHandoffConversationRows,
+  parseDismissEscalationInput,
   parseHandoffConversationInput,
   parseHandoffListInput,
   parseHandoffSendInput,
@@ -81,7 +83,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
       let q = supabase
         .from("property_chat_conversations")
         .select(
-          "id, property_id, guest_session_id, guest_name, status, ai_paused, assigned_to, handoff_reason, handoff_urgency, handoff_at, last_message_at, created_at, resolved_at, properties:property_id(id, name, owner_id, owner_contact_id, slug)",
+          "id, property_id, guest_session_id, guest_name, status, ai_paused, paused_until, assigned_to, handoff_reason, handoff_urgency, handoff_at, last_message_at, created_at, resolved_at, properties:property_id(id, name, owner_id, owner_contact_id, slug)",
         )
         .in("property_id", scopedPropIds)
         .order("handoff_at", { ascending: false, nullsFirst: false })
@@ -523,7 +525,7 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
     const { data: conv, error: cErr } = await supabase
       .from("property_chat_conversations")
       .select(
-        "id, property_id, guest_session_id, guest_name, status, ai_paused, assigned_to, claim_requested_by, claim_requested_at, handoff_reason, handoff_urgency, handoff_at, last_message_at, created_at, resolved_at, properties:property_id(id, name, owner_id, owner_contact_id, slug, city)",
+        "id, property_id, guest_session_id, guest_name, status, ai_paused, paused_until, assigned_to, claim_requested_by, claim_requested_at, handoff_reason, handoff_urgency, handoff_at, last_message_at, created_at, resolved_at, properties:property_id(id, name, owner_id, owner_contact_id, slug, city)",
       )
       .eq("id", data.conversationId)
       .maybeSingle();
@@ -864,9 +866,15 @@ export const claimHandoffConversation = createServerFn({ method: "POST" })
     const { error } = await supabase
       .from("property_chat_conversations")
       .update({
+        // ASSUMIR NÃO SILENCIA MAIS A IA (11/09/2026).
+        //
+        // Aqui era `ai_paused: true` — e como este é o único botão primário da
+        // tela, a IA era calada ANTES de qualquer mensagem ser escrita, por
+        // tempo indeterminado. Assumir passa a significar só o que a palavra
+        // diz: este caso é meu. Silenciar a IA é outra decisão, e acontece
+        // quando o atendente de fato fala direto (ver `sendHandoffMessage`).
         status: "assigned",
         assigned_to: userId,
-        ai_paused: true,
         claim_requested_by: null,
         claim_requested_at: null,
       })
@@ -955,7 +963,7 @@ export const transferHandoffConversation = createServerFn({ method: "POST" })
       .update({
         assigned_to: data.toUserId,
         status: "assigned",
-        ai_paused: true,
+        ...pausePatch(),
         claim_requested_by: null,
         claim_requested_at: null,
       })
@@ -1007,7 +1015,7 @@ export const releaseHandoffConversation = createServerFn({ method: "POST" })
       .update({
         status: "ai",
         assigned_to: null,
-        ai_paused: false,
+        ...resumePatch(),
         handoff_reason: null,
         handoff_at: null,
         handoff_urgency: null,
@@ -1025,17 +1033,92 @@ export const resolveHandoffConversation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(parseHandoffConversationInput)
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+
+    /* PERMISSÃO (11/09/2026). Esta era a ÚNICA função de conversa sem a
+     * verificação — assumir, transferir e reabrir todas têm. Na prática,
+     * qualquer usuário autenticado que enxergasse a conversa pela RLS podia
+     * encerrá-la. Encerrar é uma ação de atendimento como as outras. */
+    await requireChatRespondForConversation(supabase, userId, data.conversationId);
+
+    /* NÃO SE FECHA UMA CONVERSA COM PERGUNTA PENDENTE (11/09/2026).
+     *
+     * `ai_human_escalations` guarda o que a IA perguntou a um humano. Resolver
+     * a conversa não olhava essa fila: a pergunta ficava `pending` para
+     * sempre, e como `pendingHumanAnswers` só lê as `answered`, ela nunca mais
+     * voltava ao raciocínio da IA nem aparecia em lugar nenhum. O hóspede
+     * ficava sem a resposta que ele pediu, e ninguém ficava sabendo.
+     *
+     * Agora o encerramento é bloqueado com uma mensagem que diz o que fazer.
+     * Não é uma trava burocrática: é a diferença entre "resolvido" e
+     * "esquecido". */
+    const { data: pendentes } = await supabase
+      .from("ai_human_escalations")
+      .select("id, question_to_human")
+      .eq("conversation_id", data.conversationId)
+      .eq("status", "pending")
+      .limit(3);
+
+    const fila = (pendentes ?? []) as Array<{ question_to_human: string | null }>;
+    if (fila.length > 0) {
+      const primeira = (fila[0].question_to_human ?? "").trim();
+      const resumo = primeira.length > 120 ? `${primeira.slice(0, 117)}…` : primeira;
+      throw new Error(
+        fila.length === 1
+          ? `A IA está esperando uma resposta sua nesta conversa: "${resumo}". Responda antes de encerrar — ou descarte a pergunta, se ela não fizer mais sentido.`
+          : `A IA está esperando ${fila.length} respostas suas nesta conversa. Responda ou descarte antes de encerrar.`,
+      );
+    }
+
     const { error } = await supabase
       .from("property_chat_conversations")
       .update({
         status: "resolved",
         resolved_at: new Date().toISOString(),
-        ai_paused: false,
+        ...resumePatch(),
         claim_requested_by: null,
         claim_requested_at: null,
       })
       .eq("id", data.conversationId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/**
+ * Descartar uma pergunta que a IA fez e que não faz mais sentido responder.
+ *
+ * Existe porque a trava acima precisa de uma saída honesta: sem ela, uma
+ * pergunta obsoleta ("o hóspede ainda quer o late checkout?" depois de ele já
+ * ter ido embora) prenderia a conversa para sempre. Descartar é registrado
+ * como tal — não some, vira `dismissed` com quem descartou.
+ */
+export const dismissEscalation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(parseDismissEscalationInput)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    const { data: esc } = await supabase
+      .from("ai_human_escalations")
+      .select("id, conversation_id")
+      .eq("id", data.escalationId)
+      .maybeSingle();
+    const linha = esc as { conversation_id: string | null } | null;
+    if (!linha) throw new Error("Pergunta não encontrada.");
+    if (linha.conversation_id) {
+      await requireChatRespondForConversation(supabase, userId, linha.conversation_id);
+    }
+
+    const { error } = await supabase
+      .from("ai_human_escalations")
+      .update({
+        status: "dismissed",
+        human_response: data.reason?.trim() || null,
+        human_user_id: userId,
+        resolved_at: new Date().toISOString(),
+      })
+      .eq("id", data.escalationId)
+      .eq("status", "pending");
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -1053,7 +1136,7 @@ export const reopenHandoffConversation = createServerFn({ method: "POST" })
       .update({
         status: "assigned",
         assigned_to: userId,
-        ai_paused: true,
+        ...pausePatch(),
         resolved_at: null,
         last_message_at: new Date().toISOString(),
       })
@@ -1149,7 +1232,9 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
       await supabase
         .from("property_chat_conversations")
         .update({
-          ai_paused: true,
+          // FALAR DIRETO é o que silencia a IA — e agora com prazo: 30 minutos,
+          // renovados a cada nova mensagem do atendente. Ver `lib/ai/pause.ts`.
+          ...pausePatch(),
           status: "assigned",
           assigned_to: userId,
           last_message_at: new Date().toISOString(),

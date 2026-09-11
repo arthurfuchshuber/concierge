@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-11T02:41:58.872Z";
+export const GENERATED_AT = "2026-09-11T15:05:53.499Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -555,6 +555,33 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ed9ab3243554b00d65ae2ecc079754d5"
   },
   {
+    "doc_key": "rule:ContinuityKind",
+    "kind": "rule",
+    "title": "Regra — ContinuityKind",
+    "content": "AS FRASES DE QUEM NÃO SAI DA CONVERSA (11/09/2026).\n\nRegra do produto, dita por você: \"vocês não têm a opção de transferir para\num humano — têm que conversar com o humano até o fim\". Do ponto de vista do\nhóspede existe UMA pessoa falando com ele, do começo ao fim.\n\nO código contradizia isso em três lugares diferentes, cada um com seu texto:\n\n · `HANDOFF_FALLBACK` (prompts.ts) — \"Consulte as instruções do guia e a\n EQUIPE RESPONSÁVEL seguirá com o atendimento por aqui.\" É literalmente o\n anúncio de transferência que o próprio prompt proíbe na seção IDENTIDADE.\n · `pendingNotice` (escalations.server.ts) — \"Estou confirmando isso com a\n EQUIPE DO ANFITRIÃO\". Mesma quebra, em tom mais gentil.\n · `handoffFallback` (confidence.ts) — esta estava certa no conteúdo, e\n errada no formato: uma frase fixa, repetida a cada ocorrência. Duas\n seguidas e o hóspede percebe o script.\n\nAqui as três viram uma coisa só, com duas decisões deliberadas:\n\n1. NINGUÉM É MENCIONADO. Nem equipe, nem anfitrião, nem atendente, nem\n transferência. \"Vou confirmar\" é verdade — há uma consulta interna real\n acontecendo — e é tudo que o hóspede precisa saber.\n2. VARIAÇÃO DETERMINÍSTICA. Cada tipo tem três formas, escolhidas por uma\n semente que vem da conversa (quantas vezes a IA já falou). Duas\n ocorrências seguidas nunca saem iguais, e a mesma conversa reproduz o\n mesmo texto se for reprocessada — nada de aleatoriedade, que quebraria\n teste e auditoria.",
+    "source_path": "src/lib/ai/continuity.ts",
+    "audience": [],
+    "content_hash": "718e23ddb439b413a51b333ba9e5a4eb"
+  },
+  {
+    "doc_key": "rule:continuityLine",
+    "kind": "rule",
+    "title": "Regra — continuityLine",
+    "content": "A frase de continuidade.\n\n`seed` deve ser algo que MUDA a cada ocorrência dentro da mesma conversa —\no número de mensagens até aqui serve bem. Sem semente, sai sempre a\nprimeira forma, que é a mais curta.",
+    "source_path": "src/lib/ai/continuity.ts",
+    "audience": [],
+    "content_hash": "51871714592a6e5c074e4a1d9c1d069d"
+  },
+  {
+    "doc_key": "rule:continuityVariants",
+    "kind": "rule",
+    "title": "Regra — continuityVariants",
+    "content": "Todas as formas de um tipo — usado pelos testes e por quem precisa checar se\num texto JÁ é uma frase de continuidade (para não empilhar duas).",
+    "source_path": "src/lib/ai/continuity.ts",
+    "audience": [],
+    "content_hash": "9bde4a47e1681e85cc1470c262f145b8"
+  },
+  {
     "doc_key": "rule:contratanteBlock",
     "kind": "rule",
     "title": "Regra — contratanteBlock",
@@ -672,6 +699,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "587d644cd63750935d1cba6ef32c1139"
   },
   {
+    "doc_key": "rule:dismissEscalation",
+    "kind": "rule",
+    "title": "Regra — dismissEscalation",
+    "content": "Descartar uma pergunta que a IA fez e que não faz mais sentido responder.\n\nExiste porque a trava acima precisa de uma saída honesta: sem ela, uma\npergunta obsoleta (\"o hóspede ainda quer o late checkout?\" depois de ele já\nter ido embora) prenderia a conversa para sempre. Descartar é registrado\ncomo tal — não some, vira `dismissed` com quem descartou.",
+    "source_path": "src/lib/handoff.functions.ts",
+    "audience": [],
+    "content_hash": "7d7d795834bd380b222af181b9f64fd2"
+  },
+  {
     "doc_key": "rule:DraftKind",
     "kind": "rule",
     "title": "Regra — DraftKind",
@@ -742,6 +778,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/permissions/permission.engine.ts",
     "audience": [],
     "content_hash": "40d1f8ff9c3906240f7df78ead374be0"
+  },
+  {
+    "doc_key": "rule:EXPLICIT_HUMAN_REQUEST",
+    "kind": "rule",
+    "title": "Regra — EXPLICIT_HUMAN_REQUEST",
+    "content": "Pedido explícito de humano — único gatilho que sempre aciona a consulta\ninterna, em qualquer tema. (A IA continua respondendo: escalar é sobre quem\nDECIDE, não sobre quem fala. Ver o bloco de handoff mais abaixo.)\n\n`tem alguém aí` foi RETIRADO em 11/09/2026. Ele casava com a pergunta mais\ncomum de quem só quer saber se o chat está vivo — \"oi, tem alguém aí?\" — e\ntransformava uma saudação em escalonamento. Nos logs dos últimos 14 dias há\num handoff cujo motivo registrado é, literalmente, \"o hóspede enviou apenas\numa saudação inicial sem uma solicitação específica\". As outras alternativas\njá cobrem o pedido de verdade (\"falar com alguém\", \"quero um atendente\",\n\"chamar o responsável\", \"me transfere\", \"atendimento humano\").\n\nE o ARTIGO passou a ser previsto. A expressão exigia \"falar com\" colado no\nsubstantivo, então a forma mais natural em português — \"quero falar com O\nanfitrião\", \"queria falar com A responsável\" — simplesmente não casava. O\ngatilho de pedido explícito perdia metade dos pedidos explícitos, calado,\ndesde sempre. Encontrado pelo teste desta mesma entrega.",
+    "source_path": "src/lib/ai/orchestrator.server.ts",
+    "audience": [],
+    "content_hash": "24f8039fea65e21c243ac32c3b615f39"
   },
   {
     "doc_key": "rule:falhas",
@@ -987,6 +1032,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "11f231840136917937c3a2ea9d7f0b40"
   },
   {
+    "doc_key": "rule:isPausedNow",
+    "kind": "rule",
+    "title": "Regra — isPausedNow",
+    "content": "A IA está calada AGORA?\n\n`paused_until` nulo com `ai_paused` verdadeiro é pausa sem prazo — o estado\ndas conversas anteriores a esta mudança, preservado de propósito para não\ndevolver de uma vez só conversas que alguém possa estar conduzindo.",
+    "source_path": "src/lib/ai/pause.ts",
+    "audience": [],
+    "content_hash": "0ccdf22e402bc032e0360b20f70c75ff"
+  },
+  {
     "doc_key": "rule:isTodayOrFutureDate",
     "kind": "rule",
     "title": "Regra — isTodayOrFutureDate",
@@ -1057,6 +1111,24 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/site-url.ts",
     "audience": [],
     "content_hash": "8177e0aee0541b4a2939a9293abb6f76"
+  },
+  {
+    "doc_key": "rule:listConversationEscalations",
+    "kind": "rule",
+    "title": "Regra — listConversationEscalations",
+    "content": "As perguntas da IA DESTA conversa — pendentes e as já respondidas.\n\nÉ o que faltava para a regra \"o humano é consultor interno da IA\" existir na\ntela: a fila estava no banco e não tinha por onde ser lida. As respondidas\nvoltam junto porque a decisão do produto (11/09) é mostrar a pergunta nos\ndois lugares — cartão ativo acima do campo enquanto está pendente, e balão\ndiscreto no histórico depois de respondida.",
+    "source_path": "src/lib/ai-supervision.functions.ts",
+    "audience": [],
+    "content_hash": "f7c61e5d65b00e08ba15549ec9e5f2a0"
+  },
+  {
+    "doc_key": "rule:loadAgentHistory",
+    "kind": "rule",
+    "title": "Regra — loadAgentHistory",
+    "content": "O HISTÓRICO QUE A IA LÊ — um jeito só de montar (11/09/2026).\n\n`transcriptAsContent` existia, e mesmo assim o áudio continuava invisível no\nWhatsApp: aquele caminho montava o histórico por conta própria, com\n`.select(\"role, content\")`, sem as colunas da transcrição. Três lugares\nmontavam a mesma coisa à mão (guia, voz ativa e WhatsApp) e o terceiro ficou\npara trás — é o tipo de divergência que ninguém percebe, porque cada arquivo\nestá certo sozinho.\n\nAgora é esta função. Quem precisar de histórico para a IA chama aqui, e um\ncanal novo nasce enxergando áudio sem ninguém lembrar de nada.",
+    "source_path": "src/lib/chat-audio.server.ts",
+    "audience": [],
+    "content_hash": "6ce33995100bd8a6dc87a44673e6e24a"
   },
   {
     "doc_key": "rule:maskDigitsIfLocked",
@@ -1255,6 +1327,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/TaskAttachments.tsx",
     "audience": [],
     "content_hash": "b217301f9e76ab67b8cc8245fd323cea"
+  },
+  {
+    "doc_key": "rule:pendingNotice",
+    "kind": "rule",
+    "title": "Regra — pendingNotice",
+    "content": "Aviso honesto ao hóspede enquanto a consulta interna não volta.\n\nANTES dizia \"com a equipe do anfitrião\" — nomeava um terceiro e, para quem\nlê, isso É a transferência que a regra do produto proíbe. O texto agora vem\nde `continuity.ts`, em primeira pessoa e com variação. Ver o cabeçalho de lá.",
+    "source_path": "src/lib/ai/human-loop/escalations.server.ts",
+    "audience": [],
+    "content_hash": "8829575f5ff1f53ec28e7f61304b4dff"
   },
   {
     "doc_key": "rule:PendingRow",
@@ -1489,6 +1570,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/plan-guard.server.ts",
     "audience": [],
     "content_hash": "45409f955af44f7dfff10b79ad52b439"
+  },
+  {
+    "doc_key": "rule:resolvePause",
+    "kind": "rule",
+    "title": "Regra — resolvePause",
+    "content": "Lê o estado de pausa e, se tiver expirado, LIMPA no banco antes de seguir.\n\nÉ o único ponto que os caminhos de mensagem precisam chamar. Devolve `true`\nquando a IA deve continuar calada.",
+    "source_path": "src/lib/ai/pause.ts",
+    "audience": [],
+    "content_hash": "909b99ece5a78466b420d1ddc08aea40"
   },
   {
     "doc_key": "rule:resolveProfileOwnerId",
@@ -2148,6 +2238,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "5de840274d54a5d2545a7d5a67e1386a"
   },
   {
+    "doc_key": "rule:src/lib/ai-supervision.functions.ts:7079",
+    "kind": "rule",
+    "title": "Regra em ai-supervision.functions.ts",
+    "content": "A RESPOSTA VIRA CANDIDATA A CONHECIMENTO (11/09/2026).\n\nAntes, o único caminho de captura era `sendHandoffMessage` — ou seja, só\naprendia quando o atendente falava DIRETO com o hóspede, e com um filtro\nanti-lixo que era só comprimento (≥15 caracteres), então \"Olá, Luiz,\ntudo bem?\" entrava na fila de revisão. Aqui a captura nasce do lugar\ncerto: uma pergunta objetiva da IA e a decisão que a responde. É o par\npergunta/resposta mais limpo que o sistema produz.\n\nContinua sem escrever em memória: `learnFromHumanAnswer` só cria a\ncandidata, e nada vale antes da sua aprovação.",
+    "source_path": "src/lib/ai-supervision.functions.ts",
+    "audience": [],
+    "content_hash": "775d9b52237a0cebe0fe34b0efda6873"
+  },
+  {
     "doc_key": "rule:src/lib/ai/agents/proactive/engine.server.ts:0",
     "kind": "rule",
     "title": "Regra em engine.server.ts",
@@ -2436,7 +2535,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "d83a74c35e881710671cd72249217e20"
   },
   {
-    "doc_key": "rule:src/lib/ai/orchestrator.server.ts:29377",
+    "doc_key": "rule:src/lib/ai/orchestrator.server.ts:32751",
     "kind": "rule",
     "title": "Regra em orchestrator.server.ts",
     "content": "A RESPOSTA PARCIAL DE UMA ESCALAÇÃO TAMBÉM PASSA PELO VALIDADOR.\n\nO bloco grande acima roda com `!handoffReason`: quando o modelo escala, a\nchecagem anti-alucinação e a autoavaliação eram puladas inteiras e a\nconfiança virava 1 por decreto. Só que o prompt MANDA responder\nparcialmente antes de escalar — então justamente o texto entregue no\nmomento mais delicado era o único que ninguém revisava.\n\nFoi assim que saiu, para um hóspede que perguntou em que apartamento\nestava, um \"não consegui localizar sua reserva\" que o contexto\ndesmentia (08/09/2026). A checagem é barata perto do estrago.\n\nReprovado, o texto não é remendado: cai para uma frase curta e honesta.\nQuem continua a conversa é a pessoa que recebeu a escalação.",
@@ -2445,7 +2544,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "6421e59807ab173ca9d54a11e289e332"
   },
   {
-    "doc_key": "rule:src/lib/ai/orchestrator.server.ts:4312",
+    "doc_key": "rule:src/lib/ai/orchestrator.server.ts:4350",
     "kind": "rule",
     "title": "Regra em orchestrator.server.ts",
     "content": "Opções curtas de resposta rápida (botões) — [] quando a resposta não é\numa pergunta de múltipla escolha. O hóspede sempre pode digitar livre.",
@@ -2454,7 +2553,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "b363c30ad7d651fa7ca1b6cfc775680f"
   },
   {
-    "doc_key": "rule:src/lib/ai/orchestrator.server.ts:5535",
+    "doc_key": "rule:src/lib/ai/orchestrator.server.ts:6678",
     "kind": "rule",
     "title": "Regra em orchestrator.server.ts",
     "content": "Datas da reserva — usadas para vincular o roteiro (itinerário) à\nRESERVA, não ao hóspede individual: mais de uma pessoa pode estar\nconversando sobre a mesma reserva (casal, cada um pelo próprio\ncelular), e todos precisam ver o mesmo roteiro compartilhado.",
@@ -2470,6 +2569,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/ai/outbound/speak.server.ts",
     "audience": [],
     "content_hash": "38484e62833bcf4d6da308efc1550f97"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/pause.ts:0",
+    "kind": "rule",
+    "title": "Regra em pause.ts",
+    "content": "A PAUSA DA IA — uma regra só, um lugar só (11/09/2026).\n\nAntes disto, \"pausar\" era escrever `ai_paused: true` em seis lugares\ndiferentes (assumir, transferir, reabrir, mandar mensagem, anexar arquivo,\nenviar WhatsApp) e \"despausar\" era outra pessoa lembrar de clicar. Nenhum\ndeles tinha prazo. O resultado está no banco: conversa pausada desde 10/09\nporque alguém clicou em \"Assumir\" e a vida seguiu. E como conversa pausada\nnunca volta para a IA — nem quando o hóspede escreve de novo — o hóspede\nseguinte fala com o silêncio.\n\nA regra, decidida com o produto:\n\n · falar DIRETO com o hóspede pausa a IA por 30 minutos;\n · cada nova mensagem do atendente renova os 30 minutos, então uma conversa\n longa nunca é interrompida no meio;\n · passou o prazo, a IA volta sozinha — sem cron, sem ninguém clicar;\n · \"Devolver agora\" continua valendo a qualquer momento;\n · ASSUMIR a conversa não pausa nada. Assumir é dizer \"esse caso é meu\";\n silenciar a IA é outra decisão, e só acontece quando você de fato fala.\n\nA expiração é PREGUIÇOSA: lida no momento em que a conversa é usada. Não há\njanela em que o banco diga \"pausada\" e o código pense o contrário, e não há\num relógio novo para alguém esquecer de agendar — erro que este projeto já\ncometeu três vezes.",
+    "source_path": "src/lib/ai/pause.ts",
+    "audience": [],
+    "content_hash": "f5bf6f67aa1caf58857c51770550fcf9"
   },
   {
     "doc_key": "rule:src/lib/ai/planner.server.ts:0",

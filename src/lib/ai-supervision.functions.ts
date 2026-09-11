@@ -37,19 +37,55 @@ export const listPendingEscalations = createServerFn({ method: "GET" })
     return data ?? [];
   });
 
+/**
+ * As perguntas da IA DESTA conversa — pendentes e as já respondidas.
+ *
+ * É o que faltava para a regra "o humano é consultor interno da IA" existir na
+ * tela: a fila estava no banco e não tinha por onde ser lida. As respondidas
+ * voltam junto porque a decisão do produto (11/09) é mostrar a pergunta nos
+ * dois lugares — cartão ativo acima do campo enquanto está pendente, e balão
+ * discreto no histórico depois de respondida.
+ */
+export const listConversationEscalations = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { conversationId: string }) => {
+    if (!input?.conversationId) throw new Error("conversationId obrigatório");
+    return { conversationId: input.conversationId };
+  })
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await context.supabase
+      .from("ai_human_escalations")
+      .select(
+        "id, conversation_id, agent_type, reason, trigger, question_to_human, human_response, status, applied_to_guest, created_at, resolved_at",
+      )
+      .eq("conversation_id", data.conversationId)
+      .in("status", ["pending", "answered", "dismissed"])
+      .order("created_at", { ascending: true })
+      .limit(20);
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });
+
 /** Resposta humana à dúvida da IA — vira verdade absoluta na conversa. */
 export const answerEscalation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { escalationId: string; answer: string }) => {
+  .inputValidator((input: { escalationId: string; answer: string; saveAsKnowledge?: boolean }) => {
     if (!input?.escalationId) throw new Error("escalationId obrigatório");
     const answer = String(input.answer ?? "").trim();
     if (!answer) throw new Error("Resposta obrigatória");
-    return { escalationId: input.escalationId, answer: answer.slice(0, 2000) };
+    return {
+      escalationId: input.escalationId,
+      answer: answer.slice(0, 2000),
+      // Marcado por padrão (decisão de produto, 11/09): a IA aprende sozinha e
+      // o atendente desmarca quando for caso isolado. Nada entra na memória
+      // sem a aprovação na tela de conhecimento — isto só cria a candidata.
+      saveAsKnowledge: input.saveAsKnowledge !== false,
+    };
   })
   .handler(async ({ data, context }) => {
     const { data: esc, error: readErr } = await context.supabase
       .from("ai_human_escalations")
-      .select("id, conversation_id, question_to_human")
+      .select("id, conversation_id, question_to_human, owner_id, property_id, agent_type")
       .eq("id", data.escalationId)
       .maybeSingle();
     if (readErr) throw new Error(readErr.message);
@@ -108,7 +144,49 @@ export const answerEscalation = createServerFn({ method: "POST" })
       }
     }
 
-    return { ok: true, entregue };
+    /**
+     * A RESPOSTA VIRA CANDIDATA A CONHECIMENTO (11/09/2026).
+     *
+     * Antes, o único caminho de captura era `sendHandoffMessage` — ou seja, só
+     * aprendia quando o atendente falava DIRETO com o hóspede, e com um filtro
+     * anti-lixo que era só comprimento (≥15 caracteres), então "Olá, Luiz,
+     * tudo bem?" entrava na fila de revisão. Aqui a captura nasce do lugar
+     * certo: uma pergunta objetiva da IA e a decisão que a responde. É o par
+     * pergunta/resposta mais limpo que o sistema produz.
+     *
+     * Continua sem escrever em memória: `learnFromHumanAnswer` só cria a
+     * candidata, e nada vale antes da sua aprovação.
+     */
+    let aprendizado: string | null = null;
+    const e = esc as {
+      owner_id?: string | null;
+      property_id?: string | null;
+      agent_type?: string | null;
+      question_to_human?: string | null;
+    } | null;
+    if (data.saveAsKnowledge && e?.owner_id) {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { learnFromHumanAnswer } = await import("./ai/human-loop/learning.server");
+        const r = await learnFromHumanAnswer({
+          supabase: supabaseAdmin,
+          ownerId: String(e.owner_id),
+          propertyId: e.property_id ?? null,
+          escalationId: data.escalationId,
+          conversationId: conversationId ?? null,
+          agent: e.agent_type ?? undefined,
+          question: e.question_to_human ?? "",
+          humanAnswer: data.answer,
+        });
+        aprendizado = r.candidateId;
+      } catch (err) {
+        // Aprender é enriquecimento: falhar aqui não desfaz a resposta ao
+        // hóspede, que é o que importa neste momento.
+        console.error("[supervision] captura de conhecimento falhou", (err as Error)?.message);
+      }
+    }
+
+    return { ok: true, entregue, aprendizado };
   });
 
 /** Conhecimento destilado aguardando aprovação humana. */

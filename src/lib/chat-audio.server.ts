@@ -83,6 +83,62 @@ export async function transcribeChatAttachment(
  * texto digitado foi exatamente o que produziu o "Passou de ligar a mensagem"
  * virando uma afirmação confiante e errada (auditoria de 10/09).
  */
+/**
+ * O HISTÓRICO QUE A IA LÊ — um jeito só de montar (11/09/2026).
+ *
+ * `transcriptAsContent` existia, e mesmo assim o áudio continuava invisível no
+ * WhatsApp: aquele caminho montava o histórico por conta própria, com
+ * `.select("role, content")`, sem as colunas da transcrição. Três lugares
+ * montavam a mesma coisa à mão (guia, voz ativa e WhatsApp) e o terceiro ficou
+ * para trás — é o tipo de divergência que ninguém percebe, porque cada arquivo
+ * está certo sozinho.
+ *
+ * Agora é esta função. Quem precisar de histórico para a IA chama aqui, e um
+ * canal novo nasce enxergando áudio sem ninguém lembrar de nada.
+ */
+export async function loadAgentHistory(
+  admin: { from: (t: string) => never } | unknown,
+  conversationId: string,
+  limit = 20,
+): Promise<Array<{ role: string; content: string }>> {
+  const client = admin as {
+    from: (t: string) => {
+      select: (cols: string) => {
+        eq: (
+          c: string,
+          v: string,
+        ) => {
+          order: (
+            c: string,
+            o: { ascending: boolean },
+          ) => { limit: (n: number) => Promise<{ data: unknown }> };
+        };
+      };
+    };
+  };
+
+  const { data } = await client
+    .from("property_chat_messages")
+    .select("role, content, attachment_type, attachment_transcript, attachment_duration_ms")
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  return ((data ?? []) as Array<Record<string, unknown>>)
+    .filter((m) => m.role === "user" || m.role === "assistant")
+    .reverse()
+    .map((m) => ({
+      role: String(m.role),
+      content: transcriptAsContent({
+        content: (m.content as string | null) ?? null,
+        attachmentType: (m.attachment_type as string | null) ?? null,
+        transcript: (m.attachment_transcript as string | null) ?? null,
+        durationMs: (m.attachment_duration_ms as number | null) ?? null,
+      }),
+    }))
+    .filter((m) => m.content.trim().length > 0);
+}
+
 export function transcriptAsContent(params: {
   content: string | null;
   attachmentType: string | null;

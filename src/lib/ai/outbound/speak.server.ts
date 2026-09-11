@@ -87,7 +87,7 @@ export async function speakToGuest(params: {
 
   const { data: conv } = await params.supabase
     .from("property_chat_conversations")
-    .select("id, ai_paused, property_id")
+    .select("id, ai_paused, paused_until, property_id")
     .eq("id", params.conversationId)
     .maybeSingle();
   if (!conv) return { sent: false, skipped: "no_conversation" };
@@ -95,7 +95,15 @@ export async function speakToGuest(params: {
   // Humano no comando: a IA não fala por cima. A exceção é a entrega da
   // resposta que o próprio atendente acabou de dar — ali ele PEDIU que ela
   // falasse.
-  if ((conv as { ai_paused?: boolean }).ai_paused && params.reason !== "human_answer") {
+  // A pausa expira sozinha: uma conversa silenciada às 14h volta a receber voz
+  // ativa às 14h30, sem ninguém clicar. Ver `lib/ai/pause.ts`.
+  const { resolvePause } = await import("@/lib/ai/pause");
+  const humanoNoComando = await resolvePause(
+    params.supabase,
+    params.conversationId,
+    conv as { ai_paused?: boolean | null; paused_until?: string | null },
+  );
+  if (humanoNoComando && params.reason !== "human_answer") {
     return { sent: false, skipped: "ai_paused" };
   }
 
@@ -194,27 +202,10 @@ export async function speakWithAgent(params: {
     .maybeSingle();
   if (!prop) return { sent: false, skipped: "no_conversation" };
 
-  const { data: priorRaw } = await params.supabase
-    .from("property_chat_messages")
-    .select("role, content, attachment_type, attachment_transcript, attachment_duration_ms")
-    .eq("conversation_id", params.conversationId)
-    .order("created_at", { ascending: false })
-    .limit(20);
-
-  const { transcriptAsContent } = await import("@/lib/chat-audio.server");
-  const history = ((priorRaw ?? []) as Array<Record<string, unknown>>)
-    .filter((m) => m.role === "user" || m.role === "assistant")
-    .reverse()
-    .map((m) => ({
-      role: String(m.role),
-      content: transcriptAsContent({
-        content: (m.content as string | null) ?? null,
-        attachmentType: (m.attachment_type as string | null) ?? null,
-        transcript: (m.attachment_transcript as string | null) ?? null,
-        durationMs: (m.attachment_duration_ms as number | null) ?? null,
-      }),
-    }))
-    .filter((m) => m.content.trim().length > 0);
+  // Mesmo histórico que o guia e o WhatsApp leem — inclusive as transcrições
+  // de áudio. Um jeito só de montar (ver `loadAgentHistory`).
+  const { loadAgentHistory } = await import("@/lib/chat-audio.server");
+  const history = await loadAgentHistory(params.supabase, params.conversationId, 20);
 
   let text = "";
   try {

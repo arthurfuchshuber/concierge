@@ -74,7 +74,10 @@ export async function extractKnowledge(input: ExtractionInput): Promise<Learning
     ]);
 
     const raw = Array.isArray(data?.candidates) ? data!.candidates! : [];
-    return raw.map(normalizeDraft).filter((c): c is LearningCandidateDraft => !!c).slice(0, 3);
+    return raw
+      .map(normalizeDraft)
+      .filter((c): c is LearningCandidateDraft => !!c)
+      .slice(0, 3);
   } catch (err) {
     console.error("[learning:extraction] falhou", err);
     return [];
@@ -85,13 +88,17 @@ function normalizeDraft(row: Record<string, unknown>): LearningCandidateDraft | 
   const info = String(row["extractedInformation"] ?? "").trim();
   if (info.length < 10) return null;
 
-  const learningType = (LEARNING_TYPES.includes(row["learningType"] as LearningType)
-    ? row["learningType"]
-    : "property_rule") as LearningType;
+  const learningType = (
+    LEARNING_TYPES.includes(row["learningType"] as LearningType)
+      ? row["learningType"]
+      : "property_rule"
+  ) as LearningType;
 
-  let scope = (SUGGESTED_SCOPES.includes(row["suggestedScope"] as SuggestedScope)
-    ? row["suggestedScope"]
-    : "property") as SuggestedScope;
+  let scope = (
+    SUGGESTED_SCOPES.includes(row["suggestedScope"] as SuggestedScope)
+      ? row["suggestedScope"]
+      : "property"
+  ) as SuggestedScope;
 
   const memoryKind = String(row["memoryKind"] ?? "operational_rule");
   // Exceção pontual jamais vira regra permanente.
@@ -100,7 +107,14 @@ function normalizeDraft(row: Record<string, unknown>): LearningCandidateDraft | 
   if (memoryKind === "guest_preference" && scope !== "reservation") scope = "property";
 
   const ttlRaw = Number(row["ttlDays"]);
-  const ttlDays = scope === "temporary_exception" ? (Number.isFinite(ttlRaw) && ttlRaw > 0 ? ttlRaw : 7) : Number.isFinite(ttlRaw) && ttlRaw > 0 ? ttlRaw : null;
+  const ttlDays =
+    scope === "temporary_exception"
+      ? Number.isFinite(ttlRaw) && ttlRaw > 0
+        ? ttlRaw
+        : 7
+      : Number.isFinite(ttlRaw) && ttlRaw > 0
+        ? ttlRaw
+        : null;
 
   return {
     learningType,
@@ -122,15 +136,21 @@ async function loadTranscript(
 ): Promise<Array<{ role: string; text: string }>> {
   const out: Array<{ role: string; text: string }> = [];
   try {
+    // COLUNAS CERTAS (11/09/2026). Estava `select("role, content")` — e em
+    // `ai_messages` essas colunas não existem: são `sender_type` e
+    // `message_content`. O PostgREST devolvia erro e `data` nulo, sempre. Como
+    // logo abaixo há um fallback para `property_chat_messages`, o aprendizado
+    // continuava funcionando e ninguém percebia: uma consulta morta gastando
+    // uma ida ao banco a cada conversa analisada, desde sempre.
     const { data } = await supabase
       .from("ai_messages")
-      .select("role, content, created_at")
+      .select("sender_type, message_content, created_at")
       .eq("conversation_id", conversationId)
       .order("created_at", { ascending: true })
       .limit(60);
     for (const r of (data ?? []) as Array<Record<string, unknown>>) {
-      const text = String(r.content ?? "").trim();
-      if (text) out.push({ role: String(r.role ?? "guest"), text: text.slice(0, 800) });
+      const text = String(r.message_content ?? "").trim();
+      if (text) out.push({ role: String(r.sender_type ?? "guest"), text: text.slice(0, 800) });
     }
   } catch {
     /* ignorado */
@@ -138,14 +158,25 @@ async function loadTranscript(
   if (out.length) return out;
 
   try {
+    // O que foi FALADO também é material de aprendizado: sem a transcrição,
+    // uma decisão combinada por áudio (o caso da Izabela, 10/09) nunca vira
+    // conhecimento, porque mensagem de áudio grava `content` vazio.
+    const { transcriptAsContent } = await import("@/lib/chat-audio.server");
     const { data } = await supabase
       .from("property_chat_messages")
-      .select("sender_type, content, created_at")
+      .select(
+        "sender_type, content, attachment_type, attachment_transcript, attachment_duration_ms, created_at",
+      )
       .eq("conversation_id", conversationId)
       .order("created_at", { ascending: true })
       .limit(60);
     for (const r of (data ?? []) as Array<Record<string, unknown>>) {
-      const text = String(r.content ?? "").trim();
+      const text = transcriptAsContent({
+        content: (r.content as string | null) ?? null,
+        attachmentType: (r.attachment_type as string | null) ?? null,
+        transcript: (r.attachment_transcript as string | null) ?? null,
+        durationMs: (r.attachment_duration_ms as number | null) ?? null,
+      }).trim();
       if (text) out.push({ role: String(r.sender_type ?? "guest"), text: text.slice(0, 800) });
     }
   } catch {

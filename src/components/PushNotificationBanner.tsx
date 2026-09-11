@@ -14,7 +14,9 @@ export function PushNotificationBanner() {
       if (typeof window === "undefined") return;
       try {
         if (localStorage.getItem(DISMISS_KEY) === "1") return;
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
       if (!isPushSupported()) return;
       if (typeof Notification !== "undefined" && Notification.permission === "denied") return;
       const sub = await currentPushSubscription().catch(() => null);
@@ -24,7 +26,11 @@ export function PushNotificationBanner() {
   }, []);
 
   function dismiss() {
-    try { localStorage.setItem(DISMISS_KEY, "1"); } catch { /* ignore */ }
+    try {
+      localStorage.setItem(DISMISS_KEY, "1");
+    } catch {
+      /* ignore */
+    }
     setVisible(false);
   }
 
@@ -33,7 +39,8 @@ export function PushNotificationBanner() {
     try {
       // iOS Chrome/Safari fora do modo standalone não suporta push
       const nav = window.navigator as Navigator & { standalone?: boolean };
-      const standalone = nav.standalone || window.matchMedia?.("(display-mode: standalone)").matches;
+      const standalone =
+        nav.standalone || window.matchMedia?.("(display-mode: standalone)").matches;
       const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
       if (isIOS && !standalone) {
         toast.info("No iPhone, adicione o app à Tela de Início para receber notificações.");
@@ -43,8 +50,15 @@ export function PushNotificationBanner() {
       if (res.ok) {
         toast.success("Notificações ativadas!");
         dismiss();
+      } else if (res.reason === "dismissed") {
+        // Só fechou o aviso do navegador: é um toque a mais, não um problema.
+        toast.info("Toque em Ativar de novo e escolha Permitir na caixinha do navegador.");
       } else if (res.reason === "denied") {
-        toast.error("Permissão negada pelo navegador.");
+        // Aqui sim está bloqueado para este site — e a saída não é óbvia.
+        toast.error(
+          "Este site está bloqueado para notificações. Toque no cadeado ao lado do endereço → Permissões → Notificações → Permitir.",
+          { duration: 9000 },
+        );
       } else if (res.reason === "unsupported") {
         toast.error("Navegador não suporta notificações push.");
       } else {

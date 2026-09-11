@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { SITE_ORIGIN } from "@/lib/site-url";
+import { pausePatch } from "@/lib/ai/pause";
 
 // Public shape (safe to expose to client): no token.
 export type WhatsappConfigPublic = {
@@ -249,7 +250,7 @@ export const sendWhatsappFromConversation = createServerFn({ method: "POST" })
     await supabase
       .from("property_chat_conversations")
       .update({
-        ai_paused: true,
+        ...pausePatch(),
         status: "assigned",
         assigned_to: userId,
         last_message_at: new Date().toISOString(),
