@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { track } from "@/lib/trail";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
@@ -19,6 +20,7 @@ import { CATEGORY_BY_KEY } from "@/components/dashboard/record-categories";
 import {
   RECORD_TITLE_MAX,
   SITUATION_MEDIA_MAX,
+  appendSituationMedia,
   createRecordSituation,
   transcribeRecordAudio,
   type RecordCategory,
@@ -206,6 +208,7 @@ export function RecordSituationSheet({
   onSaved: () => void;
 }) {
   const createFn = useServerFn(createRecordSituation);
+  const appendFn = useServerFn(appendSituationMedia);
   const meta = CATEGORY_BY_KEY.get(category);
   const requiresTitle = !!meta?.createsTask;
 
@@ -213,6 +216,10 @@ export function RecordSituationSheet({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
+  /** Quantos arquivos já foram resolvidos (subiram ou falharam) — o hóspede
+   *  do outro lado da tela precisa ver que algo está acontecendo, senão ele
+   *  troca de aba e o envio morre. */
+  const [progresso, setProgresso] = useState<{ feitos: number; total: number } | null>(null);
 
   const photoRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
@@ -271,24 +278,27 @@ export function RecordSituationSheet({
   async function save() {
     if (!canSave) return;
     setSaving(true);
+    setProgresso(items.length ? { feitos: 0, total: items.length } : null);
+
+    /* SALVAR PRIMEIRO, SUBIR DEPOIS — UMA MÍDIA POR VEZ (11/09/2026).
+     *
+     * O que havia aqui: um laço que subia TODOS os arquivos e, só no fim,
+     * gravava a situação. Um vídeo de auditoria tem 30-55 MB; a faxineira está
+     * no imóvel, em rede móvel, e sai do navegador para gravar cada um. Quando
+     * o celular mata a aba durante o envio — e mata —, TUDO se perde: os
+     * arquivos que já tinham subido ficavam órfãos no armazenamento, o texto
+     * evaporava, ela não via erro nenhum e nós não víamos rastro nenhum.
+     *
+     * Aconteceu de verdade em 11/09: seis arquivos selecionados em duas
+     * tentativas, ZERO registros criados, nenhuma mensagem de erro.
+     *
+     * Agora: a situação nasce primeiro, com o texto — que é o que custa a
+     * digitar e não custa nada para enviar. Depois cada arquivo sobe e se
+     * junta a ela na hora. Morrendo no meio, o que já subiu está registrado e
+     * aparece na tela; ela reabre e manda só o que faltou.
+     */
     try {
-      const folder = target.logId ?? target.reservationId;
-      const media = [];
-      for (const it of items) {
-        const path = `${propertyId}/${folder}/${crypto.randomUUID()}.${extFor(it.kind, it.mime)}`;
-        const { error } = await supabase.storage
-          .from("reservation-records")
-          .upload(path, it.blob, { contentType: it.mime, upsert: false });
-        if (error) throw new Error(error.message);
-        media.push({
-          path,
-          kind: it.kind,
-          mime: it.mime,
-          sizeBytes: it.blob.size,
-          durationMs: it.durationMs,
-        });
-      }
-      const res = await createFn({
+      const criada = await createFn({
         data: {
           propertyId,
           logId: target.logId,
@@ -297,17 +307,99 @@ export function RecordSituationSheet({
           category,
           title: title.trim() || null,
           description: description.trim() || null,
-          media,
+          media: [],
+          pendingMedia: items.length,
         },
       });
-      toast.success(
-        res?.taskCreated ? "Situação registrada e pendência aberta." : "Situação registrada.",
-      );
+      const groupId = (criada as { groupId?: string })?.groupId;
+      if (!groupId) throw new Error("Não consegui abrir o registro.");
+
+      // A tela fica acesa enquanto sobe: com a aba em segundo plano o sistema
+      // operacional mata o envio muito mais cedo.
+      let lock: { release: () => Promise<void> } | null = null;
+      try {
+        const wl = (
+          navigator as Navigator & {
+            wakeLock?: { request: (t: "screen") => Promise<{ release: () => Promise<void> }> };
+          }
+        ).wakeLock;
+        lock = wl ? await wl.request("screen") : null;
+      } catch {
+        /* sem wake lock o envio continua, só fica mais frágil */
+      }
+
+      const folder = target.logId ?? target.reservationId;
+      let enviados = 0;
+      const falharam: string[] = [];
+
+      for (const it of items) {
+        try {
+          const path = `${propertyId}/${folder}/${crypto.randomUUID()}.${extFor(it.kind, it.mime)}`;
+          const { error } = await supabase.storage
+            .from("reservation-records")
+            .upload(path, it.blob, { contentType: it.mime, upsert: false });
+          if (error) throw new Error(error.message);
+          await appendFn({
+            data: {
+              groupId,
+              propertyId,
+              path,
+              kind: it.kind,
+              mime: it.mime,
+              sizeBytes: it.blob.size,
+              durationMs: it.durationMs,
+            },
+          });
+          enviados += 1;
+        } catch (e) {
+          falharam.push(it.name || it.kind);
+          /* A FALHA DEIXA RASTRO (11/09/2026).
+           *
+           * O envio anterior falhava em silêncio: nenhum erro no servidor,
+           * nenhum evento, nada. Só descobrimos porque a equipe reclamou e eu
+           * fui cavar o banco. Agora cada arquivo que não sobe vira um evento
+           * com tamanho e tipo — se acontecer de novo, aparece sozinho. */
+          track({
+            type: "record_media_failed",
+            label: "Falha ao enviar mídia de situação",
+            category: "ERROR",
+            severity: "error",
+            metadata: {
+              kind: it.kind,
+              mime: it.mime,
+              sizeBytes: it.blob.size,
+              propertyId,
+              groupId,
+              message: (e as Error)?.message?.slice(0, 200) ?? null,
+            },
+          });
+        }
+        setProgresso({ feitos: enviados + falharam.length, total: items.length });
+      }
+
+      await lock?.release().catch(() => {});
+
+      if (falharam.length && enviados === 0 && items.length > 0) {
+        toast.error(
+          "O registro foi salvo, mas nenhum arquivo subiu. Abra a situação e tente enviar de novo.",
+        );
+      } else if (falharam.length) {
+        toast.warning(
+          `Situação registrada com ${enviados} de ${items.length} arquivos. Faltou: ${falharam.join(", ")}.`,
+        );
+      } else {
+        toast.success(
+          (criada as { taskCreated?: boolean })?.taskCreated
+            ? "Situação registrada e pendência aberta."
+            : "Situação registrada.",
+        );
+      }
       onSaved();
       onOpenChange(false);
     } catch (e) {
       toast.error((e as Error).message || "Não consegui registrar a situação.");
     } finally {
+      setProgresso(null);
       setSaving(false);
     }
   }
@@ -487,9 +579,18 @@ export function RecordSituationSheet({
             className="inline-flex items-center gap-1.5 rounded-[0.3rem] bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] px-3.5 py-2 text-[12px] font-bold text-white disabled:from-muted disabled:to-muted disabled:text-muted-foreground"
           >
             {saving && <Loader2 className="size-3.5 animate-spin" />}
-            Registrar situação
+            {progresso
+              ? `Enviando ${Math.min(progresso.feitos + 1, progresso.total)} de ${progresso.total}…`
+              : "Registrar situação"}
           </button>
         </div>
+        {/* Enquanto sobe, o pior inimigo é a pessoa trocar de aba: o sistema
+            operacional mata o envio. O aviso existe para segurá-la aqui. */}
+        {progresso && (
+          <p className="border-t border-border/60 bg-amber-500/[0.07] px-3.5 py-2 text-center text-[11px] leading-snug text-amber-600 dark:text-amber-400">
+            Enviando os arquivos — mantenha esta tela aberta. O texto já está salvo.
+          </p>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-11T15:53:09.691Z";
+export const GENERATED_AT = "2026-09-11T16:14:47.120Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -283,6 +283,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
     "content_hash": "aa559bfb5c318579be22dfd7ffd8c016"
+  },
+  {
+    "doc_key": "rule:appendSituationMedia",
+    "kind": "rule",
+    "title": "Regra — appendSituationMedia",
+    "content": "ANEXA UMA MÍDIA A UMA SITUAÇÃO QUE JÁ EXISTE (11/09/2026).\n\nÉ a segunda metade da correção descrita em `pendingMedia`: a tela grava a\nsituação primeiro e chama esta função UMA VEZ POR ARQUIVO, conforme cada\nupload termina. Se o celular matar a aba no terceiro vídeo, os dois\nprimeiros já estão registrados e visíveis — em vez de tudo evaporar.\n\nNão cria pendência: a tarefa, quando existe, já nasceu com a situação. Herda\ncategoria, reserva e modo do cartão da linha principal, para que um anexo\nnunca possa cair num lugar diferente do resto do grupo.",
+    "source_path": "src/lib/reservation-records.functions.ts",
+    "audience": [],
+    "content_hash": "a9e26dae0c2ca4bd8fa88b024cfa4de9"
   },
   {
     "doc_key": "rule:AreaGate",
@@ -2085,6 +2094,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1b50fd69dd824cce84da89a6a3bd6fb7"
   },
   {
+    "doc_key": "rule:src/components/dashboard/RecordSituationSheet.tsx:7258",
+    "kind": "rule",
+    "title": "Regra em RecordSituationSheet.tsx",
+    "content": "Quantos arquivos já foram resolvidos (subiram ou falharam) — o hóspede\n do outro lado da tela precisa ver que algo está acontecendo, senão ele\n troca de aba e o envio morre.",
+    "source_path": "src/components/dashboard/RecordSituationSheet.tsx",
+    "audience": [],
+    "content_hash": "5a43fe0e13d2e310b0e8f325a6d0a0f5"
+  },
+  {
     "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:10148",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
@@ -3138,7 +3156,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8df8468b519bbea9643ac2223113b3c4"
   },
   {
-    "doc_key": "rule:src/lib/reservation-records.functions.ts:32790",
+    "doc_key": "rule:src/lib/reservation-records.functions.ts:36396",
     "kind": "rule",
     "title": "Regra em reservation-records.functions.ts",
     "content": "IDENTIDADE DA RESERVA — é por ela que a aba agrupa os registros no filtro\n\"Todos\". Vem de `guide_access_logs` (formulário do hóspede: nome, código\ne as duas datas) e, quando o registro só tem `reservation_id`, do próprio\n`property_reservations` (iCal: só a dica de nome e as datas).\n\n`reservationKey` vazio = registro preso apenas ao imóvel ou a uma\npendência. Esses caem no grupo \"Sem reserva\" — nada some.",
@@ -3147,7 +3165,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "23b7afe5ab85d98754e9b12e37d1bd4a"
   },
   {
-    "doc_key": "rule:src/lib/reservation-records.functions.ts:33400",
+    "doc_key": "rule:src/lib/reservation-records.functions.ts:37006",
     "kind": "rule",
     "title": "Regra em reservation-records.functions.ts",
     "content": "TODAS as mídias da situação, em ordem cronológica — a própria incluída.\nUma situação com quatro fotos é UMA linha na tela com quatro mídias\ndentro, não quatro linhas (ver `createRecordSituation`).",

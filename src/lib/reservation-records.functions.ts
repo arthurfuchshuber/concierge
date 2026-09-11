@@ -493,11 +493,21 @@ export const createRecordSituation = createServerFn({ method: "POST" })
         title: z.string().trim().max(RECORD_TITLE_MAX).optional().nullable(),
         description: z.string().trim().max(4000).optional().nullable(),
         media: z.array(SituationMedia).max(SITUATION_MEDIA_MAX),
+        /* Quantas mídias ainda vão subir depois desta chamada.
+         *
+         * Existe por causa de 11/09/2026: a tela subia TODOS os arquivos e só
+         * então gravava. Uma faxineira selecionou seis vídeos ao longo do dia,
+         * em duas tentativas, e o celular matou a aba no meio do envio das duas
+         * vezes — resultado: zero arquivos no servidor, zero registros, nenhum
+         * erro para ela e nenhum rastro para nós. Agora a situação nasce
+         * primeiro, com o texto, e cada arquivo se junta a ela conforme sobe
+         * (ver `appendSituationMedia`). Morrendo no meio, o que já subiu fica. */
+        pendingMedia: z.number().int().min(0).max(SITUATION_MEDIA_MAX).optional(),
       })
       .refine((v) => !!v.logId || !!v.reservationId, {
         message: "Informe a reserva ou o registro do hóspede.",
       })
-      .refine((v) => v.media.length > 0 || !!(v.title ?? "").trim(), {
+      .refine((v) => v.media.length > 0 || (v.pendingMedia ?? 0) > 0 || !!(v.title ?? "").trim(), {
         message: "Uma situação precisa de pelo menos uma mídia ou um título.",
       })
       // TÍTULO OBRIGATÓRIO SÓ NAS PENDÊNCIAS (decisão do cliente, 10/09/2026):
@@ -560,6 +570,81 @@ export const createRecordSituation = createServerFn({ method: "POST" })
     const { error } = await supabase.from("reservation_records").insert(rows);
     if (error) throw new Error(error.message);
     return { ok: true, taskCreated: !!taskId, fileName, groupId };
+  });
+
+/**
+ * ANEXA UMA MÍDIA A UMA SITUAÇÃO QUE JÁ EXISTE (11/09/2026).
+ *
+ * É a segunda metade da correção descrita em `pendingMedia`: a tela grava a
+ * situação primeiro e chama esta função UMA VEZ POR ARQUIVO, conforme cada
+ * upload termina. Se o celular matar a aba no terceiro vídeo, os dois
+ * primeiros já estão registrados e visíveis — em vez de tudo evaporar.
+ *
+ * Não cria pendência: a tarefa, quando existe, já nasceu com a situação. Herda
+ * categoria, reserva e modo do cartão da linha principal, para que um anexo
+ * nunca possa cair num lugar diferente do resto do grupo.
+ */
+export const appendSituationMedia = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        groupId: z.string().uuid(),
+        propertyId: z.string().uuid(),
+        path: z.string().min(3).max(500),
+        kind: z.enum(["photo", "video", "audio", "file"]),
+        mime: z.string().min(1).max(150),
+        sizeBytes: z.number().int().nonnegative(),
+        durationMs: z.number().int().nonnegative().optional().nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase as unknown as AnyClient;
+    if (!data.path.startsWith(`${data.propertyId}/`)) {
+      throw new Error("Caminho de anexo inválido.");
+    }
+
+    // A linha principal do grupo é a fonte de verdade do contexto. Lê pelo
+    // client do usuário: o RLS já decide se ele pode enxergar aquele registro.
+    const { data: principal, error: readErr } = await supabase
+      .from("reservation_records")
+      .select("id, property_id, log_id, reservation_id, category, card_mode, file_name")
+      .eq("id", data.groupId)
+      .maybeSingle();
+    if (readErr) throw new Error(readErr.message);
+    const p = principal as {
+      property_id: string;
+      log_id: string | null;
+      reservation_id: string | null;
+      category: string;
+      card_mode: string;
+      file_name: string | null;
+    } | null;
+    if (!p) throw new Error("Situação não encontrada.");
+    if (p.property_id !== data.propertyId) throw new Error("Situação de outro imóvel.");
+
+    const who = await resolveAuthorName(supabase, context.userId);
+    const { error } = await supabase.from("reservation_records").insert({
+      property_id: p.property_id,
+      log_id: p.log_id,
+      reservation_id: p.reservation_id,
+      category: p.category,
+      card_mode: p.card_mode,
+      group_id: data.groupId,
+      file_name: p.file_name,
+      kind: data.kind,
+      storage_path: data.path,
+      mime: data.mime,
+      size_bytes: data.sizeBytes,
+      duration_ms: data.durationMs ?? null,
+      body: null,
+      created_by: context.userId,
+      created_by_name: who,
+      task_id: null,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 /**
