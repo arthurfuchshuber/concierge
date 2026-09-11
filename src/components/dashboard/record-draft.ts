@@ -43,7 +43,11 @@ export function draftItemFrom(
   file: Blob,
   opts: { name?: string | null; mime?: string; durationMs?: number | null },
 ): DraftItem {
-  const mime = opts.mime ?? (file as File).type ?? "application/octet-stream";
+  // `||` e não `??`: alguns Android devolvem o arquivo da câmera com
+  // `type: ""`. Nulo-coalescente não pega string vazia, e o tipo vazio seguia
+  // até o servidor, onde a validação exige pelo menos um caractere — o
+  // registro era recusado sem que ninguém entendesse por quê (11/09/2026).
+  const mime = opts.mime || (file as File).type || "application/octet-stream";
   const kind = inferKind(mime);
   return {
     key: crypto.randomUUID(),

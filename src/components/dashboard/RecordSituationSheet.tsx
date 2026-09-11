@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
+  AlertTriangle,
   Camera,
   FileText,
   Loader2,
@@ -13,7 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { track } from "@/lib/trail";
-import { supabase } from "@/integrations/supabase/client";
+import { enviarMidia, garantirToken } from "@/lib/media-upload";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
 import { CATEGORY_BY_KEY } from "@/components/dashboard/record-categories";
@@ -216,10 +217,24 @@ export function RecordSituationSheet({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
-  /** Quantos arquivos já foram resolvidos (subiram ou falharam) — o hóspede
-   *  do outro lado da tela precisa ver que algo está acontecendo, senão ele
-   *  troca de aba e o envio morre. */
-  const [progresso, setProgresso] = useState<{ feitos: number; total: number } | null>(null);
+  /** Quantos arquivos já foram resolvidos e quanto do atual já subiu.
+   *
+   *  O `pct` existe por causa do relato de 11/09: "o botão ficou carregando
+   *  sem ser liberado". Um vídeo de 40 MB em rede móvel demora minutos, e sem
+   *  número na tela "está indo" e "travou" são a mesma coisa — a pessoa troca
+   *  de aplicativo e aí trava de verdade. */
+  const [progresso, setProgresso] = useState<{ feitos: number; total: number; pct: number } | null>(
+    null,
+  );
+  /** Erro do último envio, MOSTRADO NA FOLHA. Um toast some em quatro
+   *  segundos e não deixa rastro nenhum — foi por isso que ninguém soube
+   *  dizer o que tinha acontecido. */
+  const [erro, setErro] = useState<string | null>(null);
+  /** Permite cortar um envio pendurado sem recarregar a página. */
+  const cancelarRef = useRef<AbortController | null>(null);
+  /** A situação já criada nesta folha. Guardada para que "tentar de novo" NÃO
+   *  abra uma segunda situação com as mesmas provas. */
+  const grupoRef = useRef<string | null>(null);
 
   const photoRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
@@ -232,6 +247,8 @@ export function RecordSituationSheet({
     setItems(initial ? [initial] : []);
     setTitle(initialTitle ?? "");
     setDescription("");
+    setErro(null);
+    grupoRef.current = null;
   }, [open, initial, initialTitle]);
 
   // Os previews são object URLs; soltar ao desmontar evita segurar o vídeo
@@ -275,44 +292,67 @@ export function RecordSituationSheet({
   const canSave =
     !saving && (items.length > 0 || !!title.trim()) && (!requiresTitle || !!title.trim());
 
+  function cancelarEnvio() {
+    cancelarRef.current?.abort();
+  }
+
   async function save() {
     if (!canSave) return;
+    setErro(null);
     setSaving(true);
-    setProgresso(items.length ? { feitos: 0, total: items.length } : null);
+    const ctrl = new AbortController();
+    cancelarRef.current = ctrl;
+    setProgresso(items.length ? { feitos: 0, total: items.length, pct: 0 } : null);
 
     /* SALVAR PRIMEIRO, SUBIR DEPOIS — UMA MÍDIA POR VEZ (11/09/2026).
      *
      * O que havia aqui: um laço que subia TODOS os arquivos e, só no fim,
      * gravava a situação. Um vídeo de auditoria tem 30-55 MB; a faxineira está
      * no imóvel, em rede móvel, e sai do navegador para gravar cada um. Quando
-     * o celular mata a aba durante o envio — e mata —, TUDO se perde: os
-     * arquivos que já tinham subido ficavam órfãos no armazenamento, o texto
-     * evaporava, ela não via erro nenhum e nós não víamos rastro nenhum.
+     * o celular mata a aba durante o envio — e mata —, TUDO se perde.
      *
-     * Aconteceu de verdade em 11/09: seis arquivos selecionados em duas
-     * tentativas, ZERO registros criados, nenhuma mensagem de erro.
+     * Agora a situação nasce primeiro, com o texto, e cada arquivo se junta a
+     * ela na hora em que sobe.
      *
-     * Agora: a situação nasce primeiro, com o texto — que é o que custa a
-     * digitar e não custa nada para enviar. Depois cada arquivo sobe e se
-     * junta a ela na hora. Morrendo no meio, o que já subiu está registrado e
-     * aparece na tela; ela reabre e manda só o que faltou.
+     * E A SEGUNDA METADE DA CORREÇÃO (11/09, depois do relato "o botão ficou
+     * carregando sem liberar"): antes de qualquer coisa, GARANTIR A SESSÃO. O
+     * envio saía com o token ainda não restaurado e a política do bucket, que
+     * exige `auth.uid()`, negava em silêncio — zero arquivos no armazenamento
+     * o dia inteiro. Ver `media-upload.ts` e `_authenticated/route.tsx`.
      */
     try {
-      const criada = await createFn({
-        data: {
-          propertyId,
-          logId: target.logId,
-          reservationId: target.reservationId,
-          cardMode,
-          category,
-          title: title.trim() || null,
-          description: description.trim() || null,
-          media: [],
-          pendingMedia: items.length,
-        },
-      });
-      const groupId = (criada as { groupId?: string })?.groupId;
-      if (!groupId) throw new Error("Não consegui abrir o registro.");
+      const token = await garantirToken();
+      if (!token) {
+        setErro("Sua sessão expirou. Entre de novo e registre — o texto continua aqui.");
+        return;
+      }
+
+      // A situação nasce UMA vez por folha. Numa segunda tentativa reusamos o
+      // mesmo grupo, senão cada toque viraria uma situação repetida.
+      let groupId = grupoRef.current;
+      if (!groupId) {
+        const criada = await createFn({
+          data: {
+            propertyId,
+            logId: target.logId,
+            reservationId: target.reservationId,
+            cardMode,
+            category,
+            title: title.trim() || null,
+            description: description.trim() || null,
+            media: [],
+            pendingMedia: items.length,
+          },
+        });
+        groupId = (criada as { groupId?: string })?.groupId ?? null;
+        if (!groupId) throw new Error("Não consegui abrir o registro.");
+        grupoRef.current = groupId;
+        if ((criada as { taskCreated?: boolean })?.taskCreated) {
+          toast.success("Situação registrada e pendência aberta.");
+        } else if (items.length === 0) {
+          toast.success("Situação registrada.");
+        }
+      }
 
       // A tela fica acesa enquanto sobe: com a aba em segundo plano o sistema
       // operacional mata o envio muito mais cedo.
@@ -329,36 +369,56 @@ export function RecordSituationSheet({
       }
 
       const folder = target.logId ?? target.reservationId;
-      let enviados = 0;
+      const enviados: string[] = [];
       const falharam: string[] = [];
+      let ultimaMensagem: string | null = null;
+      let feitos = 0;
 
       for (const it of items) {
-        try {
-          const path = `${propertyId}/${folder}/${crypto.randomUUID()}.${extFor(it.kind, it.mime)}`;
-          const { error } = await supabase.storage
-            .from("reservation-records")
-            .upload(path, it.blob, { contentType: it.mime, upsert: false });
-          if (error) throw new Error(error.message);
-          await appendFn({
-            data: {
-              groupId,
-              propertyId,
-              path,
-              kind: it.kind,
-              mime: it.mime,
-              sizeBytes: it.blob.size,
-              durationMs: it.durationMs,
-            },
-          });
-          enviados += 1;
-        } catch (e) {
+        if (ctrl.signal.aborted) break;
+        const path = `${propertyId}/${folder}/${crypto.randomUUID()}.${extFor(it.kind, it.mime)}`;
+        const r = await enviarMidia({
+          bucket: "reservation-records",
+          path,
+          blob: it.blob,
+          // Alguns Android devolvem o arquivo SEM tipo. `??` não pega string
+          // vazia, então o tipo ia vazio para o servidor e o registro era
+          // recusado na validação. Aqui há um padrão de verdade.
+          contentType: it.mime || "application/octet-stream",
+          signal: ctrl.signal,
+          onProgress: (pct) => setProgresso({ feitos, total: items.length, pct }),
+        });
+
+        if (r.ok) {
+          try {
+            await appendFn({
+              data: {
+                groupId,
+                propertyId,
+                path,
+                kind: it.kind,
+                mime: it.mime || "application/octet-stream",
+                sizeBytes: it.blob.size,
+                durationMs: it.durationMs,
+              },
+            });
+            enviados.push(it.key);
+          } catch (e) {
+            falharam.push(it.name || it.kind);
+            ultimaMensagem = (e as Error)?.message ?? null;
+          }
+        } else if (r.motivo === "cancelado") {
+          break;
+        } else {
           falharam.push(it.name || it.kind);
+          ultimaMensagem = r.mensagem;
           /* A FALHA DEIXA RASTRO (11/09/2026).
            *
            * O envio anterior falhava em silêncio: nenhum erro no servidor,
            * nenhum evento, nada. Só descobrimos porque a equipe reclamou e eu
            * fui cavar o banco. Agora cada arquivo que não sobe vira um evento
-           * com tamanho e tipo — se acontecer de novo, aparece sozinho. */
+           * com tamanho, tipo e MOTIVO — se acontecer de novo, aparece
+           * sozinho. */
           track({
             type: "record_media_failed",
             label: "Falha ao enviar mídia de situação",
@@ -366,39 +426,56 @@ export function RecordSituationSheet({
             severity: "error",
             metadata: {
               kind: it.kind,
-              mime: it.mime,
+              mime: it.mime || null,
               sizeBytes: it.blob.size,
+              motivo: r.motivo,
               propertyId,
               groupId,
-              message: (e as Error)?.message?.slice(0, 200) ?? null,
             },
           });
         }
-        setProgresso({ feitos: enviados + falharam.length, total: items.length });
+
+        feitos += 1;
+        setProgresso({ feitos, total: items.length, pct: 0 });
       }
 
       await lock?.release().catch(() => {});
 
-      if (falharam.length && enviados === 0 && items.length > 0) {
-        toast.error(
-          "O registro foi salvo, mas nenhum arquivo subiu. Abra a situação e tente enviar de novo.",
-        );
-      } else if (falharam.length) {
-        toast.warning(
-          `Situação registrada com ${enviados} de ${items.length} arquivos. Faltou: ${falharam.join(", ")}.`,
-        );
-      } else {
-        toast.success(
-          (criada as { taskCreated?: boolean })?.taskCreated
-            ? "Situação registrada e pendência aberta."
-            : "Situação registrada.",
-        );
+      // O que subiu sai da folha: "tentar de novo" reenvia só o que faltou, e
+      // nunca duplica o que já está registrado.
+      if (enviados.length) {
+        setItems((prev) => {
+          for (const it of prev) {
+            if (enviados.includes(it.key) && it.previewUrl) URL.revokeObjectURL(it.previewUrl);
+          }
+          return prev.filter((it) => !enviados.includes(it.key));
+        });
       }
+
+      if (ctrl.signal.aborted) {
+        setErro(
+          enviados.length
+            ? `Envio cancelado. ${enviados.length} arquivo(s) já ficaram guardados; o resto continua aqui.`
+            : "Envio cancelado. O texto já está salvo — toque em registrar quando quiser.",
+        );
+        return;
+      }
+
+      if (falharam.length) {
+        setErro(
+          `${ultimaMensagem ?? "Não consegui enviar."} ${enviados.length} de ${items.length} arquivo(s) subiram. Toque em "Registrar situação" para tentar o resto — o que já subiu está guardado.`,
+        );
+        onSaved();
+        return;
+      }
+
+      if (items.length > 0) toast.success("Situação registrada.");
       onSaved();
       onOpenChange(false);
     } catch (e) {
-      toast.error((e as Error).message || "Não consegui registrar a situação.");
+      setErro((e as Error).message || "Não consegui registrar a situação.");
     } finally {
+      cancelarRef.current = null;
       setProgresso(null);
       setSaving(false);
     }
@@ -562,14 +639,44 @@ export function RecordSituationSheet({
         />
         <input ref={fileRef} type="file" className="hidden" onChange={onPicked} />
 
+        {/* O ERRO MORA NA FOLHA, não num toast que some (11/09/2026): a
+            pessoa precisa ler o que houve E ter o botão de tentar de novo
+            embaixo, sem perder nada do que já digitou. */}
+        {erro && (
+          <p className="flex items-start gap-1.5 border-t border-amber-500/30 bg-amber-500/[0.08] px-3.5 py-2 text-[11px] leading-snug text-amber-600 dark:text-amber-400">
+            <AlertTriangle className="mt-px size-3.5 shrink-0" />
+            <span>{erro}</span>
+          </p>
+        )}
+
+        {/* Enquanto sobe, o pior inimigo é a pessoa trocar de aba: o sistema
+            operacional mata o envio. A barra e a porcentagem existem para
+            segurá-la aqui — foi a falta delas que fez o envio parecer travado. */}
+        {progresso && (
+          <div className="border-t border-border/60 bg-amber-500/[0.07] px-3.5 py-2">
+            <div className="h-1 w-full overflow-hidden rounded-full bg-amber-500/20">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] transition-[width] duration-300"
+                style={{ width: `${Math.max(3, progresso.pct)}%` }}
+              />
+            </div>
+            <p className="mt-1.5 text-center text-[11px] leading-snug text-amber-600 dark:text-amber-400">
+              Enviando os arquivos — mantenha esta tela aberta. O texto já está salvo.
+            </p>
+          </div>
+        )}
+
         <div className="flex items-center gap-2 border-t border-border/50 bg-secondary/20 px-3.5 py-2.5">
+          {/* NUNCA PRENDER NINGUÉM (11/09/2026): antes este botão ficava
+              desabilitado durante o envio e o diálogo não fechava, então um
+              envio pendurado só saía recarregando a página — e aí perdia
+              tudo. Agora ele CORTA o envio; o que já subiu fica guardado. */}
           <button
             type="button"
-            disabled={saving}
-            onClick={() => onOpenChange(false)}
-            className="rounded-[0.3rem] px-2.5 py-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground disabled:opacity-50"
+            onClick={saving ? cancelarEnvio : () => onOpenChange(false)}
+            className="rounded-[0.3rem] px-2.5 py-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground"
           >
-            Descartar
+            {saving ? "Cancelar envio" : "Descartar"}
           </button>
           <span className="flex-1" />
           <button
@@ -580,17 +687,12 @@ export function RecordSituationSheet({
           >
             {saving && <Loader2 className="size-3.5 animate-spin" />}
             {progresso
-              ? `Enviando ${Math.min(progresso.feitos + 1, progresso.total)} de ${progresso.total}…`
-              : "Registrar situação"}
+              ? `Enviando ${Math.min(progresso.feitos + 1, progresso.total)} de ${progresso.total}${progresso.pct > 0 ? ` · ${progresso.pct}%` : "…"}`
+              : erro
+                ? "Tentar de novo"
+                : "Registrar situação"}
           </button>
         </div>
-        {/* Enquanto sobe, o pior inimigo é a pessoa trocar de aba: o sistema
-            operacional mata o envio. O aviso existe para segurá-la aqui. */}
-        {progresso && (
-          <p className="border-t border-border/60 bg-amber-500/[0.07] px-3.5 py-2 text-center text-[11px] leading-snug text-amber-600 dark:text-amber-400">
-            Enviando os arquivos — mantenha esta tela aberta. O texto já está salvo.
-          </p>
-        )}
       </DialogContent>
     </Dialog>
   );

@@ -1,11 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Loader2, ShieldCheck, UserCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { getMyProfile, updateMyProfile, setMissingCpf } from "@/lib/profile.functions";
 import { formatCPF } from "@/lib/masks";
+import { useHasSession } from "@/hooks/useHasSession";
 
 export function CompleteProfileDialog() {
   const getFn = useServerFn(getMyProfile);
@@ -13,9 +20,11 @@ export function CompleteProfileDialog() {
   const cpfFn = useServerFn(setMissingCpf);
   const qc = useQueryClient();
 
+  const hasSession = useHasSession();
   const q = useQuery({
     queryKey: ["my-profile"],
     queryFn: () => getFn(),
+    enabled: hasSession === true,
     staleTime: 60_000,
     retry: false,
   });
@@ -47,7 +56,8 @@ export function CompleteProfileDialog() {
   const cpfDigits = cpfMasked.replace(/\D+/g, "");
   const canSave =
     (!missing.name || fullName.trim().length >= 3) &&
-    (!missing.birth || (/^\d{4}-\d{2}-\d{2}$/.test(birthDate) && new Date(birthDate) <= new Date())) &&
+    (!missing.birth ||
+      (/^\d{4}-\d{2}-\d{2}$/.test(birthDate) && new Date(birthDate) <= new Date())) &&
     (!missing.cpf || cpfDigits.length === 11);
 
   async function onSave() {
@@ -129,7 +139,9 @@ export function CompleteProfileDialog() {
                 inputMode="numeric"
                 className="input"
                 value={cpfMasked}
-                onChange={(e) => setCpfMasked(formatCPF(e.target.value.replace(/\D+/g, "").slice(0, 11)))}
+                onChange={(e) =>
+                  setCpfMasked(formatCPF(e.target.value.replace(/\D+/g, "").slice(0, 11)))
+                }
                 placeholder="000.000.000-00"
               />
             </Field>

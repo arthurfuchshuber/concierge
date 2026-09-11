@@ -185,14 +185,14 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
   });
   const escalations = useMemo(
     () =>
-      ((escQ.data ?? []) as Array<{
+      (escQ.data ?? []) as Array<{
         id: string;
         question_to_human: string | null;
         human_response: string | null;
         status: string | null;
         created_at: string | null;
         resolved_at: string | null;
-      }>) ?? [],
+      }>,
     [escQ.data],
   );
   const respondidas = useMemo(
