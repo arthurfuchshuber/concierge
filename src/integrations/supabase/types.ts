@@ -3465,9 +3465,9 @@ export type Database = {
           access_mode: Database["public"]["Enums"]["access_mode"]
           address: string | null
           address_note: string | null
+          ai_evaluation_target: boolean
           airbnb_amenities: Json
           airbnb_bathroom_count: number | null
-          ai_evaluation_target: boolean
           airbnb_bed_count: number | null
           airbnb_bedroom_count: number | null
           airbnb_cancellation_policy: string | null
@@ -3559,9 +3559,9 @@ export type Database = {
           access_mode?: Database["public"]["Enums"]["access_mode"]
           address?: string | null
           address_note?: string | null
+          ai_evaluation_target?: boolean
           airbnb_amenities?: Json
           airbnb_bathroom_count?: number | null
-          ai_evaluation_target?: boolean
           airbnb_bed_count?: number | null
           airbnb_bedroom_count?: number | null
           airbnb_cancellation_policy?: string | null
@@ -3653,9 +3653,9 @@ export type Database = {
           access_mode?: Database["public"]["Enums"]["access_mode"]
           address?: string | null
           address_note?: string | null
+          ai_evaluation_target?: boolean
           airbnb_amenities?: Json
           airbnb_bathroom_count?: number | null
-          ai_evaluation_target?: boolean
           airbnb_bed_count?: number | null
           airbnb_bedroom_count?: number | null
           airbnb_cancellation_policy?: string | null
@@ -3814,9 +3814,9 @@ export type Database = {
           handoff_urgency: string | null
           id: string
           last_guest_followup_at: string | null
-          paused_until: string | null
           last_message_at: string
           last_reminder_at: string | null
+          paused_until: string | null
           property_id: string
           resolved_at: string | null
           status: Database["public"]["Enums"]["chat_conversation_status"]
@@ -3835,9 +3835,9 @@ export type Database = {
           handoff_urgency?: string | null
           id?: string
           last_guest_followup_at?: string | null
-          paused_until?: string | null
           last_message_at?: string
           last_reminder_at?: string | null
+          paused_until?: string | null
           property_id: string
           resolved_at?: string | null
           status?: Database["public"]["Enums"]["chat_conversation_status"]
@@ -3856,9 +3856,9 @@ export type Database = {
           handoff_urgency?: string | null
           id?: string
           last_guest_followup_at?: string | null
-          paused_until?: string | null
           last_message_at?: string
           last_reminder_at?: string | null
+          paused_until?: string | null
           property_id?: string
           resolved_at?: string | null
           status?: Database["public"]["Enums"]["chat_conversation_status"]
