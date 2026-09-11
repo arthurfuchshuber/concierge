@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
 import { BellRing, X, Smartphone } from "lucide-react";
+import {
+  enableGuestPush,
+  isIOS,
+  isStandalone,
+  GUEST_PUSH_DISMISS_KEY,
+  GUEST_PUSH_ENDPOINT_KEY,
+} from "@/lib/guest-push-client";
 
 type Props = {
   slug: string;
@@ -9,33 +16,13 @@ type Props = {
   visible: boolean;
 };
 
-const DISMISS_KEY = (slug: string) => `guest-push-dismissed:${slug}`;
-const SUBSCRIBED_KEY = (slug: string) => `guest-push-endpoint:${slug}`;
-
-function isIOS() {
-  if (typeof navigator === "undefined") return false;
-  return /iPhone|iPad|iPod/i.test(navigator.userAgent);
-}
-
-function isStandalone() {
-  if (typeof window === "undefined") return false;
-  // iOS Safari standalone
-  const nav = window.navigator as Navigator & { standalone?: boolean };
-  if (nav.standalone) return true;
-  return window.matchMedia?.("(display-mode: standalone)").matches ?? false;
-}
-
-function urlBase64ToUint8Array(base64String: string) {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const rawData = atob(base64);
-  const out = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) out[i] = rawData.charCodeAt(i);
-  return out;
-}
+const DISMISS_KEY = GUEST_PUSH_DISMISS_KEY;
+const SUBSCRIBED_KEY = GUEST_PUSH_ENDPOINT_KEY;
 
 export function GuestNotificationsPrompt({ slug, sessionId, conversationId, visible }: Props) {
-  const [state, setState] = useState<"hidden" | "ask" | "ios-install" | "enabling" | "enabled" | "denied">("hidden");
+  const [state, setState] = useState<
+    "hidden" | "ask" | "ios-install" | "enabling" | "enabled" | "denied"
+  >("hidden");
 
   useEffect(() => {
     if (!visible) return;
@@ -69,7 +56,7 @@ export function GuestNotificationsPrompt({ slug, sessionId, conversationId, visi
       return;
     }
     setState("ask");
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, slug]);
 
   function dismiss() {
@@ -83,67 +70,16 @@ export function GuestNotificationsPrompt({ slug, sessionId, conversationId, visi
 
   async function enable(silent = false) {
     setState("enabling");
-    try {
-      // 1. Pega VAPID key pública
-      const keyRes = await fetch("/api/public/guest-push", { method: "GET" });
-      const keyJson = (await keyRes.json().catch(() => ({}))) as { publicKey?: string };
-      if (!keyJson.publicKey) throw new Error("VAPID indisponível");
-
-      // 2. Registra o service worker
-      const reg = await navigator.serviceWorker.register("/sw-guest-push.js", { scope: "/" });
-      await navigator.serviceWorker.ready;
-
-      // 3. Pede permissão
-      if (Notification.permission !== "granted") {
-        const perm = await Notification.requestPermission();
-        if (perm !== "granted") {
-          setState(perm === "denied" ? "denied" : "ask");
-          return;
-        }
-      }
-
-      // 4. Assina o push
-      let sub = await reg.pushManager.getSubscription();
-      if (!sub) {
-        sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(keyJson.publicKey).buffer as ArrayBuffer,
-        });
-      }
-      const json = sub.toJSON() as { endpoint?: string; keys?: { p256dh?: string; auth?: string } };
-      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) throw new Error("Assinatura incompleta");
-
-      // 5. Envia ao backend
-      const res = await fetch("/api/public/guest-push", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "subscribe",
-          slug,
-          sessionId,
-          conversationId: conversationId ?? null,
-          endpoint: json.endpoint,
-          keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
-          userAgent: navigator.userAgent.slice(0, 500),
-        }),
-      });
-      if (!res.ok) throw new Error("Falha ao registrar no servidor");
-
-      try {
-        window.localStorage.setItem(SUBSCRIBED_KEY(slug), json.endpoint);
-      } catch {
-        // ignore
-      }
+    // O passo a passo da inscrição vive em `lib/guest-push-client.ts` desde
+    // 11/09/2026 — a mesma função que a tela do primeiro acesso usa. Antes
+    // estava escrito aqui dentro, e teria virado uma segunda cópia.
+    const r = await enableGuestPush({ slug, sessionId, conversationId });
+    if (r.ok) {
       setState("enabled");
-      if (silent) {
-        // Não mostra confirmação se foi silencioso
-        setTimeout(() => setState("hidden"), 100);
-      } else {
-        setTimeout(() => setState("hidden"), 3000);
-      }
-    } catch {
-      setState("ask");
+      setTimeout(() => setState("hidden"), silent ? 100 : 3000);
+      return;
     }
+    setState(r.reason === "denied" ? "denied" : "ask");
   }
 
   if (state === "hidden") return null;
@@ -152,12 +88,18 @@ export function GuestNotificationsPrompt({ slug, sessionId, conversationId, visi
     <div className="mx-3 my-2 rounded-2xl border border-accent/30 bg-accent/5 p-3">
       <div className="flex items-start gap-2.5">
         <div className="size-8 shrink-0 rounded-full bg-accent/15 text-accent grid place-items-center">
-          {state === "ios-install" ? <Smartphone className="size-4" /> : <BellRing className="size-4" />}
+          {state === "ios-install" ? (
+            <Smartphone className="size-4" />
+          ) : (
+            <BellRing className="size-4" />
+          )}
         </div>
         <div className="flex-1 min-w-0">
           {state === "ask" && (
             <>
-              <p className="text-[12.5px] font-semibold leading-tight">Não perca a resposta do anfitrião</p>
+              <p className="text-[12.5px] font-semibold leading-tight">
+                Não perca a resposta do anfitrião
+              </p>
               <p className="text-[11.5px] text-muted-foreground mt-1 leading-relaxed">
                 Ative as notificações para receber um aviso assim que ele responder.
               </p>
@@ -192,7 +134,8 @@ export function GuestNotificationsPrompt({ slug, sessionId, conversationId, visi
             <>
               <p className="text-[12.5px] font-semibold leading-tight">Notificações bloqueadas</p>
               <p className="text-[11.5px] text-muted-foreground mt-1 leading-relaxed">
-                Para receber as respostas, permita as notificações nas configurações do navegador para este site.
+                Para receber as respostas, permita as notificações nas configurações do navegador
+                para este site.
               </p>
             </>
           )}
@@ -205,7 +148,9 @@ export function GuestNotificationsPrompt({ slug, sessionId, conversationId, visi
               </p>
               <ol className="text-[11.5px] text-muted-foreground mt-1.5 space-y-0.5 list-decimal ml-4">
                 <li>Toque no ícone de compartilhar do Safari.</li>
-                <li>Escolha <strong>Adicionar à Tela de Início</strong>.</li>
+                <li>
+                  Escolha <strong>Adicionar à Tela de Início</strong>.
+                </li>
                 <li>Abra o guia pelo ícone e ative as notificações.</li>
               </ol>
             </>

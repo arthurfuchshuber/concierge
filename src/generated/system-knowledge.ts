@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-11T15:05:53.499Z";
+export const GENERATED_AT = "2026-09-11T15:53:09.691Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -726,6 +726,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "e2e455ccbb86e8a30d5213e6edb5c29c"
   },
   {
+    "doc_key": "rule:enableGuestPush",
+    "kind": "rule",
+    "title": "Regra — enableGuestPush",
+    "content": "Pede a permissão e registra a inscrição.\n\nChame SEMPRE a partir de um toque do hóspede: navegadores descartam o pedido\nde permissão quando ele não nasce de um gesto.",
+    "source_path": "src/lib/guest-push-client.ts",
+    "audience": [],
+    "content_hash": "62a18209639a998440486bc226af2332"
+  },
+  {
     "doc_key": "rule:EngagementBreakdownDialog",
     "kind": "rule",
     "title": "Regra — EngagementBreakdownDialog",
@@ -922,6 +931,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
     "content_hash": "4e5e1b4b39cbb858a2ef42978b4ce86d"
+  },
+  {
+    "doc_key": "rule:GuestPushState",
+    "kind": "rule",
+    "title": "Regra — GuestPushState",
+    "content": "O que faz sentido mostrar a este hóspede, neste aparelho, agora.\n\n · `ask` — dá para pedir: mostre a pergunta macia;\n · `ios-install`— iPhone fora da Tela de Início. A Apple não oferece push no\n Safari comum; o caminho é instalar, e isso é um gesto que\n só o hóspede pode fazer. 71% dos hóspedes deste sistema\n caem aqui (medido em `guide_access_logs`);\n · `enabled` — já inscrito neste aparelho;\n · `denied` — o navegador bloqueou este site. Insistir não reabre;\n · `unsupported`— não há push neste navegador. Não mostre nada.",
+    "source_path": "src/lib/guest-push-client.ts",
+    "audience": [],
+    "content_hash": "b1ec2ec4d34c4458e897384faae3e039"
   },
   {
     "doc_key": "rule:handleSaveClick",
@@ -2139,6 +2157,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "f16ed5d69a4cb9d16877ddc6f8455d00"
   },
   {
+    "doc_key": "rule:src/components/GuestPushStep.tsx:0",
+    "kind": "rule",
+    "title": "Regra em GuestPushStep.tsx",
+    "content": "O ÚLTIMO PASSO DO PRIMEIRO ACESSO: as notificações (11/09/2026).\n\nPedido: \"quero forçar o hóspede a aceitar as notificações no momento em que\nele confirma os dados do formulário de primeiro acesso\".\n\nForçar não existe — permissão de navegador é uma pergunta que se faz UMA\nvez, e um \"Bloquear\" é definitivo até a pessoa mexer nas configurações do\nsite. O que existe é pedir no melhor momento possível, e este é ele: o\nhóspede acabou de digitar nome, telefone e datas, e está esperando a chave\nda casa. Boa vontade não fica mais alta que isso.\n\nPor isso a tela é uma PERGUNTA MACIA: ela explica o ganho e só então dispara\na caixinha do navegador, para quem disse sim. Quem toca em \"Agora não\" sai\nsem queimar a permissão e pode aceitar depois, pelo chat.\n\nE O IPHONE. Medido em `guide_access_logs`: 71% dos hóspedes deste sistema\nchegam pelo iPhone, e a Apple não oferece notificação web no Safari comum —\nsó para sites instalados na Tela de Início. Não é permissão que dê para\npedir: a função não existe naquele contexto. Para eles a tela vira instrução\nde instalação, curta e ilustrada, com saída livre. Fingir que o botão\nresolveria seria mentir para a maioria dos hóspedes.",
+    "source_path": "src/components/GuestPushStep.tsx",
+    "audience": [],
+    "content_hash": "761bb7887d9e424202b492fd9eec4277"
+  },
+  {
     "doc_key": "rule:src/components/guide/BottomNav.tsx:448",
     "kind": "rule",
     "title": "Regra em BottomNav.tsx",
@@ -2148,7 +2175,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "7fa56c1c8d21bcdba236dfb5c4726edf"
   },
   {
-    "doc_key": "rule:src/components/GuideAccessGate.tsx:35896",
+    "doc_key": "rule:src/components/GuideAccessGate.tsx:37692",
     "kind": "rule",
     "title": "Regra em GuideAccessGate.tsx",
     "content": "Datas confirmadas da reserva (yyyy-MM-dd) — limites da previsão de\nchegada/saída: chegada nunca antes de `checkinISO`; saída nunca depois\nde `checkoutISO`.",
@@ -2157,7 +2184,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "c84a0e7b0fea8e95741bd6e26746f9f2"
   },
   {
-    "doc_key": "rule:src/components/GuideAccessGate.tsx:5445",
+    "doc_key": "rule:src/components/GuideAccessGate.tsx:5599",
     "kind": "rule",
     "title": "Regra em GuideAccessGate.tsx",
     "content": "Itens do menu inferior real do guia — mostrado em tela cheia por trás\ndo formulário, com \"Chegada\" travado (o hóspede não navega pra outra\naba antes de se identificar).",
@@ -2166,7 +2193,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "a01a4d9f91ff2ee14ed37a261a0e63ae"
   },
   {
-    "doc_key": "rule:src/components/GuideAccessGate.tsx:6433",
+    "doc_key": "rule:src/components/GuideAccessGate.tsx:6587",
     "kind": "rule",
     "title": "Regra em GuideAccessGate.tsx",
     "content": "Horário máximo de check-in do imóvel — teto da previsão de chegada\n(pedido explícito, 05/09/2026, mesma regra já aplicada no painel do\nanfitrião).",
@@ -2839,6 +2866,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/dashboard.functions.ts",
     "audience": [],
     "content_hash": "47be47ef7e7c20587e5825edf22d4743"
+  },
+  {
+    "doc_key": "rule:src/lib/guest-push-client.ts:0",
+    "kind": "rule",
+    "title": "Regra em guest-push-client.ts",
+    "content": "A INSCRIÇÃO DE PUSH DO HÓSPEDE — um lugar só (11/09/2026).\n\nO passo a passo (buscar a chave VAPID, registrar o service worker, pedir a\npermissão, assinar, mandar ao servidor) vivia dentro de\n`GuestNotificationsPrompt`. Com o pedido de 11/09 — oferecer as notificações\nno fim do formulário de primeiro acesso, e não só depois da primeira\nmensagem no chat — ele precisaria existir em dois componentes. Duas cópias\nde um fluxo de cinco etapas não ficam iguais por muito tempo; é o mesmo tipo\nde divergência que deixou o WhatsApp cego para áudio por semanas.\n\nO QUE ESTE ARQUIVO NÃO FAZ, e é importante: forçar. Permissão de navegador\nnão se força, se pede — uma vez. Um \"Bloquear\" é definitivo até a pessoa ir\nnas configurações do site. Por isso quem chama daqui deve ter perguntado\nantes, com a própria interface (\"pergunta macia\"), e só chamar quando a\nresposta for sim.",
+    "source_path": "src/lib/guest-push-client.ts",
+    "audience": [],
+    "content_hash": "818be8a9a49897740c22ab2a7f7809ab"
   },
   {
     "doc_key": "rule:src/lib/permissions/feature.access.ts:1332",

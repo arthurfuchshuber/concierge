@@ -13,7 +13,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   CalendarIcon,
   User2,
@@ -34,6 +40,8 @@ import {
 import { format, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
+import { GuestPushStep, shouldShowGuestPushStep } from "@/components/GuestPushStep";
+import { guestSessionId } from "@/lib/guest-push-client";
 import { cn } from "@/lib/utils";
 import { todayInTZ } from "@/lib/property-timezone";
 import { titleCaseName } from "@/lib/masks";
@@ -209,6 +217,13 @@ export function GuideAccessGate({
   const loadAvailability = useServerFn(getGuideCalendarAvailability);
   const validateCode = useServerFn(validateGuideReservationCode);
   const [step, setStep] = useState<1 | 2>(1);
+  /* O ÚLTIMO PASSO: as notificações (11/09/2026).
+   *
+   * Pedido: pedir o push no momento em que o hóspede confirma os dados. É o
+   * ponto de maior boa vontade da jornada — ele acabou de digitar tudo e está
+   * esperando a chave da casa. O registro do acesso JÁ foi gravado quando esta
+   * tela aparece; se ele fechar o navegador aqui, nada se perde. */
+  const [pushStep, setPushStep] = useState<AccessRecord | null>(null);
   const [name, setName] = useState(prefill?.name ?? "");
   const [code, setCode] = useState(prefill?.code ?? "");
   const [codeCheck, setCodeCheck] = useState<
@@ -235,7 +250,9 @@ export function GuideAccessGate({
     | { state: "no-match"; suggestedCheckout?: string }
   >({ state: "idle" });
   const [calendarAvailability, setCalendarAvailability] = useState<
-    { state: "loading" } | { state: "ready"; hasIcal: boolean; periods: CalendarPeriod[] } | { state: "unavailable" }
+    | { state: "loading" }
+    | { state: "ready"; hasIcal: boolean; periods: CalendarPeriod[] }
+    | { state: "unavailable" }
   >({ state: "loading" });
 
   const cfg: CollectionConfig = collection ?? {
@@ -246,7 +263,8 @@ export function GuideAccessGate({
     documentScope: "main",
   };
 
-  const hasOptionals = cfg.arrivalTime !== "off" || cfg.vehicles !== "off" || cfg.document !== "off";
+  const hasOptionals =
+    cfg.arrivalTime !== "off" || cfg.vehicles !== "off" || cfg.document !== "off";
 
   // Step 2 state — perguntas progressivas
   const [arrivalAns, setArrivalAns] = useState<"yes" | "no" | null>(null);
@@ -331,7 +349,6 @@ export function GuideAccessGate({
     };
   }, [code, codeGateActive, slug, propertyId, validateCode]);
 
-
   // Map every real reservation check-in date → its check-out date. Blocks,
   // checkout dates and intermediate dates are ignored on purpose: the guest
   // chooses only the arrival day, and the iCal pair fills the departure.
@@ -400,12 +417,17 @@ export function GuideAccessGate({
     let cancelled = false;
     setResCheck({ state: "checking" });
     const t = setTimeout(() => {
-      checkReservation({ data: { slug, property_id: propertyId, checkin_date: checkin, checkout_date: checkout } })
+      checkReservation({
+        data: { slug, property_id: propertyId, checkin_date: checkin, checkout_date: checkout },
+      })
         .then((r) => {
           if (cancelled) return;
           if (!r.hasIcal) return setResCheck({ state: "no-ical" });
           if (r.matched)
-            return setResCheck({ state: "matched", matchType: "matchType" in r ? r.matchType : "reservation" });
+            return setResCheck({
+              state: "matched",
+              matchType: "matchType" in r ? r.matchType : "reservation",
+            });
           setResCheck({
             state: "no-match",
             suggestedCheckout: "suggestedCheckout" in r ? r.suggestedCheckout : undefined,
@@ -428,7 +450,11 @@ export function GuideAccessGate({
       if (vehicleCount > prev.length) {
         return [
           ...prev,
-          ...Array.from({ length: vehicleCount - prev.length }, () => ({ plate: "", model: "", color: "" })),
+          ...Array.from({ length: vehicleCount - prev.length }, () => ({
+            plate: "",
+            model: "",
+            color: "",
+          })),
         ];
       }
       return prev.slice(0, vehicleCount);
@@ -472,7 +498,9 @@ export function GuideAccessGate({
       }
     }
     if (!range?.from || !range?.to) {
-      toast.error(codeGateActive ? "Valide o código da reserva." : "Selecione o período da viagem.");
+      toast.error(
+        codeGateActive ? "Valide o código da reserva." : "Selecione o período da viagem.",
+      );
       return false;
     }
     if (!phone || !isValidPhoneNumber(phone)) {
@@ -484,7 +512,9 @@ export function GuideAccessGate({
       return false;
     }
     if (resCheck.state === "no-match") {
-      toast.error("As datas informadas não correspondem a uma reserva do Airbnb. Confira e ajuste.");
+      toast.error(
+        "As datas informadas não correspondem a uma reserva do Airbnb. Confira e ajuste.",
+      );
       return false;
     }
     return true;
@@ -570,12 +600,17 @@ export function GuideAccessGate({
           predicted_checkout_time: departureStr || null,
           guest_vehicles:
             vehicleAns === "yes" && vehicles.length > 0
-              ? vehicles.map((v) => ({ plate: v.plate.trim(), model: v.model.trim(), color: v.color.trim() }))
+              ? vehicles.map((v) => ({
+                  plate: v.plate.trim(),
+                  model: v.model.trim(),
+                  color: v.color.trim(),
+                }))
               : null,
           guest_documents:
             docCount > 0 && docs.length > 0
               ? docs.map((d, i) => ({
-                  guest_name: d.guest_name.trim() || (i === 0 ? titleCaseName(name) : `Hóspede ${i + 1}`),
+                  guest_name:
+                    d.guest_name.trim() || (i === 0 ? titleCaseName(name) : `Hóspede ${i + 1}`),
                   file_path: d.file_path,
                   file_name: d.file_name,
                   legible: d.legible,
@@ -605,6 +640,12 @@ export function GuideAccessGate({
       // primeiro acesso na página do guia, que só deve aparecer uma vez por
       // reserva (telefone+nome+data+imóvel já identificam essa reserva aqui).
       window.localStorage.setItem(TOUR_PENDING_PREFIX + slug, "1");
+      // Só mostra a tela de notificações quando ela tem saída neste aparelho:
+      // já inscrito, bloqueado ou sem suporte não rendem tela nenhuma.
+      if (shouldShowGuestPushStep(slug)) {
+        setPushStep(rec);
+        return;
+      }
       onUnlock(rec);
     } catch {
       toast.error("Erro ao registrar acesso. Tente novamente.");
@@ -629,7 +670,6 @@ export function GuideAccessGate({
         <span aria-hidden>✓</span>
         <span>Reserva Airbnb encontrada para estas datas.</span>
       </div>
-
     ) : resCheck.state === "no-match" ? (
       <div className="flex items-start gap-2 rounded-[14px] border border-amber-500/35 bg-amber-500/[0.08] px-3.5 py-3 text-[12.5px] text-amber-300">
         <AlertTriangle className="size-4 shrink-0 mt-0.5" />
@@ -670,19 +710,24 @@ export function GuideAccessGate({
             "p-5 sm:p-5.5",
           )}
         >
-          {/* Progress dots (só quando há step 2) */}
-          {hasOptionals && (
+          {/* Progress dots (só quando há step 2). O passo das notificações tem
+              o próprio indicador, com o rótulo "Último passo". */}
+          {hasOptionals && !pushStep && (
             <div className="mb-4 flex items-center gap-1.5">
               <span
                 className={cn(
                   "h-1 rounded-full transition-all",
-                  step === 1 ? "w-6 bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]" : "w-3 bg-[#a855f7]/25",
+                  step === 1
+                    ? "w-6 bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]"
+                    : "w-3 bg-[#a855f7]/25",
                 )}
               />
               <span
                 className={cn(
                   "h-1 rounded-full transition-all",
-                  step === 2 ? "w-6 bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]" : "w-3 bg-[#a855f7]/25",
+                  step === 2
+                    ? "w-6 bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]"
+                    : "w-3 bg-[#a855f7]/25",
                 )}
               />
               <span className="ml-auto text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
@@ -691,11 +736,22 @@ export function GuideAccessGate({
             </div>
           )}
 
-          {step === 1 ? (
+          {pushStep ? (
+            <GuestPushStep
+              slug={slug}
+              sessionId={guestSessionId(slug)}
+              guestFirstName={(pushStep.name ?? "").trim().split(" ")[0] || null}
+              onDone={() => onUnlock(pushStep)}
+            />
+          ) : step === 1 ? (
             <>
               <div className="mb-4 space-y-1">
-                <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#c084fc]">Boas-vindas</p>
-                <h2 className="text-[21px] font-bold leading-[1.14] tracking-tight text-foreground">{propertyName}</h2>
+                <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#c084fc]">
+                  Boas-vindas
+                </p>
+                <h2 className="text-[21px] font-bold leading-[1.14] tracking-tight text-foreground">
+                  {propertyName}
+                </h2>
 
                 <p className="text-[12.5px] leading-relaxed text-muted-foreground">
                   Rápido preenchimento para liberar o guia.
@@ -727,7 +783,9 @@ export function GuideAccessGate({
                       <Input
                         id="reservation-code"
                         value={code}
-                        onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                        onChange={(e) =>
+                          setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))
+                        }
                         maxLength={40}
                         required
                         autoComplete="off"
@@ -766,33 +824,33 @@ export function GuideAccessGate({
                       locked
                     />
                   ) : (
-                  <RangeButton
-                    themeClass={themeClass}
-                    label="Chegada"
-                    open={checkinPopoverOpen}
-                    onOpenChange={setCheckinPopoverOpen}
-                    emoji="📅"
-                    value={range?.from ? format(range.from, "dd MMM", { locale: ptBR }) : "—"}
-                    popover={
-                      <Calendar
-                        mode="single"
-                        selected={range?.from}
-                        onSelect={handleCheckinSelect}
-                        numberOfMonths={1}
-                        initialFocus
-                        locale={ptBR}
-                        disabled={isDateDisabled}
-                        modifiers={{ availableCheckin: availableCheckinDates }}
-                        modifiersClassNames={{ availableCheckin: "guide-available-checkin" }}
-                        classNames={{
-                          today: "rdp-today",
-                          disabled: "rdp-disabled text-neutral-400",
-                          outside: "rdp-outside text-neutral-300",
-                        }}
-                        className="guide-access-calendar p-3 pointer-events-auto"
-                      />
-                    }
-                  />
+                    <RangeButton
+                      themeClass={themeClass}
+                      label="Chegada"
+                      open={checkinPopoverOpen}
+                      onOpenChange={setCheckinPopoverOpen}
+                      emoji="📅"
+                      value={range?.from ? format(range.from, "dd MMM", { locale: ptBR }) : "—"}
+                      popover={
+                        <Calendar
+                          mode="single"
+                          selected={range?.from}
+                          onSelect={handleCheckinSelect}
+                          numberOfMonths={1}
+                          initialFocus
+                          locale={ptBR}
+                          disabled={isDateDisabled}
+                          modifiers={{ availableCheckin: availableCheckinDates }}
+                          modifiersClassNames={{ availableCheckin: "guide-available-checkin" }}
+                          classNames={{
+                            today: "rdp-today",
+                            disabled: "rdp-disabled text-neutral-400",
+                            outside: "rdp-outside text-neutral-300",
+                          }}
+                          className="guide-access-calendar p-3 pointer-events-auto"
+                        />
+                      }
+                    />
                   )}
                   <RangeButton
                     label="Saída"
@@ -817,9 +875,10 @@ export function GuideAccessGate({
 
                 {reservationBanner}
 
-
                 <div className="pt-1">
-                  <PrimaryButton loading={loading}>{hasOptionals ? "Continuar →" : "Acessar guia →"}</PrimaryButton>
+                  <PrimaryButton loading={loading}>
+                    {hasOptionals ? "Continuar →" : "Acessar guia →"}
+                  </PrimaryButton>
                 </div>
 
                 <div className="flex items-center justify-center gap-1.5 pt-0.5 text-[11.5px] text-muted-foreground/85">
@@ -828,8 +887,6 @@ export function GuideAccessGate({
                   </span>
                   <span>Seus dados ficam seguros e privados.</span>
                 </div>
-
-
               </form>
             </>
           ) : (
@@ -872,7 +929,13 @@ export function GuideAccessGate({
           )}
         </div>
       </div>
-      <BottomNav theme={theme} active="checkin" items={navItems} onSelect={() => {}} lockedTo="checkin" />
+      <BottomNav
+        theme={theme}
+        active="checkin"
+        items={navItems}
+        onSelect={() => {}}
+        lockedTo="checkin"
+      />
     </div>
   );
 }
@@ -889,7 +952,10 @@ function parseHM(t: string | null | undefined): { h: number; m: number } | null 
  * mesma regra do painel do anfitrião: "checkin só pode ser preenchido o
  * horário a partir do horário configurado... checkout pode selecionar até
  * a data/horário limite configurado"). */
-function buildHourOptions(min: { h: number; m: number } | null, max: { h: number; m: number } | null): string[] {
+function buildHourOptions(
+  min: { h: number; m: number } | null,
+  max: { h: number; m: number } | null,
+): string[] {
   const minH = min?.h ?? 0;
   const maxH = max?.h ?? 23;
   if (maxH < minH) return [String(minH).padStart(2, "0")];
@@ -1004,7 +1070,9 @@ function Step2(props: {
   const selectedH = arrivalTime.h ? Number(arrivalTime.h) : (arrivalMin?.h ?? 0);
   const minuteOptions = buildMinuteOptions(arrivalMin, arrivalMax, selectedH);
   const arrivalDateMin = checkinISO || undefined;
-  const arrivalDateMax = checkoutISO ? format(addDays(new Date(`${checkoutISO}T12:00:00`), -1), "yyyy-MM-dd") : undefined;
+  const arrivalDateMax = checkoutISO
+    ? format(addDays(new Date(`${checkoutISO}T12:00:00`), -1), "yyyy-MM-dd")
+    : undefined;
 
   // Saída: piso = checkout_time_min do imóvel, teto = checkout_time (data
   // limite oficial). Data: nunca antes do check-in, nunca depois do
@@ -1020,7 +1088,9 @@ function Step2(props: {
   return (
     <>
       <div className="mb-4 space-y-1">
-        <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#c084fc]">Últimos detalhes</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#c084fc]">
+          Últimos detalhes
+        </p>
         <h2 className="text-[21px] font-bold leading-[1.14] tracking-tight text-foreground">
           Só mais algumas perguntas
         </h2>
@@ -1087,7 +1157,9 @@ function Step2(props: {
                     <span className="text-[14px] font-bold text-muted-foreground">:</span>
                     <Select
                       value={arrivalTime.m ? arrivalTime.m.padStart(2, "0") : undefined}
-                      onValueChange={(m) => setArrivalTime({ h: arrivalTime.h || String(minH).padStart(2, "0"), m })}
+                      onValueChange={(m) =>
+                        setArrivalTime({ h: arrivalTime.h || String(minH).padStart(2, "0"), m })
+                      }
                     >
                       <SelectTrigger className="h-9 w-[54px] justify-center rounded-[10px] border-border bg-foreground/[0.04] text-[14px] font-bold [&>svg]:hidden">
                         <SelectValue placeholder="mm" />
@@ -1228,7 +1300,10 @@ function Step2(props: {
                   </div>
                 </div>
                 {vehicles.map((v, i) => (
-                  <div key={i} className="rounded-xl border border-white/10 p-2.5 space-y-1.5 bg-white/[0.02]">
+                  <div
+                    key={i}
+                    className="rounded-xl border border-white/10 p-2.5 space-y-1.5 bg-white/[0.02]"
+                  >
                     <div className="text-[10.5px] uppercase tracking-wider text-muted-foreground/80 font-semibold whitespace-nowrap">
                       Veículo {i + 1}
                     </div>
@@ -1236,7 +1311,9 @@ function Step2(props: {
                       value={v.plate}
                       onChange={(e) =>
                         setVehicles((arr) =>
-                          arr.map((x, j) => (j === i ? { ...x, plate: e.target.value.toUpperCase() } : x)),
+                          arr.map((x, j) =>
+                            j === i ? { ...x, plate: e.target.value.toUpperCase() } : x,
+                          ),
                         )
                       }
                       placeholder="Placa"
@@ -1247,7 +1324,9 @@ function Step2(props: {
                       <Input
                         value={v.model}
                         onChange={(e) =>
-                          setVehicles((arr) => arr.map((x, j) => (j === i ? { ...x, model: e.target.value } : x)))
+                          setVehicles((arr) =>
+                            arr.map((x, j) => (j === i ? { ...x, model: e.target.value } : x)),
+                          )
                         }
                         placeholder="Modelo"
                         className="h-9 rounded-[10px] bg-transparent"
@@ -1255,7 +1334,9 @@ function Step2(props: {
                       <Input
                         value={v.color}
                         onChange={(e) =>
-                          setVehicles((arr) => arr.map((x, j) => (j === i ? { ...x, color: e.target.value } : x)))
+                          setVehicles((arr) =>
+                            arr.map((x, j) => (j === i ? { ...x, color: e.target.value } : x)),
+                          )
                         }
                         placeholder="Cor"
                         className="h-9 rounded-[10px] bg-transparent"
@@ -1272,7 +1353,11 @@ function Step2(props: {
         {cfg.document !== "off" && (
           <QuestionBlock
             icon="📄"
-            title={cfg.documentScope === "all" ? "Anexar documento(s) pessoal(is)" : "Anexar documento pessoal"}
+            title={
+              cfg.documentScope === "all"
+                ? "Anexar documento(s) pessoal(is)"
+                : "Anexar documento pessoal"
+            }
             required={cfg.document === "required"}
             asToggle
             answer={
@@ -1323,7 +1408,9 @@ function Step2(props: {
                     total={docCount}
                     defaultName={i === 0 ? defaultName : ""}
                     doc={d}
-                    onUpdate={(patch) => setDocs((arr) => arr.map((x, j) => (j === i ? { ...x, ...patch } : x)))}
+                    onUpdate={(patch) =>
+                      setDocs((arr) => arr.map((x, j) => (j === i ? { ...x, ...patch } : x)))
+                    }
                   />
                 ))}
               </div>
@@ -1377,8 +1464,14 @@ function QuestionBlock({
           {icon}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="text-[13.5px] font-bold leading-snug text-foreground text-pretty">{title}</div>
-          {required && <div className="text-[9.5px] uppercase tracking-wider text-[#c084fc]/70 mt-0.5">Obrigatório</div>}
+          <div className="text-[13.5px] font-bold leading-snug text-foreground text-pretty">
+            {title}
+          </div>
+          {required && (
+            <div className="text-[9.5px] uppercase tracking-wider text-[#c084fc]/70 mt-0.5">
+              Obrigatório
+            </div>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -1442,7 +1535,11 @@ function DocUploadCard({
       const res = await fetch("/api/public/guest-doc-upload", { method: "POST", body: fd });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
-        toast.error(j?.error === "file_too_large" ? "Arquivo muito grande (máx 12MB)." : "Falha ao enviar o arquivo.");
+        toast.error(
+          j?.error === "file_too_large"
+            ? "Arquivo muito grande (máx 12MB)."
+            : "Falha ao enviar o arquivo.",
+        );
         onUpdate({ uploading: false });
         return;
       }
@@ -1514,7 +1611,9 @@ function DocUploadCard({
         <div
           className={cn(
             "rounded-[10px] p-2 flex items-start gap-2 border",
-            doc.legible === false ? "border-amber-500/40 bg-amber-500/10" : "border-emerald-500/30 bg-emerald-500/10",
+            doc.legible === false
+              ? "border-amber-500/40 bg-amber-500/10"
+              : "border-emerald-500/30 bg-emerald-500/10",
           )}
         >
           {doc.legible === false ? (
@@ -1532,7 +1631,9 @@ function DocUploadCard({
           </div>
           <button
             type="button"
-            onClick={() => onUpdate({ file_path: null, file_name: null, legible: null, reason: "" })}
+            onClick={() =>
+              onUpdate({ file_path: null, file_name: null, legible: null, reason: "" })
+            }
             className="text-muted-foreground hover:text-foreground shrink-0"
             aria-label="Remover"
           >
@@ -1563,7 +1664,11 @@ function DocUploadCard({
 function FieldShell({ icon, children }: { icon?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="relative rounded-[12px] border border-border bg-foreground/[0.04] transition-colors focus-within:border-[#a855f7]/60 focus-within:bg-foreground/[0.06]">
-      {icon && <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-accent">{icon}</span>}
+      {icon && (
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-accent">
+          {icon}
+        </span>
+      )}
       {children}
     </div>
   );
@@ -1597,7 +1702,9 @@ function RangeButton({
         "relative w-full h-[52px] rounded-[12px] border bg-foreground/[0.04] px-3 text-left text-foreground",
         "transition-colors hover:bg-foreground/[0.06] focus:outline-none",
         "flex flex-col justify-center disabled:cursor-default disabled:hover:bg-foreground/[0.04]",
-        !locked && (open || filled) ? "border-[#a855f7]/70" : "border-border focus-visible:border-[#a855f7]/60",
+        !locked && (open || filled)
+          ? "border-[#a855f7]/70"
+          : "border-border focus-visible:border-[#a855f7]/60",
       )}
     >
       <span className="text-[9.5px] uppercase tracking-[0.18em] text-muted-foreground font-semibold whitespace-nowrap">
