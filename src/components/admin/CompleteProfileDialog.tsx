@@ -6,6 +6,7 @@ import { Loader2, ShieldCheck, UserCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { getMyProfile, updateMyProfile, setMissingCpf } from "@/lib/profile.functions";
 import { formatCPF } from "@/lib/masks";
+import { useHasSession } from "@/hooks/useHasSession";
 
 export function CompleteProfileDialog() {
   const getFn = useServerFn(getMyProfile);
