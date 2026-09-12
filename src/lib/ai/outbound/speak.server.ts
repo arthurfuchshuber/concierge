@@ -46,7 +46,13 @@ export type SpeakReason =
 
 export type SpeakResult = {
   sent: boolean;
-  skipped?: "ai_paused" | "quiet_hours" | "double_message" | "no_conversation" | "empty";
+  skipped?:
+    | "ai_paused"
+    | "quiet_hours"
+    | "double_message"
+    | "no_conversation"
+    | "empty"
+    | "nada_a_dizer";
   messageId?: string;
   pushed?: number;
   /** O texto que foi realmente dito — para registrar em quem chamou. */
