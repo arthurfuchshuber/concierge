@@ -233,6 +233,14 @@ export async function speakWithAgent(params: {
     return { sent: false, skipped: "empty" };
   }
 
+  /* Sentinela "PULAR": quando a instrução interna oferece a saída de não dizer
+   * nada (ex.: acompanhamento sem pendência real), o agente responde só com
+   * essa palavra. Ela é conversa interna — nunca pode virar mensagem nem push
+   * para o hóspede. */
+  if (/^["'“”\s]*pular[.!…\s"'“”]*$/i.test(text)) {
+    return { sent: false, skipped: "nada_a_dizer" };
+  }
+
   return speakToGuest({
     supabase: params.supabase,
     conversationId: params.conversationId,
