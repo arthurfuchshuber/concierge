@@ -3,11 +3,20 @@ import { z } from "zod";
 
 const Input = z.object({
   propertyId: z.string().uuid(),
-  // YYYY-MM-DD — se informado, forecast começa nessa data (data do check-in).
+  /* A DATA NÃO PODE DERRUBAR A PREVISÃO (11/09/2026).
+   *
+   * Era `.regex(/^\d{4}-\d{2}-\d{2}$/)`, e uma data fora desse formato fazia o
+   * `parse` LANÇAR — ou seja, a chamada inteira falhava e o hóspede ficava com
+   * "Previsão indisponível", quando o único problema era em qual dia começar a
+   * contar. `fromDate` é uma preferência, não um requisito: agora o que não
+   * casa é simplesmente ignorado, e a previsão começa hoje. */
   fromDate: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
+    .optional()
+    .transform((v) => {
+      const m = String(v ?? "").match(/^(\d{4}-\d{2}-\d{2})/);
+      return m ? m[1] : undefined;
+    }),
 });
 
 export type ForecastDay = {
@@ -92,7 +101,12 @@ export const getLiveWeather = createServerFn({ method: "POST" })
         `&current=temperature_2m,weather_code` +
         `&daily=weather_code,temperature_2m_max,temperature_2m_min` +
         `&forecast_days=10&timezone=auto`;
-      const r = await fetch(url, { signal: AbortSignal.timeout(3500) });
+      /* 3,5s era o prazo herdado da chamada de `daily-tip`, que pede SÓ o
+       * tempo de agora. Esta aqui pede também dez dias de previsão — resposta
+       * bem maior, e o prazo curto a derrubava com frequência. Como a falha
+       * caía num `.catch(() => {})` no componente, ninguém via nada além de
+       * "Previsão indisponível". */
+      const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
       if (!r.ok) return null;
       const j = (await r.json()) as {
         current?: { time?: string; temperature_2m?: number; weather_code?: number };
@@ -103,9 +117,12 @@ export const getLiveWeather = createServerFn({ method: "POST" })
           temperature_2m_min?: number[];
         };
       };
+      /* O tempo de AGORA falhar não pode levar a previsão junto: são dois
+       * blocos independentes na mesma resposta, e a previsão dos próximos dias
+       * é justamente a parte que o hóspede usa para decidir o passeio. */
       const c = j.current;
-      if (!c || typeof c.temperature_2m !== "number") return null;
-      const m = WEATHER_MAP[c.weather_code ?? 0] ?? { label: "Tempo estável", icon: "🌤️" };
+      const temAgora = !!c && typeof c.temperature_2m === "number";
+      const m = WEATHER_MAP[c?.weather_code ?? 0] ?? { label: "Tempo estável", icon: "🌤️" };
 
       const daily = j.daily;
       const forecast: ForecastDay[] = [];
@@ -133,11 +150,15 @@ export const getLiveWeather = createServerFn({ method: "POST" })
         }
       }
 
+      if (!temAgora && forecast.length === 0) return null;
+
       return {
-        tempC: Math.round(c.temperature_2m),
-        label: m.label,
-        icon: m.icon,
-        observedAt: c.time ?? new Date().toISOString(),
+        // Sem o bloco "agora", o primeiro dia da previsão é a melhor
+        // aproximação — e é melhor que um quadrante vazio.
+        tempC: temAgora ? Math.round(c!.temperature_2m as number) : (forecast[0]?.tempMax ?? 0),
+        label: temAgora ? m.label : (forecast[0]?.label ?? "Clima local"),
+        icon: temAgora ? m.icon : (forecast[0]?.icon ?? "🌤️"),
+        observedAt: c?.time ?? new Date().toISOString(),
         forecast,
       };
     } catch {

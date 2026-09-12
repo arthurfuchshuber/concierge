@@ -173,6 +173,7 @@ function GuiasTabs() {
   );
 }
 
+
 function Dashboard() {
   const list = useServerFn(listMyProperties);
   const listAsUser = useServerFn(adminListUserPropertiesFull);
@@ -196,26 +197,20 @@ function Dashboard() {
   });
   const isMemberOfImpersonated = !!(
     impersonation &&
-    (myAccountsData?.accounts ?? []).some(
-      (a: { ownerId: string }) => a.ownerId === impersonation.userId,
-    )
+    (myAccountsData?.accounts ?? []).some((a: { ownerId: string }) => a.ownerId === impersonation.userId)
   );
   // Read-only apenas quando um admin SaaS acessa um cliente do qual NÃO é membro.
   // Enquanto o vínculo ainda está carregando não mostramos nada (evita o aviso
   // piscando por milissegundos em contas onde o usuário pode editar).
   const readOnly =
-    !myAccountsLoading &&
-    !!myAccountsData &&
-    !!impersonation &&
-    isSaasAdmin &&
-    !isMemberOfImpersonated;
+    !myAccountsLoading && !!myAccountsData && !!impersonation && isSaasAdmin && !isMemberOfImpersonated;
+
 
   // Permissão de criação de guias — vale para a conta inteira.
   const createAccess = useAccess("tenant.guias.imoveis.criar", "criar");
   // Enquanto carrega, tratamos como "sem permissão" para nunca exibir UI de criação indevidamente.
   const canCreate = createAccess.loading ? false : createAccess.allowed;
-  const NO_PERMISSION_MSG =
-    "Você não tem permissão de acesso. Procure o administrador deste cadastro.";
+  const NO_PERMISSION_MSG = "Você não tem permissão de acesso. Procure o administrador deste cadastro.";
 
   const [view, setView] = useState<"grid" | "list">("grid");
   const [statCardsOpen, setStatCardsOpen] = useState(false);
@@ -303,9 +298,7 @@ function Dashboard() {
     );
     try {
       await bulkUpdate({ data: { ids, patch: { published: next }, mode: "overwrite" } });
-      toast.success(
-        next ? `${ids.length} guia(s) publicado(s)` : `${ids.length} guia(s) despublicado(s)`,
-      );
+      toast.success(next ? `${ids.length} guia(s) publicado(s)` : `${ids.length} guia(s) despublicado(s)`);
       ids.forEach((id) => qc.invalidateQueries({ queryKey: ["property", id] }));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao atualizar em massa");
@@ -375,23 +368,14 @@ function Dashboard() {
   const hasCustomPrice = sub.customPriceCents != null;
   const customCurrency = sub.customCurrency || "BRL";
   const planPrice = hasCustomPrice
-    ? (sub.customPriceCents! / 100).toLocaleString("pt-BR", {
-        style: "currency",
-        currency: customCurrency,
-      })
+    ? (sub.customPriceCents! / 100).toLocaleString("pt-BR", { style: "currency", currency: customCurrency })
     : (planConfig?.priceLabel ?? "—");
   const planLimit = sub.maxGuides;
   const remaining = Math.max(0, planLimit - count);
   const pct = planLimit > 0 ? Math.min(100, (count / planLimit) * 100) : 0;
   const reachedLimit = planLimit > 0 && count >= planLimit;
   const fmtDate = (iso: string | null) =>
-    iso
-      ? new Date(iso).toLocaleDateString("pt-BR", {
-          day: "2-digit",
-          month: "short",
-          year: "numeric",
-        })
-      : null;
+    iso ? new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" }) : null;
   const renewalLabel = fmtDate(sub.currentPeriodEnd);
   const trialLabel = sub.isTrialing ? fmtDate(sub.trialEndsAt ?? sub.currentPeriodEnd) : null;
 
@@ -404,10 +388,7 @@ function Dashboard() {
   // Candidatos para o picker do "Novo guia": imóveis já cadastrados que ainda
   // não têm guia. "Novo guia" nunca cria um imóvel do zero — isso só acontece
   // em "Criar nova residência", dentro do proprietário em Stakeholders.
-  const propertiesWithoutGuide = useMemo(
-    () => (data ?? []).filter((p: any) => !p.guide_created),
-    [data],
-  );
+  const propertiesWithoutGuide = useMemo(() => (data ?? []).filter((p: any) => !p.guide_created), [data]);
   const [guidePickerOpen, setGuidePickerOpen] = useState(false);
   const [pickerSearch, setPickerSearch] = useState("");
   const filteredPropertiesWithoutGuide = useMemo(() => {
@@ -439,8 +420,7 @@ function Dashboard() {
         .some((s) => String(s).toLowerCase().includes(q));
     });
     // Ordem pedida: cidade → título do guia → proprietário (alfabética pt-BR).
-    const cmp = (a: string, b: string) =>
-      a.localeCompare(b, "pt-BR", { sensitivity: "base", numeric: true });
+    const cmp = (a: string, b: string) => a.localeCompare(b, "pt-BR", { sensitivity: "base", numeric: true });
     const txt = (v: unknown) => String(v ?? "").trim();
     return [...rows].sort((a, b) => {
       const ac = txt(a.city),
@@ -450,10 +430,7 @@ function Dashboard() {
       return (
         cmp(ac, bc) ||
         cmp(txt(a.name), txt(b.name)) ||
-        cmp(
-          txt((a as { ownerName?: string | null }).ownerName),
-          txt((b as { ownerName?: string | null }).ownerName),
-        )
+        cmp(txt((a as { ownerName?: string | null }).ownerName), txt((b as { ownerName?: string | null }).ownerName))
       );
     });
   }, [guideRows, search, statusFilter, accessFilter]);
@@ -495,8 +472,7 @@ function Dashboard() {
         <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
           <Eye className="size-3.5 text-accent shrink-0" />
           <span className="flex-1 truncate">
-            Painel de{" "}
-            <span className="font-medium text-foreground">{impersonation?.name ?? "—"}</span>
+            Painel de <span className="font-medium text-foreground">{impersonation?.name ?? "—"}</span>
           </span>
           <button
             type="button"
@@ -532,7 +508,10 @@ function Dashboard() {
       <WorkspaceHeader
         title={readOnly ? `Painel de ${impersonation?.name ?? ""}` : "Guias"}
         subtitle={
-          readOnly ? "Imóveis e destinos desta conta." : "Seus imóveis e destinos publicados."
+          readOnly
+            ? "Imóveis e destinos desta conta."
+            : "Seus imóveis e destinos publicados."
+
         }
         tabs={GUIA_TABS}
         activeTab="imoveis"
@@ -591,15 +570,14 @@ function Dashboard() {
                 >
                   <Lock className="size-3.5 opacity-60" /> Despublicar
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => setBulkOpen(true)}
-                  className="text-xs font-normal"
-                >
+                <DropdownMenuItem onSelect={() => setBulkOpen(true)} className="text-xs font-normal">
                   <PenSquare className="size-3.5 opacity-60" /> Editar
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
+
+
 
           <Popover>
             <PopoverTrigger asChild>
@@ -687,11 +665,7 @@ function Dashboard() {
             title={view === "grid" ? "Ver em lista" : "Ver em grade"}
             className="h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-none border-0 bg-secondary/50 px-3.5 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors"
           >
-            {view === "grid" ? (
-              <List className="size-3.5 opacity-60" />
-            ) : (
-              <LayoutGrid className="size-3.5 opacity-60" />
-            )}
+            {view === "grid" ? <List className="size-3.5 opacity-60" /> : <LayoutGrid className="size-3.5 opacity-60" />}
             <span className="hidden sm:inline">{view === "grid" ? "Lista" : "Grade"}</span>
           </button>
 
@@ -725,6 +699,7 @@ function Dashboard() {
         )}
       </div>
 
+
       {isLoading ? (
         <LoadingState count={3} />
       ) : !guideRows.length ? (
@@ -745,9 +720,7 @@ function Dashboard() {
               </div>
               <div className="text-right">
                 <span className="text-2xl font-display text-accent">01</span>
-                <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                  / 05
-                </p>
+                <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">/ 05</p>
               </div>
             </div>
             <div className="space-y-3">
@@ -756,11 +729,7 @@ function Dashboard() {
                   { n: "01", label: "Cole o link do Google Maps da sua propriedade", done: false },
                   { n: "02", label: "Confira o endereço e adicione Wi-Fi", done: false },
                   { n: "03", label: "Configure os horários de check-in e check-out", done: false },
-                  {
-                    n: "04",
-                    label: "Adicione recomendações de restaurantes e atrações",
-                    done: false,
-                  },
+                  { n: "04", label: "Adicione recomendações de restaurantes e atrações", done: false },
                   { n: "05", label: "Publique e compartilhe o link com o hóspede", done: false },
                 ] as { n: string; label: string; done: boolean }[]
               ).map((step) => (
@@ -810,9 +779,7 @@ function Dashboard() {
                 {p.hero_image_url ? (
                   <img src={p.hero_image_url} alt={p.name} className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full grid place-items-center text-muted-foreground text-xs">
-                    Sem imagem
-                  </div>
+                  <div className="w-full h-full grid place-items-center text-muted-foreground text-xs">Sem imagem</div>
                 )}
                 <span className="absolute top-3 left-3 glass rounded-full px-2.5 py-1 text-[10px] uppercase tracking-wider font-semibold inline-flex items-center gap-1">
                   {p.access_mode === "pin" ? (
@@ -827,11 +794,7 @@ function Dashboard() {
                 </span>
                 <div
                   className="absolute top-3 right-3 glass rounded-full pl-2.5 pr-1 py-1 flex items-center gap-2"
-                  title={
-                    p.published
-                      ? "Publicado — clique para despublicar"
-                      : "Rascunho — clique para publicar"
-                  }
+                  title={p.published ? "Publicado — clique para despublicar" : "Rascunho — clique para publicar"}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <span
@@ -854,32 +817,32 @@ function Dashboard() {
                     carregava a própria margem (mb-1, mt-0.5, mt-1) e o
                     resultado era um respiro diferente a cada par. */}
                 <div className="ds-card-lines">
-                  {(p as any).ownerName && (
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span
-                        className={`min-w-0 max-w-full truncate text-[11px] ${CARD_OWNER}`}
-                        title={(p as any).ownerName}
-                      >
-                        {(p as any).ownerName}
-                      </span>
-                      <PhoneActionButton
-                        phone={(p as any).ownerPhone}
-                        country={(p as any).ownerPhoneCountry}
-                        size={12}
-                        className="shrink-0"
-                      />
-                    </div>
-                  )}
-                  <h3 className="ds-card-title truncate">{p.name}</h3>
-                  {p.city && (
-                    <p className="truncate ds-meta font-semibold text-yellow-500">
-                      {p.city}
-                      {p.country ? `, ${p.country}` : ""}
-                    </p>
-                  )}
-                  <p className="ds-card-desc">
-                    {p.tagline || `${p.city ?? ""}${p.country ? `, ${p.country}` : ""}`}
+                {(p as any).ownerName && (
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span
+                      className={`min-w-0 max-w-full truncate text-[11px] ${CARD_OWNER}`}
+                      title={(p as any).ownerName}
+                    >
+                      {(p as any).ownerName}
+                    </span>
+                    <PhoneActionButton
+                      phone={(p as any).ownerPhone}
+                      country={(p as any).ownerPhoneCountry}
+                      size={12}
+                      className="shrink-0"
+                    />
+                  </div>
+                )}
+                <h3 className="ds-card-title truncate">{p.name}</h3>
+                {p.city && (
+                  <p className="truncate ds-meta font-semibold text-yellow-500">
+                    {p.city}
+                    {p.country ? `, ${p.country}` : ""}
                   </p>
+                )}
+                <p className="ds-card-desc">
+                  {p.tagline || `${p.city ?? ""}${p.country ? `, ${p.country}` : ""}`}
+                </p>
                 </div>
 
                 <div className="mt-2 flex items-center gap-2">
@@ -893,94 +856,94 @@ function Dashboard() {
                             style={{ width: `${c.score}%` }}
                           />
                         </div>
-                        <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
-                          {c.score}%
-                        </span>
+                        <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">{c.score}%</span>
                       </>
                     );
                   })()}
                   <div className="flex items-center justify-end gap-0.5 shrink-0">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          title="Mais opções"
-                          aria-label="Mais opções"
-                          className="size-7 inline-flex items-center justify-center rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          <MoreHorizontal className="size-4" />
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent align="end" className="w-52 p-1.5">
-                        <Link
-                          to="/admin/properties/$id"
-                          params={{ id: p.id }}
-                          className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors"
-                        >
-                          <Pencil className="size-3.5 text-muted-foreground" /> Editar guia
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => setViewSlug(p.slug)}
-                          className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
-                        >
-                          <ExternalLink className="size-3.5 text-muted-foreground" /> Pré-visualizar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleCopyLink(p.slug, p.id)}
-                          className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
-                        >
-                          {copiedId === p.id ? (
-                            <Check className="size-3.5 text-accent" />
-                          ) : (
-                            <Link2 className="size-3.5 text-muted-foreground" />
-                          )}
-                          {copiedId === p.id ? "Link copiado" : "Copiar link público"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDupTarget({ id: p.id, name: p.name });
-                            setDupCopies(1);
-                          }}
-                          className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
-                        >
-                          <Copy className="size-3.5 text-muted-foreground" /> Duplicar
-                        </button>
-                      </PopoverContent>
-                    </Popover>
 
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <button
-                          title="Excluir"
-                          className="size-7 inline-flex items-center justify-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                          aria-label="Excluir"
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        title="Mais opções"
+                        aria-label="Mais opções"
+                        className="size-7 inline-flex items-center justify-center rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <MoreHorizontal className="size-4" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-52 p-1.5">
+                      <Link
+                        to="/admin/properties/$id"
+                        params={{ id: p.id }}
+                        className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors"
+                      >
+                        <Pencil className="size-3.5 text-muted-foreground" /> Editar guia
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => setViewSlug(p.slug)}
+                        className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
+                      >
+                        <ExternalLink className="size-3.5 text-muted-foreground" /> Pré-visualizar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyLink(p.slug, p.id)}
+                        className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
+                      >
+                        {copiedId === p.id ? (
+                          <Check className="size-3.5 text-accent" />
+                        ) : (
+                          <Link2 className="size-3.5 text-muted-foreground" />
+                        )}
+                        {copiedId === p.id ? "Link copiado" : "Copiar link público"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDupTarget({ id: p.id, name: p.name });
+                          setDupCopies(1);
+                        }}
+                        className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
+                      >
+                        <Copy className="size-3.5 text-muted-foreground" /> Duplicar
+                      </button>
+                    </PopoverContent>
+                  </Popover>
+
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <button
+                        title="Excluir"
+                        className="size-7 inline-flex items-center justify-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                        aria-label="Excluir"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir guia?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Isso removerá permanentemente "{p.name}" e não poderá ser desfeito.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDelete(p.id, p.name)}
+                          className="border border-destructive/40 bg-destructive/15 text-destructive hover:bg-destructive/25"
                         >
-                          <Trash2 className="size-3.5" />
-                        </button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Excluir guia?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Isso removerá permanentemente "{p.name}" e não poderá ser desfeito.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDelete(p.id, p.name)}
-                            className="border border-destructive/40 bg-destructive/15 text-destructive hover:bg-destructive/25"
-                          >
-                            Excluir
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                          Excluir
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                   </div>
                 </div>
+
               </div>
             </div>
           ))}
@@ -1048,6 +1011,8 @@ function Dashboard() {
                 )}
               </div>
 
+
+
               {groupList.map(([gk, grp]) => {
                 const expanded = expandedGroup === gk;
                 const groupIds = grp.items.map((i) => i.id);
@@ -1066,9 +1031,7 @@ function Dashboard() {
                         className={`size-3.5 text-muted-foreground shrink-0 transition-transform duration-200 ${expanded ? "rotate-90" : ""}`}
                       />
                       <MapPin className="size-3.5 text-muted-foreground shrink-0" />
-                      <span className="text-[13px] font-normal leading-snug truncate flex-1">
-                        {grp.label}
-                      </span>
+                      <span className="text-[13px] font-normal leading-snug truncate flex-1">{grp.label}</span>
                       <span className="text-[11px] font-normal text-muted-foreground tabular-nums shrink-0">
                         {grp.items.length} {grp.items.length === 1 ? "guia" : "guias"}
                       </span>
@@ -1092,138 +1055,131 @@ function Dashboard() {
                     </button>
                     {expanded && (
                       <>
-                        <ul className="divide-y divide-border/60 border-t border-border/60">
-                          {grp.items.map((p) => {
-                            const isSel = selected.has(p.id);
-                            return (
-                              <li
-                                key={p.id}
-                                className={`relative flex items-center gap-3 px-3 sm:px-4 py-2.5 transition-colors ${isSel ? "bg-accent/[0.06]" : "hover:bg-secondary/30"}`}
+                      <ul className="divide-y divide-border/60 border-t border-border/60">
+
+
+                        {grp.items.map((p) => {
+                          const isSel = selected.has(p.id);
+                          return (
+                            <li
+                              key={p.id}
+                              className={`relative flex items-center gap-3 px-3 sm:px-4 py-2.5 transition-colors ${isSel ? "bg-accent/[0.06]" : "hover:bg-secondary/30"}`}
+                            >
+                              <Checkbox
+                                checked={isSel}
+                                onCheckedChange={(v) =>
+                                  setSelected((s) => {
+                                    const ns = new Set(s);
+                                    if (v) ns.add(p.id);
+                                    else ns.delete(p.id);
+                                    return ns;
+                                  })
+                                }
+                                className="shrink-0"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => navigate({ to: "/admin/properties/$id", params: { id: p.id } })}
+                                className="size-12 ds-surface bg-secondary overflow-hidden shrink-0 ring-1 ring-border/60 hover:ring-foreground/30 transition"
+                                aria-label={`Editar ${p.name}`}
                               >
-                                <Checkbox
-                                  checked={isSel}
-                                  onCheckedChange={(v) =>
-                                    setSelected((s) => {
-                                      const ns = new Set(s);
-                                      if (v) ns.add(p.id);
-                                      else ns.delete(p.id);
-                                      return ns;
-                                    })
-                                  }
-                                  className="shrink-0"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    navigate({ to: "/admin/properties/$id", params: { id: p.id } })
-                                  }
-                                  className="size-12 ds-surface bg-secondary overflow-hidden shrink-0 ring-1 ring-border/60 hover:ring-foreground/30 transition"
-                                  aria-label={`Editar ${p.name}`}
-                                >
-                                  {p.hero_image_url ? (
-                                    <img
-                                      src={p.hero_image_url}
-                                      alt=""
-                                      className="w-full h-full object-cover"
-                                    />
-                                  ) : (
-                                    <div className="w-full h-full grid place-items-center text-[9px] text-muted-foreground">
-                                      Sem foto
-                                    </div>
-                                  )}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    navigate({ to: "/admin/properties/$id", params: { id: p.id } })
-                                  }
-                                  className="flex-1 min-w-0 text-left"
-                                >
-                                  <h3 className="text-[13px] font-normal leading-snug text-foreground truncate">
-                                    {p.name}
-                                  </h3>
-                                  <div className="mt-0.5 flex items-center gap-1.5 text-[11px] font-normal leading-snug text-muted-foreground min-w-0">
-                                    <span className="inline-flex items-center gap-1 shrink-0">
-                                      {p.access_mode === "pin" ? (
-                                        <Lock className="size-3 opacity-60" />
-                                      ) : (
-                                        <Globe className="size-3 opacity-60" />
-                                      )}
-                                      {p.access_mode === "pin" ? "PIN" : "Público"}
-                                    </span>
-                                    {!p.published && (
-                                      <>
-                                        <span className="text-muted-foreground/40">·</span>
-                                        <span className="text-yellow-600/90 dark:text-yellow-400/80">
-                                          Rascunho
-                                        </span>
-                                      </>
-                                    )}
+                                {p.hero_image_url ? (
+                                  <img src={p.hero_image_url} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full grid place-items-center text-[9px] text-muted-foreground">
+                                    Sem foto
                                   </div>
-                                </button>
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <button
-                                      type="button"
-                                      className="size-9 grid place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0"
-                                      aria-label="Mais ações"
-                                    >
-                                      <MoreHorizontal className="size-4" />
-                                    </button>
-                                  </PopoverTrigger>
-                                  <PopoverContent align="end" className="w-52 p-1.5">
-                                    <Link
-                                      to="/admin/properties/$id"
-                                      params={{ id: p.id }}
-                                      className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors"
-                                    >
-                                      <Pencil className="size-3.5 text-muted-foreground" /> Editar
-                                      guia
-                                    </Link>
-                                    <button
-                                      type="button"
-                                      onClick={() => setViewSlug(p.slug)}
-                                      className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
-                                    >
-                                      <ExternalLink className="size-3.5 text-muted-foreground" />{" "}
-                                      Pré-visualizar
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleCopyLink(p.slug, p.id)}
-                                      className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
-                                    >
-                                      {copiedId === p.id ? (
-                                        <Check className="size-3.5 text-accent" />
-                                      ) : (
-                                        <Link2 className="size-3.5 text-muted-foreground" />
-                                      )}
-                                      {copiedId === p.id ? "Link copiado" : "Copiar link público"}
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setDupTarget({ id: p.id, name: p.name });
-                                        setDupCopies(1);
-                                      }}
-                                      className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
-                                    >
-                                      <Copy className="size-3.5 text-muted-foreground" /> Duplicar
-                                    </button>
-                                    <div className="my-1 h-px bg-border/70" />
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDelete(p.id, p.name)}
-                                      className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-destructive hover:bg-destructive/10 transition-colors text-left"
-                                    >
-                                      <Trash2 className="size-3.5" /> Excluir
-                                    </button>
-                                  </PopoverContent>
-                                </Popover>
-                              </li>
-                            );
-                          })}
-                        </ul>
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => navigate({ to: "/admin/properties/$id", params: { id: p.id } })}
+                                className="flex-1 min-w-0 text-left"
+                              >
+                                <h3 className="text-[13px] font-normal leading-snug text-foreground truncate">
+                                  {p.name}
+                                </h3>
+                                <div className="mt-0.5 flex items-center gap-1.5 text-[11px] font-normal leading-snug text-muted-foreground min-w-0">
+                                  <span className="inline-flex items-center gap-1 shrink-0">
+                                    {p.access_mode === "pin" ? (
+                                      <Lock className="size-3 opacity-60" />
+                                    ) : (
+                                      <Globe className="size-3 opacity-60" />
+                                    )}
+                                    {p.access_mode === "pin" ? "PIN" : "Público"}
+                                  </span>
+                                  {!p.published && (
+                                    <>
+                                      <span className="text-muted-foreground/40">·</span>
+                                      <span className="text-yellow-600/90 dark:text-yellow-400/80">
+                                        Rascunho
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+
+                              </button>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <button
+                                    type="button"
+                                    className="size-9 grid place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0"
+                                    aria-label="Mais ações"
+                                  >
+                                    <MoreHorizontal className="size-4" />
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent align="end" className="w-52 p-1.5">
+                                  <Link
+                                    to="/admin/properties/$id"
+                                    params={{ id: p.id }}
+                                    className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors"
+                                  >
+                                    <Pencil className="size-3.5 text-muted-foreground" /> Editar guia
+                                  </Link>
+                                  <button
+                                    type="button"
+                                    onClick={() => setViewSlug(p.slug)}
+                                    className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
+                                  >
+                                    <ExternalLink className="size-3.5 text-muted-foreground" /> Pré-visualizar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopyLink(p.slug, p.id)}
+                                    className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
+                                  >
+                                    {copiedId === p.id ? (
+                                      <Check className="size-3.5 text-accent" />
+                                    ) : (
+                                      <Link2 className="size-3.5 text-muted-foreground" />
+                                    )}
+                                    {copiedId === p.id ? "Link copiado" : "Copiar link público"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setDupTarget({ id: p.id, name: p.name });
+                                      setDupCopies(1);
+                                    }}
+                                    className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors text-left"
+                                  >
+                                    <Copy className="size-3.5 text-muted-foreground" /> Duplicar
+                                  </button>
+                                  <div className="my-1 h-px bg-border/70" />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDelete(p.id, p.name)}
+                                    className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-destructive hover:bg-destructive/10 transition-colors text-left"
+                                  >
+                                    <Trash2 className="size-3.5" /> Excluir
+                                  </button>
+                                </PopoverContent>
+                              </Popover>
+                            </li>
+                          );
+                        })}
+                      </ul>
                       </>
                     )}
                   </div>
@@ -1349,8 +1305,7 @@ function Dashboard() {
           <DialogHeader>
             <DialogTitle>Duplicar guia</DialogTitle>
             <DialogDescription>
-              Vamos criar cópias de{" "}
-              <span className="font-medium text-foreground">{dupTarget?.name}</span> com todas as
+              Vamos criar cópias de <span className="font-medium text-foreground">{dupTarget?.name}</span> com todas as
               configurações, mídias, recomendações, FAQs e contatos. As cópias são criadas como{" "}
               <span className="font-medium">rascunhos</span> para você revisar antes de publicar.
             </DialogDescription>
@@ -1464,9 +1419,7 @@ function Dashboard() {
               <div className="flex items-center justify-between gap-3 px-4 h-9 bg-background/95 backdrop-blur border-b border-border/40 shrink-0">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="inline-flex size-1.5 rounded-full bg-emerald-500/80" />
-                  <p className="text-[11px] font-medium text-muted-foreground/80 truncate">
-                    /g/{viewSlug}
-                  </p>
+                  <p className="text-[11px] font-medium text-muted-foreground/80 truncate">/g/{viewSlug}</p>
                 </div>
                 <div className="flex items-center gap-1">
                   <button

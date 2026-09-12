@@ -3,10 +3,7 @@ import { Timer, Layers, Activity, MessageCircle } from "lucide-react";
 
 type Point = { date: string; accesses: number; sessions: number; chats: number; avgDurSec: number };
 
-export function KpiStrip({
-  kpis,
-  timeseries,
-}: {
+export function KpiStrip({ kpis, timeseries }: {
   kpis: {
     totalAccesses: number;
     uniqueSessions: number;
@@ -55,33 +52,19 @@ export function KpiStrip({
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       {cards.map((k) => (
-        <div
-          key={k.label}
-          className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-2 min-w-0"
-        >
+        <div key={k.label} className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-2 min-w-0">
           <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium min-w-0">
             <k.icon className="size-3.5 shrink-0" />
-            <span className="truncate" title={k.label}>
-              {k.label}
-            </span>
+            <span className="truncate" title={k.label}>{k.label}</span>
           </div>
           <div className="flex items-baseline gap-1">
             <span className="text-2xl sm:text-3xl font-display tabular-nums">{k.value}</span>
-            {"suffix" in k && k.suffix && (
-              <span className="text-xs text-muted-foreground">{k.suffix}</span>
-            )}
+            {"suffix" in k && k.suffix && <span className="text-xs text-muted-foreground">{k.suffix}</span>}
           </div>
           <div className="h-7">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={k.series.map((v, i) => ({ i, v }))}>
-                <Line
-                  type="monotone"
-                  dataKey="v"
-                  stroke="var(--foreground)"
-                  strokeWidth={1.5}
-                  dot={false}
-                  isAnimationActive={false}
-                />
+                <Line type="monotone" dataKey="v" stroke="var(--foreground)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>

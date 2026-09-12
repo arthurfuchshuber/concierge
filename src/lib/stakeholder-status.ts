@@ -109,10 +109,7 @@ export function statusDot(status: string | null | undefined): string {
 
 /** Data está no futuro (comparando por dia). */
 export function isFutureDate(value: string | Date): boolean {
-  const d =
-    typeof value === "string"
-      ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T12:00:00` : value)
-      : value;
+  const d = typeof value === "string" ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T12:00:00` : value) : value;
   if (Number.isNaN(d.getTime())) return false;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -129,10 +126,7 @@ export function isFutureDate(value: string | Date): boolean {
  * seguinte, quando o cancelamento passa a ser definitivo.
  */
 export function isTodayOrFutureDate(value: string | Date): boolean {
-  const d =
-    typeof value === "string"
-      ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T12:00:00` : value)
-      : value;
+  const d = typeof value === "string" ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T12:00:00` : value) : value;
   if (Number.isNaN(d.getTime())) return false;
   const today = new Date();
   today.setHours(0, 0, 0, 0);

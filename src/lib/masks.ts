@@ -103,34 +103,11 @@ function toIso2(country: string | null | undefined): CountryCode | undefined {
   const c = String(country).trim().toUpperCase().replace(/^\+/, "");
   if (/^[A-Z]{2}$/.test(c)) return c as CountryCode;
   const map: Record<string, CountryCode> = {
-    "1": "US",
-    "44": "GB",
-    "55": "BR",
-    "351": "PT",
-    "34": "ES",
-    "33": "FR",
-    "49": "DE",
-    "39": "IT",
-    "52": "MX",
-    "54": "AR",
-    "56": "CL",
-    "57": "CO",
-    "58": "VE",
-    "51": "PE",
-    "598": "UY",
-    "595": "PY",
-    "591": "BO",
-    "593": "EC",
-    "81": "JP",
-    "82": "KR",
-    "86": "CN",
-    "91": "IN",
-    "61": "AU",
-    "64": "NZ",
-    "27": "ZA",
-    "20": "EG",
-    "212": "MA",
-    "234": "NG",
+    "1": "US", "44": "GB", "55": "BR", "351": "PT", "34": "ES", "33": "FR",
+    "49": "DE", "39": "IT", "52": "MX", "54": "AR", "56": "CL", "57": "CO",
+    "58": "VE", "51": "PE", "598": "UY", "595": "PY", "591": "BO", "593": "EC",
+    "81": "JP", "82": "KR", "86": "CN", "91": "IN", "61": "AU", "64": "NZ",
+    "27": "ZA", "20": "EG", "212": "MA", "234": "NG",
   };
   return map[c.replace(/^0+/, "")];
 }
@@ -159,17 +136,11 @@ export function formatIntlPhone(phone: string | null | undefined, country?: stri
 }
 
 // wa.me exige apenas dígitos, sem "+".
-export function toWhatsappNumber(
-  phone: string | null | undefined,
-  country?: string | null,
-): string {
+export function toWhatsappNumber(phone: string | null | undefined, country?: string | null): string {
   return toE164(phone, country).replace(/\D+/g, "");
 }
 
-export function isValidIntlPhone(
-  phone: string | null | undefined,
-  country?: string | null,
-): boolean {
+export function isValidIntlPhone(phone: string | null | undefined, country?: string | null): boolean {
   const raw = (phone ?? "").toString().trim();
   if (!raw) return false;
   if (raw.startsWith("+")) return _isValidIntl(raw);

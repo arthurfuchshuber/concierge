@@ -18,7 +18,10 @@ function isValidCPFDigits(d: string): boolean {
     const rest = (sum * 10) % 11;
     return rest === 10 ? 0 : rest;
   };
-  return calc(d.slice(0, 9), 10) === Number(d[9]) && calc(d.slice(0, 10), 11) === Number(d[10]);
+  return (
+    calc(d.slice(0, 9), 10) === Number(d[9]) &&
+    calc(d.slice(0, 10), 11) === Number(d[10])
+  );
 }
 
 function isValidCNPJDigits(d: string): boolean {
@@ -33,7 +36,10 @@ function isValidCNPJDigits(d: string): boolean {
     const rest = sum % 11;
     return rest < 2 ? 0 : 11 - rest;
   };
-  return calc(d.slice(0, 12)) === Number(d[12]) && calc(d.slice(0, 13)) === Number(d[13]);
+  return (
+    calc(d.slice(0, 12)) === Number(d[12]) &&
+    calc(d.slice(0, 13)) === Number(d[13])
+  );
 }
 
 export type TaxIdCheck = {
@@ -95,13 +101,7 @@ export const validateTaxId = createServerFn({ method: "POST" })
         headers: { accept: "application/json" },
       });
       if (res.status === 404) {
-        return {
-          ok: false,
-          kind,
-          digits: d,
-          formatted,
-          error: "CNPJ não encontrado na Receita Federal.",
-        };
+        return { ok: false, kind, digits: d, formatted, error: "CNPJ não encontrado na Receita Federal." };
       }
       if (!res.ok) {
         return {
@@ -109,14 +109,11 @@ export const validateTaxId = createServerFn({ method: "POST" })
           kind,
           digits: d,
           formatted,
-          error:
-            "Não foi possível confirmar o CNPJ junto à Receita Federal agora. Tente novamente em instantes.",
+          error: "Não foi possível confirmar o CNPJ junto à Receita Federal agora. Tente novamente em instantes.",
         };
       }
       const json: any = await res.json();
-      const situacao: string = String(
-        json?.descricao_situacao_cadastral ?? json?.situacao ?? "",
-      ).toUpperCase();
+      const situacao: string = String(json?.descricao_situacao_cadastral ?? json?.situacao ?? "").toUpperCase();
       const name: string | null = json?.razao_social ?? json?.nome_fantasia ?? null;
       if (situacao && situacao !== "ATIVA") {
         return {
@@ -136,8 +133,7 @@ export const validateTaxId = createServerFn({ method: "POST" })
         kind,
         digits: d,
         formatted,
-        error:
-          "Falha de rede ao consultar a Receita Federal. Verifique sua conexão e tente novamente.",
+        error: "Falha de rede ao consultar a Receita Federal. Verifique sua conexão e tente novamente.",
       };
     }
   });

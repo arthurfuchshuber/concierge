@@ -16,6 +16,7 @@ import { PageHeader } from "@/components/ds/PageHeader";
 import { useAutosave } from "@/hooks/useAutosave";
 import { AutosaveIndicator } from "@/components/ui/autosave-indicator";
 
+
 export function MeuPerfilPage() {
   const getFn = useServerFn(getMyProfile);
   const updateFn = useServerFn(updateMyProfile);
@@ -139,9 +140,7 @@ export function MeuPerfilPage() {
   const initials = (fullName || email || "?").slice(0, 2).toUpperCase();
   const cpfDigits = q.data?.profile?.cpf ?? "";
   const createdAt = q.data?.profile?.created_at
-    ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" }).format(
-        new Date(q.data.profile.created_at),
-      )
+    ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" }).format(new Date(q.data.profile.created_at))
     : "";
   const onboardingCompletedAt = q.data?.profile?.onboarding_completed_at
     ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "long", timeStyle: "short" }).format(
@@ -174,6 +173,7 @@ export function MeuPerfilPage() {
     },
     { enabled: canSave && !q.isLoading, delay: 300 },
   );
+
 
   if (q.isLoading) {
     return (
@@ -323,22 +323,12 @@ export function MeuPerfilPage() {
           <div className="grid sm:grid-cols-2 gap-4">
             {createdAt && (
               <Field label="Conta criada em">
-                <input
-                  value={createdAt}
-                  readOnly
-                  disabled
-                  className="input opacity-70 cursor-not-allowed"
-                />
+                <input value={createdAt} readOnly disabled className="input opacity-70 cursor-not-allowed" />
               </Field>
             )}
             {onboardingCompletedAt && (
               <Field label="Cadastro concluído em">
-                <input
-                  value={onboardingCompletedAt}
-                  readOnly
-                  disabled
-                  className="input opacity-70 cursor-not-allowed"
-                />
+                <input value={onboardingCompletedAt} readOnly disabled className="input opacity-70 cursor-not-allowed" />
               </Field>
             )}
           </div>
@@ -387,15 +377,12 @@ export function MeuPerfilPage() {
               disabled={!canSave || save.isPending}
               className="inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-sm font-medium hover:opacity-90 disabled:opacity-50"
             >
-              {save.isPending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Mail className="size-4" />
-              )}
+              {save.isPending ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}
               Confirmar novo e-mail
             </button>
           )}
         </div>
+
       </section>
 
       <style>{`

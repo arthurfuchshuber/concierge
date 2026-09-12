@@ -28,12 +28,7 @@ async function generateWithAi(params: {
 }): Promise<CityPulse> {
   const key = process.env.LOVABLE_API_KEY;
   if (!key) throw new Error("LOVABLE_API_KEY não configurada");
-  const langNames = {
-    pt: "português brasileiro",
-    en: "English",
-    es: "español",
-    fr: "français",
-  } as const;
+  const langNames = { pt: "português brasileiro", en: "English", es: "español", fr: "français" } as const;
   const langName = langNames[params.lang as keyof typeof langNames] ?? "português brasileiro";
   const dow = new Date(params.date + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long" });
 

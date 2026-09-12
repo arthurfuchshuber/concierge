@@ -51,12 +51,7 @@ export function WorkspaceHeader({
             }`;
             if (renderLink) return <span key={t.key}>{renderLink(t, cls, active)}</span>;
             return (
-              <button
-                key={t.key}
-                type="button"
-                className={cls}
-                onClick={() => onTabChange?.(t.key)}
-              >
+              <button key={t.key} type="button" className={cls} onClick={() => onTabChange?.(t.key)}>
                 {t.label}
               </button>
             );

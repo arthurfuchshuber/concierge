@@ -8,14 +8,7 @@
 import { createMiddleware } from "@tanstack/react-start";
 
 /** Funções que não podem ser auditadas (evita recursão infinita de logs). */
-const SKIP = new Set([
-  "ingestTrail",
-  "recordClientEvent",
-  "listSystemEvents",
-  "getSystemEventTimeline",
-  "getAuditAnalytics",
-  "listAuditTenants",
-]);
+const SKIP = new Set(["ingestTrail", "recordClientEvent", "listSystemEvents", "getSystemEventTimeline", "getAuditAnalytics", "listAuditTenants"]);
 
 function subFromToken(token: string | null): { id: string | null; email: string | null } {
   if (!token) return { id: null, email: null };
@@ -31,22 +24,24 @@ function subFromToken(token: string | null): { id: string | null; email: string 
   }
 }
 
-export const auditServerCalls = createMiddleware({ type: "function" }).server(async (opts) => {
-  const { next, method, serverFnMeta } = opts;
-  const name = serverFnMeta?.name ?? serverFnMeta?.id ?? "unknown";
-  if (SKIP.has(name)) return next();
+export const auditServerCalls = createMiddleware({ type: "function" }).server(
+  async (opts) => {
+    const { next, method, serverFnMeta } = opts;
+    const name = serverFnMeta?.name ?? serverFnMeta?.id ?? "unknown";
+    if (SKIP.has(name)) return next();
 
-  const payload = (opts as unknown as { data?: unknown }).data;
-  const startedAt = Date.now();
-  try {
-    const result = await next();
-    void record(name, method, startedAt, null, payload, serverFnMeta?.filename);
-    return result;
-  } catch (error) {
-    void record(name, method, startedAt, error, payload, serverFnMeta?.filename);
-    throw error;
-  }
-});
+    const payload = (opts as unknown as { data?: unknown }).data;
+    const startedAt = Date.now();
+    try {
+      const result = await next();
+      void record(name, method, startedAt, null, payload, serverFnMeta?.filename);
+      return result;
+    } catch (error) {
+      void record(name, method, startedAt, error, payload, serverFnMeta?.filename);
+      throw error;
+    }
+  },
+);
 
 async function record(
   name: string,
@@ -99,12 +94,7 @@ async function record(
         duration_ms: Date.now() - startedAt,
         actor_email: actor.email,
         args: sanitizeArgs(payload),
-        error:
-          error instanceof Error
-            ? error.message.slice(0, 300)
-            : error
-              ? String(error).slice(0, 300)
-              : null,
+        error: error instanceof Error ? error.message.slice(0, 300) : error ? String(error).slice(0, 300) : null,
       },
       result: error ? "failure" : "success",
     });

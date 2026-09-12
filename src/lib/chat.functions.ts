@@ -22,9 +22,7 @@ async function buildPropertyContext(propertyId: string, userId: string): Promise
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: prop } = await supabaseAdmin
     .from("properties")
-    .select(
-      "id, name, owner_id, address, checkin_time, checkout_time, wifi_ssid, host_name, tagline",
-    )
+    .select("id, name, owner_id, address, checkin_time, checkout_time, wifi_ssid, host_name, tagline")
     .eq("id", propertyId)
     .maybeSingle();
   if (!prop) return "";
@@ -38,16 +36,8 @@ async function buildPropertyContext(propertyId: string, userId: string): Promise
   }
 
   const [recs, emerg] = await Promise.all([
-    supabaseAdmin
-      .from("property_recommendations")
-      .select("name, category, distance_text, scope")
-      .eq("property_id", propertyId)
-      .limit(20),
-    supabaseAdmin
-      .from("property_emergency_contacts")
-      .select("label, number")
-      .eq("property_id", propertyId)
-      .limit(10),
+    supabaseAdmin.from("property_recommendations").select("name, category, distance_text, scope").eq("property_id", propertyId).limit(20),
+    supabaseAdmin.from("property_emergency_contacts").select("label, number").eq("property_id", propertyId).limit(10),
   ]);
 
   const lines: string[] = [`Hospedagem: ${prop.name}`];
@@ -58,15 +48,7 @@ async function buildPropertyContext(propertyId: string, userId: string): Promise
   if (prop.wifi_ssid) lines.push(`Wi-Fi (rede): ${prop.wifi_ssid}`);
   if (prop.host_name) lines.push(`Anfitrião: ${prop.host_name}`);
   if (recs.data?.length) {
-    lines.push(
-      "Recomendações: " +
-        recs.data
-          .map(
-            (r) =>
-              `${r.name} (${r.category ?? ""}${r.distance_text ? `, ${r.distance_text}` : ""})`,
-          )
-          .join("; "),
-    );
+    lines.push("Recomendações: " + recs.data.map((r) => `${r.name} (${r.category ?? ""}${r.distance_text ? `, ${r.distance_text}` : ""})`).join("; "));
   }
   if (emerg.data?.length) {
     lines.push("Emergência: " + emerg.data.map((e) => `${e.label} ${e.number}`).join(", "));
@@ -81,14 +63,13 @@ export const askConcierge = createServerFn({ method: "POST" })
     const { assertFeature } = await import("@/lib/plan-guard.server");
     // Gate pelo plano da CONTA (dono da propriedade), não do caller — assim
     // membros de equipe herdam o plano contratado.
-    await assertFeature(context.supabase, context.userId, "ai", {
-      propertyId: data.propertyId ?? null,
-    });
+    await assertFeature(context.supabase, context.userId, "ai", { propertyId: data.propertyId ?? null });
 
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) {
       throw new Error("LOVABLE_API_KEY não configurada.");
     }
+
 
     let systemPrompt = BASE_PROMPT;
     if (data.propertyId) {
@@ -104,7 +85,10 @@ export const askConcierge = createServerFn({ method: "POST" })
       },
       body: JSON.stringify({
         model: AI_MODELS.internal,
-        messages: [{ role: "system", content: systemPrompt }, ...data.messages],
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...data.messages,
+        ],
       }),
     });
 

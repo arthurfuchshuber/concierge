@@ -15,30 +15,11 @@ import { searchPlacesForRec, TYPE_MAP } from "@/lib/maps.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import {
-  ArrowLeft,
-  Eye,
-  EyeOff,
-  Trash2,
-  Sparkles,
-  Plus,
-  Star,
-  Search,
-  Loader2,
-} from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ArrowLeft, Eye, EyeOff, Trash2, Sparkles, Plus, Star, Search, Loader2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useCityReferencesRealtime } from "@/hooks/useCityReferencesRealtime";
 import { PageHeader, ActionBar } from "@/components/ds/PageHeader";
+
 
 const SearchSchema = z.object({
   label: z.string().min(1),
@@ -75,11 +56,7 @@ function AdminCityDetail() {
   });
 
   const [generating, setGenerating] = useState<string | null>(null);
-  const [generateProgress, setGenerateProgress] = useState<{
-    current: number;
-    total: number;
-    label: string;
-  } | null>(null);
+  const [generateProgress, setGenerateProgress] = useState<{ current: number; total: number; label: string } | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [searching, setSearching] = useState(false);
@@ -89,8 +66,7 @@ function AdminCityDetail() {
   function toggleSel(id: string) {
     setSelected((s) => {
       const n = new Set(s);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
+      if (n.has(id)) n.delete(id); else n.add(id);
       return n;
     });
   }
@@ -129,9 +105,7 @@ function AdminCityDetail() {
         clearInterval(interval);
         setGenerateProgress(null);
         if (r.status === "ok" || r.status === "partial") {
-          toast.success(
-            `Concluído — ${r.total} encontrados (${r.inserted} novos, ${r.updated} atualizados${r.failed ? `, ${r.failed} falhas` : ""})`,
-          );
+          toast.success(`Concluído — ${r.total} encontrados (${r.inserted} novos, ${r.updated} atualizados${r.failed ? `, ${r.failed} falhas` : ""})`);
           if (r.status === "partial" && r.message) toast.warning(r.message);
         } else {
           toast.error(`Falhou: ${r.message ?? "erro"}`);
@@ -150,9 +124,7 @@ function AdminCityDetail() {
       try {
         const r = await generate({ data: { city_label: label, state, country, type } });
         if (r.status === "ok" || r.status === "partial") {
-          toast.success(
-            `${catLabel} — ${r.total} encontrados (${r.inserted} novos, ${r.updated} atualizados${r.failed ? `, ${r.failed} falhas` : ""})`,
-          );
+          toast.success(`${catLabel} — ${r.total} encontrados (${r.inserted} novos, ${r.updated} atualizados${r.failed ? `, ${r.failed} falhas` : ""})`);
           if (r.status === "partial" && r.message) toast.warning(r.message);
         } else {
           toast.error(`Falhou: ${r.message ?? "erro"}`);
@@ -167,6 +139,7 @@ function AdminCityDetail() {
     }
   }
 
+
   async function handleSearch() {
     if (searchTerm.trim().length < 2) return;
     setSearching(true);
@@ -180,11 +153,9 @@ function AdminCityDetail() {
     }
   }
 
-  async function handleAdd(place: (typeof results)[number]) {
+  async function handleAdd(place: typeof results[number]) {
     if (!place.place_id) {
-      toast.error(
-        "Esse local não tem cadastro no Google. Use a busca para selecionar um ponto válido.",
-      );
+      toast.error("Esse local não tem cadastro no Google. Use a busca para selecionar um ponto válido.");
       return;
     }
     try {
@@ -255,27 +226,16 @@ function AdminCityDetail() {
           }
           subtitle={
             <>
-              Pontos turísticos e referências macro compartilhados entre todas as suas residências
-              nesta cidade.
+              Pontos turísticos e referências macro compartilhados entre todas as suas residências nesta cidade.
               {data?.job?.last_refreshed_at && (
-                <>
-                  {" "}
-                  <span className="text-foreground/70">
-                    Atualizado em {new Date(data.job.last_refreshed_at).toLocaleDateString("pt-BR")}
-                    .
-                  </span>
-                </>
+                <> <span className="text-foreground/70">Atualizado em {new Date(data.job.last_refreshed_at).toLocaleDateString("pt-BR")}.</span></>
               )}
             </>
           }
           actions={
             <>
               <Button onClick={() => handleGenerate(null)} disabled={generating !== null}>
-                {generating === "__all__" ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Sparkles className="size-4" />
-                )}
+                {generating === "__all__" ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
                 Gerar tudo com IA
               </Button>
               <Button variant="outline" onClick={() => setAddOpen((v) => !v)}>
@@ -297,11 +257,8 @@ function AdminCityDetail() {
               ))}
             </div>
             <span>
-              Buscando <span className="text-foreground font-medium">{generateProgress.label}</span>
-              …
-              <span className="ml-1 text-muted-foreground/60">
-                {generateProgress.current}/{generateProgress.total}
-              </span>
+              Buscando <span className="text-foreground font-medium">{generateProgress.label}</span>…
+              <span className="ml-1 text-muted-foreground/60">{generateProgress.current}/{generateProgress.total}</span>
             </span>
           </div>
         )}
@@ -322,26 +279,15 @@ function AdminCityDetail() {
               }}
             />
             <Button onClick={handleSearch} disabled={searching || searchTerm.trim().length < 2}>
-              {searching ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Search className="size-4" />
-              )}
+              {searching ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
             </Button>
           </div>
           {results.length > 0 && (
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {results.map((p) => (
-                <div
-                  key={p.place_id}
-                  className="flex items-center gap-3 rounded-lg border border-border p-2"
-                >
+                <div key={p.place_id} className="flex items-center gap-3 rounded-lg border border-border p-2">
                   {p.image_url ? (
-                    <img
-                      src={p.image_url}
-                      alt=""
-                      className="size-12 rounded object-cover shrink-0"
-                    />
+                    <img src={p.image_url} alt="" className="size-12 rounded object-cover shrink-0" />
                   ) : (
                     <div className="size-12 rounded bg-secondary shrink-0" />
                   )}
@@ -349,9 +295,7 @@ function AdminCityDetail() {
                     <p className="ds-card-title truncate">{p.name}</p>
                     <p className="ds-meta truncate">
                       {p.category}
-                      {typeof p.rating === "number"
-                        ? ` · ★ ${p.rating} (${p.user_ratings_total ?? 0})`
-                        : ""}
+                      {typeof p.rating === "number" ? ` · ★ ${p.rating} (${p.user_ratings_total ?? 0})` : ""}
                     </p>
                   </div>
                   <Button size="sm" onClick={() => handleAdd(p)}>
@@ -368,13 +312,9 @@ function AdminCityDetail() {
 
       {selected.size > 0 && (
         <div className="sticky top-2 z-20 flex items-center justify-between gap-3 rounded-xl border border-destructive/40 bg-destructive/10 backdrop-blur px-4 py-2.5 shadow-md">
-          <p className="ds-body">
-            {selected.size} selecionada{selected.size > 1 ? "s" : ""}
-          </p>
+          <p className="ds-body">{selected.size} selecionada{selected.size > 1 ? "s" : ""}</p>
           <div className="flex gap-2">
-            <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
-              Cancelar
-            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Cancelar</Button>
             <Button size="sm" variant="destructive" onClick={handleBulkDelete}>
               <Trash2 className="size-3.5 mr-1.5" /> Excluir selecionadas
             </Button>
@@ -385,121 +325,105 @@ function AdminCityDetail() {
       {Object.entries(groupedByType).map(([type, list]) => {
         const allSel = list.every((it) => selected.has(it.id)) && list.length > 0;
         return (
-          <section key={type} className="rounded-xl border border-border bg-card overflow-hidden">
-            <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
+        <section key={type} className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="px-4 py-3 border-b border-border bg-secondary/30 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={allSel}
+                onChange={() => {
+                  setSelected((s) => {
+                    const n = new Set(s);
+                    if (allSel) list.forEach((it) => n.delete(it.id));
+                    else list.forEach((it) => n.add(it.id));
+                    return n;
+                  });
+                }}
+                className="size-4 accent-current"
+              />
+              <h3 className="ds-eyebrow">
+                {list[0]?.category ?? type}{" "}
+                <span className="text-muted-foreground font-normal normal-case">({list.length})</span>
+              </h3>
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => handleGenerate(type)}
+              disabled={generating !== null}
+              title={`Regenerar ${list[0]?.category ?? type} com IA`}
+            >
+              {generating === type ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : <Sparkles className="size-3.5 mr-1.5" />}
+              Regenerar
+            </Button>
+          </div>
+
+          <ul className="divide-y divide-border">
+            {list.map((it) => (
+              <li key={it.id} className={`flex items-center gap-3 p-3 ${it.is_hidden ? "opacity-50" : ""} ${selected.has(it.id) ? "bg-accent/5" : ""}`}>
                 <input
                   type="checkbox"
-                  checked={allSel}
-                  onChange={() => {
-                    setSelected((s) => {
-                      const n = new Set(s);
-                      if (allSel) list.forEach((it) => n.delete(it.id));
-                      else list.forEach((it) => n.add(it.id));
-                      return n;
-                    });
-                  }}
-                  className="size-4 accent-current"
+                  checked={selected.has(it.id)}
+                  onChange={() => toggleSel(it.id)}
+                  className="size-4 accent-current shrink-0"
                 />
-                <h3 className="ds-eyebrow">
-                  {list[0]?.category ?? type}{" "}
-                  <span className="text-muted-foreground font-normal normal-case">
-                    ({list.length})
-                  </span>
-                </h3>
-              </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => handleGenerate(type)}
-                disabled={generating !== null}
-                title={`Regenerar ${list[0]?.category ?? type} com IA`}
-              >
-                {generating === type ? (
-                  <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+                {it.image_url ? (
+                  <img src={it.image_url} alt="" className="size-14 rounded object-cover shrink-0" />
                 ) : (
-                  <Sparkles className="size-3.5 mr-1.5" />
+                  <div className="size-14 rounded bg-secondary shrink-0" />
                 )}
-                Regenerar
-              </Button>
-            </div>
-
-            <ul className="divide-y divide-border">
-              {list.map((it) => (
-                <li
-                  key={it.id}
-                  className={`flex items-center gap-3 p-3 ${it.is_hidden ? "opacity-50" : ""} ${selected.has(it.id) ? "bg-accent/5" : ""}`}
+                <div className="flex-1 min-w-0">
+                  <p className="ds-card-title truncate">
+                    {it.name}
+                    {it.source === "manual" && (
+                      <span className="ml-2 text-[10px] uppercase px-1.5 py-0.5 rounded bg-accent/15 text-accent">
+                        Manual
+                      </span>
+                    )}
+                  </p>
+                  <p className="ds-meta truncate flex items-center gap-2">
+                    {it.rating != null && (
+                      <span className="inline-flex items-center gap-1">
+                        <Star className="size-3 fill-current text-amber-500" strokeWidth={0} />
+                        {Number(it.rating).toFixed(1)} ({it.user_ratings_total ?? 0})
+                      </span>
+                    )}
+                    {it.address && <span className="truncate">· {it.address}</span>}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleToggleHide(it.id, it.is_hidden)}
+                  title={it.is_hidden ? "Exibir" : "Ocultar"}
                 >
-                  <input
-                    type="checkbox"
-                    checked={selected.has(it.id)}
-                    onChange={() => toggleSel(it.id)}
-                    className="size-4 accent-current shrink-0"
-                  />
-                  {it.image_url ? (
-                    <img
-                      src={it.image_url}
-                      alt=""
-                      className="size-14 rounded object-cover shrink-0"
-                    />
-                  ) : (
-                    <div className="size-14 rounded bg-secondary shrink-0" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="ds-card-title truncate">
-                      {it.name}
-                      {it.source === "manual" && (
-                        <span className="ml-2 text-[10px] uppercase px-1.5 py-0.5 rounded bg-accent/15 text-accent">
-                          Manual
-                        </span>
-                      )}
-                    </p>
-                    <p className="ds-meta truncate flex items-center gap-2">
-                      {it.rating != null && (
-                        <span className="inline-flex items-center gap-1">
-                          <Star className="size-3 fill-current text-amber-500" strokeWidth={0} />
-                          {Number(it.rating).toFixed(1)} ({it.user_ratings_total ?? 0})
-                        </span>
-                      )}
-                      {it.address && <span className="truncate">· {it.address}</span>}
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleToggleHide(it.id, it.is_hidden)}
-                    title={it.is_hidden ? "Exibir" : "Ocultar"}
-                  >
-                    {it.is_hidden ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="sm" title="Remover">
-                        <Trash2 className="size-4 text-destructive" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Remover referência?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          "{it.name}" será removido permanentemente desta cidade.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleDelete(it.id)}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          Remover
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </li>
-              ))}
-            </ul>
-          </section>
+                  {it.is_hidden ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="sm" title="Remover">
+                      <Trash2 className="size-4 text-destructive" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Remover referência?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        "{it.name}" será removido permanentemente desta cidade.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleDelete(it.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Remover
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </li>
+            ))}
+          </ul>
+        </section>
         );
       })}
 
@@ -510,17 +434,12 @@ function AdminCityDetail() {
           </div>
           <h3 className="ds-section-title mb-1">Nenhuma referência ainda</h3>
           <p className="ds-body max-w-sm mx-auto mb-5">
-            Gere automaticamente pontos turísticos populares de {label} com IA, ou adicione
-            manualmente seus favoritos.
+            Gere automaticamente pontos turísticos populares de {label} com IA, ou adicione manualmente seus favoritos.
           </p>
           <div className="flex flex-col items-center gap-3">
             <div className="flex gap-2 justify-center">
               <Button onClick={() => handleGenerate(null)} disabled={generating !== null}>
-                {generating === "__all__" ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Sparkles className="size-4" />
-                )}
+                {generating === "__all__" ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
                 Gerar com IA
               </Button>
               <Button variant="outline" onClick={() => setAddOpen(true)}>
@@ -540,11 +459,8 @@ function AdminCityDetail() {
                   ))}
                 </div>
                 <p className="text-[11.5px] text-muted-foreground">
-                  Buscando{" "}
-                  <span className="text-foreground font-medium">{generateProgress.label}</span>…{" "}
-                  <span className="text-muted-foreground/60">
-                    {generateProgress.current}/{generateProgress.total}
-                  </span>
+                  Buscando <span className="text-foreground font-medium">{generateProgress.label}</span>…{" "}
+                  <span className="text-muted-foreground/60">{generateProgress.current}/{generateProgress.total}</span>
                 </p>
               </div>
             )}

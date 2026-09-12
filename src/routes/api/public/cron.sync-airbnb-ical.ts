@@ -18,11 +18,7 @@ async function runSync() {
     .from("properties")
     .select("id, airbnb_ical_url, airbnb_ical_url_2")
     .not("airbnb_ical_url", "is", null);
-  const list = (props ?? []) as Array<{
-    id: string;
-    airbnb_ical_url: string;
-    airbnb_ical_url_2: string | null;
-  }>;
+  const list = (props ?? []) as Array<{ id: string; airbnb_ical_url: string; airbnb_ical_url_2: string | null }>;
 
   let ok = 0;
   let fail = 0;

@@ -1,29 +1,9 @@
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { CopyButton } from "@/components/CopyButton";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import {
-  Home as HomeIcon,
-  ExternalLink,
-  User,
-  Clock,
-  Layers,
-  MessageSquare,
-  AlertCircle,
-  Activity,
-} from "lucide-react";
-import {
-  Accordion,
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from "@/components/ui/accordion";
+import { Home as HomeIcon, ExternalLink, User, Clock, Layers, MessageSquare, AlertCircle, Activity } from "lucide-react";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis } from "recharts";
@@ -41,9 +21,7 @@ export type DetailTarget =
   | null;
 
 export function DetailSheet({
-  target,
-  onClose,
-  data,
+  target, onClose, data,
 }: {
   target: DetailTarget;
   onClose: () => void;
@@ -51,18 +29,11 @@ export function DetailSheet({
 }) {
   const open = !!target;
   return (
-    <Sheet
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) onClose();
-      }}
-    >
+    <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
         {target?.kind === "property" && <PropertyDetail data={data} id={target.id} />}
         {target?.kind === "section" && <SectionDetail data={data} section={target.section} />}
-        {target?.kind === "guest" && (
-          <GuestDetail guestKey={target.guestKey} accountId={target.accountId ?? null} />
-        )}
+        {target?.kind === "guest" && <GuestDetail guestKey={target.guestKey} accountId={target.accountId ?? null} />}
       </SheetContent>
     </Sheet>
   );
@@ -71,14 +42,11 @@ export function DetailSheet({
 function PropertyDetail({ data, id }: { data: EngagementAnalytics; id: string }) {
   const prop = data.perProperty.find((p) => p.id === id);
   const raw = data.properties.find((p) => p.id === id);
-  if (!prop || !raw)
-    return <div className="text-sm text-muted-foreground">Imóvel não encontrado.</div>;
+  if (!prop || !raw) return <div className="text-sm text-muted-foreground">Imóvel não encontrado.</div>;
   return (
     <>
       <SheetHeader>
-        <SheetTitle className="flex items-center gap-2">
-          <HomeIcon className="size-4" /> {prop.name}
-        </SheetTitle>
+        <SheetTitle className="flex items-center gap-2"><HomeIcon className="size-4" /> {prop.name}</SheetTitle>
         <SheetDescription>Comportamento deste imóvel no período</SheetDescription>
       </SheetHeader>
       <dl className="grid grid-cols-2 gap-3 mt-6">
@@ -123,47 +91,22 @@ function SectionDetail({ data, section }: { data: EngagementAnalytics; section: 
             <Stat label="Auto-resolução" value={`${s.autoResolveRate}%`} />
           </dl>
           <div className="mt-6 text-sm space-y-2">
-            {s.autoResolveRate >= 80 ? (
-              <p className="text-emerald-700 dark:text-emerald-400">
-                Sessões que abrem essa seção raramente precisam do chat.
-              </p>
-            ) : s.autoResolveRate <= 40 ? (
-              <p className="text-amber-700 dark:text-amber-400">
-                Muitas sessões que abrem essa seção acabam recorrendo ao chat. Vale revisar o
-                conteúdo.
-              </p>
-            ) : (
-              <p>Comportamento equilibrado nessa seção.</p>
-            )}
+            {s.autoResolveRate >= 80
+              ? <p className="text-emerald-700 dark:text-emerald-400">Sessões que abrem essa seção raramente precisam do chat.</p>
+              : s.autoResolveRate <= 40
+              ? <p className="text-amber-700 dark:text-amber-400">Muitas sessões que abrem essa seção acabam recorrendo ao chat. Vale revisar o conteúdo.</p>
+              : <p>Comportamento equilibrado nessa seção.</p>}
           </div>
         </>
       ) : (
-        <p className="text-sm text-muted-foreground mt-6">
-          Sem dados dessa seção no recorte atual.
-        </p>
+        <p className="text-sm text-muted-foreground mt-6">Sem dados dessa seção no recorte atual.</p>
       )}
       <div className="mt-6 h-24">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data.timeseries}>
             <XAxis dataKey="date" hide />
-            <Tooltip
-              contentStyle={{
-                fontSize: 12,
-                borderRadius: 10,
-                border: "1px solid var(--border)",
-                background: "var(--popover)",
-                color: "var(--popover-foreground)",
-              }}
-              labelFormatter={(v) => new Date(v as string).toLocaleDateString("pt-BR")}
-            />
-            <Line
-              type="monotone"
-              dataKey="sessions"
-              stroke="var(--foreground)"
-              strokeWidth={1.5}
-              dot={false}
-              isAnimationActive={false}
-            />
+            <Tooltip contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid var(--border)", background: "var(--popover)", color: "var(--popover-foreground)" }} labelFormatter={(v) => new Date(v as string).toLocaleDateString("pt-BR")} />
+            <Line type="monotone" dataKey="sessions" stroke="var(--foreground)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -178,15 +121,12 @@ function GuestDetail({ guestKey, accountId }: { guestKey: string; accountId: str
     queryFn: () => fn({ data: { guestKey, asUserId: accountId } }),
   });
   if (isLoading) return <p className="text-sm text-muted-foreground mt-6">Carregando…</p>;
-  if (isError || !data)
-    return <p className="text-sm text-muted-foreground mt-6">Não foi possível carregar.</p>;
+  if (isError || !data) return <p className="text-sm text-muted-foreground mt-6">Não foi possível carregar.</p>;
   const g = data.guest;
   return (
     <>
       <SheetHeader className="items-center text-center">
-        <SheetTitle className="flex items-center justify-center gap-2">
-          <User className="size-4" /> {g.guestName || "Hóspede"}
-        </SheetTitle>
+        <SheetTitle className="flex items-center justify-center gap-2"><User className="size-4" /> {g.guestName || "Hóspede"}</SheetTitle>
         <SheetDescription asChild>
           <div className="flex flex-col items-center gap-0.5 text-center">
             {g.phone ? (
@@ -196,46 +136,18 @@ function GuestDetail({ guestKey, accountId }: { guestKey: string; accountId: str
             )}
             <span>{g.propertyName}</span>
             {g.propertyCity && <span>{g.propertyCity}</span>}
-            {g.reservationCode && (
-              <span className="inline-flex items-center gap-1 text-[11px] opacity-70">
-                Reserva {g.reservationCode}
-                <CopyButton value={g.reservationCode} size={11} />
-              </span>
-            )}
+            {g.reservationCode && <span className="inline-flex items-center gap-1 text-[11px] opacity-70">Reserva {g.reservationCode}<CopyButton value={g.reservationCode} size={11} /></span>}
           </div>
         </SheetDescription>
       </SheetHeader>
 
       <dl className="grid grid-cols-2 gap-3 mt-6">
-        <Stat
-          label="Check-in"
-          value={new Date(`${g.checkinDate}T12:00:00`).toLocaleDateString("pt-BR")}
-        />
-        <Stat
-          label="Tempo total"
-          value={formatDur(g.totalSeconds)}
-          icon={<Clock className="size-3" />}
-        />
+        <Stat label="Check-in" value={new Date(`${g.checkinDate}T12:00:00`).toLocaleDateString("pt-BR")} />
+        <Stat label="Tempo total" value={formatDur(g.totalSeconds)} icon={<Clock className="size-3" />} />
         <Stat label="Sessões" value={g.sessionsCount} />
-        <Stat
-          label="Seções distintas"
-          value={g.sectionsCount}
-          icon={<Layers className="size-3" />}
-        />
-        <Stat
-          label="Msgs no chat"
-          value={g.messagesCount}
-          icon={<MessageSquare className="size-3" />}
-        />
-        <Stat
-          label="Última atividade"
-          value={new Date(g.lastActivity).toLocaleString("pt-BR", {
-            day: "2-digit",
-            month: "short",
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        />
+        <Stat label="Seções distintas" value={g.sectionsCount} icon={<Layers className="size-3" />} />
+        <Stat label="Msgs no chat" value={g.messagesCount} icon={<MessageSquare className="size-3" />} />
+        <Stat label="Última atividade" value={new Date(g.lastActivity).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })} />
       </dl>
 
       {/* Timeline de navegação */}
@@ -261,8 +173,7 @@ function GuestDetail({ guestKey, accountId }: { guestKey: string; accountId: str
               const SECTION_MIN_MS = 5 * 1000;
               for (let i = 0; i < seq.length; i++) {
                 const tCur = new Date(seq[i].at).getTime();
-                const tNext =
-                  i < seq.length - 1 ? new Date(seq[i + 1].at).getTime() : tCur + SECTION_MIN_MS;
+                const tNext = i < seq.length - 1 ? new Date(seq[i + 1].at).getTime() : tCur + SECTION_MIN_MS;
                 const dur = Math.min(SECTION_GAP_MS, Math.max(SECTION_MIN_MS, tNext - tCur)) / 1000;
                 perSec.set(seq[i].section, (perSec.get(seq[i].section) ?? 0) + dur);
               }
@@ -285,12 +196,7 @@ function GuestDetail({ guestKey, accountId }: { guestKey: string; accountId: str
                             Sessão {idx + 1}
                           </div>
                           <div className="text-[10.5px] text-muted-foreground mt-0.5 truncate">
-                            {new Date(s.startedAt).toLocaleString("pt-BR", {
-                              day: "2-digit",
-                              month: "short",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
+                            {new Date(s.startedAt).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                             {" · "}
                             {uniqueSecs.length} seç{uniqueSecs.length === 1 ? "ão" : "ões"}
                           </div>
@@ -309,12 +215,8 @@ function GuestDetail({ guestKey, accountId }: { guestKey: string; accountId: str
                           return (
                             <li key={sec} className="space-y-1">
                               <div className="flex items-center justify-between gap-2 text-[11px]">
-                                <span className="font-medium text-foreground/90 truncate">
-                                  {labelFor(sec)}
-                                </span>
-                                <span className="tabular-nums text-muted-foreground shrink-0">
-                                  {formatDur(dur)}
-                                </span>
+                                <span className="font-medium text-foreground/90 truncate">{labelFor(sec)}</span>
+                                <span className="tabular-nums text-muted-foreground shrink-0">{formatDur(dur)}</span>
                               </div>
                               <div className="h-1 rounded-full bg-muted overflow-hidden">
                                 <div
@@ -339,6 +241,7 @@ function GuestDetail({ guestKey, accountId }: { guestKey: string; accountId: str
         )}
       </section>
 
+
       {/* Conversas com a IA — sempre listadas, independente da sessão */}
       {data.conversations.length > 0 && (
         <section className="mt-8">
@@ -351,40 +254,28 @@ function GuestDetail({ guestKey, accountId }: { guestKey: string; accountId: str
                 <div className="text-[11px] text-muted-foreground flex items-center justify-between">
                   <span className="font-medium text-foreground">Conversa {idx + 1}</span>
                   <span className="tabular-nums">
-                    {new Date(c.startedAt).toLocaleString("pt-BR", {
-                      day: "2-digit",
-                      month: "short",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    {new Date(c.startedAt).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                   </span>
                 </div>
                 <div className="space-y-1.5">
                   {c.messages.map((m) => (
                     <div
                       key={m.id}
-                      className={
-                        m.role === "user"
-                          ? "rounded-md bg-background border border-border px-2.5 py-1.5 text-[12px]"
-                          : "rounded-md bg-primary/5 border border-primary/10 px-2.5 py-1.5 text-[12px]"
-                      }
+                      className={m.role === "user"
+                        ? "rounded-md bg-background border border-border px-2.5 py-1.5 text-[12px]"
+                        : "rounded-md bg-primary/5 border border-primary/10 px-2.5 py-1.5 text-[12px]"}
                     >
                       <div className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">
                         {m.role === "user"
                           ? "Hóspede"
                           : (m as { senderName?: string | null }).senderName
                             ? (m as { senderName?: string | null }).senderName
-                            : m.role === "assistant"
-                              ? "IA"
-                              : m.role}
+                            : m.role === "assistant" ? "IA" : m.role}
                       </div>
-                      <div className="whitespace-pre-wrap">
-                        <MessageText text={m.content} />
-                      </div>
+                      <div className="whitespace-pre-wrap"><MessageText text={m.content} /></div>
                       {m.feedback && !m.feedback.resolved && (
                         <div className="mt-1 text-[10px] text-rose-600 dark:text-rose-400 flex items-center gap-1">
-                          <AlertCircle className="size-3" /> Marcada como não útil
-                          {m.feedback.reason ? ` — ${m.feedback.reason}` : ""}
+                          <AlertCircle className="size-3" /> Marcada como não útil{m.feedback.reason ? ` — ${m.feedback.reason}` : ""}
                         </div>
                       )}
                     </div>
@@ -395,24 +286,16 @@ function GuestDetail({ guestKey, accountId }: { guestKey: string; accountId: str
           </div>
         </section>
       )}
+
     </>
   );
 }
 
-function Stat({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: string | number;
-  icon?: React.ReactNode;
-}) {
+
+function Stat({ label, value, icon }: { label: string; value: string | number; icon?: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-border bg-muted/30 p-3">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-        {icon} {label}
-      </div>
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">{icon} {label}</div>
       <div className="text-lg font-semibold tabular-nums truncate">{value}</div>
     </div>
   );

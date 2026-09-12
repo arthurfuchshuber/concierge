@@ -102,21 +102,20 @@ function nextMonthFirstDayISO(after: Date): string {
 
 export const adminCreateEnterpriseSubscription = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
-    (d: {
-      email: string;
-      monthlyAmountBRLCents: number;
-      trialDays: number;
-      environment: PaddleEnv;
-    }) =>
-      z
-        .object({
-          email: z.string().email(),
-          monthlyAmountBRLCents: z.number().int().min(70).max(10_000_000_00),
-          trialDays: z.number().int().min(0).max(90),
-          environment: PaddleEnvSchema,
-        })
-        .parse(d),
+  .inputValidator((d: {
+    email: string;
+    monthlyAmountBRLCents: number;
+    trialDays: number;
+    environment: PaddleEnv;
+  }) =>
+    z
+      .object({
+        email: z.string().email(),
+        monthlyAmountBRLCents: z.number().int().min(70).max(10_000_000_00),
+        trialDays: z.number().int().min(0).max(90),
+        environment: PaddleEnvSchema,
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
@@ -128,10 +127,7 @@ export const adminCreateEnterpriseSubscription = createServerFn({ method: "POST"
     for (let page = 1; page <= 10; page++) {
       const { data: list } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
       const match = list.users.find((u) => (u.email ?? "").toLowerCase() === targetEmail);
-      if (match) {
-        user = match;
-        break;
-      }
+      if (match) { user = match; break; }
       if (list.users.length < 1000) break;
     }
     if (!user) {
@@ -207,9 +203,7 @@ export const adminCreateEnterpriseSubscription = createServerFn({ method: "POST"
     });
     const txJson = await txRes.json();
     if (!txRes.ok) {
-      throw new Error(
-        `Erro ao criar transação: ${txJson.error?.detail ?? JSON.stringify(txJson.error)}`,
-      );
+      throw new Error(`Erro ao criar transação: ${txJson.error?.detail ?? JSON.stringify(txJson.error)}`);
     }
 
     return {
@@ -265,9 +259,7 @@ export const adminAnchorSubscriptionToDay1 = createServerFn({ method: "POST" })
     );
     const patchJson = await patchRes.json();
     if (!patchRes.ok) {
-      throw new Error(
-        `Erro ao ancorar: ${patchJson.error?.detail ?? JSON.stringify(patchJson.error)}`,
-      );
+      throw new Error(`Erro ao ancorar: ${patchJson.error?.detail ?? JSON.stringify(patchJson.error)}`);
     }
 
     // Atualizar coluna no banco
@@ -315,9 +307,7 @@ export const adminListEnterpriseSubscriptions = createServerFn({ method: "GET" }
     if (!rows?.length) return { items: [] };
 
     const userIds = Array.from(new Set(rows.map((r) => r.user_id).filter(Boolean)));
-    const usersData = {
-      users: await (await import("@/lib/admin-users.server")).listAllAuthUsers(),
-    };
+    const usersData = { users: await (await import("@/lib/admin-users.server")).listAllAuthUsers() };
     const userMap = new Map((usersData?.users ?? []).map((u) => [u.id, u.email]));
     void userIds;
 
@@ -327,10 +317,7 @@ export const adminListEnterpriseSubscriptions = createServerFn({ method: "GET" }
       let nextBilledAt: string | null = null;
       if (r.paddle_subscription_id?.startsWith("sub_")) {
         try {
-          const res = await gatewayFetch(
-            data.environment,
-            `/subscriptions/${r.paddle_subscription_id}`,
-          );
+          const res = await gatewayFetch(data.environment, `/subscriptions/${r.paddle_subscription_id}`);
           const j = await res.json();
           nextBilledAt = j.data?.next_billed_at ?? null;
         } catch {
@@ -357,15 +344,18 @@ export const adminListEnterpriseSubscriptions = createServerFn({ method: "GET" }
 
 export const adminCancelEnterpriseSubscription = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
-    (d: { paddleSubscriptionId: string; environment: PaddleEnv; immediate: boolean }) =>
-      z
-        .object({
-          paddleSubscriptionId: z.string().min(3).max(80),
-          environment: PaddleEnvSchema,
-          immediate: z.boolean(),
-        })
-        .parse(d),
+  .inputValidator((d: {
+    paddleSubscriptionId: string;
+    environment: PaddleEnv;
+    immediate: boolean;
+  }) =>
+    z
+      .object({
+        paddleSubscriptionId: z.string().min(3).max(80),
+        environment: PaddleEnvSchema,
+        immediate: z.boolean(),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);

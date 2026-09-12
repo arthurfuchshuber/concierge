@@ -2,11 +2,17 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { gatewayFetch, getPaddleClient, type PaddleEnv } from "@/lib/paddle.server";
-import { PLANS, planFromProductId, planFromPriceId, type PlanKey } from "@/lib/payments.shared";
+import {
+  PLANS,
+  planFromProductId,
+  planFromPriceId,
+  type PlanKey,
+} from "@/lib/payments.shared";
 
 // Re-export shared helpers so existing `@/lib/payments.functions` importers keep working.
 export { PLANS, planFromProductId, planFromPriceId };
 export type { PlanKey };
+
 
 const PaddleEnvSchema = z.enum(["sandbox", "live"]);
 
@@ -45,7 +51,9 @@ export const getMySubscription = createServerFn({ method: "GET" })
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("subscriptions", error);
     const list = rows ?? [];
     const match =
-      list.find((r) => r.environment === data.environment) ?? list.find((r) => r.is_manual) ?? null;
+      list.find((r) => r.environment === data.environment) ??
+      list.find((r) => r.is_manual) ??
+      null;
     if (!match) return { subscription: null, plan: null as PlanKey | null };
     const plan = planFromProductId(match.product_id);
     return { subscription: match, plan };
@@ -75,10 +83,13 @@ export const getAccountSubscription = createServerFn({ method: "POST" })
     if (error) throw new Error("Não foi possível carregar a assinatura da conta.");
     const list = rows ?? [];
     const match =
-      list.find((r) => r.environment === data.environment) ?? list.find((r) => r.is_manual) ?? null;
+      list.find((r) => r.environment === data.environment) ??
+      list.find((r) => r.is_manual) ??
+      null;
     if (!match) return { subscription: null, plan: null as PlanKey | null };
     return { subscription: match, plan: planFromProductId(match.product_id) };
   });
+
 
 export const createPortalSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -87,11 +98,7 @@ export const createPortalSession = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const ownerId = await resolveAuthorizedAccountOwnerId(
-      context.supabase,
-      context.userId,
-      data.ownerId,
-    );
+    const ownerId = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: sub, error } = await supabaseAdmin
       .from("subscriptions")
@@ -106,15 +113,14 @@ export const createPortalSession = createServerFn({ method: "POST" })
     const customerId = sub.paddle_customer_id ?? "";
     const isRealPaddleCustomer = customerId.startsWith("ctm_") || customerId.startsWith("cus_");
     if (!isRealPaddleCustomer) {
-      throw new Error(
-        "Esta é uma conta de cortesia configurada manualmente — não há cobrança recorrente nem cartão a gerenciar.",
-      );
+      throw new Error("Esta é uma conta de cortesia configurada manualmente — não há cobrança recorrente nem cartão a gerenciar.");
     }
 
     const paddle = getPaddleClient(sub.environment as PaddleEnv);
-    const session = await paddle.customerPortalSessions.create(sub.paddle_customer_id as string, [
-      sub.paddle_subscription_id as string,
-    ]);
+    const session = await paddle.customerPortalSessions.create(
+      sub.paddle_customer_id as string,
+      [sub.paddle_subscription_id as string],
+    );
     return {
       overviewUrl: session.urls.general.overview,
       subscriptions: session.urls.subscriptions,
@@ -146,11 +152,7 @@ export const listMyPayments = createServerFn({ method: "GET" })
   )
   .handler(async ({ data, context }): Promise<{ payments: PaymentRow[] }> => {
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const ownerId = await resolveAuthorizedAccountOwnerId(
-      context.supabase,
-      context.userId,
-      data.ownerId,
-    );
+    const ownerId = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: sub } = await supabaseAdmin
       .from("subscriptions")
@@ -172,23 +174,21 @@ export const listMyPayments = createServerFn({ method: "GET" })
         `/transactions?customer_id=${encodeURIComponent(customerId)}&per_page=25&order_by=created_at[DESC]`,
       );
       const json = await response.json();
-      const payments: PaymentRow[] = (json.data ?? []).map(
-        (t: {
-          id: string;
-          status: string;
-          created_at: string;
-          details?: { totals?: { total?: string } };
-          currency_code: string;
-          invoice_id?: string | null;
-        }) => ({
-          id: t.id,
-          status: t.status,
-          createdAt: t.created_at,
-          amount: t.details?.totals?.total ?? "0",
-          currency: t.currency_code,
-          invoiceUrl: t.invoice_id ? `https://my.paddle.com/invoice/${t.invoice_id}` : null,
-        }),
-      );
+      const payments: PaymentRow[] = (json.data ?? []).map((t: {
+        id: string;
+        status: string;
+        created_at: string;
+        details?: { totals?: { total?: string } };
+        currency_code: string;
+        invoice_id?: string | null;
+      }) => ({
+        id: t.id,
+        status: t.status,
+        createdAt: t.created_at,
+        amount: t.details?.totals?.total ?? "0",
+        currency: t.currency_code,
+        invoiceUrl: t.invoice_id ? `https://my.paddle.com/invoice/${t.invoice_id}` : null,
+      }));
       return { payments };
     } catch {
       return { payments: [] };
@@ -202,11 +202,7 @@ export const getAccountPaymentMethod = createServerFn({ method: "GET" })
   )
   .handler(async ({ data, context }): Promise<{ paymentMethod: PaymentMethodSummary | null }> => {
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const ownerId = await resolveAuthorizedAccountOwnerId(
-      context.supabase,
-      context.userId,
-      data.ownerId,
-    );
+    const ownerId = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: sub } = await supabaseAdmin
       .from("subscriptions")
@@ -221,12 +217,9 @@ export const getAccountPaymentMethod = createServerFn({ method: "GET" })
       return { paymentMethod: null };
     }
     try {
-      const response = await gatewayFetch(
-        data.environment,
-        `/customers/${encodeURIComponent(customerId)}/payment-methods`,
-      );
+      const response = await gatewayFetch(data.environment, `/customers/${encodeURIComponent(customerId)}/payment-methods`);
       if (!response.ok) return { paymentMethod: null };
-      const json = (await response.json()) as {
+      const json = await response.json() as {
         data?: Array<{
           type?: string;
           card?: {
@@ -257,23 +250,18 @@ export const getAccountPaymentMethod = createServerFn({ method: "GET" })
 
 export const changePlan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
-    (data: { environment: PaddleEnv; targetPriceExternalId: string; ownerId?: string | null }) =>
-      z
-        .object({
-          environment: PaddleEnvSchema,
-          targetPriceExternalId: z.string().min(1).max(80),
-          ownerId: z.string().uuid().nullish(),
-        })
-        .parse(data),
+  .inputValidator((data: { environment: PaddleEnv; targetPriceExternalId: string; ownerId?: string | null }) =>
+    z
+      .object({
+        environment: PaddleEnvSchema,
+        targetPriceExternalId: z.string().min(1).max(80),
+        ownerId: z.string().uuid().nullish(),
+      })
+      .parse(data),
   )
   .handler(async ({ data, context }) => {
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const ownerId = await resolveAuthorizedAccountOwnerId(
-      context.supabase,
-      context.userId,
-      data.ownerId,
-    );
+    const ownerId = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: sub, error } = await supabaseAdmin
       .from("subscriptions")
@@ -286,9 +274,7 @@ export const changePlan = createServerFn({ method: "POST" })
     if (error) throw (await import("@/lib/db-errors.server")).safeDbError("subscriptions", error);
     if (!sub) throw new Error("Nenhuma assinatura encontrada");
     if (!sub.paddle_subscription_id?.startsWith("sub_")) {
-      throw new Error(
-        "Esta assinatura foi configurada manualmente. Entre em contato com o suporte para mudar de plano.",
-      );
+      throw new Error("Esta assinatura foi configurada manualmente. Entre em contato com o suporte para mudar de plano.");
     }
 
     // Enforce guide-count limit for the target plan (downgrade safety).
@@ -326,10 +312,7 @@ export const changePlan = createServerFn({ method: "POST" })
       userId: ownerId,
       entityId: sub.paddle_subscription_id,
       description: `Plano alterado para ${targetPlan ? PLANS[targetPlan].name : data.targetPriceExternalId}.`,
-      metadata: {
-        environment: data.environment,
-        targetPriceExternalId: data.targetPriceExternalId,
-      },
+      metadata: { environment: data.environment, targetPriceExternalId: data.targetPriceExternalId },
       severity: "notice",
     });
     return { ok: true };

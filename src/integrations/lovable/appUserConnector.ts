@@ -13,10 +13,7 @@ function getIdentityToken(): string | null {
   return getRequest()?.headers.get("x-lovable-identity-token") ?? null;
 }
 
-async function getAppUserGatewayAccessToken(
-  gatewayBaseUrl: string,
-  operation: string,
-): Promise<string> {
+async function getAppUserGatewayAccessToken(gatewayBaseUrl: string, operation: string): Promise<string> {
   const identityToken = getIdentityToken();
   if (!identityToken) {
     throw new Error(
@@ -31,11 +28,9 @@ async function getAppUserGatewayAccessToken(
 }
 
 function requireApiKey(): string {
-  const key = process.env["LOVABLE_API_KEY"];
+  const key = process.env['LOVABLE_API_KEY'];
   if (!key) {
-    throw new Error(
-      "LOVABLE_API_KEY is not set. App User Connector calls require a server-side workspace token.",
-    );
+    throw new Error("LOVABLE_API_KEY is not set. App User Connector calls require a server-side workspace token.");
   }
   return key;
 }

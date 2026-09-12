@@ -69,11 +69,7 @@ export async function upsertTenantKnowledge(params: {
   };
 
   const query = params.id
-    ? params.supabase
-        .from("ai_tenant_knowledge")
-        .update(payload)
-        .eq("id", params.id)
-        .eq("tenant_id", params.tenantId)
+    ? params.supabase.from("ai_tenant_knowledge").update(payload).eq("id", params.id).eq("tenant_id", params.tenantId)
     : params.supabase.from("ai_tenant_knowledge").insert(payload);
 
   const { data, error } = await query.select("*").maybeSingle();
@@ -93,11 +89,7 @@ export async function upsertTenantKnowledge(params: {
     description: `${params.id ? "Atualizou" : "Criou"} conhecimento da operação: ${payload.title}`,
     reason: "Cadastro manual de regra interna da empresa",
     source: "admin_panel",
-    metadata: {
-      scope: payload.knowledge_scope,
-      category: payload.category,
-      priority: payload.priority,
-    },
+    metadata: { scope: payload.knowledge_scope, category: payload.category, priority: payload.priority },
   });
 
   return (data ?? {}) as Record<string, unknown>;
@@ -160,9 +152,7 @@ export async function listOperationMemory(params: {
   const [gapsRes, opsRes, memRes, propsRes] = await Promise.all([
     supabase
       .from("ai_knowledge_gaps")
-      .select(
-        "id, property_id, topic, sample_questions, occurrences, avg_confidence, status, last_seen_at",
-      )
+      .select("id, property_id, topic, sample_questions, occurrences, avg_confidence, status, last_seen_at")
       .eq("tenant_id", tenantId)
       .order("occurrences", { ascending: false })
       .limit(60),
@@ -199,11 +189,7 @@ export async function listOperationMemory(params: {
       propertyId: (g.property_id as string) ?? null,
       propertyName: nameOf(g.property_id),
       topic: String(g.topic ?? "Dúvida recorrente"),
-      detail:
-        samples
-          .slice(0, 3)
-          .map((s) => String(s))
-          .join(" · ") || "Hóspedes perguntam com frequência sobre este tema.",
+      detail: samples.slice(0, 3).map((s) => String(s)).join(" · ") || "Hóspedes perguntam com frequência sobre este tema.",
       occurrences: Number(g.occurrences ?? 0),
       confidence: g.avg_confidence == null ? null : Number(g.avg_confidence),
       suggestion: "Melhorar a instrução correspondente no guia do imóvel.",

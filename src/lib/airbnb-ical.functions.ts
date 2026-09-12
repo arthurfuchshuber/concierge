@@ -46,8 +46,7 @@ export const syncPropertyAirbnbIcal = createServerFn({ method: "POST" })
       effectiveUrl = data.icalUrl;
     }
 
-    let effectiveUrl2 =
-      ((prop as { airbnb_ical_url_2?: string | null }).airbnb_ical_url_2 as string | null) ?? null;
+    let effectiveUrl2 = ((prop as { airbnb_ical_url_2?: string | null }).airbnb_ical_url_2 as string | null) ?? null;
     if (typeof data.icalUrl2 !== "undefined" && (data.icalUrl2 ?? null) !== effectiveUrl2) {
       const { error: up2 } = await context.supabase
         .from("properties")
@@ -88,9 +87,7 @@ export const listPropertyReservations = createServerFn({ method: "POST" })
     const today = new Date().toISOString().slice(0, 10);
     const { data: rows } = await context.supabase
       .from("property_reservations")
-      .select(
-        "id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at",
-      )
+      .select("id, checkin_date, checkout_date, raw_summary, guest_hint, reservation_url, status, synced_at")
       .eq("property_id", data.propertyId)
       .gte("checkout_date", today)
       .order("checkin_date", { ascending: true })

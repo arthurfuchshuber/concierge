@@ -18,12 +18,7 @@ const MAX_CHARS = 1400;
 function normalizeText(text: string): string {
   return text
     .split(/\n{2,}/)
-    .map((block) =>
-      block
-        .replace(/[ \t]+/g, " ")
-        .replace(/\n/g, " ")
-        .trim(),
-    )
+    .map((block) => block.replace(/[ \t]+/g, " ").replace(/\n/g, " ").trim())
     .filter(Boolean)
     .join("\n\n");
 }
@@ -75,8 +70,7 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
   const chunks: Chunk[] = [];
   const name = String(prop.name ?? "");
   const locked =
-    typeof prop.access_codes_pin === "string" &&
-    (prop.access_codes_pin as string).trim().length > 0;
+    typeof prop.access_codes_pin === "string" && (prop.access_codes_pin as string).trim().length > 0;
 
   const facts: Array<[string, unknown]> = [
     ["Cidade", prop.city],
@@ -109,13 +103,7 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
     ],
   ];
   for (const [label, value] of facts) {
-    if (value)
-      pushChunk(chunks, {
-        source: "property",
-        sourceId: label,
-        title: `${name} — ${label}`,
-        content: `${label}: ${value}`,
-      });
+    if (value) pushChunk(chunks, { source: "property", sourceId: label, title: `${name} — ${label}`, content: `${label}: ${value}` });
   }
 
   const cityKeyValue = await (async () => {
@@ -142,46 +130,22 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
     cityFaqs,
     cityRecs,
   ] = await Promise.all([
-    supabase
-      .from("property_manual_items")
-      .select("id, title, description, body")
-      .eq("property_id", propertyId),
+    supabase.from("property_manual_items").select("id, title, description, body").eq("property_id", propertyId),
     supabase.from("property_faqs").select("id, question, answer").eq("property_id", propertyId),
-    supabase
-      .from("property_recommendations")
-      .select("id, name, category, type, distance_text, note")
-      .eq("property_id", propertyId),
+    supabase.from("property_recommendations").select("id, name, category, type, distance_text, note").eq("property_id", propertyId),
     supabase.from("property_checkout_items").select("id, label").eq("property_id", propertyId),
-    supabase
-      .from("property_emergency_contacts")
-      .select("id, label, number")
-      .eq("property_id", propertyId),
+    supabase.from("property_emergency_contacts").select("id, label, number").eq("property_id", propertyId),
     supabase.from("property_details").select("id, title, content").eq("property_id", propertyId),
-    supabase
-      .from("host_knowledge")
-      .select("id, title, body, scope_property_id")
-      .eq("owner_id", prop.owner_id as string)
-      .eq("enabled", true),
-    supabase
-      .from("host_behavior")
-      .select("id, title, body, scope_property_id")
-      .eq("owner_id", prop.owner_id as string)
-      .eq("enabled", true),
-    supabase
-      .from("host_faqs")
-      .select("id, question, answer, scope_property_id")
-      .eq("owner_id", prop.owner_id as string),
+    supabase.from("host_knowledge").select("id, title, body, scope_property_id").eq("owner_id", prop.owner_id as string).eq("enabled", true),
+    supabase.from("host_behavior").select("id, title, body, scope_property_id").eq("owner_id", prop.owner_id as string).eq("enabled", true),
+    supabase.from("host_faqs").select("id, question, answer, scope_property_id").eq("owner_id", prop.owner_id as string),
     supabase
       .from("ai_tenant_knowledge")
       .select("id, category, content, property_id, status")
       .eq("owner_id", prop.owner_id as string)
       .eq("status", "active"),
     prop.property_type_id
-      ? supabase
-          .from("property_types")
-          .select("label")
-          .eq("id", prop.property_type_id as string)
-          .maybeSingle()
+      ? supabase.from("property_types").select("label").eq("id", prop.property_type_id as string).maybeSingle()
       : Promise.resolve({ data: null }),
     cityKeyValue
       ? supabase.from("sigma_city_faqs").select("id, question, answer").eq("city_key", cityKeyValue)
@@ -213,9 +177,7 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
       content: `Pergunta: ${f.question}\nResposta: ${f.answer}`,
     });
   }
-  for (const k of ((tenantKnowledge as { data?: unknown }).data ?? []) as Array<
-    Record<string, unknown>
-  >) {
+  for (const k of ((tenantKnowledge as { data?: unknown }).data ?? []) as Array<Record<string, unknown>>) {
     if (k.property_id && k.property_id !== propertyId) continue;
     pushChunk(chunks, {
       source: "tenant_knowledge",
@@ -237,13 +199,7 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
       source: "city_reference",
       sourceId: String(r.id),
       title: String(r.name ?? "Recomendação da cidade"),
-      content: [
-        r.name,
-        r.category,
-        r.address,
-        r.note,
-        Array.isArray(r.opening_hours) ? (r.opening_hours as string[]).join("; ") : null,
-      ]
+      content: [r.name, r.category, r.address, r.note, Array.isArray(r.opening_hours) ? (r.opening_hours as string[]).join("; ") : null]
         .filter(Boolean)
         .join(" — "),
     });
@@ -274,20 +230,10 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
     });
   }
   for (const c of (checkout.data ?? []) as Array<Record<string, unknown>>) {
-    pushChunk(chunks, {
-      source: "checkout",
-      sourceId: String(c.id),
-      title: "Antes de sair",
-      content: String(c.label ?? ""),
-    });
+    pushChunk(chunks, { source: "checkout", sourceId: String(c.id), title: "Antes de sair", content: String(c.label ?? "") });
   }
   for (const c of (emergency.data ?? []) as Array<Record<string, unknown>>) {
-    pushChunk(chunks, {
-      source: "procedures",
-      sourceId: String(c.id),
-      title: "Contato de emergência",
-      content: `${c.label}: ${c.number}`,
-    });
+    pushChunk(chunks, { source: "procedures", sourceId: String(c.id), title: "Contato de emergência", content: `${c.label}: ${c.number}` });
   }
   for (const d of (details.data ?? []) as Array<Record<string, unknown>>) {
     pushChunk(chunks, {
@@ -299,21 +245,11 @@ async function collectChunks(supabase: Admin, propertyId: string, prop: Record<s
   }
   for (const k of (knowledge.data ?? []) as Array<Record<string, unknown>>) {
     if (k.scope_property_id && k.scope_property_id !== propertyId) continue;
-    pushChunk(chunks, {
-      source: "host_knowledge",
-      sourceId: String(k.id),
-      title: String(k.title ?? ""),
-      content: String(k.body ?? ""),
-    });
+    pushChunk(chunks, { source: "host_knowledge", sourceId: String(k.id), title: String(k.title ?? ""), content: String(k.body ?? "") });
   }
   for (const b of (behavior.data ?? []) as Array<Record<string, unknown>>) {
     if (b.scope_property_id && b.scope_property_id !== propertyId) continue;
-    pushChunk(chunks, {
-      source: "host_behavior",
-      sourceId: String(b.id),
-      title: String(b.title ?? ""),
-      content: String(b.body ?? ""),
-    });
+    pushChunk(chunks, { source: "host_behavior", sourceId: String(b.id), title: String(b.title ?? ""), content: String(b.body ?? "") });
   }
 
   return chunks;
@@ -390,20 +326,14 @@ export async function reindexProperty(
   } catch (e) {
     // Reverte a gravação parcial para não misturar base nova incompleta com a antiga.
     for (let i = 0; i < insertedIds.length; i += 200) {
-      await supabase
-        .from("ai_kb_chunks")
-        .delete()
-        .in("id", insertedIds.slice(i, i + 200));
+      await supabase.from("ai_kb_chunks").delete().in("id", insertedIds.slice(i, i + 200));
     }
     throw e instanceof Error ? e : new Error(String(e));
   }
 
   // Nova base gravada com sucesso — remove a anterior.
   for (let i = 0; i < oldIds.length; i += 200) {
-    await supabase
-      .from("ai_kb_chunks")
-      .delete()
-      .in("id", oldIds.slice(i, i + 200));
+    await supabase.from("ai_kb_chunks").delete().in("id", oldIds.slice(i, i + 200));
   }
 
   return { indexed: rows.length, usage };

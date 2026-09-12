@@ -19,10 +19,7 @@ async function loadItemsForProperty(
   const sb = supabase as {
     from: (t: string) => {
       select: (c: string) => {
-        eq: (
-          k: string,
-          v: string,
-        ) => {
+        eq: (k: string, v: string) => {
           limit: (n: number) => Promise<{ data: unknown[] | null }>;
           maybeSingle?: () => Promise<{ data: unknown }>;
         };
@@ -31,20 +28,14 @@ async function loadItemsForProperty(
   };
   const [{ data: faqs }, { data: recs }, propRes] = await Promise.all([
     sb.from("property_faqs").select("id, question").eq("property_id", propertyId).limit(100),
-    sb
-      .from("property_recommendations")
-      .select("id, name, category")
-      .eq("property_id", propertyId)
-      .limit(100),
-    (
-      sb.from("properties").select("marketplace_links").eq("id", propertyId) as unknown as {
-        maybeSingle: () => Promise<{ data: { marketplace_links?: unknown } | null }>;
-      }
-    ).maybeSingle(),
+    sb.from("property_recommendations").select("id, name, category").eq("property_id", propertyId).limit(100),
+    (sb.from("properties").select("marketplace_links").eq("id", propertyId) as unknown as {
+      maybeSingle: () => Promise<{ data: { marketplace_links?: unknown } | null }>;
+    }).maybeSingle(),
   ]);
   const out: GuideTagItemPayload[] = [];
   const seen = new Set<string>();
-  for (const f of (faqs ?? []) as Array<{ question?: string }>) {
+  for (const f of ((faqs ?? []) as Array<{ question?: string }>)) {
     const q = String(f.question ?? "").trim();
     if (!q) continue;
     const base = slugForTag(q);
@@ -53,15 +44,9 @@ async function loadItemsForProperty(
     let n = 1;
     while (seen.has(`faq:${s}`)) s = `${base}-${++n}`;
     seen.add(`faq:${s}`);
-    out.push({
-      key: "faq",
-      param: s,
-      label: q.length > 80 ? q.slice(0, 77) + "…" : q,
-      hint: "FAQ do imóvel",
-      kind: "tag",
-    });
+    out.push({ key: "faq", param: s, label: q.length > 80 ? q.slice(0, 77) + "…" : q, hint: "FAQ do imóvel", kind: "tag" });
   }
-  for (const r of (recs ?? []) as Array<{ name?: string; category?: string }>) {
+  for (const r of ((recs ?? []) as Array<{ name?: string; category?: string }>)) {
     const nm = String(r.name ?? "").trim();
     if (!nm) continue;
     const cat = String(r.category ?? "").trim();
@@ -98,14 +83,10 @@ export const getTagItemsForProperty = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     // Confirma acesso (owner ou membro)
     const { data: prop } = await supabase
-      .from("properties")
-      .select("id, owner_id")
-      .eq("id", data.propertyId)
-      .maybeSingle();
+      .from("properties").select("id, owner_id").eq("id", data.propertyId).maybeSingle();
     if (!prop) return { items: [] as GuideTagItemPayload[] };
     const { data: canAccess } = await supabase.rpc("user_can_access_property", {
-      _user_id: userId,
-      _property_id: data.propertyId,
+      _user_id: userId, _property_id: data.propertyId,
     });
     if (!canAccess) return { items: [] as GuideTagItemPayload[] };
     const items = await loadItemsForProperty(supabase, data.propertyId);

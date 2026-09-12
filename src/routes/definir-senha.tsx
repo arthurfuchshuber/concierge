@@ -92,20 +92,24 @@ function DefinirSenhaPage() {
           <div className="size-11 rounded-xl bg-accent/15 text-accent grid place-items-center mb-3">
             <KeyRound className="size-5" strokeWidth={2} />
           </div>
-          <h1 className="font-display text-2xl leading-tight">Crie a sua senha</h1>
+          <h1 className="font-display text-2xl leading-tight">
+            Crie a sua senha
+          </h1>
           <p className="text-sm text-muted-foreground mt-1.5">
             Escolha uma senha para acessar o painel sempre que quiser.
           </p>
         </div>
 
         <div className="px-7 py-6">
-          {!ready && <p className="text-sm text-muted-foreground">Verificando o link…</p>}
+          {!ready && (
+            <p className="text-sm text-muted-foreground">Verificando o link…</p>
+          )}
 
           {ready && !hasSession && !done && (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
-                Este link de convite expirou ou já foi utilizado. Peça ao titular da conta para
-                reenviar o convite.
+                Este link de convite expirou ou já foi utilizado. Peça ao
+                titular da conta para reenviar o convite.
               </p>
               <a
                 href="/auth"
@@ -160,7 +164,9 @@ function DefinirSenhaPage() {
           {done && (
             <div className="flex items-start gap-3">
               <CheckCircle2 className="size-5 text-emerald-500 mt-0.5" />
-              <p className="text-sm">Senha criada! Estamos abrindo o seu painel…</p>
+              <p className="text-sm">
+                Senha criada! Estamos abrindo o seu painel…
+              </p>
             </div>
           )}
         </div>

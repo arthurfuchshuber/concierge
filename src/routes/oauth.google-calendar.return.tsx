@@ -7,10 +7,7 @@ export const Route = createFileRoute("/oauth/google-calendar/return")({
   head: () => ({
     meta: [
       { title: "Conectando Google Agenda | SigmaConcierge" },
-      {
-        name: "description",
-        content: "Finalizando a conexão da sua conta Google Agenda com o SigmaConcierge.",
-      },
+      { name: "description", content: "Finalizando a conexão da sua conta Google Agenda com o SigmaConcierge." },
       { name: "robots", content: "noindex" },
     ],
   }),

@@ -2,20 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { periodColorClass } from "@/components/dashboard/card-colors";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
-import {
-  ChevronDown,
-  ChevronRight,
-  Download,
-  Loader2,
-  Mail,
-  MessageCircle,
-  Search,
-  Users,
-  FileText,
-  Car,
-  Clock,
-  Phone,
-} from "lucide-react";
+import { ChevronDown, ChevronRight, Download, Loader2, Mail, MessageCircle, Search, Users, FileText, Car, Clock, Phone } from "lucide-react";
 import { listOwnerGuestForms, savePortariaEmail } from "@/lib/guide-access-admin.functions";
 import { toast } from "sonner";
 import { CopyButton } from "@/components/CopyButton";
@@ -25,33 +12,19 @@ import { PageHeader } from "@/components/ds/PageHeader";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { LoadingListState } from "@/components/ds/LoadingState";
 
+
 function fmt(iso: string) {
-  try {
-    return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
-  } catch {
-    return iso;
-  }
+  try { return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }); }
+  catch { return iso; }
 }
 function fmtDate(d: string) {
-  try {
-    const [y, m, day] = d.split("-");
-    return `${day}/${m}/${y}`;
-  } catch {
-    return d;
-  }
+  try { const [y, m, day] = d.split("-"); return `${day}/${m}/${y}`; } catch { return d; }
 }
 /** Hoje no fuso do Brasil (YYYY-MM-DD) — usado só para decidir a cor da data. */
-const todayISO = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(
-  new Date(),
-);
+const todayISO = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
 
 type Vehicle = { plate?: string | null; model?: string | null; color?: string | null };
-type Document = {
-  guest_name?: string | null;
-  file_url?: string | null;
-  doc_type?: string | null;
-  doc_number?: string | null;
-};
+type Document = { guest_name?: string | null; file_url?: string | null; doc_type?: string | null; doc_number?: string | null };
 type Row = {
   id: string;
   guest_name: string;
@@ -70,15 +43,12 @@ type Row = {
 
 function buildEmailBody(r: Row) {
   const lines: string[] = [];
-  lines.push(
-    `Olá, seguem os dados do hóspede para o check-in em ${r.property_name ?? "nossa unidade"}.`,
-  );
+  lines.push(`Olá, seguem os dados do hóspede para o check-in em ${r.property_name ?? "nossa unidade"}.`);
   lines.push("");
   lines.push(`• Nome: ${r.guest_name}`);
   lines.push(`• Data de check-in: ${fmtDate(r.checkin_date)}`);
   if (r.guest_arrival_time) lines.push(`• Chegada prevista: ${r.guest_arrival_time}`);
-  if (r.guest_phone)
-    lines.push(`• Telefone: ${r.guest_phone_country ?? ""} ${r.guest_phone}`.trim());
+  if (r.guest_phone) lines.push(`• Telefone: ${r.guest_phone_country ?? ""} ${r.guest_phone}`.trim());
   if (r.reservation_code) lines.push(`• Reserva: ${r.reservation_code}`);
   if (r.guest_vehicles && r.guest_vehicles.length > 0) {
     lines.push("");
@@ -92,9 +62,7 @@ function buildEmailBody(r: Row) {
     lines.push("");
     lines.push("Documentos:");
     r.guest_documents.forEach((d, i) => {
-      lines.push(
-        `  ${i + 1}. ${d.guest_name ?? r.guest_name}${d.doc_type ? ` (${d.doc_type})` : ""}${d.doc_number ? ` — ${d.doc_number}` : ""}`,
-      );
+      lines.push(`  ${i + 1}. ${d.guest_name ?? r.guest_name}${d.doc_type ? ` (${d.doc_type})` : ""}${d.doc_number ? ` — ${d.doc_number}` : ""}`);
       if (d.file_url) lines.push(`     Arquivo: ${d.file_url}`);
     });
   }
@@ -129,21 +97,11 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
     if (!q) return rows;
     return rows.filter((r) => {
       const hay = [
-        r.guest_name,
-        r.property_name ?? "",
-        r.reservation_code ?? "",
-        r.guest_phone ?? "",
-        r.checkin_date,
-        r.guest_arrival_time ?? "",
-        ...((r.guest_vehicles ?? [])
-          .flatMap((v) => [v.plate, v.model, v.color])
-          .filter(Boolean) as string[]),
-        ...((r.guest_documents ?? [])
-          .flatMap((d) => [d.guest_name, d.doc_type, d.doc_number])
-          .filter(Boolean) as string[]),
-      ]
-        .join(" ")
-        .toLowerCase();
+        r.guest_name, r.property_name ?? "", r.reservation_code ?? "",
+        r.guest_phone ?? "", r.checkin_date, r.guest_arrival_time ?? "",
+        ...(r.guest_vehicles ?? []).flatMap((v) => [v.plate, v.model, v.color]).filter(Boolean) as string[],
+        ...(r.guest_documents ?? []).flatMap((d) => [d.guest_name, d.doc_type, d.doc_number]).filter(Boolean) as string[],
+      ].join(" ").toLowerCase();
       return hay.includes(q);
     });
   }, [rows, query]);
@@ -157,18 +115,13 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
   async function confirmSend() {
     if (!sendOpen) return;
     const to = emailField.trim();
-    if (!to) {
-      toast.error("Informe um email de destino.");
-      return;
-    }
+    if (!to) { toast.error("Informe um email de destino."); return; }
     if (saveDefault && to !== (sendOpen.portaria_email ?? "")) {
       try {
         await saveFn({ data: { propertyId: sendOpen.property_id, email: to } });
         toast.success("Email da portaria salvo para este imóvel.");
         refetch();
-      } catch {
-        toast.error("Não foi possível salvar o email padrão.");
-      }
+      } catch { toast.error("Não foi possível salvar o email padrão."); }
     }
     const subject = `Hóspede ${sendOpen.guest_name} — Check-in ${fmtDate(sendOpen.checkin_date)}`;
     const body = buildEmailBody(sendOpen);
@@ -188,6 +141,7 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
           />
         </div>
       )}
+
 
       <div className="mb-5 relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 opacity-60 text-muted-foreground" />
@@ -213,189 +167,143 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
         />
       ) : (
         <div className="space-y-1.5">
-          <p className="ds-meta px-1">
-            {filtered.length} {filtered.length === 1 ? "registro" : "registros"}
-          </p>
+          <p className="ds-meta px-1">{filtered.length} {filtered.length === 1 ? "registro" : "registros"}</p>
           {filtered.map((r) => {
-            const isOpen = expanded === r.id;
-            const hasExtras =
-              (r.guest_vehicles && r.guest_vehicles.length > 0) ||
-              (r.guest_documents && r.guest_documents.length > 0) ||
-              r.guest_arrival_time;
-            return (
-              <div key={r.id} className="ds-surface border border-border bg-card overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setExpanded(isOpen ? null : r.id)}
-                  className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-muted/30 transition-colors"
-                >
-                  <div className="min-w-0 flex-1 grid sm:grid-cols-[1.2fr_1fr_.8fr_.6fr] gap-3 items-center">
-                    {/* ds-card-lines: espaçamento padrão entre linhas de
+              const isOpen = expanded === r.id;
+              const hasExtras = (r.guest_vehicles && r.guest_vehicles.length > 0) || (r.guest_documents && r.guest_documents.length > 0) || r.guest_arrival_time;
+              return (
+                <div key={r.id} className="ds-surface border border-border bg-card overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setExpanded(isOpen ? null : r.id)}
+                    className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-muted/30 transition-colors"
+                  >
+                    <div className="min-w-0 flex-1 grid sm:grid-cols-[1.2fr_1fr_.8fr_.6fr] gap-3 items-center">
+                      {/* ds-card-lines: espaçamento padrão entre linhas de
                           card (styles.css) — pedido explícito, vale para
                           TODOS os cards do sistema. */}
-                    <div className="min-w-0 ds-card-lines">
-                      <div className="ds-card-title truncate">{r.guest_name}</div>
-                      <div className="ds-meta truncate flex items-center gap-1.5">
-                        <span className="truncate">{r.property_name ?? "—"}</span>
-                        {r.reservation_code && (
-                          <span className="inline-flex items-center gap-0.5 shrink-0">
-                            <span className="font-mono text-[10.5px] px-1.5 py-0.5 rounded bg-muted/60 border border-border/60">
-                              {r.reservation_code}
+                      <div className="min-w-0 ds-card-lines">
+                        <div className="ds-card-title truncate">{r.guest_name}</div>
+                        <div className="ds-meta truncate flex items-center gap-1.5">
+                          <span className="truncate">{r.property_name ?? "—"}</span>
+                          {r.reservation_code && (
+                            <span className="inline-flex items-center gap-0.5 shrink-0">
+                              <span className="font-mono text-[10.5px] px-1.5 py-0.5 rounded bg-muted/60 border border-border/60">
+                                {r.reservation_code}
+                              </span>
+                              <CopyButton value={r.reservation_code} size={11} />
                             </span>
-                            <CopyButton value={r.reservation_code} size={11} />
-                          </span>
-                        )}
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    <div className="ds-meta truncate hidden sm:block">
-                      {r.guest_phone ? `${r.guest_phone_country ?? ""} ${r.guest_phone}` : "—"}
-                    </div>
-                    {/* Data na cor de ESTADO, como em todo card do sistema
+                      <div className="ds-meta truncate hidden sm:block">
+                        {r.guest_phone ? `${r.guest_phone_country ?? ""} ${r.guest_phone}` : "—"}
+                      </div>
+                      {/* Data na cor de ESTADO, como em todo card do sistema
                           (card-colors.ts): azul enquanto a chegada não
                           aconteceu, cinza quando já é histórico. */}
-                    <div
-                      className={`ds-meta hidden sm:block ${r.checkin_date >= todayISO ? periodColorClass({ kind: "checkin" }) : ""}`}
-                    >
-                      Check-in {fmtDate(r.checkin_date)}
+                      <div className={`ds-meta hidden sm:block ${r.checkin_date >= todayISO ? periodColorClass({ kind: "checkin" }) : ""}`}>
+                        Check-in {fmtDate(r.checkin_date)}
+                      </div>
+                      <div className="ds-meta text-right whitespace-nowrap">{fmt(r.created_at)}</div>
                     </div>
-                    <div className="ds-meta text-right whitespace-nowrap">{fmt(r.created_at)}</div>
-                  </div>
-                  <span className="text-muted-foreground shrink-0">
-                    {isOpen ? (
-                      <ChevronDown className="size-4" />
-                    ) : (
-                      <ChevronRight className="size-4" />
-                    )}
-                  </span>
-                </button>
-                {isOpen && (
-                  <div className="px-4 pb-4 pt-3 border-t border-border/60 space-y-3">
-                    {r.guest_arrival_time && (
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Clock className="size-3.5" /> Chegada prevista:{" "}
-                        <span className="text-foreground font-medium">{r.guest_arrival_time}</span>
-                      </div>
-                    )}
-                    {r.guest_phone && (
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Phone className="size-3.5" /> Telefone:{" "}
-                        <span className="text-foreground font-medium">
-                          {r.guest_phone_country ?? ""} {r.guest_phone}
-                        </span>
-                      </div>
-                    )}
-                    {r.reservation_code && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        Reserva:{" "}
-                        <span className="text-foreground font-medium">{r.reservation_code}</span>
-                        <CopyButton value={r.reservation_code} size={11} />
-                      </div>
-                    )}
-
-                    {r.guest_vehicles && r.guest_vehicles.length > 0 && (
-                      <div className="flex items-start gap-2">
-                        <Car className="size-4 shrink-0 text-muted-foreground mt-1.5" />
-                        <div className="min-w-0 flex-1 space-y-1.5">
-                          {r.guest_vehicles.map((v, i) => (
-                            <div
-                              key={i}
-                              className="ds-surface bg-secondary/50 border border-border/50 px-3 py-2 text-xs text-foreground"
-                            >
-                              {[v.plate, v.model, v.color].filter(Boolean).join(" · ") ||
-                                "(sem detalhes)"}
-                            </div>
-                          ))}
+                    <span className="text-muted-foreground shrink-0">
+                      {isOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+                    </span>
+                  </button>
+                  {isOpen && (
+                    <div className="px-4 pb-4 pt-3 border-t border-border/60 space-y-3">
+                      {r.guest_arrival_time && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Clock className="size-3.5" /> Chegada prevista: <span className="text-foreground font-medium">{r.guest_arrival_time}</span>
                         </div>
-                      </div>
-                    )}
-
-                    {r.guest_documents && r.guest_documents.length > 0 && (
-                      <div className="flex items-start gap-2">
-                        <FileText className="size-4 shrink-0 text-muted-foreground mt-1.5" />
-                        <div className="min-w-0 flex-1 space-y-1.5">
-                          {r.guest_documents.map((d, i) => (
-                            <div
-                              key={i}
-                              className="ds-surface bg-secondary/50 border border-border/50 px-3 py-2 text-xs text-foreground flex items-center gap-2 flex-wrap"
-                            >
-                              <span>{d.guest_name ?? r.guest_name}</span>
-                              {d.doc_type && (
-                                <span className="text-muted-foreground">· {d.doc_type}</span>
-                              )}
-                              {d.doc_number && (
-                                <span className="text-muted-foreground">· {d.doc_number}</span>
-                              )}
-                              {d.file_url && (
-                                <a
-                                  href={d.file_url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex items-center gap-1 text-accent hover:underline ml-1"
-                                >
-                                  <Download className="size-3.5" /> baixar
-                                </a>
-                              )}
-                            </div>
-                          ))}
+                      )}
+                      {r.guest_phone && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Phone className="size-3.5" /> Telefone: <span className="text-foreground font-medium">{r.guest_phone_country ?? ""} {r.guest_phone}</span>
                         </div>
-                      </div>
-                    )}
+                      )}
+                      {r.reservation_code && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          Reserva: <span className="text-foreground font-medium">{r.reservation_code}</span><CopyButton value={r.reservation_code} size={11} />
+                        </div>
+                      )}
 
-                    {!hasExtras && (
-                      <div className="text-xs text-muted-foreground italic">
-                        Nenhum dado opcional coletado.
-                      </div>
-                    )}
+                      {r.guest_vehicles && r.guest_vehicles.length > 0 && (
+                        <div className="flex items-start gap-2">
+                          <Car className="size-4 shrink-0 text-muted-foreground mt-1.5" />
+                          <div className="min-w-0 flex-1 space-y-1.5">
+                            {r.guest_vehicles.map((v, i) => (
+                              <div key={i} className="ds-surface bg-secondary/50 border border-border/50 px-3 py-2 text-xs text-foreground">
+                                {[v.plate, v.model, v.color].filter(Boolean).join(" · ") || "(sem detalhes)"}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
-                    <div className="pt-2 ds-scroll-x gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          openHandoffDock({
+                      {r.guest_documents && r.guest_documents.length > 0 && (
+                        <div className="flex items-start gap-2">
+                          <FileText className="size-4 shrink-0 text-muted-foreground mt-1.5" />
+                          <div className="min-w-0 flex-1 space-y-1.5">
+                            {r.guest_documents.map((d, i) => (
+                              <div key={i} className="ds-surface bg-secondary/50 border border-border/50 px-3 py-2 text-xs text-foreground flex items-center gap-2 flex-wrap">
+                                <span>{d.guest_name ?? r.guest_name}</span>
+                                {d.doc_type && <span className="text-muted-foreground">· {d.doc_type}</span>}
+                                {d.doc_number && <span className="text-muted-foreground">· {d.doc_number}</span>}
+                                {d.file_url && (
+                                  <a href={d.file_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-accent hover:underline ml-1">
+                                    <Download className="size-3.5" /> baixar
+                                  </a>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {!hasExtras && (
+                        <div className="text-xs text-muted-foreground italic">Nenhum dado opcional coletado.</div>
+                      )}
+
+                      <div className="pt-2 ds-scroll-x gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openHandoffDock({
                             propertyId: r.property_id,
                             phone: r.guest_phone,
                             reservationCode: r.reservation_code,
                             guestName: r.guest_name,
-                          })
-                        }
-                        className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-none bg-emerald-600 text-white text-xs font-medium leading-none hover:bg-emerald-700 transition-colors"
-                        title="Abrir chat (WhatsApp integrado, quando configurado)"
-                      >
-                        <MessageCircle className="size-3.5" /> <span>Falar com hóspede</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => openSend(r)}
-                        className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-none bg-secondary/50 text-foreground/80 text-xs font-medium leading-none hover:bg-secondary transition-colors"
-                      >
-                        <Mail className="size-3.5" /> Enviar para portaria
-                      </button>
+                          })}
+                          className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-none bg-emerald-600 text-white text-xs font-medium leading-none hover:bg-emerald-700 transition-colors"
+                          title="Abrir chat (WhatsApp integrado, quando configurado)"
+                        >
+                          <MessageCircle className="size-3.5" /> <span>Falar com hóspede</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openSend(r)}
+                          className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-none bg-secondary/50 text-foreground/80 text-xs font-medium leading-none hover:bg-secondary transition-colors"
+                        >
+                          <Mail className="size-3.5" /> Enviar para portaria
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                  )}
+                </div>
+              );
+            })}
         </div>
       )}
 
       {sendOpen && (
-        <div
-          className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm grid place-items-center p-4"
-          onClick={() => setSendOpen(null)}
-        >
-          <div
-            className="w-full max-w-md ds-surface bg-card border border-border p-5 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm grid place-items-center p-4" onClick={() => setSendOpen(null)}>
+          <div className="w-full max-w-md ds-surface bg-card border border-border p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-display text-lg mb-1">Enviar para portaria</h3>
             <p className="text-xs text-muted-foreground mb-4">
-              Hóspede <span className="text-foreground font-medium">{sendOpen.guest_name}</span> ·
-              Check-in {fmtDate(sendOpen.checkin_date)}
+              Hóspede <span className="text-foreground font-medium">{sendOpen.guest_name}</span> · Check-in {fmtDate(sendOpen.checkin_date)}
             </p>
-            <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
-              Destinatário
-            </label>
+            <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">Destinatário</label>
             <input
               type="email"
               value={emailField}
@@ -404,11 +312,7 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
               className="mt-1 w-full h-10 px-3 rounded-lg border border-border bg-surface text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
             />
             <label className="mt-3 flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
-              <input
-                type="checkbox"
-                checked={saveDefault}
-                onChange={(e) => setSaveDefault(e.target.checked)}
-              />
+              <input type="checkbox" checked={saveDefault} onChange={(e) => setSaveDefault(e.target.checked)} />
               Salvar como email padrão da portaria deste imóvel
             </label>
             <div className="mt-5 flex justify-end gap-2">
@@ -416,20 +320,15 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
                 type="button"
                 onClick={() => setSendOpen(null)}
                 className="h-9 px-3.5 rounded-none text-xs text-muted-foreground hover:text-foreground"
-              >
-                Cancelar
-              </button>
+              >Cancelar</button>
               <button
                 type="button"
                 onClick={confirmSend}
                 className="h-9 px-4 rounded-none bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 inline-flex items-center gap-1.5"
-              >
-                <Mail className="size-3.5" /> Abrir email
-              </button>
+              ><Mail className="size-3.5" /> Abrir email</button>
             </div>
             <p className="text-[10px] text-muted-foreground mt-3">
-              Abriremos seu programa de email com todos os dados já preenchidos. Anexe os documentos
-              baixados, se necessário, antes de enviar.
+              Abriremos seu programa de email com todos os dados já preenchidos. Anexe os documentos baixados, se necessário, antes de enviar.
             </p>
           </div>
         </div>

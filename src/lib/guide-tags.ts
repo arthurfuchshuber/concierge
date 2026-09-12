@@ -22,7 +22,8 @@ export type GuideTagKey =
   | "checkout-instrucoes"
   | "regras-casa"
   // Chaves que aceitam um parâmetro para item específico:
-  | "local"; // uma recomendação/lugar específico
+  | "local"      // uma recomendação/lugar específico
+  ;
 
 export type GuideTag = {
   key: GuideTagKey;
@@ -35,77 +36,27 @@ export type GuideTag = {
 };
 
 export const GUIDE_TAGS: readonly GuideTag[] = [
-  { key: "home", label: "Início", description: "Página principal do guia", path: "#home" },
-  { key: "chegada", label: "Chegada", description: "Aba de check-in", path: "#checkin" },
-  {
-    key: "checkin-instrucoes",
-    label: "Instruções de chegada",
-    description: "Como chegar e o que fazer ao entrar",
-    path: "#checkin",
-  },
-  {
-    key: "senhas-acesso",
-    label: "Senhas de acesso",
-    description: "Portão, fechadura e cofre",
-    path: "#checkin",
-  },
-  { key: "wifi", label: "Wi-Fi", description: "Rede e senha", path: "#checkin" },
-  { key: "endereco", label: "Endereço", description: "Localização do imóvel", path: "#checkin" },
-  {
-    key: "manual-casa",
-    label: "Manual da casa",
-    description: "Como usar aparelhos e ambientes",
-    path: "#residencia",
-  },
-  {
-    key: "regras-casa",
-    label: "Regras da casa",
-    description: "Combinados de convivência",
-    path: "#residencia",
-  },
-  {
-    key: "residencia",
-    label: "A residência",
-    description: "Aba com o manual e regras",
-    path: "#residencia",
-  },
-  { key: "saida", label: "Saída", description: "Aba de check-out", path: "#saida" },
-  {
-    key: "checkout-instrucoes",
-    label: "Instruções de saída",
-    description: "Passo a passo do check-out",
-    path: "#saida",
-  },
-  {
-    key: "explorar",
-    label: "Explorar a cidade",
-    description: "Recomendações pela cidade",
-    path: "/explorar",
-  },
-  {
-    key: "local",
-    label: "Recomendação (lugar)",
-    description: "Um lugar específico das recomendações",
-    path: "/explorar",
-    parameterized: true,
-  },
-  {
-    key: "faq",
-    label: "Perguntas frequentes",
-    description: "FAQ do imóvel — todas as perguntas",
-    path: "#faq",
-    parameterized: true,
-  },
-  { key: "emergencias", label: "Emergências", description: "Contatos de emergência", path: "#faq" },
-  {
-    key: "contato-anfitriao",
-    label: "Contato do anfitrião",
-    description: "Fale com o anfitrião",
-    path: "#faq",
-  },
+  { key: "home",                 label: "Início",                description: "Página principal do guia",             path: "#home" },
+  { key: "chegada",              label: "Chegada",               description: "Aba de check-in",                       path: "#checkin" },
+  { key: "checkin-instrucoes",   label: "Instruções de chegada", description: "Como chegar e o que fazer ao entrar",   path: "#checkin" },
+  { key: "senhas-acesso",        label: "Senhas de acesso",      description: "Portão, fechadura e cofre",             path: "#checkin" },
+  { key: "wifi",                 label: "Wi-Fi",                 description: "Rede e senha",                          path: "#checkin" },
+  { key: "endereco",             label: "Endereço",              description: "Localização do imóvel",                 path: "#checkin" },
+  { key: "manual-casa",          label: "Manual da casa",        description: "Como usar aparelhos e ambientes",       path: "#residencia" },
+  { key: "regras-casa",          label: "Regras da casa",        description: "Combinados de convivência",             path: "#residencia" },
+  { key: "residencia",           label: "A residência",          description: "Aba com o manual e regras",             path: "#residencia" },
+  { key: "saida",                label: "Saída",                 description: "Aba de check-out",                      path: "#saida" },
+  { key: "checkout-instrucoes",  label: "Instruções de saída",   description: "Passo a passo do check-out",            path: "#saida" },
+  { key: "explorar",             label: "Explorar a cidade",     description: "Recomendações pela cidade",             path: "/explorar" },
+  { key: "local",                label: "Recomendação (lugar)",  description: "Um lugar específico das recomendações", path: "/explorar", parameterized: true },
+  { key: "faq",                  label: "Perguntas frequentes",  description: "FAQ do imóvel — todas as perguntas",    path: "#faq", parameterized: true },
+  { key: "emergencias",          label: "Emergências",           description: "Contatos de emergência",                path: "#faq" },
+  { key: "contato-anfitriao",    label: "Contato do anfitrião",  description: "Fale com o anfitrião",                  path: "#faq" },
 ] as const;
 
-const TAG_BY_KEY: Record<string, GuideTag> = Object.fromEntries(GUIDE_TAGS.map((t) => [t.key, t]));
+const TAG_BY_KEY: Record<string, GuideTag> = Object.fromEntries(
+  GUIDE_TAGS.map((t) => [t.key, t]),
+);
 
 export function isGuideTagKey(k: string): k is GuideTagKey {
   return Object.prototype.hasOwnProperty.call(TAG_BY_KEY, k);
@@ -153,7 +104,10 @@ export function buildTagUrl(
 const TAG_RE = /\[\[tag:([a-z0-9-]+)(?::([a-z0-9-]+))?(?:\|([^\]]+))?\]\]/gi;
 
 /** Expande todas as tags para "rótulo (URL)" — para envio via WhatsApp. */
-export function expandTagsForWhatsapp(text: string, ctx: { origin: string; slug: string }): string {
+export function expandTagsForWhatsapp(
+  text: string,
+  ctx: { origin: string; slug: string },
+): string {
   return text.replace(TAG_RE, (_m, rawKey: string, rawParam?: string, rawLabel?: string) => {
     const key = rawKey.toLowerCase();
     if (!isGuideTagKey(key)) return "";
@@ -165,7 +119,10 @@ export function expandTagsForWhatsapp(text: string, ctx: { origin: string; slug:
 }
 
 /** Expande todas as tags para links markdown — para o chat in-app do hóspede. */
-export function expandTagsAsMarkdown(text: string, ctx: { origin?: string; slug: string }): string {
+export function expandTagsAsMarkdown(
+  text: string,
+  ctx: { origin?: string; slug: string },
+): string {
   const origin = ctx.origin ?? "";
   return text.replace(TAG_RE, (_m, rawKey: string, rawParam?: string, rawLabel?: string) => {
     const key = rawKey.toLowerCase();
@@ -238,46 +195,25 @@ export type GuideInfoDef = {
 };
 
 export const GUIDE_INFOS: readonly GuideInfoDef[] = [
-  { key: "checkin-time", label: "Horário de check-in", description: "Ex.: 15:00" },
-  { key: "checkin-time-max", label: "Check-in até", description: "Horário limite de chegada" },
-  { key: "checkout-time", label: "Horário de check-out", description: "Ex.: 11:00" },
-  {
-    key: "checkout-time-min",
-    label: "Check-out a partir de",
-    description: "Horário inicial de saída",
-  },
-  { key: "wifi", label: "Wi-Fi (rede + senha)", description: "Rede e senha em uma linha" },
-  { key: "wifi-ssid", label: "Wi-Fi — rede", description: "Somente o nome da rede" },
-  { key: "wifi-password", label: "Wi-Fi — senha", description: "Somente a senha" },
-  { key: "gate-code", label: "Código do portão", description: "Código de acesso ao portão" },
-  { key: "lock-code", label: "Código da fechadura", description: "Código da fechadura" },
-  { key: "pin-code", label: "PIN do guia", description: "PIN para acessar o guia" },
-  { key: "address", label: "Endereço", description: "Endereço completo do imóvel" },
-  { key: "host-name", label: "Nome do anfitrião", description: "Nome exibido no guia" },
-  { key: "host-phone", label: "Telefone do anfitrião", description: "Contato do anfitrião" },
-  { key: "house-rules", label: "Regras da casa", description: "Texto das regras" },
-  {
-    key: "checkin-instructions",
-    label: "Instruções de chegada",
-    description: "Texto das instruções",
-  },
-  {
-    key: "checkout-instructions",
-    label: "Instruções de saída",
-    description: "Texto das instruções",
-  },
-  { key: "gate-instructions", label: "Instruções do portão", description: "Texto das instruções" },
-  {
-    key: "lock-instructions",
-    label: "Instruções da fechadura",
-    description: "Texto das instruções",
-  },
-  {
-    key: "marketplace",
-    label: "Link do marketplace",
-    description: "Use [[info:marketplace:rótulo]]",
-    parameterized: true,
-  },
+  { key: "checkin-time",           label: "Horário de check-in",        description: "Ex.: 15:00" },
+  { key: "checkin-time-max",       label: "Check-in até",               description: "Horário limite de chegada" },
+  { key: "checkout-time",          label: "Horário de check-out",       description: "Ex.: 11:00" },
+  { key: "checkout-time-min",      label: "Check-out a partir de",      description: "Horário inicial de saída" },
+  { key: "wifi",                   label: "Wi-Fi (rede + senha)",       description: "Rede e senha em uma linha" },
+  { key: "wifi-ssid",              label: "Wi-Fi — rede",               description: "Somente o nome da rede" },
+  { key: "wifi-password",          label: "Wi-Fi — senha",              description: "Somente a senha" },
+  { key: "gate-code",              label: "Código do portão",           description: "Código de acesso ao portão" },
+  { key: "lock-code",              label: "Código da fechadura",        description: "Código da fechadura" },
+  { key: "pin-code",               label: "PIN do guia",                description: "PIN para acessar o guia" },
+  { key: "address",                label: "Endereço",                   description: "Endereço completo do imóvel" },
+  { key: "host-name",              label: "Nome do anfitrião",          description: "Nome exibido no guia" },
+  { key: "host-phone",             label: "Telefone do anfitrião",      description: "Contato do anfitrião" },
+  { key: "house-rules",            label: "Regras da casa",             description: "Texto das regras" },
+  { key: "checkin-instructions",   label: "Instruções de chegada",      description: "Texto das instruções" },
+  { key: "checkout-instructions",  label: "Instruções de saída",        description: "Texto das instruções" },
+  { key: "gate-instructions",      label: "Instruções do portão",       description: "Texto das instruções" },
+  { key: "lock-instructions",      label: "Instruções da fechadura",    description: "Texto das instruções" },
+  { key: "marketplace",            label: "Link do marketplace",        description: "Use [[info:marketplace:rótulo]]", parameterized: true },
 ] as const;
 
 const INFO_BY_KEY: Record<string, GuideInfoDef> = Object.fromEntries(
@@ -326,15 +262,16 @@ export function findMarketplaceLink(
   const want = param ? normalizeInfoLabel(param) : "";
   const labelOf = (l: Record<string, unknown>) => String(l.label ?? l.name ?? "").trim();
   const hit = want
-    ? (list.find((l) => normalizeInfoLabel(labelOf(l)) === want) ??
+    ? list.find((l) => normalizeInfoLabel(labelOf(l)) === want) ??
       list.find((l) => normalizeInfoLabel(labelOf(l)).includes(want)) ??
       list.find((l) => want.includes(normalizeInfoLabel(labelOf(l)))) ??
-      (list.length === 1 ? list[0] : undefined))
+      (list.length === 1 ? list[0] : undefined)
     : list[0];
   const url = hit?.url == null ? "" : String(hit.url).trim();
   if (!hit || !url) return null;
   return { label: labelOf(hit) || "Link", url };
 }
+
 
 /** Resolve `[[info:key(:param)?]]` para uma string exibível. */
 export function resolveInfoValue(
@@ -345,51 +282,34 @@ export function resolveInfoValue(
   if (!p) return "";
   const v = (x: unknown) => (x == null ? "" : String(x).trim());
   switch (key) {
-    case "checkin-time":
-      return v(p.checkin_time);
-    case "checkin-time-max":
-      return v(p.checkin_time_max);
-    case "checkout-time":
-      return v(p.checkout_time);
-    case "checkout-time-min":
-      return v(p.checkout_time_min);
+    case "checkin-time":          return v(p.checkin_time);
+    case "checkin-time-max":      return v(p.checkin_time_max);
+    case "checkout-time":         return v(p.checkout_time);
+    case "checkout-time-min":     return v(p.checkout_time_min);
     case "wifi": {
-      const s = v(p.wifi_ssid),
-        pw = v(p.wifi_password);
+      const s = v(p.wifi_ssid), pw = v(p.wifi_password);
       if (!s && !pw) return "";
       if (s && pw) return `${s} · senha ${pw}`;
       return s || pw;
     }
-    case "wifi-ssid":
-      return v(p.wifi_ssid);
-    case "wifi-password":
-      return v(p.wifi_password);
-    case "gate-code":
-      return v(p.gate_code);
-    case "lock-code":
-      return v(p.lock_code);
-    case "pin-code":
-      return v(p.pin_code);
-    case "address":
-      return v(p.address);
-    case "host-name":
-      return v(p.host_name);
-    case "host-phone":
-      return v(p.host_phone);
-    case "house-rules":
-      return v(p.house_rules);
-    case "checkin-instructions":
-      return v(p.checkin_instructions);
-    case "checkout-instructions":
-      return v(p.checkout_instructions);
-    case "gate-instructions":
-      return v(p.gate_instructions);
-    case "lock-instructions":
-      return v(p.lock_instructions);
+    case "wifi-ssid":             return v(p.wifi_ssid);
+    case "wifi-password":         return v(p.wifi_password);
+    case "gate-code":             return v(p.gate_code);
+    case "lock-code":             return v(p.lock_code);
+    case "pin-code":              return v(p.pin_code);
+    case "address":               return v(p.address);
+    case "host-name":             return v(p.host_name);
+    case "host-phone":            return v(p.host_phone);
+    case "house-rules":           return v(p.house_rules);
+    case "checkin-instructions":  return v(p.checkin_instructions);
+    case "checkout-instructions": return v(p.checkout_instructions);
+    case "gate-instructions":     return v(p.gate_instructions);
+    case "lock-instructions":     return v(p.lock_instructions);
     case "marketplace": {
       const hit = findMarketplaceLink(p, param);
       return v(hit?.url);
     }
+
   }
 }
 
@@ -434,6 +354,7 @@ export function expandInfoTags(
   });
 }
 
+
 // ---- Combined tokenizer (tag + info) for inline rendering ---------------------
 
 export type AnyToken =
@@ -451,22 +372,14 @@ export function tokenizeAll(text: string): AnyToken[] {
     const tag = TAG_BY_KEY[key];
     const label = (m[3] ?? tag.label).trim() || tag.label;
     const param = (m[2] ?? "").toLowerCase() || null;
-    matches.push({
-      idx: m.index ?? 0,
-      len: m[0].length,
-      tok: { kind: "tag", key: key as GuideTagKey, label, param },
-    });
+    matches.push({ idx: m.index ?? 0, len: m[0].length, tok: { kind: "tag", key: key as GuideTagKey, label, param } });
   }
   for (const m of src.matchAll(INFO_RE)) {
     const key = m[1].toLowerCase();
     if (!isGuideInfoKey(key)) continue;
     const label = (m[3] ?? "").trim() || null;
     const param = (m[2] ?? "").trim() || null;
-    matches.push({
-      idx: m.index ?? 0,
-      len: m[0].length,
-      tok: { kind: "info", key: key as GuideInfoKey, label, param },
-    });
+    matches.push({ idx: m.index ?? 0, len: m[0].length, tok: { kind: "info", key: key as GuideInfoKey, label, param } });
   }
   matches.sort((a, b) => a.idx - b.idx);
   const out: AnyToken[] = [];

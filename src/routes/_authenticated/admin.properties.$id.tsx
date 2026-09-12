@@ -3,12 +3,7 @@ import { useGuidePreviewUrl } from "@/hooks/useGuidePreviewUrl";
 import { useServerFn } from "@tanstack/react-start";
 import React, { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  getMyProperty,
-  upsertProperty,
-  listMyProperties,
-  transferPropertyOwner,
-} from "@/lib/properties.functions";
+import { getMyProperty, upsertProperty, listMyProperties, transferPropertyOwner } from "@/lib/properties.functions";
 import { missingRequiredHouseFields } from "@/lib/property-house-fields";
 
 import { buildDefaultFaqs, mergeDefaultFaqs } from "@/lib/default-faqs";
@@ -53,13 +48,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Section, SectionGroup, DenseSections } from "@/components/editor/Section";
 import { Stepper, GUIDE_STEPS, NON_HOUSE_STEPS } from "@/components/editor/Stepper";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
   Loader2,
@@ -107,6 +96,7 @@ import {
   AlertTriangle,
   Wrench,
   Unlink,
+
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -141,11 +131,7 @@ import {
   NewCategoryDialog,
   NewTagDialog,
 } from "@/components/admin/TagPicker";
-import {
-  updatePoiCategory,
-  reorderPoiCategories,
-  deletePoiCategory,
-} from "@/lib/poi-taxonomy.functions";
+import { updatePoiCategory, reorderPoiCategories, deletePoiCategory } from "@/lib/poi-taxonomy.functions";
 import {
   PropertyDetailsEditor,
   DetailImages,
@@ -158,11 +144,7 @@ import { PresenceAvatars } from "@/components/presence/PresenceAvatars";
 import { FieldTypingBadge } from "@/components/presence/FieldTypingBadge";
 import { Pencil, Check as CheckIcon, X as XIcon, Search, Settings2 } from "lucide-react";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
-import {
-  SigmaImportButton,
-  SigmaActiveBanner,
-  SaveAsSigmaPackButton,
-} from "@/components/admin/SigmaImportButton";
+import { SigmaImportButton, SigmaActiveBanner, SaveAsSigmaPackButton } from "@/components/admin/SigmaImportButton";
 import { getMyPropertySigmaState } from "@/lib/sigma-recommendations.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useImpersonation } from "@/hooks/useImpersonation";
@@ -175,9 +157,7 @@ export const Route = createFileRoute("/_authenticated/admin/properties/$id")({
   // Stakeholders, que precisa espelhar exatamente esta mesma aba, sem
   // duplicar seus campos em outra tela. `returnTo`: para onde volta o link
   // "Voltar"/"Fechar" — sem ele, cai no padrão (/admin/guias).
-  validateSearch: (
-    s: Record<string, unknown>,
-  ): { houseOnly?: boolean; returnTo?: string; ownerId?: string } => ({
+  validateSearch: (s: Record<string, unknown>): { houseOnly?: boolean; returnTo?: string; ownerId?: string } => ({
     ...(s.houseOnly === true ? { houseOnly: true as const } : {}),
     ...(typeof s.returnTo === "string" && s.returnTo ? { returnTo: s.returnTo } : {}),
     // Quando "Novo imóvel" é aberto de dentro de um proprietário específico
@@ -584,6 +564,7 @@ function PropertyEditor() {
     }
   }
 
+
   // Transferência deliberada de proprietário — uma vez vinculado, o campo
   // "Proprietário" fica travado (não é mais um <Select> livre) e só pode
   // mudar através deste fluxo dedicado, com confirmação explícita.
@@ -617,9 +598,7 @@ function PropertyEditor() {
   // o campo Proprietário nasce preenchido e travado, sem opção de trocar
   // aqui (ver renderOwnerFields()).
   const ownerLockedFromContext = isNew && !!search.ownerId;
-  const currentOwnerName = propertyOwnerOptions.find(
-    (o) => o.id === form.property.owner_contact_id,
-  )?.name;
+  const currentOwnerName = propertyOwnerOptions.find((o) => o.id === form.property.owner_contact_id)?.name;
   const formRef = useRef(form);
   formRef.current = form;
 
@@ -673,12 +652,7 @@ function PropertyEditor() {
       let n = 1;
       while (seen.has(s)) s = `${base}-${++n}`;
       seen.add(s);
-      out.push({
-        key: "faq",
-        param: s,
-        label: q.length > 80 ? q.slice(0, 77) + "…" : q,
-        hint: "FAQ deste guia",
-      });
+      out.push({ key: "faq", param: s, label: q.length > 80 ? q.slice(0, 77) + "…" : q, hint: "FAQ deste guia" });
     }
     return out;
   }, [form.faqs]);
@@ -764,12 +738,7 @@ function PropertyEditor() {
       .channel(`prop-recs:${id}`)
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "property_recommendations",
-          filter: `property_id=eq.${id}`,
-        },
+        { event: "*", schema: "public", table: "property_recommendations", filter: `property_id=eq.${id}` },
         () => {
           if (debounce) clearTimeout(debounce);
           debounce = setTimeout(() => {
@@ -799,8 +768,7 @@ function PropertyEditor() {
       name: (p.name as string) ?? "",
       slug: (p.slug as string) ?? "",
       tagline: (p.tagline as string) ?? "",
-      short_description:
-        ((p as Record<string, unknown>).short_description as string | null) ?? null,
+      short_description: ((p as Record<string, unknown>).short_description as string | null) ?? null,
       hero_image_url: (p.hero_image_url as string) ?? "",
       gallery_images: ((p.gallery_images as string[] | null) ?? []).slice(0, 4),
       theme_images: {
@@ -864,9 +832,7 @@ function PropertyEditor() {
       access_mode: (p.access_mode as "public" | "pin") ?? "public",
 
       pin_code: (p.pin_code as string) ?? "",
-      pin_expires_at: p.pin_expires_at
-        ? new Date(p.pin_expires_at as string).toISOString().slice(0, 16)
-        : "",
+      pin_expires_at: p.pin_expires_at ? new Date(p.pin_expires_at as string).toISOString().slice(0, 16) : "",
       default_language: (p.default_language as "pt" | "en") ?? "pt",
       guide_theme: (p.guide_theme as "dark" | "light") ?? "dark",
       published: (p.published as boolean) ?? true,
@@ -877,45 +843,33 @@ function PropertyEditor() {
       collect_document: (p.collect_document as "off" | "optional" | "required") ?? "off",
       document_scope: (p.document_scope as "main" | "all") ?? "main",
       airbnb_ical_url: (p.airbnb_ical_url as string | null) ?? null,
-      airbnb_ical_url_2:
-        ((p as Record<string, unknown>).airbnb_ical_url_2 as string | null) ?? null,
+      airbnb_ical_url_2: ((p as Record<string, unknown>).airbnb_ical_url_2 as string | null) ?? null,
       airbnb_ical_last_sync_at: (p.airbnb_ical_last_sync_at as string | null) ?? null,
       airbnb_ical_last_error: (p.airbnb_ical_last_error as string | null) ?? null,
-      airbnb_listing_url:
-        ((p as Record<string, unknown>).airbnb_listing_url as string | null) ?? null,
+      airbnb_listing_url: ((p as Record<string, unknown>).airbnb_listing_url as string | null) ?? null,
       airbnb_listing_last_synced_at:
         ((p as Record<string, unknown>).airbnb_listing_last_synced_at as string | null) ?? null,
-      airbnb_listing_last_error:
-        ((p as Record<string, unknown>).airbnb_listing_last_error as string | null) ?? null,
+      airbnb_listing_last_error: ((p as Record<string, unknown>).airbnb_listing_last_error as string | null) ?? null,
       airbnb_listing_last_sync_note:
         ((p as Record<string, unknown>).airbnb_listing_last_sync_note as string | null) ?? null,
       airbnb_rating: ((p as Record<string, unknown>).airbnb_rating as number | null) ?? null,
-      airbnb_guest_count:
-        ((p as Record<string, unknown>).airbnb_guest_count as number | null) ?? null,
-      airbnb_bedroom_count:
-        ((p as Record<string, unknown>).airbnb_bedroom_count as number | null) ?? null,
+      airbnb_guest_count: ((p as Record<string, unknown>).airbnb_guest_count as number | null) ?? null,
+      airbnb_bedroom_count: ((p as Record<string, unknown>).airbnb_bedroom_count as number | null) ?? null,
       airbnb_bed_count: ((p as Record<string, unknown>).airbnb_bed_count as number | null) ?? null,
-      airbnb_bathroom_count:
-        ((p as Record<string, unknown>).airbnb_bathroom_count as number | null) ?? null,
-      airbnb_description_full:
-        ((p as Record<string, unknown>).airbnb_description_full as string | null) ?? null,
-      airbnb_rooms_beds:
-        ((p as Record<string, unknown>).airbnb_rooms_beds as AirbnbRoomBeds[] | null) ?? [],
-      airbnb_amenities:
-        ((p as Record<string, unknown>).airbnb_amenities as AirbnbAmenity[] | null) ?? [],
-      airbnb_house_rules:
-        ((p as Record<string, unknown>).airbnb_house_rules as string | null) ?? null,
+      airbnb_bathroom_count: ((p as Record<string, unknown>).airbnb_bathroom_count as number | null) ?? null,
+      airbnb_description_full: ((p as Record<string, unknown>).airbnb_description_full as string | null) ?? null,
+      airbnb_rooms_beds: (((p as Record<string, unknown>).airbnb_rooms_beds as AirbnbRoomBeds[] | null) ?? []),
+      airbnb_amenities: (((p as Record<string, unknown>).airbnb_amenities as AirbnbAmenity[] | null) ?? []),
+      airbnb_house_rules: ((p as Record<string, unknown>).airbnb_house_rules as string | null) ?? null,
       airbnb_cancellation_policy:
         ((p as Record<string, unknown>).airbnb_cancellation_policy as string | null) ?? null,
-      airbnb_safety_info:
-        ((p as Record<string, unknown>).airbnb_safety_info as string | null) ?? null,
+      airbnb_safety_info: ((p as Record<string, unknown>).airbnb_safety_info as string | null) ?? null,
       property_type_id: ((p as Record<string, unknown>).property_type_id as string | null) ?? null,
       guide_created: ((p as Record<string, unknown>).guide_created as boolean) ?? false,
       owner_contact_id: ((p as Record<string, unknown>).owner_contact_id as string | null) ?? null,
       cleaning_price_normal_cents:
         ((p as Record<string, unknown>).cleaning_price_normal_cents as number | null) ?? null,
-      cleaning_price_full_cents:
-        ((p as Record<string, unknown>).cleaning_price_full_cents as number | null) ?? null,
+      cleaning_price_full_cents: ((p as Record<string, unknown>).cleaning_price_full_cents as number | null) ?? null,
       cleaning_duration_normal_minutes:
         ((p as Record<string, unknown>).cleaning_duration_normal_minutes as number | null) ?? null,
       cleaning_duration_full_minutes:
@@ -937,9 +891,7 @@ function PropertyEditor() {
       faqs: (data.faqs ?? []).map((m: Record<string, unknown>) => ({
         question: (m.question as string) ?? "",
         answer: (m.answer as string) ?? "",
-        tags: Array.isArray(m.tags)
-          ? (m.tags as string[]).filter((t) => typeof t === "string")
-          : [],
+        tags: Array.isArray(m.tags) ? (m.tags as string[]).filter((t) => typeof t === "string") : [],
       })),
       checkout: (data.checkout ?? []).map((m: Record<string, unknown>) => ({
         label: (m.label as string) ?? "",
@@ -1034,10 +986,7 @@ function PropertyEditor() {
     for (const r of form.recommendations) {
       if (r.place_id) set.add(r.place_id);
     }
-    const rows = (cityRefsQuery.data?.items ?? []) as Array<{
-      place_id?: string | null;
-      is_hidden?: boolean;
-    }>;
+    const rows = (cityRefsQuery.data?.items ?? []) as Array<{ place_id?: string | null; is_hidden?: boolean }>;
     for (const r of rows) {
       if (r.place_id && !r.is_hidden) set.add(r.place_id);
     }
@@ -1052,16 +1001,12 @@ function PropertyEditor() {
     }
     setGeneratingNearbyRecs(true);
     try {
-      const r = await enrich({
-        data: { mapsUrl: form.property.maps_url, propertyId: id !== "new" ? id : undefined },
-      });
+      const r = await enrich({ data: { mapsUrl: form.property.maps_url, propertyId: id !== "new" ? id : undefined } });
       if (r.recommendations_skipped) {
         toast.info(r.skip_reason ?? "Recomendações vinculadas: nada novo foi inserido.");
         return;
       }
-      const existing = new Set(
-        form.recommendations.map((x) => x.place_id).filter((x): x is string => !!x),
-      );
+      const existing = new Set(form.recommendations.map((x) => x.place_id).filter((x): x is string => !!x));
       const incoming = r.recommendations
         .filter((rec) => rec.scope === "nearby")
         .filter((rec) => (rec.distance_meters ?? 0) <= 2000)
@@ -1093,9 +1038,7 @@ function PropertyEditor() {
         );
       }
     } catch (e) {
-      toast.error(
-        friendlyErrorMessage(e, "Não conseguimos gerar lugares pertinho. Tente novamente."),
-      );
+      toast.error(friendlyErrorMessage(e, "Não conseguimos gerar lugares pertinho. Tente novamente."));
     } finally {
       setGeneratingNearbyRecs(false);
     }
@@ -1108,9 +1051,7 @@ function PropertyEditor() {
     }
     setEnriching(true);
     try {
-      const r = await enrich({
-        data: { mapsUrl: form.property.maps_url, propertyId: id !== "new" ? id : undefined },
-      });
+      const r = await enrich({ data: { mapsUrl: form.property.maps_url, propertyId: id !== "new" ? id : undefined } });
       // O endereço aparece na hora: aplicamos o resultado imediatamente e só
       // depois disparamos a geração das referências da cidade em segundo plano.
       setForm((f) => ({
@@ -1124,8 +1065,7 @@ function PropertyEditor() {
           state: r.state || f.property.state,
           country: r.country || f.property.country,
           tagline: f.property.tagline || r.tagline || f.property.tagline,
-          hero_image_url:
-            f.property.hero_image_url || r.hero_image_url || f.property.hero_image_url,
+          hero_image_url: f.property.hero_image_url || r.hero_image_url || f.property.hero_image_url,
           gallery_images: f.property.gallery_images.length
             ? f.property.gallery_images
             : (r.gallery_images ?? []).slice(0, 4),
@@ -1163,9 +1103,7 @@ function PropertyEditor() {
       if (r.hero_image_url) extras.push("foto de capa");
       const extraStr = extras.length ? ` · ${extras.join(" + ")}` : "";
       if (r.recommendations_skipped) {
-        toast.info(
-          r.skip_reason ?? "Recomendações vinculadas: mantivemos as atuais e não inserimos novas.",
-        );
+        toast.info(r.skip_reason ?? "Recomendações vinculadas: mantivemos as atuais e não inserimos novas.");
       } else {
         toast.success(`Preenchido! ${nearby} arredores${extraStr}`);
       }
@@ -1261,9 +1199,7 @@ function PropertyEditor() {
       };
     });
     toast.success(
-      s.lat != null && s.lng != null
-        ? "Endereço e coordenadas preenchidos."
-        : "Endereço preenchido.",
+      s.lat != null && s.lng != null ? "Endereço e coordenadas preenchidos." : "Endereço preenchido.",
     );
   }
 
@@ -1284,9 +1220,7 @@ function PropertyEditor() {
       if (mode === "replace") {
         // Apaga as atuais (auto + manual) antes de regerar.
         try {
-          const existing = await listGeneratedCityRefs({
-            data: { ...request, includeHidden: true },
-          });
+          const existing = await listGeneratedCityRefs({ data: { ...request, includeHidden: true } });
           const ids = ((existing.items ?? []) as Array<{ id: string }>).map((r) => r.id);
           if (ids.length) {
             // bulk delete suporta no máximo 500 ids por chamada.
@@ -1364,8 +1298,7 @@ function PropertyEditor() {
           airbnb_rooms_beds: r.rooms_beds.length ? r.rooms_beds : f.property.airbnb_rooms_beds,
           airbnb_amenities: r.amenities.length ? r.amenities : f.property.airbnb_amenities,
           airbnb_house_rules: r.house_rules ?? f.property.airbnb_house_rules,
-          airbnb_cancellation_policy:
-            r.cancellation_policy ?? f.property.airbnb_cancellation_policy,
+          airbnb_cancellation_policy: r.cancellation_policy ?? f.property.airbnb_cancellation_policy,
           airbnb_safety_info: r.safety_info ?? f.property.airbnb_safety_info,
         },
       }));
@@ -1378,8 +1311,7 @@ function PropertyEditor() {
       if (r.description_full) bits.push("descrição completa");
       if (r.rooms_beds.length) bits.push("quartos e camas");
       if (r.amenities.length) bits.push(`${r.amenities.length} comodidades`);
-      if (r.house_rules || r.cancellation_policy || r.safety_info)
-        bits.push("O que você deve saber");
+      if (r.house_rules || r.cancellation_policy || r.safety_info) bits.push("O que você deve saber");
       toast.success(bits.length ? `Importado: ${bits.join(" · ")}` : "Importado");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao importar");
@@ -1406,19 +1338,13 @@ function PropertyEditor() {
     setSyncingIcal(true);
     try {
       const r = await syncIcal({
-        data: {
-          propertyId: id,
-          icalUrl: url,
-          icalUrl2: form.property.airbnb_ical_url_2?.trim() || null,
-        },
+        data: { propertyId: id, icalUrl: url, icalUrl2: form.property.airbnb_ical_url_2?.trim() || null },
       });
       const parts: string[] = [];
       if (r.imported) parts.push(`${r.imported} nova(s)`);
       if (r.updated) parts.push(`${r.updated} atualizada(s)`);
       if (r.removed) parts.push(`${r.removed} removida(s)`);
-      toast.success(
-        parts.length ? `Sincronizado: ${parts.join(" · ")}` : "Sincronizado — nenhuma mudança.",
-      );
+      toast.success(parts.length ? `Sincronizado: ${parts.join(" · ")}` : "Sincronizado — nenhuma mudança.");
       await reservationsQuery.refetch();
       queryClient.invalidateQueries({ queryKey: ["property", id] });
     } catch (e) {
@@ -1483,9 +1409,7 @@ function PropertyEditor() {
       // guide_created=true NA MESMA chamada de save, sem esperar um ciclo de
       // render (setForm/update() é assíncrono — chamar handleSave logo depois
       // de um update() leria form.property desatualizado).
-      const propertySource = overrides
-        ? { ...formToSave.property, ...overrides }
-        : formToSave.property;
+      const propertySource = overrides ? { ...formToSave.property, ...overrides } : formToSave.property;
       // Ver comentário acima: sem campo "Nome" em "A casa", um imóvel novo
       // (ou qualquer imóvel que ainda não tenha ganhado um nome pela aba "O
       // guia") é salvo com um nome provisório derivado do endereço — nunca
@@ -1534,13 +1458,9 @@ function PropertyEditor() {
           checkout_time_min: propertySource.checkout_time_min || null,
           checkout_note: propertySource.checkout_note || null,
           lock_code: propertySource.lock_code || null,
-          lock_label: propertySource.lock_code
-            ? propertySource.lock_label.trim() || "Fechadura"
-            : null,
+          lock_label: propertySource.lock_code ? propertySource.lock_label.trim() || "Fechadura" : null,
           gate_code: propertySource.gate_code || null,
-          gate_label: propertySource.gate_code
-            ? propertySource.gate_label.trim() || "Portão"
-            : null,
+          gate_label: propertySource.gate_code ? propertySource.gate_label.trim() || "Portão" : null,
           access_codes_pin:
             propertySource.gate_code || propertySource.lock_code
               ? propertySource.access_codes_pin.trim() || null
@@ -1550,14 +1470,10 @@ function PropertyEditor() {
           checkout_instructions: propertySource.checkout_instructions || null,
           house_rules: propertySource.house_rules || null,
           checkin_media: propertySource.checkin_media,
-          gate_instructions: propertySource.gate_code
-            ? propertySource.gate_instructions || null
-            : null,
+          gate_instructions: propertySource.gate_code ? propertySource.gate_instructions || null : null,
           gate_media: propertySource.gate_code ? propertySource.gate_media : [],
           gate_video_url: propertySource.gate_code ? propertySource.gate_video_url || null : null,
-          lock_instructions: propertySource.lock_code
-            ? propertySource.lock_instructions || null
-            : null,
+          lock_instructions: propertySource.lock_code ? propertySource.lock_instructions || null : null,
           lock_media: propertySource.lock_code ? propertySource.lock_media : [],
           lock_video_url: propertySource.lock_code ? propertySource.lock_video_url || null : null,
           wifi_ssid: propertySource.wifi_ssid || null,
@@ -1570,9 +1486,7 @@ function PropertyEditor() {
           // Guias de Check-In & Check-Out sempre exigem o formulário de
           // primeiro acesso — o campo fica bloqueado na interface.
           require_access_gate:
-            propertySource.tagline === ETIQUETA_CHECKIN_CHECKOUT
-              ? true
-              : propertySource.require_access_gate,
+            propertySource.tagline === ETIQUETA_CHECKIN_CHECKOUT ? true : propertySource.require_access_gate,
           pin_code: propertySource.access_mode === "pin" ? propertySource.pin_code || null : null,
           pin_expires_at:
             propertySource.access_mode === "pin" && propertySource.pin_expires_at
@@ -1613,10 +1527,7 @@ function PropertyEditor() {
       queryClient.invalidateQueries({ queryKey: ["my-properties"], ...mode });
       // Bidirecional: a ficha do proprietário (Stakeholders) lê os mesmos
       // campos direto da tabela "properties" — mas fica em cache próprio.
-      queryClient.invalidateQueries({
-        predicate: (q) => q.queryKey[0] === "stakeholder-detail",
-        ...mode,
-      });
+      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "stakeholder-detail", ...mode });
       if (isNew)
         navigate({
           to: "/admin/properties/$id",
@@ -1666,11 +1577,7 @@ function PropertyEditor() {
               explore: form.property.theme_images.explore || undefined,
             },
             marketplace_links: form.property.marketplace_links
-              .map((m) => ({
-                label: m.label.trim(),
-                url: m.url.trim(),
-                description: m.description.trim() || null,
-              }))
+              .map((m) => ({ label: m.label.trim(), url: m.url.trim(), description: m.description.trim() || null }))
               .filter((m) => m.label && m.url),
           },
           recommendations: nearby.filter((r) => r.place_id && r.name && r.name.trim().length > 0),
@@ -1761,13 +1668,8 @@ function PropertyEditor() {
   // (`guide_created`): antes disso, é a própria tela enxuta "Novo imóvel" que
   // já pede e valida esses mesmos campos.
   const missingOwner = !isNew && !form.property.owner_contact_id;
-  const missingHouseFields = form.property.guide_created
-    ? missingRequiredHouseFields(form.property)
-    : [];
-  const allMissingRequiredFields = [
-    ...(missingOwner ? ["Proprietário"] : []),
-    ...missingHouseFields,
-  ];
+  const missingHouseFields = form.property.guide_created ? missingRequiredHouseFields(form.property) : [];
+  const allMissingRequiredFields = [...(missingOwner ? ["Proprietário"] : []), ...missingHouseFields];
   const needsRequiredHouseInfo =
     !isNew && form.property.guide_created && (missingOwner || missingHouseFields.length > 0);
 
@@ -1785,9 +1687,7 @@ function PropertyEditor() {
   }, [needsRequiredHouseInfo, houseOnly, step]);
 
   if (!isNew && isLoading) {
-    return (
-      <div className="max-w-4xl mx-auto px-6 py-10 text-sm text-muted-foreground">Carregando…</div>
-    );
+    return <div className="max-w-4xl mx-auto px-6 py-10 text-sm text-muted-foreground">Carregando…</div>;
   }
 
   const nearbyRecs = form.recommendations.filter((r) => r.scope === "nearby");
@@ -1797,16 +1697,18 @@ function PropertyEditor() {
   // mesmo JSX, duas telas, sem duplicar campos/handlers.
   // Idem: só o conteúdo, sem <Section> — mesma razão do renderOwnerFields.
   const renderPropertyTypeFields = () => (
-    <PropertyTypeSelect
-      value={form.property.property_type_id}
-      onChange={(v) => update("property_type_id", v)}
-    />
+    <PropertyTypeSelect value={form.property.property_type_id} onChange={(v) => update("property_type_id", v)} />
   );
 
   // Quadrante "Identificação do Imóvel": Proprietário + Tipo do imóvel —
   // antes eram dois cards separados; unificados a pedido num só.
   const renderIdentitySection = () => (
-    <Section id="identity" icon={Home} title="Identificação do Imóvel" collapsible>
+    <Section
+      id="identity"
+      icon={Home}
+      title="Identificação do Imóvel"
+      collapsible
+    >
       {renderOwnerFields()}
       {renderPropertyTypeFields()}
     </Section>
@@ -1817,7 +1719,12 @@ function PropertyEditor() {
   // imóvel. Seleção múltipla: marca-se vários de uma vez e a diferença
   // (vincular/desvincular) é aplicada na confirmação.
   const renderProvidersSection = () => (
-    <Section id="providers" icon={Wrench} title="Prestadores de Serviço" collapsible>
+    <Section
+      id="providers"
+      icon={Wrench}
+      title="Prestadores de Serviço"
+      collapsible
+    >
       <div className="space-y-3">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
           <p className="ds-meta min-w-0">
@@ -1841,15 +1748,11 @@ function PropertyEditor() {
                 key={p.id}
                 className="ds-surface grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 bg-card px-3 py-2.5"
               >
-                <p className="min-w-0 break-words text-[13.5px] font-medium text-foreground">
-                  {p.name}
-                </p>
+                <p className="min-w-0 break-words text-[13.5px] font-medium text-foreground">{p.name}</p>
                 <button
                   type="button"
                   disabled={providersBusy}
-                  onClick={() =>
-                    saveProviderLinks(linkedProviders.filter((x) => x.id !== p.id).map((x) => x.id))
-                  }
+                  onClick={() => saveProviderLinks(linkedProviders.filter((x) => x.id !== p.id).map((x) => x.id))}
                   className="grid size-8 shrink-0 place-items-center rounded-[0.3rem] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                   aria-label="Desvincular prestador"
                   title="Desvincular este prestador do imóvel."
@@ -1880,6 +1783,8 @@ function PropertyEditor() {
     </Section>
   );
 
+
+
   // Quadrante EXCLUSIVO de limpeza: valores fixos (R$, armazenados em
   // centavos — mesma convenção de dinheiro já usada em prestadores de
   // serviço via hourly_rate_cents) + período estimado (minutos, múltiplos de
@@ -1896,7 +1801,12 @@ function PropertyEditor() {
     return { value: minutes, label };
   });
   const renderCleaningSection = () => (
-    <Section id="cleaning" icon={Sparkles} title="Custos e Duração da Limpeza" collapsible>
+    <Section
+      id="cleaning"
+      icon={Sparkles}
+      title="Custos e Duração da Limpeza"
+      collapsible
+    >
       {/* Cada tipo de limpeza (normal / completa) tem seu próprio prazo —
           uma limpeza completa costuma levar mais tempo que uma normal, então
           o valor e o prazo de cada tipo ficam agrupados lado a lado. No
@@ -1929,11 +1839,7 @@ function PropertyEditor() {
               <FieldTypingBadge typing={presence.typing["cleaning_price_normal_cents"]} />
             </div>
             <div className="min-w-0">
-              <Field
-                label="Prazo estimado"
-                hint="Em intervalos de 30 minutos."
-                hintClassName="min-h-[30px]"
-              >
+              <Field label="Prazo estimado" hint="Em intervalos de 30 minutos." hintClassName="min-h-[30px]">
                 <Select
                   value={
                     form.property.cleaning_duration_normal_minutes != null
@@ -1945,9 +1851,7 @@ function PropertyEditor() {
                     const opt = CLEANING_DURATION_OPTIONS.find((o) => String(o.value) === v);
                     presence.broadcastTyping("cleaning_duration_normal_minutes", opt?.label ?? "");
                   }}
-                  onOpenChange={(open) =>
-                    !open && presence.broadcastFieldBlur("cleaning_duration_normal_minutes")
-                  }
+                  onOpenChange={(open) => !open && presence.broadcastFieldBlur("cleaning_duration_normal_minutes")}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione" />
@@ -1995,11 +1899,7 @@ function PropertyEditor() {
               <FieldTypingBadge typing={presence.typing["cleaning_price_full_cents"]} />
             </div>
             <div className="min-w-0">
-              <Field
-                label="Prazo estimado"
-                hint="Em intervalos de 30 minutos."
-                hintClassName="min-h-[30px]"
-              >
+              <Field label="Prazo estimado" hint="Em intervalos de 30 minutos." hintClassName="min-h-[30px]">
                 <Select
                   value={
                     form.property.cleaning_duration_full_minutes != null
@@ -2011,9 +1911,7 @@ function PropertyEditor() {
                     const opt = CLEANING_DURATION_OPTIONS.find((o) => String(o.value) === v);
                     presence.broadcastTyping("cleaning_duration_full_minutes", opt?.label ?? "");
                   }}
-                  onOpenChange={(open) =>
-                    !open && presence.broadcastFieldBlur("cleaning_duration_full_minutes")
-                  }
+                  onOpenChange={(open) => !open && presence.broadcastFieldBlur("cleaning_duration_full_minutes")}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione" />
@@ -2042,7 +1940,12 @@ function PropertyEditor() {
   );
 
   const renderAddressSection = () => (
-    <Section id="address" icon={MapPinned} title="Endereço e localização" collapsible>
+    <Section
+      id="address"
+      icon={MapPinned}
+      title="Endereço e localização"
+      collapsible
+    >
       <Field label="Link do Google Maps — Entrada principal" required>
         <Input
           value={form.property.maps_url}
@@ -2083,16 +1986,10 @@ function PropertyEditor() {
           <Input value={form.property.city} onChange={(e) => update("city", e.target.value)} />
         </Field>
         <Field label="País" required>
-          <Input
-            value={form.property.country}
-            onChange={(e) => update("country", e.target.value)}
-          />
+          <Input value={form.property.country} onChange={(e) => update("country", e.target.value)} />
         </Field>
       </div>
-      <Field
-        label="Observação sobre o endereço"
-        hint="Ponto de referência, instruções para o motorista, etc."
-      >
+      <Field label="Observação sobre o endereço" hint="Ponto de referência, instruções para o motorista, etc.">
         <Textarea
           value={form.property.address_note}
           maxLength={1000}
@@ -2103,13 +2000,17 @@ function PropertyEditor() {
   );
 
   const renderAirbnbCalendarSection = () => (
-    <Section id="airbnb-calendar" icon={RefreshCw} title="Calendário do Airbnb" collapsible>
+    <Section
+      id="airbnb-calendar"
+      icon={RefreshCw}
+      title="Calendário do Airbnb"
+      collapsible
+    >
       {isNew && (
         <div className="mb-3 ds-surface border border-border bg-muted/30 p-3 text-xs text-muted-foreground flex items-start gap-2">
           <Clock className="size-3.5 shrink-0 mt-0.5" />
           <span>
-            Salve o imóvel uma vez (botão "Salvar" abaixo) para liberar a sincronização — não
-            precisa preencher o guia.
+            Salve o imóvel uma vez (botão "Salvar" abaixo) para liberar a sincronização — não precisa preencher o guia.
           </span>
         </div>
       )}
@@ -2146,14 +2047,8 @@ function PropertyEditor() {
             className="shrink-0"
             title={isNew ? "Salve o imóvel antes de sincronizar" : "Sincronizar agora"}
           >
-            {syncingIcal ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <RefreshCw className="size-4" />
-            )}
-            <span className="ml-1.5 hidden sm:inline">
-              {syncingIcal ? "Sincronizando…" : "Sincronizar"}
-            </span>
+            {syncingIcal ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+            <span className="ml-1.5 hidden sm:inline">{syncingIcal ? "Sincronizando…" : "Sincronizar"}</span>
           </Button>
           <Button
             variant="ghost"
@@ -2188,14 +2083,8 @@ function PropertyEditor() {
               className="shrink-0"
               title={isNew ? "Salve o imóvel antes de sincronizar" : "Sincronizar agora"}
             >
-              {syncingIcal ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <RefreshCw className="size-4" />
-              )}
-              <span className="ml-1.5 hidden sm:inline">
-                {syncingIcal ? "Sincronizando…" : "Sincronizar"}
-              </span>
+              {syncingIcal ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+              <span className="ml-1.5 hidden sm:inline">{syncingIcal ? "Sincronizando…" : "Sincronizar"}</span>
             </Button>
             <Button
               variant="ghost"
@@ -2224,8 +2113,7 @@ function PropertyEditor() {
         <div className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
           {form.property.airbnb_ical_last_sync_at && (
             <span>
-              Última sincronização:{" "}
-              {new Date(form.property.airbnb_ical_last_sync_at).toLocaleString("pt-BR")}
+              Última sincronização: {new Date(form.property.airbnb_ical_last_sync_at).toLocaleString("pt-BR")}
             </span>
           )}
           {form.property.airbnb_ical_last_error && (
@@ -2250,11 +2138,7 @@ function PropertyEditor() {
                   {new Date(`${r.checkin_date}T12:00:00`).toLocaleDateString("pt-BR")} →{" "}
                   {new Date(`${r.checkout_date}T12:00:00`).toLocaleDateString("pt-BR")}
                 </span>
-                {r.guest_hint && (
-                  <span className="text-muted-foreground font-mono text-[10px]">
-                    {r.guest_hint}
-                  </span>
-                )}
+                {r.guest_hint && <span className="text-muted-foreground font-mono text-[10px]">{r.guest_hint}</span>}
               </li>
             ))}
           </ul>
@@ -2264,7 +2148,12 @@ function PropertyEditor() {
   );
 
   const renderHostContactSection = () => (
-    <Section id="host-house" icon={UserRound} title="Contato do anfitrião" collapsible>
+    <Section
+      id="host-house"
+      icon={UserRound}
+      title="Contato do anfitrião"
+      collapsible
+    >
       <div className="grid grid-cols-2 gap-3">
         <Field label="Nome">
           <Input
@@ -2336,9 +2225,7 @@ function PropertyEditor() {
               disabled={ownersLoading || propertyOwnerOptions.length === 0}
             >
               <SelectTrigger>
-                <SelectValue
-                  placeholder={ownersLoading ? "Carregando…" : "Selecione um proprietário"}
-                />
+                <SelectValue placeholder={ownersLoading ? "Carregando…" : "Selecione um proprietário"} />
               </SelectTrigger>
               <SelectContent>
                 {propertyOwnerOptions.map((o) => (
@@ -2374,9 +2261,8 @@ function PropertyEditor() {
               <DialogTitle>Transferir proprietário</DialogTitle>
             </DialogHeader>
             <p className="text-sm text-muted-foreground">
-              Escolha o novo proprietário para{" "}
-              <strong>{form.property.name || "este imóvel"}</strong>. O proprietário atual (
-              {currentOwnerName ?? "vinculado"}) perde o vínculo com este imóvel.
+              Escolha o novo proprietário para <strong>{form.property.name || "este imóvel"}</strong>. O proprietário
+              atual ({currentOwnerName ?? "vinculado"}) perde o vínculo com este imóvel.
             </p>
             <Select
               value={transferTargetId}
@@ -2384,9 +2270,7 @@ function PropertyEditor() {
               disabled={ownersLoading || transferring}
             >
               <SelectTrigger>
-                <SelectValue
-                  placeholder={ownersLoading ? "Carregando…" : "Selecione o novo proprietário"}
-                />
+                <SelectValue placeholder={ownersLoading ? "Carregando…" : "Selecione o novo proprietário"} />
               </SelectTrigger>
               <SelectContent>
                 {propertyOwnerOptions
@@ -2399,19 +2283,10 @@ function PropertyEditor() {
               </SelectContent>
             </Select>
             <div className="flex items-center justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={transferring}
-                onClick={() => setTransferOpen(false)}
-              >
+              <Button type="button" variant="outline" disabled={transferring} onClick={() => setTransferOpen(false)}>
                 Cancelar
               </Button>
-              <Button
-                type="button"
-                disabled={!transferTargetId || transferring}
-                onClick={handleConfirmTransfer}
-              >
+              <Button type="button" disabled={!transferTargetId || transferring} onClick={handleConfirmTransfer}>
                 {transferring ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
                 Confirmar transferência
               </Button>
@@ -2423,7 +2298,12 @@ function PropertyEditor() {
   };
 
   const renderHouseRulesSection = () => (
-    <Section id="house-rules" icon={ClipboardCheck} title="Regras do espaço" collapsible>
+    <Section
+      id="house-rules"
+      icon={ClipboardCheck}
+      title="Regras do espaço"
+      collapsible
+    >
       <Field label="Regras (opcional)" hint="Uma regra por linha. Linhas em branco são ignoradas.">
         <TagMentionTextarea
           items={tagItems}
@@ -2440,7 +2320,12 @@ function PropertyEditor() {
   );
 
   const renderManualSection = () => (
-    <Section id="manual" icon={BookOpen} title="Manual da casa" collapsible>
+    <Section
+      id="manual"
+      icon={BookOpen}
+      title="Manual da casa"
+      collapsible
+    >
       {isNew ? (
         <EmptyHint text="Salve o imóvel primeiro para adicionar itens do manual (as fotos precisam de um imóvel já salvo)." />
       ) : (
@@ -2449,12 +2334,7 @@ function PropertyEditor() {
             <EmptyHint text="Nenhum item ainda. Adicione instruções para ar-condicionado, TV, fechadura, etc." />
           ) : (
             form.manual.map((m, i) => (
-              <ItemCard
-                key={i}
-                onRemove={() =>
-                  setForm((f) => ({ ...f, manual: f.manual.filter((_, j) => j !== i) }))
-                }
-              >
+              <ItemCard key={i} onRemove={() => setForm((f) => ({ ...f, manual: f.manual.filter((_, j) => j !== i) }))}>
                 <Input
                   placeholder="Título (ex: Ar-condicionado)"
                   value={m.title}
@@ -2462,9 +2342,7 @@ function PropertyEditor() {
                   onChange={(e) =>
                     setForm((f) => ({
                       ...f,
-                      manual: f.manual.map((x, j) =>
-                        j === i ? { ...x, title: e.target.value } : x,
-                      ),
+                      manual: f.manual.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)),
                     }))
                   }
                 />
@@ -2475,9 +2353,7 @@ function PropertyEditor() {
                   onChange={(e) =>
                     setForm((f) => ({
                       ...f,
-                      manual: f.manual.map((x, j) =>
-                        j === i ? { ...x, description: e.target.value } : x,
-                      ),
+                      manual: f.manual.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)),
                     }))
                   }
                 />
@@ -2489,9 +2365,7 @@ function PropertyEditor() {
                   onChange={(e) =>
                     setForm((f) => ({
                       ...f,
-                      manual: f.manual.map((x, j) =>
-                        j === i ? { ...x, body: e.target.value } : x,
-                      ),
+                      manual: f.manual.map((x, j) => (j === i ? { ...x, body: e.target.value } : x)),
                     }))
                   }
                 />
@@ -2499,10 +2373,7 @@ function PropertyEditor() {
                   images={m.images}
                   propertyId={id}
                   onChange={(next) =>
-                    setForm((f) => ({
-                      ...f,
-                      manual: f.manual.map((x, j) => (j === i ? { ...x, images: next } : x)),
-                    }))
+                    setForm((f) => ({ ...f, manual: f.manual.map((x, j) => (j === i ? { ...x, images: next } : x)) }))
                   }
                 />
               </ItemCard>
@@ -2511,10 +2382,7 @@ function PropertyEditor() {
           <div className="pt-1">
             <AddBtn
               onClick={() =>
-                setForm((f) => ({
-                  ...f,
-                  manual: [...f.manual, { title: "", description: "", body: "", images: [] }],
-                }))
+                setForm((f) => ({ ...f, manual: [...f.manual, { title: "", description: "", body: "", images: [] }] }))
               }
             />
           </div>
@@ -2524,7 +2392,12 @@ function PropertyEditor() {
   );
 
   const renderPropertyDetailsSection = () => (
-    <Section id="property-details" icon={NotebookPen} title="Detalhamento do Imóvel" collapsible>
+    <Section
+      id="property-details"
+      icon={NotebookPen}
+      title="Detalhamento do Imóvel"
+      collapsible
+    >
       {isNew ? (
         <EmptyHint text="Salve o imóvel primeiro para começar o detalhamento." />
       ) : (
@@ -2579,8 +2452,7 @@ function PropertyEditor() {
     // com o snapshot e a barra some sozinha, sem precisar salvar nada.
     // "Criar guia" é uma ação à parte, sempre disponível — não depende de
     // haver edição pendente.
-    const isDirty =
-      !isNew && savedPropertyKey !== "" && savedPropertyKey !== JSON.stringify(form.property);
+    const isDirty = !isNew && savedPropertyKey !== "" && savedPropertyKey !== JSON.stringify(form.property);
     return (
       <div className="ds-dense-fields px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full">
         <Link
@@ -2597,9 +2469,7 @@ function PropertyEditor() {
           {isNew ? (
             <h1 className="ds-page-title w-full break-words">Novo imóvel</h1>
           ) : (
-            form.property.name && (
-              <h1 className="ds-page-title w-full break-words">{form.property.name}</h1>
-            )
+            form.property.name && <h1 className="ds-page-title w-full break-words">{form.property.name}</h1>
           )}
         </header>
 
@@ -2633,6 +2503,7 @@ function PropertyEditor() {
               {renderPropertyDetailsSection()}
               {renderHostContactSection()}
               {!isNew && renderProvidersSection()}
+
             </SectionGroup>
           </DenseSections>
 
@@ -2644,11 +2515,7 @@ function PropertyEditor() {
               verdade (`isDirty`) — "Criar guia" fica sempre visível. */}
           <div className="ds-scroll-x justify-end gap-3 pt-3 mt-6 border-t border-border/30">
             {(isNew || isDirty) && (
-              <Button
-                variant="ghost"
-                className="h-9"
-                onClick={() => navigate({ to: backTo as "/admin/guias" })}
-              >
+              <Button variant="ghost" className="h-9" onClick={() => navigate({ to: backTo as "/admin/guias" })}>
                 Cancelar
               </Button>
             )}
@@ -2658,11 +2525,7 @@ function PropertyEditor() {
                 onClick={() => handleSave()}
                 disabled={saving}
               >
-                {saving ? (
-                  <Loader2 className="size-4 mr-1.5 animate-spin" />
-                ) : (
-                  <Check className="size-4 mr-1.5" />
-                )}
+                {saving ? <Loader2 className="size-4 mr-1.5 animate-spin" /> : <Check className="size-4 mr-1.5" />}
                 {isNew ? "Criar imóvel" : "Salvar alterações"}
               </Button>
             )}
@@ -2672,11 +2535,7 @@ function PropertyEditor() {
                 onClick={handleCreateGuide}
                 disabled={saving}
               >
-                {saving ? (
-                  <Loader2 className="size-4 mr-1.5 animate-spin" />
-                ) : (
-                  <Check className="size-4 mr-1.5" />
-                )}
+                {saving ? <Loader2 className="size-4 mr-1.5 animate-spin" /> : <Check className="size-4 mr-1.5" />}
                 Criar guia
               </Button>
             )}
@@ -2704,9 +2563,7 @@ function PropertyEditor() {
         <header className="mb-3 min-w-0">
           <h1 className="ds-page-title w-full break-words">{form.property.name || "Sem título"}</h1>
           <p className="ds-page-subtitle mt-1.5">
-            {houseOnly
-              ? "Edite as informações da casa deste imóvel."
-              : "Edite as informações do guia deste imóvel."}
+            {houseOnly ? "Edite as informações da casa deste imóvel." : "Edite as informações do guia deste imóvel."}
           </p>
         </header>
 
@@ -2735,9 +2592,7 @@ function PropertyEditor() {
                   { value: "faq", label: "FAQ", icon: LifeBuoy },
                   { value: "recs", label: "Recomendações", icon: Compass },
                 ]}
-                lockedValues={
-                  needsRequiredHouseInfo ? ["airbnb", "guide", "checkin", "faq", "recs"] : undefined
-                }
+                lockedValues={needsRequiredHouseInfo ? ["airbnb", "guide", "checkin", "faq", "recs"] : undefined}
               />
             )}
 
@@ -2748,9 +2603,8 @@ function PropertyEditor() {
                   <div className="flex items-start gap-2 rounded-[0.3rem] border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-400">
                     <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
                     <span>
-                      Complete as informações obrigatórias pendentes (
-                      {allMissingRequiredFields.join(", ")}) para desbloquear as demais abas do
-                      guia.
+                      Complete as informações obrigatórias pendentes ({allMissingRequiredFields.join(", ")}) para
+                      desbloquear as demais abas do guia.
                     </span>
                   </div>
                 ) : null}
@@ -2772,6 +2626,7 @@ function PropertyEditor() {
                 {renderHostContactSection()}
 
                 {!isNew && renderProvidersSection()}
+
               </SectionGroup>
             </TabsContent>
 
@@ -2789,8 +2644,8 @@ function PropertyEditor() {
                     <div className="mb-3 ds-surface border border-border bg-secondary/40 p-3 text-xs text-muted-foreground flex items-start gap-2">
                       <Lock className="size-3.5 shrink-0 mt-0.5" />
                       <span>
-                        Importação automática é exclusiva dos planos <strong>Pro</strong>,{" "}
-                        <strong>Business</strong> e <strong>Enterprise</strong>. Faça upgrade em{" "}
+                        Importação automática é exclusiva dos planos <strong>Pro</strong>, <strong>Business</strong> e{" "}
+                        <strong>Enterprise</strong>. Faça upgrade em{" "}
                         <Link to="/precos" className="underline font-medium">
                           Planos
                         </Link>
@@ -2812,14 +2667,8 @@ function PropertyEditor() {
                       variant="secondary"
                       className="shrink-0"
                     >
-                      {importingAirbnb ? (
-                        <Loader2 className="size-4 animate-spin" />
-                      ) : (
-                        <Sparkles className="size-4" />
-                      )}
-                      <span className="ml-1.5 hidden sm:inline">
-                        {importingAirbnb ? "Importando…" : "Importar"}
-                      </span>
+                      {importingAirbnb ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                      <span className="ml-1.5 hidden sm:inline">{importingAirbnb ? "Importando…" : "Importar"}</span>
                     </Button>
                   </div>
 
@@ -2837,8 +2686,7 @@ function PropertyEditor() {
                     <div className="mt-3 ds-surface border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive flex items-start gap-2">
                       <Sparkles className="size-3.5 shrink-0 mt-0.5 opacity-70" />
                       <span>
-                        A checagem automática diária falhou na última tentativa:{" "}
-                        {form.property.airbnb_listing_last_error}
+                        A checagem automática diária falhou na última tentativa: {form.property.airbnb_listing_last_error}
                       </span>
                     </div>
                   )}
@@ -2861,9 +2709,7 @@ function PropertyEditor() {
                       {form.property.airbnb_bedroom_count != null && (
                         <span>{form.property.airbnb_bedroom_count} quartos</span>
                       )}
-                      {form.property.airbnb_bed_count != null && (
-                        <span>{form.property.airbnb_bed_count} camas</span>
-                      )}
+                      {form.property.airbnb_bed_count != null && <span>{form.property.airbnb_bed_count} camas</span>}
                       {form.property.airbnb_bathroom_count != null && (
                         <span>{form.property.airbnb_bathroom_count} banheiros</span>
                       )}
@@ -2871,12 +2717,7 @@ function PropertyEditor() {
                   )}
                 </Section>
 
-                <Section
-                  id="airbnb-basic-fields"
-                  icon={FileText}
-                  title="Título do Anúncio"
-                  collapsible
-                >
+                <Section id="airbnb-basic-fields" icon={FileText} title="Título do Anúncio" collapsible>
                   {/* Pedido do cliente em 03/09/2026: esta seção passou a se
                       chamar "Título do Anúncio" e só existe pra editar o
                       nome — a "Descrição curta" saiu daqui porque ela já
@@ -2923,10 +2764,7 @@ function PropertyEditor() {
                   ) : form.property.gallery_images.length ? (
                     <div className="grid grid-cols-4 gap-2">
                       {form.property.gallery_images.map((url, i) => (
-                        <div
-                          key={i}
-                          className="relative ds-surface overflow-hidden rounded-lg border border-border/60 aspect-square"
-                        >
+                        <div key={i} className="relative ds-surface overflow-hidden rounded-lg border border-border/60 aspect-square">
                           <img src={url} alt={`Foto ${i + 1}`} className="size-full object-cover" />
                           {i === 0 && (
                             <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
@@ -2942,12 +2780,8 @@ function PropertyEditor() {
                   )}
                 </Section>
 
-                <Section
-                  id="airbnb-checkin-times"
-                  icon={Clock}
-                  title="Horários de check-in"
-                  collapsible
-                >
+
+                <Section id="airbnb-checkin-times" icon={Clock} title="Horários de check-in" collapsible>
                   {/* Pedido do cliente em 03/09/2026: o horário fica ao lado
                       DIREITO do rótulo (não abaixo dele) — inclusive o texto
                       "(opcional)", que virou parte do próprio rótulo em vez
@@ -2991,12 +2825,7 @@ function PropertyEditor() {
                   </Field>
                 </Section>
 
-                <Section
-                  id="airbnb-checkout-times"
-                  icon={Clock}
-                  title="Horários de check-out"
-                  collapsible
-                >
+                <Section id="airbnb-checkout-times" icon={Clock} title="Horários de check-out" collapsible>
                   {/* Mesmo padrão do check-in acima (horário ao lado direito
                       do rótulo). O "opcional" de "Check-out a partir de"
                       ficou só "(opcional)" — a explicação "não vem do
@@ -3044,12 +2873,7 @@ function PropertyEditor() {
                   </Field>
                 </Section>
 
-                <Section
-                  id="airbnb-description-full"
-                  icon={FileText}
-                  title="Descrição completa (Airbnb)"
-                  collapsible
-                >
+                <Section id="airbnb-description-full" icon={FileText} title="Descrição completa (Airbnb)" collapsible>
                   {form.property.airbnb_description_full ? (
                     <FormattedAirbnbText text={form.property.airbnb_description_full} />
                   ) : (
@@ -3057,19 +2881,11 @@ function PropertyEditor() {
                   )}
                 </Section>
 
-                <Section
-                  id="airbnb-rooms-beds"
-                  icon={DoorOpen}
-                  title="Quartos e camas (Airbnb)"
-                  collapsible
-                >
+                <Section id="airbnb-rooms-beds" icon={DoorOpen} title="Quartos e camas (Airbnb)" collapsible>
                   {form.property.airbnb_rooms_beds.length ? (
                     <div className="divide-y divide-border/60">
                       {form.property.airbnb_rooms_beds.map((r, i) => (
-                        <div
-                          key={i}
-                          className="flex items-center justify-between gap-3 py-2 text-sm"
-                        >
+                        <div key={i} className="flex items-center justify-between gap-3 py-2 text-sm">
                           <span className="font-medium">{r.room || `Quarto ${i + 1}`}</span>
                           <span className="text-muted-foreground text-xs text-right">{r.beds}</span>
                         </div>
@@ -3080,12 +2896,7 @@ function PropertyEditor() {
                   )}
                 </Section>
 
-                <Section
-                  id="airbnb-amenities"
-                  icon={Shield}
-                  title="Comodidades (Airbnb)"
-                  collapsible
-                >
+                <Section id="airbnb-amenities" icon={Shield} title="Comodidades (Airbnb)" collapsible>
                   {form.property.airbnb_amenities.length ? (
                     <AmenitiesList amenities={form.property.airbnb_amenities} />
                   ) : (
@@ -3093,12 +2904,7 @@ function PropertyEditor() {
                   )}
                 </Section>
 
-                <Section
-                  id="airbnb-know"
-                  icon={LifeBuoy}
-                  title="O que você deve saber (Airbnb)"
-                  collapsible
-                >
+                <Section id="airbnb-know" icon={LifeBuoy} title="O que você deve saber (Airbnb)" collapsible>
                   {!form.property.airbnb_house_rules &&
                   !form.property.airbnb_cancellation_policy &&
                   !form.property.airbnb_safety_info ? (
@@ -3138,7 +2944,12 @@ function PropertyEditor() {
             {/* ================= O GUIA ================= */}
             <TabsContent value="guide" className="space-y-4 mt-6">
               <SectionGroup>
-                <Section id="identity" icon={FileText} title="Identidade visual" collapsible>
+                <Section
+                  id="identity"
+                  icon={FileText}
+                  title="Identidade visual"
+                  collapsible
+                >
                   <Field label="URL pública (slug)" hint="Aparece em /g/seu-slug">
                     <Input
                       value={form.property.slug}
@@ -3150,14 +2961,16 @@ function PropertyEditor() {
                     label="Tipo do guia"
                     hint="Aparece abaixo do nome no cabeçalho do guia. Obrigatório só para publicar."
                   >
-                    <EtiquetaSelect
-                      value={form.property.tagline}
-                      onChange={(v) => update("tagline", v)}
-                    />
+                    <EtiquetaSelect value={form.property.tagline} onChange={(v) => update("tagline", v)} />
                   </Field>
                 </Section>
 
-                <Section id="access-mode" icon={Shield} title="Modo de acesso" collapsible>
+                <Section
+                  id="access-mode"
+                  icon={Shield}
+                  title="Modo de acesso"
+                  collapsible
+                >
                   <Field label="Modo de acesso do Guia">
                     <Select
                       value={form.property.access_mode}
@@ -3167,9 +2980,7 @@ function PropertyEditor() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="public">
-                          URL pública (qualquer um com o link vê)
-                        </SelectItem>
+                        <SelectItem value="public">URL pública (qualquer um com o link vê)</SelectItem>
                         <SelectItem value="pin">Protegido por código (PIN)</SelectItem>
                       </SelectContent>
                     </Select>
@@ -3201,9 +3012,7 @@ function PropertyEditor() {
                     return (
                       <div className="flex items-center justify-between gap-3 ds-surface border border-border/60 bg-muted/40 px-3.5 py-2.5">
                         <div className="min-w-0">
-                          <p className="text-sm font-medium leading-tight">
-                            Exigir formulário de primeiro acesso
-                          </p>
+                          <p className="text-sm font-medium leading-tight">Exigir formulário de primeiro acesso</p>
                           <p className="text-[11px] text-muted-foreground mt-0.5">
                             {gateLocked
                               ? "Obrigatório para guias do tipo Check-In & Check-Out."
@@ -3215,10 +3024,7 @@ function PropertyEditor() {
                             <Lock className="size-3" /> obrigatório
                           </span>
                         ) : (
-                          <Switch
-                            checked={gateOn}
-                            onCheckedChange={(v) => update("require_access_gate", v)}
-                          />
+                          <Switch checked={gateOn} onCheckedChange={(v) => update("require_access_gate", v)} />
                         )}
                       </div>
                     );
@@ -3254,10 +3060,12 @@ function PropertyEditor() {
                   block-level de largura total fazendo a centralização. */}
               <div className="flex justify-center mb-4">
                 <div className="inline-flex gap-1 rounded-[0.3rem] bg-foreground/5 p-1">
-                  {[
-                    { value: "checkin" as const, label: "Check-in", icon: DoorOpen },
-                    { value: "checkout" as const, label: "Checkout", icon: LogOut },
-                  ].map((t) => {
+                  {(
+                    [
+                      { value: "checkin" as const, label: "Check-in", icon: DoorOpen },
+                      { value: "checkout" as const, label: "Checkout", icon: LogOut },
+                    ]
+                  ).map((t) => {
                     const active = checkinSubStep === t.value;
                     return (
                       <button
@@ -3279,9 +3087,9 @@ function PropertyEditor() {
               </div>
 
               {checkinSubStep === "checkin" && (
-                <SectionGroup>
-                  <Section id="checkin-times" icon={Clock} title="Horário de check-in" collapsible>
-                    {/* Espelha (mesmo estado do form, não é uma cópia separada)
+              <SectionGroup>
+                <Section id="checkin-times" icon={Clock} title="Horário de check-in" collapsible>
+                  {/* Espelha (mesmo estado do form, não é uma cópia separada)
                       os campos que já existem na aba Airbnb — pedido do
                       cliente em 03/09/2026: os horários "sumiram" desta aba
                       na fusão Check-in+Checkout porque só apareciam lá.
@@ -3289,616 +3097,561 @@ function PropertyEditor() {
                       importado do Airbnb = só visualização) — pra editar o
                       horário em si, use a aba Airbnb; a observação dá pra
                       editar direto por aqui também. */}
-                    <div className="space-y-2.5">
-                      <TimeInlineRow label="Check-in a partir de">
-                        {airbnbLocked ? (
-                          <ReadOnlyValue value={form.property.checkin_time} />
-                        ) : (
-                          <TimePicker
-                            value={form.property.checkin_time}
-                            onChange={(v) => update("checkin_time", v)}
-                            placeholder="15:00"
-                          />
-                        )}
-                      </TimeInlineRow>
-                      <TimeInlineRow label="Check-in até" optional>
-                        {airbnbLocked ? (
-                          <ReadOnlyValue value={form.property.checkin_time_max} />
-                        ) : (
-                          <TimePicker
-                            value={form.property.checkin_time_max}
-                            onChange={(v) => update("checkin_time_max", v)}
-                            placeholder="16:00"
-                          />
-                        )}
-                      </TimeInlineRow>
-                    </div>
-                    <Field
-                      label="Observação do check-in (opcional)"
-                      hint="Aparece abaixo dos horários no guia. Deixe em branco para ocultar."
-                    >
-                      <TagMentionTextarea
-                        items={tagItems}
-                        value={form.property.checkin_note}
-                        maxLength={1000}
-                        rows={3}
-                        onChange={(e) => update("checkin_note", e.target.value)}
-                        placeholder="Ex.: Após às 22h, avise pelo WhatsApp com 1h de antecedência."
-                      />
-                    </Field>
-                  </Section>
-
-                  <Section
-                    id="checkin-instr"
-                    icon={DoorOpen}
-                    title="Instruções de chegada"
-                    collapsible
+                  <div className="space-y-2.5">
+                    <TimeInlineRow label="Check-in a partir de">
+                      {airbnbLocked ? (
+                        <ReadOnlyValue value={form.property.checkin_time} />
+                      ) : (
+                        <TimePicker
+                          value={form.property.checkin_time}
+                          onChange={(v) => update("checkin_time", v)}
+                          placeholder="15:00"
+                        />
+                      )}
+                    </TimeInlineRow>
+                    <TimeInlineRow label="Check-in até" optional>
+                      {airbnbLocked ? (
+                        <ReadOnlyValue value={form.property.checkin_time_max} />
+                      ) : (
+                        <TimePicker
+                          value={form.property.checkin_time_max}
+                          onChange={(v) => update("checkin_time_max", v)}
+                          placeholder="16:00"
+                        />
+                      )}
+                    </TimeInlineRow>
+                  </div>
+                  <Field
+                    label="Observação do check-in (opcional)"
+                    hint="Aparece abaixo dos horários no guia. Deixe em branco para ocultar."
                   >
-                    <Field
-                      label="Passo a passo (opcional)"
-                      hint="Uma etapa por linha. Linhas em branco são ignoradas."
-                    >
-                      <TagMentionTextarea
-                        items={tagItems}
-                        value={form.property.checkin_instructions}
-                        maxLength={3000}
-                        rows={6}
-                        onChange={(e) => update("checkin_instructions", e.target.value)}
-                        placeholder={
-                          "Estacione na vaga 12.\nAponte para o portão lateral.\nUse o código de portão e fechadura ao lado."
-                        }
-                      />
-                    </Field>
-                    <Field
-                      label="Fotos e vídeos do check-in"
-                      hint="Até 8 itens. Imagens (máx 10MB) ou vídeos (máx 60MB)."
-                    >
-                      <MediaUpload
-                        value={form.property.checkin_media}
-                        onChange={(next) => update("checkin_media", next)}
-                        folder="checkin"
-                        max={8}
-                      />
-                    </Field>
-                  </Section>
+                    <TagMentionTextarea
+                      items={tagItems}
+                      value={form.property.checkin_note}
+                      maxLength={1000}
+                      rows={3}
+                      onChange={(e) => update("checkin_note", e.target.value)}
+                      placeholder="Ex.: Após às 22h, avise pelo WhatsApp com 1h de antecedência."
+                    />
+                  </Field>
+                </Section>
 
-                  <Section id="access-codes" icon={KeyRound} title="Senhas de Acesso" collapsible>
-                    {/* Campo inline — Código para visualizar as senhas no Guia */}
-                    <div className="flex items-center justify-between gap-3 ds-surface border border-border/60 bg-muted/40 px-3.5 py-2.5">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium leading-tight">
-                          Código para visualizar as senhas de acesso no Guia
-                        </p>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
-                          Opcional. Deixe em branco para liberar apenas pela janela de horário.
-                        </p>
-                      </div>
+                <Section
+                  id="checkin-instr"
+                  icon={DoorOpen}
+                  title="Instruções de chegada"
+                  collapsible
+                >
+                  <Field label="Passo a passo (opcional)" hint="Uma etapa por linha. Linhas em branco são ignoradas.">
+                    <TagMentionTextarea
+                      items={tagItems}
+                      value={form.property.checkin_instructions}
+                      maxLength={3000}
+                      rows={6}
+                      onChange={(e) => update("checkin_instructions", e.target.value)}
+                      placeholder={
+                        "Estacione na vaga 12.\nAponte para o portão lateral.\nUse o código de portão e fechadura ao lado."
+                      }
+                    />
+                  </Field>
+                  <Field
+                    label="Fotos e vídeos do check-in"
+                    hint="Até 8 itens. Imagens (máx 10MB) ou vídeos (máx 60MB)."
+                  >
+                    <MediaUpload
+                      value={form.property.checkin_media}
+                      onChange={(next) => update("checkin_media", next)}
+                      folder="checkin"
+                      max={8}
+                    />
+                  </Field>
+                </Section>
+
+                <Section
+                  id="access-codes"
+                  icon={KeyRound}
+                  title="Senhas de Acesso"
+                  collapsible
+                >
+                  {/* Campo inline — Código para visualizar as senhas no Guia */}
+                  <div className="flex items-center justify-between gap-3 ds-surface border border-border/60 bg-muted/40 px-3.5 py-2.5">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium leading-tight">
+                        Código para visualizar as senhas de acesso no Guia
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Opcional. Deixe em branco para liberar apenas pela janela de horário.
+                      </p>
+                    </div>
+                    <Input
+                      className="w-32 shrink-0 tabular-nums text-center"
+                      value={form.property.access_codes_pin}
+                      maxLength={20}
+                      onChange={(e) => update("access_codes_pin", e.target.value)}
+                      placeholder="Ex.: 8421"
+                    />
+                  </div>
+
+                  <div className="space-y-3 mt-3">
+                    {/* Portão — sempre recolhido por padrão */}
+                    <details className="group ds-surface border border-border/60 bg-card/30" open={gateOpen}>
+                      <summary
+                        className="list-none cursor-pointer select-none w-full flex items-center gap-3 px-4 py-3.5"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setGateOpen((v) => !v);
+                        }}
+                      >
+                        <div
+                          className={`size-9 rounded-lg grid place-items-center shrink-0 ${gateOpen ? "bg-primary/15 text-primary" : "bg-muted/40 text-muted-foreground"}`}
+                        >
+                          <KeyRound className="size-[18px]" strokeWidth={1.75} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[14px] font-semibold leading-tight">Portão com código</p>
+                          <p className="text-[11.5px] text-muted-foreground mt-0.5">
+                            {gateOpen
+                              ? "Configure abaixo o código e as instruções."
+                              : "Ative se a entrada tem portão com senha."}
+                          </p>
+                        </div>
+                        <Switch
+                          checked={gateOpen}
+                          onCheckedChange={(v) => {
+                            setGateOpen(v);
+                            if (!v)
+                              setForm((f) => ({
+                                ...f,
+                                property: {
+                                  ...f.property,
+                                  gate_code: "",
+                                  gate_instructions: "",
+                                  gate_video_url: "",
+                                  gate_media: [],
+                                },
+                              }));
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <ChevronDown
+                          className={`size-4 text-muted-foreground transition-transform ${gateOpen ? "rotate-180" : ""}`}
+                        />
+                      </summary>
+                      {gateOpen && (
+                        <div className="px-4 pb-4 pt-1 space-y-4 border-t border-border/40">
+                          <Field label="Código do portão" required>
+                            <Input
+                              value={form.property.gate_code}
+                              maxLength={40}
+                              onChange={(e) => update("gate_code", e.target.value)}
+                              placeholder="Ex.: 1212"
+                            />
+                          </Field>
+                          <Field
+                            label="Defina um nome"
+                            required
+                            hint="Como esse acesso aparece no guia. Ex.: Portão, Garagem, Cancela."
+                          >
+                            <Input
+                              value={form.property.gate_label}
+                              maxLength={40}
+                              onChange={(e) => update("gate_label", e.target.value)}
+                              placeholder="Portão"
+                            />
+                          </Field>
+                          <Field label="Passo a passo (opcional)" hint="Cada linha vira uma etapa numerada no guia.">
+                            <Textarea
+                              value={form.property.gate_instructions}
+                              maxLength={3000}
+                              rows={5}
+                              onChange={(e) => update("gate_instructions", e.target.value)}
+                              placeholder={"Ex.: 1) Digite o código no teclado do portão e aperte #."}
+                            />
+                          </Field>
+                          <Field label="Link de vídeo tutorial (opcional)">
+                            <Input
+                              value={form.property.gate_video_url}
+                              maxLength={2048}
+                              onChange={(e) => update("gate_video_url", e.target.value)}
+                              placeholder="https://youtu.be/…"
+                            />
+                          </Field>
+                          <Field label="Fotos e vídeos do portão (opcional)">
+                            <MediaUpload
+                              value={form.property.gate_media}
+                              onChange={(next) => update("gate_media", next)}
+                              folder="access"
+                              max={8}
+                            />
+                          </Field>
+                        </div>
+                      )}
+                    </details>
+
+                    {/* Fechadura — sempre recolhido por padrão */}
+                    <details className="group ds-surface border border-border/60 bg-card/30" open={lockOpen}>
+                      <summary
+                        className="list-none cursor-pointer select-none w-full flex items-center gap-3 px-4 py-3.5"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setLockOpen((v) => !v);
+                        }}
+                      >
+                        <div
+                          className={`size-9 rounded-lg grid place-items-center shrink-0 ${lockOpen ? "bg-primary/15 text-primary" : "bg-muted/40 text-muted-foreground"}`}
+                        >
+                          <Lock className="size-[18px]" strokeWidth={1.75} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[14px] font-semibold leading-tight">Fechadura com código</p>
+                          <p className="text-[11.5px] text-muted-foreground mt-0.5">
+                            {lockOpen
+                              ? "Configure abaixo o código e as instruções."
+                              : "Ative se a porta tem fechadura eletrônica."}
+                          </p>
+                        </div>
+                        <Switch
+                          checked={lockOpen}
+                          onCheckedChange={(v) => {
+                            setLockOpen(v);
+                            if (!v)
+                              setForm((f) => ({
+                                ...f,
+                                property: {
+                                  ...f.property,
+                                  lock_code: "",
+                                  lock_instructions: "",
+                                  lock_video_url: "",
+                                  lock_media: [],
+                                },
+                              }));
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <ChevronDown
+                          className={`size-4 text-muted-foreground transition-transform ${lockOpen ? "rotate-180" : ""}`}
+                        />
+                      </summary>
+                      {lockOpen && (
+                        <div className="px-4 pb-4 pt-1 space-y-4 border-t border-border/40">
+                          <Field label="Código da fechadura" required>
+                            <Input
+                              value={form.property.lock_code}
+                              maxLength={40}
+                              onChange={(e) => update("lock_code", e.target.value)}
+                              placeholder="Ex.: 3333"
+                            />
+                          </Field>
+                          <Field
+                            label="Defina um nome"
+                            required
+                            hint="Como esse acesso aparece no guia. Ex.: Fechadura, Porta principal, Smart lock."
+                          >
+                            <Input
+                              value={form.property.lock_label}
+                              maxLength={40}
+                              onChange={(e) => update("lock_label", e.target.value)}
+                              placeholder="Fechadura"
+                            />
+                          </Field>
+                          <Field label="Passo a passo (opcional)" hint="Cada linha vira uma etapa numerada no guia.">
+                            <Textarea
+                              value={form.property.lock_instructions}
+                              maxLength={3000}
+                              rows={5}
+                              onChange={(e) => update("lock_instructions", e.target.value)}
+                              placeholder={"Ex.: 1) Digite o código na fechadura e pressione #."}
+                            />
+                          </Field>
+                          <Field label="Link de vídeo tutorial (opcional)">
+                            <Input
+                              value={form.property.lock_video_url}
+                              maxLength={2048}
+                              onChange={(e) => update("lock_video_url", e.target.value)}
+                              placeholder="https://youtu.be/…"
+                            />
+                          </Field>
+                          <Field label="Fotos e vídeos da fechadura (opcional)">
+                            <MediaUpload
+                              value={form.property.lock_media}
+                              onChange={(next) => update("lock_media", next)}
+                              folder="access"
+                              max={8}
+                            />
+                          </Field>
+                        </div>
+                      )}
+                    </details>
+
+                    {!gateOpen && !lockOpen ? (
+                      <p className="text-[12px] text-muted-foreground ds-surface border border-dashed border-border/60 bg-background/30 px-4 py-3">
+                        Ative ao menos um tipo de acesso acima para cadastrar código e instruções.
+                      </p>
+                    ) : null}
+                  </div>
+                </Section>
+
+                <Section
+                  id="wifi"
+                  icon={Wifi}
+                  title="Wi-Fi"
+                  collapsible
+                >
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Rede (SSID)">
                       <Input
-                        className="w-32 shrink-0 tabular-nums text-center"
-                        value={form.property.access_codes_pin}
-                        maxLength={20}
-                        onChange={(e) => update("access_codes_pin", e.target.value)}
-                        placeholder="Ex.: 8421"
+                        value={form.property.wifi_ssid}
+                        maxLength={64}
+                        onChange={(e) => update("wifi_ssid", e.target.value)}
                       />
-                    </div>
+                    </Field>
+                    <Field label="Senha">
+                      <Input
+                        value={form.property.wifi_password}
+                        maxLength={64}
+                        onChange={(e) => update("wifi_password", e.target.value)}
+                      />
+                    </Field>
+                  </div>
+                </Section>
 
-                    <div className="space-y-3 mt-3">
-                      {/* Portão — sempre recolhido por padrão */}
-                      <details
-                        className="group ds-surface border border-border/60 bg-card/30"
-                        open={gateOpen}
-                      >
-                        <summary
-                          className="list-none cursor-pointer select-none w-full flex items-center gap-3 px-4 py-3.5"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setGateOpen((v) => !v);
-                          }}
+                <Section
+                  id="guest-data"
+                  icon={ClipboardList}
+                  title="Dados do hóspede"
+                  collapsible
+                >
+                  <div className="space-y-2">
+                    <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
+                      Obrigatoriamente coletados
+                    </p>
+                    <div className="grid gap-1.5">
+                      {[
+                        { label: "Nome cadastrado na plataforma", icon: UserRound },
+                        { label: "Período da viagem (chegada e saída)", icon: Clock },
+                        { label: "Telefone", icon: Phone },
+                      ].map((it) => (
+                        <div
+                          key={it.label}
+                          className="flex items-center justify-between ds-surface border border-border/60 bg-muted/40 px-3.5 py-2"
                         >
-                          <div
-                            className={`size-9 rounded-lg grid place-items-center shrink-0 ${gateOpen ? "bg-primary/15 text-primary" : "bg-muted/40 text-muted-foreground"}`}
-                          >
-                            <KeyRound className="size-[18px]" strokeWidth={1.75} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[14px] font-semibold leading-tight">
-                              Portão com código
-                            </p>
-                            <p className="text-[11.5px] text-muted-foreground mt-0.5">
-                              {gateOpen
-                                ? "Configure abaixo o código e as instruções."
-                                : "Ative se a entrada tem portão com senha."}
-                            </p>
-                          </div>
-                          <Switch
-                            checked={gateOpen}
-                            onCheckedChange={(v) => {
-                              setGateOpen(v);
-                              if (!v)
-                                setForm((f) => ({
-                                  ...f,
-                                  property: {
-                                    ...f.property,
-                                    gate_code: "",
-                                    gate_instructions: "",
-                                    gate_video_url: "",
-                                    gate_media: [],
-                                  },
-                                }));
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                          <ChevronDown
-                            className={`size-4 text-muted-foreground transition-transform ${gateOpen ? "rotate-180" : ""}`}
-                          />
-                        </summary>
-                        {gateOpen && (
-                          <div className="px-4 pb-4 pt-1 space-y-4 border-t border-border/40">
-                            <Field label="Código do portão" required>
-                              <Input
-                                value={form.property.gate_code}
-                                maxLength={40}
-                                onChange={(e) => update("gate_code", e.target.value)}
-                                placeholder="Ex.: 1212"
-                              />
-                            </Field>
-                            <Field
-                              label="Defina um nome"
-                              required
-                              hint="Como esse acesso aparece no guia. Ex.: Portão, Garagem, Cancela."
-                            >
-                              <Input
-                                value={form.property.gate_label}
-                                maxLength={40}
-                                onChange={(e) => update("gate_label", e.target.value)}
-                                placeholder="Portão"
-                              />
-                            </Field>
-                            <Field
-                              label="Passo a passo (opcional)"
-                              hint="Cada linha vira uma etapa numerada no guia."
-                            >
-                              <Textarea
-                                value={form.property.gate_instructions}
-                                maxLength={3000}
-                                rows={5}
-                                onChange={(e) => update("gate_instructions", e.target.value)}
-                                placeholder={
-                                  "Ex.: 1) Digite o código no teclado do portão e aperte #."
-                                }
-                              />
-                            </Field>
-                            <Field label="Link de vídeo tutorial (opcional)">
-                              <Input
-                                value={form.property.gate_video_url}
-                                maxLength={2048}
-                                onChange={(e) => update("gate_video_url", e.target.value)}
-                                placeholder="https://youtu.be/…"
-                              />
-                            </Field>
-                            <Field label="Fotos e vídeos do portão (opcional)">
-                              <MediaUpload
-                                value={form.property.gate_media}
-                                onChange={(next) => update("gate_media", next)}
-                                folder="access"
-                                max={8}
-                              />
-                            </Field>
-                          </div>
-                        )}
-                      </details>
-
-                      {/* Fechadura — sempre recolhido por padrão */}
-                      <details
-                        className="group ds-surface border border-border/60 bg-card/30"
-                        open={lockOpen}
-                      >
-                        <summary
-                          className="list-none cursor-pointer select-none w-full flex items-center gap-3 px-4 py-3.5"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setLockOpen((v) => !v);
-                          }}
-                        >
-                          <div
-                            className={`size-9 rounded-lg grid place-items-center shrink-0 ${lockOpen ? "bg-primary/15 text-primary" : "bg-muted/40 text-muted-foreground"}`}
-                          >
-                            <Lock className="size-[18px]" strokeWidth={1.75} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[14px] font-semibold leading-tight">
-                              Fechadura com código
-                            </p>
-                            <p className="text-[11.5px] text-muted-foreground mt-0.5">
-                              {lockOpen
-                                ? "Configure abaixo o código e as instruções."
-                                : "Ative se a porta tem fechadura eletrônica."}
-                            </p>
-                          </div>
-                          <Switch
-                            checked={lockOpen}
-                            onCheckedChange={(v) => {
-                              setLockOpen(v);
-                              if (!v)
-                                setForm((f) => ({
-                                  ...f,
-                                  property: {
-                                    ...f.property,
-                                    lock_code: "",
-                                    lock_instructions: "",
-                                    lock_video_url: "",
-                                    lock_media: [],
-                                  },
-                                }));
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                          <ChevronDown
-                            className={`size-4 text-muted-foreground transition-transform ${lockOpen ? "rotate-180" : ""}`}
-                          />
-                        </summary>
-                        {lockOpen && (
-                          <div className="px-4 pb-4 pt-1 space-y-4 border-t border-border/40">
-                            <Field label="Código da fechadura" required>
-                              <Input
-                                value={form.property.lock_code}
-                                maxLength={40}
-                                onChange={(e) => update("lock_code", e.target.value)}
-                                placeholder="Ex.: 3333"
-                              />
-                            </Field>
-                            <Field
-                              label="Defina um nome"
-                              required
-                              hint="Como esse acesso aparece no guia. Ex.: Fechadura, Porta principal, Smart lock."
-                            >
-                              <Input
-                                value={form.property.lock_label}
-                                maxLength={40}
-                                onChange={(e) => update("lock_label", e.target.value)}
-                                placeholder="Fechadura"
-                              />
-                            </Field>
-                            <Field
-                              label="Passo a passo (opcional)"
-                              hint="Cada linha vira uma etapa numerada no guia."
-                            >
-                              <Textarea
-                                value={form.property.lock_instructions}
-                                maxLength={3000}
-                                rows={5}
-                                onChange={(e) => update("lock_instructions", e.target.value)}
-                                placeholder={"Ex.: 1) Digite o código na fechadura e pressione #."}
-                              />
-                            </Field>
-                            <Field label="Link de vídeo tutorial (opcional)">
-                              <Input
-                                value={form.property.lock_video_url}
-                                maxLength={2048}
-                                onChange={(e) => update("lock_video_url", e.target.value)}
-                                placeholder="https://youtu.be/…"
-                              />
-                            </Field>
-                            <Field label="Fotos e vídeos da fechadura (opcional)">
-                              <MediaUpload
-                                value={form.property.lock_media}
-                                onChange={(next) => update("lock_media", next)}
-                                folder="access"
-                                max={8}
-                              />
-                            </Field>
-                          </div>
-                        )}
-                      </details>
-
-                      {!gateOpen && !lockOpen ? (
-                        <p className="text-[12px] text-muted-foreground ds-surface border border-dashed border-border/60 bg-background/30 px-4 py-3">
-                          Ative ao menos um tipo de acesso acima para cadastrar código e instruções.
-                        </p>
-                      ) : null}
-                    </div>
-                  </Section>
-
-                  <Section id="wifi" icon={Wifi} title="Wi-Fi" collapsible>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Field label="Rede (SSID)">
-                        <Input
-                          value={form.property.wifi_ssid}
-                          maxLength={64}
-                          onChange={(e) => update("wifi_ssid", e.target.value)}
-                        />
-                      </Field>
-                      <Field label="Senha">
-                        <Input
-                          value={form.property.wifi_password}
-                          maxLength={64}
-                          onChange={(e) => update("wifi_password", e.target.value)}
-                        />
-                      </Field>
-                    </div>
-                  </Section>
-
-                  <Section
-                    id="guest-data"
-                    icon={ClipboardList}
-                    title="Dados do hóspede"
-                    collapsible
-                  >
-                    <div className="space-y-2">
-                      <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                        Obrigatoriamente coletados
-                      </p>
-                      <div className="grid gap-1.5">
-                        {[
-                          { label: "Nome cadastrado na plataforma", icon: UserRound },
-                          { label: "Período da viagem (chegada e saída)", icon: Clock },
-                          { label: "Telefone", icon: Phone },
-                        ].map((it) => (
-                          <div
-                            key={it.label}
-                            className="flex items-center justify-between ds-surface border border-border/60 bg-muted/40 px-3.5 py-2"
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <span className="grid place-items-center size-7 rounded-lg bg-accent/10 text-accent">
-                                <it.icon className="size-3.5" />
-                              </span>
-                              <span className="text-sm font-medium">{it.label}</span>
-                            </div>
-                            <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-                              <Lock className="size-3" /> obrigatório
+                          <div className="flex items-center gap-2.5">
+                            <span className="grid place-items-center size-7 rounded-lg bg-accent/10 text-accent">
+                              <it.icon className="size-3.5" />
                             </span>
+                            <span className="text-sm font-medium">{it.label}</span>
                           </div>
-                        ))}
-                      </div>
+                          <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+                            <Lock className="size-3" /> obrigatório
+                          </span>
+                        </div>
+                      ))}
                     </div>
+                  </div>
 
-                    <div className="space-y-2 pt-3 mt-3 border-t border-border/60">
-                      <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
-                        Você também pode solicitar
-                      </p>
-                      <CaptureRow
-                        icon={Clock}
-                        title="Horário previsto de chegada"
-                        desc="Ajuda a preparar o check-in no horário certo."
-                        mode={form.property.collect_arrival_time}
-                        onModeChange={(m) =>
-                          setForm((f) => ({
-                            ...f,
-                            property: { ...f.property, collect_arrival_time: m },
-                          }))
-                        }
-                      />
-                      <CaptureRow
-                        icon={Car}
-                        title="Veículo(s)"
-                        desc="Quantos veículos e para cada um: placa, modelo, cor."
-                        mode={form.property.collect_vehicles}
-                        onModeChange={(m) =>
-                          setForm((f) => ({
-                            ...f,
-                            property: { ...f.property, collect_vehicles: m },
-                          }))
-                        }
-                      >
-                        {form.property.collect_vehicles !== "off" && (
-                          <div className="flex items-center justify-between rounded-lg bg-muted/40 border border-border/50 px-3 py-2 mt-1">
-                            <div className="text-[12.5px] text-muted-foreground">
-                              <span className="font-medium text-foreground">
-                                Quantidade máxima permitida
-                              </span>
-                              <span className="block text-[11px]">
-                                Define o teto que o hóspede pode escolher.
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              {[1, 2, 3, 4, 5].map((n) => (
-                                <button
-                                  key={n}
-                                  type="button"
-                                  onClick={() =>
-                                    setForm((f) => ({
-                                      ...f,
-                                      property: { ...f.property, vehicles_max: n },
-                                    }))
-                                  }
-                                  className={cn(
-                                    "size-8 rounded-full text-[12px] font-semibold border transition-colors",
-                                    form.property.vehicles_max === n
-                                      ? "bg-accent text-accent-foreground border-accent"
-                                      : "border-border text-muted-foreground hover:text-foreground",
-                                  )}
-                                >
-                                  {n}
-                                </button>
-                              ))}
-                            </div>
+                  <div className="space-y-2 pt-3 mt-3 border-t border-border/60">
+                    <p className="text-[11px] uppercase tracking-widest text-muted-foreground font-semibold">
+                      Você também pode solicitar
+                    </p>
+                    <CaptureRow
+                      icon={Clock}
+                      title="Horário previsto de chegada"
+                      desc="Ajuda a preparar o check-in no horário certo."
+                      mode={form.property.collect_arrival_time}
+                      onModeChange={(m) =>
+                        setForm((f) => ({ ...f, property: { ...f.property, collect_arrival_time: m } }))
+                      }
+                    />
+                    <CaptureRow
+                      icon={Car}
+                      title="Veículo(s)"
+                      desc="Quantos veículos e para cada um: placa, modelo, cor."
+                      mode={form.property.collect_vehicles}
+                      onModeChange={(m) => setForm((f) => ({ ...f, property: { ...f.property, collect_vehicles: m } }))}
+                    >
+                      {form.property.collect_vehicles !== "off" && (
+                        <div className="flex items-center justify-between rounded-lg bg-muted/40 border border-border/50 px-3 py-2 mt-1">
+                          <div className="text-[12.5px] text-muted-foreground">
+                            <span className="font-medium text-foreground">Quantidade máxima permitida</span>
+                            <span className="block text-[11px]">Define o teto que o hóspede pode escolher.</span>
                           </div>
-                        )}
-                      </CaptureRow>
-                      <CaptureRow
-                        icon={IdCard}
-                        title="Documento pessoal"
-                        desc="Nome completo + número (CPF, RG, passaporte…)."
-                        mode={form.property.collect_document}
-                        onModeChange={(m) =>
-                          setForm((f) => ({
-                            ...f,
-                            property: { ...f.property, collect_document: m },
-                          }))
-                        }
-                      >
-                        {form.property.collect_document !== "off" && (
-                          <div className="rounded-lg bg-muted/40 border border-border/50 px-3 py-2 mt-1">
-                            <div className="text-[12px] font-medium mb-1.5">De quem coletar?</div>
-                            <div className="flex gap-1.5">
-                              {(
-                                [
-                                  { v: "main", label: "Só do hóspede principal" },
-                                  { v: "all", label: "De todos os hóspedes" },
-                                ] as const
-                              ).map((o) => (
-                                <button
-                                  key={o.v}
-                                  type="button"
-                                  onClick={() =>
-                                    setForm((f) => ({
-                                      ...f,
-                                      property: { ...f.property, document_scope: o.v },
-                                    }))
-                                  }
-                                  className={cn(
-                                    "px-3 py-1.5 rounded-full text-[11.5px] border transition-colors",
-                                    form.property.document_scope === o.v
-                                      ? "bg-accent text-accent-foreground border-accent"
-                                      : "border-border text-muted-foreground hover:text-foreground",
-                                  )}
-                                >
-                                  {o.label}
-                                </button>
-                              ))}
-                            </div>
+                          <div className="flex items-center gap-1">
+                            {[1, 2, 3, 4, 5].map((n) => (
+                              <button
+                                key={n}
+                                type="button"
+                                onClick={() => setForm((f) => ({ ...f, property: { ...f.property, vehicles_max: n } }))}
+                                className={cn(
+                                  "size-8 rounded-full text-[12px] font-semibold border transition-colors",
+                                  form.property.vehicles_max === n
+                                    ? "bg-accent text-accent-foreground border-accent"
+                                    : "border-border text-muted-foreground hover:text-foreground",
+                                )}
+                              >
+                                {n}
+                              </button>
+                            ))}
                           </div>
-                        )}
-                      </CaptureRow>
-                    </div>
-                  </Section>
-                </SectionGroup>
+                        </div>
+                      )}
+                    </CaptureRow>
+                    <CaptureRow
+                      icon={IdCard}
+                      title="Documento pessoal"
+                      desc="Nome completo + número (CPF, RG, passaporte…)."
+                      mode={form.property.collect_document}
+                      onModeChange={(m) => setForm((f) => ({ ...f, property: { ...f.property, collect_document: m } }))}
+                    >
+                      {form.property.collect_document !== "off" && (
+                        <div className="rounded-lg bg-muted/40 border border-border/50 px-3 py-2 mt-1">
+                          <div className="text-[12px] font-medium mb-1.5">De quem coletar?</div>
+                          <div className="flex gap-1.5">
+                            {(
+                              [
+                                { v: "main", label: "Só do hóspede principal" },
+                                { v: "all", label: "De todos os hóspedes" },
+                              ] as const
+                            ).map((o) => (
+                              <button
+                                key={o.v}
+                                type="button"
+                                onClick={() =>
+                                  setForm((f) => ({ ...f, property: { ...f.property, document_scope: o.v } }))
+                                }
+                                className={cn(
+                                  "px-3 py-1.5 rounded-full text-[11.5px] border transition-colors",
+                                  form.property.document_scope === o.v
+                                    ? "bg-accent text-accent-foreground border-accent"
+                                    : "border-border text-muted-foreground hover:text-foreground",
+                                )}
+                              >
+                                {o.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </CaptureRow>
+                  </div>
+                </Section>
+              </SectionGroup>
               )}
 
               {checkinSubStep === "checkout" && (
-                <SectionGroup>
-                  <Section
-                    id="checkout-times"
-                    icon={Clock}
-                    title="Horário de check-out"
-                    collapsible
-                  >
-                    {/* Mesmo espelhamento do "Horário de check-in" acima — ver
+              <SectionGroup>
+                <Section id="checkout-times" icon={Clock} title="Horário de check-out" collapsible>
+                  {/* Mesmo espelhamento do "Horário de check-in" acima — ver
                       comentário lá. "Check-out a partir de" continua
                       editável aqui (é o único horário que não vem do
                       Airbnb — a aba Airbnb também deixa editar o mesmo
                       campo, mesmo estado, sem risco de divergência). */}
-                    <div className="space-y-2.5">
-                      <TimeInlineRow label="Check-out a partir de" optional>
+                  <div className="space-y-2.5">
+                    <TimeInlineRow label="Check-out a partir de" optional>
+                      <TimePicker
+                        value={form.property.checkout_time_min}
+                        onChange={(v) => update("checkout_time_min", v)}
+                        placeholder="08:00"
+                      />
+                    </TimeInlineRow>
+                    <TimeInlineRow label="Check-out até" optional>
+                      {airbnbLocked ? (
+                        <ReadOnlyValue value={form.property.checkout_time} />
+                      ) : (
                         <TimePicker
-                          value={form.property.checkout_time_min}
-                          onChange={(v) => update("checkout_time_min", v)}
-                          placeholder="08:00"
+                          value={form.property.checkout_time}
+                          onChange={(v) => update("checkout_time", v)}
+                          placeholder="11:00"
                         />
-                      </TimeInlineRow>
-                      <TimeInlineRow label="Check-out até" optional>
-                        {airbnbLocked ? (
-                          <ReadOnlyValue value={form.property.checkout_time} />
-                        ) : (
-                          <TimePicker
-                            value={form.property.checkout_time}
-                            onChange={(v) => update("checkout_time", v)}
-                            placeholder="11:00"
-                          />
-                        )}
-                      </TimeInlineRow>
-                    </div>
-                    <Field
-                      label="Observação do check-out (opcional)"
-                      hint="Aparece abaixo dos horários no guia. Deixe em branco para ocultar."
-                    >
-                      <TagMentionTextarea
-                        items={tagItems}
-                        value={form.property.checkout_note}
-                        maxLength={1000}
-                        rows={3}
-                        onChange={(e) => update("checkout_note", e.target.value)}
-                        placeholder="Ex.: Late check-out mediante disponibilidade — consulte o anfitrião."
-                      />
-                    </Field>
-                  </Section>
-
-                  <Section
-                    id="checkout-instr"
-                    icon={LogOut}
-                    title="Instruções de saída"
-                    collapsible
+                      )}
+                    </TimeInlineRow>
+                  </div>
+                  <Field
+                    label="Observação do check-out (opcional)"
+                    hint="Aparece abaixo dos horários no guia. Deixe em branco para ocultar."
                   >
-                    <Field
-                      label="Passo a passo (opcional)"
-                      hint="Uma etapa por linha. Linhas em branco são ignoradas."
-                    >
-                      <TagMentionTextarea
-                        items={tagItems}
-                        value={form.property.checkout_instructions}
-                        maxLength={3000}
-                        rows={6}
-                        onChange={(e) => update("checkout_instructions", e.target.value)}
-                        placeholder={
-                          "Deixe as chaves sobre a mesa de jantar.\nFeche todas as janelas.\nTranque a porta principal ao sair."
-                        }
-                      />
-                    </Field>
-                  </Section>
+                    <TagMentionTextarea
+                      items={tagItems}
+                      value={form.property.checkout_note}
+                      maxLength={1000}
+                      rows={3}
+                      onChange={(e) => update("checkout_note", e.target.value)}
+                      placeholder="Ex.: Late check-out mediante disponibilidade — consulte o anfitrião."
+                    />
+                  </Field>
+                </Section>
 
-                  <Section
-                    id="checkout-list"
-                    icon={ClipboardCheck}
-                    title="Checklist de check-out"
-                    collapsible
-                  >
-                    {form.checkout.length === 0 ? (
-                      <EmptyHint text="Ex: trancar a porta, deixar a chave na mesa, fechar janelas." />
-                    ) : (
-                      form.checkout.map((c, i) => (
-                        <ItemCard
-                          key={i}
-                          onRemove={() =>
+                <Section
+                  id="checkout-instr"
+                  icon={LogOut}
+                  title="Instruções de saída"
+                  collapsible
+                >
+                  <Field label="Passo a passo (opcional)" hint="Uma etapa por linha. Linhas em branco são ignoradas.">
+                    <TagMentionTextarea
+                      items={tagItems}
+                      value={form.property.checkout_instructions}
+                      maxLength={3000}
+                      rows={6}
+                      onChange={(e) => update("checkout_instructions", e.target.value)}
+                      placeholder={
+                        "Deixe as chaves sobre a mesa de jantar.\nFeche todas as janelas.\nTranque a porta principal ao sair."
+                      }
+                    />
+                  </Field>
+                </Section>
+
+                <Section
+                  id="checkout-list"
+                  icon={ClipboardCheck}
+                  title="Checklist de check-out"
+                  collapsible
+                >
+                  {form.checkout.length === 0 ? (
+                    <EmptyHint text="Ex: trancar a porta, deixar a chave na mesa, fechar janelas." />
+                  ) : (
+                    form.checkout.map((c, i) => (
+                      <ItemCard
+                        key={i}
+                        onRemove={() => setForm((f) => ({ ...f, checkout: f.checkout.filter((_, j) => j !== i) }))}
+                      >
+                        <Input
+                          placeholder="ex: Trancar a porta"
+                          value={c.label}
+                          maxLength={200}
+                          onChange={(e) =>
                             setForm((f) => ({
                               ...f,
-                              checkout: f.checkout.filter((_, j) => j !== i),
+                              checkout: f.checkout.map((x, j) => (j === i ? { label: e.target.value } : x)),
                             }))
                           }
-                        >
-                          <Input
-                            placeholder="ex: Trancar a porta"
-                            value={c.label}
-                            maxLength={200}
-                            onChange={(e) =>
-                              setForm((f) => ({
-                                ...f,
-                                checkout: f.checkout.map((x, j) =>
-                                  j === i ? { label: e.target.value } : x,
-                                ),
-                              }))
-                            }
-                          />
-                        </ItemCard>
-                      ))
-                    )}
-                    <div className="pt-1">
-                      <AddBtn
-                        onClick={() =>
-                          setForm((f) => ({ ...f, checkout: [...f.checkout, { label: "" }] }))
-                        }
-                      />
-                    </div>
-                  </Section>
-                </SectionGroup>
+                        />
+                      </ItemCard>
+                    ))
+                  )}
+                  <div className="pt-1">
+                    <AddBtn onClick={() => setForm((f) => ({ ...f, checkout: [...f.checkout, { label: "" }] }))} />
+                  </div>
+                </Section>
+              </SectionGroup>
               )}
             </TabsContent>
 
             {/* ================= FAQ & CONTATOS ================= */}
             <TabsContent value="faq" className="space-y-4 mt-6">
               <SectionGroup>
-                <Section id="emergency" icon={Phone} title="Emergências" collapsible>
+                <Section
+                  id="emergency"
+                  icon={Phone}
+                  title="Emergências"
+                  collapsible
+                >
                   {form.emergency.length === 0 ? (
                     <EmptyHint text="Adicione contatos como polícia, bombeiros, médico de plantão." />
                   ) : (
                     form.emergency.map((m, i) => (
                       <ItemCard
                         key={i}
-                        onRemove={() =>
-                          setForm((f) => ({
-                            ...f,
-                            emergency: f.emergency.filter((_, j) => j !== i),
-                          }))
-                        }
+                        onRemove={() => setForm((f) => ({ ...f, emergency: f.emergency.filter((_, j) => j !== i) }))}
                       >
                         <div className="grid grid-cols-2 gap-2">
                           <Input
@@ -3908,9 +3661,7 @@ function PropertyEditor() {
                             onChange={(e) =>
                               setForm((f) => ({
                                 ...f,
-                                emergency: f.emergency.map((x, j) =>
-                                  j === i ? { ...x, label: e.target.value } : x,
-                                ),
+                                emergency: f.emergency.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)),
                               }))
                             }
                           />
@@ -3921,9 +3672,7 @@ function PropertyEditor() {
                             onChange={(e) =>
                               setForm((f) => ({
                                 ...f,
-                                emergency: f.emergency.map((x, j) =>
-                                  j === i ? { ...x, number: e.target.value } : x,
-                                ),
+                                emergency: f.emergency.map((x, j) => (j === i ? { ...x, number: e.target.value } : x)),
                               }))
                             }
                           />
@@ -3933,25 +3682,22 @@ function PropertyEditor() {
                   )}
                   <div className="pt-1">
                     <AddBtn
-                      onClick={() =>
-                        setForm((f) => ({
-                          ...f,
-                          emergency: [...f.emergency, { label: "", number: "" }],
-                        }))
-                      }
+                      onClick={() => setForm((f) => ({ ...f, emergency: [...f.emergency, { label: "", number: "" }] }))}
                     />
                   </div>
                 </Section>
 
-                <Section id="faqs" icon={HelpCircle} title="Perguntas frequentes" collapsible>
+                <Section
+                  id="faqs"
+                  icon={HelpCircle}
+                  title="Perguntas frequentes"
+                  collapsible
+                >
                   {form.faqs.length === 0 ? (
                     <EmptyHint text="Ex: posso fumar? tem estacionamento? aceita pets?" />
                   ) : (
                     form.faqs.map((m, i) => {
-                      const FAQ_TAGS: {
-                        value: "chegada" | "saida" | "residencia" | "explore";
-                        label: string;
-                      }[] = [
+                      const FAQ_TAGS: { value: "chegada" | "saida" | "residencia" | "explore"; label: string }[] = [
                         { value: "chegada", label: "Chegada (Check-In)" },
                         { value: "saida", label: "Saída (Check-Out)" },
                         { value: "residencia", label: "Residência" },
@@ -3964,9 +3710,7 @@ function PropertyEditor() {
                             j === i
                               ? {
                                   ...x,
-                                  tags: x.tags.includes(tag)
-                                    ? x.tags.filter((t) => t !== tag)
-                                    : [...x.tags, tag],
+                                  tags: x.tags.includes(tag) ? x.tags.filter((t) => t !== tag) : [...x.tags, tag],
                                 }
                               : x,
                           ),
@@ -3988,9 +3732,7 @@ function PropertyEditor() {
                             >
                               {isSigma && <Lock className="size-3.5 text-amber-300 shrink-0" />}
                               <span className="text-sm font-medium truncate flex-1">
-                                {m.question || (
-                                  <span className="text-muted-foreground italic">Sem pergunta</span>
-                                )}
+                                {m.question || <span className="text-muted-foreground italic">Sem pergunta</span>}
                               </span>
                               <ChevronDown
                                 className={`size-4 text-muted-foreground transition-transform shrink-0 ${isOpen ? "rotate-180" : ""}`}
@@ -3999,10 +3741,7 @@ function PropertyEditor() {
                             {!isSigma && (
                               <button
                                 onClick={() => {
-                                  setForm((f) => ({
-                                    ...f,
-                                    faqs: f.faqs.filter((_, j) => j !== i),
-                                  }));
+                                  setForm((f) => ({ ...f, faqs: f.faqs.filter((_, j) => j !== i) }));
                                   if (openFaqIdx === i) setOpenFaqIdx(null);
                                 }}
                                 aria-label="Remover"
@@ -4019,8 +3758,7 @@ function PropertyEditor() {
                             >
                               {isSigma && (
                                 <p className="text-[11px] text-amber-300/90 inline-flex items-center gap-1">
-                                  <Lock className="size-3" /> Pergunta do ConciergeIA — leitura
-                                  somente.
+                                  <Lock className="size-3" /> Pergunta do ConciergeIA — leitura somente.
                                 </p>
                               )}
                               <Input
@@ -4030,9 +3768,7 @@ function PropertyEditor() {
                                 onChange={(e) =>
                                   setForm((f) => ({
                                     ...f,
-                                    faqs: f.faqs.map((x, j) =>
-                                      j === i ? { ...x, question: e.target.value } : x,
-                                    ),
+                                    faqs: f.faqs.map((x, j) => (j === i ? { ...x, question: e.target.value } : x)),
                                   }))
                                 }
                               />
@@ -4044,9 +3780,7 @@ function PropertyEditor() {
                                 onChange={(e) =>
                                   setForm((f) => ({
                                     ...f,
-                                    faqs: f.faqs.map((x, j) =>
-                                      j === i ? { ...x, answer: e.target.value } : x,
-                                    ),
+                                    faqs: f.faqs.map((x, j) => (j === i ? { ...x, answer: e.target.value } : x)),
                                   }))
                                 }
                               />
@@ -4082,9 +3816,7 @@ function PropertyEditor() {
                       onClick={() => {
                         const defaults = buildDefaultFaqs(form.property);
                         if (defaults.length === 0) {
-                          toast.info(
-                            "Preencha campos como horários, endereço, Wi-Fi ou contato para gerar perguntas.",
-                          );
+                          toast.info("Preencha campos como horários, endereço, Wi-Fi ou contato para gerar perguntas.");
                           return;
                         }
                         setForm((f) => {
@@ -4105,16 +3837,18 @@ function PropertyEditor() {
                     </button>
                     <AddBtn
                       onClick={() =>
-                        setForm((f) => ({
-                          ...f,
-                          faqs: [...f.faqs, { question: "", answer: "", tags: [] }],
-                        }))
+                        setForm((f) => ({ ...f, faqs: [...f.faqs, { question: "", answer: "", tags: [] }] }))
                       }
                     />
                   </div>
                 </Section>
 
-                <Section id="host-faq" icon={UserRound} title="Contato do anfitrião" collapsible>
+                <Section
+                  id="host-faq"
+                  icon={UserRound}
+                  title="Contato do anfitrião"
+                  collapsible
+                >
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Nome">
                       <Input
@@ -4144,9 +3878,7 @@ function PropertyEditor() {
                     <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
                       Adicionar ponto/estabelecimento
                     </p>
-                    <span className="text-[10px] text-muted-foreground/70">
-                      Decidimos o quadrante pela distância
-                    </span>
+                    <span className="text-[10px] text-muted-foreground/70">Decidimos o quadrante pela distância</span>
                   </div>
                   <PlaceAutocomplete
                     scope="nearby"
@@ -4191,10 +3923,7 @@ function PropertyEditor() {
                           .then(() => invalidateCityRefs())
                           .catch((e) =>
                             toast.error(
-                              friendlyErrorMessage(
-                                e,
-                                "Não conseguimos adicionar este ponto. Tente outro lugar.",
-                              ),
+                              friendlyErrorMessage(e, "Não conseguimos adicionar este ponto. Tente outro lugar."),
                             ),
                           );
                       }
@@ -4268,8 +3997,7 @@ function PropertyEditor() {
                 >
                   {sigmaLocked && (
                     <div className="flex items-center gap-1.5 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-                      <Lock className="size-3.5" /> Links gerenciados pelo ConciergeIA — edição
-                      bloqueada.
+                      <Lock className="size-3.5" /> Links gerenciados pelo ConciergeIA — edição bloqueada.
                     </div>
                   )}
                   <fieldset
@@ -4291,9 +4019,7 @@ function PropertyEditor() {
                               ...f,
                               property: {
                                 ...f.property,
-                                marketplace_links: f.property.marketplace_links.filter(
-                                  (_, j) => j !== i,
-                                ),
+                                marketplace_links: f.property.marketplace_links.filter((_, j) => j !== i),
                               },
                             }))
                           }
@@ -4339,8 +4065,7 @@ function PropertyEditor() {
                               required
                               aria-invalid={
                                 m.description.trim().length > 0 &&
-                                (m.description.trim().length < 100 ||
-                                  m.description.trim().length > 200)
+                                (m.description.trim().length < 100 || m.description.trim().length > 200)
                               }
                               onChange={(e) =>
                                 setForm((f) => ({
@@ -4348,9 +4073,7 @@ function PropertyEditor() {
                                   property: {
                                     ...f.property,
                                     marketplace_links: f.property.marketplace_links.map((x, j) =>
-                                      j === i
-                                        ? { ...x, description: e.target.value.slice(0, 200) }
-                                        : x,
+                                      j === i ? { ...x, description: e.target.value.slice(0, 200) } : x,
                                     ),
                                   },
                                 }))
@@ -4368,12 +4091,7 @@ function PropertyEditor() {
                           {m.url ? (
                             <div className="flex justify-end">
                               <POIMetricsBadge
-                                counts={{
-                                  views: marketplaceClicks[m.url] ?? 0,
-                                  likes: 0,
-                                  dislikes: 0,
-                                  shares: 0,
-                                }}
+                                counts={{ views: marketplaceClicks[m.url] ?? 0, likes: 0, dislikes: 0, shares: 0 }}
                                 viewsOnly
                                 position="inline"
                               />
@@ -4426,9 +4144,7 @@ function PropertyEditor() {
                   <div className="p-6 bg-background ds-surface border border-border shadow-xl">
                     <div className="text-center mb-5">
                       <h3 className="font-display text-xl">Como deseja visualizar?</h3>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Escolha o modo de pré-visualização do guia.
-                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">Escolha o modo de pré-visualização do guia.</p>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <button
@@ -4500,9 +4216,7 @@ function PropertyEditor() {
                     <div className="flex items-center justify-between gap-3 px-4 h-9 bg-background/95 backdrop-blur border-b border-border/40 shrink-0">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="inline-flex size-1.5 rounded-full bg-emerald-500/80" />
-                        <p className="text-[11px] font-medium text-muted-foreground/80 truncate">
-                          /g/{previewSlug}
-                        </p>
+                        <p className="text-[11px] font-medium text-muted-foreground/80 truncate">/g/{previewSlug}</p>
                       </div>
                       <div className="flex items-center gap-1">
                         <button
@@ -4600,8 +4314,7 @@ function PropertyEditor() {
                   </>
                 ) : autoSaveError ? (
                   <>
-                    <AlertTriangle className="size-3" /> Falha ao salvar — passe o mouse aqui pra
-                    ver o motivo
+                    <AlertTriangle className="size-3" /> Falha ao salvar — passe o mouse aqui pra ver o motivo
                   </>
                 ) : (
                   "Alterações salvas automaticamente"
@@ -4616,8 +4329,8 @@ function PropertyEditor() {
             <AlertDialogHeader>
               <AlertDialogTitle>Remover integração com o Airbnb?</AlertDialogTitle>
               <AlertDialogDescription>
-                As reservas sincronizadas deixarão de ser atualizadas automaticamente. Você pode
-                reconectar a qualquer momento colando a URL novamente.
+                As reservas sincronizadas deixarão de ser atualizadas automaticamente. Você pode reconectar a qualquer
+                momento colando a URL novamente.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -4662,11 +4375,7 @@ function Field({
       <Label className="block truncate text-[13px] font-normal text-foreground">
         {label} {required && <span className="text-destructive">*</span>}
       </Label>
-      {hint && (
-        <p className={cn("text-[11px] text-muted-foreground mt-0.5 leading-snug", hintClassName)}>
-          {hint}
-        </p>
-      )}
+      {hint && <p className={cn("text-[11px] text-muted-foreground mt-0.5 leading-snug", hintClassName)}>{hint}</p>}
       <div className="mt-2">{children}</div>
     </div>
   );
@@ -4692,19 +4401,11 @@ function EmptyHint({ text }: { text: string }) {
  *  Airbnb — pedido do cliente em 03/09/2026: todo campo com importação
  *  automática fica só-leitura na tela, pra editar à mão nunca conflitar com
  *  o que a checagem diária vai sobrescrever de qualquer forma. */
-function ReadOnlyValue({
-  value,
-  placeholder = "Ainda não importado",
-}: {
-  value: string | null | undefined;
-  placeholder?: string;
-}) {
+function ReadOnlyValue({ value, placeholder = "Ainda não importado" }: { value: string | null | undefined; placeholder?: string }) {
   return (
     <div className="ds-surface border border-border/60 bg-muted/30 px-3 py-2 text-sm min-h-[38px] flex items-center gap-2">
       <Lock className="size-3.5 shrink-0 text-muted-foreground" />
-      <span className={cn(value ? "text-foreground/90" : "text-muted-foreground italic")}>
-        {value || placeholder}
-      </span>
+      <span className={cn(value ? "text-foreground/90" : "text-muted-foreground italic")}>{value || placeholder}</span>
     </div>
   );
 }
@@ -4804,9 +4505,7 @@ function AmenitiesList({ amenities }: { amenities: AirbnbAmenity[] }) {
     <div className="space-y-4">
       {groups.map(([cat, items]) => (
         <div key={cat}>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
-            {cat}
-          </p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">{cat}</p>
           <div className="flex flex-wrap gap-1.5">{items.map((a, i) => chip(a, i))}</div>
         </div>
       ))}
@@ -4876,11 +4575,7 @@ function ManualItemImages({
         disabled={uploading || images.length >= 6}
         onClick={() => fileRef.current?.click()}
       >
-        {uploading ? (
-          <Loader2 className="size-3 animate-spin mr-1.5" />
-        ) : (
-          <ImagePlus className="size-3 mr-1.5" />
-        )}
+        {uploading ? <Loader2 className="size-3 animate-spin mr-1.5" /> : <ImagePlus className="size-3 mr-1.5" />}
         {images.length > 0 ? "Adicionar foto" : "Anexar foto"}
       </Button>
     </div>
@@ -5033,15 +4728,11 @@ export function PlaceAutocomplete({
                   <p className="text-[11px] text-muted-foreground truncate">
                     {p.category}
                     {p.rating ? ` · ★ ${p.rating}` : ""}
-                    {p.user_ratings_total
-                      ? ` (${p.user_ratings_total.toLocaleString("pt-BR")})`
-                      : ""}
+                    {p.user_ratings_total ? ` (${p.user_ratings_total.toLocaleString("pt-BR")})` : ""}
                     {p.distance_text ? ` · ${p.distance_text}` : ""}
                   </p>
                   {p.formatted_address && (
-                    <p className="text-[11px] text-muted-foreground/70 truncate">
-                      {p.formatted_address}
-                    </p>
+                    <p className="text-[11px] text-muted-foreground/70 truncate">{p.formatted_address}</p>
                   )}
                 </div>
                 {dup && (
@@ -5134,25 +4825,17 @@ function CityRefsGroup({
       propertyId?: string | null;
     };
   }) => Promise<{ items: unknown[] }>;
-  addFn: (args: {
-    data: Record<string, unknown>;
-  }) => Promise<{ id: string | null; duplicate?: boolean }>;
-  updateFn: (args: {
-    data: { id: string; patch: Record<string, unknown> };
-  }) => Promise<{ ok: boolean }>;
+  addFn: (args: { data: Record<string, unknown> }) => Promise<{ id: string | null; duplicate?: boolean }>;
+  updateFn: (args: { data: { id: string; patch: Record<string, unknown> } }) => Promise<{ ok: boolean }>;
   bulkDeleteFn: (args: { data: { ids: string[] } }) => Promise<{ ok: boolean; deleted?: number }>;
   invalidate: () => void;
   locked?: boolean;
-  metricsCounts?: Record<
-    string,
-    { views: number; likes: number; dislikes: number; shares: number }
-  >;
+  metricsCounts?: Record<string, { views: number; likes: number; dislikes: number; shares: number }>;
 }) {
   const city = (cityLabel || "").trim();
   const q = useQuery({
     queryKey,
-    queryFn: () =>
-      listFn({ data: { city_label: city, state, country, includeHidden: false, propertyId } }),
+    queryFn: () => listFn({ data: { city_label: city, state, country, includeHidden: false, propertyId } }),
     enabled: !!city && !!propertyId,
   });
 
@@ -5208,9 +4891,7 @@ function CityRefsGroup({
     // - Autocomplete (tem place_id): grava imediatamente, dedup por place_id.
     // - Manual (sem place_id): debounce 900ms para não chamar a cada tecla.
     // Só permite adicionar pontos vindos do Google (com place_id).
-    const additions = next.filter(
-      (n) => !n._dbId && n.place_id && n.name && n.name.trim().length > 0,
-    );
+    const additions = next.filter((n) => !n._dbId && n.place_id && n.name && n.name.trim().length > 0);
     const inflight = inflightAdds.current;
     const fire = (rec: RecItem, key: string) => {
       addFn({
@@ -5234,11 +4915,7 @@ function CityRefsGroup({
         },
       })
         .then(() => invalidate())
-        .catch((e) =>
-          toast.error(
-            friendlyErrorMessage(e, "Não conseguimos adicionar este ponto. Tente outro lugar."),
-          ),
-        )
+        .catch((e) => toast.error(friendlyErrorMessage(e, "Não conseguimos adicionar este ponto. Tente outro lugar.")))
         .finally(() => inflight.delete(key));
     };
     for (const rec of additions) {
@@ -5315,10 +4992,7 @@ export function RecGroup({
   headerExtra?: React.ReactNode;
   hideSearch?: boolean;
   locked?: boolean;
-  metricsCounts?: Record<
-    string,
-    { views: number; likes: number; dislikes: number; shares: number }
-  >;
+  metricsCounts?: Record<string, { views: number; likes: number; dislikes: number; shares: number }>;
 }) {
   const [openCat, setOpenCat] = useState<string | null>(null);
   const [openItemIdx, setOpenItemIdx] = useState<number | null>(null);
@@ -5478,17 +5152,13 @@ export function RecGroup({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
-                    <DropdownMenuLabel className="text-[10px] uppercase">
-                      Mover para categoria
-                    </DropdownMenuLabel>
+                    <DropdownMenuLabel className="text-[10px] uppercase">Mover para categoria</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     {(taxonomy?.categories ?? []).map((c) => (
                       <DropdownMenuItem
                         key={c.id}
                         onClick={() => {
-                          const next = items.map((it, i) =>
-                            selectedIdx.has(i) ? { ...it, category: c.label } : it,
-                          );
+                          const next = items.map((it, i) => (selectedIdx.has(i) ? { ...it, category: c.label } : it));
                           onChange(next);
                           setSelectedIdx(new Set());
                           toast.success(`Movidos para "${c.label}"`);
@@ -5508,10 +5178,9 @@ export function RecGroup({
             <AlertDialogHeader>
               <AlertDialogTitle>Excluir {selectedIdx.size} item(ns)?</AlertDialogTitle>
               <AlertDialogDescription>
-                Esta ação remove <strong>{selectedIdx.size}</strong> recomendaç
-                {selectedIdx.size === 1 ? "ão" : "ões"} selecionada
-                {selectedIdx.size === 1 ? "" : "s"} da lista. Você poderá adicioná-las novamente
-                depois, manualmente ou via "Gerar com IA".
+                Esta ação remove <strong>{selectedIdx.size}</strong> recomendaç{selectedIdx.size === 1 ? "ão" : "ões"}{" "}
+                selecionada{selectedIdx.size === 1 ? "" : "s"} da lista. Você poderá adicioná-las novamente depois,
+                manualmente ou via "Gerar com IA".
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -5560,22 +5229,13 @@ export function RecGroup({
                 className="shrink-0 rounded-full text-xs"
                 title="Gerar com IA"
               >
-                {generating ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <Sparkles className="size-3.5" />
-                )}
+                {generating ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
                 <span className="hidden sm:inline">Gerar com IA</span>
               </Button>
             )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="shrink-0 rounded-full text-xs"
-                  title="Editar"
-                >
+                <Button size="sm" variant="outline" className="shrink-0 rounded-full text-xs" title="Editar">
                   <Settings2 className="size-3.5" />
                 </Button>
               </DropdownMenuTrigger>
@@ -5617,10 +5277,7 @@ export function RecGroup({
                           currentLabel={c.label}
                           categoryId={c.id}
                           isProtected={c.is_protected}
-                          allCategories={(taxonomy?.categories ?? []).map((x) => ({
-                            id: x.id,
-                            label: x.label,
-                          }))}
+                          allCategories={(taxonomy?.categories ?? []).map((x) => ({ id: x.id, label: x.label }))}
                           itemsInCategory={count}
                           items={items}
                           onChange={onChange}
@@ -5670,9 +5327,7 @@ export function RecGroup({
         ) : (
           <div className="space-y-2">
             {groupEntries.map(([cat, g]) => {
-              const visibleItems = filterActive
-                ? g.items.filter((it) => matchesFilter(it))
-                : g.items;
+              const visibleItems = filterActive ? g.items.filter((it) => matchesFilter(it)) : g.items;
               if (visibleItems.length === 0) return null;
               const open = openCat === cat || filterActive;
               const groupSelected = g.indices.filter((i) => selectedIdx.has(i)).length;
@@ -5681,9 +5336,7 @@ export function RecGroup({
                 <div
                   key={cat}
                   className={`ds-surface border bg-background/40 overflow-hidden transition-colors ${
-                    dragOverCat === cat
-                      ? "border-primary/70 ring-2 ring-primary/30"
-                      : "border-border/60"
+                    dragOverCat === cat ? "border-primary/70 ring-2 ring-primary/30" : "border-border/60"
                   } ${dragCat === cat ? "opacity-60" : ""}`}
                   onDragOver={(e) => {
                     e.preventDefault();
@@ -5729,22 +5382,15 @@ export function RecGroup({
                         <InlineCategoryRename
                           currentLabel={cat}
                           categoryId={taxonomy?.categories.find((c) => c.label === cat)?.id ?? null}
-                          isProtected={
-                            !!taxonomy?.categories.find((c) => c.label === cat)?.is_protected
-                          }
+                          isProtected={!!taxonomy?.categories.find((c) => c.label === cat)?.is_protected}
                           items={items}
                           onChange={onChange}
                         />
                         <CategoryDeleteButton
                           currentLabel={cat}
                           categoryId={taxonomy?.categories.find((c) => c.label === cat)?.id ?? null}
-                          isProtected={
-                            !!taxonomy?.categories.find((c) => c.label === cat)?.is_protected
-                          }
-                          allCategories={(taxonomy?.categories ?? []).map((c) => ({
-                            id: c.id,
-                            label: c.label,
-                          }))}
+                          isProtected={!!taxonomy?.categories.find((c) => c.label === cat)?.is_protected}
+                          allCategories={(taxonomy?.categories ?? []).map((c) => ({ id: c.id, label: c.label }))}
                           itemsInCategory={g.items.length}
                           items={items}
                           onChange={onChange}
@@ -5766,10 +5412,7 @@ export function RecGroup({
                         const idx = g.indices[k];
                         const checked = selectedIdx.has(idx);
                         const itemOpen = openItemIdx === idx;
-                        const tagLabel =
-                          (taxonomy?.tags ?? []).find((t) => t.slug === r.type)?.label ??
-                          r.type ??
-                          "";
+                        const tagLabel = (taxonomy?.tags ?? []).find((t) => t.slug === r.type)?.label ?? r.type ?? "";
                         return (
                           <div
                             key={idx}
@@ -5789,9 +5432,7 @@ export function RecGroup({
                                 className="flex-1 min-w-0 flex items-center gap-2 text-left"
                                 aria-expanded={itemOpen}
                               >
-                                <span className="truncate text-sm font-medium">
-                                  {r.name || "(sem nome)"}
-                                </span>
+                                <span className="truncate text-sm font-medium">{r.name || "(sem nome)"}</span>
                                 {tagLabel && (
                                   <span className="shrink-0 text-[11px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                                     {tagLabel}
@@ -5803,10 +5444,7 @@ export function RecGroup({
                                 />
                               </button>
                               {metricsCounts && r._dbId ? (
-                                <POIMetricsBadge
-                                  counts={metricsCounts[r._dbId]}
-                                  position="inline"
-                                />
+                                <POIMetricsBadge counts={metricsCounts[r._dbId]} position="inline" />
                               ) : null}
                               <button
                                 type="button"
@@ -5842,9 +5480,7 @@ export function RecGroup({
                                     placeholder="Distância (texto)"
                                     value={r.distance_text ?? ""}
                                     maxLength={80}
-                                    onChange={(e) =>
-                                      updateAt(idx, { distance_text: e.target.value })
-                                    }
+                                    onChange={(e) => updateAt(idx, { distance_text: e.target.value })}
                                   />
                                   <Input
                                     placeholder="Link Maps"
@@ -5861,11 +5497,8 @@ export function RecGroup({
                                 />
                                 {(r.category || r.rating) && (
                                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                    <MapPin className="size-3" /> {r.category}{" "}
-                                    {r.rating ? `· ★ ${r.rating}` : ""}
-                                    {r.user_ratings_total
-                                      ? ` (${r.user_ratings_total.toLocaleString("pt-BR")})`
-                                      : ""}
+                                    <MapPin className="size-3" /> {r.category} {r.rating ? `· ★ ${r.rating}` : ""}
+                                    {r.user_ratings_total ? ` (${r.user_ratings_total.toLocaleString("pt-BR")})` : ""}
                                   </div>
                                 )}
                               </div>
@@ -5963,11 +5596,7 @@ function InlineCategoryRename({
           className="inline-flex size-7 items-center justify-center rounded-md hover:bg-muted text-emerald-600"
           aria-label="Salvar"
         >
-          {saving ? (
-            <Loader2 className="size-3.5 animate-spin" />
-          ) : (
-            <CheckIcon className="size-3.5" />
-          )}
+          {saving ? <Loader2 className="size-3.5 animate-spin" /> : <CheckIcon className="size-3.5" />}
         </button>
         <button
           type="button"
@@ -6040,8 +5669,7 @@ function CategoryDeleteButton({
   const confirm = async () => {
     try {
       setSaving(true);
-      const targetId =
-        mode === "move" ? allCategories.find((c) => c.label === targetLabel)?.id : undefined;
+      const targetId = mode === "move" ? allCategories.find((c) => c.label === targetLabel)?.id : undefined;
       if (mode === "move" && !targetId) {
         toast.error("Escolha uma categoria de destino.");
         setSaving(false);
@@ -6050,9 +5678,7 @@ function CategoryDeleteButton({
       await deleteFn({ data: { id: categoryId, reassign_to_category_id: targetId } });
       // Atualiza os itens locais
       if (mode === "move" && targetLabel) {
-        onChange(
-          items.map((it) => (it.category === currentLabel ? { ...it, category: targetLabel } : it)),
-        );
+        onChange(items.map((it) => (it.category === currentLabel ? { ...it, category: targetLabel } : it)));
         toast.success(`Categoria excluída — pontos movidos para "${targetLabel}"`);
       } else {
         onChange(items.filter((it) => it.category !== currentLabel));
@@ -6094,19 +5720,10 @@ function CategoryDeleteButton({
           {itemsInCategory > 0 && (
             <div className="space-y-3 py-2">
               <label className="flex items-start gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  checked={mode === "move"}
-                  onChange={() => setMode("move")}
-                  className="mt-1"
-                />
+                <input type="radio" checked={mode === "move"} onChange={() => setMode("move")} className="mt-1" />
                 <div className="flex-1 space-y-1.5">
                   <div className="text-sm font-medium">Mover os pontos para outra categoria</div>
-                  <Select
-                    value={targetLabel}
-                    onValueChange={setTargetLabel}
-                    disabled={mode !== "move"}
-                  >
+                  <Select value={targetLabel} onValueChange={setTargetLabel} disabled={mode !== "move"}>
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue placeholder="Escolha a categoria de destino" />
                     </SelectTrigger>
@@ -6121,19 +5738,10 @@ function CategoryDeleteButton({
                 </div>
               </label>
               <label className="flex items-start gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  checked={mode === "delete"}
-                  onChange={() => setMode("delete")}
-                  className="mt-1"
-                />
+                <input type="radio" checked={mode === "delete"} onChange={() => setMode("delete")} className="mt-1" />
                 <div className="flex-1">
-                  <div className="text-sm font-medium text-rose-500">
-                    Excluir os pontos junto com a categoria
-                  </div>
-                  <div className="text-[11px] text-muted-foreground">
-                    Esta ação não pode ser desfeita.
-                  </div>
+                  <div className="text-sm font-medium text-rose-500">Excluir os pontos junto com a categoria</div>
+                  <div className="text-[11px] text-muted-foreground">Esta ação não pode ser desfeita.</div>
                 </div>
               </label>
             </div>
@@ -6201,8 +5809,7 @@ function CategoryDescriptionField({
     <div className="rounded-lg border border-dashed border-border/60 bg-muted/20 p-2.5">
       <div className="flex items-center justify-between gap-2 mb-1.5">
         <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
-          Descrição da categoria{" "}
-          <span className="opacity-60 normal-case tracking-normal">(opcional)</span>
+          Descrição da categoria <span className="opacity-60 normal-case tracking-normal">(opcional)</span>
         </label>
         {saving ? (
           <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
@@ -6246,11 +5853,7 @@ function GalleryEditor({
     onChange(next.filter((x) => x.trim()));
   }
   return (
-    <div
-      className={
-        compact ? "grid grid-cols-4 gap-1.5 max-w-sm" : "grid grid-cols-2 sm:grid-cols-4 gap-2"
-      }
-    >
+    <div className={compact ? "grid grid-cols-4 gap-1.5 max-w-sm" : "grid grid-cols-2 sm:grid-cols-4 gap-2"}>
       {slots.map((url, i) => (
         <div key={i} className="relative">
           <ImageUpload
@@ -6294,9 +5897,7 @@ function GenerateModeDialog({
           <div className="mx-auto mb-3 grid place-items-center size-11 rounded-full bg-primary/10 ring-1 ring-primary/20 text-primary">
             <Sparkles className="size-5" strokeWidth={1.75} />
           </div>
-          <DialogTitle className="font-display text-xl tracking-tight">
-            Como gerar as recomendações?
-          </DialogTitle>
+          <DialogTitle className="font-display text-xl tracking-tight">Como gerar as recomendações?</DialogTitle>
           <p className="text-[13px] text-muted-foreground mt-1.5 leading-relaxed max-w-sm mx-auto">
             Escolha o modo de geração com IA.
           </p>
@@ -6318,8 +5919,8 @@ function GenerateModeDialog({
                 </span>
               </div>
               <p className="text-[12px] text-muted-foreground leading-relaxed pl-[42px]">
-                Mantém todas as referências atuais e adiciona apenas pontos novos de alta qualidade,
-                respeitando o limite máximo por categoria.
+                Mantém todas as referências atuais e adiciona apenas pontos novos de alta qualidade, respeitando o
+                limite máximo por categoria.
               </p>
             </button>
             <button
@@ -6341,12 +5942,7 @@ function GenerateModeDialog({
             </button>
           </div>
           <div className="flex justify-end mt-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              className="text-muted-foreground hover:text-foreground"
-            >
+            <Button variant="ghost" size="sm" onClick={onClose} className="text-muted-foreground hover:text-foreground">
               Cancelar
             </Button>
           </div>

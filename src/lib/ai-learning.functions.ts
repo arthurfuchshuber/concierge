@@ -9,10 +9,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 /** Garante que o chamador pode operar no tenant pedido. */
 async function assertTenantAccess(
-  context: {
-    supabase: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown }> };
-    userId: string;
-  },
+  context: { supabase: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown }> }; userId: string },
   tenantId?: string,
 ): Promise<string> {
   if (!tenantId || tenantId === context.userId) return context.userId;
@@ -45,11 +42,7 @@ export const listLearningQueue = createServerFn({ method: "POST" })
     const tenantId = await assertTenantAccess(context as never, data.tenantId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { listLearningCandidates } = await import("@/lib/ai/learning/candidates.server");
-    return listLearningCandidates({
-      supabase: supabaseAdmin,
-      tenantId,
-      status: data.status ?? "pending",
-    });
+    return listLearningCandidates({ supabase: supabaseAdmin, tenantId, status: data.status ?? "pending" });
   });
 
 export const reviewLearningCandidate = createServerFn({ method: "POST" })
@@ -59,16 +52,14 @@ export const reviewLearningCandidate = createServerFn({ method: "POST" })
       candidateId: string;
       action: "approve" | "reject";
       tenantId?: string;
-      approvedScope?:
-        "reservation" | "property" | "owner_portfolio" | "company_global" | "temporary_exception";
+      approvedScope?: "reservation" | "property" | "owner_portfolio" | "company_global" | "temporary_exception";
       editedContent?: string | null;
     }) => input,
   )
   .handler(async ({ data, context }) => {
     const tenantId = await assertTenantAccess(context as never, data.tenantId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { approveAndApply, rejectCandidate } =
-      await import("@/lib/ai/learning/candidates.server");
+    const { approveAndApply, rejectCandidate } = await import("@/lib/ai/learning/candidates.server");
     if (data.action === "reject") {
       return rejectCandidate({
         supabase: supabaseAdmin,
@@ -120,9 +111,7 @@ export const listAiPromptSuggestions = createServerFn({ method: "POST" })
 
 export const reviewAiPromptSuggestion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
-    (input: { suggestionId: string; status: "approved" | "rejected"; tenantId?: string }) => input,
-  )
+  .inputValidator((input: { suggestionId: string; status: "approved" | "rejected"; tenantId?: string }) => input)
   .handler(async ({ data, context }) => {
     const tenantId = await assertTenantAccess(context as never, data.tenantId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -143,7 +132,6 @@ export const getAgentLearningMetrics = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const tenantId = await assertTenantAccess(context as never, data.tenantId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { refreshAgentLearningMetrics } =
-      await import("@/lib/ai/learning/agent-performance.server");
+    const { refreshAgentLearningMetrics } = await import("@/lib/ai/learning/agent-performance.server");
     return refreshAgentLearningMetrics({ supabase: supabaseAdmin, tenantId, days: data.days ?? 7 });
   });

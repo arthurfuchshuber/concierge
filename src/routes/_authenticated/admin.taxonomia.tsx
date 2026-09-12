@@ -2,7 +2,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { useTaxonomy, TAXONOMY_QUERY_KEY } from "@/components/admin/TagPicker";
+import {
+  useTaxonomy,
+  TAXONOMY_QUERY_KEY,
+} from "@/components/admin/TagPicker";
 import {
   createPoiCategory,
   updatePoiCategory,
@@ -121,22 +124,12 @@ function TaxonomyPage() {
                     onClick={() => setOpenCats((s) => ({ ...s, [cat.id]: !open }))}
                     className="flex-1 flex items-center gap-2 text-left min-w-0"
                   >
-                    <ChevronDown
-                      className={`size-4 text-muted-foreground transition-transform ${open ? "" : "-rotate-90"}`}
-                    />
+                    <ChevronDown className={`size-4 text-muted-foreground transition-transform ${open ? "" : "-rotate-90"}`} />
                     <span className="ds-card-title truncate">{cat.label}</span>
-                    {cat.is_protected && (
-                      <Lock className="size-3 text-muted-foreground/60 shrink-0" />
-                    )}
+                    {cat.is_protected && <Lock className="size-3 text-muted-foreground/60 shrink-0" />}
                     <span className="ds-meta shrink-0">({tags.length})</span>
                   </button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => setEditCat(cat)}
-                    aria-label="Editar categoria"
-                    title="Editar categoria"
-                  >
+                  <Button size="icon" variant="ghost" onClick={() => setEditCat(cat)} aria-label="Editar categoria" title="Editar categoria">
                     <Pencil className="size-3.5" />
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => setNewTagInCat(cat)}>
@@ -153,13 +146,7 @@ function TaxonomyPage() {
                           <span className="ds-body flex-1 truncate">{tag.label}</span>
                           <code className="ds-meta text-muted-foreground/70">{tag.slug}</code>
                           {tag.is_protected && <Lock className="size-3 text-muted-foreground/60" />}
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => setEditTag(tag)}
-                            aria-label="Editar tag"
-                            title="Editar tag"
-                          >
+                          <Button size="icon" variant="ghost" onClick={() => setEditTag(tag)} aria-label="Editar tag" title="Editar tag">
                             <Pencil className="size-3.5" />
                           </Button>
                         </div>
@@ -252,9 +239,7 @@ function TaxonomyPage() {
           onConfirm={async (newLabel) => {
             setMerging(true);
             try {
-              const res = await mergeFn({
-                data: { category_ids: Array.from(selectedCats), new_label: newLabel },
-              });
+              const res = await mergeFn({ data: { category_ids: Array.from(selectedCats), new_label: newLabel } });
               toast.success(`Unificadas em "${res.label}"`);
               setSelectedCats(new Set());
               setMergeOpen(false);
@@ -271,12 +256,7 @@ function TaxonomyPage() {
   );
 }
 
-function MergeCategoriesDialog({
-  categories,
-  saving,
-  onClose,
-  onConfirm,
-}: {
+function MergeCategoriesDialog({ categories, saving, onClose, onConfirm }: {
   categories: PoiCategory[];
   saving: boolean;
   onClose: () => void;
@@ -285,26 +265,17 @@ function MergeCategoriesDialog({
   const suggested = categories.map((c) => c.label).join(", ");
   const [label, setLabel] = useState(suggested);
   return (
-    <Dialog
-      open
-      onOpenChange={(o) => {
-        if (!o) onClose();
-      }}
-    >
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Unificar categorias</DialogTitle>
-        </DialogHeader>
+        <DialogHeader><DialogTitle>Unificar categorias</DialogTitle></DialogHeader>
         <p className="ds-meta">
-          As tags de todas as selecionadas serão movidas para uma única categoria. As categorias
-          absorvidas serão excluídas (categorias padrão não podem ser absorvidas).
+          As tags de todas as selecionadas serão movidas para uma única categoria.
+          As categorias absorvidas serão excluídas (categorias padrão não podem ser absorvidas).
         </p>
         <Label className="ds-meta">Nome da categoria unificada</Label>
         <Input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={120} />
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose} disabled={saving}>
-            Cancelar
-          </Button>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
           <Button disabled={saving || !label.trim()} onClick={() => onConfirm(label.trim())}>
             {saving && <Loader2 className="size-3.5 animate-spin" />} Unificar
           </Button>
@@ -314,51 +285,20 @@ function MergeCategoriesDialog({
   );
 }
 
-function SimpleNewDialog({
-  title,
-  placeholder,
-  onClose,
-  onSave,
-}: {
-  title: string;
-  placeholder: string;
-  onClose: () => void;
-  onSave: (label: string) => Promise<void>;
+function SimpleNewDialog({ title, placeholder, onClose, onSave }: {
+  title: string; placeholder: string;
+  onClose: () => void; onSave: (label: string) => Promise<void>;
 }) {
   const [label, setLabel] = useState("");
   const [saving, setSaving] = useState(false);
   return (
-    <Dialog
-      open
-      onOpenChange={(o) => {
-        if (!o) onClose();
-      }}
-    >
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
-        <Input
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          placeholder={placeholder}
-          maxLength={60}
-        />
+        <DialogHeader><DialogTitle>{title}</DialogTitle></DialogHeader>
+        <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={placeholder} maxLength={60} />
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button
-            disabled={saving || !label.trim()}
-            onClick={async () => {
-              setSaving(true);
-              try {
-                await onSave(label.trim());
-              } finally {
-                setSaving(false);
-              }
-            }}
-          >
+          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+          <Button disabled={saving || !label.trim()} onClick={async () => { setSaving(true); try { await onSave(label.trim()); } finally { setSaving(false); } }}>
             {saving && <Loader2 className="size-3.5 animate-spin" />} Criar
           </Button>
         </DialogFooter>
@@ -367,12 +307,7 @@ function SimpleNewDialog({
   );
 }
 
-function EditCategoryDialog({
-  cat,
-  onClose,
-  onSave,
-  onDelete,
-}: {
+function EditCategoryDialog({ cat, onClose, onSave, onDelete }: {
   cat: PoiCategory;
   onClose: () => void;
   onSave: (label: string) => Promise<void>;
@@ -382,12 +317,7 @@ function EditCategoryDialog({
   const [saving, setSaving] = useState(false);
   const presence = usePresence(`poi-category:${cat.id}`);
   return (
-    <Dialog
-      open
-      onOpenChange={(o) => {
-        if (!o) onClose();
-      }}
-    >
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <div className="flex items-center justify-between gap-3">
@@ -412,35 +342,13 @@ function EditCategoryDialog({
         )}
         <DialogFooter className="flex sm:justify-between">
           {!cat.is_protected ? (
-            <Button
-              variant="destructive"
-              size="sm"
-              disabled={saving}
-              onClick={async () => {
-                setSaving(true);
-                await onDelete();
-                setSaving(false);
-              }}
-            >
+            <Button variant="destructive" size="sm" disabled={saving} onClick={async () => { setSaving(true); await onDelete(); setSaving(false); }}>
               <Trash2 className="size-3.5" /> Excluir
             </Button>
-          ) : (
-            <div />
-          )}
+          ) : <div />}
           <div className="flex gap-2">
-            <Button variant="ghost" onClick={onClose}>
-              Cancelar
-            </Button>
-            <Button
-              disabled={saving || !label.trim()}
-              onClick={async () => {
-                setSaving(true);
-                await onSave(label.trim());
-                setSaving(false);
-              }}
-            >
-              Salvar
-            </Button>
+            <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+            <Button disabled={saving || !label.trim()} onClick={async () => { setSaving(true); await onSave(label.trim()); setSaving(false); }}>Salvar</Button>
           </div>
         </DialogFooter>
       </DialogContent>
@@ -448,24 +356,11 @@ function EditCategoryDialog({
   );
 }
 
-function EditTagDialog({
-  tag,
-  categories,
-  onClose,
-  onSave,
-  onDelete,
-}: {
+function EditTagDialog({ tag, categories, onClose, onSave, onDelete }: {
   tag: PoiTag;
   categories: PoiCategory[];
   onClose: () => void;
-  onSave: (patch: {
-    label?: string;
-    category_id?: string;
-    accepted_primary_types?: string[];
-    places_types?: string[];
-    query_variants?: string[];
-    min_reviews?: number;
-  }) => Promise<void>;
+  onSave: (patch: { label?: string; category_id?: string; accepted_primary_types?: string[]; places_types?: string[]; query_variants?: string[]; min_reviews?: number }) => Promise<void>;
   onDelete: () => Promise<void>;
 }) {
   const [label, setLabel] = useState(tag.label);
@@ -478,12 +373,7 @@ function EditTagDialog({
   const [saving, setSaving] = useState(false);
   const presence = usePresence(`poi-tag:${tag.id}`);
   return (
-    <Dialog
-      open
-      onOpenChange={(o) => {
-        if (!o) onClose();
-      }}
-    >
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <div className="flex items-center justify-between gap-3">
@@ -511,22 +401,13 @@ function EditTagDialog({
               value={catId}
               onValueChange={(v) => {
                 setCatId(v);
-                presence.broadcastTyping(
-                  "category_id",
-                  categories.find((c) => c.id === v)?.label ?? v,
-                );
+                presence.broadcastTyping("category_id", categories.find((c) => c.id === v)?.label ?? v);
               }}
               onOpenChange={(open) => !open && presence.broadcastFieldBlur("category_id")}
             >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {categories.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.label}
-                  </SelectItem>
-                ))}
+                {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}
               </SelectContent>
             </Select>
             <FieldTypingBadge typing={presence.typing["category_id"]} />
@@ -536,10 +417,7 @@ function EditTagDialog({
           </button>
           {showAi && (
             <div className="space-y-2 border-l-2 border-border pl-3">
-              <p className="ds-meta">
-                A IA usa esses dados para classificar pontos automaticamente nesta tag durante
-                "Gerar com IA".
-              </p>
+              <p className="ds-meta">A IA usa esses dados para classificar pontos automaticamente nesta tag durante "Gerar com IA".</p>
               <div>
                 <Input
                   value={primary}
@@ -594,61 +472,31 @@ function EditTagDialog({
           )}
           {tag.is_protected && (
             <p className="ds-meta flex gap-1.5 items-start">
-              <Lock className="size-3 mt-0.5" /> Tag padrão — pode renomear e mudar categoria; não
-              pode excluir (a IA usa o slug <code>{tag.slug}</code>).
+              <Lock className="size-3 mt-0.5" /> Tag padrão — pode renomear e mudar categoria; não pode excluir (a IA usa o slug <code>{tag.slug}</code>).
             </p>
           )}
         </div>
         <DialogFooter className="flex sm:justify-between">
           {!tag.is_protected ? (
-            <Button
-              variant="destructive"
-              size="sm"
-              disabled={saving}
-              onClick={async () => {
-                setSaving(true);
-                await onDelete();
-                setSaving(false);
-              }}
-            >
+            <Button variant="destructive" size="sm" disabled={saving} onClick={async () => { setSaving(true); await onDelete(); setSaving(false); }}>
               <Trash2 className="size-3.5" /> Excluir
             </Button>
-          ) : (
-            <div />
-          )}
+          ) : <div />}
           <div className="flex gap-2">
-            <Button variant="ghost" onClick={onClose}>
-              Cancelar
-            </Button>
-            <Button
-              disabled={saving || !label.trim()}
-              onClick={async () => {
-                setSaving(true);
-                try {
-                  await onSave({
-                    label: label.trim(),
-                    category_id: catId,
-                    accepted_primary_types: primary
-                      .split(",")
-                      .map((s) => s.trim())
-                      .filter(Boolean),
-                    places_types: places
-                      .split(",")
-                      .map((s) => s.trim())
-                      .filter(Boolean),
-                    query_variants: variants
-                      .split(",")
-                      .map((s) => s.trim())
-                      .filter(Boolean),
-                    min_reviews: minR,
-                  });
-                } finally {
-                  setSaving(false);
-                }
-              }}
-            >
-              Salvar
-            </Button>
+            <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+            <Button disabled={saving || !label.trim()} onClick={async () => {
+              setSaving(true);
+              try {
+                await onSave({
+                  label: label.trim(),
+                  category_id: catId,
+                  accepted_primary_types: primary.split(",").map((s) => s.trim()).filter(Boolean),
+                  places_types: places.split(",").map((s) => s.trim()).filter(Boolean),
+                  query_variants: variants.split(",").map((s) => s.trim()).filter(Boolean),
+                  min_reviews: minR,
+                });
+              } finally { setSaving(false); }
+            }}>Salvar</Button>
           </div>
         </DialogFooter>
       </DialogContent>
@@ -656,22 +504,11 @@ function EditTagDialog({
   );
 }
 
-function NewTagDialog({
-  categoryId,
-  categoryLabel,
-  onClose,
-  onSave,
-}: {
+function NewTagDialog({ categoryId, categoryLabel, onClose, onSave }: {
   categoryId: string;
   categoryLabel: string;
   onClose: () => void;
-  onSave: (payload: {
-    label: string;
-    accepted_primary_types: string[];
-    places_types: string[];
-    query_variants: string[];
-    min_reviews: number;
-  }) => Promise<void>;
+  onSave: (payload: { label: string; accepted_primary_types: string[]; places_types: string[]; query_variants: string[]; min_reviews: number }) => Promise<void>;
 }) {
   void categoryId;
   const [label, setLabel] = useState("");
@@ -682,87 +519,38 @@ function NewTagDialog({
   const [showAi, setShowAi] = useState(false);
   const [saving, setSaving] = useState(false);
   return (
-    <Dialog
-      open
-      onOpenChange={(o) => {
-        if (!o) onClose();
-      }}
-    >
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Nova tag em "{categoryLabel}"</DialogTitle>
-        </DialogHeader>
+        <DialogHeader><DialogTitle>Nova tag em "{categoryLabel}"</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          <Input
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            placeholder="Nome (ex: Cachoeira)"
-            maxLength={60}
-          />
+          <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Nome (ex: Cachoeira)" maxLength={60} />
           <button type="button" onClick={() => setShowAi(!showAi)} className="ds-meta underline">
             {showAi ? "Ocultar" : "Mostrar"} mapeamento avançado (IA)
           </button>
           {showAi && (
             <div className="space-y-2 border-l-2 border-border pl-3">
-              <p className="text-[11px] text-muted-foreground">
-                Preencha para a IA classificar pontos automaticamente nesta tag.
-              </p>
-              <Input
-                value={primary}
-                onChange={(e) => setPrimary(e.target.value)}
-                placeholder="Primary types (vírgula)"
-              />
-              <Input
-                value={places}
-                onChange={(e) => setPlaces(e.target.value)}
-                placeholder="Places types (vírgula)"
-              />
-              <Input
-                value={variants}
-                onChange={(e) => setVariants(e.target.value)}
-                placeholder="Variantes de busca"
-              />
-              <Input
-                type="number"
-                value={minR}
-                onChange={(e) => setMinR(Number(e.target.value) || 0)}
-                placeholder="Mínimo de avaliações"
-              />
+              <p className="text-[11px] text-muted-foreground">Preencha para a IA classificar pontos automaticamente nesta tag.</p>
+              <Input value={primary} onChange={(e) => setPrimary(e.target.value)} placeholder="Primary types (vírgula)" />
+              <Input value={places} onChange={(e) => setPlaces(e.target.value)} placeholder="Places types (vírgula)" />
+              <Input value={variants} onChange={(e) => setVariants(e.target.value)} placeholder="Variantes de busca" />
+              <Input type="number" value={minR} onChange={(e) => setMinR(Number(e.target.value) || 0)} placeholder="Mínimo de avaliações" />
             </div>
           )}
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button
-            disabled={saving || !label.trim()}
-            onClick={async () => {
-              setSaving(true);
-              try {
-                await onSave({
-                  label: label.trim(),
-                  accepted_primary_types: primary
-                    .split(",")
-                    .map((s) => s.trim())
-                    .filter(Boolean),
-                  places_types: places
-                    .split(",")
-                    .map((s) => s.trim())
-                    .filter(Boolean),
-                  query_variants: variants
-                    .split(",")
-                    .map((s) => s.trim())
-                    .filter(Boolean),
-                  min_reviews: minR,
-                });
-              } finally {
-                setSaving(false);
-              }
-            }}
-          >
-            Criar
-          </Button>
+          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+          <Button disabled={saving || !label.trim()} onClick={async () => {
+            setSaving(true);
+            try {
+              await onSave({
+                label: label.trim(),
+                accepted_primary_types: primary.split(",").map((s) => s.trim()).filter(Boolean),
+                places_types: places.split(",").map((s) => s.trim()).filter(Boolean),
+                query_variants: variants.split(",").map((s) => s.trim()).filter(Boolean),
+                min_reviews: minR,
+              });
+            } finally { setSaving(false); }
+          }}>Criar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

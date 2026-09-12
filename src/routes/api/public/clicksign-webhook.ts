@@ -36,7 +36,9 @@ export const Route = createFileRoute("/api/public/clicksign-webhook")({
         if (!secret) return new Response("Integration not configured", { status: 404 });
 
         const header =
-          request.headers.get("content-hmac") ?? request.headers.get("Content-Hmac") ?? "";
+          request.headers.get("content-hmac") ??
+          request.headers.get("Content-Hmac") ??
+          "";
         const received = header.replace(/^sha256=/i, "").trim();
         const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
         if (!received || !safeEqual(received, expected)) {
@@ -115,6 +117,7 @@ export const Route = createFileRoute("/api/public/clicksign-webhook")({
             });
           }
         }
+
 
         await supabaseAdmin
           .from("host_integration_credentials")

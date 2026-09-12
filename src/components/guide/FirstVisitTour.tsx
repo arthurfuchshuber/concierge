@@ -109,7 +109,7 @@ export function FirstVisitTour({ active, onDone }: { active: boolean; onDone: ()
           zIndex: 71,
         }}
         className={cn(
-          "rounded-2xl border border-accent/40 bg-card/95 backdrop-blur-xl p-4 shadow-[0_18px_50px_-12px_rgba(0,0,0,0.6)]",
+          "rounded-[0.3rem] border border-accent/40 bg-card/95 backdrop-blur-xl p-4 shadow-[0_18px_50px_-12px_rgba(0,0,0,0.6)]",
           "animate-in fade-in-0 zoom-in-95 duration-200",
         )}
         role="dialog"

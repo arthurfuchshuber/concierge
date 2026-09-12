@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-11T20:45:23.197Z";
+export const GENERATED_AT = "2026-09-12T02:36:54.406Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -2256,7 +2256,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "dc0da3da58aa3722f69ddc52964edb30"
   },
   {
-    "doc_key": "rule:src/components/dashboard/ReservationJourneyDialog.tsx:3275",
+    "doc_key": "rule:src/components/dashboard/ReservationJourneyDialog.tsx:3227",
     "kind": "rule",
     "title": "Regra em ReservationJourneyDialog.tsx",
     "content": "Chegada e saída, as duas editáveis (pedido explícito, 08/09/2026).\n\nChega pronto do card, como nó já montado, e não como dados: o editor de\nprevisão vive dentro do quadro (é lá que estão as duas listas da esteira\ne a gravação otimista), e importá-lo daqui criaria um ciclo — o quadro já\nimporta este diálogo. Passar o nó pronto mantém uma única implementação\nde gravação, que é a mesma regra que vale para as ações do assistente.",
@@ -2265,7 +2265,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "05695c4506d7fc3e0183fd55b62a5aae"
   },
   {
-    "doc_key": "rule:src/components/dashboard/TaskAttachments.tsx:2043",
+    "doc_key": "rule:src/components/dashboard/TaskAttachments.tsx:2044",
     "kind": "rule",
     "title": "Regra em TaskAttachments.tsx",
     "content": "Sobe os anexos retidos e grava cada um como registro da pendência. Chamar\nDEPOIS que a pendência existe (criação) ou foi concluída (comprovação).\nFalha de um arquivo não derruba os outros — nem a ação principal, que já\naconteceu.",
@@ -2328,7 +2328,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "a316426ba5b0c0ef8c0a2216d094e32c"
   },
   {
-    "doc_key": "rule:src/components/GuideAiChat.tsx:7639",
+    "doc_key": "rule:src/components/GuideAiChat.tsx:7440",
     "kind": "rule",
     "title": "Regra em GuideAiChat.tsx",
     "content": "true quando qualquer outro popup/onboarding já está na tela (tour de\nprimeiro acesso, diálogo de PIN, etc.) — nesse caso o popup sugestivo\nnunca aparece por cima; só quando a tela estiver limpa.",
@@ -2499,7 +2499,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ab397c63c0753e79b1b0f2a6c74c58f9"
   },
   {
-    "doc_key": "rule:src/lib/ai/context.server.ts:2353",
+    "doc_key": "rule:src/lib/ai/context.server.ts:2349",
     "kind": "rule",
     "title": "Regra em context.server.ts",
     "content": "O nome do imóvel é a resposta para \"qual é o meu apartamento\".\n\nUm guia pertence a UM imóvel, e o hóspede que está conversando abriu o\nguia daquele imóvel: não existe ambiguidade sobre em que unidade ele está.\nA frase abaixo diz isso ao modelo em vez de deixar que ele deduza —\nporque, deduzindo, ele já preferiu um número solto no meio das instruções\ndo anfitrião ao nome cadastrado, e devolveu uma pergunta a quem só queria\no número da porta (caso real, 08/09/2026).",
@@ -2994,7 +2994,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "93c3dfccb774c6892f686a76e9058356"
   },
   {
-    "doc_key": "rule:src/lib/dashboard.functions.ts:71146",
+    "doc_key": "rule:src/lib/dashboard.functions.ts:70422",
     "kind": "rule",
     "title": "Regra em dashboard.functions.ts",
     "content": "Completa o identificador que faltou (pedido explícito, 08/09/2026: o\ncard marcado como \"não compareceu\" continuava espelhado na Fila de\nLimpeza).\n\nO card de chegada e o de saída da MESMA estadia nem sempre carregam o\nmesmo identificador — o casamento formulário↔reserva é mais exigente\ndo lado da chegada (ver `findLogsForReservation`). Gravando só o que o\ncard clicado tinha, o outro lado ficava sem chave em comum e escapava\ndo filtro. Aqui procuramos o par pela estadia e gravamos os DOIS, de\nmodo que qualquer consumidor — não só o quadro — reconheça o\nnão comparecimento por qualquer um dos lados.",
@@ -3327,7 +3327,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "132659b2da4d0e0ed5ba9a5fe818acdd"
   },
   {
-    "doc_key": "rule:src/lib/tasks-types.ts:1342",
+    "doc_key": "rule:src/lib/tasks-types.ts:1356",
     "kind": "rule",
     "title": "Regra em tasks-types.ts",
     "content": "Vínculo pontual com uma estadia específica — quando presente, a\npendência é \"pontual\" (some quando a estadia termina). Sem nenhum dos\ndois, é \"recorrente\" (permanente do imóvel/proprietário).",
@@ -3336,7 +3336,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "b7fc8eee61350eb3efcc2ea02add55ab"
   },
   {
-    "doc_key": "rule:src/lib/tasks-types.ts:1828",
+    "doc_key": "rule:src/lib/tasks-types.ts:1842",
     "kind": "rule",
     "title": "Regra em tasks-types.ts",
     "content": "Repetição por tempo (independente do modelo \"recorrente por limpeza\"):\nao concluir, a pendência volta pendente com um novo prazo N dias à\nfrente, em vez de ficar marcada como feita pra sempre.",

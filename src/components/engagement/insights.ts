@@ -7,18 +7,10 @@ export type Insight = {
 };
 
 const SECTION_LABEL: Record<string, string> = {
-  wifi: "Wi-Fi",
-  checkin: "Check-in",
-  checkout: "Check-out",
-  house_rules: "Regras da casa",
-  manual: "Manual",
-  faqs: "FAQs",
-  emergency: "Contatos de emergência",
-  recommendations: "Recomendações",
-  nearby: "Aqui pertinho",
-  city: "Cidade",
-  marketplace: "Parceiros",
-  chat: "Chat IA",
+  wifi: "Wi-Fi", checkin: "Check-in", checkout: "Check-out",
+  house_rules: "Regras da casa", manual: "Manual", faqs: "FAQs",
+  emergency: "Contatos de emergência", recommendations: "Recomendações",
+  nearby: "Aqui pertinho", city: "Cidade", marketplace: "Parceiros", chat: "Chat IA",
 };
 
 export function labelFor(section: string): string {
@@ -43,17 +35,12 @@ export function computeInsights(a: EngagementAnalytics): Insight[] {
     out.push({
       severity: "warn",
       title: `${a.kpis.chatRate}% das visitas viram conversa`,
-      detail:
-        "Sinal de que o guia deixa dúvidas óbvias em aberto. Reforce as seções mais buscadas.",
+      detail: "Sinal de que o guia deixa dúvidas óbvias em aberto. Reforce as seções mais buscadas.",
     });
   }
 
   // Sessões muito curtas
-  if (
-    a.kpis.uniqueSessions >= 20 &&
-    a.kpis.avgSessionSeconds > 0 &&
-    a.kpis.avgSessionSeconds < 45
-  ) {
+  if (a.kpis.uniqueSessions >= 20 && a.kpis.avgSessionSeconds > 0 && a.kpis.avgSessionSeconds < 45) {
     out.push({
       severity: "warn",
       title: `Sessão típica com apenas ${a.kpis.avgSessionSeconds}s`,

@@ -30,10 +30,7 @@ export type SystemDoc = {
   retrieval: "vector" | "text";
 };
 
-type AnyClient = {
-  from: (t: string) => any;
-  rpc: (fn: string, args: Record<string, unknown>) => any;
-};
+type AnyClient = { from: (t: string) => any; rpc: (fn: string, args: Record<string, unknown>) => any };
 
 /**
  * Um trecho escrito à mão vale mais que um extraído do código, e uma regra de
@@ -160,8 +157,7 @@ export async function retrieveSystemKnowledge(params: {
       match_count: limit,
     });
     // ts_rank devolve valores baixos; a mesma normalização do rag.server.ts.
-    for (const row of (data ?? []) as Row[])
-      take(row, Math.min(Number(row.rank ?? 0) * 4, 1), "text");
+    for (const row of (data ?? []) as Row[]) take(row, Math.min(Number(row.rank ?? 0) * 4, 1), "text");
   } catch (err) {
     console.error("[system-knowledge] busca textual falhou", err);
   }

@@ -2,10 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { AI_MODELS } from "@/lib/ai/models";
 
-const Input = z.object({
-  propertyId: z.string().uuid(),
-  lang: z.enum(["pt", "en", "es", "fr"]).default("pt"),
-});
+const Input = z.object({ propertyId: z.string().uuid(), lang: z.enum(["pt", "en", "es", "fr"]).default("pt") });
 
 export type DailyTip = {
   greeting: string;
@@ -57,16 +54,9 @@ async function generateWithAi(params: {
 }): Promise<Omit<DailyTip, "weather">> {
   const key = process.env.LOVABLE_API_KEY;
   if (!key) throw new Error("LOVABLE_API_KEY não configurada");
-  const langNames = {
-    pt: "português brasileiro",
-    en: "English",
-    es: "español",
-    fr: "français",
-  } as const;
+  const langNames = { pt: "português brasileiro", en: "English", es: "español", fr: "français" } as const;
   const langName = langNames[params.lang as keyof typeof langNames] ?? "português brasileiro";
-  const dayOfWeek = new Date(params.date + "T12:00:00").toLocaleDateString("pt-BR", {
-    weekday: "long",
-  });
+  const dayOfWeek = new Date(params.date + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long" });
   const hourNow = new Date().getHours();
   const period = hourNow < 12 ? "manhã" : hourNow < 18 ? "tarde" : "noite";
 
@@ -127,10 +117,7 @@ export const getDailyTip = createServerFn({ method: "POST" })
       .maybeSingle();
     if (cached?.content) return cached.content as DailyTip;
 
-    const weather =
-      prop.lat != null && prop.lng != null
-        ? await fetchWeather(Number(prop.lat), Number(prop.lng))
-        : null;
+    const weather = prop.lat != null && prop.lng != null ? await fetchWeather(Number(prop.lat), Number(prop.lng)) : null;
 
     let content: DailyTip;
     try {
@@ -149,10 +136,7 @@ export const getDailyTip = createServerFn({ method: "POST" })
 
     await supabaseAdmin
       .from("property_daily_tips")
-      .upsert(
-        { property_id: data.propertyId, date: today, content },
-        { onConflict: "property_id,date" },
-      );
+      .upsert({ property_id: data.propertyId, date: today, content }, { onConflict: "property_id,date" });
 
     return content;
   });

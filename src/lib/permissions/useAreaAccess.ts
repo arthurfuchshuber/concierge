@@ -39,6 +39,7 @@ export function useAreaAccess(namespaces: string[], required: AccessLevelInput =
     retry: false,
   });
 
+
   const decisions = query.data?.decisions ?? {};
 
   /** Área liberada? Sem uma decisão positiva do backend, o acesso fica fechado. */

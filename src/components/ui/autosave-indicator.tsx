@@ -1,13 +1,7 @@
 import { Check, Loader2, AlertTriangle } from "lucide-react";
 import type { AutosaveStatus } from "@/hooks/useAutosave";
 
-export function AutosaveIndicator({
-  status,
-  errorMessage,
-}: {
-  status: AutosaveStatus;
-  errorMessage?: string | null;
-}) {
+export function AutosaveIndicator({ status, errorMessage }: { status: AutosaveStatus; errorMessage?: string | null }) {
   if (status === "idle") return null;
   if (status === "saving") {
     return (

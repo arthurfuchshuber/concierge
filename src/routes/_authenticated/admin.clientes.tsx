@@ -44,47 +44,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Search,
-  Users,
-  Pencil,
-  Loader2,
-  Shield,
-  Crown,
-  Anchor,
-  Ban,
-  Calendar,
-  Filter,
-  MessageCircle,
-  Trash2,
-} from "lucide-react";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-  SheetFooter,
-} from "@/components/ui/sheet";
+import { Search, Users, Pencil, Loader2, Shield, Crown, Anchor, Ban, Calendar, Filter, MessageCircle, Trash2 } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { DatePicker } from "@/components/ui/date-picker";
 import { toast } from "sonner";
-import {
-  formatCPF,
-  onlyDigits,
-  isValidCPF,
-  isValidEmail,
-  titleCaseName,
-  formatIntlPhone,
-  toE164,
-  toWhatsappNumber,
-  isValidIntlPhone,
-} from "@/lib/masks";
+import { formatCPF, onlyDigits, isValidCPF, isValidEmail, titleCaseName, formatIntlPhone, toE164, toWhatsappNumber, isValidIntlPhone } from "@/lib/masks";
 import PhoneInput, { type Country } from "react-phone-number-input";
 import "react-phone-number-input/style.css";
+
 
 export const Route = createFileRoute("/_authenticated/admin/clientes")({
   beforeLoad: async () => {
@@ -113,6 +84,8 @@ function WhatsAppLink({
 }) {
   return <PhoneActionButton phone={phone} country={country} className={className} size={13} />;
 }
+
+
 
 type StatusFilter = "all" | "active" | "trialing" | "canceled" | "past_due" | "incomplete";
 type PlanFilter = "all" | PlanKey | "none";
@@ -145,8 +118,7 @@ function ClientesPage() {
     const q = search.trim().toLowerCase();
     return customers.filter((c) => {
       if (q) {
-        const hay =
-          `${c.email ?? ""} ${c.fullName ?? ""} ${c.subscription?.plan ?? ""} ${c.phone ?? ""}`.toLowerCase();
+        const hay = `${c.email ?? ""} ${c.fullName ?? ""} ${c.subscription?.plan ?? ""} ${c.phone ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       if (statusFilter !== "all") {
@@ -177,467 +149,401 @@ function ClientesPage() {
         }
         subtitle="Gerencie planos, valores e períodos de teste de cada cliente."
         actions={
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar por email, nome, plano ou telefone…"
-                className="pl-9 w-72"
-              />
-            </div>
-            <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
-              <SheetTrigger asChild>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por email, nome, plano ou telefone…"
+              className="pl-9 w-72"
+            />
+          </div>
+          <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+            <SheetTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Filtros"
+                className="relative rounded-full shrink-0"
+              >
+                <Filter className="size-4" />
+                {activeFilterCount > 0 && (
+                  <Badge
+                    variant="secondary"
+                    className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full text-[9px] font-semibold flex items-center justify-center bg-primary text-primary-foreground"
+                  >
+                    {activeFilterCount}
+                  </Badge>
+                )}
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[min(92vw,380px)] sm:max-w-md">
+              <SheetHeader>
+                <SheetTitle>Filtros</SheetTitle>
+              </SheetHeader>
+              <div className="space-y-5 py-4">
+                <div>
+                  <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Status</label>
+                  <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+                    <SelectTrigger className="mt-1.5 h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="active">Ativos</SelectItem>
+                      <SelectItem value="trialing">Em trial</SelectItem>
+                      <SelectItem value="past_due">Atrasados</SelectItem>
+                      <SelectItem value="canceled">Cancelados</SelectItem>
+                      <SelectItem value="incomplete">Cadastro incompleto</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Plano</label>
+                  <Select value={planFilter} onValueChange={(v) => setPlanFilter(v as PlanFilter)}>
+                    <SelectTrigger className="mt-1.5 h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="none">Sem plano</SelectItem>
+                      {PLAN_OPTIONS.map((p) => (
+                        <SelectItem key={p} value={p}>{PLANS[p].name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <label className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2.5 cursor-pointer">
+                  <span className="text-sm">Somente risco de churn</span>
+                  <Checkbox checked={churnOnly} onCheckedChange={(v) => setChurnOnly(!!v)} />
+                </label>
+              </div>
+              <SheetFooter className="flex-row gap-2">
                 <Button
                   variant="outline"
-                  size="icon"
-                  aria-label="Filtros"
-                  className="relative rounded-full shrink-0"
+                  className="flex-1"
+                  onClick={() => {
+                    setStatusFilter("all");
+                    setPlanFilter("all");
+                    setChurnOnly(false);
+                  }}
                 >
-                  <Filter className="size-4" />
-                  {activeFilterCount > 0 && (
-                    <Badge
-                      variant="secondary"
-                      className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full text-[9px] font-semibold flex items-center justify-center bg-primary text-primary-foreground"
-                    >
-                      {activeFilterCount}
-                    </Badge>
-                  )}
+                  Limpar
                 </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-[min(92vw,380px)] sm:max-w-md">
-                <SheetHeader>
-                  <SheetTitle>Filtros</SheetTitle>
-                </SheetHeader>
-                <div className="space-y-5 py-4">
-                  <div>
-                    <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
-                      Status
-                    </label>
-                    <Select
-                      value={statusFilter}
-                      onValueChange={(v) => setStatusFilter(v as StatusFilter)}
-                    >
-                      <SelectTrigger className="mt-1.5 h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos</SelectItem>
-                        <SelectItem value="active">Ativos</SelectItem>
-                        <SelectItem value="trialing">Em trial</SelectItem>
-                        <SelectItem value="past_due">Atrasados</SelectItem>
-                        <SelectItem value="canceled">Cancelados</SelectItem>
-                        <SelectItem value="incomplete">Cadastro incompleto</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
-                      Plano
-                    </label>
-                    <Select
-                      value={planFilter}
-                      onValueChange={(v) => setPlanFilter(v as PlanFilter)}
-                    >
-                      <SelectTrigger className="mt-1.5 h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos</SelectItem>
-                        <SelectItem value="none">Sem plano</SelectItem>
-                        {PLAN_OPTIONS.map((p) => (
-                          <SelectItem key={p} value={p}>
-                            {PLANS[p].name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <label className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2.5 cursor-pointer">
-                    <span className="text-sm">Somente risco de churn</span>
-                    <Checkbox checked={churnOnly} onCheckedChange={(v) => setChurnOnly(!!v)} />
-                  </label>
-                </div>
-                <SheetFooter className="flex-row gap-2">
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => {
-                      setStatusFilter("all");
-                      setPlanFilter("all");
-                      setChurnOnly(false);
-                    }}
-                  >
-                    Limpar
-                  </Button>
-                  <Button className="flex-1" onClick={() => setFiltersOpen(false)}>
-                    Aplicar
-                  </Button>
-                </SheetFooter>
-              </SheetContent>
-            </Sheet>
-          </div>
+                <Button className="flex-1" onClick={() => setFiltersOpen(false)}>Aplicar</Button>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
+        </div>
         }
       />
 
       <div className="mt-10">
-        {/* Stats — refletem os filtros aplicados */}
-        <div className="mt-6 grid grid-cols-2 md:grid-cols-6 gap-3">
-          <StatCard label="Total" value={filtered.length} />
-          <StatCard
-            label="Ativos"
-            value={
-              filtered.filter(
-                (c) => c.subscription?.status === "active" || c.subscription?.status === "trialing",
-              ).length
-            }
-            tone="emerald"
-          />
-          <StatCard
-            label="Em trial"
-            value={filtered.filter((c) => c.subscription?.status === "trialing").length}
-            tone="amber"
-          />
-          <StatCard
-            label="Cadastro incompleto"
-            value={filtered.filter(isIncomplete).length}
-            tone="muted"
-          />
-          <StatCard
-            label="Cancelados"
-            value={
-              filtered.filter(
-                (c) =>
-                  c.subscription?.status === "canceled" || c.subscription?.status === "past_due",
-              ).length
-            }
-            tone="muted"
-          />
-          <StatCard
-            label="Risco de churn"
-            value={filtered.filter((c) => c.churnRisk).length}
-            tone="red"
-          />
-        </div>
+      {/* Stats — refletem os filtros aplicados */}
+      <div className="mt-6 grid grid-cols-2 md:grid-cols-6 gap-3">
+        <StatCard label="Total" value={filtered.length} />
+        <StatCard
+          label="Ativos"
+          value={filtered.filter((c) => c.subscription?.status === "active" || c.subscription?.status === "trialing").length}
+          tone="emerald"
+        />
+        <StatCard
+          label="Em trial"
+          value={filtered.filter((c) => c.subscription?.status === "trialing").length}
+          tone="amber"
+        />
+        <StatCard
+          label="Cadastro incompleto"
+          value={filtered.filter(isIncomplete).length}
+          tone="muted"
+        />
+        <StatCard
+          label="Cancelados"
+          value={filtered.filter((c) => c.subscription?.status === "canceled" || c.subscription?.status === "past_due").length}
+          tone="muted"
+        />
+        <StatCard
+          label="Risco de churn"
+          value={filtered.filter((c) => c.churnRisk).length}
+          tone="red"
+        />
+      </div>
 
-        <div className="mt-6 rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
-          {query.isLoading ? (
-            <div className="p-8 space-y-3">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="h-14 rounded-xl bg-secondary/40 animate-pulse" />
-              ))}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="p-16 text-center">
-              <Users className="size-8 text-muted-foreground mx-auto mb-3" aria-hidden="true" />
-              <p className="text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
-            </div>
-          ) : (
-            <>
-              {/* Mobile: card list */}
-              <ul className="sm:hidden divide-y divide-border/60">
-                {filtered.map((c) => {
-                  const s = c.subscription;
-                  const planName = s?.plan ? PLANS[s.plan].name : null;
-                  const initials = (c.fullName || c.email || "?")
-                    .split(/\s+/)
-                    .map((p) => p[0])
-                    .slice(0, 2)
-                    .join("")
-                    .toUpperCase();
-                  const hasCustom = s?.customPriceCents != null;
-                  const price = hasCustom
-                    ? (s!.customPriceCents! / 100).toLocaleString("pt-BR", {
-                        style: "currency",
-                        currency: s!.customCurrency || "BRL",
-                      })
-                    : s?.plan
-                      ? PLANS[s.plan].priceLabel
-                      : null;
-                  return (
-                    <li key={c.userId} className="p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="size-10 rounded-full bg-accent/15 text-accent grid place-items-center text-[12px] font-semibold shrink-0">
-                          {initials}
+
+      <div className="mt-6 rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
+        {query.isLoading ? (
+          <div className="p-8 space-y-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-14 rounded-xl bg-secondary/40 animate-pulse" />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="p-16 text-center">
+            <Users className="size-8 text-muted-foreground mx-auto mb-3" aria-hidden="true" />
+            <p className="text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
+          </div>
+        ) : (
+          <>
+            {/* Mobile: card list */}
+            <ul className="sm:hidden divide-y divide-border/60">
+              {filtered.map((c) => {
+                const s = c.subscription;
+                const planName = s?.plan ? PLANS[s.plan].name : null;
+                const initials = (c.fullName || c.email || "?")
+                  .split(/\s+/)
+                  .map((p) => p[0])
+                  .slice(0, 2)
+                  .join("")
+                  .toUpperCase();
+                const hasCustom = s?.customPriceCents != null;
+                const price = hasCustom
+                  ? (s!.customPriceCents! / 100).toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: s!.customCurrency || "BRL",
+                    })
+                  : s?.plan
+                    ? PLANS[s.plan].priceLabel
+                    : null;
+                return (
+                  <li key={c.userId} className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="size-10 rounded-full bg-accent/15 text-accent grid place-items-center text-[12px] font-semibold shrink-0">
+                        {initials}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="font-medium truncate text-[15px] leading-tight">{c.fullName ?? "—"}</div>
+                            <div className="text-[11px] text-muted-foreground truncate">{c.email ?? "—"}</div>
+                            <WhatsAppLink phone={c.phone} country={c.phoneCountry} className="mt-1" />
+                          </div>
+                          <div className="shrink-0 flex items-center gap-1">
+                            <OpenGuidesButton userId={c.userId} email={c.email} />
+                            <button
+                              type="button"
+                              onClick={() => setEditing(c)}
+                              className="size-8 grid place-items-center rounded-full border border-border hover:bg-secondary text-muted-foreground hover:text-foreground transition"
+                              aria-label="Editar cliente"
+                            >
+                              <Pencil className="size-3.5" />
+                            </button>
+                          </div>
+
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <div className="font-medium truncate text-[15px] leading-tight">
-                                {c.fullName ?? "—"}
-                              </div>
-                              <div className="text-[11px] text-muted-foreground truncate">
-                                {c.email ?? "—"}
-                              </div>
-                              <WhatsAppLink
-                                phone={c.phone}
-                                country={c.phoneCountry}
-                                className="mt-1"
-                              />
-                            </div>
-                            <div className="shrink-0 flex items-center gap-1">
-                              <OpenGuidesButton userId={c.userId} email={c.email} />
-                              <button
-                                type="button"
-                                onClick={() => setEditing(c)}
-                                className="size-8 grid place-items-center rounded-full border border-border hover:bg-secondary text-muted-foreground hover:text-foreground transition"
-                                aria-label="Editar cliente"
-                              >
-                                <Pencil className="size-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                            {planName ? (
-                              <span className="text-[11px] font-semibold">{planName}</span>
-                            ) : (
-                              <span className="text-[11px] text-muted-foreground/60">
-                                Sem plano
-                              </span>
-                            )}
-                            <StatusBadge status={s?.status} userStatus={c.userStatus} />
-                            {s?.billingPaused && (
-                              <span className="text-[9px] uppercase tracking-wider font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full">
-                                Sem cobrança
-                              </span>
-                            )}
-                            {c.churnRisk && (
-                              <span className="text-[9px] uppercase tracking-wider font-semibold bg-red-500/15 text-red-600 dark:text-red-400 px-1.5 py-0.5 rounded-full">
-                                Risco churn
-                              </span>
-                            )}
-                          </div>
-                          {price && (
-                            <div className="mt-1.5 text-[11px] text-muted-foreground tabular-nums">
-                              {price}
-                              {hasCustom && " · personalizado"}
-                            </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                          {planName ? (
+                            <span className="text-[11px] font-semibold">{planName}</span>
+                          ) : (
+                            <span className="text-[11px] text-muted-foreground/60">Sem plano</span>
                           )}
-                          <div className="mt-1.5 flex items-center gap-3 text-[11px] text-muted-foreground">
-                            <span>
-                              {c.publishedGuides}/{c.totalGuides} guias
+                          <StatusBadge status={s?.status} userStatus={c.userStatus} />
+                          {s?.billingPaused && (
+                            <span className="text-[9px] uppercase tracking-wider font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full">
+                              Sem cobrança
                             </span>
-                            <span>·</span>
-                            <span>
-                              {c.guestAccesses30d > 0
-                                ? `${c.guestAccesses30d} acessos 30d`
-                                : "Sem hóspedes"}
+                          )}
+                          {c.churnRisk && (
+                            <span className="text-[9px] uppercase tracking-wider font-semibold bg-red-500/15 text-red-600 dark:text-red-400 px-1.5 py-0.5 rounded-full">
+                              Risco churn
                             </span>
-                            <span>·</span>
-                            <span>
-                              Login:{" "}
-                              {c.lastSignInAt
-                                ? new Date(c.lastSignInAt).toLocaleDateString("pt-BR")
-                                : "Nunca"}
-                            </span>
+                          )}
+                        </div>
+                        {price && (
+                          <div className="mt-1.5 text-[11px] text-muted-foreground tabular-nums">
+                            {price}{hasCustom && " · personalizado"}
                           </div>
+                        )}
+                        <div className="mt-1.5 flex items-center gap-3 text-[11px] text-muted-foreground">
+                          <span>{c.publishedGuides}/{c.totalGuides} guias</span>
+                          <span>·</span>
+                          <span>{c.guestAccesses30d > 0 ? `${c.guestAccesses30d} acessos 30d` : "Sem hóspedes"}</span>
+                          <span>·</span>
+                          <span>Login: {c.lastSignInAt ? new Date(c.lastSignInAt).toLocaleDateString("pt-BR") : "Nunca"}</span>
                         </div>
                       </div>
-                    </li>
-                  );
-                })}
-              </ul>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
 
-              {/* Desktop: table */}
-              <div className="hidden sm:block overflow-x-auto">
-                <table className="w-full text-sm min-w-[760px]">
-                  <thead className="bg-secondary/30 text-[10px] uppercase tracking-[0.14em] text-muted-foreground border-b border-border">
-                    <tr>
-                      <th className="text-left font-semibold px-5 py-3.5">Cliente</th>
-                      <th className="text-left font-semibold px-4 py-3.5">Plano</th>
-                      <th className="text-left font-semibold px-4 py-3.5">Status</th>
-                      <th className="text-right font-semibold px-4 py-3.5">Valor</th>
-                      <th className="text-left font-semibold px-4 py-3.5">Guias</th>
-                      <th className="text-left font-semibold px-4 py-3.5">Hóspedes 30d</th>
-                      <th className="text-left font-semibold px-4 py-3.5">Último login</th>
-                      <th className="text-right font-semibold px-5 py-3.5">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.map((c, idx) => {
-                      const s = c.subscription;
-                      const planName = s?.plan ? PLANS[s.plan].name : null;
-                      const initials = (c.fullName || c.email || "?")
-                        .split(/\s+/)
-                        .map((p) => p[0])
-                        .slice(0, 2)
-                        .join("")
-                        .toUpperCase();
-                      const hasCustom = s?.customPriceCents != null;
-                      const price = hasCustom
-                        ? (s!.customPriceCents! / 100).toLocaleString("pt-BR", {
-                            style: "currency",
-                            currency: s!.customCurrency || "BRL",
-                          })
-                        : s?.plan
-                          ? PLANS[s.plan].priceLabel
-                          : null;
-                      return (
-                        <tr
-                          key={c.userId}
-                          className={`border-t border-border/60 hover:bg-secondary/20 transition-colors ${idx % 2 === 1 ? "bg-secondary/[0.04]" : ""}`}
-                        >
-                          <td className="px-5 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="size-9 rounded-full bg-accent/15 text-accent grid place-items-center text-[11px] font-semibold shrink-0">
-                                {initials}
-                              </div>
-                              <div className="min-w-0">
-                                <div className="font-medium truncate">{c.fullName ?? "—"}</div>
-                                <div className="text-xs text-muted-foreground truncate">
-                                  {c.email ?? "—"}
-                                </div>
-                                <WhatsAppLink
-                                  phone={c.phone}
-                                  country={c.phoneCountry}
-                                  className="mt-1"
-                                />
-                              </div>
+            {/* Desktop: table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-sm min-w-[760px]">
+                <thead className="bg-secondary/30 text-[10px] uppercase tracking-[0.14em] text-muted-foreground border-b border-border">
+                  <tr>
+                    <th className="text-left font-semibold px-5 py-3.5">Cliente</th>
+                    <th className="text-left font-semibold px-4 py-3.5">Plano</th>
+                    <th className="text-left font-semibold px-4 py-3.5">Status</th>
+                    <th className="text-right font-semibold px-4 py-3.5">Valor</th>
+                    <th className="text-left font-semibold px-4 py-3.5">Guias</th>
+                    <th className="text-left font-semibold px-4 py-3.5">Hóspedes 30d</th>
+                    <th className="text-left font-semibold px-4 py-3.5">Último login</th>
+                    <th className="text-right font-semibold px-5 py-3.5">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((c, idx) => {
+                    const s = c.subscription;
+                    const planName = s?.plan ? PLANS[s.plan].name : null;
+                    const initials = (c.fullName || c.email || "?")
+                      .split(/\s+/)
+                      .map((p) => p[0])
+                      .slice(0, 2)
+                      .join("")
+                      .toUpperCase();
+                    const hasCustom = s?.customPriceCents != null;
+                    const price = hasCustom
+                      ? (s!.customPriceCents! / 100).toLocaleString("pt-BR", {
+                          style: "currency",
+                          currency: s!.customCurrency || "BRL",
+                        })
+                      : s?.plan
+                        ? PLANS[s.plan].priceLabel
+                        : null;
+                    return (
+                      <tr
+                        key={c.userId}
+                        className={`border-t border-border/60 hover:bg-secondary/20 transition-colors ${idx % 2 === 1 ? "bg-secondary/[0.04]" : ""}`}
+                      >
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="size-9 rounded-full bg-accent/15 text-accent grid place-items-center text-[11px] font-semibold shrink-0">
+                              {initials}
                             </div>
-                          </td>
-                          <td className="px-4 py-4">
-                            {planName ? (
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-medium">{planName}</span>
-                                {s?.billingPaused && (
-                                  <span className="text-[9px] uppercase tracking-wider font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded">
-                                    Sem cobrança
-                                  </span>
-                                )}
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground/70 italic">Sem plano</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-4">
-                            <StatusBadge status={s?.status} userStatus={c.userStatus} />
-                          </td>
-                          <td className="px-4 py-4 text-right">
-                            {price ? (
-                              <div className="font-medium tabular-nums">
-                                {price}
-                                {hasCustom && (
-                                  <div className="text-[10px] uppercase tracking-wider text-accent font-semibold">
-                                    personalizado
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground/60">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-4 text-xs tabular-nums whitespace-nowrap">
-                            <div className="flex items-center gap-1.5">
-                              <span
-                                className={
-                                  c.publishedGuides > 0 ? "font-medium" : "text-muted-foreground"
-                                }
-                              >
-                                {c.publishedGuides}/{c.totalGuides}
-                              </span>
-                              {c.totalGuides > 0 && (
-                                <div className="w-12 h-1.5 rounded-full bg-secondary overflow-hidden">
-                                  <div
-                                    className={`h-full rounded-full ${c.avgCompletenessScore >= 70 ? "bg-emerald-500" : c.avgCompletenessScore >= 40 ? "bg-amber-500" : "bg-red-500"}`}
-                                    style={{ width: `${c.avgCompletenessScore}%` }}
-                                  />
-                                </div>
-                              )}
+                            <div className="min-w-0">
+                              <div className="font-medium truncate">{c.fullName ?? "—"}</div>
+                              <div className="text-xs text-muted-foreground truncate">{c.email ?? "—"}</div>
+                              <WhatsAppLink phone={c.phone} country={c.phoneCountry} className="mt-1" />
                             </div>
-                          </td>
-                          <td className="px-4 py-4 text-xs tabular-nums whitespace-nowrap">
-                            <span
-                              className={
-                                c.guestAccesses30d > 0
-                                  ? "font-medium text-emerald-600 dark:text-emerald-400"
-                                  : "text-muted-foreground"
-                              }
-                            >
-                              {c.guestAccesses30d > 0 ? c.guestAccesses30d : "—"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-4 text-xs whitespace-nowrap">
+                          </div>
+                        </td>
+                        <td className="px-4 py-4">
+                          {planName ? (
                             <div className="flex items-center gap-1.5">
-                              {c.churnRisk && (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 text-red-600 dark:text-red-400 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider">
-                                  Risco
+                              <span className="font-medium">{planName}</span>
+                              {s?.billingPaused && (
+                                <span className="text-[9px] uppercase tracking-wider font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded">
+                                  Sem cobrança
                                 </span>
                               )}
-                              <span className="text-muted-foreground">
-                                {c.lastSignInAt
-                                  ? new Date(c.lastSignInAt).toLocaleDateString("pt-BR")
-                                  : "Nunca"}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground/70 italic">Sem plano</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4">
+                          <StatusBadge status={s?.status} userStatus={c.userStatus} />
+                        </td>
+                        <td className="px-4 py-4 text-right">
+                          {price ? (
+                            <div className="font-medium tabular-nums">
+                              {price}
+                              {hasCustom && (
+                                <div className="text-[10px] uppercase tracking-wider text-accent font-semibold">
+                                  personalizado
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground/60">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 text-xs tabular-nums whitespace-nowrap">
+                          <div className="flex items-center gap-1.5">
+                            <span className={c.publishedGuides > 0 ? "font-medium" : "text-muted-foreground"}>
+                              {c.publishedGuides}/{c.totalGuides}
+                            </span>
+                            {c.totalGuides > 0 && (
+                              <div className="w-12 h-1.5 rounded-full bg-secondary overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full ${c.avgCompletenessScore >= 70 ? "bg-emerald-500" : c.avgCompletenessScore >= 40 ? "bg-amber-500" : "bg-red-500"}`}
+                                  style={{ width: `${c.avgCompletenessScore}%` }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 text-xs tabular-nums whitespace-nowrap">
+                          <span className={c.guestAccesses30d > 0 ? "font-medium text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}>
+                            {c.guestAccesses30d > 0 ? c.guestAccesses30d : "—"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-xs whitespace-nowrap">
+                          <div className="flex items-center gap-1.5">
+                            {c.churnRisk && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 text-red-600 dark:text-red-400 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider">
+                                Risco
                               </span>
-                            </div>
-                          </td>
-                          <td className="px-5 py-4 text-right">
-                            <div className="inline-flex items-center gap-1.5">
-                              <OpenGuidesButton userId={c.userId} email={c.email} />
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="rounded-full"
-                                onClick={() => setEditing(c)}
-                              >
-                                <Pencil className="size-3 mr-1" /> Editar
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="rounded-full text-red-600 dark:text-red-400 hover:bg-red-500/10 border-red-500/30"
-                                onClick={() => setDeleting(c)}
-                                title="Excluir cliente e todos os seus dados"
-                                aria-label="Excluir cliente"
-                              >
-                                <Trash2 className="size-3" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-        </div>
+                            )}
+                            <span className="text-muted-foreground">
+                              {c.lastSignInAt ? new Date(c.lastSignInAt).toLocaleDateString("pt-BR") : "Nunca"}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                          <div className="inline-flex items-center gap-1.5">
+                            <OpenGuidesButton userId={c.userId} email={c.email} />
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="rounded-full"
+                              onClick={() => setEditing(c)}
+                            >
+                              <Pencil className="size-3 mr-1" /> Editar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="rounded-full text-red-600 dark:text-red-400 hover:bg-red-500/10 border-red-500/30"
+                              onClick={() => setDeleting(c)}
+                              title="Excluir cliente e todos os seus dados"
+                              aria-label="Excluir cliente"
+                            >
+                              <Trash2 className="size-3" />
+                            </Button>
+                          </div>
+                        </td>
 
-        {editing && (
-          <EditDialog
-            customer={editing}
-            onClose={() => setEditing(null)}
-            onSave={async (values) => {
-              try {
-                const { fullName, cpf, phone, phoneCountry, plan, ...rest } = values;
-                await profileUpdater({
-                  data: { userId: editing.userId, fullName, cpf, phone, phoneCountry },
-                });
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
 
-                if (plan) {
-                  await updater({ data: { userId: editing.userId, plan, ...rest } });
-                }
-                toast.success("Cliente atualizado");
-                qc.invalidateQueries({ queryKey: ["admin-customers"] });
-                setEditing(null);
-              } catch (e) {
-                toast.error(e instanceof Error ? e.message : "Erro ao salvar");
+      {editing && (
+        <EditDialog
+          customer={editing}
+          onClose={() => setEditing(null)}
+          onSave={async (values) => {
+            try {
+              const { fullName, cpf, phone, phoneCountry, plan, ...rest } = values;
+              await profileUpdater({ data: { userId: editing.userId, fullName, cpf, phone, phoneCountry } });
+
+              if (plan) {
+                await updater({ data: { userId: editing.userId, plan, ...rest } });
               }
-            }}
-          />
-        )}
-
-        {deleting && (
-          <DeleteCustomerDialog
-            customer={deleting}
-            onClose={() => setDeleting(null)}
-            onDeleted={() => {
-              setDeleting(null);
+              toast.success("Cliente atualizado");
               qc.invalidateQueries({ queryKey: ["admin-customers"] });
-            }}
-          />
-        )}
+              setEditing(null);
+            } catch (e) {
+              toast.error(e instanceof Error ? e.message : "Erro ao salvar");
+            }
+          }}
+        />
+      )}
+
+      {deleting && (
+        <DeleteCustomerDialog
+          customer={deleting}
+          onClose={() => setDeleting(null)}
+          onDeleted={() => {
+            setDeleting(null);
+            qc.invalidateQueries({ queryKey: ["admin-customers"] });
+          }}
+        />
+      )}
       </div>
     </div>
   );
@@ -672,20 +578,13 @@ function DeleteCustomerDialog({
   }
 
   return (
-    <Dialog
-      open
-      onOpenChange={(o) => {
-        if (!o && !busy) onClose();
-      }}
-    >
+    <Dialog open onOpenChange={(o) => { if (!o && !busy) onClose(); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-red-600 dark:text-red-400">Excluir cliente</DialogTitle>
           <DialogDescription>
             Esta ação é permanente. Todos os guias, conversas, hóspedes, integrações e o login de{" "}
-            <span className="font-medium text-foreground">
-              {customer.fullName || customer.email || "este cliente"}
-            </span>{" "}
+            <span className="font-medium text-foreground">{customer.fullName || customer.email || "este cliente"}</span>{" "}
             serão apagados e não poderão ser recuperados.
           </DialogDescription>
         </DialogHeader>
@@ -702,15 +601,13 @@ function DeleteCustomerDialog({
           />
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={busy}>
-            Cancelar
-          </Button>
-          <Button variant="destructive" onClick={handleDelete} disabled={!confirmed || busy}>
-            {busy ? (
-              <Loader2 className="size-4 mr-1 animate-spin" />
-            ) : (
-              <Trash2 className="size-4 mr-1" />
-            )}
+          <Button variant="outline" onClick={onClose} disabled={busy}>Cancelar</Button>
+          <Button
+            variant="destructive"
+            onClick={handleDelete}
+            disabled={!confirmed || busy}
+          >
+            {busy ? <Loader2 className="size-4 mr-1 animate-spin" /> : <Trash2 className="size-4 mr-1" />}
             Excluir definitivamente
           </Button>
         </DialogFooter>
@@ -736,6 +633,7 @@ type EditValues = {
   maxGuidesOverride: number | null;
   billingPaused: boolean;
 };
+
 
 function toDateInput(iso: string | null | undefined) {
   if (!iso) return "";
@@ -764,9 +662,9 @@ function EditDialog({
   const initialPhoneE164 = toE164(customer.phone ?? "", customer.phoneCountry ?? undefined);
   const [phone, setPhone] = useState<string | undefined>(initialPhoneE164 || undefined);
   const [phoneCountry, setPhoneCountry] = useState<Country>(
-    customer.phoneCountry && /^[A-Za-z]{2}$/.test(customer.phoneCountry)
+    (customer.phoneCountry && /^[A-Za-z]{2}$/.test(customer.phoneCountry)
       ? (customer.phoneCountry.toUpperCase() as Country)
-      : "BR",
+      : "BR"),
   );
   // null = "Sem plano" (não cria/atualiza assinatura). Quando o usuário não
   // tem assinatura, o padrão é "Sem plano" — coerente com o pedido do
@@ -848,6 +746,7 @@ function EditDialog({
     }
   }
 
+
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -860,9 +759,7 @@ function EditDialog({
 
         <div className="grid sm:grid-cols-2 gap-4 mt-2">
           <div className="space-y-1.5 sm:col-span-2">
-            <Label>
-              Nome completo <span className="text-destructive">*</span>
-            </Label>
+            <Label>Nome completo <span className="text-destructive">*</span></Label>
             <Input
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
@@ -877,9 +774,7 @@ function EditDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label>
-              CPF <span className="text-destructive">*</span>
-            </Label>
+            <Label>CPF <span className="text-destructive">*</span></Label>
             <Input
               inputMode="numeric"
               value={cpf}
@@ -891,9 +786,7 @@ function EditDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label>
-              Telefone (qualquer país) <span className="text-destructive">*</span>
-            </Label>
+            <Label>Telefone (qualquer país) <span className="text-destructive">*</span></Label>
             <div className="sg-phone-input">
               <PhoneInput
                 international
@@ -922,15 +815,15 @@ function EditDialog({
             </p>
           </div>
 
+
+
           <div className="space-y-1.5">
             <Label>Plano</Label>
             <Select
               value={plan ?? "__none__"}
               onValueChange={(v) => setPlan(v === "__none__" ? null : (v as PlanKey))}
             >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">Sem plano</SelectItem>
                 {PLAN_OPTIONS.map((p) => (
@@ -945,14 +838,10 @@ function EditDialog({
           <div className="space-y-1.5">
             <Label>Status</Label>
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {STATUS_OPTIONS.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
-                  </SelectItem>
+                  <SelectItem key={s} value={s}>{s}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -960,18 +849,11 @@ function EditDialog({
 
           <div className="space-y-1.5">
             <Label>Ambiente</Label>
-            <Select
-              value={environment}
-              onValueChange={(v) => setEnvironment(v as "sandbox" | "live")}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+            <Select value={environment} onValueChange={(v) => setEnvironment(v as "sandbox" | "live")}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {ENV_OPTIONS.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s === "sandbox" ? "Teste" : "Produção"}
-                  </SelectItem>
+                  <SelectItem key={s} value={s}>{s === "sandbox" ? "Teste" : "Produção"}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -981,13 +863,18 @@ function EditDialog({
             <Label>Trial gratuito até</Label>
             <div className="flex gap-2">
               <div className="flex-1">
-                <DatePicker value={trialEndsAt} onChange={setTrialEndsAt} placeholder="Sem trial" />
+                <DatePicker
+                  value={trialEndsAt}
+                  onChange={setTrialEndsAt}
+                  placeholder="Sem trial"
+                />
               </div>
               <ApplyCustomTrialButton
                 userId={customer.userId}
                 trialEndsAt={trialEndsAt}
                 hasRealPaddleSub={
-                  !!s?.paddleSubscriptionId && !s.paddleSubscriptionId.startsWith("manual_")
+                  !!s?.paddleSubscriptionId &&
+                  !s.paddleSubscriptionId.startsWith("manual_")
                 }
                 onApplied={(paused) => {
                   // Sincroniza o estado local para o "Salvar" não desfazer
@@ -997,10 +884,11 @@ function EditDialog({
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              "Aplicar ao Paddle" pausa a cobrança agora e retoma automaticamente na data escolhida
-              — enquanto isso, o cliente não é cobrado.
+              "Aplicar ao Paddle" pausa a cobrança agora e retoma automaticamente na data escolhida —
+              enquanto isso, o cliente não é cobrado.
             </p>
           </div>
+
 
           {plan === "enterprise" && (
             <EnterpriseSection
@@ -1016,17 +904,12 @@ function EditDialog({
               type="number"
               step="1"
               min="1"
-              placeholder={
-                plan
-                  ? `Padrão do plano: ${PLANS[plan].maxGuides >= 9999 ? "ilimitado" : PLANS[plan].maxGuides}`
-                  : "Selecione um plano primeiro"
-              }
+              placeholder={plan ? `Padrão do plano: ${PLANS[plan].maxGuides >= 9999 ? "ilimitado" : PLANS[plan].maxGuides}` : "Selecione um plano primeiro"}
               value={maxGuidesOverride}
               onChange={(e) => setMaxGuidesOverride(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              Deixe em branco para usar o limite padrão do plano. Use para contratos Enterprise com
-              limite customizado.
+              Deixe em branco para usar o limite padrão do plano. Use para contratos Enterprise com limite customizado.
             </p>
           </div>
 
@@ -1040,6 +923,7 @@ function EditDialog({
               Desative para retomar as cobranças.
             </p>
           </div>
+
 
           <div className="space-y-1.5 sm:col-span-2">
             <Label>Anotações internas</Label>
@@ -1068,15 +952,7 @@ function EditDialog({
   );
 }
 
-function StatCard({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: number;
-  tone?: "emerald" | "amber" | "muted" | "red";
-}) {
+function StatCard({ label, value, tone }: { label: string; value: number; tone?: "emerald" | "amber" | "muted" | "red" }) {
   const toneClass =
     tone === "emerald"
       ? "text-emerald-600 dark:text-emerald-400"
@@ -1164,14 +1040,7 @@ const MIGRATION_MODE_LABEL: Record<string, string> = {
   completed: "Concluído",
 };
 
-const NEXT_STEP: Record<
-  string,
-  {
-    mode: "legacy" | "monitoring" | "enforced" | "completed";
-    label: string;
-    tone: "default" | "outline";
-  }[]
-> = {
+const NEXT_STEP: Record<string, { mode: "legacy" | "monitoring" | "enforced" | "completed"; label: string; tone: "default" | "outline" }[]> = {
   legacy: [{ mode: "monitoring", label: "Ativar monitoramento", tone: "default" }],
   monitoring: [
     { mode: "enforced", label: "Ativar bloqueio", tone: "default" },
@@ -1200,10 +1069,7 @@ function PermissionEngineSection({ tenantId }: { tenantId: string }) {
   const assignmentsCount = query.data?.assignmentsCount ?? 0;
   const steps = NEXT_STEP[mode] ?? [];
 
-  async function handleTransition(
-    target: "legacy" | "monitoring" | "enforced" | "completed",
-    label: string,
-  ) {
+  async function handleTransition(target: "legacy" | "monitoring" | "enforced" | "completed", label: string) {
     if (target === "enforced") {
       const warn =
         assignmentsCount === 0
@@ -1277,67 +1143,30 @@ function StatusBadge({
   userStatus?: "active" | "blocked" | "pending";
 }) {
   const map: Record<string, { label: string; className: string; dot: string }> = {
-    active: {
-      label: "Ativo",
-      className: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
-      dot: "bg-emerald-500",
-    },
-    trialing: {
-      label: "Trial",
-      className: "bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20",
-      dot: "bg-sky-500",
-    },
-    past_due: {
-      label: "Atrasado",
-      className: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
-      dot: "bg-amber-500",
-    },
-    paused: {
-      label: "Pausado",
-      className: "bg-secondary text-muted-foreground border-border",
-      dot: "bg-muted-foreground",
-    },
-    canceled: {
-      label: "Cancelado",
-      className: "bg-secondary text-muted-foreground border-border",
-      dot: "bg-muted-foreground/60",
-    },
+    active: { label: "Ativo", className: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20", dot: "bg-emerald-500" },
+    trialing: { label: "Trial", className: "bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20", dot: "bg-sky-500" },
+    past_due: { label: "Atrasado", className: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20", dot: "bg-amber-500" },
+    paused: { label: "Pausado", className: "bg-secondary text-muted-foreground border-border", dot: "bg-muted-foreground" },
+    canceled: { label: "Cancelado", className: "bg-secondary text-muted-foreground border-border", dot: "bg-muted-foreground/60" },
   };
   const info = status ? map[status] : null;
   if (!info) {
     // Sem assinatura → mostra status do próprio usuário.
     const u =
       userStatus === "blocked"
-        ? {
-            label: "Bloqueado",
-            className: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20",
-            dot: "bg-red-500",
-          }
+        ? { label: "Bloqueado", className: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20", dot: "bg-red-500" }
         : userStatus === "pending"
-          ? {
-              label: "Aguardando 1º acesso",
-              className: "bg-secondary text-muted-foreground border-border",
-              dot: "bg-muted-foreground/60",
-            }
-          : {
-              label: "Ativo",
-              className:
-                "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
-              dot: "bg-emerald-500",
-            };
+          ? { label: "Aguardando 1º acesso", className: "bg-secondary text-muted-foreground border-border", dot: "bg-muted-foreground/60" }
+          : { label: "Ativo", className: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20", dot: "bg-emerald-500" };
     return (
-      <span
-        className={`inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-semibold px-2 py-1 rounded-full border ${u.className}`}
-      >
+      <span className={`inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-semibold px-2 py-1 rounded-full border ${u.className}`}>
         <span className={`size-1.5 rounded-full ${u.dot}`} />
         {u.label}
       </span>
     );
   }
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-semibold px-2 py-1 rounded-full border ${info.className}`}
-    >
+    <span className={`inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-semibold px-2 py-1 rounded-full border ${info.className}`}>
       <span className={`size-1.5 rounded-full ${info.dot}`} />
       {info.label}
     </span>
@@ -1413,8 +1242,7 @@ function EnterpriseSection({
   }
 
   async function handleCancel(immediate: boolean) {
-    if (!confirm(immediate ? "Cancelar imediatamente?" : "Cancelar no fim do período atual?"))
-      return;
+    if (!confirm(immediate ? "Cancelar imediatamente?" : "Cancelar no fim do período atual?")) return;
     setBusy(immediate ? "cancel-now" : "cancel-soft");
     try {
       await cancelFn({ data: { paddleSubscriptionId: paddleSubId, environment, immediate } });
@@ -1432,9 +1260,8 @@ function EnterpriseSection({
         <Crown className="size-4" /> Regras Enterprise
       </div>
       <p className="text-xs text-muted-foreground">
-        Cobrança recorrente todo dia 1 do mês. A primeira cobrança após o trial é proporcional aos
-        dias até o próximo dia 1. O cliente precisa ter cartão cadastrado no Paddle antes de criar a
-        assinatura.
+        Cobrança recorrente todo dia 1 do mês. A primeira cobrança após o trial é proporcional aos dias até o próximo dia 1.
+        O cliente precisa ter cartão cadastrado no Paddle antes de criar a assinatura.
       </p>
 
       {!hasRealSub && (
@@ -1478,7 +1305,9 @@ function EnterpriseSection({
 
       {hasRealSub && (
         <div className="space-y-2 pt-1">
-          <div className="text-xs text-muted-foreground font-mono break-all">{paddleSubId}</div>
+          <div className="text-xs text-muted-foreground font-mono break-all">
+            {paddleSubId}
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <Button
               type="button"
@@ -1487,11 +1316,7 @@ function EnterpriseSection({
               onClick={handleAnchor}
               disabled={busy === "anchor"}
             >
-              {busy === "anchor" ? (
-                <Loader2 className="size-3 animate-spin mr-1.5" />
-              ) : (
-                <Anchor className="size-3 mr-1.5" />
-              )}
+              {busy === "anchor" ? <Loader2 className="size-3 animate-spin mr-1.5" /> : <Anchor className="size-3 mr-1.5" />}
               Ancorar dia 1
             </Button>
             <Button
@@ -1501,11 +1326,7 @@ function EnterpriseSection({
               onClick={() => handleCancel(false)}
               disabled={busy === "cancel-soft" || s?.status === "canceled"}
             >
-              {busy === "cancel-soft" ? (
-                <Loader2 className="size-3 animate-spin mr-1.5" />
-              ) : (
-                <Calendar className="size-3 mr-1.5" />
-              )}
+              {busy === "cancel-soft" ? <Loader2 className="size-3 animate-spin mr-1.5" /> : <Calendar className="size-3 mr-1.5" />}
               Cancelar fim do período
             </Button>
             <Button
@@ -1515,11 +1336,7 @@ function EnterpriseSection({
               onClick={() => handleCancel(true)}
               disabled={busy === "cancel-now" || s?.status === "canceled"}
             >
-              {busy === "cancel-now" ? (
-                <Loader2 className="size-3 animate-spin mr-1.5" />
-              ) : (
-                <Ban className="size-3 mr-1.5" />
-              )}
+              {busy === "cancel-now" ? <Loader2 className="size-3 animate-spin mr-1.5" /> : <Ban className="size-3 mr-1.5" />}
               Cancelar agora
             </Button>
           </div>
@@ -1554,8 +1371,7 @@ function OpenGuidesButton({ userId, email }: { userId: string; email: string | n
           <DialogHeader>
             <DialogTitle>Acessar guias do cliente</DialogTitle>
             <DialogDescription>
-              {email ?? "Cliente"} — você acessará o painel como admin (todas as alterações ficam
-              vinculadas ao cliente).
+              {email ?? "Cliente"} — você acessará o painel como admin (todas as alterações ficam vinculadas ao cliente).
             </DialogDescription>
           </DialogHeader>
           {q.isLoading ? (
@@ -1563,9 +1379,7 @@ function OpenGuidesButton({ userId, email }: { userId: string; email: string | n
               <Loader2 className="size-4 animate-spin inline" /> Carregando…
             </div>
           ) : props.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">
-              Este cliente ainda não tem guias.
-            </p>
+            <p className="py-6 text-center text-sm text-muted-foreground">Este cliente ainda não tem guias.</p>
           ) : (
             <ul className="space-y-2 max-h-96 overflow-y-auto">
               {props.map((p) => (
@@ -1577,20 +1391,14 @@ function OpenGuidesButton({ userId, email }: { userId: string; email: string | n
                     className="flex items-center gap-3 rounded-xl border border-border/60 bg-card p-3 hover:border-border hover:bg-secondary/30 transition"
                   >
                     {p.hero_image_url ? (
-                      <img
-                        src={p.hero_image_url}
-                        alt=""
-                        className="size-10 rounded-lg object-cover"
-                      />
+                      <img src={p.hero_image_url} alt="" className="size-10 rounded-lg object-cover" />
                     ) : (
                       <div className="size-10 rounded-lg bg-secondary grid place-items-center text-muted-foreground">
                         <Shield className="size-4" />
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">
-                        {p.name ?? "Guia sem nome"}
-                      </div>
+                      <div className="text-sm font-medium truncate">{p.name ?? "Guia sem nome"}</div>
                       <div className="text-[11px] text-muted-foreground truncate">
                         {p.city ?? "—"} · {p.published ? "Publicado" : "Rascunho"}
                       </div>

@@ -2,15 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { listAdminCities } from "@/lib/city-references.functions";
-import {
-  MapPin,
-  RefreshCw,
-  ChevronRight,
-  AlertCircle,
-  Building2,
-  Sparkles,
-  Loader2,
-} from "lucide-react";
+import { MapPin, RefreshCw, ChevronRight, AlertCircle, Building2, Sparkles, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/ds/PageHeader";
 
 export const Route = createFileRoute("/_authenticated/admin/cidades/")({
@@ -35,9 +27,7 @@ function AdminCitiesPage() {
         title="Na Cidade"
         subtitle={
           <>
-            <span className="ds-eyebrow inline-flex items-center gap-1.5 mb-1">
-              <MapPin className="size-3" /> Administração
-            </span>
+            <span className="ds-eyebrow inline-flex items-center gap-1.5 mb-1"><MapPin className="size-3" /> Administração</span>
             <br />
             Pontos icônicos macro compartilhados entre todas as residências de uma mesma cidade.
             Diferente das recomendações "pertinho da residência", aqui você cadastra os endereços
@@ -114,9 +104,7 @@ function AdminCitiesPage() {
 
                 <div className="mt-4 pt-4 border-t border-border/60 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 text-[12px]">
-                    <Sparkles
-                      className={`size-3.5 ${empty ? "text-muted-foreground/50" : "text-accent"}`}
-                    />
+                    <Sparkles className={`size-3.5 ${empty ? "text-muted-foreground/50" : "text-accent"}`} />
                     <span className={empty ? "text-muted-foreground" : "font-medium"}>
                       {c.ref_count} {c.ref_count === 1 ? "referência" : "referências"}
                     </span>
@@ -129,7 +117,9 @@ function AdminCitiesPage() {
                     }`}
                   >
                     <RefreshCw className="size-3" />
-                    {c.last_refreshed_at ? `${ageDays}d` : "Nunca"}
+                    {c.last_refreshed_at
+                      ? `${ageDays}d`
+                      : "Nunca"}
                   </span>
                 </div>
               </Link>

@@ -10,8 +10,9 @@ export type { ProviderCategory };
 export const listProviderCategories = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<ProviderCategory[]> => {
-    const { DEFAULT_PROVIDER_CATEGORIES, resolveAccountOwnerId } =
-      await import("@/lib/provider-categories.server");
+    const { DEFAULT_PROVIDER_CATEGORIES, resolveAccountOwnerId } = await import(
+      "@/lib/provider-categories.server"
+    );
     const { supabase, userId } = context;
     const accountId = await resolveAccountOwnerId(supabase, userId);
     const { data } = await supabase
@@ -46,8 +47,9 @@ export const saveProviderCategory = createServerFn({ method: "POST" })
       .parse(i),
   )
   .handler(async ({ data, context }): Promise<ProviderCategory> => {
-    const { resolveAccountOwnerId, slugifyCategory } =
-      await import("@/lib/provider-categories.server");
+    const { resolveAccountOwnerId, slugifyCategory } = await import(
+      "@/lib/provider-categories.server"
+    );
     const { supabase, userId } = context;
     const accountId = await resolveAccountOwnerId(supabase, userId);
     const label = data.label.trim();

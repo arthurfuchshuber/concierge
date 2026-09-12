@@ -11,7 +11,7 @@ function getAnonId(): string {
   const KEY = "sg-anon-id";
   let id = window.localStorage.getItem(KEY);
   if (!id) {
-    id = crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36);
+    id = (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36));
     window.localStorage.setItem(KEY, id);
   }
   return id;
@@ -102,13 +102,7 @@ export function POIEngagementBar({
     setCounts((c) => ({ ...c, views: c.views + 1 }));
     try {
       await record({
-        data: {
-          slug,
-          poi_key: poiKey,
-          poi_type: poiType,
-          event_type: "view",
-          anon_id: getAnonId(),
-        },
+        data: { slug, poi_key: poiKey, poi_type: poiType, event_type: "view", anon_id: getAnonId() },
       });
     } catch {
       // silencioso — não atrapalha o hóspede
@@ -144,26 +138,14 @@ export function POIEngagementBar({
     const title = shareTitle || "Confira este lugar";
     setCounts((c) => ({ ...c, shares: c.shares + 1 }));
     try {
-      if (
-        typeof navigator !== "undefined" &&
-        (navigator as Navigator & { share?: (data: ShareData) => Promise<void> }).share
-      ) {
-        await (navigator as Navigator & { share: (data: ShareData) => Promise<void> }).share({
-          title,
-          url,
-        });
+      if (typeof navigator !== "undefined" && (navigator as Navigator & { share?: (data: ShareData) => Promise<void> }).share) {
+        await (navigator as Navigator & { share: (data: ShareData) => Promise<void> }).share({ title, url });
       } else if (navigator?.clipboard) {
         await navigator.clipboard.writeText(url);
         toast.success("Link copiado!");
       }
       await record({
-        data: {
-          slug,
-          poi_key: poiKey,
-          poi_type: poiType,
-          event_type: "share",
-          anon_id: getAnonId(),
-        },
+        data: { slug, poi_key: poiKey, poi_type: poiType, event_type: "share", anon_id: getAnonId() },
       });
     } catch {
       // user canceled share — undo optimistic share count
@@ -177,7 +159,8 @@ export function POIEngagementBar({
     fireView();
   }
 
-  const tone = variant === "glass" ? "text-white/75" : "text-foreground/60";
+  const tone =
+    variant === "glass" ? "text-white/75" : "text-foreground/60";
   const btnBase =
     "inline-flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium tabular-nums leading-none transition-all opacity-65 hover:opacity-100 hover:scale-110";
 
@@ -190,43 +173,41 @@ export function POIEngagementBar({
       className={`pointer-events-auto absolute top-1/2 -translate-y-1/2 right-2 z-10 flex flex-col items-center justify-center gap-3.5 max-h-[calc(100%-16px)] ${tone}`}
     >
       {viewsOnly ? (
-        <button type="button" aria-label="Visualizações" onClick={onClickView} className={btnBase}>
+        <button
+          type="button"
+          aria-label="Visualizações"
+          onClick={onClickView}
+          className={btnBase}
+        >
           <Eye className="size-[18px]" strokeWidth={1.75} />
           <span className="leading-none">{counts.views}</span>
         </button>
       ) : (
         <>
-          <button type="button" aria-label="Compartilhar" onClick={fireShare} className={btnBase}>
+          <button
+            type="button"
+            aria-label="Compartilhar"
+            onClick={fireShare}
+            className={btnBase}
+          >
             <Share2 className="size-[18px]" strokeWidth={1.75} />
           </button>
           <button
             type="button"
             aria-label="Descurtir"
-            onClick={(e) => {
-              e.stopPropagation();
-              fireReaction("dislike");
-            }}
+            onClick={(e) => { e.stopPropagation(); fireReaction("dislike"); }}
             className={`${btnBase} ${reaction === "dislike" ? "text-sky-300 opacity-100" : ""}`}
           >
-            <ThumbsDown
-              className={`size-[18px] ${reaction === "dislike" ? "fill-current" : ""}`}
-              strokeWidth={1.75}
-            />
+            <ThumbsDown className={`size-[18px] ${reaction === "dislike" ? "fill-current" : ""}`} strokeWidth={1.75} />
             <span className="leading-none">{counts.dislikes}</span>
           </button>
           <button
             type="button"
             aria-label="Curtir"
-            onClick={(e) => {
-              e.stopPropagation();
-              fireReaction("like");
-            }}
+            onClick={(e) => { e.stopPropagation(); fireReaction("like"); }}
             className={`${btnBase} ${reaction === "like" ? "text-rose-300 opacity-100" : ""}`}
           >
-            <Heart
-              className={`size-[18px] ${reaction === "like" ? "fill-current" : ""}`}
-              strokeWidth={1.75}
-            />
+            <Heart className={`size-[18px] ${reaction === "like" ? "fill-current" : ""}`} strokeWidth={1.75} />
             <span className="leading-none">{counts.likes}</span>
           </button>
         </>
@@ -234,3 +215,6 @@ export function POIEngagementBar({
     </div>
   );
 }
+
+
+

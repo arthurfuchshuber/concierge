@@ -14,14 +14,7 @@ type Props = {
   aspect?: "square" | "video" | "auto";
 };
 
-export function ImageUpload({
-  value,
-  onChange,
-  folder = "misc",
-  className,
-  placeholder,
-  aspect = "square",
-}: Props) {
+export function ImageUpload({ value, onChange, folder = "misc", className, placeholder, aspect = "square" }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -72,8 +65,7 @@ export function ImageUpload({
     }
   }
 
-  const aspectClass =
-    aspect === "square" ? "aspect-square" : aspect === "video" ? "aspect-video" : "";
+  const aspectClass = aspect === "square" ? "aspect-square" : aspect === "video" ? "aspect-video" : "";
 
   return (
     <div className={className}>
@@ -87,15 +79,11 @@ export function ImageUpload({
           if (f) handleFile(f);
         }}
       />
-      <div
-        className={`relative ${aspectClass} rounded-lg border border-border bg-muted/40 overflow-hidden`}
-      >
+      <div className={`relative ${aspectClass} rounded-lg border border-border bg-muted/40 overflow-hidden`}>
         {uploading ? (
           <div className="size-full grid place-items-center gap-2 bg-accent/10 p-3">
             <Loader2 className="size-5 animate-spin text-accent-foreground/80" />
-            <span className="text-xs font-medium tabular-nums text-muted-foreground">
-              {Math.round(progress)}%
-            </span>
+            <span className="text-xs font-medium tabular-nums text-muted-foreground">{Math.round(progress)}%</span>
             <div className="absolute inset-x-0 bottom-0 h-1 bg-border/60 overflow-hidden">
               <div
                 className="h-full bg-[image:var(--gradient-brand)] transition-[width] duration-150 ease-linear"

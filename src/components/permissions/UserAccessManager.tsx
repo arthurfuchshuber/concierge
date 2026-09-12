@@ -133,9 +133,7 @@ export function UserAccessManager({
                 value={role}
                 disabled={busy}
                 onValueChange={(value) =>
-                  mutation.mutate(() =>
-                    assignRole({ data: { targetUserId, role: value as "agent" } }),
-                  )
+                  mutation.mutate(() => assignRole({ data: { targetUserId, role: value as "agent" } }))
                 }
               >
                 <SelectTrigger className="mt-1">

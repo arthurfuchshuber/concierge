@@ -1,4 +1,4 @@
-import * as React from "react";
+import * as React from 'react'
 import {
   Body,
   Button,
@@ -11,30 +11,30 @@ import {
   Preview,
   Section,
   Text,
-} from "@react-email/components";
-import type { TemplateEntry } from "./registry";
+} from '@react-email/components'
+import type { TemplateEntry } from './registry'
 
 export interface AccountInviteProps {
-  inviterName?: string | null;
-  accountName?: string | null;
-  recipientEmail?: string | null;
-  actionUrl?: string;
-  existingUser?: boolean;
-  expiresAt?: string | null;
-  siteUrl?: string;
+  inviterName?: string | null
+  accountName?: string | null
+  recipientEmail?: string | null
+  actionUrl?: string
+  existingUser?: boolean
+  expiresAt?: string | null
+  siteUrl?: string
 }
 
 function formatDate(value?: string | null) {
-  if (!value) return null;
+  if (!value) return null
   try {
-    return new Intl.DateTimeFormat("pt-BR", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-      timeZone: "America/Sao_Paulo",
-    }).format(new Date(value));
+    return new Intl.DateTimeFormat('pt-BR', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'America/Sao_Paulo',
+    }).format(new Date(value))
   } catch {
-    return null;
+    return null
   }
 }
 
@@ -42,29 +42,30 @@ const AccountInviteEmail = ({
   inviterName,
   accountName,
   recipientEmail,
-  actionUrl = "https://conciergeia.app/painel",
+  actionUrl = 'https://conciergeia.app/painel',
   existingUser = false,
   expiresAt,
-  siteUrl = "https://conciergeia.app",
+  siteUrl = 'https://conciergeia.app',
 }: AccountInviteProps) => {
-  const account = accountName || inviterName || "uma equipe do ConciergeIA";
-  const expires = formatDate(expiresAt);
+  const account = accountName || inviterName || 'uma equipe do ConciergeIA'
+  const expires = formatDate(expiresAt)
 
   return (
     <Html lang="pt-BR" dir="ltr">
       <Head />
-      <Preview>{`${inviterName ? inviterName + " convidou você" : "Você foi convidado"} para a equipe ${account} no ConciergeIA`}</Preview>
+      <Preview>{`${inviterName ? inviterName + ' convidou você' : 'Você foi convidado'} para a equipe ${account} no ConciergeIA`}</Preview>
       <Body style={main}>
         <Container style={container}>
           <Section style={card}>
             <Text style={brand}>CONCIERGEIA</Text>
             <Heading style={h1}>
-              {inviterName ? `${inviterName} convidou você` : "Você foi convidado"}
+              {inviterName ? `${inviterName} convidou você` : 'Você foi convidado'}
             </Heading>
             <Text style={text}>
-              Você recebeu um convite para acessar o painel da conta{" "}
-              <strong style={strong}>{account}</strong> no ConciergeIA — a plataforma que organiza
-              check-ins, check-outs, hóspedes e o atendimento inteligente das residências.
+              Você recebeu um convite para acessar o painel da conta{' '}
+              <strong style={strong}>{account}</strong> no ConciergeIA — a plataforma
+              que organiza check-ins, check-outs, hóspedes e o atendimento
+              inteligente das residências.
             </Text>
 
             <Section style={infoBox}>
@@ -89,9 +90,9 @@ const AccountInviteEmail = ({
               ) : null}
             </Section>
 
-            <Section style={{ margin: "26px 0 6px" }}>
+            <Section style={{ margin: '26px 0 6px' }}>
               <Button style={button} href={actionUrl}>
-                {existingUser ? "Entrar e aceitar convite" : "Criar minha senha e entrar"}
+                {existingUser ? 'Entrar e aceitar convite' : 'Criar minha senha e entrar'}
               </Button>
             </Section>
             <Text style={smallMuted}>
@@ -105,25 +106,25 @@ const AccountInviteEmail = ({
             <Section style={steps}>
               <Text style={stepTitle}>Como funciona</Text>
               <Text style={step}>
-                <strong style={strong}>1.</strong>{" "}
+                <strong style={strong}>1.</strong>{' '}
                 {existingUser
-                  ? "Clique no botão acima para entrar com o seu acesso."
-                  : "Clique no botão acima e defina a sua senha (leva menos de um minuto)."}
+                  ? 'Clique no botão acima para entrar com o seu acesso.'
+                  : 'Clique no botão acima e defina a sua senha (leva menos de um minuto).'}
               </Text>
               <Text style={step}>
-                <strong style={strong}>2.</strong> Na primeira tela do painel, aceite o convite da
-                equipe.
+                <strong style={strong}>2.</strong> Na primeira tela do painel, aceite o
+                convite da equipe.
               </Text>
               <Text style={step}>
-                <strong style={strong}>3.</strong> Pronto: o titular libera as áreas que você pode
-                ver ou editar.
+                <strong style={strong}>3.</strong> Pronto: o titular libera as áreas que
+                você pode ver ou editar.
               </Text>
             </Section>
 
             <Hr style={hr} />
             <Text style={footer}>
-              Se você não esperava este convite, pode ignorar este e-mail com tranquilidade — nada
-              acontece sem o seu aceite.
+              Se você não esperava este convite, pode ignorar este e-mail com
+              tranquilidade — nada acontece sem o seu aceite.
             </Text>
             <Text style={footer}>
               <Link href={siteUrl} style={link}>
@@ -134,113 +135,114 @@ const AccountInviteEmail = ({
         </Container>
       </Body>
     </Html>
-  );
-};
+  )
+}
 
 export const template = {
   component: AccountInviteEmail,
   subject: (data: Record<string, any>) =>
     data?.inviterName
       ? `${data.inviterName} convidou você para o ConciergeIA`
-      : "Você foi convidado para uma equipe no ConciergeIA",
-  displayName: "Convite de equipe",
+      : 'Você foi convidado para uma equipe no ConciergeIA',
+  displayName: 'Convite de equipe',
   previewData: {
-    inviterName: "Anfitrião Sigma",
-    accountName: "Anfitrião Sigma",
-    recipientEmail: "pessoa@empresa.com",
-    actionUrl: "https://conciergeia.app/definir-senha",
+    inviterName: 'Anfitrião Sigma',
+    accountName: 'Anfitrião Sigma',
+    recipientEmail: 'pessoa@empresa.com',
+    actionUrl: 'https://conciergeia.app/definir-senha',
     expiresAt: new Date(Date.now() + 7 * 864e5).toISOString(),
   },
-} satisfies TemplateEntry;
+} satisfies TemplateEntry
 
-export default AccountInviteEmail;
+export default AccountInviteEmail
 
 const main = {
-  backgroundColor: "#ffffff",
-  fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
-  padding: "24px 0",
-};
-const container = { maxWidth: "560px", margin: "0 auto", padding: "0 16px" };
+  backgroundColor: '#ffffff',
+  fontFamily:
+    "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
+  padding: '24px 0',
+}
+const container = { maxWidth: '560px', margin: '0 auto', padding: '0 16px' }
 const card = {
-  border: "1px solid #efe7e1",
-  borderRadius: "18px",
-  padding: "32px 30px",
-  backgroundColor: "#fffdfb",
-};
+  border: '1px solid #efe7e1',
+  borderRadius: '18px',
+  padding: '32px 30px',
+  backgroundColor: '#fffdfb',
+}
 const brand = {
-  fontSize: "12px",
-  letterSpacing: "2px",
-  color: "#c2683f",
+  fontSize: '12px',
+  letterSpacing: '2px',
+  color: '#c2683f',
   fontWeight: 700 as const,
-  margin: "0 0 14px",
-};
+  margin: '0 0 14px',
+}
 const h1 = {
-  fontSize: "26px",
-  lineHeight: "1.25",
+  fontSize: '26px',
+  lineHeight: '1.25',
   fontWeight: 700 as const,
-  color: "#241c16",
-  margin: "0 0 16px",
-};
+  color: '#241c16',
+  margin: '0 0 16px',
+}
 const text = {
-  fontSize: "15px",
-  lineHeight: "1.65",
-  color: "#5b524c",
-  margin: "0 0 18px",
-};
-const strong = { color: "#241c16" };
+  fontSize: '15px',
+  lineHeight: '1.65',
+  color: '#5b524c',
+  margin: '0 0 18px',
+}
+const strong = { color: '#241c16' }
 const infoBox = {
-  border: "1px solid #efe7e1",
-  borderRadius: "14px",
-  padding: "16px 18px",
-  backgroundColor: "#ffffff",
-};
-const infoRow = { margin: "0 0 12px" };
+  border: '1px solid #efe7e1',
+  borderRadius: '14px',
+  padding: '16px 18px',
+  backgroundColor: '#ffffff',
+}
+const infoRow = { margin: '0 0 12px' }
 const infoLabel = {
-  fontSize: "11px",
-  letterSpacing: "1px",
-  color: "#9a8f88",
-  textTransform: "uppercase" as const,
-};
-const infoValue = { fontSize: "15px", color: "#241c16", fontWeight: 600 as const };
+  fontSize: '11px',
+  letterSpacing: '1px',
+  color: '#9a8f88',
+  textTransform: 'uppercase' as const,
+}
+const infoValue = { fontSize: '15px', color: '#241c16', fontWeight: 600 as const }
 const button = {
-  backgroundColor: "#c2683f",
-  color: "#ffffff",
-  fontSize: "15px",
+  backgroundColor: '#c2683f',
+  color: '#ffffff',
+  fontSize: '15px',
   fontWeight: 600 as const,
-  borderRadius: "12px",
-  padding: "14px 26px",
-  textDecoration: "none",
-  display: "inline-block",
-};
+  borderRadius: '12px',
+  padding: '14px 26px',
+  textDecoration: 'none',
+  display: 'inline-block',
+}
 const smallMuted = {
-  fontSize: "12px",
-  lineHeight: "1.6",
-  color: "#9a8f88",
-  margin: "0 0 22px",
-  wordBreak: "break-all" as const,
-};
+  fontSize: '12px',
+  lineHeight: '1.6',
+  color: '#9a8f88',
+  margin: '0 0 22px',
+  wordBreak: 'break-all' as const,
+}
 const steps = {
-  backgroundColor: "#faf5f1",
-  borderRadius: "14px",
-  padding: "18px 20px",
-};
+  backgroundColor: '#faf5f1',
+  borderRadius: '14px',
+  padding: '18px 20px',
+}
 const stepTitle = {
-  fontSize: "13px",
+  fontSize: '13px',
   fontWeight: 700 as const,
-  color: "#241c16",
-  margin: "0 0 10px",
-};
+  color: '#241c16',
+  margin: '0 0 10px',
+}
 const step = {
-  fontSize: "14px",
-  lineHeight: "1.6",
-  color: "#5b524c",
-  margin: "0 0 6px",
-};
-const hr = { borderColor: "#efe7e1", margin: "26px 0 18px" };
-const link = { color: "#c2683f", textDecoration: "none" };
+  fontSize: '14px',
+  lineHeight: '1.6',
+  color: '#5b524c',
+  margin: '0 0 6px',
+}
+const hr = { borderColor: '#efe7e1', margin: '26px 0 18px' }
+const link = { color: '#c2683f', textDecoration: 'none' }
 const footer = {
-  fontSize: "12px",
-  lineHeight: "1.6",
-  color: "#9a8f88",
-  margin: "0 0 6px",
-};
+  fontSize: '12px',
+  lineHeight: '1.6',
+  color: '#9a8f88',
+  margin: '0 0 6px',
+}

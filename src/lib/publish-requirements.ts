@@ -30,11 +30,7 @@ export const PUBLISH_REQUIRED_COLUMNS = [
 
 const RULES: Array<{ key: string; label: string; check: (p: PublishCandidate) => boolean }> = [
   { key: "property_type_id", label: "Tipo do imóvel", check: (p) => !!p.property_type_id },
-  {
-    key: "maps_url",
-    label: "Link do Google Maps — Entrada principal",
-    check: (p) => !!str(p.maps_url),
-  },
+  { key: "maps_url", label: "Link do Google Maps — Entrada principal", check: (p) => !!str(p.maps_url) },
   { key: "city", label: "Endereço — Cidade", check: (p) => !!str(p.city) },
   { key: "country", label: "Endereço — País", check: (p) => !!str(p.country) },
   {
@@ -53,26 +49,10 @@ const RULES: Array<{ key: string; label: string; check: (p: PublishCandidate) =>
     label: "Fotos da residência (ao menos 1 foto)",
     check: (p) => Array.isArray(p.gallery_images) && (p.gallery_images as unknown[]).length > 0,
   },
-  {
-    key: "checkin_instructions",
-    label: "Instruções de chegada — Passo a passo",
-    check: (p) => !!str(p.checkin_instructions),
-  },
-  {
-    key: "checkin_time",
-    label: "Horários de check-in — Check-in a partir de",
-    check: (p) => !!str(p.checkin_time),
-  },
-  {
-    key: "checkout_instructions",
-    label: "Instruções de saída — Passo a passo",
-    check: (p) => !!str(p.checkout_instructions),
-  },
-  {
-    key: "checkout_time",
-    label: "Horários de check-out — Check-out até",
-    check: (p) => !!str(p.checkout_time),
-  },
+  { key: "checkin_instructions", label: "Instruções de chegada — Passo a passo", check: (p) => !!str(p.checkin_instructions) },
+  { key: "checkin_time", label: "Horários de check-in — Check-in a partir de", check: (p) => !!str(p.checkin_time) },
+  { key: "checkout_instructions", label: "Instruções de saída — Passo a passo", check: (p) => !!str(p.checkout_instructions) },
+  { key: "checkout_time", label: "Horários de check-out — Check-out até", check: (p) => !!str(p.checkout_time) },
 ];
 
 function str(v: unknown): string {

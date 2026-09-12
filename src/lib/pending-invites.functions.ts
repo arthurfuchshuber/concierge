@@ -8,16 +8,15 @@ export const listMyPendingInvites = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { supabase, userId, claims } = context;
     const email = ((claims as { email?: string } | null)?.email ?? "").toLowerCase();
-    if (!email)
-      return [] as Array<{
-        id: string;
-        owner_id: string;
-        owner_name: string | null;
-        owner_email: string | null;
-        role: string;
-        expires_at: string;
-        created_at: string;
-      }>;
+    if (!email) return [] as Array<{
+      id: string;
+      owner_id: string;
+      owner_name: string | null;
+      owner_email: string | null;
+      role: string;
+      expires_at: string;
+      created_at: string;
+    }>;
 
     const { data, error } = await supabase
       .from("account_member_invites")
@@ -30,13 +29,13 @@ export const listMyPendingInvites = createServerFn({ method: "GET" })
     // Nunca mostrar convites que o próprio usuário enviou, nem convites de
     // contas onde ele já é membro ativo (ou é o próprio titular).
     const candidates = (data ?? []).filter(
-      (r) =>
-        ((r.email as string) ?? "").toLowerCase() === email && (r.owner_id as string) !== userId,
+      (r) => ((r.email as string) ?? "").toLowerCase() === email && (r.owner_id as string) !== userId,
     );
     if (candidates.length === 0) return [];
 
-    const { supabaseAdmin: adminForMembership } =
-      await import("@/integrations/supabase/client.server");
+    const { supabaseAdmin: adminForMembership } = await import(
+      "@/integrations/supabase/client.server"
+    );
     const { data: memberships } = await adminForMembership
       .from("account_members")
       .select("owner_id")
@@ -46,14 +45,14 @@ export const listMyPendingInvites = createServerFn({ method: "GET" })
     const rows = candidates.filter((r) => !alreadyIn.has(r.owner_id as string));
     if (rows.length === 0) return [];
 
+
+
     // Enrich with owner name/email so the popup can show "You were invited by X".
     const ownerIds = Array.from(new Set(rows.map((r) => r.owner_id as string)));
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [{ data: profs }, { data: users }] = await Promise.all([
       supabaseAdmin.from("profiles").select("id, full_name, trade_name").in("id", ownerIds),
-      (async () => ({
-        data: { users: await (await import("@/lib/admin-users.server")).listAllAuthUsers() },
-      }))(),
+      (async () => ({ data: { users: await (await import("@/lib/admin-users.server")).listAllAuthUsers() } }))(),
     ]);
     const nameById = new Map<string, string | null>();
     const emailById = new Map<string, string | null>();

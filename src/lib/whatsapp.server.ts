@@ -1,13 +1,6 @@
 // Server-only helpers for WhatsApp Business via Sinch Conversations API.
 // Never import this file from client-reachable modules at module scope.
-import {
-  createCipheriv,
-  createDecipheriv,
-  randomBytes,
-  createHash,
-  timingSafeEqual,
-  createHmac,
-} from "node:crypto";
+import { createCipheriv, createDecipheriv, randomBytes, createHash, timingSafeEqual, createHmac } from "node:crypto";
 
 function key(): Buffer {
   const raw = process.env.WHATSAPP_ENCRYPTION_KEY;
@@ -48,19 +41,14 @@ export type SinchConfig = {
  * Send an outbound WhatsApp text message via Sinch Conversations.
  * Returns the Sinch message id (used to correlate delivery receipts).
  */
-export async function sinchSendText(
-  cfg: SinchConfig,
-  opts: {
-    toE164: string; // digits only, no +
-    text: string;
-  },
-): Promise<{ messageId: string }> {
+export async function sinchSendText(cfg: SinchConfig, opts: {
+  toE164: string; // digits only, no +
+  text: string;
+}): Promise<{ messageId: string }> {
   const url = `${SINCH_BASE}/projects/${cfg.projectId}/messages:send`;
   const body = {
     app_id: cfg.appId,
-    recipient: {
-      identified_by: { channel_identities: [{ channel: "WHATSAPP", identity: opts.toE164 }] },
-    },
+    recipient: { identified_by: { channel_identities: [{ channel: "WHATSAPP", identity: opts.toE164 }] } },
     message: { text_message: { text: opts.text } },
     channel_priority_order: ["WHATSAPP"],
   };
@@ -75,11 +63,7 @@ export async function sinchSendText(
   const raw = await res.text();
   if (!res.ok) throw new Error(`Sinch ${res.status}: ${raw}`);
   let json: { message_id?: string } = {};
-  try {
-    json = JSON.parse(raw);
-  } catch {
-    /* ignore */
-  }
+  try { json = JSON.parse(raw); } catch { /* ignore */ }
   return { messageId: json.message_id ?? "" };
 }
 
@@ -87,11 +71,7 @@ export async function sinchSendText(
  * Verify Sinch webhook HMAC signature.
  * Sinch sends a `x-sinch-webhook-signature` header (HMAC-SHA256 base64 of raw body).
  */
-export function verifySinchSignature(
-  rawBody: string,
-  signature: string | null,
-  webhookSecret: string,
-): boolean {
+export function verifySinchSignature(rawBody: string, signature: string | null, webhookSecret: string): boolean {
   if (!signature) return false;
   const expected = createHmac("sha256", webhookSecret).update(rawBody).digest("base64");
   const a = Buffer.from(signature);

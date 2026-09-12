@@ -10,8 +10,9 @@ export type { PropertyType };
 export const listPropertyTypes = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<PropertyType[]> => {
-    const { DEFAULT_PROPERTY_TYPES, resolveAccountOwnerId } =
-      await import("@/lib/property-types.server");
+    const { DEFAULT_PROPERTY_TYPES, resolveAccountOwnerId } = await import(
+      "@/lib/property-types.server"
+    );
     const { supabase, userId } = context;
     const accountId = await resolveAccountOwnerId(supabase, userId);
     const { data } = await supabase
@@ -23,7 +24,9 @@ export const listPropertyTypes = createServerFn({ method: "GET" })
 
     await supabase
       .from("property_types")
-      .insert(DEFAULT_PROPERTY_TYPES.map((d) => ({ ...d, account_owner_id: accountId })) as never);
+      .insert(
+        DEFAULT_PROPERTY_TYPES.map((d) => ({ ...d, account_owner_id: accountId })) as never,
+      );
     const { data: seeded } = await supabase
       .from("property_types")
       .select("id, slug, label")
@@ -44,8 +47,9 @@ export const savePropertyType = createServerFn({ method: "POST" })
       .parse(i),
   )
   .handler(async ({ data, context }): Promise<PropertyType> => {
-    const { resolveAccountOwnerId, slugifyPropertyType } =
-      await import("@/lib/property-types.server");
+    const { resolveAccountOwnerId, slugifyPropertyType } = await import(
+      "@/lib/property-types.server"
+    );
     const { supabase, userId } = context;
     const accountId = await resolveAccountOwnerId(supabase, userId);
     const label = data.label.trim();

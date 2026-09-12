@@ -54,13 +54,7 @@ const VINCULO: Record<string, string> = {
   guest: "Hóspede",
 };
 
-export function ClicksignPanel({
-  accountOwnerId = null,
-  readOnly = false,
-}: {
-  accountOwnerId?: string | null;
-  readOnly?: boolean;
-}) {
+export function ClicksignPanel({ accountOwnerId = null, readOnly = false }: { accountOwnerId?: string | null; readOnly?: boolean }) {
   const getFn = useServerFn(getMyClicksignConfig);
   const saveFn = useServerFn(saveMyClicksignConfig);
   const discFn = useServerFn(disconnectMyClicksign);
@@ -72,13 +66,9 @@ export function ClicksignPanel({
   const [token, setToken] = useState("");
   const [importOpen, setImportOpen] = useState(false);
   const [disconnectOpen, setDisconnectOpen] = useState(false);
-  const [contractStartConflicts, setContractStartConflicts] = useState<
-    ClicksignContractStartConflict[]
-  >([]);
+  const [contractStartConflicts, setContractStartConflicts] = useState<ClicksignContractStartConflict[]>([]);
   // De qual ação vieram os conflitos — decide o que reexecutar com overwrite=true.
-  const [contractStartConflictSource, setContractStartConflictSource] = useState<
-    "sync" | "refresh" | null
-  >(null);
+  const [contractStartConflictSource, setContractStartConflictSource] = useState<"sync" | "refresh" | null>(null);
   const [showSecret, setShowSecret] = useState(false);
   const [secret, setSecret] = useState("");
   // Apenas um quadrante aberto por vez; todos recolhidos ao abrir.
@@ -92,29 +82,25 @@ export function ClicksignPanel({
   const connected = !!cfg.data?.hasToken;
 
   const refreshData = useMutation({
-    mutationFn: (overwriteContractStart: boolean) =>
-      refreshDataFn({ data: { overwriteContractStart } }),
+    mutationFn: (overwriteContractStart: boolean) => refreshDataFn({ data: { overwriteContractStart } }),
     onSuccess: (r) => {
       const extras: string[] = [];
       if (r.contractStartFilled > 0) {
-        extras.push(
-          `${r.contractStartFilled} com início de vigência preenchido pela assinatura do ClickSign`,
-        );
+        extras.push(`${r.contractStartFilled} com início de vigência preenchido pela assinatura do ClickSign`);
       }
       if (r.contractStartOverwritten > 0) {
         extras.push(`${r.contractStartOverwritten} com início de vigência atualizado`);
       }
       if (r.updated > 0 || extras.length > 0) {
-        const parts = [
-          r.updated > 0 ? `${r.updated} cadastro(s) atualizado(s) com dados dos contratos` : null,
-          ...extras,
-        ].filter(Boolean);
+        const parts = [r.updated > 0 ? `${r.updated} cadastro(s) atualizado(s) com dados dos contratos` : null, ...extras].filter(
+          Boolean,
+        );
         toast.success(parts.join(" · "));
       } else if (r.scanned === 0) {
         // Diagnóstico: nenhum cadastro tem sequer um contrato vinculado —
         // o problema está em "Importar contratos" (vínculo), não aqui.
         toast.info(
-          'Nenhum cadastro está vinculado a um contrato do ClickSign ainda. Rode "Importar contratos" primeiro.',
+          "Nenhum cadastro está vinculado a um contrato do ClickSign ainda. Rode \"Importar contratos\" primeiro.",
         );
       } else if (r.withAnySignedDoc === 0) {
         // Diagnóstico: há vínculo, mas nenhum documento vinculado tem
@@ -123,9 +109,7 @@ export function ClicksignPanel({
           `${r.scanned} cadastro(s) vinculados, mas nenhum documento deles está com assinatura concluída no ClickSign ainda (ou o campo de conclusão não veio preenchido da API).`,
         );
       } else {
-        toast.info(
-          `${r.scanned} cadastro(s) vinculados verificados — nenhum tinha dado novo para preencher.`,
-        );
+        toast.info(`${r.scanned} cadastro(s) vinculados verificados — nenhum tinha dado novo para preencher.`);
       }
       if (r.failed > 0) toast.warning(`${r.failed} contrato(s) não puderam ser lidos.`);
       if (r.contractStartConflicts.length > 0) {
@@ -145,6 +129,7 @@ export function ClicksignPanel({
   }, [cfg.data?.webhookSecretMasked]);
 
   const saveSecretFn = useServerFn(rotateMyClicksignWebhookSecret);
+
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const webhookUrl = cfg.data?.ownerId
@@ -180,23 +165,18 @@ export function ClicksignPanel({
     onError: (e: Error) => toast.error(e.message),
   });
 
+
   const sync = useMutation({
     mutationFn: (overwriteContractStart: boolean) => syncFn({ data: { overwriteContractStart } }),
     onSuccess: (r) => {
       const extras: string[] = [];
-      if (r.dataFilled > 0)
-        extras.push(`${r.dataFilled} cadastro(s) com dados do contrato preenchidos`);
+      if (r.dataFilled > 0) extras.push(`${r.dataFilled} cadastro(s) com dados do contrato preenchidos`);
       if (r.contractStartFilled > 0) {
-        extras.push(
-          `${r.contractStartFilled} com início de vigência preenchido pela assinatura do ClickSign`,
-        );
+        extras.push(`${r.contractStartFilled} com início de vigência preenchido pela assinatura do ClickSign`);
       }
-      if (r.contractStartOverwritten > 0)
-        extras.push(`${r.contractStartOverwritten} com início de vigência atualizado`);
+      if (r.contractStartOverwritten > 0) extras.push(`${r.contractStartOverwritten} com início de vigência atualizado`);
       toast.success(
-        [`${r.total} contratos importados — ${r.linked} vinculados a cadastros`, ...extras].join(
-          " · ",
-        ),
+        [`${r.total} contratos importados — ${r.linked} vinculados a cadastros`, ...extras].join(" · "),
       );
       if (r.contractStartConflicts.length > 0) {
         setContractStartConflicts(r.contractStartConflicts);
@@ -242,36 +222,34 @@ export function ClicksignPanel({
         onValueChange={setSection}
         className="space-y-2"
       >
-        {!readOnly && (
-          <AccordionItem
-            value="api"
-            className="rounded-xl border border-border bg-secondary/30 px-3"
-          >
-            <AccordionTrigger className="py-2.5 text-xs font-medium hover:no-underline">
-              <span className="truncate">Chave de API</span>
-            </AccordionTrigger>
-            <AccordionContent className="space-y-2 pb-3">
-              <Input
-                type="password"
-                placeholder={connected ? "•••••••• (salva)" : "access_token do ClickSign"}
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-                autoComplete="off"
-              />
-              <p className="text-[11px] text-muted-foreground">
-                Gere a chave em Configurações → API no painel do ClickSign.{" "}
-                <a
-                  href="https://app.clicksign.com"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-primary underline inline-flex items-center gap-0.5"
-                >
-                  Abrir ClickSign <ExternalLink className="size-3" />
-                </a>
-              </p>
-            </AccordionContent>
-          </AccordionItem>
-        )}
+        {!readOnly && <AccordionItem
+          value="api"
+          className="rounded-xl border border-border bg-secondary/30 px-3"
+        >
+          <AccordionTrigger className="py-2.5 text-xs font-medium hover:no-underline">
+            <span className="truncate">Chave de API</span>
+          </AccordionTrigger>
+          <AccordionContent className="space-y-2 pb-3">
+            <Input
+              type="password"
+              placeholder={connected ? "•••••••• (salva)" : "access_token do ClickSign"}
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              autoComplete="off"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Gere a chave em Configurações → API no painel do ClickSign.{" "}
+              <a
+                href="https://app.clicksign.com"
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary underline inline-flex items-center gap-0.5"
+              >
+                Abrir ClickSign <ExternalLink className="size-3" />
+              </a>
+            </p>
+          </AccordionContent>
+        </AccordionItem>}
 
         {connected && (
           <AccordionItem
@@ -339,9 +317,11 @@ export function ClicksignPanel({
                 </div>
               </div>
               <p className="text-[10px] text-muted-foreground">
-                Por segurança, o segredo salvo nunca é exibido de volta — informe um novo valor para
-                substituí-lo. Ele é salvo junto com a chave de API ao clicar em “Salvar”.
+                Por segurança, o segredo salvo nunca é exibido de volta — informe um novo valor
+                para substituí-lo. Ele é salvo junto com a chave de API ao clicar em “Salvar”.
               </p>
+
+
             </AccordionContent>
           </AccordionItem>
         )}
@@ -387,10 +367,7 @@ export function ClicksignPanel({
                           {VINCULO[d.stakeholder_type] ?? d.stakeholder_type}
                         </Badge>
                       )}
-                      <Badge
-                        variant="outline"
-                        className="shrink-0 px-1.5 py-0 text-[10px] capitalize"
-                      >
+                      <Badge variant="outline" className="shrink-0 px-1.5 py-0 text-[10px] capitalize">
                         {d.status ?? "—"}
                       </Badge>
                       {(d.url_signed || d.url_original) && (
@@ -453,6 +430,7 @@ export function ClicksignPanel({
 
         {connected && (
           <DropdownMenu modal={false}>
+
             <DropdownMenuTrigger asChild>
               <Button size="sm" variant="outline" className="h-8 shrink-0 rounded-full text-xs">
                 <MoreHorizontal className="mr-1 size-3.5" /> Ações

@@ -158,8 +158,7 @@ export async function updateCenterUserRole(
   input: { targetUserId: string; role: AccountRole },
 ): Promise<MutationResult> {
   const ctx = await assertCenterWrite(actorId);
-  if (input.targetUserId === ctx.tenantId)
-    throw new Error("O papel do titular da conta não pode ser alterado.");
+  if (input.targetUserId === ctx.tenantId) throw new Error("O papel do titular da conta não pode ser alterado.");
   const previousRole = await assertSameTenant(ctx.tenantId, input.targetUserId);
 
   const client = await db();
@@ -184,8 +183,7 @@ export async function removeCenterUserRole(
   input: { targetUserId: string },
 ): Promise<MutationResult> {
   const ctx = await assertCenterWrite(actorId);
-  if (input.targetUserId === ctx.tenantId)
-    throw new Error("O papel do titular da conta não pode ser removido.");
+  if (input.targetUserId === ctx.tenantId) throw new Error("O papel do titular da conta não pode ser removido.");
   const previousRole = await assertSameTenant(ctx.tenantId, input.targetUserId);
 
   const client = await db();
@@ -210,8 +208,7 @@ export async function setCenterUserStatus(
   input: { targetUserId: string; status: "active" | "revoked" },
 ): Promise<MutationResult> {
   const ctx = await assertCenterWrite(actorId);
-  if (input.targetUserId === ctx.tenantId)
-    throw new Error("O titular da conta não pode ser inativado.");
+  if (input.targetUserId === ctx.tenantId) throw new Error("O titular da conta não pode ser inativado.");
   await assertSameTenant(ctx.tenantId, input.targetUserId);
 
   const client = await db();
@@ -229,8 +226,7 @@ export async function setCenterUserStatus(
   });
   return {
     ok: true,
-    message:
-      input.status === "active" ? "Usuário ativado." : "Usuário inativado — acesso suspenso.",
+    message: input.status === "active" ? "Usuário ativado." : "Usuário inativado — acesso suspenso.",
   };
 }
 
@@ -240,8 +236,7 @@ export async function removeCenterUser(
   input: { targetUserId: string },
 ): Promise<MutationResult> {
   const ctx = await assertCenterWrite(actorId);
-  if (input.targetUserId === ctx.tenantId)
-    throw new Error("O titular da conta não pode ser removido.");
+  if (input.targetUserId === ctx.tenantId) throw new Error("O titular da conta não pode ser removido.");
   await assertSameTenant(ctx.tenantId, input.targetUserId);
 
   const client = await db();
@@ -295,9 +290,9 @@ export async function grantCenterPermission(
   await assertSameTenant(ctx.tenantId, input.targetUserId);
 
   const nodeId = await nodeIdOf(input.namespace);
-  const before = (
-    await permissionRepository.listAssignments(ctx.tenantId, input.targetUserId)
-  ).find((a) => a.permission_node_id === nodeId && a.scope_type === scopeType);
+  const before = (await permissionRepository.listAssignments(ctx.tenantId, input.targetUserId)).find(
+    (a) => a.permission_node_id === nodeId && a.scope_type === scopeType,
+  );
 
   await permissionRepository.upsertAssignment({
     tenantId: ctx.tenantId,
@@ -327,6 +322,7 @@ export async function grantCenterPermission(
         : `Permissão ${input.namespace} concedida (${input.level}).`,
   };
 }
+
 
 /** Remove uma permissão direta. A herança por papel permanece intacta. */
 export async function revokeCenterPermission(
@@ -371,7 +367,10 @@ async function materializeAllProperties(
   except: string[] = [],
 ) {
   const client = await db();
-  const { data: props } = await client.from("properties").select("id").eq("owner_id", tenantId);
+  const { data: props } = await client
+    .from("properties")
+    .select("id")
+    .eq("owner_id", tenantId);
   const ids = ((props ?? []) as Array<{ id: string }>)
     .map((p) => p.id)
     .filter((id) => !except.includes(id));
@@ -430,10 +429,7 @@ export async function setCenterPropertyScope(
   actorId: string,
   input: { targetUserId: string; propertyId: string; assigned: boolean },
 ): Promise<MutationResult> {
-  const ctx = await assertCenterWrite(actorId, {
-    scopeType: "PROPERTY",
-    scopeId: input.propertyId,
-  });
+  const ctx = await assertCenterWrite(actorId, { scopeType: "PROPERTY", scopeId: input.propertyId });
   await assertSameTenant(ctx.tenantId, input.targetUserId);
 
   const client = await db();
@@ -487,9 +483,7 @@ export async function setCenterPropertyScope(
   });
   return {
     ok: true,
-    message: input.assigned
-      ? "Residência vinculada ao usuário."
-      : "Vínculo com a residência removido.",
+    message: input.assigned ? "Residência vinculada ao usuário." : "Vínculo com a residência removido.",
   };
 }
 

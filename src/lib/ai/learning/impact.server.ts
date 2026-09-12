@@ -42,24 +42,14 @@ export async function measureLearningImpact(params: {
   const out: ImpactResult[] = [];
   for (const row of (applied ?? []) as Array<Record<string, unknown>>) {
     const appliedAt = new Date(String(row.applied_at));
-    const before = await resolutionRate(
-      params.supabase,
-      params.tenantId,
-      row.property_id as string | null,
-      {
-        from: new Date(appliedAt.getTime() - windowDays * 86_400_000),
-        to: appliedAt,
-      },
-    );
-    const after = await resolutionRate(
-      params.supabase,
-      params.tenantId,
-      row.property_id as string | null,
-      {
-        from: appliedAt,
-        to: new Date(Math.min(Date.now(), appliedAt.getTime() + windowDays * 86_400_000)),
-      },
-    );
+    const before = await resolutionRate(params.supabase, params.tenantId, row.property_id as string | null, {
+      from: new Date(appliedAt.getTime() - windowDays * 86_400_000),
+      to: appliedAt,
+    });
+    const after = await resolutionRate(params.supabase, params.tenantId, row.property_id as string | null, {
+      from: appliedAt,
+      to: new Date(Math.min(Date.now(), appliedAt.getTime() + windowDays * 86_400_000)),
+    });
 
     const improvement =
       before.rate == null || after.rate == null || before.rate === 0

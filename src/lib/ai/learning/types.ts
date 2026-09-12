@@ -55,7 +55,11 @@ export const LEARNING_TYPES: LearningType[] = [
 
 /** Escopo sugerido para o conhecimento extraído. */
 export type SuggestedScope =
-  "reservation" | "property" | "owner_portfolio" | "company_global" | "temporary_exception";
+  | "reservation"
+  | "property"
+  | "owner_portfolio"
+  | "company_global"
+  | "temporary_exception";
 
 export const SUGGESTED_SCOPES: SuggestedScope[] = [
   "reservation",

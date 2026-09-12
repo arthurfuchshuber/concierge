@@ -49,21 +49,11 @@ const TargetInput = z
     logId: z.string().uuid().nullable().optional(),
     reservationId: z.string().uuid().nullable().optional(),
   })
-  .refine((v) => !!v.logId || !!v.reservationId, {
-    message: "Informe a reserva ou o registro do hóspede.",
-  });
+  .refine((v) => !!v.logId || !!v.reservationId, { message: "Informe a reserva ou o registro do hóspede." });
 
 /** Um passo da esteira. `state` é o que a interface pinta. */
 export type JourneyStep = {
-  key:
-    | "reserva"
-    | "previsao"
-    | "checkin"
-    | "no_show"
-    | "estadia"
-    | "checkout"
-    | "limpeza"
-    | "concluido";
+  key: "reserva" | "previsao" | "checkin" | "no_show" | "estadia" | "checkout" | "limpeza" | "concluido";
   label: string;
   state: "done" | "pending" | "skipped";
   /** Quando aconteceu (ISO) — nulo quando ainda não aconteceu. */
@@ -152,9 +142,7 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       logId
         ? db
             .from("guide_access_logs")
-            .select(
-              "id, property_id, guest_name, reservation_code, checkin_date, checkout_date, guest_arrival_time, created_at",
-            )
+            .select("id, property_id, guest_name, reservation_code, checkin_date, checkout_date, guest_arrival_time, created_at")
             .eq("id", logId)
             .maybeSingle()
         : Promise.resolve({ data: null }),
@@ -191,9 +179,7 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       if (!log) {
         const { data: l } = await db
           .from("guide_access_logs")
-          .select(
-            "id, property_id, guest_name, reservation_code, checkin_date, checkout_date, guest_arrival_time, created_at",
-          )
+          .select("id, property_id, guest_name, reservation_code, checkin_date, checkout_date, guest_arrival_time, created_at")
           .eq("property_id", propertyId)
           .eq("checkin_date", checkinDate)
           .order("created_at", { ascending: true })
@@ -264,8 +250,7 @@ export const getReservationJourney = createServerFn({ method: "GET" })
     const checkoutDone = !!(co && (co.status === "done" || co.done_at));
     const concluded = !!co?.concluded_at;
     const previsaoData = ci?.arrival_date_override ?? co?.arrival_date_override ?? null;
-    const previsaoHora =
-      ci?.arrival_time_override ?? co?.arrival_time_override ?? log?.guest_arrival_time ?? null;
+    const previsaoHora = ci?.arrival_time_override ?? co?.arrival_time_override ?? log?.guest_arrival_time ?? null;
 
     const steps: JourneyStep[] = [];
     steps.push({
@@ -273,13 +258,12 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       label: "Reserva registrada",
       state: "done",
       at: reservation?.created_at ?? log?.created_at ?? null,
-      detail:
-        [
-          fmtDateBR(log?.checkin_date ?? reservation?.checkin_date ?? null),
-          fmtDateBR(log?.checkout_date ?? reservation?.checkout_date ?? null),
-        ]
-          .filter(Boolean)
-          .join(" → ") || null,
+      detail: [
+        fmtDateBR(log?.checkin_date ?? reservation?.checkin_date ?? null),
+        fmtDateBR(log?.checkout_date ?? reservation?.checkout_date ?? null),
+      ]
+        .filter(Boolean)
+        .join(" → ") || null,
     });
 
     if (previsaoData || previsaoHora) {
@@ -288,10 +272,7 @@ export const getReservationJourney = createServerFn({ method: "GET" })
         label: "Previsão informada",
         state: "done",
         at: null,
-        detail:
-          [previsaoData ? fmtDateBR(previsaoData) : null, previsaoHora]
-            .filter(Boolean)
-            .join(" · ") || null,
+        detail: [previsaoData ? fmtDateBR(previsaoData) : null, previsaoHora].filter(Boolean).join(" · ") || null,
       });
     }
 
@@ -314,15 +295,13 @@ export const getReservationJourney = createServerFn({ method: "GET" })
         checkinDate: log?.checkin_date ?? reservation?.checkin_date ?? null,
         checkoutDate: log?.checkout_date ?? reservation?.checkout_date ?? null,
         steps,
-        tasks: (
-          (tasksRes.data ?? []) as Array<{
-            id: string;
-            title: string;
-            status: string;
-            category: string;
-            due_date: string | null;
-          }>
-        ).map((t) => ({
+        tasks: ((tasksRes.data ?? []) as Array<{
+          id: string;
+          title: string;
+          status: string;
+          category: string;
+          due_date: string | null;
+        }>).map((t) => ({
           id: t.id,
           title: t.title,
           status: (t.status as JourneyTask["status"]) ?? "pending",
@@ -360,14 +339,7 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       state: concluded ? "done" : checkoutDone ? "pending" : "pending",
       at: concluded ? co?.concluded_at : null,
       detail: concluded
-        ? [
-            co?.cleaning_type === "completa"
-              ? "Completa"
-              : co?.cleaning_type === "normal"
-                ? "Normal"
-                : null,
-            brl(co?.cleaning_price_cents ?? null),
-          ]
+        ? [co?.cleaning_type === "completa" ? "Completa" : co?.cleaning_type === "normal" ? "Normal" : null, brl(co?.cleaning_price_cents ?? null)]
             .filter(Boolean)
             .join(" · ") || null
         : checkoutDone
@@ -390,15 +362,13 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       checkinDate: log?.checkin_date ?? reservation?.checkin_date ?? null,
       checkoutDate: log?.checkout_date ?? reservation?.checkout_date ?? null,
       steps,
-      tasks: (
-        (tasksRes.data ?? []) as Array<{
-          id: string;
-          title: string;
-          status: string;
-          category: string;
-          due_date: string | null;
-        }>
-      ).map((t) => ({
+      tasks: ((tasksRes.data ?? []) as Array<{
+        id: string;
+        title: string;
+        status: string;
+        category: string;
+        due_date: string | null;
+      }>).map((t) => ({
         id: t.id,
         title: t.title,
         status: (t.status as JourneyTask["status"]) ?? "pending",

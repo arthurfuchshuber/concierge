@@ -8,6 +8,7 @@ import {
   declineMyInvite,
 } from "@/lib/pending-invites.functions";
 
+
 export function PendingInviteDialog() {
   const listFn = useServerFn(listMyPendingInvites);
   const acceptFn = useServerFn(acceptMyInvite);
@@ -46,6 +47,7 @@ export function PendingInviteDialog() {
 
   const inv = list[0];
   const ownerLabel = inv.owner_name || inv.owner_email || "outra conta";
+  
 
   return (
     <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm grid place-items-center px-4">
@@ -54,7 +56,9 @@ export function PendingInviteDialog() {
           <div className="size-11 rounded-xl bg-primary/10 text-primary grid place-items-center mb-3">
             <UserPlus className="size-5" strokeWidth={2} />
           </div>
-          <h2 className="font-display text-xl leading-tight">Você foi convidado para uma equipe</h2>
+          <h2 className="font-display text-xl leading-tight">
+            Você foi convidado para uma equipe
+          </h2>
           <p className="text-sm text-muted-foreground mt-1.5">
             Aceite para ter acesso ao painel administrativo desta conta.
           </p>
@@ -80,7 +84,9 @@ export function PendingInviteDialog() {
             </p>
           )}
 
-          {errorMsg && <p className="text-xs text-red-500">{errorMsg}</p>}
+          {errorMsg && (
+            <p className="text-xs text-red-500">{errorMsg}</p>
+          )}
         </div>
 
         <div className="px-6 pb-6 flex gap-2">

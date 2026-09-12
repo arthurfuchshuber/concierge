@@ -107,7 +107,7 @@ export const getStakeholderIntegrationFeed = createServerFn({ method: "POST" })
       source: "clicksign" as const,
       name: (d.name as string) ?? "Documento",
       status: (d.status as string) ?? null,
-      at: (d.finished_at as string) ?? (d.synced_at as string) ?? null,
+      at: ((d.finished_at as string) ?? (d.synced_at as string)) ?? null,
       finishedAt: (d.finished_at as string) ?? null,
       syncedAt: (d.synced_at as string) ?? null,
       urlSigned: (d.url_signed as string) ?? null,

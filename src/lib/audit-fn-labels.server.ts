@@ -29,7 +29,7 @@ const FN_LABELS: Record<string, string> = {
   setSubjectPermissionLevel: "Alterou o nível de permissão de um usuário",
   setSubjectProperty: "Alterou o acesso a um imóvel",
   setPermissionCenterPropertyScope: "Alterou o escopo de imóveis de um usuário",
-  setPermissionCenterAllProperties: 'Alterou o modo "todas as residências" de um usuário',
+  setPermissionCenterAllProperties: "Alterou o modo \"todas as residências\" de um usuário",
   grantPermissionCenterPermission: "Concedeu uma permissão",
   revokePermissionCenterPermission: "Revogou uma permissão",
   assignPermissionCenterRole: "Atribuiu um papel",
@@ -86,55 +86,25 @@ const VERBS: Array<[RegExp, string]> = [
   [/^(create|add|invite|start)/, "Criou"],
   [/^(update|save|set|upsert|edit|rename|reorder|toggle|mark|unmark|assign|apply)/, "Atualizou"],
   [/^(delete|remove|revoke|archive|cancel|disconnect|unlink|unsubscribe)/, "Removeu"],
-  [
-    /^(send|submit|run|sync|import|refresh|scan|generate|track|record|answer|teach|translate)/,
-    "Executou",
-  ],
+  [/^(send|submit|run|sync|import|refresh|scan|generate|track|record|answer|teach|translate)/, "Executou"],
 ];
 
 function humanize(name: string): string {
-  const words = name
-    .replace(/([A-Z])/g, " $1")
-    .trim()
-    .toLowerCase();
+  const words = name.replace(/([A-Z])/g, " $1").trim().toLowerCase();
   for (const [re, verb] of VERBS) {
     if (re.test(name)) return `${verb}: ${words}`;
   }
   return `Ação: ${words}`;
 }
 
-const SENSITIVE =
-  /(password|senha|token|secret|apikey|api_key|authorization|pin|cpf|cnpj|card|cvv)/i;
+const SENSITIVE = /(password|senha|token|secret|apikey|api_key|authorization|pin|cpf|cnpj|card|cvv)/i;
 
 /** Campos que identificam bem "o quê / de quem" nos logs. */
 const KEY_FIELDS = [
-  "id",
-  "name",
-  "title",
-  "email",
-  "slug",
-  "stage",
-  "status",
-  "level",
-  "role",
-  "guestName",
-  "guest_name",
-  "propertyId",
-  "property_id",
-  "conversationId",
-  "reservationCode",
-  "reservation_code",
-  "phone",
-  "date",
-  "checkin",
-  "checkout",
-  "time",
-  "message",
-  "reason",
-  "category",
-  "action",
-  "tenantId",
-  "ownerId",
+  "id", "name", "title", "email", "slug", "stage", "status", "level", "role",
+  "guestName", "guest_name", "propertyId", "property_id", "conversationId",
+  "reservationCode", "reservation_code", "phone", "date", "checkin", "checkout",
+  "time", "message", "reason", "category", "action", "tenantId", "ownerId",
 ];
 
 function short(v: unknown): string | null {
@@ -171,10 +141,7 @@ export function sanitizeArgs(data: unknown, depth = 0): unknown {
 
 /** Frase curta com os dados-chave da chamada ("hóspede X · imóvel Y"). */
 export function describeArgs(data: unknown): string {
-  const src = (data && typeof data === "object" && !Array.isArray(data) ? data : {}) as Record<
-    string,
-    unknown
-  >;
+  const src = (data && typeof data === "object" && !Array.isArray(data) ? data : {}) as Record<string, unknown>;
   const parts: string[] = [];
   for (const key of KEY_FIELDS) {
     if (!(key in src)) continue;

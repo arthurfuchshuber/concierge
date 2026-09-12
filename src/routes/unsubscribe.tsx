@@ -31,7 +31,9 @@ function UnsubscribePage() {
   const [busy, setBusy] = useState(false);
 
   const token =
-    typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("token") : null;
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("token")
+      : null;
 
   useEffect(() => {
     if (!token) {

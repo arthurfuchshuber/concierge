@@ -131,8 +131,7 @@ export function IntegracoesPage() {
         return { cfg, statusKey };
       }).sort(
         (a, b) =>
-          STATUS_ORDER[a.statusKey] - STATUS_ORDER[b.statusKey] ||
-          a.cfg.nome.localeCompare(b.cfg.nome, "pt-BR"),
+          STATUS_ORDER[a.statusKey] - STATUS_ORDER[b.statusKey] || a.cfg.nome.localeCompare(b.cfg.nome, "pt-BR"),
       ),
     [waActive, csActive, gcalActive],
   );
@@ -215,9 +214,7 @@ export function IntegracoesPage() {
                 key={cfg.key}
                 className={cn(
                   "ds-surface border bg-card p-4 transition-all",
-                  isOpen
-                    ? "border-primary/30 shadow-[0_8px_30px_-12px_hsl(var(--primary)/0.35)]"
-                    : "border-border",
+                  isOpen ? "border-primary/30 shadow-[0_8px_30px_-12px_hsl(var(--primary)/0.35)]" : "border-border",
                   statusKey === "em_breve" && "opacity-80",
                 )}
               >
@@ -229,9 +226,7 @@ export function IntegracoesPage() {
                   <span
                     className={cn(
                       "grid size-10 shrink-0 place-items-center rounded-xl",
-                      statusKey === "ativa"
-                        ? "bg-primary/10 text-primary"
-                        : "bg-muted text-muted-foreground",
+                      statusKey === "ativa" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
                     )}
                   >
                     <Icon className="size-5" />
@@ -244,10 +239,7 @@ export function IntegracoesPage() {
                     </div>
                   </div>
                   <ChevronDown
-                    className={cn(
-                      "size-4 shrink-0 text-muted-foreground transition-transform",
-                      isOpen && "rotate-180",
-                    )}
+                    className={cn("size-4 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-180")}
                   />
                 </button>
 
@@ -261,19 +253,12 @@ export function IntegracoesPage() {
                         Em desenvolvimento — estará disponível em breve.
                       </div>
                     ) : cfg.key === "whatsapp" ? (
-                      <Button
-                        size="sm"
-                        className="h-8 rounded-full text-xs"
-                        onClick={() => setWaOpen(true)}
-                      >
+                      <Button size="sm" className="h-8 rounded-full text-xs" onClick={() => setWaOpen(true)}>
                         <Plug className="mr-1 size-3.5" />
                         {waActive ? "Gerenciar conexão" : "Conectar"}
                       </Button>
                     ) : cfg.key === "gcal" ? (
-                      <GoogleCalendarPanel
-                        accountOwnerId={accountOwnerId}
-                        readOnly={!!accountOwnerId}
-                      />
+                      <GoogleCalendarPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId} />
                     ) : (
                       <ClicksignPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId} />
                     )}

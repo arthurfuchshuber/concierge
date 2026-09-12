@@ -49,51 +49,14 @@ export const SOURCE_CONFIDENCE: Record<string, number> = {
 };
 
 export const SOURCE_TIERS: Array<{ tier: number; label: string; sources: string[] }> = [
-  {
-    tier: 1,
-    label: "Oficial transacional",
-    sources: ["human_decision", "reservation", "database", "property"],
-  },
+  { tier: 1, label: "Oficial transacional", sources: ["human_decision", "reservation", "database", "property"] },
   {
     tier: 2,
     label: "Conteúdo oficial do anfitrião",
-    sources: [
-      "guide",
-      "manual",
-      "faq",
-      "rules",
-      "checkout",
-      "procedures",
-      "property_detail",
-      "host_knowledge",
-      "host_behavior",
-      "tenant_knowledge",
-    ],
+    sources: ["guide", "manual", "faq", "rules", "checkout", "procedures", "property_detail", "host_knowledge", "host_behavior", "tenant_knowledge"],
   },
-  {
-    tier: 3,
-    label: "APIs externas e curadoria",
-    sources: [
-      "calendar",
-      "weather",
-      "maps",
-      "recommendation",
-      "city_reference",
-      "itinerary",
-      "web",
-    ],
-  },
-  {
-    tier: 4,
-    label: "Inferido / histórico",
-    sources: [
-      "operational_memory",
-      "guest_memory",
-      "memory",
-      "conversation",
-      "global_intelligence",
-    ],
-  },
+  { tier: 3, label: "APIs externas e curadoria", sources: ["calendar", "weather", "maps", "recommendation", "city_reference", "itinerary", "web"] },
+  { tier: 4, label: "Inferido / histórico", sources: ["operational_memory", "guest_memory", "memory", "conversation", "global_intelligence"] },
 ];
 
 export const DEFAULT_CONFIDENCE = 0.6;
@@ -111,18 +74,14 @@ export function tierOf(source: string): number {
 export function rankSources<T extends { source: string; confidence?: number }>(items: T[]): T[] {
   return items
     .slice()
-    .sort(
-      (a, b) => (b.confidence ?? confidenceOf(b.source)) - (a.confidence ?? confidenceOf(a.source)),
-    );
+    .sort((a, b) => (b.confidence ?? confidenceOf(b.source)) - (a.confidence ?? confidenceOf(a.source)));
 }
 
 /**
  * Peso médio ponderado das fontes efetivamente usadas — insumo do
  * Confidence Threshold. Retorna null quando nenhuma fonte foi consultada.
  */
-export function aggregateSourceWeight(
-  items: Array<{ source: string; confidence?: number }>,
-): number | null {
+export function aggregateSourceWeight(items: Array<{ source: string; confidence?: number }>): number | null {
   if (!items.length) return null;
   const ranked = rankSources(items).slice(0, 8);
   // A fonte mais forte domina; as demais reforçam com peso decrescente.

@@ -14,7 +14,13 @@ import type { OperationalRecord } from "./types";
 type Admin = SupabaseClient;
 
 export type OperationalCategory =
-  "manutencao" | "limpeza" | "acesso" | "reserva" | "cidade" | "financeiro" | "outro";
+  | "manutencao"
+  | "limpeza"
+  | "acesso"
+  | "reserva"
+  | "cidade"
+  | "financeiro"
+  | "outro";
 
 function rowToOperational(row: Record<string, unknown>): OperationalRecord {
   return {
@@ -154,9 +160,7 @@ export async function loadOperationalContext(params: {
 
     const { data } = await query;
     const records = ((data ?? []) as Array<Record<string, unknown>>).map(rowToOperational);
-    const openCount = records.filter(
-      (r) => r.status === "open" || r.status === "in_progress",
-    ).length;
+    const openCount = records.filter((r) => r.status === "open" || r.status === "in_progress").length;
     const recurring = Array.from(
       new Set(records.filter((r) => r.recurrenceCount > 1).map((r) => r.category)),
     );

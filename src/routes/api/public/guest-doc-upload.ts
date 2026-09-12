@@ -32,10 +32,7 @@ function extFromMime(mime: string): string {
   return map[mime] ?? "bin";
 }
 
-async function checkLegibilityWithGemini(
-  base64: string,
-  mime: string,
-): Promise<{ legible: boolean; reason: string }> {
+async function checkLegibilityWithGemini(base64: string, mime: string): Promise<{ legible: boolean; reason: string }> {
   const apiKey = process.env.LOVABLE_API_KEY;
   if (!apiKey) return { legible: true, reason: "" };
   try {
@@ -48,7 +45,7 @@ async function checkLegibilityWithGemini(
           {
             role: "system",
             content:
-              'Você é um verificador de qualidade de fotos de documentos pessoais (RG, CNH, passaporte, CPF). Responda APENAS em JSON válido no formato {"legible": boolean, "reason": string}. legible=true somente se: (a) parece um documento pessoal, (b) todos os textos principais estão nítidos e legíveis, (c) sem reflexos ou cortes graves, (d) enquadramento adequado. Em português. reason curto (máx 120 chars).',
+              "Você é um verificador de qualidade de fotos de documentos pessoais (RG, CNH, passaporte, CPF). Responda APENAS em JSON válido no formato {\"legible\": boolean, \"reason\": string}. legible=true somente se: (a) parece um documento pessoal, (b) todos os textos principais estão nítidos e legíveis, (c) sem reflexos ou cortes graves, (d) enquadramento adequado. Em português. reason curto (máx 120 chars).",
           },
           {
             role: "user",

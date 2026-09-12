@@ -19,11 +19,7 @@ export const Route = createFileRoute("/api/public/cron/reindex-knowledge")({
         let offset = 0;
         let onlyPublished = true;
         try {
-          const body = (await request.json()) as {
-            limit?: number;
-            offset?: number;
-            onlyPublished?: boolean;
-          };
+          const body = (await request.json()) as { limit?: number; offset?: number; onlyPublished?: boolean };
           if (typeof body?.limit === "number" && body.limit > 0) limit = Math.min(body.limit, 60);
           if (typeof body?.offset === "number" && body.offset >= 0) offset = body.offset;
           if (typeof body?.onlyPublished === "boolean") onlyPublished = body.onlyPublished;

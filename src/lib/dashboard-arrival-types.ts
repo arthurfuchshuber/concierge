@@ -59,12 +59,7 @@ export type ArrivalRow = {
   doneAt: string | null;
   pendingFill: boolean; // true = reserva iCal sem formulário preenchido
   concludedAt?: string | null;
-  ical: {
-    hasIcal: boolean;
-    matched: boolean;
-    icalCheckin: string | null;
-    icalCheckout: string | null;
-  };
+  ical: { hasIcal: boolean; matched: boolean; icalCheckin: string | null; icalCheckout: string | null };
   additionalGuests: Array<{
     logId: string;
     name: string;

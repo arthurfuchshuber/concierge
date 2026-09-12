@@ -126,11 +126,7 @@ export function runMigrationSelfTests(): { ok: boolean; cases: Case[] } {
 
   clearDivergences();
   const ok = cases.every((c) => c.ok);
-  if (!ok)
-    console.error(
-      "[authz][migration][selftest] falhas",
-      cases.filter((c) => !c.ok),
-    );
+  if (!ok) console.error("[authz][migration][selftest] falhas", cases.filter((c) => !c.ok));
   return { ok, cases };
 }
 

@@ -23,12 +23,11 @@ export async function initializePaddle(): Promise<void> {
     const finalize = () => {
       try {
         if (!window.Paddle) {
-          reject(
-            new Error("Paddle SDK script carregou mas window.Paddle não existe (bloqueador?)."),
-          );
+          reject(new Error("Paddle SDK script carregou mas window.Paddle não existe (bloqueador?)."));
           return;
         }
-        const paddleJsEnvironment = getPaddleEnvironment() === "sandbox" ? "sandbox" : "production";
+        const paddleJsEnvironment =
+          getPaddleEnvironment() === "sandbox" ? "sandbox" : "production";
         window.Paddle.Environment.set(paddleJsEnvironment);
         window.Paddle.Initialize({
           token: clientToken,

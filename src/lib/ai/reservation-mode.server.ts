@@ -96,8 +96,7 @@ export async function getReservationMode(params: {
     return { mode: "individual", otherGuestNames, currentGuestHasNotVoted: false };
   }
   const allVoted = allNames.every((n) => votesByName.has(normalizeName(n)));
-  const allWantGroup =
-    allVoted && allNames.every((n) => votesByName.get(normalizeName(n)) === "group");
+  const allWantGroup = allVoted && allNames.every((n) => votesByName.get(normalizeName(n)) === "group");
 
   return {
     mode: allWantGroup ? "group" : "individual",

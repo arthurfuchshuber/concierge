@@ -56,11 +56,7 @@ function heuristicPlan(intent: Intent): ExecutionPlan {
       // O agente de manutenção documenta o próprio método como: histórico → base de
       // conhecimento → só então instruir ou escalar. O fallback pulava direto pro
       // humano, contrariando esse método sempre que o planner principal falhasse.
-      add(
-        "search_knowledge_base",
-        "verificar instrução documentada antes de escalar",
-        intent.searchQuery,
-      );
+      add("search_knowledge_base", "verificar instrução documentada antes de escalar", intent.searchQuery);
       add("request_human_handoff", "possível problema operacional");
       break;
     case "social":
@@ -108,6 +104,7 @@ export async function planExecution(params: {
       },
     ]);
 
+
     if (!data) return { plan: heuristicPlan(params.intent), usage, model };
 
     const rawTools = Array.isArray(data.tools) ? (data.tools as PlannedTool[]) : [];
@@ -126,8 +123,7 @@ export async function planExecution(params: {
         tools,
         parallel: data.parallel !== false && tools.length > 1,
         needsHuman: data.needsHuman === true || params.intent.needsHuman,
-        riskLevel:
-          data.riskLevel === "high" || data.riskLevel === "low" ? data.riskLevel : "normal",
+        riskLevel: data.riskLevel === "high" || data.riskLevel === "low" ? data.riskLevel : "normal",
         notes: String(data.notes ?? ""),
         fallback: false,
       },

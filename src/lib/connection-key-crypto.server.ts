@@ -2,7 +2,7 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
 function key(): Buffer {
-  const raw = process.env["APP_USER_CONNECTION_KEY_SECRET"];
+  const raw = process.env['APP_USER_CONNECTION_KEY_SECRET'];
   if (!raw) throw new Error("APP_USER_CONNECTION_KEY_SECRET is not set");
   return Buffer.from(raw, "base64");
 }

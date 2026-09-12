@@ -56,7 +56,9 @@ export function PlanLockCard({
         {ctaLabel}
       </a>
 
-      {currentPlan ? <p className="ds-meta mt-3">Seu plano atual: {currentPlan}</p> : null}
+      {currentPlan ? (
+        <p className="ds-meta mt-3">Seu plano atual: {currentPlan}</p>
+      ) : null}
     </div>
   );
 }

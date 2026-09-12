@@ -52,6 +52,7 @@ vi.mock("@tanstack/react-start", () => ({
   },
 }));
 
+
 import { PermissionCenterPage } from "@/components/admin-pages/PermissionCenterPage";
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -116,7 +117,9 @@ describe("Permission Center", () => {
   it("exibe estado vazio quando não há usuários", async () => {
     overviewMock.mockResolvedValue({ ...ADMIN_OVERVIEW, users: [] });
     render(<PermissionCenterPage />, { wrapper });
-    await waitFor(() => expect(screen.getByText("Nenhuma pessoa nesta conta ainda.")).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText("Nenhuma pessoa nesta conta ainda.")).toBeTruthy(),
+    );
   });
 });
 

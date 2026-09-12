@@ -4,12 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import type { GcalStatus, GcalCalendar, GcalEvent } from "@/lib/google-calendar.types";
 
-export type {
-  GcalStatus,
-  GcalCalendar,
-  GcalEvent,
-  GcalAttachment,
-} from "@/lib/google-calendar.types";
+export type { GcalStatus, GcalCalendar, GcalEvent, GcalAttachment } from "@/lib/google-calendar.types";
 
 /** Status da conexão do anfitrião logado com o Google Agenda. */
 export const getMyGoogleCalendarStatus = createServerFn({ method: "GET" })
@@ -17,11 +12,7 @@ export const getMyGoogleCalendarStatus = createServerFn({ method: "GET" })
   .inputValidator((raw) => z.object({ ownerId: z.string().uuid().nullish() }).parse(raw ?? {}))
   .handler(async ({ data, context }): Promise<GcalStatus> => {
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const ownerId = await resolveAuthorizedAccountOwnerId(
-      context.supabase,
-      context.userId,
-      data.ownerId,
-    );
+    const ownerId = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
     const { getConnectionKeyForUser } = await import("@/lib/app-user-connections.server");
     const { CONNECTOR_ID, fetchCalendars } = await import("@/lib/google-calendar.server");
     const connectionAPIKey = await getConnectionKeyForUser(ownerId, CONNECTOR_ID);
@@ -29,12 +20,7 @@ export const getMyGoogleCalendarStatus = createServerFn({ method: "GET" })
     try {
       const items = await fetchCalendars(ownerId);
       const primary = items.find((c) => c.primary) ?? items[0];
-      return {
-        connected: true,
-        email: primary?.id ?? null,
-        calendarsCount: items.length,
-        error: null,
-      };
+      return { connected: true, email: primary?.id ?? null, calendarsCount: items.length, error: null };
     } catch (e) {
       return {
         connected: true,
@@ -50,17 +36,15 @@ export const startGoogleCalendarConnect = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
-    await enforce(context.userId, "integracoes.write", {});
-    const clientAPIKey = process.env["GOOGLE_CALENDAR_APP_USER_CONNECTOR_CLIENT_API_KEY"];
-    if (!clientAPIKey)
-      throw new Error("GOOGLE_CALENDAR_APP_USER_CONNECTOR_CLIENT_API_KEY is not set");
+    await enforce(context.userId, "integracoes.write", { });
+    const clientAPIKey = process.env['GOOGLE_CALENDAR_APP_USER_CONNECTOR_CLIENT_API_KEY'];
+    if (!clientAPIKey) throw new Error("GOOGLE_CALENDAR_APP_USER_CONNECTOR_CLIENT_API_KEY is not set");
 
     const request = getRequest();
     if (!request) throw new Error("O OAuth precisa iniciar a partir de uma requisição do app.");
     const returnUrl = new URL("/oauth/google-calendar/return", request.url).toString();
 
-    const { GATEWAY_BASE_URL, CONNECTOR_ID, GCAL_SCOPES } =
-      await import("@/lib/google-calendar.server");
+    const { GATEWAY_BASE_URL, CONNECTOR_ID, GCAL_SCOPES } = await import("@/lib/google-calendar.server");
     const { getConnectionKeyForUser } = await import("@/lib/app-user-connections.server");
     const existing = await getConnectionKeyForUser(context.userId, CONNECTOR_ID);
 
@@ -84,10 +68,7 @@ export const completeGoogleCalendarConnection = createServerFn({ method: "POST" 
   .handler(async ({ data, context }) => {
     const { GATEWAY_BASE_URL, CONNECTOR_ID } = await import("@/lib/google-calendar.server");
     const { exchangeAppUserOAuthCode } = await import("@/integrations/lovable/appUserConnector");
-    const { connectionAPIKey, connectorId } = await exchangeAppUserOAuthCode(
-      GATEWAY_BASE_URL,
-      data.code,
-    );
+    const { connectionAPIKey, connectorId } = await exchangeAppUserOAuthCode(GATEWAY_BASE_URL, data.code);
     if (connectorId !== CONNECTOR_ID) throw new Error("O OAuth retornou um conector inesperado.");
     const { saveConnectionKeyForUser } = await import("@/lib/app-user-connections.server");
     await saveConnectionKeyForUser(context.userId, connectorId, connectionAPIKey);
@@ -105,19 +86,16 @@ export const disconnectMyGoogleCalendar = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
-    await enforce(context.userId, "integracoes.write", {});
+    await enforce(context.userId, "integracoes.write", { });
     const { GATEWAY_BASE_URL, CONNECTOR_ID } = await import("@/lib/google-calendar.server");
-    const { getConnectionKeyForUser, deleteConnectionForUser } =
-      await import("@/lib/app-user-connections.server");
+    const { getConnectionKeyForUser, deleteConnectionForUser } = await import(
+      "@/lib/app-user-connections.server"
+    );
     const connectionAPIKey = await getConnectionKeyForUser(context.userId, CONNECTOR_ID);
     if (connectionAPIKey) {
       const { disconnectAppUser } = await import("@/integrations/lovable/appUserConnector");
       try {
-        await disconnectAppUser({
-          gatewayBaseUrl: GATEWAY_BASE_URL,
-          connectionAPIKey,
-          connectorId: CONNECTOR_ID,
-        });
+        await disconnectAppUser({ gatewayBaseUrl: GATEWAY_BASE_URL, connectionAPIKey, connectorId: CONNECTOR_ID });
       } catch {
         // Mesmo que o gateway falhe, removemos o vínculo local.
       }
@@ -139,11 +117,7 @@ export const listMyGoogleCalendars = createServerFn({ method: "GET" })
   .inputValidator((raw) => z.object({ ownerId: z.string().uuid().nullish() }).parse(raw ?? {}))
   .handler(async ({ data, context }): Promise<GcalCalendar[]> => {
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const ownerId = await resolveAuthorizedAccountOwnerId(
-      context.supabase,
-      context.userId,
-      data.ownerId,
-    );
+    const ownerId = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
     const { fetchCalendars } = await import("@/lib/google-calendar.server");
     return fetchCalendars(ownerId);
   });
@@ -154,21 +128,10 @@ export const listMyGoogleCalendars = createServerFn({ method: "GET" })
  */
 export const listMyGoogleCalendarEvents = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw) =>
-    z
-      .object({
-        calendarId: z.string().min(1).max(300).default("all"),
-        ownerId: z.string().uuid().nullish(),
-      })
-      .parse(raw ?? {}),
-  )
+  .inputValidator((raw) => z.object({ calendarId: z.string().min(1).max(300).default("all"), ownerId: z.string().uuid().nullish() }).parse(raw ?? {}))
   .handler(async ({ data, context }): Promise<GcalEvent[]> => {
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const ownerId = await resolveAuthorizedAccountOwnerId(
-      context.supabase,
-      context.userId,
-      data.ownerId,
-    );
+    const ownerId = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
     const { fetchAllEvents, fetchEventsForCalendar } = await import("@/lib/google-calendar.server");
     if (data.calendarId === "all") return fetchAllEvents(context.supabase, ownerId);
     return fetchEventsForCalendar(context.supabase, ownerId, data.calendarId);

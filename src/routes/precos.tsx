@@ -18,10 +18,7 @@ export const Route = createFileRoute("/precos")({
           "Escolha o plano ideal para criar guias digitais para seus hóspedes. 7 dias grátis em todos os planos pagos.",
       },
       { property: "og:title", content: "Planos ConciergeIA" },
-      {
-        property: "og:description",
-        content: "Starter, Pro, Business e Enterprise. 7 dias grátis.",
-      },
+      { property: "og:description", content: "Starter, Pro, Business e Enterprise. 7 dias grátis." },
       { property: "og:url", content: "/precos" },
     ],
     links: [{ rel: "canonical", href: "/precos" }],
@@ -188,11 +185,7 @@ function PricingPage() {
             </div>
             <span className="font-display text-lg">ConciergeIA</span>
           </Link>
-          <Link
-            to="/auth"
-            search={{ next: undefined }}
-            className="text-sm px-4 py-2 rounded-full hover:bg-secondary"
-          >
+          <Link to="/auth" search={{ next: undefined }} className="text-sm px-4 py-2 rounded-full hover:bg-secondary">
             Entrar
           </Link>
         </div>
@@ -200,9 +193,7 @@ function PricingPage() {
 
       <main className="max-w-7xl mx-auto px-5 py-16 md:py-24">
         <div className="text-center mb-12">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">
-            Planos
-          </p>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">Planos</p>
           <h1 className="font-display text-4xl md:text-5xl mt-3">Escolha o plano ideal</h1>
           <p className="text-muted-foreground mt-3 max-w-xl mx-auto">
             7 dias grátis em todos os planos pagos. Cancele quando quiser.
@@ -231,17 +222,13 @@ function PricingPage() {
                   </span>
                 )}
                 <h2 className="font-display text-2xl">{plan.name}</h2>
-                <p
-                  className={`text-sm mt-1 min-h-[40px] ${isDark ? "text-background/70" : "text-muted-foreground"}`}
-                >
+                <p className={`text-sm mt-1 min-h-[40px] ${isDark ? "text-background/70" : "text-muted-foreground"}`}>
                   {plan.description}
                 </p>
                 <div className="mt-5 flex items-baseline gap-1">
                   <span className="text-3xl font-semibold">{plan.price}</span>
                   {plan.priceSuffix && (
-                    <span
-                      className={`text-sm ${isDark ? "text-background/60" : "text-muted-foreground"}`}
-                    >
+                    <span className={`text-sm ${isDark ? "text-background/60" : "text-muted-foreground"}`}>
                       {plan.priceSuffix}
                     </span>
                   )}
@@ -317,10 +304,7 @@ function PricingPage() {
                 {PLAN_COMPARISON_GROUPS.map((group) => (
                   <Fragment key={group.group}>
                     <tr className="bg-muted/20">
-                      <td
-                        colSpan={5}
-                        className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground"
-                      >
+                      <td colSpan={5} className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                         {group.group}
                       </td>
                     </tr>
@@ -355,18 +339,9 @@ function PricingPage() {
 
         <p className="text-center text-xs text-muted-foreground mt-10">
           Ao assinar, você concorda com nossos{" "}
-          <Link to="/termos" className="underline">
-            Termos
-          </Link>
-          ,{" "}
-          <Link to="/privacidade" className="underline">
-            Privacidade
-          </Link>{" "}
-          e{" "}
-          <Link to="/reembolso" className="underline">
-            Política de Reembolso
-          </Link>
-          .
+          <Link to="/termos" className="underline">Termos</Link>,{" "}
+          <Link to="/privacidade" className="underline">Privacidade</Link> e{" "}
+          <Link to="/reembolso" className="underline">Política de Reembolso</Link>.
         </p>
       </main>
     </div>

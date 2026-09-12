@@ -7,14 +7,10 @@ import { PROMPTS } from "../prompts";
 import { AGENT_KEYS, getAgent } from "./registry.server";
 import type { AgentKey, AgentRouting } from "./types";
 
-const COMPLAINT =
-  /(reclama|insatisf|absurd|péssim|pessim|horr[íi]vel|inaceit|decep|revolt|processo|procon|nota 1|avalia[çc][ãa]o negativa|reembols|desconto|indeniza)/i;
-const MAINTENANCE =
-  /(quebr|n[ãa]o funciona|nao funciona|vazamento|entupi|sem [áa]gua|sem luz|sem energia|falta de|ar.?condicionado|chuveiro|geladeira|wi-?fi n[ãa]o|internet caiu|barulho|fechadura|port[ãa]o|manuten)/i;
-const RESERVATION =
-  /(reserva|check.?in|check.?out|entrada|sa[íi]da|prorrog|estender|antecipar|cancel|c[óo]digo da reserva|hor[áa]rio de|quantas noites)/i;
-const REVENUE =
-  /(contratar|servi[çc]o extra|upgrade|late ?check|early ?check|passeio pago|traslado|transfer|limpeza extra|quanto custa|valor de)/i;
+const COMPLAINT = /(reclama|insatisf|absurd|péssim|pessim|horr[íi]vel|inaceit|decep|revolt|processo|procon|nota 1|avalia[çc][ãa]o negativa|reembols|desconto|indeniza)/i;
+const MAINTENANCE = /(quebr|n[ãa]o funciona|nao funciona|vazamento|entupi|sem [áa]gua|sem luz|sem energia|falta de|ar.?condicionado|chuveiro|geladeira|wi-?fi n[ãa]o|internet caiu|barulho|fechadura|port[ãa]o|manuten)/i;
+const RESERVATION = /(reserva|check.?in|check.?out|entrada|sa[íi]da|prorrog|estender|antecipar|cancel|c[óo]digo da reserva|hor[áa]rio de|quantas noites)/i;
+const REVENUE = /(contratar|servi[çc]o extra|upgrade|late ?check|early ?check|passeio pago|traslado|transfer|limpeza extra|quanto custa|valor de)/i;
 
 /** Heurística determinística — rede de segurança quando o modelo falha. */
 export function heuristicRoute(message: string, category?: string): AgentKey {

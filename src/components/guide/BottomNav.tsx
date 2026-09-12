@@ -64,14 +64,14 @@ export function BottomNav({
                   disabled={isLocked}
                   aria-disabled={isLocked || undefined}
                   className={cn(
-                    "group relative flex w-full flex-col items-center justify-center gap-1 py-1.5 rounded-2xl transition-all",
+                    "group relative flex w-full flex-col items-center justify-center gap-1 py-1.5 rounded-[0.3rem] transition-all",
                     isLocked ? "opacity-30 cursor-not-allowed" : "active:scale-[0.96]",
                   )}
                   aria-current={isActive ? "page" : undefined}
                 >
                   <span
                     className={cn(
-                      "grid size-10 place-items-center rounded-2xl transition-all",
+                      "grid size-10 place-items-center rounded-[0.3rem] transition-all",
                       isActive
                         ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white shadow-[0_4px_16px_-4px_rgba(232,45,174,0.55)]"
                         : isDark

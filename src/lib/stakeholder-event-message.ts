@@ -35,18 +35,9 @@ function contractPhrase(startVal: string | null, endVal: string | null): string 
       : isVazio(startVal)
         ? "Data de início do contrato removida"
         : `Data de início do contrato alterada para ${startVal}`;
-  const endTail =
-    endVal == null
-      ? null
-      : isVazio(endVal)
-        ? "data final removida"
-        : `data final alterada para ${endVal}`;
+  const endTail = endVal == null ? null : isVazio(endVal) ? "data final removida" : `data final alterada para ${endVal}`;
   const endPhrase =
-    endVal == null
-      ? null
-      : isVazio(endVal)
-        ? "Data final do contrato removida"
-        : `Data final do contrato alterada para ${endVal}`;
+    endVal == null ? null : isVazio(endVal) ? "Data final do contrato removida" : `Data final do contrato alterada para ${endVal}`;
 
   if (startPhrase && endTail) return `${startPhrase} e ${endTail}`;
   return (startPhrase ?? endPhrase) as string;
@@ -86,9 +77,7 @@ export function humanizeEventMessage(raw: string): string {
     } else if (label === "Fim do contrato") {
       endVal = value;
     } else {
-      phrases.push(
-        isVazio(value) ? `${label} removido(a)` : `${label} alterado(a) para "${value}"`,
-      );
+      phrases.push(isVazio(value) ? `${label} removido(a)` : `${label} alterado(a) para "${value}"`);
     }
   }
 

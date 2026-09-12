@@ -107,8 +107,7 @@ export function seedFromHistory(
 export function rememberMessage(conversationId: string, role: string, content: string): void {
   const state = getShortTerm(conversationId);
   state.messages.push({ role, content, at: Date.now() });
-  if (state.messages.length > MAX_MESSAGES)
-    state.messages.splice(0, state.messages.length - MAX_MESSAGES);
+  if (state.messages.length > MAX_MESSAGES) state.messages.splice(0, state.messages.length - MAX_MESSAGES);
   state.updatedAt = Date.now();
 }
 
@@ -192,9 +191,7 @@ export function isFollowUp(message: string): boolean {
 export function renderShortTerm(state: ShortTermState, message: string): string {
   const lines: string[] = [];
   if (state.openTopic) {
-    lines.push(
-      `Assunto em aberto nesta conversa: ${state.openTopic.topic} (tipo=${state.openTopic.kind})`,
-    );
+    lines.push(`Assunto em aberto nesta conversa: ${state.openTopic.topic} (tipo=${state.openTopic.kind})`);
   }
   if (state.currentIntent) lines.push(`Intenção anterior: ${state.currentIntent}`);
   const entities = Object.entries(state.entities);

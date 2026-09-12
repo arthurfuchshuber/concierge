@@ -36,9 +36,7 @@ export function buildAgentTools(ctx: AgentToolContext): AgentTool[] {
       const term = String(args.assunto ?? "").slice(0, 120);
       const { data } = await ctx.supabase
         .from("ai_operational_memory")
-        .select(
-          "category, request, resolution, resolution_minutes, recurrence_count, status, created_at, provider_name",
-        )
+        .select("category, request, resolution, resolution_minutes, recurrence_count, status, created_at, provider_name")
         .eq("property_id", ctx.propertyId)
         .ilike("request", `%${term}%`)
         .order("created_at", { ascending: false })
@@ -86,16 +84,9 @@ export function buildAgentTools(ctx: AgentToolContext): AgentTool[] {
         metadata: { agent: ctx.agent, urgency },
       });
       if (urgency === "high") {
-        ctx.requestHandoff(
-          `Chamado urgente registrado: ${String(args.descricao ?? "").slice(0, 200)}`,
-          "high",
-        );
+        ctx.requestHandoff(`Chamado urgente registrado: ${String(args.descricao ?? "").slice(0, 200)}`, "high");
       }
-      return {
-        registrado: !!id,
-        ticket_id: id,
-        aviso: "Chamado registrado para a equipe. Nenhuma ação física foi executada pela IA.",
-      };
+      return { registrado: !!id, ticket_id: id, aviso: "Chamado registrado para a equipe. Nenhuma ação física foi executada pela IA." };
     },
   });
 
@@ -122,10 +113,7 @@ export function buildAgentTools(ctx: AgentToolContext): AgentTool[] {
           source: "knowledge_base",
           title: `Serviço: ${term}`,
           confidence: confidenceOf("knowledge_base"),
-          content: rows
-            .map((r) => String(r.content ?? ""))
-            .join(" | ")
-            .slice(0, 1200),
+          content: rows.map((r) => String(r.content ?? "")).join(" | ").slice(0, 1200),
         });
       }
       return {
@@ -148,8 +136,7 @@ export function buildAgentTools(ctx: AgentToolContext): AgentTool[] {
         motivo: { type: "string", description: "Por que você não pode decidir sozinho." },
         gatilho: {
           type: "string",
-          description:
-            "unknown_information | low_confidence | policy_exception | financial_decision | safety_risk | guest_request",
+          description: "unknown_information | low_confidence | policy_exception | financial_decision | safety_risk | guest_request",
         },
       },
       ["pergunta", "motivo", "gatilho"],
@@ -171,10 +158,7 @@ export function buildAgentTools(ctx: AgentToolContext): AgentTool[] {
         contextSnapshot: { agent: ctx.agent, property_id: ctx.propertyId },
       });
       ctx.onEscalation({ id, question });
-      ctx.requestHandoff(
-        `[${ctx.agent}] ${question}`,
-        trigger === "safety_risk" ? "high" : "normal",
-      );
+      ctx.requestHandoff(`[${ctx.agent}] ${question}`, trigger === "safety_risk" ? "high" : "normal");
       return {
         registrado: !!id,
         instrucao:

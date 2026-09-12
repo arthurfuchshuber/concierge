@@ -46,8 +46,7 @@ export async function generateAlerts(supabase: SupabaseClient): Promise<{ create
     if (cur.length < 10 || prev.length < 10) continue;
 
     const rate = (rows: typeof cur) => rows.filter((r) => r.needs_human).length / rows.length;
-    const curRate = rate(cur),
-      prevRate = rate(prev);
+    const curRate = rate(cur), prevRate = rate(prev);
     if (prevRate > 0 && curRate >= prevRate * 1.4 && curRate - prevRate >= 0.05) {
       drafts.push({
         tenantId,
@@ -64,8 +63,7 @@ export async function generateAlerts(supabase: SupabaseClient): Promise<{ create
       const v = rows.map((r) => Number(r.confidence ?? 0)).filter((n) => n > 0);
       return v.length ? v.reduce((s, n) => s + n, 0) / v.length : 0;
     };
-    const curConf = mean(cur),
-      prevConf = mean(prev);
+    const curConf = mean(cur), prevConf = mean(prev);
     if (prevConf > 0 && curConf > 0 && curConf <= prevConf - 0.08) {
       drafts.push({
         tenantId,

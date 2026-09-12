@@ -48,10 +48,7 @@ export const listStakeholders = createServerFn({ method: "GET" })
 
     const { data: props } =
       data.kind === "owner"
-        ? await supabase
-            .from("properties")
-            .select("id, name, owner_contact_id")
-            .eq("owner_id", accountId)
+        ? await supabase.from("properties").select("id, name, owner_contact_id").eq("owner_id", accountId)
         : { data: [] as Array<{ id: string; name: string; owner_contact_id: string | null }> };
 
     return {
@@ -165,11 +162,7 @@ function displayDate(value: unknown): string {
 
 function sameValue(a: unknown, b: unknown): boolean {
   const norm = (v: unknown) =>
-    Array.isArray(v)
-      ? [...v].map(String).sort().join("|")
-      : v === null || v === undefined
-        ? ""
-        : String(v);
+    Array.isArray(v) ? [...v].map(String).sort().join("|") : v === null || v === undefined ? "" : String(v);
   return norm(a) === norm(b);
 }
 
@@ -218,20 +211,14 @@ function diffPayload(before: Record<string, unknown>, after: Record<string, unkn
     const start = displayDate(after["contract_start"]);
     const end = displayDate(after["contract_end"]);
     const startPhrase =
-      start === "vazio"
-        ? "Data de início do contrato removida"
-        : `Data de início do contrato alterada para ${start}`;
+      start === "vazio" ? "Data de início do contrato removida" : `Data de início do contrato alterada para ${start}`;
     const endPhrase = end === "vazio" ? "data final removida" : `data final alterada para ${end}`;
     if (startChanged && endChanged) {
       out.push(`${startPhrase} e ${endPhrase}`);
     } else if (startChanged) {
       out.push(startPhrase);
     } else {
-      out.push(
-        end === "vazio"
-          ? "Data final do contrato removida"
-          : `Data final do contrato alterada para ${end}`,
-      );
+      out.push(end === "vazio" ? "Data final do contrato removida" : `Data final do contrato alterada para ${end}`);
     }
   }
 
@@ -252,6 +239,7 @@ function diffPayload(before: Record<string, unknown>, after: Record<string, unkn
 }
 
 export const saveStakeholder = createServerFn({ method: "POST" })
+
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => SaveInput.parse(i))
   .handler(async ({ data, context }) => {
@@ -299,6 +287,7 @@ export const saveStakeholder = createServerFn({ method: "POST" })
       payload.category = list[0] || category || "outros";
     }
 
+
     if (id) {
       const { data: before } = await supabase
         .from(TABLE[kind])
@@ -328,6 +317,7 @@ export const saveStakeholder = createServerFn({ method: "POST" })
       return { ok: true, id };
     }
 
+
     const { data: inserted, error } = await supabase
       .from(TABLE[kind])
       .insert({ ...payload, created_by: userId } as never)
@@ -341,13 +331,7 @@ export const saveStakeholder = createServerFn({ method: "POST" })
       kind: "create",
       message: (() => {
         const filled = Object.entries(payload)
-          .filter(
-            ([k, v]) =>
-              k !== "account_owner_id" &&
-              v !== null &&
-              v !== "" &&
-              !(Array.isArray(v) && !v.length),
-          )
+          .filter(([k, v]) => k !== "account_owner_id" && v !== null && v !== "" && !(Array.isArray(v) && !v.length))
           .map(([k, v]) => `${FIELD_LABELS[k] ?? k}: "${displayValue(k, v)}"`);
         return filled.length ? `Cadastro criado com ${filled.join("; ")}` : "Cadastro criado.";
       })(),
@@ -392,12 +376,7 @@ export const getStakeholderDetail = createServerFn({ method: "GET" })
     const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.accountOwnerId);
     await promoteDueStages(supabase, accountId);
     const [{ data: row }, { data: events }, { data: activities }] = await Promise.all([
-      supabase
-        .from(TABLE[data.kind])
-        .select("*")
-        .eq("id", data.id)
-        .eq("account_owner_id", accountId)
-        .maybeSingle(),
+      supabase.from(TABLE[data.kind]).select("*").eq("id", data.id).eq("account_owner_id", accountId).maybeSingle(),
       supabase
         .from("stakeholder_events")
         .select("*")
@@ -452,10 +431,7 @@ export const getStakeholderDetail = createServerFn({ method: "GET" })
           .eq("owner_id", accountId)
           .order("name");
         if (fallback.error) {
-          console.error(
-            "[stakeholders] select de properties falhou mesmo sem guide_created: " +
-              fallback.error.message,
-          );
+          console.error("[stakeholders] select de properties falhou mesmo sem guide_created: " + fallback.error.message);
         }
         all = (fallback.data ?? []).map((p) => ({ ...p, guide_created: false }));
       } else {
@@ -472,11 +448,7 @@ export const getStakeholderDetail = createServerFn({ method: "GET" })
       // aqui não significa "sem prestador nenhum" (um imóvel pode ter vários),
       // significa "ainda não vinculado a ESTE prestador".
       const [{ data: links }, allProps] = await Promise.all([
-        supabase
-          .from("property_providers")
-          .select("property_id")
-          .eq("provider_id", data.id)
-          .eq("account_owner_id", accountId),
+        supabase.from("property_providers").select("property_id").eq("provider_id", data.id).eq("account_owner_id", accountId),
         supabase
           .from("properties")
           .select("id, name, slug, published, guide_created, city, state")
@@ -485,12 +457,8 @@ export const getStakeholderDetail = createServerFn({ method: "GET" })
       ]);
       const linkedIds = new Set((links ?? []).map((l) => l.property_id as string));
       const rows = (allProps.data ?? []) as unknown as Array<Omit<PropRow, "owner_contact_id">>;
-      properties = rows
-        .filter((p) => linkedIds.has(p.id))
-        .map((p) => ({ ...p, owner_contact_id: null }));
-      availableProperties = rows
-        .filter((p) => !linkedIds.has(p.id))
-        .map((p) => ({ ...p, owner_contact_id: null }));
+      properties = rows.filter((p) => linkedIds.has(p.id)).map((p) => ({ ...p, owner_contact_id: null }));
+      availableProperties = rows.filter((p) => !linkedIds.has(p.id)).map((p) => ({ ...p, owner_contact_id: null }));
     }
     // Autor de cada movimentação da linha do tempo: resolve os `created_by`
     // em nome legível (perfil da equipe). Sem autor = evento automático.
@@ -525,6 +493,7 @@ export const getStakeholderDetail = createServerFn({ method: "GET" })
     };
   });
 
+
 const LinkInput = z.object({
   ownerId: z.string().uuid(),
   propertyId: z.string().uuid(),
@@ -539,10 +508,7 @@ export const linkPropertyToOwner = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
-    await enforce(userId, "stakeholders.vinculo-imovel", {
-      resource: data.ownerId,
-      propertyId: data.propertyId,
-    });
+    await enforce(userId, "stakeholders.vinculo-imovel", { resource: data.ownerId, propertyId: data.propertyId });
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
     const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.accountOwnerId);
     const { data: owner } = await supabase
@@ -579,6 +545,7 @@ export const linkPropertyToOwner = createServerFn({ method: "POST" })
     });
     return { ok: true };
   });
+
 
 const ProviderLinkInput = z.object({
   providerId: z.string().uuid(),
@@ -624,12 +591,7 @@ export const linkPropertyToProvider = createServerFn({ method: "POST" })
       const { error } = await supabase
         .from("property_providers")
         .upsert(
-          {
-            account_owner_id: accountId,
-            property_id: data.propertyId,
-            provider_id: data.providerId,
-            created_by: userId,
-          },
+          { account_owner_id: accountId, property_id: data.propertyId, provider_id: data.providerId, created_by: userId },
           { onConflict: "property_id,provider_id" },
         );
       if (error) throw new Error(error.message);
@@ -651,8 +613,7 @@ export const linkPropertyToProvider = createServerFn({ method: "POST" })
       .select("member_user_id")
       .eq("id", data.providerId)
       .maybeSingle();
-    const memberUserId =
-      (providerUser as { member_user_id?: string | null } | null)?.member_user_id ?? null;
+    const memberUserId = (providerUser as { member_user_id?: string | null } | null)?.member_user_id ?? null;
     if (memberUserId) {
       // Prestador com login atende apenas as residências vinculadas a ele —
       // nunca o modo "todas as residências" da equipe interna.
@@ -682,6 +643,7 @@ export const linkPropertyToProvider = createServerFn({ method: "POST" })
       }
     }
 
+
     await supabase.from("stakeholder_events").insert({
       account_owner_id: accountId,
       stakeholder_type: "provider",
@@ -692,6 +654,7 @@ export const linkPropertyToProvider = createServerFn({ method: "POST" })
     });
     return { ok: true };
   });
+
 
 const NoteInput = z.object({
   kind: Kind,
@@ -876,15 +839,13 @@ export const listProvidersForProperty = createServerFn({ method: "POST" })
       providers: (all ?? []).map((p) => ({
         id: p.id as string,
         name: ((p.trade_name as string | null) || (p.name as string)) ?? "",
-        categories: Array.isArray(p.categories)
-          ? (p.categories as string[])
-          : p.category
-            ? [p.category as string]
-            : [],
+        categories: (Array.isArray(p.categories) ? (p.categories as string[]) : p.category ? [p.category as string] : []),
         linked: linked.has(p.id as string),
       })),
     };
   });
+
+
 
 /**
  * Situação do cadastro com a data informada pelo usuário.
@@ -898,7 +859,14 @@ export const setStakeholderStatus = createServerFn({ method: "POST" })
       .object({
         kind: Kind,
         id: z.string().uuid(),
-        status: z.enum(["active", "documentation", "contract", "signature", "paused", "canceled"]),
+        status: z.enum([
+          "active",
+          "documentation",
+          "contract",
+          "signature",
+          "paused",
+          "canceled",
+        ]),
         changed_at: z.string().trim().min(4).max(40),
         accountOwnerId: z.string().uuid().optional().nullable(),
       })
@@ -915,8 +883,7 @@ export const setStakeholderStatus = createServerFn({ method: "POST" })
     );
     if (Number.isNaN(when.getTime())) throw new Error("Data inválida.");
 
-    const { statusLabel, isFutureDate, isTodayOrFutureDate } =
-      await import("@/lib/stakeholder-status");
+    const { statusLabel, isFutureDate, isTodayOrFutureDate } = await import("@/lib/stakeholder-status");
     const future = isFutureDate(when);
     let stored: string = data.status;
     // O dia marcado para o cancelamento continua vigente por inteiro — por
@@ -926,9 +893,7 @@ export const setStakeholderStatus = createServerFn({ method: "POST" })
     // automática em `promoteDueStages`) ou por confirmação humana no popup.
     if (data.status === "canceled" && isTodayOrFutureDate(when)) stored = "canceling";
     if (
-      (data.status === "documentation" ||
-        data.status === "contract" ||
-        data.status === "signature") &&
+      (data.status === "documentation" || data.status === "contract" || data.status === "signature") &&
       !future
     ) {
       stored = "active";
@@ -938,10 +903,7 @@ export const setStakeholderStatus = createServerFn({ method: "POST" })
     // a partir do momento em que a pessoa escolhe quando o cancelamento
     // acontece, o card já deve mostrar "Vigência: início → aquela data" em
     // vez de "→ momento" — não só depois que o cancelamento vira definitivo.
-    const patch: Record<string, unknown> = {
-      status: stored,
-      status_changed_at: when.toISOString(),
-    };
+    const patch: Record<string, unknown> = { status: stored, status_changed_at: when.toISOString() };
     if (data.status === "canceled") {
       patch.contract_end = /^\d{4}-\d{2}-\d{2}$/.test(data.changed_at)
         ? data.changed_at
@@ -961,6 +923,7 @@ export const setStakeholderStatus = createServerFn({ method: "POST" })
       const prev = (current as { status?: string } | null)?.status;
       if (prev === "canceled" || prev === "canceling") patch.contract_end = null;
     }
+
 
     const { error } = await supabase
       .from(TABLE[data.kind])
@@ -1096,3 +1059,4 @@ export const resolveScheduledCancellation = createServerFn({ method: "POST" })
     });
     return { ok: true };
   });
+

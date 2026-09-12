@@ -59,13 +59,9 @@ function StepRow({ step, last }: { step: JourneyStep; last: boolean }) {
       <div className="min-w-0 flex-1 ds-card-lines">
         <div className="flex items-baseline justify-between gap-2">
           <span className={`text-[13px] font-medium ${done ? "" : CARD_MUTED}`}>{step.label}</span>
-          {when && (
-            <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{when}</span>
-          )}
+          {when && <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{when}</span>}
         </div>
-        {step.detail && (
-          <p className="text-[11.5px] leading-snug text-muted-foreground">{step.detail}</p>
-        )}
+        {step.detail && <p className="text-[11.5px] leading-snug text-muted-foreground">{step.detail}</p>}
       </div>
     </li>
   );
@@ -135,14 +131,10 @@ export function ReservationJourneyDialog({
             <>
               {/* Cabeçalho de identidade — mesmas cores do card de origem. */}
               <div className="ds-surface ds-card-lines border border-border/60 bg-secondary/30 px-3 py-2.5">
-                {data.ownerName && (
-                  <div className={`truncate text-xs ${CARD_OWNER}`}>{data.ownerName}</div>
-                )}
+                {data.ownerName && <div className={`truncate text-xs ${CARD_OWNER}`}>{data.ownerName}</div>}
                 <div className="ds-card-title truncate">{data.propertyName ?? "Sem nome"}</div>
                 {periodo && (
-                  <div className={`text-xs ${periodColorClass({ kind: "checkin" })}`}>
-                    {periodo}
-                  </div>
+                  <div className={`text-xs ${periodColorClass({ kind: "checkin" })}`}>{periodo}</div>
                 )}
               </div>
 
@@ -199,8 +191,8 @@ export function ReservationJourneyDialog({
               {data.recordsCount > 0 && (
                 <p className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
                   <Paperclip className="size-3 shrink-0" />
-                  {data.recordsCount} {data.recordsCount === 1 ? "registro" : "registros"} nesta
-                  reserva — abra pelo clipe no card.
+                  {data.recordsCount} {data.recordsCount === 1 ? "registro" : "registros"} nesta reserva — abra pelo
+                  clipe no card.
                 </p>
               )}
             </>

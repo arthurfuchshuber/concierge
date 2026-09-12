@@ -1,13 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, Trash2, Archive } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { getClicksignPurgePreview } from "@/lib/clicksign-import.functions";
 
@@ -54,8 +48,8 @@ export function ClicksignDisconnectDialog({
         ) : (
           <div className="space-y-2">
             <p className="rounded-lg bg-muted/50 px-3 py-2 text-[11px] text-muted-foreground">
-              {p?.documents ?? 0} contrato(s) importado(s) · {p?.owners ?? 0} proprietário(s) e{" "}
-              {p?.providers ?? 0} prestador(es) criados automaticamente.
+              {p?.documents ?? 0} contrato(s) importado(s) · {p?.owners ?? 0} proprietário(s) e {p?.providers ?? 0}{" "}
+              prestador(es) criados automaticamente.
             </p>
 
             <button
@@ -81,22 +75,15 @@ export function ClicksignDisconnectDialog({
             >
               <Trash2 className="mt-0.5 size-4 shrink-0 text-destructive" />
               <span>
-                <span className="block text-xs font-medium text-destructive">
-                  Excluir tudo que foi criado
-                </span>
+                <span className="block text-xs font-medium text-destructive">Excluir tudo que foi criado</span>
                 <span className="block text-[11px] text-muted-foreground">
-                  Apaga os contratos importados e os cadastros gerados pela integração. Cadastros
-                  feitos à mão permanecem.
+                  Apaga os contratos importados e os cadastros gerados pela integração. Cadastros feitos à mão
+                  permanecem.
                 </span>
               </span>
             </button>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 w-full text-xs"
-              onClick={() => onOpenChange(false)}
-            >
+            <Button variant="ghost" size="sm" className="h-8 w-full text-xs" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
           </div>

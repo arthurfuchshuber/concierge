@@ -1213,7 +1213,11 @@ function Guide({ data }: { data: GuideOk }) {
               {/* Bloco de check-in — topo, logo abaixo da imagem.
                   Barra "check-in libera em" é clicável e expande as senhas. */}
               {homeStripsVisible && !checkoutConcluded && (
-                <div className="mt-3 md:mt-4">
+                /* COLADA NA FOTO (pedido explícito, 11/09/2026): "preciso que a
+                   faixa do check-in fique menos espaçada com a imagem do
+                   cabeçalho". Era mt-3/mt-4 (12/16px); agora 6/8px, a mesma
+                   densidade das listas do painel. */
+                <div className="mt-1.5 md:mt-2">
                   {(() => {
                     const hasCodes =
                       p.wifi_ssid ||

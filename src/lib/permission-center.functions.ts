@@ -9,10 +9,7 @@ import { z } from "zod";
  * Authorization Runtime existente (`permission.guard.server.ts`).
  */
 
-const TargetInput = z.object({
-  targetUserId: z.string().uuid(),
-  ownerId: z.string().uuid().nullish(),
-});
+const TargetInput = z.object({ targetUserId: z.string().uuid(), ownerId: z.string().uuid().nullish() });
 const OptionalTargetInput = z.object({ targetUserId: z.string().uuid().nullish() });
 
 /** Lista de usuários do contexto com resumo de acesso. */
@@ -21,11 +18,7 @@ export const getPermissionCenterOverview = createServerFn({ method: "GET" })
   .inputValidator((i: unknown) => z.object({ ownerId: z.string().uuid().nullish() }).parse(i ?? {}))
   .handler(async ({ data, context }) => {
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const ownerId = await resolveAuthorizedAccountOwnerId(
-      context.supabase,
-      context.userId,
-      data.ownerId,
-    );
+    const ownerId = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
     const { loadCenterOverview } = await import("@/lib/permissions/permission.center.server");
     return loadCenterOverview(context.supabase, context.userId, ownerId);
   });
@@ -36,11 +29,7 @@ export const getPermissionCenterUser = createServerFn({ method: "GET" })
   .inputValidator((i: unknown) => TargetInput.parse(i))
   .handler(async ({ data, context }) => {
     const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const ownerId = await resolveAuthorizedAccountOwnerId(
-      context.supabase,
-      context.userId,
-      data.ownerId,
-    );
+    const ownerId = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
     const { loadCenterUserDetail } = await import("@/lib/permissions/permission.center.server");
     return loadCenterUserDetail(context.supabase, context.userId, data.targetUserId, ownerId);
   });

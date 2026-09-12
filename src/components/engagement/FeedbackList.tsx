@@ -33,10 +33,7 @@ export function FeedbackList({ items, properties }: { items: Item[]; properties:
       const a = idx >= 0 ? (list[idx].content as string) : "";
       let q = "";
       for (let i = idx - 1; i >= 0; i--) {
-        if (list[i].role === "user") {
-          q = list[i].content as string;
-          break;
-        }
+        if (list[i].role === "user") { q = list[i].content as string; break; }
       }
       setTeach({ messageId: item.message_id, q, a });
     } catch {
@@ -54,24 +51,18 @@ export function FeedbackList({ items, properties }: { items: Item[]; properties:
             <AlertCircle className="size-4 text-amber-500 shrink-0" />
             <span className="truncate">Respostas da IA marcadas como não úteis</span>
           </h3>
-          <p className="text-xs text-muted-foreground">
-            Ensine a IA a partir delas para não repetir o erro
-          </p>
+          <p className="text-xs text-muted-foreground">Ensine a IA a partir delas para não repetir o erro</p>
         </div>
       </header>
 
       {items.length === 0 ? (
-        <div className="text-xs text-muted-foreground py-8 text-center">
-          Nada pendente. Ótimo sinal.
-        </div>
+        <div className="text-xs text-muted-foreground py-8 text-center">Nada pendente. Ótimo sinal.</div>
       ) : (
         <ul className="divide-y divide-border">
           {items.map((f) => (
             <li key={f.message_id} className="py-2.5 flex items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <div className="text-sm truncate font-medium">
-                  {propMap.get(f.property_id) ?? "—"}
-                </div>
+                <div className="text-sm truncate font-medium">{propMap.get(f.property_id) ?? "—"}</div>
                 <div className="text-[11px] text-muted-foreground truncate">
                   {f.reason || "Sem detalhe"} · {new Date(f.created_at).toLocaleDateString("pt-BR")}
                 </div>
@@ -83,13 +74,9 @@ export function FeedbackList({ items, properties }: { items: Item[]; properties:
                 onClick={() => openTeach(f)}
                 disabled={loadingId === f.message_id}
               >
-                {loadingId === f.message_id ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <>
-                    <GraduationCap className="size-3.5 mr-1" /> Ensinar
-                  </>
-                )}
+                {loadingId === f.message_id
+                  ? <Loader2 className="size-3.5 animate-spin" />
+                  : <><GraduationCap className="size-3.5 mr-1" /> Ensinar</>}
               </Button>
             </li>
           ))}
@@ -98,9 +85,7 @@ export function FeedbackList({ items, properties }: { items: Item[]; properties:
       {teach && (
         <TeachAiDialog
           open
-          onOpenChange={(o) => {
-            if (!o) setTeach(null);
-          }}
+          onOpenChange={(o) => { if (!o) setTeach(null); }}
           messageId={teach.messageId}
           userQuestion={teach.q}
           aiAnswer={teach.a}

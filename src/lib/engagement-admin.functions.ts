@@ -17,9 +17,7 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
 
     const { data: props, error: propsErr } = await supabase
       .from("properties")
-      .select(
-        "id, name, slug, published, updated_at, wifi_ssid, wifi_password, checkin_instructions, house_rules, tagline, hero_image_url, recommendations:property_recommendations(id)",
-      )
+      .select("id, name, slug, published, updated_at, wifi_ssid, wifi_password, checkin_instructions, house_rules, tagline, hero_image_url, recommendations:property_recommendations(id)")
       .eq("owner_id", userId)
       .order("name", { ascending: true });
     if (propsErr) throw propsErr;
@@ -33,10 +31,7 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
         metrics: [],
         feedback: [],
         timeseries: [],
-        timeseriesByProperty: {} as Record<
-          string,
-          Array<{ date: string; accesses: number; conversations: number }>
-        >,
+        timeseriesByProperty: {} as Record<string, Array<{ date: string; accesses: number; conversations: number }>>,
         sectionEvents: [],
         sectionEventsByProperty: {} as Record<string, Array<{ section: string; count: number }>>,
         deviceBreakdown: { mobile: 0, tablet: 0, desktop: 0 },
@@ -48,12 +43,7 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
           guidesWithKnowledge: 0,
           guidesWithBehavior: 0,
           lastEditedAt: null as string | null,
-          guideCompleteness: [] as Array<{
-            id: string;
-            name: string;
-            score: number;
-            published: boolean;
-          }>,
+          guideCompleteness: [] as Array<{ id: string; name: string; score: number; published: boolean }>,
         },
       };
     }
@@ -68,9 +58,7 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
     ] = await Promise.all([
       supabase
         .from("guide_access_logs")
-        .select(
-          "id, property_id, guest_name, reservation_code, checkin_date, guest_phone, guest_phone_country, user_agent, created_at",
-        )
+        .select("id, property_id, guest_name, reservation_code, checkin_date, guest_phone, guest_phone_country, user_agent, created_at")
         .in("property_id", propertyIds)
         .order("created_at", { ascending: false })
         .limit(2000),
@@ -82,28 +70,16 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
         .limit(1000),
       supabase
         .from("property_chat_messages")
-        .select(
-          "id, conversation_id, role, created_at, property_chat_conversations!inner(property_id)",
-        )
+        .select("id, conversation_id, role, created_at, property_chat_conversations!inner(property_id)")
         .in("property_chat_conversations.property_id", propertyIds)
         .order("created_at", { ascending: false })
         .limit(5000),
       supabase
         .from("chat_message_feedback")
-        .select(
-          "message_id, conversation_id, property_id, reason, resolved, behavior_id, created_at",
-        )
+        .select("message_id, conversation_id, property_id, reason, resolved, behavior_id, created_at")
         .eq("owner_id", userId),
-      supabase
-        .from("host_knowledge")
-        .select("id", { count: "exact", head: true })
-        .eq("owner_id", userId)
-        .eq("enabled", true),
-      supabase
-        .from("host_behavior")
-        .select("id", { count: "exact", head: true })
-        .eq("owner_id", userId)
-        .eq("enabled", true),
+      supabase.from("host_knowledge").select("id", { count: "exact", head: true }).eq("owner_id", userId).eq("enabled", true),
+      supabase.from("host_behavior").select("id", { count: "exact", head: true }).eq("owner_id", userId).eq("enabled", true),
     ]);
     if (logsErr) throw logsErr;
     if (convsErr) throw convsErr;
@@ -114,13 +90,11 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
     let sectionEventsRaw: Array<{ property_id: string; section: string; created_at: string }> = [];
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: se } = (await (
-        supabaseAdmin.from("guide_section_events" as never) as ReturnType<typeof supabaseAdmin.from>
-      )
+      const { data: se } = await (supabaseAdmin.from("guide_section_events" as never) as ReturnType<typeof supabaseAdmin.from>)
         .select("property_id, section, created_at")
         .in("property_id", propertyIds)
         .order("created_at", { ascending: false })
-        .limit(5000)) as { data: typeof sectionEventsRaw | null };
+        .limit(5000) as { data: typeof sectionEventsRaw | null };
       sectionEventsRaw = se ?? [];
     } catch {
       // Table may not exist yet — degrade gracefully
@@ -132,10 +106,7 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
     for (const e of sectionEventsRaw) {
       sectionCount.set(e.section, (sectionCount.get(e.section) ?? 0) + 1);
       let m = sectionByProp.get(e.property_id);
-      if (!m) {
-        m = new Map();
-        sectionByProp.set(e.property_id, m);
-      }
+      if (!m) { m = new Map(); sectionByProp.set(e.property_id, m); }
       m.set(e.section, (m.get(e.section) ?? 0) + 1);
     }
     const sectionEvents = Array.from(sectionCount.entries())
@@ -203,8 +174,7 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
       if (m) m.conversations++;
     }
     for (const msg of msgs ?? []) {
-      const propId = (msg as { property_chat_conversations?: { property_id?: string } })
-        .property_chat_conversations?.property_id;
+      const propId = (msg as { property_chat_conversations?: { property_id?: string } }).property_chat_conversations?.property_id;
       if (!propId) continue;
       const m = byProp.get(propId);
       if (m) m.messages++;
@@ -237,10 +207,7 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
     }
     const dayMap = new Map<string, { date: string; accesses: number; conversations: number }>();
     for (const d of days) dayMap.set(d, { date: d, accesses: 0, conversations: 0 });
-    const timeseriesByProp: Record<
-      string,
-      Array<{ date: string; accesses: number; conversations: number }>
-    > = {};
+    const timeseriesByProp: Record<string, Array<{ date: string; accesses: number; conversations: number }>> = {};
     function ensureProp(pid: string) {
       if (!timeseriesByProp[pid]) {
         timeseriesByProp[pid] = days.map((d) => ({ date: d, accesses: 0, conversations: 0 }));
@@ -276,7 +243,7 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
       if (p.house_rules) score += 10;
       if (p.wifi_password) score += 10;
       const recCount = Array.isArray((p as { recommendations?: unknown[] }).recommendations)
-        ? (p as { recommendations: unknown[] }).recommendations.length
+        ? ((p as { recommendations: unknown[] }).recommendations).length
         : 0;
       if (recCount > 0) score += 0; // already counted via published
       return Math.min(score, 100);
@@ -304,14 +271,8 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
     }));
 
     const propLookup = new Map((props ?? []).map((p) => [p.id, p.name as string]));
-    const logsWithProp = (logs ?? []).map((l) => ({
-      ...l,
-      property_name: propLookup.get(l.property_id) ?? "—",
-    }));
-    const convsWithProp = (convs ?? []).map((c) => ({
-      ...c,
-      property_name: propLookup.get(c.property_id) ?? "—",
-    }));
+    const logsWithProp = (logs ?? []).map((l) => ({ ...l, property_name: propLookup.get(l.property_id) ?? "—" }));
+    const convsWithProp = (convs ?? []).map((c) => ({ ...c, property_name: propLookup.get(c.property_id) ?? "—" }));
 
     return {
       properties: props ?? [],
@@ -327,8 +288,7 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
       deviceByProperty: deviceByProp,
       hostUsability: {
         totalGuides: (props ?? []).length,
-        publishedGuides: (props ?? []).filter((p) => !!(p as { published?: boolean }).published)
-          .length,
+        publishedGuides: (props ?? []).filter((p) => !!(p as { published?: boolean }).published).length,
         guidesWithFaqs: propsWithFaqs.size,
         guidesWithKnowledge: knowCount ?? 0,
         guidesWithBehavior: behCount ?? 0,

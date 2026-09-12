@@ -50,7 +50,9 @@ async function admin() {
 }
 
 /** Descobre o tenant (titular da conta) e o status do usuário. */
-export async function resolveTenantOf(userId: string): Promise<{
+export async function resolveTenantOf(
+  userId: string,
+): Promise<{
   tenantId: string;
   status: SubjectStatus;
   role: string | null;

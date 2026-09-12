@@ -13,10 +13,7 @@ type Ctx = {
 };
 
 async function isPlatformAdmin(context: Ctx): Promise<boolean> {
-  const { data } = await context.supabase.rpc("has_role", {
-    _user_id: context.userId,
-    _role: "admin",
-  });
+  const { data } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
   return data === true;
 }
 
@@ -129,8 +126,7 @@ export const recordClientEvent = createServerFn({ method: "POST" })
       userId: context.userId,
       actorType: admin ? "ADMIN" : "USER",
       actorId: context.userId,
-      actorName: (context.claims as Record<string, unknown> | undefined)?.["email"] as
-        string | undefined,
+      actorName: (context.claims as Record<string, unknown> | undefined)?.["email"] as string | undefined,
       actorRole: admin ? "admin" : "host",
       eventType: data.eventType,
       eventCategory: data.eventCategory,

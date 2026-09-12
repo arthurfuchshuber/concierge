@@ -5,35 +5,17 @@ type Row = { key: string; displayName: string; views: number; likes: number; dis
 export function PoiInsights({ top, cold }: { top: Row[]; cold: Row[] }) {
   return (
     <div className="grid md:grid-cols-2 gap-4">
-      <Card
-        title="Pontos mais engajados"
-        subtitle="Recomendações que atraem interações dos hóspedes"
-      >
+      <Card title="Pontos mais engajados" subtitle="Recomendações que atraem interações dos hóspedes">
         {top.length === 0 ? <Empty /> : <PoiList rows={top} showEmpty={false} />}
       </Card>
-      <Card
-        title="Pontos frios"
-        subtitle="Recomendações sem qualquer interação — vale revisar ou remover"
-      >
-        {cold.length === 0 ? (
-          <div className="text-xs text-muted-foreground py-6 text-center">Nenhum ponto frio.</div>
-        ) : (
-          <PoiList rows={cold} showEmpty />
-        )}
+      <Card title="Pontos frios" subtitle="Recomendações sem qualquer interação — vale revisar ou remover">
+        {cold.length === 0 ? <div className="text-xs text-muted-foreground py-6 text-center">Nenhum ponto frio.</div> : <PoiList rows={cold} showEmpty />}
       </Card>
     </div>
   );
 }
 
-function Card({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle: string;
-  children: React.ReactNode;
-}) {
+function Card({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
       <header className="mb-3">
@@ -45,10 +27,9 @@ function Card({
   );
 }
 
+
 function Empty() {
-  return (
-    <div className="text-xs text-muted-foreground py-6 text-center">Sem interações no período.</div>
-  );
+  return <div className="text-xs text-muted-foreground py-6 text-center">Sem interações no período.</div>;
 }
 
 function PoiList({ rows, showEmpty }: { rows: Row[]; showEmpty: boolean }) {

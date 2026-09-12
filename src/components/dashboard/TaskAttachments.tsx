@@ -3,6 +3,7 @@ import { Camera, Video, Paperclip, Mic, X, FileText, Loader2 } from "lucide-reac
 import { supabase } from "@/integrations/supabase/client";
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
 
+
 /**
  * Anexos de PENDÊNCIA (pedido explícito, 07/09/2026) — os mesmos quatro
  * botões dos registros da reserva, reaproveitados na criação de uma
@@ -128,10 +129,7 @@ function appendAttachment(
   mime: string,
   durationMs?: number,
 ) {
-  onChange([
-    ...files,
-    { key: crypto.randomUUID(), blob, name, mime, durationMs, kind: inferKind(mime) },
-  ]);
+  onChange([...files, { key: crypto.randomUUID(), blob, name, mime, durationMs, kind: inferKind(mime) }]);
 }
 
 /**
@@ -215,12 +213,7 @@ export function AttachmentPicker({
 
   async function onAudio(a: RecordedAudio) {
     setRecording(false);
-    add(
-      a.blob,
-      `audio-${Date.now()}.${a.mime.includes("mp4") ? "m4a" : "webm"}`,
-      a.mime,
-      a.durationMs,
-    );
+    add(a.blob, `audio-${Date.now()}.${a.mime.includes("mp4") ? "m4a" : "webm"}`, a.mime, a.durationMs);
   }
 
   const btn =
@@ -228,56 +221,21 @@ export function AttachmentPicker({
 
   return (
     <div>
-      <input
-        ref={photoRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={onPicked}
-      />
-      <input
-        ref={videoRef}
-        type="file"
-        accept="video/*"
-        capture="environment"
-        className="hidden"
-        onChange={onPicked}
-      />
+      <input ref={photoRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onPicked} />
+      <input ref={videoRef} type="file" accept="video/*" capture="environment" className="hidden" onChange={onPicked} />
       <input ref={fileRef} type="file" className="hidden" onChange={onPicked} />
 
       {recording ? (
-        <AudioRecorderButton
-          autoStart
-          maxSeconds={120}
-          onRecorded={onAudio}
-          onCancel={() => setRecording(false)}
-          compact
-        />
+        <AudioRecorderButton autoStart maxSeconds={120} onRecorded={onAudio} onCancel={() => setRecording(false)} compact />
       ) : (
         <div className="flex flex-wrap items-center gap-1.5">
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => photoRef.current?.click()}
-            className={btn}
-          >
+          <button type="button" disabled={disabled} onClick={() => photoRef.current?.click()} className={btn}>
             <Camera className="size-3.5" /> Foto
           </button>
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => videoRef.current?.click()}
-            className={btn}
-          >
+          <button type="button" disabled={disabled} onClick={() => videoRef.current?.click()} className={btn}>
             <Video className="size-3.5" /> Vídeo
           </button>
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => fileRef.current?.click()}
-            className={btn}
-          >
+          <button type="button" disabled={disabled} onClick={() => fileRef.current?.click()} className={btn}>
             <Paperclip className="size-3.5" /> Arquivo
           </button>
           {showAudio && (
@@ -298,10 +256,7 @@ export function AttachmentPicker({
       {files.length > 0 && (
         <div className="mt-2 flex flex-col gap-1.5">
           {files.map((f) => (
-            <div
-              key={f.key}
-              className="flex items-center gap-2 rounded-lg border border-border/60 bg-card px-2 py-1.5"
-            >
+            <div key={f.key} className="flex items-center gap-2 rounded-lg border border-border/60 bg-card px-2 py-1.5">
               {f.kind === "photo" ? (
                 <img
                   src={URL.createObjectURL(f.blob)}
@@ -344,8 +299,7 @@ export function AttachmentsSending({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
     <div className="inline-flex items-center gap-1 text-[10.5px] text-muted-foreground">
-      <Loader2 className="size-3 animate-spin" /> enviando {count}{" "}
-      {count === 1 ? "anexo" : "anexos"}…
+      <Loader2 className="size-3 animate-spin" /> enviando {count} {count === 1 ? "anexo" : "anexos"}…
     </div>
   );
 }

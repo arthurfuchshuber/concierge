@@ -43,11 +43,8 @@ export function tooManyRequests(
 }
 
 export function rateLimitedResponse() {
-  return new Response(
-    JSON.stringify({ error: "Muitas requisições. Tente novamente em instantes." }),
-    {
-      status: 429,
-      headers: { "Content-Type": "application/json" },
-    },
-  );
+  return new Response(JSON.stringify({ error: "Muitas requisições. Tente novamente em instantes." }), {
+    status: 429,
+    headers: { "Content-Type": "application/json" },
+  });
 }

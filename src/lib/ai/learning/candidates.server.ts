@@ -21,11 +21,7 @@ export function memoryScopeOf(scope: SuggestedScope): MemoryScope {
   return "property";
 }
 
-function dedupeKeyOf(params: {
-  ownerId: string;
-  propertyId: string | null;
-  content: string;
-}): string {
+function dedupeKeyOf(params: { ownerId: string; propertyId: string | null; content: string }): string {
   const norm = params.content.toLowerCase().replace(/\s+/g, " ").trim();
   return createHash("sha256")
     .update(`${params.ownerId}|${params.propertyId ?? "all"}|${norm}`)
@@ -174,22 +170,14 @@ export async function approveAndApply(input: ApplyInput): Promise<{ ok: boolean;
   if (error || !row) return { ok: false, error: "candidata não encontrada" };
   if (row.approval_status !== "pending") return { ok: false, error: "candidata já revisada" };
 
-  const scope = (input.approvedScope ??
-    row.recommended_scope ??
-    row.suggested_scope ??
-    "property") as SuggestedScope;
-  const content = String(
-    input.editedContent ?? row.extracted_information ?? row.proposed_memory ?? "",
-  );
+  const scope = (input.approvedScope ?? row.recommended_scope ?? row.suggested_scope ?? "property") as SuggestedScope;
+  const content = String(input.editedContent ?? row.extracted_information ?? row.proposed_memory ?? "");
   if (content.trim().length < 10) return { ok: false, error: "conteúdo vazio" };
 
   await writeMemories({
     supabase,
     ownerId: String(row.owner_id),
-    propertyId:
-      scope === "company_global" || scope === "owner_portfolio"
-        ? null
-        : (row.property_id as string | null),
+    propertyId: scope === "company_global" || scope === "owner_portfolio" ? null : (row.property_id as string | null),
     subjectKey: null,
     guestName: null,
     sourceRef: input.candidateId,
@@ -206,11 +194,7 @@ export async function approveAndApply(input: ApplyInput): Promise<{ ok: boolean;
         ttlDays: scope === "temporary_exception" ? Number(row.ttl_days ?? 7) : null,
         author: "equipe",
         approvedBy: input.reviewerId,
-        metadata: {
-          candidate_id: input.candidateId,
-          approved_scope: scope,
-          learning_type: row.learning_type,
-        },
+        metadata: { candidate_id: input.candidateId, approved_scope: scope, learning_type: row.learning_type },
       },
     ],
   });

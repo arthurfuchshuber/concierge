@@ -239,10 +239,12 @@ export function HomeIntelligence({
 
   return (
     <section className="px-4 md:px-10 lg:px-16 mt-3 md:mt-5 relative z-10">
+      {/* DENSIDADE DO PAINEL (11/09/2026): 12px entre e abaixo dos quadrantes
+          virou 6px, a mesma respiração das listas do admin. */}
       {weather && (
-        <div className="mb-3 grid grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] gap-3">
+        <div className="mb-1.5 grid grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] gap-1.5">
           <div
-            className={`flex min-h-[76px] items-center gap-3 rounded-[20px] border px-4 py-3 ${
+            className={`flex min-h-[76px] items-center gap-3 rounded-[0.3rem] border px-4 py-3 ${
               isDark
                 ? "border-white/8 bg-white/[0.035] shadow-[0_16px_40px_-28px_rgba(0,0,0,0.85)]"
                 : "border-slate-900/[0.06] bg-white/55 shadow-[0_14px_35px_-28px_rgba(31,24,74,0.28)]"
@@ -273,7 +275,7 @@ export function HomeIntelligence({
             </div>
           </div>
           <div
-            className={`flex min-h-[76px] items-stretch rounded-[20px] border px-2 py-2 ${
+            className={`flex min-h-[76px] items-stretch rounded-[0.3rem] border px-2 py-2 ${
               isDark
                 ? "border-white/8 bg-white/[0.035] shadow-[0_16px_40px_-28px_rgba(0,0,0,0.85)]"
                 : "border-slate-900/[0.06] bg-white/55 shadow-[0_14px_35px_-28px_rgba(31,24,74,0.28)]"
@@ -321,7 +323,7 @@ export function HomeIntelligence({
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.2, 0.8, 0.2, 1] }}
-        className={`relative overflow-hidden rounded-[24px] border px-4 py-4 md:px-5 md:py-5 ${
+        className={`relative overflow-hidden rounded-[0.3rem] border px-4 py-4 md:px-5 md:py-5 ${
           isDark
             ? "border-fuchsia-400/20 bg-[linear-gradient(135deg,#160b23_0%,#241035_52%,#2f1440_100%)] shadow-[0_22px_60px_-30px_rgba(217,70,239,0.45)]"
             : "border-fuchsia-200/70 bg-[linear-gradient(135deg,#7c3aed_0%,#c026d3_50%,#ec4899_100%)] shadow-[0_22px_60px_-24px_rgba(217,70,239,0.42)]"
@@ -345,7 +347,7 @@ export function HomeIntelligence({
             <div className="h-10 w-10 rounded-full bg-white/18" />
             <div className="h-4 w-2/3 rounded bg-white/16" />
             <div className="h-3 w-full rounded bg-white/14" />
-            <div className="h-9 w-full rounded-2xl bg-white/14" />
+            <div className="h-9 w-full rounded-[0.3rem] bg-white/14" />
           </div>
         ) : tip ? (
           <div className="relative">
@@ -402,7 +404,7 @@ function Chip({ label, onClick, icon }: { label: string; onClick: () => void; ic
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-[46px] items-center justify-center gap-1.5 rounded-xl border border-white/18 bg-white/9 px-2 py-2 text-center text-[10px] font-semibold leading-tight text-white/92 transition hover:bg-white/14 active:scale-95"
+      className="flex min-h-[46px] items-center justify-center gap-1.5 rounded-[0.3rem] border border-white/18 bg-white/9 px-2 py-2 text-center text-[10px] font-semibold leading-tight text-white/92 transition hover:bg-white/14 active:scale-95"
     >
       <span className="shrink-0 text-pink-100 [&>svg]:size-3.5">{icon}</span>
       <span>{label}</span>

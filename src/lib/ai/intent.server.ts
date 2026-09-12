@@ -51,16 +51,13 @@ export async function classifyIntent(
         content:
           "Você classifica mensagens de hóspedes de hospedagem por temporada. " +
           "Responda APENAS JSON válido com as chaves: intent (frase curta), category " +
-          "(acesso|residencia|reserva|cidade|recomendacao|operacional|financeiro|social|outro), " +
+          '(acesso|residencia|reserva|cidade|recomendacao|operacional|financeiro|social|outro), ' +
           "language (código ISO 639-1), sentiment (positivo|neutro|negativo), urgency (low|normal|high), " +
           "priority (1 a 5, 5 = máxima), needsHuman (boolean: true quando é emergência, problema físico no " +
           "imóvel, reclamação grave ou pedido explícito de humano), searchQuery (consulta curta e objetiva " +
           "para buscar na base de conhecimento).",
       },
-      {
-        role: "user",
-        content: `${recent ? `Contexto recente:\n${recent}\n\n` : ""}Mensagem: ${message}`,
-      },
+      { role: "user", content: `${recent ? `Contexto recente:\n${recent}\n\n` : ""}Mensagem: ${message}` },
     ]);
 
     if (!data) return { intent: { ...FALLBACK, searchQuery: message }, usage, model };

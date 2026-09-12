@@ -9,8 +9,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 const TOLERANCE = 0.03;
 
-export type RegressionVerdict =
-  "baseline" | "improved" | "regressed" | "stable" | "behavior_change";
+export type RegressionVerdict = "baseline" | "improved" | "regressed" | "stable" | "behavior_change";
 
 export async function compareWithBaseline(params: {
   supabase: SupabaseClient;

@@ -1,5 +1,5 @@
 /**
- * (arquivo nomeado sem ".client." por causa da proteção de imports do TanStack Start)
+* (arquivo nomeado sem ".client." por causa da proteção de imports do TanStack Start)
  * Camada client-side de autorização (FASE 4.1).
  *
  * Regra inegociável: o frontend NUNCA decide permissão. Este módulo apenas
@@ -28,10 +28,7 @@ export const LOADING_REASON = "Verificando permissões…";
 export const DENIED_REASON = "Você não tem permissão para acessar este recurso.";
 
 /** Estado seguro: enquanto carrega ou em erro, nada é liberado. */
-export function safeState(
-  loading: boolean,
-  reason = loading ? LOADING_REASON : DENIED_REASON,
-): AccessState {
+export function safeState(loading: boolean, reason = loading ? LOADING_REASON : DENIED_REASON): AccessState {
   return { allowed: false, loading, reason, scope: { type: "TENANT", id: null } };
 }
 
@@ -96,7 +93,8 @@ export function permissionDeniedFrom(error: unknown): PermissionDeniedInfo | nul
   if (!error) return null;
   const anyErr = error as Record<string, unknown>;
   const nested = (anyErr["body"] ?? anyErr["data"] ?? anyErr["error"]) as
-    Record<string, unknown> | undefined;
+    | Record<string, unknown>
+    | undefined;
   const source = anyErr["code"] === "PERMISSION_DENIED" ? anyErr : nested;
 
   if (source && source["code"] === "PERMISSION_DENIED") {
@@ -109,7 +107,8 @@ export function permissionDeniedFrom(error: unknown): PermissionDeniedInfo | nul
     };
   }
 
-  const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
+  const message =
+    error instanceof Error ? error.message : typeof error === "string" ? error : "";
   if (message.includes("PERMISSION_DENIED")) {
     return {
       code: "PERMISSION_DENIED",

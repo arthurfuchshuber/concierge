@@ -32,20 +32,11 @@ async function ensureOwnerOrAdmin(
     _role: "admin",
   });
   if (prop.owner_id !== ctx.userId && !isAdmin) throw new Error("Sem permissão.");
-  return prop as {
-    id: string;
-    owner_id: string;
-    lat: number | null;
-    lng: number | null;
-    city: string | null;
-  };
+  return prop as { id: string; owner_id: string; lat: number | null; lng: number | null; city: string | null };
 }
 
 // Decide o destino com base em distância/tempo a pé.
-export function decideScope(input: {
-  distance_meters?: number | null;
-  walk_minutes?: number | null;
-}): "nearby" | "city" {
+export function decideScope(input: { distance_meters?: number | null; walk_minutes?: number | null }): "nearby" | "city" {
   const d = input.distance_meters ?? null;
   const w = input.walk_minutes ?? null;
   if ((d != null && d <= 1500) || (w != null && w <= 20)) return "nearby";
@@ -64,8 +55,9 @@ export const addPlaceAuto = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => AddPlaceAutoSchema.parse(i))
   .handler(async ({ data, context }) => {
     const prop = await ensureOwnerOrAdmin(context, data.propertyId);
-    const { fetchPlaceDetails, pickBestPlacePhoto, haversineMeters, formatDistance } =
-      await import("@/lib/maps.functions");
+    const { fetchPlaceDetails, pickBestPlacePhoto, haversineMeters, formatDistance } = await import(
+      "@/lib/maps.functions"
+    );
     const { loadTaxonomyCached } = await import("@/lib/poi-taxonomy.functions");
 
     const p = await fetchPlaceDetails(data.placeId);
@@ -80,21 +72,16 @@ export const addPlaceAuto = createServerFn({ method: "POST" })
       taxonomy.tags[0];
 
     const noteText = p.editorialSummary?.text ?? p.generativeSummary?.overview?.text ?? null;
-    const note =
-      noteText && noteText.length > 240 ? noteText.slice(0, 237).trimEnd() + "…" : noteText;
+    const note = noteText && noteText.length > 240 ? noteText.slice(0, 237).trimEnd() + "…" : noteText;
     const image_url = pickBestPlacePhoto(p.photos) ?? null;
-    const maps_url =
-      p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`;
+    const maps_url = p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`;
 
     let distance_meters: number | null = null;
     let distance_text: string | null = null;
     let walk_minutes: number | null = null;
     let drive_minutes: number | null = null;
     if (prop.lat != null && prop.lng != null) {
-      const d = haversineMeters(
-        { lat: prop.lat, lng: prop.lng },
-        { lat: p.location.latitude, lng: p.location.longitude },
-      );
+      const d = haversineMeters({ lat: prop.lat, lng: prop.lng }, { lat: p.location.latitude, lng: p.location.longitude });
       distance_meters = d;
       const fmt = formatDistance(d);
       distance_text = fmt.text;
@@ -154,7 +141,10 @@ export const addPlaceAuto = createServerFn({ method: "POST" })
     if (!groupId && !key) throw new Error("Defina a cidade do imóvel antes.");
 
     // duplicado por (group_id|city_key) + place_id
-    let dupQ = supabaseAdmin.from("city_references").select("id").eq("place_id", p.id);
+    let dupQ = supabaseAdmin
+      .from("city_references")
+      .select("id")
+      .eq("place_id", p.id);
     dupQ = groupId ? dupQ.eq("group_id", groupId) : dupQ.eq("city_key", key).is("group_id", null);
     const { data: dup } = await dupQ.maybeSingle();
     if (dup) return { ok: true, scope: "city" as const, id: dup.id, duplicate: true };
@@ -257,10 +247,7 @@ export const moveRecommendations = createServerFn({ method: "POST" })
       await supabaseAdmin
         .from("property_recommendations")
         .delete()
-        .in(
-          "id",
-          rows.map((r) => r.id),
-        )
+        .in("id", rows.map((r) => r.id))
         .eq("property_id", data.propertyId);
       return { ok: true, moved: rows.length };
     }
@@ -279,7 +266,9 @@ export const moveRecommendations = createServerFn({ method: "POST" })
     if (!groupId && !key) throw new Error("Defina a cidade do imóvel antes.");
 
     let srcQ = supabaseAdmin.from("city_references").select("*").in("id", data.ids);
-    srcQ = groupId ? srcQ.eq("group_id", groupId) : srcQ.eq("city_key", key).is("group_id", null);
+    srcQ = groupId
+      ? srcQ.eq("group_id", groupId)
+      : srcQ.eq("city_key", key).is("group_id", null);
     const { data: rows, error } = await srcQ;
     if (error) throw new Error(error.message);
     if (!rows || rows.length === 0) return { ok: true, moved: 0 };
@@ -287,8 +276,7 @@ export const moveRecommendations = createServerFn({ method: "POST" })
       throw new Error("Um ou mais itens não pertencem a este guia.");
     }
 
-    const { fetchPlaceDetails, haversineMeters, formatDistance } =
-      await import("@/lib/maps.functions");
+    const { fetchPlaceDetails, haversineMeters, formatDistance } = await import("@/lib/maps.functions");
     const hasCoords = prop.lat != null && prop.lng != null;
 
     const inserts = await Promise.all(

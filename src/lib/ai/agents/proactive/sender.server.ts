@@ -356,8 +356,19 @@ export async function sendApprovedProactiveActions(params: {
       result.sent += 1;
       result.porCanal.whatsapp += 1;
     } catch (e) {
-      result.failed += 1;
       const message = e instanceof Error ? e.message : String(e);
+
+      /* Canal indisponível NÃO é motivo para queimar a ação: sem WhatsApp
+       * conectado, a mensagem simplesmente ainda não tem por onde sair. Se
+       * marcássemos como executada com erro, o hóspede nunca mais receberia —
+       * nem depois de o anfitrião conectar o número ou de a conversa do guia
+       * existir. Fica aprovada e volta na próxima varredura. */
+      if (/WhatsApp não conectado/i.test(message)) {
+        result.adiadas += 1;
+        continue;
+      }
+
+      result.failed += 1;
       await markActionExecuted({
         supabase,
         tenantId: action.tenant_id,

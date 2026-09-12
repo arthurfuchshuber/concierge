@@ -52,8 +52,7 @@ export async function fetchCalendars(userId: string): Promise<GcalCalendar[]> {
 function classifyAttachment(title: string, mimeType: string): GcalAttachment["kind"] {
   const t = title.toLowerCase();
   if (t.includes("transcri")) return "transcript";
-  if (t.includes("gravaç") || t.includes("recording") || mimeType.startsWith("video/"))
-    return "recording";
+  if (t.includes("gravaç") || t.includes("recording") || mimeType.startsWith("video/")) return "recording";
   return "file";
 }
 
@@ -76,11 +75,7 @@ export async function loadMatchIndex(
       .select("alias_kind, alias_value, stakeholder_type, stakeholder_id")
       .eq("account_owner_id", accountOwnerId),
   ]);
-  return buildMatchIndex(
-    (owners ?? []) as never,
-    (providers ?? []) as never,
-    (aliases ?? []) as never,
-  );
+  return buildMatchIndex((owners ?? []) as never, (providers ?? []) as never, (aliases ?? []) as never);
 }
 
 /** Busca TODOS os eventos brutos de uma agenda (sem recorte de período). */
@@ -108,11 +103,12 @@ const CONFERENCE_URL_RE =
 
 /** Extrai o link de conferência de um evento (Meet nativo ou link em outros campos). */
 function extractConferenceLink(raw: Record<string, unknown>): string | null {
-  const hangout = raw["hangoutLink"] as string | undefined;
+  const hangout = raw['hangoutLink'] as string | undefined;
   if (hangout) return hangout;
 
-  const conference = raw["conferenceData"] as
-    { entryPoints?: Array<{ entryPointType?: string; uri?: string }> } | undefined;
+  const conference = raw['conferenceData'] as
+    | { entryPoints?: Array<{ entryPointType?: string; uri?: string }> }
+    | undefined;
   const video = conference?.entryPoints?.find((e) => e.entryPointType === "video" && e.uri);
   if (video?.uri) return video.uri;
 
@@ -127,9 +123,9 @@ function extractConferenceLink(raw: Record<string, unknown>): string | null {
 
 /** Somente reuniões reais: precisam ter um link de conferência ativo. */
 function isMeeting(raw: Record<string, unknown>): boolean {
-  if (raw["status"] === "cancelled") return false;
+  if (raw['status'] === "cancelled") return false;
   // Feriados / aniversários e afins nunca têm conferência, mas descartamos explicitamente.
-  const type = raw["eventType"] as string | undefined;
+  const type = raw['eventType'] as string | undefined;
   if (type && type !== "default" && type !== "outOfOffice" && type !== "focusTime") return false;
   return extractConferenceLink(raw) !== null;
 }
@@ -140,23 +136,19 @@ function mapEvent(
   calendarName: string,
   index: MatchIndex,
 ): GcalEvent {
-  const start = raw["start"] as { dateTime?: string; date?: string } | undefined;
-  const end = raw["end"] as { dateTime?: string; date?: string } | undefined;
+  const start = raw['start'] as { dateTime?: string; date?: string } | undefined;
+  const end = raw['end'] as { dateTime?: string; date?: string } | undefined;
   const attendeeList =
-    (raw["attendees"] as
-      Array<{ email?: string; self?: boolean; organizer?: boolean }> | undefined) ?? [];
-  const organizer = raw["organizer"] as { email?: string; self?: boolean } | undefined;
+    (raw['attendees'] as Array<{ email?: string; self?: boolean; organizer?: boolean }> | undefined) ?? [];
+  const organizer = raw['organizer'] as { email?: string; self?: boolean } | undefined;
   const attachments =
-    (raw["attachments"] as
-      Array<{ title?: string; fileUrl?: string; mimeType?: string }> | undefined) ?? [];
-  const summary = String(raw["summary"] ?? "(sem título)");
-  const description = (raw["description"] as string) ?? null;
-  const location = (raw["location"] as string) ?? null;
-  const id = String(raw["id"] ?? "");
+    (raw['attachments'] as Array<{ title?: string; fileUrl?: string; mimeType?: string }> | undefined) ?? [];
+  const summary = String(raw['summary'] ?? "(sem título)");
+  const description = (raw['description'] as string) ?? null;
+  const location = (raw['location'] as string) ?? null;
+  const id = String(raw['id'] ?? "");
 
-  const externalEmails = attendeeList
-    .filter((a) => !a.self && a.email)
-    .map((a) => a.email!.toLowerCase());
+  const externalEmails = attendeeList.filter((a) => !a.self && a.email).map((a) => a.email!.toLowerCase());
   if (organizer?.email && !organizer.self) externalEmails.push(organizer.email.toLowerCase());
 
   const link = resolveStakeholder(index, {
@@ -179,7 +171,7 @@ function mapEvent(
     start: start?.dateTime ?? start?.date ?? null,
     end: end?.dateTime ?? end?.date ?? null,
     hangoutLink: extractConferenceLink(raw),
-    htmlLink: (raw["htmlLink"] as string) ?? null,
+    htmlLink: (raw['htmlLink'] as string) ?? null,
     attendees: attendeeList.map((a) => a.email ?? "").filter(Boolean),
     attachments: attachments
       .filter((a) => a.fileUrl)
@@ -208,20 +200,12 @@ export async function fetchEventsForCalendar(
     fetchRawEvents(userId, calendarId),
     loadMatchIndex(supabase, userId),
   ]);
-  return raws
-    .filter(isMeeting)
-    .map((r) => mapEvent(r, calendarId, calendarName ?? calendarId, index));
+  return raws.filter(isMeeting).map((r) => mapEvent(r, calendarId, calendarName ?? calendarId, index));
 }
 
 /** Todos os eventos de TODAS as agendas da conta conectada. */
-export async function fetchAllEvents(
-  supabase: SupabaseClient,
-  userId: string,
-): Promise<GcalEvent[]> {
-  const [calendars, index] = await Promise.all([
-    fetchCalendars(userId),
-    loadMatchIndex(supabase, userId),
-  ]);
+export async function fetchAllEvents(supabase: SupabaseClient, userId: string): Promise<GcalEvent[]> {
+  const [calendars, index] = await Promise.all([fetchCalendars(userId), loadMatchIndex(supabase, userId)]);
   const out: GcalEvent[] = [];
   for (const cal of calendars) {
     try {

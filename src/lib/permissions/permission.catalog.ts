@@ -81,14 +81,8 @@ const act = (slug: string, name: string, order: number, extra: Partial<Def> = {}
 
 /** Dashboard — /admin/dashboard */
 const DASHBOARD: Def[] = [
-  page(
-    "tenant.dashboard",
-    "Dashboard",
-    "/admin/dashboard",
-    "LayoutDashboard",
-    10,
-    "Painel de operação: indicadores, engajamento e esteira de chegadas.",
-  ),
+  page("tenant.dashboard", "Dashboard", "/admin/dashboard", "LayoutDashboard", 10,
+    "Painel de operação: indicadores, engajamento e esteira de chegadas."),
 
   tab("tenant.dashboard.indicadores", "Indicadores", 10),
   act("tenant.dashboard.indicadores.kpis", "Ver KPIs do período", 10),
@@ -108,14 +102,8 @@ const DASHBOARD: Def[] = [
 
 /** Guias — /admin/guias */
 const GUIAS: Def[] = [
-  page(
-    "tenant.guias",
-    "Guias",
-    "/admin/guias",
-    "Home",
-    20,
-    "Residências, guias públicos e conteúdo do hóspede.",
-  ),
+  page("tenant.guias", "Guias", "/admin/guias", "Home", 20,
+    "Residências, guias públicos e conteúdo do hóspede."),
 
   tab("tenant.guias.imoveis", "Imóveis", 10),
   act("tenant.guias.imoveis.criar", "Criar guia", 10),
@@ -142,14 +130,8 @@ const GUIAS: Def[] = [
 
 /** Stakeholders — /admin/stakeholders */
 const STAKEHOLDERS: Def[] = [
-  page(
-    "tenant.stakeholders",
-    "Stakeholders",
-    "/admin/stakeholders",
-    "Contact",
-    30,
-    "Proprietários, hóspedes e prestadores de serviço.",
-  ),
+  page("tenant.stakeholders", "Stakeholders", "/admin/stakeholders", "Contact", 30,
+    "Proprietários, hóspedes e prestadores de serviço."),
 
   tab("tenant.stakeholders.proprietarios", "Proprietários", 10),
   act("tenant.stakeholders.proprietarios.cadastrar", "Cadastrar proprietário", 10),
@@ -172,14 +154,8 @@ const STAKEHOLDERS: Def[] = [
 
 /** IA Concierge — /admin/ia */
 const IA: Def[] = [
-  page(
-    "tenant.ia",
-    "IA Concierge",
-    "/admin/ia",
-    "BrainCircuit",
-    40,
-    "Memória, conhecimento e aprendizados do concierge.",
-  ),
+  page("tenant.ia", "IA Concierge", "/admin/ia", "BrainCircuit", 40,
+    "Memória, conhecimento e aprendizados do concierge."),
 
   tab("tenant.ia.memoria", "Memória da Operação", 10),
   act("tenant.ia.memoria.consultar", "Consultar memórias", 10),
@@ -197,14 +173,8 @@ const IA: Def[] = [
 
 /** Atendimento — /admin/atendimento */
 const ATENDIMENTO: Def[] = [
-  page(
-    "tenant.atendimento",
-    "Atendimento",
-    "/admin/atendimento",
-    "Headphones",
-    50,
-    "Filas de atendimento humano e conversas da IA.",
-  ),
+  page("tenant.atendimento", "Atendimento", "/admin/atendimento", "Headphones", 50,
+    "Filas de atendimento humano e conversas da IA."),
 
   tab("tenant.atendimento.pendentes", "Pendentes", 10),
   tab("tenant.atendimento.em-atendimento", "Com alguém", 20),
@@ -224,14 +194,8 @@ const ATENDIMENTO: Def[] = [
 
 /** Administrativo — /admin/administrativo */
 const ADMINISTRATIVO: Def[] = [
-  page(
-    "tenant.administrativo",
-    "Administrativo",
-    "/admin/administrativo",
-    "Settings2",
-    60,
-    "Perfil, assinatura, permissões da equipe e integrações.",
-  ),
+  page("tenant.administrativo", "Administrativo", "/admin/administrativo", "Settings2", 60,
+    "Perfil, assinatura, permissões da equipe e integrações."),
 
   tab("tenant.administrativo.perfil", "Perfil", 10),
   act("tenant.administrativo.perfil.editar", "Editar meus dados", 10),
@@ -256,14 +220,8 @@ const ADMINISTRATIVO: Def[] = [
 /* ================================================================ ADMIN SAAS */
 
 const SAAS_ENGAJAMENTO: Def[] = [
-  page(
-    "admin.engajamento",
-    "Engajamento",
-    "/admin/engajamento",
-    "Activity",
-    10,
-    "Panorama de uso dos guias pelos hóspedes.",
-  ),
+  page("admin.engajamento", "Engajamento", "/admin/engajamento", "Activity", 10,
+    "Panorama de uso dos guias pelos hóspedes."),
   tab("admin.engajamento.panorama", "Panorama", 10),
   tab("admin.engajamento.jornada", "Jornada", 20),
   tab("admin.engajamento.conteudo", "Conteúdo", 30),
@@ -271,14 +229,8 @@ const SAAS_ENGAJAMENTO: Def[] = [
 ];
 
 const SAAS_CLIENTES: Def[] = [
-  page(
-    "admin.clientes",
-    "Clientes",
-    "/admin/clientes",
-    "Users",
-    20,
-    "Carteira de clientes, assinaturas e planos.",
-  ),
+  page("admin.clientes", "Clientes", "/admin/clientes", "Users", 20,
+    "Carteira de clientes, assinaturas e planos."),
   tab("admin.clientes.lista", "Lista de clientes", 10),
   act("admin.clientes.lista.filtros", "Filtrar e buscar", 10),
   act("admin.clientes.lista.abrir-guias", "Abrir guias do cliente", 20),
@@ -290,14 +242,8 @@ const SAAS_CLIENTES: Def[] = [
 ];
 
 const SAAS_RECOMENDACOES: Def[] = [
-  page(
-    "admin.recomendacoes-sigma",
-    "Recomendações",
-    "/admin/recomendacoes-sigma",
-    "Star",
-    30,
-    "Curadoria Sigma de conteúdo por cidade.",
-  ),
+  page("admin.recomendacoes-sigma", "Recomendações", "/admin/recomendacoes-sigma", "Star", 30,
+    "Curadoria Sigma de conteúdo por cidade."),
   tab("admin.recomendacoes-sigma.pacotes", "Pacotes por cidade", 10),
   act("admin.recomendacoes-sigma.pacotes.criar", "Criar cidade / pacote", 10),
   act("admin.recomendacoes-sigma.pacotes.publicar", "Publicar / despublicar", 20),
@@ -305,28 +251,16 @@ const SAAS_RECOMENDACOES: Def[] = [
   tab("admin.recomendacoes-sigma.recomendacoes", "Recomendações", 20),
   tab("admin.recomendacoes-sigma.faqs", "FAQs", 30),
   tab("admin.recomendacoes-sigma.marketplace", "Marketplace", 40),
-  sub("admin.cidades", "Cidades", 50, {
-    route: "/admin/cidades",
-    parentSlug: "admin.recomendacoes-sigma",
-  }),
-  sub("admin.taxonomia", "Taxonomia", 60, {
-    route: "/admin/taxonomia",
-    parentSlug: "admin.recomendacoes-sigma",
-  }),
+  sub("admin.cidades", "Cidades", 50, { route: "/admin/cidades", parentSlug: "admin.recomendacoes-sigma" }),
+  sub("admin.taxonomia", "Taxonomia", 60, { route: "/admin/taxonomia", parentSlug: "admin.recomendacoes-sigma" }),
   act("admin.taxonomia.categorias", "Categorias", 10, { parentSlug: "admin.taxonomia" }),
   act("admin.taxonomia.tags", "Etiquetas", 20, { parentSlug: "admin.taxonomia" }),
   act("admin.taxonomia.mesclar", "Mesclar categorias", 30, { parentSlug: "admin.taxonomia" }),
 ];
 
 const SAAS_INTELIGENCIA: Def[] = [
-  page(
-    "admin.inteligencia",
-    "Inteligência",
-    "/admin/inteligencia",
-    "Sparkles",
-    40,
-    "Observabilidade da IA, auditoria e analytics do SaaS.",
-  ),
+  page("admin.inteligencia", "Inteligência", "/admin/inteligencia", "Sparkles", 40,
+    "Observabilidade da IA, auditoria e analytics do SaaS."),
   tab("admin.inteligencia.global", "Global Intelligence", 10),
   tab("admin.inteligencia.pipeline", "Pipeline de Aprendizado", 20),
   tab("admin.inteligencia.agentes", "Evolução dos Agentes", 30),
@@ -337,14 +271,8 @@ const SAAS_INTELIGENCIA: Def[] = [
 ];
 
 const SAAS_ADMINS: Def[] = [
-  page(
-    "admin.admins",
-    "Administradores",
-    "/admin/admins",
-    "ShieldCheck",
-    50,
-    "Administração interna da plataforma.",
-  ),
+  page("admin.admins", "Administradores", "/admin/admins", "ShieldCheck", 50,
+    "Administração interna da plataforma."),
   tab("admin.admins.admins", "Administradores", 10),
   act("admin.admins.admins.conceder", "Conceder acesso admin", 10),
   act("admin.admins.admins.revogar", "Revogar acesso admin", 20),

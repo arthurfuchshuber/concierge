@@ -54,8 +54,7 @@ export const Route = createFileRoute("/api/public/cron/refresh-city-news")({
               .select("city_key")
               .eq("date", today)
               .in("city_key", Array.from(cities.keys()));
-            for (const r of (cached ?? []) as Array<{ city_key: string }>)
-              doneToday.add(r.city_key);
+            for (const r of (cached ?? []) as Array<{ city_key: string }>) doneToday.add(r.city_key);
           }
 
           const toRun: Bucket[] = [];
@@ -67,13 +66,7 @@ export const Route = createFileRoute("/api/public/cron/refresh-city-news")({
 
           const CRON_START = Date.now();
           const CRON_MAX_MS = 50_000;
-          const results: Array<{
-            city: string;
-            ok: boolean;
-            generated?: boolean;
-            cached?: boolean;
-            error?: string;
-          }> = [];
+          const results: Array<{ city: string; ok: boolean; generated?: boolean; cached?: boolean; error?: string }> = [];
           for (const b of toRun) {
             if (Date.now() - CRON_START > CRON_MAX_MS) {
               results.push({ city: b.label, ok: false, error: "timeout_budget_exceeded" });
@@ -94,11 +87,7 @@ export const Route = createFileRoute("/api/public/cron/refresh-city-news")({
                 cached: r.cached,
               });
             } catch (e) {
-              results.push({
-                city: b.label,
-                ok: false,
-                error: e instanceof Error ? e.message : "unknown",
-              });
+              results.push({ city: b.label, ok: false, error: e instanceof Error ? e.message : "unknown" });
             }
           }
 

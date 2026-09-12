@@ -24,7 +24,10 @@ export async function visiblePropertyIds(userId: string): Promise<string[] | nul
 }
 
 /** Aplica o recorte a uma lista de IDs já obtida via RLS. */
-export async function filterVisiblePropertyIds(userId: string, ids: string[]): Promise<string[]> {
+export async function filterVisiblePropertyIds(
+  userId: string,
+  ids: string[],
+): Promise<string[]> {
   const allowed = await visiblePropertyIds(userId);
   if (allowed === null) return ids;
   const set = new Set(allowed);

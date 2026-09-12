@@ -19,18 +19,13 @@ const SaveInput = z.object({
   source: z.enum(["text", "audio"]).optional(),
 });
 
-type AnySb = {
-  rpc: (fn: never, args: never) => Promise<{ data: unknown; error: { message: string } | null }>;
-};
+type AnySb = { rpc: (fn: never, args: never) => Promise<{ data: unknown; error: { message: string } | null }> };
 
 async function assertAccess(supabase: unknown, userId: string, propertyId: string) {
-  const { data, error } = await (supabase as AnySb).rpc(
-    "user_can_access_property" as never,
-    {
-      _user_id: userId,
-      _property_id: propertyId,
-    } as never,
-  );
+  const { data, error } = await (supabase as AnySb).rpc("user_can_access_property" as never, {
+    _user_id: userId,
+    _property_id: propertyId,
+  } as never);
   if (error) throw new Error(error.message);
   if (!data) throw new Error("Você não tem acesso a esta propriedade.");
 }
@@ -121,9 +116,7 @@ export const savePropertyDetail = createServerFn({ method: "POST" })
 
 export const deletePropertyDetail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) =>
-    z.object({ id: z.string().uuid(), propertyId: z.string().uuid() }).parse(i),
-  )
+  .inputValidator((i: unknown) => z.object({ id: z.string().uuid(), propertyId: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
     await assertAccess(context.supabase, context.userId, data.propertyId);
     const { error } = await context.supabase.from("property_details").delete().eq("id", data.id);

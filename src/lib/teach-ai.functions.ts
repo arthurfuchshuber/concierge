@@ -3,6 +3,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireMemberPermission } from "@/lib/member-permissions.server";
 import { z } from "zod";
 
+
 const TeachInput = z.object({
   propertyId: z.string().uuid(),
   content: z.string().min(3).max(4000),
@@ -42,6 +43,7 @@ export const teachAiFromMessage = createServerFn({ method: "POST" })
     const ownerId = prop.owner_id as string;
     await requireMemberPermission(supabase, userId, ownerId, "ai_train");
 
+
     // 3) Resolve target scope_property_ids
     let targets: Array<string | null> = [];
     if (data.scope === "global") {
@@ -61,8 +63,7 @@ export const teachAiFromMessage = createServerFn({ method: "POST" })
       if (cErr) throw new Error(cErr.message);
       const okIds = new Set((check ?? []).map((r) => r.id as string));
       const bad = ids.filter((id) => !okIds.has(id));
-      if (bad.length)
-        throw new Error("Algumas propriedades selecionadas não pertencem à mesma conta.");
+      if (bad.length) throw new Error("Algumas propriedades selecionadas não pertencem à mesma conta.");
       targets = ids;
     }
 

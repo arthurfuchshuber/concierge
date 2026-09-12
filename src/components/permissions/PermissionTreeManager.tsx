@@ -84,16 +84,8 @@ const TYPE_LABEL: Record<string, string> = {
 
 const LEVEL_META: Record<Level, { label: string; icon: typeof Eye; className: string }> = {
   NONE: { label: "Sem acesso", icon: ShieldOff, className: "bg-muted text-muted-foreground" },
-  READ: {
-    label: "Visualizar",
-    icon: Eye,
-    className: "bg-sky-500/15 text-sky-600 dark:text-sky-300",
-  },
-  WRITE: {
-    label: "Editar",
-    icon: Pencil,
-    className: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300",
-  },
+  READ: { label: "Visualizar", icon: Eye, className: "bg-sky-500/15 text-sky-600 dark:text-sky-300" },
+  WRITE: { label: "Editar", icon: Pencil, className: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300" },
 };
 
 function LevelPicker({
@@ -150,9 +142,7 @@ export function PermissionTreeManager({ context = "account" as "account" | "saas
   const [onlyConfigured, setOnlyConfigured] = useState(false);
   const [onlyNone, setOnlyNone] = useState(false);
   const [compareWith, setCompareWith] = useState<string | null>(null);
-  const [cascade, setCascade] = useState<{ slug: string; label: string; count: number } | null>(
-    null,
-  );
+  const [cascade, setCascade] = useState<{ slug: string; label: string; count: number } | null>(null);
 
   const workspace = useQuery({
     queryKey: ["permission-workspace", context],
@@ -182,9 +172,7 @@ export function PermissionTreeManager({ context = "account" as "account" | "saas
 
   const mutate = useMutation({
     mutationFn: (vars: { slug: string; level: Level }) =>
-      saveLevel({
-        data: { context, targetUserId: activeUserId!, slug: vars.slug, level: vars.level },
-      }),
+      saveLevel({ data: { context, targetUserId: activeUserId!, slug: vars.slug, level: vars.level } }),
     onSuccess: (res) => {
       toast.success(res.message);
       qc.invalidateQueries({ queryKey: ["permission-subject", context, activeUserId] });
@@ -198,8 +186,7 @@ export function PermissionTreeManager({ context = "account" as "account" | "saas
   const isOwner = !!subject?.isOwner;
   const levels = permissions.data?.levels ?? {};
 
-  const levelOf = (slug: string): Level =>
-    isOwner ? "WRITE" : ((levels[slug] as Level) ?? "NONE");
+  const levelOf = (slug: string): Level => (isOwner ? "WRITE" : ((levels[slug] as Level) ?? "NONE"));
 
   const childrenBySlug = useMemo(() => {
     const map = new Map<string, NodeDTO[]>();
@@ -215,8 +202,7 @@ export function PermissionTreeManager({ context = "account" as "account" | "saas
   // BUSCA INTELIGENTE: casa slug, nome e rota; expande ancestrais automaticamente.
   const term = search.trim().toLowerCase();
   const { matched, autoExpanded } = useMemo(() => {
-    if (!term)
-      return { matched: null as Set<string> | null, autoExpanded: {} as Record<string, boolean> };
+    if (!term) return { matched: null as Set<string> | null, autoExpanded: {} as Record<string, boolean> };
     const hits = nodes.filter(
       (n) =>
         n.label.toLowerCase().includes(term) ||
@@ -256,9 +242,7 @@ export function PermissionTreeManager({ context = "account" as "account" | "saas
   const handleChange = async (node: NodeDTO, level: Level) => {
     if (isOwner || !activeUserId) return;
     if (level === "NONE") {
-      const preview = await fetchPreview({
-        data: { context, targetUserId: activeUserId, slug: node.slug },
-      });
+      const preview = await fetchPreview({ data: { context, targetUserId: activeUserId, slug: node.slug } });
       if (preview.count > 0) {
         setCascade({ slug: node.slug, label: node.label, count: preview.count });
         return;
@@ -301,14 +285,12 @@ export function PermissionTreeManager({ context = "account" as "account" | "saas
                 {TYPE_LABEL[node.type] ?? node.type}
               </Badge>
             </div>
-            <p className="truncate text-[11px] text-muted-foreground">{node.route ?? node.slug}</p>
+            <p className="truncate text-[11px] text-muted-foreground">
+              {node.route ?? node.slug}
+            </p>
           </div>
 
-          <LevelPicker
-            value={level}
-            disabled={isOwner || mutate.isPending}
-            onChange={(l) => handleChange(node, l)}
-          />
+          <LevelPicker value={level} disabled={isOwner || mutate.isPending} onChange={(l) => handleChange(node, l)} />
         </div>
 
         {open && node.hasChildren && !canShowChildren && (
@@ -360,9 +342,7 @@ export function PermissionTreeManager({ context = "account" as "account" | "saas
               onClick={() => setTargetUserId(s.userId)}
               className={cn(
                 "w-full rounded-lg px-3 py-2 text-left transition",
-                s.userId === activeUserId
-                  ? "bg-primary/10 ring-1 ring-primary/30"
-                  : "hover:bg-muted/50",
+                s.userId === activeUserId ? "bg-primary/10 ring-1 ring-primary/30" : "hover:bg-muted/50",
               )}
             >
               <div className="flex items-center gap-2">
@@ -447,10 +427,7 @@ export function PermissionTreeManager({ context = "account" as "account" | "saas
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>Filtros</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem
-                    checked={onlyPages}
-                    onCheckedChange={(v) => setOnlyPages(!!v)}
-                  >
+                  <DropdownMenuCheckboxItem checked={onlyPages} onCheckedChange={(v) => setOnlyPages(!!v)}>
                     Somente páginas
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuCheckboxItem
@@ -465,10 +442,7 @@ export function PermissionTreeManager({ context = "account" as "account" | "saas
                   >
                     Somente itens configurados
                   </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={onlyNone}
-                    onCheckedChange={(v) => setOnlyNone(!!v)}
-                  >
+                  <DropdownMenuCheckboxItem checked={onlyNone} onCheckedChange={(v) => setOnlyNone(!!v)}>
                     Somente itens sem permissão
                   </DropdownMenuCheckboxItem>
                 </DropdownMenuContent>
@@ -524,8 +498,7 @@ export function PermissionTreeManager({ context = "account" as "account" | "saas
                       >
                         <span className="min-w-0 truncate">{d.label}</span>
                         <span className="shrink-0 text-[11px] text-muted-foreground">
-                          {LEVEL_META[d.levelA as Level].label} →{" "}
-                          {LEVEL_META[d.levelB as Level].label}
+                          {LEVEL_META[d.levelA as Level].label} → {LEVEL_META[d.levelB as Level].label}
                         </span>
                       </div>
                     ))}

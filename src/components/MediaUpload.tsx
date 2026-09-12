@@ -132,27 +132,14 @@ export function MediaUpload({ value, onChange, folder = "checkin", max = 8, clas
             </li>
           )}
           {value.map((m, i) => (
-            <li
-              key={`${m.url}-${i}`}
-              className="relative group rounded-lg overflow-hidden border border-border bg-muted/40 aspect-square"
-            >
+            <li key={`${m.url}-${i}`} className="relative group rounded-lg overflow-hidden border border-border bg-muted/40 aspect-square">
               {m.type === "image" ? (
                 <img src={m.url} alt="" className="size-full object-cover" />
               ) : (
-                <video
-                  src={m.url}
-                  className="size-full object-cover"
-                  muted
-                  playsInline
-                  preload="metadata"
-                />
+                <video src={m.url} className="size-full object-cover" muted playsInline preload="metadata" />
               )}
               <div className="absolute top-1 left-1 size-6 grid place-items-center rounded-full bg-background/85 text-foreground">
-                {m.type === "image" ? (
-                  <ImageIcon className="size-3" />
-                ) : (
-                  <Film className="size-3" />
-                )}
+                {m.type === "image" ? <ImageIcon className="size-3" /> : <Film className="size-3" />}
               </div>
               <button
                 type="button"
@@ -172,9 +159,7 @@ export function MediaUpload({ value, onChange, folder = "checkin", max = 8, clas
                 >
                   <GripVertical className="size-3 rotate-90" />
                 </button>
-                <span className="text-[10px] font-medium text-background bg-foreground/80 rounded px-1.5 py-0.5">
-                  {i + 1}
-                </span>
+                <span className="text-[10px] font-medium text-background bg-foreground/80 rounded px-1.5 py-0.5">{i + 1}</span>
                 <button
                   type="button"
                   onClick={() => move(i, i + 1)}
@@ -200,8 +185,8 @@ export function MediaUpload({ value, onChange, folder = "checkin", max = 8, clas
           {uploading
             ? "Enviando…"
             : remaining > 0
-              ? `Adicionar foto ou vídeo · ${value.length}/${max}`
-              : `Limite atingido (${max})`}
+            ? `Adicionar foto ou vídeo · ${value.length}/${max}`
+            : `Limite atingido (${max})`}
         </span>
       </button>
     </div>

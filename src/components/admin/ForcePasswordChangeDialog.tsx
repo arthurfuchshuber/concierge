@@ -98,9 +98,7 @@ export function ForcePasswordChangeDialog() {
 
           <form onSubmit={submit} className="space-y-4">
             <div className="relative">
-              <Label htmlFor="new-pwd" className="sr-only">
-                Nova senha
-              </Label>
+              <Label htmlFor="new-pwd" className="sr-only">Nova senha</Label>
               <KeyRound className="pointer-events-none absolute left-3 top-1/2 size-[17px] -translate-y-1/2 text-muted-foreground" />
               <Input
                 id="new-pwd"
@@ -122,9 +120,7 @@ export function ForcePasswordChangeDialog() {
             </div>
 
             <div className="relative">
-              <Label htmlFor="confirm-pwd" className="sr-only">
-                Confirmar senha
-              </Label>
+              <Label htmlFor="confirm-pwd" className="sr-only">Confirmar senha</Label>
               <ShieldCheck className="pointer-events-none absolute left-3 top-1/2 size-[17px] -translate-y-1/2 text-muted-foreground" />
               <Input
                 id="confirm-pwd"
@@ -137,22 +133,18 @@ export function ForcePasswordChangeDialog() {
               />
             </div>
 
-            {error && <p className="text-[12px] text-destructive leading-relaxed">{error}</p>}
+            {error && (
+              <p className="text-[12px] text-destructive leading-relaxed">{error}</p>
+            )}
 
             <div className="flex items-center gap-1.5 pt-0.5 text-[11.5px] text-muted-foreground/85">
               <Lock className="size-3 text-primary/70" />
               Sua senha é pessoal e não fica visível para o titular da conta.
             </div>
 
-            <Button
-              type="submit"
-              disabled={saving}
-              className="group h-[48px] w-full rounded-[12px] text-[14.5px]"
-            >
+            <Button type="submit" disabled={saving} className="group h-[48px] w-full rounded-[12px] text-[14.5px]">
               {saving ? <Loader2 className="size-4 animate-spin" /> : "Salvar e continuar"}
-              {!saving && (
-                <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />
-              )}
+              {!saving && <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />}
             </Button>
           </form>
         </DialogPrimitive.Content>

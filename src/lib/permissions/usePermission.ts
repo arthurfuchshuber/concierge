@@ -25,7 +25,10 @@ export type UsePermissionOptions = AccessScope & {
  * `usePermission` — decisão do backend para UMA permissão.
  * Retorna `{ allowed, loading, reason }` (o escopo também vem junto).
  */
-export function usePermission(permission: string, options: UsePermissionOptions = {}): AccessState {
+export function usePermission(
+  permission: string,
+  options: UsePermissionOptions = {},
+): AccessState {
   const { required = "READ", enabled = true, legacyAllowed, ...scope } = options;
   const fetcher = useServerFn(getMyAccessDecisions);
 
@@ -51,6 +54,7 @@ export function usePermission(permission: string, options: UsePermissionOptions 
     staleTime: 60_000,
     retry: false,
   });
+
 
   const state = toAccessState(
     query.data?.decisions?.[permission],

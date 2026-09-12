@@ -5,7 +5,10 @@ import { verifyWebhook, EventName, type PaddleEnv } from "@/lib/paddle.server";
 let _supabase: any = null;
 function getSupabase(): any {
   if (!_supabase) {
-    _supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+    _supabase = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    );
   }
   return _supabase;
 }
@@ -15,11 +18,7 @@ function nextMonthFirstDayISO(after: Date): string {
   return d.toISOString();
 }
 
-async function anchorSubscriptionDay1(
-  env: PaddleEnv,
-  subscriptionId: string,
-  currentNextBilled: string | undefined | null,
-) {
+async function anchorSubscriptionDay1(env: PaddleEnv, subscriptionId: string, currentNextBilled: string | undefined | null) {
   if (!currentNextBilled) return;
   try {
     const { gatewayFetch } = await import("@/lib/paddle.server");
@@ -113,11 +112,7 @@ async function handleSubscriptionCreated(data: any, env: PaddleEnv) {
  * Webhooks do Paddle podem chegar fora de ordem ou repetidos. Só aplicamos a
  * atualização quando o evento é mais novo que o último já gravado na linha.
  */
-async function isStaleEvent(
-  id: string,
-  env: PaddleEnv,
-  occurredAt?: string | null,
-): Promise<boolean> {
+async function isStaleEvent(id: string, env: PaddleEnv, occurredAt?: string | null): Promise<boolean> {
   if (!occurredAt) return false;
   const { data } = await getSupabase()
     .from("subscriptions")
@@ -171,7 +166,8 @@ async function handleSubscriptionCanceled(data: any, env: PaddleEnv, occurredAt?
   if (await isStaleEvent(data.id, env, occurredAt)) return;
   // O acesso vai até o fim do período informado pelo próprio evento; sem isso
   // um cancelamento imediato manteria a data antiga (e o acesso) no ar.
-  const endsAt = data?.currentBillingPeriod?.endsAt ?? data?.canceledAt ?? new Date().toISOString();
+  const endsAt =
+    data?.currentBillingPeriod?.endsAt ?? data?.canceledAt ?? new Date().toISOString();
   await getSupabase()
     .from("subscriptions")
     .update({
@@ -191,18 +187,10 @@ async function handleWebhook(req: Request, env: PaddleEnv) {
       await handleSubscriptionCreated(event.data, env);
       break;
     case EventName.SubscriptionUpdated:
-      await handleSubscriptionUpdated(
-        event.data,
-        env,
-        (event as { occurredAt?: string }).occurredAt,
-      );
+      await handleSubscriptionUpdated(event.data, env, (event as { occurredAt?: string }).occurredAt);
       break;
     case EventName.SubscriptionCanceled:
-      await handleSubscriptionCanceled(
-        event.data,
-        env,
-        (event as { occurredAt?: string }).occurredAt,
-      );
+      await handleSubscriptionCanceled(event.data, env, (event as { occurredAt?: string }).occurredAt);
       break;
     default:
       console.log("payments.webhook: unhandled event", event.eventType);

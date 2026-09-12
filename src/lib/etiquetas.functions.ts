@@ -27,7 +27,7 @@ export const setEtiquetaOptions = createServerFn({ method: "POST" })
           .max(30)
           .transform((arr) => Array.from(new Set(arr))),
       })
-      .parse(i),
+      .parse(i)
   )
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase

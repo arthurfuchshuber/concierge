@@ -9,9 +9,7 @@ import { ChevronDown, Search, Users, Loader2, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function AccountMultiSelect({
-  value,
-  onChange,
-  compact = false,
+  value, onChange, compact = false,
 }: {
   value: string[]; // [] = minha conta
   onChange: (userIds: string[]) => void;
@@ -42,9 +40,7 @@ export function AccountMultiSelect({
     const term = search.trim().toLowerCase();
     if (!term) return all;
     return all.filter(
-      (c) =>
-        (c.fullName ?? "").toLowerCase().includes(term) ||
-        (c.email ?? "").toLowerCase().includes(term),
+      (c) => (c.fullName ?? "").toLowerCase().includes(term) || (c.email ?? "").toLowerCase().includes(term),
     );
   }, [all, search]);
 
@@ -66,12 +62,8 @@ export function AccountMultiSelect({
     if (selectedSet.has(id)) onChange(value.filter((x) => x !== id));
     else onChange([...value, id]);
   }
-  function selectAll() {
-    onChange([]);
-  }
-  function clear() {
-    onChange([]);
-  }
+  function selectAll() { onChange([]); }
+  function clear() { onChange([]); }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -79,10 +71,7 @@ export function AccountMultiSelect({
         <Button
           variant="outline"
           size="sm"
-          className={cn(
-            "h-8 justify-between gap-2 text-xs font-normal",
-            compact ? "w-full" : "w-[220px]",
-          )}
+          className={cn("h-8 justify-between gap-2 text-xs font-normal", compact ? "w-full" : "w-[220px]")}
         >
           <span className="flex items-center gap-1.5 truncate">
             <Users className="size-3.5 text-muted-foreground shrink-0" />
@@ -133,19 +122,9 @@ export function AccountMultiSelect({
                   key={c.userId}
                   type="button"
                   onClick={() => toggle(c.userId)}
-                  className={cn(
-                    "w-full px-3 py-2 flex items-center gap-2 text-left text-xs",
-                    active ? "bg-accent/10" : "hover:bg-secondary/60",
-                  )}
+                  className={cn("w-full px-3 py-2 flex items-center gap-2 text-left text-xs", active ? "bg-accent/10" : "hover:bg-secondary/60")}
                 >
-                  <div
-                    className={cn(
-                      "flex size-4 items-center justify-center rounded-sm border shrink-0",
-                      active
-                        ? "bg-primary border-primary text-primary-foreground"
-                        : "border-border",
-                    )}
-                  >
+                  <div className={cn("flex size-4 items-center justify-center rounded-sm border shrink-0", active ? "bg-primary border-primary text-primary-foreground" : "border-border")}>
                     {active && <Check className="size-3" />}
                   </div>
                   <div className="flex-1 min-w-0">

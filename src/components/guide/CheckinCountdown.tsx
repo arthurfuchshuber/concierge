@@ -92,13 +92,13 @@ export function CheckinCountdown({
         <div className="mx-4 md:mx-10 lg:mx-16 mb-3 relative z-10">
           <Wrapper>
             <div
-              className={`btn-shine relative rounded-2xl border backdrop-blur-xl px-4 py-3 flex items-center gap-2.5 overflow-hidden ${
+              className={`btn-shine relative rounded-[0.3rem] border backdrop-blur-xl px-4 py-3 flex items-center gap-2.5 overflow-hidden ${
                 isLight
                   ? "border-emerald-500/30 bg-emerald-500/5"
                   : "border-emerald-400/25 bg-emerald-500/[0.08]"
               }`}
             >
-              <span className="absolute -inset-px rounded-2xl bg-gradient-to-r from-emerald-400/10 via-transparent to-emerald-400/10 opacity-60 pointer-events-none" />
+              <span className="absolute -inset-px rounded-[0.3rem] bg-gradient-to-r from-emerald-400/10 via-transparent to-emerald-400/10 opacity-60 pointer-events-none" />
               <span className="relative flex size-2 shrink-0">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full size-2 bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
@@ -144,7 +144,7 @@ export function CheckinCountdown({
     <div className="mx-4 md:mx-10 lg:mx-16 mb-3 md:mb-4 relative z-10">
       <Wrapper>
         <div
-          className={`btn-shine relative overflow-hidden rounded-2xl border backdrop-blur-xl px-4 py-3 ${
+          className={`btn-shine relative overflow-hidden rounded-[0.3rem] border backdrop-blur-xl px-4 py-3 ${
             isLight ? "border-border bg-card/70" : "border-white/10 bg-white/[0.04]"
           }`}
         >

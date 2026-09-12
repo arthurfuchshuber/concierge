@@ -103,11 +103,7 @@ type FirecrawlScrapeOptions = {
 // scrapeAirbnbListing).
 const AIRBNB_EXPAND_ACTIONS: FirecrawlAction[] = [
   { type: "wait", milliseconds: 1200 },
-  {
-    type: "click",
-    selector: "button[aria-label*='descri' i], button[aria-expanded='false']",
-    all: true,
-  },
+  { type: "click", selector: "button[aria-label*='descri' i], button[aria-expanded='false']", all: true },
   { type: "wait", milliseconds: 500 },
   // "Mostrar todas as X comodidades"/"Show all X amenities" costuma ficar
   // abaixo da dobra — sem rolar até ela antes, o clique podia cair fora do
@@ -148,12 +144,7 @@ const AIRBNB_EXPAND_ACTIONS: FirecrawlAction[] = [
   // ficar cobrindo os botões "Saiba mais" da página principal, impedindo o
   // próximo clique de achá-los. Se não houver botão de fechar (seletor não
   // bate com nada), o Firecrawl segue sem travar.
-  {
-    type: "click",
-    selector:
-      "[role='dialog'] button[aria-label*='fechar' i], [role='dialog'] button[aria-label*='close' i]",
-    all: true,
-  },
+  { type: "click", selector: "[role='dialog'] button[aria-label*='fechar' i], [role='dialog'] button[aria-label*='close' i]", all: true },
   { type: "wait", milliseconds: 500 },
   // Abre os 3 cartões de "O que você deve saber" (Regras da casa,
   // Segurança e propriedade, Política de cancelamento) de uma vez.
@@ -166,20 +157,11 @@ const AIRBNB_EXPAND_ACTIONS: FirecrawlAction[] = [
   { type: "wait", milliseconds: 900 },
   // Dentro do modal "Regras da casa" (já aberto acima) existe uma
   // sub-seção "Regras adicionais" com seu PRÓPRIO "Mostrar mais".
-  {
-    type: "click",
-    selector:
-      "[role='dialog'] button[aria-label*='mostrar mais' i], [role='dialog'] button[aria-label*='show more' i], [role='dialog'] button[aria-expanded='false']",
-    all: true,
-  },
+  { type: "click", selector: "[role='dialog'] button[aria-label*='mostrar mais' i], [role='dialog'] button[aria-label*='show more' i], [role='dialog'] button[aria-expanded='false']", all: true },
   { type: "wait", milliseconds: 700 },
 ];
 
-async function scrapeWithFirecrawl(
-  apiKey: string,
-  url: string,
-  options: FirecrawlScrapeOptions,
-): Promise<unknown> {
+async function scrapeWithFirecrawl(apiKey: string, url: string, options: FirecrawlScrapeOptions): Promise<unknown> {
   const response = await fetch("https://api.firecrawl.dev/v2/scrape", {
     method: "POST",
     headers: {
@@ -192,10 +174,7 @@ async function scrapeWithFirecrawl(
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     const message =
-      payload &&
-      typeof payload === "object" &&
-      "error" in payload &&
-      typeof payload.error === "string"
+      payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
         ? payload.error
         : response.statusText;
     throw new Error(message || `Firecrawl retornou HTTP ${response.status}`);
@@ -255,91 +234,41 @@ function pickTime(text?: string | null): string | null {
 const AIRBNB_EXTRACTION_SCHEMA = {
   type: "object",
   properties: {
-    title: {
-      type: "string",
-      description:
-        "Title or name of the listing, copied EXACTLY as written — original language, never translate.",
-    },
-    description: {
-      type: "string",
-      description:
-        "Short description / tagline (1-2 sentences), copied EXACTLY as written — original language, never translate.",
-    },
+    title: { type: "string", description: "Title or name of the listing, copied EXACTLY as written — original language, never translate." },
+    description: { type: "string", description: "Short description / tagline (1-2 sentences), copied EXACTLY as written — original language, never translate." },
     city: { type: "string", description: "City name only" },
     country: { type: "string", description: "Country name only" },
-    checkin_time: {
-      type: "string",
-      description:
-        "Check-in start time as displayed, e.g. '15:00' or '3:00 PM' or 'After 3:00 PM'. If a range is shown (e.g. 'Between 3:00 PM and 11:00 PM'), include both times in the original order.",
-    },
-    checkin_time_max: {
-      type: "string",
-      description:
-        "End of the check-in window if shown as a range, e.g. '23:00' or '11:00 PM'. Otherwise empty.",
-    },
-    checkout_time: {
-      type: "string",
-      description: "Check-out time as displayed, e.g. '11:00' or '11:00 AM' or 'Before 11:00 AM'",
-    },
+    checkin_time: { type: "string", description: "Check-in start time as displayed, e.g. '15:00' or '3:00 PM' or 'After 3:00 PM'. If a range is shown (e.g. 'Between 3:00 PM and 11:00 PM'), include both times in the original order." },
+    checkin_time_max: { type: "string", description: "End of the check-in window if shown as a range, e.g. '23:00' or '11:00 PM'. Otherwise empty." },
+    checkout_time: { type: "string", description: "Check-out time as displayed, e.g. '11:00' or '11:00 AM' or 'Before 11:00 AM'" },
     photos: {
       type: "array",
-      description:
-        "URLs of the first 4 listing photos in display order. Full https URLs from muscache.com.",
+      description: "URLs of the first 4 listing photos in display order. Full https URLs from muscache.com.",
       items: { type: "string" },
       maxItems: 4,
     },
-    rating: {
-      type: "string",
-      description:
-        "Overall star rating exactly as displayed near the top, e.g. '4.91' or '4,91'. Empty string if the listing has no reviews yet.",
-    },
-    guest_summary: {
-      type: "string",
-      description:
-        "The subtitle line below the title/rating listing capacity, copied EXACTLY as displayed — original language, never translate, e.g. '7 hóspedes · 3 quartos · 4 camas · 2 banheiros' or '7 guests · 3 bedrooms · 4 beds · 2 baths'.",
-    },
-    description_full: {
-      type: "string",
-      description:
-        "The COMPLETE listing description text (every paragraph), fully expanded — not the short truncated version. Include text revealed by any 'Show more'/'Mostrar mais' button under the description. Copy EXACTLY as written — original language, never translate.",
-    },
+    rating: { type: "string", description: "Overall star rating exactly as displayed near the top, e.g. '4.91' or '4,91'. Empty string if the listing has no reviews yet." },
+    guest_summary: { type: "string", description: "The subtitle line below the title/rating listing capacity, copied EXACTLY as displayed — original language, never translate, e.g. '7 hóspedes · 3 quartos · 4 camas · 2 banheiros' or '7 guests · 3 bedrooms · 4 beds · 2 baths'." },
+    description_full: { type: "string", description: "The COMPLETE listing description text (every paragraph), fully expanded — not the short truncated version. Include text revealed by any 'Show more'/'Mostrar mais' button under the description. Copy EXACTLY as written — original language, never translate." },
     rooms_beds: {
       type: "array",
-      description:
-        "One entry per bedroom/sleeping space shown in the 'Where you'll sleep'/'Onde você vai dormir' section, including every room even if the section scrolls horizontally.",
+      description: "One entry per bedroom/sleeping space shown in the 'Where you'll sleep'/'Onde você vai dormir' section, including every room even if the section scrolls horizontally.",
       items: {
         type: "object",
         properties: {
-          room: {
-            type: "string",
-            description:
-              "Room label, copied EXACTLY as displayed — original language, never translate, e.g. 'Quarto 1' or 'Bedroom 1'",
-          },
-          beds: {
-            type: "string",
-            description:
-              "Bed description for that room, copied EXACTLY as displayed — original language, never translate, e.g. '1 cama de casal' or '1 queen bed'",
-          },
+          room: { type: "string", description: "Room label, copied EXACTLY as displayed — original language, never translate, e.g. 'Quarto 1' or 'Bedroom 1'" },
+          beds: { type: "string", description: "Bed description for that room, copied EXACTLY as displayed — original language, never translate, e.g. '1 cama de casal' or '1 queen bed'" },
         },
       },
     },
     amenities: {
       type: "array",
-      description:
-        "ALL amenities listed in the 'Mostrar todas as X comodidades'/'Show all X amenities' modal — this modal lists EVERY amenity of the listing (typically far more than the ~10 shown on the main page before clicking), organized under category headers. Read the FULL modal, every category, every item inside each category — do not stop at the first few. Include ones shown with a strikethrough (meaning NOT offered) — do not skip the strikethrough ones. If the modal could not be opened, fall back to the short list shown on the main page instead of leaving this empty.",
+      description: "ALL amenities listed in the 'Mostrar todas as X comodidades'/'Show all X amenities' modal — this modal lists EVERY amenity of the listing (typically far more than the ~10 shown on the main page before clicking), organized under category headers. Read the FULL modal, every category, every item inside each category — do not stop at the first few. Include ones shown with a strikethrough (meaning NOT offered) — do not skip the strikethrough ones. If the modal could not be opened, fall back to the short list shown on the main page instead of leaving this empty.",
       items: {
         type: "object",
         properties: {
-          name: {
-            type: "string",
-            description:
-              "Amenity name, copied EXACTLY as displayed — original language, never translate, e.g. 'Wi-Fi' or 'Piscina'",
-          },
-          available: {
-            type: "boolean",
-            description:
-              "false if the amenity is shown with a strikethrough / marked as not included, true otherwise",
-          },
+          name: { type: "string", description: "Amenity name, copied EXACTLY as displayed — original language, never translate, e.g. 'Wi-Fi' or 'Piscina'" },
+          available: { type: "boolean", description: "false if the amenity is shown with a strikethrough / marked as not included, true otherwise" },
           category: {
             type: "string",
             description:
@@ -415,14 +344,8 @@ function parseRoomsBeds(value: unknown): AirbnbRoomBeds[] {
   return value
     .map((v) => {
       if (!v || typeof v !== "object") return null;
-      const room =
-        typeof (v as Record<string, unknown>).room === "string"
-          ? ((v as Record<string, unknown>).room as string)
-          : "";
-      const beds =
-        typeof (v as Record<string, unknown>).beds === "string"
-          ? ((v as Record<string, unknown>).beds as string)
-          : "";
+      const room = typeof (v as Record<string, unknown>).room === "string" ? (v as Record<string, unknown>).room as string : "";
+      const beds = typeof (v as Record<string, unknown>).beds === "string" ? (v as Record<string, unknown>).beds as string : "";
       return room.trim() || beds.trim() ? { room: room.trim(), beds: beds.trim() } : null;
     })
     .filter((v): v is AirbnbRoomBeds => v !== null);
@@ -445,15 +368,11 @@ function parseAmenities(value: unknown): AirbnbAmenity[] {
   return value
     .map((v) => {
       if (!v || typeof v !== "object") return null;
-      const name =
-        typeof (v as Record<string, unknown>).name === "string"
-          ? ((v as Record<string, unknown>).name as string)
-          : "";
+      const name = typeof (v as Record<string, unknown>).name === "string" ? (v as Record<string, unknown>).name as string : "";
       if (!name.trim()) return null;
       const available = (v as Record<string, unknown>).available !== false;
       const categoryRaw = (v as Record<string, unknown>).category;
-      const category =
-        typeof categoryRaw === "string" && categoryRaw.trim() ? categoryRaw.trim() : null;
+      const category = typeof categoryRaw === "string" && categoryRaw.trim() ? categoryRaw.trim() : null;
       return { name: name.trim(), available, category };
     })
     .filter((v): v is AirbnbAmenity => v !== null);
@@ -487,15 +406,8 @@ async function scrapeAirbnbListing(apiKey: string, url: string): Promise<AirbnbI
     //    descrição, quartos/camas costumam já estar no HTML mesmo sem
     //    clicar) — só as seções realmente atrás de um modal/JS (comodidades
     //    completas, "O que você deve saber") tendem a vir vazias aqui.
-    {
-      formats: [{ type: "json", schema: AIRBNB_EXTRACTION_SCHEMA, prompt: NO_TRANSLATE_PROMPT }],
-      onlyMainContent: false,
-      waitFor: 2500,
-    },
-    {
-      formats: [{ type: "json", schema: AIRBNB_EXTRACTION_SCHEMA, prompt: NO_TRANSLATE_PROMPT }],
-      onlyMainContent: false,
-    },
+    { formats: [{ type: "json", schema: AIRBNB_EXTRACTION_SCHEMA, prompt: NO_TRANSLATE_PROMPT }], onlyMainContent: false, waitFor: 2500 },
+    { formats: [{ type: "json", schema: AIRBNB_EXTRACTION_SCHEMA, prompt: NO_TRANSLATE_PROMPT }], onlyMainContent: false },
     // 4) Rede de segurança final: só os 7 campos básicos, sem o schema
     //    grande — garante que o import não fica totalmente vazio mesmo se o
     //    Airbnb estiver bloqueando ou a página mudou muito.
@@ -524,7 +436,7 @@ async function scrapeAirbnbListing(apiKey: string, url: string): Promise<AirbnbI
     throw new Error(
       /exception ID|unexpected error/i.test(msg)
         ? "O Airbnb bloqueou a leitura deste anúncio agora. Tente novamente em alguns minutos ou preencha os campos manualmente."
-        : `Não foi possível ler o anúncio: ${msg}`,
+        : `Não foi possível ler o anúncio: ${msg}`
     );
   }
 
@@ -553,27 +465,19 @@ async function scrapeAirbnbListing(apiKey: string, url: string): Promise<AirbnbI
   const checkinTimeMax = pickTime(checkinMaxRaw) ?? checkinTimes[1] ?? null;
 
   const rating = parseRating(typeof j.rating === "string" ? j.rating : null);
-  const guestSummary = parseGuestSummary(
-    typeof j.guest_summary === "string" ? j.guest_summary : null,
-  );
+  const guestSummary = parseGuestSummary(typeof j.guest_summary === "string" ? j.guest_summary : null);
   const descriptionFull =
-    typeof j.description_full === "string" && j.description_full.trim()
-      ? unescapeMarkdown(j.description_full.trim())
-      : null;
+    typeof j.description_full === "string" && j.description_full.trim() ? unescapeMarkdown(j.description_full.trim()) : null;
   const roomsBeds = parseRoomsBeds(j.rooms_beds);
   const amenities = parseAmenities(j.amenities);
   const houseRules =
-    typeof j.house_rules === "string" && j.house_rules.trim()
-      ? unescapeMarkdown(j.house_rules.trim())
-      : null;
+    typeof j.house_rules === "string" && j.house_rules.trim() ? unescapeMarkdown(j.house_rules.trim()) : null;
   const cancellationPolicy =
     typeof j.cancellation_policy === "string" && j.cancellation_policy.trim()
       ? unescapeMarkdown(j.cancellation_policy.trim())
       : null;
   const safetyInfo =
-    typeof j.safety_info === "string" && j.safety_info.trim()
-      ? unescapeMarkdown(j.safety_info.trim())
-      : null;
+    typeof j.safety_info === "string" && j.safety_info.trim() ? unescapeMarkdown(j.safety_info.trim()) : null;
 
   return {
     name: title,
@@ -604,9 +508,7 @@ export const importFromAirbnb = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => AirbnbInput.parse(i))
   .handler(async ({ data, context }): Promise<AirbnbImportResult> => {
     const { assertFeature } = await import("@/lib/plan-guard.server");
-    await assertFeature(context.supabase, context.userId, "autoImport", {
-      propertyId: data.propertyId ?? null,
-    });
+    await assertFeature(context.supabase, context.userId, "autoImport", { propertyId: data.propertyId ?? null });
     const apiKey = process.env.FIRECRAWL_API_KEY;
     if (!apiKey) throw new Error("Integração Firecrawl indisponível");
     return scrapeAirbnbListing(apiKey, data.url);
@@ -663,8 +565,7 @@ function isEmptyValue(v: unknown): boolean {
 export async function refreshStaleAirbnbListings(limit: number) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const apiKey = process.env.FIRECRAWL_API_KEY;
-  if (!apiKey)
-    return { updated: 0, unchanged: 0, failed: 0, total: 0, skipped: "sem FIRECRAWL_API_KEY" };
+  if (!apiKey) return { updated: 0, unchanged: 0, failed: 0, total: 0, skipped: "sem FIRECRAWL_API_KEY" };
 
   const cap = Math.max(1, Math.min(200, limit));
   const { data: rows, error } = await supabaseAdmin
@@ -786,10 +687,7 @@ export async function refreshStaleAirbnbListings(limit: number) {
       else unchanged++;
 
       if (missingFields.length > 0) {
-        anomalies.push({
-          propertyName: (rowRec.name as string | null)?.trim() || url,
-          fields: missingFields,
-        });
+        anomalies.push({ propertyName: (rowRec.name as string | null)?.trim() || url, fields: missingFields });
       }
     } catch (e) {
       failed++;
@@ -812,16 +710,10 @@ export async function refreshStaleAirbnbListings(limit: number) {
           0,
           500,
         ),
-        data: {
-          url: "/admin",
-          tag: `airbnb-sync-anomaly-${new Date().toISOString().slice(0, 10)}`,
-        },
+        data: { url: "/admin", tag: `airbnb-sync-anomaly-${new Date().toISOString().slice(0, 10)}` },
       });
     } catch (e) {
-      console.error(
-        "[refreshStaleAirbnbListings] falha ao notificar admins do SaaS sobre anomalia",
-        e,
-      );
+      console.error("[refreshStaleAirbnbListings] falha ao notificar admins do SaaS sobre anomalia", e);
     }
   }
 

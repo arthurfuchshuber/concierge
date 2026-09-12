@@ -3,23 +3,8 @@ import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-  AlertCircle,
-  Phone,
-  MessageSquare,
-  Clock,
-  Layers,
-  Search,
-  Calendar,
-  CalendarCheck,
-  MousePointerClick,
-  Timer,
-  Award,
-  Star,
-  ArrowUp,
-  ArrowDown,
-  ChevronsUpDown,
-  Building2,
-  Hash,
+  AlertCircle, Phone, MessageSquare, Clock, Layers, Search, Calendar, CalendarCheck,
+  MousePointerClick, Timer, Award, Star, ArrowUp, ArrowDown, ChevronsUpDown, Building2, Hash,
 } from "lucide-react";
 import type { GuestListItem } from "@/lib/engagement-guests.functions";
 import { toWhatsappNumber, formatIntlPhone } from "@/lib/masks";
@@ -49,28 +34,13 @@ function fmtDateTime(v: string | null | undefined): string {
   if (!v) return "—";
   const d = new Date(v);
   if (isNaN(d.getTime())) return "—";
-  return d.toLocaleString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
 type SortKey =
-  | "guestName"
-  | "accountName"
-  | "propertyName"
-  | "checkinDate"
-  | "lastActivity"
-  | "accessesCount"
-  | "sessionsCount"
-  | "totalSeconds"
-  | "avgSessionSeconds"
-  | "maxSessionSeconds"
-  | "topSection"
-  | "messagesCount";
+  | "guestName" | "accountName" | "propertyName" | "checkinDate" | "lastActivity"
+  | "accessesCount" | "sessionsCount" | "totalSeconds" | "avgSessionSeconds"
+  | "maxSessionSeconds" | "topSection" | "messagesCount";
 
 type SortState = { key: SortKey; dir: "asc" | "desc" };
 
@@ -80,8 +50,7 @@ function SortIndicator({ active, dir }: { active: boolean; dir: "asc" | "desc" }
 }
 
 export function GuestsTable({
-  guests,
-  onSelect,
+  guests, onSelect,
 }: {
   guests: GuestListItem[];
   onSelect: (guestKey: string) => void;
@@ -105,9 +74,7 @@ export function GuestsTable({
         g.propertyCity ?? "",
         g.checkinDate ?? "",
         fmtDate(g.checkinDate),
-      ]
-        .join(" ")
-        .toLowerCase();
+      ].join(" ").toLowerCase();
       if (hay.includes(term)) return true;
       if (digits && g.phone && g.phone.includes(digits)) return true;
       return false;
@@ -120,30 +87,24 @@ export function GuestsTable({
     const cmpStr = (a: string, b: string) => a.localeCompare(b, "pt-BR", { sensitivity: "base" });
     arr.sort((a, b) => {
       switch (sort.key) {
-        case "guestName":
-          return dir * cmpStr(a.guestName || "", b.guestName || "");
-        case "accountName":
-          return dir * cmpStr(a.accountName || "", b.accountName || "");
-        case "propertyName":
-          return dir * cmpStr(a.propertyName || "", b.propertyName || "");
-        case "topSection":
-          return dir * cmpStr(a.topSection || "", b.topSection || "");
-        case "checkinDate":
-          return dir * (a.checkinDate || "").localeCompare(b.checkinDate || "");
-        case "lastActivity":
-          return dir * (a.lastActivity || "").localeCompare(b.lastActivity || "");
-        default:
-          return dir * ((a[sort.key] as number) - (b[sort.key] as number));
+        case "guestName":     return dir * cmpStr(a.guestName || "", b.guestName || "");
+        case "accountName":   return dir * cmpStr(a.accountName || "", b.accountName || "");
+        case "propertyName":  return dir * cmpStr(a.propertyName || "", b.propertyName || "");
+        case "topSection":    return dir * cmpStr(a.topSection || "", b.topSection || "");
+        case "checkinDate":   return dir * (a.checkinDate || "").localeCompare(b.checkinDate || "");
+        case "lastActivity":  return dir * (a.lastActivity || "").localeCompare(b.lastActivity || "");
+        default:              return dir * ((a[sort.key] as number) - (b[sort.key] as number));
       }
     });
     return arr;
   }, [filtered, sort]);
 
+
   function toggle(key: SortKey, defaultDir: "asc" | "desc" = "desc") {
     setSort((prev) =>
       prev.key === key
         ? { key, dir: prev.dir === "asc" ? "desc" : "asc" }
-        : { key, dir: defaultDir },
+        : { key, dir: defaultDir }
     );
   }
 
@@ -161,20 +122,17 @@ export function GuestsTable({
         <div className="flex-1 min-w-0 pr-14 sm:pr-0">
           <h3 className="text-sm font-semibold">Hóspedes</h3>
           <p className="text-xs text-muted-foreground">
-            Um hóspede por telefone (ou nome, quando não há telefone). Clique em uma linha para ver
-            detalhes.
+            Um hóspede por telefone (ou nome, quando não há telefone). Clique em uma linha para ver detalhes.
           </p>
         </div>
         <div className="relative w-full sm:w-72 shrink-0">
           <Search className="size-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={q}
-            onChange={(e) => {
-              setQ(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => { setQ(e.target.value); setPage(1); }}
             placeholder="Nome, telefone, guia, check-in, reserva…"
             className="h-8 pl-8 text-xs"
+
           />
         </div>
       </header>
@@ -185,9 +143,7 @@ export function GuestsTable({
         </div>
       ) : (
         <div className="overflow-x-auto sg-elegant-scroll">
-          <table
-            className={`w-full text-sm ${showReservation ? "min-w-[1440px]" : "min-w-[1320px]"}`}
-          >
+          <table className={`w-full text-sm ${showReservation ? "min-w-[1440px]" : "min-w-[1320px]"}`}>
             <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground select-none">
               <tr>
                 <th
@@ -199,32 +155,9 @@ export function GuestsTable({
                   </span>
                 </th>
 
-                <ThSort
-                  onClick={() => toggle("accountName", "asc")}
-                  active={active("accountName")}
-                  dir={sort.dir}
-                  icon={Building2}
-                  align="left"
-                >
-                  Conta
-                </ThSort>
-                <ThSort
-                  onClick={() => toggle("propertyName", "asc")}
-                  active={active("propertyName")}
-                  dir={sort.dir}
-                  align="left"
-                >
-                  Imóvel
-                </ThSort>
-                <ThSort
-                  onClick={() => toggle("checkinDate", "desc")}
-                  active={active("checkinDate")}
-                  dir={sort.dir}
-                  icon={Calendar}
-                  align="left"
-                >
-                  Check-in
-                </ThSort>
+                <ThSort onClick={() => toggle("accountName", "asc")} active={active("accountName")} dir={sort.dir} icon={Building2} align="left">Conta</ThSort>
+                <ThSort onClick={() => toggle("propertyName", "asc")} active={active("propertyName")} dir={sort.dir} align="left">Imóvel</ThSort>
+                <ThSort onClick={() => toggle("checkinDate", "desc")} active={active("checkinDate")} dir={sort.dir} icon={Calendar} align="left">Check-in</ThSort>
                 {showReservation && (
                   <th className="text-left px-3 py-2 font-medium whitespace-nowrap">
                     <span className="inline-flex items-center gap-1">
@@ -233,78 +166,14 @@ export function GuestsTable({
                     </span>
                   </th>
                 )}
-                <ThSort
-                  onClick={() => toggle("lastActivity", "desc")}
-                  active={active("lastActivity")}
-                  dir={sort.dir}
-                  icon={CalendarCheck}
-                  align="left"
-                >
-                  Último acesso
-                </ThSort>
-                <ThSort
-                  onClick={() => toggle("accessesCount", "desc")}
-                  active={active("accessesCount")}
-                  dir={sort.dir}
-                  icon={MousePointerClick}
-                  align="left"
-                >
-                  Acessos
-                </ThSort>
-                <ThSort
-                  onClick={() => toggle("sessionsCount", "desc")}
-                  active={active("sessionsCount")}
-                  dir={sort.dir}
-                  icon={Layers}
-                  align="left"
-                >
-                  Sessões
-                </ThSort>
-                <ThSort
-                  onClick={() => toggle("totalSeconds", "desc")}
-                  active={active("totalSeconds")}
-                  dir={sort.dir}
-                  icon={Clock}
-                  align="left"
-                >
-                  Tempo total
-                </ThSort>
-                <ThSort
-                  onClick={() => toggle("avgSessionSeconds", "desc")}
-                  active={active("avgSessionSeconds")}
-                  dir={sort.dir}
-                  icon={Timer}
-                  align="left"
-                >
-                  Tempo médio
-                </ThSort>
-                <ThSort
-                  onClick={() => toggle("maxSessionSeconds", "desc")}
-                  active={active("maxSessionSeconds")}
-                  dir={sort.dir}
-                  icon={Award}
-                  align="left"
-                >
-                  Maior sessão
-                </ThSort>
-                <ThSort
-                  onClick={() => toggle("topSection", "asc")}
-                  active={active("topSection")}
-                  dir={sort.dir}
-                  icon={Star}
-                  align="left"
-                >
-                  Seção top
-                </ThSort>
-                <ThSort
-                  onClick={() => toggle("messagesCount", "desc")}
-                  active={active("messagesCount")}
-                  dir={sort.dir}
-                  icon={MessageSquare}
-                  align="left"
-                >
-                  Chat
-                </ThSort>
+                <ThSort onClick={() => toggle("lastActivity", "desc")} active={active("lastActivity")} dir={sort.dir} icon={CalendarCheck} align="left">Último acesso</ThSort>
+                <ThSort onClick={() => toggle("accessesCount", "desc")} active={active("accessesCount")} dir={sort.dir} icon={MousePointerClick} align="left">Acessos</ThSort>
+                <ThSort onClick={() => toggle("sessionsCount", "desc")} active={active("sessionsCount")} dir={sort.dir} icon={Layers} align="left">Sessões</ThSort>
+                <ThSort onClick={() => toggle("totalSeconds", "desc")} active={active("totalSeconds")} dir={sort.dir} icon={Clock} align="left">Tempo total</ThSort>
+                <ThSort onClick={() => toggle("avgSessionSeconds", "desc")} active={active("avgSessionSeconds")} dir={sort.dir} icon={Timer} align="left">Tempo médio</ThSort>
+                <ThSort onClick={() => toggle("maxSessionSeconds", "desc")} active={active("maxSessionSeconds")} dir={sort.dir} icon={Award} align="left">Maior sessão</ThSort>
+                <ThSort onClick={() => toggle("topSection", "asc")} active={active("topSection")} dir={sort.dir} icon={Star} align="left">Seção top</ThSort>
+                <ThSort onClick={() => toggle("messagesCount", "desc")} active={active("messagesCount")} dir={sort.dir} icon={MessageSquare} align="left">Chat</ThSort>
               </tr>
             </thead>
             <tbody>
@@ -312,112 +181,83 @@ export function GuestsTable({
                 const waNum = g.phone ? toWhatsappNumber(g.phone, g.phoneCountry) : "";
                 const phoneLabel = g.phone ? formatIntlPhone(g.phone, g.phoneCountry) : "";
                 return (
-                  <tr
-                    key={g.key}
-                    onClick={() => onSelect(g.key)}
-                    className="border-t border-border cursor-pointer hover:bg-muted/40 transition-colors"
-                  >
-                    <td className="px-3 py-3 pr-3 sticky left-0 bg-card z-10 w-[160px] max-w-[160px]">
-                      <div className="font-medium truncate" title={g.guestName}>
-                        {g.guestName || "—"}
-                      </div>
-                      <div className="flex items-center gap-1 text-[11px] min-w-0">
-                        {g.phone ? (
-                          <PhoneActionButton phone={g.phone} country={g.phoneCountry} size={12} />
-                        ) : (
-                          <span className="text-muted-foreground">sem telefone</span>
-                        )}
-                      </div>
+                <tr
+                  key={g.key}
+                  onClick={() => onSelect(g.key)}
+                  className="border-t border-border cursor-pointer hover:bg-muted/40 transition-colors"
+                >
+                  <td className="px-3 py-3 pr-3 sticky left-0 bg-card z-10 w-[160px] max-w-[160px]">
+                    <div className="font-medium truncate" title={g.guestName}>{g.guestName || "—"}</div>
+                    <div className="flex items-center gap-1 text-[11px] min-w-0">
+                      {g.phone ? (
+                        <PhoneActionButton phone={g.phone} country={g.phoneCountry} size={12} />
+                      ) : <span className="text-muted-foreground">sem telefone</span>}
+                    </div>
 
-                      {g.reservationCode && !showReservation && (
-                        <div className="flex items-center gap-1 mt-0.5 min-w-0">
-                          <span className="font-mono text-[10px] px-1 py-0.5 rounded bg-muted/60 border border-border/60 truncate">
-                            {g.reservationCode}
-                          </span>
-                          <span onClick={(e) => e.stopPropagation()} className="shrink-0">
-                            <CopyButton value={g.reservationCode} size={11} />
-                          </span>
-                        </div>
-                      )}
-                    </td>
-
-                    <td
-                      className="px-3 py-3 text-left text-xs text-muted-foreground truncate max-w-[160px]"
-                      title={g.accountName}
-                    >
-                      {g.accountName || "—"}
-                    </td>
-                    <td
-                      className="px-3 py-3 text-left text-xs text-muted-foreground truncate max-w-[200px]"
-                      title={g.propertyName}
-                    >
-                      {g.propertyName}
-                    </td>
-                    <td className="px-3 py-3 text-left text-xs text-muted-foreground tabular-nums whitespace-nowrap">
-                      {fmtDate(g.checkinDate)}
-                    </td>
-                    {showReservation && (
-                      <td className="px-3 py-3 text-left whitespace-nowrap">
-                        {g.reservationCode ? (
-                          <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-muted/60 border border-border/60">
-                            {g.reservationCode}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </td>
+                    {g.reservationCode && !showReservation && (
+                      <div className="flex items-center gap-1 mt-0.5 min-w-0">
+                        <span className="font-mono text-[10px] px-1 py-0.5 rounded bg-muted/60 border border-border/60 truncate">
+                          {g.reservationCode}
+                        </span>
+                        <span onClick={(e) => e.stopPropagation()} className="shrink-0">
+                          <CopyButton value={g.reservationCode} size={11} />
+                        </span>
+                      </div>
                     )}
-                    <td className="px-3 py-3 text-left text-xs text-muted-foreground tabular-nums whitespace-nowrap">
-                      {fmtDateTime(g.lastActivity)}
-                    </td>
-                    <td className="px-3 py-3 text-center tabular-nums">{g.accessesCount}</td>
-                    <td className="px-3 py-3 text-center tabular-nums">{g.sessionsCount}</td>
-                    <td className="px-3 py-3 text-left tabular-nums whitespace-nowrap">
-                      <div>{fmtCompact(g.totalSeconds)}</div>
-                      <div className="text-[10px] text-muted-foreground">
-                        {g.sessionsCount} sess
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 text-left tabular-nums whitespace-nowrap">
-                      {fmtCompact(g.avgSessionSeconds)}
-                    </td>
-                    <td className="px-3 py-3 text-left tabular-nums whitespace-nowrap">
-                      {fmtCompact(g.maxSessionSeconds)}
-                    </td>
+                  </td>
+
+                  <td className="px-3 py-3 text-left text-xs text-muted-foreground truncate max-w-[160px]" title={g.accountName}>
+                    {g.accountName || "—"}
+                  </td>
+                  <td className="px-3 py-3 text-left text-xs text-muted-foreground truncate max-w-[200px]" title={g.propertyName}>
+                    {g.propertyName}
+                  </td>
+                  <td className="px-3 py-3 text-left text-xs text-muted-foreground tabular-nums whitespace-nowrap">
+                    {fmtDate(g.checkinDate)}
+                  </td>
+                  {showReservation && (
                     <td className="px-3 py-3 text-left whitespace-nowrap">
-                      {g.topSection ? (
-                        <div>
-                          <div className="truncate max-w-[140px]" title={g.topSection}>
-                            {g.topSection}
-                          </div>
-                          <div className="text-[10px] text-muted-foreground tabular-nums">
-                            {fmtCompact(g.topSectionSeconds)}
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
+                      {g.reservationCode ? (
+                        <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-muted/60 border border-border/60">
+                          {g.reservationCode}
+                        </span>
+                      ) : <span className="text-xs text-muted-foreground">—</span>}
                     </td>
-                    <td className="px-3 py-3 text-left tabular-nums">
-                      <div className="flex items-center gap-1.5">
-                        {g.hasUnresolvedFeedback && (
-                          <AlertCircle className="size-3 text-rose-500" />
-                        )}
-                        {g.messagesCount > 0 ? (
-                          <Badge variant="secondary" className="text-[10px]">
-                            {g.messagesCount} msg
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
+                  )}
+                  <td className="px-3 py-3 text-left text-xs text-muted-foreground tabular-nums whitespace-nowrap">
+                    {fmtDateTime(g.lastActivity)}
+                  </td>
+                  <td className="px-3 py-3 text-center tabular-nums">{g.accessesCount}</td>
+                  <td className="px-3 py-3 text-center tabular-nums">{g.sessionsCount}</td>
+                  <td className="px-3 py-3 text-left tabular-nums whitespace-nowrap">
+                    <div>{fmtCompact(g.totalSeconds)}</div>
+                    <div className="text-[10px] text-muted-foreground">{g.sessionsCount} sess</div>
+                  </td>
+                  <td className="px-3 py-3 text-left tabular-nums whitespace-nowrap">{fmtCompact(g.avgSessionSeconds)}</td>
+                  <td className="px-3 py-3 text-left tabular-nums whitespace-nowrap">{fmtCompact(g.maxSessionSeconds)}</td>
+                  <td className="px-3 py-3 text-left whitespace-nowrap">
+                    {g.topSection ? (
+                      <div>
+                        <div className="truncate max-w-[140px]" title={g.topSection}>{g.topSection}</div>
+                        <div className="text-[10px] text-muted-foreground tabular-nums">{fmtCompact(g.topSectionSeconds)}</div>
                       </div>
-                    </td>
-                  </tr>
+                    ) : <span className="text-muted-foreground">—</span>}
+                  </td>
+                  <td className="px-3 py-3 text-left tabular-nums">
+                    <div className="flex items-center gap-1.5">
+                      {g.hasUnresolvedFeedback && <AlertCircle className="size-3 text-rose-500" />}
+                      {g.messagesCount > 0
+                        ? <Badge variant="secondary" className="text-[10px]">{g.messagesCount} msg</Badge>
+                        : <span className="text-muted-foreground">—</span>}
+                    </div>
+                  </td>
+                </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
+
       )}
       {sorted.length > 0 && (
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 py-3 border-t border-border text-xs text-muted-foreground">
@@ -429,17 +269,10 @@ export function GuestsTable({
               <span>Por página</span>
               <select
                 value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
-                  setPage(1);
-                }}
+                onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
                 className="h-7 rounded-md border border-border bg-background px-1.5 text-xs"
               >
-                {[10, 20, 50, 100].map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
+                {[10, 20, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
             </label>
             <div className="flex items-center gap-1">
@@ -448,20 +281,14 @@ export function GuestsTable({
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage <= 1}
                 className="h-7 px-2 rounded-md border border-border bg-background disabled:opacity-40 hover:bg-muted/40"
-              >
-                Anterior
-              </button>
-              <span className="tabular-nums">
-                {currentPage}/{totalPages}
-              </span>
+              >Anterior</button>
+              <span className="tabular-nums">{currentPage}/{totalPages}</span>
               <button
                 type="button"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage >= totalPages}
                 className="h-7 px-2 rounded-md border border-border bg-background disabled:opacity-40 hover:bg-muted/40"
-              >
-                Próxima
-              </button>
+              >Próxima</button>
             </div>
           </div>
         </div>
@@ -471,12 +298,7 @@ export function GuestsTable({
 }
 
 function ThSort({
-  children,
-  onClick,
-  active,
-  dir,
-  icon: Icon,
-  align = "right",
+  children, onClick, active, dir, icon: Icon, align = "right",
 }: {
   children: React.ReactNode;
   onClick: () => void;

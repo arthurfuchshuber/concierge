@@ -26,34 +26,14 @@ export const PROTECTED_OPERATIONS = {
   /* ------------------------------------------------------------- imóveis */
   "imoveis.read": { permission: "tenant.guias", required: "READ", domain: "imoveis" },
   "imoveis.editor.read": { permission: "tenant.guias.editor", required: "READ", domain: "imoveis" },
-  "imoveis.editor.write": {
-    permission: "tenant.guias.editor",
-    required: "WRITE",
-    domain: "imoveis",
-  },
+  "imoveis.editor.write": { permission: "tenant.guias.editor", required: "WRITE", domain: "imoveis" },
   "imoveis.delete": { permission: "tenant.guias.editor", required: "WRITE", domain: "imoveis" },
-  "imoveis.bulk-edit": {
-    permission: "tenant.guias.imoveis.edicao-massa",
-    required: "WRITE",
-    domain: "imoveis",
-  },
+  "imoveis.bulk-edit": { permission: "tenant.guias.imoveis.edicao-massa", required: "WRITE", domain: "imoveis" },
 
   /* -------------------------------------------------------- stakeholders */
-  "stakeholders.read": {
-    permission: "tenant.stakeholders",
-    required: "READ",
-    domain: "stakeholders",
-  },
-  "stakeholders.write": {
-    permission: "tenant.stakeholders",
-    required: "WRITE",
-    domain: "stakeholders",
-  },
-  "stakeholders.delete": {
-    permission: "tenant.stakeholders",
-    required: "WRITE",
-    domain: "stakeholders",
-  },
+  "stakeholders.read": { permission: "tenant.stakeholders", required: "READ", domain: "stakeholders" },
+  "stakeholders.write": { permission: "tenant.stakeholders", required: "WRITE", domain: "stakeholders" },
+  "stakeholders.delete": { permission: "tenant.stakeholders", required: "WRITE", domain: "stakeholders" },
   "stakeholders.vinculo-imovel": {
     permission: "tenant.stakeholders.proprietarios.imoveis",
     required: "WRITE",
@@ -71,11 +51,7 @@ export const PROTECTED_OPERATIONS = {
   },
 
   /* ------------------------------------------------------------ hóspedes */
-  "hospedes.read": {
-    permission: "tenant.stakeholders.hospedes",
-    required: "READ",
-    domain: "hospedes",
-  },
+  "hospedes.read": { permission: "tenant.stakeholders.hospedes", required: "READ", domain: "hospedes" },
   "hospedes.ficha.read": {
     permission: "tenant.stakeholders.hospedes.ficha",
     required: "READ",
@@ -83,16 +59,8 @@ export const PROTECTED_OPERATIONS = {
   },
 
   /* -------------------------------------------------------------- equipe */
-  "equipe.read": {
-    permission: "tenant.administrativo.permissoes",
-    required: "READ",
-    domain: "equipe",
-  },
-  "equipe.write": {
-    permission: "tenant.administrativo.permissoes",
-    required: "WRITE",
-    domain: "equipe",
-  },
+  "equipe.read": { permission: "tenant.administrativo.permissoes", required: "READ", domain: "equipe" },
+  "equipe.write": { permission: "tenant.administrativo.permissoes", required: "WRITE", domain: "equipe" },
   "equipe.permissoes": {
     permission: "tenant.administrativo.permissoes",
     required: "WRITE",
@@ -100,11 +68,7 @@ export const PROTECTED_OPERATIONS = {
   },
 
   /* ----------------------------------------------------- administrativo */
-  "administrativo.read": {
-    permission: "tenant.administrativo",
-    required: "READ",
-    domain: "administrativo",
-  },
+  "administrativo.read": { permission: "tenant.administrativo", required: "READ", domain: "administrativo" },
   "administrativo.write": {
     permission: "tenant.administrativo",
     required: "WRITE",

@@ -162,92 +162,91 @@ function argDetails(meta: Record<string, unknown>): string[] {
   return out;
 }
 
+
+
+
 export const getStakeholderSystemTrail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => INPUT.parse(i))
-  .handler(
-    async ({ data, context }): Promise<{ items: StakeholderTrailItem[]; linked: boolean }> => {
-      const { supabase, userId } = context;
+  .handler(async ({ data, context }): Promise<{ items: StakeholderTrailItem[]; linked: boolean }> => {
+    const { supabase, userId } = context;
 
-      const { data: row } = await supabase
-        .from(TABLE[data.kind])
-        .select("email")
-        .eq("id", data.id)
-        .maybeSingle();
+    const { data: row } = await supabase
+      .from(TABLE[data.kind])
+      .select("email")
+      .eq("id", data.id)
+      .maybeSingle();
 
-      const email = String((row as { email?: string } | null)?.email ?? "").toLowerCase();
-      if (!email) return { items: [], linked: false };
+    const email = String((row as { email?: string } | null)?.email ?? "").toLowerCase();
+    if (!email) return { items: [], linked: false };
 
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const users = { users: await (await import("@/lib/admin-users.server")).listAllAuthUsers() };
-      const personId =
-        users?.users.find((u) => (u.email ?? "").toLowerCase() === email)?.id ?? null;
-      if (!personId) return { items: [], linked: false };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const users = { users: await (await import("@/lib/admin-users.server")).listAllAuthUsers() };
+    const personId = users?.users.find((u) => (u.email ?? "").toLowerCase() === email)?.id ?? null;
+    if (!personId) return { items: [], linked: false };
 
-      // Só devolvemos o rastro de quem é membro desta conta.
-      const { data: member } = await supabase
-        .from("account_members")
-        .select("id")
-        .eq("owner_id", userId)
-        .eq("member_user_id", personId)
-        .maybeSingle();
-      if (!member) return { items: [], linked: false };
+    // Só devolvemos o rastro de quem é membro desta conta.
+    const { data: member } = await supabase
+      .from("account_members")
+      .select("id")
+      .eq("owner_id", userId)
+      .eq("member_user_id", personId)
+      .maybeSingle();
+    if (!member) return { items: [], linked: false };
 
-      const { data: rows } = await supabaseAdmin
-        .from("ai_system_events")
-        .select(
-          "id, created_at, event_type, event_category, description, entity_type, entity_id, metadata, severity, result",
-        )
-        .or(`user_id.eq.${personId},actor_id.eq.${personId}`)
-        .order("created_at", { ascending: false })
-        .limit(data.limit ?? 300);
+    const { data: rows } = await supabaseAdmin
+      .from("ai_system_events")
+      .select(
+        "id, created_at, event_type, event_category, description, entity_type, entity_id, metadata, severity, result",
+      )
+      .or(`user_id.eq.${personId},actor_id.eq.${personId}`)
+      .order("created_at", { ascending: false })
+      .limit(data.limit ?? 300);
 
-      const items: StakeholderTrailItem[] = (rows ?? []).map((r) => {
-        const meta = (r.metadata ?? {}) as Record<string, unknown>;
-        const type = String(r.event_type ?? "");
-        const pageTitle = (meta["page_title"] ?? null) as string | null;
-        const path = (meta["path"] ?? null) as string | null;
-        const pageName = friendlyPage(path, pageTitle);
-        const label = meta["element_label"] ? String(meta["element_label"]) : null;
-        const context = meta["context_label"] ? String(meta["context_label"]) : null;
+    const items: StakeholderTrailItem[] = (rows ?? []).map((r) => {
+      const meta = (r.metadata ?? {}) as Record<string, unknown>;
+      const type = String(r.event_type ?? "");
+      const pageTitle = (meta["page_title"] ?? null) as string | null;
+      const path = (meta["path"] ?? null) as string | null;
+      const pageName = friendlyPage(path, pageTitle);
+      const label = meta["element_label"] ? String(meta["element_label"]) : null;
+      const context = meta["context_label"] ? String(meta["context_label"]) : null;
 
-        let title = String(r.description ?? "").trim();
-        if (!title) {
-          if (type === "page_view" && pageName)
-            title = `Abriu a ${pageName.replace(/^Página /, "página ")}`;
-          else if (type === "click" && label)
-            title = `Clicou em “${label}”${context ? ` no item “${context}”` : ""}`;
-          else title = TYPE_PT[type] || type.replace(/_/g, " ") || "Ação no sistema";
-        }
+      let title = String(r.description ?? "").trim();
+      if (!title) {
+        if (type === "page_view" && pageName) title = `Abriu a ${pageName.replace(/^Página /, "página ")}`;
+        else if (type === "click" && label)
+          title = `Clicou em “${label}”${context ? ` no item “${context}”` : ""}`;
+        else title = TYPE_PT[type] || type.replace(/_/g, " ") || "Ação no sistema";
+      }
 
-        const details: string[] = [];
-        if (pageName) details.push(pageName);
-        if (context && !title.includes(context)) details.push(`Item: ${context}`);
-        if (label && !title.includes(label)) details.push(`Botão: ${label}`);
-        if (Array.isArray(meta["fields"]) && (meta["fields"] as string[]).length > 0) {
-          details.push(
-            `Informações preenchidas: ${(meta["fields"] as string[]).slice(0, 12).join(", ")}`,
-          );
-        }
-        details.push(...argDetails(meta));
-        const entityLabel = r.entity_type ? ENTITY_PT[String(r.entity_type)] : null;
-        if (entityLabel) details.push(`Referente a: ${entityLabel}`);
-        if (r.result && r.result !== "success") details.push("Não foi concluído");
+      const details: string[] = [];
+      if (pageName) details.push(pageName);
+      if (context && !title.includes(context)) details.push(`Item: ${context}`);
+      if (label && !title.includes(label)) details.push(`Botão: ${label}`);
+      if (Array.isArray(meta["fields"]) && (meta["fields"] as string[]).length > 0) {
+        details.push(`Informações preenchidas: ${(meta["fields"] as string[]).slice(0, 12).join(", ")}`);
+      }
+      details.push(...argDetails(meta));
+      const entityLabel = r.entity_type ? ENTITY_PT[String(r.entity_type)] : null;
+      if (entityLabel) details.push(`Referente a: ${entityLabel}`);
+      if (r.result && r.result !== "success") details.push("Não foi concluído");
 
-        return {
-          id: String(r.id),
-          at: (r.created_at as string) ?? null,
-          title,
-          badge: CATEGORY_PT[String(r.event_category)] ?? "Atividade",
-          details,
-          severity: String(r.severity ?? "info"),
-          macro:
-            MACRO_TYPES.has(type) ||
-            String(r.event_category) === "PERMISSIONS" ||
-            String(r.event_category) === "USER_MANAGEMENT",
-        };
-      });
 
-      return { items, linked: true };
-    },
-  );
+      return {
+        id: String(r.id),
+        at: (r.created_at as string) ?? null,
+        title,
+        badge: CATEGORY_PT[String(r.event_category)] ?? "Atividade",
+        details,
+        severity: String(r.severity ?? "info"),
+        macro:
+          MACRO_TYPES.has(type) ||
+          String(r.event_category) === "PERMISSIONS" ||
+          String(r.event_category) === "USER_MANAGEMENT",
+      };
+    });
+
+
+    return { items, linked: true };
+  });

@@ -40,11 +40,7 @@ export function SectionGroup({
     if (!isControlled) setLocalOpenId(id);
     onOpenIdChange?.(id);
   };
-  return (
-    <SectionGroupContext.Provider value={{ openId, setOpenId }}>
-      {children}
-    </SectionGroupContext.Provider>
-  );
+  return <SectionGroupContext.Provider value={{ openId, setOpenId }}>{children}</SectionGroupContext.Provider>;
 }
 
 export function Section({
@@ -96,9 +92,7 @@ export function Section({
       ].join(" ")}
     >
       {(title || action) && (
-        <header
-          className={`flex items-start justify-between gap-3 ${dense ? "px-3 pt-3 pb-2.5" : "px-4 sm:px-5 pt-4 sm:pt-5 pb-3"}`}
-        >
+        <header className={`flex items-start justify-between gap-3 ${dense ? "px-3 pt-3 pb-2.5" : "px-4 sm:px-5 pt-4 sm:pt-5 pb-3"}`}>
           <button
             type="button"
             onClick={toggle}
@@ -141,15 +135,7 @@ export function Section({
                 </h3>
               )}
               {desc && (
-                <p
-                  className={
-                    dense
-                      ? "mt-0.5 text-[11px] font-normal leading-snug text-muted-foreground"
-                      : "ds-card-desc mt-1"
-                  }
-                >
-                  {desc}
-                </p>
+                <p className={dense ? "mt-0.5 text-[11px] font-normal leading-snug text-muted-foreground" : "ds-card-desc mt-1"}>{desc}</p>
               )}
             </div>
             {collapsible && (

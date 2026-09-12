@@ -49,6 +49,7 @@ function richify(text: string, keyBase: string): ReactNode[] {
   return out;
 }
 
+
 export function MessageText({ text }: { text: string }) {
   // Cada quebra de linha do texto original vira um espaçamento visual de
   // parágrafo (linha em branco) — sem isso, frases em linhas separadas
@@ -56,7 +57,9 @@ export function MessageText({ text }: { text: string }) {
   // container respeitando a quebra simples, sem gerar nenhum respiro visual.
   // Títulos markdown (### Bloco) não têm renderizador aqui: viram linha em
   // negrito, para não exibir o "###" cru na conversa do anfitrião.
-  const spaced = text.replace(/^\s{0,3}#{1,6}\s+(.+?)\s*$/gm, "**$1**").replace(/\n+/g, "\n\n");
+  const spaced = text
+    .replace(/^\s{0,3}#{1,6}\s+(.+?)\s*$/gm, "**$1**")
+    .replace(/\n+/g, "\n\n");
   const nodes: ReactNode[] = [];
   let last = 0;
   let m: RegExpExecArray | null;

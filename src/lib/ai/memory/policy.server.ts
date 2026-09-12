@@ -47,8 +47,7 @@ export function containsSensitive(text: string): boolean {
   return SENSITIVE_PATTERNS.some((re) => re.test(text));
 }
 
-const CASUAL =
-  /^(oi|ol[áa]|bom dia|boa tarde|boa noite|obrigad[oa]|valeu|ok|tudo bem|hi|hello|thanks|thank you)\b/i;
+const CASUAL = /^(oi|ol[áa]|bom dia|boa tarde|boa noite|obrigad[oa]|valeu|ok|tudo bem|hi|hello|thanks|thank you)\b/i;
 
 /** Filtro barato antes de gastar modelo: conversa social não gera memória. */
 export function worthEvaluating(message: string, category?: string | null): boolean {
@@ -64,9 +63,7 @@ function sanitize(candidate: Record<string, unknown>): MemoryCandidate | null {
   if (content.length < 10 || content.length > 1200) return null;
   if (containsSensitive(content)) return null;
 
-  const kind = ALLOWED_KINDS.includes(candidate.kind as MemoryKind)
-    ? (candidate.kind as MemoryKind)
-    : "fact";
+  const kind = ALLOWED_KINDS.includes(candidate.kind as MemoryKind) ? (candidate.kind as MemoryKind) : "fact";
   const scope = ALLOWED_SCOPES.includes(candidate.scope as MemoryScope)
     ? (candidate.scope as MemoryScope)
     : "guest";
@@ -103,31 +100,28 @@ export async function classifyForMemory(params: {
   }
 
   try {
-    const { data, usage, model } = await chatJson<{ memories?: Array<Record<string, unknown>> }>(
-      "memory",
-      [
-        {
-          role: "system",
-          content:
-            "Você é o CURADOR DE MEMÓRIA de um agente de hospedagem. Analise a interação e extraia SOMENTE o que " +
-            "terá utilidade futura real.\n" +
-            "GRAVAR: preferência explícita do hóspede; problema operacional relatado; solução aplicada; " +
-            "informação relevante e durável sobre o imóvel; decisão operacional tomada.\n" +
-            "NÃO GRAVAR: conversa casual, agradecimento, dúvida pontual já respondida, informação efêmera " +
-            "(clima, horário de hoje), qualquer dado sensível (documento, cartão, senha, código de acesso).\n" +
-            "Prefira zero memórias a memórias inúteis. Máximo 3. Escreva cada memória como um fato objetivo, " +
-            "curto e autoexplicativo, em português, sem citar a conversa.\n" +
-            'Responda APENAS JSON: {"memories":[{"scope":"guest|property","kind":"preference|issue|resolution|property_fact|operational_decision|fact","category":"manutencao|limpeza|acesso|reserva|cidade|financeiro|outro","title":"...","content":"...","importance":0..1,"confidence":0..1}]}',
-        },
-        {
-          role: "user",
-          content:
-            `Intenção: ${params.intent ?? "-"} | Categoria: ${params.category ?? "-"}\n` +
-            `Hóspede: ${params.message}\n` +
-            `Agente: ${params.answer}`,
-        },
-      ],
-    );
+    const { data, usage, model } = await chatJson<{ memories?: Array<Record<string, unknown>> }>("memory", [
+      {
+        role: "system",
+        content:
+          "Você é o CURADOR DE MEMÓRIA de um agente de hospedagem. Analise a interação e extraia SOMENTE o que " +
+          "terá utilidade futura real.\n" +
+          "GRAVAR: preferência explícita do hóspede; problema operacional relatado; solução aplicada; " +
+          "informação relevante e durável sobre o imóvel; decisão operacional tomada.\n" +
+          "NÃO GRAVAR: conversa casual, agradecimento, dúvida pontual já respondida, informação efêmera " +
+          "(clima, horário de hoje), qualquer dado sensível (documento, cartão, senha, código de acesso).\n" +
+          "Prefira zero memórias a memórias inúteis. Máximo 3. Escreva cada memória como um fato objetivo, " +
+          "curto e autoexplicativo, em português, sem citar a conversa.\n" +
+          'Responda APENAS JSON: {"memories":[{"scope":"guest|property","kind":"preference|issue|resolution|property_fact|operational_decision|fact","category":"manutencao|limpeza|acesso|reserva|cidade|financeiro|outro","title":"...","content":"...","importance":0..1,"confidence":0..1}]}',
+      },
+      {
+        role: "user",
+        content:
+          `Intenção: ${params.intent ?? "-"} | Categoria: ${params.category ?? "-"}\n` +
+          `Hóspede: ${params.message}\n` +
+          `Agente: ${params.answer}`,
+      },
+    ]);
 
     const raw = Array.isArray(data?.memories) ? data!.memories! : [];
     const candidates = raw

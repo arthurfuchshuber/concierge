@@ -1,20 +1,7 @@
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-  SheetFooter,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from "@/components/ui/sheet";
 import { PropertyMultiSelect } from "./PropertyMultiSelect";
 import { AccountMultiSelect } from "./AccountMultiSelect";
 import { Badge } from "@/components/ui/badge";
@@ -37,12 +24,7 @@ type Props = {
 };
 
 export function FiltersIconButton({
-  filters,
-  onChange,
-  properties,
-  accountIds,
-  onAccountsChange,
-  className,
+  filters, onChange, properties, accountIds, onAccountsChange, className,
 }: Props) {
   const [open, setOpen] = useState(false);
   const activeCount =
@@ -58,11 +40,9 @@ export function FiltersIconButton({
           variant="ghost"
           size="icon"
           aria-label="Filtros"
-          className={cn(
-            "relative size-9 rounded-full shrink-0 bg-transparent hover:bg-transparent border-0 shadow-none text-foreground",
-            className,
-          )}
+          className={cn("relative size-9 rounded-full shrink-0 bg-transparent hover:bg-transparent border-0 shadow-none text-foreground", className)}
         >
+
           <Filter className="size-4" />
           {activeCount > 0 && (
             <Badge
@@ -80,17 +60,13 @@ export function FiltersIconButton({
         </SheetHeader>
         <div className="space-y-5 py-4">
           <div>
-            <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
-              Contas
-            </label>
+            <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Contas</label>
             <div className="mt-1.5">
               <AccountMultiSelect value={accountIds} onChange={onAccountsChange} compact />
             </div>
           </div>
           <div>
-            <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
-              Imóveis
-            </label>
+            <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Imóveis</label>
             <div className="mt-1.5">
               <PropertyMultiSelect
                 selected={filters.propertyIds}
@@ -101,16 +77,9 @@ export function FiltersIconButton({
             </div>
           </div>
           <div>
-            <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
-              Período
-            </label>
-            <Select
-              value={filters.period}
-              onValueChange={(v) => onChange({ period: v as EngagementFilters["period"] })}
-            >
-              <SelectTrigger className="mt-1.5 h-9">
-                <SelectValue />
-              </SelectTrigger>
+            <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Período</label>
+            <Select value={filters.period} onValueChange={(v) => onChange({ period: v as EngagementFilters["period"] })}>
+              <SelectTrigger className="mt-1.5 h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="7d">Últimos 7 dias</SelectItem>
                 <SelectItem value="30d">Últimos 30 dias</SelectItem>
@@ -120,16 +89,9 @@ export function FiltersIconButton({
             </Select>
           </div>
           <div>
-            <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
-              Dispositivo
-            </label>
-            <Select
-              value={filters.device}
-              onValueChange={(v) => onChange({ device: v as EngagementFilters["device"] })}
-            >
-              <SelectTrigger className="mt-1.5 h-9">
-                <SelectValue />
-              </SelectTrigger>
+            <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Dispositivo</label>
+            <Select value={filters.device} onValueChange={(v) => onChange({ device: v as EngagementFilters["device"] })}>
+              <SelectTrigger className="mt-1.5 h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
                 <SelectItem value="mobile">Mobile</SelectItem>
@@ -150,9 +112,7 @@ export function FiltersIconButton({
           >
             Limpar
           </Button>
-          <Button className="flex-1" onClick={() => setOpen(false)}>
-            Aplicar
-          </Button>
+          <Button className="flex-1" onClick={() => setOpen(false)}>Aplicar</Button>
         </SheetFooter>
       </SheetContent>
     </Sheet>

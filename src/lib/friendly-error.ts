@@ -2,21 +2,15 @@
  * Converte erros (Supabase, Postgres, validação) em mensagens curtas,
  * orientativas e sem termos técnicos, para serem usadas em toasts.
  */
-export function friendlyErrorMessage(
-  err: unknown,
-  fallback = "Não foi possível concluir esta ação. Tente novamente.",
-): string {
+export function friendlyErrorMessage(err: unknown, fallback = "Não foi possível concluir esta ação. Tente novamente."): string {
   const raw =
     err instanceof Error
       ? err.message
       : typeof err === "string"
         ? err
-        : err &&
-            typeof err === "object" &&
-            "message" in err &&
-            typeof (err as { message: unknown }).message === "string"
-          ? (err as { message: string }).message
-          : "";
+        : (err && typeof err === "object" && "message" in err && typeof (err as { message: unknown }).message === "string"
+            ? (err as { message: string }).message
+            : "");
 
   const msg = raw.trim();
   if (!msg) return fallback;
@@ -24,12 +18,7 @@ export function friendlyErrorMessage(
   const lower = msg.toLowerCase();
 
   // Duplicações / unicidade
-  if (
-    lower.includes("duplicate key") ||
-    lower.includes("already exists") ||
-    lower.includes("unique constraint") ||
-    lower.includes("23505")
-  ) {
+  if (lower.includes("duplicate key") || lower.includes("already exists") || lower.includes("unique constraint") || lower.includes("23505")) {
     return "Este item já está cadastrado aqui.";
   }
   // FK
@@ -41,21 +30,11 @@ export function friendlyErrorMessage(
     return "Preencha todos os campos obrigatórios antes de salvar.";
   }
   // Check / valor inválido
-  if (
-    lower.includes("check constraint") ||
-    lower.includes("23514") ||
-    lower.includes("invalid input")
-  ) {
+  if (lower.includes("check constraint") || lower.includes("23514") || lower.includes("invalid input")) {
     return "Um dos valores informados não é válido.";
   }
   // Permissão / RLS
-  if (
-    lower.includes("permission") ||
-    lower.includes("not authorized") ||
-    lower.includes("rls") ||
-    lower.includes("42501") ||
-    lower.includes("sem permissão")
-  ) {
+  if (lower.includes("permission") || lower.includes("not authorized") || lower.includes("rls") || lower.includes("42501") || lower.includes("sem permissão")) {
     return "Você não tem permissão para esta ação.";
   }
   // Auth

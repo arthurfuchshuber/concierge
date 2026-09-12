@@ -18,12 +18,7 @@ export type AgentMetricRow = {
   sampleSize: number;
 };
 
-const METRICS = [
-  "resolution_rate",
-  "avg_confidence",
-  "escalation_rate",
-  "human_dependency",
-] as const;
+const METRICS = ["resolution_rate", "avg_confidence", "escalation_rate", "human_dependency"] as const;
 
 /** Calcula e persiste as métricas de aprendizado por agente. */
 export async function refreshAgentLearningMetrics(params: {

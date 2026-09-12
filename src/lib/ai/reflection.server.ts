@@ -44,11 +44,7 @@ export async function reflectOnAnswer(params: {
   history: Array<{ role: string; content: string }>;
 }): Promise<{ reflection: Reflection; usage: Usage; model: string }> {
   if (!params.answer.trim()) {
-    return {
-      reflection: { ...NEUTRAL, score: 0, needsHuman: true, skipped: false },
-      usage: EMPTY_USAGE,
-      model: "",
-    };
+    return { reflection: { ...NEUTRAL, score: 0, needsHuman: true, skipped: false }, usage: EMPTY_USAGE, model: "" };
   }
 
   const recent = params.history

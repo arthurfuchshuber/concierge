@@ -1,16 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  CalendarDays,
-  Loader2,
-  Plug,
-  RefreshCw,
-  Trash2,
-  Video,
-  FileText,
-  ExternalLink,
-} from "lucide-react";
+import { CalendarDays, Loader2, Plug, RefreshCw, Trash2, Video, FileText, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +13,7 @@ import {
   listMyGoogleCalendarEvents,
 } from "@/lib/google-calendar.functions";
 import { LinkEventDialog, type LinkTarget } from "@/components/stakeholders/LinkEventDialog";
+
 
 const CONNECTOR_ID = "google_calendar";
 
@@ -57,13 +49,7 @@ function waitForOAuthCompletion(popup: Window) {
   });
 }
 
-export function GoogleCalendarPanel({
-  accountOwnerId = null,
-  readOnly = false,
-}: {
-  accountOwnerId?: string | null;
-  readOnly?: boolean;
-}) {
+export function GoogleCalendarPanel({ accountOwnerId = null, readOnly = false }: { accountOwnerId?: string | null; readOnly?: boolean }) {
   const statusFn = useServerFn(getMyGoogleCalendarStatus);
   const startFn = useServerFn(startGoogleCalendarConnect);
   const discFn = useServerFn(disconnectMyGoogleCalendar);
@@ -139,24 +125,18 @@ export function GoogleCalendarPanel({
     return (
       <div className="space-y-3">
         <p className="text-xs text-muted-foreground">
-          Conecte a conta Google desta operação para importar agendas, eventos e os arquivos de
-          gravação e transcrição gerados pelo Google Meet.
+          Conecte a conta Google desta operação para importar agendas, eventos e os arquivos de gravação e transcrição
+          gerados pelo Google Meet.
         </p>
-        {!readOnly && (
-          <Button
-            size="sm"
-            className="h-8 rounded-full text-xs"
-            onClick={() => connect.mutate()}
-            disabled={connect.isPending}
-          >
-            {connect.isPending ? (
-              <Loader2 className="mr-1 size-3.5 animate-spin" />
-            ) : (
-              <Plug className="mr-1 size-3.5" />
-            )}
-            Conectar com Google
-          </Button>
-        )}
+        {!readOnly && <Button
+          size="sm"
+          className="h-8 rounded-full text-xs"
+          onClick={() => connect.mutate()}
+          disabled={connect.isPending}
+        >
+          {connect.isPending ? <Loader2 className="mr-1 size-3.5 animate-spin" /> : <Plug className="mr-1 size-3.5" />}
+          Conectar com Google
+        </Button>}
       </div>
     );
   }
@@ -171,8 +151,7 @@ export function GoogleCalendarPanel({
           <div className="min-w-0">
             <p className="ds-body font-medium">Conta conectada</p>
             <p className="ds-meta truncate flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-              <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />{" "}
-              {status.data?.email ?? "—"}
+              <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" /> {status.data?.email ?? "—"}
             </p>
           </div>
         </div>
@@ -239,9 +218,7 @@ export function GoogleCalendarPanel({
         {events.isLoading ? (
           <p className="px-3 py-4 text-[11px] text-muted-foreground">Carregando eventos…</p>
         ) : events.error ? (
-          <p className="px-3 py-4 text-[11px] text-destructive">
-            {(events.error as Error).message}
-          </p>
+          <p className="px-3 py-4 text-[11px] text-destructive">{(events.error as Error).message}</p>
         ) : (events.data?.length ?? 0) === 0 ? (
           <p className="px-3 py-4 text-[11px] text-muted-foreground">Nenhum evento nesta agenda.</p>
         ) : (
@@ -277,16 +254,8 @@ export function GoogleCalendarPanel({
                         rel="noreferrer"
                         className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
                       >
-                        {a.kind === "transcript" ? (
-                          <FileText className="size-2.5" />
-                        ) : (
-                          <Video className="size-2.5" />
-                        )}
-                        {a.kind === "transcript"
-                          ? "Transcrição"
-                          : a.kind === "recording"
-                            ? "Gravação"
-                            : a.title}
+                        {a.kind === "transcript" ? <FileText className="size-2.5" /> : <Video className="size-2.5" />}
+                        {a.kind === "transcript" ? "Transcrição" : a.kind === "recording" ? "Gravação" : a.title}
                       </a>
                     ))}
                   </div>
@@ -299,10 +268,7 @@ export function GoogleCalendarPanel({
                   ) : (
                     <>
                       <span className="text-[10px] text-muted-foreground">
-                        Sem vínculo
-                        {ev.suggestedAlias
-                          ? ` (${ev.suggestedAlias.value})`
-                          : " (sem e-mail no convite)"}
+                        Sem vínculo{ev.suggestedAlias ? ` (${ev.suggestedAlias.value})` : " (sem e-mail no convite)"}
                       </span>
                       <Button
                         size="sm"
@@ -322,6 +288,7 @@ export function GoogleCalendarPanel({
                   )}
                 </div>
               </li>
+
             ))}
           </ul>
         )}

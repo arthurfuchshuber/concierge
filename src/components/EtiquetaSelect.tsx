@@ -1,10 +1,4 @@
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { ETIQUETA_CHECKIN_CHECKOUT } from "@/lib/publish-requirements";
 
 export const ETIQUETA_OPTIONS = [
@@ -19,9 +13,7 @@ type Props = {
 };
 
 export function EtiquetaSelect({ value, onChange }: Props) {
-  const knownValue = ETIQUETA_OPTIONS.includes(value as (typeof ETIQUETA_OPTIONS)[number])
-    ? value
-    : undefined;
+  const knownValue = ETIQUETA_OPTIONS.includes(value as typeof ETIQUETA_OPTIONS[number]) ? value : undefined;
 
   return (
     <Select value={knownValue} onValueChange={(v) => onChange(v === "__clear__" ? "" : v)}>
@@ -31,9 +23,7 @@ export function EtiquetaSelect({ value, onChange }: Props) {
       <SelectContent>
         {knownValue && <SelectItem value="__clear__">Sem etiqueta</SelectItem>}
         {ETIQUETA_OPTIONS.map((o) => (
-          <SelectItem key={o} value={o}>
-            {o}
-          </SelectItem>
+          <SelectItem key={o} value={o}>{o}</SelectItem>
         ))}
       </SelectContent>
     </Select>

@@ -34,11 +34,7 @@ export type CoreMessage = {
 };
 
 /** Normaliza a identidade do hóspede (telefone tem prioridade sobre sessão). */
-export function guestIdentity(params: {
-  phone?: string | null;
-  sessionId?: string | null;
-  name?: string | null;
-}): string {
+export function guestIdentity(params: { phone?: string | null; sessionId?: string | null; name?: string | null }): string {
   const digits = (params.phone ?? "").replace(/[^\d]/g, "");
   if (digits.length >= 8) return `phone:${digits.slice(-11)}`;
   if (params.sessionId) return `session:${params.sessionId}`;
@@ -60,9 +56,10 @@ export async function resolveCoreConversation(params: {
   guestName?: string | null;
   guestPhone?: string | null;
 }): Promise<CoreConversation | null> {
-  const { supabase, tenantId, propertyId, legacyConversationId, channel } = params;
-  const guestId =
-    params.guestId ?? guestIdentity({ phone: params.guestPhone, name: params.guestName });
+  const {
+    supabase, tenantId, propertyId, legacyConversationId, channel,
+  } = params;
+  const guestId = params.guestId ?? guestIdentity({ phone: params.guestPhone, name: params.guestName });
 
   try {
     if (legacyConversationId) {
@@ -181,14 +178,7 @@ export async function appendCoreMessage(params: {
     const { logSystemEvent } = await import("../audit/events.server");
     void logSystemEvent(params.supabase, {
       tenantId: params.tenantId,
-      actorType:
-        params.senderType === "guest"
-          ? "GUEST"
-          : params.senderType === "agent"
-            ? "AI_AGENT"
-            : params.senderType === "system"
-              ? "SYSTEM"
-              : "USER",
+      actorType: params.senderType === "guest" ? "GUEST" : params.senderType === "agent" ? "AI_AGENT" : params.senderType === "system" ? "SYSTEM" : "USER",
       actorId: params.agentKey ?? params.senderType,
       eventType: params.senderType === "guest" ? "message_received" : "message_sent",
       eventCategory: "CONVERSATION",
@@ -256,7 +246,7 @@ function mapConversation(row: Record<string, unknown>): CoreConversation {
     tenantId: String(row.tenant_id),
     propertyId: (row.property_id as string | null) ?? null,
     guestId: (row.guest_id as string | null) ?? null,
-    channelOrigin: (row.channel_origin as CoreChannel) ?? "platform_chat",
+    channelOrigin: ((row.channel_origin as CoreChannel) ?? "platform_chat"),
     status: String(row.status ?? "open"),
     assignedAgent: (row.assigned_agent as string | null) ?? null,
   };

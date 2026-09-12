@@ -161,15 +161,9 @@ function AssinaturaPage() {
     setChanging(target);
     try {
       await doChangePlan({
-        data: {
-          environment: env,
-          targetPriceExternalId: targetPlan.priceId,
-          ownerId: accountOwnerId,
-        },
+        data: { environment: env, targetPriceExternalId: targetPlan.priceId, ownerId: accountOwnerId },
       });
-      toast.success(
-        `Plano alterado para ${targetPlan.name}. As mudanças serão refletidas em instantes.`,
-      );
+      toast.success(`Plano alterado para ${targetPlan.name}. As mudanças serão refletidas em instantes.`);
       const t = setInterval(() => refetch(), 2000);
       setTimeout(() => clearInterval(t), 20000);
     } catch (e) {
@@ -195,12 +189,7 @@ function AssinaturaPage() {
         subtitle="Gerencie seu plano, pagamentos e faturas."
         actions={
           info.isActive ? (
-            <Button
-              onClick={openPortal}
-              disabled={opening}
-              variant="outline"
-              className="rounded-full"
-            >
+            <Button onClick={openPortal} disabled={opening} variant="outline" className="rounded-full">
               <ExternalLink className="size-4 mr-1.5" />
               <span className="hidden sm:inline">Portal de pagamento</span>
               <span className="sm:hidden">Portal</span>
@@ -252,157 +241,153 @@ function AssinaturaPage() {
               {/* Macro overview */}
               <section className="grid md:grid-cols-3 gap-1.5">
                 <div className="ds-surface border border-border bg-card p-5 md:col-span-2 relative overflow-hidden">
-                  {currentPlan === "enterprise" && (
-                    <div className="absolute top-0 right-0 size-32 bg-gradient-to-br from-accent/20 to-transparent rounded-full -mr-10 -mt-10 pointer-events-none" />
-                  )}
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="ds-eyebrow flex items-center gap-1.5">
-                        {currentPlan === "enterprise" && <Crown className="size-3.5 text-accent" />}
-                        Plano atual
-                      </p>
-                      <h2 className="ds-section-title mb-0 mt-1">
-                        {currentPlanConfig ? currentPlanConfig.name : "Sem plano"}
-                      </h2>
-                      <p className="ds-body mt-1">
-                        {currentPlanConfig
-                          ? `${currentPlanConfig.priceLabel}${currentPlanConfig.priceNumeric ? " /mês" : ""}`
-                          : "Escolha um plano para começar"}
-                        {info.isTrialing && " · em período de teste"}
-                      </p>
-                    </div>
-                    <span
-                      className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-1 rounded-full ${
-                        info.isActive
-                          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                          : "bg-secondary text-muted-foreground"
-                      }`}
-                    >
-                      {info.isActive ? "Ativo" : "Inativo"}
-                    </span>
-                  </div>
-                  <dl className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <dt className="text-xs text-muted-foreground">Guias incluídos</dt>
-                      <dd className="font-medium mt-0.5">
-                        {info.maxGuides >= 9999 ? "Ilimitados" : `Até ${info.maxGuides}`}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs text-muted-foreground">
-                        {info.cancelAtPeriodEnd ? "Acesso até" : "Próxima cobrança"}
-                      </dt>
-                      <dd className="font-medium mt-0.5">
-                        {info.currentPeriodEnd
-                          ? new Date(info.currentPeriodEnd).toLocaleDateString("pt-BR")
-                          : "—"}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs text-muted-foreground">Status</dt>
-                      <dd className="font-medium mt-0.5 capitalize">{info.status ?? "—"}</dd>
-                    </div>
-                  </dl>
+              {currentPlan === "enterprise" && (
+                <div className="absolute top-0 right-0 size-32 bg-gradient-to-br from-accent/20 to-transparent rounded-full -mr-10 -mt-10 pointer-events-none" />
+              )}
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="ds-eyebrow flex items-center gap-1.5">
+                    {currentPlan === "enterprise" && <Crown className="size-3.5 text-accent" />}
+                    Plano atual
+                  </p>
+                  <h2 className="ds-section-title mb-0 mt-1">
+                    {currentPlanConfig ? currentPlanConfig.name : "Sem plano"}
+                  </h2>
+                  <p className="ds-body mt-1">
+                    {currentPlanConfig
+                      ? `${currentPlanConfig.priceLabel}${currentPlanConfig.priceNumeric ? " /mês" : ""}`
+                      : "Escolha um plano para começar"}
+                    {info.isTrialing && " · em período de teste"}
+                  </p>
                 </div>
-                <div className="ds-surface border border-border bg-card p-5">
-                  <p className="ds-eyebrow">Recursos</p>
-                  <ul className="mt-3 space-y-2 text-sm">
-                    <FeatureRow on={info.features.autoImport} label="Importação automática" />
-                    <FeatureRow on={info.features.ai} label="Sugestões com IA" />
-                    <FeatureRow on={info.features.customBrand} label="Marca personalizada" />
-                  </ul>
+                <span
+                  className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-1 rounded-full ${
+                    info.isActive
+                      ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                      : "bg-secondary text-muted-foreground"
+                  }`}
+                >
+                  {info.isActive ? "Ativo" : "Inativo"}
+                </span>
+              </div>
+              <dl className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                <div>
+                  <dt className="text-xs text-muted-foreground">Guias incluídos</dt>
+                  <dd className="font-medium mt-0.5">
+                    {info.maxGuides >= 9999 ? "Ilimitados" : `Até ${info.maxGuides}`}
+                  </dd>
                 </div>
-              </section>
+                <div>
+                  <dt className="text-xs text-muted-foreground">
+                    {info.cancelAtPeriodEnd ? "Acesso até" : "Próxima cobrança"}
+                  </dt>
+                  <dd className="font-medium mt-0.5">
+                    {info.currentPeriodEnd
+                      ? new Date(info.currentPeriodEnd).toLocaleDateString("pt-BR")
+                      : "—"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Status</dt>
+                  <dd className="font-medium mt-0.5 capitalize">{info.status ?? "—"}</dd>
+                </div>
+              </dl>
+            </div>
+            <div className="ds-surface border border-border bg-card p-5">
+              <p className="ds-eyebrow">Recursos</p>
+              <ul className="mt-3 space-y-2 text-sm">
+                <FeatureRow on={info.features.autoImport} label="Importação automática" />
+                <FeatureRow on={info.features.ai} label="Sugestões com IA" />
+                <FeatureRow on={info.features.customBrand} label="Marca personalizada" />
+              </ul>
+            </div>
+          </section>
 
-              {/* Plans grid */}
-              <section className="mt-8">
-                <div className="mb-6">
-                  <h2 className="ds-section-title mb-0">Todos os planos</h2>
-                  <p className="ds-body mt-0.5">Faça upgrade ou downgrade a qualquer momento.</p>
-                </div>
-                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-1.5">
-                  {PLAN_ORDER.map((key) => {
-                    const p = PLANS[key];
-                    const isCurrent = currentPlan === key;
-                    const isUpgrade = p.tier > currentTier;
-                    const isDowngrade = currentTier > 0 && p.tier < currentTier;
-                    const isLoadingThis = changing === key;
-                    return (
-                      <div
-                        key={key}
-                        className={`ds-surface border p-5 flex flex-col relative ${
-                          isCurrent
-                            ? "border-foreground bg-card shadow-elevated"
-                            : "border-border bg-card"
-                        }`}
-                      >
-                        {isCurrent && (
-                          <span className="absolute -top-2 left-5 text-[10px] uppercase tracking-wider font-semibold bg-foreground text-background px-2 py-0.5 rounded-full">
-                            Seu plano
-                          </span>
-                        )}
-                        {key === "enterprise" && (
-                          <span className="self-start text-[10px] uppercase tracking-wider font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full mb-2 inline-flex items-center gap-1">
-                            <Sparkles className="size-3" /> Premium
-                          </span>
-                        )}
-                        <h3 className="ds-card-title">{p.name}</h3>
-                        <p className="ds-card-desc mt-1 min-h-[32px]">{p.description}</p>
-                        <div className="mt-3 flex items-baseline gap-1">
-                          <span className="text-2xl font-semibold">{p.priceLabel}</span>
-                          {p.priceNumeric > 0 && (
-                            <span className="text-xs text-muted-foreground">/mês</span>
-                          )}
-                        </div>
-                        <ul className="mt-4 space-y-1.5 flex-1">
-                          {p.featureList.map((f) => (
-                            <li key={f} className="flex items-start gap-1.5 text-xs">
-                              <Check
-                                className="size-3.5 text-accent shrink-0 mt-0.5"
-                                strokeWidth={2.5}
-                              />
-                              <span>{f}</span>
-                            </li>
-                          ))}
-                        </ul>
-                        <button
-                          onClick={() => handleChangePlan(key)}
-                          disabled={isCurrent || changing !== null}
-                          className={`mt-5 w-full inline-flex items-center justify-center gap-1 rounded-full py-2 text-xs font-medium transition-colors ${
-                            isCurrent
-                              ? "bg-secondary text-muted-foreground cursor-default"
-                              : isUpgrade
-                                ? "bg-foreground text-background hover:opacity-90"
-                                : "bg-secondary hover:bg-secondary/70"
-                          } disabled:opacity-50`}
-                        >
-                          {isLoadingThis ? (
-                            <Loader2 className="size-3.5 animate-spin" />
-                          ) : isCurrent ? (
-                            "Plano atual"
-                          ) : key === "enterprise" ? (
-                            <>
-                              Falar com vendas <ArrowUpRight className="size-3.5" />
-                            </>
-                          ) : isUpgrade ? (
-                            <>
-                              Fazer upgrade <ArrowUpRight className="size-3.5" />
-                            </>
-                          ) : isDowngrade ? (
-                            <>
-                              Fazer downgrade <ArrowDownRight className="size-3.5" />
-                            </>
-                          ) : (
-                            <>
-                              Assinar <ArrowUpRight className="size-3.5" />
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
+          {/* Plans grid */}
+          <section className="mt-8">
+            <div className="mb-6">
+              <h2 className="ds-section-title mb-0">Todos os planos</h2>
+              <p className="ds-body mt-0.5">
+                Faça upgrade ou downgrade a qualquer momento.
+              </p>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-1.5">
+              {PLAN_ORDER.map((key) => {
+                const p = PLANS[key];
+                const isCurrent = currentPlan === key;
+                const isUpgrade = p.tier > currentTier;
+                const isDowngrade = currentTier > 0 && p.tier < currentTier;
+                const isLoadingThis = changing === key;
+                return (
+                  <div
+                    key={key}
+                    className={`ds-surface border p-5 flex flex-col relative ${
+                      isCurrent
+                        ? "border-foreground bg-card shadow-elevated"
+                        : "border-border bg-card"
+                    }`}
+                  >
+                    {isCurrent && (
+                      <span className="absolute -top-2 left-5 text-[10px] uppercase tracking-wider font-semibold bg-foreground text-background px-2 py-0.5 rounded-full">
+                        Seu plano
+                      </span>
+                    )}
+                    {key === "enterprise" && (
+                      <span className="self-start text-[10px] uppercase tracking-wider font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full mb-2 inline-flex items-center gap-1">
+                        <Sparkles className="size-3" /> Premium
+                      </span>
+                    )}
+                    <h3 className="ds-card-title">{p.name}</h3>
+                    <p className="ds-card-desc mt-1 min-h-[32px]">
+                      {p.description}
+                    </p>
+                    <div className="mt-3 flex items-baseline gap-1">
+                      <span className="text-2xl font-semibold">{p.priceLabel}</span>
+                      {p.priceNumeric > 0 && (
+                        <span className="text-xs text-muted-foreground">/mês</span>
+                      )}
+                    </div>
+                    <ul className="mt-4 space-y-1.5 flex-1">
+                      {p.featureList.map((f) => (
+                        <li key={f} className="flex items-start gap-1.5 text-xs">
+                          <Check
+                            className="size-3.5 text-accent shrink-0 mt-0.5"
+                            strokeWidth={2.5}
+                          />
+                          <span>{f}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <button
+                      onClick={() => handleChangePlan(key)}
+                      disabled={isCurrent || changing !== null}
+                      className={`mt-5 w-full inline-flex items-center justify-center gap-1 rounded-full py-2 text-xs font-medium transition-colors ${
+                        isCurrent
+                          ? "bg-secondary text-muted-foreground cursor-default"
+                          : isUpgrade
+                            ? "bg-foreground text-background hover:opacity-90"
+                            : "bg-secondary hover:bg-secondary/70"
+                      } disabled:opacity-50`}
+                    >
+                      {isLoadingThis ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : isCurrent ? (
+                        "Plano atual"
+                      ) : key === "enterprise" ? (
+                        <>Falar com vendas <ArrowUpRight className="size-3.5" /></>
+                      ) : isUpgrade ? (
+                        <>Fazer upgrade <ArrowUpRight className="size-3.5" /></>
+                      ) : isDowngrade ? (
+                        <>Fazer downgrade <ArrowDownRight className="size-3.5" /></>
+                      ) : (
+                        <>Assinar <ArrowUpRight className="size-3.5" /></>
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
             </TabsContent>
 
             <TabsContent value="cartao" className="mt-6">
@@ -420,79 +405,78 @@ function AssinaturaPage() {
             <TabsContent value="pagamentos" className="mt-6">
               {/* Payment history */}
               <section>
-                <div className="flex items-center gap-2 mb-6">
-                  <Receipt className="size-4 text-muted-foreground" />
-                  <h2 className="ds-section-title mb-0">Histórico de pagamentos</h2>
+            <div className="flex items-center gap-2 mb-6">
+              <Receipt className="size-4 text-muted-foreground" />
+              <h2 className="ds-section-title mb-0">Histórico de pagamentos</h2>
+            </div>
+            {paymentsQuery.isLoading ? (
+              <div className="ds-surface border border-border bg-card p-6 h-32 animate-pulse" />
+            ) : !paymentsQuery.data?.payments?.length ? (
+              <div className="ds-surface border border-border bg-card p-8 text-center">
+                <div className="size-10 rounded-xl bg-secondary grid place-items-center mx-auto mb-3">
+                  <CreditCard className="size-4 text-muted-foreground" />
                 </div>
-                {paymentsQuery.isLoading ? (
-                  <div className="ds-surface border border-border bg-card p-6 h-32 animate-pulse" />
-                ) : !paymentsQuery.data?.payments?.length ? (
-                  <div className="ds-surface border border-border bg-card p-8 text-center">
-                    <div className="size-10 rounded-xl bg-secondary grid place-items-center mx-auto mb-3">
-                      <CreditCard className="size-4 text-muted-foreground" />
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Nenhum pagamento registrado ainda.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-1.5">
-                    {paymentsQuery.data.payments.map((p) => {
-                      const date = new Date(p.createdAt);
-                      const label = date.toLocaleDateString("pt-BR", {
-                        month: "long",
-                        year: "numeric",
-                      });
-                      const isPaid = p.status === "completed" || p.status === "paid";
-                      return (
-                        <div
-                          key={p.id}
-                          className="ds-surface border border-border bg-card p-4 flex items-center justify-between gap-3 flex-wrap"
-                        >
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium capitalize">Fatura {label}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              {isPaid ? "Pago em " : "Emitida em "}
-                              {date.toLocaleDateString("pt-BR")}
-                              {!isPaid && (
-                                <span
-                                  className={`ml-2 text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full ${
-                                    p.status === "past_due"
-                                      ? "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400"
-                                      : "bg-secondary text-muted-foreground"
-                                  }`}
-                                >
-                                  {p.status}
-                                </span>
-                              )}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-3 shrink-0">
-                            <span className="text-sm font-semibold">
-                              {(Number(p.amount) / 100).toLocaleString("pt-BR", {
-                                style: "currency",
-                                currency: p.currency || "BRL",
-                              })}
+                <p className="text-sm text-muted-foreground">
+                  Nenhum pagamento registrado ainda.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {paymentsQuery.data.payments.map((p) => {
+                  const date = new Date(p.createdAt);
+                  const label = date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+                  const isPaid = p.status === "completed" || p.status === "paid";
+                  return (
+                    <div
+                      key={p.id}
+                      className="ds-surface border border-border bg-card p-4 flex items-center justify-between gap-3 flex-wrap"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium capitalize">
+                          Fatura {label}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {isPaid ? "Pago em " : "Emitida em "}
+                          {date.toLocaleDateString("pt-BR")}
+                          {!isPaid && (
+                            <span
+                              className={`ml-2 text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full ${
+                                p.status === "past_due"
+                                  ? "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400"
+                                  : "bg-secondary text-muted-foreground"
+                              }`}
+                            >
+                              {p.status}
                             </span>
-                            {p.invoiceUrl ? (
-                              <a
-                                href={p.invoiceUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 h-9 px-3 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 transition-colors"
-                              >
-                                <Receipt className="size-3.5" /> Recibo
-                              </a>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">—</span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
+                          )}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="text-sm font-semibold">
+                          {(Number(p.amount) / 100).toLocaleString("pt-BR", {
+                            style: "currency",
+                            currency: p.currency || "BRL",
+                          })}
+                        </span>
+                        {p.invoiceUrl ? (
+                          <a
+                            href={p.invoiceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 h-9 px-3 rounded-full text-xs font-medium bg-secondary hover:bg-secondary/70 transition-colors"
+                          >
+                            <Receipt className="size-3.5" /> Recibo
+                          </a>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
             </TabsContent>
           </Tabs>
 
@@ -594,12 +578,12 @@ function CardTab({
                 <ShieldCheck className="size-6" strokeWidth={2} />
               </div>
               <div className="min-w-0">
-                <h3 className="ds-card-title mb-2">Validação de cartão obrigatória</h3>
+                <h3 className="ds-card-title mb-2">
+                  Validação de cartão obrigatória
+                </h3>
                 <p className="ds-body leading-relaxed">
                   Exigimos um cartão válido para fins de validação e segurança.{" "}
-                  <span className="text-emerald-500 font-medium">
-                    Você tem 7 dias para usar sem ser cobrado.
-                  </span>{" "}
+                  <span className="text-emerald-500 font-medium">Você tem 7 dias para usar sem ser cobrado.</span>{" "}
                   Após esse período, a assinatura será iniciada normalmente.
                 </p>
               </div>
@@ -647,8 +631,7 @@ function CardTab({
                   className="sigma-card-validation-checkout min-h-[520px] w-full rounded-2xl bg-secondary/10 border border-border overflow-hidden"
                 />
                 <p className="mt-3 text-[11px] text-muted-foreground text-center">
-                  Se o formulário não carregar em alguns segundos, recarregue a página e tente
-                  novamente.
+                  Se o formulário não carregar em alguns segundos, recarregue a página e tente novamente.
                 </p>
               </>
             )}
@@ -659,9 +642,7 @@ function CardTab({
             <div className="flex items-center gap-3 min-w-0">
               <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-secondary border border-border">
                 <ShieldCheck className="size-3 text-emerald-500" strokeWidth={2.5} />
-                <span className="text-[10px] font-bold tracking-widest uppercase text-muted-foreground">
-                  SSL Secure
-                </span>
+                <span className="text-[10px] font-bold tracking-widest uppercase text-muted-foreground">SSL Secure</span>
               </div>
               <span className="text-[10px] text-muted-foreground truncate">
                 Processamento via Paddle · dados nunca passam pelos nossos servidores
@@ -699,8 +680,7 @@ function CardTab({
               </p>
               {(paymentMethod?.expiryMonth || paymentMethod?.expiryYear) && (
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Expira {String(paymentMethod?.expiryMonth ?? "").padStart(2, "0")}/
-                  {paymentMethod?.expiryYear ?? ""}
+                  Expira {String(paymentMethod?.expiryMonth ?? "").padStart(2, "0")}/{paymentMethod?.expiryYear ?? ""}
                 </p>
               )}
             </div>
@@ -712,8 +692,7 @@ function CardTab({
       ) : (
         <div className="ds-surface border border-border bg-card p-5">
           <p className="text-xs text-muted-foreground">
-            Consulte ou atualize o cartão usado nas próximas cobranças pelo portal seguro de
-            pagamentos.
+            Consulte ou atualize o cartão usado nas próximas cobranças pelo portal seguro de pagamentos.
           </p>
         </div>
       )}
@@ -745,9 +724,7 @@ function FeatureRow({ on, label }: { on: boolean; label: string }) {
     <li className="flex items-center gap-2">
       <span
         className={`size-4 rounded-full grid place-items-center ${
-          on
-            ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-            : "bg-secondary text-muted-foreground"
+          on ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" : "bg-secondary text-muted-foreground"
         }`}
       >
         {on ? <Check className="size-3" strokeWidth={3} /> : <span className="text-[10px]">·</span>}

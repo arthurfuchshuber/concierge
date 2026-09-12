@@ -59,8 +59,7 @@ export async function buildGuestContext(params: {
   let usage = EMPTY_USAGE;
   const keys: string[] = [];
 
-  const shortTerm =
-    seedFromHistory(params.conversationId, params.history) ?? getShortTerm(params.conversationId);
+  const shortTerm = seedFromHistory(params.conversationId, params.history) ?? getShortTerm(params.conversationId);
 
   const [retrieved, operational, sentiment] = await Promise.all([
     retrieveMemories({

@@ -35,28 +35,16 @@ export function DurationBuckets({ buckets }: { buckets: Array<{ label: string; c
     <div className="rounded-2xl border border-border bg-card p-4">
       <header className="mb-3 pr-14">
         <h3 className="text-sm font-semibold whitespace-nowrap truncate">Tempo de permanência</h3>
-        <p className="text-xs text-muted-foreground">
-          Distribuição das sessões por duração — revela se o guia prende atenção.
-        </p>
+        <p className="text-xs text-muted-foreground">Distribuição das sessões por duração — revela se o guia prende atenção.</p>
       </header>
       {total === 0 ? (
-        <div className="text-xs text-muted-foreground py-6 text-center">
-          Sem sessões no período.
-        </div>
+        <div className="text-xs text-muted-foreground py-6 text-center">Sem sessões no período.</div>
       ) : (
         <>
           <div className="h-40">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={buckets} margin={{ top: 8, right: 8, left: 0, bottom: 10 }}>
-                <XAxis
-                  dataKey="label"
-                  tick={tickStyle}
-                  axisLine={false}
-                  tickLine={false}
-                  tickMargin={8}
-                  interval={0}
-                  height={34}
-                />
+                <XAxis dataKey="label" tick={tickStyle} axisLine={false} tickLine={false} tickMargin={8} interval={0} height={34} />
                 <Tooltip
                   cursor={false}
                   contentStyle={tooltipContentStyle}
@@ -64,9 +52,7 @@ export function DurationBuckets({ buckets }: { buckets: Array<{ label: string; c
                   labelStyle={tooltipLabelStyle}
                 />
                 <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                  {buckets.map((_, i) => (
-                    <Cell key={i} fill={BAR_COLORS[i] ?? "var(--foreground)"} />
-                  ))}
+                  {buckets.map((_, i) => <Cell key={i} fill={BAR_COLORS[i] ?? "var(--foreground)"} />)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -78,36 +64,23 @@ export function DurationBuckets({ buckets }: { buckets: Array<{ label: string; c
   );
 }
 
+
 export function DepthCurve({ curve }: { curve: Array<{ label: string; count: number }> }) {
   const total = curve.reduce((a, b) => a + b.count, 0);
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
       <header className="mb-3">
-        <h3 className="text-sm font-semibold whitespace-nowrap truncate">
-          Profundidade da leitura
-        </h3>
-        <p className="text-xs text-muted-foreground">
-          Quantas seções distintas cada sessão explora.
-        </p>
+        <h3 className="text-sm font-semibold whitespace-nowrap truncate">Profundidade da leitura</h3>
+        <p className="text-xs text-muted-foreground">Quantas seções distintas cada sessão explora.</p>
       </header>
       {total === 0 ? (
-        <div className="text-xs text-muted-foreground py-6 text-center">
-          Sem sessões no período.
-        </div>
+        <div className="text-xs text-muted-foreground py-6 text-center">Sem sessões no período.</div>
       ) : (
         <>
           <div className="h-40">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={curve} margin={{ top: 8, right: 8, left: 0, bottom: 10 }}>
-                <XAxis
-                  dataKey="label"
-                  tick={tickStyle}
-                  axisLine={false}
-                  tickLine={false}
-                  tickMargin={8}
-                  interval={0}
-                  height={34}
-                />
+                <XAxis dataKey="label" tick={tickStyle} axisLine={false} tickLine={false} tickMargin={8} interval={0} height={34} />
                 <Tooltip
                   cursor={false}
                   contentStyle={tooltipContentStyle}
@@ -115,9 +88,7 @@ export function DepthCurve({ curve }: { curve: Array<{ label: string; count: num
                   labelStyle={tooltipLabelStyle}
                 />
                 <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                  {curve.map((_, i) => (
-                    <Cell key={i} fill={BAR_COLORS[i] ?? "#22c55e"} />
-                  ))}
+                  {curve.map((_, i) => <Cell key={i} fill={BAR_COLORS[i] ?? "#22c55e"} />)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -128,3 +99,5 @@ export function DepthCurve({ curve }: { curve: Array<{ label: string; count: num
     </div>
   );
 }
+
+

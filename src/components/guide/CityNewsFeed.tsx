@@ -152,7 +152,7 @@ export function CityNewsFeed({
           {[0, 1, 2].map((i) => (
             <div
               key={i}
-              className={`shrink-0 w-[210px] h-[230px] rounded-[18px] border animate-pulse ${
+              className={`shrink-0 w-[210px] h-[230px] rounded-[0.3rem] border animate-pulse ${
                 isDark ? "border-white/6 bg-white/[0.035]" : "border-slate-900/[0.05] bg-white/55"
               }`}
             />
@@ -171,7 +171,7 @@ export function CityNewsFeed({
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: idx * 0.05, ease: [0.2, 0.8, 0.2, 1] }}
-                className={`snap-start shrink-0 w-[210px] h-[260px] relative overflow-hidden rounded-[18px] border ${
+                className={`snap-start shrink-0 w-[210px] h-[260px] relative overflow-hidden rounded-[0.3rem] border ${
                   isDark
                     ? "border-white/8 bg-[#070817] shadow-[0_20px_48px_-28px_rgba(0,0,0,0.9)]"
                     : "border-slate-900/[0.055] bg-white/70 shadow-[0_18px_45px_-32px_rgba(31,24,74,0.32)]"
@@ -208,7 +208,7 @@ export function CityNewsFeed({
 
                   <div className="absolute top-4 left-4">
                     <span
-                      className={`inline-block rounded-md px-2 py-1 text-[8px] font-black uppercase tracking-[0.12em] ${s.pill}`}
+                      className={`inline-block rounded-[0.3rem] px-2 py-1 text-[8px] font-black uppercase tracking-[0.12em] ${s.pill}`}
                     >
                       {it.category}
                     </span>

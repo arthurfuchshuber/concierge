@@ -55,8 +55,8 @@ export function buildDefaultFaqs(p: DefaultFaqInput): DefaultFaqItem[] {
         ciMin && ciMax
           ? `O check-in pode ser feito entre ${ciMin} e ${ciMax}.`
           : ciMin
-            ? `O check-in está disponível a partir das ${ciMin}.`
-            : `O check-in pode ser feito até as ${ciMax}.`,
+          ? `O check-in está disponível a partir das ${ciMin}.`
+          : `O check-in pode ser feito até as ${ciMax}.`,
       tags: ["chegada"],
     });
   }
@@ -71,8 +71,8 @@ export function buildDefaultFaqs(p: DefaultFaqInput): DefaultFaqItem[] {
         coMin && coMax
           ? `O check-out deve ser feito entre ${coMin} e ${coMax}.`
           : coMax
-            ? `O check-out deve ser feito até as ${coMax}.`
-            : `O check-out está disponível a partir das ${coMin}.`,
+          ? `O check-out deve ser feito até as ${coMax}.`
+          : `O check-out está disponível a partir das ${coMin}.`,
       tags: ["saida"],
     });
   }

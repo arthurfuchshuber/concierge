@@ -35,16 +35,12 @@ export function useAppVersionWatcher() {
       try {
         if (window.sessionStorage.getItem(RELOAD_FLAG) === serverId) return;
         window.sessionStorage.setItem(RELOAD_FLAG, serverId);
-      } catch {
-        /* noop */
-      }
+      } catch { /* noop */ }
       window.location.reload();
     };
 
     const timer = window.setInterval(check, CHECK_INTERVAL_MS);
-    const onFocus = () => {
-      void check();
-    };
+    const onFocus = () => { void check(); };
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onFocus);
     window.addEventListener("online", onFocus);

@@ -30,14 +30,7 @@ type Props = {
  * - Auto-stops at maxSeconds (default 60).
  * - Cancel button discards, Send button hands the blob to onRecorded.
  */
-export function AudioRecorderButton({
-  disabled,
-  maxSeconds = 60,
-  onRecorded,
-  compact,
-  autoStart,
-  onCancel,
-}: Props) {
+export function AudioRecorderButton({ disabled, maxSeconds = 60, onRecorded, compact, autoStart, onCancel }: Props) {
   const [state, setState] = useState<"idle" | "recording" | "sending">("idle");
   const [elapsedMs, setElapsedMs] = useState(0);
   const [level, setLevel] = useState<number[]>([]);
@@ -83,15 +76,14 @@ export function AudioRecorderButton({
     return "";
   }
 
+
   async function start() {
     setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      const AudioCtx =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       const ctx = new AudioCtx();
       audioCtxRef.current = ctx;
       const source = ctx.createMediaStreamSource(stream);
@@ -240,7 +232,12 @@ export function AudioRecorderButton({
       </button>
       {error && <span className="text-[10px] text-destructive ml-1">{error}</span>}
       {!error && (
-        <button type="button" onClick={() => stop("send")} className="hidden" aria-hidden>
+        <button
+          type="button"
+          onClick={() => stop("send")}
+          className="hidden"
+          aria-hidden
+        >
           <Square className="size-3.5" />
         </button>
       )}

@@ -34,18 +34,15 @@ function buildGroups(namespace: string): AreaGroup[] {
     (n) => n.slug !== TENANT_NAMESPACE && n.slug !== SAAS_NAMESPACE,
   ).filter((n) => (namespace === SAAS_NAMESPACE ? isSaasSlug(n.slug) : !isSaasSlug(n.slug)));
 
-  const childrenOf = (slug: string) => all.filter((n) => n.parentSlug === slug).sort(sortDefs);
+  const childrenOf = (slug: string) =>
+    all.filter((n) => n.parentSlug === slug).sort(sortDefs);
 
   return all
     .filter((n) => n.type === "PAGE")
     .sort(sortDefs)
     .map((pageNode) => {
       const items: AreaItem[] = [
-        {
-          namespace: pageNode.slug,
-          label: `${pageNode.label ?? pageNode.name} (página)`,
-          depth: 0,
-        },
+        { namespace: pageNode.slug, label: `${pageNode.label ?? pageNode.name} (página)`, depth: 0 },
       ];
       for (const subNode of childrenOf(pageNode.slug)) {
         items.push({ namespace: subNode.slug, label: subNode.label ?? subNode.name, depth: 1 });

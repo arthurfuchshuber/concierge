@@ -44,29 +44,15 @@ export function digits(s: unknown): string {
 
 /** Domínios genéricos nunca identificam uma empresa. */
 const FREE_DOMAINS = new Set([
-  "gmail.com",
-  "hotmail.com",
-  "outlook.com",
-  "yahoo.com",
-  "yahoo.com.br",
-  "icloud.com",
-  "live.com",
-  "bol.com.br",
-  "uol.com.br",
-  "terra.com.br",
-  "me.com",
-  "msn.com",
-  "protonmail.com",
-  "aol.com",
+  "gmail.com", "hotmail.com", "outlook.com", "yahoo.com", "yahoo.com.br",
+  "icloud.com", "live.com", "bol.com.br", "uol.com.br", "terra.com.br",
+  "me.com", "msn.com", "protonmail.com", "aol.com",
 ]);
 
 export function emailDomain(email: string): string | null {
   const at = email.indexOf("@");
   if (at < 0) return null;
-  const d = email
-    .slice(at + 1)
-    .toLowerCase()
-    .trim();
+  const d = email.slice(at + 1).toLowerCase().trim();
   if (!d || FREE_DOMAINS.has(d)) return null;
   return d;
 }
@@ -83,7 +69,7 @@ export type MatchIndex = {
 };
 
 function label(row: StakeholderRow): string {
-  return row.trade_name?.trim() || row.name?.trim() || "Sem nome";
+  return (row.trade_name?.trim() || row.name?.trim() || "Sem nome");
 }
 
 function put(map: Map<string, StakeholderRef>, key: string, ref: StakeholderRef) {
@@ -103,12 +89,8 @@ export function buildMatchIndex(
   aliases: AliasRow[],
 ): MatchIndex {
   const idx: MatchIndex = {
-    byAlias: new Map(),
-    byDoc: new Map(),
-    byEmail: new Map(),
-    byDomain: new Map(),
-    byPhone: new Map(),
-    byName: new Map(),
+    byAlias: new Map(), byDoc: new Map(), byEmail: new Map(),
+    byDomain: new Map(), byPhone: new Map(), byName: new Map(),
     keywords: [],
   };
 
@@ -181,9 +163,7 @@ export function resolveStakeholder(
 ): StakeholderRef | null {
   const emails = (signals.emails ?? []).map(norm).filter((e) => e.includes("@"));
   const docs = (signals.docs ?? []).map(digits).filter((d) => d.length === 11 || d.length === 14);
-  const phones = (signals.phones ?? [])
-    .map((p) => digits(p).slice(-11))
-    .filter((p) => p.length >= 10);
+  const phones = (signals.phones ?? []).map((p) => digits(p).slice(-11)).filter((p) => p.length >= 10);
   const texts = (signals.texts ?? []).map(norm).filter(Boolean);
 
   for (const id of signals.eventIds ?? []) {

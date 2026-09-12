@@ -46,7 +46,8 @@ export type SpeakReason =
 
 export type SpeakResult = {
   sent: boolean;
-  skipped?: "ai_paused" | "quiet_hours" | "double_message" | "no_conversation" | "empty";
+  skipped?:
+    "ai_paused" | "quiet_hours" | "double_message" | "no_conversation" | "empty" | "nada_a_dizer";
   messageId?: string;
   pushed?: number;
   /** O texto que foi realmente dito — para registrar em quem chamou. */
@@ -225,6 +226,14 @@ export async function speakWithAgent(params: {
   } catch (e) {
     console.error("[speak] agente falhou", (e as Error)?.message);
     return { sent: false, skipped: "empty" };
+  }
+
+  /* Sentinela "PULAR": quando a instrução interna oferece a saída de não dizer
+   * nada (ex.: acompanhamento sem pendência real), o agente responde só com
+   * essa palavra. Ela é conversa interna — nunca pode virar mensagem nem push
+   * para o hóspede. */
+  if (/^["'“”\s]*pular[.!…\s"'“”]*$/i.test(text)) {
+    return { sent: false, skipped: "nada_a_dizer" };
   }
 
   return speakToGuest({

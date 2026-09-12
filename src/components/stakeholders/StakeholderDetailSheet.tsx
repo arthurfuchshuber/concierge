@@ -33,14 +33,13 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { formatTaxId, formatIntlPhone, toWhatsappNumber } from "@/lib/masks";
 import {
   getStakeholderDetail,
@@ -65,6 +64,7 @@ import { StakeholderStatusControl } from "./StakeholderStatusControl";
 import { effectiveStatus, statusText } from "@/lib/stakeholder-status";
 import { humanizeEventMessage } from "@/lib/stakeholder-event-message";
 import { MultiLinkPicker } from "./MultiLinkPicker";
+
 
 /** Aba do segmented control: adapta-se à largura da tela (anti-corte), 46px.
  *  !flex-none sobrescreve o !flex-1 padrão de TabsTrigger (ui/tabs.tsx) — aqui
@@ -94,6 +94,9 @@ function fmtDateBR(d: string | null | undefined) {
     return d;
   }
 }
+
+
+
 
 export function StakeholderDetailSheet({
   kind,
@@ -135,7 +138,8 @@ export function StakeholderDetailSheet({
     staleTime: 5 * 60_000,
     retry: false,
   });
-  const clicksignActive = clicksign.data?.status === "active" && Boolean(clicksign.data?.hasToken);
+  const clicksignActive =
+    clicksign.data?.status === "active" && Boolean(clicksign.data?.hasToken);
 
   const catsFn = useServerFn(listProviderCategories);
   const cats = useQuery({
@@ -222,6 +226,7 @@ export function StakeholderDetailSheet({
     retry: false,
   });
 
+
   const row = data?.row as Record<string, any> | null | undefined;
 
   const accessFn = useServerFn(getStakeholderAccess);
@@ -246,6 +251,9 @@ export function StakeholderDetailSheet({
       setBusy(false);
     }
   }
+
+
+
 
   async function toggleLink(propertyId: string, link: boolean) {
     setBusy(true);
@@ -277,9 +285,7 @@ export function StakeholderDetailSheet({
     try {
       for (const propertyId of propertyIds) {
         if (kind === "provider") {
-          await linkProviderFn({
-            data: { providerId: id, propertyId, link: true, accountOwnerId },
-          });
+          await linkProviderFn({ data: { providerId: id, propertyId, link: true, accountOwnerId } });
         } else {
           await linkFn({ data: { ownerId: id, propertyId, link: true, accountOwnerId } });
         }
@@ -289,9 +295,7 @@ export function StakeholderDetailSheet({
       qc.invalidateQueries({ queryKey: ["stakeholders", kind] });
       qc.invalidateQueries({ queryKey: ["my-properties"] });
       toast.success(
-        propertyIds.length === 1
-          ? "Residência vinculada."
-          : `${propertyIds.length} residências vinculadas.`,
+        propertyIds.length === 1 ? "Residência vinculada." : `${propertyIds.length} residências vinculadas.`,
       );
     } catch (e) {
       toast.error((e as Error).message);
@@ -299,6 +303,7 @@ export function StakeholderDetailSheet({
       setBusy(false);
     }
   }
+
 
   // Um imóvel sempre precisa ter um proprietário responsável — por isso não
   // existe mais "desvincular" puro. A única forma de tirar um imóvel deste
@@ -340,11 +345,11 @@ export function StakeholderDetailSheet({
 
   const categorySlugs: string[] =
     kind === "provider"
-      ? Array.isArray(row.categories) && row.categories.length > 0
-        ? (row.categories as string[])
-        : row.category
-          ? [row.category as string]
-          : []
+      ? (Array.isArray(row.categories) && row.categories.length > 0
+          ? (row.categories as string[])
+          : row.category
+            ? [row.category as string]
+            : [])
       : [];
   const categoryLabels = categorySlugs.map(
     (slug) => (cats.data ?? []).find((c) => c.slug === slug)?.label ?? slug,
@@ -356,6 +361,7 @@ export function StakeholderDetailSheet({
   const properties = data?.properties ?? [];
   const available = data?.availableProperties ?? [];
   const displayName = row.trade_name || row.name;
+  
 
   // Vigência do contrato exibida no cabeçalho, na cor do status (mesma regra
   // do card da listagem: cancelado/cancelando sem data final usa a data em
@@ -370,15 +376,14 @@ export function StakeholderDetailSheet({
     ? `${fmtDateBR(row.contract_start)} → ${contractEnd ? fmtDateBR(contractEnd) : "momento"}`
     : null;
 
+
   // Notas automáticas de bastidor (importação/sincronização/extração) não
   // entram na Linha do Tempo — elas continuam disponíveis no Log.
-  const NOISE =
-    /(importa[çc][ãa]o do clicksign|dados extra[íi]dos|sincroniza|cadastro criado pela)/i;
+  const NOISE = /(importa[çc][ãa]o do clicksign|dados extra[íi]dos|sincroniza|cadastro criado pela)/i;
 
   // Abre o link do Google já na conta conectada à integração (authuser),
   // evitando cair na conta pessoal logada no navegador.
-  const gAccount =
-    (feed.data as { accountEmail?: string | null } | undefined)?.accountEmail ?? null;
+  const gAccount = (feed.data as { accountEmail?: string | null } | undefined)?.accountEmail ?? null;
   function gLink(url: string) {
     if (!gAccount) return url;
     try {
@@ -395,14 +400,14 @@ export function StakeholderDetailSheet({
     ...events
       .filter((ev: any) => !NOISE.test(String(ev.message ?? "")))
       .map((ev: any) => ({
-        key: `n:${ev.id}`,
-        at: ev.created_at as string,
-        icon: Pin,
-        title: humanizeEventMessage(ev.message as string),
-        badge: "Registro",
-        author: (ev.author_name as string | null) ?? "Sistema",
-        body: null as React.ReactNode,
-      })),
+      key: `n:${ev.id}`,
+      at: ev.created_at as string,
+      icon: Pin,
+      title: humanizeEventMessage(ev.message as string),
+      badge: "Registro",
+      author: (ev.author_name as string | null) ?? "Sistema",
+      body: null as React.ReactNode,
+    })),
     ...feedEvents.map((ev) => ({
       key: `g:${ev.id}`,
       at: ev.at ?? "",
@@ -433,22 +438,15 @@ export function StakeholderDetailSheet({
                   onClick={() => window.open(gLink(a.url), "_blank", "noopener")}
                   className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
                 >
-                  {a.kind === "transcript" ? (
-                    <FileText className="size-2.5" />
-                  ) : (
-                    <Video className="size-2.5" />
-                  )}
-                  {a.kind === "transcript"
-                    ? "Transcrição"
-                    : a.kind === "recording"
-                      ? "Gravação"
-                      : a.title}
+                  {a.kind === "transcript" ? <FileText className="size-2.5" /> : <Video className="size-2.5" />}
+                  {a.kind === "transcript" ? "Transcrição" : a.kind === "recording" ? "Gravação" : a.title}
                 </button>
               ))}
             </div>
           )}
         </>
       ),
+
     })),
     ...feedDocs.map((d) => ({
       key: `d:${d.id}`,
@@ -493,7 +491,9 @@ export function StakeholderDetailSheet({
             </ul>
           ) : null,
       })),
+
   ].sort((a, b) => String(b.at).localeCompare(String(a.at)));
+
 
   return (
     <div className="flex w-full min-w-0 max-w-full flex-col gap-5 overflow-x-hidden px-5 py-6 sm:px-6">
@@ -594,12 +594,11 @@ export function StakeholderDetailSheet({
               title="Dados pessoais"
               className="grid size-9 place-items-center rounded-[0.3rem] border border-border text-foreground hover:bg-secondary transition-colors"
             >
-              <ChevronDown
-                className={`size-4 transition-transform ${dataOpen ? "rotate-180" : ""}`}
-              />
+              <ChevronDown className={`size-4 transition-transform ${dataOpen ? "rotate-180" : ""}`} />
             </button>
           </div>
         </div>
+
       </header>
 
       {/* ---------- Dados pessoais (recolhível, fechado por padrão) ---------- */}
@@ -612,21 +611,13 @@ export function StakeholderDetailSheet({
             )}
             <Field
               label="Tipo de pessoa"
-              value={
-                String(row.person_type ?? "pf").toUpperCase() === "PJ"
-                  ? "Pessoa jurídica"
-                  : "Pessoa física"
-              }
+              value={String(row.person_type ?? "pf").toUpperCase() === "PJ" ? "Pessoa jurídica" : "Pessoa física"}
             />
             {row.birth_date && (
               <Field
                 label="Data de nascimento"
-                value={new Date(
-                  `${String(row.birth_date).slice(0, 10)}T12:00:00`,
-                ).toLocaleDateString("pt-BR")}
-                copy={new Date(
-                  `${String(row.birth_date).slice(0, 10)}T12:00:00`,
-                ).toLocaleDateString("pt-BR")}
+                value={new Date(`${String(row.birth_date).slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR")}
+                copy={new Date(`${String(row.birth_date).slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR")}
               />
             )}
             {categoryLabels.length > 0 && (
@@ -691,29 +682,22 @@ export function StakeholderDetailSheet({
         </section>
       )}
 
+
       <Tabs defaultValue="visao" className="min-w-0 max-w-full">
         <TabsList className="ds-segmented h-auto w-full max-w-full !rounded-[0.3rem] border-0 bg-foreground/5 p-0">
-          <TabsTrigger className={SEG_TAB} value="visao">
-            Timeline
-          </TabsTrigger>
+
+          <TabsTrigger className={SEG_TAB} value="visao">Timeline</TabsTrigger>
           {(kind === "owner" || kind === "provider") && (
-            <TabsTrigger className={SEG_TAB} value="imoveis">
-              Imóveis
-            </TabsTrigger>
+            <TabsTrigger className={SEG_TAB} value="imoveis">Imóveis</TabsTrigger>
           )}
-          <TabsTrigger className={SEG_TAB} value="financeiro">
-            Financeiro
-          </TabsTrigger>
-          <TabsTrigger className={SEG_TAB} value="documentos">
-            Documentos
-          </TabsTrigger>
-          <TabsTrigger className={SEG_TAB} value="acessos">
-            Acessos
-          </TabsTrigger>
-          <TabsTrigger className={SEG_TAB} value="log">
-            Log
-          </TabsTrigger>
+          <TabsTrigger className={SEG_TAB} value="financeiro">Financeiro</TabsTrigger>
+          <TabsTrigger className={SEG_TAB} value="documentos">Documentos</TabsTrigger>
+          <TabsTrigger className={SEG_TAB} value="acessos">Acessos</TabsTrigger>
+          <TabsTrigger className={SEG_TAB} value="log">Log</TabsTrigger>
+
         </TabsList>
+
+
 
         {/* -------------------- Acessos -------------------- */}
         <TabsContent value="acessos" className="mt-5 space-y-4">
@@ -745,8 +729,7 @@ export function StakeholderDetailSheet({
             )}
           </div>
           <p className="text-xs text-muted-foreground">
-            Detalhes de tudo o que a pessoa fez no sistema: páginas abertas, botões clicados e
-            informações preenchidas.
+            Detalhes de tudo o que a pessoa fez no sistema: páginas abertas, botões clicados e informações preenchidas.
           </p>
           {(trail.data?.items ?? []).length === 0 ? (
             <Placeholder
@@ -758,9 +741,7 @@ export function StakeholderDetailSheet({
             <ul className="space-y-2">
               {(trail.data?.items ?? []).map((ev) => (
                 <li key={ev.id} className="ds-surface bg-card px-4 py-3">
-                  <p className="text-[13.5px] leading-[1.3] font-normal text-foreground">
-                    {ev.title}
-                  </p>
+                  <p className="text-[13.5px] leading-[1.3] font-normal text-foreground">{ev.title}</p>
                   <p className="ds-meta">{ev.badge}</p>
                   {ev.details.length > 0 && (
                     <ul className="mt-1 space-y-0.5">
@@ -771,14 +752,14 @@ export function StakeholderDetailSheet({
                       ))}
                     </ul>
                   )}
-                  <p className="mt-1 text-[11px] text-muted-foreground/80">
-                    {ev.at ? fmt(ev.at) : "Sem data"}
-                  </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground/80">{ev.at ? fmt(ev.at) : "Sem data"}</p>
                 </li>
               ))}
             </ul>
           )}
         </TabsContent>
+
+
 
         {/* -------------------- Visão Geral -------------------- */}
         <TabsContent value="visao" className="mt-5 space-y-5">
@@ -794,6 +775,10 @@ export function StakeholderDetailSheet({
             </div>
           ) : null}
 
+
+
+
+
           {/* Linha do tempo */}
           <section className="space-y-4">
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
@@ -805,10 +790,12 @@ export function StakeholderDetailSheet({
               )}
             </div>
 
+
+
+
+
             {feed.data?.calendarError && (
-              <p className="text-[11px] text-destructive">
-                Google Agenda: {feed.data.calendarError}
-              </p>
+              <p className="text-[11px] text-destructive">Google Agenda: {feed.data.calendarError}</p>
             )}
 
             {timeline.length === 0 ? (
@@ -830,9 +817,7 @@ export function StakeholderDetailSheet({
                     <span className="absolute -left-[49px] top-4 size-2.5 rounded-full bg-primary/70 ring-4 ring-background" />
                     <div className="ds-surface w-full bg-card px-4 py-3.5">
                       <div className="min-w-0 space-y-1.5">
-                        <p className="text-[13.5px] leading-[1.4] font-normal text-foreground">
-                          {item.title}
-                        </p>
+                        <p className="text-[13.5px] leading-[1.4] font-normal text-foreground">{item.title}</p>
                         <p className="ds-meta">{item.badge}</p>
                         {item.body}
                         <p className="ds-meta opacity-80">
@@ -886,6 +871,7 @@ export function StakeholderDetailSheet({
               onConfirm={(ids) => linkMany(ids)}
             />
 
+
             {properties.length === 0 ? (
               <Placeholder
                 icon={Home}
@@ -900,15 +886,9 @@ export function StakeholderDetailSheet({
               <div className="space-y-2">
                 {properties.map((p: any) => {
                   const status = p.published
-                    ? {
-                        label: "Publicado",
-                        cls: "border-emerald-500/25 bg-emerald-500/10 text-emerald-500",
-                      }
+                    ? { label: "Publicado", cls: "border-emerald-500/25 bg-emerald-500/10 text-emerald-500" }
                     : p.guide_created
-                      ? {
-                          label: "Pendente",
-                          cls: "border-amber-500/25 bg-amber-500/10 text-amber-500",
-                        }
+                      ? { label: "Pendente", cls: "border-amber-500/25 bg-amber-500/10 text-amber-500" }
                       : { label: "Sem guia", cls: "border-border text-muted-foreground" };
                   return (
                     <div
@@ -937,14 +917,10 @@ export function StakeholderDetailSheet({
                               </SelectTrigger>
                               <SelectContent>
                                 {(otherOwnersQuery.data ?? []).map((o) => (
-                                  <SelectItem key={o.id} value={o.id}>
-                                    {o.label}
-                                  </SelectItem>
+                                  <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>
                                 ))}
                                 {otherOwnersQuery.data?.length === 0 && (
-                                  <div className="px-3 py-2 text-xs text-muted-foreground">
-                                    Nenhum outro proprietário cadastrado.
-                                  </div>
+                                  <div className="px-3 py-2 text-xs text-muted-foreground">Nenhum outro proprietário cadastrado.</div>
                                 )}
                               </SelectContent>
                             </Select>
@@ -958,10 +934,7 @@ export function StakeholderDetailSheet({
                             </Button>
                             <button
                               type="button"
-                              onClick={() => {
-                                setTransferPropertyId(null);
-                                setTransferTargetId("");
-                              }}
+                              onClick={() => { setTransferPropertyId(null); setTransferTargetId(""); }}
                               className="shrink-0 text-muted-foreground hover:text-foreground"
                               aria-label="Cancelar transferência"
                             >
@@ -1035,6 +1008,8 @@ export function StakeholderDetailSheet({
           </TabsContent>
         )}
 
+
+
         {/* -------------------- Financeiro -------------------- */}
         <TabsContent value="financeiro" className="mt-5 space-y-4">
           <div className="grid grid-cols-3 gap-2 sm:gap-3">
@@ -1077,9 +1052,7 @@ export function StakeholderDetailSheet({
                 {feedDocs.map((d) => (
                   <li key={d.id} className="flex items-start justify-between gap-3 px-4 py-3">
                     <div className="min-w-0">
-                      <p className="text-[13.5px] leading-[1.3] font-normal text-foreground truncate">
-                        {d.name}
-                      </p>
+                      <p className="text-[13.5px] leading-[1.3] font-normal text-foreground truncate">{d.name}</p>
                       {/* Antes mostrava só uma data (finished_at OU synced_at,
                           sem rótulo) — parecia "assinado em tal data" mesmo
                           quando era só a data de IMPORTAÇÃO, com a assinatura
@@ -1109,17 +1082,25 @@ export function StakeholderDetailSheet({
                   </li>
                 ))}
               </ul>
+
             )}
           </section>
         </TabsContent>
       </Tabs>
 
       <DocPreviewDialog doc={preview} onClose={() => setPreview(null)} />
+
     </div>
   );
 }
 
-function DocPreviewDialog({ doc, onClose }: { doc: PreviewTarget; onClose: () => void }) {
+function DocPreviewDialog({
+  doc,
+  onClose,
+}: {
+  doc: PreviewTarget;
+  onClose: () => void;
+}) {
   const fileFn = useServerFn(getClicksignDocumentFile);
   const { data, isLoading, isError } = useQuery({
     queryKey: ["clicksign-doc-file", doc?.docId],
@@ -1129,7 +1110,7 @@ function DocPreviewDialog({ doc, onClose }: { doc: PreviewTarget; onClose: () =>
     retry: false,
   });
 
-  const externalUrl = doc?.docId ? null : (doc?.url ?? null);
+  const externalUrl = doc?.docId ? null : doc?.url ?? null;
 
   return (
     <Dialog open={!!doc} onOpenChange={(o) => !o && onClose()}>
@@ -1209,9 +1190,7 @@ function PdfPages({ base64 }: { base64: string }) {
           const context = canvas.getContext("2d");
           if (!context) throw new Error("Canvas indisponível");
           await page.render({ canvas, canvasContext: context, viewport }).promise;
-          const blob = await new Promise<Blob | null>((resolve) =>
-            canvas.toBlob(resolve, "image/jpeg", 0.92),
-          );
+          const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
           if (!blob) throw new Error("Falha ao renderizar página");
           const objectUrl = URL.createObjectURL(blob);
           objectUrls.push(objectUrl);
@@ -1259,6 +1238,7 @@ function PdfPages({ base64 }: { base64: string }) {
   );
 }
 
+
 function Field({
   label,
   value,
@@ -1286,9 +1266,12 @@ function Field({
   );
 }
 
+
 function WhatsAppLink({ phone, country }: { phone?: string | null; country?: string | null }) {
   return <PhoneActionButton phone={phone} country={country} size={14} showNumber />;
 }
+
+
 
 function MoneyCard({
   label,

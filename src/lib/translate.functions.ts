@@ -5,22 +5,7 @@ import { AI_MODELS } from "@/lib/ai/models";
 // Idiomas suportados pela UI. Restringir o alvo evita que o endpoint seja
 // usado como proxy genérico de LLM com instruções arbitrárias.
 const SUPPORTED_LANGS = [
-  "pt",
-  "en",
-  "es",
-  "fr",
-  "it",
-  "de",
-  "ru",
-  "ar",
-  "ja",
-  "ko",
-  "zh",
-  "nl",
-  "pl",
-  "tr",
-  "he",
-  "hi",
+  "pt", "en", "es", "fr", "it", "de", "ru", "ar", "ja", "ko", "zh", "nl", "pl", "tr", "he", "hi",
 ] as const;
 
 const InputSchema = z.object({
@@ -30,13 +15,9 @@ const InputSchema = z.object({
     .min(2)
     .max(10)
     .transform((v) => v.toLowerCase().split(/[-_]/)[0])
-    .refine(
-      (v): v is (typeof SUPPORTED_LANGS)[number] =>
-        (SUPPORTED_LANGS as readonly string[]).includes(v),
-      {
-        message: "Idioma não suportado.",
-      },
-    ),
+    .refine((v): v is (typeof SUPPORTED_LANGS)[number] => (SUPPORTED_LANGS as readonly string[]).includes(v), {
+      message: "Idioma não suportado.",
+    }),
 });
 
 /**
@@ -83,8 +64,7 @@ export const translateMessage = createServerFn({ method: "POST" })
       }),
     });
 
-    if (res.status === 429)
-      throw new Error("Muitas traduções em pouco tempo. Tente novamente em instantes.");
+    if (res.status === 429) throw new Error("Muitas traduções em pouco tempo. Tente novamente em instantes.");
     if (res.status === 402) throw new Error("Créditos de IA esgotados.");
     if (!res.ok) {
       console.error("translateMessage gateway error", res.status);

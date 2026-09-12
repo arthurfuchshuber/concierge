@@ -50,7 +50,9 @@ function addDaysISO(iso: string, n: number): string {
 
 const PLACEHOLDER_GUEST = "hóspede pendente";
 
-export type AccessPinWindowResult = { hasData: false } | { hasData: true; released: boolean };
+export type AccessPinWindowResult =
+  | { hasData: false }
+  | { hasData: true; released: boolean };
 
 /**
  * Verifica se "agora" está dentro da janela [check-in - 24h, check-out] de

@@ -37,9 +37,7 @@ export async function firstPageText(url: string): Promise<string> {
   const pdf = await getDocumentProxy(buf);
   const { text } = await extractText(pdf, { mergePages: false });
   const pages = Array.isArray(text) ? text : [String(text)];
-  return String(pages[0] ?? "")
-    .replace(/\s+/g, " ")
-    .trim();
+  return String(pages[0] ?? "").replace(/\s+/g, " ").trim();
 }
 
 /**

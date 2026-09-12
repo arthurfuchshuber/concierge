@@ -16,7 +16,10 @@ export function POIMetricsBadge({
   position?: "absolute" | "inline";
 }) {
   const c: Counts = counts ?? { views: 0, likes: 0, dislikes: 0, shares: 0 };
-  const wrap = position === "absolute" ? "absolute bottom-2 right-2 z-10" : "inline-flex";
+  const wrap =
+    position === "absolute"
+      ? "absolute bottom-2 right-2 z-10"
+      : "inline-flex";
   return (
     <div
       className={`${wrap} pointer-events-none inline-flex items-center gap-1.5 rounded-full bg-background/90 backdrop-blur border border-border px-2 py-1 text-[10.5px] font-medium tabular-nums text-foreground/80 shadow-sm`}

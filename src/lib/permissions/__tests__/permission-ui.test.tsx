@@ -19,6 +19,7 @@ vi.mock("@/lib/permissions/permission.access.functions", () => ({
   getMyAccessDecisions: vi.fn(),
 }));
 
+
 function decision(allowed: boolean) {
   return {
     tenantId: "t1",
@@ -101,9 +102,7 @@ describe("camada client", () => {
   });
 
   it("reconhece PERMISSION_DENIED", () => {
-    expect(isPermissionDenied({ code: "PERMISSION_DENIED", permission: "x", reason: "r" })).toBe(
-      true,
-    );
+    expect(isPermissionDenied({ code: "PERMISSION_DENIED", permission: "x", reason: "r" })).toBe(true);
     expect(isPermissionDenied(new Error("outro erro"))).toBe(false);
   });
 });
