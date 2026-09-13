@@ -2948,6 +2948,48 @@ export type Database = {
         }
         Relationships: []
       }
+      landing_leads: {
+        Row: {
+          challenge: string | null
+          company: string | null
+          created_at: string
+          email: string
+          id: string
+          name: string
+          properties_count: string | null
+          source: string
+          updated_at: string
+          user_agent: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          challenge?: string | null
+          company?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          properties_count?: string | null
+          source?: string
+          updated_at?: string
+          user_agent?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          challenge?: string | null
+          company?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          properties_count?: string | null
+          source?: string
+          updated_at?: string
+          user_agent?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
       ops_push_log: {
         Row: {
           created_at: string
