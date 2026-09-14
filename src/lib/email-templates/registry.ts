@@ -1,5 +1,8 @@
 import type { ComponentType } from 'react'
 import { template as accountInviteTemplate } from './account-invite'
+import { template as landingLeadTemplate } from './landing-lead'
+
+
 
 
 export interface TemplateEntry {
