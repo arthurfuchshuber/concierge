@@ -24,5 +24,6 @@ export interface TemplateEntry {
  */
 export const TEMPLATES: Record<string, TemplateEntry> = {
   'account-invite': accountInviteTemplate,
+  'landing-lead': landingLeadTemplate,
 }
 
