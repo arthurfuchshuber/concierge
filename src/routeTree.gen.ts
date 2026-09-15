@@ -32,6 +32,7 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as OauthGoogleCalendarReturnRouteImport } from './routes/oauth.google-calendar.return'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as GSlugExplorarRouteImport } from './routes/g.$slug.explorar'
+import { Route as ApiPublicWebhookChannexReservasRouteImport } from './routes/api/public/webhook-channex-reservas'
 import { Route as ApiPublicVersionRouteImport } from './routes/api/public/version'
 import { Route as ApiPublicPlacePhotoRouteImport } from './routes/api/public/place-photo'
 import { Route as ApiPublicLandingChatRouteImport } from './routes/api/public/landing-chat'
@@ -42,6 +43,7 @@ import { Route as ApiPublicGuideChatRouteImport } from './routes/api/public/guid
 import { Route as ApiPublicGuestPushRouteImport } from './routes/api/public/guest-push'
 import { Route as ApiPublicGuestDocUploadRouteImport } from './routes/api/public/guest-doc-upload'
 import { Route as ApiPublicClicksignWebhookRouteImport } from './routes/api/public/clicksign-webhook'
+import { Route as ApiPublicChannexProcessarFilaRouteImport } from './routes/api/public/channex-processar-fila'
 import { Route as AuthenticatedAdminTaxonomiaRouteImport } from './routes/_authenticated/admin.taxonomia'
 import { Route as AuthenticatedAdminStakeholdersRouteImport } from './routes/_authenticated/admin.stakeholders'
 import { Route as AuthenticatedAdminInteligenciaRouteImport } from './routes/_authenticated/admin.inteligencia'
@@ -209,6 +211,12 @@ const GSlugExplorarRoute = GSlugExplorarRouteImport.update({
   path: '/explorar',
   getParentRoute: () => GSlugRoute,
 } as any)
+const ApiPublicWebhookChannexReservasRoute =
+  ApiPublicWebhookChannexReservasRouteImport.update({
+    id: '/api/public/webhook-channex-reservas',
+    path: '/api/public/webhook-channex-reservas',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicVersionRoute = ApiPublicVersionRouteImport.update({
   id: '/api/public/version',
   path: '/api/public/version',
@@ -260,6 +268,12 @@ const ApiPublicClicksignWebhookRoute =
   ApiPublicClicksignWebhookRouteImport.update({
     id: '/api/public/clicksign-webhook',
     path: '/api/public/clicksign-webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicChannexProcessarFilaRoute =
+  ApiPublicChannexProcessarFilaRouteImport.update({
+    id: '/api/public/channex-processar-fila',
+    path: '/api/public/channex-processar-fila',
     getParentRoute: () => rootRouteImport,
   } as any)
 const AuthenticatedAdminTaxonomiaRoute =
@@ -585,6 +599,7 @@ export interface FileRoutesByFullPath {
   '/admin/inteligencia': typeof AuthenticatedAdminInteligenciaRoute
   '/admin/stakeholders': typeof AuthenticatedAdminStakeholdersRoute
   '/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
+  '/api/public/channex-processar-fila': typeof ApiPublicChannexProcessarFilaRoute
   '/api/public/clicksign-webhook': typeof ApiPublicClicksignWebhookRoute
   '/api/public/guest-doc-upload': typeof ApiPublicGuestDocUploadRoute
   '/api/public/guest-push': typeof ApiPublicGuestPushRoute
@@ -595,6 +610,7 @@ export interface FileRoutesByFullPath {
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/public/version': typeof ApiPublicVersionRoute
+  '/api/public/webhook-channex-reservas': typeof ApiPublicWebhookChannexReservasRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
@@ -665,6 +681,7 @@ export interface FileRoutesByTo {
   '/admin/inteligencia': typeof AuthenticatedAdminInteligenciaRoute
   '/admin/stakeholders': typeof AuthenticatedAdminStakeholdersRoute
   '/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
+  '/api/public/channex-processar-fila': typeof ApiPublicChannexProcessarFilaRoute
   '/api/public/clicksign-webhook': typeof ApiPublicClicksignWebhookRoute
   '/api/public/guest-doc-upload': typeof ApiPublicGuestDocUploadRoute
   '/api/public/guest-push': typeof ApiPublicGuestPushRoute
@@ -675,6 +692,7 @@ export interface FileRoutesByTo {
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/public/version': typeof ApiPublicVersionRoute
+  '/api/public/webhook-channex-reservas': typeof ApiPublicWebhookChannexReservasRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
@@ -750,6 +768,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/inteligencia': typeof AuthenticatedAdminInteligenciaRoute
   '/_authenticated/admin/stakeholders': typeof AuthenticatedAdminStakeholdersRoute
   '/_authenticated/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
+  '/api/public/channex-processar-fila': typeof ApiPublicChannexProcessarFilaRoute
   '/api/public/clicksign-webhook': typeof ApiPublicClicksignWebhookRoute
   '/api/public/guest-doc-upload': typeof ApiPublicGuestDocUploadRoute
   '/api/public/guest-push': typeof ApiPublicGuestPushRoute
@@ -760,6 +779,7 @@ export interface FileRoutesById {
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/public/version': typeof ApiPublicVersionRoute
+  '/api/public/webhook-channex-reservas': typeof ApiPublicWebhookChannexReservasRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
@@ -835,6 +855,7 @@ export interface FileRouteTypes {
     | '/admin/inteligencia'
     | '/admin/stakeholders'
     | '/admin/taxonomia'
+    | '/api/public/channex-processar-fila'
     | '/api/public/clicksign-webhook'
     | '/api/public/guest-doc-upload'
     | '/api/public/guest-push'
@@ -845,6 +866,7 @@ export interface FileRouteTypes {
     | '/api/public/landing-chat'
     | '/api/public/place-photo'
     | '/api/public/version'
+    | '/api/public/webhook-channex-reservas'
     | '/g/$slug/explorar'
     | '/lovable/email/suppression'
     | '/oauth/google-calendar/return'
@@ -915,6 +937,7 @@ export interface FileRouteTypes {
     | '/admin/inteligencia'
     | '/admin/stakeholders'
     | '/admin/taxonomia'
+    | '/api/public/channex-processar-fila'
     | '/api/public/clicksign-webhook'
     | '/api/public/guest-doc-upload'
     | '/api/public/guest-push'
@@ -925,6 +948,7 @@ export interface FileRouteTypes {
     | '/api/public/landing-chat'
     | '/api/public/place-photo'
     | '/api/public/version'
+    | '/api/public/webhook-channex-reservas'
     | '/g/$slug/explorar'
     | '/lovable/email/suppression'
     | '/oauth/google-calendar/return'
@@ -999,6 +1023,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/inteligencia'
     | '/_authenticated/admin/stakeholders'
     | '/_authenticated/admin/taxonomia'
+    | '/api/public/channex-processar-fila'
     | '/api/public/clicksign-webhook'
     | '/api/public/guest-doc-upload'
     | '/api/public/guest-push'
@@ -1009,6 +1034,7 @@ export interface FileRouteTypes {
     | '/api/public/landing-chat'
     | '/api/public/place-photo'
     | '/api/public/version'
+    | '/api/public/webhook-channex-reservas'
     | '/g/$slug/explorar'
     | '/lovable/email/suppression'
     | '/oauth/google-calendar/return'
@@ -1068,6 +1094,7 @@ export interface RootRouteChildren {
   GSlugRoute: typeof GSlugRouteWithChildren
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiPublicChannexProcessarFilaRoute: typeof ApiPublicChannexProcessarFilaRoute
   ApiPublicClicksignWebhookRoute: typeof ApiPublicClicksignWebhookRoute
   ApiPublicGuestDocUploadRoute: typeof ApiPublicGuestDocUploadRoute
   ApiPublicGuestPushRoute: typeof ApiPublicGuestPushRoute
@@ -1078,6 +1105,7 @@ export interface RootRouteChildren {
   ApiPublicLandingChatRoute: typeof ApiPublicLandingChatRoute
   ApiPublicPlacePhotoRoute: typeof ApiPublicPlacePhotoRoute
   ApiPublicVersionRoute: typeof ApiPublicVersionRoute
+  ApiPublicWebhookChannexReservasRoute: typeof ApiPublicWebhookChannexReservasRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   OauthGoogleCalendarReturnRoute: typeof OauthGoogleCalendarReturnRoute
   ApiPublicCronAutoCheckoutRoute: typeof ApiPublicCronAutoCheckoutRoute
@@ -1267,6 +1295,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GSlugExplorarRouteImport
       parentRoute: typeof GSlugRoute
     }
+    '/api/public/webhook-channex-reservas': {
+      id: '/api/public/webhook-channex-reservas'
+      path: '/api/public/webhook-channex-reservas'
+      fullPath: '/api/public/webhook-channex-reservas'
+      preLoaderRoute: typeof ApiPublicWebhookChannexReservasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/version': {
       id: '/api/public/version'
       path: '/api/public/version'
@@ -1335,6 +1370,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/clicksign-webhook'
       fullPath: '/api/public/clicksign-webhook'
       preLoaderRoute: typeof ApiPublicClicksignWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/channex-processar-fila': {
+      id: '/api/public/channex-processar-fila'
+      path: '/api/public/channex-processar-fila'
+      fullPath: '/api/public/channex-processar-fila'
+      preLoaderRoute: typeof ApiPublicChannexProcessarFilaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin/taxonomia': {
@@ -1808,6 +1850,7 @@ const rootRouteChildren: RootRouteChildren = {
   GSlugRoute: GSlugRouteWithChildren,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiPublicChannexProcessarFilaRoute: ApiPublicChannexProcessarFilaRoute,
   ApiPublicClicksignWebhookRoute: ApiPublicClicksignWebhookRoute,
   ApiPublicGuestDocUploadRoute: ApiPublicGuestDocUploadRoute,
   ApiPublicGuestPushRoute: ApiPublicGuestPushRoute,
@@ -1818,6 +1861,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicLandingChatRoute: ApiPublicLandingChatRoute,
   ApiPublicPlacePhotoRoute: ApiPublicPlacePhotoRoute,
   ApiPublicVersionRoute: ApiPublicVersionRoute,
+  ApiPublicWebhookChannexReservasRoute: ApiPublicWebhookChannexReservasRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   OauthGoogleCalendarReturnRoute: OauthGoogleCalendarReturnRoute,
   ApiPublicCronAutoCheckoutRoute: ApiPublicCronAutoCheckoutRoute,
