@@ -168,3 +168,39 @@ export function Glow({ className }: { className?: string }) {
     />
   );
 }
+
+/**
+ * Painel de vidro: borda clara, desfoque de fundo e contorno em degradê
+ * opcional. `min-w-0` + `overflow-hidden` garantem que nada corte na margem.
+ */
+export function GlassCard({
+  children,
+  className,
+  edge = false,
+}: {
+  children: ReactNode;
+  className?: string;
+  edge?: boolean;
+}) {
+  return (
+    <div className={cn("relative min-w-0", className)}>
+      {edge ? (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -inset-px rounded-[26px] opacity-40 blur-[6px]"
+          style={{ background: "linear-gradient(120deg,#7c1ad8 0%,#e82dae 100%)" }}
+        />
+      ) : null}
+      <div
+        className={cn(
+          "relative flex h-full min-w-0 flex-col overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.035] p-5 backdrop-blur-xl sm:p-6",
+          "shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset,0_30px_70px_-45px_rgba(0,0,0,0.95)]",
+          "transition-[border-color,background-color,transform] duration-300 hover:-translate-y-0.5 hover:border-accent/35 hover:bg-white/[0.06]",
+        )}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
