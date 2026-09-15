@@ -176,7 +176,11 @@ export function POIEngagementBar({
     <div
       ref={ref}
       onClick={(e) => e.stopPropagation()}
-      className={`pointer-events-auto absolute top-1/2 -translate-y-1/2 right-2 z-10 flex flex-col items-center justify-center gap-3.5 max-h-[calc(100%-16px)] ${tone}`}
+      className={
+        inline
+          ? `pointer-events-auto z-10 flex shrink-0 items-center gap-3 ${tone}`
+          : `pointer-events-auto absolute top-1/2 -translate-y-1/2 right-2 z-10 flex flex-col items-center justify-center gap-3.5 max-h-[calc(100%-16px)] ${tone}`
+      }
     >
       {viewsOnly ? (
         <button
