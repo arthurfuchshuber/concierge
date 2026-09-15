@@ -4524,6 +4524,42 @@ export type Database = {
         }
         Relationships: []
       }
+      propriedades: {
+        Row: {
+          channex_listing_id: string | null
+          channex_property_id: string | null
+          channex_rate_plan_id: string | null
+          channex_room_type_id: string | null
+          created_at: string
+          id: string
+          nome: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          channex_listing_id?: string | null
+          channex_property_id?: string | null
+          channex_rate_plan_id?: string | null
+          channex_room_type_id?: string | null
+          created_at?: string
+          id?: string
+          nome: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          channex_listing_id?: string | null
+          channex_property_id?: string | null
+          channex_rate_plan_id?: string | null
+          channex_room_type_id?: string | null
+          created_at?: string
+          id?: string
+          nome?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       provider_categories: {
         Row: {
           account_owner_id: string

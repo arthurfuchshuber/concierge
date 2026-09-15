@@ -12,6 +12,7 @@ import {
   Clock,
   Plug,
   Sparkles,
+  Home,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -20,9 +21,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { WhatsappBusinessPage } from "@/components/admin-pages/WhatsappBusinessPage";
 import { ClicksignPanel } from "@/components/admin-pages/ClicksignPanel";
 import { GoogleCalendarPanel } from "@/components/admin-pages/GoogleCalendarPanel";
+import { ChannexPanel } from "@/components/admin-pages/ChannexPanel";
 import { getMyGoogleCalendarStatus } from "@/lib/google-calendar.functions";
 import { getMyWhatsappConfig } from "@/lib/whatsapp.functions";
 import { getMyClicksignConfig } from "@/lib/clicksign.functions";
+import { getChannexStatus } from "@/lib/channex.functions";
 import { cn } from "@/lib/utils";
 import { useImpersonation } from "@/hooks/useImpersonation";
 
@@ -73,6 +76,15 @@ const INTEGRATIONS: IntegrationConfig[] = [
     detalhe:
       "Conecte a conta Google desta operação (OAuth). Importamos todas as agendas, eventos e os arquivos de gravação e transcrição gerados pelo Google Meet vinculados a cada evento.",
   },
+  {
+    key: "channex",
+    nome: "Channex (Airbnb)",
+    descricao: "Importe os anúncios do Airbnb conectados e mantenha os imóveis sincronizados.",
+    categoria: "Operação",
+    icon: Home,
+    detalhe:
+      "Traz para o painel os anúncios do Airbnb conectados via Channex. Cada anúncio vira um imóvel, com tipo de quarto e tarifa padrão em BRL criados automaticamente.",
+  },
 ];
 
 const COMING_SOON = new Set<string>([]);
@@ -120,6 +132,14 @@ export function IntegracoesPage() {
   });
   const gcalActive = !!gcal.data?.connected;
 
+  const channexFn = useServerFn(getChannexStatus);
+  const channex = useQuery({
+    queryKey: ["channex-status"],
+    queryFn: () => channexFn(),
+    retry: false,
+  });
+  const channexActive = !!channex.data?.configured;
+
   const items = useMemo(
     () =>
       INTEGRATIONS.map((cfg) => {
@@ -127,13 +147,14 @@ export function IntegracoesPage() {
         if (COMING_SOON.has(cfg.key)) statusKey = "em_breve";
         else if (cfg.key === "whatsapp") statusKey = waActive ? "ativa" : "inativa";
         else if (cfg.key === "clicksign") statusKey = csActive ? "ativa" : "inativa";
+        else if (cfg.key === "channex") statusKey = channexActive ? "ativa" : "inativa";
         else if (cfg.key === "gcal") statusKey = gcalActive ? "ativa" : "inativa";
         return { cfg, statusKey };
       }).sort(
         (a, b) =>
           STATUS_ORDER[a.statusKey] - STATUS_ORDER[b.statusKey] || a.cfg.nome.localeCompare(b.cfg.nome, "pt-BR"),
       ),
-    [waActive, csActive, gcalActive],
+    [waActive, csActive, gcalActive, channexActive],
   );
 
   const counts = useMemo(
@@ -257,6 +278,8 @@ export function IntegracoesPage() {
                         <Plug className="mr-1 size-3.5" />
                         {waActive ? "Gerenciar conexão" : "Conectar"}
                       </Button>
+                    ) : cfg.key === "channex" ? (
+                      <ChannexPanel />
                     ) : cfg.key === "gcal" ? (
                       <GoogleCalendarPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId} />
                     ) : (
