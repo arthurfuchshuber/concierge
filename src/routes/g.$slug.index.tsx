@@ -2853,6 +2853,7 @@ function HeroCompact({
               {city}
             </span>
           )}
+          {!isDemoView && (
           <button
             type="button"
             onClick={onToggleTheme}
