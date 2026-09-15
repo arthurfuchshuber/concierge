@@ -1,8 +1,21 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, Building2, Users, BookOpen, ClipboardList, Layers, Sparkles, UserCheck } from "lucide-react";
+import {
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  Building2,
+  Users,
+  BookOpen,
+  ClipboardList,
+  Layers,
+  Sparkles,
+  UserCheck,
+} from "lucide-react";
 import { Reveal, Section, SectionHeading, Glow, GradientText, GlassCard } from "./primitives";
-import { PhoneShot } from "./ProductShot";
-import shotGuiaMobile from "@/assets/landing/shot-explorar-mobile.png.asset.json";
+import { PhoneFrame } from "./ProductShot";
+import { RESULT_SCREENS } from "./ResultScreens";
+import { cn } from "@/lib/utils";
 
 /* ---------------- HERO ---------------- */
 
