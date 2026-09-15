@@ -462,14 +462,16 @@
 }
 .text-shine-overlay {
   background-image: linear-gradient(
-    100deg,
-    transparent 40%,
-    rgba(255, 255, 255, 0.9) 50%,
-    transparent 60%
+    105deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.25) 42%,
+    rgba(255, 255, 255, 0.95) 50%,
+    rgba(255, 255, 255, 0.25) 58%,
+    transparent 70%
   );
-  background-size: 240% 100%;
+  background-size: 260% 100%;
   background-repeat: no-repeat;
-  animation: text-shine-sweep 3.4s linear infinite;
+  animation: text-shine-sweep 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 @media (prefers-reduced-motion: reduce) {
   .text-shine-overlay {
