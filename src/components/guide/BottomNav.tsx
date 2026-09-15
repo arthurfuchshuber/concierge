@@ -52,7 +52,8 @@ export function BottomNav({
       <nav
         aria-label="Navegação do guia"
         className={cn(
-          "fixed inset-x-0 bottom-0 z-30 pb-[max(env(safe-area-inset-bottom),8px)] pt-2 px-3",
+          "fixed inset-x-0 bottom-0 z-30 px-3",
+          isDemoView ? "pb-1.5 pt-1.5" : "pb-[max(env(safe-area-inset-bottom),8px)] pt-2",
           "backdrop-blur-xl border-t",
           isDark
             ? "bg-[#080815]/85 border-white/8 shadow-[0_-20px_50px_-20px_rgba(0,0,0,0.7)]"
