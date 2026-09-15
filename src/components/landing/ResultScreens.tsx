@@ -1,4 +1,5 @@
 import { createContext, useContext } from "react";
+import conciergeLogo from "@/assets/concierge-logo.png";
 import {
   Wifi,
   DoorOpen,
@@ -126,7 +127,7 @@ function ScreenShell({
 function GuideTopBar() {
   return (
     <div className="flex min-w-0 items-center gap-2 px-3 pt-3">
-      <span aria-hidden className="size-4 shrink-0 rounded-[3px]" style={{ background: GRAD }} />
+      <img src={conciergeLogo} alt="" aria-hidden className="size-4 shrink-0 object-contain" />
       <p className="truncate font-display text-[12.5px] font-extrabold tracking-tight">ConciergeIA</p>
       <span className="ml-auto flex shrink-0 items-center gap-1.5 rounded-full border border-white/12 bg-white/[0.05] px-2.5 py-1">
         <span className="size-1.5 rounded-full bg-emerald-400" />

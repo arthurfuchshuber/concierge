@@ -53,14 +53,12 @@ export function PhoneFrame({ children, className }: { children: React.ReactNode;
         className="pointer-events-none absolute -inset-1 rounded-[44px] opacity-40 blur-[16px]"
         style={{ background: "linear-gradient(140deg,#7c1ad8 0%,#e82dae 100%)" }}
       />
-      <div className="relative min-w-0 overflow-hidden rounded-[38px] bg-[#07070b] p-2 shadow-[0_40px_80px_-40px_rgba(0,0,0,1)]">
-        <div className="relative min-h-[460px] overflow-hidden rounded-[30px] border border-white/8">
-          <span
-            aria-hidden
-            className="absolute left-1/2 top-2 z-10 h-4 w-20 -translate-x-1/2 rounded-full bg-black/80"
-          />
-          {children}
-        </div>
+      <div className="relative min-h-[460px] min-w-0 overflow-hidden rounded-[34px] bg-[#0a0a0f] shadow-[0_40px_80px_-40px_rgba(0,0,0,1)]">
+        <span
+          aria-hidden
+          className="absolute left-1/2 top-2 z-10 h-4 w-20 -translate-x-1/2 rounded-full bg-black/80"
+        />
+        {children}
       </div>
     </div>
   );
