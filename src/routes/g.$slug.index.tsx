@@ -2025,17 +2025,30 @@ function Guide({ data }: { data: GuideOk }) {
                             >
                               {showTabs ? (
                                 <Tabs defaultValue={defaultTab}>
-                                  <TabsList className="mb-4 grid h-auto w-full grid-cols-2 gap-1.5 rounded-[0.3rem] border border-border/25 bg-foreground/[0.03] p-1">
+                                  {/* Duas opções apenas: grade de 2 colunas iguais
+                                      (inline style vence o `ds-segmented`, que é
+                                      pensado para barras longas e roláveis). */}
+                                  <TabsList
+                                    className="mb-4 h-auto w-full rounded-[0.3rem] border-border/25 bg-foreground/[0.04] p-1"
+                                    style={{
+                                      display: "grid",
+                                      gridTemplateColumns: "1fr 1fr",
+                                      gap: "4px",
+                                      overflow: "visible",
+                                    }}
+                                  >
                                     <TabsTrigger
                                       value="passos"
-                                      className="!flex-none h-[38px] w-full justify-center rounded-[0.3rem] text-[13px] font-bold"
+                                      className="grid h-[38px] w-full min-w-0 place-items-center rounded-[0.3rem] text-[13px] font-semibold"
+                                      style={{ flex: "none" }}
                                     >
                                       Passo a passo
                                     </TabsTrigger>
                                     <TabsTrigger
                                       value="senhas"
                                       data-tour="senhas-tab"
-                                      className="!flex-none h-[38px] w-full justify-center rounded-[0.3rem] text-[13px] font-bold"
+                                      className="grid h-[38px] w-full min-w-0 place-items-center rounded-[0.3rem] text-[13px] font-semibold"
+                                      style={{ flex: "none" }}
                                     >
                                       Senhas
                                     </TabsTrigger>
