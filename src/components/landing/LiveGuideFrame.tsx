@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * Guia do hóspede REAL dentro da moldura de celular da landing.
@@ -15,7 +15,10 @@ const DEMO_SLUG = "casa-charmosa-prox-a-avenida-das-cataratas";
 
 export function LiveGuideFrame() {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const [measuredHeight, setMeasuredHeight] = useState<number | null>(null);
+
+  useEffect(() => () => resizeObserverRef.current?.disconnect(), []);
 
   function measureArrivalCard() {
     const frame = iframeRef.current;
@@ -33,6 +36,14 @@ export function LiveGuideFrame() {
       const arrivalBottom = arrival.getBoundingClientRect().bottom;
       const navHeight = nav?.getBoundingClientRect().height ?? 57;
       setMeasuredHeight(Math.ceil(arrivalBottom + 12 + navHeight));
+      resizeObserverRef.current?.disconnect();
+      resizeObserverRef.current = new ResizeObserver(() => {
+        const nextBottom = arrival.getBoundingClientRect().bottom;
+        const nextNavHeight = nav?.getBoundingClientRect().height ?? 57;
+        setMeasuredHeight(Math.ceil(nextBottom + 12 + nextNavHeight));
+      });
+      resizeObserverRef.current.observe(arrival);
+      resizeObserverRef.current.observe(frame);
     };
 
     window.setTimeout(measure, 200);
