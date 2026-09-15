@@ -179,6 +179,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { useHasSession } from "@/hooks/useHasSession";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { ConfirmActionDialog } from "@/components/permissions/ConfirmActionDialog";
 
@@ -829,7 +830,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     staleTime: 30_000,
     placeholderData: keepPreviousData,
     ...liveSync,
-    enabled: view === "kanban",
+    enabled: authed && view === "kanban",
   });
   const kanbanCheckoutListQ = useQuery({
     queryKey: ["dash-list", "checkout", "all", activeOwnerId ?? "self", "kanban-filtros"],
@@ -837,7 +838,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     staleTime: 30_000,
     placeholderData: keepPreviousData,
     ...liveSync,
-    enabled: view === "kanban",
+    enabled: authed && view === "kanban",
   });
   // Busca de "Concluídos": por padrão o servidor só devolve os 200 cards
   // concluídos mais recentes (evita varrer a conta inteira sempre que a tela
@@ -874,6 +875,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       noShowFn({ data: { ownerId: activeOwnerId, q: noShowSearchDebounced || undefined } }),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
+    enabled: authed,
   });
   // Filtros de Período/Proprietário/Cidade — controlam TANTO a agenda de
   // ocupação quanto os cards "Limpezas Realizadas"/"Custo Total Limpeza"
@@ -975,6 +977,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       }),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
+    enabled: authed,
   });
   // Gráficos da aba Limpeza (pedido explícito): usam o MESMO endpoint acima,
   // mas com uma janela própria — os cards de estatística mostram "Hoje" por
@@ -1005,7 +1008,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       }),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
-    enabled: view === "limpeza",
+    enabled: authed && view === "limpeza",
   });
 
   // Uma única rotina de recarga, com "debounce": evita disparar 4-5 requisições
@@ -1589,7 +1592,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     queryFn: () => listFn({ data: { kind: "checkout", range: "7d", ownerId: activeOwnerId } }),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
-    enabled: view === "limpeza",
+    enabled: authed && view === "limpeza",
   });
   const cleaningForecast = useMemo(() => {
     const today = todayISOSaoPaulo();
@@ -1677,6 +1680,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     queryKey: ["dash-tasks", activeOwnerId ?? "self"],
     queryFn: () => listTasksFn({ data: { ownerId: activeOwnerId } }),
     staleTime: 15_000,
+    enabled: authed,
   });
   const openTasksCount = useMemo(
     () => (tasksQ.data?.tasks ?? []).filter((t) => t.status === "pending").length,
@@ -1686,7 +1690,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     queryKey: ["dash-task-link-options", activeOwnerId ?? "self"],
     queryFn: () => taskLinkOptionsFn({ data: { ownerId: activeOwnerId } }),
     staleTime: 60_000,
-    enabled: pendenciasOpen,
+    enabled: authed && pendenciasOpen,
   });
   const invalidateTasks = useCallback(() => {
     qc.invalidateQueries({ queryKey: ["dash-tasks", activeOwnerId ?? "self"] });
