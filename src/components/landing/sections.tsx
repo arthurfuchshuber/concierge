@@ -167,7 +167,10 @@ export function FeatureRail() {
       <div className="mt-12">
         <div className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 lg:grid-cols-4">
           {RECURSOS.map((r, i) => (
-            <div key={r.title} className="w-[78vw] max-w-[320px] snap-center md:w-auto md:max-w-none">
+            <div
+              key={r.title}
+              className="w-[78vw] max-w-[320px] shrink-0 snap-center md:w-auto md:max-w-none md:shrink"
+            >
               <Reveal delay={0.04 * i}>
                 <GlassCard className="h-full">
                   <div className="grid min-h-[168px] place-items-center rounded-2xl border border-white/8 bg-background/40 p-3">
