@@ -654,6 +654,19 @@ export async function runHospitalityAgent(params: {
     intent.category === "reserva" ||
     intent.category === "financeiro";
 
+  // LATÊNCIA: a autoavaliação (e a revalidação do texto reescrito) só existe
+  // para lapidar redação. Em turno de baixo risco — conversa da cidade,
+  // recomendação, social, sem urgência — ela custava uma a duas idas extras ao
+  // modelo antes do hóspede ver qualquer coisa. Nesses casos pulamos a
+  // autoavaliação; a validação anti-alucinação continua rodando sempre.
+  const skipReflection =
+    !highRiskContext &&
+    intent.urgency !== "high" &&
+    plan.riskLevel !== "high" &&
+    (intent.category === "cidade" ||
+      intent.category === "recomendacao" ||
+      intent.category === "social");
+
   if (reply && !handoffReason) {
     const [validated, reflected] = await Promise.all([
       validateAnswer({
@@ -671,8 +684,10 @@ export async function runHospitalityAgent(params: {
         evidence: evidenceText,
         language: intent.language,
         history: params.history,
+        skip: skipReflection,
       }),
     ]);
+
 
     usage = mergeUsage(usage, validated.usage);
     usage = mergeUsage(usage, reflected.usage);
