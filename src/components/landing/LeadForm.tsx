@@ -115,42 +115,8 @@ export function LeadForm() {
                   Leve o ConciergeIA <GradientText>para sua operação.</GradientText>
                 </p>
 
-                <p className="mt-4 max-w-sm text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
-                  Conte um pouco sobre sua operação. Retornamos com uma apresentação alinhada ao seu
-                  contexto.
-                </p>
 
-                <div className="mt-8 space-y-3">
-                  <a
-                    href="mailto:sigma@anfitriaosigma.com.br"
-                    className="flex min-w-0 items-center gap-3 rounded-[10px] border border-white/10 bg-white/[0.05] p-3 transition-colors hover:border-accent/40"
-                  >
-                    <span className="grid size-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.05]">
-                      <Mail className="size-4 text-accent" />
-                    </span>
-                    <span className="min-w-0 break-words text-[13px] text-muted-foreground">
-                      sigma@anfitriaosigma.com.br
-                    </span>
-                  </a>
-                  <a
-                    href="https://wa.me/5545991070707"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex min-w-0 items-center gap-3 rounded-[10px] border border-white/10 bg-white/[0.05] p-3 transition-colors hover:border-accent/40"
-                  >
-                    <span className="grid size-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.05]">
-                      <MessageCircle className="size-4 text-accent" />
-                    </span>
-                    <span className="min-w-0 text-[13px] text-muted-foreground">Falar pelo WhatsApp</span>
-                  </a>
-                </div>
 
-                <p className="mt-8 flex min-w-0 items-start gap-2 text-[11.5px] leading-relaxed text-muted-foreground/70">
-                  <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-accent" />
-                  <span className="min-w-0">
-                    Seus dados são usados apenas para este contato. Nada de mensagens em massa.
-                  </span>
-                </p>
               </div>
             </div>
 
