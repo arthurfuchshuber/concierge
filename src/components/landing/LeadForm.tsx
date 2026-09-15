@@ -16,9 +16,10 @@ const CHALLENGES = [
 ];
 
 const inputClass =
-  "h-13 w-full min-w-0 rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-[14px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/55 focus:border-accent/60 focus:bg-white/[0.07]";
+  "h-14 w-full min-w-0 rounded-[10px] border border-white/10 bg-white/[0.05] px-4 text-[15px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-accent/60 focus:bg-white/[0.09]";
 
 const labelClass = "text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80";
+
 
 /** Telefone brasileiro: (00) 0000-0000 e (00) 00000-0000. */
 function maskPhone(input: string): string {
