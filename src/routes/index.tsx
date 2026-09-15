@@ -60,7 +60,6 @@ function Landing() {
       <LandingNav />
       <main>
         <Hero />
-        <ShowcaseSection />
         <FlowSection />
         <AudienceSection />
         <PricingSection />
