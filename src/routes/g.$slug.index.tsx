@@ -2828,7 +2828,7 @@ function HeroCompact({
   // A logo específica do anfitrião fica no rodapé, não no topo.
   return (
     <section className="relative px-4 md:px-10 lg:px-16 pt-4 pb-3 md:pt-6 md:pb-5">
-      <header className="relative z-10 flex items-center justify-between gap-3">
+      <header data-demo={String(isDemoView)} data-search={useRouterState({ select: (st) => st.location.searchStr })} className="relative z-10 flex items-center justify-between gap-3">
         <div className="flex items-center gap-1.5 min-w-0">
           <img src={conciergeLogo} alt="ConciergeIA" className="size-6 object-contain shrink-0" />
           <span
