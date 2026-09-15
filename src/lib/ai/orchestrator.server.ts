@@ -836,18 +836,23 @@ export async function runHospitalityAgent(params: {
     }
   }
 
-  // Sugestão de botões de resposta rápida — só quando há de fato uma resposta
-  // sendo enviada ao hóspede (handoff não envia texto, não faz sentido sugerir
-  // botão pra mensagem vazia). Roda em QUALQUER pergunta final da IA, não só
-  // no modo exploração — a própria etapa decide, olhando o texto, se faz
-  // sentido oferecer opções ou deixar só o campo de digitar.
+  // Botões de resposta rápida — sempre que a IA termina fazendo uma pergunta
+  // ao hóspede, ele deve poder responder num toque (e continuar livre para
+  // digitar). Só chamamos o modelo quando existe pergunta no texto: antes esta
+  // etapa rodava em TODA mensagem, somando uma ida ao modelo mesmo quando não
+  // havia nada a oferecer.
   let quickReplies: string[] = [];
-  if (reply) {
-    const qr = await suggestQuickReplies({ answer: reply, language: intent.language });
+  if (reply && /\?/.test(reply)) {
+    const qr = await suggestQuickReplies({
+      answer: reply,
+      language: intent.language,
+      category: intent.category,
+    });
     usage = mergeUsage(usage, qr.usage);
     if (qr.model) models.quickReplies = qr.model;
     quickReplies = qr.options;
   }
+
 
   // 9) Persistência de memória + observabilidade (não bloqueiam a resposta)
   rememberMessage(params.conversationId, "assistant", reply);
