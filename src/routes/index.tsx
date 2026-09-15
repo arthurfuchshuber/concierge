@@ -5,11 +5,10 @@ import { LeadForm } from "@/components/landing/LeadForm";
 import { PricingSection } from "@/components/landing/PricingSection";
 import {
   AudienceSection,
-  FeatureRail,
   FlowSection,
   Hero,
   LandingFooter,
-  LivePanelSection,
+  ShowcaseSection,
 } from "@/components/landing/sections";
 import { metaPixelTrackCustomOnce } from "@/lib/meta-pixel";
 import { siteUrl } from "@/lib/site-url";
