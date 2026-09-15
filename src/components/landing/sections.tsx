@@ -1,9 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Building2, Users, BookOpen, ClipboardList, Layers, Sparkles, UserCheck } from "lucide-react";
 import { Reveal, Section, SectionHeading, Glow, GradientText, GlassCard } from "./primitives";
-import { BrowserShot, PhoneShot } from "./ProductShot";
-import shotGuias from "@/assets/landing/shot-guias.png.asset.json";
-import shotStakeholders from "@/assets/landing/shot-stakeholders.png.asset.json";
+import { PhoneShot } from "./ProductShot";
 import shotGuiaMobile from "@/assets/landing/shot-explorar-mobile.png.asset.json";
 
 /* ---------------- HERO ---------------- */
@@ -34,109 +32,23 @@ export function Hero() {
               href="#contato"
               className="inline-flex h-12 min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-accent px-7 text-[14px] font-bold text-accent-foreground shadow-[0_0_28px_-6px_var(--accent)] transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0"
             >
-              Conhecer o ConciergeIA <ArrowRight className="size-4 shrink-0" />
-            </a>
-            <a
-              href="#contato"
-              className="inline-flex h-12 min-w-0 items-center justify-center whitespace-nowrap rounded-xl border border-white/15 bg-white/[0.03] px-7 text-[14px] font-semibold text-muted-foreground backdrop-blur transition-colors duration-200 hover:border-accent/40 hover:text-foreground"
-            >
-              Solicitar uma demonstração
+              Solicitar demonstração! <ArrowRight className="size-4 shrink-0" />
             </a>
           </div>
         </Reveal>
       </div>
 
-      {/* Tela real do sistema */}
+      {/* Guia do hóspede no celular */}
       <Reveal delay={0.08}>
-        <div className="relative mx-auto mt-12 w-full max-w-5xl px-5 sm:px-8">
-          <BrowserShot
-            priority
-            src={shotGuias.url}
-            alt="Tela do ConciergeIA com a lista de imóveis e guias da operação"
-            imgClassName="max-h-[560px] object-cover object-top"
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-5 bottom-0 h-28 bg-gradient-to-t from-background to-transparent sm:inset-x-8"
+        <div className="relative mx-auto mt-12 flex w-full max-w-5xl justify-center px-5 sm:px-8">
+          <PhoneShot
+            src={shotGuiaMobile.url}
+            alt="Guia do hóspede no celular com acesso, regras e recomendações da região"
+            className="w-[min(340px,86%)]"
           />
         </div>
       </Reveal>
     </section>
-  );
-}
-
-/* ---------------- BENTO COM TELAS REAIS ---------------- */
-
-export function ShowcaseSection() {
-  return (
-    <Section id="recursos" className="relative overflow-hidden">
-      <Glow className="right-[-180px] top-10 h-[320px] w-[420px]" />
-      <Reveal>
-        <SectionHeading eyebrow="Na prática" title="A operação inteira, visível em tempo real." />
-      </Reveal>
-
-      <div className="mt-12 grid gap-4 lg:grid-cols-12">
-        {/* Imóveis e guias */}
-        <Reveal className="h-full lg:col-span-7">
-          <GlassCard edge className="h-full">
-            <p className="font-display text-[17px] font-bold tracking-tight">Imóveis e guias</p>
-            <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">
-              Cada unidade com fotos, instruções e o guia publicado — no mesmo padrão.
-            </p>
-            <div className="mt-6 min-w-0 overflow-hidden rounded-2xl border border-white/10">
-              <img
-                src={shotGuias.url}
-                alt="Lista de imóveis com guias publicados no ConciergeIA"
-                loading="lazy"
-                className="block w-full max-h-[300px] object-cover object-[0%_18%]"
-              />
-            </div>
-          </GlassCard>
-        </Reveal>
-
-        {/* Guia do hóspede */}
-        <Reveal delay={0.05} className="h-full lg:col-span-5">
-          <GlassCard className="h-full">
-            <p className="font-display text-[17px] font-bold tracking-tight">Guia do hóspede</p>
-            <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">
-              O hóspede abre no celular e encontra acesso, regras e recomendações da região.
-            </p>
-            <div className="relative mt-6 flex min-w-0 flex-1 items-end justify-center overflow-hidden">
-              <PhoneShot
-                src={shotGuiaMobile.url}
-                alt="Guia do hóspede no celular com recomendações da região"
-                className="w-[min(230px,72%)] translate-y-2"
-              />
-            </div>
-          </GlassCard>
-        </Reveal>
-
-        {/* Proprietários e prestadores */}
-        <Reveal delay={0.1} className="h-full lg:col-span-12">
-          <GlassCard className="h-full">
-            <div className="grid min-w-0 gap-6 lg:grid-cols-12 lg:items-center">
-              <div className="min-w-0 lg:col-span-4">
-                <p className="font-display text-[17px] font-bold tracking-tight">Proprietários e prestadores</p>
-                <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">
-                  Uma base única com quem é dono, quem executa e o que está ativo em cada imóvel — com histórico e
-                  contato à mão.
-                </p>
-              </div>
-              <div className="min-w-0 lg:col-span-8">
-                <div className="min-w-0 overflow-hidden rounded-2xl border border-white/10">
-                  <img
-                    src={shotStakeholders.url}
-                    alt="Tela de proprietários e prestadores do ConciergeIA"
-                    loading="lazy"
-                    className="block w-full max-h-[320px] object-cover object-top"
-                  />
-                </div>
-              </div>
-            </div>
-          </GlassCard>
-        </Reveal>
-      </div>
-    </Section>
   );
 }
 
@@ -237,9 +149,6 @@ export function LandingFooter() {
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-5 sm:px-8 sm:flex-row sm:items-center sm:justify-between">
         <p className="font-display text-[15px] tracking-tight">ConciergeIA</p>
         <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[12.5px] text-muted-foreground">
-          <a href="#recursos" className="hover:text-foreground">
-            Recursos
-          </a>
           <a href="#planos" className="hover:text-foreground">
             Planos
           </a>
