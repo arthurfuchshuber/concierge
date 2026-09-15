@@ -53,34 +53,27 @@ export function Hero() {
 
 /* --------- vitrine de telas de resultado (o que o hóspede recebe) --------- */
 
-/** Barra inferior do celular → recurso/tela correspondente na vitrine. */
-const NAV_TO_SCREEN: Record<string, { feat: number; shot: number }> = {
-  home: { feat: 0, shot: 0 },
-  checkin: { feat: 1, shot: 0 },
-  residencia: { feat: 1, shot: 1 },
-  saida: { feat: 1, shot: 3 },
-  explore: { feat: 3, shot: 0 },
-};
-
+/**
+ * Abas da vitrine. A primeira é o guia DEMONSTRATIVO de verdade (navegável,
+ * com atendimento por IA embutido); as outras seguem em telas ilustradas.
+ */
+const ABAS = [
+  { id: "guia", label: "Guia Digital", live: true as const },
+  ...RESULT_FEATURES.map((f) => ({ id: f.id, label: f.label, live: false as const })),
+];
 
 function ResultShowcase() {
   const [feat, setFeat] = useState(0);
   const [shot, setShot] = useState(0);
-  const screens = RESULT_FEATURES[feat].screens;
-  const Screen = screens[shot % screens.length];
-
-  const irPara = (key: string) => {
-    const destino = NAV_TO_SCREEN[key];
-    if (!destino) return;
-    setFeat(destino.feat);
-    setShot(destino.shot);
-  };
+  const liveTab = ABAS[feat].live;
+  const screens = liveTab ? [] : RESULT_FEATURES[feat - 1].screens;
+  const Screen = liveTab ? null : screens[shot % screens.length];
 
   return (
     <div className="mx-auto mt-10 w-full max-w-5xl px-5 text-left sm:px-8">
       {/* barra de recursos */}
       <div className="ds-scroll-x -mx-5 flex justify-start gap-1.5 px-5 sm:mx-0 sm:px-0">
-        {RESULT_FEATURES.map((s, idx) => (
+        {ABAS.map((s, idx) => (
           <button
             key={s.id}
             type="button"
@@ -104,20 +97,22 @@ function ResultShowcase() {
       {/* celular centralizado + seta de avanço dentro do recurso */}
       <div className="mx-auto mt-8 w-[min(440px,92%)] min-w-0">
         <div className="relative">
-          <ScreenNavContext.Provider value={irPara}>
+          <ScreenNavContext.Provider value={() => {}}>
             <PhoneFrame className="w-full">
-              <Screen />
+              {liveTab || !Screen ? <InteractiveGuide /> : <Screen />}
             </PhoneFrame>
           </ScreenNavContext.Provider>
 
-          <button
-            type="button"
-            onClick={() => setShot((v) => (v + 1) % screens.length)}
-            aria-label="Ver próximo exemplo deste recurso"
-            className="absolute top-1/2 -right-3 grid size-11 -translate-y-1/2 place-items-center rounded-full border border-white/10 bg-[#12121c]/90 text-muted-foreground shadow-lg backdrop-blur transition-colors hover:border-accent/40 hover:text-foreground sm:-right-6"
-          >
-            <ChevronRight className="size-5" />
-          </button>
+          {!liveTab ? (
+            <button
+              type="button"
+              onClick={() => setShot((v) => (v + 1) % screens.length)}
+              aria-label="Ver próximo exemplo deste recurso"
+              className="absolute top-1/2 -right-3 grid size-11 -translate-y-1/2 place-items-center rounded-full border border-white/10 bg-[#12121c]/90 text-muted-foreground shadow-lg backdrop-blur transition-colors hover:border-accent/40 hover:text-foreground sm:-right-6"
+            >
+              <ChevronRight className="size-5" />
+            </button>
+          ) : null}
         </div>
 
         <a
