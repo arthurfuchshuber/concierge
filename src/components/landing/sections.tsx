@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowRight,
+  ChevronRight,
   Building2,
   Users,
   BookOpen,
@@ -11,7 +13,9 @@ import {
 } from "lucide-react";
 import { Reveal, Section, SectionHeading, Glow, GradientText, GlassCard } from "./primitives";
 import { PhoneFrame } from "./ProductShot";
+import { RESULT_FEATURES, ScreenNavContext } from "./ResultScreens";
 import { LiveGuideFrame } from "./LiveGuideFrame";
+import { cn } from "@/lib/utils";
 
 /* ---------------- HERO ---------------- */
 
@@ -47,22 +51,64 @@ export function Hero() {
 
 /* --------- vitrine de telas de resultado (o que o hóspede recebe) --------- */
 
+/**
+ * Abas da vitrine. A primeira é o guia DEMONSTRATIVO de verdade (navegável,
+ * com atendimento por IA embutido); as outras seguem em telas ilustradas.
+ */
+const ABAS = [
+  { id: "guia", label: "Guia Digital", live: true as const },
+  ...RESULT_FEATURES.map((f) => ({ id: f.id, label: f.label, live: false as const })),
+];
+
 function ResultShowcase() {
+  const [feat, setFeat] = useState(0);
+  const [shot, setShot] = useState(0);
+  const liveTab = ABAS[feat].live;
+  const screens = liveTab ? [] : RESULT_FEATURES[feat - 1].screens;
+  const Screen = liveTab ? null : screens[shot % screens.length];
+
   return (
     <div className="mx-auto mt-10 w-full max-w-5xl px-5 text-left sm:px-8">
       {/* barra de recursos */}
-      <div className="flex justify-center px-5 sm:px-0">
-        <span className="rounded-full border border-accent/40 bg-accent/12 px-4 py-2 text-[12px] font-semibold whitespace-nowrap text-foreground">
-          Guia Digital
-        </span>
+      <div className="ds-scroll-x -mx-5 flex justify-center gap-2.5 px-5 sm:mx-0 sm:gap-3 sm:px-0">
+        {ABAS.map((s, idx) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => {
+              setFeat(idx);
+              setShot(0);
+            }}
+            aria-current={idx === feat}
+            className={cn(
+              "rounded-full border px-4 py-2 text-[12px] font-semibold whitespace-nowrap transition-colors",
+              idx === feat
+                ? "border-accent/40 bg-accent/12 text-foreground"
+                : "border-white/10 bg-white/[0.03] text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {s.label}
+          </button>
+        ))}
       </div>
 
-      {/* celular centralizado */}
+      {/* celular centralizado + seta de avanço dentro do recurso */}
       <div className="mx-auto mt-8 w-[min(440px,92%)] min-w-0">
         <div className="relative">
-          <PhoneFrame className="w-full">
-            <LiveGuideFrame />
-          </PhoneFrame>
+          <ScreenNavContext.Provider value={() => {}}>
+            <PhoneFrame className="w-full">{liveTab || !Screen ? <LiveGuideFrame /> : <Screen />}</PhoneFrame>
+          </ScreenNavContext.Provider>
+
+          {!liveTab ? (
+            <button
+              type="button"
+              onClick={() => setShot((v) => (v + 1) % screens.length)}
+              aria-label="Ver próximo exemplo deste recurso"
+              className="absolute top-1/2 -right-3 grid size-11 -translate-y-1/2 place-items-center rounded-full border border-white/10 bg-[#12121c]/90 text-muted-foreground shadow-lg backdrop-blur transition-colors hover:border-accent/40 hover:text-foreground sm:-right-6"
+            >
+              <ChevronRight className="size-5" />
+            </button>
+          ) : null}
         </div>
 
         <a
@@ -144,7 +190,7 @@ const PERFIS = [
   },
   {
     icon: Building2,
-    title: "Gestores de Múltiplas Propriedades",
+    title: "Múltiplas Propriedades",
     desc: "Ideal para quem administra diversos imóveis e proprietários, precisando centralizar informações, automatizar processos e manter total visibilidade sobre cada unidade.",
   },
   {
