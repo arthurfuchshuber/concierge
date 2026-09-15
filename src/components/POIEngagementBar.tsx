@@ -55,6 +55,8 @@ export function POIEngagementBar({
   viewsOnly = false,
   variant = "glass",
   noAutoView = false,
+  shareOnly = false,
+  inline = false,
 }: Props) {
   const record = useServerFn(recordPoiEngagement);
   const [counts, setCounts] = useState<EngagementCounts>(
