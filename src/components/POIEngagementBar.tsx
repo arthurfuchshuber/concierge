@@ -38,6 +38,10 @@ type Props = {
   variant?: "glass" | "solid";
   /** Force the bar to track view-on-click only (no IntersectionObserver). */
   noAutoView?: boolean;
+  /** Show only the share button (no like/dislike). */
+  shareOnly?: boolean;
+  /** Render in flow (not absolutely positioned at the card's right edge). */
+  inline?: boolean;
 };
 
 export function POIEngagementBar({
@@ -51,6 +55,8 @@ export function POIEngagementBar({
   viewsOnly = false,
   variant = "glass",
   noAutoView = false,
+  shareOnly = false,
+  inline = false,
 }: Props) {
   const record = useServerFn(recordPoiEngagement);
   const [counts, setCounts] = useState<EngagementCounts>(
@@ -170,7 +176,11 @@ export function POIEngagementBar({
     <div
       ref={ref}
       onClick={(e) => e.stopPropagation()}
-      className={`pointer-events-auto absolute top-1/2 -translate-y-1/2 right-2 z-10 flex flex-col items-center justify-center gap-3.5 max-h-[calc(100%-16px)] ${tone}`}
+      className={
+        inline
+          ? `pointer-events-auto z-10 flex shrink-0 items-center gap-3 ${tone}`
+          : `pointer-events-auto absolute top-1/2 -translate-y-1/2 right-2 z-10 flex flex-col items-center justify-center gap-3.5 max-h-[calc(100%-16px)] ${tone}`
+      }
     >
       {viewsOnly ? (
         <button
@@ -192,24 +202,28 @@ export function POIEngagementBar({
           >
             <Share2 className="size-[18px]" strokeWidth={1.75} />
           </button>
-          <button
-            type="button"
-            aria-label="Descurtir"
-            onClick={(e) => { e.stopPropagation(); fireReaction("dislike"); }}
-            className={`${btnBase} ${reaction === "dislike" ? "text-sky-300 opacity-100" : ""}`}
-          >
-            <ThumbsDown className={`size-[18px] ${reaction === "dislike" ? "fill-current" : ""}`} strokeWidth={1.75} />
-            <span className="leading-none">{counts.dislikes}</span>
-          </button>
-          <button
-            type="button"
-            aria-label="Curtir"
-            onClick={(e) => { e.stopPropagation(); fireReaction("like"); }}
-            className={`${btnBase} ${reaction === "like" ? "text-rose-300 opacity-100" : ""}`}
-          >
-            <Heart className={`size-[18px] ${reaction === "like" ? "fill-current" : ""}`} strokeWidth={1.75} />
-            <span className="leading-none">{counts.likes}</span>
-          </button>
+          {!shareOnly && (
+            <button
+              type="button"
+              aria-label="Descurtir"
+              onClick={(e) => { e.stopPropagation(); fireReaction("dislike"); }}
+              className={`${btnBase} ${reaction === "dislike" ? "text-sky-300 opacity-100" : ""}`}
+            >
+              <ThumbsDown className={`size-[18px] ${reaction === "dislike" ? "fill-current" : ""}`} strokeWidth={1.75} />
+              <span className="leading-none">{counts.dislikes}</span>
+            </button>
+          )}
+          {!shareOnly && (
+            <button
+              type="button"
+              aria-label="Curtir"
+              onClick={(e) => { e.stopPropagation(); fireReaction("like"); }}
+              className={`${btnBase} ${reaction === "like" ? "text-rose-300 opacity-100" : ""}`}
+            >
+              <Heart className={`size-[18px] ${reaction === "like" ? "fill-current" : ""}`} strokeWidth={1.75} />
+              <span className="leading-none">{counts.likes}</span>
+            </button>
+          )}
         </>
       )}
     </div>

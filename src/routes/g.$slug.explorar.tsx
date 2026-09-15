@@ -172,27 +172,31 @@ function hasMeaningfulInfo(r: Rec): boolean {
 }
 
 // "Pertinho" — top-level helper, usado nos cards para destaque visual.
+function walkMinutesOf(r: Rec): number | null {
+  if (typeof r.walk_minutes === "number" && r.walk_minutes > 0) return r.walk_minutes;
+  if (typeof r.distance_meters === "number" && r.distance_meters > 0)
+    return Math.max(1, Math.round(r.distance_meters / 80));
+  return null;
+}
+
 function isPertinhoRec(r: Rec): boolean {
   if (typeof r.distance_meters === "number" && r.distance_meters > 0 && r.distance_meters <= 1500) return true;
-  if (typeof r.walk_minutes === "number" && r.walk_minutes > 0 && r.walk_minutes <= 20) return true;
+  const mins = walkMinutesOf(r);
+  if (mins != null && mins <= 30) return true;
   return false;
 }
 
-function formatWalking(r: Rec): string | null {
-  const mins =
-    r.walk_minutes != null && r.walk_minutes > 0
-      ? r.walk_minutes
-      : r.distance_meters != null
-        ? Math.max(1, Math.round(r.distance_meters / 80))
-        : null;
+/** Distância (km/m) e tempo a pé em linhas separadas. */
+function walkingParts(r: Rec): { distance: string | null; walk: string | null } {
+  const mins = walkMinutesOf(r);
+  let distance: string | null = null;
   if (r.distance_meters != null) {
     const m = r.distance_meters;
-    const dist = m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1).replace(/\.0$/, "")} km`;
-    return mins ? `${dist} · ${mins} min a pé` : `${dist} a pé`;
+    distance = m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1).replace(/\.0$/, "")} km`;
+  } else if (r.distance_text) {
+    distance = r.distance_text;
   }
-  if (mins) return `${mins} min a pé`;
-  if (r.distance_text) return r.distance_text;
-  return null;
+  return { distance, walk: mins ? `${mins} min a pé` : null };
 }
 
 function formatDriving(r: Rec): string | null {
@@ -434,16 +438,8 @@ function ExplorePage() {
   const propLat = typeof p.lat === "number" ? (p.lat as number) : null;
   const propLng = typeof p.lng === "number" ? (p.lng as number) : null;
 
-  // "Pertinho" = até 1,5km OU até 20 minutos a pé.
-  const isPertinho = (rec: Rec): boolean => {
-    if (typeof rec.distance_meters === "number" && rec.distance_meters > 0) {
-      if (rec.distance_meters <= 1500) return true;
-    }
-    if (typeof rec.walk_minutes === "number" && rec.walk_minutes > 0 && rec.walk_minutes <= 20) {
-      return true;
-    }
-    return false;
-  };
+  // "Pertinho" = até 1,5km OU até 30 minutos a pé.
+  const isPertinho = (rec: Rec): boolean => isPertinhoRec(rec);
 
   // Distância em metros entre dois pontos lat/lng (haversine).
   const distMeters = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
@@ -1336,7 +1332,7 @@ function CollapsibleSection({
 }
 
 function RecCard({ rec }: { rec: Rec }) {
-  const walking = formatWalking(rec);
+  const { distance, walk } = walkingParts(rec);
   const driving = formatDriving(rec);
   const href = safeHttpsHref(rec.maps_url, rec.name);
   // typeLabel removido do guia público — tag continua salva no back-end.
@@ -1363,31 +1359,50 @@ function RecCard({ rec }: { rec: Rec }) {
         {/* tag/categoria oculta no guia público — mantida apenas no admin */}
       </div>
 
-      <div className="p-4 pr-12 flex-1 flex flex-col gap-2">
-        <div className="flex items-start justify-between gap-2">
+      <div className="p-4 flex-1 flex flex-col gap-1">
+        <div className="flex items-center justify-between gap-2">
           <h4 className="ds-card-title min-w-0 flex-1">{rec.name}</h4>
+          {eng ? (
+            <POIEngagementBar
+              inline
+              shareOnly
+              slug={eng.slug}
+              poiKey={rec.id}
+              poiType="recommendation"
+              shareUrl={href ?? undefined}
+              shareTitle={rec.name}
+              initialCounts={counts}
+              initialReaction={myReaction}
+            />
+          ) : null}
         </div>
 
-        {rec.note && <p className="ds-card-desc">{rec.note}</p>}
+        {rec.note && <p className="ds-card-desc pt-1">{rec.note}</p>}
 
-        <div className="pt-2 flex flex-col gap-1.5 text-[11.5px] text-muted-foreground">
+        <div className="flex flex-col gap-1 text-[11.5px] text-muted-foreground">
           {rec.rating != null && (
             <span className="inline-flex items-center gap-1.5 text-foreground/85 font-semibold">
               <Star className="size-3.5 fill-current text-accent" strokeWidth={0} />
               <span className="tabular-nums">{Number(rec.rating).toFixed(1)}</span>
               {rec.user_ratings_total ? (
                 <span className="font-normal text-muted-foreground">
-                  ({rec.user_ratings_total.toLocaleString("pt-BR")} avaliações)
+                  ({rec.user_ratings_total.toLocaleString("pt-BR")})
                 </span>
               ) : null}
             </span>
           )}
-          {walking && (
+          {distance && (
+            <span className="inline-flex items-center gap-1.5">
+              <MapPin className="size-3.5" strokeWidth={1.75} />
+              {distance}
+            </span>
+          )}
+          {walk && (
             <span
-              className={`inline-flex items-center gap-1.5 ${isPertinhoRec(rec) ? "rounded-full bg-amber-400/15 text-amber-700 dark:text-amber-300 px-2 py-0.5 font-medium" : ""}`}
+              className={`inline-flex w-fit items-center gap-1.5 ${isPertinhoRec(rec) ? "rounded-full bg-amber-400/15 text-amber-700 dark:text-amber-300 px-2 py-0.5 font-medium" : ""}`}
             >
               <Footprints className="size-3.5" strokeWidth={1.75} />
-              {walking}
+              {walk}
             </span>
           )}
           {driving && (
@@ -1402,18 +1417,6 @@ function RecCard({ rec }: { rec: Rec }) {
           <OpeningHours hours={rec.opening_hours} />
         </div>
       </div>
-
-      {eng ? (
-        <POIEngagementBar
-          slug={eng.slug}
-          poiKey={rec.id}
-          poiType="recommendation"
-          shareUrl={href ?? undefined}
-          shareTitle={rec.name}
-          initialCounts={counts}
-          initialReaction={myReaction}
-        />
-      ) : null}
     </div>
   );
 
@@ -1428,7 +1431,7 @@ function RecCard({ rec }: { rec: Rec }) {
 }
 
 function RecRow({ rec }: { rec: Rec }) {
-  const walking = formatWalking(rec);
+  const { distance, walk } = walkingParts(rec);
   const driving = formatDriving(rec);
   const href = safeHttpsHref(rec.maps_url, rec.name);
   // typeLabel removido do guia público.
@@ -1438,7 +1441,7 @@ function RecRow({ rec }: { rec: Rec }) {
   const myReaction = eng?.reactions[rec.id] ?? null;
 
   const inner = (
-    <div className="relative group flex gap-4 bg-card border border-border rounded-2xl p-3 pr-12 hover:border-accent/40 hover:shadow-lg transition-all min-h-[160px]">
+    <div className="relative group flex gap-4 bg-card border border-border rounded-2xl p-3 hover:border-accent/40 hover:shadow-lg transition-all">
       <div className="relative size-28 sm:size-32 shrink-0 overflow-hidden rounded-xl bg-secondary">
         {rec.image_url ? (
           <img
@@ -1453,33 +1456,50 @@ function RecRow({ rec }: { rec: Rec }) {
           </div>
         )}
       </div>
-      <div className="flex-1 min-w-0 flex flex-col gap-1.5 py-0.5">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <h4 className="ds-card-title">{rec.name}</h4>
-          </div>
+      <div className="flex-1 min-w-0 flex flex-col gap-1 py-0.5">
+        <div className="flex items-center justify-between gap-2">
+          <h4 className="ds-card-title min-w-0 flex-1">{rec.name}</h4>
+          {eng ? (
+            <POIEngagementBar
+              inline
+              shareOnly
+              slug={eng.slug}
+              poiKey={rec.id}
+              poiType="recommendation"
+              shareUrl={href ?? undefined}
+              shareTitle={rec.name}
+              initialCounts={counts}
+              initialReaction={myReaction}
+            />
+          ) : null}
         </div>
 
-        {rec.note && <p className="ds-card-desc">{rec.note}</p>}
+        {rec.note && <p className="ds-card-desc pt-1">{rec.note}</p>}
 
-        <div className="mt-auto flex flex-col gap-1 text-[11.5px] text-muted-foreground">
+        <div className="flex flex-col gap-1 text-[11.5px] text-muted-foreground">
           {rec.rating != null && (
             <span className="inline-flex items-center gap-1.5 text-foreground/85 font-semibold">
               <Star className="size-3.5 fill-current text-accent" strokeWidth={0} />
               <span className="tabular-nums">{Number(rec.rating).toFixed(1)}</span>
               {rec.user_ratings_total ? (
                 <span className="font-normal text-muted-foreground">
-                  ({rec.user_ratings_total.toLocaleString("pt-BR")} avaliações)
+                  ({rec.user_ratings_total.toLocaleString("pt-BR")})
                 </span>
               ) : null}
             </span>
           )}
-          {walking && (
+          {distance && (
+            <span className="inline-flex items-center gap-1.5">
+              <MapPin className="size-3.5" strokeWidth={1.75} />
+              {distance}
+            </span>
+          )}
+          {walk && (
             <span
-              className={`inline-flex items-center gap-1.5 ${isPertinhoRec(rec) ? "rounded-full bg-amber-400/15 text-amber-700 dark:text-amber-300 px-2 py-0.5 font-medium" : ""}`}
+              className={`inline-flex w-fit items-center gap-1.5 ${isPertinhoRec(rec) ? "rounded-full bg-amber-400/15 text-amber-700 dark:text-amber-300 px-2 py-0.5 font-medium" : ""}`}
             >
               <Footprints className="size-3.5" strokeWidth={1.75} />
-              {walking}
+              {walk}
             </span>
           )}
           {driving && (
@@ -1489,19 +1509,10 @@ function RecRow({ rec }: { rec: Rec }) {
             </span>
           )}
         </div>
-        <OpeningHours hours={rec.opening_hours} />
+        <div className="mt-auto pt-1">
+          <OpeningHours hours={rec.opening_hours} />
+        </div>
       </div>
-      {eng ? (
-        <POIEngagementBar
-          slug={eng.slug}
-          poiKey={rec.id}
-          poiType="recommendation"
-          shareUrl={href ?? undefined}
-          shareTitle={rec.name}
-          initialCounts={counts}
-          initialReaction={myReaction}
-        />
-      ) : null}
     </div>
   );
 
