@@ -193,87 +193,126 @@ export function ProblemSection() {
   );
 }
 
-/* ---------------- SOLUÇÃO / ECOSSISTEMA ---------------- */
+/* ---------------- GRADE BENTO DA OPERAÇÃO ---------------- */
 
-const ECOSSISTEMA = [
-  "Imóveis",
-  "Proprietários",
-  "Fornecedores",
-  "Inventário",
-  "Instruções",
-  "Registros",
-  "Atendimento",
-  "Guia",
-  "IA",
+const BENTO_COMPACTOS = [
+  {
+    icon: Boxes,
+    title: "Inventário",
+    desc: "Itens e recursos de cada imóvel sob controle, sem planilhas dispersas.",
+  },
+  {
+    icon: ClipboardList,
+    title: "Instruções",
+    desc: "Conhecimento operacional transformado em passos claros para a equipe.",
+  },
+  {
+    icon: FileText,
+    title: "Registros",
+    desc: "Ocorrências e acontecimentos importantes registrados no lugar certo.",
+  },
 ];
 
-export function EcosystemSection() {
+export function BentoSection() {
   return (
-    <Section id="como-funciona" className="relative overflow-hidden">
-      <Glow className="left-[-140px] bottom-0 h-[340px] w-[440px]" />
+    <Section id="recursos" className="relative overflow-hidden">
+      <Glow className="left-[-160px] top-24 h-[340px] w-[420px]" />
       <Reveal>
         <SectionHeading
-          eyebrow="A solução"
-          title="O ConciergeIA organiza o conhecimento da sua operação."
+          eyebrow="A operação"
+          title="Cada parte da sua operação com o seu próprio painel."
           description="Uma camada central que conecta pessoas, imóveis, processos e informação."
         />
       </Reveal>
 
-      <Reveal delay={0.08}>
-        <div className="relative mt-14">
-          <div className="grid gap-2.5 sm:grid-cols-3">
-            {ECOSSISTEMA.map((e, i) => (
-              <div
-                key={e}
-                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card/50 px-4 py-3.5 transition-colors duration-300 hover:border-accent/35"
-              >
-                <span className="min-w-0 truncate text-[13.5px]">{e}</span>
-                <span className="shrink-0 text-[10.5px] tabular-nums text-muted-foreground">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-8 text-center">
-            <p className="font-display text-[19px] tracking-tight text-balance sm:text-[22px]">
-              Uma operação inteira conectada em um único ambiente.
+      <div className="mt-14 grid grid-cols-1 gap-4 md:grid-cols-4 lg:grid-cols-6">
+        {/* Atendimento IA */}
+        <Reveal className="md:col-span-2 lg:col-span-3">
+          <BentoCard glow className="h-full">
+            <span
+              className="mb-6 grid size-12 shrink-0 place-items-center rounded-xl"
+              style={{ background: "linear-gradient(135deg,#7c1ad8 0%,#e82dae 100%)" }}
+            >
+              <Bot className="size-6 text-white" />
+            </span>
+            <h3 className="font-display text-[20px] font-bold tracking-tight sm:text-[24px]">Atendimento IA</h3>
+            <p className="mt-3 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
+              Uma inteligência preparada para responder aos hóspedes com base no conhecimento cadastrado da sua
+              operação — no seu padrão, sem suposições.
             </p>
-          </div>
-        </div>
-      </Reveal>
-    </Section>
-  );
-}
+          </BentoCard>
+        </Reveal>
 
-/* ---------------- MÓDULOS ---------------- */
+        {/* Gestão de imóveis */}
+        <Reveal delay={0.05} className="md:col-span-2 lg:col-span-3">
+          <BentoCard className="h-full">
+            <span className="mb-6 grid size-12 shrink-0 place-items-center rounded-xl border border-border bg-background/50">
+              <Building2 className="size-6 text-accent" />
+            </span>
+            <h3 className="font-display text-[20px] font-bold tracking-tight sm:text-[24px]">Gestão de imóveis</h3>
+            <p className="mt-3 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
+              Todas as informações de cada unidade — particularidades, acessos e histórico — organizadas em uma
+              única interface.
+            </p>
+          </BentoCard>
+        </Reveal>
 
-const MODULOS = [
-  { icon: Building2, title: "Imóveis", desc: "Tenha todas as informações de cada imóvel organizadas e acessíveis." },
-  { icon: Users, title: "Proprietários", desc: "Centralize dados e informações importantes dos proprietários." },
-  { icon: Wrench, title: "Fornecedores", desc: "Saiba quem são seus fornecedores, o que fazem e como acioná-los." },
-  { icon: Boxes, title: "Inventário", desc: "Controle os itens e recursos de cada imóvel sem depender de planilhas dispersas." },
-  { icon: ClipboardList, title: "Instruções", desc: "Transforme conhecimento operacional em instruções claras e acessíveis." },
-  { icon: FileText, title: "Registros", desc: "Registre ocorrências, informações e acontecimentos importantes da operação." },
-  { icon: Bot, title: "IA de Atendimento", desc: "Uma inteligência preparada para responder aos hóspedes com base no conhecimento da sua operação." },
-  { icon: BookOpen, title: "Guia do Hóspede", desc: "Entregue uma experiência sofisticada com um guia digital completo e personalizado." },
-];
+        {/* Pessoas da operação */}
+        <Reveal delay={0.1} className="md:col-span-2 lg:col-span-2">
+          <BentoCard className="h-full items-center justify-center text-center">
+            <div className="flex items-center justify-center gap-4">
+              <Users className="size-5 text-accent" />
+              <Wrench className="size-5 text-accent" />
+            </div>
+            <p className="mt-5 font-display text-[19px] font-bold tracking-tight">
+              Proprietários e fornecedores
+            </p>
+            <p className="mt-3 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">
+              Quem é quem, o que faz e como acionar. Sem depender de quem lembra.
+            </p>
+          </BentoCard>
+        </Reveal>
 
-export function ModulesSection() {
-  return (
-    <Section id="recursos">
-      <Reveal>
-        <SectionHeading eyebrow="Módulos" title="Tudo conectado. Tudo acessível." />
-      </Reveal>
+        {/* Guia do hóspede */}
+        <Reveal delay={0.15} className="md:col-span-2 lg:col-span-4">
+          <BentoCard className="h-full overflow-hidden">
+            <div className="flex min-w-0 flex-col gap-8 sm:flex-row sm:items-center">
+              <div className="min-w-0 flex-1">
+                <span className="mb-6 grid size-12 shrink-0 place-items-center rounded-xl border border-border bg-background/50">
+                  <BookOpen className="size-6 text-accent" />
+                </span>
+                <h3 className="font-display text-[20px] font-bold tracking-tight sm:text-[24px]">
+                  Guia do hóspede
+                </h3>
+                <p className="mt-3 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
+                  Um guia digital completo e personalizado, com tudo o que o hóspede precisa saber antes, durante e
+                  depois da estadia.
+                </p>
+              </div>
+              <div
+                aria-hidden
+                className="relative hidden h-52 w-36 shrink-0 rotate-6 rounded-2xl border border-border bg-background/50 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.95)] sm:block"
+              >
+                <div className="absolute inset-4 space-y-2 rounded-xl border border-border bg-card/60 p-3">
+                  <div className="h-2 w-2/3 rounded-full bg-accent/40" />
+                  <div className="h-1.5 w-full rounded-full bg-muted-foreground/20" />
+                  <div className="h-1.5 w-5/6 rounded-full bg-muted-foreground/20" />
+                  <div className="h-1.5 w-3/4 rounded-full bg-muted-foreground/20" />
+                  <div className="mt-4 h-10 rounded-lg border border-border bg-background/60" />
+                </div>
+              </div>
+            </div>
+          </BentoCard>
+        </Reveal>
 
-      <div className="mt-14 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-        {MODULOS.map((m, i) => (
-          <Reveal key={m.title} delay={Math.min(i * 0.04, 0.24)}>
-            <Surface hover className="h-full p-5">
-              <m.icon className="size-4 text-accent" />
-              <p className="mt-4 font-display text-[14.5px] tracking-tight">{m.title}</p>
-              <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">{m.desc}</p>
-            </Surface>
+        {/* Compactos */}
+        {BENTO_COMPACTOS.map((m, i) => (
+          <Reveal key={m.title} delay={0.2 + i * 0.05} className="md:col-span-2 lg:col-span-2">
+            <BentoCard className="h-full">
+              <m.icon className="size-5 text-accent" />
+              <p className="mt-5 font-display text-[17px] font-bold tracking-tight">{m.title}</p>
+              <p className="mt-2.5 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">{m.desc}</p>
+            </BentoCard>
           </Reveal>
         ))}
       </div>
