@@ -159,6 +159,7 @@ export function CityNewsFeed({
           ))}
         </div>
       ) : (
+        <div className="relative">
         <div
           className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-none pl-4 md:pl-10 lg:pl-16 pr-4 md:pr-10 lg:pr-16 scroll-pl-4 md:scroll-pl-10 lg:scroll-pl-16 pb-3"
           style={{ scrollbarWidth: "none" }}
@@ -248,6 +249,14 @@ export function CityNewsFeed({
               </motion.article>
             );
           })}
+        </div>
+        {/* Esmaecimento à direita, iniciando exatamente na borda direita do guia. */}
+        <div
+          aria-hidden
+          className={`pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l to-transparent ${
+            isDark ? "from-[#070610]" : "from-background"
+          }`}
+        />
         </div>
       )}
     </section>
