@@ -142,17 +142,13 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     // owner_id é uso interno (plano/dono) e nunca deve chegar ao hóspede.
     const { owner_id: _ownerId, ...propPublic } = prop as Record<string, unknown>;
     const safeProp = { ...propPublic, ...credsPublic, ...protectedCodes, ...setFlags, hasAccessPin, accessUnlocked };
-    const childrenRaw = await loadFullGuide(supabaseAdmin, prop.id);
+    const children = await loadFullGuide(supabaseAdmin, prop.id);
     // No modo vitrine, nenhum telefone real de contato sai do servidor.
-    const children = isDemo
-      ? {
-          ...childrenRaw,
-          emergency: (childrenRaw.emergency as Array<Record<string, unknown>>).map((c) => ({
-            ...c,
-            phone: c["phone"] ? "+55 (00) 00000-0000" : c["phone"],
-          })),
-        }
-      : childrenRaw;
+    if (isDemo) {
+      for (const c of children.emergency as Array<{ phone?: string | null }>) {
+        if (c.phone) c.phone = "+55 (00) 00000-0000";
+      }
+    }
     const { signPropertyImages } = await import("@/lib/storage.server");
     const signedProp = await signPropertyImages(supabaseAdmin, safeProp);
     // Resolve owner plan to gate AI chat in the public guide UI.
