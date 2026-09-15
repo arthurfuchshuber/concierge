@@ -21,7 +21,7 @@ export function Hero() {
           </p>
 
           <h1 className="mt-7 font-display text-[34px] font-extrabold leading-[1.06] tracking-tight text-balance sm:text-[56px]">
-            O cérebro operacional da sua <GradientText>hospedagem.</GradientText>
+            <GradientText>ConciergeIA</GradientText>
           </h1>
 
           <p className="mx-auto mt-5 max-w-lg text-[14.5px] font-light leading-relaxed text-muted-foreground text-pretty sm:text-[17px]">
