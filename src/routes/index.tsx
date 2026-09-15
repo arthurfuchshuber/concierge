@@ -56,7 +56,7 @@ function Landing() {
     // Tema escuro local: a landing tem identidade própria, sem alterar o tema
     // do painel. `overflow-x-hidden` garante que nenhum brilho ou mockup
     // ultrapasse a margem direita em telas estreitas.
-    <div className="dark min-h-dvh w-full overflow-x-hidden bg-background text-foreground antialiased">
+    <div className="dark min-h-dvh w-full overflow-x-clip bg-background text-foreground antialiased">
       <LandingNav />
       <main>
         <Hero />
