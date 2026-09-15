@@ -1,5 +1,10 @@
 import { createContext, useContext } from "react";
 import conciergeLogo from "@/assets/concierge-logo.png";
+import recWaterfall from "@/assets/rec-waterfall.jpg";
+import recCafe from "@/assets/rec-cafe.jpg";
+import recRestaurant from "@/assets/rec-restaurant.jpg";
+import recBeach from "@/assets/rec-beach.jpg";
+import recMarket from "@/assets/rec-market.jpg";
 import {
   Wifi,
   DoorOpen,
@@ -467,6 +472,61 @@ export function GuiaInteligenciaScreen() {
   );
 }
 
+/** Última parte real da home: feed da cidade, FAQ e assinatura do guia. */
+export function GuiaFinalScreen() {
+  return (
+    <ScreenShell active="home">
+      <div className="min-w-0 space-y-2.5 px-3 pt-4">
+        <SectionLabel>O que rola em Foz do Iguaçu</SectionLabel>
+        {[
+          {
+            img: recWaterfall,
+            t: "Cataratas com horário estendido no fim de semana",
+            d: "Parque Nacional · hoje",
+          },
+          {
+            img: recMarket,
+            t: "Feira de artesanato na Praça da Paz",
+            d: "Centro · a partir das 18h",
+          },
+        ].map((n) => (
+          <div
+            key={n.t}
+            className="flex min-w-0 gap-3 rounded-[0.5rem] border border-white/10 bg-white/[0.04] p-2.5"
+          >
+            <div className="relative size-14 shrink-0 overflow-hidden rounded-[0.4rem] bg-white/5">
+              <img src={n.img} alt="" className="absolute inset-0 size-full object-cover" />
+            </div>
+            <div className="min-w-0 self-center">
+              <p className="line-clamp-2 text-[11.5px] font-semibold leading-snug text-pretty">
+                {n.t}
+              </p>
+              <p className="mt-0.5 truncate text-[9.5px] text-muted-foreground">{n.d}</p>
+            </div>
+          </div>
+        ))}
+
+        <div className="flex min-w-0 items-center gap-3 rounded-[0.5rem] border border-accent/20 bg-accent/[0.08] p-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded-[0.4rem]" style={{ background: GRAD }}>
+            <BookOpen className="size-4 text-white" />
+          </span>
+          <div className="min-w-0">
+            <p className="truncate font-display text-[13px] font-bold">Dúvidas frequentes</p>
+            <p className="truncate text-[10px] text-white/60">Tudo sobre a casa em um toque</p>
+          </div>
+          <ChevronRight className="ml-auto size-4 shrink-0 text-white/40" />
+        </div>
+
+        <div className="flex min-w-0 items-center justify-center gap-2 pt-4">
+          <img src={conciergeLogo} alt="" aria-hidden className="size-3.5 object-contain opacity-80" />
+          <p className="text-[8.5px] font-semibold uppercase tracking-[0.3em] text-white/70">
+            Seu concierge. Sua experiência.
+          </p>
+        </div>
+      </div>
+    </ScreenShell>
+  );
+}
 
 export function ChegadaScreen() {
   return (
@@ -744,76 +804,156 @@ export function IaInternaOperacaoScreen() {
 /* =================== RECOMENDAÇÕES (Explorar real) =================== */
 
 const CATEGORIAS = [
-  { t: "Experiências", n: "51 lugares", i: Landmark },
-  { t: "Cafés & Padarias", n: "54 lugares", i: Coffee },
-  { t: "Restaurantes", n: "96 lugares", i: Utensils },
-  { t: "Parques e Praças", n: "11 lugares", i: Trees },
+  {
+    t: "Experiências",
+    d: "Passeios, atrações e programas imperdíveis por perto.",
+    n: 51,
+    i: Landmark,
+    img: recWaterfall,
+  },
+  {
+    t: "Cafés & Padarias",
+    d: "Da primeira xícara do dia ao lanche da tarde.",
+    n: 54,
+    i: Coffee,
+    img: recCafe,
+  },
+  {
+    t: "Restaurantes",
+    d: "Onde comer bem, do almoço rápido ao jantar especial.",
+    n: 96,
+    i: Utensils,
+    img: recRestaurant,
+  },
+  {
+    t: "Parques e Praças",
+    d: "Áreas verdes para respirar e caminhar sem pressa.",
+    n: 11,
+    i: Trees,
+    img: recBeach,
+  },
 ];
+
+function CategoriaCard({
+  t,
+  d,
+  n,
+  i: Icon,
+  img,
+}: {
+  t: string;
+  d: string;
+  n: number;
+  i: React.ComponentType<{ className?: string }>;
+  img: string;
+}) {
+  return (
+    <div className="flex min-w-0 gap-3 rounded-[0.9rem] border border-white/10 bg-white/[0.04] p-2.5">
+      <div className="relative size-[74px] shrink-0 overflow-hidden rounded-[0.7rem] bg-white/5">
+        <img src={img} alt="" className="absolute inset-0 size-full object-cover" />
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
+        <p className="flex min-w-0 items-center gap-1.5 truncate text-[8.5px] font-bold uppercase tracking-[0.2em] text-accent">
+          <Icon className="size-3 shrink-0" /> {n} lugares
+        </p>
+        <p className="truncate font-serif text-[16px] leading-tight">{t}</p>
+        <p className="line-clamp-2 text-[10px] leading-snug text-muted-foreground text-pretty">{d}</p>
+      </div>
+    </div>
+  );
+}
 
 export function ExplorarScreen() {
   return (
     <ScreenShell active="explore">
       <div className="min-w-0 px-4 pt-6">
         <p className="text-[8.5px] font-bold uppercase tracking-[0.26em] text-accent">ConciergeIA</p>
-        <p className="mt-1.5 font-display text-[22px] font-extrabold leading-tight tracking-tight text-pretty">
-          Explore a Região
-        </p>
+        <p className="mt-1.5 font-serif text-[24px] leading-tight text-pretty">Explore a Região</p>
         <p className="mt-1.5 text-[10.5px] leading-snug text-muted-foreground text-pretty">
-          Uma curadoria de lugares e experiências próximas à Casa Charmosa.
+          Uma curadoria de lugares e experiências próximas a Casa Charmosa Próx. a Avenida das
+          Cataratas.
         </p>
       </div>
       <div className="mt-3 flex min-w-0 items-center gap-2 px-4">
         <span className="flex min-w-0 flex-1 items-center gap-2 rounded-[0.5rem] border border-white/12 bg-white/[0.04] px-2.5 py-2 text-[10.5px] text-white/40">
-          <Search className="size-3.5 shrink-0" /> Buscar por nome
+          <Search className="size-3.5 shrink-0" /> Buscar por nome, categoria ou descrição…
         </span>
         <span className="flex shrink-0 items-center gap-1.5 text-[10.5px] font-medium text-white/70">
           <SlidersHorizontal className="size-3.5" /> Filtros
         </span>
       </div>
-      <div className="mt-3 min-w-0 space-y-2 px-4 pb-4">
+      <div className="mt-3 min-w-0 space-y-2.5 px-4 pb-4">
         {CATEGORIAS.map((c) => (
-          <div
-            key={c.t}
-            className="flex min-w-0 items-center gap-3 rounded-[0.7rem] border border-white/10 bg-white/[0.04] p-2.5"
-          >
-            <Thumb icon={c.i} />
-            <div className="min-w-0">
-              <p className="flex items-center gap-1.5 truncate text-[8.5px] font-bold uppercase tracking-[0.2em] text-accent">
-                <c.i className="size-3 shrink-0" /> {c.n}
-              </p>
-              <p className="mt-0.5 truncate font-display text-[14px] font-bold">{c.t}</p>
-            </div>
-          </div>
+          <CategoriaCard key={c.t} {...c} />
         ))}
       </div>
     </ScreenShell>
   );
 }
 
+function PlaceCard({ t, d, n, img }: { t: string; d: string; n: string; img: string }) {
+  return (
+    <div className="flex min-w-0 gap-3 rounded-[0.9rem] border border-white/10 bg-white/[0.04] p-2.5">
+      <div className="relative size-[74px] shrink-0 overflow-hidden rounded-[0.7rem] bg-white/5">
+        <img src={img} alt="" className="absolute inset-0 size-full object-cover" />
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
+        <p className="flex min-w-0 items-center gap-1 text-[9.5px] font-bold text-accent">
+          <Star className="size-3 shrink-0" /> {n}
+        </p>
+        <p className="truncate font-serif text-[15px] leading-tight">{t}</p>
+        <p className="line-clamp-2 text-[10px] leading-snug text-muted-foreground text-pretty">{d}</p>
+      </div>
+    </div>
+  );
+}
+
 export function RestaurantesScreen() {
   return (
     <ScreenShell active="explore">
-      <Cover eyebrow="Explorar" title="Restaurantes" sub="96 lugares curados pelo anfitrião" />
-      <div className="min-w-0 space-y-2 px-4 pb-4">
-        {[
-          { t: "Trattoria del Mare", d: "Italiano · 6 min a pé", n: "4,8" },
-          { t: "Cantina da Vila", d: "Brasileiro · 12 min de carro", n: "4,7" },
-          { t: "Sushi Kai", d: "Japonês · 9 min de carro", n: "4,6" },
-        ].map((r) => (
-          <div
-            key={r.t}
-            className="flex min-w-0 items-center gap-3 rounded-[0.7rem] border border-white/10 bg-white/[0.04] p-2.5"
+      <div className="min-w-0 px-4 pt-6">
+        <p className="flex items-center gap-1.5 text-[8.5px] font-bold uppercase tracking-[0.26em] text-accent">
+          <Utensils className="size-3" /> 96 lugares
+        </p>
+        <p className="mt-1.5 font-serif text-[24px] leading-tight">Restaurantes</p>
+        <p className="mt-1.5 text-[10.5px] leading-snug text-muted-foreground text-pretty">
+          Onde comer bem, do almoço rápido ao jantar especial.
+        </p>
+      </div>
+      <div className="ds-scroll-x mt-3 flex gap-1.5 px-4">
+        {["Avaliação", "Mais perto", "Nome"].map((f, idx) => (
+          <span
+            key={f}
+            className={cn(
+              "whitespace-nowrap rounded-full border px-2.5 py-1 text-[9.5px] font-semibold",
+              idx === 0
+                ? "border-accent/40 bg-accent/15 text-ice"
+                : "border-white/10 bg-white/[0.03] text-white/50",
+            )}
           >
-            <Thumb icon={Utensils} />
-            <div className="min-w-0">
-              <p className="truncate text-[12.5px] font-semibold">{r.t}</p>
-              <p className="truncate text-[10px] text-muted-foreground">{r.d}</p>
-            </div>
-            <span className="ml-auto flex shrink-0 items-center gap-1 text-[10.5px] font-bold text-accent">
-              <Star className="size-3" /> {r.n}
-            </span>
-          </div>
+            {f}
+          </span>
         ))}
+      </div>
+      <div className="mt-3 min-w-0 space-y-2.5 px-4 pb-4">
+        <PlaceCard
+          t="Trattoria del Mare"
+          d="Italiano · 6 min a pé · massas artesanais"
+          n="4,8"
+          img={recRestaurant}
+        />
+        <PlaceCard
+          t="Cantina da Vila"
+          d="Brasileiro · 12 min de carro · pratos para dividir"
+          n="4,7"
+          img={recMarket}
+        />
+        <PlaceCard
+          t="Café da Esquina"
+          d="Café · 4 min a pé · abre às 7h"
+          n="4,6"
+          img={recCafe}
+        />
       </div>
     </ScreenShell>
   );
@@ -822,14 +962,21 @@ export function RestaurantesScreen() {
 export function LugarDetalheScreen() {
   return (
     <ScreenShell active="explore">
-      <Cover eyebrow="Explorar" title="Trattoria del Mare" sub="Italiano · 6 min a pé" />
-      <div className="min-w-0 space-y-2 px-4 pb-4">
-        <div className="min-w-0 rounded-[0.7rem] border border-white/10 bg-white/[0.04] p-3">
-          <p className="text-[11px] leading-snug text-muted-foreground text-pretty">
-            Massas artesanais e atendimento tranquilo. Costuma ter mesa livre até as 22h nos dias de
-            semana.
+      <div className="relative h-[150px] w-full overflow-hidden">
+        <img src={recRestaurant} alt="" className="absolute inset-0 size-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0f] via-[#0a0a0f]/25 to-transparent" />
+        <div className="absolute inset-x-4 bottom-2.5 min-w-0">
+          <p className="flex items-center gap-1 text-[9.5px] font-bold text-accent">
+            <Star className="size-3" /> 4,8 · Italiano
           </p>
+          <p className="mt-0.5 truncate font-serif text-[20px] leading-tight">Trattoria del Mare</p>
         </div>
+      </div>
+      <div className="min-w-0 space-y-2 px-4 pb-4 pt-3">
+        <p className="text-[11px] leading-snug text-muted-foreground text-pretty">
+          Massas artesanais e atendimento tranquilo. Costuma ter mesa livre até as 22h nos dias de
+          semana.
+        </p>
         <Row icon={Clock} label="Horário" value="18h às 23h30" />
         <Row icon={MapPin} label="Como chegar" value="rota aberta no mapa com um toque" />
         <Row icon={Sparkles} label="Dica do anfitrião" value="peça a entrada do dia" />
@@ -841,24 +988,34 @@ export function LugarDetalheScreen() {
 export function ExperienciasScreen() {
   return (
     <ScreenShell active="explore">
-      <Cover eyebrow="Explorar" title="Experiências" sub="51 lugares curados pelo anfitrião" />
-      <div className="min-w-0 space-y-2 px-4 pb-4">
-        {[
-          { t: "Cataratas do Iguaçu", d: "Dia inteiro · ingresso antecipado", i: Landmark },
-          { t: "Mirante do Encanto", d: "Fim de tarde · 20 min de carro", i: Trees },
-          { t: "Feirinha noturna", d: "A partir das 18h · quinta a domingo", i: Compass },
-        ].map((e) => (
-          <div
-            key={e.t}
-            className="flex min-w-0 items-center gap-3 rounded-[0.7rem] border border-white/10 bg-white/[0.04] p-2.5"
-          >
-            <Thumb icon={e.i} />
-            <div className="min-w-0">
-              <p className="truncate text-[12.5px] font-semibold">{e.t}</p>
-              <p className="truncate text-[10px] text-muted-foreground">{e.d}</p>
-            </div>
-          </div>
-        ))}
+      <div className="min-w-0 px-4 pt-6">
+        <p className="flex items-center gap-1.5 text-[8.5px] font-bold uppercase tracking-[0.26em] text-accent">
+          <Landmark className="size-3" /> 51 lugares
+        </p>
+        <p className="mt-1.5 font-serif text-[24px] leading-tight">Experiências</p>
+        <p className="mt-1.5 text-[10.5px] leading-snug text-muted-foreground text-pretty">
+          Passeios, atrações e programas imperdíveis por perto.
+        </p>
+      </div>
+      <div className="mt-3 min-w-0 space-y-2.5 px-4 pb-4">
+        <PlaceCard
+          t="Cataratas do Iguaçu"
+          d="Dia inteiro · ingresso antecipado"
+          n="4,9"
+          img={recWaterfall}
+        />
+        <PlaceCard
+          t="Mirante do Encanto"
+          d="Fim de tarde · 20 min de carro"
+          n="4,7"
+          img={recBeach}
+        />
+        <PlaceCard
+          t="Feirinha noturna"
+          d="A partir das 18h · quinta a domingo"
+          n="4,5"
+          img={recMarket}
+        />
       </div>
     </ScreenShell>
   );
@@ -1040,34 +1197,15 @@ export function EtapaFinalScreen() {
 
 /* =================== OPERAÇÃO (painel do anfitrião) =================== */
 
-const OP_TABS = ["Resumo", "Kanban", "Calendário", "Limpeza", "Registros"];
-
 function AdminShell({ tab, children }: { tab: string; children: React.ReactNode }) {
   return (
     <div className="flex h-full min-h-[460px] min-w-0 flex-col bg-[#0a0a0f]">
-      <div className="flex min-w-0 items-center gap-2 px-3 pt-3">
-        <span aria-hidden className="size-4 shrink-0 rounded-[3px]" style={{ background: GRAD }} />
-        <p className="truncate font-display text-[12.5px] font-extrabold tracking-tight">
-          Operação
-        </p>
+      <div className="flex min-w-0 items-center gap-2 px-3 pt-7">
+        <img src={conciergeLogo} alt="" aria-hidden className="size-4 shrink-0 object-contain" />
+        <p className="truncate font-display text-[12.5px] font-extrabold tracking-tight">{tab}</p>
         <span className="ml-auto shrink-0 rounded-full border border-white/12 bg-white/[0.05] px-2.5 py-1 text-[9px] font-semibold text-white/60">
           Hoje
         </span>
-      </div>
-      <div className="ds-scroll-x mt-2.5 flex gap-1.5 px-3">
-        {OP_TABS.map((t) => (
-          <span
-            key={t}
-            className={cn(
-              "rounded-full border px-2.5 py-1 text-[9.5px] font-semibold whitespace-nowrap",
-              t === tab
-                ? "border-accent/40 bg-accent/15 text-ice"
-                : "border-white/10 bg-white/[0.03] text-white/50",
-            )}
-          >
-            {t}
-          </span>
-        ))}
       </div>
       <div className="min-w-0 flex-1 px-3 pb-4 pt-3">{children}</div>
     </div>
@@ -1257,7 +1395,7 @@ export const RESULT_FEATURES = [
   {
     id: "guia",
     label: "Guia Digital",
-    screens: [GuiaHomeScreen, GuiaInteligenciaScreen],
+    screens: [GuiaHomeScreen, GuiaInteligenciaScreen, GuiaFinalScreen],
   },
   {
     id: "instrucoes",

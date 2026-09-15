@@ -1289,31 +1289,52 @@ export async function runAdvanceArrival(
       // tem a estadia anterior em aberto (checkout pendente ou limpeza não
       // concluída). Isso já é bloqueado na tela, mas a tela só enxerga os
       // cards do filtro atual — a regra precisa valer no servidor.
-      const { data: openCheckouts } = await supabase
+      // Olhamos as DUAS pontas da esteira, não só o checkout: quando a
+      // estadia anterior nunca chegou a ter linha de checkout (ninguém
+      // avançou o card ainda), só existe a linha de CHECK-IN concluída, com
+      // concluded_at nulo — ou seja, hóspede ainda dentro do imóvel. Antes
+      // olhávamos apenas `kind = checkout`, então esse caso passava batido e
+      // o novo check-in era liberado sem o check-out anterior (bug real
+      // relatado em 15/09/2026).
+      const { data: openRows } = await supabase
         .from("guest_arrival_status")
-        .select("log_id, reservation_id, status, concluded_at")
+        .select("log_id, reservation_id, kind, status, done_at, concluded_at")
         .eq("property_id", propertyId)
-        .eq("kind", "checkout")
         .is("concluded_at", null);
 
-      const others = (openCheckouts ?? []).filter((r) => {
-        const row = r as { log_id: string | null; reservation_id: string | null };
+      const others = (openRows ?? []).filter((r) => {
+        const row = r as {
+          log_id: string | null;
+          reservation_id: string | null;
+          kind: string;
+          status: string;
+          done_at: string | null;
+        };
         if (data.logId && row.log_id === data.logId) return false;
         if (data.reservationId && row.reservation_id === data.reservationId) return false;
+        // Check-in de OUTRA estadia só bloqueia quando de fato aconteceu
+        // (hóspede no imóvel). Linhas "pending" de reservas futuras não
+        // podem travar nada.
+        if (row.kind === "checkin") return row.status === "done" || !!row.done_at;
         return true;
-      }) as Array<{ log_id: string | null; reservation_id: string | null; status: string }>;
+      }) as Array<{ kind: string; status: string }>;
 
       if (others.length > 0) {
         // Qualquer estadia anterior ainda em aberto (hóspede no imóvel ou
         // limpeza não concluída) bloqueia o novo check-in — a esteira é
         // sequencial: chegada → estadia → saída → limpeza → concluído.
-        const blocking = others[0];
+        // Prioriza a mensagem mais grave: hóspede ainda hospedado.
+        const stayOpen = others.find((r) => r.kind === "checkin");
+        const checkoutRow = others.find((r) => r.kind === "checkout");
 
-
-
-        if (blocking) {
+        if (stayOpen) {
           throw new Error(
-            blocking.status === "done"
+            "Este imóvel ainda tem uma estadia em andamento. Registre a saída e a limpeza da estadia anterior antes de liberar o check-in.",
+          );
+        }
+        if (checkoutRow) {
+          throw new Error(
+            checkoutRow.status === "done"
               ? "Este imóvel ainda está em limpeza. Conclua a limpeza da estadia anterior antes de liberar o check-in."
               : "Este imóvel ainda tem um check-out pendente. Finalize a saída e a limpeza antes de liberar o check-in.",
           );
