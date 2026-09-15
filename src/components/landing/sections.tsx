@@ -207,7 +207,7 @@ export function AudienceSection() {
   return (
     <Section id="para-quem">
       <Reveal>
-        <SectionHeading eyebrow="Para quem é" title="Feito para Profissionais:" />
+        <SectionHeading eyebrow="Para quem é" title="Feito para Anfitriões Profissionais:" />
       </Reveal>
 
       <div className="mt-12 grid gap-3 md:grid-cols-3">
