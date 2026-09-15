@@ -12,8 +12,7 @@ const CONVERSA: Array<{ de: "hospede" | "ia"; texto: string; fonte?: string }> =
   { de: "hospede", texto: "Tem mercado próximo?" },
   {
     de: "ia",
-    texto:
-      "Sim. O supermercado Beira-Mar fica a aproximadamente 400 metros, na mesma rua do prédio, e abre das 7h às 22h.",
+    texto: "O supermercado Beira-Mar fica a aproximadamente 400 metros, na mesma rua do prédio, e abre das 7h às 22h.",
     fonte: "Recomendações cadastradas · Mercados",
   },
 ];
@@ -27,9 +26,7 @@ export function ChatMockup() {
         </span>
         <div className="min-w-0">
           <p className="truncate text-[12.5px] font-semibold">ConciergeIA</p>
-          <p className="truncate text-[10.5px] text-muted-foreground">
-            Respondendo com o conhecimento da sua operação
-          </p>
+          <p className="truncate text-[10.5px] text-muted-foreground">Respondendo com o conhecimento da sua operação</p>
         </div>
       </div>
 
