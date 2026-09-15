@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowRight,
-
   ChevronRight,
   Building2,
   Users,
@@ -40,8 +39,6 @@ export function Hero() {
             Rotinas, IA de atendimento ao hóspede, organização e visualização de pendências, entre outras.
             <span className="mt-2 block font-medium text-ice">Tudo em um só lugar!</span>
           </p>
-
-
         </Reveal>
       </div>
 
@@ -99,9 +96,7 @@ function ResultShowcase() {
       <div className="mx-auto mt-8 w-[min(440px,92%)] min-w-0">
         <div className="relative">
           <ScreenNavContext.Provider value={() => {}}>
-            <PhoneFrame className="w-full">
-              {liveTab || !Screen ? <LiveGuideFrame /> : <Screen />}
-            </PhoneFrame>
+            <PhoneFrame className="w-full">{liveTab || !Screen ? <LiveGuideFrame /> : <Screen />}</PhoneFrame>
           </ScreenNavContext.Provider>
 
           {!liveTab ? (
@@ -123,8 +118,6 @@ function ResultShowcase() {
           Solicitar demonstração! <ArrowRight className="size-4 shrink-0" />
         </a>
       </div>
-
-
     </div>
   );
 }
@@ -142,7 +135,7 @@ export function FlowSection() {
   return (
     <Section id="produto" className="relative overflow-hidden">
       <Reveal>
-        <SectionHeading eyebrow="Como funciona" title="A operação acontece em 4 camadas." />
+        <SectionHeading eyebrow="Como funciona" title="As 4 camadas operacionais:" />
       </Reveal>
 
       <div className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -230,8 +223,8 @@ export function LandingFooter() {
             <GradientText>ConciergeIA</GradientText>
           </p>
           <p className="mt-2.5 max-w-xs text-[12.5px] leading-relaxed text-muted-foreground text-pretty">
-            O sistema operacional inteligente da sua hospedagem: rotinas, equipes, guia do hóspede e
-            atendimento por IA em um só lugar.
+            O sistema operacional inteligente da sua hospedagem: rotinas, equipes, guia do hóspede e atendimento por IA
+            em um só lugar.
           </p>
           <a
             href="#contato"
@@ -242,9 +235,7 @@ export function LandingFooter() {
         </div>
 
         <nav className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground/70">
-            Produto
-          </p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground/70">Produto</p>
           <ul className="mt-3 space-y-2 text-[12.5px] text-muted-foreground">
             <li>
               <a href="#produto" className="hover:text-foreground">
@@ -270,9 +261,7 @@ export function LandingFooter() {
         </nav>
 
         <nav className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground/70">
-            Institucional
-          </p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground/70">Institucional</p>
           <ul className="mt-3 space-y-2 text-[12.5px] text-muted-foreground">
             <li>
               <Link to="/privacidade" className="hover:text-foreground">
