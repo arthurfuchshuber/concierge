@@ -472,6 +472,61 @@ export function GuiaInteligenciaScreen() {
   );
 }
 
+/** Última parte real da home: feed da cidade, FAQ e assinatura do guia. */
+export function GuiaFinalScreen() {
+  return (
+    <ScreenShell active="home">
+      <div className="min-w-0 space-y-2.5 px-3 pt-4">
+        <SectionLabel>O que rola em Foz do Iguaçu</SectionLabel>
+        {[
+          {
+            img: recWaterfall,
+            t: "Cataratas com horário estendido no fim de semana",
+            d: "Parque Nacional · hoje",
+          },
+          {
+            img: recMarket,
+            t: "Feira de artesanato na Praça da Paz",
+            d: "Centro · a partir das 18h",
+          },
+        ].map((n) => (
+          <div
+            key={n.t}
+            className="flex min-w-0 gap-3 rounded-[0.5rem] border border-white/10 bg-white/[0.04] p-2.5"
+          >
+            <div className="relative size-14 shrink-0 overflow-hidden rounded-[0.4rem] bg-white/5">
+              <img src={n.img} alt="" className="absolute inset-0 size-full object-cover" />
+            </div>
+            <div className="min-w-0 self-center">
+              <p className="line-clamp-2 text-[11.5px] font-semibold leading-snug text-pretty">
+                {n.t}
+              </p>
+              <p className="mt-0.5 truncate text-[9.5px] text-muted-foreground">{n.d}</p>
+            </div>
+          </div>
+        ))}
+
+        <div className="flex min-w-0 items-center gap-3 rounded-[0.5rem] border border-accent/20 bg-accent/[0.08] p-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded-[0.4rem]" style={{ background: GRAD }}>
+            <BookOpen className="size-4 text-white" />
+          </span>
+          <div className="min-w-0">
+            <p className="truncate font-display text-[13px] font-bold">Dúvidas frequentes</p>
+            <p className="truncate text-[10px] text-white/60">Tudo sobre a casa em um toque</p>
+          </div>
+          <ChevronRight className="ml-auto size-4 shrink-0 text-white/40" />
+        </div>
+
+        <div className="flex min-w-0 items-center justify-center gap-2 pt-4">
+          <img src={conciergeLogo} alt="" aria-hidden className="size-3.5 object-contain opacity-80" />
+          <p className="text-[8.5px] font-semibold uppercase tracking-[0.3em] text-white/70">
+            Seu concierge. Sua experiência.
+          </p>
+        </div>
+      </div>
+    </ScreenShell>
+  );
+}
 
 export function ChegadaScreen() {
   return (
