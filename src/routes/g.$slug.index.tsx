@@ -1,6 +1,14 @@
 import { createFileRoute, notFound, redirect, Link, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  useMemo,
+  useCallback,
+  createContext,
+  useContext,
+} from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getPublicGuide, submitPin, submitAccessPin } from "@/lib/guide.functions";
 import {
@@ -13,7 +21,8 @@ import { trackGuideEvent } from "@/lib/guide-analytics.functions";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import * as TabsPrimitive from "@radix-ui/react-tabs";
 import {
   Accordion,
   AccordionItem,
@@ -87,6 +96,16 @@ import { slugForTag, expandInfoTags, type GuideTagKey } from "@/lib/guide-tags";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { guideUrl } from "@/lib/site-url";
+
+/** Contexto para que qualquer bloco de texto do guia (incluindo a lista de
+ *  passos) renderize `[[tag:...]]` como link clicável e `[[info:...]]` com o
+ *  valor correto — sem precisar repassar props por toda a árvore. */
+type GuideTagCtxValue = {
+  onNavigate?: (key: GuideTagKey, param: string | null) => void;
+  info?: React.ComponentProps<typeof InlineTagText>["info"];
+};
+const GuideTagCtx = createContext<GuideTagCtxValue>({});
+
 
 // Identificador estável da sessão do hóspede usado na analítica do guia.
 // Sempre tem ao menos 8 caracteres — o servidor rejeita valores curtos como "anon".
@@ -860,7 +879,7 @@ function Guide({ data }: { data: GuideOk }) {
   };
 
   // Contexto compartilhado para renderizar [[tag:...]] e [[info:...]] inline.
-  const infoCtx = {
+  const infoCtx: GuideTagCtxValue["info"] = {
     snapshot: p as never,
     unlocked,
     hasAccessPin,
@@ -1098,6 +1117,7 @@ function Guide({ data }: { data: GuideOk }) {
   }, [checkoutConcluded]);
 
   return (
+    <GuideTagCtx.Provider value={{ onNavigate: navigateGuideTag, info: infoCtx }}>
     <div
       className={`sigma-public-guide relative min-h-screen bg-background text-foreground pb-10 overflow-x-hidden ${theme === "light" ? "theme-light" : ""}`}
     >
@@ -2006,12 +2026,24 @@ function Guide({ data }: { data: GuideOk }) {
                             >
                               {showTabs ? (
                                 <Tabs defaultValue={defaultTab}>
-                                  <TabsList className="ds-segmented h-auto mb-4">
-                                    <TabsTrigger value="passos">Passo a passo</TabsTrigger>
-                                    <TabsTrigger value="senhas" data-tour="senhas-tab">
+                                  {/* Duas opções apenas: grade de 2 colunas iguais
+                                      (inline style vence o `ds-segmented`, que é
+                                      pensado para barras longas e roláveis). */}
+                                  <TabsPrimitive.List className="mb-4 grid w-full grid-cols-2 gap-1 rounded-[0.3rem] border border-border/25 bg-foreground/[0.04] p-1 text-muted-foreground">
+                                    <TabsTrigger
+                                      value="passos"
+                                      className="grid h-[38px] w-full !min-w-0 place-items-center rounded-[0.3rem] text-[13px] font-semibold"
+                                    >
+                                      Passo a passo
+                                    </TabsTrigger>
+                                    <TabsTrigger
+                                      value="senhas"
+                                      data-tour="senhas-tab"
+                                      className="grid h-[38px] w-full !min-w-0 place-items-center rounded-[0.3rem] text-[13px] font-semibold"
+                                    >
                                       Senhas
                                     </TabsTrigger>
-                                  </TabsList>
+                                  </TabsPrimitive.List>
                                   <TabsContent value="passos">{stepsContent}</TabsContent>
                                   <TabsContent value="senhas" data-tour="senhas-panel">
                                     {passwordsContent}
@@ -2462,6 +2494,7 @@ function Guide({ data }: { data: GuideOk }) {
         onRequestUnlock={() => requestUnlock()}
       />
     </div>
+    </GuideTagCtx.Provider>
   );
 }
 
@@ -3981,6 +4014,7 @@ function StepList({
   dense?: boolean;
   compact?: boolean;
 }) {
+  const tagCtx = useContext(GuideTagCtx);
   const steps = text
     .split(/\r?\n/)
     .map((s) => s.trim())
@@ -4013,7 +4047,13 @@ function StepList({
           </span>
           <div className="flex-1 min-w-0 pt-1">
             <p className={`${labelCls} font-semibold uppercase text-accent/80`}>Passo {i + 1}</p>
-            <p className={`${textCls} text-foreground/90`}>{step}</p>
+            <p className={`${textCls} text-foreground/90`}>
+              <InlineTagText
+                text={step}
+                {...(tagCtx.onNavigate ? { onNavigate: tagCtx.onNavigate } : {})}
+                {...(tagCtx.info ? { info: tagCtx.info } : {})}
+              />
+            </p>
           </div>
         </li>
       ))}
@@ -4176,14 +4216,14 @@ function SubItem({
     <AccordionItem
       value={id}
       data-tour={dataTour}
-      className="border border-border/70 rounded-[0.3rem] overflow-hidden bg-card/60 backdrop-blur-sm data-[state=open]:border-accent/40 data-[state=open]:shadow-[0_8px_28px_-16px_oklch(from_var(--accent)_l_c_h/0.45)] transition-all"
+      className="border border-border/25 rounded-[0.3rem] overflow-hidden bg-card/60 backdrop-blur-sm data-[state=open]:border-accent/25 data-[state=open]:shadow-[0_8px_28px_-16px_oklch(from_var(--accent)_l_c_h/0.45)] transition-all"
     >
-      <AccordionTrigger className="px-5 py-4 md:py-5 hover:no-underline">
+      <AccordionTrigger className="min-w-0 px-5 py-4 md:py-5 hover:no-underline items-center [&>svg]:self-center">
         <div className="flex items-center gap-4 flex-1 min-w-0">
           <span className="grid size-11 shrink-0 place-items-center rounded-[0.3rem] bg-accent/10 text-accent/75 ring-1 ring-accent/15">
             {icon}
           </span>
-          <div className="flex-1 min-w-0 text-left">
+          <div className="flex min-h-11 flex-1 min-w-0 flex-col justify-center text-left">
             <p className="text-[15.5px] leading-tight font-semibold text-foreground tracking-tight">
               {label}
             </p>

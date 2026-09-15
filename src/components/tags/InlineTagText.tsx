@@ -47,7 +47,7 @@ export function InlineTagText({ text, className, onNavigate, info }: Props) {
               key={i}
               href="#"
               onClick={handleTag(t.key, t.param)}
-              className="inline-flex items-baseline gap-0.5 rounded-md px-1.5 py-0.5 text-emerald-700 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-900/30 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 font-medium no-underline"
+              className="font-semibold text-foreground underline decoration-foreground/45 underline-offset-[3px] hover:decoration-foreground"
             >
               {t.label}
             </a>

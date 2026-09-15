@@ -13,7 +13,7 @@ const DEMO_SLUG = "casa-charmosa-prox-a-avenida-das-cataratas";
 
 export function LiveGuideFrame() {
   return (
-    <div className="relative aspect-[10/20.6] min-w-0 overflow-hidden bg-[#0a0a0f]">
+    <div className="relative aspect-[10/14.15] min-w-0 overflow-hidden bg-[#0a0a0f]">
       <iframe
         src={`/g/${DEMO_SLUG}?preview=1&demo=1`}
         title="Guia do hóspede — demonstração"
