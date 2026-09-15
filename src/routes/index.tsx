@@ -66,8 +66,7 @@ function Landing() {
       <LandingNav />
       <main>
         <Hero />
-        <LivePanelSection />
-        <FeatureRail />
+        <ShowcaseSection />
         <FlowSection />
         <AudienceSection />
         <PricingSection />
