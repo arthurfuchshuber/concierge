@@ -5,11 +5,11 @@ import { LeadForm } from "@/components/landing/LeadForm";
 import { PricingSection } from "@/components/landing/PricingSection";
 import {
   AudienceSection,
-  BentoSection,
+  FeatureRail,
+  FlowSection,
   Hero,
   LandingFooter,
-  NarrativeSection,
-  ProblemSection,
+  LivePanelSection,
 } from "@/components/landing/sections";
 import { metaPixelTrackCustomOnce } from "@/lib/meta-pixel";
 import { siteUrl } from "@/lib/site-url";
@@ -67,9 +67,9 @@ function Landing() {
       <LandingNav />
       <main>
         <Hero />
-        <ProblemSection />
-        <NarrativeSection />
-        <BentoSection />
+        <LivePanelSection />
+        <FeatureRail />
+        <FlowSection />
         <AudienceSection />
         <PricingSection />
         <LeadForm />

@@ -3,7 +3,6 @@ import {
   ArrowRight,
   Building2,
   Users,
-  Bot,
   BookOpen,
   ClipboardList,
   Layers,
@@ -279,8 +278,6 @@ export function AudienceSection() {
   );
 }
 
-/* ---------------- BOT (referência de ícone usada no mockup) ---------------- */
-export const _icons = { Bot };
 
 /* ---------------- FOOTER ---------------- */
 
