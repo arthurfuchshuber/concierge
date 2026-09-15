@@ -221,28 +221,79 @@ export function AudienceSection() {
 
 export function LandingFooter() {
   return (
-    <footer className="border-t border-border py-10">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-5 sm:px-8 sm:flex-row sm:items-center sm:justify-between">
-        <p className="font-display text-[15px] tracking-tight">ConciergeIA</p>
-        <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[12.5px] text-muted-foreground">
-          <a href="#planos" className="hover:text-foreground">
-            Planos
+    <footer className="relative overflow-hidden border-t border-border pt-12 pb-10">
+      <Glow className="left-1/2 bottom-[-260px] h-[360px] w-[720px] max-w-[130vw] -translate-x-1/2 opacity-50" />
+      <div className="relative mx-auto grid w-full max-w-6xl gap-9 px-5 sm:grid-cols-[1.4fr_1fr_1fr] sm:gap-12 sm:px-8">
+        <div className="min-w-0">
+          <p className="font-display text-[18px] font-extrabold tracking-tight">
+            <GradientText>ConciergeIA</GradientText>
+          </p>
+          <p className="mt-2.5 max-w-xs text-[12.5px] leading-relaxed text-muted-foreground text-pretty">
+            O sistema operacional inteligente da sua hospedagem: rotinas, equipes, guia do hóspede e
+            atendimento por IA em um só lugar.
+          </p>
+          <a
+            href="#contato"
+            className="mt-4 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-accent hover:text-foreground"
+          >
+            Solicitar demonstração <ArrowRight className="size-3.5" />
           </a>
-          <a href="#contato" className="hover:text-foreground">
-            Contato
-          </a>
-          <Link to="/privacidade" className="hover:text-foreground">
-            Privacidade
-          </Link>
-          <Link to="/termos" className="hover:text-foreground">
-            Termos
-          </Link>
-          <Link to="/reembolso" className="hover:text-foreground">
-            Reembolso
-          </Link>
-          <Link to="/confianca" className="hover:text-foreground">
-            Confiança
-          </Link>
+        </div>
+
+        <nav className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground/70">
+            Produto
+          </p>
+          <ul className="mt-3 space-y-2 text-[12.5px] text-muted-foreground">
+            <li>
+              <a href="#produto" className="hover:text-foreground">
+                Como funciona
+              </a>
+            </li>
+            <li>
+              <a href="#para-quem" className="hover:text-foreground">
+                Para quem é
+              </a>
+            </li>
+            <li>
+              <a href="#planos" className="hover:text-foreground">
+                Planos
+              </a>
+            </li>
+            <li>
+              <a href="#contato" className="hover:text-foreground">
+                Contato
+              </a>
+            </li>
+          </ul>
+        </nav>
+
+        <nav className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground/70">
+            Institucional
+          </p>
+          <ul className="mt-3 space-y-2 text-[12.5px] text-muted-foreground">
+            <li>
+              <Link to="/privacidade" className="hover:text-foreground">
+                Privacidade
+              </Link>
+            </li>
+            <li>
+              <Link to="/termos" className="hover:text-foreground">
+                Termos
+              </Link>
+            </li>
+            <li>
+              <Link to="/reembolso" className="hover:text-foreground">
+                Reembolso
+              </Link>
+            </li>
+            <li>
+              <Link to="/confianca" className="hover:text-foreground">
+                Confiança
+              </Link>
+            </li>
+          </ul>
         </nav>
       </div>
       <div className="mx-auto mt-6 flex w-full max-w-6xl flex-col gap-2 border-t border-border px-5 pt-6 text-[11.5px] text-muted-foreground/70 sm:flex-row sm:justify-between sm:px-8">
