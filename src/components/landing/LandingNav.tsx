@@ -17,9 +17,7 @@ export function LandingNav() {
   return (
     <header
       className={cn(
-        "sticky top-0 z-50 rounded-none border-b border-white/10",
-        "bg-white/[0.06] backdrop-blur-2xl backdrop-saturate-150",
-        "shadow-[0_1px_0_0_rgba(255,255,255,0.10)_inset,0_18px_40px_-32px_rgba(0,0,0,0.9)]",
+        "sticky top-0 z-50 rounded-none border-b border-transparent bg-background/80 backdrop-blur-xl",
       )}
     >
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-5 sm:px-8">
