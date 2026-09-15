@@ -1,9 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Building2, Users, BookOpen, ClipboardList, Layers, Sparkles, UserCheck } from "lucide-react";
 import { Reveal, Section, SectionHeading, Glow, GradientText, GlassCard } from "./primitives";
-import { BrowserShot, PhoneShot } from "./ProductShot";
-import shotGuias from "@/assets/landing/shot-guias.png.asset.json";
-import shotStakeholders from "@/assets/landing/shot-stakeholders.png.asset.json";
+import { PhoneShot } from "./ProductShot";
 import shotGuiaMobile from "@/assets/landing/shot-explorar-mobile.png.asset.json";
 
 /* ---------------- HERO ---------------- */
