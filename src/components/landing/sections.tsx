@@ -25,7 +25,8 @@ export function Hero() {
           </h1>
 
           <p className="mx-auto mt-5 max-w-lg text-[14.5px] font-light leading-relaxed text-muted-foreground text-pretty sm:text-[17px]">
-            Imóveis, equipe, rotinas e atendimento ao hóspede em um só sistema.
+            Tudo em um só lugar! Rotinas, IA de atendimento ao hóspede, organização e visualização de pendências, entre
+            outras.
           </p>
 
           <div className="mx-auto mt-8 flex w-full max-w-md flex-col items-stretch gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:justify-center">
