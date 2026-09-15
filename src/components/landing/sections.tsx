@@ -16,7 +16,16 @@ import {
   Brain,
   Check,
 } from "lucide-react";
-import { Reveal, Section, SectionHeading, Surface, Glow, Eyebrow } from "./primitives";
+import {
+  Reveal,
+  Section,
+  SectionHeading,
+  Surface,
+  Glow,
+  Eyebrow,
+  GradientText,
+  BentoCard,
+} from "./primitives";
 import { DashboardMockup } from "./DashboardMockup";
 import { ChatMockup } from "./ChatMockup";
 import { GuideMockup } from "./GuideMockup";
