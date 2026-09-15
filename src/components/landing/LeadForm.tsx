@@ -105,10 +105,16 @@ export function LeadForm() {
                 }}
               />
               <div className="relative min-w-0">
-                <p className="text-[10.5px] font-bold uppercase tracking-[0.28em] text-accent">Contato</p>
-                <p className="mt-4 font-display text-[26px] font-extrabold leading-[1.1] tracking-tight text-balance sm:text-[32px]">
-                  Conheça o ConciergeIA <GradientText>de perto.</GradientText>
+                <span
+                  aria-hidden
+                  className="block h-1 w-10 rounded-full"
+                  style={{ background: "linear-gradient(90deg,#7c1ad8 0%,#e82dae 100%)" }}
+                />
+                <p className="mt-4 text-[10.5px] font-bold uppercase tracking-[0.28em] text-accent">Contato</p>
+                <p className="mt-3 font-display text-[26px] font-extrabold leading-[1.1] tracking-tight text-balance sm:text-[32px]">
+                  Leve o ConciergeIA <GradientText>para sua operação.</GradientText>
                 </p>
+
                 <p className="mt-4 max-w-sm text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
                   Conte um pouco sobre sua operação. Retornamos com uma apresentação alinhada ao seu
                   contexto.
