@@ -1,4 +1,6 @@
+import { createContext, useContext } from "react";
 import {
+
   Wifi,
   DoorOpen,
   LogOut,
@@ -42,7 +44,11 @@ const NAV: Array<{ key: NavKey; label: string; icon: React.ComponentType<{ class
   { key: "explore", label: "Explorar", icon: Compass },
 ];
 
+/** Permite que a barra inferior do mockup troque a tela exibida no celular. */
+export const ScreenNavContext = createContext<((key: NavKey) => void) | null>(null);
+
 function BottomBar({ active }: { active: NavKey }) {
+  const onSelect = useContext(ScreenNavContext);
   return (
     <div className="mt-auto border-t border-white/8 bg-[#080815]/90 px-3 pb-3 pt-2 backdrop-blur">
       <ul className="flex items-stretch justify-around gap-1">
@@ -50,7 +56,12 @@ function BottomBar({ active }: { active: NavKey }) {
           const on = n.key === active;
           return (
             <li key={n.key} className="min-w-0 flex-1">
-              <div className="flex flex-col items-center gap-1 py-0.5">
+              <button
+                type="button"
+                onClick={() => onSelect?.(n.key)}
+                aria-current={on || undefined}
+                className="flex w-full flex-col items-center gap-1 py-0.5 transition-transform active:scale-[0.96]"
+              >
                 <span
                   className={cn("grid size-8 place-items-center rounded-[0.3rem]", on ? "text-white" : "text-white/55")}
                   style={on ? { background: GRAD } : undefined}
@@ -60,7 +71,7 @@ function BottomBar({ active }: { active: NavKey }) {
                 <span className={cn("truncate text-[9px] font-bold", on ? "text-white" : "text-white/50")}>
                   {n.label}
                 </span>
-              </div>
+              </button>
             </li>
           );
         })}
@@ -68,6 +79,7 @@ function BottomBar({ active }: { active: NavKey }) {
     </div>
   );
 }
+
 
 function ScreenShell({ children, active }: { children: React.ReactNode; active: NavKey }) {
   return (

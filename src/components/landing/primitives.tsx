@@ -103,23 +103,30 @@ export function Surface({
   );
 }
 
-/** Texto em degradê da marca (roxo → magenta). */
+/** Texto em degradê da marca (roxo → magenta), com reflexo opcional em movimento. */
 export function GradientText({
   children,
   className,
+  shine = false,
 }: {
   children: ReactNode;
   className?: string;
+  shine?: boolean;
 }) {
   return (
     <span
-      className={cn("bg-clip-text text-transparent", className)}
-      style={{ backgroundImage: "linear-gradient(100deg,#7c1ad8 0%,#e82dae 52%,#7c1ad8 100%)" }}
+      className={cn("bg-clip-text text-transparent", shine && "text-shine", className)}
+      style={
+        shine
+          ? undefined
+          : { backgroundImage: "linear-gradient(100deg,#7c1ad8 0%,#e82dae 52%,#7c1ad8 100%)" }
+      }
     >
       {children}
     </span>
   );
 }
+
 
 /**
  * Cartão da grade bento: borda delicada, brilho suave no canto e realce

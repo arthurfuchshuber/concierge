@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { Reveal, Section, SectionHeading, Glow, GradientText, GlassCard } from "./primitives";
 import { PhoneFrame } from "./ProductShot";
-import { RESULT_FEATURES } from "./ResultScreens";
+import { RESULT_FEATURES, ScreenNavContext } from "./ResultScreens";
 import { cn } from "@/lib/utils";
 
 /* ---------------- HERO ---------------- */
@@ -32,13 +32,14 @@ export function Hero() {
           </p>
 
           <h1 className="mt-7 font-display text-[34px] font-extrabold leading-[1.06] tracking-tight text-balance sm:text-[56px]">
-            O <GradientText>CÉREBRO</GradientText>!
+            O <GradientText shine>CÉREBRO</GradientText>!
           </h1>
 
           <p className="mx-auto mt-5 max-w-lg text-[14.5px] font-light leading-relaxed text-muted-foreground text-pretty sm:text-[17px]">
-            Tudo em um só lugar! Rotinas, IA de atendimento ao hóspede, organização e visualização de pendências, entre
-            outras.
+            <span className="block font-medium text-ice">Tudo em um só lugar!</span>
+            Rotinas, IA de atendimento ao hóspede, organização e visualização de pendências, entre outras.
           </p>
+
 
         </Reveal>
       </div>
@@ -52,11 +53,27 @@ export function Hero() {
 
 /* --------- vitrine de telas de resultado (o que o hóspede recebe) --------- */
 
+/** Barra inferior do celular → recurso/tela correspondente na vitrine. */
+const NAV_TO_SCREEN: Record<string, { feat: number; shot: number }> = {
+  home: { feat: 0, shot: 0 },
+  checkin: { feat: 0, shot: 1 },
+  saida: { feat: 0, shot: 4 },
+  residencia: { feat: 0, shot: 2 },
+  explore: { feat: 2, shot: 0 },
+};
+
 function ResultShowcase() {
   const [feat, setFeat] = useState(0);
   const [shot, setShot] = useState(0);
   const screens = RESULT_FEATURES[feat].screens;
   const Screen = screens[shot % screens.length];
+
+  const irPara = (key: string) => {
+    const destino = NAV_TO_SCREEN[key];
+    if (!destino) return;
+    setFeat(destino.feat);
+    setShot(destino.shot);
+  };
 
   return (
     <div className="mx-auto mt-10 w-full max-w-5xl px-5 text-left sm:px-8">
@@ -86,9 +103,11 @@ function ResultShowcase() {
       {/* celular centralizado + seta de avanço dentro do recurso */}
       <div className="mx-auto mt-8 w-[min(440px,92%)] min-w-0">
         <div className="relative">
-          <PhoneFrame className="w-full">
-            <Screen />
-          </PhoneFrame>
+          <ScreenNavContext.Provider value={irPara}>
+            <PhoneFrame className="w-full">
+              <Screen />
+            </PhoneFrame>
+          </ScreenNavContext.Provider>
 
           <button
             type="button"
@@ -102,11 +121,12 @@ function ResultShowcase() {
 
         <a
           href="#contato"
-          className="btn-shine mt-8 flex h-12 w-full min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-accent px-7 text-[14px] font-bold text-accent-foreground shadow-[0_0_28px_-6px_var(--accent)] transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0"
+          className="btn-shine mt-8 flex h-12 w-full min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-[3px] bg-accent px-7 text-[14px] font-bold text-accent-foreground shadow-[0_0_28px_-6px_var(--accent)] transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0"
         >
           Solicitar demonstração! <ArrowRight className="size-4 shrink-0" />
         </a>
       </div>
+
 
     </div>
   );

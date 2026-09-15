@@ -448,7 +448,42 @@
   background: color-mix(in oklab, hsl(var(--accent)) 45%, transparent);
 }
 
+/* Texto em degradê da marca com um reflexo diagonal que atravessa continuamente. */
+@keyframes text-shine-sweep {
+  0% {
+    background-position:
+      -180% 0,
+      0 0;
+  }
+  100% {
+    background-position:
+      280% 0,
+      0 0;
+  }
+}
+.text-shine {
+  background-image:
+    linear-gradient(100deg, transparent 38%, rgba(255, 255, 255, 0.85) 50%, transparent 62%),
+    linear-gradient(100deg, #7c1ad8 0%, #e82dae 52%, #7c1ad8 100%);
+  background-size:
+    220% 100%,
+    100% 100%;
+  background-repeat: no-repeat;
+  animation: text-shine-sweep 3.4s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .text-shine {
+    animation: none;
+  }
+}
+
+/* Branco gelo — texto de destaque levemente mais claro e frio. */
+.text-ice {
+  color: oklch(0.975 0.008 250);
+}
+
 /* Continuous shine sweep for CTA buttons */
+
 @keyframes btn-shine-sweep {
   0% {
     transform: translateX(-160%) skewX(-20deg);

@@ -16,9 +16,10 @@ const CHALLENGES = [
 ];
 
 const inputClass =
-  "h-13 w-full min-w-0 rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-[14px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/55 focus:border-accent/60 focus:bg-white/[0.07]";
+  "h-14 w-full min-w-0 rounded-[10px] border border-white/10 bg-white/[0.05] px-4 text-[15px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-accent/60 focus:bg-white/[0.09]";
 
 const labelClass = "text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80";
+
 
 /** Telefone brasileiro: (00) 0000-0000 e (00) 00000-0000. */
 function maskPhone(input: string): string {
@@ -104,10 +105,16 @@ export function LeadForm() {
                 }}
               />
               <div className="relative min-w-0">
-                <p className="text-[10.5px] font-bold uppercase tracking-[0.28em] text-accent">Contato</p>
-                <p className="mt-4 font-display text-[26px] font-extrabold leading-[1.1] tracking-tight text-balance sm:text-[32px]">
-                  Conheça o ConciergeIA <GradientText>de perto.</GradientText>
+                <span
+                  aria-hidden
+                  className="block h-1 w-10 rounded-full"
+                  style={{ background: "linear-gradient(90deg,#7c1ad8 0%,#e82dae 100%)" }}
+                />
+                <p className="mt-4 text-[10.5px] font-bold uppercase tracking-[0.28em] text-accent">Contato</p>
+                <p className="mt-3 font-display text-[26px] font-extrabold leading-[1.1] tracking-tight text-balance sm:text-[32px]">
+                  Leve o ConciergeIA <GradientText>para sua operação.</GradientText>
                 </p>
+
                 <p className="mt-4 max-w-sm text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
                   Conte um pouco sobre sua operação. Retornamos com uma apresentação alinhada ao seu
                   contexto.
@@ -116,7 +123,7 @@ export function LeadForm() {
                 <div className="mt-8 space-y-3">
                   <a
                     href="mailto:sigma@anfitriaosigma.com.br"
-                    className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 transition-colors hover:border-accent/40"
+                    className="flex min-w-0 items-center gap-3 rounded-[10px] border border-white/10 bg-white/[0.05] p-3 transition-colors hover:border-accent/40"
                   >
                     <span className="grid size-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.05]">
                       <Mail className="size-4 text-accent" />
@@ -129,7 +136,7 @@ export function LeadForm() {
                     href="https://wa.me/5545991070707"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 transition-colors hover:border-accent/40"
+                    className="flex min-w-0 items-center gap-3 rounded-[10px] border border-white/10 bg-white/[0.05] p-3 transition-colors hover:border-accent/40"
                   >
                     <span className="grid size-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.05]">
                       <MessageCircle className="size-4 text-accent" />
@@ -261,7 +268,9 @@ export function LeadForm() {
                     <button
                       type="submit"
                       disabled={status === "sending"}
-                      className="btn-shine inline-flex h-13 w-full min-w-0 items-center justify-center gap-2 rounded-lg bg-accent px-6 text-[14.5px] font-bold text-accent-foreground shadow-[0_0_30px_-8px_var(--accent)] transition-transform duration-200 hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-60"
+                      style={{ background: "linear-gradient(135deg,#e82dae 0%,#7c1ad8 100%)" }}
+                      className="btn-shine inline-flex h-14 w-full min-w-0 items-center justify-center gap-2 rounded-[3px] px-6 text-[14.5px] font-bold uppercase tracking-[0.12em] text-accent-foreground shadow-[0_10px_34px_-10px_var(--accent)] transition-transform duration-200 hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-60"
+
                     >
                       {status === "sending" ? (
                         <>
