@@ -91,7 +91,7 @@ export function Surface({
   return (
     <div
       className={cn(
-        "relative rounded-2xl border border-border bg-card/60 backdrop-blur-sm",
+        "relative rounded-3xl border border-border bg-card/60 backdrop-blur-sm",
         "shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset,0_18px_40px_-28px_rgba(0,0,0,0.9)]",
         hover &&
           "transition-[transform,border-color,background-color] duration-300 hover:-translate-y-0.5 hover:border-accent/35 hover:bg-card/85",
@@ -99,6 +99,58 @@ export function Surface({
       )}
     >
       {children}
+    </div>
+  );
+}
+
+/** Texto em degradê da marca (roxo → magenta). */
+export function GradientText({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn("bg-clip-text text-transparent", className)}
+      style={{ backgroundImage: "linear-gradient(100deg,#7c1ad8 0%,#e82dae 52%,#7c1ad8 100%)" }}
+    >
+      {children}
+    </span>
+  );
+}
+
+/**
+ * Cartão da grade bento: borda delicada, brilho suave no canto e realce
+ * discreto no hover. Usa `min-w-0` para nunca estourar a margem direita.
+ */
+export function BentoCard({
+  children,
+  className,
+  glow = false,
+}: {
+  children: ReactNode;
+  className?: string;
+  glow?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "group relative flex min-w-0 flex-col overflow-hidden rounded-3xl border border-border bg-card/60 p-6 backdrop-blur-sm sm:p-8",
+        "shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset,0_28px_60px_-40px_rgba(0,0,0,0.95)]",
+        "transition-[border-color,background-color,transform] duration-300 hover:-translate-y-0.5 hover:border-accent/40 hover:bg-card/85",
+        className,
+      )}
+    >
+      {glow ? (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-10 -top-10 size-40 rounded-full opacity-25 blur-3xl transition-opacity duration-500 group-hover:opacity-45"
+          style={{ background: "linear-gradient(135deg,#7c1ad8 0%,#e82dae 100%)" }}
+        />
+      ) : null}
+      <div className="relative z-10 flex min-w-0 flex-1 flex-col">{children}</div>
     </div>
   );
 }

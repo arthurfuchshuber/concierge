@@ -16,7 +16,16 @@ import {
   Brain,
   Check,
 } from "lucide-react";
-import { Reveal, Section, SectionHeading, Surface, Glow, Eyebrow } from "./primitives";
+import {
+  Reveal,
+  Section,
+  SectionHeading,
+  Surface,
+  Glow,
+  Eyebrow,
+  GradientText,
+  BentoCard,
+} from "./primitives";
 import { DashboardMockup } from "./DashboardMockup";
 import { ChatMockup } from "./ChatMockup";
 import { GuideMockup } from "./GuideMockup";
@@ -25,39 +34,57 @@ import { GuideMockup } from "./GuideMockup";
 
 export function Hero() {
   return (
-    <section id="topo" className="relative overflow-hidden pt-16 pb-20 sm:pt-24 sm:pb-28">
-      <Glow className="left-1/2 top-[-160px] h-[420px] w-[680px] -translate-x-1/2" />
-      <div className="mx-auto grid w-full max-w-6xl items-center gap-14 px-5 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-12">
+    <section id="topo" className="relative overflow-hidden pt-20 pb-16 sm:pt-28 sm:pb-20">
+      <Glow className="left-1/2 top-[-200px] h-[460px] w-[820px] max-w-[130vw] -translate-x-1/2" />
+      <Glow className="right-[-140px] top-[-60px] h-[360px] w-[360px] opacity-[0.12]" />
+
+      <div className="mx-auto w-full max-w-5xl px-5 text-center sm:px-8">
         <Reveal>
-          <p className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-[11px] text-muted-foreground">
-            <span className="size-1.5 rounded-full bg-accent" />
-            O sistema operacional inteligente da sua hospedagem
+          <p className="inline-flex items-center gap-2 rounded-full border border-border bg-card/50 px-3.5 py-1.5 text-[10.5px] font-semibold uppercase tracking-[0.2em] text-muted-foreground backdrop-blur">
+            <span className="size-1.5 animate-pulse rounded-full bg-accent" />
+            <span className="min-w-0">Sistema operacional de hospedagem</span>
           </p>
-          <h1 className="mt-6 font-display text-[34px] leading-[1.06] tracking-tight text-balance sm:text-[52px]">
+
+          <h1 className="mx-auto mt-8 max-w-4xl font-display text-[36px] font-extrabold leading-[1.05] tracking-tight text-balance sm:text-[62px]">
             Tudo o que você precisa para operar sua hospedagem.{" "}
-            <span className="text-accent">Em um só lugar.</span>
+            <br className="hidden sm:block" />
+            <GradientText>Em um só lugar.</GradientText>
           </h1>
-          <p className="mt-6 max-w-xl text-[15px] leading-relaxed text-muted-foreground text-pretty sm:text-[17px]">
+
+          <p className="mx-auto mt-7 max-w-2xl text-[15px] font-light leading-relaxed text-muted-foreground text-pretty sm:text-[18px]">
             Do inventário às instruções do imóvel. Dos dados dos proprietários aos fornecedores. Do atendimento ao
             hóspede ao seu guia personalizado. Tudo organizado, acessível e inteligente.
           </p>
-          <div className="mt-9 flex flex-wrap items-center gap-3">
+
+          <div className="mt-10 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
             <a
               href="#contato"
-              className="inline-flex h-11 items-center gap-2 rounded-full bg-foreground px-6 text-[14px] font-semibold text-background transition-transform duration-200 hover:-translate-y-0.5"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-accent px-7 text-[14px] font-bold text-accent-foreground shadow-[0_0_28px_-6px_var(--accent)] transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0"
             >
               Conhecer o ConciergeIA <ArrowRight className="size-4" />
             </a>
             <a
-              href="#como-funciona"
-              className="inline-flex h-11 items-center rounded-full border border-border px-6 text-[14px] text-muted-foreground transition-colors hover:border-accent/40 hover:text-foreground"
+              href="#contato"
+              className="inline-flex h-12 items-center justify-center rounded-xl border border-border bg-card/40 px-7 text-[14px] font-semibold text-muted-foreground backdrop-blur transition-colors duration-200 hover:border-accent/40 hover:text-foreground"
             >
-              Ver como funciona
+              Solicitar uma demonstração
             </a>
           </div>
         </Reveal>
+      </div>
 
-        <DashboardMockup />
+      {/* Painel de produto — moldura com borda iluminada */}
+      <div className="mx-auto mt-16 w-full max-w-6xl px-5 sm:mt-20 sm:px-8">
+        <div className="relative">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -inset-px rounded-[26px] opacity-25 blur-md"
+            style={{ background: "linear-gradient(120deg,#7c1ad8 0%,#e82dae 100%)" }}
+          />
+          <div className="relative">
+            <DashboardMockup />
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -167,87 +194,126 @@ export function ProblemSection() {
   );
 }
 
-/* ---------------- SOLUÇÃO / ECOSSISTEMA ---------------- */
+/* ---------------- GRADE BENTO DA OPERAÇÃO ---------------- */
 
-const ECOSSISTEMA = [
-  "Imóveis",
-  "Proprietários",
-  "Fornecedores",
-  "Inventário",
-  "Instruções",
-  "Registros",
-  "Atendimento",
-  "Guia",
-  "IA",
+const BENTO_COMPACTOS = [
+  {
+    icon: Boxes,
+    title: "Inventário",
+    desc: "Itens e recursos de cada imóvel sob controle, sem planilhas dispersas.",
+  },
+  {
+    icon: ClipboardList,
+    title: "Instruções",
+    desc: "Conhecimento operacional transformado em passos claros para a equipe.",
+  },
+  {
+    icon: FileText,
+    title: "Registros",
+    desc: "Ocorrências e acontecimentos importantes registrados no lugar certo.",
+  },
 ];
 
-export function EcosystemSection() {
+export function BentoSection() {
   return (
-    <Section id="como-funciona" className="relative overflow-hidden">
-      <Glow className="left-[-140px] bottom-0 h-[340px] w-[440px]" />
+    <Section id="recursos" className="relative overflow-hidden">
+      <Glow className="left-[-160px] top-24 h-[340px] w-[420px]" />
       <Reveal>
         <SectionHeading
-          eyebrow="A solução"
-          title="O ConciergeIA organiza o conhecimento da sua operação."
+          eyebrow="A operação"
+          title="Cada parte da sua operação com o seu próprio painel."
           description="Uma camada central que conecta pessoas, imóveis, processos e informação."
         />
       </Reveal>
 
-      <Reveal delay={0.08}>
-        <div className="relative mt-14">
-          <div className="grid gap-2.5 sm:grid-cols-3">
-            {ECOSSISTEMA.map((e, i) => (
-              <div
-                key={e}
-                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card/50 px-4 py-3.5 transition-colors duration-300 hover:border-accent/35"
-              >
-                <span className="min-w-0 truncate text-[13.5px]">{e}</span>
-                <span className="shrink-0 text-[10.5px] tabular-nums text-muted-foreground">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-8 text-center">
-            <p className="font-display text-[19px] tracking-tight text-balance sm:text-[22px]">
-              Uma operação inteira conectada em um único ambiente.
+      <div className="mt-14 grid grid-cols-1 gap-4 md:grid-cols-4 lg:grid-cols-6">
+        {/* Atendimento IA */}
+        <Reveal className="md:col-span-2 lg:col-span-3">
+          <BentoCard glow className="h-full">
+            <span
+              className="mb-6 grid size-12 shrink-0 place-items-center rounded-xl"
+              style={{ background: "linear-gradient(135deg,#7c1ad8 0%,#e82dae 100%)" }}
+            >
+              <Bot className="size-6 text-white" />
+            </span>
+            <h3 className="font-display text-[20px] font-bold tracking-tight sm:text-[24px]">Atendimento IA</h3>
+            <p className="mt-3 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
+              Uma inteligência preparada para responder aos hóspedes com base no conhecimento cadastrado da sua
+              operação — no seu padrão, sem suposições.
             </p>
-          </div>
-        </div>
-      </Reveal>
-    </Section>
-  );
-}
+          </BentoCard>
+        </Reveal>
 
-/* ---------------- MÓDULOS ---------------- */
+        {/* Gestão de imóveis */}
+        <Reveal delay={0.05} className="md:col-span-2 lg:col-span-3">
+          <BentoCard className="h-full">
+            <span className="mb-6 grid size-12 shrink-0 place-items-center rounded-xl border border-border bg-background/50">
+              <Building2 className="size-6 text-accent" />
+            </span>
+            <h3 className="font-display text-[20px] font-bold tracking-tight sm:text-[24px]">Gestão de imóveis</h3>
+            <p className="mt-3 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
+              Todas as informações de cada unidade — particularidades, acessos e histórico — organizadas em uma
+              única interface.
+            </p>
+          </BentoCard>
+        </Reveal>
 
-const MODULOS = [
-  { icon: Building2, title: "Imóveis", desc: "Tenha todas as informações de cada imóvel organizadas e acessíveis." },
-  { icon: Users, title: "Proprietários", desc: "Centralize dados e informações importantes dos proprietários." },
-  { icon: Wrench, title: "Fornecedores", desc: "Saiba quem são seus fornecedores, o que fazem e como acioná-los." },
-  { icon: Boxes, title: "Inventário", desc: "Controle os itens e recursos de cada imóvel sem depender de planilhas dispersas." },
-  { icon: ClipboardList, title: "Instruções", desc: "Transforme conhecimento operacional em instruções claras e acessíveis." },
-  { icon: FileText, title: "Registros", desc: "Registre ocorrências, informações e acontecimentos importantes da operação." },
-  { icon: Bot, title: "IA de Atendimento", desc: "Uma inteligência preparada para responder aos hóspedes com base no conhecimento da sua operação." },
-  { icon: BookOpen, title: "Guia do Hóspede", desc: "Entregue uma experiência sofisticada com um guia digital completo e personalizado." },
-];
+        {/* Pessoas da operação */}
+        <Reveal delay={0.1} className="md:col-span-2 lg:col-span-2">
+          <BentoCard className="h-full items-center justify-center text-center">
+            <div className="flex items-center justify-center gap-4">
+              <Users className="size-5 text-accent" />
+              <Wrench className="size-5 text-accent" />
+            </div>
+            <p className="mt-5 font-display text-[19px] font-bold tracking-tight">
+              Proprietários e fornecedores
+            </p>
+            <p className="mt-3 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">
+              Quem é quem, o que faz e como acionar. Sem depender de quem lembra.
+            </p>
+          </BentoCard>
+        </Reveal>
 
-export function ModulesSection() {
-  return (
-    <Section id="recursos">
-      <Reveal>
-        <SectionHeading eyebrow="Módulos" title="Tudo conectado. Tudo acessível." />
-      </Reveal>
+        {/* Guia do hóspede */}
+        <Reveal delay={0.15} className="md:col-span-2 lg:col-span-4">
+          <BentoCard className="h-full overflow-hidden">
+            <div className="flex min-w-0 flex-col gap-8 sm:flex-row sm:items-center">
+              <div className="min-w-0 flex-1">
+                <span className="mb-6 grid size-12 shrink-0 place-items-center rounded-xl border border-border bg-background/50">
+                  <BookOpen className="size-6 text-accent" />
+                </span>
+                <h3 className="font-display text-[20px] font-bold tracking-tight sm:text-[24px]">
+                  Guia do hóspede
+                </h3>
+                <p className="mt-3 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
+                  Um guia digital completo e personalizado, com tudo o que o hóspede precisa saber antes, durante e
+                  depois da estadia.
+                </p>
+              </div>
+              <div
+                aria-hidden
+                className="relative hidden h-52 w-36 shrink-0 rotate-6 rounded-2xl border border-border bg-background/50 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.95)] sm:block"
+              >
+                <div className="absolute inset-4 space-y-2 rounded-xl border border-border bg-card/60 p-3">
+                  <div className="h-2 w-2/3 rounded-full bg-accent/40" />
+                  <div className="h-1.5 w-full rounded-full bg-muted-foreground/20" />
+                  <div className="h-1.5 w-5/6 rounded-full bg-muted-foreground/20" />
+                  <div className="h-1.5 w-3/4 rounded-full bg-muted-foreground/20" />
+                  <div className="mt-4 h-10 rounded-lg border border-border bg-background/60" />
+                </div>
+              </div>
+            </div>
+          </BentoCard>
+        </Reveal>
 
-      <div className="mt-14 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-        {MODULOS.map((m, i) => (
-          <Reveal key={m.title} delay={Math.min(i * 0.04, 0.24)}>
-            <Surface hover className="h-full p-5">
-              <m.icon className="size-4 text-accent" />
-              <p className="mt-4 font-display text-[14.5px] tracking-tight">{m.title}</p>
-              <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">{m.desc}</p>
-            </Surface>
+        {/* Compactos */}
+        {BENTO_COMPACTOS.map((m, i) => (
+          <Reveal key={m.title} delay={0.2 + i * 0.05} className="md:col-span-2 lg:col-span-2">
+            <BentoCard className="h-full">
+              <m.icon className="size-5 text-accent" />
+              <p className="mt-5 font-display text-[17px] font-bold tracking-tight">{m.title}</p>
+              <p className="mt-2.5 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">{m.desc}</p>
+            </BentoCard>
           </Reveal>
         ))}
       </div>
@@ -462,59 +528,6 @@ export function DifferentiatorSection() {
   );
 }
 
-/* ---------------- PROVA SOCIAL (placeholders) ---------------- */
-
-export function SocialProofSection() {
-  return (
-    <Section>
-      <Reveal>
-        <SectionHeading eyebrow="Prova social" title="Operações que já organizaram seu conhecimento." />
-      </Reveal>
-
-      <Reveal delay={0.06}>
-        <div className="mt-12 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className="grid h-16 place-items-center rounded-xl border border-dashed border-border text-[11px] text-muted-foreground/70"
-            >
-              Espaço para logo {i + 1}
-            </div>
-          ))}
-        </div>
-      </Reveal>
-
-      <Reveal delay={0.1}>
-        <div className="mt-3 grid gap-2.5 lg:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="rounded-2xl border border-dashed border-border p-6">
-              <p className="text-[12.5px] leading-relaxed text-muted-foreground/70">
-                Espaço reservado para depoimento de cliente.
-              </p>
-              <p className="mt-5 text-[11px] text-muted-foreground/60">Nome · Operação · Cidade</p>
-            </div>
-          ))}
-        </div>
-      </Reveal>
-
-      <Reveal delay={0.14}>
-        <div className="mt-3 grid gap-2.5 sm:grid-cols-3">
-          {["Imóveis atendidos", "Operações ativas", "Cidades"].map((k) => (
-            <div key={k} className="rounded-2xl border border-dashed border-border p-6 text-center">
-              <p className="font-display text-[22px] text-muted-foreground/50">—</p>
-              <p className="mt-2 text-[11.5px] text-muted-foreground/70">{k}</p>
-            </div>
-          ))}
-        </div>
-      </Reveal>
-
-      <p className="mt-6 text-center text-[11px] text-muted-foreground/60">
-        Números, logos e depoimentos serão publicados conforme autorização dos clientes.
-      </p>
-    </Section>
-  );
-}
-
 /* ---------------- CTA FINAL ---------------- */
 
 export function FinalCTA() {
@@ -523,25 +536,25 @@ export function FinalCTA() {
       <Glow className="left-1/2 top-1/2 h-[360px] w-[620px] -translate-x-1/2 -translate-y-1/2" />
       <Reveal>
         <div className="mx-auto max-w-3xl text-center">
-          <h2 className="font-display text-[28px] leading-[1.1] tracking-tight text-balance sm:text-[44px]">
-            Sua operação merece um lugar para chamar de casa.
+          <h2 className="font-display text-[30px] font-extrabold leading-[1.06] tracking-tight text-balance sm:text-[48px]">
+            Sua operação merece <GradientText>um lugar para chamar de casa.</GradientText>
           </h2>
-          <p className="mx-auto mt-6 max-w-2xl text-[15px] leading-relaxed text-muted-foreground text-pretty sm:text-[17px]">
+          <p className="mx-auto mt-6 max-w-2xl text-[15px] font-light leading-relaxed text-muted-foreground text-pretty sm:text-[17px]">
             Centralize sua operação, organize seu conhecimento e transforme a maneira como você administra seus
             imóveis.
           </p>
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+          <div className="mt-10 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
             <a
               href="#contato"
-              className="inline-flex h-11 items-center gap-2 rounded-full bg-foreground px-6 text-[14px] font-semibold text-background transition-transform duration-200 hover:-translate-y-0.5"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-accent px-7 text-[14px] font-bold text-accent-foreground shadow-[0_0_28px_-6px_var(--accent)] transition-transform duration-200 hover:-translate-y-0.5"
             >
               Conhecer o ConciergeIA <ArrowRight className="size-4" />
             </a>
             <a
               href="#contato"
-              className="inline-flex h-11 items-center rounded-full border border-border px-6 text-[14px] text-muted-foreground transition-colors hover:border-accent/40 hover:text-foreground"
+              className="inline-flex h-12 items-center justify-center rounded-xl border border-border bg-card/40 px-7 text-[14px] font-semibold text-muted-foreground backdrop-blur transition-colors hover:border-accent/40 hover:text-foreground"
             >
-              Solicitar demonstração
+              Solicitar uma demonstração
             </a>
           </div>
         </div>
