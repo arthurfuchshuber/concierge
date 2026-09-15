@@ -767,10 +767,16 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // (canal "dash-live" abaixo), estas listas se atualizam sozinhas a cada 30s
   // e sempre que a aba volta ao foco — assim dois membros da equipe nunca
   // ficam vendo números diferentes por causa de um evento perdido.
+  // Só dispara chamadas protegidas depois que o token existe no navegador.
+  // Sem isso, ao abrir a tela (ou após a sessão expirar/sair) as chamadas
+  // saem sem cabeçalho de autorização e o servidor responde "Unauthorized",
+  // derrubando a tela.
+  const authed = useHasSession() === true;
   const liveSync = {
     refetchInterval: 30_000,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
+    enabled: authed,
   } as const;
   const engQ = useQuery({
     queryKey: ["dash-eng", engRange, activeOwnerId ?? "self"],
