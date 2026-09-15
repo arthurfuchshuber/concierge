@@ -83,7 +83,7 @@ function Landing() {
         <MultiPropertySection />
         <DifferentiatorSection />
         <PricingSection />
-        <SocialProofSection />
+        
         <FinalCTA />
         <LeadForm />
       </main>
