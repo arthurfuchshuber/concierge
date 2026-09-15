@@ -48,7 +48,7 @@ export function BottomNav({
   return (
     <>
       {/* Spacer to prevent last content from sitting under the fixed bar */}
-      <div className={isDemoView ? "h-4" : "h-[86px]"} aria-hidden />
+      <div className={isDemoView ? "h-[62px]" : "h-[86px]"} aria-hidden />
       <nav
         aria-label="Navegação do guia"
         className={cn(
