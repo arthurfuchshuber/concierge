@@ -20,31 +20,17 @@ type PlanCard = {
 
 const PLANS: PlanCard[] = [
   {
-    key: "starter",
-    name: "Starter",
-    price: "R$ 99",
-    period: "/mês",
-    desc: "Pra começar a encantar hóspedes com um guia digital profissional.",
-    features: [
-      "Até 3 guias digitais",
-      "Edição manual completa (fotos, seções, dicas)",
-      "Bilíngue (PT + EN)",
-      "Acesso por link ou PIN privado",
-      "QR code personalizado por imóvel",
-    ],
-    lockedNext: "Chat com IA para hóspedes",
-    cta: "Testar 7 dias grátis",
-    ctaHref: "/auth",
-  },
-  {
     key: "pro",
     name: "Pro",
     price: "R$ 199",
     period: "/mês",
     desc: "Automatize a rotina e deixe uma IA responder seus hóspedes por você.",
     features: [
-      "Tudo do Starter, mais:",
-      "Até 20 guias",
+      "Até 20 guias digitais",
+      "Edição manual completa (fotos, seções, dicas)",
+      "Bilíngue (PT + EN)",
+      "Acesso por link ou PIN privado",
+      "QR code personalizado por imóvel",
       "Importação automática dos anúncios do Airbnb",
       "Chat com IA para hóspedes dentro do guia",
       "Formulário de captação + validação de documentos por IA",
