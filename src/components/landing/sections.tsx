@@ -188,18 +188,18 @@ export function FlowSection() {
 const PERFIS = [
   {
     icon: UserCheck,
-    title: "Anfitriões profissionais",
-    desc: "Quem trata a hospedagem como operação e quer padrão em cada detalhe.",
+    title: "Anfitriões Exigentes",
+    desc: "Àquele que trata a hospedagem como uma verdadeira operação e busca constantemente padrão de qualidade em cada detalhe de sua hospedagem.",
   },
   {
     icon: Building2,
-    title: "Gestores de múltiplos imóveis",
-    desc: "Quem administra unidades de vários proprietários e precisa de tudo centralizado.",
+    title: "Gestores de Múltiplos Imóveis",
+    desc: "Quem administra unidades de vários proprietários e precisa de tudo centralizado e completamente registrado, bem como atendimento automático ao hóspede.",
   },
   {
     icon: Users,
-    title: "Operações com equipe",
-    desc: "Quem depende de limpeza, manutenção e atendimento alinhados à mesma informação.",
+    title: "Operações em Equipe",
+    desc: "Para àqueles que dependem de limpeza, manutenção e atendimento alinhados à mesma informação.",
   },
 ];
 
