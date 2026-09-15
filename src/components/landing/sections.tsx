@@ -155,7 +155,7 @@ export function FlowSection() {
   return (
     <Section id="produto" className="relative overflow-hidden">
       <Reveal>
-        <SectionHeading eyebrow="Como funciona" title="As 4 camadas operacionais:" />
+        <SectionHeading eyebrow="Como funciona" title="As 4 camadas operacionais integradas e sincronizadas!" />
       </Reveal>
 
       <div className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
