@@ -1155,7 +1155,7 @@ export function GuideAiChat({
                 placeholder={transcribing ? "transcrevendo…" : uploading ? "Enviando anexo…" : "Mensagem…"}
                 aria-label="Mensagem para o concierge"
                 disabled={uploading || transcribing}
-                className={`${COMPOSER_INPUT} !text-[16px] text-zinc-900 placeholder:text-zinc-400`}
+                className={`${COMPOSER_INPUT} !text-[16px] text-zinc-900 placeholder:text-[13px] placeholder:text-zinc-400`}
               />
             </div>
             {input.trim() ? (
