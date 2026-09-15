@@ -606,7 +606,7 @@ export function FinalCTA() {
               href="#contato"
               className="inline-flex h-11 items-center rounded-full border border-border px-6 text-[14px] text-muted-foreground transition-colors hover:border-accent/40 hover:text-foreground"
             >
-              Solicitar demonstração
+              Solicitar uma demonstração
             </a>
           </div>
         </div>
