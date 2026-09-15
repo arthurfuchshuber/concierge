@@ -448,39 +448,33 @@
   background: color-mix(in oklab, hsl(var(--accent)) 45%, transparent);
 }
 
-/* Texto em degradê da marca com um reflexo diagonal que atravessa continuamente. */
+/* Reflexo diagonal que atravessa um texto (usado sobre o texto em degradê). */
 @keyframes text-shine-sweep {
   0% {
-    background-position:
-      -180% 0,
-      0 0;
+    background-position: -160% 0;
   }
   100% {
-    background-position:
-      280% 0,
-      0 0;
+    background-position: 260% 0;
   }
 }
-.text-shine {
-  background-image:
-    linear-gradient(100deg, transparent 38%, rgba(255, 255, 255, 0.85) 50%, transparent 62%),
-    linear-gradient(100deg, #7c1ad8 0%, #e82dae 52%, #7c1ad8 100%);
-  background-size:
-    220% 100%,
-    100% 100%;
+.text-shine-overlay {
+  background-image: linear-gradient(
+    100deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.9) 50%,
+    transparent 60%
+  );
+  background-size: 240% 100%;
   background-repeat: no-repeat;
   animation: text-shine-sweep 3.4s linear infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-  .text-shine {
+  .text-shine-overlay {
     animation: none;
+    opacity: 0;
   }
 }
 
-/* Branco gelo — texto de destaque levemente mais claro e frio. */
-.text-ice {
-  color: oklch(0.975 0.008 250);
-}
 
 /* Continuous shine sweep for CTA buttons */
 
