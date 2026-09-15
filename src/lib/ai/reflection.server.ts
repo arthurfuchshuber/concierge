@@ -42,10 +42,18 @@ export async function reflectOnAnswer(params: {
   evidence: string;
   language: string;
   history: Array<{ role: string; content: string }>;
+  /** Pula a autoavaliação (economia de uma ida ao modelo em turnos de baixo
+   * risco — ver orchestrator.server.ts). A validação anti-alucinação NUNCA é
+   * pulada; só a reescrita opcional de redação. */
+  skip?: boolean;
 }): Promise<{ reflection: Reflection; usage: Usage; model: string }> {
+  if (params.skip) {
+    return { reflection: NEUTRAL, usage: EMPTY_USAGE, model: "" };
+  }
   if (!params.answer.trim()) {
     return { reflection: { ...NEUTRAL, score: 0, needsHuman: true, skipped: false }, usage: EMPTY_USAGE, model: "" };
   }
+
 
   const recent = params.history
     .slice(-6)

@@ -306,6 +306,7 @@ export async function runHospitalityAgent(params: {
   const [
     { routing, usage: routeUsage, model: supervisorModel },
     { plan, usage: planUsage, model: plannerModel },
+    context,
   ] = await Promise.all([
     routeToAgent({
       message: params.message,
@@ -321,6 +322,14 @@ export async function runHospitalityAgent(params: {
       explorationMode,
       contextHint: guestContext.text.slice(0, 2500),
     }),
+    // Contexto da residência é só leitura de banco: rodava em série depois do
+    // supervisor/planejador e somava latência à toa em toda mensagem.
+    buildAgentContext({
+      supabase,
+      property,
+      guestName: params.guestName,
+      memory,
+    }),
   ]);
   usage = mergeUsage(usage, routeUsage);
   if (supervisorModel) models.supervisor = supervisorModel;
@@ -329,12 +338,6 @@ export async function runHospitalityAgent(params: {
   if (plannerModel) models.planner = plannerModel;
   rememberPlan(params.conversationId, plan);
 
-  const context = await buildAgentContext({
-    supabase,
-    property,
-    guestName: params.guestName,
-    memory,
-  });
 
   stage("retrieval", "Consultando o guia da residência");
   // 4) Pré-recuperação Hybrid RAG (indexa sob demanda na primeira vez)
@@ -651,6 +654,19 @@ export async function runHospitalityAgent(params: {
     intent.category === "reserva" ||
     intent.category === "financeiro";
 
+  // LATÊNCIA: a autoavaliação (e a revalidação do texto reescrito) só existe
+  // para lapidar redação. Em turno de baixo risco — conversa da cidade,
+  // recomendação, social, sem urgência — ela custava uma a duas idas extras ao
+  // modelo antes do hóspede ver qualquer coisa. Nesses casos pulamos a
+  // autoavaliação; a validação anti-alucinação continua rodando sempre.
+  const skipReflection =
+    !highRiskContext &&
+    intent.urgency !== "high" &&
+    plan.riskLevel !== "high" &&
+    (intent.category === "cidade" ||
+      intent.category === "recomendacao" ||
+      intent.category === "social");
+
   if (reply && !handoffReason) {
     const [validated, reflected] = await Promise.all([
       validateAnswer({
@@ -668,8 +684,10 @@ export async function runHospitalityAgent(params: {
         evidence: evidenceText,
         language: intent.language,
         history: params.history,
+        skip: skipReflection,
       }),
     ]);
+
 
     usage = mergeUsage(usage, validated.usage);
     usage = mergeUsage(usage, reflected.usage);
@@ -818,18 +836,23 @@ export async function runHospitalityAgent(params: {
     }
   }
 
-  // Sugestão de botões de resposta rápida — só quando há de fato uma resposta
-  // sendo enviada ao hóspede (handoff não envia texto, não faz sentido sugerir
-  // botão pra mensagem vazia). Roda em QUALQUER pergunta final da IA, não só
-  // no modo exploração — a própria etapa decide, olhando o texto, se faz
-  // sentido oferecer opções ou deixar só o campo de digitar.
+  // Botões de resposta rápida — sempre que a IA termina fazendo uma pergunta
+  // ao hóspede, ele deve poder responder num toque (e continuar livre para
+  // digitar). Só chamamos o modelo quando existe pergunta no texto: antes esta
+  // etapa rodava em TODA mensagem, somando uma ida ao modelo mesmo quando não
+  // havia nada a oferecer.
   let quickReplies: string[] = [];
-  if (reply) {
-    const qr = await suggestQuickReplies({ answer: reply, language: intent.language });
+  if (reply && /\?/.test(reply)) {
+    const qr = await suggestQuickReplies({
+      answer: reply,
+      language: intent.language,
+      category: intent.category,
+    });
     usage = mergeUsage(usage, qr.usage);
     if (qr.model) models.quickReplies = qr.model;
     quickReplies = qr.options;
   }
+
 
   // 9) Persistência de memória + observabilidade (não bloqueiam a resposta)
   rememberMessage(params.conversationId, "assistant", reply);
