@@ -14,6 +14,9 @@
   --color-brand-purple: #7c1ad8;
   --color-brand-magenta: #e82dae;
   --color-brand-cream: #fdf9f2;
+  /* Branco gelo — texto de destaque levemente mais claro e frio. */
+  --color-ice: oklch(0.975 0.008 250);
+
   --color-brand-ink: #000000;
   --gradient-brand: linear-gradient(135deg, #7c1ad8 0%, #e82dae 100%);
 

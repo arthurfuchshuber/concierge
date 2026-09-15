@@ -113,19 +113,31 @@ export function GradientText({
   className?: string;
   shine?: boolean;
 }) {
-  return (
+  const gradiente = (
     <span
-      className={cn("bg-clip-text text-transparent", shine && "text-shine", className)}
-      style={
-        shine
-          ? undefined
-          : { backgroundImage: "linear-gradient(100deg,#7c1ad8 0%,#e82dae 52%,#7c1ad8 100%)" }
-      }
+      className={cn("bg-clip-text text-transparent", className)}
+      style={{ backgroundImage: "linear-gradient(100deg,#7c1ad8 0%,#e82dae 52%,#7c1ad8 100%)" }}
     >
       {children}
     </span>
   );
+  if (!shine) return gradiente;
+  return (
+    <span className="relative inline-block">
+      {gradiente}
+      <span
+        aria-hidden
+        className={cn(
+          "text-shine-overlay pointer-events-none absolute inset-0 bg-clip-text text-transparent",
+          className,
+        )}
+      >
+        {children}
+      </span>
+    </span>
+  );
 }
+
 
 
 /**
