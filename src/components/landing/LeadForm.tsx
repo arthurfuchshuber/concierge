@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowRight, Check, Loader2, Mail, MessageCircle, ShieldCheck } from "lucide-react";
+import { ArrowRight, Check, Loader2 } from "lucide-react";
 import { submitLandingLead } from "@/lib/landing-leads.functions";
 import { Reveal, Section, GradientText } from "./primitives";
 import cena from "@/assets/landing/scene-apto.jpg.asset.json";
@@ -16,7 +16,8 @@ const CHALLENGES = [
 ];
 
 const inputClass =
-  "h-14 w-full min-w-0 rounded-[10px] border border-white/10 bg-white/[0.05] px-4 text-[15px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-accent/60 focus:bg-white/[0.09]";
+  "h-13 w-full min-w-0 rounded-[10px] border border-white/10 bg-white/[0.05] px-4 text-[15px] text-ice outline-none transition-colors placeholder:text-ice/60 focus:border-accent/60 focus:bg-white/[0.09]";
+
 
 const labelClass = "text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80";
 
@@ -115,42 +116,8 @@ export function LeadForm() {
                   Leve o ConciergeIA <GradientText>para sua operação.</GradientText>
                 </p>
 
-                <p className="mt-4 max-w-sm text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
-                  Conte um pouco sobre sua operação. Retornamos com uma apresentação alinhada ao seu
-                  contexto.
-                </p>
 
-                <div className="mt-8 space-y-3">
-                  <a
-                    href="mailto:sigma@anfitriaosigma.com.br"
-                    className="flex min-w-0 items-center gap-3 rounded-[10px] border border-white/10 bg-white/[0.05] p-3 transition-colors hover:border-accent/40"
-                  >
-                    <span className="grid size-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.05]">
-                      <Mail className="size-4 text-accent" />
-                    </span>
-                    <span className="min-w-0 break-words text-[13px] text-muted-foreground">
-                      sigma@anfitriaosigma.com.br
-                    </span>
-                  </a>
-                  <a
-                    href="https://wa.me/5545991070707"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex min-w-0 items-center gap-3 rounded-[10px] border border-white/10 bg-white/[0.05] p-3 transition-colors hover:border-accent/40"
-                  >
-                    <span className="grid size-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.05]">
-                      <MessageCircle className="size-4 text-accent" />
-                    </span>
-                    <span className="min-w-0 text-[13px] text-muted-foreground">Falar pelo WhatsApp</span>
-                  </a>
-                </div>
 
-                <p className="mt-8 flex min-w-0 items-start gap-2 text-[11.5px] leading-relaxed text-muted-foreground/70">
-                  <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-accent" />
-                  <span className="min-w-0">
-                    Seus dados são usados apenas para este contato. Nada de mensagens em massa.
-                  </span>
-                </p>
               </div>
             </div>
 
@@ -268,8 +235,8 @@ export function LeadForm() {
                     <button
                       type="submit"
                       disabled={status === "sending"}
-                      style={{ background: "linear-gradient(135deg,#e82dae 0%,#7c1ad8 100%)" }}
-                      className="btn-shine inline-flex h-14 w-full min-w-0 items-center justify-center gap-2 rounded-[3px] px-6 text-[14.5px] font-bold uppercase tracking-[0.12em] text-accent-foreground shadow-[0_10px_34px_-10px_var(--accent)] transition-transform duration-200 hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-60"
+                      className="btn-shine flex h-12 w-full min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-[3px] bg-accent px-7 text-[14px] font-bold text-accent-foreground shadow-[0_0_28px_-6px_var(--accent)] transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:translate-y-0 disabled:opacity-60"
+
 
                     >
                       {status === "sending" ? (
@@ -278,7 +245,7 @@ export function LeadForm() {
                         </>
                       ) : (
                         <>
-                          Quero conhecer o ConciergeIA <ArrowRight className="size-4 shrink-0" />
+                          Solicitar demonstração! <ArrowRight className="size-4 shrink-0" />
                         </>
                       )}
                     </button>
