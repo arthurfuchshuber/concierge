@@ -165,7 +165,7 @@ export function FeatureRail() {
 
       {/* Mobile: trilho que desliza com encaixe. Desktop: grade. */}
       <div className="mt-12">
-        <div className="ds-scroll-x -mx-5 flex snap-x snap-mandatory gap-4 px-5 pb-2 md:mx-0 md:grid md:grid-cols-2 md:px-0 lg:grid-cols-4">
+        <div className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 lg:grid-cols-4">
           {RECURSOS.map((r, i) => (
             <div key={r.title} className="w-[78vw] max-w-[320px] snap-center md:w-auto md:max-w-none">
               <Reveal delay={0.04 * i}>
