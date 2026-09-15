@@ -37,16 +37,16 @@ export function Hero() {
             Imóveis, equipe, rotinas e atendimento ao hóspede em um só sistema.
           </p>
 
-          <div className="mx-auto mt-8 flex max-w-md flex-col items-stretch gap-3 sm:flex-row sm:justify-center">
+          <div className="mx-auto mt-8 flex w-full max-w-md flex-col items-stretch gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:justify-center">
             <a
               href="#contato"
-              className="inline-flex h-12 min-w-0 items-center justify-center gap-2 rounded-xl bg-accent px-7 text-[14px] font-bold text-accent-foreground shadow-[0_0_28px_-6px_var(--accent)] transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0"
+              className="inline-flex h-12 min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-accent px-7 text-[14px] font-bold text-accent-foreground shadow-[0_0_28px_-6px_var(--accent)] transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0"
             >
               Conhecer o ConciergeIA <ArrowRight className="size-4 shrink-0" />
             </a>
             <a
               href="#contato"
-              className="inline-flex h-12 min-w-0 items-center justify-center rounded-xl border border-white/15 bg-white/[0.03] px-7 text-[14px] font-semibold text-muted-foreground backdrop-blur transition-colors duration-200 hover:border-accent/40 hover:text-foreground"
+              className="inline-flex h-12 min-w-0 items-center justify-center whitespace-nowrap rounded-xl border border-white/15 bg-white/[0.03] px-7 text-[14px] font-semibold text-muted-foreground backdrop-blur transition-colors duration-200 hover:border-accent/40 hover:text-foreground"
             >
               Solicitar uma demonstração
             </a>
