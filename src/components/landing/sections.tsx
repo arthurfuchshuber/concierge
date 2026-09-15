@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { Reveal, Section, SectionHeading, Glow, GradientText, GlassCard } from "./primitives";
 import { PhoneFrame } from "./ProductShot";
-import { RESULT_FEATURES } from "./ResultScreens";
+import { RESULT_FEATURES, ScreenNavContext } from "./ResultScreens";
 import { cn } from "@/lib/utils";
 
 /* ---------------- HERO ---------------- */
@@ -32,13 +32,14 @@ export function Hero() {
           </p>
 
           <h1 className="mt-7 font-display text-[34px] font-extrabold leading-[1.06] tracking-tight text-balance sm:text-[56px]">
-            O <GradientText>CÉREBRO</GradientText>!
+            O <GradientText shine>CÉREBRO</GradientText>!
           </h1>
 
           <p className="mx-auto mt-5 max-w-lg text-[14.5px] font-light leading-relaxed text-muted-foreground text-pretty sm:text-[17px]">
-            Tudo em um só lugar! Rotinas, IA de atendimento ao hóspede, organização e visualização de pendências, entre
-            outras.
+            <span className="block font-medium text-ice">Tudo em um só lugar!</span>
+            Rotinas, IA de atendimento ao hóspede, organização e visualização de pendências, entre outras.
           </p>
+
 
         </Reveal>
       </div>
