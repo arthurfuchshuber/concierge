@@ -75,11 +75,7 @@ const PLANS: PlanCard[] = [
   },
 ];
 
-const COLUMNS: PlanKey[] = ["starter", "pro", "business", "enterprise"];
-
 export function PricingSection() {
-  const [openTable, setOpenTable] = useState(false);
-
   return (
     <Section id="planos">
       <Reveal>
