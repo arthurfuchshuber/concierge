@@ -56,7 +56,7 @@ export function Hero() {
  * com atendimento por IA embutido); as outras seguem em telas ilustradas.
  */
 const ABAS = [
-  { id: "guia", label: "Guia Digital", live: true as const },
+  { id: "guia", label: "O Guia", live: true as const },
   // "Operação" e "Etapas Hóspede" removidos temporariamente a pedido do cliente.
 ];
 
