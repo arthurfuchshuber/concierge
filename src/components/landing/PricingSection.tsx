@@ -86,7 +86,7 @@ export function PricingSection() {
         />
       </Reveal>
 
-      <div className="mt-14 grid gap-2.5 md:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-14 grid gap-2.5 md:grid-cols-3">
         {PLANS.map((p, i) => {
           const isExternal = p.ctaHref.startsWith("#") || p.ctaHref.startsWith("http");
           return (
