@@ -34,7 +34,7 @@ import { GuideMockup } from "./GuideMockup";
 
 export function Hero() {
   return (
-    <section id="topo" className="relative overflow-hidden pt-20 pb-24 sm:pt-28 sm:pb-32">
+    <section id="topo" className="relative overflow-hidden pt-20 pb-16 sm:pt-28 sm:pb-20">
       <Glow className="left-1/2 top-[-200px] h-[460px] w-[820px] max-w-[130vw] -translate-x-1/2" />
       <Glow className="right-[-140px] top-[-60px] h-[360px] w-[360px] opacity-[0.12]" />
 
@@ -47,6 +47,7 @@ export function Hero() {
 
           <h1 className="mx-auto mt-8 max-w-4xl font-display text-[36px] font-extrabold leading-[1.05] tracking-tight text-balance sm:text-[62px]">
             Tudo o que você precisa para operar sua hospedagem.{" "}
+            <br className="hidden sm:block" />
             <GradientText>Em um só lugar.</GradientText>
           </h1>
 
