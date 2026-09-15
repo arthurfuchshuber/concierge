@@ -2,7 +2,7 @@ import { createFileRoute, notFound, redirect, Link, useRouter } from "@tanstack/
 import { useMemo, useState, useEffect, useRef } from "react";
 import { getPublicGuide } from "@/lib/guide.functions";
 import { trackGuideEvent } from "@/lib/guide-analytics.functions";
-import { readAccessRecord, clearPendingOnboarding } from "@/components/GuideAccessGate";
+import { readAccessRecord } from "@/components/GuideAccessGate";
 import {
   ArrowLeft,
   Compass,
@@ -372,10 +372,6 @@ function ExplorePage() {
 
   useEffect(() => {
     setAccessRec(readAccessRecord(slug));
-    // O hóspede já saiu da primeira tela e está navegando pelo guia: o
-    // onboarding de primeiro acesso não deve reaparecer quando ele voltar
-    // para "Chegada" pelo menu inferior.
-    clearPendingOnboarding(slug);
   }, [slug]);
   const realtimePropertyId = r.status === "ok" ? ((r.property as Record<string, unknown>).id as string | null) : null;
   useCityReferencesRealtime({ propertyId: realtimePropertyId }, () => {
@@ -843,7 +839,10 @@ function ExplorePage() {
               onSelect={(k: BottomNavKey) => {
                 if (k === "explore") return;
                 const hash = k === "home" ? "" : `#${k}`;
-                window.location.href = `/g/${slug}${hash}`;
+                // Preserva ?preview=1&demo=1 (vitrine da landing) — sem isso a
+                // volta para o guia caía no formulário/onboarding real.
+                const qs = typeof window !== "undefined" ? window.location.search : "";
+                window.location.href = `/g/${slug}${qs}${hash}`;
               }}
             />
           );

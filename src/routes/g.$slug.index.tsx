@@ -2446,16 +2446,13 @@ function Guide({ data }: { data: GuideOk }) {
             active={active}
             items={items}
             onSelect={(k: BottomNavKey) => {
-              // Navegação livre pelo menu = primeiro acesso encerrado. Sem
-              // isso, voltar para "Chegada" reabria o onboarding.
-              if (!tourActive) clearPendingOnboarding(slug);
               if (k === "home") {
                 setSection("home");
                 window.scrollTo({ top: 0, behavior: "smooth" });
                 return;
               }
               if (k === "explore") {
-                window.location.href = `/g/${slug}/explorar`;
+                window.location.href = `/g/${slug}/explorar${typeof window !== "undefined" ? window.location.search : ""}`;
                 return;
               }
               gotoSection(k as Section);
