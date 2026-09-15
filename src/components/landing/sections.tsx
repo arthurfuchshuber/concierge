@@ -128,13 +128,13 @@ const PASSOS = [
   {
     n: "01",
     icon: Layers,
-    title: "Conhecimento Operacional",
+    title: "Registros e Histórico",
     desc: "Sem informações espalhadas em grupos, planilhas e conversas. Mantém o histórico do imóvel, inventário, fornecedores e registros de ocorrências em um único lugar.",
   },
   {
     n: "02",
     icon: ClipboardList,
-    title: "Operação sem Gargalos",
+    title: "Operação Integrada",
     desc: "Rotina operacional coordenada e informações precisas sobre o que precisa ser feito em cada imóvel.",
   },
   {
@@ -146,7 +146,7 @@ const PASSOS = [
   {
     n: "04",
     icon: BookOpen,
-    title: "Hóspedes + Satisfeitos",
+    title: "Hóspedes mais Satisfeitos",
     desc: "Experiência única, moderna e organizada ao hóspede, reduzindo dúvidas recorrentes, aumentando engajamento e elevando a percepção de valor da sua hospedagem.",
   },
 ];
