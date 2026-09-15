@@ -1395,7 +1395,7 @@ export const RESULT_FEATURES = [
   {
     id: "guia",
     label: "Guia Digital",
-    screens: [GuiaHomeScreen, GuiaInteligenciaScreen],
+    screens: [GuiaHomeScreen, GuiaInteligenciaScreen, GuiaFinalScreen],
   },
   {
     id: "instrucoes",
