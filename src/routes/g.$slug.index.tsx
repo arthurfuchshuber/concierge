@@ -108,7 +108,7 @@ export const Route = createFileRoute("/g/$slug/")({
   validateSearch: (search: Record<string, unknown>): { preview?: string; t?: string; demo?: string } => ({
     ...(typeof search["preview"] === "string" ? { preview: search["preview"] as string } : {}),
     ...(typeof search["t"] === "string" ? { t: search["t"] as string } : {}),
-    ...(typeof search["demo"] === "string" ? { demo: search["demo"] as string } : {}),
+    ...(search["demo"] != null ? { demo: String(search["demo"]) } : {}),
   }),
   loaderDeps: ({ search }) => ({ t: search.t, demo: search.demo }),
   loader: async ({ params, deps }) => {
@@ -2804,7 +2804,9 @@ function HeroCompact({
 }) {
   const [idx, setIdx] = useState(0);
   // Vitrine da landing (?demo=1): o guia é só um espelho, sem troca de tema.
-  const isDemoView = useRouterState({ select: (st) => (st.location.search as { demo?: string }).demo === "1" });
+  const isDemoView = useRouterState({
+    select: (st) => String((st.location.search as { demo?: unknown }).demo ?? "") === "1",
+  });
   const touchStartX = useRef<number | null>(null);
   const total = photos.length;
   const hasMany = total > 1;
@@ -2828,7 +2830,7 @@ function HeroCompact({
   // A logo específica do anfitrião fica no rodapé, não no topo.
   return (
     <section className="relative px-4 md:px-10 lg:px-16 pt-4 pb-3 md:pt-6 md:pb-5">
-      <header data-demo={String(isDemoView)} data-search={useRouterState({ select: (st) => st.location.searchStr })} className="relative z-10 flex items-center justify-between gap-3">
+      <header className="relative z-10 flex items-center justify-between gap-3">
         <div className="flex items-center gap-1.5 min-w-0">
           <img src={conciergeLogo} alt="ConciergeIA" className="size-6 object-contain shrink-0" />
           <span
