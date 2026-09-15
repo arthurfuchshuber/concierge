@@ -32,8 +32,18 @@ import {
   RotateCcw,
   Check,
   Eye,
+  Sun,
+  ArrowRight,
+  CalendarDays,
+  ClipboardList,
+  Brush,
+  Camera,
+  Users,
+  CircleDollarSign,
 } from "lucide-react";
+import sceneApto from "@/assets/landing/scene-apto.jpg.asset.json";
 import { cn } from "@/lib/utils";
+
 
 /**
  * Telas de RESULTADO (o que o hóspede e a equipe realmente veem), recriadas
@@ -116,11 +126,7 @@ function ScreenShell({
 function GuideTopBar() {
   return (
     <div className="flex min-w-0 items-center gap-2 px-3 pt-3">
-      <span
-        aria-hidden
-        className="size-4 shrink-0 rounded-[3px]"
-        style={{ background: GRAD }}
-      />
+      <span aria-hidden className="size-4 shrink-0 rounded-[3px]" style={{ background: GRAD }} />
       <p className="truncate font-display text-[12.5px] font-extrabold tracking-tight">ConciergeIA</p>
       <span className="ml-auto flex shrink-0 items-center gap-1.5 rounded-full border border-white/12 bg-white/[0.05] px-2.5 py-1">
         <span className="size-1.5 rounded-full bg-emerald-400" />
@@ -128,11 +134,14 @@ function GuideTopBar() {
           Foz do Iguaçu
         </span>
       </span>
+      <span className="grid size-6 shrink-0 place-items-center rounded-full border border-white/12 bg-white/[0.05] text-white/70">
+        <Sun className="size-3" />
+      </span>
     </div>
   );
 }
 
-/** Capa real: foto escurecida com título serifado e subtítulo. */
+/** Capa real: foto escurecida com título serifado, subtítulo e indicador de fotos. */
 function HeroCover({
   title,
   sub = "Tudo o que você precisa para uma estadia incrível.",
@@ -143,29 +152,38 @@ function HeroCover({
   return (
     <div className="px-3 pt-3">
       <div className="relative min-w-0 overflow-hidden rounded-[0.7rem] border border-white/10">
+        <img
+          src={sceneApto.url}
+          alt=""
+          aria-hidden
+          loading="lazy"
+          className="absolute inset-0 size-full object-cover"
+        />
         <div
           aria-hidden
           className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(120% 90% at 75% 15%, rgba(232,45,174,0.35) 0%, rgba(124,26,216,0.28) 40%, rgba(8,8,18,0.95) 100%)",
+              "linear-gradient(180deg, rgba(8,8,18,0.15) 0%, rgba(8,8,18,0.55) 55%, rgba(8,8,18,0.92) 100%)",
           }}
         />
-        <div className="relative flex min-h-[132px] flex-col justify-end p-3.5">
-          <p className="font-display text-[19px] font-extrabold leading-[1.1] tracking-tight text-pretty">
+        <div className="relative flex min-h-[158px] flex-col justify-end p-3.5">
+          <p className="font-display text-[19px] font-extrabold leading-[1.12] tracking-tight text-pretty">
             {title}
           </p>
           <p className="mt-1 text-[10.5px] leading-snug text-white/70 text-pretty">{sub}</p>
         </div>
-        <div className="absolute bottom-2.5 right-3 flex items-center gap-1">
+        <div className="absolute bottom-2.5 right-3 flex items-center gap-1.5">
           <span className="h-[3px] w-5 rounded-full bg-white/85" />
-          <span className="h-[3px] w-[3px] rounded-full bg-white/40" />
-          <span className="h-[3px] w-[3px] rounded-full bg-white/40" />
+          <span className="size-[3px] rounded-full bg-white/40" />
+          <span className="size-[3px] rounded-full bg-white/40" />
+          <span className="size-[3px] rounded-full bg-white/40" />
         </div>
       </div>
     </div>
   );
 }
+
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -260,12 +278,6 @@ function Thumb({ icon: Icon }: { icon: React.ComponentType<{ className?: string 
 
 /* =================== GUIA DIGITAL (layout real) =================== */
 
-const ATALHOS = [
-  { icon: KeyRound, t: "Chegada", d: "Check-in a partir das 15h", wide: true },
-  { icon: LogOut, t: "Saída", d: "Check-out até 11h", wide: false },
-  { icon: Wifi, t: "Wi-Fi", d: "Rede e senha", wide: false },
-];
-
 /** Tela inicial real: capa, contagem para o check-in, aviso e acessos rápidos. */
 export function GuiaHomeScreen() {
   return (
@@ -273,67 +285,102 @@ export function GuiaHomeScreen() {
       <GuideTopBar />
       <HeroCover title="Casa Charmosa Próx. a Avenida das Cataratas" />
       <div className="min-w-0 space-y-2.5 px-3 pt-2.5">
-        <div className="min-w-0 rounded-[0.7rem] border border-white/10 bg-white/[0.04] px-3 py-2.5">
+        <div className="min-w-0 rounded-[0.3rem] border border-white/10 bg-white/[0.04] px-3 py-2.5">
           <div className="flex min-w-0 items-center gap-2">
-            <Clock className="size-3.5 shrink-0 text-white/60" />
-            <p className="min-w-0 text-[11px] text-white/70">
-              check-in libera em <span className="font-bold text-accent">11h58</span>
+            <Clock className="size-3.5 shrink-0 text-amber-400" />
+            <p className="min-w-0 text-[11px] text-white/80">
+              check-in libera em{" "}
+              <span className="font-bold tabular-nums text-amber-300">11h42</span>
             </p>
-            <span className="ml-auto flex shrink-0 items-center gap-1 text-[10.5px] text-white/55">
-              15:00 <ChevronDown className="size-3" />
+            <span className="ml-auto flex shrink-0 items-center gap-1 text-[10.5px] tabular-nums text-ice">
+              15:00 <ChevronDown className="size-3 text-white/45" />
             </span>
           </div>
           <div className="mt-2 h-[3px] w-full overflow-hidden rounded-full bg-white/10">
-            <div className="h-full w-1/3 rounded-full" style={{ background: GRAD }} />
+            <div className="h-full w-1/5 rounded-full bg-gradient-to-r from-amber-500 to-amber-300" />
           </div>
         </div>
 
-        <div className="flex min-w-0 gap-2.5 rounded-[0.7rem] border border-amber-400/25 bg-amber-400/[0.07] p-3">
-          <span className="grid size-8 shrink-0 place-items-center rounded-[0.4rem] border border-amber-400/30 text-amber-300">
+        <div className="flex min-w-0 gap-2.5 rounded-[0.3rem] border border-amber-400/20 bg-amber-400/[0.06] p-3">
+          <span className="grid size-9 shrink-0 place-items-center rounded-[0.35rem] bg-amber-400/15 text-amber-300">
             <DoorOpen className="size-4" />
           </span>
           <div className="min-w-0">
-            <p className="text-[8.5px] font-bold uppercase tracking-[0.2em] text-amber-300">
+            <p className="text-[8.5px] font-bold uppercase tracking-[0.2em] text-white/55">
               Importante · check-in
             </p>
-            <p className="mt-1 text-[11px] leading-snug text-white/85 text-pretty">
+            <p className="mt-1 text-[11.5px] leading-snug text-white/90 text-pretty">
               Nos mantenha informados a partir de 1 hora de distância da residência.
             </p>
           </div>
         </div>
 
-        <SectionLabel>Acessos rápidos</SectionLabel>
-        <div className="grid grid-cols-2 gap-2">
-          {ATALHOS.map((a) => (
-            <div
-              key={a.t}
-              className={cn(
-                "min-w-0 rounded-[0.7rem] border border-white/10 bg-white/[0.04] p-3",
-                a.wide && "col-span-2",
-              )}
-            >
-              <span
-                className="grid size-8 place-items-center rounded-[0.4rem]"
-                style={{ background: GRAD }}
-              >
-                <a.icon className="size-4 text-white" />
-              </span>
-              <p className="mt-2 truncate font-display text-[13px] font-bold">{a.t}</p>
-              <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{a.d}</p>
+        <div className="flex min-w-0 items-center gap-2 px-1">
+          <span className="size-1.5 shrink-0 rounded-full" style={{ background: GRAD }} />
+          <p className="shrink-0 text-[8.5px] font-bold uppercase tracking-[0.24em] text-white/70">
+            Acessos rápidos
+          </p>
+          <span className="h-px min-w-0 flex-1 bg-white/10" />
+        </div>
+
+        <div
+          className="relative min-w-0 overflow-hidden rounded-[0.5rem] border border-white/10 p-3.5"
+          style={{
+            background: "linear-gradient(120deg,rgba(124,26,216,0.22),rgba(232,45,174,0.10))",
+          }}
+        >
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="grid size-12 shrink-0 place-items-center rounded-full border border-accent/25 bg-[#2a0f3d] text-accent">
+              <KeyRound className="size-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="truncate font-display text-[17px] font-extrabold tracking-tight">
+                Chegada
+              </p>
+              <p className="truncate text-[10.5px] text-white/60">Check-in a partir das 15h</p>
             </div>
-          ))}
+          </div>
+          <div className="mt-2.5 flex justify-end">
+            <span
+              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-white"
+              style={{ background: GRAD }}
+            >
+              Comece aqui <ArrowRight className="size-3" />
+            </span>
+          </div>
         </div>
       </div>
     </ScreenShell>
   );
 }
 
-/** Continuação real da home: Explorar, clima e bloco do Concierge IA. */
+/** Continuação real da home: saída, Explorar, clima e bloco do Concierge IA. */
 export function GuiaInteligenciaScreen() {
   return (
     <ScreenShell active="home">
       <div className="min-w-0 space-y-2.5 px-3 pt-4">
-        <div className="flex min-w-0 items-center gap-3 rounded-[0.7rem] border border-white/10 bg-white/[0.04] p-3">
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { i: LogOut, t: "Saída", d: "Check-out até 11h" },
+            { i: Wifi, t: "Wi-Fi", d: "Rede e senha" },
+          ].map((a) => (
+            <div
+              key={a.t}
+              className="min-w-0 rounded-[0.5rem] border border-white/10 bg-white/[0.04] p-3"
+            >
+              <span
+                className="grid size-8 place-items-center rounded-[0.35rem]"
+                style={{ background: GRAD }}
+              >
+                <a.i className="size-4 text-white" />
+              </span>
+              <p className="mt-2 truncate font-display text-[13px] font-bold">{a.t}</p>
+              <p className="mt-0.5 truncate text-[10px] text-white/55">{a.d}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex min-w-0 items-center gap-3 rounded-[0.5rem] border border-white/10 bg-white/[0.04] p-3">
           <Thumb icon={Compass} />
           <div className="min-w-0">
             <p className="truncate font-display text-[13px] font-bold">Explore a região</p>
@@ -345,12 +392,12 @@ export function GuiaInteligenciaScreen() {
         </div>
 
         <div className="grid grid-cols-5 gap-2">
-          <div className="col-span-2 min-w-0 rounded-[0.7rem] border border-white/10 bg-white/[0.04] p-3">
+          <div className="col-span-2 min-w-0 rounded-[0.5rem] border border-white/10 bg-white/[0.04] p-3">
             <CloudSun className="size-5 text-accent" />
             <p className="mt-1.5 font-display text-[18px] font-extrabold leading-none">17°C</p>
             <p className="mt-1 truncate text-[10px] text-muted-foreground">Garoa</p>
           </div>
-          <div className="col-span-3 flex min-w-0 items-center justify-between gap-1 rounded-[0.7rem] border border-white/10 bg-white/[0.04] px-2.5 py-3">
+          <div className="col-span-3 flex min-w-0 items-center justify-between gap-1 rounded-[0.5rem] border border-white/10 bg-white/[0.04] px-2.5 py-3">
             {[
               { d: "Hoje", a: "23°", b: "14°" },
               { d: "Qua", a: "24°", b: "10°" },
@@ -370,7 +417,7 @@ export function GuiaInteligenciaScreen() {
         </div>
 
         <div
-          className="min-w-0 rounded-[0.8rem] border border-accent/25 p-3"
+          className="min-w-0 rounded-[0.5rem] border border-accent/25 p-3"
           style={{
             background: "linear-gradient(135deg,rgba(124,26,216,0.22),rgba(232,45,174,0.14))",
           }}
@@ -384,7 +431,7 @@ export function GuiaInteligenciaScreen() {
             </span>
             <div className="min-w-0">
               <p className="font-display text-[13px] font-bold leading-tight text-pretty">
-                Perguntar mais ao Concierge IA
+                Perguntar mais ao Atendimento ao Hóspede
               </p>
               <p className="mt-0.5 text-[10px] text-white/65 text-pretty">
                 Respostas imediatas e personalizadas
@@ -405,7 +452,7 @@ export function GuiaInteligenciaScreen() {
             ].map((c) => (
               <span
                 key={c.t}
-                className="flex min-w-0 items-center gap-1.5 rounded-[0.4rem] border border-white/12 bg-[#0a0a0f]/70 px-2.5 py-1.5 text-[10px] font-medium"
+                className="flex min-w-0 items-center gap-1.5 rounded-[0.3rem] border border-white/12 bg-[#0a0a0f]/70 px-2.5 py-1.5 text-[10px] font-medium"
               >
                 <c.i className="size-3 shrink-0 text-accent" /> {c.t}
               </span>
@@ -418,6 +465,7 @@ export function GuiaInteligenciaScreen() {
     </ScreenShell>
   );
 }
+
 
 export function ChegadaScreen() {
   return (
