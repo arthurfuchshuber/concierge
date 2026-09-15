@@ -34,39 +34,56 @@ import { GuideMockup } from "./GuideMockup";
 
 export function Hero() {
   return (
-    <section id="topo" className="relative overflow-hidden pt-16 pb-20 sm:pt-24 sm:pb-28">
-      <Glow className="left-1/2 top-[-160px] h-[420px] w-[680px] -translate-x-1/2" />
-      <div className="mx-auto grid w-full max-w-6xl items-center gap-14 px-5 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-12">
+    <section id="topo" className="relative overflow-hidden pt-20 pb-24 sm:pt-28 sm:pb-32">
+      <Glow className="left-1/2 top-[-200px] h-[460px] w-[820px] max-w-[130vw] -translate-x-1/2" />
+      <Glow className="right-[-140px] top-[-60px] h-[360px] w-[360px] opacity-[0.12]" />
+
+      <div className="mx-auto w-full max-w-5xl px-5 text-center sm:px-8">
         <Reveal>
-          <p className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-[11px] text-muted-foreground">
-            <span className="size-1.5 rounded-full bg-accent" />
-            O sistema operacional inteligente da sua hospedagem
+          <p className="inline-flex items-center gap-2 rounded-full border border-border bg-card/50 px-3.5 py-1.5 text-[10.5px] font-semibold uppercase tracking-[0.2em] text-muted-foreground backdrop-blur">
+            <span className="size-1.5 animate-pulse rounded-full bg-accent" />
+            <span className="min-w-0">Sistema operacional de hospedagem</span>
           </p>
-          <h1 className="mt-6 font-display text-[34px] leading-[1.06] tracking-tight text-balance sm:text-[52px]">
+
+          <h1 className="mx-auto mt-8 max-w-4xl font-display text-[36px] font-extrabold leading-[1.05] tracking-tight text-balance sm:text-[62px]">
             Tudo o que você precisa para operar sua hospedagem.{" "}
-            <span className="text-accent">Em um só lugar.</span>
+            <GradientText>Em um só lugar.</GradientText>
           </h1>
-          <p className="mt-6 max-w-xl text-[15px] leading-relaxed text-muted-foreground text-pretty sm:text-[17px]">
+
+          <p className="mx-auto mt-7 max-w-2xl text-[15px] font-light leading-relaxed text-muted-foreground text-pretty sm:text-[18px]">
             Do inventário às instruções do imóvel. Dos dados dos proprietários aos fornecedores. Do atendimento ao
             hóspede ao seu guia personalizado. Tudo organizado, acessível e inteligente.
           </p>
-          <div className="mt-9 flex flex-wrap items-center gap-3">
+
+          <div className="mt-10 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
             <a
               href="#contato"
-              className="inline-flex h-11 items-center gap-2 rounded-full bg-foreground px-6 text-[14px] font-semibold text-background transition-transform duration-200 hover:-translate-y-0.5"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-accent px-7 text-[14px] font-bold text-accent-foreground shadow-[0_0_28px_-6px_var(--accent)] transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0"
             >
               Conhecer o ConciergeIA <ArrowRight className="size-4" />
             </a>
             <a
-              href="#como-funciona"
-              className="inline-flex h-11 items-center rounded-full border border-border px-6 text-[14px] text-muted-foreground transition-colors hover:border-accent/40 hover:text-foreground"
+              href="#contato"
+              className="inline-flex h-12 items-center justify-center rounded-xl border border-border bg-card/40 px-7 text-[14px] font-semibold text-muted-foreground backdrop-blur transition-colors duration-200 hover:border-accent/40 hover:text-foreground"
             >
-              Ver como funciona
+              Solicitar uma demonstração
             </a>
           </div>
         </Reveal>
+      </div>
 
-        <DashboardMockup />
+      {/* Painel de produto — moldura com borda iluminada */}
+      <div className="mx-auto mt-16 w-full max-w-6xl px-5 sm:mt-20 sm:px-8">
+        <div className="relative">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -inset-px rounded-[26px] opacity-25 blur-md"
+            style={{ background: "linear-gradient(120deg,#7c1ad8 0%,#e82dae 100%)" }}
+          />
+          <div className="relative">
+            <DashboardMockup />
+          </div>
+        </div>
       </div>
     </section>
   );
