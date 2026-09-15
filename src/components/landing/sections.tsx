@@ -217,7 +217,7 @@ export function AudienceSection() {
                 </span>
                 <div className="min-w-0">
                   <p className="font-display text-[16px] font-bold tracking-tight">{p.title}</p>
-                  <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">{p.desc}</p>
+                  <p className="ds-text-fill mt-2 text-[12.5px] leading-relaxed text-muted-foreground">{p.desc}</p>
                 </div>
               </div>
             </GlassCard>
