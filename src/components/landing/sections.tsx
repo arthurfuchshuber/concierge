@@ -204,7 +204,7 @@ export function AudienceSection() {
   return (
     <Section id="para-quem">
       <Reveal>
-        <SectionHeading eyebrow="Para quem é" title="Feito para operações que já têm complexidade." />
+        <SectionHeading eyebrow="Para quem é" title="Feito para operações em escala." />
       </Reveal>
 
       <div className="mt-12 grid gap-3 md:grid-cols-3">
