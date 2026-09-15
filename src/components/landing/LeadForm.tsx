@@ -17,9 +17,34 @@ const CHALLENGES = [
 const inputClass =
   "h-11 w-full rounded-xl border border-border bg-background/60 px-3.5 text-[13.5px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-accent/60";
 
+/** Telefone brasileiro: (00) 0000-0000 e (00) 00000-0000. */
+function maskPhone(input: string): string {
+  const d = input.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 2) return d.length ? `(${d}` : "";
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+
+/** Nome: só letras, espaços e acentos; cada palavra com inicial maiúscula. */
+function maskName(input: string): string {
+  return input
+    .replace(/[^\p{L}\s'.-]/gu, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/(^|\s)(\p{L})/gu, (_m, sep: string, letter: string) => sep + letter.toUpperCase())
+    .slice(0, 120);
+}
+
+function maskEmail(input: string): string {
+  return input.replace(/\s/g, "").toLowerCase().slice(0, 160);
+}
+
+const EMAIL_RE = /^[^@\s]+@[^@\s.]+\.[^@\s]{2,}$/;
+
 export function LeadForm() {
   const send = useServerFn(submitLandingLead);
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
+  const [erros, setErros] = useState<{ name?: string; email?: string; whatsapp?: string }>({});
   const [form, setForm] = useState({
     name: "",
     company: "",
@@ -34,9 +59,19 @@ export function LeadForm() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (status === "sending") return;
+
+    const digitos = form.whatsapp.replace(/\D/g, "");
+    const novosErros: typeof erros = {};
+    if (form.name.trim().length < 2) novosErros.name = "Informe seu nome.";
+    if (!EMAIL_RE.test(form.email.trim())) novosErros.email = "Informe um e-mail válido.";
+    if (digitos && (digitos.length < 10 || digitos.length > 11))
+      novosErros.whatsapp = "Informe o DDD e o número completo.";
+    setErros(novosErros);
+    if (Object.keys(novosErros).length > 0) return;
+
     setStatus("sending");
     try {
-      await send({ data: form });
+      await send({ data: { ...form, name: form.name.trim(), email: form.email.trim() } });
       setStatus("done");
     } catch {
       setStatus("error");

@@ -16,7 +16,6 @@ import {
   MultiPropertySection,
   ProblemSection,
   ScatterToUnified,
-  SocialProofSection,
 } from "@/components/landing/sections";
 import { metaPixelTrackCustomOnce } from "@/lib/meta-pixel";
 import { siteUrl } from "@/lib/site-url";
@@ -84,7 +83,7 @@ function Landing() {
         <MultiPropertySection />
         <DifferentiatorSection />
         <PricingSection />
-        <SocialProofSection />
+        
         <FinalCTA />
         <LeadForm />
       </main>
