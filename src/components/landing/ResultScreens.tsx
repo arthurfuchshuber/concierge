@@ -1197,34 +1197,15 @@ export function EtapaFinalScreen() {
 
 /* =================== OPERAÇÃO (painel do anfitrião) =================== */
 
-const OP_TABS = ["Resumo", "Kanban", "Calendário", "Limpeza", "Registros"];
-
 function AdminShell({ tab, children }: { tab: string; children: React.ReactNode }) {
   return (
     <div className="flex h-full min-h-[460px] min-w-0 flex-col bg-[#0a0a0f]">
-      <div className="flex min-w-0 items-center gap-2 px-3 pt-3">
-        <span aria-hidden className="size-4 shrink-0 rounded-[3px]" style={{ background: GRAD }} />
-        <p className="truncate font-display text-[12.5px] font-extrabold tracking-tight">
-          Operação
-        </p>
+      <div className="flex min-w-0 items-center gap-2 px-3 pt-7">
+        <img src={conciergeLogo} alt="" aria-hidden className="size-4 shrink-0 object-contain" />
+        <p className="truncate font-display text-[12.5px] font-extrabold tracking-tight">{tab}</p>
         <span className="ml-auto shrink-0 rounded-full border border-white/12 bg-white/[0.05] px-2.5 py-1 text-[9px] font-semibold text-white/60">
           Hoje
         </span>
-      </div>
-      <div className="ds-scroll-x mt-2.5 flex gap-1.5 px-3">
-        {OP_TABS.map((t) => (
-          <span
-            key={t}
-            className={cn(
-              "rounded-full border px-2.5 py-1 text-[9.5px] font-semibold whitespace-nowrap",
-              t === tab
-                ? "border-accent/40 bg-accent/15 text-ice"
-                : "border-white/10 bg-white/[0.03] text-white/50",
-            )}
-          >
-            {t}
-          </span>
-        ))}
       </div>
       <div className="min-w-0 flex-1 px-3 pb-4 pt-3">{children}</div>
     </div>
