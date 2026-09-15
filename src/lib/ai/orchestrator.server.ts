@@ -306,6 +306,7 @@ export async function runHospitalityAgent(params: {
   const [
     { routing, usage: routeUsage, model: supervisorModel },
     { plan, usage: planUsage, model: plannerModel },
+    context,
   ] = await Promise.all([
     routeToAgent({
       message: params.message,
@@ -321,6 +322,14 @@ export async function runHospitalityAgent(params: {
       explorationMode,
       contextHint: guestContext.text.slice(0, 2500),
     }),
+    // Contexto da residência é só leitura de banco: rodava em série depois do
+    // supervisor/planejador e somava latência à toa em toda mensagem.
+    buildAgentContext({
+      supabase,
+      property,
+      guestName: params.guestName,
+      memory,
+    }),
   ]);
   usage = mergeUsage(usage, routeUsage);
   if (supervisorModel) models.supervisor = supervisorModel;
@@ -329,12 +338,6 @@ export async function runHospitalityAgent(params: {
   if (plannerModel) models.planner = plannerModel;
   rememberPlan(params.conversationId, plan);
 
-  const context = await buildAgentContext({
-    supabase,
-    property,
-    guestName: params.guestName,
-    memory,
-  });
 
   stage("retrieval", "Consultando o guia da residência");
   // 4) Pré-recuperação Hybrid RAG (indexa sob demanda na primeira vez)
