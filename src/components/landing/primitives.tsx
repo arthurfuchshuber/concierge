@@ -91,7 +91,7 @@ export function Surface({
   return (
     <div
       className={cn(
-        "relative rounded-2xl border border-border bg-card/60 backdrop-blur-sm",
+        "relative rounded-3xl border border-border bg-card/60 backdrop-blur-sm",
         "shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset,0_18px_40px_-28px_rgba(0,0,0,0.9)]",
         hover &&
           "transition-[transform,border-color,background-color] duration-300 hover:-translate-y-0.5 hover:border-accent/35 hover:bg-card/85",

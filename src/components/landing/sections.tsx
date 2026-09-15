@@ -588,23 +588,23 @@ export function FinalCTA() {
       <Glow className="left-1/2 top-1/2 h-[360px] w-[620px] -translate-x-1/2 -translate-y-1/2" />
       <Reveal>
         <div className="mx-auto max-w-3xl text-center">
-          <h2 className="font-display text-[28px] leading-[1.1] tracking-tight text-balance sm:text-[44px]">
-            Sua operação merece um lugar para chamar de casa.
+          <h2 className="font-display text-[30px] font-extrabold leading-[1.06] tracking-tight text-balance sm:text-[48px]">
+            Sua operação merece <GradientText>um lugar para chamar de casa.</GradientText>
           </h2>
-          <p className="mx-auto mt-6 max-w-2xl text-[15px] leading-relaxed text-muted-foreground text-pretty sm:text-[17px]">
+          <p className="mx-auto mt-6 max-w-2xl text-[15px] font-light leading-relaxed text-muted-foreground text-pretty sm:text-[17px]">
             Centralize sua operação, organize seu conhecimento e transforme a maneira como você administra seus
             imóveis.
           </p>
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+          <div className="mt-10 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
             <a
               href="#contato"
-              className="inline-flex h-11 items-center gap-2 rounded-full bg-foreground px-6 text-[14px] font-semibold text-background transition-transform duration-200 hover:-translate-y-0.5"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-accent px-7 text-[14px] font-bold text-accent-foreground shadow-[0_0_28px_-6px_var(--accent)] transition-transform duration-200 hover:-translate-y-0.5"
             >
               Conhecer o ConciergeIA <ArrowRight className="size-4" />
             </a>
             <a
               href="#contato"
-              className="inline-flex h-11 items-center rounded-full border border-border px-6 text-[14px] text-muted-foreground transition-colors hover:border-accent/40 hover:text-foreground"
+              className="inline-flex h-12 items-center justify-center rounded-xl border border-border bg-card/40 px-7 text-[14px] font-semibold text-muted-foreground backdrop-blur transition-colors hover:border-accent/40 hover:text-foreground"
             >
               Solicitar uma demonstração
             </a>
