@@ -15,7 +15,7 @@ import {
 import { Reveal, Section, SectionHeading, Glow, GradientText, GlassCard } from "./primitives";
 import { PhoneFrame } from "./ProductShot";
 import { RESULT_FEATURES, ScreenNavContext } from "./ResultScreens";
-import { InteractiveGuide } from "./InteractiveGuide";
+import { LiveGuideFrame } from "./LiveGuideFrame";
 import { cn } from "@/lib/utils";
 
 /* ---------------- HERO ---------------- */
@@ -100,7 +100,7 @@ function ResultShowcase() {
         <div className="relative">
           <ScreenNavContext.Provider value={() => {}}>
             <PhoneFrame className="w-full">
-              {liveTab || !Screen ? <InteractiveGuide /> : <Screen />}
+              {liveTab || !Screen ? <LiveGuideFrame /> : <Screen />}
             </PhoneFrame>
           </ScreenNavContext.Provider>
 
