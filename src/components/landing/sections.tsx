@@ -83,43 +83,31 @@ function ResultShowcase() {
         ))}
       </div>
 
-      {/* celular + seta de avanço dentro do recurso */}
-      <div className="mt-8 flex items-center justify-start gap-3 sm:gap-6">
-        <PhoneFrame className="w-[min(320px,66vw)]">
-          <Screen />
-        </PhoneFrame>
+      {/* celular centralizado + seta de avanço dentro do recurso */}
+      <div className="mx-auto mt-8 w-[min(440px,92%)] min-w-0">
+        <div className="relative">
+          <PhoneFrame className="w-full">
+            <Screen />
+          </PhoneFrame>
 
-        <div className="flex min-w-0 flex-col items-center gap-3">
           <button
             type="button"
             onClick={() => setShot((v) => (v + 1) % screens.length)}
             aria-label="Ver próximo exemplo deste recurso"
-            className="grid size-11 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-muted-foreground transition-colors hover:border-accent/40 hover:text-foreground"
+            className="absolute top-1/2 -right-3 grid size-11 -translate-y-1/2 place-items-center rounded-full border border-white/10 bg-[#12121c]/90 text-muted-foreground shadow-lg backdrop-blur transition-colors hover:border-accent/40 hover:text-foreground sm:-right-6"
           >
             <ChevronRight className="size-5" />
           </button>
-          <div className="flex flex-col items-center gap-1.5">
-            {screens.map((_, idx) => (
-              <span
-                key={idx}
-                className={cn(
-                  "size-1.5 rounded-full transition-colors",
-                  idx === shot % screens.length ? "bg-accent" : "bg-white/20",
-                )}
-              />
-            ))}
-          </div>
         </div>
-      </div>
 
-      <div className="mt-9 flex justify-start">
         <a
           href="#contato"
-          className="btn-shine inline-flex h-12 min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-accent px-7 text-[14px] font-bold text-accent-foreground shadow-[0_0_28px_-6px_var(--accent)] transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0"
+          className="btn-shine mt-8 flex h-12 w-full min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-accent px-7 text-[14px] font-bold text-accent-foreground shadow-[0_0_28px_-6px_var(--accent)] transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0"
         >
           Solicitar demonstração! <ArrowRight className="size-4 shrink-0" />
         </a>
       </div>
+
     </div>
   );
 }
