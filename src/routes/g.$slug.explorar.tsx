@@ -172,27 +172,31 @@ function hasMeaningfulInfo(r: Rec): boolean {
 }
 
 // "Pertinho" — top-level helper, usado nos cards para destaque visual.
+function walkMinutesOf(r: Rec): number | null {
+  if (typeof r.walk_minutes === "number" && r.walk_minutes > 0) return r.walk_minutes;
+  if (typeof r.distance_meters === "number" && r.distance_meters > 0)
+    return Math.max(1, Math.round(r.distance_meters / 80));
+  return null;
+}
+
 function isPertinhoRec(r: Rec): boolean {
   if (typeof r.distance_meters === "number" && r.distance_meters > 0 && r.distance_meters <= 1500) return true;
-  if (typeof r.walk_minutes === "number" && r.walk_minutes > 0 && r.walk_minutes <= 20) return true;
+  const mins = walkMinutesOf(r);
+  if (mins != null && mins <= 30) return true;
   return false;
 }
 
-function formatWalking(r: Rec): string | null {
-  const mins =
-    r.walk_minutes != null && r.walk_minutes > 0
-      ? r.walk_minutes
-      : r.distance_meters != null
-        ? Math.max(1, Math.round(r.distance_meters / 80))
-        : null;
+/** Distância (km/m) e tempo a pé em linhas separadas. */
+function walkingParts(r: Rec): { distance: string | null; walk: string | null } {
+  const mins = walkMinutesOf(r);
+  let distance: string | null = null;
   if (r.distance_meters != null) {
     const m = r.distance_meters;
-    const dist = m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1).replace(/\.0$/, "")} km`;
-    return mins ? `${dist} · ${mins} min a pé` : `${dist} a pé`;
+    distance = m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1).replace(/\.0$/, "")} km`;
+  } else if (r.distance_text) {
+    distance = r.distance_text;
   }
-  if (mins) return `${mins} min a pé`;
-  if (r.distance_text) return r.distance_text;
-  return null;
+  return { distance, walk: mins ? `${mins} min a pé` : null };
 }
 
 function formatDriving(r: Rec): string | null {
