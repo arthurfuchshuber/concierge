@@ -2039,12 +2039,11 @@ function Guide({ data }: { data: GuideOk }) {
                                     <TabsTrigger
                                       value="senhas"
                                       data-tour="senhas-tab"
-                                      className="grid h-[38px] w-full min-w-0 place-items-center rounded-[0.3rem] text-[13px] font-semibold"
-                                      style={{ flex: "none" }}
+                                      className="grid h-[38px] w-full !min-w-0 place-items-center rounded-[0.3rem] text-[13px] font-semibold"
                                     >
                                       Senhas
                                     </TabsTrigger>
-                                  </TabsList>
+                                  </TabsPrimitive.List>
                                   <TabsContent value="passos">{stepsContent}</TabsContent>
                                   <TabsContent value="senhas" data-tour="senhas-panel">
                                     {passwordsContent}
