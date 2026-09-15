@@ -43,6 +43,7 @@ import { Route as ApiPublicGuideChatRouteImport } from './routes/api/public/guid
 import { Route as ApiPublicGuestPushRouteImport } from './routes/api/public/guest-push'
 import { Route as ApiPublicGuestDocUploadRouteImport } from './routes/api/public/guest-doc-upload'
 import { Route as ApiPublicClicksignWebhookRouteImport } from './routes/api/public/clicksign-webhook'
+import { Route as ApiPublicChannexProcessarFilaRouteImport } from './routes/api/public/channex-processar-fila'
 import { Route as AuthenticatedAdminTaxonomiaRouteImport } from './routes/_authenticated/admin.taxonomia'
 import { Route as AuthenticatedAdminStakeholdersRouteImport } from './routes/_authenticated/admin.stakeholders'
 import { Route as AuthenticatedAdminInteligenciaRouteImport } from './routes/_authenticated/admin.inteligencia'
@@ -267,6 +268,12 @@ const ApiPublicClicksignWebhookRoute =
   ApiPublicClicksignWebhookRouteImport.update({
     id: '/api/public/clicksign-webhook',
     path: '/api/public/clicksign-webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicChannexProcessarFilaRoute =
+  ApiPublicChannexProcessarFilaRouteImport.update({
+    id: '/api/public/channex-processar-fila',
+    path: '/api/public/channex-processar-fila',
     getParentRoute: () => rootRouteImport,
   } as any)
 const AuthenticatedAdminTaxonomiaRoute =
@@ -592,6 +599,7 @@ export interface FileRoutesByFullPath {
   '/admin/inteligencia': typeof AuthenticatedAdminInteligenciaRoute
   '/admin/stakeholders': typeof AuthenticatedAdminStakeholdersRoute
   '/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
+  '/api/public/channex-processar-fila': typeof ApiPublicChannexProcessarFilaRoute
   '/api/public/clicksign-webhook': typeof ApiPublicClicksignWebhookRoute
   '/api/public/guest-doc-upload': typeof ApiPublicGuestDocUploadRoute
   '/api/public/guest-push': typeof ApiPublicGuestPushRoute
@@ -673,6 +681,7 @@ export interface FileRoutesByTo {
   '/admin/inteligencia': typeof AuthenticatedAdminInteligenciaRoute
   '/admin/stakeholders': typeof AuthenticatedAdminStakeholdersRoute
   '/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
+  '/api/public/channex-processar-fila': typeof ApiPublicChannexProcessarFilaRoute
   '/api/public/clicksign-webhook': typeof ApiPublicClicksignWebhookRoute
   '/api/public/guest-doc-upload': typeof ApiPublicGuestDocUploadRoute
   '/api/public/guest-push': typeof ApiPublicGuestPushRoute
@@ -759,6 +768,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/inteligencia': typeof AuthenticatedAdminInteligenciaRoute
   '/_authenticated/admin/stakeholders': typeof AuthenticatedAdminStakeholdersRoute
   '/_authenticated/admin/taxonomia': typeof AuthenticatedAdminTaxonomiaRoute
+  '/api/public/channex-processar-fila': typeof ApiPublicChannexProcessarFilaRoute
   '/api/public/clicksign-webhook': typeof ApiPublicClicksignWebhookRoute
   '/api/public/guest-doc-upload': typeof ApiPublicGuestDocUploadRoute
   '/api/public/guest-push': typeof ApiPublicGuestPushRoute
@@ -845,6 +855,7 @@ export interface FileRouteTypes {
     | '/admin/inteligencia'
     | '/admin/stakeholders'
     | '/admin/taxonomia'
+    | '/api/public/channex-processar-fila'
     | '/api/public/clicksign-webhook'
     | '/api/public/guest-doc-upload'
     | '/api/public/guest-push'
@@ -926,6 +937,7 @@ export interface FileRouteTypes {
     | '/admin/inteligencia'
     | '/admin/stakeholders'
     | '/admin/taxonomia'
+    | '/api/public/channex-processar-fila'
     | '/api/public/clicksign-webhook'
     | '/api/public/guest-doc-upload'
     | '/api/public/guest-push'
@@ -1011,6 +1023,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/inteligencia'
     | '/_authenticated/admin/stakeholders'
     | '/_authenticated/admin/taxonomia'
+    | '/api/public/channex-processar-fila'
     | '/api/public/clicksign-webhook'
     | '/api/public/guest-doc-upload'
     | '/api/public/guest-push'
@@ -1081,6 +1094,7 @@ export interface RootRouteChildren {
   GSlugRoute: typeof GSlugRouteWithChildren
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiPublicChannexProcessarFilaRoute: typeof ApiPublicChannexProcessarFilaRoute
   ApiPublicClicksignWebhookRoute: typeof ApiPublicClicksignWebhookRoute
   ApiPublicGuestDocUploadRoute: typeof ApiPublicGuestDocUploadRoute
   ApiPublicGuestPushRoute: typeof ApiPublicGuestPushRoute
@@ -1356,6 +1370,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/clicksign-webhook'
       fullPath: '/api/public/clicksign-webhook'
       preLoaderRoute: typeof ApiPublicClicksignWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/channex-processar-fila': {
+      id: '/api/public/channex-processar-fila'
+      path: '/api/public/channex-processar-fila'
+      fullPath: '/api/public/channex-processar-fila'
+      preLoaderRoute: typeof ApiPublicChannexProcessarFilaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin/taxonomia': {
@@ -1829,6 +1850,7 @@ const rootRouteChildren: RootRouteChildren = {
   GSlugRoute: GSlugRouteWithChildren,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiPublicChannexProcessarFilaRoute: ApiPublicChannexProcessarFilaRoute,
   ApiPublicClicksignWebhookRoute: ApiPublicClicksignWebhookRoute,
   ApiPublicGuestDocUploadRoute: ApiPublicGuestDocUploadRoute,
   ApiPublicGuestPushRoute: ApiPublicGuestPushRoute,
