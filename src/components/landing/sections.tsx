@@ -9,54 +9,37 @@ import {
   Bot,
   BookOpen,
   ClipboardList,
-  MessageSquare,
-  Table2,
-  StickyNote,
-  FileStack,
-  Brain,
-  Check,
+  Layers,
+  Sparkles,
+  UserCheck,
 } from "lucide-react";
-import {
-  Reveal,
-  Section,
-  SectionHeading,
-  Surface,
-  Glow,
-  Eyebrow,
-  GradientText,
-  BentoCard,
-} from "./primitives";
+import { Reveal, Section, SectionHeading, Glow, GradientText, BentoCard } from "./primitives";
 import { DashboardMockup } from "./DashboardMockup";
-import { ChatMockup } from "./ChatMockup";
-import { GuideMockup } from "./GuideMockup";
 
 /* ---------------- HERO ---------------- */
 
 export function Hero() {
   return (
-    <section id="topo" className="relative overflow-hidden pt-20 pb-16 sm:pt-28 sm:pb-20">
-      <Glow className="left-1/2 top-[-200px] h-[460px] w-[820px] max-w-[130vw] -translate-x-1/2" />
-      <Glow className="right-[-140px] top-[-60px] h-[360px] w-[360px] opacity-[0.12]" />
+    <section id="topo" className="relative overflow-hidden pt-16 pb-14 sm:pt-24 sm:pb-20">
+      <Glow className="left-1/2 top-[-220px] h-[420px] w-[760px] max-w-[130vw] -translate-x-1/2" />
 
-      <div className="mx-auto w-full max-w-5xl px-5 text-center sm:px-8">
+      <div className="mx-auto w-full max-w-3xl px-5 text-center sm:px-8">
         <Reveal>
           <p className="inline-flex items-center gap-2 rounded-full border border-border bg-card/50 px-3.5 py-1.5 text-[10.5px] font-semibold uppercase tracking-[0.2em] text-muted-foreground backdrop-blur">
             <span className="size-1.5 animate-pulse rounded-full bg-accent" />
             <span className="min-w-0">Sistema operacional de hospedagem</span>
           </p>
 
-          <h1 className="mx-auto mt-8 max-w-4xl font-display text-[36px] font-extrabold leading-[1.05] tracking-tight text-balance sm:text-[62px]">
-            Tudo o que você precisa para operar sua hospedagem.{" "}
-            <br className="hidden sm:block" />
-            <GradientText>Em um só lugar.</GradientText>
+          <h1 className="mt-8 font-display text-[36px] font-extrabold leading-[1.06] tracking-tight text-balance sm:text-[58px]">
+            Sua operação de hospedagem,{" "}
+            <GradientText>organizada em um só lugar.</GradientText>
           </h1>
 
-          <p className="mx-auto mt-7 max-w-2xl text-[15px] font-light leading-relaxed text-muted-foreground text-pretty sm:text-[18px]">
-            Do inventário às instruções do imóvel. Dos dados dos proprietários aos fornecedores. Do atendimento ao
-            hóspede ao seu guia personalizado. Tudo organizado, acessível e inteligente.
+          <p className="mx-auto mt-6 max-w-xl text-[15px] font-light leading-relaxed text-muted-foreground text-pretty sm:text-[17px]">
+            Imóveis, proprietários, fornecedores, rotinas e atendimento ao hóspede na mesma base de conhecimento.
           </p>
 
-          <div className="mt-10 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
+          <div className="mt-9 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
             <a
               href="#contato"
               className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-accent px-7 text-[14px] font-bold text-accent-foreground shadow-[0_0_28px_-6px_var(--accent)] transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0"
@@ -73,12 +56,12 @@ export function Hero() {
         </Reveal>
       </div>
 
-      {/* Painel de produto — moldura com borda iluminada */}
-      <div className="mx-auto mt-16 w-full max-w-6xl px-5 sm:mt-20 sm:px-8">
+      {/* Painel do sistema */}
+      <div className="mx-auto mt-14 w-full max-w-5xl px-5 sm:px-8">
         <div className="relative">
           <div
             aria-hidden
-            className="pointer-events-none absolute -inset-px rounded-[26px] opacity-25 blur-md"
+            className="pointer-events-none absolute -inset-px rounded-[26px] opacity-20 blur-md"
             style={{ background: "linear-gradient(120deg,#7c1ad8 0%,#e82dae 100%)" }}
           />
           <div className="relative">
@@ -90,145 +73,145 @@ export function Hero() {
   );
 }
 
-/* ---------------- FRASE DE IMPACTO ---------------- */
-
-const DISPERSOS = [
-  { icon: MessageSquare, label: "WhatsApp" },
-  { icon: Table2, label: "Planilhas" },
-  { icon: StickyNote, label: "Anotações" },
-  { icon: FileStack, label: "Documentos" },
-  { icon: Brain, label: "Memória" },
-  { icon: ClipboardList, label: "Informações espalhadas" },
-];
-
-export function ScatterToUnified() {
-  return (
-    <Section id="produto" className="relative overflow-hidden">
-      <Glow className="right-[-120px] top-10 h-[320px] w-[420px]" />
-      <Reveal>
-        <SectionHeading
-          eyebrow="Ponto de partida"
-          title="Sua operação já tem todas essas informações. A questão é onde elas estão."
-        />
-      </Reveal>
-
-      <div className="mt-14 grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,0.85fr)]">
-        <Reveal delay={0.05}>
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-2">
-            {DISPERSOS.map((d) => (
-              <div
-                key={d.label}
-                className="flex items-center gap-2 rounded-xl border border-dashed border-border px-3 py-3 text-[12px] text-muted-foreground"
-              >
-                <d.icon className="size-3.5 shrink-0" />
-                <span className="min-w-0 truncate">{d.label}</span>
-              </div>
-            ))}
-          </div>
-        </Reveal>
-
-        <Reveal delay={0.1}>
-          <div className="flex items-center justify-center lg:h-full lg:flex-col">
-            <span className="hidden h-px w-16 bg-gradient-to-r from-transparent via-accent/50 to-transparent lg:block" />
-            <ArrowRight className="size-5 rotate-90 text-accent lg:rotate-0" />
-            <span className="hidden h-px w-16 bg-gradient-to-r from-transparent via-accent/50 to-transparent lg:block" />
-          </div>
-        </Reveal>
-
-        <Reveal delay={0.15}>
-          <Surface className="p-7 text-center">
-            <p className="font-display text-[22px] tracking-tight">ConciergeIA</p>
-            <p className="mt-3 text-[14px] leading-relaxed text-muted-foreground text-pretty">
-              Uma única fonte de verdade para sua operação.
-            </p>
-          </Surface>
-        </Reveal>
-      </div>
-    </Section>
-  );
-}
-
-/* ---------------- PROBLEMA ---------------- */
+/* ---------------- O PROBLEMA ---------------- */
 
 const PROBLEMAS = [
-  "Informações espalhadas",
-  "Dependência de pessoas específicas",
-  "Processos não padronizados",
-  "Instruções difíceis de encontrar",
-  "Inventários desatualizados",
-  "Informações perdidas no WhatsApp",
-  "Equipe sem uma fonte central de conhecimento",
+  {
+    n: "01",
+    title: "A informação se espalha",
+    desc: "Instruções no WhatsApp, inventário na planilha, contatos na cabeça de alguém. Encontrar leva mais tempo do que resolver.",
+  },
+  {
+    n: "02",
+    title: "O padrão depende de pessoas",
+    desc: "Cada imóvel tem suas particularidades e cada pessoa da equipe responde de um jeito. Sem uma fonte central, o padrão se perde.",
+  },
 ];
 
 export function ProblemSection() {
   return (
-    <Section id="para-quem">
-      <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
-        <Reveal>
-          <SectionHeading
-            align="left"
-            eyebrow="O problema"
-            title="Quando a operação cresce, a informação se espalha."
-            description="Cada imóvel tem suas particularidades. Cada proprietário tem suas informações. Cada fornecedor tem seus contatos. Cada equipe precisa saber o que fazer. E o hóspede espera respostas rápidas e precisas."
-          />
-          <p className="mt-8 border-l-2 border-accent/60 pl-5 font-display text-[18px] leading-snug tracking-tight text-balance sm:text-[21px]">
-            O problema não é ter informação. É conseguir encontrá-la quando você precisa.
-          </p>
-        </Reveal>
+    <Section id="problema" className="relative overflow-hidden">
+      <Reveal>
+        <SectionHeading
+          eyebrow="O problema"
+          title="Quando a operação cresce, o conhecimento se dispersa."
+        />
+      </Reveal>
 
-        <Reveal delay={0.08}>
-          <ul className="space-y-1.5">
-            {PROBLEMAS.map((p) => (
-              <li
-                key={p}
-                className="flex items-center gap-3 rounded-xl border border-border bg-card/40 px-4 py-3.5 text-[13.5px] text-muted-foreground"
-              >
-                <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
-                <span className="min-w-0">{p}</span>
-              </li>
-            ))}
-          </ul>
-        </Reveal>
+      <div className="mx-auto mt-12 grid max-w-3xl gap-4 sm:grid-cols-2">
+        {PROBLEMAS.map((p, i) => (
+          <Reveal key={p.n} delay={0.05 * i}>
+            <BentoCard className="h-full">
+              <span className="font-display text-[22px] font-bold tracking-tight text-accent">{p.n}</span>
+              <h3 className="mt-4 font-display text-[18px] font-bold tracking-tight">{p.title}</h3>
+              <p className="mt-3 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">{p.desc}</p>
+            </BentoCard>
+          </Reveal>
+        ))}
       </div>
     </Section>
   );
 }
 
-/* ---------------- GRADE BENTO DA OPERAÇÃO ---------------- */
+/* ---------------- NARRATIVA ---------------- */
+
+const PASSOS = [
+  {
+    n: "01",
+    icon: Layers,
+    title: "Informação",
+    desc: "Tudo o que a sua operação já sabe — imóveis, acessos, contatos, particularidades — cadastrado em um só lugar.",
+  },
+  {
+    n: "02",
+    icon: ClipboardList,
+    title: "Organização",
+    desc: "Instruções, inventários e rotinas estruturados no mesmo padrão, disponíveis para toda a equipe.",
+  },
+  {
+    n: "03",
+    icon: Sparkles,
+    title: "Inteligência",
+    desc: "A IA responde com base no que está cadastrado e encaminha à equipe o que exige decisão humana.",
+  },
+  {
+    n: "04",
+    icon: BookOpen,
+    title: "Experiência",
+    desc: "O hóspede recebe um guia digital claro, com tudo o que precisa antes, durante e depois da estadia.",
+  },
+];
+
+export function NarrativeSection() {
+  return (
+    <Section id="produto" className="relative overflow-hidden">
+      <Glow className="right-[-140px] top-16 h-[300px] w-[380px]" />
+      <Reveal>
+        <SectionHeading
+          eyebrow="Como funciona"
+          title="Da informação solta à experiência do hóspede."
+          description="Quatro camadas que se apoiam umas nas outras, na ordem em que a operação acontece."
+        />
+      </Reveal>
+
+      <div className="mx-auto mt-14 max-w-3xl">
+        <ol className="relative space-y-4 border-l border-border pl-6 sm:pl-8">
+          {PASSOS.map((p, i) => (
+            <Reveal key={p.n} delay={0.05 * i}>
+              <li className="relative">
+                <span
+                  aria-hidden
+                  className="absolute -left-[31px] top-6 size-2 rounded-full bg-accent sm:-left-[39px]"
+                />
+                <BentoCard className="p-6 sm:p-7">
+                  <div className="flex min-w-0 items-start gap-4">
+                    <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-border bg-background/50">
+                      <p.icon className="size-5 text-accent" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[10.5px] font-bold uppercase tracking-[0.28em] text-muted-foreground/70">
+                        {p.n}
+                      </p>
+                      <h3 className="mt-1.5 font-display text-[18px] font-bold tracking-tight">{p.title}</h3>
+                      <p className="mt-2.5 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
+                        {p.desc}
+                      </p>
+                    </div>
+                  </div>
+                </BentoCard>
+              </li>
+            </Reveal>
+          ))}
+        </ol>
+      </div>
+    </Section>
+  );
+}
+
+/* ---------------- GRADE BENTO ---------------- */
 
 const BENTO_COMPACTOS = [
-  {
-    icon: Boxes,
-    title: "Inventário",
-    desc: "Itens e recursos de cada imóvel sob controle, sem planilhas dispersas.",
-  },
-  {
-    icon: ClipboardList,
-    title: "Instruções",
-    desc: "Conhecimento operacional transformado em passos claros para a equipe.",
-  },
-  {
-    icon: FileText,
-    title: "Registros",
-    desc: "Ocorrências e acontecimentos importantes registrados no lugar certo.",
-  },
+  { icon: Building2, title: "Gestão de imóveis", desc: "Particularidades, acessos e histórico de cada unidade." },
+  { icon: Users, title: "Proprietários", desc: "Dados, preferências e combinados de cada proprietário." },
+  { icon: Wrench, title: "Fornecedores", desc: "Quem atende o quê e como acionar, sem depender de memória." },
+  { icon: Boxes, title: "Inventário", desc: "Itens e recursos de cada imóvel sob controle." },
 ];
 
 export function BentoSection() {
   return (
     <Section id="recursos" className="relative overflow-hidden">
-      <Glow className="left-[-160px] top-24 h-[340px] w-[420px]" />
+      <Glow className="left-[-160px] top-24 h-[320px] w-[400px]" />
       <Reveal>
         <SectionHeading
-          eyebrow="A operação"
-          title="Cada parte da sua operação com o seu próprio painel."
+          eyebrow="Recursos"
+          title="Cada parte da operação com o seu próprio lugar."
           description="Uma camada central que conecta pessoas, imóveis, processos e informação."
         />
       </Reveal>
 
-      <div className="mt-14 grid grid-cols-1 gap-4 md:grid-cols-4 lg:grid-cols-6">
-        {/* Atendimento IA */}
-        <Reveal className="md:col-span-2 lg:col-span-3">
+      <div className="mt-14 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {/* Atendimento IA — destaque */}
+        <Reveal className="lg:col-span-2 lg:row-span-2">
           <BentoCard glow className="h-full">
             <span
               className="mb-6 grid size-12 shrink-0 place-items-center rounded-xl"
@@ -236,82 +219,80 @@ export function BentoSection() {
             >
               <Bot className="size-6 text-white" />
             </span>
-            <h3 className="font-display text-[20px] font-bold tracking-tight sm:text-[24px]">Atendimento IA</h3>
+            <h3 className="font-display text-[22px] font-bold tracking-tight sm:text-[26px]">Atendimento IA</h3>
             <p className="mt-3 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
               Uma inteligência preparada para responder aos hóspedes com base no conhecimento cadastrado da sua
-              operação — no seu padrão, sem suposições.
+              operação — no seu padrão, sem suposições, e com encaminhamento à equipe quando o assunto exige
+              decisão humana.
             </p>
-          </BentoCard>
-        </Reveal>
-
-        {/* Gestão de imóveis */}
-        <Reveal delay={0.05} className="md:col-span-2 lg:col-span-3">
-          <BentoCard className="h-full">
-            <span className="mb-6 grid size-12 shrink-0 place-items-center rounded-xl border border-border bg-background/50">
-              <Building2 className="size-6 text-accent" />
-            </span>
-            <h3 className="font-display text-[20px] font-bold tracking-tight sm:text-[24px]">Gestão de imóveis</h3>
-            <p className="mt-3 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
-              Todas as informações de cada unidade — particularidades, acessos e histórico — organizadas em uma
-              única interface.
-            </p>
-          </BentoCard>
-        </Reveal>
-
-        {/* Pessoas da operação */}
-        <Reveal delay={0.1} className="md:col-span-2 lg:col-span-2">
-          <BentoCard className="h-full items-center justify-center text-center">
-            <div className="flex items-center justify-center gap-4">
-              <Users className="size-5 text-accent" />
-              <Wrench className="size-5 text-accent" />
+            <div className="mt-8 space-y-2.5">
+              {[
+                "Responde com base no que está cadastrado.",
+                "Mantém o mesmo padrão em todos os imóveis.",
+                "Registra o que foi tratado com cada hóspede.",
+              ].map((t) => (
+                <p
+                  key={t}
+                  className="rounded-xl border border-border bg-background/40 px-4 py-3 text-[12.5px] text-muted-foreground"
+                >
+                  {t}
+                </p>
+              ))}
             </div>
-            <p className="mt-5 font-display text-[19px] font-bold tracking-tight">
-              Proprietários e fornecedores
-            </p>
-            <p className="mt-3 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">
-              Quem é quem, o que faz e como acionar. Sem depender de quem lembra.
-            </p>
           </BentoCard>
         </Reveal>
 
         {/* Guia do hóspede */}
-        <Reveal delay={0.15} className="md:col-span-2 lg:col-span-4">
+        <Reveal delay={0.05} className="lg:col-span-2">
           <BentoCard className="h-full overflow-hidden">
-            <div className="flex min-w-0 flex-col gap-8 sm:flex-row sm:items-center">
+            <div className="flex min-w-0 flex-col gap-6 sm:flex-row sm:items-center">
               <div className="min-w-0 flex-1">
-                <span className="mb-6 grid size-12 shrink-0 place-items-center rounded-xl border border-border bg-background/50">
-                  <BookOpen className="size-6 text-accent" />
+                <span className="mb-5 grid size-11 shrink-0 place-items-center rounded-xl border border-border bg-background/50">
+                  <BookOpen className="size-5 text-accent" />
                 </span>
-                <h3 className="font-display text-[20px] font-bold tracking-tight sm:text-[24px]">
+                <h3 className="font-display text-[19px] font-bold tracking-tight sm:text-[22px]">
                   Guia do hóspede
                 </h3>
                 <p className="mt-3 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
-                  Um guia digital completo e personalizado, com tudo o que o hóspede precisa saber antes, durante e
-                  depois da estadia.
+                  Um guia digital personalizado por imóvel, com instruções, recomendações e contatos.
                 </p>
               </div>
               <div
                 aria-hidden
-                className="relative hidden h-52 w-36 shrink-0 rotate-6 rounded-2xl border border-border bg-background/50 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.95)] sm:block"
+                className="relative hidden h-40 w-28 shrink-0 rotate-6 rounded-2xl border border-border bg-background/50 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.95)] sm:block"
               >
-                <div className="absolute inset-4 space-y-2 rounded-xl border border-border bg-card/60 p-3">
+                <div className="absolute inset-3 space-y-2 rounded-xl border border-border bg-card/60 p-3">
                   <div className="h-2 w-2/3 rounded-full bg-accent/40" />
                   <div className="h-1.5 w-full rounded-full bg-muted-foreground/20" />
                   <div className="h-1.5 w-5/6 rounded-full bg-muted-foreground/20" />
-                  <div className="h-1.5 w-3/4 rounded-full bg-muted-foreground/20" />
-                  <div className="mt-4 h-10 rounded-lg border border-border bg-background/60" />
+                  <div className="mt-3 h-8 rounded-lg border border-border bg-background/60" />
                 </div>
               </div>
             </div>
           </BentoCard>
         </Reveal>
 
+        {/* Registros */}
+        <Reveal delay={0.1} className="lg:col-span-2">
+          <BentoCard className="h-full">
+            <span className="mb-5 grid size-11 shrink-0 place-items-center rounded-xl border border-border bg-background/50">
+              <FileText className="size-5 text-accent" />
+            </span>
+            <h3 className="font-display text-[19px] font-bold tracking-tight sm:text-[22px]">
+              Registros e rotinas
+            </h3>
+            <p className="mt-3 text-[13.5px] leading-relaxed text-muted-foreground text-pretty">
+              Chegadas, saídas, limpezas e ocorrências registradas no lugar certo, com histórico consultável.
+            </p>
+          </BentoCard>
+        </Reveal>
+
         {/* Compactos */}
         {BENTO_COMPACTOS.map((m, i) => (
-          <Reveal key={m.title} delay={0.2 + i * 0.05} className="md:col-span-2 lg:col-span-2">
+          <Reveal key={m.title} delay={0.15 + i * 0.05}>
             <BentoCard className="h-full">
               <m.icon className="size-5 text-accent" />
-              <p className="mt-5 font-display text-[17px] font-bold tracking-tight">{m.title}</p>
+              <p className="mt-5 font-display text-[16px] font-bold tracking-tight">{m.title}</p>
               <p className="mt-2.5 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">{m.desc}</p>
             </BentoCard>
           </Reveal>
@@ -321,244 +302,46 @@ export function BentoSection() {
   );
 }
 
-/* ---------------- IA ---------------- */
+/* ---------------- PARA QUEM É ---------------- */
 
-export function AiSection() {
-  return (
-    <Section className="relative overflow-hidden">
-      <Glow className="right-[-100px] top-0 h-[300px] w-[380px]" />
-      <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
-        <Reveal>
-          <SectionHeading
-            align="left"
-            eyebrow="Inteligência"
-            title="Uma IA que conhece a sua operação."
-            description="O ConciergeIA utiliza as informações da sua operação para ajudar no atendimento ao hóspede, tornando respostas e orientações mais rápidas, consistentes e alinhadas ao seu padrão."
-          />
-          <ul className="mt-8 space-y-2.5">
-            {[
-              "Responde com base no que está cadastrado, não em suposições.",
-              "Mantém o mesmo padrão de resposta em todos os imóveis.",
-              "Encaminha para a equipe quando o assunto exige decisão humana.",
-            ].map((t) => (
-              <li key={t} className="flex items-start gap-2.5 text-[13.5px] text-muted-foreground">
-                <Check className="mt-0.5 size-3.5 shrink-0 text-accent" />
-                <span className="min-w-0">{t}</span>
-              </li>
-            ))}
-          </ul>
-        </Reveal>
-
-        <Reveal delay={0.08}>
-          <ChatMockup />
-        </Reveal>
-      </div>
-    </Section>
-  );
-}
-
-/* ---------------- GUIA ---------------- */
-
-export function GuideSection() {
-  return (
-    <Section>
-      <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:gap-16">
-        <Reveal>
-          <SectionHeading
-            align="left"
-            eyebrow="Experiência do hóspede"
-            title="Seu imóvel merece mais do que um manual."
-            description="Crie uma experiência digital sofisticada para orientar seus hóspedes antes, durante e depois da estadia."
-          />
-        </Reveal>
-        <Reveal delay={0.08}>
-          <GuideMockup />
-        </Reveal>
-      </div>
-    </Section>
-  );
-}
-
-/* ---------------- ANTES / DEPOIS ---------------- */
-
-const PERGUNTAS = [
-  "Qual era mesmo a senha do Wi-Fi?",
-  "Onde está a instrução desse imóvel?",
-  "Qual fornecedor atende esse apartamento?",
-  "Quando foi feita a última manutenção?",
-  "Quem é o proprietário desse imóvel?",
+const PERFIS = [
+  {
+    icon: UserCheck,
+    title: "Anfitriões profissionais",
+    desc: "Quem trata a hospedagem como operação e quer padrão em cada detalhe da estadia.",
+  },
+  {
+    icon: Building2,
+    title: "Gestores de múltiplos imóveis",
+    desc: "Quem administra unidades de vários proprietários e precisa de tudo centralizado.",
+  },
+  {
+    icon: Users,
+    title: "Operações com equipe",
+    desc: "Quem depende de limpeza, manutenção e atendimento alinhados à mesma informação.",
+  },
 ];
 
-export function BeforeAfter() {
+export function AudienceSection() {
   return (
-    <Section className="relative overflow-hidden">
+    <Section id="para-quem">
       <Reveal>
-        <SectionHeading eyebrow="No dia a dia" title="Menos procura. Mais controle." />
+        <SectionHeading eyebrow="Para quem é" title="Feito para operações que já têm complexidade." />
       </Reveal>
 
-      <div className="mt-14 grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,0.8fr)]">
-        <Reveal delay={0.05}>
-          <div className="space-y-2">
-            {PERGUNTAS.map((p) => (
-              <p
-                key={p}
-                className="rounded-xl border border-dashed border-border px-4 py-3 text-[13px] italic text-muted-foreground/80"
-              >
-                “{p}”
-              </p>
-            ))}
-          </div>
-        </Reveal>
-
-        <Reveal delay={0.1}>
-          <div className="flex items-center justify-center">
-            <ArrowRight className="size-5 rotate-90 text-accent lg:rotate-0" />
-          </div>
-        </Reveal>
-
-        <Reveal delay={0.15}>
-          <Surface className="p-8 text-center">
-            <p className="font-display text-[21px] leading-snug tracking-tight text-balance">
-              Está tudo no ConciergeIA.
-            </p>
-          </Surface>
-        </Reveal>
+      <div className="mt-14 grid gap-4 md:grid-cols-3">
+        {PERFIS.map((p, i) => (
+          <Reveal key={p.title} delay={0.05 * i}>
+            <BentoCard className="h-full">
+              <span className="mb-5 grid size-11 shrink-0 place-items-center rounded-xl border border-border bg-background/50">
+                <p.icon className="size-5 text-accent" />
+              </span>
+              <p className="font-display text-[17px] font-bold tracking-tight">{p.title}</p>
+              <p className="mt-2.5 text-[13px] leading-relaxed text-muted-foreground text-pretty">{p.desc}</p>
+            </BentoCard>
+          </Reveal>
+        ))}
       </div>
-    </Section>
-  );
-}
-
-/* ---------------- MULTI-IMÓVEL ---------------- */
-
-const CONECTADOS = ["Pessoas", "Informações", "Inventário", "Processos", "Fornecedores", "Atendimento", "IA"];
-
-export function MultiPropertySection() {
-  return (
-    <Section className="relative overflow-hidden">
-      <Glow className="left-1/2 top-1/2 h-[300px] w-[520px] -translate-x-1/2 -translate-y-1/2" />
-      <Reveal>
-        <SectionHeading
-          eyebrow="Escala"
-          title="De um imóvel a dezenas. A organização continua."
-          description="Quanto maior sua operação, maior o valor de ter tudo centralizado."
-        />
-      </Reveal>
-
-      <Reveal delay={0.08}>
-        <div className="mt-14 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-center">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="rounded-xl border border-border bg-card/50 px-3.5 py-3 text-[12.5px] text-muted-foreground"
-              >
-                Imóvel {String(i + 1).padStart(2, "0")}
-              </div>
-            ))}
-          </div>
-
-          <Surface className="p-6">
-            <Eyebrow>Conectados a</Eyebrow>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {CONECTADOS.map((c) => (
-                <span
-                  key={c}
-                  className="rounded-full border border-border px-3 py-1.5 text-[12px] text-muted-foreground"
-                >
-                  {c}
-                </span>
-              ))}
-            </div>
-          </Surface>
-        </div>
-      </Reveal>
-    </Section>
-  );
-}
-
-/* ---------------- DIFERENCIAL ---------------- */
-
-const ISOLADAS = ["WhatsApp", "Planilhas", "Documentos", "Anotações", "CRM", "Manuais"];
-
-export function DifferentiatorSection() {
-  return (
-    <Section>
-      <Reveal>
-        <SectionHeading
-          eyebrow="Diferencial"
-          title="Não é apenas gestão. É conhecimento operacional."
-          description="Softwares tradicionais organizam tarefas. O ConciergeIA organiza o conhecimento que faz sua operação funcionar."
-        />
-      </Reveal>
-
-      <div className="mt-14 grid gap-3 lg:grid-cols-2">
-        <Reveal delay={0.05}>
-          <div className="h-full rounded-2xl border border-dashed border-border p-6">
-            <Eyebrow>Ferramentas isoladas</Eyebrow>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {ISOLADAS.map((t) => (
-                <span
-                  key={t}
-                  className="rounded-full border border-border px-3 py-1.5 text-[12px] text-muted-foreground"
-                >
-                  {t}
-                </span>
-              ))}
-            </div>
-            <p className="mt-5 text-[13px] leading-relaxed text-muted-foreground text-pretty">
-              Cada informação em um lugar diferente. O conhecimento depende de quem lembra dele.
-            </p>
-          </div>
-        </Reveal>
-
-        <Reveal delay={0.1}>
-          <Surface className="h-full p-6">
-            <Eyebrow>ConciergeIA</Eyebrow>
-            <p className="mt-4 font-display text-[19px] tracking-tight text-balance">
-              Uma fonte central de conhecimento operacional.
-            </p>
-            <p className="mt-4 text-[13px] leading-relaxed text-muted-foreground text-pretty">
-              Imóveis, pessoas, processos e atendimento no mesmo ambiente — acessível para toda a equipe, no padrão
-              que você definiu.
-            </p>
-          </Surface>
-        </Reveal>
-      </div>
-    </Section>
-  );
-}
-
-/* ---------------- CTA FINAL ---------------- */
-
-export function FinalCTA() {
-  return (
-    <Section className="relative overflow-hidden">
-      <Glow className="left-1/2 top-1/2 h-[360px] w-[620px] -translate-x-1/2 -translate-y-1/2" />
-      <Reveal>
-        <div className="mx-auto max-w-3xl text-center">
-          <h2 className="font-display text-[30px] font-extrabold leading-[1.06] tracking-tight text-balance sm:text-[48px]">
-            Sua operação merece <GradientText>um lugar para chamar de casa.</GradientText>
-          </h2>
-          <p className="mx-auto mt-6 max-w-2xl text-[15px] font-light leading-relaxed text-muted-foreground text-pretty sm:text-[17px]">
-            Centralize sua operação, organize seu conhecimento e transforme a maneira como você administra seus
-            imóveis.
-          </p>
-          <div className="mt-10 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
-            <a
-              href="#contato"
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-accent px-7 text-[14px] font-bold text-accent-foreground shadow-[0_0_28px_-6px_var(--accent)] transition-transform duration-200 hover:-translate-y-0.5"
-            >
-              Conhecer o ConciergeIA <ArrowRight className="size-4" />
-            </a>
-            <a
-              href="#contato"
-              className="inline-flex h-12 items-center justify-center rounded-xl border border-border bg-card/40 px-7 text-[14px] font-semibold text-muted-foreground backdrop-blur transition-colors hover:border-accent/40 hover:text-foreground"
-            >
-              Solicitar uma demonstração
-            </a>
-          </div>
-        </div>
-      </Reveal>
     </Section>
   );
 }

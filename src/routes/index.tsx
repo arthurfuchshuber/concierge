@@ -4,17 +4,12 @@ import { LandingNav } from "@/components/landing/LandingNav";
 import { LeadForm } from "@/components/landing/LeadForm";
 import { PricingSection } from "@/components/landing/PricingSection";
 import {
-  AiSection,
-  BeforeAfter,
+  AudienceSection,
   BentoSection,
-  DifferentiatorSection,
-  FinalCTA,
-  GuideSection,
   Hero,
   LandingFooter,
-  MultiPropertySection,
+  NarrativeSection,
   ProblemSection,
-  ScatterToUnified,
 } from "@/components/landing/sections";
 import { metaPixelTrackCustomOnce } from "@/lib/meta-pixel";
 import { siteUrl } from "@/lib/site-url";
@@ -72,16 +67,11 @@ function Landing() {
       <LandingNav />
       <main>
         <Hero />
-        <ScatterToUnified />
         <ProblemSection />
+        <NarrativeSection />
         <BentoSection />
-        <AiSection />
-        <GuideSection />
-        <BeforeAfter />
-        <MultiPropertySection />
-        <DifferentiatorSection />
+        <AudienceSection />
         <PricingSection />
-        <FinalCTA />
         <LeadForm />
       </main>
       <LandingFooter />
