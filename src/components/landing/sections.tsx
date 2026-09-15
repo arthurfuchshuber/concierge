@@ -104,7 +104,7 @@ export function LivePanelSection() {
             </p>
           </GlassCard>
         </Reveal>
-        <Reveal delay={0.05}>
+        <Reveal delay={0.05} className="h-full">
           <GlassCard className="h-full">
             <TasksVisual />
             <p className="mt-5 font-display text-[16px] font-bold tracking-tight">Rotinas do dia</p>
@@ -113,7 +113,7 @@ export function LivePanelSection() {
             </p>
           </GlassCard>
         </Reveal>
-        <Reveal delay={0.1}>
+        <Reveal delay={0.1} className="h-full">
           <GlassCard className="h-full">
             <PortfolioVisual />
             <p className="mt-5 font-display text-[16px] font-bold tracking-tight">Imóveis e pessoas</p>
@@ -208,7 +208,7 @@ export function FlowSection() {
 
       <div className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {PASSOS.map((p, i) => (
-          <Reveal key={p.n} delay={0.05 * i}>
+          <Reveal key={p.n} delay={0.05 * i} className="h-full">
             <GlassCard className="h-full">
               <div className="flex min-w-0 items-center gap-3">
                 <span
@@ -260,7 +260,7 @@ export function AudienceSection() {
 
       <div className="mt-12 grid gap-3 md:grid-cols-3">
         {PERFIS.map((p, i) => (
-          <Reveal key={p.title} delay={0.05 * i}>
+          <Reveal key={p.title} delay={0.05 * i} className="h-full">
             <GlassCard className="h-full">
               <div className="flex min-w-0 items-start gap-3">
                 <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04]">
