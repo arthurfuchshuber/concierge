@@ -1,8 +1,21 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, Building2, Users, BookOpen, ClipboardList, Layers, Sparkles, UserCheck } from "lucide-react";
+import {
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  Building2,
+  Users,
+  BookOpen,
+  ClipboardList,
+  Layers,
+  Sparkles,
+  UserCheck,
+} from "lucide-react";
 import { Reveal, Section, SectionHeading, Glow, GradientText, GlassCard } from "./primitives";
-import { PhoneShot } from "./ProductShot";
-import shotGuiaMobile from "@/assets/landing/shot-explorar-mobile.png.asset.json";
+import { PhoneFrame } from "./ProductShot";
+import { RESULT_SCREENS } from "./ResultScreens";
+import { cn } from "@/lib/utils";
 
 /* ---------------- HERO ---------------- */
 
@@ -27,28 +40,80 @@ export function Hero() {
             outras.
           </p>
 
-          <div className="mx-auto mt-8 flex w-full max-w-md flex-col items-stretch gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:justify-center">
-            <a
-              href="#contato"
-              className="inline-flex h-12 min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-accent px-7 text-[14px] font-bold text-accent-foreground shadow-[0_0_28px_-6px_var(--accent)] transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0"
-            >
-              Solicitar demonstração! <ArrowRight className="size-4 shrink-0" />
-            </a>
-          </div>
         </Reveal>
       </div>
 
-      {/* Guia do hóspede no celular */}
       <Reveal delay={0.08}>
-        <div className="relative mx-auto mt-12 flex w-full max-w-5xl justify-center px-5 sm:px-8">
-          <PhoneShot
-            src={shotGuiaMobile.url}
-            alt="Guia do hóspede no celular com acesso, regras e recomendações da região"
-            className="w-[min(340px,86%)]"
-          />
-        </div>
+        <ResultShowcase />
       </Reveal>
     </section>
+  );
+}
+
+/* --------- vitrine de telas de resultado (o que o hóspede recebe) --------- */
+
+function ResultShowcase() {
+  const [i, setI] = useState(0);
+  const total = RESULT_SCREENS.length;
+  const go = (d: number) => setI((v) => (v + d + total) % total);
+  const Screen = RESULT_SCREENS[i].Screen;
+
+  return (
+    <div className="mx-auto mt-10 w-full max-w-5xl px-5 sm:px-8">
+      {/* barra de recursos */}
+      <div className="ds-scroll-x -mx-5 flex justify-start gap-1.5 px-5 sm:mx-0 sm:justify-center sm:px-0">
+        {RESULT_SCREENS.map((s, idx) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => setI(idx)}
+            aria-current={idx === i}
+            className={cn(
+              "rounded-full border px-4 py-2 text-[12px] font-semibold whitespace-nowrap transition-colors",
+              idx === i
+                ? "border-accent/40 bg-accent/12 text-foreground"
+                : "border-white/10 bg-white/[0.03] text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      {/* celular + setas */}
+      <div className="mt-8 flex items-center justify-center gap-3 sm:gap-6">
+        <button
+          type="button"
+          onClick={() => go(-1)}
+          aria-label="Recurso anterior"
+          className="grid size-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ChevronLeft className="size-5" />
+        </button>
+
+        <PhoneFrame className="w-[min(320px,68vw)]">
+          <Screen />
+        </PhoneFrame>
+
+        <button
+          type="button"
+          onClick={() => go(1)}
+          aria-label="Próximo recurso"
+          className="grid size-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ChevronRight className="size-5" />
+        </button>
+      </div>
+
+      <div className="mt-9 flex justify-center">
+        <a
+          href="#contato"
+          className="inline-flex h-12 min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-accent px-7 text-[14px] font-bold text-accent-foreground shadow-[0_0_28px_-6px_var(--accent)] transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0"
+        >
+          Solicitar demonstração! <ArrowRight className="size-4 shrink-0" />
+        </a>
+      </div>
+    </div>
   );
 }
 
