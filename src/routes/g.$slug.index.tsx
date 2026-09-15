@@ -105,13 +105,16 @@ function getGuideSessionId(slug: string): string {
 }
 
 export const Route = createFileRoute("/g/$slug/")({
-  validateSearch: (search: Record<string, unknown>): { preview?: string; t?: string } => ({
+  validateSearch: (search: Record<string, unknown>): { preview?: string; t?: string; demo?: string } => ({
     ...(typeof search["preview"] === "string" ? { preview: search["preview"] as string } : {}),
     ...(typeof search["t"] === "string" ? { t: search["t"] as string } : {}),
+    ...(typeof search["demo"] === "string" ? { demo: search["demo"] as string } : {}),
   }),
-  loaderDeps: ({ search }) => ({ t: search.t }),
+  loaderDeps: ({ search }) => ({ t: search.t, demo: search.demo }),
   loader: async ({ params, deps }) => {
-    const r = await getPublicGuide({ data: { slug: params.slug, previewToken: deps.t ?? null } });
+    const r = await getPublicGuide({
+      data: { slug: params.slug, previewToken: deps.t ?? null, demo: deps.demo === "1" },
+    });
     if (r.status === "moved") {
       throw redirect({ to: "/g/$slug", params: { slug: r.slug }, replace: true });
     }
