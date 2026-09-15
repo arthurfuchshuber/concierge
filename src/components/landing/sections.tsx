@@ -1,14 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import {
-  ArrowRight,
-  Building2,
-  Users,
-  BookOpen,
-  ClipboardList,
-  Layers,
-  Sparkles,
-  UserCheck,
-} from "lucide-react";
+import { ArrowRight, Building2, Users, BookOpen, ClipboardList, Layers, Sparkles, UserCheck } from "lucide-react";
 import { Reveal, Section, SectionHeading, Glow, GradientText, GlassCard } from "./primitives";
 import { BrowserShot, PhoneShot } from "./ProductShot";
 import shotGuias from "@/assets/landing/shot-guias.png.asset.json";
@@ -80,10 +71,7 @@ export function ShowcaseSection() {
     <Section id="recursos" className="relative overflow-hidden">
       <Glow className="right-[-180px] top-10 h-[320px] w-[420px]" />
       <Reveal>
-        <SectionHeading
-          eyebrow="Na prática"
-          title="A operação inteira, visível em tempo real."
-        />
+        <SectionHeading eyebrow="Na prática" title="A operação inteira, visível em tempo real." />
       </Reveal>
 
       <div className="mt-12 grid gap-4 lg:grid-cols-12">
@@ -127,12 +115,10 @@ export function ShowcaseSection() {
           <GlassCard className="h-full">
             <div className="grid min-w-0 gap-6 lg:grid-cols-12 lg:items-center">
               <div className="min-w-0 lg:col-span-4">
-                <p className="font-display text-[17px] font-bold tracking-tight">
-                  Proprietários e prestadores
-                </p>
+                <p className="font-display text-[17px] font-bold tracking-tight">Proprietários e prestadores</p>
                 <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">
-                  Uma base única com quem é dono, quem executa e o que está ativo em cada imóvel —
-                  com histórico e contato à mão.
+                  Uma base única com quem é dono, quem executa e o que está ativo em cada imóvel — com histórico e
+                  contato à mão.
                 </p>
               </div>
               <div className="min-w-0 lg:col-span-8">
@@ -166,7 +152,7 @@ export function FlowSection() {
   return (
     <Section id="produto" className="relative overflow-hidden">
       <Reveal>
-        <SectionHeading eyebrow="Como funciona" title="Quatro camadas, na ordem em que a operação acontece." />
+        <SectionHeading eyebrow="Como funciona" title="A operação acontece em 4 camadas." />
       </Reveal>
 
       <div className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -231,9 +217,7 @@ export function AudienceSection() {
                 </span>
                 <div className="min-w-0">
                   <p className="font-display text-[16px] font-bold tracking-tight">{p.title}</p>
-                  <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">
-                    {p.desc}
-                  </p>
+                  <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">{p.desc}</p>
                 </div>
               </div>
             </GlassCard>
@@ -252,13 +236,27 @@ export function LandingFooter() {
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-5 sm:px-8 sm:flex-row sm:items-center sm:justify-between">
         <p className="font-display text-[15px] tracking-tight">ConciergeIA</p>
         <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[12.5px] text-muted-foreground">
-          <a href="#recursos" className="hover:text-foreground">Recursos</a>
-          <a href="#planos" className="hover:text-foreground">Planos</a>
-          <a href="#contato" className="hover:text-foreground">Contato</a>
-          <Link to="/privacidade" className="hover:text-foreground">Privacidade</Link>
-          <Link to="/termos" className="hover:text-foreground">Termos</Link>
-          <Link to="/reembolso" className="hover:text-foreground">Reembolso</Link>
-          <Link to="/confianca" className="hover:text-foreground">Confiança</Link>
+          <a href="#recursos" className="hover:text-foreground">
+            Recursos
+          </a>
+          <a href="#planos" className="hover:text-foreground">
+            Planos
+          </a>
+          <a href="#contato" className="hover:text-foreground">
+            Contato
+          </a>
+          <Link to="/privacidade" className="hover:text-foreground">
+            Privacidade
+          </Link>
+          <Link to="/termos" className="hover:text-foreground">
+            Termos
+          </Link>
+          <Link to="/reembolso" className="hover:text-foreground">
+            Reembolso
+          </Link>
+          <Link to="/confianca" className="hover:text-foreground">
+            Confiança
+          </Link>
         </nav>
       </div>
       <div className="mx-auto mt-6 flex w-full max-w-6xl flex-col gap-2 border-t border-border px-5 pt-6 text-[11.5px] text-muted-foreground/70 sm:flex-row sm:justify-between sm:px-8">
