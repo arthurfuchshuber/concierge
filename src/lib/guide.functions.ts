@@ -147,8 +147,12 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     // rede de wi-fi e qualquer número longo dentro das instruções.
     const demoProp = safeProp as Record<string, unknown>;
     if (isDemo) {
-      const scrub = (v: unknown) =>
-        typeof v === "string" ? v.replace(/\d{4,}/g, "0000").replace(/\b\d{2,3}[\s.-]?\d{3,}\b/g, "0000") : v;
+      const secrets = [wifi_password, lock_code, gate_code, credsPublic["host_phone"]]
+        .filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+      const scrub = (value: unknown) => {
+        if (typeof value !== "string") return value;
+        return secrets.reduce((text, secret) => text.split(secret).join("0000"), value);
+      };
       demoProp["address"] = "Endereço enviado ao hóspede no dia da chegada";
       demoProp["address_note"] = null;
       demoProp["maps_url"] = null;

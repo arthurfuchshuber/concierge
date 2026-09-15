@@ -5078,7 +5078,9 @@ function AccessCodesStrip({
                     Como acessar a residência
                   </DialogTitle>
                   <p className="text-[11.5px] text-muted-foreground leading-[1.5]">
-                    Instruções reais do portão e da fechadura.
+                    {hasGateBlock && hasLockBlock
+                      ? `Orientações para ${gLabel.toLowerCase()} e ${lLabel.toLowerCase()}.`
+                      : `Orientações para ${(hasGateBlock ? gLabel : lLabel).toLowerCase()}.`}
                   </p>
                 </div>
               </div>
