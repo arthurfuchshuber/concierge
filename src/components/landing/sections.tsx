@@ -10,22 +10,17 @@ import {
   UserCheck,
 } from "lucide-react";
 import { Reveal, Section, SectionHeading, Glow, GradientText, GlassCard } from "./primitives";
-import { DashboardMockup } from "./DashboardMockup";
-import {
-  ChatVisual,
-  TasksVisual,
-  GuideVisual,
-  PortfolioVisual,
-  MaintenanceVisual,
-  KnowledgeVisual,
-} from "./visuals";
+import { BrowserShot, PhoneShot } from "./ProductShot";
+import shotGuias from "@/assets/landing/shot-guias.png.asset.json";
+import shotStakeholders from "@/assets/landing/shot-stakeholders.png.asset.json";
+import shotGuiaMobile from "@/assets/landing/shot-explorar-mobile.png.asset.json";
 
 /* ---------------- HERO ---------------- */
 
 export function Hero() {
   return (
-    <section id="topo" className="relative overflow-hidden pt-14 pb-12 sm:pt-24 sm:pb-16">
-      <Glow className="left-1/2 top-[-220px] h-[420px] w-[760px] max-w-[130vw] -translate-x-1/2" />
+    <section id="topo" className="relative overflow-hidden pt-14 pb-14 sm:pt-24 sm:pb-20">
+      <Glow className="left-1/2 top-[-220px] h-[440px] w-[820px] max-w-[130vw] -translate-x-1/2" />
 
       <div className="mx-auto w-full max-w-4xl px-5 text-center sm:px-8">
         <Reveal>
@@ -35,58 +30,55 @@ export function Hero() {
           </p>
 
           <h1 className="mt-7 font-display text-[34px] font-extrabold leading-[1.06] tracking-tight text-balance sm:text-[56px]">
-            O cérebro operacional da sua{" "}
-            <GradientText>hospedagem.</GradientText>
+            O cérebro operacional da sua <GradientText>hospedagem.</GradientText>
           </h1>
 
           <p className="mx-auto mt-5 max-w-lg text-[14.5px] font-light leading-relaxed text-muted-foreground text-pretty sm:text-[17px]">
             Imóveis, equipe, rotinas e atendimento ao hóspede em um só sistema.
           </p>
+
+          <div className="mx-auto mt-8 flex max-w-md flex-col items-stretch gap-3 sm:flex-row sm:justify-center">
+            <a
+              href="#contato"
+              className="inline-flex h-12 min-w-0 items-center justify-center gap-2 rounded-xl bg-accent px-7 text-[14px] font-bold text-accent-foreground shadow-[0_0_28px_-6px_var(--accent)] transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0"
+            >
+              Conhecer o ConciergeIA <ArrowRight className="size-4 shrink-0" />
+            </a>
+            <a
+              href="#contato"
+              className="inline-flex h-12 min-w-0 items-center justify-center rounded-xl border border-white/15 bg-white/[0.03] px-7 text-[14px] font-semibold text-muted-foreground backdrop-blur transition-colors duration-200 hover:border-accent/40 hover:text-foreground"
+            >
+              Solicitar uma demonstração
+            </a>
+          </div>
         </Reveal>
       </div>
 
-      {/* Painel do sistema */}
+      {/* Tela real do sistema */}
       <Reveal delay={0.08}>
-        <div className="mx-auto mt-10 w-full max-w-5xl px-5 sm:px-8">
-          <div className="relative">
-            <div
-              aria-hidden
-              className="pointer-events-none absolute -inset-px rounded-[26px] opacity-30 blur-md"
-              style={{ background: "linear-gradient(120deg,#7c1ad8 0%,#e82dae 100%)" }}
-            />
-            <div className="relative">
-              <DashboardMockup />
-            </div>
-          </div>
+        <div className="relative mx-auto mt-12 w-full max-w-5xl px-5 sm:px-8">
+          <BrowserShot
+            priority
+            src={shotGuias.url}
+            alt="Tela do ConciergeIA com a lista de imóveis e guias da operação"
+            imgClassName="max-h-[560px] object-cover object-top"
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-5 bottom-0 h-28 bg-gradient-to-t from-background to-transparent sm:inset-x-8"
+          />
         </div>
       </Reveal>
-
-      <div className="mx-auto mt-9 w-full max-w-md px-5 sm:px-8">
-        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:justify-center">
-          <a
-            href="#contato"
-            className="inline-flex h-12 min-w-0 items-center justify-center gap-2 rounded-xl bg-accent px-7 text-[14px] font-bold text-accent-foreground shadow-[0_0_28px_-6px_var(--accent)] transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0"
-          >
-            Conhecer o ConciergeIA <ArrowRight className="size-4 shrink-0" />
-          </a>
-          <a
-            href="#contato"
-            className="inline-flex h-12 min-w-0 items-center justify-center rounded-xl border border-white/15 bg-white/[0.03] px-7 text-[14px] font-semibold text-muted-foreground backdrop-blur transition-colors duration-200 hover:border-accent/40 hover:text-foreground"
-          >
-            Solicitar uma demonstração
-          </a>
-        </div>
-      </div>
     </section>
   );
 }
 
-/* ---------------- PAINEL VIVO ---------------- */
+/* ---------------- BENTO COM TELAS REAIS ---------------- */
 
-export function LivePanelSection() {
+export function ShowcaseSection() {
   return (
     <Section id="painel" className="relative overflow-hidden">
-      <Glow className="right-[-160px] top-10 h-[300px] w-[380px]" />
+      <Glow className="right-[-180px] top-10 h-[320px] w-[420px]" />
       <Reveal>
         <SectionHeading
           eyebrow="Na prática"
@@ -94,97 +86,68 @@ export function LivePanelSection() {
         />
       </Reveal>
 
-      <div className="mt-12 grid gap-4 md:grid-cols-3">
-        <Reveal className="h-full">
+      <div className="mt-12 grid gap-4 lg:grid-cols-12">
+        {/* Imóveis e guias */}
+        <Reveal className="h-full lg:col-span-7">
           <GlassCard edge className="h-full">
-            <ChatVisual />
-            <p className="mt-5 font-display text-[16px] font-bold tracking-tight">Atendimento ao hóspede</p>
+            <p className="font-display text-[17px] font-bold tracking-tight">Imóveis e guias</p>
             <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">
-              Respostas com base no conhecimento cadastrado de cada imóvel.
+              Cada unidade com fotos, instruções e o guia publicado — no mesmo padrão.
             </p>
-          </GlassCard>
-        </Reveal>
-        <Reveal delay={0.05} className="h-full">
-          <GlassCard className="h-full">
-            <TasksVisual />
-            <p className="mt-5 font-display text-[16px] font-bold tracking-tight">Rotinas do dia</p>
-            <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">
-              Limpezas, chegadas e saídas registradas no lugar certo.
-            </p>
-          </GlassCard>
-        </Reveal>
-        <Reveal delay={0.1} className="h-full">
-          <GlassCard className="h-full">
-            <PortfolioVisual />
-            <p className="mt-5 font-display text-[16px] font-bold tracking-tight">Imóveis e pessoas</p>
-            <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">
-              Unidades, proprietários e fornecedores em uma base única.
-            </p>
-          </GlassCard>
-        </Reveal>
-      </div>
-    </Section>
-  );
-}
-
-/* ---------------- RECURSOS EM CARROSSEL ---------------- */
-
-const RECURSOS = [
-  {
-    title: "Guia do hóspede",
-    desc: "Um guia digital por imóvel, com acessos, regras e recomendações.",
-    visual: <GuideVisual />,
-  },
-  {
-    title: "Manutenções",
-    desc: "Do chamado ao encerramento, com histórico por unidade.",
-    visual: <MaintenanceVisual />,
-  },
-  {
-    title: "Base de conhecimento",
-    desc: "Tudo o que a operação sabe, estruturado no mesmo padrão.",
-    visual: <KnowledgeVisual />,
-  },
-  {
-    title: "Atendimento IA",
-    desc: "Responde no seu padrão e encaminha à equipe o que exige decisão.",
-    visual: <ChatVisual />,
-  },
-];
-
-export function FeatureRail() {
-  return (
-    <Section id="recursos" className="relative overflow-hidden">
-      <Glow className="left-[-160px] top-24 h-[320px] w-[400px]" />
-      <Reveal>
-        <SectionHeading
-          eyebrow="Recursos"
-          title="Cada parte da operação com o seu próprio lugar."
-        />
-      </Reveal>
-
-      {/* Mobile: trilho que desliza com encaixe. Desktop: grade. */}
-      <div className="mt-12">
-        <div className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 lg:grid-cols-4">
-          {RECURSOS.map((r, i) => (
-            <div
-              key={r.title}
-              className="h-full w-[78vw] max-w-[320px] shrink-0 snap-center md:w-auto md:max-w-none md:shrink"
-            >
-              <Reveal delay={0.04 * i} className="h-full">
-                <GlassCard className="h-full">
-                  <div className="grid min-h-[168px] place-items-center rounded-2xl border border-white/8 bg-background/40 p-3">
-                    {r.visual}
-                  </div>
-                  <p className="mt-5 font-display text-[16px] font-bold tracking-tight">{r.title}</p>
-                  <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">
-                    {r.desc}
-                  </p>
-                </GlassCard>
-              </Reveal>
+            <div className="mt-6 min-w-0 overflow-hidden rounded-2xl border border-white/10">
+              <img
+                src={shotGuias.url}
+                alt="Lista de imóveis com guias publicados no ConciergeIA"
+                loading="lazy"
+                className="block w-full max-h-[300px] object-cover object-[0%_18%]"
+              />
             </div>
-          ))}
-        </div>
+          </GlassCard>
+        </Reveal>
+
+        {/* Guia do hóspede */}
+        <Reveal delay={0.05} className="h-full lg:col-span-5">
+          <GlassCard className="h-full">
+            <p className="font-display text-[17px] font-bold tracking-tight">Guia do hóspede</p>
+            <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">
+              O hóspede abre no celular e encontra acesso, regras e recomendações da região.
+            </p>
+            <div className="relative mt-6 flex min-w-0 flex-1 items-end justify-center overflow-hidden">
+              <PhoneShot
+                src={shotGuiaMobile.url}
+                alt="Guia do hóspede no celular com recomendações da região"
+                className="w-[min(230px,72%)] translate-y-2"
+              />
+            </div>
+          </GlassCard>
+        </Reveal>
+
+        {/* Proprietários e prestadores */}
+        <Reveal delay={0.1} className="h-full lg:col-span-12">
+          <GlassCard className="h-full">
+            <div className="grid min-w-0 gap-6 lg:grid-cols-12 lg:items-center">
+              <div className="min-w-0 lg:col-span-4">
+                <p className="font-display text-[17px] font-bold tracking-tight">
+                  Proprietários e prestadores
+                </p>
+                <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">
+                  Uma base única com quem é dono, quem executa e o que está ativo em cada imóvel —
+                  com histórico e contato à mão.
+                </p>
+              </div>
+              <div className="min-w-0 lg:col-span-8">
+                <div className="min-w-0 overflow-hidden rounded-2xl border border-white/10">
+                  <img
+                    src={shotStakeholders.url}
+                    alt="Tela de proprietários e prestadores do ConciergeIA"
+                    loading="lazy"
+                    className="block w-full max-h-[320px] object-cover object-top"
+                  />
+                </div>
+              </div>
+            </div>
+          </GlassCard>
+        </Reveal>
       </div>
     </Section>
   );
@@ -280,7 +243,6 @@ export function AudienceSection() {
     </Section>
   );
 }
-
 
 /* ---------------- FOOTER ---------------- */
 
