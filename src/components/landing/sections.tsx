@@ -169,12 +169,9 @@ export function FlowSection() {
                 >
                   <p.icon className="size-5 text-white" />
                 </span>
-                <span className="text-[10.5px] font-bold uppercase tracking-[0.28em] text-muted-foreground/70">
-                  {p.n}
-                </span>
+                <p className="min-w-0 font-display text-[17px] font-bold tracking-tight">{p.title}</p>
               </div>
-              <p className="mt-5 font-display text-[17px] font-bold tracking-tight">{p.title}</p>
-              <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">{p.desc}</p>
+              <p className="ds-text-fill mt-4 text-[12.5px] leading-relaxed text-muted-foreground">{p.desc}</p>
             </GlassCard>
           </Reveal>
         ))}
