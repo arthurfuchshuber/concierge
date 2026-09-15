@@ -190,6 +190,7 @@ export function HomeIntelligence({
   const [tip, setTip] = useState<DailyTip | null>(null);
   const [live, setLive] = useState<LiveWeather>(null);
   const [loading, setLoading] = useState(true);
+  const [weatherLoading, setWeatherLoading] = useState(true);
   const chips = useMemo<ChipDef[]>(() => chipsForCity(city), [city]);
 
   // Dica do dia (IA, cacheada por dia).
@@ -210,7 +211,8 @@ export function HomeIntelligence({
     const tick = () => {
       liveWeatherFn({ data: { propertyId, fromDate: checkinDate ?? undefined } })
         .then((w) => alive && w && setLive(w))
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => alive && setWeatherLoading(false));
     };
     tick();
     const t = setInterval(tick, 5 * 60_000);
@@ -221,7 +223,7 @@ export function HomeIntelligence({
   }, [propertyId, checkinDate, liveWeatherFn]);
 
   const hasTip = !!tip;
-  if (!loading && !hasTip) return null;
+  if (!loading && !weatherLoading && !hasTip && !live) return null;
   const isDark = theme === "dark";
 
   const weather = live ?? tip?.weather ?? null;
@@ -350,18 +352,18 @@ export function HomeIntelligence({
             <div className="h-9 w-full rounded-[0.3rem] bg-white/14" />
           </div>
         ) : tip ? (
-          <div className="relative">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
+            <div className="relative">
+            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
+              <div className="contents">
                 {/* AI sparkle avatar */}
                 <div className="grid size-12 shrink-0 place-items-center rounded-full border border-white/25 bg-gradient-to-br from-fuchsia-500/90 via-violet-500/90 to-pink-500/90 shadow-[0_12px_30px_-14px_rgba(217,70,239,0.55)]">
                   <Sparkles className="size-6 text-white" strokeWidth={2.2} aria-hidden="true" />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-[15px] font-black leading-tight text-white">
+                <div className="min-w-0 pr-1">
+                  <p className="text-[15px] font-black leading-[1.5] text-white">
                     Perguntar mais ao Concierge IA
                   </p>
-                  <p className="mt-0.5 text-[11.5px] font-medium leading-snug text-white/82">
+                  <p className="mt-0.5 text-[11.5px] font-medium leading-[1.5] text-white/82">
                     Respostas imediatas e personalizadas
                   </p>
                 </div>

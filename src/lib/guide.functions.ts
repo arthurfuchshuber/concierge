@@ -41,7 +41,7 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     // First fetch only access-control + display fields (no credentials, no pin_code).
     let baseQuery = supabaseAdmin
       .from("properties")
-      .select("id,owner_id,slug,name,tagline,hero_image_url,gallery_images,theme_images,marketplace_links,address,maps_url,garage_maps_url,lat,lng,city,state,country,checkin_time,checkin_time_max,checkin_note,checkout_time,checkout_time_min,checkout_note,address_note,checkin_instructions,checkout_instructions,checkin_media,house_rules,gate_instructions,gate_media,gate_video_url,lock_instructions,lock_media,lock_video_url,host_name,brand_name,brand_logo_url,access_mode,pin_expires_at,default_language,guide_theme,require_access_gate,collect_arrival_time,collect_vehicles,vehicles_max,collect_document,document_scope,published,created_at,updated_at")
+      .select("id,owner_id,slug,name,tagline,hero_image_url,gallery_images,theme_images,marketplace_links,address,maps_url,garage_maps_url,lat,lng,city,state,country,checkin_time,checkin_time_max,checkin_note,checkout_time,checkout_time_min,checkout_note,address_note,checkin_instructions,checkout_instructions,checkin_media,house_rules,gate_label,gate_instructions,gate_media,gate_video_url,lock_label,lock_instructions,lock_media,lock_video_url,host_name,brand_name,brand_logo_url,access_mode,pin_expires_at,default_language,guide_theme,require_access_gate,collect_arrival_time,collect_vehicles,vehicles_max,collect_document,document_scope,published,created_at,updated_at")
       .eq("slug", data.slug);
     if (!isPreview) baseQuery = baseQuery.eq("published", true);
     const { data: prop, error } = await baseQuery.maybeSingle();
@@ -147,8 +147,12 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     // rede de wi-fi e qualquer número longo dentro das instruções.
     const demoProp = safeProp as Record<string, unknown>;
     if (isDemo) {
-      const scrub = (v: unknown) =>
-        typeof v === "string" ? v.replace(/\d{4,}/g, "0000").replace(/\b\d{2,3}[\s.-]?\d{3,}\b/g, "0000") : v;
+      const secrets = [wifi_password, lock_code, gate_code, credsPublic["host_phone"]]
+        .filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+      const scrub = (value: unknown) => {
+        if (typeof value !== "string") return value;
+        return secrets.reduce((text, secret) => text.split(secret).join("0000"), value);
+      };
       demoProp["address"] = "Endereço enviado ao hóspede no dia da chegada";
       demoProp["address_note"] = null;
       demoProp["maps_url"] = null;

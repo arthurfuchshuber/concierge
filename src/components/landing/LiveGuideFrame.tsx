@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from "react";
+
 /**
  * Guia do hóspede REAL dentro da moldura de celular da landing.
  *
@@ -12,12 +14,52 @@
 const DEMO_SLUG = "casa-charmosa-prox-a-avenida-das-cataratas";
 
 export function LiveGuideFrame() {
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const [measuredHeight, setMeasuredHeight] = useState<number | null>(null);
+
+  useEffect(() => () => resizeObserverRef.current?.disconnect(), []);
+
+  function measureArrivalCard() {
+    const frame = iframeRef.current;
+    const doc = frame?.contentDocument;
+    if (!frame || !doc) return;
+
+    let attempts = 0;
+    const measure = () => {
+      const arrival = doc.querySelector<HTMLElement>('[data-demo-card="checkin"]');
+      const nav = doc.querySelector<HTMLElement>('nav[aria-label="Navegação do guia"]');
+      if (!arrival) {
+        if (attempts++ < 20) window.setTimeout(measure, 150);
+        return;
+      }
+      const arrivalBottom = arrival.getBoundingClientRect().bottom;
+      const navHeight = nav?.getBoundingClientRect().height ?? 57;
+      setMeasuredHeight(Math.ceil(arrivalBottom + 12 + navHeight));
+      resizeObserverRef.current?.disconnect();
+      resizeObserverRef.current = new ResizeObserver(() => {
+        const nextBottom = arrival.getBoundingClientRect().bottom;
+        const nextNavHeight = nav?.getBoundingClientRect().height ?? 57;
+        setMeasuredHeight(Math.ceil(nextBottom + 12 + nextNavHeight));
+      });
+      resizeObserverRef.current.observe(arrival);
+      resizeObserverRef.current.observe(frame);
+    };
+
+    window.setTimeout(measure, 200);
+  }
+
   return (
-    <div className="relative aspect-[10/14.15] min-w-0 overflow-hidden bg-[#0a0a0f]">
+    <div
+      className="relative aspect-[10/14.15] min-w-0 overflow-hidden bg-[#0a0a0f]"
+      style={measuredHeight ? { height: measuredHeight, aspectRatio: "auto" } : undefined}
+    >
       <iframe
+        ref={iframeRef}
         src={`/g/${DEMO_SLUG}?preview=1&demo=1`}
         title="Guia do hóspede — demonstração"
         loading="lazy"
+        onLoad={measureArrivalCard}
         className="block size-full border-0"
       />
     </div>
