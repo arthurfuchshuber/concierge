@@ -305,16 +305,24 @@ async function runGuideChat(
       });
     } catch (err) {
       const status = err instanceof AiGatewayError ? err.status : 502;
+      // O hóspede nunca deve ler jargão de plataforma ("Créditos de IA
+      // esgotados"): isso é problema do anfitrião, não dele. Ele recebe uma
+      // frase honesta que o orienta a falar com o anfitrião; a causa real
+      // continua nos logs do servidor para a equipe agir.
       const message =
-        err instanceof AiGatewayError
-          ? err.message
-          : "Não consegui responder agora. Tente de novo.";
-      if (!(err instanceof AiGatewayError)) console.error("guide-chat agent error", err);
+        status === 402
+          ? "No momento não consigo responder por aqui. Fale diretamente com o anfitrião — ele consegue te ajudar agora."
+          : err instanceof AiGatewayError
+            ? err.message
+            : "Não consegui responder agora. Tente de novo.";
+      if (status === 402) console.error("guide-chat sem créditos de IA", err);
+      else if (!(err instanceof AiGatewayError)) console.error("guide-chat agent error", err);
       return new Response(JSON.stringify({ error: message, conversationId }), {
         status: status === 429 || status === 402 ? status : 502,
         headers: { "Content-Type": "application/json" },
       });
     }
+
 
     const handoffTriggered = result.handoff;
     const partialReply = result.reply.trim();

@@ -1347,6 +1347,13 @@ export async function runAdvanceArrival(
        * cancelada no sistema — só então a próxima chegada é liberada. Como
        * markNoShow grava concluded_at, essas linhas não aparecem na consulta
        * acima; por isso olhamos para elas separadamente.
+       *
+       * CORREÇÃO (15/09/2026): a trava não tinha recorte de data. Um "Não
+       * Compareceu" do mês passado, cuja reserva importada por iCal continua
+       * "confirmed" para sempre, travava TODA chegada futura daquele imóvel,
+       * sem nenhuma forma de limpar. A regra só faz sentido enquanto a estadia
+       * do no-show ainda está em curso: se a data de saída dela já passou, o
+       * imóvel está livre, independentemente do status da reserva.
        */
       const { data: noShowRows } = await supabase
         .from("guest_arrival_status")
@@ -1360,25 +1367,59 @@ export async function runAdvanceArrival(
         if (data.logId && row.log_id === data.logId) return false;
         if (data.reservationId && row.reservation_id === data.reservationId) return false;
         return true;
-      }) as Array<{ reservation_id: string | null }>;
+      }) as Array<{ log_id: string | null; reservation_id: string | null }>;
 
       if (outrosNoShow.length > 0) {
         const reservaIds = outrosNoShow
           .map((r) => r.reservation_id)
           .filter((id): id is string => !!id);
+        const logIds = outrosNoShow.map((r) => r.log_id).filter((id): id is string => !!id);
 
-        // Sem reserva vinculada não há como comprovar cancelamento → bloqueia.
-        let bloqueia = outrosNoShow.some((r) => !r.reservation_id);
+        const [reservasRes, logsRes] = await Promise.all([
+          reservaIds.length
+            ? supabase
+                .from("property_reservations")
+                .select("id, status, checkout_date")
+                .in("id", reservaIds)
+            : Promise.resolve({ data: [] as unknown[] }),
+          logIds.length
+            ? supabase
+                .from("guide_access_logs")
+                .select("id, checkout_date")
+                .in("id", logIds)
+            : Promise.resolve({ data: [] as unknown[] }),
+        ]);
 
-        if (!bloqueia && reservaIds.length > 0) {
-          const { data: reservas } = await supabase
-            .from("property_reservations")
-            .select("id, status")
-            .in("id", reservaIds);
-          bloqueia = (reservas ?? []).some(
-            (r) => !((r as { status: string | null }).status ?? "").toLowerCase().includes("cancel"),
-          );
-        }
+        const reservaById = new Map(
+          ((reservasRes.data ?? []) as Array<{
+            id: string;
+            status: string | null;
+            checkout_date: string | null;
+          }>).map((r) => [r.id, r]),
+        );
+        const logById = new Map(
+          ((logsRes.data ?? []) as Array<{ id: string; checkout_date: string | null }>).map((l) => [
+            l.id,
+            l,
+          ]),
+        );
+
+        /** A estadia do no-show ainda ocupa o imóvel? Sem data conhecida, não. */
+        const aindaEmCurso = (row: { log_id: string | null; reservation_id: string | null }) => {
+          const saida =
+            (row.reservation_id ? reservaById.get(row.reservation_id)?.checkout_date : null) ??
+            (row.log_id ? logById.get(row.log_id)?.checkout_date : null) ??
+            null;
+          return !!saida && saida >= today;
+        };
+
+        const bloqueia = outrosNoShow.some((row) => {
+          if (!aindaEmCurso(row)) return false;
+          // Sem reserva vinculada não há como comprovar cancelamento → bloqueia.
+          if (!row.reservation_id) return true;
+          const status = (reservaById.get(row.reservation_id)?.status ?? "").toLowerCase();
+          return !status.includes("cancel");
+        });
 
         if (bloqueia) {
           throw new Error(
@@ -1386,6 +1427,7 @@ export async function runAdvanceArrival(
           );
         }
       }
+
 
       await upsertStatus("checkin", { status: "done", done_at: nowIso });
       // Só pula estadia/limpeza quando o checkout já ficou no PASSADO
