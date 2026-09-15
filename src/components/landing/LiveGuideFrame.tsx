@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 /**
  * Guia do hóspede REAL dentro da moldura de celular da landing.
@@ -15,37 +15,40 @@ const DEMO_SLUG = "casa-charmosa-prox-a-avenida-das-cataratas";
 
 export function LiveGuideFrame() {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const [measuredHeight, setMeasuredHeight] = useState<number | null>(null);
 
-  function alignArrivalCard() {
+  function measureArrivalCard() {
     const frame = iframeRef.current;
-    const win = frame?.contentWindow;
     const doc = frame?.contentDocument;
-    if (!frame || !win || !doc) return;
+    if (!frame || !doc) return;
 
     let attempts = 0;
-    const align = () => {
+    const measure = () => {
       const arrival = doc.querySelector<HTMLElement>('[data-demo-card="checkin"]');
+      const nav = doc.querySelector<HTMLElement>('nav[aria-label="Navegação do guia"]');
       if (!arrival) {
-        if (attempts++ < 20) window.setTimeout(align, 150);
+        if (attempts++ < 20) window.setTimeout(measure, 150);
         return;
       }
-      const navHeight = 62;
-      const gapAboveNav = 12;
-      const arrivalBottom = arrival.getBoundingClientRect().bottom + win.scrollY;
-      win.scrollTo({ top: Math.max(0, arrivalBottom - frame.clientHeight + navHeight + gapAboveNav) });
+      const arrivalBottom = arrival.getBoundingClientRect().bottom;
+      const navHeight = nav?.getBoundingClientRect().height ?? 57;
+      setMeasuredHeight(Math.ceil(arrivalBottom + 12 + navHeight));
     };
 
-    window.setTimeout(align, 200);
+    window.setTimeout(measure, 200);
   }
 
   return (
-    <div className="relative aspect-[10/14.15] min-w-0 overflow-hidden bg-[#0a0a0f]">
+    <div
+      className="relative aspect-[10/14.15] min-w-0 overflow-hidden bg-[#0a0a0f]"
+      style={measuredHeight ? { height: measuredHeight, aspectRatio: "auto" } : undefined}
+    >
       <iframe
         ref={iframeRef}
         src={`/g/${DEMO_SLUG}?preview=1&demo=1`}
         title="Guia do hóspede — demonstração"
         loading="lazy"
-        onLoad={alignArrivalCard}
+        onLoad={measureArrivalCard}
         className="block size-full border-0"
       />
     </div>
