@@ -1,7 +1,6 @@
-import { Fragment, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, Check, ChevronDown } from "lucide-react";
-import { PLAN_COMPARISON_GROUPS, type PlanKey } from "@/lib/payments.shared";
+import { ArrowRight, Check } from "lucide-react";
+import { type PlanKey } from "@/lib/payments.shared";
 import { metaPixelTrack } from "@/lib/meta-pixel";
 import { Reveal, Section, SectionHeading } from "./primitives";
 import { cn } from "@/lib/utils";
@@ -21,31 +20,17 @@ type PlanCard = {
 
 const PLANS: PlanCard[] = [
   {
-    key: "starter",
-    name: "Starter",
-    price: "R$ 99",
-    period: "/mês",
-    desc: "Pra começar a encantar hóspedes com um guia digital profissional.",
-    features: [
-      "Até 3 guias digitais",
-      "Edição manual completa (fotos, seções, dicas)",
-      "Bilíngue (PT + EN)",
-      "Acesso por link ou PIN privado",
-      "QR code personalizado por imóvel",
-    ],
-    lockedNext: "Chat com IA para hóspedes",
-    cta: "Testar 7 dias grátis",
-    ctaHref: "/auth",
-  },
-  {
     key: "pro",
     name: "Pro",
     price: "R$ 199",
     period: "/mês",
     desc: "Automatize a rotina e deixe uma IA responder seus hóspedes por você.",
     features: [
-      "Tudo do Starter, mais:",
-      "Até 20 guias",
+      "Até 20 guias digitais",
+      "Edição manual completa (fotos, seções, dicas)",
+      "Bilíngue (PT + EN)",
+      "Acesso por link ou PIN privado",
+      "QR code personalizado por imóvel",
       "Importação automática dos anúncios do Airbnb",
       "Chat com IA para hóspedes dentro do guia",
       "Formulário de captação + validação de documentos por IA",
@@ -90,11 +75,7 @@ const PLANS: PlanCard[] = [
   },
 ];
 
-const COLUMNS: PlanKey[] = ["starter", "pro", "business", "enterprise"];
-
 export function PricingSection() {
-  const [openTable, setOpenTable] = useState(false);
-
   return (
     <Section id="planos">
       <Reveal>
@@ -105,7 +86,7 @@ export function PricingSection() {
         />
       </Reveal>
 
-      <div className="mt-14 grid gap-2.5 md:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-14 grid gap-2.5 md:grid-cols-3">
         {PLANS.map((p, i) => {
           const isExternal = p.ctaHref.startsWith("#") || p.ctaHref.startsWith("http");
           return (
@@ -193,78 +174,6 @@ export function PricingSection() {
         })}
       </div>
 
-      {/* Comparativo detalhado — recolhido por padrão */}
-      <div className="mt-6 overflow-hidden rounded-2xl border border-border">
-        <button
-          type="button"
-          onClick={() => setOpenTable((v) => !v)}
-          aria-expanded={openTable}
-          className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
-        >
-          <span className="min-w-0">
-            <span className="block font-display text-[14.5px] tracking-tight">Comparativo detalhado</span>
-            <span className="mt-0.5 block text-[12px] text-muted-foreground">
-              Tudo em linguagem simples. Sem termos técnicos.
-            </span>
-          </span>
-          <ChevronDown
-            className={cn("size-4 shrink-0 text-muted-foreground transition-transform", openTable && "rotate-180")}
-          />
-        </button>
-
-        {openTable ? (
-          <div className="ds-scroll-x border-t border-border">
-            <table className="w-full min-w-[720px] border-collapse text-left">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="w-[38%] p-4 text-[10.5px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                    Recurso
-                  </th>
-                  {COLUMNS.map((k) => (
-                    <th key={k} className="p-4 text-center text-[12.5px] font-semibold capitalize">
-                      {k}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {PLAN_COMPARISON_GROUPS.map((group) => (
-                  <Fragment key={group.group}>
-                    <tr>
-                      <td
-                        colSpan={5}
-                        className="border-b border-border px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.18em] text-accent"
-                      >
-                        {group.group}
-                      </td>
-                    </tr>
-                    {group.rows.map((row) => (
-                      <tr key={row.label} className="border-b border-border/60">
-                        <td className="p-4 text-[12.5px] text-foreground">{row.label}</td>
-                        {COLUMNS.map((k) => (
-                          <td
-                            key={k}
-                            className={cn(
-                              "p-4 text-center text-[12.5px]",
-                              row.values[k] === "—"
-                                ? "text-muted-foreground/40"
-                                : row.values[k] === "✓"
-                                  ? "font-semibold text-accent"
-                                  : "text-muted-foreground",
-                            )}
-                          >
-                            {row.values[k]}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </Fragment>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : null}
-      </div>
     </Section>
   );
 }
