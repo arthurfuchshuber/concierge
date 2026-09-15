@@ -2803,6 +2803,8 @@ function HeroCompact({
   brandLogoUrl?: string | null;
 }) {
   const [idx, setIdx] = useState(0);
+  // Vitrine da landing (?demo=1): o guia é só um espelho, sem troca de tema.
+  const isDemoView = Route.useSearch().demo === "1";
   const touchStartX = useRef<number | null>(null);
   const total = photos.length;
   const hasMany = total > 1;
