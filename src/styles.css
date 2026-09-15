@@ -147,7 +147,9 @@
     font-feature-settings: "kern", "liga", "calt";
     /* Nenhuma tela pode ultrapassar a largura do dispositivo nem rolar na horizontal. */
     max-width: 100%;
-    overflow-x: hidden;
+    /* `clip` em vez de `hidden`: impede rolagem lateral sem transformar o
+       body em contêiner de rolagem (o que quebrava `position: sticky`). */
+    overflow-x: clip;
     overscroll-behavior-x: none;
   }
 
