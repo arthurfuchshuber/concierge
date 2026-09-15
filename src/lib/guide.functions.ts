@@ -5,6 +5,9 @@ import { getCookie, setCookie } from "@tanstack/react-start/server";
 const SlugInput = z.object({
   slug: z.string().regex(/^[a-z0-9-]{1,64}$/),
   previewToken: z.string().max(300).optional().nullable(),
+  // Vitrine pública (landing): mostra o guia REAL, porém com todo dado
+  // sensível mascarado (senhas, códigos de fechadura/portão e telefones).
+  demo: z.boolean().optional(),
 });
 
 async function loadFullGuide(supabaseAdmin: typeof import("@/integrations/supabase/client.server").supabaseAdmin, propertyId: string) {
@@ -121,9 +124,14 @@ export const getPublicGuide = createServerFn({ method: "POST" })
       gate_code?: string | null;
     };
     // Only reveal protected codes when the visitor has unlocked them.
-    const protectedCodes = accessUnlocked
-      ? { wifi_password: wifi_password ?? null, lock_code: lock_code ?? null, gate_code: gate_code ?? null }
-      : { wifi_password: null, lock_code: null, gate_code: null };
+    const isDemo = data.demo === true;
+    if (isDemo) accessUnlocked = true;
+    const protectedCodes = isDemo
+      ? { wifi_password: "demo-2026", lock_code: "0000", gate_code: "0000" }
+      : accessUnlocked
+        ? { wifi_password: wifi_password ?? null, lock_code: lock_code ?? null, gate_code: gate_code ?? null }
+        : { wifi_password: null, lock_code: null, gate_code: null };
+    if (isDemo && credsPublic["host_phone"]) credsPublic["host_phone"] = "+55 (00) 00000-0000";
     // Booleans so the UI can render gated/masked slots even before unlock.
     const setFlags = {
       wifi_password_set: !!(wifi_password && String(wifi_password).trim()),
@@ -134,7 +142,17 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     // owner_id é uso interno (plano/dono) e nunca deve chegar ao hóspede.
     const { owner_id: _ownerId, ...propPublic } = prop as Record<string, unknown>;
     const safeProp = { ...propPublic, ...credsPublic, ...protectedCodes, ...setFlags, hasAccessPin, accessUnlocked };
-    const children = await loadFullGuide(supabaseAdmin, prop.id);
+    const childrenRaw = await loadFullGuide(supabaseAdmin, prop.id);
+    // No modo vitrine, nenhum telefone real de contato sai do servidor.
+    const children = isDemo
+      ? {
+          ...childrenRaw,
+          emergency: (childrenRaw.emergency as Array<Record<string, unknown>>).map((c) => ({
+            ...c,
+            phone: c["phone"] ? "+55 (00) 00000-0000" : c["phone"],
+          })),
+        }
+      : childrenRaw;
     const { signPropertyImages } = await import("@/lib/storage.server");
     const signedProp = await signPropertyImages(supabaseAdmin, safeProp);
     // Resolve owner plan to gate AI chat in the public guide UI.
