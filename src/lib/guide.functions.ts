@@ -142,6 +142,25 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     // owner_id é uso interno (plano/dono) e nunca deve chegar ao hóspede.
     const { owner_id: _ownerId, ...propPublic } = prop as Record<string, unknown>;
     const safeProp = { ...propPublic, ...credsPublic, ...protectedCodes, ...setFlags, hasAccessPin, accessUnlocked };
+    // Vitrine (landing): é apenas um ESPELHO do guia. Nada que identifique ou
+    // dê acesso ao imóvel real pode sair daqui — endereço, mapa, coordenadas,
+    // rede de wi-fi e qualquer número longo dentro das instruções.
+    const demoProp = safeProp as Record<string, unknown>;
+    if (isDemo) {
+      const scrub = (v: unknown) =>
+        typeof v === "string" ? v.replace(/\d{4,}/g, "0000").replace(/\b\d{2,3}[\s.-]?\d{3,}\b/g, "0000") : v;
+      demoProp["address"] = "Endereço enviado ao hóspede no dia da chegada";
+      demoProp["address_note"] = null;
+      demoProp["maps_url"] = null;
+      demoProp["garage_maps_url"] = null;
+      demoProp["lat"] = null;
+      demoProp["lng"] = null;
+      demoProp["wifi_ssid"] = "Rede da casa";
+      demoProp["checkin_instructions"] = scrub(demoProp["checkin_instructions"]);
+      demoProp["checkout_instructions"] = scrub(demoProp["checkout_instructions"]);
+      demoProp["lock_instructions"] = scrub(demoProp["lock_instructions"]);
+      demoProp["gate_instructions"] = scrub(demoProp["gate_instructions"]);
+    }
     const children = await loadFullGuide(supabaseAdmin, prop.id);
     // No modo vitrine, nenhum telefone real de contato sai do servidor.
     if (isDemo) {
