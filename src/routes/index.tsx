@@ -42,7 +42,7 @@ export const Route = createFileRoute("/")({
           url: siteUrl("/"),
           offers: {
             "@type": "Offer",
-            price: "99",
+            price: "199",
             priceCurrency: "BRL",
             availability: "https://schema.org/InStock",
           },
