@@ -55,6 +55,7 @@ const PLANS: PlanCard[] = [
     lockedNext: "Marca própria (white label)",
     cta: "Começar agora",
     ctaHref: "/auth",
+    highlight: true,
   },
   {
     key: "enterprise",
