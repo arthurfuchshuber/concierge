@@ -1,4 +1,4 @@
-import { createFileRoute, notFound, redirect, Link } from "@tanstack/react-router";
+import { createFileRoute, notFound, redirect, Link, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -108,7 +108,7 @@ export const Route = createFileRoute("/g/$slug/")({
   validateSearch: (search: Record<string, unknown>): { preview?: string; t?: string; demo?: string } => ({
     ...(typeof search["preview"] === "string" ? { preview: search["preview"] as string } : {}),
     ...(typeof search["t"] === "string" ? { t: search["t"] as string } : {}),
-    ...(typeof search["demo"] === "string" ? { demo: search["demo"] as string } : {}),
+    ...(search["demo"] != null ? { demo: String(search["demo"]) } : {}),
   }),
   loaderDeps: ({ search }) => ({ t: search.t, demo: search.demo }),
   loader: async ({ params, deps }) => {
@@ -2803,6 +2803,10 @@ function HeroCompact({
   brandLogoUrl?: string | null;
 }) {
   const [idx, setIdx] = useState(0);
+  // Vitrine da landing (?demo=1): o guia é só um espelho, sem troca de tema.
+  const isDemoView = useRouterState({
+    select: (st) => String((st.location.search as { demo?: unknown }).demo ?? "") === "1",
+  });
   const touchStartX = useRef<number | null>(null);
   const total = photos.length;
   const hasMany = total > 1;
@@ -2851,6 +2855,7 @@ function HeroCompact({
               {city}
             </span>
           )}
+          {!isDemoView && (
           <button
             type="button"
             onClick={onToggleTheme}
@@ -2867,6 +2872,7 @@ function HeroCompact({
               <Moon className="size-3.5" strokeWidth={1.8} />
             )}
           </button>
+          )}
         </div>
       </header>
 

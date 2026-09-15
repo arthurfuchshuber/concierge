@@ -8,7 +8,7 @@
  */
 const DEMO_SLUG = "casa-charmosa-prox-a-avenida-das-cataratas";
 
-export function LiveGuideFrame({ height = 560 }: { height?: number }) {
+export function LiveGuideFrame({ height = 575 }: { height?: number }) {
   return (
     <div className="relative min-w-0 overflow-hidden bg-[#0a0a0f]" style={{ height }}>
       <iframe

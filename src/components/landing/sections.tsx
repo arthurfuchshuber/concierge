@@ -73,7 +73,7 @@ function ResultShowcase() {
   return (
     <div className="mx-auto mt-10 w-full max-w-5xl px-5 text-left sm:px-8">
       {/* barra de recursos */}
-      <div className="ds-scroll-x -mx-5 flex justify-start gap-1.5 px-5 sm:mx-0 sm:px-0">
+      <div className="ds-scroll-x -mx-5 flex justify-center gap-2.5 px-5 sm:mx-0 sm:gap-3 sm:px-0">
         {ABAS.map((s, idx) => (
           <button
             key={s.id}
