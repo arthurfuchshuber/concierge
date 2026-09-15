@@ -1332,7 +1332,7 @@ function CollapsibleSection({
 }
 
 function RecCard({ rec }: { rec: Rec }) {
-  const walking = formatWalking(rec);
+  const { distance, walk } = walkingParts(rec);
   const driving = formatDriving(rec);
   const href = safeHttpsHref(rec.maps_url, rec.name);
   // typeLabel removido do guia público — tag continua salva no back-end.
@@ -1359,31 +1359,50 @@ function RecCard({ rec }: { rec: Rec }) {
         {/* tag/categoria oculta no guia público — mantida apenas no admin */}
       </div>
 
-      <div className="p-4 pr-12 flex-1 flex flex-col gap-2">
-        <div className="flex items-start justify-between gap-2">
+      <div className="p-4 flex-1 flex flex-col gap-1">
+        <div className="flex items-center justify-between gap-2">
           <h4 className="ds-card-title min-w-0 flex-1">{rec.name}</h4>
+          {eng ? (
+            <POIEngagementBar
+              inline
+              shareOnly
+              slug={eng.slug}
+              poiKey={rec.id}
+              poiType="recommendation"
+              shareUrl={href ?? undefined}
+              shareTitle={rec.name}
+              initialCounts={counts}
+              initialReaction={myReaction}
+            />
+          ) : null}
         </div>
 
-        {rec.note && <p className="ds-card-desc">{rec.note}</p>}
+        {rec.note && <p className="ds-card-desc pt-1">{rec.note}</p>}
 
-        <div className="pt-2 flex flex-col gap-1.5 text-[11.5px] text-muted-foreground">
+        <div className="flex flex-col gap-1 text-[11.5px] text-muted-foreground">
           {rec.rating != null && (
             <span className="inline-flex items-center gap-1.5 text-foreground/85 font-semibold">
               <Star className="size-3.5 fill-current text-accent" strokeWidth={0} />
               <span className="tabular-nums">{Number(rec.rating).toFixed(1)}</span>
               {rec.user_ratings_total ? (
                 <span className="font-normal text-muted-foreground">
-                  ({rec.user_ratings_total.toLocaleString("pt-BR")} avaliações)
+                  ({rec.user_ratings_total.toLocaleString("pt-BR")})
                 </span>
               ) : null}
             </span>
           )}
-          {walking && (
+          {distance && (
+            <span className="inline-flex items-center gap-1.5">
+              <MapPin className="size-3.5" strokeWidth={1.75} />
+              {distance}
+            </span>
+          )}
+          {walk && (
             <span
-              className={`inline-flex items-center gap-1.5 ${isPertinhoRec(rec) ? "rounded-full bg-amber-400/15 text-amber-700 dark:text-amber-300 px-2 py-0.5 font-medium" : ""}`}
+              className={`inline-flex w-fit items-center gap-1.5 ${isPertinhoRec(rec) ? "rounded-full bg-amber-400/15 text-amber-700 dark:text-amber-300 px-2 py-0.5 font-medium" : ""}`}
             >
               <Footprints className="size-3.5" strokeWidth={1.75} />
-              {walking}
+              {walk}
             </span>
           )}
           {driving && (
@@ -1398,18 +1417,6 @@ function RecCard({ rec }: { rec: Rec }) {
           <OpeningHours hours={rec.opening_hours} />
         </div>
       </div>
-
-      {eng ? (
-        <POIEngagementBar
-          slug={eng.slug}
-          poiKey={rec.id}
-          poiType="recommendation"
-          shareUrl={href ?? undefined}
-          shareTitle={rec.name}
-          initialCounts={counts}
-          initialReaction={myReaction}
-        />
-      ) : null}
     </div>
   );
 
