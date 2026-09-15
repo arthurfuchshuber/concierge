@@ -253,7 +253,7 @@ export function CityNewsFeed({
         {/* Esmaecimento à direita, iniciando exatamente na borda direita do guia. */}
         <div
           aria-hidden
-          className={`pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l to-transparent ${
+          className={`pointer-events-none absolute inset-y-0 right-0 w-20 bg-gradient-to-l to-transparent ${
             isDark ? "from-[#070610]" : "from-background"
           }`}
         />

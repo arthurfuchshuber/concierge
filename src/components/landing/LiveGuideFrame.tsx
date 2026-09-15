@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 /**
  * Guia do hóspede REAL dentro da moldura de celular da landing.
@@ -15,39 +15,27 @@ const DEMO_SLUG = "casa-charmosa-prox-a-avenida-das-cataratas";
 
 export function LiveGuideFrame() {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  const timerRef = useRef<number | null>(null);
   const [measuredHeight, setMeasuredHeight] = useState<number | null>(null);
-
-  useEffect(
-    () => () => {
-      if (timerRef.current) window.clearInterval(timerRef.current);
-    },
-    [],
-  );
 
   function measureArrivalCard() {
     const frame = iframeRef.current;
-    if (!frame) return;
+    if (!frame || measuredHeight !== null) return;
 
-    // O recorte é o fim do cartão "Chegada" da tela inicial. Em outras abas
-    // esse cartão não existe: nesse caso mantemos a última altura válida
-    // (antes a moldura colapsava para a altura da barra inferior).
+    // Mede uma única vez, na tela inicial, e fixa o recorte definitivamente.
+    // Depois disso, rolagem, abas e qualquer outro clique não alteram a moldura.
     const measure = () => {
       const doc = iframeRef.current?.contentDocument;
       if (!doc) return;
       const arrival = doc.querySelector<HTMLElement>('[data-demo-card="checkin"]');
       const nav = doc.querySelector<HTMLElement>('nav[aria-label="Navegação do guia"]');
       if (!arrival || !arrival.isConnected) return;
-      const bottom = arrival.getBoundingClientRect().bottom;
+      const bottom = arrival.getBoundingClientRect().bottom + doc.documentElement.scrollTop;
       if (bottom <= 0) return;
       const navHeight = nav?.getBoundingClientRect().height ?? 57;
-      const next = Math.ceil(bottom + 12 + navHeight);
-      setMeasuredHeight((prev) => (prev === next ? prev : next));
+      setMeasuredHeight(Math.ceil(bottom + 12 + navHeight));
     };
 
-    window.setTimeout(measure, 200);
-    if (timerRef.current) window.clearInterval(timerRef.current);
-    timerRef.current = window.setInterval(measure, 500);
+    window.setTimeout(measure, 500);
   }
 
   return (
