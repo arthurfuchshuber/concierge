@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowRight, Check, Loader2 } from "lucide-react";
+import { ArrowRight, Check, Loader2, Mail, MessageCircle, ShieldCheck } from "lucide-react";
 import { submitLandingLead } from "@/lib/landing-leads.functions";
-import { Reveal, Section, SectionHeading, Surface } from "./primitives";
+import { Reveal, Section, GradientText } from "./primitives";
+import cena from "@/assets/landing/scene-apto.jpg.asset.json";
 
 const PROPERTY_RANGES = ["1 a 5", "6 a 10", "11 a 30", "31 a 100", "Mais de 100"];
 const CHALLENGES = [
