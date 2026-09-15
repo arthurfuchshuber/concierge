@@ -38,6 +38,10 @@ type Props = {
   variant?: "glass" | "solid";
   /** Force the bar to track view-on-click only (no IntersectionObserver). */
   noAutoView?: boolean;
+  /** Show only the share button (no like/dislike). */
+  shareOnly?: boolean;
+  /** Render in flow (not absolutely positioned at the card's right edge). */
+  inline?: boolean;
 };
 
 export function POIEngagementBar({
