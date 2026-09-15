@@ -112,7 +112,7 @@ export function LeadForm() {
                   style={{ background: "linear-gradient(90deg,#7c1ad8 0%,#e82dae 100%)" }}
                 />
                 <p className="mt-4 text-[10.5px] font-bold uppercase tracking-[0.28em] text-accent">Contato</p>
-                <p className="mt-3 font-display text-[26px] font-extrabold leading-[1.1] tracking-tight text-balance sm:text-[32px]">
+                <p className="mt-3 font-display text-[26px] font-extrabold leading-[1.5] tracking-tight text-balance sm:text-[32px]">
                   Leve o ConciergeIA <GradientText>para sua operação.</GradientText>
                 </p>
 
@@ -128,7 +128,7 @@ export function LeadForm() {
                   <span className="mx-auto grid size-12 place-items-center rounded-full bg-accent/12">
                     <Check className="size-5 text-accent" />
                   </span>
-                  <p className="mt-5 font-display text-[19px] tracking-tight">
+                  <p className="mt-5 font-display text-[19px] leading-[1.5] tracking-tight">
                     Recebemos seus dados. Em breve, entraremos em contato.
                   </p>
                 </div>

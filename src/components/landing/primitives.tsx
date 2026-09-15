@@ -66,7 +66,7 @@ export function SectionHeading({
   return (
     <div className={cn("max-w-3xl", align === "center" && "mx-auto text-center")}>
       {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
-      <h2 className="mt-4 font-display text-[27px] leading-[1.12] tracking-tight text-balance sm:text-[42px]">
+      <h2 className="mt-4 font-display text-[27px] leading-[1.5] tracking-tight text-balance sm:text-[42px]">
         {title}
       </h2>
       {description ? (
