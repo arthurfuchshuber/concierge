@@ -438,16 +438,8 @@ function ExplorePage() {
   const propLat = typeof p.lat === "number" ? (p.lat as number) : null;
   const propLng = typeof p.lng === "number" ? (p.lng as number) : null;
 
-  // "Pertinho" = até 1,5km OU até 20 minutos a pé.
-  const isPertinho = (rec: Rec): boolean => {
-    if (typeof rec.distance_meters === "number" && rec.distance_meters > 0) {
-      if (rec.distance_meters <= 1500) return true;
-    }
-    if (typeof rec.walk_minutes === "number" && rec.walk_minutes > 0 && rec.walk_minutes <= 20) {
-      return true;
-    }
-    return false;
-  };
+  // "Pertinho" = até 1,5km OU até 30 minutos a pé.
+  const isPertinho = (rec: Rec): boolean => isPertinhoRec(rec);
 
   // Distância em metros entre dois pontos lat/lng (haversine).
   const distMeters = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
