@@ -60,7 +60,13 @@ export function BottomNav({
             : "bg-white/85 border-slate-900/[0.06] shadow-[0_-16px_40px_-24px_rgba(31,24,74,0.18)]",
         )}
       >
-        <ul className="mx-auto flex max-w-[490px] items-stretch justify-around gap-1">
+        {/* Altura travada: a barra nunca muda de tamanho entre abas/categorias. */}
+        <ul
+          className={cn(
+            "mx-auto flex max-w-[490px] items-center justify-around gap-1",
+            isDemoView ? "h-[46px]" : "h-[62px]",
+          )}
+        >
           {items.map((it) => {
             const isActive = it.key === active;
             const isLocked = !!lockedTo && it.key !== lockedTo;
