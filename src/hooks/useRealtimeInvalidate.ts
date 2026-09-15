@@ -53,19 +53,52 @@ export function useRealtimeInvalidate(
       }, 400);
     };
 
-    let channel = supabase.channel(channelName);
-    for (const w of watches) {
-      channel = channel.on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: w.table, ...(w.filter ? { filter: w.filter } : {}) },
-        invalidate,
-      );
-    }
-    channel.subscribe();
+    let current: ReturnType<typeof supabase.channel> | null = null;
+    let tentativa = 0;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let cancelado = false;
+
+    const conectar = () => {
+      if (cancelado) return;
+      if (current) supabase.removeChannel(current);
+      let channel = supabase.channel(`${channelName}-${Date.now()}-${tentativa}`);
+      for (const w of watches) {
+        channel = channel.on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: w.table,
+            ...(w.filter ? { filter: w.filter } : {}),
+          },
+          invalidate,
+        );
+      }
+      current = channel;
+      channel.subscribe((status) => {
+        if (cancelado) return;
+        if (status === "SUBSCRIBED") {
+          // Reconectou: busca o que mudou enquanto a conexão esteve fora.
+          if (tentativa > 0) invalidate();
+          tentativa = 0;
+          return;
+        }
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          const espera = Math.min(30_000, 1_000 * 2 ** tentativa);
+          tentativa += 1;
+          if (retryTimer) clearTimeout(retryTimer);
+          retryTimer = setTimeout(conectar, espera);
+        }
+      });
+    };
+
+    conectar();
 
     return () => {
+      cancelado = true;
+      if (retryTimer) clearTimeout(retryTimer);
       if (timerRef.current) clearTimeout(timerRef.current);
-      supabase.removeChannel(channel);
+      if (current) supabase.removeChannel(current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelName, enabled, JSON.stringify(watches), JSON.stringify(queryKeysToInvalidate)]);
