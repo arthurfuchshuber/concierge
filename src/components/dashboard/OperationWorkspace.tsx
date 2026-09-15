@@ -1289,34 +1289,92 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     );
   }
 
-  // Realtime — sincroniza kanban e KPIs sem precisar recarregar a página quando
-  // horários, notas ou reservas mudam (via outro membro da equipe, iCal etc).
+  // Realtime — sincroniza kanban, pendências e KPIs sem precisar recarregar a
+  // página quando alguém da equipe dá um "check", muda horário, conclui uma
+  // pendência, cria um registro ou uma reserva entra pelo iCal.
+  //
+  // Duas coisas que faltavam e faziam o "às vezes reflete, às vezes não":
+  //  · pendências/conclusões/registros/imóveis não eram escutados aqui;
+  //  · quando a conexão ao vivo caía (celular bloqueado, rede oscilando,
+  //    token renovado), ninguém reconectava nem buscava o que passou.
   useEffect(() => {
     const invalidate = () => {
       refreshDashboard();
       qc.invalidateQueries({ queryKey: ["dash-eng"] });
       qc.invalidateQueries({ queryKey: ["dash-occupancy"] });
+      qc.invalidateQueries({ queryKey: ["dash-tasks"], refetchType: "active" });
     };
-    const ch = supabase
-      .channel("dash-live")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "guide_access_logs" },
-        invalidate,
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "guest_arrival_status" },
-        invalidate,
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "property_reservations" },
-        invalidate,
-      )
-      .subscribe();
+
+    const TABELAS = [
+      "guide_access_logs",
+      "guest_arrival_status",
+      "property_reservations",
+      "tasks",
+      "task_completions",
+      "reservation_records",
+      "properties",
+    ] as const;
+
+    let ch: ReturnType<typeof supabase.channel> | null = null;
+    let tentativa = 0;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let cancelado = false;
+
+    const conectar = () => {
+      if (cancelado) return;
+      if (ch) supabase.removeChannel(ch);
+      // Nome único por tentativa: reaproveitar o mesmo nome depois de um erro
+      // faz o cliente recusar novos listeners.
+      let canal = supabase.channel(`dash-live-${Date.now()}-${tentativa}`);
+      for (const table of TABELAS) {
+        canal = canal.on("postgres_changes", { event: "*", schema: "public", table }, invalidate);
+      }
+      ch = canal;
+      canal.subscribe((status) => {
+        if (cancelado) return;
+        if (status === "SUBSCRIBED") {
+          tentativa = 0;
+          // Reconectou: busca o que aconteceu enquanto estávamos fora.
+          refreshDashboard(0);
+          return;
+        }
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          const espera = Math.min(30_000, 1_000 * 2 ** tentativa);
+          tentativa += 1;
+          if (retryTimer) clearTimeout(retryTimer);
+          retryTimer = setTimeout(conectar, espera);
+        }
+      });
+    };
+
+    conectar();
+
     return () => {
-      supabase.removeChannel(ch);
+      cancelado = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      if (ch) supabase.removeChannel(ch);
+    };
+  }, [refreshDashboard, qc]);
+
+  // Rede de segurança: voltar para a aba, recuperar a internet ou simplesmente
+  // deixar a tela aberta por alguns minutos sempre reconfere os dados. Sem
+  // isto, um evento perdido enquanto o app estava em segundo plano deixava a
+  // tela mostrando o estado antigo por tempo indeterminado.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const reconferir = () => {
+      if (document.visibilityState === "hidden") return;
+      refreshDashboard(0);
+    };
+    window.addEventListener("focus", reconferir);
+    window.addEventListener("online", reconferir);
+    document.addEventListener("visibilitychange", reconferir);
+    const timer = window.setInterval(reconferir, 120_000);
+    return () => {
+      window.removeEventListener("focus", reconferir);
+      window.removeEventListener("online", reconferir);
+      document.removeEventListener("visibilitychange", reconferir);
+      window.clearInterval(timer);
     };
   }, [refreshDashboard]);
 
