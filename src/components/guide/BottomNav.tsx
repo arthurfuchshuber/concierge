@@ -1,4 +1,5 @@
 import { KeyRound, LogOut, Home as HomeIcon, Compass, Home as HouseIcon } from "lucide-react";
+import { useRouterState } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 
 export type BottomNavKey = "home" | "checkin" | "saida" | "residencia" | "explore";
@@ -21,6 +22,12 @@ export function BottomNav({
   lockedTo?: BottomNavKey;
 }) {
   const isDark = theme === "dark";
+  // Vitrine da landing (?demo=1): o guia roda numa moldura curta, então o
+  // espaçador que reserva a altura da barra faz o rodapé "crescer" ao chegar
+  // no fim da rolagem. Lá ele é dispensável.
+  const isDemoView = useRouterState({
+    select: (st) => String((st.location.search as { demo?: unknown }).demo ?? "") === "1",
+  });
   if (items.length === 0) return null;
 
   const iconFor = (k: BottomNavKey) => {
@@ -41,7 +48,7 @@ export function BottomNav({
   return (
     <>
       {/* Spacer to prevent last content from sitting under the fixed bar */}
-      <div className="h-[86px]" aria-hidden />
+      <div className={isDemoView ? "h-4" : "h-[86px]"} aria-hidden />
       <nav
         aria-label="Navegação do guia"
         className={cn(
