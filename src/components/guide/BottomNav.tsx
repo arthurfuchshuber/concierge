@@ -80,7 +80,8 @@ export function BottomNav({
                 >
                   <span
                     className={cn(
-                      "grid size-10 place-items-center rounded-[0.3rem] transition-all",
+                      "grid place-items-center rounded-[0.3rem] transition-all",
+                      isDemoView ? "size-7" : "size-10",
                       isActive
                         ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white shadow-[0_4px_16px_-4px_rgba(232,45,174,0.55)]"
                         : isDark
