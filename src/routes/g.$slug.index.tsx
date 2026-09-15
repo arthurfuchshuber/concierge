@@ -2870,6 +2870,7 @@ function HeroCompact({
               <Moon className="size-3.5" strokeWidth={1.8} />
             )}
           </button>
+          )}
         </div>
       </header>
 
