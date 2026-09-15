@@ -2477,6 +2477,39 @@ export type Database = {
         }
         Relationships: []
       }
+      fila_webhooks_channex: {
+        Row: {
+          created_at: string
+          erro: string | null
+          evento: string | null
+          id: number
+          payload: Json
+          processado: boolean
+          processado_em: string | null
+          tentativas: number
+        }
+        Insert: {
+          created_at?: string
+          erro?: string | null
+          evento?: string | null
+          id?: never
+          payload: Json
+          processado?: boolean
+          processado_em?: string | null
+          tentativas?: number
+        }
+        Update: {
+          created_at?: string
+          erro?: string | null
+          evento?: string | null
+          id?: never
+          payload?: Json
+          processado?: boolean
+          processado_em?: string | null
+          tentativas?: number
+        }
+        Relationships: []
+      }
       guest_arrival_status: {
         Row: {
           arrival_date_override: string | null
@@ -4631,6 +4664,77 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      reservas: {
+        Row: {
+          channex_booking_id: string | null
+          channex_rate_plan_id: string | null
+          channex_revision_id: string | null
+          channex_room_type_id: string | null
+          codigo_reserva_channex: string
+          created_at: string
+          data_checkin: string | null
+          data_checkout: string | null
+          email_hospede: string | null
+          id: string
+          moeda: string | null
+          nome_hospede: string | null
+          ota_name: string | null
+          payload: Json | null
+          propriedade_id: string | null
+          status: string
+          updated_at: string
+          valor_total: number | null
+        }
+        Insert: {
+          channex_booking_id?: string | null
+          channex_rate_plan_id?: string | null
+          channex_revision_id?: string | null
+          channex_room_type_id?: string | null
+          codigo_reserva_channex: string
+          created_at?: string
+          data_checkin?: string | null
+          data_checkout?: string | null
+          email_hospede?: string | null
+          id?: string
+          moeda?: string | null
+          nome_hospede?: string | null
+          ota_name?: string | null
+          payload?: Json | null
+          propriedade_id?: string | null
+          status?: string
+          updated_at?: string
+          valor_total?: number | null
+        }
+        Update: {
+          channex_booking_id?: string | null
+          channex_rate_plan_id?: string | null
+          channex_revision_id?: string | null
+          channex_room_type_id?: string | null
+          codigo_reserva_channex?: string
+          created_at?: string
+          data_checkin?: string | null
+          data_checkout?: string | null
+          email_hospede?: string | null
+          id?: string
+          moeda?: string | null
+          nome_hospede?: string | null
+          ota_name?: string | null
+          payload?: Json | null
+          propriedade_id?: string | null
+          status?: string
+          updated_at?: string
+          valor_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservas_propriedade_id_fkey"
+            columns: ["propriedade_id"]
+            isOneToOne: false
+            referencedRelation: "propriedades"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reservation_records: {
         Row: {
