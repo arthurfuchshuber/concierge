@@ -72,7 +72,8 @@ export function BottomNav({
                   disabled={isLocked}
                   aria-disabled={isLocked || undefined}
                   className={cn(
-                    "group relative flex w-full flex-col items-center justify-center gap-1 py-1.5 rounded-[0.3rem] transition-all",
+                    "group relative flex w-full flex-col items-center justify-center rounded-[0.3rem] transition-all",
+                    isDemoView ? "gap-0.5 py-0.5" : "gap-1 py-1.5",
                     isLocked ? "opacity-30 cursor-not-allowed" : "active:scale-[0.96]",
                   )}
                   aria-current={isActive ? "page" : undefined}
