@@ -106,11 +106,14 @@ export function LeadForm() {
                 <input
                   required
                   value={form.name}
-                  onChange={(e) => set("name")(e.target.value)}
+                  onChange={(e) => set("name")(maskName(e.target.value))}
                   className={inputClass}
                   placeholder="Seu nome"
                   autoComplete="name"
                 />
+                {erros.name ? (
+                  <span className="text-[11px] text-destructive">{erros.name}</span>
+                ) : null}
               </label>
 
               <label className="grid gap-1.5">
@@ -144,12 +147,16 @@ export function LeadForm() {
                 <span className="text-[11.5px] text-muted-foreground">WhatsApp</span>
                 <input
                   value={form.whatsapp}
-                  onChange={(e) => set("whatsapp")(e.target.value)}
+                  onChange={(e) => set("whatsapp")(maskPhone(e.target.value))}
                   className={inputClass}
                   placeholder="(00) 00000-0000"
                   inputMode="tel"
                   autoComplete="tel"
+                  maxLength={15}
                 />
+                {erros.whatsapp ? (
+                  <span className="text-[11px] text-destructive">{erros.whatsapp}</span>
+                ) : null}
               </label>
 
               <label className="grid gap-1.5 sm:col-span-2">
@@ -158,11 +165,15 @@ export function LeadForm() {
                   required
                   type="email"
                   value={form.email}
-                  onChange={(e) => set("email")(e.target.value)}
+                  onChange={(e) => set("email")(maskEmail(e.target.value))}
                   className={inputClass}
                   placeholder="voce@empresa.com.br"
                   autoComplete="email"
+                  inputMode="email"
                 />
+                {erros.email ? (
+                  <span className="text-[11px] text-destructive">{erros.email}</span>
+                ) : null}
               </label>
 
               <label className="grid gap-1.5 sm:col-span-2">
