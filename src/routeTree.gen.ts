@@ -32,6 +32,7 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as OauthGoogleCalendarReturnRouteImport } from './routes/oauth.google-calendar.return'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as GSlugExplorarRouteImport } from './routes/g.$slug.explorar'
+import { Route as ApiPublicWebhookChannexReservasRouteImport } from './routes/api/public/webhook-channex-reservas'
 import { Route as ApiPublicVersionRouteImport } from './routes/api/public/version'
 import { Route as ApiPublicPlacePhotoRouteImport } from './routes/api/public/place-photo'
 import { Route as ApiPublicLandingChatRouteImport } from './routes/api/public/landing-chat'
@@ -209,6 +210,12 @@ const GSlugExplorarRoute = GSlugExplorarRouteImport.update({
   path: '/explorar',
   getParentRoute: () => GSlugRoute,
 } as any)
+const ApiPublicWebhookChannexReservasRoute =
+  ApiPublicWebhookChannexReservasRouteImport.update({
+    id: '/api/public/webhook-channex-reservas',
+    path: '/api/public/webhook-channex-reservas',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicVersionRoute = ApiPublicVersionRouteImport.update({
   id: '/api/public/version',
   path: '/api/public/version',
@@ -595,6 +602,7 @@ export interface FileRoutesByFullPath {
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/public/version': typeof ApiPublicVersionRoute
+  '/api/public/webhook-channex-reservas': typeof ApiPublicWebhookChannexReservasRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
@@ -675,6 +683,7 @@ export interface FileRoutesByTo {
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/public/version': typeof ApiPublicVersionRoute
+  '/api/public/webhook-channex-reservas': typeof ApiPublicWebhookChannexReservasRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
@@ -760,6 +769,7 @@ export interface FileRoutesById {
   '/api/public/landing-chat': typeof ApiPublicLandingChatRoute
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/public/version': typeof ApiPublicVersionRoute
+  '/api/public/webhook-channex-reservas': typeof ApiPublicWebhookChannexReservasRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
@@ -845,6 +855,7 @@ export interface FileRouteTypes {
     | '/api/public/landing-chat'
     | '/api/public/place-photo'
     | '/api/public/version'
+    | '/api/public/webhook-channex-reservas'
     | '/g/$slug/explorar'
     | '/lovable/email/suppression'
     | '/oauth/google-calendar/return'
@@ -925,6 +936,7 @@ export interface FileRouteTypes {
     | '/api/public/landing-chat'
     | '/api/public/place-photo'
     | '/api/public/version'
+    | '/api/public/webhook-channex-reservas'
     | '/g/$slug/explorar'
     | '/lovable/email/suppression'
     | '/oauth/google-calendar/return'
@@ -1009,6 +1021,7 @@ export interface FileRouteTypes {
     | '/api/public/landing-chat'
     | '/api/public/place-photo'
     | '/api/public/version'
+    | '/api/public/webhook-channex-reservas'
     | '/g/$slug/explorar'
     | '/lovable/email/suppression'
     | '/oauth/google-calendar/return'
@@ -1078,6 +1091,7 @@ export interface RootRouteChildren {
   ApiPublicLandingChatRoute: typeof ApiPublicLandingChatRoute
   ApiPublicPlacePhotoRoute: typeof ApiPublicPlacePhotoRoute
   ApiPublicVersionRoute: typeof ApiPublicVersionRoute
+  ApiPublicWebhookChannexReservasRoute: typeof ApiPublicWebhookChannexReservasRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   OauthGoogleCalendarReturnRoute: typeof OauthGoogleCalendarReturnRoute
   ApiPublicCronAutoCheckoutRoute: typeof ApiPublicCronAutoCheckoutRoute
@@ -1266,6 +1280,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/g/$slug/explorar'
       preLoaderRoute: typeof GSlugExplorarRouteImport
       parentRoute: typeof GSlugRoute
+    }
+    '/api/public/webhook-channex-reservas': {
+      id: '/api/public/webhook-channex-reservas'
+      path: '/api/public/webhook-channex-reservas'
+      fullPath: '/api/public/webhook-channex-reservas'
+      preLoaderRoute: typeof ApiPublicWebhookChannexReservasRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/public/version': {
       id: '/api/public/version'
@@ -1818,6 +1839,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicLandingChatRoute: ApiPublicLandingChatRoute,
   ApiPublicPlacePhotoRoute: ApiPublicPlacePhotoRoute,
   ApiPublicVersionRoute: ApiPublicVersionRoute,
+  ApiPublicWebhookChannexReservasRoute: ApiPublicWebhookChannexReservasRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   OauthGoogleCalendarReturnRoute: OauthGoogleCalendarReturnRoute,
   ApiPublicCronAutoCheckoutRoute: ApiPublicCronAutoCheckoutRoute,
