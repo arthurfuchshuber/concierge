@@ -202,24 +202,28 @@ export function POIEngagementBar({
           >
             <Share2 className="size-[18px]" strokeWidth={1.75} />
           </button>
-          <button
-            type="button"
-            aria-label="Descurtir"
-            onClick={(e) => { e.stopPropagation(); fireReaction("dislike"); }}
-            className={`${btnBase} ${reaction === "dislike" ? "text-sky-300 opacity-100" : ""}`}
-          >
-            <ThumbsDown className={`size-[18px] ${reaction === "dislike" ? "fill-current" : ""}`} strokeWidth={1.75} />
-            <span className="leading-none">{counts.dislikes}</span>
-          </button>
-          <button
-            type="button"
-            aria-label="Curtir"
-            onClick={(e) => { e.stopPropagation(); fireReaction("like"); }}
-            className={`${btnBase} ${reaction === "like" ? "text-rose-300 opacity-100" : ""}`}
-          >
-            <Heart className={`size-[18px] ${reaction === "like" ? "fill-current" : ""}`} strokeWidth={1.75} />
-            <span className="leading-none">{counts.likes}</span>
-          </button>
+          {!shareOnly && (
+            <button
+              type="button"
+              aria-label="Descurtir"
+              onClick={(e) => { e.stopPropagation(); fireReaction("dislike"); }}
+              className={`${btnBase} ${reaction === "dislike" ? "text-sky-300 opacity-100" : ""}`}
+            >
+              <ThumbsDown className={`size-[18px] ${reaction === "dislike" ? "fill-current" : ""}`} strokeWidth={1.75} />
+              <span className="leading-none">{counts.dislikes}</span>
+            </button>
+          )}
+          {!shareOnly && (
+            <button
+              type="button"
+              aria-label="Curtir"
+              onClick={(e) => { e.stopPropagation(); fireReaction("like"); }}
+              className={`${btnBase} ${reaction === "like" ? "text-rose-300 opacity-100" : ""}`}
+            >
+              <Heart className={`size-[18px] ${reaction === "like" ? "fill-current" : ""}`} strokeWidth={1.75} />
+              <span className="leading-none">{counts.likes}</span>
+            </button>
+          )}
         </>
       )}
     </div>
