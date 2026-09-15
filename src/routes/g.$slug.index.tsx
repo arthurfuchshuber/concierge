@@ -4217,7 +4217,7 @@ function SubItem({
     <AccordionItem
       value={id}
       data-tour={dataTour}
-      className="border border-border/25 rounded-[0.3rem] overflow-hidden bg-card/60 backdrop-blur-sm data-[state=open]:border-accent/25 data-[state=open]:shadow-[0_8px_28px_-16px_oklch(from_var(--accent)_l_c_h/0.45)] transition-all"
+      className="border border-border/25 rounded-[0.3rem] overflow-hidden bg-card/60 backdrop-blur-sm data-[state=open]:border-transparent data-[state=open]:shadow-none transition-all"
     >
       <AccordionTrigger className="min-w-0 px-5 py-4 md:py-5 hover:no-underline items-center [&>svg]:self-center">
         <div className="flex items-center gap-4 flex-1 min-w-0">
