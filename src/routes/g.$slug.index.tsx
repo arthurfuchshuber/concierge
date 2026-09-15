@@ -2029,15 +2029,7 @@ function Guide({ data }: { data: GuideOk }) {
                                   {/* Duas opções apenas: grade de 2 colunas iguais
                                       (inline style vence o `ds-segmented`, que é
                                       pensado para barras longas e roláveis). */}
-                                  <TabsList
-                                    className="mb-4 h-auto w-full rounded-[0.3rem] border-border/25 bg-foreground/[0.04] p-1"
-                                    style={{
-                                      display: "grid",
-                                      gridTemplateColumns: "1fr 1fr",
-                                      gap: "4px",
-                                      overflow: "visible",
-                                    }}
-                                  >
+                                  <TabsPrimitive.List className="mb-4 grid w-full grid-cols-2 gap-1 rounded-[0.3rem] border border-border/25 bg-foreground/[0.04] p-1 text-muted-foreground">
                                     <TabsTrigger
                                       value="passos"
                                       className="grid h-[38px] w-full min-w-0 place-items-center rounded-[0.3rem] text-[13px] font-semibold"
