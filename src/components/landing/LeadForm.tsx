@@ -123,7 +123,7 @@ export function LeadForm() {
                 <div className="mt-8 space-y-3">
                   <a
                     href="mailto:sigma@anfitriaosigma.com.br"
-                    className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 transition-colors hover:border-accent/40"
+                    className="flex min-w-0 items-center gap-3 rounded-[10px] border border-white/10 bg-white/[0.05] p-3 transition-colors hover:border-accent/40"
                   >
                     <span className="grid size-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.05]">
                       <Mail className="size-4 text-accent" />
@@ -136,7 +136,7 @@ export function LeadForm() {
                     href="https://wa.me/5545991070707"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 transition-colors hover:border-accent/40"
+                    className="flex min-w-0 items-center gap-3 rounded-[10px] border border-white/10 bg-white/[0.05] p-3 transition-colors hover:border-accent/40"
                   >
                     <span className="grid size-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.05]">
                       <MessageCircle className="size-4 text-accent" />
