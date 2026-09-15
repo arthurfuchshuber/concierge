@@ -44,30 +44,22 @@ export function BrowserShot({
   );
 }
 
-/** Moldura de celular para a captura do guia do hóspede. */
-export function PhoneShot({
-  src,
-  alt,
-  className,
-}: {
-  src: string;
-  alt: string;
-  className?: string;
-}) {
+/** Moldura de celular. Recebe a tela renderizada em HTML (paleta da landing). */
+export function PhoneFrame({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
     <div className={cn("relative min-w-0", className)}>
       <div
         aria-hidden
-        className="pointer-events-none absolute -inset-1 rounded-[40px] opacity-40 blur-[14px]"
+        className="pointer-events-none absolute -inset-1 rounded-[44px] opacity-40 blur-[16px]"
         style={{ background: "linear-gradient(140deg,#7c1ad8 0%,#e82dae 100%)" }}
       />
-      <div className="relative min-w-0 overflow-hidden rounded-[34px] border border-white/15 bg-[#07070b] p-2 shadow-[0_40px_80px_-40px_rgba(0,0,0,1)]">
-        <div className="relative overflow-hidden rounded-[26px]">
+      <div className="relative min-w-0 overflow-hidden rounded-[38px] border border-white/15 bg-[#07070b] p-2 shadow-[0_40px_80px_-40px_rgba(0,0,0,1)]">
+        <div className="relative min-h-[460px] overflow-hidden rounded-[30px] border border-white/8">
           <span
             aria-hidden
             className="absolute left-1/2 top-2 z-10 h-4 w-20 -translate-x-1/2 rounded-full bg-black/80"
           />
-          <img src={src} alt={alt} loading="lazy" className="block w-full" />
+          {children}
         </div>
       </div>
     </div>
