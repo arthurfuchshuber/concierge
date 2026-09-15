@@ -3,13 +3,7 @@ import { useEffect } from "react";
 import { LandingNav } from "@/components/landing/LandingNav";
 import { LeadForm } from "@/components/landing/LeadForm";
 import { PricingSection } from "@/components/landing/PricingSection";
-import {
-  AudienceSection,
-  FlowSection,
-  Hero,
-  LandingFooter,
-  ShowcaseSection,
-} from "@/components/landing/sections";
+import { AudienceSection, FlowSection, Hero, LandingFooter } from "@/components/landing/sections";
 import { metaPixelTrackCustomOnce } from "@/lib/meta-pixel";
 import { siteUrl } from "@/lib/site-url";
 
