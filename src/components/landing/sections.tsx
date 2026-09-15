@@ -15,6 +15,7 @@ import {
 import { Reveal, Section, SectionHeading, Glow, GradientText, GlassCard } from "./primitives";
 import { PhoneFrame } from "./ProductShot";
 import { RESULT_FEATURES, ScreenNavContext } from "./ResultScreens";
+import { InteractiveGuide } from "./InteractiveGuide";
 import { cn } from "@/lib/utils";
 
 /* ---------------- HERO ---------------- */
@@ -296,7 +297,7 @@ export function LandingFooter() {
           </ul>
         </nav>
       </div>
-      <div className="mx-auto mt-6 flex w-full max-w-6xl flex-col gap-2 border-t border-border px-5 pt-6 text-[11.5px] text-muted-foreground/70 sm:flex-row sm:justify-between sm:px-8">
+      <div className="relative mx-auto mt-10 flex w-full max-w-6xl flex-col gap-2 border-t border-border px-5 pt-6 text-[11.5px] text-muted-foreground/70 sm:flex-row sm:justify-between sm:px-8">
         <p>© {new Date().getFullYear()} ConciergeIA — Todos os direitos reservados.</p>
         <p>
           Uma solução{" "}
