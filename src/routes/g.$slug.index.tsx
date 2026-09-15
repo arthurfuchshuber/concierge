@@ -1487,6 +1487,7 @@ function Guide({ data }: { data: GuideOk }) {
                     ) : (
                       <button
                         key={c.key}
+                        data-demo-card={c.key}
                         onClick={() => {
                           if (c.to?.kind === "section") gotoSection(c.to.value);
                           else if (c.to?.kind === "dialog" && c.to.value === "locwifi")
@@ -4022,8 +4023,8 @@ function StepList({
     .map((s) => s.replace(/^\s*(?:\d+[.)\-º°]\s*|[-•·*]\s*)/, "").trim())
     .filter((s) => s.length > 0);
   if (steps.length === 0) return null;
-  const badge = compact ? "size-6 text-[11px]" : "size-9 text-[13px]";
-  const lineLeft = compact ? "left-[12px]" : "left-[18px]";
+  const badge = compact ? "size-7 text-[11px]" : "size-9 text-[13px]";
+  const lineLeft = compact ? "left-[14px]" : "left-[18px]";
   const gap = compact ? "gap-3" : "gap-4";
   const labelCls = compact
     ? "text-[9px] tracking-[0.2em] mb-0.5"
@@ -4035,13 +4036,13 @@ function StepList({
     >
       <span
         aria-hidden
-        className={`pointer-events-none absolute ${lineLeft} top-3 bottom-3 w-px bg-gradient-to-b from-accent/50 via-accent/25 to-transparent`}
+        className={`pointer-events-none absolute ${lineLeft} ${compact ? "top-4 bottom-4" : "top-5 bottom-5"} w-px bg-accent/25`}
       />
       {steps.map((step, i) => (
         <li key={i} className={`relative flex items-start ${gap}`}>
           <span
             aria-hidden
-            className={`relative z-10 mt-0.5 shrink-0 grid place-items-center ${badge} rounded-full bg-accent/15 text-accent/85 font-semibold tabular-nums leading-none shadow-[0_4px_14px_-8px_oklch(from_var(--accent)_l_c_h/0.3)] ring-4 ring-background`}
+            className={`relative z-10 mt-0.5 shrink-0 grid place-items-center ${badge} rounded-full border border-accent/35 bg-card text-accent font-semibold tabular-nums leading-none shadow-sm`}
           >
             {i + 1}
           </span>
@@ -5067,16 +5068,20 @@ function AccessCodesStrip({
       {hasInstructions && (
         <Dialog open={instrOpen} onOpenChange={setInstrOpen}>
           <DialogContent className="max-w-[380px] p-0 overflow-hidden rounded-[0.3rem]">
-            <div className="px-5 pt-5 pb-3 text-center border-b border-border/40">
-              <div className="mx-auto mb-2.5 grid place-items-center size-11 rounded-full bg-accent/12 ring-1 ring-accent/25 text-accent">
-                <KeyRound className="size-[18px]" strokeWidth={1.75} />
+            <div className="border-b border-border/25 px-5 pb-4 pt-5 pr-14">
+              <div className="flex items-center gap-3">
+                <div className="grid size-10 shrink-0 place-items-center rounded-[0.3rem] bg-accent/12 text-accent">
+                  <KeyRound className="size-[18px]" strokeWidth={1.75} />
+                </div>
+                <div className="min-w-0 text-left">
+                  <DialogTitle className="font-display text-[17px] font-bold leading-[1.5] tracking-normal">
+                    Como acessar a residência
+                  </DialogTitle>
+                  <p className="text-[11.5px] text-muted-foreground leading-[1.5]">
+                    Instruções reais do portão e da fechadura.
+                  </p>
+                </div>
               </div>
-              <DialogTitle className="font-display text-[18px] tracking-tight">
-                Instruções de acesso
-              </DialogTitle>
-              <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">
-                Passo a passo para utilizar cada acesso.
-              </p>
             </div>
             <div className="px-5 py-4 max-h-[60vh] overflow-y-auto sg-elegant-scroll space-y-5">
               {hasGateBlock && (
@@ -5305,10 +5310,10 @@ function AccessInstructionsSection({
   return (
     <section>
       <div className="flex items-center gap-2 mb-2.5">
-        <span className="grid place-items-center size-7 rounded-full bg-accent/12 ring-1 ring-accent/20 text-accent">
+        <span className="grid place-items-center size-8 rounded-[0.3rem] bg-accent/12 text-accent">
           <KeyRound className="size-3.5" strokeWidth={2} />
         </span>
-        <h3 className="text-[13.5px] font-semibold tracking-tight">{label}</h3>
+        <h3 className="min-w-0 text-[13.5px] font-semibold leading-[1.5] tracking-normal">{label}</h3>
       </div>
       {instr && <StepList text={instr} dense compact />}
       {videoUrl && (
