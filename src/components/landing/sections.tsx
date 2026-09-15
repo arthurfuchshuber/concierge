@@ -125,7 +125,12 @@ function ResultShowcase() {
 /* ---------------- FLUXO DA OPERAÇÃO ---------------- */
 
 const PASSOS = [
-  { n: "01", icon: Layers, title: "Informação", desc: "Imóveis, acessos e contatos cadastrados em um só lugar." },
+  {
+    n: "01",
+    icon: Layers,
+    title: "Registro de informações",
+    desc: "Detalhamento de imóveis, inventário de itens, fornecedores ao arredor, histórico completo do imóvel com registros de danos, incidentes, auditorias, entre outras. Tudo isso em uma base de dados robusta e confiável.",
+  },
   { n: "02", icon: ClipboardList, title: "Organização", desc: "Instruções e rotinas estruturadas no mesmo padrão." },
   { n: "03", icon: Sparkles, title: "Inteligência", desc: "A IA responde com base no que está cadastrado." },
   { n: "04", icon: BookOpen, title: "Experiência", desc: "O hóspede recebe um guia claro do começo ao fim." },
