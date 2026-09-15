@@ -169,9 +169,9 @@ export function FeatureRail() {
           {RECURSOS.map((r, i) => (
             <div
               key={r.title}
-              className="w-[78vw] max-w-[320px] shrink-0 snap-center md:w-auto md:max-w-none md:shrink"
+              className="h-full w-[78vw] max-w-[320px] shrink-0 snap-center md:w-auto md:max-w-none md:shrink"
             >
-              <Reveal delay={0.04 * i}>
+              <Reveal delay={0.04 * i} className="h-full">
                 <GlassCard className="h-full">
                   <div className="grid min-h-[168px] place-items-center rounded-2xl border border-white/8 bg-background/40 p-3">
                     {r.visual}
