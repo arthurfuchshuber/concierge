@@ -57,7 +57,7 @@ export function Hero() {
  */
 const ABAS = [
   { id: "guia", label: "Guia Digital", live: true as const },
-  ...RESULT_FEATURES.map((f) => ({ id: f.id, label: f.label, live: false as const })),
+  // "Operação" e "Etapas Hóspede" removidos temporariamente a pedido do cliente.
 ];
 
 function ResultShowcase() {
