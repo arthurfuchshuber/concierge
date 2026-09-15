@@ -10,7 +10,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
-  BookOpen,
   ChevronDown,
   ChevronRight,
   Clock,
@@ -836,5 +835,3 @@ export function InteractiveGuide() {
     </div>
   );
 }
-
-export { BookOpen };
