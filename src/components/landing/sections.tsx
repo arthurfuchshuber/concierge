@@ -135,7 +135,7 @@ const PASSOS = [
     n: "02",
     icon: ClipboardList,
     title: "Operação sem Gargalos",
-    desc: "Coordenação da rotina operacional sem preocupações, e informações precisas sobre o que precisa ser feito em cada imóvel.",
+    desc: "Rotina operacional coordenada e informações precisas sobre o que precisa ser feito em cada imóvel.",
   },
   {
     n: "03",
