@@ -50,10 +50,10 @@ export function PhoneFrame({ children, className }: { children: React.ReactNode;
     <div className={cn("relative min-w-0", className)}>
       <div
         aria-hidden
-        className="pointer-events-none absolute -inset-1 rounded-[44px] opacity-40 blur-[16px]"
+        className="pointer-events-none absolute -inset-1 rounded-[28px] opacity-40 blur-[16px]"
         style={{ background: "linear-gradient(140deg,#7c1ad8 0%,#e82dae 100%)" }}
       />
-      <div className="relative min-w-0 overflow-hidden rounded-[34px] bg-[#0a0a0f] shadow-[0_40px_80px_-40px_rgba(0,0,0,1)]">
+      <div className="relative min-w-0 overflow-hidden rounded-[20px] bg-[#0a0a0f] shadow-[0_40px_80px_-40px_rgba(0,0,0,1)]">
         {children}
       </div>
     </div>
