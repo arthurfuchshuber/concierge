@@ -23,7 +23,7 @@ export function Hero() {
     <section id="topo" className="relative overflow-hidden pt-16 pb-14 sm:pt-24 sm:pb-20">
       <Glow className="left-1/2 top-[-220px] h-[420px] w-[760px] max-w-[130vw] -translate-x-1/2" />
 
-      <div className="mx-auto w-full max-w-3xl px-5 text-center sm:px-8">
+      <div className="mx-auto w-full max-w-4xl px-5 text-center sm:px-8">
         <Reveal>
           <p className="inline-flex items-center gap-2 rounded-full border border-border bg-card/50 px-3.5 py-1.5 text-[10.5px] font-semibold uppercase tracking-[0.2em] text-muted-foreground backdrop-blur">
             <span className="size-1.5 animate-pulse rounded-full bg-accent" />
