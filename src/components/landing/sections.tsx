@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowRight,
-  ChevronLeft,
+
   ChevronRight,
   Building2,
   Users,
@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { Reveal, Section, SectionHeading, Glow, GradientText, GlassCard } from "./primitives";
 import { PhoneFrame } from "./ProductShot";
-import { RESULT_SCREENS } from "./ResultScreens";
+import { RESULT_FEATURES } from "./ResultScreens";
 import { cn } from "@/lib/utils";
 
 /* ---------------- HERO ---------------- */
