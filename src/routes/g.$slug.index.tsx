@@ -4214,7 +4214,7 @@ function SubItem({
       data-tour={dataTour}
       className="border border-border/25 rounded-[0.3rem] overflow-hidden bg-card/60 backdrop-blur-sm data-[state=open]:border-accent/25 data-[state=open]:shadow-[0_8px_28px_-16px_oklch(from_var(--accent)_l_c_h/0.45)] transition-all"
     >
-      <AccordionTrigger className="px-5 py-4 md:py-5 hover:no-underline items-center [&>svg]:self-center">
+      <AccordionTrigger className="min-w-0 px-5 py-4 md:py-5 hover:no-underline items-center [&>svg]:self-center">
         <div className="flex items-center gap-4 flex-1 min-w-0">
           <span className="grid size-11 shrink-0 place-items-center rounded-[0.3rem] bg-accent/10 text-accent/75 ring-1 ring-accent/15">
             {icon}
