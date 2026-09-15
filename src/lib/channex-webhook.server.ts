@@ -135,7 +135,7 @@ async function aplicarReserva(supabaseAdmin: SupabaseAdmin, payload: unknown) {
       moeda: booking.currency ?? null,
       status: statusOf(eventOf(payload), booking),
       ota_name: booking.ota_name ?? null,
-      payload: booking as unknown as Record<string, unknown>,
+      payload: booking as never,
     },
     { onConflict: "codigo_reserva_channex" },
   );
