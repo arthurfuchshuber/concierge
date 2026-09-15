@@ -128,12 +128,27 @@ const PASSOS = [
   {
     n: "01",
     icon: Layers,
-    title: "Registro de informações",
-    desc: "Detalhamento de imóveis, inventário de itens, fornecedores ao arredor, histórico completo do imóvel com registros de danos, incidentes, auditorias, entre outras. Tudo isso em uma base de dados robusta e confiável.",
+    title: "Registro de Informações",
+    desc: "Detalhamento de imóveis, inventário, fornecedores nas proximidades, histórico completo do imóvel com registros em fotos e vídeos sobre danos ocorridos, incidentes, auditorias, entre outras. Tudo isso em uma única base de dados robusta e segura.",
   },
-  { n: "02", icon: ClipboardList, title: "Organização", desc: "Instruções e rotinas estruturadas no mesmo padrão." },
-  { n: "03", icon: Sparkles, title: "Inteligência", desc: "A IA responde com base no que está cadastrado." },
-  { n: "04", icon: BookOpen, title: "Experiência", desc: "O hóspede recebe um guia claro do começo ao fim." },
+  {
+    n: "02",
+    icon: ClipboardList,
+    title: "Organização de Rotina Operacional",
+    desc: "Logística inteligente de limpeza, previsão de saída do hóspede, pendências do imóvel, necessidade de reposições ou resolução.",
+  },
+  {
+    n: "03",
+    icon: Sparkles,
+    title: "Dados e Ações Inteligentes",
+    desc: "A IA responde com base em tudo que aconteceu naquele imóvel, e também nas informações cadastradas.",
+  },
+  {
+    n: "04",
+    icon: BookOpen,
+    title: "Experiência ao Hóspede",
+    desc: "O hóspede recebe um guia claro do começo ao fim, além de ser bonito e altamente intuitivo.",
+  },
 ];
 
 export function FlowSection() {
