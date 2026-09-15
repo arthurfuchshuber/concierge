@@ -38,7 +38,6 @@ const PLANS: PlanCard[] = [
     lockedNext: "Atendimento humano ao vivo",
     cta: "Começar agora",
     ctaHref: "/auth",
-    highlight: true,
   },
   {
     key: "business",
