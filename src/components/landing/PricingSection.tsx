@@ -38,7 +38,6 @@ const PLANS: PlanCard[] = [
     lockedNext: "Atendimento humano ao vivo",
     cta: "Começar agora",
     ctaHref: "/auth",
-    highlight: true,
   },
   {
     key: "business",
@@ -56,6 +55,7 @@ const PLANS: PlanCard[] = [
     lockedNext: "Marca própria (white label)",
     cta: "Começar agora",
     ctaHref: "/auth",
+    highlight: true,
   },
   {
     key: "enterprise",
