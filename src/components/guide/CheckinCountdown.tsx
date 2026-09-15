@@ -161,8 +161,9 @@ export function CheckinCountdown({
             </p>
             <div className="flex items-center gap-2">
               <span
-                className={`text-[10px] tabular-nums font-medium ${isLight ? "text-foreground/45" : "text-white/40"}`}
+                className={`text-[10px] tabular-nums font-medium ${isLight ? "text-foreground/45" : "text-ice"}`}
               >
+
                 {targetLabel}
               </span>
               <Chevron />

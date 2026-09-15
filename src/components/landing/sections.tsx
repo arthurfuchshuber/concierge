@@ -56,11 +56,12 @@ export function Hero() {
 /** Barra inferior do celular → recurso/tela correspondente na vitrine. */
 const NAV_TO_SCREEN: Record<string, { feat: number; shot: number }> = {
   home: { feat: 0, shot: 0 },
-  checkin: { feat: 0, shot: 1 },
-  saida: { feat: 0, shot: 4 },
-  residencia: { feat: 0, shot: 2 },
-  explore: { feat: 2, shot: 0 },
+  checkin: { feat: 1, shot: 0 },
+  residencia: { feat: 1, shot: 1 },
+  saida: { feat: 1, shot: 3 },
+  explore: { feat: 3, shot: 0 },
 };
+
 
 function ResultShowcase() {
   const [feat, setFeat] = useState(0);
