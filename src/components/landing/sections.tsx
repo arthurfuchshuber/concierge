@@ -95,7 +95,7 @@ export function LivePanelSection() {
       </Reveal>
 
       <div className="mt-12 grid gap-4 md:grid-cols-3">
-        <Reveal>
+        <Reveal className="h-full">
           <GlassCard edge className="h-full">
             <ChatVisual />
             <p className="mt-5 font-display text-[16px] font-bold tracking-tight">Atendimento ao hóspede</p>
