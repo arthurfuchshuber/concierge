@@ -1341,6 +1341,52 @@ export async function runAdvanceArrival(
         }
       }
 
+      /**
+       * "Não Compareceu" NÃO libera o imóvel (pedido explícito, 15/09/2026).
+       * A estadia continua ocupando o imóvel até que a reserva seja de fato
+       * cancelada no sistema — só então a próxima chegada é liberada. Como
+       * markNoShow grava concluded_at, essas linhas não aparecem na consulta
+       * acima; por isso olhamos para elas separadamente.
+       */
+      const { data: noShowRows } = await supabase
+        .from("guest_arrival_status")
+        .select("log_id, reservation_id")
+        .eq("property_id", propertyId)
+        .eq("kind", "checkin")
+        .eq("status", "no_show");
+
+      const outrosNoShow = (noShowRows ?? []).filter((r) => {
+        const row = r as { log_id: string | null; reservation_id: string | null };
+        if (data.logId && row.log_id === data.logId) return false;
+        if (data.reservationId && row.reservation_id === data.reservationId) return false;
+        return true;
+      }) as Array<{ reservation_id: string | null }>;
+
+      if (outrosNoShow.length > 0) {
+        const reservaIds = outrosNoShow
+          .map((r) => r.reservation_id)
+          .filter((id): id is string => !!id);
+
+        // Sem reserva vinculada não há como comprovar cancelamento → bloqueia.
+        let bloqueia = outrosNoShow.some((r) => !r.reservation_id);
+
+        if (!bloqueia && reservaIds.length > 0) {
+          const { data: reservas } = await supabase
+            .from("property_reservations")
+            .select("id, status")
+            .in("id", reservaIds);
+          bloqueia = (reservas ?? []).some(
+            (r) => !((r as { status: string | null }).status ?? "").toLowerCase().includes("cancel"),
+          );
+        }
+
+        if (bloqueia) {
+          throw new Error(
+            "Este imóvel tem uma estadia marcada como “Não Compareceu” que ainda não foi cancelada no sistema. Cancele a reserva anterior antes de liberar o check-in.",
+          );
+        }
+      }
+
       await upsertStatus("checkin", { status: "done", done_at: nowIso });
       // Só pula estadia/limpeza quando o checkout já ficou no PASSADO
       // (today > checkoutDate). Quando checkout é hoje, o hóspede ainda

@@ -1393,32 +1393,6 @@ export function OpRegistrosScreen() {
 /** Cada recurso tem várias telas de exemplo; a seta avança dentro do recurso. */
 export const RESULT_FEATURES = [
   {
-    id: "guia",
-    label: "Guia Digital",
-    screens: [GuiaHomeScreen, GuiaInteligenciaScreen, GuiaFinalScreen],
-  },
-  {
-    id: "instrucoes",
-    label: "Instruções",
-    screens: [ChegadaScreen, ResidenciaScreen, RegrasScreen, SaidaScreen, ContatosScreen],
-  },
-  {
-    id: "ia",
-    label: "Atendimento IA",
-    screens: [
-      IaWifiScreen,
-      IaManutencaoScreen,
-      IaDicasScreen,
-      IaInternaPendenciasScreen,
-      IaInternaOperacaoScreen,
-    ],
-  },
-  {
-    id: "recomendacoes",
-    label: "Recomendações",
-    screens: [ExplorarScreen, RestaurantesScreen, LugarDetalheScreen, ExperienciasScreen],
-  },
-  {
     id: "operacao",
     label: "Operação",
     screens: [

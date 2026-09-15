@@ -15,6 +15,7 @@ import {
 import { Reveal, Section, SectionHeading, Glow, GradientText, GlassCard } from "./primitives";
 import { PhoneFrame } from "./ProductShot";
 import { RESULT_FEATURES, ScreenNavContext } from "./ResultScreens";
+import { InteractiveGuide } from "./InteractiveGuide";
 import { cn } from "@/lib/utils";
 
 /* ---------------- HERO ---------------- */
@@ -53,34 +54,27 @@ export function Hero() {
 
 /* --------- vitrine de telas de resultado (o que o hóspede recebe) --------- */
 
-/** Barra inferior do celular → recurso/tela correspondente na vitrine. */
-const NAV_TO_SCREEN: Record<string, { feat: number; shot: number }> = {
-  home: { feat: 0, shot: 0 },
-  checkin: { feat: 1, shot: 0 },
-  residencia: { feat: 1, shot: 1 },
-  saida: { feat: 1, shot: 3 },
-  explore: { feat: 3, shot: 0 },
-};
-
+/**
+ * Abas da vitrine. A primeira é o guia DEMONSTRATIVO de verdade (navegável,
+ * com atendimento por IA embutido); as outras seguem em telas ilustradas.
+ */
+const ABAS = [
+  { id: "guia", label: "Guia Digital", live: true as const },
+  ...RESULT_FEATURES.map((f) => ({ id: f.id, label: f.label, live: false as const })),
+];
 
 function ResultShowcase() {
   const [feat, setFeat] = useState(0);
   const [shot, setShot] = useState(0);
-  const screens = RESULT_FEATURES[feat].screens;
-  const Screen = screens[shot % screens.length];
-
-  const irPara = (key: string) => {
-    const destino = NAV_TO_SCREEN[key];
-    if (!destino) return;
-    setFeat(destino.feat);
-    setShot(destino.shot);
-  };
+  const liveTab = ABAS[feat].live;
+  const screens = liveTab ? [] : RESULT_FEATURES[feat - 1].screens;
+  const Screen = liveTab ? null : screens[shot % screens.length];
 
   return (
     <div className="mx-auto mt-10 w-full max-w-5xl px-5 text-left sm:px-8">
       {/* barra de recursos */}
       <div className="ds-scroll-x -mx-5 flex justify-start gap-1.5 px-5 sm:mx-0 sm:px-0">
-        {RESULT_FEATURES.map((s, idx) => (
+        {ABAS.map((s, idx) => (
           <button
             key={s.id}
             type="button"
@@ -104,20 +98,22 @@ function ResultShowcase() {
       {/* celular centralizado + seta de avanço dentro do recurso */}
       <div className="mx-auto mt-8 w-[min(440px,92%)] min-w-0">
         <div className="relative">
-          <ScreenNavContext.Provider value={irPara}>
+          <ScreenNavContext.Provider value={() => {}}>
             <PhoneFrame className="w-full">
-              <Screen />
+              {liveTab || !Screen ? <InteractiveGuide /> : <Screen />}
             </PhoneFrame>
           </ScreenNavContext.Provider>
 
-          <button
-            type="button"
-            onClick={() => setShot((v) => (v + 1) % screens.length)}
-            aria-label="Ver próximo exemplo deste recurso"
-            className="absolute top-1/2 -right-3 grid size-11 -translate-y-1/2 place-items-center rounded-full border border-white/10 bg-[#12121c]/90 text-muted-foreground shadow-lg backdrop-blur transition-colors hover:border-accent/40 hover:text-foreground sm:-right-6"
-          >
-            <ChevronRight className="size-5" />
-          </button>
+          {!liveTab ? (
+            <button
+              type="button"
+              onClick={() => setShot((v) => (v + 1) % screens.length)}
+              aria-label="Ver próximo exemplo deste recurso"
+              className="absolute top-1/2 -right-3 grid size-11 -translate-y-1/2 place-items-center rounded-full border border-white/10 bg-[#12121c]/90 text-muted-foreground shadow-lg backdrop-blur transition-colors hover:border-accent/40 hover:text-foreground sm:-right-6"
+            >
+              <ChevronRight className="size-5" />
+            </button>
+          ) : null}
         </div>
 
         <a
@@ -226,31 +222,82 @@ export function AudienceSection() {
 
 export function LandingFooter() {
   return (
-    <footer className="border-t border-border py-10">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-5 sm:px-8 sm:flex-row sm:items-center sm:justify-between">
-        <p className="font-display text-[15px] tracking-tight">ConciergeIA</p>
-        <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[12.5px] text-muted-foreground">
-          <a href="#planos" className="hover:text-foreground">
-            Planos
+    <footer className="relative overflow-hidden border-t border-border pt-12 pb-10">
+      <Glow className="left-1/2 bottom-[-260px] h-[360px] w-[720px] max-w-[130vw] -translate-x-1/2 opacity-50" />
+      <div className="relative mx-auto grid w-full max-w-6xl gap-9 px-5 sm:grid-cols-[1.4fr_1fr_1fr] sm:gap-12 sm:px-8">
+        <div className="min-w-0">
+          <p className="font-display text-[18px] font-extrabold tracking-tight">
+            <GradientText>ConciergeIA</GradientText>
+          </p>
+          <p className="mt-2.5 max-w-xs text-[12.5px] leading-relaxed text-muted-foreground text-pretty">
+            O sistema operacional inteligente da sua hospedagem: rotinas, equipes, guia do hóspede e
+            atendimento por IA em um só lugar.
+          </p>
+          <a
+            href="#contato"
+            className="mt-4 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-accent hover:text-foreground"
+          >
+            Solicitar demonstração <ArrowRight className="size-3.5" />
           </a>
-          <a href="#contato" className="hover:text-foreground">
-            Contato
-          </a>
-          <Link to="/privacidade" className="hover:text-foreground">
-            Privacidade
-          </Link>
-          <Link to="/termos" className="hover:text-foreground">
-            Termos
-          </Link>
-          <Link to="/reembolso" className="hover:text-foreground">
-            Reembolso
-          </Link>
-          <Link to="/confianca" className="hover:text-foreground">
-            Confiança
-          </Link>
+        </div>
+
+        <nav className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground/70">
+            Produto
+          </p>
+          <ul className="mt-3 space-y-2 text-[12.5px] text-muted-foreground">
+            <li>
+              <a href="#produto" className="hover:text-foreground">
+                Como funciona
+              </a>
+            </li>
+            <li>
+              <a href="#para-quem" className="hover:text-foreground">
+                Para quem é
+              </a>
+            </li>
+            <li>
+              <a href="#planos" className="hover:text-foreground">
+                Planos
+              </a>
+            </li>
+            <li>
+              <a href="#contato" className="hover:text-foreground">
+                Contato
+              </a>
+            </li>
+          </ul>
+        </nav>
+
+        <nav className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground/70">
+            Institucional
+          </p>
+          <ul className="mt-3 space-y-2 text-[12.5px] text-muted-foreground">
+            <li>
+              <Link to="/privacidade" className="hover:text-foreground">
+                Privacidade
+              </Link>
+            </li>
+            <li>
+              <Link to="/termos" className="hover:text-foreground">
+                Termos
+              </Link>
+            </li>
+            <li>
+              <Link to="/reembolso" className="hover:text-foreground">
+                Reembolso
+              </Link>
+            </li>
+            <li>
+              <Link to="/confianca" className="hover:text-foreground">
+                Confiança
+              </Link>
+            </li>
+          </ul>
         </nav>
       </div>
-      <div className="mx-auto mt-6 flex w-full max-w-6xl flex-col gap-2 border-t border-border px-5 pt-6 text-[11.5px] text-muted-foreground/70 sm:flex-row sm:justify-between sm:px-8">
+      <div className="relative mx-auto mt-10 flex w-full max-w-6xl flex-col gap-2 border-t border-border px-5 pt-6 text-[11.5px] text-muted-foreground/70 sm:flex-row sm:justify-between sm:px-8">
         <p>© {new Date().getFullYear()} ConciergeIA — Todos os direitos reservados.</p>
         <p>
           Uma solução{" "}
