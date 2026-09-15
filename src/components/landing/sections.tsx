@@ -527,59 +527,6 @@ export function DifferentiatorSection() {
   );
 }
 
-/* ---------------- PROVA SOCIAL (placeholders) ---------------- */
-
-export function SocialProofSection() {
-  return (
-    <Section>
-      <Reveal>
-        <SectionHeading eyebrow="Prova social" title="Operações que já organizaram seu conhecimento." />
-      </Reveal>
-
-      <Reveal delay={0.06}>
-        <div className="mt-12 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className="grid h-16 place-items-center rounded-xl border border-dashed border-border text-[11px] text-muted-foreground/70"
-            >
-              Espaço para logo {i + 1}
-            </div>
-          ))}
-        </div>
-      </Reveal>
-
-      <Reveal delay={0.1}>
-        <div className="mt-3 grid gap-2.5 lg:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="rounded-2xl border border-dashed border-border p-6">
-              <p className="text-[12.5px] leading-relaxed text-muted-foreground/70">
-                Espaço reservado para depoimento de cliente.
-              </p>
-              <p className="mt-5 text-[11px] text-muted-foreground/60">Nome · Operação · Cidade</p>
-            </div>
-          ))}
-        </div>
-      </Reveal>
-
-      <Reveal delay={0.14}>
-        <div className="mt-3 grid gap-2.5 sm:grid-cols-3">
-          {["Imóveis atendidos", "Operações ativas", "Cidades"].map((k) => (
-            <div key={k} className="rounded-2xl border border-dashed border-border p-6 text-center">
-              <p className="font-display text-[22px] text-muted-foreground/50">—</p>
-              <p className="mt-2 text-[11.5px] text-muted-foreground/70">{k}</p>
-            </div>
-          ))}
-        </div>
-      </Reveal>
-
-      <p className="mt-6 text-center text-[11px] text-muted-foreground/60">
-        Números, logos e depoimentos serão publicados conforme autorização dos clientes.
-      </p>
-    </Section>
-  );
-}
-
 /* ---------------- CTA FINAL ---------------- */
 
 export function FinalCTA() {
