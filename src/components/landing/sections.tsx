@@ -128,26 +128,26 @@ const PASSOS = [
   {
     n: "01",
     icon: Layers,
-    title: "Registro de Informações",
-    desc: "Detalhamento de imóveis, inventário, fornecedores nas proximidades, histórico completo do imóvel com registros em fotos e vídeos sobre danos ocorridos, incidentes, auditorias, entre outras. Tudo isso em uma única base de dados robusta e segura.",
+    title: "Conhecimento Operacional",
+    desc: "Sem informações espalhadas em grupos, planilhas e conversas. Mantém o histórico do imóvel, inventário, fornecedores e registros de ocorrências em um único lugar.",
   },
   {
     n: "02",
     icon: ClipboardList,
-    title: "Organização de Rotina Operacional",
-    desc: "Logística inteligente de limpeza, previsão de saída do hóspede, pendências do imóvel, necessidade de reposições ou resolução.",
+    title: "Operação sem Gargalos",
+    desc: "Coordenação da rotina operacional sem preocupações, e informações precisas sobre o que precisa ser feito em cada imóvel.",
   },
   {
     n: "03",
     icon: Sparkles,
-    title: "Dados e Ações Inteligentes",
-    desc: "A IA responde com base em tudo que aconteceu naquele imóvel, e também nas informações cadastradas.",
+    title: "IA com Conhecimento",
+    desc: "Respostas e sugestões efetivas, com base em insights do histórico real de cada propriedade, transformando dados operacionais em decisões inteligentes.",
   },
   {
     n: "04",
     icon: BookOpen,
-    title: "Experiência ao Hóspede",
-    desc: "O hóspede recebe um guia claro do começo ao fim, além de ser bonito e altamente intuitivo.",
+    title: "Hóspedes + Satisfeitos",
+    desc: "Experiência única, moderna e organizada ao hóspede, reduzindo dúvidas recorrentes, aumentando engajamento e elevando a percepção de valor da sua hospedagem.",
   },
 ];
 
@@ -185,18 +185,18 @@ export function FlowSection() {
 const PERFIS = [
   {
     icon: UserCheck,
-    title: "Anfitriões Exigentes",
-    desc: "Àquele que trata a hospedagem como uma verdadeira operação e busca constantemente padrão de qualidade em cada detalhe de sua hospedagem.",
+    title: "Anfitriões Profissionais",
+    desc: "Para quem busca padronização, controle e qualidade em cada detalhe da experiência do hóspede, eliminando improvisos e elevando o nível da operação.",
   },
   {
     icon: Building2,
-    title: "Gestores de Múltiplos Imóveis",
-    desc: "Quem administra unidades de vários proprietários e precisa de tudo centralizado e completamente registrado, bem como atendimento automático ao hóspede.",
+    title: "Gestores de Múltiplas Propriedades",
+    desc: "Ideal para quem administra diversos imóveis e proprietários, precisando centralizar informações, automatizar processos e manter total visibilidade sobre cada unidade.",
   },
   {
     icon: Users,
-    title: "Operações em Equipe",
-    desc: "Para àqueles que dependem de limpeza, manutenção e atendimento alinhados à mesma informação.",
+    title: "Equipes Operacionais",
+    desc: "Conecte limpeza, manutenção, inspeções e atendimento em um único fluxo operacional, reduzindo falhas de comunicação e aumentando a eficiência da equipe.",
   },
 ];
 
@@ -204,7 +204,10 @@ export function AudienceSection() {
   return (
     <Section id="para-quem">
       <Reveal>
-        <SectionHeading eyebrow="Para quem é" title="Feito para Anfitriões Profissionais:" />
+        <SectionHeading
+          eyebrow="Feito para quem quer"
+          title="Transformar Imóveis em uma Operação Estruturada e Escalável"
+        />
       </Reveal>
 
       <div className="mt-12 grid gap-3 md:grid-cols-3">
