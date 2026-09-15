@@ -15,38 +15,39 @@ const DEMO_SLUG = "casa-charmosa-prox-a-avenida-das-cataratas";
 
 export function LiveGuideFrame() {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const timerRef = useRef<number | null>(null);
   const [measuredHeight, setMeasuredHeight] = useState<number | null>(null);
 
-  useEffect(() => () => resizeObserverRef.current?.disconnect(), []);
+  useEffect(
+    () => () => {
+      if (timerRef.current) window.clearInterval(timerRef.current);
+    },
+    [],
+  );
 
   function measureArrivalCard() {
     const frame = iframeRef.current;
-    const doc = frame?.contentDocument;
-    if (!frame || !doc) return;
+    if (!frame) return;
 
-    let attempts = 0;
+    // O recorte é o fim do cartão "Chegada" da tela inicial. Em outras abas
+    // esse cartão não existe: nesse caso mantemos a última altura válida
+    // (antes a moldura colapsava para a altura da barra inferior).
     const measure = () => {
+      const doc = iframeRef.current?.contentDocument;
+      if (!doc) return;
       const arrival = doc.querySelector<HTMLElement>('[data-demo-card="checkin"]');
       const nav = doc.querySelector<HTMLElement>('nav[aria-label="Navegação do guia"]');
-      if (!arrival) {
-        if (attempts++ < 20) window.setTimeout(measure, 150);
-        return;
-      }
-      const arrivalBottom = arrival.getBoundingClientRect().bottom;
+      if (!arrival || !arrival.isConnected) return;
+      const bottom = arrival.getBoundingClientRect().bottom;
+      if (bottom <= 0) return;
       const navHeight = nav?.getBoundingClientRect().height ?? 57;
-      setMeasuredHeight(Math.ceil(arrivalBottom + 12 + navHeight));
-      resizeObserverRef.current?.disconnect();
-      resizeObserverRef.current = new ResizeObserver(() => {
-        const nextBottom = arrival.getBoundingClientRect().bottom;
-        const nextNavHeight = nav?.getBoundingClientRect().height ?? 57;
-        setMeasuredHeight(Math.ceil(nextBottom + 12 + nextNavHeight));
-      });
-      resizeObserverRef.current.observe(arrival);
-      resizeObserverRef.current.observe(frame);
+      const next = Math.ceil(bottom + 12 + navHeight);
+      setMeasuredHeight((prev) => (prev === next ? prev : next));
     };
 
     window.setTimeout(measure, 200);
+    if (timerRef.current) window.clearInterval(timerRef.current);
+    timerRef.current = window.setInterval(measure, 500);
   }
 
   return (
