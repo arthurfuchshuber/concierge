@@ -237,7 +237,7 @@ export function LandingFooter() {
   return (
     <footer className="relative overflow-hidden border-t border-border pt-12 pb-10">
       <Glow className="left-1/2 bottom-[-260px] h-[360px] w-[720px] max-w-[130vw] -translate-x-1/2 opacity-50" />
-      <div className="relative mx-auto grid w-full max-w-6xl gap-9 px-5 sm:grid-cols-[1.4fr_1fr_1fr] sm:gap-12 sm:px-8">
+      <div className="relative mx-auto grid w-full max-w-6xl gap-9 px-5 sm:grid-cols-[1.4fr_1fr] sm:gap-12 sm:px-8">
         <div className="min-w-0">
           <p className="font-display text-[18px] font-extrabold leading-[1.5] tracking-tight">
             <GradientText>ConciergeIA</GradientText>
@@ -253,32 +253,6 @@ export function LandingFooter() {
             Solicitar demonstração <ArrowRight className="size-3.5" />
           </a>
         </div>
-
-        <nav className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground/70">Produto</p>
-          <ul className="mt-3 space-y-2 text-[12.5px] text-muted-foreground">
-            <li>
-              <a href="#produto" className="hover:text-foreground">
-                Como funciona
-              </a>
-            </li>
-            <li>
-              <a href="#para-quem" className="hover:text-foreground">
-                Para quem é
-              </a>
-            </li>
-            <li>
-              <a href="#planos" className="hover:text-foreground">
-                Planos
-              </a>
-            </li>
-            <li>
-              <a href="#contato" className="hover:text-foreground">
-                Contato
-              </a>
-            </li>
-          </ul>
-        </nav>
 
         <nav className="min-w-0">
           <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground/70">Institucional</p>
@@ -306,7 +280,7 @@ export function LandingFooter() {
           </ul>
         </nav>
       </div>
-      <div className="relative mx-auto mt-10 flex w-full max-w-6xl flex-col gap-2 border-t border-border px-5 pt-6 text-[11.5px] text-muted-foreground/70 sm:flex-row sm:justify-between sm:px-8">
+      <div className="relative mx-auto mt-10 flex w-full max-w-6xl flex-col items-center gap-2 border-t border-border px-5 pt-6 text-center text-[11.5px] text-muted-foreground/70 sm:px-8">
         <p>© {new Date().getFullYear()} ConciergeIA — Todos os direitos reservados.</p>
         <p>
           Uma solução{" "}
