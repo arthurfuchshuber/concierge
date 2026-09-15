@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowRight, Check, Loader2, Mail, MessageCircle, ShieldCheck } from "lucide-react";
+import { ArrowRight, Check, Loader2 } from "lucide-react";
 import { submitLandingLead } from "@/lib/landing-leads.functions";
 import { Reveal, Section, GradientText } from "./primitives";
 import cena from "@/assets/landing/scene-apto.jpg.asset.json";
@@ -245,7 +245,7 @@ export function LeadForm() {
                         </>
                       ) : (
                         <>
-                          Quero conhecer o ConciergeIA <ArrowRight className="size-4 shrink-0" />
+                          Solicitar demonstração! <ArrowRight className="size-4 shrink-0" />
                         </>
                       )}
                     </button>
