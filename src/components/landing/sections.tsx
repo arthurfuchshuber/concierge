@@ -149,9 +149,6 @@ export function LandingFooter() {
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-5 sm:px-8 sm:flex-row sm:items-center sm:justify-between">
         <p className="font-display text-[15px] tracking-tight">ConciergeIA</p>
         <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[12.5px] text-muted-foreground">
-          <a href="#recursos" className="hover:text-foreground">
-            Recursos
-          </a>
           <a href="#planos" className="hover:text-foreground">
             Planos
           </a>
