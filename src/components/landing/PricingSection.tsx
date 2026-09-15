@@ -1,7 +1,6 @@
-import { Fragment, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, Check, ChevronDown } from "lucide-react";
-import { PLAN_COMPARISON_GROUPS, type PlanKey } from "@/lib/payments.shared";
+import { ArrowRight, Check } from "lucide-react";
+import { type PlanKey } from "@/lib/payments.shared";
 import { metaPixelTrack } from "@/lib/meta-pixel";
 import { Reveal, Section, SectionHeading } from "./primitives";
 import { cn } from "@/lib/utils";
