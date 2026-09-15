@@ -31,7 +31,7 @@ export function Hero() {
             <span className="min-w-0">Inteligência para hospedagem</span>
           </p>
 
-          <h1 className="mt-7 font-display text-[34px] font-extrabold leading-[1.06] tracking-tight text-balance sm:text-[56px]">
+          <h1 className="mt-7 font-display text-[34px] font-extrabold leading-[1.5] tracking-tight text-balance sm:text-[56px]">
             O <GradientText shine>CÉREBRO</GradientText>!
           </h1>
 
@@ -169,7 +169,7 @@ export function FlowSection() {
                 >
                   <p.icon className="size-5 text-white" />
                 </span>
-                <p className="min-w-0 font-display text-[17px] font-bold tracking-tight">{p.title}</p>
+                <p className="min-w-0 font-display text-[17px] font-bold leading-[1.5] tracking-tight">{p.title}</p>
               </div>
               <p className="ds-text-fill mt-4 text-[12.5px] leading-relaxed text-muted-foreground">{p.desc}</p>
             </GlassCard>
@@ -219,7 +219,7 @@ export function AudienceSection() {
                   <p.icon className="size-5 text-accent" />
                 </span>
                 <div className="min-w-0">
-                  <p className="font-display text-[16px] font-bold tracking-tight">{p.title}</p>
+                  <p className="font-display text-[16px] font-bold leading-[1.5] tracking-tight">{p.title}</p>
                   <p className="ds-text-fill mt-2 text-[12.5px] leading-relaxed text-muted-foreground">{p.desc}</p>
                 </div>
               </div>
@@ -239,7 +239,7 @@ export function LandingFooter() {
       <Glow className="left-1/2 bottom-[-260px] h-[360px] w-[720px] max-w-[130vw] -translate-x-1/2 opacity-50" />
       <div className="relative mx-auto grid w-full max-w-6xl gap-9 px-5 sm:grid-cols-[1.4fr_1fr_1fr] sm:gap-12 sm:px-8">
         <div className="min-w-0">
-          <p className="font-display text-[18px] font-extrabold tracking-tight">
+          <p className="font-display text-[18px] font-extrabold leading-[1.5] tracking-tight">
             <GradientText>ConciergeIA</GradientText>
           </p>
           <p className="ds-text-fill mt-2.5 text-[12.5px] leading-relaxed text-muted-foreground sm:max-w-sm">
