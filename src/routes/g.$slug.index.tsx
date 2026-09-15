@@ -2446,6 +2446,9 @@ function Guide({ data }: { data: GuideOk }) {
             active={active}
             items={items}
             onSelect={(k: BottomNavKey) => {
+              // Navegação livre pelo menu = primeiro acesso encerrado. Sem
+              // isso, voltar para "Chegada" reabria o onboarding.
+              if (!tourActive) clearPendingOnboarding(slug);
               if (k === "home") {
                 setSection("home");
                 window.scrollTo({ top: 0, behavior: "smooth" });
