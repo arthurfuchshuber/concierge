@@ -235,8 +235,8 @@ export function LeadForm() {
                     <button
                       type="submit"
                       disabled={status === "sending"}
-                      style={{ background: "linear-gradient(135deg,#e82dae 0%,#7c1ad8 100%)" }}
-                      className="btn-shine inline-flex h-14 w-full min-w-0 items-center justify-center gap-2 rounded-[3px] px-6 text-[14.5px] font-bold uppercase tracking-[0.12em] text-accent-foreground shadow-[0_10px_34px_-10px_var(--accent)] transition-transform duration-200 hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-60"
+                      className="btn-shine flex h-12 w-full min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-[3px] bg-accent px-7 text-[14px] font-bold text-accent-foreground shadow-[0_0_28px_-6px_var(--accent)] transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:translate-y-0 disabled:opacity-60"
+
 
                     >
                       {status === "sending" ? (
