@@ -239,7 +239,7 @@ export function LandingFooter() {
           <p className="font-display text-[18px] font-extrabold tracking-tight">
             <GradientText>ConciergeIA</GradientText>
           </p>
-          <p className="mt-2.5 max-w-xs text-[12.5px] leading-relaxed text-muted-foreground text-pretty">
+          <p className="ds-text-fill mt-2.5 text-[12.5px] leading-relaxed text-muted-foreground sm:max-w-sm">
             O sistema operacional inteligente da sua hospedagem: rotinas, equipes, guia do hóspede e atendimento por IA
             em um só lugar.
           </p>
