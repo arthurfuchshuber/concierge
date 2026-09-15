@@ -1,5 +1,10 @@
 import { createContext, useContext } from "react";
 import conciergeLogo from "@/assets/concierge-logo.png";
+import recWaterfall from "@/assets/rec-waterfall.jpg";
+import recCafe from "@/assets/rec-cafe.jpg";
+import recRestaurant from "@/assets/rec-restaurant.jpg";
+import recBeach from "@/assets/rec-beach.jpg";
+import recMarket from "@/assets/rec-market.jpg";
 import {
   Wifi,
   DoorOpen,
