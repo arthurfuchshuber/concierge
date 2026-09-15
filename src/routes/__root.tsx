@@ -259,7 +259,17 @@ function RootComponent() {
   useEffect(() => {
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // Sem isto, o canal ao vivo continua com o token antigo depois da
+      // renovação e o servidor simplesmente para de mandar as mudanças —
+      // a tela fica parada sem nenhum erro visível.
+      if (event === "TOKEN_REFRESHED" || event === "SIGNED_IN") {
+        try {
+          supabase.realtime.setAuth(session?.access_token ?? null);
+        } catch {
+          /* noop */
+        }
+      }
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
       if (event === "SIGNED_OUT") {
         // Nada do usuário anterior pode sobreviver no aparelho: sem isso, o
