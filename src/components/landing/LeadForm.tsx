@@ -235,7 +235,7 @@ export function LeadForm() {
                     <button
                       type="submit"
                       disabled={status === "sending"}
-                      className="btn-shine flex h-12 w-full min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-[3px] bg-accent px-7 text-[14px] font-bold text-accent-foreground shadow-[0_0_28px_-6px_var(--accent)] transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:translate-y-0 disabled:opacity-60"
+                      className="btn-shine flex h-12 w-full min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-accent px-7 text-[14px] font-bold text-accent-foreground shadow-[0_0_28px_-6px_var(--accent)] transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:translate-y-0 disabled:opacity-60"
 
 
                     >

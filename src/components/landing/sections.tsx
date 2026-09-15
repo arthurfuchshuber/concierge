@@ -36,8 +36,8 @@ export function Hero() {
           </h1>
 
           <p className="mx-auto mt-5 max-w-lg text-[14.5px] font-light leading-relaxed text-muted-foreground text-pretty sm:text-[17px]">
-            <span className="block font-medium text-ice">Tudo em um só lugar!</span>
             Rotinas, IA de atendimento ao hóspede, organização e visualização de pendências, entre outras.
+            <span className="mt-2 block font-medium text-ice">Tudo em um só lugar!</span>
           </p>
 
 
@@ -122,7 +122,7 @@ function ResultShowcase() {
 
         <a
           href="#contato"
-          className="btn-shine mt-8 flex h-12 w-full min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-[3px] bg-accent px-7 text-[14px] font-bold text-accent-foreground shadow-[0_0_28px_-6px_var(--accent)] transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0"
+          className="btn-shine mt-8 flex h-12 w-full min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-accent px-7 text-[14px] font-bold text-accent-foreground shadow-[0_0_28px_-6px_var(--accent)] transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0"
         >
           Solicitar demonstração! <ArrowRight className="size-4 shrink-0" />
         </a>
