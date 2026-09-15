@@ -74,15 +74,13 @@ function Landing() {
         <Hero />
         <ScatterToUnified />
         <ProblemSection />
-        <EcosystemSection />
-        <ModulesSection />
+        <BentoSection />
         <AiSection />
         <GuideSection />
         <BeforeAfter />
         <MultiPropertySection />
         <DifferentiatorSection />
         <PricingSection />
-        
         <FinalCTA />
         <LeadForm />
       </main>
