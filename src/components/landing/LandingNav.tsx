@@ -5,11 +5,11 @@ import conciergeLogo from "@/assets/concierge-logo.png";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
-  { href: "#produto", label: "Produto" },
-  { href: "#como-funciona", label: "Como funciona" },
+  { href: "#produto", label: "Como funciona" },
   { href: "#recursos", label: "Recursos" },
   { href: "#para-quem", label: "Para quem é" },
   { href: "#planos", label: "Planos" },
+  { href: "#contato", label: "Contato" },
 ];
 
 export function LandingNav() {
