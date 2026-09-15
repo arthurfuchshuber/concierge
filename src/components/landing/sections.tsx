@@ -169,12 +169,9 @@ export function FlowSection() {
                 >
                   <p.icon className="size-5 text-white" />
                 </span>
-                <span className="text-[10.5px] font-bold uppercase tracking-[0.28em] text-muted-foreground/70">
-                  {p.n}
-                </span>
+                <p className="min-w-0 font-display text-[17px] font-bold tracking-tight">{p.title}</p>
               </div>
-              <p className="mt-5 font-display text-[17px] font-bold tracking-tight">{p.title}</p>
-              <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">{p.desc}</p>
+              <p className="ds-text-fill mt-4 text-[12.5px] leading-relaxed text-muted-foreground">{p.desc}</p>
             </GlassCard>
           </Reveal>
         ))}
@@ -220,7 +217,7 @@ export function AudienceSection() {
                 </span>
                 <div className="min-w-0">
                   <p className="font-display text-[16px] font-bold tracking-tight">{p.title}</p>
-                  <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">{p.desc}</p>
+                  <p className="ds-text-fill mt-2 text-[12.5px] leading-relaxed text-muted-foreground">{p.desc}</p>
                 </div>
               </div>
             </GlassCard>
@@ -242,7 +239,7 @@ export function LandingFooter() {
           <p className="font-display text-[18px] font-extrabold tracking-tight">
             <GradientText>ConciergeIA</GradientText>
           </p>
-          <p className="mt-2.5 max-w-xs text-[12.5px] leading-relaxed text-muted-foreground text-pretty">
+          <p className="ds-text-fill mt-2.5 text-[12.5px] leading-relaxed text-muted-foreground sm:max-w-sm">
             O sistema operacional inteligente da sua hospedagem: rotinas, equipes, guia do hóspede e atendimento por IA
             em um só lugar.
           </p>

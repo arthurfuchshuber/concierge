@@ -52,7 +52,8 @@ export function BottomNav({
       <nav
         aria-label="Navegação do guia"
         className={cn(
-          "fixed inset-x-0 bottom-0 z-30 pb-[max(env(safe-area-inset-bottom),8px)] pt-2 px-3",
+          "fixed inset-x-0 bottom-0 z-30 px-3",
+          isDemoView ? "pb-1.5 pt-1.5" : "pb-[max(env(safe-area-inset-bottom),8px)] pt-2",
           "backdrop-blur-xl border-t",
           isDark
             ? "bg-[#080815]/85 border-white/8 shadow-[0_-20px_50px_-20px_rgba(0,0,0,0.7)]"
@@ -71,14 +72,16 @@ export function BottomNav({
                   disabled={isLocked}
                   aria-disabled={isLocked || undefined}
                   className={cn(
-                    "group relative flex w-full flex-col items-center justify-center gap-1 py-1.5 rounded-[0.3rem] transition-all",
+                    "group relative flex w-full flex-col items-center justify-center rounded-[0.3rem] transition-all",
+                    isDemoView ? "gap-0.5 py-0.5" : "gap-1 py-1.5",
                     isLocked ? "opacity-30 cursor-not-allowed" : "active:scale-[0.96]",
                   )}
                   aria-current={isActive ? "page" : undefined}
                 >
                   <span
                     className={cn(
-                      "grid size-10 place-items-center rounded-[0.3rem] transition-all",
+                      "grid place-items-center rounded-[0.3rem] transition-all",
+                      isDemoView ? "size-7" : "size-10",
                       isActive
                         ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white shadow-[0_4px_16px_-4px_rgba(232,45,174,0.55)]"
                         : isDark

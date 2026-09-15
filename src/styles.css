@@ -574,6 +574,16 @@ dd {
   text-wrap-style: pretty;
 }
 
+/*
+ * Parágrafos que DEVEM ocupar toda a largura disponível (sem o equilíbrio do
+ * `pretty`, que encurta as linhas e deixa a margem direita irregular).
+ * Usado nos subtítulos/descrições da landing page.
+ */
+.ds-text-fill {
+  text-wrap-style: auto;
+}
+
+
 /* Amber mirror sweep — faixa "Liberado Limpeza" */
 @keyframes amber-mirror-sweep {
   0% {
