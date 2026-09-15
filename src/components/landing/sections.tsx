@@ -77,7 +77,7 @@ export function Hero() {
 
 export function ShowcaseSection() {
   return (
-    <Section id="painel" className="relative overflow-hidden">
+    <Section id="recursos" className="relative overflow-hidden">
       <Glow className="right-[-180px] top-10 h-[320px] w-[420px]" />
       <Reveal>
         <SectionHeading
