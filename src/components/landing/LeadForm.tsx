@@ -106,11 +106,14 @@ export function LeadForm() {
                 <input
                   required
                   value={form.name}
-                  onChange={(e) => set("name")(e.target.value)}
+                  onChange={(e) => set("name")(maskName(e.target.value))}
                   className={inputClass}
                   placeholder="Seu nome"
                   autoComplete="name"
                 />
+                {erros.name ? (
+                  <span className="text-[11px] text-destructive">{erros.name}</span>
+                ) : null}
               </label>
 
               <label className="grid gap-1.5">
