@@ -1503,7 +1503,7 @@ function Guide({ data }: { data: GuideOk }) {
                         key={c.key}
                         to="/g/$slug/explorar"
                         params={{ slug }}
-                        className={`block ${span}`}
+                        className={`block h-full ${span}`}
                       >
                         {inner}
                       </Link>
@@ -1516,7 +1516,7 @@ function Guide({ data }: { data: GuideOk }) {
                           else if (c.to?.kind === "dialog" && c.to.value === "locwifi")
                             setLocWifiOpen(true);
                         }}
-                        className={`w-full text-left ${span}`}
+                        className={`h-full w-full text-left ${span}`}
                       >
                         {inner}
                       </button>
@@ -3207,7 +3207,7 @@ function SectionCard({
   if (variant === "compact" && value) {
     return (
       <div
-        className={`relative flex min-h-[104px] flex-col gap-2.5 overflow-hidden rounded-[0.3rem] border p-4 transition-all duration-300 ease-out hover:-translate-y-0.5 active:scale-[0.99] ${surfaceBg} ${surfaceBorder} ${isDark ? `shadow-[0_16px_40px_-28px_rgba(0,0,0,0.9)] ${t.glow}` : "shadow-[0_14px_34px_-30px_rgba(31,24,74,0.32)]"}`}
+        className={`relative flex h-full min-h-[104px] flex-col gap-2.5 overflow-hidden rounded-[0.3rem] border p-4 transition-all duration-300 ease-out hover:-translate-y-0.5 active:scale-[0.99] ${surfaceBg} ${surfaceBorder} ${isDark ? `shadow-[0_16px_40px_-28px_rgba(0,0,0,0.9)] ${t.glow}` : "shadow-[0_14px_34px_-30px_rgba(31,24,74,0.32)]"}`}
       >
         {isDark && (
           <span
@@ -3217,13 +3217,17 @@ function SectionCard({
         <div className="relative flex min-w-0 items-center gap-1.5">
           <span className={`${iconColorCls} [&>svg]:size-[15px] shrink-0`}>{icon}</span>
           <span
-            className={`min-w-0 text-[10px] font-black uppercase tracking-[0.14em] ${isDark ? "text-white/48" : "text-slate-950/52"}`}
+            className={`min-w-0 truncate text-[10px] font-black uppercase tracking-[0.14em] ${isDark ? "text-white/48" : "text-slate-950/52"}`}
           >
             {title}
           </span>
         </div>
         <div className="relative min-w-0">
-          <p className={`text-[14.5px] font-bold leading-[1.28] ${titleColor}`}>{value}</p>
+          <p
+            className={`truncate text-[min(3.4vw,12.5px)] font-bold leading-[1.3] ${titleColor}`}
+          >
+            {value}
+          </p>
           {hint && (
             <p className={`mt-1 text-[11px] leading-[1.32] line-clamp-2 ${descColor}`}>{hint}</p>
           )}
@@ -3231,6 +3235,7 @@ function SectionCard({
       </div>
     );
   }
+
 
 
 
