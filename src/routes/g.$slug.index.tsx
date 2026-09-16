@@ -1485,6 +1485,9 @@ function Guide({ data }: { data: GuideOk }) {
                       <SectionCard
                         title={c.title}
                         desc={c.desc}
+                        value={c.value}
+                        hint={c.hint}
+
                         icon={c.icon}
                         variant={c.variant}
                         tone={c.tone}
