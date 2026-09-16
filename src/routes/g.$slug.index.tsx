@@ -1013,7 +1013,12 @@ function Guide({ data }: { data: GuideOk }) {
     key: Exclude<Section, "home"> | "explore" | "locwifi";
     title: string;
     desc: string;
+    /** Informação principal em destaque (variante compacta "texto primeiro"). */
+    value?: string;
+    /** Linha de apoio curta abaixo do valor. */
+    hint?: string;
     icon: React.ReactNode;
+
     variant: "hero-wide" | "compact" | "horizontal-wide";
     tone: "gold" | "blue" | "green" | "purple" | "rose";
     badge?: string;
@@ -1038,6 +1043,8 @@ function Guide({ data }: { data: GuideOk }) {
       key: "saida",
       title: "Saída",
       desc: saidaDesc,
+      value: saidaDesc,
+      hint: p.checkout_instructions ? "Passo a passo da saída" : undefined,
       icon: <LogOut strokeWidth={1.6} />,
       variant: "compact",
       tone: "blue",
@@ -1056,12 +1063,24 @@ function Guide({ data }: { data: GuideOk }) {
     },
     {
       key: "locwifi",
-      title: "Localização & Wi-Fi",
+      title: "Localização",
       desc: (() => {
         const bits: string[] = [];
         if (p.address || p.maps_url) bits.push("Endereço");
         if (p.wifi_ssid || (p as any).wifi_password_set) bits.push("Wi-Fi");
         return bits.length ? bits.join(" · ") : "Endereço e rede da residência.";
+      })(),
+      value: (() => {
+        const city = [p.city, p.state].filter(Boolean).join(", ");
+        if (city) return city;
+        const addr = shortAddress(p.address);
+        if (addr) return addr;
+        return p.maps_url ? "Ver no mapa" : "Endereço da residência";
+      })(),
+      hint: (() => {
+        if (p.wifi_ssid) return `Wi-Fi: ${p.wifi_ssid}`;
+        if ((p as any).wifi_password_set) return "Wi-Fi disponível";
+        return undefined;
       })(),
       icon: <Wifi strokeWidth={1.6} />,
       variant: "compact",
@@ -1069,6 +1088,7 @@ function Guide({ data }: { data: GuideOk }) {
       visible: hasLocWifi,
       to: { kind: "dialog", value: "locwifi" },
     },
+
     {
       key: "explore",
       title: "Explore a região",
@@ -1465,6 +1485,9 @@ function Guide({ data }: { data: GuideOk }) {
                       <SectionCard
                         title={c.title}
                         desc={c.desc}
+                        value={c.value}
+                        hint={c.hint}
+
                         icon={c.icon}
                         variant={c.variant}
                         tone={c.tone}
@@ -3068,6 +3091,8 @@ const SECTION_TONES = {
 function SectionCard({
   title,
   desc,
+  value,
+  hint,
   icon,
   variant = "compact",
   tone = "gold",
@@ -3078,7 +3103,10 @@ function SectionCard({
 }: {
   title: string;
   desc: string;
+  value?: string;
+  hint?: string;
   icon: React.ReactNode;
+
   variant?: "hero-wide" | "compact" | "horizontal-wide";
   tone?: keyof typeof SECTION_TONES;
   badge?: string;
@@ -3172,6 +3200,39 @@ function SectionCard({
       </div>
     );
   }
+
+  /* Variante compacta "texto em primeiro plano": ícone pequeno alinhado ao
+     rótulo em caixa alta, e a informação real ocupando a largura inteira do
+     cartão. Evita o título espremido/cortado ("Locali…") do layout antigo. */
+  if (variant === "compact" && value) {
+    return (
+      <div
+        className={`relative flex min-h-[104px] flex-col gap-2.5 overflow-hidden rounded-[0.3rem] border p-4 transition-all duration-300 ease-out hover:-translate-y-0.5 active:scale-[0.99] ${surfaceBg} ${surfaceBorder} ${isDark ? `shadow-[0_16px_40px_-28px_rgba(0,0,0,0.9)] ${t.glow}` : "shadow-[0_14px_34px_-30px_rgba(31,24,74,0.32)]"}`}
+      >
+        {isDark && (
+          <span
+            className={`pointer-events-none absolute -top-10 -right-10 h-28 w-28 rounded-full opacity-24 blur-3xl ${t.iconBg}`}
+          />
+        )}
+        <div className="relative flex min-w-0 items-center gap-1.5">
+          <span className={`${iconColorCls} [&>svg]:size-[15px] shrink-0`}>{icon}</span>
+          <span
+            className={`min-w-0 text-[10px] font-black uppercase tracking-[0.14em] ${isDark ? "text-white/48" : "text-slate-950/52"}`}
+          >
+            {title}
+          </span>
+        </div>
+        <div className="relative min-w-0">
+          <p className={`text-[14.5px] font-bold leading-[1.28] ${titleColor}`}>{value}</p>
+          {hint && (
+            <p className={`mt-1 text-[11px] leading-[1.32] line-clamp-2 ${descColor}`}>{hint}</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+
 
   const isHero = variant === "hero-wide";
   const pad = isHero ? "p-5 md:p-6" : "p-4";
