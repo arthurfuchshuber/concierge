@@ -1,0 +1,2 @@
+ALTER TABLE public.guest_arrival_status ADD COLUMN IF NOT EXISTS concluded_at timestamptz;
+CREATE INDEX IF NOT EXISTS idx_guest_arrival_status_concluded_at ON public.guest_arrival_status (concluded_at);

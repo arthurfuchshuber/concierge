@@ -1,0 +1,2 @@
+ALTER TABLE public.subscriptions ADD COLUMN IF NOT EXISTS billing_paused boolean NOT NULL DEFAULT false;
+COMMENT ON COLUMN public.subscriptions.billing_paused IS 'Quando true, o admin desativou cobranças deste cliente (não cobrar até reabilitar).';

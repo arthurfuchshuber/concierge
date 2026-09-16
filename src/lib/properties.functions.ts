@@ -1,0 +1,1320 @@
+import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { z } from "zod";
+import { isAllowedIcalUrl } from "@/lib/airbnb-ical-url";
+
+const slugRe = /^[a-z0-9](?:[a-z0-9-]{1,60}[a-z0-9])?$/;
+
+function isHttpsUrl(value: string): boolean {
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function normalizeHttpsInput(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const s = value.trim();
+  if (!s) return null;
+  if (/^https?:\/\//i.test(s)) return s.replace(/^http:\/\//i, "https://");
+  if (s.startsWith("/")) return s;
+  return `https://${s.replace(/^\/+/, "")}`;
+}
+
+const HttpsUrlRequired = z.preprocess(
+  normalizeHttpsInput,
+  z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido"),
+);
+
+const HttpsUrl = z.preprocess(
+  normalizeHttpsInput,
+  z.string().trim().url().max(2048).refine(isHttpsUrl, "Use um link HTTPS válido").optional().nullable(),
+);
+
+
+// Aceita URL HTTPS absoluta OU caminho relativo interno (ex.: /api/public/place-photo?...)
+// usado para fotos do Google Places servidas via proxy do próprio app.
+const ImageUrl = z.preprocess(
+  normalizeHttpsInput,
+  z
+    .string()
+    .trim()
+    .max(2048)
+    .refine(
+      (v) => v.startsWith("/") || isHttpsUrl(v),
+      "Use um link HTTPS válido ou um caminho interno (/api/...)",
+    )
+    .optional()
+    .nullable(),
+);
+
+
+
+const PropertyInput = z.object({
+  name: z.string().trim().min(1).max(120),
+  tagline: z.string().trim().max(200).optional().nullable(),
+  // "Descrição curta" em texto livre (separada de `tagline`, que é o seletor
+  // fixo "Tipo do guia" — ver migration 20260903050000). Faltava aqui: o
+  // campo existia no formulário e era preenchido pela importação do Airbnb,
+  // mas como este schema valida tudo que chega em upsertProperty e descarta
+  // qualquer chave que não reconhece, o valor nunca chegava a ser salvo —
+  // bug encontrado e corrigido em 03/09/2026.
+  short_description: z.string().trim().max(600).optional().nullable(),
+  slug: z.string().regex(slugRe, "Slug inválido (use letras minúsculas, números e hífens)"),
+  hero_image_url: HttpsUrl,
+  gallery_images: z.array(HttpsUrlRequired).max(4).default([]),
+  theme_images: z.object({
+    checkin: HttpsUrl,
+    residencia: HttpsUrl,
+    faq: HttpsUrl,
+    explore: HttpsUrl,
+  }).partial().default({}),
+  marketplace_links: z.array(z.object({
+    label: z.string().trim().min(1).max(120),
+    url: HttpsUrlRequired,
+    description: z.string().trim().max(280).optional().nullable(),
+  })).max(20).default([]),
+  address: z.string().max(500).optional().nullable(),
+  maps_url: HttpsUrl,
+  garage_maps_url: HttpsUrl,
+  lat: z.number().optional().nullable(),
+  lng: z.number().optional().nullable(),
+  city: z.string().max(120).optional().nullable(),
+  state: z.string().max(60).optional().nullable(),
+  country: z.string().max(120).optional().nullable(),
+  checkin_time: z.string().max(8).optional().nullable(),
+  checkin_time_max: z.string().max(8).optional().nullable(),
+  checkin_note: z.string().max(1000).optional().nullable(),
+  checkout_time: z.string().max(8).optional().nullable(),
+  checkout_time_min: z.string().max(8).optional().nullable(),
+  checkout_note: z.string().max(1000).optional().nullable(),
+  lock_code: z.string().max(40).optional().nullable(),
+  lock_label: z.string().max(40).optional().nullable(),
+  gate_code: z.string().max(40).optional().nullable(),
+  gate_label: z.string().max(40).optional().nullable(),
+  access_codes_pin: z.string().max(20).optional().nullable(),
+  address_note: z.string().max(1000).optional().nullable(),
+  checkin_instructions: z.string().max(3000).optional().nullable(),
+  checkout_instructions: z.string().max(3000).optional().nullable(),
+  house_rules: z.string().max(3000).optional().nullable(),
+  checkin_media: z.array(z.object({
+    url: HttpsUrlRequired,
+    type: z.enum(["image", "video"]),
+  })).max(8).default([]),
+  gate_instructions: z.string().max(3000).optional().nullable(),
+  gate_media: z.array(z.object({
+    url: HttpsUrlRequired,
+    type: z.enum(["image", "video"]),
+  })).max(8).default([]),
+  gate_video_url: HttpsUrl,
+  lock_instructions: z.string().max(3000).optional().nullable(),
+  lock_media: z.array(z.object({
+    url: HttpsUrlRequired,
+    type: z.enum(["image", "video"]),
+  })).max(8).default([]),
+  lock_video_url: HttpsUrl,
+  wifi_ssid: z.string().max(64).optional().nullable(),
+  wifi_password: z.string().max(64).optional().nullable(),
+  host_name: z.string().max(120).optional().nullable(),
+  host_phone: z.string().max(40).optional().nullable(),
+  brand_name: z.string().max(120).optional().nullable(),
+  brand_logo_url: HttpsUrl,
+  access_mode: z.enum(["public", "pin"]).default("public"),
+  pin_code: z.string().max(20).optional().nullable(),
+  pin_expires_at: z.string().datetime().optional().nullable(),
+  default_language: z.enum(["pt", "en"]).default("pt"),
+  guide_theme: z.enum(["dark", "light"]).default("dark"),
+  published: z.boolean().default(true),
+  require_access_gate: z.boolean().default(false),
+  collect_arrival_time: z.enum(["off", "optional", "required"]).default("off"),
+  collect_vehicles: z.enum(["off", "optional", "required"]).default("off"),
+  vehicles_max: z.number().int().min(0).max(10).default(2),
+  collect_document: z.enum(["off", "optional", "required"]).default("off"),
+  document_scope: z.enum(["main", "all"]).default("main"),
+  airbnb_ical_url: z.preprocess(
+    normalizeHttpsInput,
+    z
+      .string()
+      .trim()
+      .url()
+      .max(2048)
+      .refine(isHttpsUrl, "Use um link HTTPS válido")
+      .refine(isAllowedIcalUrl, "Use um link iCal oficial do Airbnb")
+      .optional()
+      .nullable(),
+  ),
+  airbnb_ical_url_2: z.preprocess(
+    normalizeHttpsInput,
+    z
+      .string()
+      .trim()
+      .url()
+      .max(2048)
+      .refine(isHttpsUrl, "Use um link HTTPS válido")
+      .refine(isAllowedIcalUrl, "Use um link iCal oficial do Airbnb")
+      .optional()
+      .nullable(),
+  ),
+  airbnb_listing_url: HttpsUrl,
+  property_type_id: z.string().uuid().optional().nullable(),
+  guide_created: z.boolean().default(false),
+  // Proprietário (property_owners) ao qual este imóvel pertence — regra:
+  // "sem imóvel [vinculado a um proprietário], sem guia". Validado no
+  // handler de upsertProperty (ver checagem abaixo).
+  owner_contact_id: z.string().uuid().optional().nullable(),
+  // Valores fixos de limpeza (em centavos) e período estimado (em minutos,
+  // múltiplos de 30) — quadrante exclusivo "Custos e Duração da Limpeza",
+  // separado da Identificação do imóvel. Opcionais: nem todo imóvel tem
+  // valor/tempo combinado ainda. Cada tipo de limpeza tem seu próprio
+  // prazo estimado (uma completa costuma levar mais tempo que uma normal).
+  cleaning_price_normal_cents: z.number().int().min(0).max(100_000_00).optional().nullable(),
+  cleaning_price_full_cents: z.number().int().min(0).max(100_000_00).optional().nullable(),
+  cleaning_duration_normal_minutes: z.number().int().min(30).max(480).multipleOf(30).optional().nullable(),
+  cleaning_duration_full_minutes: z.number().int().min(30).max(480).multipleOf(30).optional().nullable(),
+  // Campos "ampliados" da importação/sincronização do Airbnb (só leitura na
+  // tela — ver aba Airbnb). Mesmo bug do `short_description` acima: existiam
+  // no formulário e no botão "Importar", mas por faltarem aqui eram
+  // descartados antes de chegar ao banco em qualquer salvamento que passasse
+  // por este schema (o botão "Importar" + autosave). A sincronização diária
+  // (refreshStaleAirbnbListings) não é afetada por este bug porque grava
+  // direto na tabela, sem passar por aqui — corrigido em 03/09/2026.
+  airbnb_rating: z.number().min(0).max(5).optional().nullable(),
+  airbnb_guest_count: z.number().int().min(0).max(200).optional().nullable(),
+  airbnb_bedroom_count: z.number().int().min(0).max(200).optional().nullable(),
+  airbnb_bed_count: z.number().int().min(0).max(200).optional().nullable(),
+  airbnb_bathroom_count: z.number().min(0).max(200).optional().nullable(),
+  airbnb_description_full: z.string().max(20_000).optional().nullable(),
+  airbnb_rooms_beds: z
+    .array(z.object({ room: z.string().max(120), beds: z.string().max(200) }))
+    .max(50)
+    .optional()
+    .default([]),
+  airbnb_amenities: z
+    .array(
+      z.object({
+        name: z.string().max(120),
+        available: z.boolean(),
+        // Categoria/grupo da comodidade (ex.: "Banheiro", "Quarto e
+        // lavanderia") — pedido do cliente em 03/09/2026 pra exibir as
+        // comodidades separadas por cômodo/seção, igual ao modal "Mostrar
+        // todas as comodidades" do próprio anúncio. Opcional: nem todo
+        // anúncio agrupa (alguns mostram lista única, sem categoria).
+        category: z.string().max(120).optional().nullable(),
+      }),
+    )
+    .max(300)
+    .optional()
+    .default([]),
+  airbnb_house_rules: z.string().max(10_000).optional().nullable(),
+  airbnb_cancellation_policy: z.string().max(10_000).optional().nullable(),
+  airbnb_safety_info: z.string().max(10_000).optional().nullable(),
+});
+
+
+
+const RecInput = z.object({
+  scope: z.enum(["nearby", "city"]),
+  type: z.enum(["restaurant","bar","cafe","beach","attraction","market","pharmacy","park","nightlife","shopping","other"]),
+  name: z.string().min(1).max(200),
+  category: z.string().max(80).optional().nullable(),
+  rating: z.number().min(0).max(5).optional().nullable(),
+  user_ratings_total: z.number().int().min(0).max(10_000_000).optional().nullable(),
+  distance_text: z.string().max(80).optional().nullable(),
+  distance_meters: z.number().int().optional().nullable(),
+  drive_minutes: z.number().int().optional().nullable(),
+  walk_minutes: z.number().int().optional().nullable(),
+  opening_hours: z.array(z.string().max(200)).max(14).optional().nullable(),
+
+  note: z.string().max(1000).optional().nullable(),
+  image_url: ImageUrl,
+  maps_url: HttpsUrl,
+  place_id: z.string().max(200).optional().nullable(),
+});
+
+
+export const listMyProperties = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "imoveis.read");
+    // CRÍTICO: filtrar explicitamente por owner_id do próprio usuário.
+    // Sem este filtro, a RLS `user_can_access_property` também autoriza
+    // propriedades de contas onde ele é membro — vazando guias de outras
+    // contas quando nenhum "cliente" está selecionado no switcher.
+    const { data, error } = await context.supabase
+      .from("properties")
+      .select("id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at, wifi_ssid, checkin_time, checkout_time, owner_contact_id, guide_created")
+      .eq("owner_id", userId)
+      .order("updated_at", { ascending: false });
+    if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
+    const { signPropertyImages } = await import("@/lib/storage.server");
+    const signed = await signPropertyImages(context.supabase, data ?? []);
+    const { attachOwnerNames } = await import("@/lib/property-owner-names.server");
+    return await attachOwnerNames(context.supabase as never, signed);
+  });
+
+// Lista as propriedades de uma conta específica que o usuário atual pode
+// acessar via `account_members` (RLS `user_can_access_property` autoriza).
+// Diferente de `adminListUserPropertiesFull`, não exige papel de admin SaaS —
+// serve para atendentes/owners convidados navegando entre contas.
+export const listPropertiesForAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ ownerId: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(context.userId, "imoveis.read");
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(
+      context.supabase,
+      context.userId,
+      data.ownerId,
+    );
+    const { data: rows, error } = await context.supabase
+      .from("properties")
+      .select("id, slug, name, tagline, hero_image_url, gallery_images, access_mode, pin_expires_at, published, city, country, address, lat, lng, updated_at, wifi_ssid, checkin_time, checkout_time, owner_contact_id, guide_created")
+      .eq("owner_id", accountId)
+      .order("updated_at", { ascending: false });
+    if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
+    // Recorte por residências atendidas: sem vínculo, a lista fica vazia.
+    const { visiblePropertyIds } = await import("@/lib/permissions/property-scope.server");
+    const allowed = await visiblePropertyIds(context.userId);
+    const visible =
+      allowed === null ? (rows ?? []) : (rows ?? []).filter((r) => allowed.includes(r.id));
+    const { signPropertyImages } = await import("@/lib/storage.server");
+    const signed = await signPropertyImages(context.supabase, visible);
+    const { attachOwnerNames } = await import("@/lib/property-owner-names.server");
+    return await attachOwnerNames(context.supabase as never, signed);
+  });
+
+
+
+/**
+ * Contagem GLOBAL de guias da conta (número total de imóveis do titular),
+ * independente do recorte de residências visíveis para o caller. Serve para
+ * indicadores de plano ("X/900"), que são informação da conta, não do escopo.
+ */
+export const countAccountGuides = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z.object({ ownerId: z.string().uuid().nullable().optional() }).parse(i ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+    const target = data.ownerId ?? userId;
+    if (target !== userId) {
+      // Só conta a conta de terceiros se o caller for membro ativo ou admin SaaS.
+      const { data: isMember } = await context.supabase.rpc("is_account_member", {
+        _user_id: userId,
+        _owner_id: target,
+      });
+      if (!isMember) {
+        const { data: isAdmin } = await context.supabase.rpc("has_role", {
+          _user_id: userId,
+          _role: "admin",
+        });
+        if (!isAdmin) return { count: 0 };
+      }
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { count, error } = await supabaseAdmin
+      .from("properties")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", target);
+    if (error) return { count: 0 };
+    return { count: count ?? 0 };
+  });
+
+
+
+
+// Versão leve: apenas os campos necessários para seleção de imóveis em UIs
+// como o CopyRecsDialog. Não carrega imagens assinadas, reduz payload.
+export const listMyPropertiesBrief = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { userId } = context;
+    const { data, error } = await context.supabase
+      .from("properties")
+      .select("id, name, city, published")
+      .eq("owner_id", userId)
+      .order("name", { ascending: true });
+    if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
+    return (data ?? []) as Array<{ id: string; name: string; city: string | null; published: boolean }>;
+  });
+
+const BulkPatch = z.object({
+  checkin_time: z.string().max(8).optional(),
+  checkin_time_max: z.string().max(8).optional(),
+  checkin_note: z.string().max(1000).optional(),
+  checkout_time: z.string().max(8).optional(),
+  checkout_time_min: z.string().max(8).optional(),
+  checkout_note: z.string().max(1000).optional(),
+  address_note: z.string().max(1000).optional(),
+  checkin_instructions: z.string().max(3000).optional(),
+  checkout_instructions: z.string().max(3000).optional(),
+  gate_code: z.string().max(40).optional(),
+  gate_label: z.string().max(40).optional(),
+  gate_instructions: z.string().max(3000).optional(),
+  lock_code: z.string().max(40).optional(),
+  lock_label: z.string().max(40).optional(),
+  lock_instructions: z.string().max(3000).optional(),
+  access_codes_pin: z.string().max(20).optional(),
+  wifi_ssid: z.string().max(64).optional(),
+  wifi_password: z.string().max(64).optional(),
+  host_name: z.string().max(120).optional(),
+  host_phone: z.string().max(40).optional(),
+  brand_name: z.string().max(120).optional(),
+  brand_logo_url: HttpsUrl.optional(),
+  guide_theme: z.enum(["dark", "light"]).optional(),
+  // Regras do espaço
+  house_rules: z.string().max(3000).optional(),
+  // Endereço e localização
+  address: z.string().max(500).optional(),
+  maps_url: HttpsUrl.optional(),
+  garage_maps_url: HttpsUrl.optional(),
+  city: z.string().max(120).optional(),
+  state: z.string().max(60).optional(),
+  country: z.string().max(120).optional(),
+  // Tipo do guia
+  default_language: z.enum(["pt", "en"]).optional(),
+  published: z.boolean().optional(),
+  // Modo de acesso
+  access_mode: z.enum(["public", "pin"]).optional(),
+  pin_code: z.string().max(20).optional(),
+  require_access_gate: z.boolean().optional(),
+  collect_arrival_time: z.enum(["off", "optional", "required"]).optional(),
+  collect_vehicles: z.enum(["off", "optional", "required"]).optional(),
+  vehicles_max: z.number().int().min(0).max(10).optional(),
+  collect_document: z.enum(["off", "optional", "required"]).optional(),
+  document_scope: z.enum(["main", "all"]).optional(),
+  // Identificação do imóvel
+  property_type_id: z.string().uuid().optional(),
+  // Proprietário: normalmente travado (só via "Transferir", com confirmação
+  // explícita) — liberado aqui a pedido explícito do cliente para a edição em
+  // massa. A validação de que o proprietário pertence à conta de CADA imóvel
+  // selecionado roda no handler abaixo, não fica só a cargo do zod.
+  owner_contact_id: z.string().uuid().optional(),
+  // Custos e Duração da Limpeza — nullable: "sem valor definido" é um estado
+  // válido (mesma semântica do editor individual), então o campo pode ser
+  // explicitamente limpo em vez de forçar 0.
+  cleaning_price_normal_cents: z.number().int().min(0).max(100_000_00).nullable().optional(),
+  cleaning_price_full_cents: z.number().int().min(0).max(100_000_00).nullable().optional(),
+  cleaning_duration_normal_minutes: z.number().int().min(30).max(480).multipleOf(30).nullable().optional(),
+  cleaning_duration_full_minutes: z.number().int().min(30).max(480).multipleOf(30).nullable().optional(),
+}).strict();
+
+/**
+ * Campos que são EXCLUSIVOS de cada residência (senhas, Wi-Fi, endereço, links
+ * de mapa). Aplicá-los em vários guias de uma vez faria um imóvel receber o
+ * código de outro — por isso são bloqueados quando há mais de um selecionado.
+ */
+export const PER_PROPERTY_FIELDS = [
+  "gate_code", "lock_code", "access_codes_pin", "pin_code",
+  "wifi_ssid", "wifi_password",
+  "address", "maps_url", "garage_maps_url",
+] as const;
+
+
+
+const BulkListsInput = z.object({
+  manual: z.array(z.object({
+    title: z.string().min(1).max(120),
+    description: z.string().max(300).optional().nullable(),
+    body: z.string().max(4000).optional().nullable(),
+  })).max(40).optional(),
+  emergency: z.array(z.object({
+    label: z.string().min(1).max(120),
+    number: z.string().min(1).max(40),
+  })).max(20).optional(),
+  faqs: z.array(z.object({
+    question: z.string().min(1).max(200),
+    answer: z.string().min(1).max(2000),
+    tags: z.array(z.string().max(40)).max(8).default([]),
+  })).max(40).optional(),
+  checkout: z.array(z.object({
+    label: z.string().min(1).max(200),
+  })).max(40).optional(),
+  // Detalhamento do Imóvel: bulk edit só cobre título + texto (sem
+  // imagens/áudio — mesma simplificação já aplicada ao Manual da casa acima).
+  property_details: z.array(z.object({
+    title: z.string().max(160).optional().nullable(),
+    content: z.string().max(40000),
+  })).max(60).optional(),
+}).strict();
+
+// Retorna o conteúdo atual dos guias selecionados para exibir preview
+// no popup de edição em massa (valores por guia + contagem de listas).
+export const bulkFetchProperties = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z.object({ ids: z.array(z.string().uuid()).min(1).max(200) }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase;
+    const cols = [
+      "id","name",
+      ...Object.keys(BulkPatch.shape),
+    ].join(",");
+    const q = await sb
+      .from("properties")
+      .select(cols)
+      .in("id", data.ids);
+    if (q.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", q.error);
+    const rows = (q.data ?? []) as unknown as Array<{ id: string; name: string } & Record<string, string | number | boolean | null>>;
+    const propIds = rows.map((r) => r.id);
+    const [manual, emerg, faqs, checkout, details] = await Promise.all([
+      sb.from("property_manual_items").select("property_id,title,description,body,position").in("property_id", propIds).order("position"),
+      sb.from("property_emergency_contacts").select("property_id,label,number,position").in("property_id", propIds).order("position"),
+      sb.from("property_faqs").select("property_id,question,answer,tags,position").in("property_id", propIds).order("position"),
+      sb.from("property_checkout_items").select("property_id,label,position").in("property_id", propIds).order("position"),
+      sb.from("property_details").select("property_id,title,content,position").in("property_id", propIds).order("position"),
+    ]);
+    for (const result of [manual, emerg, faqs, checkout, details]) {
+      if (result.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", result.error);
+    }
+    function tally(arr: unknown): Record<string, number> {
+      const m: Record<string, number> = {};
+      for (const r of (arr as { property_id: string }[] | null) ?? [])
+        m[r.property_id] = (m[r.property_id] ?? 0) + 1;
+      return m;
+    }
+    return {
+      properties: rows,
+      listCounts: {
+        manual: tally(manual.data),
+        emergency: tally(emerg.data),
+        faqs: tally(faqs.data),
+        checkout: tally(checkout.data),
+        property_details: tally(details.data),
+      },
+      listItems: {
+        manual: manual.data ?? [],
+        emergency: emerg.data ?? [],
+        faqs: faqs.data ?? [],
+        checkout: checkout.data ?? [],
+        property_details: details.data ?? [],
+      },
+    };
+  });
+
+
+export const bulkUpdateProperties = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z.object({
+      ids: z.array(z.string().uuid()).min(1).max(200),
+      patch: BulkPatch,
+      lists: BulkListsInput.optional(),
+      mode: z.enum(["overwrite", "fill-empty"]).default("overwrite"),
+    }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(context.userId, "imoveis.bulk-edit", { resource: null });
+    const sb = context.supabase;
+    const patch: Record<string, unknown> = Object.fromEntries(
+      Object.entries(data.patch).map(([k, v]) => [k, v === "" ? null : v]),
+    );
+
+    // Proprietário: normalmente só muda via "Transferir" (fluxo dedicado, com
+    // confirmação explícita) — liberado na edição em massa a pedido do
+    // cliente, mas continua validando que o proprietário escolhido pertence à
+    // MESMA conta de cada imóvel selecionado. Sem isso, seria possível
+    // vincular imóveis à conta errada por engano num lote grande.
+    if (typeof patch.owner_contact_id === "string") {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const targets = await sb.from("properties").select("id, owner_id").in("id", data.ids);
+      if (targets.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", targets.error);
+      const accountOwnerIds = Array.from(
+        new Set((targets.data ?? []).map((r) => (r as { owner_id: string }).owner_id)),
+      );
+      const { data: ownerRow, error: ownerErr } = await supabaseAdmin
+        .from("property_owners")
+        .select("id, account_owner_id")
+        .eq("id", patch.owner_contact_id)
+        .eq("status", "active")
+        .maybeSingle();
+      if (ownerErr) throw new Error("Não foi possível validar o proprietário selecionado.");
+      if (!ownerRow || accountOwnerIds.some((oid) => oid !== (ownerRow as { account_owner_id: string }).account_owner_id)) {
+        throw new Error(
+          "Proprietário inválido ou não pertence à conta de um ou mais guias selecionados. Selecione um proprietário cadastrado em Stakeholders → Proprietários.",
+        );
+      }
+    }
+
+    // Publicar só é permitido com todos os campos obrigatórios preenchidos.
+    if (patch.published === true) {
+      const { PUBLISH_REQUIRED_COLUMNS, missingPublishFields, publishBlockMessage } = await import(
+        "@/lib/publish-requirements"
+      );
+      const cols = Array.from(new Set(["id", "name", ...PUBLISH_REQUIRED_COLUMNS])).join(",");
+      const chk = await sb.from("properties").select(cols).in("id", data.ids);
+      if (chk.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", chk.error);
+      for (const row of (chk.data ?? []) as unknown as Array<Record<string, unknown>>) {
+        const merged = { ...row, ...patch };
+        const missing = missingPublishFields(merged);
+        if (missing.length > 0) {
+          throw new Error(publishBlockMessage(missing, row.name as string | null));
+        }
+      }
+    }
+
+    // O popup só envia os campos realmente editados naquele momento; nada é
+    // gravado em lote sem interação direta do usuário.
+
+    const patchKeys = Object.keys(patch);
+    const updatedSet = new Set<string>();
+    const propertyUpdatedSet = new Set<string>();
+
+    // Guarda os valores anteriores para permitir recuperação em caso de engano.
+    if (patchKeys.length > 0) {
+      const before = await sb.from("properties").select(["id", ...patchKeys].join(",")).in("id", data.ids);
+      if (!before.error && before.data) {
+        // audit_logs é escrito apenas via service role (RLS sem policy de INSERT).
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        await (supabaseAdmin.from("audit_logs" as never) as any).insert({
+          user_id: context.userId,
+          action: "properties.bulk_edit.snapshot",
+          entity_type: "properties",
+          entity_id: data.ids[0]!,
+          metadata: { before: before.data, fields: patchKeys, ids: data.ids },
+        });
+      }
+    }
+
+
+
+    function isEmpty(v: unknown): boolean {
+      return v === null || v === undefined || v === "";
+    }
+
+    if (patchKeys.length > 0) {
+      if (data.mode === "overwrite") {
+        const { data: rows, error } = await sb
+          .from("properties")
+          .update(patch as never)
+          .in("id", data.ids)
+          .select("id");
+        if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
+        for (const r of rows ?? []) {
+          const id = (r as { id: string }).id;
+          propertyUpdatedSet.add(id);
+          updatedSet.add(id);
+        }
+        if (propertyUpdatedSet.size !== data.ids.length) {
+          throw new Error(`Não foi possível confirmar a alteração em ${data.ids.length - propertyUpdatedSet.size} guia(s).`);
+        }
+      } else {
+        // fill-empty: por campo, aplica apenas onde o valor atual está vazio.
+        const cq = await sb
+          .from("properties")
+          .select(["id", ...patchKeys].join(","))
+          .in("id", data.ids);
+        if (cq.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", cq.error);
+        const current = (cq.data ?? []) as unknown as Array<{ id: string } & Record<string, unknown>>;
+        for (const key of patchKeys) {
+          const targetIds = current.filter((r) => isEmpty(r[key])).map((r) => r.id);
+          if (!targetIds.length) continue;
+          const { data: uRows, error: uErr } = await sb
+            .from("properties")
+            .update({ [key]: patch[key] } as never)
+            .in("id", targetIds)
+            .select("id");
+          if (uErr) throw (await import("@/lib/db-errors.server")).safeDbError("properties", uErr);
+          for (const r of (uRows ?? []) as unknown as Array<{ id: string }>) {
+            propertyUpdatedSet.add(r.id);
+            updatedSet.add(r.id);
+          }
+        }
+      }
+    }
+
+    // Listas
+    const lists = data.lists;
+    if (lists) {
+      // Conta itens existentes por guia para respeitar "fill-empty"
+      const listCounts: Record<string, Record<string, number>> = {};
+      if (data.mode === "fill-empty") {
+        const tables = [
+          ["manual", "property_manual_items"],
+          ["emergency", "property_emergency_contacts"],
+          ["faqs", "property_faqs"],
+          ["checkout", "property_checkout_items"],
+          ["property_details", "property_details"],
+        ] as const;
+        for (const [key, table] of tables) {
+          const { data: rows } = await sb.from(table).select("property_id").in("property_id", data.ids);
+          const m: Record<string, number> = {};
+          for (const r of rows ?? []) m[(r as { property_id: string }).property_id] = (m[(r as { property_id: string }).property_id] ?? 0) + 1;
+          listCounts[key] = m;
+        }
+      }
+      const listMap = [
+        ["manual", "property_manual_items"],
+        ["emergency", "property_emergency_contacts"],
+        ["faqs", "property_faqs"],
+        ["checkout", "property_checkout_items"],
+        ["property_details", "property_details"],
+      ] as const;
+
+      // "Detalhamento do Imóvel" exige owner_id (NOT NULL) em cada linha —
+      // diferente das outras listas. Busca o dono de cada imóvel só quando
+      // essa lista realmente veio no payload.
+      const ownerIdByProperty: Record<string, string> = {};
+      if ((lists as Record<string, unknown[]>).property_details !== undefined) {
+        const { data: ownerRows, error: ownerRowsErr } = await sb
+          .from("properties")
+          .select("id, owner_id")
+          .in("id", data.ids);
+        if (ownerRowsErr) throw (await import("@/lib/db-errors.server")).safeDbError("properties", ownerRowsErr);
+        for (const r of (ownerRows ?? []) as unknown as Array<{ id: string; owner_id: string }>) {
+          ownerIdByProperty[r.id] = r.owner_id;
+        }
+      }
+
+      for (const id of data.ids) {
+        for (const [key, table] of listMap) {
+          const items = (lists as Record<string, unknown[]>)[key];
+          if (items === undefined) continue;
+          if (data.mode === "fill-empty" && (listCounts[key]?.[id] ?? 0) > 0) continue;
+          const deleted = await sb.from(table).delete().eq("property_id", id);
+          if (deleted.error) {
+            throw (await import("@/lib/db-errors.server")).safeDbError(table, deleted.error);
+          }
+          if (items.length) {
+            const rows = items.map((m, i) => {
+              const base = { ...(m as object), property_id: id, position: i };
+              return key === "property_details" ? { ...base, owner_id: ownerIdByProperty[id] } : base;
+            });
+            const inserted = await sb.from(table).insert(rows as never);
+            if (inserted.error) {
+              throw (await import("@/lib/db-errors.server")).safeDbError(table, inserted.error);
+            }
+          }
+          updatedSet.add(id);
+        }
+      }
+    }
+    return { updated: updatedSet.size };
+  });
+
+
+export const getMyProperty = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ id: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(context.userId, "imoveis.editor.read", { propertyId: data.id });
+    const [p, manual, recs, emerg, faqs, checkout] = await Promise.all([
+      context.supabase.from("properties").select("*").eq("id", data.id).maybeSingle(),
+      context.supabase.from("property_manual_items").select("*").eq("property_id", data.id).order("position"),
+      context.supabase.from("property_recommendations").select("*").eq("property_id", data.id).order("scope").order("type").order("position"),
+      context.supabase.from("property_emergency_contacts").select("*").eq("property_id", data.id).order("position"),
+      context.supabase.from("property_faqs").select("*").eq("property_id", data.id).order("position"),
+      context.supabase.from("property_checkout_items").select("*").eq("property_id", data.id).order("position"),
+    ]);
+    if (p.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", p.error);
+    if (!p.data) throw new Error("Guia não encontrado.");
+    const { signPropertyImages } = await import("@/lib/storage.server");
+    const property = await signPropertyImages(context.supabase, p.data);
+    return {
+      property,
+      manual: manual.data ?? [],
+      recommendations: recs.data ?? [],
+      emergency: emerg.data ?? [],
+      faqs: faqs.data ?? [],
+      checkout: checkout.data ?? [],
+    };
+  });
+
+/**
+ * Igual a getMyProperty, mas SEM assinar as URLs de imagem — deliberadamente.
+ * NÃO É MAIS USADA: existia para o antigo popup de edição rápida (removido —
+ * o link "Editar" do imóvel em Stakeholders agora abre a mesma página
+ * /admin/properties/$id, em modo "houseOnly", em vez de duplicar a tela em
+ * outro componente). Mantida por ora por segurança, mas sem consumidores.
+ */
+export const getPropertyForQuickEdit = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ id: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(context.userId, "imoveis.editor.read", { propertyId: data.id });
+    const [p, manual, recs, emerg, faqs, checkout] = await Promise.all([
+      context.supabase.from("properties").select("*").eq("id", data.id).maybeSingle(),
+      context.supabase.from("property_manual_items").select("*").eq("property_id", data.id).order("position"),
+      context.supabase.from("property_recommendations").select("*").eq("property_id", data.id).order("scope").order("type").order("position"),
+      context.supabase.from("property_emergency_contacts").select("*").eq("property_id", data.id).order("position"),
+      context.supabase.from("property_faqs").select("*").eq("property_id", data.id).order("position"),
+      context.supabase.from("property_checkout_items").select("*").eq("property_id", data.id).order("position"),
+    ]);
+    if (p.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", p.error);
+    if (!p.data) throw new Error("Imóvel não encontrado.");
+    return {
+      property: p.data,
+      manual: manual.data ?? [],
+      recommendations: recs.data ?? [],
+      emergency: emerg.data ?? [],
+      faqs: faqs.data ?? [],
+      checkout: checkout.data ?? [],
+    };
+  });
+
+const SavePropertyInput = z.object({
+  id: z.string().uuid().optional().nullable(),
+  ownerId: z.string().uuid().optional().nullable(),
+  property: PropertyInput,
+  recommendations: z.array(RecInput).max(2000).default([]),
+  manual: z.array(z.object({
+    title: z.string().min(1).max(120),
+    description: z.string().max(300).optional().nullable(),
+    body: z.string().max(4000).optional().nullable(),
+    images: z.array(z.string().max(500)).max(12).optional().default([]),
+  })).max(40).default([]),
+  emergency: z.array(z.object({
+    label: z.string().min(1).max(120),
+    number: z.string().min(1).max(40),
+  })).max(20).default([]),
+  faqs: z.array(z.object({
+    question: z.string().min(1).max(200),
+    answer: z.string().min(1).max(2000),
+    tags: z.array(z.string().max(40)).max(8).default([]),
+  })).max(40).default([]),
+  checkout: z.array(z.object({
+    label: z.string().min(1).max(200),
+  })).max(40).default([]),
+});
+
+
+export const upsertProperty = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => SavePropertyInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    const enforcing = enforce(userId, "imoveis.editor.write", { propertyId: data.id ?? null });
+    const { resolveEffectivePlan, assertCanCreateGuide } = await import("@/lib/plan-guard.server");
+    let propertyId = data.id ?? null;
+
+    // Descobre o dono efetivo (para membros de equipe editando propriedades
+    // do dono da conta, o plano relevante é o do DONO — não do caller).
+    // A checagem de permissão roda em paralelo com esta consulta.
+    let effectiveOwnerId: string = userId;
+    if (propertyId) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const [{ data: existing }] = await Promise.all([
+        supabaseAdmin.from("properties").select("owner_id").eq("id", propertyId).maybeSingle(),
+        enforcing,
+      ]);
+      if (existing?.owner_id) effectiveOwnerId = existing.owner_id as string;
+    } else if (data.ownerId && data.ownerId !== userId) {
+      effectiveOwnerId = data.ownerId;
+    } else if (!data.ownerId) {
+      // Fallback para membros puros de equipe: se o usuário não possui guias
+      // próprios e tem permissão explícita de criar/editar em exatamente uma
+      // conta, a criação deve cair nessa conta. Isso evita que um admin SaaS
+      // que também é membro fique preso na regra global de somente leitura.
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const [{ data: ownedProps }, { data: memberships }] = await Promise.all([
+        supabaseAdmin.from("properties").select("id").eq("owner_id", userId).limit(1),
+        supabaseAdmin
+          .from("account_members")
+          .select("owner_id")
+          .eq("member_user_id", userId)
+          .eq("status", "active"),
+      ]);
+      const ownerIds = Array.from(new Set((memberships ?? []).map((m) => m.owner_id as string)));
+      if ((ownedProps ?? []).length === 0 && ownerIds.length > 0) {
+        const { data: editRows } = await supabaseAdmin
+          .from("account_member_permissions")
+          .select("owner_id")
+          .eq("member_user_id", userId)
+          .eq("permission", "library_edit")
+          .eq("granted", true)
+          .in("owner_id", ownerIds);
+        const editableOwnerIds = Array.from(new Set((editRows ?? []).map((r) => r.owner_id as string)));
+        if (editableOwnerIds.length === 1) effectiveOwnerId = editableOwnerIds[0];
+      }
+    }
+
+    await enforcing;
+    const plan = await resolveEffectivePlan(supabase, userId, { ownerId: effectiveOwnerId });
+
+    // Strip Business-only fields when the effective plan doesn't include white-label.
+    const propertyData = { ...data.property };
+    if (!plan.features.customBrand) {
+      propertyData.brand_name = null;
+      propertyData.brand_logo_url = null;
+    }
+
+    // Regra: "sem imóvel [vinculado a um proprietário cadastrado], sem guia".
+    // Trava no backend (além do gate na UI) para que nenhum caminho — direto
+    // por aqui, futuros botões, etc. — consiga salvar um imóvel órfão.
+    if (!propertyData.owner_contact_id) {
+      throw new Error(
+        "Este imóvel precisa estar vinculado a um proprietário. Selecione um proprietário cadastrado em Stakeholders → Proprietários antes de salvar.",
+      );
+    }
+    {
+      // Só valida que o proprietário existe e pertence à MESMA conta — não
+      // exige mais status "active". Um guia continua editável/salvável (aqui
+      // e no autosave silencioso) não importa o status do proprietário
+      // vinculado (active/canceling/canceled): travar o salvamento inteiro do
+      // guia por causa disso já causou "Falha ao salvar" em campos sem
+      // nenhuma relação com o proprietário assim que o cadastro dele mudava
+      // de status. Só "canceled" (status terminal) some da listagem dos
+      // painéis operacionais (Dashboard/Kanban/Calendário) — ver
+      // excludeCanceledOwnerProperties em dashboard.functions.ts — mas o guia
+      // em si continua existindo, editável e visível em "Guias".
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: ownerRow, error: ownerErr } = await supabaseAdmin
+        .from("property_owners")
+        .select("id")
+        .eq("id", propertyData.owner_contact_id)
+        .eq("account_owner_id", effectiveOwnerId)
+        .maybeSingle();
+      if (ownerErr) throw new Error("Não foi possível validar o proprietário selecionado.");
+      if (!ownerRow) {
+        throw new Error(
+          "Proprietário inválido ou não pertence a esta conta. Selecione um proprietário cadastrado em Stakeholders → Proprietários.",
+        );
+      }
+    }
+
+    // Um guia só pode *passar* a publicado com todos os campos obrigatórios
+    // preenchidos. Um guia que já está publicado nunca é despublicado em
+    // silêncio por um salvamento comum (isso derrubaria o link público sem
+    // nenhum aviso ao anfitrião) — despublicar é sempre uma ação explícita.
+    if (propertyData.published === true) {
+      let alreadyPublished = false;
+      if (propertyId) {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: current } = await supabaseAdmin
+          .from("properties")
+          .select("published")
+          .eq("id", propertyId)
+          .maybeSingle();
+        alreadyPublished = current?.published === true;
+      }
+      if (!alreadyPublished) {
+        const { missingPublishFields } = await import("@/lib/publish-requirements");
+        if (missingPublishFields(propertyData as Record<string, unknown>).length > 0) {
+          propertyData.published = false;
+        }
+      }
+    }
+
+
+
+    // Quando o operador é membro atuando dentro de outra conta, valida a
+    // permissão `library_edit` e escreve com o cliente admin (as policies
+    // RLS de properties/child tables permitem apenas o titular ou admin).
+    const actingAsMember = effectiveOwnerId !== userId;
+    let writeClient: typeof supabase = supabase;
+    if (actingAsMember) {
+      const { requireMemberPermission } = await import("@/lib/member-permissions.server");
+      await requireMemberPermission(supabase, userId, effectiveOwnerId, "library_edit");
+      writeClient = (await import("@/integrations/supabase/client.server")).supabaseAdmin as unknown as typeof supabase;
+    }
+
+    if (propertyId) {
+      const { data: updated, error } = await writeClient
+        .from("properties")
+        .update(propertyData)
+        .eq("id", propertyId)
+        .select("id")
+        .maybeSingle();
+      if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
+      if (!updated) throw new Error("O guia não foi atualizado. Verifique sua permissão e tente novamente.");
+    } else {
+      await assertCanCreateGuide(supabase, userId, { ownerId: effectiveOwnerId });
+      const { data: inserted, error } = await writeClient
+        .from("properties")
+        .insert({ ...propertyData, owner_id: effectiveOwnerId })
+        .select("id")
+        .single();
+      if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
+      propertyId = inserted.id;
+
+      // Auto-generate default FAQs on first creation when the user didn't
+      // provide any. Only fields that are actually filled produce a question.
+      if (!data.faqs.length) {
+        const { buildDefaultFaqs } = await import("@/lib/default-faqs");
+        const defaults = buildDefaultFaqs(propertyData);
+        if (defaults.length) {
+          data.faqs = defaults.map((f) => ({
+            question: f.question,
+            answer: f.answer,
+            tags: f.tags,
+          }));
+        }
+      }
+    }
+
+    // Replace child tables wholesale (simpler than diff).
+    // Cada tabela faz delete -> insert em cadeia própria, e as 5 cadeias rodam
+    // em paralelo: reduz de ~11 idas e voltas sequenciais ao banco para ~2.
+    if (!propertyId) throw new Error("Não foi possível salvar o guia.");
+    const id = propertyId;
+    const { safeDbError } = await import("@/lib/db-errors.server");
+    const replaceChild = async (
+      table: "property_recommendations" | "property_manual_items" | "property_emergency_contacts" | "property_faqs" | "property_checkout_items",
+      items: Record<string, unknown>[],
+    ) => {
+      const del = await (writeClient.from(table) as any).delete().eq("property_id", id);
+      if (del.error) throw safeDbError("properties", del.error);
+      if (!items.length) return;
+      const rows = items.map((r, i) => ({ ...r, property_id: id, position: i }));
+      const { error } = await (writeClient.from(table) as any).insert(rows);
+      if (error) throw safeDbError("properties", error);
+    };
+
+    await Promise.all([
+      replaceChild("property_recommendations", data.recommendations as unknown as Record<string, unknown>[]),
+      replaceChild("property_manual_items", data.manual as unknown as Record<string, unknown>[]),
+      replaceChild("property_emergency_contacts", data.emergency as unknown as Record<string, unknown>[]),
+      replaceChild("property_faqs", data.faqs as unknown as Record<string, unknown>[]),
+      replaceChild("property_checkout_items", data.checkout as unknown as Record<string, unknown>[]),
+    ]);
+
+    // Reindexa a base de conhecimento (RAG) para a IA refletir as mudanças do guia.
+    // Fire-and-forget: gerar embeddings não deve bloquear o salvamento na tela do anfitrião.
+    // Sem isso, o search_knowledge_base do agente podia servir manual/FAQ/checkout/emergência
+    // desatualizados indefinidamente após a primeira indexação do imóvel.
+    void (async () => {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { reindexProperty } = await import("@/lib/ai/indexing.server");
+        await reindexProperty(supabaseAdmin, id);
+      } catch (e) {
+        console.error("[properties] reindex pós-salvamento do guia falhou", e);
+      }
+    })();
+
+    return { id };
+
+  });
+
+
+/**
+ * Transferência DELIBERADA do proprietário (property_owners) de um imóvel —
+ * a ÚNICA forma de trocar quem é o dono depois que o imóvel já está
+ * vinculado a alguém. Uma vez definido, o campo fica travado no formulário
+ * normal (tela do imóvel, popup de edição rápida) — só este endpoint, com
+ * confirmação explícita, pode mudar o vínculo. Registra em audit_logs.
+ */
+export const transferPropertyOwner = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z.object({
+      propertyId: z.string().uuid(),
+      newOwnerContactId: z.string().uuid(),
+    }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(context.userId, "imoveis.editor.write", { propertyId: data.propertyId });
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: prop, error: propErr } = await supabaseAdmin
+      .from("properties")
+      .select("id, owner_id, owner_contact_id, name")
+      .eq("id", data.propertyId)
+      .maybeSingle();
+    if (propErr) throw (await import("@/lib/db-errors.server")).safeDbError("properties", propErr);
+    if (!prop) throw new Error("Imóvel não encontrado.");
+    const previousOwnerContactId = (prop as { owner_contact_id: string | null }).owner_contact_id;
+
+    const { data: newOwner, error: ownerErr } = await supabaseAdmin
+      .from("property_owners")
+      .select("id, name")
+      .eq("id", data.newOwnerContactId)
+      .eq("account_owner_id", (prop as { owner_id: string }).owner_id)
+      .eq("status", "active")
+      .maybeSingle();
+    if (ownerErr) throw new Error("Não foi possível validar o novo proprietário.");
+    if (!newOwner) {
+      throw new Error(
+        "Proprietário inválido ou não pertence a esta conta. Selecione um proprietário cadastrado em Stakeholders → Proprietários.",
+      );
+    }
+    if (previousOwnerContactId === data.newOwnerContactId) {
+      return { ok: true };
+    }
+
+    const { error: updErr } = await supabaseAdmin
+      .from("properties")
+      .update({ owner_contact_id: data.newOwnerContactId })
+      .eq("id", data.propertyId);
+    if (updErr) throw (await import("@/lib/db-errors.server")).safeDbError("properties", updErr);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabaseAdmin.from("audit_logs" as never) as any).insert({
+      user_id: context.userId,
+      user_email: (context as { claims?: { email?: string } }).claims?.email ?? null,
+      action: "property.owner_transferred",
+      entity_type: "properties",
+      entity_id: data.propertyId,
+      metadata: {
+        propertyName: (prop as { name: string }).name,
+        previousOwnerContactId,
+        newOwnerContactId: data.newOwnerContactId,
+        newOwnerName: (newOwner as { name: string }).name,
+      },
+    }).catch(() => { /* auditoria nunca bloqueia a transferência */ });
+
+    return { ok: true };
+  });
+
+export const deleteProperty = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ id: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(context.userId, "imoveis.delete", { propertyId: data.id });
+    const { error } = await context.supabase.from("properties").delete().eq("id", data.id);
+    if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
+    return { ok: true };
+  });
+
+// ---- COPY CITY RECS TO OTHER PROPERTIES --------------------------------
+// Copia recomendações "Pela cidade" (scope=city) de um imóvel para outros
+// imóveis do mesmo usuário. Substitui apenas as recs de scope "city" nos
+// destinos, mantendo as "nearby" intactas.
+export const copyCityRecsToProperties = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z.object({
+      sourcePropertyId: z.string().uuid(),
+      targetPropertyIds: z.array(z.string().uuid()).min(1).max(50),
+    }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    // Usa supabaseAdmin para garantir permissão de leitura/escrita
+    // em property_recommendations de outros imóveis do mesmo dono.
+    // O cliente RLS do usuário (context.supabase) pode não ter acesso
+    // a rows de outros imóveis dependendo das policies configuradas.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Verifica que o usuário autenticado é dono do imóvel fonte
+    const { data: src, error: srcErr } = await supabaseAdmin
+      .from("properties")
+      .select("id, owner_id")
+      .eq("id", data.sourcePropertyId)
+      .eq("owner_id", context.userId)
+      .maybeSingle();
+    if (srcErr || !src) throw new Error("Imóvel de origem não encontrado ou sem permissão.");
+
+    // Busca as recs "Pela cidade" do imóvel fonte
+    const { data: cityRecs, error: recsErr } = await supabaseAdmin
+      .from("property_recommendations")
+      .select("*")
+      .eq("property_id", data.sourcePropertyId)
+      .eq("scope", "city");
+    if (recsErr) throw new Error("Erro ao buscar recomendações.");
+    const recs = cityRecs ?? [];
+
+    // Garante que os destinos pertencem ao mesmo usuário autenticado
+    const { data: targets, error: tgtErr } = await supabaseAdmin
+      .from("properties")
+      .select("id")
+      .in("id", data.targetPropertyIds)
+      .eq("owner_id", (src as { owner_id: string }).owner_id);
+    if (tgtErr || !targets || targets.length === 0)
+      throw new Error("Nenhum imóvel destino válido encontrado.");
+
+    let copied = 0;
+    for (const target of targets as Array<{ id: string }>) {
+      // Remove recs "city" existentes no destino
+      await supabaseAdmin
+        .from("property_recommendations")
+        .delete()
+        .eq("property_id", target.id)
+        .eq("scope", "city");
+
+      if (recs.length > 0) {
+        const rows = recs.map((r, i) => {
+          const rec = r as Record<string, unknown>;
+          return {
+            property_id: target.id,
+            scope: rec.scope,
+            type: rec.type,
+            name: rec.name,
+            category: rec.category ?? null,
+            rating: rec.rating ?? null,
+            user_ratings_total: rec.user_ratings_total ?? null,
+            distance_text: rec.distance_text ?? null,
+            distance_meters: rec.distance_meters ?? null,
+            drive_minutes: rec.drive_minutes ?? null,
+            walk_minutes: rec.walk_minutes ?? null,
+            opening_hours: rec.opening_hours ?? null,
+            note: rec.note ?? null,
+            image_url: rec.image_url ?? null,
+            maps_url: rec.maps_url ?? null,
+            place_id: rec.place_id ?? null,
+            position: i,
+          };
+        });
+        const { error: insErr } = await supabaseAdmin
+          .from("property_recommendations")
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .insert(rows as any);
+        if (!insErr) copied += 1;
+      } else {
+        copied += 1;
+      }
+    }
+
+    return { copied, total: targets.length };
+  });
+
+// ---- DUPLICATE PROPERTY -------------------------------------------------
+// Duplicates a property (and all its child tables) N times for the same owner.
+// Enforces the plan's max-guides quota — refuses to create more copies than
+// the remaining allowance and reports how many were created vs. skipped.
+export const duplicateProperty = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z.object({
+      id: z.string().uuid(),
+      copies: z.number().int().min(1).max(20),
+    }).parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { resolveEffectivePlan } = await import("@/lib/plan-guard.server");
+
+    // Load source first — the effective owner may be the account owner (not the caller).
+    const { data: src, error: srcErr } = await supabase
+      .from("properties")
+      .select("*")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (srcErr) throw (await import("@/lib/db-errors.server")).safeDbError("properties", srcErr);
+    if (!src) throw new Error("Guia de origem não encontrado.");
+    // Regra: "sem imóvel [vinculado a um proprietário], sem guia" — a cópia
+    // herda o mesmo proprietário do original, então o original precisa ter um.
+    if (!(src as { owner_contact_id?: string | null }).owner_contact_id) {
+      throw new Error(
+        "Vincule um proprietário a este imóvel antes de duplicá-lo (abra o imóvel e vincule em Stakeholders → Proprietários).",
+      );
+    }
+    const sourceOwnerId = (src as { owner_id: string }).owner_id;
+
+    // Plan gate — usa o plano do DONO da propriedade fonte (para membros de equipe).
+    const plan = await resolveEffectivePlan(supabase, userId, { ownerId: sourceOwnerId });
+    if (!plan.plan) {
+      throw new Error("Você precisa de um plano ativo para duplicar guias.");
+    }
+    const { count: currentCount, error: countErr } = await supabaseAdmin
+      .from("properties")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", sourceOwnerId);
+    if (countErr) throw new Error("Não foi possível verificar seu limite de guias.");
+    const used = currentCount ?? 0;
+    const remaining = Math.max(0, plan.maxGuides - used);
+    if (remaining <= 0) {
+      throw new Error(
+        `Limite do plano ${plan.plan} atingido (${plan.maxGuides}). Faça upgrade em /precos.`,
+      );
+    }
+    const toCreate = Math.min(data.copies, remaining);
+    const skipped = data.copies - toCreate;
+
+
+    const [manual, recs, emerg, faqs, checkout] = await Promise.all([
+      supabaseAdmin.from("property_manual_items").select("*").eq("property_id", data.id).order("position"),
+      supabaseAdmin.from("property_recommendations").select("*").eq("property_id", data.id).order("position"),
+      supabaseAdmin.from("property_emergency_contacts").select("*").eq("property_id", data.id).order("position"),
+      supabaseAdmin.from("property_faqs").select("*").eq("property_id", data.id).order("position"),
+      supabaseAdmin.from("property_checkout_items").select("*").eq("property_id", data.id).order("position"),
+    ]);
+
+    // Strip fields that must NOT be copied verbatim.
+    const stripped = { ...(src as Record<string, unknown>) };
+    delete stripped.id;
+    delete stripped.created_at;
+    delete stripped.updated_at;
+    delete stripped.slug;
+    delete stripped.name;
+    delete stripped.owner_id;
+
+    const baseSlug = (src as { slug: string }).slug;
+    const baseName = (src as { name: string }).name;
+    const createdIds: string[] = [];
+
+    // Fetch existing slugs starting with baseSlug once, to find free suffixes.
+    // Use admin client to bypass RLS — the `slug` uniqueness constraint is
+    // global across all owners, so we must see slugs owned by other users too.
+    const { data: existing } = await supabaseAdmin
+      .from("properties")
+      .select("slug")
+      .like("slug", `${baseSlug}-copia%`);
+    const taken = new Set<string>(((existing ?? []) as Array<{ slug: string }>).map((r) => r.slug));
+
+
+    function nextSlug(): string {
+      let n = 1;
+      while (true) {
+        const candidate = n === 1 ? `${baseSlug}-copia` : `${baseSlug}-copia-${n}`;
+        if (!taken.has(candidate)) {
+          taken.add(candidate);
+          return candidate;
+        }
+        n += 1;
+      }
+    }
+
+    for (let i = 0; i < toCreate; i++) {
+      const newSlug = nextSlug();
+      const suffix = createdIds.length === 0 ? " (cópia)" : ` (cópia ${createdIds.length + 1})`;
+      const newName = `${baseName}${suffix}`;
+
+      const { data: inserted, error: insErr } = await supabase
+        .from("properties")
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .insert({ ...(stripped as any), owner_id: sourceOwnerId, slug: newSlug, name: newName, published: false })
+        .select("id")
+        .single();
+      if (insErr) throw (await import("@/lib/db-errors.server")).safeDbError("properties", insErr);
+      const newId = (inserted as { id: string }).id;
+      createdIds.push(newId);
+
+      // Copy child tables via admin (owner_id is inherited via property_id + RLS).
+      const cloneRows = (
+        rows: unknown[] | null | undefined,
+      ): Array<Record<string, unknown>> =>
+        (rows ?? []).map((r) => {
+          const row = { ...(r as Record<string, unknown>) };
+          delete row.id;
+          delete row.created_at;
+          delete row.updated_at;
+          row.property_id = newId;
+          return row;
+        });
+
+      const manualRows = cloneRows(manual.data);
+      const recsRows = cloneRows(recs.data);
+      const emergRows = cloneRows(emerg.data);
+      const faqsRows = cloneRows(faqs.data);
+      const checkoutRows = cloneRows(checkout.data);
+
+      await Promise.all([
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        manualRows.length ? supabaseAdmin.from("property_manual_items").insert(manualRows as any) : Promise.resolve(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        recsRows.length ? supabaseAdmin.from("property_recommendations").insert(recsRows as any) : Promise.resolve(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        emergRows.length ? supabaseAdmin.from("property_emergency_contacts").insert(emergRows as any) : Promise.resolve(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        faqsRows.length ? supabaseAdmin.from("property_faqs").insert(faqsRows as any) : Promise.resolve(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        checkoutRows.length ? supabaseAdmin.from("property_checkout_items").insert(checkoutRows as any) : Promise.resolve(),
+      ]);
+    }
+
+    return { created: createdIds.length, skipped, requested: data.copies, remainingBefore: remaining };
+  });

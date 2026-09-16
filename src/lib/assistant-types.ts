@@ -1,0 +1,220 @@
+/**
+ * Tipos do Assistente do Painel (pedido explícito, 07/09/2026).
+ *
+ * A decisão central que estes tipos carregam: o assistente NUNCA grava nada
+ * sozinho. Quando a pessoa pede uma ação, o servidor apenas MONTA a ação —
+ * resolve "o 105" no id do imóvel, escolhe a categoria, calcula para qual
+ * limpeza a pendência vai — e devolve uma `AssistantAction` junto de um
+ * `preview` legível. Quem executa é o clique de confirmação na interface,
+ * chamando exatamente a mesma server function que o resto do painel já usa
+ * (`createTask`, `setTaskStatus`, `markNoShow`, `upsertArrivalStatus`,
+ * `advanceArrival`).
+ *
+ * Isso evita o pior modo de falha de um agente com poder de escrita — gravar
+ * algo que a pessoa não pediu por ter entendido errado — e ainda mantém uma
+ * única implementação de cada gravação: se a regra de criação de pendência
+ * mudar, muda num lugar só e o assistente acompanha de graça.
+ *
+ * AUTONOMIA MÁXIMA (pedido explícito, 08/09/2026): "quero que a IA interna
+ * tenha AUTONOMIA MÁXIMA e que consiga executar QUALQUER coisa solicitada
+ * pelo usuário — caso este usuário tenha autonomia para fazer aquilo".
+ *
+ * Vale registrar como as duas coisas convivem, porque parecem brigar e não
+ * brigam. O que limitava a IA não era o cartão de confirmação: era a lista
+ * curta de ações que ela sabia montar. Quando o usuário pediu uma pendência
+ * recorrente de 30 dias, a IA respondeu "não consigo criar recorrência" — e a
+ * coluna `tasks.recurrence_days` existe desde sempre, o `createTask` já a
+ * aceita, a tela de Pendências já a oferece. Faltava só a ferramenta expor o
+ * campo. Autonomia, aqui, é COBERTURA: tudo que a tela faz, a IA monta.
+ *
+ * Quem decide o que cada pessoa PODE continua sendo o sistema, nunca a IA:
+ * as ferramentas de leitura usam o cliente Supabase do usuário (RLS), e a
+ * gravação passa pela mesma server function da tela, com a mesma checagem de
+ * permissão. Se a pessoa não pode, a gravação falha — do mesmo jeito que
+ * falharia se ela clicasse no botão. A IA nunca é a guardiã da permissão, e
+ * por isso também nunca deve recusar por conta própria.
+ */
+import type { TaskCategory, TaskPriority } from "@/lib/tasks-types";
+
+/** Um par rótulo/valor do cartão de confirmação. */
+export type ActionPreviewRow = { label: string; value: string };
+
+export type AssistantAction =
+  | {
+      kind: "create_task";
+      /** Espelha o input de `createTask` — o cliente repassa sem transformar. */
+      payload: {
+        title: string;
+        description: string | null;
+        category: TaskCategory;
+        priority: TaskPriority;
+        propertyId: string | null;
+        ownerContactId: string | null;
+        dueDate: string | null;
+        showInCleaning: boolean | null;
+        /** Repete a cada N dias (`tasks.recurrence_days`). */
+        recurrenceDays: number | null;
+      };
+    }
+  | {
+      kind: "complete_task";
+      payload: {
+        taskId: string;
+        resolutionNote: string | null;
+      };
+    }
+  | {
+      /**
+       * A MESMA pendência em VÁRIOS imóveis, com UMA confirmação só.
+       *
+       * Pedido explícito (08/09/2026): "crie a recorrência em todos os imóveis
+       * sem me pedir para confirmar a gravação de cada um deles". Antes cada
+       * imóvel exigia um cartão, e criar uma rotina em quinze imóveis eram
+       * quinze confirmações — o assistente virava um formulário lento.
+       *
+       * O cartão de confirmação continua existindo: o que muda é o que ele
+       * cobre. Um cartão, a lista inteira, uma decisão. E `duplicados` traz os
+       * imóveis que JÁ têm pendência parecida — eles ficam de fora por padrão,
+       * porque duplicar em silêncio é pior do que não criar.
+       */
+      kind: "create_task_bulk";
+      payload: {
+        /** O que será criado, igual em todos os imóveis. */
+        base: {
+          title: string;
+          description: string | null;
+          category: TaskCategory;
+          priority: TaskPriority;
+          dueDate: string | null;
+          showInCleaning: boolean | null;
+          recurrenceDays: number | null;
+        };
+        /** Onde criar. */
+        properties: Array<{ id: string; name: string }>;
+        /** Fora da lista por já terem pendência parecida (informativo). */
+        duplicates: Array<{ id: string; name: string; existing: string }>;
+      };
+    }
+  | {
+      /**
+       * VÁRIAS pendências de uma vez: arquivar, reabrir ou EXCLUIR.
+       *
+       * Pedido explícito (09/09/2026): "remova todas as pendências que você
+       * criou agora… quero que exclua definitivamente, não arquivar".
+       * A IA respondeu que não tinha ferramenta — e estava certa: não tinha.
+       * O que limitava não era o cartão de confirmação, era de novo a
+       * COBERTURA. Sem ação em lote, desfazer uma criação em quinze imóveis
+       * eram quinze cartões; sem exclusão, o "desfazer" deixava quinze linhas
+       * mortas atrás de um filtro.
+       *
+       * `delete` apaga a linha (ver `deleteTasks`); `canceled`/`pending`
+       * arquivam e reabrem, como antes.
+       */
+      kind: "task_bulk";
+      payload: {
+        taskIds: string[];
+        operation: "delete" | "canceled" | "pending";
+        /** Só para o cartão: títulos do que será afetado. */
+        titles: string[];
+      };
+    }
+  | {
+      /** Arquivar (status "canceled") ou reabrir (status "pending"). */
+      kind: "set_task_status";
+      payload: {
+        taskId: string;
+        status: "pending" | "canceled";
+      };
+    }
+  | {
+      kind: "no_show";
+      payload: {
+        logId: string | null;
+        reservationId: string | null;
+      };
+    }
+  | {
+      /** Data e/ou horário PREVISTOS de um card (`upsertArrivalStatus`). */
+      kind: "set_prediction";
+      payload: {
+        logId: string | null;
+        reservationId: string | null;
+        kind: "checkin" | "checkout";
+        arrivalDateOverride: string | null;
+        arrivalTimeOverride: string | null;
+      };
+    }
+  | {
+      /** Avança o card uma etapa na esteira (`advanceArrival`). */
+      kind: "advance";
+      payload: {
+        logId: string | null;
+        reservationId: string | null;
+        from: "checkin" | "stay" | "checkout" | "cleaning";
+        /** Obrigatório em `from: "cleaning"` — define o preço gravado. */
+        cleaningType: "normal" | "completa" | null;
+      };
+    };
+
+export type PendingAction = {
+  action: AssistantAction;
+  /** Texto do botão que confirma ("Criar pendência", "Concluir"…). */
+  confirmLabel: string;
+  /** O que exatamente será gravado, em português, linha a linha. */
+  preview: ActionPreviewRow[];
+};
+
+/** De onde saiu a resposta — exibido abaixo da mensagem. */
+export type AssistantSource = {
+  label: string;
+  /** "guia" | "regra" | "tela" | nome de uma consulta aos dados. */
+  kind: string;
+};
+
+export type AssistantMessage = {
+  id: string;
+  /** Conversa a que a mensagem pertence — a interface usa para desenhar a
+   * divisória de "nova conversa" no histórico contínuo. Só vem do histórico
+   * gravado; mensagens recém-criadas na tela não precisam dele. */
+  threadId?: string | null;
+  role: "user" | "assistant";
+  content: string;
+  createdAt: string;
+  sources: AssistantSource[];
+  /**
+   * O que foi EXECUTADO neste turno, em uma linha ("Criar em 9 imóveis").
+   *
+   * Pedido explícito (09/09/2026): o histórico guarda "todas as decisões".
+   * O cartão de confirmação é objeto de tela — some ao confirmar e não deixa
+   * rastro. Isto é o rastro: fica gravado como mensagem e sobrevive a
+   * recarregar, inclusive quando a confirmação automática está ligada e
+   * cartão nenhum chega a aparecer.
+   */
+  executedAction?: string | null;
+  /** A tela apontada pela resposta vira link dentro do próprio texto
+   * (07/09/2026) — não há mais um campo separado nem um chip embaixo da
+   * mensagem repetindo o mesmo caminho. */
+  pendingAction: PendingAction | null;
+};
+
+export type AssistantAsk = {
+  threadId: string;
+  message: AssistantMessage;
+  /**
+   * A pessoa dispensou o cartão de confirmação (`profiles.assistant_auto_
+   * confirm`). Com `true`, a interface executa a `pendingAction` na hora, em
+   * vez de esperar o clique.
+   *
+   * Pedido explícito (09/09/2026): "se o usuário pedir 'dispense a
+   * confirmação', então ela tem que acatar e manter isso memorizado para
+   * aquele usuário específico".
+   *
+   * Vem no envelope da resposta, e não de uma query separada, porque a
+   * preferência pode ter mudado NESTA mensagem — a IA tem uma ferramenta para
+   * ligá-la, e o valor que interessa é o de depois da conversa.
+   *
+   * A autonomia é sobre o CLIQUE, não sobre permissão: a gravação continua
+   * passando pela mesma server function e pelo mesmo RLS da tela.
+   */
+  autoConfirm: boolean;
+};

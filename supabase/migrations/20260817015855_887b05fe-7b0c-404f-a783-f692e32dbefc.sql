@@ -1,0 +1,10 @@
+REVOKE ALL ON public.guide_access_logs FROM anon;
+REVOKE ALL ON public.property_owners FROM anon;
+REVOKE ALL ON public.service_providers FROM anon;
+ALTER TABLE public.guide_access_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.property_owners ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.service_providers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.guide_access_logs FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.property_owners FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.service_providers FORCE ROW LEVEL SECURITY;
+ALTER PUBLICATION supabase_realtime SET (publish_via_partition_root = false);

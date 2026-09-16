@@ -1,0 +1,77 @@
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import { AI_MODELS } from "@/lib/ai/models";
+
+// Idiomas suportados pela UI. Restringir o alvo evita que o endpoint seja
+// usado como proxy genérico de LLM com instruções arbitrárias.
+const SUPPORTED_LANGS = [
+  "pt", "en", "es", "fr", "it", "de", "ru", "ar", "ja", "ko", "zh", "nl", "pl", "tr", "he", "hi",
+] as const;
+
+const InputSchema = z.object({
+  text: z.string().trim().min(1).max(2000),
+  targetLang: z
+    .string()
+    .min(2)
+    .max(10)
+    .transform((v) => v.toLowerCase().split(/[-_]/)[0])
+    .refine((v): v is (typeof SUPPORTED_LANGS)[number] => (SUPPORTED_LANGS as readonly string[]).includes(v), {
+      message: "Idioma não suportado.",
+    }),
+});
+
+/**
+ * Tradução de mensagens do chat. Pública de propósito: o hóspede (sem login)
+ * também precisa ver as mensagens do atendente no idioma dele.
+ */
+export const translateMessage = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => InputSchema.parse(input))
+  .handler(async ({ data }) => {
+    // Endpoint público: sem freio por IP viraria proxy gratuito de LLM.
+    const { getRequestIP } = await import("@tanstack/react-start/server");
+    const { allowPublicRate } = await import("@/lib/public-rate-limit.server");
+    let ip = "anon";
+    try {
+      ip = getRequestIP({ xForwardedFor: true }) ?? "anon";
+    } catch {
+      ip = "anon";
+    }
+    if (!allowPublicRate(`translate:${ip}`, 40, 60_000)) {
+      throw new Error("Muitas traduções em pouco tempo. Tente novamente em instantes.");
+    }
+
+    const apiKey = process.env.LOVABLE_API_KEY;
+    if (!apiKey) throw new Error("Tradução indisponível no momento.");
+
+    const target = data.targetLang;
+
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
+      body: JSON.stringify({
+        model: AI_MODELS.translate,
+        messages: [
+          {
+            role: "system",
+            content:
+              `Você é um tradutor. Traduza a mensagem do usuário para o idioma de código "${target}". ` +
+              `Responda APENAS com a tradução, sem aspas, sem explicações, sem comentários. ` +
+              `Preserve emojis, links, quebras de linha e formatação markdown. ` +
+              `Se o texto já estiver nesse idioma, devolva-o inalterado.`,
+          },
+          { role: "user", content: data.text },
+        ],
+      }),
+    });
+
+    if (res.status === 429) throw new Error("Muitas traduções em pouco tempo. Tente novamente em instantes.");
+    if (res.status === 402) throw new Error("Créditos de IA esgotados.");
+    if (!res.ok) {
+      console.error("translateMessage gateway error", res.status);
+      throw new Error("Não consegui traduzir agora.");
+    }
+
+    const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const translated = json.choices?.[0]?.message?.content?.trim() ?? "";
+    return { translated: translated || data.text, targetLang: target };
+  });

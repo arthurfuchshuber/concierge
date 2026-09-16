@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.enforce_poi_engagement_rate_limit() FROM PUBLIC, anon, authenticated;

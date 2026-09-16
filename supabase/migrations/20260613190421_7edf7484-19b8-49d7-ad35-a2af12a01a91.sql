@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Public read property-images" ON storage.objects;

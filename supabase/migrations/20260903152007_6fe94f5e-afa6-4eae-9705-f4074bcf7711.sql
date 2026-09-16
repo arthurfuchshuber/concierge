@@ -1,0 +1,15 @@
+ALTER TABLE public.properties
+  ADD COLUMN IF NOT EXISTS airbnb_rating numeric,
+  ADD COLUMN IF NOT EXISTS airbnb_guest_count integer,
+  ADD COLUMN IF NOT EXISTS airbnb_bedroom_count integer,
+  ADD COLUMN IF NOT EXISTS airbnb_bed_count integer,
+  ADD COLUMN IF NOT EXISTS airbnb_bathroom_count numeric,
+  ADD COLUMN IF NOT EXISTS airbnb_description_full text,
+  ADD COLUMN IF NOT EXISTS airbnb_rooms_beds jsonb NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS airbnb_amenities jsonb NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS airbnb_house_rules text,
+  ADD COLUMN IF NOT EXISTS airbnb_cancellation_policy text,
+  ADD COLUMN IF NOT EXISTS airbnb_safety_info text,
+  ADD COLUMN IF NOT EXISTS airbnb_listing_last_synced_at timestamptz,
+  ADD COLUMN IF NOT EXISTS airbnb_listing_last_error text,
+  ADD COLUMN IF NOT EXISTS airbnb_listing_last_sync_note text;
