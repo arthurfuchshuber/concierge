@@ -5057,61 +5057,71 @@ function AccessCodesStrip({
 
   return (
     <div
-      className={`wifi-shimmer relative overflow-hidden rounded-[0.3rem] border ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/25 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}
+      className={`wifi-shimmer relative overflow-hidden rounded-[0.9rem] border p-4 ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/20 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}
     >
       <div
-        className={`pointer-events-none absolute inset-0 ${isLight ? "opacity-[0.04]" : "opacity-[0.07]"} [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]`}
+        className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-amber-400/12"} blur-3xl`}
       />
-      <div
-        className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-amber-400/15"} blur-3xl`}
-      />
-      <div className="relative flex items-center gap-3 px-3 py-3">
-        <span
-          className={`relative grid size-10 shrink-0 place-items-center rounded-[0.3rem] ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-amber-400/10 text-amber-50 ring-amber-200/25"}`}
-        >
-          <KeyRound className="relative size-[18px]" strokeWidth={2} />
-        </span>
+      <div className="relative flex items-start justify-between gap-3">
+        <div className="flex min-w-0 gap-3.5">
+          <span
+            className={`relative grid size-12 shrink-0 place-items-center rounded-xl border ${isLight ? "border-accent/20 bg-accent/12 text-accent/80" : "border-amber-400/20 bg-amber-400/10 text-amber-300"}`}
+          >
+            <KeyRound className="relative size-6" strokeWidth={2} />
+          </span>
 
-        <div className="flex-1 min-w-0">
-          {showing ? (
-            <div className="space-y-0.5">
-              {gateCode && (
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] text-foreground/70 font-medium shrink-0 truncate">
-                    {gLabel}
-                  </span>
-                  <span className="font-mono text-[13px] font-semibold tracking-[0.22em] text-foreground truncate">
-                    {gateCode}
-                  </span>
-                </div>
-              )}
-              {lockCode && (
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] text-foreground/70 font-medium shrink-0 truncate">
-                    {lLabel}
-                  </span>
-                  <span className="font-mono text-[13px] font-semibold tracking-[0.22em] text-foreground truncate">
-                    {lockCode}
-                  </span>
-                </div>
-              )}
-            </div>
-          ) : (
-            <>
-              <p className="text-[12px] text-foreground/85 truncate font-medium">{hint}</p>
-              <p className="font-mono text-[13px] font-semibold tracking-[0.22em] text-foreground/60 truncate">
-                {"•".repeat(10)}
-              </p>
-            </>
-          )}
+          <div className="min-w-0 flex-1">
+            {showing ? (
+              <div className="min-w-0">
+                {gateCode && (
+                  <div className="min-w-0">
+                    <span
+                      className={`block truncate text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-accent/70" : "text-amber-300/55"}`}
+                    >
+                      {gLabel}
+                    </span>
+                    <span className="block truncate font-mono text-[17px] font-bold tracking-[0.18em] text-foreground">
+                      {gateCode}
+                    </span>
+                  </div>
+                )}
+                {gateCode && lockCode && (
+                  <div className="mt-2 border-t border-foreground/5 pt-2" />
+                )}
+                {lockCode && (
+                  <div className="min-w-0">
+                    <span
+                      className={`block truncate text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-accent/70" : "text-amber-300/55"}`}
+                    >
+                      {lLabel}
+                    </span>
+                    <span className="block truncate font-mono text-[17px] font-bold tracking-[0.18em] text-foreground">
+                      {lockCode}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="min-w-0">
+                <span
+                  className={`block truncate text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-accent/70" : "text-amber-300/55"}`}
+                >
+                  {hint}
+                </span>
+                <span className="block truncate font-mono text-[17px] font-bold tracking-[0.18em] text-foreground/55">
+                  {"•".repeat(6)}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="shrink-0 flex flex-col items-end gap-1">
+        <div className="flex shrink-0 items-center gap-2">
           {!showing && (
             <button
               onClick={handleEyeClick}
               aria-label="Ver senhas de acesso"
-              className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3 py-1.5 text-[11px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all"
+              className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-[12px] font-bold text-background transition-transform hover:opacity-90 active:scale-95"
             >
               <Eye className="size-3.5" strokeWidth={2.4} />
               <span>Ver</span>
@@ -5122,14 +5132,14 @@ function AccessCodesStrip({
               type="button"
               onClick={() => setInstrOpen(true)}
               aria-label="Ver instruções de acesso"
-              className="inline-flex items-center gap-1 text-[10.5px] font-medium text-foreground/65 hover:text-foreground transition-colors"
+              className={`grid size-8 place-items-center rounded-full transition-colors ${isLight ? "text-accent/70 hover:text-accent" : "text-amber-300/80 hover:text-amber-200"}`}
             >
-              <HelpCircle className="size-3" strokeWidth={2} />
-              <span>Instruções</span>
+              <HelpCircle className="size-[18px]" strokeWidth={2.4} />
             </button>
           )}
         </div>
       </div>
+
       {hasInstructions && (
         <Dialog open={instrOpen} onOpenChange={setInstrOpen}>
           <DialogContent className="max-w-[380px] p-0 overflow-hidden rounded-[0.3rem]">
