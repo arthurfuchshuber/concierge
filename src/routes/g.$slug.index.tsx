@@ -855,17 +855,6 @@ function Guide({ data }: { data: GuideOk }) {
   const [quickDialog, setQuickDialog] = useState<"checkin" | "saida" | null>(null);
 
 
-  // Recolhe a barra sozinha, de forma sutil, assim que o hóspede rolar a
-  // tela — evita que fique aberta ocupando espaço depois que ele já seguiu
-  // em frente lendo o resto do guia.
-  useEffect(() => {
-    if (!codesOpen) return;
-    function onScroll() {
-      setCodesOpen(false);
-    }
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [codesOpen]);
 
   const [pinDialog, setPinDialog] = useState<{ open: boolean; cb: (() => void) | null }>({
     open: false,
