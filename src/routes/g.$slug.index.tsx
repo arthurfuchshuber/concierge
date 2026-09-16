@@ -5132,7 +5132,8 @@ function AccessCodesStrip({
               type="button"
               onClick={() => setInstrOpen(true)}
               aria-label="Ver instruções de acesso"
-              className={`grid size-5 shrink-0 place-items-center rounded-md transition-colors ${isLight ? "text-foreground/60 hover:text-foreground" : "text-slate-100/85 hover:text-white"}`}
+              className={`grid size-5 shrink-0 place-items-center rounded-md transition-colors ${isLight ? "text-accent/60 hover:text-accent" : "text-amber-300/60 hover:text-amber-200"}`}
+
             >
               <HelpCircle className="size-[17px]" strokeWidth={1.9} />
             </button>
