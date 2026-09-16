@@ -2517,6 +2517,42 @@ function Guide({ data }: { data: GuideOk }) {
         unlocked={unlocked}
         onRequestUnlock={() => requestUnlock()}
       />
+      {/* Janela rápida de Chegada/Saída — estrutura já programada; o layout
+          interno definitivo será definido em seguida. Por enquanto mostra o
+          resumo real e leva para a seção completa. */}
+      <Dialog open={!!quickDialog} onOpenChange={(o) => !o && setQuickDialog(null)}>
+        <DialogContent className="max-w-[400px] overflow-hidden rounded-[1.4rem] p-0">
+          <div className="px-6 pb-6 pt-8 text-center">
+            <div className="mx-auto mb-4 grid size-14 place-items-center rounded-full bg-accent/12 text-accent ring-1 ring-accent/25">
+              {quickDialog === "saida" ? (
+                <LogOut className="size-7" strokeWidth={1.9} />
+              ) : (
+                <KeyRound className="size-7" strokeWidth={1.9} />
+              )}
+            </div>
+            <DialogTitle className="font-display text-[22px] font-semibold leading-[1.5] tracking-tight">
+              {quickDialog === "saida" ? "Saída" : "Chegada"}
+            </DialogTitle>
+            <p className="mt-1 text-[13px] leading-[1.5] text-muted-foreground">
+              {quickDialog === "saida" ? saidaDesc : checkinDesc}
+            </p>
+          </div>
+          <div className="px-6 pb-8">
+            <button
+              type="button"
+              onClick={() => {
+                const s = quickDialog;
+                setQuickDialog(null);
+                if (s) gotoSection(s);
+              }}
+              className="w-full rounded-xl bg-foreground py-3 text-[13.5px] font-semibold text-background transition-transform active:scale-95"
+            >
+              Ver tudo
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
     </div>
     </GuideTagCtx.Provider>
   );
