@@ -1043,6 +1043,8 @@ function Guide({ data }: { data: GuideOk }) {
       key: "saida",
       title: "Saída",
       desc: saidaDesc,
+      value: saidaDesc,
+      hint: p.checkout_instructions ? "Passo a passo da saída" : undefined,
       icon: <LogOut strokeWidth={1.6} />,
       variant: "compact",
       tone: "blue",
@@ -1061,12 +1063,24 @@ function Guide({ data }: { data: GuideOk }) {
     },
     {
       key: "locwifi",
-      title: "Localização & Wi-Fi",
+      title: "Localização",
       desc: (() => {
         const bits: string[] = [];
         if (p.address || p.maps_url) bits.push("Endereço");
         if (p.wifi_ssid || (p as any).wifi_password_set) bits.push("Wi-Fi");
         return bits.length ? bits.join(" · ") : "Endereço e rede da residência.";
+      })(),
+      value: (() => {
+        const city = [p.city, p.state].filter(Boolean).join(", ");
+        if (city) return city;
+        const addr = shortAddress(p.address);
+        if (addr) return addr;
+        return p.maps_url ? "Ver no mapa" : "Endereço da residência";
+      })(),
+      hint: (() => {
+        if (p.wifi_ssid) return `Wi-Fi: ${p.wifi_ssid}`;
+        if ((p as any).wifi_password_set) return "Wi-Fi disponível";
+        return undefined;
       })(),
       icon: <Wifi strokeWidth={1.6} />,
       variant: "compact",
@@ -1074,6 +1088,7 @@ function Guide({ data }: { data: GuideOk }) {
       visible: hasLocWifi,
       to: { kind: "dialog", value: "locwifi" },
     },
+
     {
       key: "explore",
       title: "Explore a região",
