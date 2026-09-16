@@ -1013,7 +1013,12 @@ function Guide({ data }: { data: GuideOk }) {
     key: Exclude<Section, "home"> | "explore" | "locwifi";
     title: string;
     desc: string;
+    /** Informação principal em destaque (variante compacta "texto primeiro"). */
+    value?: string;
+    /** Linha de apoio curta abaixo do valor. */
+    hint?: string;
     icon: React.ReactNode;
+
     variant: "hero-wide" | "compact" | "horizontal-wide";
     tone: "gold" | "blue" | "green" | "purple" | "rose";
     badge?: string;
