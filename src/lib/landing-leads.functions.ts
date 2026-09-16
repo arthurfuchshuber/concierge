@@ -23,6 +23,7 @@ export type LandingLeadInput = z.input<typeof leadSchema>;
 export const submitLandingLead = createServerFn({ method: "POST" })
   .inputValidator((input: LandingLeadInput) => leadSchema.parse(input))
   .handler(async ({ data }) => {
+<<<<<<< HEAD
     // Formulário público que dispara e-mail para a equipe: sem limite, era um
     // canal aberto de spam (16/09/2026).
     const { allowPublicRate, clientIpFrom } = await import("@/lib/public-rate-limit.server");
@@ -30,6 +31,8 @@ export const submitLandingLead = createServerFn({ method: "POST" })
     if (!allowPublicRate(`landing-lead:${clientIpFrom(getRequest())}`, 5, 10 * 60_000)) {
       throw new Error("Muitos envios em pouco tempo. Tente novamente em alguns minutos.");
     }
+=======
+>>>>>>> f7beeaa8e7227eb8f71f7a562d1118d0a907aa34
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: inserted, error } = await supabaseAdmin
