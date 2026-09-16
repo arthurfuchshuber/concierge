@@ -5087,8 +5087,8 @@ function AccessCodesStrip({
     <div
       className={`wifi-shimmer relative overflow-hidden rounded-[0.8rem] border px-3.5 py-3 ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/15 bg-[linear-gradient(135deg,oklch(0.20_0.04_55/0.9)_0%,oklch(0.15_0.03_50/0.9)_60%,oklch(0.12_0.02_45/0.92)_100%)]"}`}
     >
-      <div className="relative flex items-center justify-between gap-2.5">
-        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+      <div className="relative flex items-start justify-between gap-2.5">
+        <div className="flex min-w-0 flex-1 items-start gap-2.5">
           <span
             className={`grid size-8 shrink-0 place-items-center rounded-lg ${isLight ? "bg-accent/10 text-accent/70" : "bg-amber-400/8 text-amber-300/75"}`}
           >
@@ -5096,51 +5096,57 @@ function AccessCodesStrip({
           </span>
 
           <div className="min-w-0 flex-1">
-            {showing ? (
-              <div className="min-w-0">
-                {gateCode && (
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className={labelCls}>{gLabel}</span>
-                      {helpBtn}
-                    </div>
-                    <span className={`${codeCls} text-foreground`}>{gateCode}</span>
-                  </div>
-                )}
-                {gateCode && lockCode && (
-                  <div className="mt-2 border-t border-foreground/5 pt-2" />
-                )}
-                {lockCode && (
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className={labelCls}>{lLabel}</span>
-                      {!gateCode && helpBtn}
-                    </div>
-                    <span className={`${codeCls} text-foreground`}>{lockCode}</span>
-                  </div>
-                )}
-              </div>
-            ) : (
+            {hasGate && (
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className={labelCls}>{hint}</span>
-                  {helpBtn}
+                  <span className={labelCls}>{gLabel}</span>
+                  {!showing && helpBtn}
                 </div>
-                <span className={`${codeCls} text-foreground/55`}>{"•".repeat(6)}</span>
+                <span
+                  className={`${codeCls} ${showing && gateCode ? "text-foreground" : "text-foreground/55"}`}
+                >
+                  {showing && gateCode ? gateCode : "•".repeat(6)}
+                </span>
+              </div>
+            )}
+            {hasGate && hasLock && <div className="mt-2 border-t border-foreground/5 pt-2" />}
+            {hasLock && (
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className={labelCls}>{lLabel}</span>
+                  {!showing && !hasGate && helpBtn}
+                </div>
+                <span
+                  className={`${codeCls} ${showing && lockCode ? "text-foreground" : "text-foreground/55"}`}
+                >
+                  {showing && lockCode ? lockCode : "•".repeat(6)}
+                </span>
               </div>
             )}
           </div>
         </div>
 
-        {!showing && (
+        {showing ? (
+          hasInstructions ? (
+            <button
+              type="button"
+              onClick={() => setInstrOpen(true)}
+              aria-label="Ver instruções de acesso"
+              className={`grid size-5 shrink-0 place-items-center rounded-md transition-colors ${isLight ? "text-foreground/60 hover:text-foreground" : "text-slate-100/85 hover:text-white"}`}
+            >
+              <HelpCircle className="size-[17px]" strokeWidth={1.9} />
+            </button>
+          ) : null
+        ) : (
           <button
             onClick={handleEyeClick}
             aria-label="Ver senhas de acesso"
-            className={`grid size-8 shrink-0 place-items-center rounded-lg transition-colors ${isLight ? "text-accent/70 hover:text-accent" : "text-amber-300/70 hover:text-amber-200"}`}
+            className={`grid size-5 shrink-0 place-items-center rounded-md transition-colors ${isLight ? "text-foreground/60 hover:text-foreground" : "text-slate-100/85 hover:text-white"}`}
           >
             <Eye className="size-[17px]" strokeWidth={2} />
           </button>
         )}
+
       </div>
 
 
