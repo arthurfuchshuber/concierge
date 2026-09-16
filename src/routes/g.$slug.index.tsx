@@ -852,6 +852,8 @@ function Guide({ data }: { data: GuideOk }) {
   // Expansividade da barra "check-in libera em" — abre wi-fi/senhas
   const [codesOpen, setCodesOpen] = useState(false);
   const [locWifiOpen, setLocWifiOpen] = useState(false);
+  const [quickDialog, setQuickDialog] = useState<"checkin" | "saida" | null>(null);
+
 
   // Recolhe a barra sozinha, de forma sutil, assim que o hóspede rolar a
   // tela — evita que fique aberta ocupando espaço depois que ele já seguiu
