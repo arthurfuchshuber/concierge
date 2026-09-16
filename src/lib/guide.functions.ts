@@ -41,11 +41,7 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     // First fetch only access-control + display fields (no credentials, no pin_code).
     let baseQuery = supabaseAdmin
       .from("properties")
-<<<<<<< HEAD
       .select("id,owner_id,slug,name,tagline,hero_image_url,gallery_images,theme_images,marketplace_links,address,maps_url,garage_maps_url,lat,lng,city,state,country,checkin_time,checkin_time_max,checkin_note,checkout_time,checkout_time_min,checkout_note,address_note,checkin_instructions,checkout_instructions,checkin_media,house_rules,gate_label,gate_instructions,gate_media,gate_video_url,lock_label,lock_instructions,lock_media,lock_video_url,host_name,brand_name,brand_logo_url,access_mode,pin_expires_at,default_language,guide_theme,require_access_gate,collect_arrival_time,collect_vehicles,vehicles_max,collect_document,document_scope,published,created_at,updated_at,airbnb_ical_url")
-=======
-      .select("id,owner_id,slug,name,tagline,hero_image_url,gallery_images,theme_images,marketplace_links,address,maps_url,garage_maps_url,lat,lng,city,state,country,checkin_time,checkin_time_max,checkin_note,checkout_time,checkout_time_min,checkout_note,address_note,checkin_instructions,checkout_instructions,checkin_media,house_rules,gate_label,gate_instructions,gate_media,gate_video_url,lock_label,lock_instructions,lock_media,lock_video_url,host_name,brand_name,brand_logo_url,access_mode,pin_expires_at,default_language,guide_theme,require_access_gate,collect_arrival_time,collect_vehicles,vehicles_max,collect_document,document_scope,published,created_at,updated_at")
->>>>>>> f7beeaa8e7227eb8f71f7a562d1118d0a907aa34
       .eq("slug", data.slug);
     if (!isPreview) baseQuery = baseQuery.eq("published", true);
     const { data: prop, error } = await baseQuery.maybeSingle();
@@ -149,7 +145,6 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     // Only reveal protected codes when the visitor has unlocked them.
     const isDemo = data.demo === true;
     if (isDemo) accessUnlocked = true;
-<<<<<<< HEAD
     /* SENHAS SÓ COM RESERVA COMPROVADA (16/09/2026).
      *
      * Nos guias com código de reserva, a exigência vivia só na tela: esta
@@ -163,11 +158,6 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     const protectedCodes = isDemo
       ? { wifi_password: "demo-2026", lock_code: "0000", gate_code: "0000" }
       : accessUnlocked && !codesNeedReservation
-=======
-    const protectedCodes = isDemo
-      ? { wifi_password: "demo-2026", lock_code: "0000", gate_code: "0000" }
-      : accessUnlocked
->>>>>>> f7beeaa8e7227eb8f71f7a562d1118d0a907aa34
         ? { wifi_password: wifi_password ?? null, lock_code: lock_code ?? null, gate_code: gate_code ?? null }
         : { wifi_password: null, lock_code: null, gate_code: null };
     if (isDemo && credsPublic["host_phone"]) credsPublic["host_phone"] = "+55 (00) 00000-0000";
@@ -179,7 +169,6 @@ export const getPublicGuide = createServerFn({ method: "POST" })
     };
 
     // owner_id é uso interno (plano/dono) e nunca deve chegar ao hóspede.
-<<<<<<< HEAD
     // `airbnb_ical_url` só serve para decidir a regra acima: é o feed privado
     // do calendário do anfitrião e nunca vai ao navegador.
     const {
@@ -196,10 +185,6 @@ export const getPublicGuide = createServerFn({ method: "POST" })
       accessUnlocked,
       codesNeedReservation,
     };
-=======
-    const { owner_id: _ownerId, ...propPublic } = prop as Record<string, unknown>;
-    const safeProp = { ...propPublic, ...credsPublic, ...protectedCodes, ...setFlags, hasAccessPin, accessUnlocked };
->>>>>>> f7beeaa8e7227eb8f71f7a562d1118d0a907aa34
     // Vitrine (landing): é apenas um ESPELHO do guia. Nada que identifique ou
     // dê acesso ao imóvel real pode sair daqui — endereço, mapa, coordenadas,
     // rede de wi-fi e qualquer número longo dentro das instruções.
