@@ -4908,53 +4908,51 @@ function WifiStrip({
 
   return (
     <div
-      className={`wifi-shimmer relative overflow-hidden rounded-[0.3rem] border ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/25 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}
+      className={`wifi-shimmer relative overflow-hidden rounded-[0.9rem] border p-4 ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/20 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}
     >
       <div
-        className={`pointer-events-none absolute inset-0 ${isLight ? "opacity-[0.04]" : "opacity-[0.07]"} [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]`}
+        className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-amber-400/12"} blur-3xl`}
       />
-      <div
-        className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-amber-400/15"} blur-3xl`}
-      />
-      <div className="relative flex items-center gap-3 px-3 py-3">
-        <span
-          className={`relative grid size-10 shrink-0 place-items-center rounded-[0.3rem] ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-amber-400/10 text-amber-50 ring-amber-200/25"}`}
-        >
+      <div className="relative flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3.5">
           <span
-            className={`wifi-pulse pointer-events-none absolute -inset-1 rounded-[0.3rem] ${isLight ? "bg-accent/15" : "bg-amber-400/12"} blur-md -z-10`}
-          />
-          <Wifi className="relative size-[18px]" strokeWidth={2} />
-        </span>
-        <div className="flex-1 min-w-0">
-          <p className="text-[12px] text-foreground/85 truncate font-medium">
-            {ssid || "Rede da casa"}
-          </p>
-          <p
-            className={`font-mono text-[13px] font-semibold tracking-[0.22em] truncate ${showing ? "text-foreground" : "text-foreground/60"}`}
+            className={`relative grid size-12 shrink-0 place-items-center rounded-xl border ${isLight ? "border-accent/20 bg-accent/12 text-accent/80" : "border-amber-400/20 bg-amber-400/10 text-amber-300"}`}
           >
-            {hasPwd ? (showing ? password : masked) : "—"}
-          </p>
+            <Wifi className="relative size-6" strokeWidth={2} />
+          </span>
+          <div className="min-w-0">
+            <p
+              className={`truncate text-[11px] font-semibold uppercase tracking-[0.12em] ${isLight ? "text-accent/70" : "text-amber-300/60"}`}
+            >
+              {ssid || "Rede da casa"}
+            </p>
+            <p
+              className={`mt-0.5 truncate font-mono text-[17px] font-bold tracking-[0.12em] ${showing ? "text-foreground" : "text-foreground/60"}`}
+            >
+              {hasPwd ? (showing ? password : masked) : "—"}
+            </p>
+          </div>
         </div>
         {hasPwd &&
           (!showing ? (
             <button
               onClick={handleEyeClick}
               aria-label="Ver senha do Wi-Fi"
-              className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3 py-1.5 text-[11px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all"
+              className="shrink-0 inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-[13px] font-bold text-background transition-transform hover:opacity-90 active:scale-95"
             >
-              <Eye className="size-3.5" strokeWidth={2.4} />
+              <Eye className="size-4" strokeWidth={2.4} />
               <span>Ver</span>
             </button>
           ) : (
             <button
               onClick={copyPwd}
               aria-label="Copiar senha do Wi-Fi"
-              className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3 py-1.5 text-[11px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all"
+              className="shrink-0 inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-[13px] font-bold text-background transition-transform hover:opacity-90 active:scale-95"
             >
               {copied ? (
-                <Check className="size-3.5" strokeWidth={2.4} />
+                <Check className="size-4" strokeWidth={2.4} />
               ) : (
-                <Copy className="size-3.5" strokeWidth={2.4} />
+                <Copy className="size-4" strokeWidth={2.4} />
               )}
               <span>{copied ? "Copiado" : "Copiar"}</span>
             </button>
@@ -4962,6 +4960,7 @@ function WifiStrip({
       </div>
     </div>
   );
+
 }
 
 function AccessCodesStrip({
