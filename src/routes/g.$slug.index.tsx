@@ -2559,114 +2559,104 @@ function LocWifiDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[400px] p-0 overflow-hidden rounded-[0.3rem]">
-        <div className="px-5 pt-5 pb-3 text-center border-b border-border/40">
-          <div className="mx-auto mb-2.5 grid place-items-center size-11 rounded-full bg-emerald-500/12 ring-1 ring-emerald-500/25 text-emerald-500">
-            <Wifi className="size-[18px]" strokeWidth={1.75} />
+      <DialogContent className="max-w-[400px] overflow-hidden rounded-[1.4rem] p-0">
+        <div className="px-6 pb-6 pt-8 text-center">
+          <div className="mx-auto mb-4 grid size-14 place-items-center rounded-full bg-emerald-500/12 text-emerald-400 ring-1 ring-emerald-500/25">
+            <Wifi className="size-7" strokeWidth={1.9} />
           </div>
-          <DialogTitle className="font-display text-[18px] tracking-tight">
+          <DialogTitle className="font-display text-[22px] font-semibold leading-[1.5] tracking-tight">
             Localização & Wi-Fi
           </DialogTitle>
-          <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">
+          <p className="mt-1 text-[13px] leading-[1.5] text-muted-foreground">
             Onde estamos e como se conectar.
           </p>
         </div>
-        <div className="px-5 py-4 max-h-[65vh] overflow-y-auto sg-elegant-scroll space-y-5">
+        <div className="sg-elegant-scroll max-h-[62vh] space-y-6 overflow-y-auto px-6 pb-8">
           {hasLoc && (
-            <section className="space-y-2">
-              <p className="text-[10px] uppercase tracking-[0.22em] font-black text-foreground/60">
-                <MapPin className="inline size-3 -mt-0.5 mr-1" strokeWidth={2} />
-                Endereço
-              </p>
+            <section className="rounded-2xl border border-border/50 bg-muted/25 p-5">
               {address && (
-                <div className="rounded-[0.3rem] border border-border/60 bg-muted/30 px-4 py-3">
-                  <p className="text-[13.5px] leading-relaxed whitespace-pre-line">{address}</p>
-                  {addressNote && (
-                    <p className="text-[12px] text-muted-foreground mt-1.5 leading-relaxed whitespace-pre-line">
-                      {addressNote}
-                    </p>
-                  )}
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => copy("address", address)}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-foreground/8 hover:bg-foreground/12 px-3 py-1.5 text-[11.5px] font-semibold"
-                    >
-                      {copied === "address" ? (
-                        <Check className="size-3.5" />
-                      ) : (
-                        <Copy className="size-3.5" />
-                      )}
-                      {copied === "address" ? "Copiado" : "Copiar"}
-                    </button>
-                    {mapsUrl && (
-                      <a
-                        href={mapsUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500 text-white px-3 py-1.5 text-[11.5px] font-semibold hover:opacity-90"
-                      >
-                        <ExternalLink className="size-3.5" />
-                        Abrir no Maps
-                      </a>
+                <p className="whitespace-pre-line text-[14px] leading-relaxed text-foreground/90">
+                  {address}
+                </p>
+              )}
+              {addressNote && (
+                <p className="mt-1.5 whitespace-pre-line text-[12.5px] leading-relaxed text-muted-foreground">
+                  {addressNote}
+                </p>
+              )}
+              <div className="mt-4 flex gap-3">
+                {address && (
+                  <button
+                    type="button"
+                    onClick={() => copy("address", address)}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-foreground py-3 text-[13.5px] font-semibold text-background transition-transform active:scale-95"
+                  >
+                    {copied === "address" ? (
+                      <Check className="size-4" strokeWidth={2.4} />
+                    ) : (
+                      <Copy className="size-4" strokeWidth={2.4} />
                     )}
-                  </div>
-                </div>
-              )}
-              {!address && mapsUrl && (
-                <a
-                  href={mapsUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500 text-white px-3 py-1.5 text-[11.5px] font-semibold hover:opacity-90"
-                >
-                  <ExternalLink className="size-3.5" />
-                  Abrir no Maps
-                </a>
-              )}
+                    {copied === "address" ? "Copiado" : "Copiar"}
+                  </button>
+                )}
+                {mapsUrl && (
+                  <a
+                    href={mapsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Abrir no Maps"
+                    className={`grid place-items-center rounded-xl bg-foreground/10 px-4 text-foreground transition-transform active:scale-95 ${address ? "" : "flex-1 gap-2 py-3 text-[13.5px] font-semibold"}`}
+                  >
+                    <MapPin className="size-5" strokeWidth={2} />
+                    {!address && <span>Abrir no Maps</span>}
+                  </a>
+                )}
+              </div>
             </section>
           )}
-          {hasLoc && hasWifi && <div className="h-px bg-border/50" />}
           {hasWifi && (
-            <section className="space-y-2">
-              <p className="text-[10px] uppercase tracking-[0.22em] font-black text-foreground/60">
-                <Wifi className="inline size-3 -mt-0.5 mr-1" strokeWidth={2} />
-                Wi-Fi
-              </p>
-              <div className="rounded-[0.3rem] border border-border/60 bg-muted/30 px-4 py-3 space-y-2.5">
+            <section className="space-y-4">
+              <div className="flex items-center gap-2 px-1">
+                <Wifi className="size-4 text-muted-foreground" strokeWidth={2} />
+                <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                  Wi-Fi
+                </span>
+              </div>
+              <div className="divide-y divide-border/50 overflow-hidden rounded-2xl border border-border/50 bg-muted/25">
                 {wifiSsid && (
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center justify-between gap-3 p-4">
                     <div className="min-w-0">
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                      <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                         Rede
                       </p>
-                      <p className="text-[14px] font-semibold truncate">{wifiSsid}</p>
+                      <p className="truncate font-mono text-[16px] tracking-wide">{wifiSsid}</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => copy("ssid", wifiSsid)}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-foreground/8 hover:bg-foreground/12 px-3 py-1.5 text-[11.5px] font-semibold shrink-0"
+                      aria-label="Copiar rede"
+                      className="grid size-9 shrink-0 place-items-center rounded-lg bg-foreground/8 text-muted-foreground transition-colors hover:text-foreground"
                     >
                       {copied === "ssid" ? (
-                        <Check className="size-3.5" />
+                        <Check className="size-[18px]" />
                       ) : (
-                        <Copy className="size-3.5" />
+                        <Copy className="size-[18px]" />
                       )}
                     </button>
                   </div>
                 )}
                 {(wifiPasswordSet || wifiPassword) && (
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center justify-between gap-3 p-4">
                     <div className="min-w-0">
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                      <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                         Senha
                       </p>
                       {showWifiPass ? (
-                        <p className="text-[14px] font-mono font-semibold tracking-wider truncate">
+                        <p className="truncate font-mono text-[16px] font-bold tracking-[0.14em]">
                           {wifiPassword}
                         </p>
                       ) : (
-                        <p className="text-[14px] font-mono tracking-[0.3em] text-foreground/50">
+                        <p className="font-mono text-[16px] tracking-[0.3em] text-foreground/50">
                           ••••••••
                         </p>
                       )}
@@ -2675,19 +2665,20 @@ function LocWifiDialog({
                       <button
                         type="button"
                         onClick={() => copy("pass", wifiPassword!)}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-foreground/8 hover:bg-foreground/12 px-3 py-1.5 text-[11.5px] font-semibold shrink-0"
+                        aria-label="Copiar senha"
+                        className="grid size-9 shrink-0 place-items-center rounded-lg bg-foreground/8 text-muted-foreground transition-colors hover:text-foreground"
                       >
                         {copied === "pass" ? (
-                          <Check className="size-3.5" />
+                          <Check className="size-[18px]" />
                         ) : (
-                          <Copy className="size-3.5" />
+                          <Copy className="size-[18px]" />
                         )}
                       </button>
                     ) : (
                       <button
                         type="button"
                         onClick={onRequestUnlock}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3 py-1.5 text-[11.5px] font-semibold shrink-0 hover:opacity-90"
+                        className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-[12.5px] font-bold text-background hover:opacity-90"
                       >
                         <Eye className="size-3.5" strokeWidth={2.4} />
                         Ver
@@ -2703,6 +2694,7 @@ function LocWifiDialog({
     </Dialog>
   );
 }
+
 
 function residenciaIcon(title: string): React.ReactNode {
   const t = title.toLowerCase();
