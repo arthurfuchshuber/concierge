@@ -1028,7 +1028,7 @@ function Guide({ data }: { data: GuideOk }) {
     to?:
       | { kind: "section"; value: Section }
       | { kind: "link"; to: string }
-      | { kind: "dialog"; value: "locwifi" };
+      | { kind: "dialog"; value: "locwifi" | "checkin" | "saida" };
   }> = [
     {
       key: "checkin",
@@ -1039,7 +1039,7 @@ function Guide({ data }: { data: GuideOk }) {
       tone: "gold",
       badge: "comece aqui",
       visible: hasCheckin,
-      to: { kind: "section", value: "checkin" },
+      to: { kind: "dialog", value: "checkin" },
     },
     {
       key: "saida",
@@ -1051,8 +1051,9 @@ function Guide({ data }: { data: GuideOk }) {
       variant: "compact",
       tone: "blue",
       visible: hasSaida,
-      to: { kind: "section", value: "saida" },
+      to: { kind: "dialog", value: "saida" },
     },
+
     {
       key: "residencia",
       title: "A residência",
