@@ -852,6 +852,8 @@ function Guide({ data }: { data: GuideOk }) {
   // Expansividade da barra "check-in libera em" — abre wi-fi/senhas
   const [codesOpen, setCodesOpen] = useState(false);
   const [locWifiOpen, setLocWifiOpen] = useState(false);
+  const [quickDialog, setQuickDialog] = useState<"checkin" | "saida" | null>(null);
+
 
   // Recolhe a barra sozinha, de forma sutil, assim que o hóspede rolar a
   // tela — evita que fique aberta ocupando espaço depois que ele já seguiu
@@ -1026,7 +1028,7 @@ function Guide({ data }: { data: GuideOk }) {
     to?:
       | { kind: "section"; value: Section }
       | { kind: "link"; to: string }
-      | { kind: "dialog"; value: "locwifi" };
+      | { kind: "dialog"; value: "locwifi" | "checkin" | "saida" };
   }> = [
     {
       key: "checkin",
@@ -1037,7 +1039,7 @@ function Guide({ data }: { data: GuideOk }) {
       tone: "gold",
       badge: "comece aqui",
       visible: hasCheckin,
-      to: { kind: "section", value: "checkin" },
+      to: { kind: "dialog", value: "checkin" },
     },
     {
       key: "saida",
@@ -1049,8 +1051,9 @@ function Guide({ data }: { data: GuideOk }) {
       variant: "compact",
       tone: "blue",
       visible: hasSaida,
-      to: { kind: "section", value: "saida" },
+      to: { kind: "dialog", value: "saida" },
     },
+
     {
       key: "residencia",
       title: "A residência",
@@ -1515,6 +1518,9 @@ function Guide({ data }: { data: GuideOk }) {
                           if (c.to?.kind === "section") gotoSection(c.to.value);
                           else if (c.to?.kind === "dialog" && c.to.value === "locwifi")
                             setLocWifiOpen(true);
+                          else if (c.to?.kind === "dialog")
+                            setQuickDialog(c.to.value as "checkin" | "saida");
+
                         }}
                         className={`h-full w-full text-left ${span}`}
                       >
@@ -2517,6 +2523,42 @@ function Guide({ data }: { data: GuideOk }) {
         unlocked={unlocked}
         onRequestUnlock={() => requestUnlock()}
       />
+      {/* Janela rápida de Chegada/Saída — estrutura já programada; o layout
+          interno definitivo será definido em seguida. Por enquanto mostra o
+          resumo real e leva para a seção completa. */}
+      <Dialog open={!!quickDialog} onOpenChange={(o) => !o && setQuickDialog(null)}>
+        <DialogContent className="max-w-[400px] overflow-hidden rounded-[1.4rem] p-0">
+          <div className="px-6 pb-6 pt-8 text-center">
+            <div className="mx-auto mb-4 grid size-14 place-items-center rounded-full bg-accent/12 text-accent ring-1 ring-accent/25">
+              {quickDialog === "saida" ? (
+                <LogOut className="size-7" strokeWidth={1.9} />
+              ) : (
+                <KeyRound className="size-7" strokeWidth={1.9} />
+              )}
+            </div>
+            <DialogTitle className="font-display text-[22px] font-semibold leading-[1.5] tracking-tight">
+              {quickDialog === "saida" ? "Saída" : "Chegada"}
+            </DialogTitle>
+            <p className="mt-1 text-[13px] leading-[1.5] text-muted-foreground">
+              {quickDialog === "saida" ? saidaDesc : checkinDesc}
+            </p>
+          </div>
+          <div className="px-6 pb-8">
+            <button
+              type="button"
+              onClick={() => {
+                const s = quickDialog;
+                setQuickDialog(null);
+                if (s) gotoSection(s);
+              }}
+              className="w-full rounded-xl bg-foreground py-3 text-[13.5px] font-semibold text-background transition-transform active:scale-95"
+            >
+              Ver tudo
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
     </div>
     </GuideTagCtx.Provider>
   );
@@ -2559,114 +2601,104 @@ function LocWifiDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[400px] p-0 overflow-hidden rounded-[0.3rem]">
-        <div className="px-5 pt-5 pb-3 text-center border-b border-border/40">
-          <div className="mx-auto mb-2.5 grid place-items-center size-11 rounded-full bg-emerald-500/12 ring-1 ring-emerald-500/25 text-emerald-500">
-            <Wifi className="size-[18px]" strokeWidth={1.75} />
+      <DialogContent className="max-w-[400px] overflow-hidden rounded-[1.4rem] p-0">
+        <div className="px-6 pb-6 pt-8 text-center">
+          <div className="mx-auto mb-4 grid size-14 place-items-center rounded-full bg-emerald-500/12 text-emerald-400 ring-1 ring-emerald-500/25">
+            <Wifi className="size-7" strokeWidth={1.9} />
           </div>
-          <DialogTitle className="font-display text-[18px] tracking-tight">
+          <DialogTitle className="font-display text-[22px] font-semibold leading-[1.5] tracking-tight">
             Localização & Wi-Fi
           </DialogTitle>
-          <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">
+          <p className="mt-1 text-[13px] leading-[1.5] text-muted-foreground">
             Onde estamos e como se conectar.
           </p>
         </div>
-        <div className="px-5 py-4 max-h-[65vh] overflow-y-auto sg-elegant-scroll space-y-5">
+        <div className="sg-elegant-scroll max-h-[62vh] space-y-6 overflow-y-auto px-6 pb-8">
           {hasLoc && (
-            <section className="space-y-2">
-              <p className="text-[10px] uppercase tracking-[0.22em] font-black text-foreground/60">
-                <MapPin className="inline size-3 -mt-0.5 mr-1" strokeWidth={2} />
-                Endereço
-              </p>
+            <section className="rounded-2xl border border-border/50 bg-muted/25 p-5">
               {address && (
-                <div className="rounded-[0.3rem] border border-border/60 bg-muted/30 px-4 py-3">
-                  <p className="text-[13.5px] leading-relaxed whitespace-pre-line">{address}</p>
-                  {addressNote && (
-                    <p className="text-[12px] text-muted-foreground mt-1.5 leading-relaxed whitespace-pre-line">
-                      {addressNote}
-                    </p>
-                  )}
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => copy("address", address)}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-foreground/8 hover:bg-foreground/12 px-3 py-1.5 text-[11.5px] font-semibold"
-                    >
-                      {copied === "address" ? (
-                        <Check className="size-3.5" />
-                      ) : (
-                        <Copy className="size-3.5" />
-                      )}
-                      {copied === "address" ? "Copiado" : "Copiar"}
-                    </button>
-                    {mapsUrl && (
-                      <a
-                        href={mapsUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500 text-white px-3 py-1.5 text-[11.5px] font-semibold hover:opacity-90"
-                      >
-                        <ExternalLink className="size-3.5" />
-                        Abrir no Maps
-                      </a>
+                <p className="whitespace-pre-line text-[14px] leading-relaxed text-foreground/90">
+                  {address}
+                </p>
+              )}
+              {addressNote && (
+                <p className="mt-1.5 whitespace-pre-line text-[12.5px] leading-relaxed text-muted-foreground">
+                  {addressNote}
+                </p>
+              )}
+              <div className="mt-4 flex gap-3">
+                {address && (
+                  <button
+                    type="button"
+                    onClick={() => copy("address", address)}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-foreground py-3 text-[13.5px] font-semibold text-background transition-transform active:scale-95"
+                  >
+                    {copied === "address" ? (
+                      <Check className="size-4" strokeWidth={2.4} />
+                    ) : (
+                      <Copy className="size-4" strokeWidth={2.4} />
                     )}
-                  </div>
-                </div>
-              )}
-              {!address && mapsUrl && (
-                <a
-                  href={mapsUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500 text-white px-3 py-1.5 text-[11.5px] font-semibold hover:opacity-90"
-                >
-                  <ExternalLink className="size-3.5" />
-                  Abrir no Maps
-                </a>
-              )}
+                    {copied === "address" ? "Copiado" : "Copiar"}
+                  </button>
+                )}
+                {mapsUrl && (
+                  <a
+                    href={mapsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Abrir no Maps"
+                    className={`grid place-items-center rounded-xl bg-foreground/10 px-4 text-foreground transition-transform active:scale-95 ${address ? "" : "flex-1 gap-2 py-3 text-[13.5px] font-semibold"}`}
+                  >
+                    <MapPin className="size-5" strokeWidth={2} />
+                    {!address && <span>Abrir no Maps</span>}
+                  </a>
+                )}
+              </div>
             </section>
           )}
-          {hasLoc && hasWifi && <div className="h-px bg-border/50" />}
           {hasWifi && (
-            <section className="space-y-2">
-              <p className="text-[10px] uppercase tracking-[0.22em] font-black text-foreground/60">
-                <Wifi className="inline size-3 -mt-0.5 mr-1" strokeWidth={2} />
-                Wi-Fi
-              </p>
-              <div className="rounded-[0.3rem] border border-border/60 bg-muted/30 px-4 py-3 space-y-2.5">
+            <section className="space-y-4">
+              <div className="flex items-center gap-2 px-1">
+                <Wifi className="size-4 text-muted-foreground" strokeWidth={2} />
+                <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                  Wi-Fi
+                </span>
+              </div>
+              <div className="divide-y divide-border/50 overflow-hidden rounded-2xl border border-border/50 bg-muted/25">
                 {wifiSsid && (
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center justify-between gap-3 p-4">
                     <div className="min-w-0">
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                      <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                         Rede
                       </p>
-                      <p className="text-[14px] font-semibold truncate">{wifiSsid}</p>
+                      <p className="truncate font-mono text-[16px] tracking-wide">{wifiSsid}</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => copy("ssid", wifiSsid)}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-foreground/8 hover:bg-foreground/12 px-3 py-1.5 text-[11.5px] font-semibold shrink-0"
+                      aria-label="Copiar rede"
+                      className="grid size-9 shrink-0 place-items-center rounded-lg bg-foreground/8 text-muted-foreground transition-colors hover:text-foreground"
                     >
                       {copied === "ssid" ? (
-                        <Check className="size-3.5" />
+                        <Check className="size-[18px]" />
                       ) : (
-                        <Copy className="size-3.5" />
+                        <Copy className="size-[18px]" />
                       )}
                     </button>
                   </div>
                 )}
                 {(wifiPasswordSet || wifiPassword) && (
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center justify-between gap-3 p-4">
                     <div className="min-w-0">
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                      <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                         Senha
                       </p>
                       {showWifiPass ? (
-                        <p className="text-[14px] font-mono font-semibold tracking-wider truncate">
+                        <p className="truncate font-mono text-[16px] font-bold tracking-[0.14em]">
                           {wifiPassword}
                         </p>
                       ) : (
-                        <p className="text-[14px] font-mono tracking-[0.3em] text-foreground/50">
+                        <p className="font-mono text-[16px] tracking-[0.3em] text-foreground/50">
                           ••••••••
                         </p>
                       )}
@@ -2675,19 +2707,20 @@ function LocWifiDialog({
                       <button
                         type="button"
                         onClick={() => copy("pass", wifiPassword!)}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-foreground/8 hover:bg-foreground/12 px-3 py-1.5 text-[11.5px] font-semibold shrink-0"
+                        aria-label="Copiar senha"
+                        className="grid size-9 shrink-0 place-items-center rounded-lg bg-foreground/8 text-muted-foreground transition-colors hover:text-foreground"
                       >
                         {copied === "pass" ? (
-                          <Check className="size-3.5" />
+                          <Check className="size-[18px]" />
                         ) : (
-                          <Copy className="size-3.5" />
+                          <Copy className="size-[18px]" />
                         )}
                       </button>
                     ) : (
                       <button
                         type="button"
                         onClick={onRequestUnlock}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3 py-1.5 text-[11.5px] font-semibold shrink-0 hover:opacity-90"
+                        className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-[12.5px] font-bold text-background hover:opacity-90"
                       >
                         <Eye className="size-3.5" strokeWidth={2.4} />
                         Ver
@@ -2703,6 +2736,7 @@ function LocWifiDialog({
     </Dialog>
   );
 }
+
 
 function residenciaIcon(title: string): React.ReactNode {
   const t = title.toLowerCase();
@@ -4908,53 +4942,51 @@ function WifiStrip({
 
   return (
     <div
-      className={`wifi-shimmer relative overflow-hidden rounded-[0.3rem] border ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/25 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}
+      className={`wifi-shimmer relative overflow-hidden rounded-[0.9rem] border p-4 ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/20 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}
     >
       <div
-        className={`pointer-events-none absolute inset-0 ${isLight ? "opacity-[0.04]" : "opacity-[0.07]"} [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]`}
+        className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-amber-400/12"} blur-3xl`}
       />
-      <div
-        className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-amber-400/15"} blur-3xl`}
-      />
-      <div className="relative flex items-center gap-3 px-3 py-3">
-        <span
-          className={`relative grid size-10 shrink-0 place-items-center rounded-[0.3rem] ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-amber-400/10 text-amber-50 ring-amber-200/25"}`}
-        >
+      <div className="relative flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3.5">
           <span
-            className={`wifi-pulse pointer-events-none absolute -inset-1 rounded-[0.3rem] ${isLight ? "bg-accent/15" : "bg-amber-400/12"} blur-md -z-10`}
-          />
-          <Wifi className="relative size-[18px]" strokeWidth={2} />
-        </span>
-        <div className="flex-1 min-w-0">
-          <p className="text-[12px] text-foreground/85 truncate font-medium">
-            {ssid || "Rede da casa"}
-          </p>
-          <p
-            className={`font-mono text-[13px] font-semibold tracking-[0.22em] truncate ${showing ? "text-foreground" : "text-foreground/60"}`}
+            className={`relative grid size-12 shrink-0 place-items-center rounded-xl border ${isLight ? "border-accent/20 bg-accent/12 text-accent/80" : "border-amber-400/20 bg-amber-400/10 text-amber-300"}`}
           >
-            {hasPwd ? (showing ? password : masked) : "—"}
-          </p>
+            <Wifi className="relative size-6" strokeWidth={2} />
+          </span>
+          <div className="min-w-0">
+            <p
+              className={`truncate text-[11px] font-semibold uppercase tracking-[0.12em] ${isLight ? "text-accent/70" : "text-amber-300/60"}`}
+            >
+              {ssid || "Rede da casa"}
+            </p>
+            <p
+              className={`mt-0.5 truncate font-mono text-[17px] font-bold tracking-[0.12em] ${showing ? "text-foreground" : "text-foreground/60"}`}
+            >
+              {hasPwd ? (showing ? password : masked) : "—"}
+            </p>
+          </div>
         </div>
         {hasPwd &&
           (!showing ? (
             <button
               onClick={handleEyeClick}
               aria-label="Ver senha do Wi-Fi"
-              className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3 py-1.5 text-[11px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all"
+              className="shrink-0 inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-[13px] font-bold text-background transition-transform hover:opacity-90 active:scale-95"
             >
-              <Eye className="size-3.5" strokeWidth={2.4} />
+              <Eye className="size-4" strokeWidth={2.4} />
               <span>Ver</span>
             </button>
           ) : (
             <button
               onClick={copyPwd}
               aria-label="Copiar senha do Wi-Fi"
-              className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3 py-1.5 text-[11px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all"
+              className="shrink-0 inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-[13px] font-bold text-background transition-transform hover:opacity-90 active:scale-95"
             >
               {copied ? (
-                <Check className="size-3.5" strokeWidth={2.4} />
+                <Check className="size-4" strokeWidth={2.4} />
               ) : (
-                <Copy className="size-3.5" strokeWidth={2.4} />
+                <Copy className="size-4" strokeWidth={2.4} />
               )}
               <span>{copied ? "Copiado" : "Copiar"}</span>
             </button>
@@ -4962,6 +4994,7 @@ function WifiStrip({
       </div>
     </div>
   );
+
 }
 
 function AccessCodesStrip({
@@ -5058,61 +5091,71 @@ function AccessCodesStrip({
 
   return (
     <div
-      className={`wifi-shimmer relative overflow-hidden rounded-[0.3rem] border ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/25 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}
+      className={`wifi-shimmer relative overflow-hidden rounded-[0.9rem] border p-4 ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/20 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}
     >
       <div
-        className={`pointer-events-none absolute inset-0 ${isLight ? "opacity-[0.04]" : "opacity-[0.07]"} [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]`}
+        className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-amber-400/12"} blur-3xl`}
       />
-      <div
-        className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-amber-400/15"} blur-3xl`}
-      />
-      <div className="relative flex items-center gap-3 px-3 py-3">
-        <span
-          className={`relative grid size-10 shrink-0 place-items-center rounded-[0.3rem] ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-amber-400/10 text-amber-50 ring-amber-200/25"}`}
-        >
-          <KeyRound className="relative size-[18px]" strokeWidth={2} />
-        </span>
+      <div className="relative flex items-start justify-between gap-3">
+        <div className="flex min-w-0 gap-3.5">
+          <span
+            className={`relative grid size-12 shrink-0 place-items-center rounded-xl border ${isLight ? "border-accent/20 bg-accent/12 text-accent/80" : "border-amber-400/20 bg-amber-400/10 text-amber-300"}`}
+          >
+            <KeyRound className="relative size-6" strokeWidth={2} />
+          </span>
 
-        <div className="flex-1 min-w-0">
-          {showing ? (
-            <div className="space-y-0.5">
-              {gateCode && (
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] text-foreground/70 font-medium shrink-0 truncate">
-                    {gLabel}
-                  </span>
-                  <span className="font-mono text-[13px] font-semibold tracking-[0.22em] text-foreground truncate">
-                    {gateCode}
-                  </span>
-                </div>
-              )}
-              {lockCode && (
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] text-foreground/70 font-medium shrink-0 truncate">
-                    {lLabel}
-                  </span>
-                  <span className="font-mono text-[13px] font-semibold tracking-[0.22em] text-foreground truncate">
-                    {lockCode}
-                  </span>
-                </div>
-              )}
-            </div>
-          ) : (
-            <>
-              <p className="text-[12px] text-foreground/85 truncate font-medium">{hint}</p>
-              <p className="font-mono text-[13px] font-semibold tracking-[0.22em] text-foreground/60 truncate">
-                {"•".repeat(10)}
-              </p>
-            </>
-          )}
+          <div className="min-w-0 flex-1">
+            {showing ? (
+              <div className="min-w-0">
+                {gateCode && (
+                  <div className="min-w-0">
+                    <span
+                      className={`block truncate text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-accent/70" : "text-amber-300/55"}`}
+                    >
+                      {gLabel}
+                    </span>
+                    <span className="block truncate font-mono text-[17px] font-bold tracking-[0.18em] text-foreground">
+                      {gateCode}
+                    </span>
+                  </div>
+                )}
+                {gateCode && lockCode && (
+                  <div className="mt-2 border-t border-foreground/5 pt-2" />
+                )}
+                {lockCode && (
+                  <div className="min-w-0">
+                    <span
+                      className={`block truncate text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-accent/70" : "text-amber-300/55"}`}
+                    >
+                      {lLabel}
+                    </span>
+                    <span className="block truncate font-mono text-[17px] font-bold tracking-[0.18em] text-foreground">
+                      {lockCode}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="min-w-0">
+                <span
+                  className={`block truncate text-[11px] font-bold uppercase tracking-[0.12em] ${isLight ? "text-accent/70" : "text-amber-300/55"}`}
+                >
+                  {hint}
+                </span>
+                <span className="block truncate font-mono text-[17px] font-bold tracking-[0.18em] text-foreground/55">
+                  {"•".repeat(6)}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="shrink-0 flex flex-col items-end gap-1">
+        <div className="flex shrink-0 items-center gap-2">
           {!showing && (
             <button
               onClick={handleEyeClick}
               aria-label="Ver senhas de acesso"
-              className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3 py-1.5 text-[11px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all"
+              className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-[12px] font-bold text-background transition-transform hover:opacity-90 active:scale-95"
             >
               <Eye className="size-3.5" strokeWidth={2.4} />
               <span>Ver</span>
@@ -5123,14 +5166,14 @@ function AccessCodesStrip({
               type="button"
               onClick={() => setInstrOpen(true)}
               aria-label="Ver instruções de acesso"
-              className="inline-flex items-center gap-1 text-[10.5px] font-medium text-foreground/65 hover:text-foreground transition-colors"
+              className={`grid size-8 place-items-center rounded-full transition-colors ${isLight ? "text-accent/70 hover:text-accent" : "text-amber-300/80 hover:text-amber-200"}`}
             >
-              <HelpCircle className="size-3" strokeWidth={2} />
-              <span>Instruções</span>
+              <HelpCircle className="size-[18px]" strokeWidth={2.4} />
             </button>
           )}
         </div>
       </div>
+
       {hasInstructions && (
         <Dialog open={instrOpen} onOpenChange={setInstrOpen}>
           <DialogContent className="max-w-[380px] p-0 overflow-hidden rounded-[0.3rem]">
