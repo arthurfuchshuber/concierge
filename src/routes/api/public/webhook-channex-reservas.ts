@@ -10,12 +10,15 @@ export const Route = createFileRoute("/api/public/webhook-channex-reservas")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        // Segredo compartilhado opcional (só exigido quando configurado).
+        // Segredo compartilhado OBRIGATÓRIO: sem ele o endpoint ficaria aberto
+        // para qualquer um gravar reservas falsas (fail-closed, 16/09/2026).
         const expected = process.env["CHANNEX_WEBHOOK_SECRET"];
-        if (expected) {
-          const got = request.headers.get("x-channex-webhook-secret");
-          if (got !== expected) return new Response("Invalid secret", { status: 401 });
+        if (!expected) {
+          console.error("[channex-webhook] CHANNEX_WEBHOOK_SECRET não configurado; recusando webhook.");
+          return new Response("Unauthorized", { status: 401 });
         }
+        const got = request.headers.get("x-channex-webhook-secret");
+        if (got !== expected) return new Response("Invalid secret", { status: 401 });
 
         let payload: unknown = null;
         try {
