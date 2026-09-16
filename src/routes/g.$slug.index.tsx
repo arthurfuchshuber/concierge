@@ -3091,6 +3091,8 @@ const SECTION_TONES = {
 function SectionCard({
   title,
   desc,
+  value,
+  hint,
   icon,
   variant = "compact",
   tone = "gold",
@@ -3101,7 +3103,10 @@ function SectionCard({
 }: {
   title: string;
   desc: string;
+  value?: string;
+  hint?: string;
   icon: React.ReactNode;
+
   variant?: "hero-wide" | "compact" | "horizontal-wide";
   tone?: keyof typeof SECTION_TONES;
   badge?: string;
