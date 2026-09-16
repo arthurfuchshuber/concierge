@@ -4942,60 +4942,51 @@ function WifiStrip({
 
   return (
     <div
-      className={`wifi-shimmer relative overflow-hidden rounded-[0.9rem] border p-4 ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/20 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}
+      className={`wifi-shimmer relative overflow-hidden rounded-[0.8rem] border px-3.5 py-3 ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/15 bg-[linear-gradient(135deg,oklch(0.20_0.04_55/0.9)_0%,oklch(0.15_0.03_50/0.9)_60%,oklch(0.12_0.02_45/0.92)_100%)]"}`}
     >
-      <div
-        className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-amber-400/12"} blur-3xl`}
-      />
       <div className="relative flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3.5">
+        <div className="flex min-w-0 items-center gap-2.5">
           <span
-            className={`relative grid size-12 shrink-0 place-items-center rounded-xl border ${isLight ? "border-accent/20 bg-accent/12 text-accent/80" : "border-amber-400/20 bg-amber-400/10 text-amber-300"}`}
+            className={`grid size-8 shrink-0 place-items-center rounded-lg ${isLight ? "bg-accent/10 text-accent/70" : "bg-amber-400/8 text-amber-300/75"}`}
           >
-            <Wifi className="relative size-6" strokeWidth={2} />
+            <Wifi className="size-[15px]" strokeWidth={1.9} />
           </span>
           <div className="min-w-0">
             <p
-              className={`truncate text-[11px] font-semibold uppercase tracking-[0.12em] ${isLight ? "text-accent/70" : "text-amber-300/60"}`}
+              className={`truncate text-[9.5px] font-semibold uppercase tracking-[0.14em] ${isLight ? "text-accent/60" : "text-amber-300/50"}`}
             >
               {ssid || "Rede da casa"}
             </p>
             <p
-              className={`mt-0.5 truncate font-mono text-[17px] font-bold tracking-[0.12em] ${showing ? "text-foreground" : "text-foreground/60"}`}
+              className={`mt-0.5 truncate font-mono text-[14px] font-semibold tracking-[0.1em] ${showing ? "text-foreground" : "text-foreground/55"}`}
             >
               {hasPwd ? (showing ? password : masked) : "—"}
             </p>
           </div>
         </div>
-        {hasPwd &&
-          (!showing ? (
-            <button
-              onClick={handleEyeClick}
-              aria-label="Ver senha do Wi-Fi"
-              className="shrink-0 inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-[13px] font-bold text-background transition-transform hover:opacity-90 active:scale-95"
-            >
-              <Eye className="size-4" strokeWidth={2.4} />
-              <span>Ver</span>
-            </button>
-          ) : (
-            <button
-              onClick={copyPwd}
-              aria-label="Copiar senha do Wi-Fi"
-              className="shrink-0 inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-[13px] font-bold text-background transition-transform hover:opacity-90 active:scale-95"
-            >
-              {copied ? (
-                <Check className="size-4" strokeWidth={2.4} />
+        {hasPwd && (
+          <button
+            onClick={showing ? copyPwd : handleEyeClick}
+            aria-label={showing ? "Copiar senha do Wi-Fi" : "Ver senha do Wi-Fi"}
+            className={`grid size-8 shrink-0 place-items-center rounded-lg transition-colors ${isLight ? "text-accent/70 hover:text-accent" : "text-amber-300/70 hover:text-amber-200"}`}
+          >
+            {showing ? (
+              copied ? (
+                <Check className="size-[17px]" strokeWidth={2} />
               ) : (
-                <Copy className="size-4" strokeWidth={2.4} />
-              )}
-              <span>{copied ? "Copiado" : "Copiar"}</span>
-            </button>
-          ))}
+                <Copy className="size-[17px]" strokeWidth={2} />
+              )
+            ) : (
+              <Eye className="size-[17px]" strokeWidth={2} />
+            )}
+          </button>
+        )}
       </div>
     </div>
   );
 
 }
+
 
 function AccessCodesStrip({
   gateCode,
