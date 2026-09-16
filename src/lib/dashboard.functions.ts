@@ -1302,7 +1302,7 @@ export async function runAdvanceArrival(
         .eq("property_id", propertyId)
         .is("concluded_at", null);
 
-      const others = (openRows ?? []).filter((r) => {
+      const abertos = (openRows ?? []).filter((r) => {
         const row = r as {
           log_id: string | null;
           reservation_id: string | null;
@@ -1317,7 +1317,53 @@ export async function runAdvanceArrival(
         // podem travar nada.
         if (row.kind === "checkin") return row.status === "done" || !!row.done_at;
         return true;
-      }) as Array<{ kind: string; status: string }>;
+      }) as Array<{
+        log_id: string | null;
+        reservation_id: string | null;
+        kind: string;
+        status: string;
+      }>;
+
+      /**
+       * CORREÇÃO (16/09/2026): a trava não tinha recorte de data. Uma estadia
+       * antiga que ficou sem conclusão na esteira (ninguém arrastou o card até
+       * "Concluído") travava PARA SEMPRE todo check-in futuro do imóvel, sem
+       * forma de limpar pela tela. A regra só vale enquanto a estadia anterior
+       * ainda está em curso: se a saída dela já passou, o imóvel está livre.
+       */
+      let others: Array<{ kind: string; status: string }> = [];
+      if (abertos.length > 0) {
+        const resIds = abertos.map((r) => r.reservation_id).filter((i): i is string => !!i);
+        const logIds2 = abertos.map((r) => r.log_id).filter((i): i is string => !!i);
+        const [resRes2, logRes2] = await Promise.all([
+          resIds.length
+            ? supabase.from("property_reservations").select("id, checkout_date").in("id", resIds)
+            : Promise.resolve({ data: [] as unknown[] }),
+          logIds2.length
+            ? supabase.from("guide_access_logs").select("id, checkout_date").in("id", logIds2)
+            : Promise.resolve({ data: [] as unknown[] }),
+        ]);
+        const saidaRes = new Map(
+          ((resRes2.data ?? []) as Array<{ id: string; checkout_date: string | null }>).map((r) => [
+            r.id,
+            r.checkout_date,
+          ]),
+        );
+        const saidaLog = new Map(
+          ((logRes2.data ?? []) as Array<{ id: string; checkout_date: string | null }>).map((l) => [
+            l.id,
+            l.checkout_date,
+          ]),
+        );
+        others = abertos.filter((row) => {
+          const saida =
+            (row.reservation_id ? saidaRes.get(row.reservation_id) : null) ??
+            (row.log_id ? saidaLog.get(row.log_id) : null) ??
+            null;
+          // Sem data conhecida, não trava o imóvel indefinidamente.
+          return !!saida && saida >= today;
+        });
+      }
 
       if (others.length > 0) {
         // Qualquer estadia anterior ainda em aberto (hóspede no imóvel ou
@@ -1340,6 +1386,7 @@ export async function runAdvanceArrival(
           );
         }
       }
+
 
       /**
        * "Não Compareceu" NÃO libera o imóvel (pedido explícito, 15/09/2026).
