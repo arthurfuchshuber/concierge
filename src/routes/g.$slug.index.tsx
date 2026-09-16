@@ -1503,7 +1503,7 @@ function Guide({ data }: { data: GuideOk }) {
                         key={c.key}
                         to="/g/$slug/explorar"
                         params={{ slug }}
-                        className={`block ${span}`}
+                        className={`block h-full ${span}`}
                       >
                         {inner}
                       </Link>
