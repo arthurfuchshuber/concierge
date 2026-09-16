@@ -1,1 +1,0 @@
-ALTER TABLE public.property_faqs ADD COLUMN IF NOT EXISTS tags text[] NOT NULL DEFAULT '{}';

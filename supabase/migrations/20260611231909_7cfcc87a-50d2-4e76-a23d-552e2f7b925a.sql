@@ -1,1 +1,0 @@
-ALTER TABLE public.properties ADD COLUMN IF NOT EXISTS gallery_images text[] NOT NULL DEFAULT '{}'::text[];

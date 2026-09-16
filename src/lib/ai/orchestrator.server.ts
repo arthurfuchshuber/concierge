@@ -77,6 +77,7 @@ import { bindConversationChannel } from "./channels/gateway.server";
 import type { ChannelType } from "./channels/types";
 import { buildRootCause } from "./observability/root-cause.server";
 import { guestSafetyDecision } from "./guest-safety.server";
+import { maskDigitSequences } from "@/lib/guest-access.server";
 
 type Admin = SupabaseClient;
 
@@ -152,6 +153,13 @@ export async function runHospitalityAgent(params: {
   checkoutDate?: string | null;
   /** Progresso em tempo real do pipeline (streaming para a UI do hóspede). */
   onStage?: (stage: { step: string; label: string }) => void;
+  /**
+   * Trava as senhas/códigos do imóvel para ESTA conversa, mesmo sem PIN de
+   * visualização configurado (16/09/2026). O chat do guia liga isto quando o
+   * visitante não provou a reserva — antes, qualquer pessoa com o link (ou a
+   * vitrine da landing) recebia o código da fechadura pela IA.
+   */
+  credentialsLocked?: boolean;
 }): Promise<OrchestratorResult> {
   const started = Date.now();
   const { supabase, property } = params;
@@ -306,6 +314,7 @@ export async function runHospitalityAgent(params: {
   const [
     { routing, usage: routeUsage, model: supervisorModel },
     { plan, usage: planUsage, model: plannerModel },
+    context,
   ] = await Promise.all([
     routeToAgent({
       message: params.message,
@@ -321,6 +330,14 @@ export async function runHospitalityAgent(params: {
       explorationMode,
       contextHint: guestContext.text.slice(0, 2500),
     }),
+    // Contexto da residência é só leitura de banco: rodava em série depois do
+    // supervisor/planejador e somava latência à toa em toda mensagem.
+    buildAgentContext({
+      supabase,
+      property,
+      guestName: params.guestName,
+      memory,
+    }),
   ]);
   usage = mergeUsage(usage, routeUsage);
   if (supervisorModel) models.supervisor = supervisorModel;
@@ -329,12 +346,6 @@ export async function runHospitalityAgent(params: {
   if (plannerModel) models.planner = plannerModel;
   rememberPlan(params.conversationId, plan);
 
-  const context = await buildAgentContext({
-    supabase,
-    property,
-    guestName: params.guestName,
-    memory,
-  });
 
   stage("retrieval", "Consultando o guia da residência");
   // 4) Pré-recuperação Hybrid RAG (indexa sob demanda na primeira vez)
@@ -362,16 +373,22 @@ export async function runHospitalityAgent(params: {
     }
   }
 
-  const {
-    passages,
-    usage: ragUsage,
-    retrievalUsed,
-  } = await hybridRetrieve({
+  const credentialsLocked = context.sensitiveLocked || params.credentialsLocked === true;
+  const retrieved = await hybridRetrieve({
     supabase,
     ownerId,
     propertyId,
     query: intent.searchQuery || params.message,
   });
+  const { usage: ragUsage, retrievalUsed } = retrieved;
+  // Com as senhas travadas, nenhuma sequência numérica do guia chega ao
+  // modelo pelo RAG — mesma máscara de `get_property_facts`.
+  const passages = credentialsLocked
+    ? retrieved.passages.map((p) => ({
+        ...p,
+        content: maskDigitSequences(String(p.content ?? "")),
+      }))
+    : retrieved.passages;
   usage = mergeUsage(usage, ragUsage);
   for (const p of passages) {
     sources.push({ source: p.source, title: p.title, confidence: p.confidence });
@@ -483,7 +500,7 @@ export async function runHospitalityAgent(params: {
     reservationKey,
     checkinDate: params.checkinDate ?? null,
     checkoutDate: params.checkoutDate ?? null,
-    sensitiveLocked: context.sensitiveLocked,
+    sensitiveLocked: credentialsLocked,
     collectSource: (entry) => {
       sources.push({ source: entry.source, title: entry.title, confidence: entry.confidence });
       if (entry.content) evidence.push(`[${entry.source}] ${entry.content}`);
@@ -651,6 +668,19 @@ export async function runHospitalityAgent(params: {
     intent.category === "reserva" ||
     intent.category === "financeiro";
 
+  // LATÊNCIA: a autoavaliação (e a revalidação do texto reescrito) só existe
+  // para lapidar redação. Em turno de baixo risco — conversa da cidade,
+  // recomendação, social, sem urgência — ela custava uma a duas idas extras ao
+  // modelo antes do hóspede ver qualquer coisa. Nesses casos pulamos a
+  // autoavaliação; a validação anti-alucinação continua rodando sempre.
+  const skipReflection =
+    !highRiskContext &&
+    intent.urgency !== "high" &&
+    plan.riskLevel !== "high" &&
+    (intent.category === "cidade" ||
+      intent.category === "recomendacao" ||
+      intent.category === "social");
+
   if (reply && !handoffReason) {
     const [validated, reflected] = await Promise.all([
       validateAnswer({
@@ -668,8 +698,10 @@ export async function runHospitalityAgent(params: {
         evidence: evidenceText,
         language: intent.language,
         history: params.history,
+        skip: skipReflection,
       }),
     ]);
+
 
     usage = mergeUsage(usage, validated.usage);
     usage = mergeUsage(usage, reflected.usage);
@@ -818,18 +850,23 @@ export async function runHospitalityAgent(params: {
     }
   }
 
-  // Sugestão de botões de resposta rápida — só quando há de fato uma resposta
-  // sendo enviada ao hóspede (handoff não envia texto, não faz sentido sugerir
-  // botão pra mensagem vazia). Roda em QUALQUER pergunta final da IA, não só
-  // no modo exploração — a própria etapa decide, olhando o texto, se faz
-  // sentido oferecer opções ou deixar só o campo de digitar.
+  // Botões de resposta rápida — sempre que a IA termina fazendo uma pergunta
+  // ao hóspede, ele deve poder responder num toque (e continuar livre para
+  // digitar). Só chamamos o modelo quando existe pergunta no texto: antes esta
+  // etapa rodava em TODA mensagem, somando uma ida ao modelo mesmo quando não
+  // havia nada a oferecer.
   let quickReplies: string[] = [];
-  if (reply) {
-    const qr = await suggestQuickReplies({ answer: reply, language: intent.language });
+  if (reply && /\?/.test(reply)) {
+    const qr = await suggestQuickReplies({
+      answer: reply,
+      language: intent.language,
+      category: intent.category,
+    });
     usage = mergeUsage(usage, qr.usage);
     if (qr.model) models.quickReplies = qr.model;
     quickReplies = qr.options;
   }
+
 
   // 9) Persistência de memória + observabilidade (não bloqueiam a resposta)
   rememberMessage(params.conversationId, "assistant", reply);

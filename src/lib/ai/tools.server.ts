@@ -120,21 +120,27 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         propertyId: ctx.propertyId,
         query,
       });
+      const safe = (v: unknown) =>
+        ctx.sensitiveLocked
+          ? String(v ?? "").replace(/\d[\d\s.-]{2,}/g, "[BLOQUEADO — liberar no guia]")
+          : v;
       for (const p of passages) {
         ctx.collectSource({
           source: p.source,
           title: p.title,
           confidence: p.confidence,
-          content: p.content,
+          content: safe(p.content) as string,
         });
       }
+      // Senhas travadas nesta conversa: o texto recuperado passa pela mesma
+      // máscara de `get_property_facts` (16/09/2026).
       return {
         found: passages.length,
         passages: passages.map((p) => ({
           fonte: p.source,
           confiabilidade: p.confidence,
           titulo: p.title,
-          conteudo: p.content,
+          conteudo: safe(p.content),
         })),
       };
     },

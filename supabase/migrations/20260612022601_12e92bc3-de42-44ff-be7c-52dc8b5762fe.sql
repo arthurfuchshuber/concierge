@@ -1,1 +1,0 @@
-ALTER TABLE public.properties ADD COLUMN IF NOT EXISTS theme_images jsonb NOT NULL DEFAULT '{}'::jsonb;

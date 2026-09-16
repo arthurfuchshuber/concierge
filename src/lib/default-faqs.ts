@@ -2,6 +2,8 @@
 // A question is only generated when its source data is present —
 // matches the core rule: empty = hide.
 
+import { ETIQUETA_CHECKIN_CHECKOUT } from "@/lib/publish-requirements";
+
 export type DefaultFaqTag = "chegada" | "saida" | "residencia" | "explore";
 
 export type DefaultFaqInput = {
@@ -24,6 +26,10 @@ export type DefaultFaqInput = {
   // fechadura no guia público. As FAQs abaixo respeitam essa mesma proteção
   // em vez de embutir o valor literal em texto puro.
   access_codes_pin?: string | null;
+  // Guias "Check-In & Check-Out" com iCal: as senhas só saem com o código da
+  // reserva validado (16/09/2026) — a FAQ não pode ser um atalho em volta disso.
+  tagline?: string | null;
+  airbnb_ical_url?: string | null;
 };
 
 export type DefaultFaqItem = {
@@ -43,7 +49,9 @@ export function buildDefaultFaqs(p: DefaultFaqInput): DefaultFaqItem[] {
   // guia, mesma exigência de PIN). Sem PIN configurado, essas senhas já
   // aparecem sem restrição em outras partes do guia, então mantê-las na FAQ
   // não abre nenhuma exceção.
-  const accessGated = t(p.access_codes_pin).length > 0;
+  const reservationGated =
+    t(p.airbnb_ical_url).length > 0 && t(p.tagline) === ETIQUETA_CHECKIN_CHECKOUT;
+  const accessGated = t(p.access_codes_pin).length > 0 || reservationGated;
 
   // Check-in time
   const ciMin = t(p.checkin_time);

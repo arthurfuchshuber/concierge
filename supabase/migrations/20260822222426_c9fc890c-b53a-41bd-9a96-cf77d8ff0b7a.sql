@@ -1,1 +1,0 @@
-ALTER TABLE public.guest_arrival_status ADD COLUMN IF NOT EXISTS arrival_date_override date;

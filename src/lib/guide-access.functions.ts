@@ -68,6 +68,29 @@ function withinTimeBounds(time: string | null, min: string | null, max: string |
   return true;
 }
 
+/**
+ * DOCUMENTOS DO HÓSPEDE SÓ APONTAM PARA ARQUIVOS DESTE IMÓVEL (16/09/2026).
+ *
+ * O formulário é público. Antes, o que viesse em `guest_documents` era gravado
+ * como veio: um `file_url` qualquer virava link clicável no painel da equipe
+ * (Hóspedes → "Arquivo"), e um `file_path` de outro imóvel seria assinado pelo
+ * painel com a chave de serviço. O upload legítimo (`guest-doc-upload`) sempre
+ * devolve `<id do imóvel>/<uuid>.<ext>` e o formulário nunca envia `file_url`
+ * — então as duas coisas saem aqui sem afetar nenhum hóspede real.
+ */
+function sanitizeGuestDocuments(
+  docs: z.infer<typeof DocumentSchema>[] | null | undefined,
+  propertyId: string,
+) {
+  if (!docs || docs.length === 0) return null;
+  const pathRe = /^[0-9a-f-]{36}\/[0-9a-f-]{36}\.[a-z0-9]{2,5}$/i;
+  return docs.map((d) => {
+    const path = (d.file_path ?? "").trim();
+    const validPath = !!path && pathRe.test(path) && path.startsWith(`${propertyId}/`);
+    return { ...d, file_url: null, file_path: validPath ? path : null };
+  });
+}
+
 export const recordGuideAccess = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => AccessInput.parse(i))
   .handler(async ({ data }) => {
@@ -159,8 +182,7 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
         guest_arrival_time: data.guest_arrival_time?.trim() || null,
         guest_vehicles:
           data.guest_vehicles && data.guest_vehicles.length > 0 ? data.guest_vehicles : null,
-        guest_documents:
-          data.guest_documents && data.guest_documents.length > 0 ? data.guest_documents : null,
+        guest_documents: sanitizeGuestDocuments(data.guest_documents, prop.id as string),
         user_agent: userAgent,
       } as never)
       .select("id")
@@ -518,7 +540,11 @@ export const getGuideStayStatus = createServerFn({ method: "POST" })
     return { checkinDone, checkoutDone };
   });
 
-const MarkStepInput = StayStatusInput.extend({ kind: z.enum(["checkin", "checkout"]) });
+const MarkStepInput = StayStatusInput.extend({
+  kind: z.enum(["checkin", "checkout"]),
+  /** Código da reserva do hóspede — exigido nos guias com código (16/09/2026). */
+  reservation_code: z.string().trim().max(40).optional().nullable(),
+});
 
 /**
  * O próprio hóspede marca "já fiz o check-in/check-out" no guia — o mesmo
@@ -534,7 +560,7 @@ export const markGuideStayStep = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const propQuery = supabaseAdmin
       .from("properties")
-      .select("id")
+      .select("id, tagline, airbnb_ical_url")
       .eq("slug", data.slug)
       .eq("published", true);
     const { data: prop } = data.property_id
@@ -542,8 +568,26 @@ export const markGuideStayStep = createServerFn({ method: "POST" })
       : await propQuery.maybeSingle();
     if (!prop) return { ok: false as const };
 
+    /* QUEM MARCA PRECISA SER O HÓSPEDE (16/09/2026).
+     *
+     * Esta função é pública e grava o MESMO status que o anfitrião marca no
+     * Kanban — é ele que libera a limpeza e fecha a estadia. Antes bastava o
+     * slug e uma data de entrada (o nome era opcional) para marcar o check-out
+     * de qualquer hóspede. Agora o nome é obrigatório e, nos guias com código
+     * de reserva, o código precisa estar ativo e bater com a data informada. */
+    const guestNameRaw = (data.guest_name ?? "").trim();
+    if (!guestNameRaw) return { ok: false as const };
+    const { isReservationGated, lookupReservationByCode: lookup } =
+      await import("@/lib/guest-access.server");
+    if (isReservationGated(prop as { tagline?: string | null; airbnb_ical_url?: string | null })) {
+      const code = (data.reservation_code ?? "").trim();
+      if (!code) return { ok: false as const };
+      const res = await lookup(data.slug, prop.id as string, code);
+      if (!res.ok || res.checkin_date !== data.checkin_date) return { ok: false as const };
+    }
+
     const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
-    const guest = data.guest_name ? norm(data.guest_name) : null;
+    const guest = norm(guestNameRaw);
     const { data: logs } = await supabaseAdmin
       .from("guide_access_logs")
       .select("id, guest_name, checkout_date")
@@ -589,61 +633,17 @@ const ReservationCodeInput = z.object({
   code: z.string().trim().min(4).max(40),
 });
 
-type ReservationLookup =
-  | { ok: true; checkin_date: string; checkout_date: string }
-  | { ok: false; reason: "not_found" | "no_ical" | "inactive" | "expired" };
-
+/* A consulta em si mora em `guest-access.server.ts` (16/09/2026): o guia e o
+ * chat do hóspede passaram a usá-la para liberar senhas, e ela ganhou a trava
+ * contra curingas do `ilike` — antes um código "%%%%" casava com QUALQUER
+ * reserva do imóvel e passava pelo formulário. */
 async function lookupReservationByCode(
   slug: string,
   propertyId: string | undefined,
   rawCode: string,
-): Promise<ReservationLookup> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const propQuery = supabaseAdmin
-    .from("properties")
-    .select("id, airbnb_ical_url, airbnb_ical_last_sync_at")
-    .eq("slug", slug)
-    .eq("published", true);
-  const { data: prop } = propertyId
-    ? await propQuery.eq("id", propertyId).maybeSingle()
-    : await propQuery.maybeSingle();
-  if (!prop) return { ok: false, reason: "not_found" };
-  const icalUrl = ((prop as { airbnb_ical_url?: string | null }).airbnb_ical_url ?? "").trim();
-  if (!icalUrl) return { ok: false, reason: "no_ical" };
-
-  const { ensurePropertyIcalFresh } = await import("@/lib/airbnb-ical.server");
-  await ensurePropertyIcalFresh(
-    prop.id,
-    icalUrl,
-    (prop as { airbnb_ical_last_sync_at?: string | null }).airbnb_ical_last_sync_at,
-  );
-
-  const code = rawCode.trim().toUpperCase();
-  const { data: rows } = await supabaseAdmin
-    .from("property_reservations")
-    .select("checkin_date, checkout_date, raw_summary, status, guest_hint")
-    .eq("property_id", prop.id)
-    .eq("source", "airbnb")
-    .ilike("guest_hint", code)
-    .limit(20);
-
-  const list = (rows ?? []) as Array<{
-    checkin_date: string;
-    checkout_date: string;
-    raw_summary: string | null;
-    status: string | null;
-  }>;
-  if (list.length === 0) return { ok: false, reason: "inactive" };
-
-  const { isRealReservation, operationalTodayISO } = await import("@/lib/reservations.server");
-  const active = list.filter((r) => isRealReservation(r));
-  if (active.length === 0) return { ok: false, reason: "inactive" };
-
-  const today = operationalTodayISO();
-  const current = active.find((r) => r.checkout_date >= today);
-  if (!current) return { ok: false, reason: "expired" };
-
-  return { ok: true, checkin_date: current.checkin_date, checkout_date: current.checkout_date };
+) {
+  const { lookupReservationByCode: lookup } = await import("@/lib/guest-access.server");
+  return lookup(slug, propertyId, rawCode);
 }
 
 /** Valida o código digitado no formulário de primeiro acesso. */

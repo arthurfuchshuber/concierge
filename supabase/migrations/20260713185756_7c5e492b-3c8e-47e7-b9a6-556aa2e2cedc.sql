@@ -1,1 +1,0 @@
-REVOKE EXECUTE ON FUNCTION public.sync_nearby_recommendations() FROM PUBLIC, anon, authenticated;

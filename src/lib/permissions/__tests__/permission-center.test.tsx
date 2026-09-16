@@ -27,6 +27,11 @@ vi.mock("@/lib/permission-center.functions", () => ({
 
 vi.mock("@/lib/team.functions", () => ({
   inviteTeamMember: "inviteTeamMember",
+  // A página passou a usar estes três (convites pendentes); sem eles no mock
+  // o Vitest aborta a renderização e os 3 testes falhavam (pré-existente).
+  getTeamInviteLink: "getTeamInviteLink",
+  resendTeamInvite: "resendTeamInvite",
+  revokeTeamInvite: "revokeTeamInvite",
 }));
 
 vi.mock("@tanstack/react-start", () => ({

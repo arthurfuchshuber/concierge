@@ -1,1 +1,0 @@
-ALTER TYPE public.permission_node_type ADD VALUE IF NOT EXISTS 'SECTION';

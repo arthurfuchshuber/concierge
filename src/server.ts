@@ -30,6 +30,40 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
   });
 }
 
+/**
+ * CABEÇALHOS DE SEGURANÇA BÁSICOS (16/09/2026).
+ *
+ * Nenhuma resposta do app trazia esses cabeçalhos. Ficaram de fora, de
+ * propósito, os que podem quebrar algo sem teste no navegador real:
+ * `Content-Security-Policy` (Meta Pixel, Google Fonts, mapas, Paddle) e
+ * `X-Frame-Options`/`frame-ancestors` (a landing mostra o guia num iframe e o
+ * editor do Lovable também enquadra o app) e `Permissions-Policy` (o checkout
+ * do Paddle roda em iframe e pode usar a API de pagamento). Só entra aqui o que não muda
+ * comportamento. Um cabeçalho que a rota já definiu nunca é sobrescrito.
+ */
+const SECURITY_HEADERS: Record<string, string> = {
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Strict-Transport-Security": "max-age=31536000",
+};
+
+function withSecurityHeaders(response: Response): Response {
+  if (response.status === 101) return response;
+  let out = response;
+  try {
+    for (const [k, v] of Object.entries(SECURITY_HEADERS)) {
+      if (!out.headers.has(k)) out.headers.set(k, v);
+    }
+  } catch {
+    // Headers imutáveis (resposta repassada de um fetch): copia e aplica.
+    out = new Response(response.body, response);
+    for (const [k, v] of Object.entries(SECURITY_HEADERS)) {
+      if (!out.headers.has(k)) out.headers.set(k, v);
+    }
+  }
+  return out;
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     // Endereço antigo → endereço novo, antes de qualquer outra coisa. Vale
@@ -40,7 +74,7 @@ export default {
 
     try {
       const response = await serverEntry.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      return withSecurityHeaders(await normalizeCatastrophicSsrResponse(response));
     } catch (error) {
       console.error(error);
       return new Response(renderErrorPage(), {

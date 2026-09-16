@@ -58,6 +58,10 @@ export const Route = createFileRoute("/api/public/guide-chat-upload")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        // Upload anônimo (até 20 MB) com transcrição paga: limita por IP (16/09/2026).
+        const { tooManyRequests, rateLimitedResponse } =
+          await import("@/lib/public-rate-limit.server");
+        if (tooManyRequests(request, "guide-chat-upload", 10, 60_000)) return rateLimitedResponse();
         let form: FormData;
         try {
           form = await request.formData();

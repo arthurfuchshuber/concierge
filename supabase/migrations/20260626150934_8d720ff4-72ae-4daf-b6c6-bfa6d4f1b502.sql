@@ -1,1 +1,0 @@
-ALTER TABLE public.poi_categories ADD COLUMN IF NOT EXISTS description text;

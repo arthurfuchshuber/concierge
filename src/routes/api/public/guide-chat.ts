@@ -59,6 +59,12 @@ const Body = z.object({
   forceAi: z.boolean().optional(),
   /** Quando true, a resposta vem como SSE com o progresso do agente em tempo real. */
   stream: z.boolean().optional(),
+  /**
+   * Código da reserva salvo pelo guia no aparelho do hóspede (o widget já
+   * enviava; o servidor ignorava). Nos guias com código, é a prova que libera
+   * as senhas do imóvel para a IA nesta conversa (16/09/2026).
+   */
+  reservationCode: z.string().trim().max(40).optional(),
 });
 
 type StageEvent = { step: string; label: string };
@@ -91,9 +97,16 @@ async function runGuideChat(
         headers: { "Content-Type": "application/json" },
       });
     }
+    const guestAccess = await import("@/lib/guest-access.server");
     if (prop.access_mode === "pin") {
-      const cookie = getCookie(`sg-pin-${prop.id}`);
-      if (cookie !== "ok") {
+      // Cookie assinado — o valor fixo "ok" podia ser forjado (16/09/2026).
+      const pinOk = await guestAccess.verifyPinCookie(
+        "pin",
+        prop.id,
+        (prop as { pin_code?: string | null }).pin_code ?? null,
+        getCookie(guestAccess.pinCookieName("pin", prop.id)) ?? null,
+      );
+      if (!pinOk) {
         return new Response(JSON.stringify({ error: "Acesso bloqueado." }), {
           status: 403,
           headers: { "Content-Type": "application/json" },
@@ -286,6 +299,21 @@ async function runGuideChat(
       prior.some((m) => m.role === "assistant" && explorationSignature.test(m.content ?? ""));
 
     // ─── Agente de Hospitalidade (nova arquitetura) ───
+    /* SENHAS NA IA SÓ COM RESERVA COMPROVADA (16/09/2026).
+     *
+     * Nos guias com código de reserva, a IA só recebe Wi-Fi/portão/fechadura
+     * quando esta conversa traz um código ATIVO no iCal. Sem isso (link
+     * compartilhado, vitrine da landing, alguém que achou o guia no sitemap),
+     * a conversa roda com as senhas travadas — a IA orienta a abrir o guia. */
+    let credentialsLocked = false;
+    if (guestAccess.isReservationGated(prop as never)) {
+      const code = (body.reservationCode ?? "").trim();
+      const proof = code
+        ? await guestAccess.lookupReservationByCode(body.slug, prop.id, code)
+        : null;
+      credentialsLocked = !proof?.ok;
+    }
+
     const { runHospitalityAgent } = await import("@/lib/ai/orchestrator.server");
     const { AiGatewayError } = await import("@/lib/ai/gateway.server");
 
@@ -302,19 +330,28 @@ async function runGuideChat(
         history: prior.map((m) => ({ role: m.role as string, content: m.content ?? "" })),
         explorationMode: inExplorationFlow,
         surface: "guide_chat",
+        credentialsLocked,
       });
     } catch (err) {
       const status = err instanceof AiGatewayError ? err.status : 502;
+      // O hóspede nunca deve ler jargão de plataforma ("Créditos de IA
+      // esgotados"): isso é problema do anfitrião, não dele. Ele recebe uma
+      // frase honesta que o orienta a falar com o anfitrião; a causa real
+      // continua nos logs do servidor para a equipe agir.
       const message =
-        err instanceof AiGatewayError
-          ? err.message
-          : "Não consegui responder agora. Tente de novo.";
-      if (!(err instanceof AiGatewayError)) console.error("guide-chat agent error", err);
+        status === 402
+          ? "No momento não consigo responder por aqui. Fale diretamente com o anfitrião — ele consegue te ajudar agora."
+          : err instanceof AiGatewayError
+            ? err.message
+            : "Não consegui responder agora. Tente de novo.";
+      if (status === 402) console.error("guide-chat sem créditos de IA", err);
+      else if (!(err instanceof AiGatewayError)) console.error("guide-chat agent error", err);
       return new Response(JSON.stringify({ error: message, conversationId }), {
         status: status === 429 || status === 402 ? status : 502,
         headers: { "Content-Type": "application/json" },
       });
     }
+
 
     const handoffTriggered = result.handoff;
     const partialReply = result.reply.trim();
@@ -415,7 +452,10 @@ export const Route = createFileRoute("/api/public/guide-chat")({
         }
 
         // Rate limit checks
-        const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "";
+        // IP pelo helper comum: prioriza `cf-connecting-ip`. O primeiro item do
+        // `x-forwarded-for` é escolhido pelo próprio cliente e anulava o limite.
+        const { clientIpFrom } = await import("@/lib/public-rate-limit.server");
+        const clientIp = clientIpFrom(request);
         const rl = checkRateLimit(body.sessionId, clientIp, body.slug);
         if (!rl.ok) {
           return new Response(

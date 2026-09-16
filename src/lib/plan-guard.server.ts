@@ -223,7 +223,7 @@ export async function resolveOwnerPlanAdmin(
   const runtimeEnv = getRuntimeEnv();
   const { data: subs } = await supabaseAdmin
     .from("subscriptions")
-    .select("status, product_id, current_period_end, trial_ends_at, environment, is_manual, max_guides_override, created_at")
+    .select("status, product_id, current_period_end, trial_ends_at, environment, is_manual, max_guides_override, created_at, paddle_subscription_id")
     .eq("user_id", ownerId)
     .order("created_at", { ascending: false });
   const list = subs ?? [];
@@ -235,7 +235,20 @@ export async function resolveOwnerPlanAdmin(
     ...list.filter((sub) => sub.environment === runtimeEnv),
     // Concessão entre ambientes só vale para liberações manuais (evita que uma
     // assinatura de sandbox destrave produção).
-    ...list.filter((sub) => sub.environment !== runtimeEnv && sub.is_manual === true),
+    //
+    // 16/09/2026: `is_manual` também é gravado pelo webhook do Paddle quando o
+    // `customData.admin_created` do checkout vem true — e `customData` é
+    // montado no navegador. Um checkout de SANDBOX (cartão de teste) com essa
+    // flag virava plano pago em produção. Liberação manual de verdade é a
+    // criada pelo painel admin, cujo id sempre começa com `manual_`.
+    ...list.filter(
+      (sub) =>
+        sub.environment !== runtimeEnv &&
+        sub.is_manual === true &&
+        String(
+          (sub as { paddle_subscription_id?: string | null }).paddle_subscription_id ?? "",
+        ).startsWith("manual_"),
+    ),
   ];
   for (const sub of candidates) {
     const status = (sub.status as string) ?? null;

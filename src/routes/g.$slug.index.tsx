@@ -1,8 +1,21 @@
-import { createFileRoute, notFound, redirect, Link } from "@tanstack/react-router";
+import { createFileRoute, notFound, redirect, Link, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  useMemo,
+  useCallback,
+  createContext,
+  useContext,
+} from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getPublicGuide, submitPin, submitAccessPin } from "@/lib/guide.functions";
+import {
+  getPublicGuide,
+  submitPin,
+  submitAccessPin,
+  revealGuideAccessCodes,
+} from "@/lib/guide.functions";
 import {
   getGuideStayStatus,
   markGuideStayStep,
@@ -13,7 +26,8 @@ import { trackGuideEvent } from "@/lib/guide-analytics.functions";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import * as TabsPrimitive from "@radix-ui/react-tabs";
 import {
   Accordion,
   AccordionItem,
@@ -88,6 +102,16 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { guideUrl } from "@/lib/site-url";
 
+/** Contexto para que qualquer bloco de texto do guia (incluindo a lista de
+ *  passos) renderize `[[tag:...]]` como link clicável e `[[info:...]]` com o
+ *  valor correto — sem precisar repassar props por toda a árvore. */
+type GuideTagCtxValue = {
+  onNavigate?: (key: GuideTagKey, param: string | null) => void;
+  info?: React.ComponentProps<typeof InlineTagText>["info"];
+};
+const GuideTagCtx = createContext<GuideTagCtxValue>({});
+
+
 // Identificador estável da sessão do hóspede usado na analítica do guia.
 // Sempre tem ao menos 8 caracteres — o servidor rejeita valores curtos como "anon".
 function getGuideSessionId(slug: string): string {
@@ -105,13 +129,16 @@ function getGuideSessionId(slug: string): string {
 }
 
 export const Route = createFileRoute("/g/$slug/")({
-  validateSearch: (search: Record<string, unknown>): { preview?: string; t?: string } => ({
+  validateSearch: (search: Record<string, unknown>): { preview?: string; t?: string; demo?: string } => ({
     ...(typeof search["preview"] === "string" ? { preview: search["preview"] as string } : {}),
     ...(typeof search["t"] === "string" ? { t: search["t"] as string } : {}),
+    ...(search["demo"] != null ? { demo: String(search["demo"]) } : {}),
   }),
-  loaderDeps: ({ search }) => ({ t: search.t }),
+  loaderDeps: ({ search }) => ({ t: search.t, demo: search.demo }),
   loader: async ({ params, deps }) => {
-    const r = await getPublicGuide({ data: { slug: params.slug, previewToken: deps.t ?? null } });
+    const r = await getPublicGuide({
+      data: { slug: params.slug, previewToken: deps.t ?? null, demo: deps.demo === "1" },
+    });
     if (r.status === "moved") {
       throw redirect({ to: "/g/$slug", params: { slug: r.slug }, replace: true });
     }
@@ -579,6 +606,36 @@ function Guide({ data }: { data: GuideOk }) {
     };
   }, [isPreview, reservationCodeGate, accessRec?.code, slug, p.id, revalidateCode]);
 
+  // SENHAS COM PROVA DE RESERVA (16/09/2026): nos guias com código, o servidor
+  // não manda mais Wi-Fi/portão/fechadura junto com o guia. Elas chegam aqui,
+  // em troca do código que o hóspede já informou no formulário — inclusive
+  // para quem já tinha preenchido antes desta mudança (o código fica salvo
+  // no aparelho). Sem código válido, os campos ficam como estão (vazios).
+  const revealCodes = useServerFn(revealGuideAccessCodes);
+  const codesNeedReservation = !!(baseProp as { codesNeedReservation?: boolean })
+    .codesNeedReservation;
+  useEffect(() => {
+    if (isPreview || !codesNeedReservation) return;
+    const codeValue = accessRec?.code?.trim();
+    if (!codeValue || codeValue.length < 4) return;
+    let cancelled = false;
+    revealCodes({ data: { slug, property_id: p.id, code: codeValue } })
+      .then((r) => {
+        if (cancelled || !r?.ok) return;
+        setRevealedCodes({
+          wifi_password: r.wifi_password,
+          lock_code: r.lock_code,
+          gate_code: r.gate_code,
+        });
+      })
+      .catch(() => {
+        /* rede instável: tenta de novo quando o registro mudar */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isPreview, codesNeedReservation, accessRec?.code, slug, p.id, revealCodes]);
+
   // Enquanto o estado real ainda não foi decidido (gateReady === false), a
   // página de fundo fica coberta — nunca "pisca" a home por trás do
   // formulário ou do onboarding, em nenhuma etapa.
@@ -707,6 +764,7 @@ function Guide({ data }: { data: GuideOk }) {
           guest_name: accessRec?.name ?? null,
           checkin_date: accessRec.checkinDate,
           checkout_date: accessRec?.checkoutDate ?? null,
+          reservation_code: accessRec?.code ?? null,
         },
       }).catch(() => {});
     };
@@ -830,18 +888,9 @@ function Guide({ data }: { data: GuideOk }) {
   // Expansividade da barra "check-in libera em" — abre wi-fi/senhas
   const [codesOpen, setCodesOpen] = useState(false);
   const [locWifiOpen, setLocWifiOpen] = useState(false);
+  const [quickDialog, setQuickDialog] = useState<"checkin" | "saida" | null>(null);
 
-  // Recolhe a barra sozinha, de forma sutil, assim que o hóspede rolar a
-  // tela — evita que fique aberta ocupando espaço depois que ele já seguiu
-  // em frente lendo o resto do guia.
-  useEffect(() => {
-    if (!codesOpen) return;
-    function onScroll() {
-      setCodesOpen(false);
-    }
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [codesOpen]);
+
 
   const [pinDialog, setPinDialog] = useState<{ open: boolean; cb: (() => void) | null }>({
     open: false,
@@ -857,7 +906,7 @@ function Guide({ data }: { data: GuideOk }) {
   };
 
   // Contexto compartilhado para renderizar [[tag:...]] e [[info:...]] inline.
-  const infoCtx = {
+  const infoCtx: GuideTagCtxValue["info"] = {
     snapshot: p as never,
     unlocked,
     hasAccessPin,
@@ -991,7 +1040,12 @@ function Guide({ data }: { data: GuideOk }) {
     key: Exclude<Section, "home"> | "explore" | "locwifi";
     title: string;
     desc: string;
+    /** Informação principal em destaque (variante compacta "texto primeiro"). */
+    value?: string;
+    /** Linha de apoio curta abaixo do valor. */
+    hint?: string;
     icon: React.ReactNode;
+
     variant: "hero-wide" | "compact" | "horizontal-wide";
     tone: "gold" | "blue" | "green" | "purple" | "rose";
     badge?: string;
@@ -999,7 +1053,7 @@ function Guide({ data }: { data: GuideOk }) {
     to?:
       | { kind: "section"; value: Section }
       | { kind: "link"; to: string }
-      | { kind: "dialog"; value: "locwifi" };
+      | { kind: "dialog"; value: "locwifi" | "checkin" | "saida" };
   }> = [
     {
       key: "checkin",
@@ -1010,18 +1064,21 @@ function Guide({ data }: { data: GuideOk }) {
       tone: "gold",
       badge: "comece aqui",
       visible: hasCheckin,
-      to: { kind: "section", value: "checkin" },
+      to: { kind: "dialog", value: "checkin" },
     },
     {
       key: "saida",
       title: "Saída",
       desc: saidaDesc,
+      value: saidaDesc,
+      hint: p.checkout_instructions ? "Passo a passo da saída" : undefined,
       icon: <LogOut strokeWidth={1.6} />,
       variant: "compact",
       tone: "blue",
       visible: hasSaida,
-      to: { kind: "section", value: "saida" },
+      to: { kind: "dialog", value: "saida" },
     },
+
     {
       key: "residencia",
       title: "A residência",
@@ -1034,12 +1091,24 @@ function Guide({ data }: { data: GuideOk }) {
     },
     {
       key: "locwifi",
-      title: "Localização & Wi-Fi",
+      title: "Localização",
       desc: (() => {
         const bits: string[] = [];
         if (p.address || p.maps_url) bits.push("Endereço");
         if (p.wifi_ssid || (p as any).wifi_password_set) bits.push("Wi-Fi");
         return bits.length ? bits.join(" · ") : "Endereço e rede da residência.";
+      })(),
+      value: (() => {
+        const city = [p.city, p.state].filter(Boolean).join(", ");
+        if (city) return city;
+        const addr = shortAddress(p.address);
+        if (addr) return addr;
+        return p.maps_url ? "Ver no mapa" : "Endereço da residência";
+      })(),
+      hint: (() => {
+        if (p.wifi_ssid) return `Wi-Fi: ${p.wifi_ssid}`;
+        if ((p as any).wifi_password_set) return "Wi-Fi disponível";
+        return undefined;
       })(),
       icon: <Wifi strokeWidth={1.6} />,
       variant: "compact",
@@ -1047,6 +1116,7 @@ function Guide({ data }: { data: GuideOk }) {
       visible: hasLocWifi,
       to: { kind: "dialog", value: "locwifi" },
     },
+
     {
       key: "explore",
       title: "Explore a região",
@@ -1095,6 +1165,7 @@ function Guide({ data }: { data: GuideOk }) {
   }, [checkoutConcluded]);
 
   return (
+    <GuideTagCtx.Provider value={{ onNavigate: navigateGuideTag, info: infoCtx }}>
     <div
       className={`sigma-public-guide relative min-h-screen bg-background text-foreground pb-10 overflow-x-hidden ${theme === "light" ? "theme-light" : ""}`}
     >
@@ -1442,6 +1513,9 @@ function Guide({ data }: { data: GuideOk }) {
                       <SectionCard
                         title={c.title}
                         desc={c.desc}
+                        value={c.value}
+                        hint={c.hint}
+
                         icon={c.icon}
                         variant={c.variant}
                         tone={c.tone}
@@ -1457,19 +1531,23 @@ function Guide({ data }: { data: GuideOk }) {
                         key={c.key}
                         to="/g/$slug/explorar"
                         params={{ slug }}
-                        className={`block ${span}`}
+                        className={`block h-full ${span}`}
                       >
                         {inner}
                       </Link>
                     ) : (
                       <button
                         key={c.key}
+                        data-demo-card={c.key}
                         onClick={() => {
                           if (c.to?.kind === "section") gotoSection(c.to.value);
                           else if (c.to?.kind === "dialog" && c.to.value === "locwifi")
                             setLocWifiOpen(true);
+                          else if (c.to?.kind === "dialog")
+                            setQuickDialog(c.to.value as "checkin" | "saida");
+
                         }}
-                        className={`w-full text-left ${span}`}
+                        className={`h-full w-full text-left ${span}`}
                       >
                         {inner}
                       </button>
@@ -2003,12 +2081,24 @@ function Guide({ data }: { data: GuideOk }) {
                             >
                               {showTabs ? (
                                 <Tabs defaultValue={defaultTab}>
-                                  <TabsList className="ds-segmented h-auto mb-4">
-                                    <TabsTrigger value="passos">Passo a passo</TabsTrigger>
-                                    <TabsTrigger value="senhas" data-tour="senhas-tab">
+                                  {/* Duas opções apenas: grade de 2 colunas iguais
+                                      (inline style vence o `ds-segmented`, que é
+                                      pensado para barras longas e roláveis). */}
+                                  <TabsPrimitive.List className="mb-4 grid w-full grid-cols-2 gap-1 rounded-[0.3rem] border border-border/25 bg-foreground/[0.04] p-1 text-muted-foreground">
+                                    <TabsTrigger
+                                      value="passos"
+                                      className="grid h-[38px] w-full !min-w-0 place-items-center rounded-[0.3rem] text-[13px] font-semibold"
+                                    >
+                                      Passo a passo
+                                    </TabsTrigger>
+                                    <TabsTrigger
+                                      value="senhas"
+                                      data-tour="senhas-tab"
+                                      className="grid h-[38px] w-full !min-w-0 place-items-center rounded-[0.3rem] text-[13px] font-semibold"
+                                    >
                                       Senhas
                                     </TabsTrigger>
-                                  </TabsList>
+                                  </TabsPrimitive.List>
                                   <TabsContent value="passos">{stepsContent}</TabsContent>
                                   <TabsContent value="senhas" data-tour="senhas-panel">
                                     {passwordsContent}
@@ -2416,7 +2506,7 @@ function Guide({ data }: { data: GuideOk }) {
                 return;
               }
               if (k === "explore") {
-                window.location.href = `/g/${slug}/explorar`;
+                window.location.href = `/g/${slug}/explorar${typeof window !== "undefined" ? window.location.search : ""}`;
                 return;
               }
               gotoSection(k as Section);
@@ -2441,6 +2531,22 @@ function Guide({ data }: { data: GuideOk }) {
         onSuccess={(codes) => {
           setUnlocked(true);
           if (codes) setRevealedCodes(codes);
+          // Guia com código de reserva E PIN: o PIN só libera a visualização;
+          // as senhas vêm com a prova da reserva (ver `revealCodes` acima).
+          const reservationCode = accessRec?.code?.trim();
+          if (codesNeedReservation && reservationCode && reservationCode.length >= 4) {
+            revealCodes({ data: { slug, property_id: p.id, code: reservationCode } })
+              .then((r) => {
+                if (r?.ok) {
+                  setRevealedCodes({
+                    wifi_password: r.wifi_password,
+                    lock_code: r.lock_code,
+                    gate_code: r.gate_code,
+                  });
+                }
+              })
+              .catch(() => {});
+          }
           const cb = pinDialog.cb;
           setPinDialog({ open: false, cb: null });
           cb?.();
@@ -2458,7 +2564,44 @@ function Guide({ data }: { data: GuideOk }) {
         unlocked={unlocked}
         onRequestUnlock={() => requestUnlock()}
       />
+      {/* Janela rápida de Chegada/Saída — estrutura já programada; o layout
+          interno definitivo será definido em seguida. Por enquanto mostra o
+          resumo real e leva para a seção completa. */}
+      <Dialog open={!!quickDialog} onOpenChange={(o) => !o && setQuickDialog(null)}>
+        <DialogContent className="max-w-[400px] overflow-hidden rounded-[1.4rem] p-0">
+          <div className="px-6 pb-6 pt-8 text-center">
+            <div className="mx-auto mb-4 grid size-14 place-items-center rounded-full bg-accent/12 text-accent ring-1 ring-accent/25">
+              {quickDialog === "saida" ? (
+                <LogOut className="size-7" strokeWidth={1.9} />
+              ) : (
+                <KeyRound className="size-7" strokeWidth={1.9} />
+              )}
+            </div>
+            <DialogTitle className="font-display text-[22px] font-semibold leading-[1.5] tracking-tight">
+              {quickDialog === "saida" ? "Saída" : "Chegada"}
+            </DialogTitle>
+            <p className="mt-1 text-[13px] leading-[1.5] text-muted-foreground">
+              {quickDialog === "saida" ? saidaDesc : checkinDesc}
+            </p>
+          </div>
+          <div className="px-6 pb-8">
+            <button
+              type="button"
+              onClick={() => {
+                const s = quickDialog;
+                setQuickDialog(null);
+                if (s) gotoSection(s);
+              }}
+              className="w-full rounded-xl bg-foreground py-3 text-[13.5px] font-semibold text-background transition-transform active:scale-95"
+            >
+              Ver tudo
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
     </div>
+    </GuideTagCtx.Provider>
   );
 }
 
@@ -2499,114 +2642,104 @@ function LocWifiDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[400px] p-0 overflow-hidden rounded-[0.3rem]">
-        <div className="px-5 pt-5 pb-3 text-center border-b border-border/40">
-          <div className="mx-auto mb-2.5 grid place-items-center size-11 rounded-full bg-emerald-500/12 ring-1 ring-emerald-500/25 text-emerald-500">
-            <Wifi className="size-[18px]" strokeWidth={1.75} />
+      <DialogContent className="max-w-[400px] overflow-hidden rounded-[1.4rem] p-0">
+        <div className="px-6 pb-6 pt-8 text-center">
+          <div className="mx-auto mb-4 grid size-14 place-items-center rounded-full bg-emerald-500/12 text-emerald-400 ring-1 ring-emerald-500/25">
+            <Wifi className="size-7" strokeWidth={1.9} />
           </div>
-          <DialogTitle className="font-display text-[18px] tracking-tight">
+          <DialogTitle className="font-display text-[22px] font-semibold leading-[1.5] tracking-tight">
             Localização & Wi-Fi
           </DialogTitle>
-          <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">
+          <p className="mt-1 text-[13px] leading-[1.5] text-muted-foreground">
             Onde estamos e como se conectar.
           </p>
         </div>
-        <div className="px-5 py-4 max-h-[65vh] overflow-y-auto sg-elegant-scroll space-y-5">
+        <div className="sg-elegant-scroll max-h-[62vh] space-y-6 overflow-y-auto px-6 pb-8">
           {hasLoc && (
-            <section className="space-y-2">
-              <p className="text-[10px] uppercase tracking-[0.22em] font-black text-foreground/60">
-                <MapPin className="inline size-3 -mt-0.5 mr-1" strokeWidth={2} />
-                Endereço
-              </p>
+            <section className="rounded-2xl border border-border/50 bg-muted/25 p-5">
               {address && (
-                <div className="rounded-[0.3rem] border border-border/60 bg-muted/30 px-4 py-3">
-                  <p className="text-[13.5px] leading-relaxed whitespace-pre-line">{address}</p>
-                  {addressNote && (
-                    <p className="text-[12px] text-muted-foreground mt-1.5 leading-relaxed whitespace-pre-line">
-                      {addressNote}
-                    </p>
-                  )}
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => copy("address", address)}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-foreground/8 hover:bg-foreground/12 px-3 py-1.5 text-[11.5px] font-semibold"
-                    >
-                      {copied === "address" ? (
-                        <Check className="size-3.5" />
-                      ) : (
-                        <Copy className="size-3.5" />
-                      )}
-                      {copied === "address" ? "Copiado" : "Copiar"}
-                    </button>
-                    {mapsUrl && (
-                      <a
-                        href={mapsUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500 text-white px-3 py-1.5 text-[11.5px] font-semibold hover:opacity-90"
-                      >
-                        <ExternalLink className="size-3.5" />
-                        Abrir no Maps
-                      </a>
+                <p className="whitespace-pre-line text-[14px] leading-relaxed text-foreground/90">
+                  {address}
+                </p>
+              )}
+              {addressNote && (
+                <p className="mt-1.5 whitespace-pre-line text-[12.5px] leading-relaxed text-muted-foreground">
+                  {addressNote}
+                </p>
+              )}
+              <div className="mt-4 flex gap-3">
+                {address && (
+                  <button
+                    type="button"
+                    onClick={() => copy("address", address)}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-foreground py-3 text-[13.5px] font-semibold text-background transition-transform active:scale-95"
+                  >
+                    {copied === "address" ? (
+                      <Check className="size-4" strokeWidth={2.4} />
+                    ) : (
+                      <Copy className="size-4" strokeWidth={2.4} />
                     )}
-                  </div>
-                </div>
-              )}
-              {!address && mapsUrl && (
-                <a
-                  href={mapsUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500 text-white px-3 py-1.5 text-[11.5px] font-semibold hover:opacity-90"
-                >
-                  <ExternalLink className="size-3.5" />
-                  Abrir no Maps
-                </a>
-              )}
+                    {copied === "address" ? "Copiado" : "Copiar"}
+                  </button>
+                )}
+                {mapsUrl && (
+                  <a
+                    href={mapsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Abrir no Maps"
+                    className={`grid place-items-center rounded-xl bg-foreground/10 px-4 text-foreground transition-transform active:scale-95 ${address ? "" : "flex-1 gap-2 py-3 text-[13.5px] font-semibold"}`}
+                  >
+                    <MapPin className="size-5" strokeWidth={2} />
+                    {!address && <span>Abrir no Maps</span>}
+                  </a>
+                )}
+              </div>
             </section>
           )}
-          {hasLoc && hasWifi && <div className="h-px bg-border/50" />}
           {hasWifi && (
-            <section className="space-y-2">
-              <p className="text-[10px] uppercase tracking-[0.22em] font-black text-foreground/60">
-                <Wifi className="inline size-3 -mt-0.5 mr-1" strokeWidth={2} />
-                Wi-Fi
-              </p>
-              <div className="rounded-[0.3rem] border border-border/60 bg-muted/30 px-4 py-3 space-y-2.5">
+            <section className="space-y-4">
+              <div className="flex items-center gap-2 px-1">
+                <Wifi className="size-4 text-muted-foreground" strokeWidth={2} />
+                <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                  Wi-Fi
+                </span>
+              </div>
+              <div className="divide-y divide-border/50 overflow-hidden rounded-2xl border border-border/50 bg-muted/25">
                 {wifiSsid && (
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center justify-between gap-3 p-4">
                     <div className="min-w-0">
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                      <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                         Rede
                       </p>
-                      <p className="text-[14px] font-semibold truncate">{wifiSsid}</p>
+                      <p className="truncate font-mono text-[16px] tracking-wide">{wifiSsid}</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => copy("ssid", wifiSsid)}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-foreground/8 hover:bg-foreground/12 px-3 py-1.5 text-[11.5px] font-semibold shrink-0"
+                      aria-label="Copiar rede"
+                      className="grid size-9 shrink-0 place-items-center rounded-lg bg-foreground/8 text-muted-foreground transition-colors hover:text-foreground"
                     >
                       {copied === "ssid" ? (
-                        <Check className="size-3.5" />
+                        <Check className="size-[18px]" />
                       ) : (
-                        <Copy className="size-3.5" />
+                        <Copy className="size-[18px]" />
                       )}
                     </button>
                   </div>
                 )}
                 {(wifiPasswordSet || wifiPassword) && (
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center justify-between gap-3 p-4">
                     <div className="min-w-0">
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                      <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                         Senha
                       </p>
                       {showWifiPass ? (
-                        <p className="text-[14px] font-mono font-semibold tracking-wider truncate">
+                        <p className="truncate font-mono text-[16px] font-bold tracking-[0.14em]">
                           {wifiPassword}
                         </p>
                       ) : (
-                        <p className="text-[14px] font-mono tracking-[0.3em] text-foreground/50">
+                        <p className="font-mono text-[16px] tracking-[0.3em] text-foreground/50">
                           ••••••••
                         </p>
                       )}
@@ -2615,19 +2748,20 @@ function LocWifiDialog({
                       <button
                         type="button"
                         onClick={() => copy("pass", wifiPassword!)}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-foreground/8 hover:bg-foreground/12 px-3 py-1.5 text-[11.5px] font-semibold shrink-0"
+                        aria-label="Copiar senha"
+                        className="grid size-9 shrink-0 place-items-center rounded-lg bg-foreground/8 text-muted-foreground transition-colors hover:text-foreground"
                       >
                         {copied === "pass" ? (
-                          <Check className="size-3.5" />
+                          <Check className="size-[18px]" />
                         ) : (
-                          <Copy className="size-3.5" />
+                          <Copy className="size-[18px]" />
                         )}
                       </button>
                     ) : (
                       <button
                         type="button"
                         onClick={onRequestUnlock}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3 py-1.5 text-[11.5px] font-semibold shrink-0 hover:opacity-90"
+                        className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-[12.5px] font-bold text-background hover:opacity-90"
                       >
                         <Eye className="size-3.5" strokeWidth={2.4} />
                         Ver
@@ -2643,6 +2777,7 @@ function LocWifiDialog({
     </Dialog>
   );
 }
+
 
 function residenciaIcon(title: string): React.ReactNode {
   const t = title.toLowerCase();
@@ -2800,6 +2935,10 @@ function HeroCompact({
   brandLogoUrl?: string | null;
 }) {
   const [idx, setIdx] = useState(0);
+  // Vitrine da landing (?demo=1): o guia é só um espelho, sem troca de tema.
+  const isDemoView = useRouterState({
+    select: (st) => String((st.location.search as { demo?: unknown }).demo ?? "") === "1",
+  });
   const touchStartX = useRef<number | null>(null);
   const total = photos.length;
   const hasMany = total > 1;
@@ -2848,6 +2987,7 @@ function HeroCompact({
               {city}
             </span>
           )}
+          {!isDemoView && (
           <button
             type="button"
             onClick={onToggleTheme}
@@ -2864,6 +3004,7 @@ function HeroCompact({
               <Moon className="size-3.5" strokeWidth={1.8} />
             )}
           </button>
+          )}
         </div>
       </header>
 
@@ -3025,6 +3166,8 @@ const SECTION_TONES = {
 function SectionCard({
   title,
   desc,
+  value,
+  hint,
   icon,
   variant = "compact",
   tone = "gold",
@@ -3035,7 +3178,10 @@ function SectionCard({
 }: {
   title: string;
   desc: string;
+  value?: string;
+  hint?: string;
   icon: React.ReactNode;
+
   variant?: "hero-wide" | "compact" | "horizontal-wide";
   tone?: keyof typeof SECTION_TONES;
   badge?: string;
@@ -3129,6 +3275,44 @@ function SectionCard({
       </div>
     );
   }
+
+  /* Variante compacta "texto em primeiro plano": ícone pequeno alinhado ao
+     rótulo em caixa alta, e a informação real ocupando a largura inteira do
+     cartão. Evita o título espremido/cortado ("Locali…") do layout antigo. */
+  if (variant === "compact" && value) {
+    return (
+      <div
+        className={`relative flex h-full min-h-[104px] flex-col gap-2.5 overflow-hidden rounded-[0.3rem] border p-4 transition-all duration-300 ease-out hover:-translate-y-0.5 active:scale-[0.99] ${surfaceBg} ${surfaceBorder} ${isDark ? `shadow-[0_16px_40px_-28px_rgba(0,0,0,0.9)] ${t.glow}` : "shadow-[0_14px_34px_-30px_rgba(31,24,74,0.32)]"}`}
+      >
+        {isDark && (
+          <span
+            className={`pointer-events-none absolute -top-10 -right-10 h-28 w-28 rounded-full opacity-24 blur-3xl ${t.iconBg}`}
+          />
+        )}
+        <div className="relative flex min-w-0 items-center gap-1.5">
+          <span className={`${iconColorCls} [&>svg]:size-[15px] shrink-0`}>{icon}</span>
+          <span
+            className={`min-w-0 truncate text-[10px] font-black uppercase tracking-[0.14em] ${isDark ? "text-white/48" : "text-slate-950/52"}`}
+          >
+            {title}
+          </span>
+        </div>
+        <div className="relative min-w-0">
+          <p
+            className={`truncate text-[min(3.4vw,12.5px)] font-bold leading-[1.3] ${titleColor}`}
+          >
+            {value}
+          </p>
+          {hint && (
+            <p className={`mt-1 text-[11px] leading-[1.32] line-clamp-2 ${descColor}`}>{hint}</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+
+
 
   const isHero = variant === "hero-wide";
   const pad = isHero ? "p-5 md:p-6" : "p-4";
@@ -3972,6 +4156,7 @@ function StepList({
   dense?: boolean;
   compact?: boolean;
 }) {
+  const tagCtx = useContext(GuideTagCtx);
   const steps = text
     .split(/\r?\n/)
     .map((s) => s.trim())
@@ -3979,8 +4164,8 @@ function StepList({
     .map((s) => s.replace(/^\s*(?:\d+[.)\-º°]\s*|[-•·*]\s*)/, "").trim())
     .filter((s) => s.length > 0);
   if (steps.length === 0) return null;
-  const badge = compact ? "size-6 text-[11px]" : "size-9 text-[13px]";
-  const lineLeft = compact ? "left-[12px]" : "left-[18px]";
+  const badge = compact ? "size-7 text-[11px]" : "size-9 text-[13px]";
+  const lineLeft = compact ? "left-[14px]" : "left-[18px]";
   const gap = compact ? "gap-3" : "gap-4";
   const labelCls = compact
     ? "text-[9px] tracking-[0.2em] mb-0.5"
@@ -3992,19 +4177,25 @@ function StepList({
     >
       <span
         aria-hidden
-        className={`pointer-events-none absolute ${lineLeft} top-3 bottom-3 w-px bg-gradient-to-b from-accent/50 via-accent/25 to-transparent`}
+        className={`pointer-events-none absolute ${lineLeft} ${compact ? "top-4 bottom-4" : "top-5 bottom-5"} w-px bg-accent/25`}
       />
       {steps.map((step, i) => (
         <li key={i} className={`relative flex items-start ${gap}`}>
           <span
             aria-hidden
-            className={`relative z-10 mt-0.5 shrink-0 grid place-items-center ${badge} rounded-full bg-accent/15 text-accent/85 font-semibold tabular-nums leading-none shadow-[0_4px_14px_-8px_oklch(from_var(--accent)_l_c_h/0.3)] ring-4 ring-background`}
+            className={`relative z-10 mt-0.5 shrink-0 grid place-items-center ${badge} rounded-full border border-accent/35 bg-card text-accent font-semibold tabular-nums leading-none shadow-sm`}
           >
             {i + 1}
           </span>
           <div className="flex-1 min-w-0 pt-1">
             <p className={`${labelCls} font-semibold uppercase text-accent/80`}>Passo {i + 1}</p>
-            <p className={`${textCls} text-foreground/90`}>{step}</p>
+            <p className={`${textCls} text-foreground/90`}>
+              <InlineTagText
+                text={step}
+                {...(tagCtx.onNavigate ? { onNavigate: tagCtx.onNavigate } : {})}
+                {...(tagCtx.info ? { info: tagCtx.info } : {})}
+              />
+            </p>
           </div>
         </li>
       ))}
@@ -4167,14 +4358,14 @@ function SubItem({
     <AccordionItem
       value={id}
       data-tour={dataTour}
-      className="border border-border/70 rounded-[0.3rem] overflow-hidden bg-card/60 backdrop-blur-sm data-[state=open]:border-accent/40 data-[state=open]:shadow-[0_8px_28px_-16px_oklch(from_var(--accent)_l_c_h/0.45)] transition-all"
+      className="border border-border/25 rounded-[0.3rem] overflow-hidden bg-card/60 backdrop-blur-sm data-[state=open]:border-transparent data-[state=open]:shadow-none transition-all"
     >
-      <AccordionTrigger className="px-5 py-4 md:py-5 hover:no-underline">
+      <AccordionTrigger className="min-w-0 px-5 py-4 md:py-5 hover:no-underline items-center [&>svg]:self-center">
         <div className="flex items-center gap-4 flex-1 min-w-0">
           <span className="grid size-11 shrink-0 place-items-center rounded-[0.3rem] bg-accent/10 text-accent/75 ring-1 ring-accent/15">
             {icon}
           </span>
-          <div className="flex-1 min-w-0 text-left">
+          <div className="flex min-h-11 flex-1 min-w-0 flex-col justify-center text-left">
             <p className="text-[15.5px] leading-tight font-semibold text-foreground tracking-tight">
               {label}
             </p>
@@ -4792,61 +4983,52 @@ function WifiStrip({
 
   return (
     <div
-      className={`wifi-shimmer relative overflow-hidden rounded-[0.3rem] border ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/25 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}
+      className={`wifi-shimmer relative overflow-hidden rounded-[0.8rem] border px-3.5 py-3 ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/15 bg-[linear-gradient(135deg,oklch(0.20_0.04_55/0.9)_0%,oklch(0.15_0.03_50/0.9)_60%,oklch(0.12_0.02_45/0.92)_100%)]"}`}
     >
-      <div
-        className={`pointer-events-none absolute inset-0 ${isLight ? "opacity-[0.04]" : "opacity-[0.07]"} [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]`}
-      />
-      <div
-        className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-amber-400/15"} blur-3xl`}
-      />
-      <div className="relative flex items-center gap-3 px-3 py-3">
-        <span
-          className={`relative grid size-10 shrink-0 place-items-center rounded-[0.3rem] ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-amber-400/10 text-amber-50 ring-amber-200/25"}`}
-        >
+      <div className="relative flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-2.5">
           <span
-            className={`wifi-pulse pointer-events-none absolute -inset-1 rounded-[0.3rem] ${isLight ? "bg-accent/15" : "bg-amber-400/12"} blur-md -z-10`}
-          />
-          <Wifi className="relative size-[18px]" strokeWidth={2} />
-        </span>
-        <div className="flex-1 min-w-0">
-          <p className="text-[12px] text-foreground/85 truncate font-medium">
-            {ssid || "Rede da casa"}
-          </p>
-          <p
-            className={`font-mono text-[13px] font-semibold tracking-[0.22em] truncate ${showing ? "text-foreground" : "text-foreground/60"}`}
+            className={`grid size-8 shrink-0 place-items-center rounded-lg ${isLight ? "bg-accent/10 text-accent/70" : "bg-amber-400/8 text-amber-300/75"}`}
           >
-            {hasPwd ? (showing ? password : masked) : "—"}
-          </p>
+            <Wifi className="size-[15px]" strokeWidth={1.9} />
+          </span>
+          <div className="min-w-0">
+            <p
+              className={`truncate text-[9.5px] font-semibold uppercase tracking-[0.14em] ${isLight ? "text-accent/60" : "text-amber-300/50"}`}
+            >
+              {ssid || "Rede da casa"}
+            </p>
+            <p
+              className={`mt-0.5 truncate font-mono text-[14px] font-semibold tracking-[0.1em] ${showing ? "text-foreground" : "text-foreground/55"}`}
+            >
+              {hasPwd ? (showing ? password : masked) : "—"}
+            </p>
+          </div>
         </div>
-        {hasPwd &&
-          (!showing ? (
-            <button
-              onClick={handleEyeClick}
-              aria-label="Ver senha do Wi-Fi"
-              className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3 py-1.5 text-[11px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all"
-            >
-              <Eye className="size-3.5" strokeWidth={2.4} />
-              <span>Ver</span>
-            </button>
-          ) : (
-            <button
-              onClick={copyPwd}
-              aria-label="Copiar senha do Wi-Fi"
-              className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3 py-1.5 text-[11px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all"
-            >
-              {copied ? (
-                <Check className="size-3.5" strokeWidth={2.4} />
+        {hasPwd && (
+          <button
+            onClick={showing ? copyPwd : handleEyeClick}
+            aria-label={showing ? "Copiar senha do Wi-Fi" : "Ver senha do Wi-Fi"}
+            className={`grid size-5 shrink-0 place-items-center rounded-md transition-colors ${isLight ? "text-foreground/60 hover:text-foreground" : "text-slate-100/85 hover:text-white"}`}
+          >
+            {showing ? (
+              copied ? (
+                <Check className="size-[17px]" strokeWidth={2} />
               ) : (
-                <Copy className="size-3.5" strokeWidth={2.4} />
-              )}
-              <span>{copied ? "Copiado" : "Copiar"}</span>
-            </button>
-          ))}
+                <Copy className="size-[17px]" strokeWidth={2} />
+              )
+            ) : (
+              <Eye className="size-[17px]" strokeWidth={2} />
+            )}
+          </button>
+        )}
+
       </div>
     </div>
   );
+
 }
+
 
 function AccessCodesStrip({
   gateCode,
@@ -4940,94 +5122,106 @@ function AccessCodesStrip({
   const hint =
     hasGate && hasLock ? `${gLabel} e ${lLabel.toLowerCase()}` : hasGate ? gLabel : lLabel;
 
+  const labelCls = `min-w-0 flex-1 truncate text-[9.5px] font-semibold uppercase tracking-[0.14em] ${isLight ? "text-accent/60" : "text-amber-300/50"}`;
+  const codeCls = "mt-0.5 block truncate font-mono text-[14px] font-semibold tracking-[0.14em]";
+  const helpBtn = hasInstructions ? (
+    <button
+      type="button"
+      onClick={() => setInstrOpen(true)}
+      aria-label="Ver instruções de acesso"
+      className={`grid size-5 shrink-0 place-items-center rounded-full transition-colors ${isLight ? "text-accent/60 hover:text-accent" : "text-amber-300/60 hover:text-amber-200"}`}
+    >
+      <HelpCircle className="size-[15px]" strokeWidth={1.9} />
+    </button>
+  ) : null;
+
   return (
     <div
-      className={`wifi-shimmer relative overflow-hidden rounded-[0.3rem] border ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/25 bg-[linear-gradient(135deg,oklch(0.22_0.05_55/0.95)_0%,oklch(0.16_0.04_50/0.92)_60%,oklch(0.12_0.03_45/0.95)_100%)] shadow-[0_14px_40px_-18px_oklch(from_var(--accent)_l_c_h/0.55)]"}`}
+      className={`wifi-shimmer relative overflow-hidden rounded-[0.8rem] border px-3.5 py-3 ${isLight ? "border-border bg-card shadow-[0_4px_18px_-8px_rgba(0,0,0,0.10)]" : "border-amber-500/15 bg-[linear-gradient(135deg,oklch(0.20_0.04_55/0.9)_0%,oklch(0.15_0.03_50/0.9)_60%,oklch(0.12_0.02_45/0.92)_100%)]"}`}
     >
-      <div
-        className={`pointer-events-none absolute inset-0 ${isLight ? "opacity-[0.04]" : "opacity-[0.07]"} [background-image:radial-gradient(oklch(var(--accent))_1px,transparent_1px)] [background-size:14px_14px]`}
-      />
-      <div
-        className={`pointer-events-none absolute -top-12 -right-12 size-40 rounded-full ${isLight ? "bg-accent/15" : "bg-amber-400/15"} blur-3xl`}
-      />
-      <div className="relative flex items-center gap-3 px-3 py-3">
-        <span
-          className={`relative grid size-10 shrink-0 place-items-center rounded-[0.3rem] ring-1 ${isLight ? "bg-accent/15 text-accent/80 ring-accent/20" : "bg-amber-400/10 text-amber-50 ring-amber-200/25"}`}
-        >
-          <KeyRound className="relative size-[18px]" strokeWidth={2} />
-        </span>
+      <div className="relative flex items-start justify-between gap-2.5">
+        <div className="flex min-w-0 flex-1 items-start gap-2.5">
+          <span
+            className={`grid size-8 shrink-0 place-items-center rounded-lg ${isLight ? "bg-accent/10 text-accent/70" : "bg-amber-400/8 text-amber-300/75"}`}
+          >
+            <KeyRound className="size-[15px]" strokeWidth={1.9} />
+          </span>
 
-        <div className="flex-1 min-w-0">
-          {showing ? (
-            <div className="space-y-0.5">
-              {gateCode && (
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] text-foreground/70 font-medium shrink-0 truncate">
-                    {gLabel}
-                  </span>
-                  <span className="font-mono text-[13px] font-semibold tracking-[0.22em] text-foreground truncate">
-                    {gateCode}
-                  </span>
+          <div className="min-w-0 flex-1">
+            {hasGate && (
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className={labelCls}>{gLabel}</span>
+                  {!showing && helpBtn}
                 </div>
-              )}
-              {lockCode && (
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] text-foreground/70 font-medium shrink-0 truncate">
-                    {lLabel}
-                  </span>
-                  <span className="font-mono text-[13px] font-semibold tracking-[0.22em] text-foreground truncate">
-                    {lockCode}
-                  </span>
+                <span
+                  className={`${codeCls} ${showing && gateCode ? "text-foreground" : "text-foreground/55"}`}
+                >
+                  {showing && gateCode ? gateCode : "•".repeat(6)}
+                </span>
+              </div>
+            )}
+            {hasGate && hasLock && <div className="mt-2 border-t border-foreground/5 pt-2" />}
+            {hasLock && (
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className={labelCls}>{lLabel}</span>
+                  {!showing && !hasGate && helpBtn}
                 </div>
-              )}
-            </div>
-          ) : (
-            <>
-              <p className="text-[12px] text-foreground/85 truncate font-medium">{hint}</p>
-              <p className="font-mono text-[13px] font-semibold tracking-[0.22em] text-foreground/60 truncate">
-                {"•".repeat(10)}
-              </p>
-            </>
-          )}
+                <span
+                  className={`${codeCls} ${showing && lockCode ? "text-foreground" : "text-foreground/55"}`}
+                >
+                  {showing && lockCode ? lockCode : "•".repeat(6)}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="shrink-0 flex flex-col items-end gap-1">
-          {!showing && (
-            <button
-              onClick={handleEyeClick}
-              aria-label="Ver senhas de acesso"
-              className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-3 py-1.5 text-[11px] font-semibold tracking-wide hover:opacity-90 active:scale-95 transition-all"
-            >
-              <Eye className="size-3.5" strokeWidth={2.4} />
-              <span>Ver</span>
-            </button>
-          )}
-          {hasInstructions && (
+        {showing ? (
+          hasInstructions ? (
             <button
               type="button"
               onClick={() => setInstrOpen(true)}
               aria-label="Ver instruções de acesso"
-              className="inline-flex items-center gap-1 text-[10.5px] font-medium text-foreground/65 hover:text-foreground transition-colors"
+              className={`grid size-5 shrink-0 place-items-center rounded-md transition-colors ${isLight ? "text-accent/60 hover:text-accent" : "text-amber-300/60 hover:text-amber-200"}`}
+
             >
-              <HelpCircle className="size-3" strokeWidth={2} />
-              <span>Instruções</span>
+              <HelpCircle className="size-[17px]" strokeWidth={1.9} />
             </button>
-          )}
-        </div>
+          ) : null
+        ) : (
+          <button
+            onClick={handleEyeClick}
+            aria-label="Ver senhas de acesso"
+            className={`grid size-5 shrink-0 place-items-center rounded-md transition-colors ${isLight ? "text-foreground/60 hover:text-foreground" : "text-slate-100/85 hover:text-white"}`}
+          >
+            <Eye className="size-[17px]" strokeWidth={2} />
+          </button>
+        )}
+
       </div>
+
+
       {hasInstructions && (
         <Dialog open={instrOpen} onOpenChange={setInstrOpen}>
           <DialogContent className="max-w-[380px] p-0 overflow-hidden rounded-[0.3rem]">
-            <div className="px-5 pt-5 pb-3 text-center border-b border-border/40">
-              <div className="mx-auto mb-2.5 grid place-items-center size-11 rounded-full bg-accent/12 ring-1 ring-accent/25 text-accent">
-                <KeyRound className="size-[18px]" strokeWidth={1.75} />
+            <div className="border-b border-border/25 px-5 pb-4 pt-5 pr-14">
+              <div className="flex items-center gap-3">
+                <div className="grid size-10 shrink-0 place-items-center rounded-[0.3rem] bg-accent/12 text-accent">
+                  <KeyRound className="size-[18px]" strokeWidth={1.75} />
+                </div>
+                <div className="min-w-0 text-left">
+                  <DialogTitle className="font-display text-[17px] font-bold leading-[1.5] tracking-normal">
+                    Como acessar a residência
+                  </DialogTitle>
+                  <p className="text-[11.5px] text-muted-foreground leading-[1.5]">
+                    {hasGateBlock && hasLockBlock
+                      ? `Orientações para ${gLabel.toLowerCase()} e ${lLabel.toLowerCase()}.`
+                      : `Orientações para ${(hasGateBlock ? gLabel : lLabel).toLowerCase()}.`}
+                  </p>
+                </div>
               </div>
-              <DialogTitle className="font-display text-[18px] tracking-tight">
-                Instruções de acesso
-              </DialogTitle>
-              <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">
-                Passo a passo para utilizar cada acesso.
-              </p>
             </div>
             <div className="px-5 py-4 max-h-[60vh] overflow-y-auto sg-elegant-scroll space-y-5">
               {hasGateBlock && (
@@ -5256,10 +5450,10 @@ function AccessInstructionsSection({
   return (
     <section>
       <div className="flex items-center gap-2 mb-2.5">
-        <span className="grid place-items-center size-7 rounded-full bg-accent/12 ring-1 ring-accent/20 text-accent">
+        <span className="grid place-items-center size-8 rounded-[0.3rem] bg-accent/12 text-accent">
           <KeyRound className="size-3.5" strokeWidth={2} />
         </span>
-        <h3 className="text-[13.5px] font-semibold tracking-tight">{label}</h3>
+        <h3 className="min-w-0 text-[13.5px] font-semibold leading-[1.5] tracking-normal">{label}</h3>
       </div>
       {instr && <StepList text={instr} dense compact />}
       {videoUrl && (

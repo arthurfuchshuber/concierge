@@ -35,6 +35,11 @@ export const Route = createFileRoute("/api/public/guide-transcribe")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        // Transcrição é paga e a rota é pública (o slug está no sitemap): sem
+        // limite, virava um conversor de áudio de graça (16/09/2026).
+        const { tooManyRequests, rateLimitedResponse } =
+          await import("@/lib/public-rate-limit.server");
+        if (tooManyRequests(request, "guide-transcribe", 10, 60_000)) return rateLimitedResponse();
         let body: z.infer<typeof Body>;
         try {
           body = Body.parse(await request.json());

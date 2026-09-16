@@ -3,9 +3,9 @@ import { z } from "zod";
 import { AI_MODELS } from "@/lib/ai/models";
 
 const Input = z.object({
-  cityKey: z.string().min(1),
-  cityLabel: z.string().min(1),
-  country: z.string().optional(),
+  cityKey: z.string().min(1).max(80),
+  cityLabel: z.string().min(1).max(80),
+  country: z.string().max(8).optional(),
   lang: z.enum(["pt", "en", "es", "fr"]).default("pt"),
 });
 
@@ -552,10 +552,33 @@ export async function generateAndCacheCityNews(input: {
 export const getCityNews = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => Input.parse(i))
   .handler(async ({ data }): Promise<CityNews | null> => {
+    /* SÓ CIDADE REAL, COM O NOME QUE ESTÁ NO BANCO (16/09/2026).
+     *
+     * Esta função é pública e gera conteúdo com IA + busca paga quando o dia
+     * ainda não tem cache. Antes, `cityLabel` vinha do navegador e ia direto
+     * para o prompt — qualquer um podia gerar notícias para cidades
+     * inventadas (custo) ou "envenenar" o feed do dia de uma cidade real com
+     * um nome manipulado, que ficava em cache para todos os hóspedes dela.
+     * Agora a cidade precisa ter guia publicado, e o nome usado é o do guia. */
+    const { allowPublicRate, clientIpFrom } = await import("@/lib/public-rate-limit.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
+    if (!allowPublicRate(`city-news:${clientIpFrom(getRequest())}`, 30, 60_000)) return null;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: props } = await supabaseAdmin
+      .from("properties")
+      .select("city, country")
+      .eq("published", true)
+      .not("city", "is", null)
+      .limit(1000);
+    const { cityKey } = await import("@/lib/city-key");
+    const real = ((props ?? []) as Array<{ city: string | null; country: string | null }>).find(
+      (p) => !!p.city && cityKey(p.city) === data.cityKey,
+    );
+    if (!real?.city) return null;
     const r = await generateAndCacheCityNews({
       cityKey: data.cityKey,
-      cityLabel: data.cityLabel,
-      country: data.country ?? null,
+      cityLabel: real.city,
+      country: real.country ?? data.country ?? null,
       lang: data.lang,
     });
     return r.items ? { items: r.items } : null;

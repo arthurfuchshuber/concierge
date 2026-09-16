@@ -1,1 +1,0 @@
-ALTER TABLE public.guest_arrival_status ADD COLUMN IF NOT EXISTS muted_until timestamptz;

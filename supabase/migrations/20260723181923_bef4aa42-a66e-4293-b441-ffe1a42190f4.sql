@@ -1,1 +1,0 @@
-ALTER TABLE public.guide_access_logs ADD COLUMN IF NOT EXISTS checkout_date DATE;

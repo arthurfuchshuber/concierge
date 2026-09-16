@@ -264,7 +264,7 @@ export async function queryEvents(
   if (filters.from) q = q.gte("created_at", filters.from);
   if (filters.to) q = q.lte("created_at", filters.to);
   if (filters.search) {
-    const s = filters.search.replace(/[%,]/g, " ");
+    const s = filters.search.replace(/[%,()*\\]/g, " ");
     q = q.or(`description.ilike.%${s}%,actor_name.ilike.%${s}%,entity_id.ilike.%${s}%,reason.ilike.%${s}%`);
   }
 

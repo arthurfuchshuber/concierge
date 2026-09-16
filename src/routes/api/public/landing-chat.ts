@@ -106,7 +106,10 @@ export const Route = createFileRoute("/api/public/landing-chat")({
           return new Response(JSON.stringify({ error: "Entrada inválida." }), { status: 400, headers: { "Content-Type": "application/json" } });
         }
 
-        const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anon";
+        // `cf-connecting-ip` primeiro: o 1º item do `x-forwarded-for` vem do
+        // próprio cliente e deixava trocar de "IP" a cada chamada (16/09/2026).
+        const { clientIpFrom } = await import("@/lib/public-rate-limit.server");
+        const clientIp = clientIpFrom(request);
         if (!checkRateLimit(clientIp)) {
           return new Response(JSON.stringify({ error: "Muitas mensagens em pouco tempo. Aguarde um instante." }), { status: 429, headers: { "Content-Type": "application/json" } });
         }
@@ -117,7 +120,15 @@ export const Route = createFileRoute("/api/public/landing-chat")({
         }
 
         // Descarta qualquer system que o cliente tenha mandado — nosso prompt é fixo.
-        const userMessages = body.messages.filter((m) => m.role !== "system");
+        // E limita o histórico total: a rota é pública e cada caractere é custo.
+        const userMessages = body.messages.filter((m) => m.role !== "system").slice(-12);
+        const totalChars = userMessages.reduce((n, m) => n + m.content.length, 0);
+        if (totalChars > 12_000) {
+          return new Response(
+            JSON.stringify({ error: "Conversa muito longa. Recarregue a página para recomeçar." }),
+            { status: 413, headers: { "Content-Type": "application/json" } },
+          );
+        }
 
         const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",

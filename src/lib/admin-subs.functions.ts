@@ -816,7 +816,12 @@ export const adminListAuditLogs = createServerFn({ method: "POST" })
       .select("id, user_id, user_email, action, entity_type, entity_id, metadata, created_at")
       .order("created_at", { ascending: false })
       .limit(data.limit ?? 500);
-    const s = data.search?.trim();
+    // Vírgula, parênteses e curingas mudariam a estrutura do filtro `or` do
+    // PostgREST — ficam fora da busca (16/09/2026).
+    const s = data.search
+      ?.trim()
+      .replace(/[%,()*\\]/g, " ")
+      .trim();
     if (s) {
       q = q.or(`user_email.ilike.%${s}%,action.ilike.%${s}%,entity_type.ilike.%${s}%,entity_id.ilike.%${s}%`);
     }

@@ -1,1 +1,0 @@
-ALTER TABLE public.property_recommendations ADD COLUMN IF NOT EXISTS user_ratings_total integer;
