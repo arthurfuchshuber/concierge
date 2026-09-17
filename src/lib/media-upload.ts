@@ -175,9 +175,12 @@ function tentarUmaVez(params: {
       resolve(r);
     };
 
-    // Cão de guarda: mede silêncio, não duração.
+    // Cão de guarda: mede silêncio, não duração. Enquanto o arquivo sobe, o
+    // silêncio é medido pelo progresso do envio; terminado o último byte,
+    // damos ao servidor o prazo longo de gravação (ver PROCESSAMENTO_MS).
     const vigia = setInterval(() => {
-      if (Date.now() - ultimoByte > SILENCIO_MS) {
+      const limite = corpoEnviado ? PROCESSAMENTO_MS : SILENCIO_MS;
+      if (Date.now() - ultimoByte > limite) {
         try {
           xhr.abort();
         } catch {
