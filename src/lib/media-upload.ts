@@ -38,6 +38,21 @@ const SUPABASE_KEY = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | 
 
 /** Sem byte novo por este tempo = conexão morta. */
 const SILENCIO_MS = 45_000;
+/**
+ * DEPOIS DO ÚLTIMO BYTE (17/09/2026) — por que existe um segundo prazo.
+ *
+ * O cão de guarda media silêncio pelo progresso de ENVIO. Só que, terminado o
+ * último byte de um vídeo de 48 MB, o servidor ainda leva minutos gravando o
+ * arquivo — e nesse intervalo não existe "byte novo" nenhum. Passados 45
+ * segundos, o app cortava uma conexão que estava perfeitamente viva, dizia
+ * "a conexão ficou muito lenta" e reenviava o MESMO vídeo do zero. Foi isso
+ * que a equipe de limpeza viu: o botão girando em "Enviando 1 de 1" enquanto
+ * o arquivo já estava guardado (e ainda duplicava no armazenamento).
+ *
+ * Agora, assim que o corpo termina de sair, o relógio muda: esperamos a
+ * resposta do servidor por até 5 minutos sem cortar nada.
+ */
+const PROCESSAMENTO_MS = 300_000;
 /** Tentativas por arquivo, contando a primeira. */
 const TENTATIVAS = 3;
 /** Espera entre tentativas. */
@@ -149,6 +164,8 @@ function tentarUmaVez(params: {
     const xhr = new XMLHttpRequest();
     let ultimoByte = Date.now();
     let encerrado = false;
+    /** Corpo já saiu inteiro: a partir daqui esperamos o servidor gravar. */
+    let corpoEnviado = false;
 
     const finalizar = (r: UmaTentativa) => {
       if (encerrado) return;
@@ -158,9 +175,12 @@ function tentarUmaVez(params: {
       resolve(r);
     };
 
-    // Cão de guarda: mede silêncio, não duração.
+    // Cão de guarda: mede silêncio, não duração. Enquanto o arquivo sobe, o
+    // silêncio é medido pelo progresso do envio; terminado o último byte,
+    // damos ao servidor o prazo longo de gravação (ver PROCESSAMENTO_MS).
     const vigia = setInterval(() => {
-      if (Date.now() - ultimoByte > SILENCIO_MS) {
+      const limite = corpoEnviado ? PROCESSAMENTO_MS : SILENCIO_MS;
+      if (Date.now() - ultimoByte > limite) {
         try {
           xhr.abort();
         } catch {
@@ -185,6 +205,17 @@ function tentarUmaVez(params: {
       if (e.lengthComputable && e.total > 0) {
         params.onProgress?.(Math.min(99, Math.round((e.loaded / e.total) * 100)));
       }
+    };
+    // Último byte do corpo enviado: troca o relógio e mostra 100% do envio —
+    // o que falta agora é só a resposta do servidor.
+    xhr.upload.onloadend = () => {
+      corpoEnviado = true;
+      ultimoByte = Date.now();
+      params.onProgress?.(100);
+    };
+    // Qualquer sinal de vida do servidor também reinicia o relógio.
+    xhr.onreadystatechange = () => {
+      ultimoByte = Date.now();
     };
     xhr.onerror = () => finalizar({ ok: false, motivo: "rede", repetivel: true });
     xhr.ontimeout = () => finalizar({ ok: false, motivo: "tempo", repetivel: true });
