@@ -38,6 +38,21 @@ const SUPABASE_KEY = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | 
 
 /** Sem byte novo por este tempo = conexão morta. */
 const SILENCIO_MS = 45_000;
+/**
+ * DEPOIS DO ÚLTIMO BYTE (17/09/2026) — por que existe um segundo prazo.
+ *
+ * O cão de guarda media silêncio pelo progresso de ENVIO. Só que, terminado o
+ * último byte de um vídeo de 48 MB, o servidor ainda leva minutos gravando o
+ * arquivo — e nesse intervalo não existe "byte novo" nenhum. Passados 45
+ * segundos, o app cortava uma conexão que estava perfeitamente viva, dizia
+ * "a conexão ficou muito lenta" e reenviava o MESMO vídeo do zero. Foi isso
+ * que a equipe de limpeza viu: o botão girando em "Enviando 1 de 1" enquanto
+ * o arquivo já estava guardado (e ainda duplicava no armazenamento).
+ *
+ * Agora, assim que o corpo termina de sair, o relógio muda: esperamos a
+ * resposta do servidor por até 5 minutos sem cortar nada.
+ */
+const PROCESSAMENTO_MS = 300_000;
 /** Tentativas por arquivo, contando a primeira. */
 const TENTATIVAS = 3;
 /** Espera entre tentativas. */
