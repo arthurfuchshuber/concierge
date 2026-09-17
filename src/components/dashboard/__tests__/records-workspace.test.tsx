@@ -11,6 +11,9 @@ vi.mock("@/lib/reservation-records.functions", () => ({
   SITUATION_MEDIA_MAX: 10,
   listAccountRecords: "listAccountRecords",
   deleteReservationRecord: "del",
+  restoreReservationRecord: "restore",
+  purgeRecordFile: "purge",
+  undoRecordSituation: "undoSituation",
   updateRecordText: "update",
   createRecordSituation: "create",
   transcribeRecordAudio: "transcribe",
@@ -18,6 +21,7 @@ vi.mock("@/lib/reservation-records.functions", () => ({
 vi.mock("@/lib/tasks.functions", () => ({
   listTaskLinkOptions: "options",
   setTaskStatus: "setTaskStatus",
+  restoreTask: "restoreTask",
 }));
 vi.mock("@tanstack/react-start", () => ({
   createServerFn: () => ({
@@ -36,6 +40,8 @@ vi.mock("@/components/dashboard/OperationWorkspace", () => ({
   OperationShell: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: {} }));
+// O canal ao vivo (17/09/2026) não faz parte do que este teste verifica.
+vi.mock("@/hooks/useRealtimeInvalidate", () => ({ useRealtimeInvalidate: () => {} }));
 
 import { RecordsWorkspace } from "@/components/dashboard/RecordsWorkspace";
 

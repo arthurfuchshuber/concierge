@@ -98,7 +98,7 @@ import {
   AudioAttachButton,
   type PendingAttachment,
 } from "@/components/dashboard/TaskAttachments";
-import { attachTaskRecord } from "@/lib/reservation-records.functions";
+import { attachTaskRecord, deleteReservationRecord } from "@/lib/reservation-records.functions";
 import { format, parse, isValid, differenceInCalendarDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
@@ -167,6 +167,11 @@ import {
   listTaskLinkOptions,
   listTasks,
   createTask,
+  deleteTasks,
+  restoreTask,
+  restoreTaskCompletion,
+  type TaskSnapshot,
+  type CompletionSnapshot,
   setTaskStatus,
   skipTaskOccurrence,
   toggleCleaningCompletion,
@@ -1027,7 +1032,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // seguidas (mutação + eventos em tempo real) — o que deixava o app lento no celular.
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshDashboard = useCallback(
-    (delay = 600) => {
+    (delay = 250) => {
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
       refreshTimer.current = setTimeout(() => {
         qc.invalidateQueries({
@@ -1111,9 +1116,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
   const noShow = useMutation({
     mutationFn: (v: { logId?: string; reservationId?: string }) => markNoShowFn({ data: v }),
+    // A mensagem e o "Desfazer" saem de quem chamou (notifyAction).
     onSuccess: () => {
       refreshDashboard();
-      toast.success('Marcado como "Não Compareceu".');
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao marcar não compareceu."),
     onSettled: () => setBusyRowId(null),
@@ -1122,9 +1127,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const updateDates = useMutation({
     mutationFn: (v: { logId: string; checkinDate?: string; checkoutDate?: string | null }) =>
       updateDatesFn({ data: v }),
+    // A mensagem e o "Desfazer" saem de quem chamou (notifyAction).
     onSuccess: () => {
       refreshDashboard();
-      toast.success("Datas atualizadas.");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar datas."),
     onSettled: () => setBusyRowId(null),
@@ -1721,6 +1726,54 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const invalidateTasks = useCallback(() => {
     qc.invalidateQueries({ queryKey: ["dash-tasks", activeOwnerId ?? "self"] });
   }, [qc, activeOwnerId]);
+
+  /*
+   * DESFAZER NAS PENDÊNCIAS (pedido explícito, 17/09/2026: "mostrar o botão
+   * 'Desfazer' sobre QUALQUER AÇÃO realizada, por 5 segundos").
+   *
+   * O servidor devolve a foto de ANTES de cada mudança; desfazer é gravar a
+   * foto de volta. Na conclusão com comprovação, os anexos que subiram junto
+   * também saem.
+   */
+  const deleteTasksFn = useServerFn(deleteTasks);
+  const restoreTaskFn = useServerFn(restoreTask);
+  const restoreCompletionFn = useServerFn(restoreTaskCompletion);
+  const deleteRecordFn = useServerFn(deleteReservationRecord);
+  const undoFailed = useCallback(
+    (e: unknown) => toast.error(e instanceof Error ? e.message : "Não foi possível desfazer."),
+    [],
+  );
+  const notifyTaskUndo = useCallback(
+    (message: string, undo: () => Promise<unknown>, attachmentIds: string[] = []) => {
+      notifyAction(message, () => {
+        void Promise.all([
+          undo(),
+          ...attachmentIds.map((id) => deleteRecordFn({ data: { id } })),
+        ])
+          .catch(undoFailed)
+          .finally(invalidateTasks);
+      });
+    },
+    [deleteRecordFn, invalidateTasks, undoFailed],
+  );
+  const restoreTaskUndo = useCallback(
+    (before: TaskSnapshot) => () => restoreTaskFn({ data: { before } }),
+    [restoreTaskFn],
+  );
+  /** Resposta instantânea: a pendência muda de estado na tela no clique. */
+  const patchTaskStatus = useCallback(
+    (taskId: string, status: "pending" | "done" | "canceled") => {
+      void qc.cancelQueries({ queryKey: ["dash-tasks"] });
+      qc.setQueriesData<{ tasks: TaskRow[] } & Record<string, unknown>>(
+        { queryKey: ["dash-tasks"] },
+        (old) =>
+          old?.tasks
+            ? { ...old, tasks: old.tasks.map((t) => (t.id === taskId ? { ...t, status } : t)) }
+            : old,
+      );
+    },
+    [qc],
+  );
   const createTaskMutation = useMutation({
     mutationFn: (v: {
       title: string;
@@ -1734,9 +1787,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       amountSpentCents?: number | null;
       recurrenceDays?: number | null;
     }) => createTaskFn({ data: { ownerId: activeOwnerId, ...v } }),
-    onSuccess: () => {
+    onSuccess: (res) => {
       invalidateTasks();
-      toast.success("Pendência criada.");
+      notifyTaskUndo("Pendência criada.", () =>
+        deleteTasksFn({ data: { taskIds: [res.id] } }),
+      );
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao criar pendência."),
   });
@@ -1749,16 +1804,40 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       resolvedByProviderId?: string | null;
       resolutionNote?: string | null;
     }) => setTaskStatusFn({ data: v }),
+    onMutate: (v) => patchTaskStatus(v.taskId, v.status),
     onSuccess: invalidateTasks,
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar pendência."),
+    onError: (e) => {
+      invalidateTasks();
+      toast.error(e instanceof Error ? e.message : "Falha ao atualizar pendência.");
+    },
   });
+  /** Mudança de status simples (sem tela de conclusão), com "Desfazer". */
+  function setTaskStatusWithUndo(taskId: string, status: "pending" | "done" | "canceled") {
+    setTaskStatusMutation.mutate(
+      { taskId, status },
+      {
+        onSuccess: (res) =>
+          notifyTaskUndo(
+            status === "pending"
+              ? "Pendência reaberta."
+              : status === "canceled"
+                ? "Pendência arquivada."
+                : "Pendência concluída.",
+            restoreTaskUndo(res.before),
+          ),
+      },
+    );
+  }
   // "Excluir só esta ocorrência" de uma pendência recorrente — ver
   // skipTaskOccurrence em tasks.functions.ts.
   const skipTaskOccurrenceMutation = useMutation({
     mutationFn: (v: { taskId: string }) => skipTaskOccurrenceFn({ data: v }),
     onSuccess: (res) => {
       invalidateTasks();
-      toast.success(`Ocorrência pulada. Próximo prazo: ${fmtDateBR(res.dueDate)}.`);
+      notifyTaskUndo(
+        `Ocorrência pulada. Próximo prazo: ${fmtDateBR(res.dueDate)}.`,
+        restoreTaskUndo(res.before),
+      );
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao pular a ocorrência."),
   });
@@ -1774,6 +1853,21 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     onSuccess: invalidateTasks,
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar checklist."),
   });
+  /** O inverso de marcar/desmarcar a ocorrência: desmarcar ou recolocar a
+   * marca exatamente como era. */
+  function toggleUndo(
+    res: { checked: boolean; removed: CompletionSnapshot | null },
+    v: { taskId: string; logId?: string | null; reservationId?: string | null },
+  ) {
+    return () =>
+      res.checked
+        ? toggleCleaningFn({
+            data: { taskId: v.taskId, logId: v.logId, reservationId: v.reservationId },
+          })
+        : res.removed
+          ? restoreCompletionFn({ data: { removed: res.removed } })
+          : Promise.resolve(null);
+  }
   // Conclusão de pendência com prestação de contas (pedido explícito,
   // 07/09/2026): ao concluir, perguntamos QUEM resolveu, QUANTO custou e
   // deixamos anexar a comprovação. Antes isto era só um "teve gasto nessa
@@ -1807,26 +1901,33 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       );
       return;
     }
+    let undo: () => Promise<unknown>;
     if (resolvePrompt.kind === "status") {
-      await setTaskStatusMutation.mutateAsync({
+      const res = await setTaskStatusMutation.mutateAsync({
         taskId: task.id,
         status: "done",
         amountSpentCents: v.amountSpentCents,
         resolvedByProviderId: v.providerId,
         resolutionNote: v.note,
       });
+      undo = restoreTaskUndo(res.before);
     } else {
-      await toggleCleaningTaskMutation.mutateAsync({
+      const vars = {
         taskId: task.id,
         logId: resolvePrompt.row.logId,
         reservationId: resolvePrompt.row.reservationId,
+      };
+      const res = await toggleCleaningTaskMutation.mutateAsync({
+        ...vars,
         amountSpentCents: v.amountSpentCents,
         // A tela de conclusão é a mesma dos dois gatilhos: quem resolveu e
         // como foi resolvido também ficam gravados na ocorrência da limpeza.
         resolvedByProviderId: v.providerId,
         resolutionNote: v.note,
       });
+      undo = toggleUndo(res, vars);
     }
+    let attachmentIds: string[] = [];
 
     // Comprovação sobe DEPOIS da conclusão gravada — se a pessoa desistir no
     // meio, nada de arquivo órfão no storage. Falha de anexo não desfaz a
@@ -1839,9 +1940,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         reservationId: task.reservationId ?? undefined,
         isResolution: true,
       });
+      attachmentIds = res.ids;
       if (res.failed > 0) toast.error(`${res.failed} anexo(s) não subiram. A conclusão foi salva.`);
     }
     closeResolvePrompt();
+    notifyTaskUndo("Pendência concluída.", undo, attachmentIds);
   }
 
   function requestSetTaskStatus(taskId: string, status: "pending" | "done" | "canceled") {
@@ -1855,7 +1958,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         return;
       }
     }
-    setTaskStatusMutation.mutate({ taskId, status });
+    setTaskStatusWithUndo(taskId, status);
   }
 
   // Sem período escolhido, mantém o padrão de "hoje" (mesma convenção já
@@ -2082,7 +2185,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         setResolvePrompt({ kind: "status", task });
         return;
       }
-      setTaskStatusMutation.mutate({ taskId: task.id, status: "pending" });
+      setTaskStatusWithUndo(task.id, "pending");
     } else {
       // Recorrente: marca só esta ocorrência (log/reserva do card) — a
       // pendência em si continua ativa e volta pendente na próxima limpeza.
@@ -2099,10 +2202,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         setResolvePrompt({ kind: "cleaning", task, row });
         return;
       }
-      toggleCleaningTaskMutation.mutate({
-        taskId: task.id,
-        logId: row.logId,
-        reservationId: row.reservationId,
+      const vars = { taskId: task.id, logId: row.logId, reservationId: row.reservationId };
+      toggleCleaningTaskMutation.mutate(vars, {
+        onSuccess: (res) => notifyTaskUndo("Marca da limpeza removida.", toggleUndo(res, vars)),
       });
     }
   }
@@ -7949,10 +8051,30 @@ function ArrivalCard({
       });
     },
     onSuccess: (_d, hours) => {
-      toast.success(hours ? `Alertas silenciados por ${hours}h.` : "Alertas reativados.");
-      qcCard.invalidateQueries({
-        predicate: (q) => q.queryKey[0] === "dash-list",
-        refetchType: "active",
+      const refresh = () =>
+        qcCard.invalidateQueries({
+          predicate: (q) => q.queryKey[0] === "dash-list",
+          refetchType: "active",
+        });
+      void refresh();
+      // "Desfazer" (17/09/2026): volta o silenciamento que existia antes.
+      const previous = row.mutedUntil ?? null;
+      notifyAction(hours ? `Alertas silenciados por ${hours}h.` : "Alertas reativados.", () => {
+        const logId = /^[0-9a-f-]{36}$/i.test(row.logId) ? row.logId : undefined;
+        const reservationId =
+          row.reservationId ?? (row.logId.startsWith("ical:") ? row.logId.slice(5) : null);
+        void muteFn({
+          data: {
+            ...(logId ? { logId } : {}),
+            ...(reservationId ? { reservationId } : {}),
+            kind,
+            mutedUntil: previous,
+          },
+        })
+          .then(refresh)
+          .catch((e) =>
+            toast.error(e instanceof Error ? e.message : "Não foi possível desfazer."),
+          );
       });
     },
     onError: () => toast.error("Não foi possível alterar o silenciamento."),

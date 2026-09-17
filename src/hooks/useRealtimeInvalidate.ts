@@ -15,7 +15,8 @@ type TableWatch = {
  * quem fez a alteração. É isto que torna um "Salvar" (ou qualquer escrita)
  * instantâneo para todo mundo, e não só para quem clicou.
  *
- * Debounce de 400ms: evita disparar várias buscas seguidas quando uma ação
+ * Debounce de 150ms (era 400 — 17/09/2026, "instantâneo para todos"):
+ * evita disparar várias buscas seguidas quando uma ação
  * gera várias escritas em sequência (ex.: salvar o guia grava manual + FAQs
  * + checkout de uma vez).
  */
@@ -50,7 +51,7 @@ export function useRealtimeInvalidate(
           }
         }
         options?.onRemoteChange?.();
-      }, 400);
+      }, 150);
     };
 
     let current: ReturnType<typeof supabase.channel> | null = null;

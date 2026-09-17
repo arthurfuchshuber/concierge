@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import { accessiblePropertyIds } from "@/lib/dashboard.functions";
 
 /**
@@ -190,43 +192,55 @@ const DecideInput = z.object({
   ownerId: z.string().uuid().nullable().optional(),
 });
 
+/**
+ * Checagens comuns à decisão e ao desfazer — em PARALELO (pedido explícito,
+ * 17/09/2026: "as respostas de QUALQUER ação precisam ser INSTANTÂNEAS").
+ * Antes eram três idas ao banco em fila.
+ */
+async function loadDecisionRow(
+  context: { supabase: SupabaseClient<Database>; userId: string },
+  id: string,
+  ownerId: string | null | undefined,
+) {
+  const supabase = context.supabase;
+  const tenantId = await resolveTenantId(context.supabase, context.userId, ownerId);
+  const [canApprove, rowRes, visible] = await Promise.all([
+    userCanApproveCleaning(context.userId, tenantId),
+    // Lida com a sessão da pessoa: a política da tabela já recorta os imóveis
+    // que ela enxerga. Depois, o mesmo recorte de residências do dashboard.
+    supabase
+      .from("guest_arrival_status")
+      .select(
+        "id, property_id, cleaning_type, cleaning_price_cents, cleaning_approval_status, cleaning_requested_price_cents",
+      )
+      .eq("id", id)
+      .eq("kind", "checkout")
+      .maybeSingle(),
+    accessiblePropertyIds(context.supabase as never, ownerId ?? null, context.userId),
+  ]);
+  if (!canApprove) throw new Error("Você não tem permissão para aprovar limpezas completas.");
+  if (rowRes.error) throw new Error(rowRes.error.message);
+  const r = rowRes.data as {
+    id: string;
+    property_id: string;
+    cleaning_type: string | null;
+    cleaning_price_cents: number | null;
+    cleaning_approval_status: string | null;
+    cleaning_requested_price_cents: number | null;
+  } | null;
+  if (!r || !visible.includes(r.property_id)) throw new Error("Limpeza não encontrada.");
+  return r;
+}
+
 export const decideCleaningApproval = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => DecideInput.parse(i))
   .handler(async ({ data, context }) => {
-    const tenantId = await resolveTenantId(context.supabase, context.userId, data.ownerId);
-    if (!(await userCanApproveCleaning(context.userId, tenantId))) {
-      throw new Error("Você não tem permissão para aprovar limpezas completas.");
-    }
-
-    // Lida com a sessão da pessoa: a política da tabela já recorta os imóveis
-    // que ela enxerga. Depois, o mesmo recorte de residências do dashboard.
-    const { data: row, error } = await context.supabase
-      .from("guest_arrival_status")
-      .select("id, property_id, cleaning_type, cleaning_price_cents, cleaning_approval_status")
-      .eq("id", data.id)
-      .eq("kind", "checkout")
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    const r = row as {
-      id: string;
-      property_id: string;
-      cleaning_type: string | null;
-      cleaning_price_cents: number | null;
-      cleaning_approval_status: string | null;
-    } | null;
-    if (!r) throw new Error("Limpeza não encontrada.");
-    const visible = await accessiblePropertyIds(
-      context.supabase as never,
-      data.ownerId ?? null,
-      context.userId,
-    );
-    if (!visible.includes(r.property_id)) throw new Error("Limpeza não encontrada.");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const r = await loadDecisionRow(context, data.id, data.ownerId);
     if (r.cleaning_approval_status !== "pending" || r.cleaning_type !== "completa") {
       throw new Error("Esta limpeza já foi decidida.");
     }
-
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const nowIso = new Date().toISOString();
 
     if (data.decision === "approve") {
@@ -248,14 +262,13 @@ export const decideCleaningApproval = createServerFn({ method: "POST" })
       .select("cleaning_price_normal_cents")
       .eq("id", r.property_id)
       .maybeSingle();
-    const normalCents =
-      (prop as { cleaning_price_normal_cents: number | null } | null)
-        ?.cleaning_price_normal_cents ?? null;
     const { error: upErr } = await supabaseAdmin
       .from("guest_arrival_status")
       .update({
         cleaning_type: "normal",
-        cleaning_price_cents: normalCents,
+        cleaning_price_cents:
+          (prop as { cleaning_price_normal_cents: number | null } | null)
+            ?.cleaning_price_normal_cents ?? null,
         cleaning_requested_price_cents: r.cleaning_price_cents,
         cleaning_approval_status: "rejected",
         cleaning_approval_by: context.userId,
@@ -265,4 +278,45 @@ export const decideCleaningApproval = createServerFn({ method: "POST" })
       .eq("cleaning_approval_status", "pending");
     if (upErr) throw new Error(upErr.message);
     return { ok: true, status: "rejected" as const };
+  });
+
+/**
+ * DESFAZER a decisão (botão "Desfazer", 5s — pedido explícito, 17/09/2026).
+ * Devolve a limpeza para "aguardando aprovação" exatamente como estava:
+ * se tinha virado normal, volta a ser completa com o valor pedido.
+ */
+const UndoInput = z.object({
+  id: z.string().uuid(),
+  ownerId: z.string().uuid().nullable().optional(),
+});
+
+export const undoCleaningDecision = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => UndoInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const r = await loadDecisionRow(context, data.id, data.ownerId);
+    if (r.cleaning_approval_status === "pending") return { ok: true };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const patch =
+      r.cleaning_approval_status === "rejected"
+        ? {
+            cleaning_type: "completa",
+            cleaning_price_cents: r.cleaning_requested_price_cents ?? r.cleaning_price_cents,
+            cleaning_requested_price_cents: null,
+            cleaning_approval_status: "pending",
+            cleaning_approval_by: null,
+            cleaning_approval_at: null,
+          }
+        : {
+            cleaning_approval_status: "pending",
+            cleaning_approval_by: null,
+            cleaning_approval_at: null,
+          };
+    const { error } = await supabaseAdmin
+      .from("guest_arrival_status")
+      .update(patch)
+      .eq("id", r.id)
+      .in("cleaning_approval_status", ["approved", "rejected"]);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });

@@ -423,6 +423,9 @@ export const setTaskStatus = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => SetTaskStatusInput.parse(i))
   .handler(async ({ data, context }) => {
     const db = context.supabase as unknown as AnyClient;
+    // Foto de antes, para o "Desfazer" (17/09/2026) devolver exatamente o
+    // que havia — inclusive o prazo de uma recorrente que andou sozinho.
+    const before = await readTaskSnapshot(db, data.taskId);
     const patch: Record<string, unknown> = {
       status: data.status,
       completed_at: data.status === "done" ? new Date().toISOString() : null,
@@ -468,7 +471,7 @@ export const setTaskStatus = createServerFn({ method: "POST" })
 
     const { error } = await db.from("tasks").update(patch).eq("id", data.taskId);
     if (error) throw new Error(error.message);
-    return { ok: true };
+    return { ok: true, before };
   });
 
 // ----- Checklist da Limpeza: marcar/desmarcar uma pendência RECORRENTE só
@@ -495,36 +498,43 @@ const ToggleCleaningInput = z
 export const toggleCleaningCompletion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => ToggleCleaningInput.parse(i))
-  .handler(async ({ data, context }): Promise<{ checked: boolean }> => {
-    const db = context.supabase as unknown as AnyClient;
-    const orParts: string[] = [];
-    if (data.logId) orParts.push(`log_id.eq.${data.logId}`);
-    if (data.reservationId) orParts.push(`reservation_id.eq.${data.reservationId}`);
-    const { data: existing, error: findErr } = await db
-      .from("task_completions")
-      .select("id")
-      .eq("task_id", data.taskId)
-      .or(orParts.join(","))
-      .limit(1);
-    if (findErr) throw new Error(findErr.message);
-    const existingId = (existing?.[0] as { id: string } | undefined)?.id;
-    if (existingId) {
-      const { error } = await db.from("task_completions").delete().eq("id", existingId);
+  .handler(
+    async ({
+      data,
+      context,
+    }): Promise<{ checked: boolean; removed: CompletionSnapshot | null }> => {
+      const db = context.supabase as unknown as AnyClient;
+      const orParts: string[] = [];
+      if (data.logId) orParts.push(`log_id.eq.${data.logId}`);
+      if (data.reservationId) orParts.push(`reservation_id.eq.${data.reservationId}`);
+      const { data: existing, error: findErr } = await db
+        .from("task_completions")
+        .select(COMPLETION_COLUMNS)
+        .eq("task_id", data.taskId)
+        .or(orParts.join(","))
+        .limit(1);
+      if (findErr) throw new Error(findErr.message);
+      const found = (existing?.[0] as CompletionSnapshot | undefined) ?? null;
+      if (found) {
+        const { error } = await db.from("task_completions").delete().eq("id", found.id);
+        if (error) throw new Error(error.message);
+        // A linha apagada volta para o cliente: é com ela que o "Desfazer"
+        // recoloca a marca exatamente como estava (quem, quando, quanto).
+        return { checked: false, removed: found };
+      }
+      const { error } = await db.from("task_completions").insert({
+        task_id: data.taskId,
+        log_id: data.logId ?? null,
+        reservation_id: data.reservationId ?? null,
+        amount_spent_cents: data.amountSpentCents ?? null,
+        resolved_by_provider_id: data.resolvedByProviderId ?? null,
+        resolution_note: data.resolutionNote?.trim() || null,
+        completed_by: context.userId,
+      });
       if (error) throw new Error(error.message);
-      return { checked: false };
-    }
-    const { error } = await db.from("task_completions").insert({
-      task_id: data.taskId,
-      log_id: data.logId ?? null,
-      reservation_id: data.reservationId ?? null,
-      amount_spent_cents: data.amountSpentCents ?? null,
-      resolved_by_provider_id: data.resolvedByProviderId ?? null,
-      resolution_note: data.resolutionNote?.trim() || null,
-      completed_by: context.userId,
-    });
-    if (error) throw new Error(error.message);
-    return { checked: true };
-  });
+      return { checked: true, removed: null };
+    },
+  );
 
 // ----- Excluir UMA ocorrência de uma pendência recorrente -----
 //
@@ -551,7 +561,7 @@ const SkipTaskOccurrenceInput = z.object({ taskId: z.string().uuid() });
 export const skipTaskOccurrence = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => SkipTaskOccurrenceInput.parse(i))
-  .handler(async ({ data, context }): Promise<{ dueDate: string }> => {
+  .handler(async ({ data, context }): Promise<{ dueDate: string; before: TaskSnapshot }> => {
     const db = context.supabase as unknown as AnyClient;
     const { data: row, error: readErr } = await db
       .from("tasks")
@@ -559,6 +569,7 @@ export const skipTaskOccurrence = createServerFn({ method: "POST" })
       .eq("id", data.taskId)
       .single();
     if (readErr) throw new Error("Pendência não encontrada ou sem acesso.");
+    const before = await readTaskSnapshot(db, data.taskId);
     const task = row as { recurrence_days: number | null; due_date: string | null } | null;
     const recurrenceDays = task?.recurrence_days ?? null;
     if (!recurrenceDays) throw new Error("Esta pendência não é recorrente.");
@@ -574,7 +585,7 @@ export const skipTaskOccurrence = createServerFn({ method: "POST" })
       .update({ status: "pending", due_date: next })
       .eq("id", data.taskId);
     if (error) throw new Error(error.message);
-    return { dueDate: next };
+    return { dueDate: next, before };
   });
 
 // ----- Excluir DEFINITIVAMENTE (não é arquivar) -----
@@ -635,4 +646,96 @@ export const setTasksStatusBulk = createServerFn({ method: "POST" })
       .select("id");
     if (error) throw new Error(error.message);
     return { updated: (rows ?? []).length };
+  });
+
+/* ------------------------------------------------------------------------ *
+ * DESFAZER (pedido explícito, 17/09/2026: "mostrar o botão 'Desfazer' sobre
+ * QUALQUER AÇÃO realizada, por 5 segundos").
+ *
+ * As ações de pendência devolvem a foto de ANTES; o desfazer grava essa foto
+ * de volta. Só as colunas que as ações mexem entram na foto — título,
+ * vínculos e criador nunca mudam por aqui. A política "Account can manage
+ * tasks" continua valendo: ninguém restaura pendência de outra conta.
+ * ------------------------------------------------------------------------ */
+
+const TASK_SNAPSHOT_COLUMNS =
+  "id, status, completed_at, due_date, amount_spent_cents, resolved_by_provider_id, resolution_note, cost_payer, cost_payer_id";
+
+export type TaskSnapshot = z.infer<typeof TaskSnapshotSchema>;
+
+async function readTaskSnapshot(db: AnyClient, taskId: string): Promise<TaskSnapshot> {
+  const { data, error } = await db
+    .from("tasks")
+    .select(TASK_SNAPSHOT_COLUMNS)
+    .eq("id", taskId)
+    .single();
+  if (error || !data) throw new Error("Pendência não encontrada ou sem acesso.");
+  return data as TaskSnapshot;
+}
+
+const TaskSnapshotSchema = z.object({
+  id: z.string().uuid(),
+  status: z.enum(["pending", "done", "canceled"]),
+  completed_at: z.string().nullable(),
+  due_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable(),
+  amount_spent_cents: z.number().int().min(0).nullable(),
+  resolved_by_provider_id: z.string().uuid().nullable(),
+  resolution_note: z.string().max(2000).nullable(),
+  cost_payer: z.enum(["company", "owner", "provider"]).nullable(),
+  cost_payer_id: z.string().uuid().nullable(),
+});
+
+export const restoreTask = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ before: TaskSnapshotSchema }).parse(i))
+  .handler(async ({ data, context }) => {
+    const db = context.supabase as unknown as AnyClient;
+    const { id, ...cols } = data.before;
+    const { error } = await db.from("tasks").update(cols).eq("id", id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+const COMPLETION_COLUMNS =
+  "id, task_id, log_id, reservation_id, amount_spent_cents, completed_by, completed_at, resolved_by_provider_id, resolution_note";
+
+export type CompletionSnapshot = {
+  id: string;
+  task_id: string;
+  log_id: string | null;
+  reservation_id: string | null;
+  amount_spent_cents: number | null;
+  completed_by: string | null;
+  completed_at: string;
+  resolved_by_provider_id: string | null;
+  resolution_note: string | null;
+};
+
+export const restoreTaskCompletion = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        removed: z.object({
+          id: z.string().uuid(),
+          task_id: z.string().uuid(),
+          log_id: z.string().uuid().nullable(),
+          reservation_id: z.string().uuid().nullable(),
+          amount_spent_cents: z.number().int().min(0).nullable(),
+          completed_by: z.string().uuid().nullable(),
+          completed_at: z.string(),
+          resolved_by_provider_id: z.string().uuid().nullable(),
+          resolution_note: z.string().max(2000).nullable(),
+        }),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const db = context.supabase as unknown as AnyClient;
+    const { error } = await db.from("task_completions").upsert(data.removed, { onConflict: "id" });
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });

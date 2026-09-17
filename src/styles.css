@@ -1173,3 +1173,19 @@ dd {
     animation: none;
   }
 }
+
+/* Linha do botão "Desfazer" (17/09/2026): esvazia nos 5s da janela. A
+   duração vem inline, com o tempo que ainda resta. */
+@keyframes undo-drain {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+.undo-drain {
+  animation-name: undo-drain;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}

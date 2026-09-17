@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { useQueryClient } from "@tanstack/react-query";
+import { notifyAction } from "@/components/UndoActionBar";
 import {
   AlertTriangle,
   Camera,
@@ -32,6 +34,7 @@ import {
   SITUATION_MEDIA_MAX,
   appendSituationMedia,
   createRecordSituation,
+  undoRecordSituation,
   transcribeRecordAudio,
   type RecordCategory,
 } from "@/lib/reservation-records.functions";
@@ -244,6 +247,32 @@ export function RecordSituationSheet({
   /** A situação já criada nesta folha. Guardada para que "tentar de novo" NÃO
    *  abra uma segunda situação com as mesmas provas. */
   const grupoRef = useRef<string | null>(null);
+  /** Pendência aberta junto com a situação (sai no "Desfazer"). */
+  const tarefaRef = useRef<string | null>(null);
+  const undoSituationFn = useServerFn(undoRecordSituation);
+  const qcSheet = useQueryClient();
+
+  /**
+   * "DESFAZER" (17/09/2026): a situação inteira sai — mídias, arquivos e a
+   * pendência que ela abriu.
+   */
+  function avisarComDesfazer(mensagem: string) {
+    const groupId = grupoRef.current;
+    const taskId = tarefaRef.current;
+    if (!groupId) {
+      toast.success(mensagem);
+      return;
+    }
+    notifyAction(mensagem, () => {
+      void undoSituationFn({ data: { groupId, taskId } })
+        .then(() => {
+          for (const k of ["account-records", "reservation-records", "dash-tasks"]) {
+            void qcSheet.invalidateQueries({ queryKey: [k] });
+          }
+        })
+        .catch((e) => toast.error(e instanceof Error ? e.message : "Não foi possível desfazer."));
+    });
+  }
 
   /**
    * RASCUNHO GUARDADO NO APARELHO (11/09/2026).
@@ -437,10 +466,16 @@ export function RecordSituationSheet({
         groupId = (criada as { groupId?: string })?.groupId ?? null;
         if (!groupId) throw new Error("Não consegui abrir o registro.");
         grupoRef.current = groupId;
-        if ((criada as { taskCreated?: boolean })?.taskCreated) {
+        tarefaRef.current = (criada as { taskId?: string | null })?.taskId ?? null;
+        if (items.length === 0) {
+          // Só texto: já terminou aqui — mensagem com "Desfazer".
+          avisarComDesfazer(
+            (criada as { taskCreated?: boolean })?.taskCreated
+              ? "Situação registrada e pendência aberta."
+              : "Situação registrada.",
+          );
+        } else if ((criada as { taskCreated?: boolean })?.taskCreated) {
           toast.success("Situação registrada e pendência aberta.");
-        } else if (items.length === 0) {
-          toast.success("Situação registrada.");
         }
       }
 
@@ -563,7 +598,7 @@ export function RecordSituationSheet({
         return;
       }
 
-      if (items.length > 0) toast.success("Situação registrada.");
+      if (items.length > 0) avisarComDesfazer("Situação registrada.");
       // Deu tudo certo: o rascunho cumpriu o papel e sai de cena.
       void apagarRascunho(chave);
       onSaved();

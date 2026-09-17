@@ -17,6 +17,9 @@ import {
   Maximize2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useUndoableRecordDelete } from "@/hooks/useUndoableRecordDelete";
+import { useRealtimeInvalidate } from "@/hooks/useRealtimeInvalidate";
+import { notifyAction } from "@/components/UndoActionBar";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Command,
@@ -35,10 +38,9 @@ import { AudioPlayer } from "@/components/dashboard/ReservationRecords";
 import { MediaLightbox } from "@/components/dashboard/MediaLightbox";
 import { DictationField } from "@/components/dashboard/RecordSituationSheet";
 import { CATEGORY_BY_KEY, MODE_LABEL, fmtDayLabel } from "@/components/dashboard/record-categories";
-import { listTaskLinkOptions, setTaskStatus } from "@/lib/tasks.functions";
+import { listTaskLinkOptions, restoreTask, setTaskStatus } from "@/lib/tasks.functions";
 import {
   RECORD_TITLE_MAX,
-  deleteReservationRecord,
   listAccountRecords,
   updateRecordText,
   type AccountRecord,
@@ -252,7 +254,6 @@ export function RecordsWorkspace() {
   const qc = useQueryClient();
 
   const listFn = useServerFn(listAccountRecords);
-  const deleteFn = useServerFn(deleteReservationRecord);
   const optionsFn = useServerFn(listTaskLinkOptions);
 
   const [category, setCategory] = useState<RecordCategory | null>(null);
@@ -338,16 +339,18 @@ export function RecordsWorkspace() {
       listFn({ data: { ownerId: activeOwnerId, category, onlyOpen, days, propertyIds } }),
   });
 
-  const del = useMutation({
-    mutationFn: (id: string) => deleteFn({ data: { id } }),
-    onSuccess: () => {
-      setOpened(null);
-      toast.success("Registro excluído.");
-      void qc.invalidateQueries({ queryKey: ["account-records"] });
-    },
-    onError: (e: unknown) =>
-      toast.error(e instanceof Error ? e.message : "Não foi possível excluir."),
-  });
+  // Excluir com "Desfazer" e resposta instantânea (17/09/2026).
+  const deleteRecord = useUndoableRecordDelete(() => setOpened(null));
+
+  // AO VIVO PARA TODOS (pedido explícito, 17/09/2026: "tudo que um usuário
+  // faz precisa refletir INSTANTANEAMENTE para os demais usuários"): um
+  // registro criado, editado ou excluído por outra pessoa, ou uma pendência
+  // resolvida, aparece aqui sem recarregar.
+  useRealtimeInvalidate(
+    "records-live",
+    [{ table: "reservation_records" }, { table: "tasks" }, { table: "task_completions" }],
+    [["account-records"]],
+  );
 
   /**
    * TODO REGISTRO CHEGA COM `media` — nem que seja uma lista de um.
@@ -605,7 +608,7 @@ export function RecordsWorkspace() {
       <RecordViewerDialog
         record={opened}
         onClose={() => setOpened(null)}
-        onDelete={(id) => del.mutate(id)}
+        onDelete={deleteRecord}
         onResolve={() => {
           // Fecha o visualizador antes: dois diálogos empilhados prendem o
           // foco um no outro e o "voltar" do celular fecha os dois.
@@ -1191,6 +1194,7 @@ function RecordTextEditor({
   onSaved: () => void;
 }) {
   const updateFn = useServerFn(updateRecordText);
+  const qc = useQueryClient();
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
   const [saving, setSaving] = useState(false);
@@ -1203,8 +1207,19 @@ function RecordTextEditor({
       await updateFn({
         data: { id: record.id, title: title.trim(), description: description.trim() || null },
       });
-      toast.success("Registro atualizado.");
       onSaved();
+      // "Desfazer" (17/09/2026): grava de volta o texto que estava antes.
+      notifyAction("Registro atualizado.", () => {
+        void updateFn({
+          data: {
+            id: record.id,
+            title: initialTitle,
+            description: initialDescription.trim() || null,
+          },
+        })
+          .then(() => qc.invalidateQueries({ queryKey: ["account-records"] }))
+          .catch((e) => toast.error((e as Error).message || "Não foi possível desfazer."));
+      });
     } catch (e) {
       toast.error((e as Error).message || "Não consegui salvar.");
     } finally {
@@ -1581,6 +1596,8 @@ function ResolveDialog({
   onDone: () => void;
 }) {
   const setStatusFn = useServerFn(setTaskStatus);
+  const restoreTaskFn = useServerFn(restoreTask);
+  const qc = useQueryClient();
   const [hasCost, setHasCost] = useState(false);
   const [amount, setAmount] = useState("");
   const [payer, setPayer] = useState<PayerKind>("company");
@@ -1609,7 +1626,7 @@ function ResolveDialog({
       if (hasCost && (!Number.isFinite(cents) || (cents ?? 0) < 0)) {
         throw new Error("Informe um valor válido.");
       }
-      await setStatusFn({
+      return setStatusFn({
         data: {
           taskId: record.taskId,
           status: "done",
@@ -1623,9 +1640,17 @@ function ResolveDialog({
         },
       });
     },
-    onSuccess: () => {
-      toast.success("Pendência resolvida.");
+    onSuccess: (res) => {
       onDone();
+      // "Desfazer" (17/09/2026): a pendência volta exatamente como estava.
+      notifyAction("Pendência resolvida.", () => {
+        void restoreTaskFn({ data: { before: res.before } })
+          .then(() => {
+            void qc.invalidateQueries({ queryKey: ["account-records"] });
+            void qc.invalidateQueries({ queryKey: ["dash-tasks"] });
+          })
+          .catch((e) => toast.error(e instanceof Error ? e.message : "Não foi possível desfazer."));
+      });
     },
     onError: (e: unknown) =>
       toast.error(e instanceof Error ? e.message : "Não foi possível resolver."),

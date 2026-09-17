@@ -22,6 +22,8 @@ import {
   MoreVertical,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useUndoableRecordDelete } from "@/hooks/useUndoableRecordDelete";
+import { useRealtimeInvalidate } from "@/hooks/useRealtimeInvalidate";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -40,7 +42,6 @@ import {
 } from "@/components/dashboard/record-categories";
 import {
   listReservationRecords,
-  deleteReservationRecord,
   type ReservationRecord,
   type RecordCategory,
 } from "@/lib/reservation-records.functions";
@@ -469,7 +470,6 @@ function ReservationRecordsDialog({
 }) {
   const target = useMemo(() => resolveReservationTarget(row), [row.logId, row.reservationId]);
   const listFn = useServerFn(listReservationRecords);
-  const deleteFn = useServerFn(deleteReservationRecord);
   const qc = useQueryClient();
   const queryKey = ["reservation-records", target.logId ?? "", target.reservationId ?? ""];
 
@@ -508,11 +508,16 @@ function ReservationRecordsDialog({
     qc.invalidateQueries({ queryKey: ["dash-tasks"] });
   };
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => deleteFn({ data: { id } }),
-    onSuccess: invalidate,
-    onError: () => toast.error("Não consegui excluir o registro."),
-  });
+  // Excluir com "Desfazer" e resposta instantânea (17/09/2026).
+  const deleteRecord = useUndoableRecordDelete();
+  // Ao vivo para todos (17/09/2026): o que outra pessoa registra nesta
+  // reserva aparece aqui na hora, com o clipe aberto.
+  useRealtimeInvalidate(
+    "reservation-records-live",
+    [{ table: "reservation_records" }],
+    [["reservation-records"]],
+    { enabled: open },
+  );
 
   /** Toque em Foto/Vídeo/Arquivo/Áudio (ou envio de texto): abre a folha de
    * categoria ANTES de qualquer captura. */
@@ -669,7 +674,7 @@ function ReservationRecordsDialog({
                           <span className="h-px flex-1 bg-border/70" />
                         </div>
                       )}
-                      <RecordBlock group={g} onDelete={(id) => deleteMutation.mutate(id)} />
+                      <RecordBlock group={g} onDelete={deleteRecord} />
                     </div>
                   );
                 })}

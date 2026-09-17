@@ -86,9 +86,11 @@ export async function uploadPendingAttachments(
     reservationId?: string;
     isResolution: boolean;
   },
-): Promise<{ sent: number; failed: number }> {
+): Promise<{ sent: number; failed: number; ids: string[] }> {
   let sent = 0;
   let failed = 0;
+  // Ids dos registros criados — o "Desfazer" da conclusão usa para retirá-los.
+  const ids: string[] = [];
   for (const f of files) {
     try {
       const path = `${ctx.propertyId}/task-${ctx.taskId}/${crypto.randomUUID()}.${extFor(f.kind, f.mime)}`;
@@ -96,7 +98,7 @@ export async function uploadPendingAttachments(
         .from("reservation-records")
         .upload(path, f.blob, { contentType: f.mime, upsert: false });
       if (upErr) throw new Error(upErr.message);
-      await attachFn({
+      const res = await attachFn({
         data: {
           propertyId: ctx.propertyId,
           taskId: ctx.taskId,
@@ -112,12 +114,14 @@ export async function uploadPendingAttachments(
           caption: null,
         },
       });
+      const id = (res as { id?: string } | null)?.id;
+      if (id) ids.push(id);
       sent++;
     } catch {
       failed++;
     }
   }
-  return { sent, failed };
+  return { sent, failed, ids };
 }
 
 /** Acrescenta um anexo à lista, preservando os que já estavam lá. */

@@ -569,7 +569,52 @@ export const createRecordSituation = createServerFn({ method: "POST" })
 
     const { error } = await supabase.from("reservation_records").insert(rows);
     if (error) throw new Error(error.message);
-    return { ok: true, taskCreated: !!taskId, fileName, groupId };
+    return { ok: true, taskCreated: !!taskId, taskId, fileName, groupId };
+  });
+
+/**
+ * "DESFAZER" de uma situação registrada (17/09/2026): tira a situação
+ * inteira — todas as mídias do grupo, os arquivos e a pendência que ela
+ * abriu. A pendência só sai se foi esta pessoa que a criou; o RLS das duas
+ * tabelas decide o resto.
+ */
+export const undoRecordSituation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({ groupId: z.string().uuid(), taskId: z.string().uuid().nullable().optional() })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase as unknown as AnyClient;
+    const { data: rows, error } = await supabase
+      .from("reservation_records")
+      .select("id, storage_path")
+      .or(`id.eq.${data.groupId},group_id.eq.${data.groupId}`);
+    if (error) throw new Error(error.message);
+    const list = (rows ?? []) as Array<{ id: string; storage_path: string | null }>;
+    if (list.length > 0) {
+      const { error: delErr } = await supabase
+        .from("reservation_records")
+        .delete()
+        .in(
+          "id",
+          list.map((r) => r.id),
+        );
+      if (delErr) throw new Error(delErr.message);
+      const paths = list.map((r) => r.storage_path).filter((p): p is string => !!p);
+      if (paths.length > 0) {
+        try {
+          await supabase.storage.from(BUCKET).remove(paths);
+        } catch {
+          // ignore
+        }
+      }
+    }
+    if (data.taskId) {
+      await supabase.from("tasks").delete().eq("id", data.taskId).eq("created_by", context.userId);
+    }
+    return { ok: true };
   });
 
 /**
@@ -775,26 +820,31 @@ export const attachTaskRecord = createServerFn({ method: "POST" })
       throw new Error("Caminho de anexo inválido.");
     }
     const who = await resolveAuthorName(supabase, context.userId);
-    const { error } = await supabase.from("reservation_records").insert({
-      property_id: data.propertyId,
-      log_id: data.logId ?? null,
-      reservation_id: data.reservationId ?? null,
-      task_id: data.taskId,
-      is_resolution: data.isResolution,
-      kind: data.kind,
-      category: data.category,
-      storage_path: data.path,
-      mime: data.mime,
-      size_bytes: data.sizeBytes,
-      duration_ms: data.durationMs ?? null,
-      file_name: await nextRecordName(supabase, data.propertyId),
-      body: data.caption ?? null,
-      card_mode: null,
-      created_by: context.userId,
-      created_by_name: who,
-    });
+    const { data: inserted, error } = await supabase
+      .from("reservation_records")
+      .insert({
+        property_id: data.propertyId,
+        log_id: data.logId ?? null,
+        reservation_id: data.reservationId ?? null,
+        task_id: data.taskId,
+        is_resolution: data.isResolution,
+        kind: data.kind,
+        category: data.category,
+        storage_path: data.path,
+        mime: data.mime,
+        size_bytes: data.sizeBytes,
+        duration_ms: data.durationMs ?? null,
+        file_name: await nextRecordName(supabase, data.propertyId),
+        body: data.caption ?? null,
+        card_mode: null,
+        created_by: context.userId,
+        created_by_name: who,
+      })
+      .select("id")
+      .single();
     if (error) throw new Error(error.message);
-    return { ok: true };
+    // O id volta para o "Desfazer" da conclusão conseguir retirar o anexo.
+    return { ok: true, id: (inserted as { id: string }).id };
   });
 
 /** Anexos de uma pendência — os da abertura e os da comprovação. */
@@ -862,23 +912,56 @@ export const listTaskRecords = createServerFn({ method: "GET" })
  * Remove um registro (e o arquivo do storage, se houver). A pendência
  * gerada NÃO é apagada junto: ela pode já estar em andamento com outra
  * pessoa: quem quiser encerrá-la faz isso na tela de Pendências.
+ *
+ * DESFAZER (17/09/2026): com `keepFile`, o arquivo fica no storage durante
+ * os 5s do botão "Desfazer" e a linha apagada volta para o cliente. Se a
+ * pessoa desfizer, `restoreReservationRecord` recoloca a linha; se não,
+ * `purgeRecordFile` apaga o arquivo quando a janela fecha.
  */
+const RECORD_RESTORE_COLUMNS =
+  "id, property_id, log_id, reservation_id, kind, storage_path, mime, size_bytes, duration_ms, file_name, body, card_mode, created_by, created_by_name, created_at, category, task_id, is_resolution, group_id";
+
+const RemovedRecordSchema = z.object({
+  id: z.string().uuid(),
+  property_id: z.string().uuid(),
+  log_id: z.string().uuid().nullable(),
+  reservation_id: z.string().uuid().nullable(),
+  kind: z.string().max(20),
+  storage_path: z.string().max(500).nullable(),
+  mime: z.string().max(150).nullable(),
+  size_bytes: z.number().int().nonnegative().nullable(),
+  duration_ms: z.number().int().nonnegative().nullable(),
+  file_name: z.string().max(300).nullable(),
+  body: z.string().max(10000).nullable(),
+  card_mode: z.string().max(40).nullable(),
+  created_by: z.string().uuid().nullable(),
+  created_by_name: z.string().max(200).nullable(),
+  created_at: z.string(),
+  category: z.string().max(40),
+  task_id: z.string().uuid().nullable(),
+  is_resolution: z.boolean(),
+  group_id: z.string().uuid().nullable(),
+});
+export type RemovedRecord = z.infer<typeof RemovedRecordSchema>;
+
 export const deleteReservationRecord = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { id: string }) => z.object({ id: z.string().uuid() }).parse(input))
+  .inputValidator((input: { id: string; keepFile?: boolean }) =>
+    z.object({ id: z.string().uuid(), keepFile: z.boolean().optional() }).parse(input),
+  )
   .handler(async ({ data, context }) => {
     const supabase = context.supabase as unknown as AnyClient;
     const { data: existing } = await supabase
       .from("reservation_records")
-      .select("id, storage_path")
+      .select(RECORD_RESTORE_COLUMNS)
       .eq("id", data.id)
       .maybeSingle();
-    if (!existing) return { ok: true };
+    if (!existing) return { ok: true, removed: null as RemovedRecord | null };
 
     const { error } = await supabase.from("reservation_records").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
 
-    if (existing.storage_path) {
+    if (existing.storage_path && !data.keepFile) {
       // Best-effort: se o arquivo já não existir mais no storage por algum
       // motivo, a linha ainda assim precisa sumir da lista.
       try {
@@ -887,7 +970,51 @@ export const deleteReservationRecord = createServerFn({ method: "POST" })
         // ignore
       }
     }
+    return { ok: true, removed: existing as RemovedRecord };
+  });
+
+/** "Desfazer" da exclusão: a mesma linha, com o mesmo id, de volta. */
+export const restoreReservationRecord = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ removed: RemovedRecordSchema }).parse(input))
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase as unknown as AnyClient;
+    const { error } = await supabase
+      .from("reservation_records")
+      .upsert(data.removed, { onConflict: "id" });
+    if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+/**
+ * Fim da janela do "Desfazer": apaga o arquivo que ficou guardado. Só apaga
+ * se nenhum registro aponta mais para ele e se o imóvel do caminho é um que
+ * a pessoa enxerga — um caminho qualquer vindo do navegador não apaga nada.
+ */
+export const purgeRecordFile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ storagePath: z.string().min(3).max(500) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase as unknown as AnyClient;
+    const propertyId = data.storagePath.split("/")[0] ?? "";
+    if (!/^[0-9a-f-]{36}$/i.test(propertyId)) return { ok: true, removed: false };
+    const [{ data: prop }, { data: refs }] = await Promise.all([
+      supabase.from("properties").select("id").eq("id", propertyId).maybeSingle(),
+      supabase
+        .from("reservation_records")
+        .select("id")
+        .eq("storage_path", data.storagePath)
+        .limit(1),
+    ]);
+    if (!prop || (refs ?? []).length > 0) return { ok: true, removed: false };
+    try {
+      await supabase.storage.from(BUCKET).remove([data.storagePath]);
+    } catch {
+      // ignore
+    }
+    return { ok: true, removed: true };
   });
 
 /* ---------------------------------------------------------------------- *

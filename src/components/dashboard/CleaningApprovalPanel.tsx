@@ -1,14 +1,16 @@
-import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Clock3, Loader2 } from "lucide-react";
+import { Clock3 } from "lucide-react";
 import { toast } from "sonner";
 import { CARD_OWNER } from "@/components/dashboard/card-colors";
+import { notifyAction } from "@/components/UndoActionBar";
 import {
   decideCleaningApproval,
   listCleaningApprovals,
+  undoCleaningDecision,
   type CleaningApprovalItem,
 } from "@/lib/cleaning-approval.functions";
+import type { CleaningDayItem, CleaningDailyPoint } from "@/lib/dashboard.functions";
 
 /**
  * "LIMPEZAS COMPLETAS PARA APROVAR" — aba Limpeza (mockup aprovado,
@@ -54,8 +56,8 @@ export function CleaningApprovalPanel({
 }) {
   const listFn = useServerFn(listCleaningApprovals);
   const decideFn = useServerFn(decideCleaningApproval);
+  const undoFn = useServerFn(undoCleaningDecision);
   const qc = useQueryClient();
-  const [busyId, setBusyId] = useState<string | null>(null);
 
   const q = useQuery({
     queryKey: [CLEANING_APPROVALS_KEY, ownerId ?? "self", propertyIds?.join(",") ?? ""],
@@ -66,26 +68,55 @@ export function CleaningApprovalPanel({
     enabled,
   });
 
-  const decide = useMutation({
-    mutationFn: (v: { id: string; decision: "approve" | "normal" }) =>
-      decideFn({ data: { ...v, ownerId } }),
-    onMutate: (v) => setBusyId(v.id),
-    onSuccess: (res) => {
-      toast.success(
-        res.status === "approved"
-          ? "Limpeza completa aprovada — já entrou no custo."
-          : "Registrada como limpeza normal.",
-      );
-    },
-    onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "Não foi possível registrar a decisão.");
-    },
-    onSettled: () => {
-      setBusyId(null);
-      void qc.invalidateQueries({ queryKey: [CLEANING_APPROVALS_KEY] });
-      void qc.invalidateQueries({ queryKey: ["dash-cleaning-stats"] });
-    },
-  });
+  /**
+   * RESPOSTA INSTANTÂNEA (pedido explícito, 17/09/2026, com print: "cliquei
+   * em 'normal' e ele ficou carregando... as respostas de QUALQUER ação
+   * precisam ser INSTANTÂNEAS").
+   *
+   * O clique já mexe na tela: o item sai do bloco e os cards de cima mudam
+   * na hora (otimista). O servidor confirma em segundo plano; se ele falhar
+   * — ou não responder em 15s — tudo volta como estava e aparece o erro.
+   * Nada de botão girando: não existe mais estado de "carregando" aqui.
+   * Os outros usuários recebem pelo canal ao vivo do dashboard.
+   */
+  function decide(it: CleaningApprovalItem, decision: "approve" | "normal") {
+    const snapshots: Array<[QueryKey, unknown]> = [
+      ...qc.getQueriesData({ queryKey: [CLEANING_APPROVALS_KEY] }),
+      ...qc.getQueriesData({ queryKey: ["dash-cleaning-stats"] }),
+    ];
+    void qc.cancelQueries({ queryKey: [CLEANING_APPROVALS_KEY] });
+    void qc.cancelQueries({ queryKey: ["dash-cleaning-stats"] });
+    applyOptimistic(qc, it, decision);
+
+    const request = withTimeout(decideFn({ data: { id: it.id, decision, ownerId } }), 15_000);
+    request
+      .catch((err) => {
+        for (const [key, data] of snapshots) qc.setQueryData(key, data);
+        toast.error(err instanceof Error ? err.message : "Não foi possível registrar a decisão.");
+      })
+      .finally(() => {
+        void qc.invalidateQueries({ queryKey: [CLEANING_APPROVALS_KEY] });
+        void qc.invalidateQueries({ queryKey: ["dash-cleaning-stats"] });
+      });
+
+    notifyAction(
+      decision === "approve"
+        ? "Limpeza completa aprovada — já entrou no custo."
+        : "Registrada como limpeza normal.",
+      () => {
+        for (const [key, data] of snapshots) qc.setQueryData(key, data);
+        void request
+          .then(() => withTimeout(undoFn({ data: { id: it.id, ownerId } }), 15_000))
+          .catch((err) => {
+            toast.error(err instanceof Error ? err.message : "Não foi possível desfazer.");
+          })
+          .finally(() => {
+            void qc.invalidateQueries({ queryKey: [CLEANING_APPROVALS_KEY] });
+            void qc.invalidateQueries({ queryKey: ["dash-cleaning-stats"] });
+          });
+      },
+    );
+  }
 
   const items = q.data?.items ?? [];
   if (items.length === 0) return null;
@@ -121,9 +152,7 @@ export function CleaningApprovalPanel({
               key={it.id}
               item={it}
               canApprove={canApprove}
-              busy={busyId === it.id}
-              disabled={decide.isPending}
-              onDecide={(decision) => decide.mutate({ id: it.id, decision })}
+              onDecide={(decision) => decide(it, decision)}
             />
           ))}
         </div>
@@ -135,14 +164,10 @@ export function CleaningApprovalPanel({
 function ApprovalRow({
   item,
   canApprove,
-  busy,
-  disabled,
   onDecide,
 }: {
   item: CleaningApprovalItem;
   canApprove: boolean;
-  busy: boolean;
-  disabled: boolean;
   onDecide: (decision: "approve" | "normal") => void;
 }) {
   const meta = [whenLabel(item.concludedAt), item.doneByName ? `por ${item.doneByName}` : null]
@@ -173,19 +198,16 @@ function ApprovalRow({
         <div className="grid grid-cols-2 gap-1.5">
           <button
             type="button"
-            disabled={disabled}
             onClick={() => onDecide("normal")}
-            className="h-10 rounded-md border border-border text-[12.5px] font-bold transition-colors hover:bg-secondary/50 disabled:opacity-60"
+            className="h-10 rounded-md border border-border text-[12.5px] font-bold transition-colors hover:bg-secondary/50 active:scale-[0.98]"
           >
             Foi normal
           </button>
           <button
             type="button"
-            disabled={disabled}
             onClick={() => onDecide("approve")}
-            className="flex h-10 items-center justify-center gap-1.5 rounded-md bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-[12.5px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+            className="flex h-10 items-center justify-center rounded-md bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-[12.5px] font-bold text-white transition-opacity hover:opacity-90 active:scale-[0.98]"
           >
-            {busy && <Loader2 className="size-3.5 animate-spin" />}
             Aprovar completa
           </button>
         </div>
@@ -196,4 +218,80 @@ function ApprovalRow({
       )}
     </div>
   );
+}
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(
+      () => reject(new Error("O servidor demorou para responder. Tente de novo.")),
+      ms,
+    );
+    p.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        reject(e);
+      },
+    );
+  });
+}
+
+/** Dia local (São Paulo, UTC-3 fixo) de um instante — mesma regra do servidor. */
+function spDate(iso: string): string {
+  return new Date(new Date(iso).getTime() - 3 * 3600_000).toISOString().slice(0, 10);
+}
+
+type StatsData = {
+  cleaningsDone: number;
+  totalCents: number;
+  daily: CleaningDailyPoint[];
+  pendingApproval: { count: number; totalCents: number };
+  items: CleaningDayItem[];
+};
+
+/** O efeito da decisão, aplicado direto no cache — o que o servidor vai
+ * devolver na próxima leitura. */
+function applyOptimistic(
+  qc: ReturnType<typeof useQueryClient>,
+  it: CleaningApprovalItem,
+  decision: "approve" | "normal",
+) {
+  qc.setQueriesData<{ canApprove: boolean; items: CleaningApprovalItem[] }>(
+    { queryKey: [CLEANING_APPROVALS_KEY] },
+    (old) => (old ? { ...old, items: old.items.filter((x) => x.id !== it.id) } : old),
+  );
+  const cents = (decision === "approve" ? it.priceCents : it.normalPriceCents) ?? 0;
+  const day = it.concludedAt ? spDate(it.concludedAt) : null;
+  for (const [key, data] of qc.getQueriesData<StatsData>({ queryKey: ["dash-cleaning-stats"] })) {
+    if (!data) continue;
+    const start = String(key[2] ?? "");
+    const end = String(key[3] ?? "");
+    const inRange = !!day && day >= start && day <= end;
+    if (!inRange) continue;
+    qc.setQueryData<StatsData>(key, {
+      ...data,
+      cleaningsDone: data.cleaningsDone + 1,
+      totalCents: data.totalCents + cents,
+      pendingApproval: {
+        count: Math.max(0, data.pendingApproval.count - 1),
+        totalCents: Math.max(0, data.pendingApproval.totalCents - (it.priceCents ?? 0)),
+      },
+      daily: data.daily.map((p) =>
+        p.date === day ? { ...p, count: p.count + 1, totalCents: p.totalCents + cents } : p,
+      ),
+      items: (data.items ?? []).map((x) =>
+        x.id === it.id
+          ? {
+              ...x,
+              pending: false,
+              cleaningType: decision === "approve" ? "completa" : "normal",
+              priceCents: cents,
+            }
+          : x,
+      ),
+    });
+  }
 }
