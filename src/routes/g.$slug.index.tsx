@@ -5148,7 +5148,14 @@ function AccessCodesStrip({
       );
       return false;
     }
+    // Códigos existem no imóvel mas ainda não chegaram: tenta liberar de novo
+    // em vez de revelar campos vazios.
+    if (!gateCode && !lockCode && onMissingCodes) {
+      onMissingCodes();
+      return false;
+    }
     return true;
+
   }
 
   function handleEyeClick() {
