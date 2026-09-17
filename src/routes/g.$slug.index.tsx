@@ -1391,6 +1391,8 @@ function Guide({ data }: { data: GuideOk }) {
                                   checkinLocked={checkinLocked}
                                   hasAccessRec={!!accessRec}
                                   gateEnabled={gateEnabled}
+                                  onMissingCodes={retryRevealCodes}
+
                                 />
                               </div>
                             )}
@@ -1411,6 +1413,8 @@ function Guide({ data }: { data: GuideOk }) {
                                   checkinLocked={checkinLocked}
                                   hasAccessRec={!!accessRec}
                                   gateEnabled={gateEnabled}
+                                  onMissingCodes={retryRevealCodes}
+
                                   theme={theme}
                                   onShown={markPasswordsSeen}
                                   gateInstructions={p.gate_instructions as string | null}
