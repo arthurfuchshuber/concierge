@@ -94,6 +94,10 @@ const DASHBOARD: Def[] = [
   act("tenant.dashboard.chegadas.checkin", "Confirmar check-in", 20),
   act("tenant.dashboard.chegadas.checkout", "Confirmar check-out", 30),
   act("tenant.dashboard.chegadas.limpeza", "Controle de limpeza", 40),
+  // Limpeza completa só entra no custo depois de aprovada (17/09/2026). Fora
+  // o dono da conta, só aprova quem recebe ESTE nó diretamente — a herança da
+  // aba não conta (ver cleaning-approval.functions.ts).
+  act("tenant.dashboard.chegadas.aprovar-limpeza", "Aprovar limpeza completa", 45),
   act("tenant.dashboard.chegadas.horario", "Editar horário previsto", 50),
   act("tenant.dashboard.chegadas.notas", "Notas da reserva", 60),
   act("tenant.dashboard.chegadas.reverter", "Reverter status", 70),

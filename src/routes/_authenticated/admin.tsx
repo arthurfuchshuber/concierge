@@ -380,7 +380,7 @@ function AdminLayout() {
           <div className="size-9" />
         </header>
 
-        <main className="flex-1 pb-[86px] lg:pb-0">
+        <main className="flex-1 pb-[calc(96px+env(safe-area-inset-bottom))] lg:pb-0">
           <PushNotificationBanner />
           {resolvingAccount || (routePermission && areaAccess.loading) ? (
             <div className="mx-auto w-full max-w-7xl space-y-3 px-4 py-10">

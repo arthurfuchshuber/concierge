@@ -925,7 +925,7 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
         if (cleaningType) {
           preview.push({
             label: "Tipo de limpeza",
-            value: cleaningType === "completa" ? "Completa" : "Normal",
+            value: cleaningType === "completa" ? "Completa (vai para aprovação do gestor)" : "Normal",
           });
         }
         ctx.prepared.current = {

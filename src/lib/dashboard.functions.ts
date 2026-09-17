@@ -348,7 +348,13 @@ export const getCleaningStats = createServerFn({ method: "GET" })
       if (emptyDaily.length > 366) break; // segurança: nunca itera indefinidamente
     }
     if (propIds.length === 0) {
-      return { cleaningsDone: 0, totalCents: 0, breakdown: [] as CleaningBreakdownItem[], daily: emptyDaily };
+      return {
+        cleaningsDone: 0,
+        totalCents: 0,
+        breakdown: [] as CleaningBreakdownItem[],
+        daily: emptyDaily,
+        pendingApproval: { count: 0, totalCents: 0 },
+      };
     }
     // Brasil não observa mais horário de verão (abolido em 2019) — São Paulo
     // é sempre UTC-3, então "dia 00:00 SP" = "dia 03:00 UTC".
@@ -357,7 +363,7 @@ export const getCleaningStats = createServerFn({ method: "GET" })
 
     const { data: rows, error } = await context.supabase
       .from("guest_arrival_status")
-      .select("property_id, cleaning_type, cleaning_price_cents, concluded_at")
+      .select("property_id, cleaning_type, cleaning_price_cents, concluded_at, cleaning_approval_status")
       .in("property_id", propIds)
       .eq("kind", "checkout")
       .not("cleaning_type", "is", null)
@@ -371,8 +377,19 @@ export const getCleaningStats = createServerFn({ method: "GET" })
       cleaning_type: string | null;
       cleaning_price_cents: number | null;
       concluded_at: string | null;
+      cleaning_approval_status: string | null;
     };
-    const list = (rows ?? []) as Row[];
+    // LIMPEZA COMPLETA SÓ CONTA DEPOIS DE APROVADA (pedido explícito,
+    // 17/09/2026): as pendentes ficam fora de TODOS os números desta função
+    // (cards, gráficos e ranking) e voltam separadas, só para o aviso
+    // "+N aguardando aprovação" embaixo dos cards.
+    const all = (rows ?? []) as Row[];
+    const list = all.filter((r) => r.cleaning_approval_status !== "pending");
+    const pendingList = all.filter((r) => r.cleaning_approval_status === "pending");
+    const pendingApproval = {
+      count: pendingList.length,
+      totalCents: pendingList.reduce((sum, r) => sum + (r.cleaning_price_cents ?? 0), 0),
+    };
     const cleaningsDone = list.length;
     const totalCents = list.reduce((sum, r) => sum + (r.cleaning_price_cents ?? 0), 0);
 
@@ -444,7 +461,7 @@ export const getCleaningStats = createServerFn({ method: "GET" })
         })
         .sort((a, b) => b.count - a.count || a.propertyName.localeCompare(b.propertyName, "pt-BR"));
     }
-    return { cleaningsDone, totalCents, breakdown, daily };
+    return { cleaningsDone, totalCents, breakdown, daily, pendingApproval };
   });
 
 // ----- Engagement -----
@@ -1210,6 +1227,8 @@ export async function runAdvanceArrival(
         concluded_at?: string | null;
         cleaning_type?: "normal" | "completa" | null;
         cleaning_price_cents?: number | null;
+        cleaning_approval_status?: "pending" | null;
+        cleaning_done_by?: string | null;
       },
     ) {
       const body: {
@@ -1222,6 +1241,8 @@ export async function runAdvanceArrival(
         concluded_at?: string | null;
         cleaning_type?: "normal" | "completa" | null;
         cleaning_price_cents?: number | null;
+        cleaning_approval_status?: "pending" | null;
+        cleaning_done_by?: string | null;
       } = { property_id: propertyId!, kind, ...patch };
       if (data.logId) body.log_id = data.logId;
       if (data.reservationId) body.reservation_id = data.reservationId;
@@ -1278,6 +1299,7 @@ export async function runAdvanceArrival(
         concluded_at: nowIso,
         cleaning_type: null,
         cleaning_price_cents: null,
+        cleaning_approval_status: null,
       });
       await upsertStatus("checkin", { status: "done", done_at: nowIso, concluded_at: nowIso });
       return { ok: true };
@@ -1522,6 +1544,12 @@ export async function runAdvanceArrival(
         concluded_at: nowIso,
         cleaning_type: cleaningType,
         cleaning_price_cents: cleaningPriceCents,
+        // Completa entra PENDENTE: só soma no custo depois que o gestor
+        // aprovar (cleaning-approval.functions.ts). Gravar "pending" também
+        // derruba uma aprovação antiga quando a limpeza é concluída de novo
+        // depois de um "voltar etapa". O gatilho do banco garante o mesmo.
+        cleaning_approval_status: cleaningType === "completa" ? "pending" : null,
+        cleaning_done_by: opts?.byUserId ?? null,
       });
       await upsertStatus("checkin", { status: "done", concluded_at: nowIso });
     }

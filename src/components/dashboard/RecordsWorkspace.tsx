@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   Camera,
   Check,
+  CircleAlert,
   ChevronLeft,
   ChevronRight,
   FileText,
@@ -418,6 +419,31 @@ export function RecordsWorkspace() {
     return Array.from(map.values());
   }, [records, groupBy]);
 
+  // Divisão da lista (mockup B, 17/09/2026). No bloco de cima, o imóvel com a
+  // pendência MAIS ANTIGA vem primeiro — ali antiguidade é atraso, a mesma
+  // regra das linhas dentro do cartão. Embaixo, a ordem de sempre.
+  const byProperty = groupBy === "property";
+  const attentionGroups = byProperty
+    ? groups
+        .filter((g) => g.pending.length > 0)
+        .sort((a, b) => a.pending[0].createdAt.localeCompare(b.pending[0].createdAt))
+    : [];
+  const calmGroups = byProperty ? groups.filter((g) => g.pending.length === 0) : groups;
+  const attentionCount = attentionGroups.reduce((n, g) => n + g.pending.length, 0);
+
+  const renderCard = (g: Group) => (
+    <PropertyCard
+      key={g.key}
+      group={g}
+      onOpen={setOpened}
+      onResolve={setResolving}
+      stripOpen={openStrip === g.key}
+      onToggleStrip={() => setOpenStrip((cur) => (cur === g.key ? null : g.key))}
+      pendingOpen={openPending === g.key}
+      onTogglePending={() => setOpenPending((cur) => (cur === g.key ? null : g.key))}
+    />
+  );
+
   // "6 de 38 · danos" — exatamente a legenda do mockup.
   const subtitle = (() => {
     if (q.isLoading) return "Carregando…";
@@ -526,18 +552,46 @@ export function RecordsWorkspace() {
         </p>
       ) : (
         <div className="space-y-1.5">
-          {groups.map((g) => (
-            <PropertyCard
-              key={g.key}
-              group={g}
-              onOpen={setOpened}
-              onResolve={setResolving}
-              stripOpen={openStrip === g.key}
-              onToggleStrip={() => setOpenStrip((cur) => (cur === g.key ? null : g.key))}
-              pendingOpen={openPending === g.key}
-              onTogglePending={() => setOpenPending((cur) => (cur === g.key ? null : g.key))}
-            />
-          ))}
+          {/* PENDÊNCIAS SEMPRE EM CIMA (mockup B aprovado, 17/09/2026): os
+              imóveis com pendência aberta sobem para um bloco próprio, com
+              borda de luz e o total de pendências; os que estão em dia vêm
+              depois de um divisor discreto. Só vale para "Por imóvel" — em
+              "Por data" a ordem do dia é a informação e não é quebrada. */}
+          {attentionGroups.length > 0 && (
+            <section
+              aria-label="Imóveis que precisam de atenção"
+              className="rounded-[0.5rem] bg-gradient-to-b from-rose-400/45 via-rose-400/[0.06] to-transparent to-60% p-px"
+            >
+              <div className="space-y-1.5 rounded-[calc(0.5rem-1px)] bg-gradient-to-b from-[color-mix(in_oklab,#fb7185_7%,var(--background))] to-background to-70% px-1.5 pb-1.5 pt-3">
+                <div className="flex items-center justify-between gap-2 px-1.5 pb-1">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="grid size-[22px] shrink-0 place-items-center rounded-md bg-rose-400/15 text-rose-500 dark:text-rose-400">
+                      <CircleAlert className="size-[13px]" strokeWidth={2.2} />
+                    </span>
+                    <h2 className="truncate font-display text-[13px] font-bold">
+                      Precisam de atenção
+                    </h2>
+                  </div>
+                  <span className="flex h-5 shrink-0 items-center rounded-full bg-rose-400/12 px-2 text-[10px] font-extrabold tabular-nums text-rose-600 dark:text-rose-400">
+                    {attentionCount} {attentionCount === 1 ? "pendência" : "pendências"}
+                  </span>
+                </div>
+                {attentionGroups.map(renderCard)}
+              </div>
+            </section>
+          )}
+
+          {attentionGroups.length > 0 && calmGroups.length > 0 && (
+            <div className="flex items-center gap-3 px-1 pb-1.5 pt-5">
+              <span className="h-px flex-1 bg-border" />
+              <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground">
+                Em dia · {calmGroups.length}
+              </span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+          )}
+
+          {calmGroups.map(renderCard)}
 
           {q.data?.truncated && (
             <p className="pt-1 text-center text-[11px] text-muted-foreground">

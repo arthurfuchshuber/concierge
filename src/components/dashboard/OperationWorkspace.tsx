@@ -80,6 +80,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
+import { CleaningApprovalPanel, CLEANING_APPROVALS_KEY } from "@/components/dashboard/CleaningApprovalPanel";
 import { notifyAction } from "@/components/UndoActionBar";
 import { ReservationRecordsButton } from "@/components/dashboard/ReservationRecords";
 import {
@@ -1010,6 +1011,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     placeholderData: keepPreviousData,
     enabled: authed && view === "limpeza",
   });
+  // Completas aguardando aprovação no período dos cards — ficam FORA dos
+  // totais e aparecem só como aviso embaixo deles.
+  const pendingApproval = cleaningStatsQ.data?.pendingApproval ?? { count: 0, totalCents: 0 };
 
   // Uma única rotina de recarga, com "debounce": evita disparar 4-5 requisições
   // seguidas (mutação + eventos em tempo real) — o que deixava o app lento no celular.
@@ -1026,7 +1030,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               k === "dash-kpis" ||
               k === "dash-eng" ||
               k === "dash-occupancy" ||
-              k === "dash-cleaning-stats"
+              k === "dash-cleaning-stats" ||
+              k === CLEANING_APPROVALS_KEY
             );
           },
           refetchType: "active",
@@ -2805,6 +2810,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     ? cleaningStatsQ.isLoading
                     : cleaningForecastListQ.isLoading
                 }
+                note={
+                  cleaningWindow === "past" && pendingApproval.count > 0
+                    ? `+${pendingApproval.count} aguardando aprovação`
+                    : null
+                }
               />
             </div>
             <div className="col-span-1">
@@ -2821,9 +2831,22 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     ? cleaningStatsQ.isLoading
                     : cleaningForecastListQ.isLoading
                 }
+                note={
+                  cleaningWindow === "past" && pendingApproval.count > 0
+                    ? `+${centsToBRL(pendingApproval.totalCents)} em análise`
+                    : null
+                }
               />
             </div>
           </div>
+
+          {/* Limpeza completa só entra no custo depois de aprovada (pedido
+              explícito, 17/09/2026). O bloco só existe quando há pendência. */}
+          <CleaningApprovalPanel
+            ownerId={activeOwnerId}
+            propertyIds={cleaningStatsPropertyIds}
+            enabled={authed}
+          />
 
           {/* Gráficos de tendência (pedido explícito, combinando as opções A
               e C dos mockups aprovados) — sem mexer no layout dos cards
@@ -3413,7 +3436,15 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     }}
                   >
                     <span className="font-medium">Limpeza completa</span>
+                    <span className="text-[10.5px] font-semibold opacity-75">vai para aprovação</span>
                   </Button>
+                )}
+                {hasCompleta && (
+                  <p
+                    className={`text-[11.5px] leading-relaxed text-muted-foreground ${showBoth ? "col-span-2" : ""}`}
+                  >
+                    A limpeza completa só entra no custo depois que o gestor aprovar.
+                  </p>
                 )}
               </div>
             );
@@ -4249,11 +4280,14 @@ function StatDisplayCard({
   loading,
   breakdown,
   sparkline,
+  note,
 }: {
   label: string;
   value: string | number;
   icon: React.ElementType;
   loading: boolean;
+  /** Linha de aviso embaixo do número (ex.: "+2 aguardando aprovação"). */
+  note?: string | null;
   breakdown?: CleaningBreakdownItem[];
   /** Mini gráfico de tendência (pedido explícito: sem percentual comparativo por
       enquanto, só a linha). */
@@ -4294,6 +4328,11 @@ function StatDisplayCard({
           </div>
         )}
       </div>
+      {note && !loading && (
+        <p className="mt-1.5 truncate text-[10.5px] font-bold text-amber-500 dark:text-amber-400" title={note}>
+          {note}
+        </p>
+      )}
     </div>
   );
 }

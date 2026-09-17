@@ -2514,7 +2514,12 @@ export type Database = {
         Row: {
           arrival_date_override: string | null
           arrival_time_override: string | null
+          cleaning_approval_at: string | null
+          cleaning_approval_by: string | null
+          cleaning_approval_status: string | null
+          cleaning_done_by: string | null
           cleaning_price_cents: number | null
+          cleaning_requested_price_cents: number | null
           cleaning_type: string | null
           concluded_at: string | null
           created_at: string
@@ -2532,7 +2537,12 @@ export type Database = {
         Insert: {
           arrival_date_override?: string | null
           arrival_time_override?: string | null
+          cleaning_approval_at?: string | null
+          cleaning_approval_by?: string | null
+          cleaning_approval_status?: string | null
+          cleaning_done_by?: string | null
           cleaning_price_cents?: number | null
+          cleaning_requested_price_cents?: number | null
           cleaning_type?: string | null
           concluded_at?: string | null
           created_at?: string
@@ -2550,7 +2560,12 @@ export type Database = {
         Update: {
           arrival_date_override?: string | null
           arrival_time_override?: string | null
+          cleaning_approval_at?: string | null
+          cleaning_approval_by?: string | null
+          cleaning_approval_status?: string | null
+          cleaning_done_by?: string | null
           cleaning_price_cents?: number | null
+          cleaning_requested_price_cents?: number | null
           cleaning_type?: string | null
           concluded_at?: string | null
           created_at?: string

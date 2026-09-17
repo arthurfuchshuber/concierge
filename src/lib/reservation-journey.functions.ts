@@ -115,6 +115,7 @@ type StatusRow = {
   arrival_date_override: string | null;
   cleaning_type: string | null;
   cleaning_price_cents: number | null;
+  cleaning_approval_status: string | null;
 };
 
 function brl(cents: number | null): string | null {
@@ -214,7 +215,7 @@ export const getReservationJourney = createServerFn({ method: "GET" })
     const { data: statusRows } = await db
       .from("guest_arrival_status")
       .select(
-        "kind, status, note, done_at, concluded_at, created_at, updated_at, arrival_time_override, arrival_date_override, cleaning_type, cleaning_price_cents",
+        "kind, status, note, done_at, concluded_at, created_at, updated_at, arrival_time_override, arrival_date_override, cleaning_type, cleaning_price_cents, cleaning_approval_status",
       )
       .or(orParts.join(","))
       .order("updated_at", { ascending: true });
@@ -339,7 +340,16 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       state: concluded ? "done" : checkoutDone ? "pending" : "pending",
       at: concluded ? co?.concluded_at : null,
       detail: concluded
-        ? [co?.cleaning_type === "completa" ? "Completa" : co?.cleaning_type === "normal" ? "Normal" : null, brl(co?.cleaning_price_cents ?? null)]
+        ? [
+            co?.cleaning_type === "completa" ? "Completa" : co?.cleaning_type === "normal" ? "Normal" : null,
+            brl(co?.cleaning_price_cents ?? null),
+            // Completa só conta no custo depois de aprovada (17/09/2026).
+            co?.cleaning_approval_status === "pending"
+              ? "aguardando aprovação"
+              : co?.cleaning_approval_status === "rejected"
+                ? "ajustada para normal pelo gestor"
+                : null,
+          ]
             .filter(Boolean)
             .join(" · ") || null
         : checkoutDone
