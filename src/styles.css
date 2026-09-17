@@ -1113,3 +1113,63 @@ dd {
     animation: none;
   }
 }
+
+/* Moldura do guia, seletor e constelação (17/09/2026). */
+@keyframes lp-breathe {
+  0%,
+  100% {
+    opacity: 0.26;
+  }
+  50% {
+    opacity: 0.34;
+  }
+}
+@keyframes lp-live {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+@keyframes lp-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+}
+@keyframes lp-dash {
+  to {
+    stroke-dashoffset: -40;
+  }
+}
+.lp-breathe {
+  animation: lp-breathe 5s ease-in-out infinite;
+}
+.lp-live {
+  animation: lp-live 2.4s ease-in-out infinite;
+}
+.lp-pulse {
+  animation: lp-pulse 3.2s ease-in-out infinite;
+}
+.lp-dash {
+  animation: lp-dash 2.4s linear infinite;
+}
+.lp-spin-slow {
+  animation: lp-spin 12s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-breathe,
+  .lp-live,
+  .lp-pulse,
+  .lp-dash,
+  .lp-spin-slow {
+    animation: none;
+  }
+}

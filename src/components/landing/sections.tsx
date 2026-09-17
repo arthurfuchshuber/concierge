@@ -70,39 +70,185 @@ function Destaque({ d }: { d: (typeof DESTAQUES_ESQ)[number] }) {
   );
 }
 
-/** Moldura de celular com borda de luz girando. O guia real fica dentro. */
+/**
+ * Moldura do guia (17/09/2026, pedido do cliente com print): SEM carcaça de
+ * celular e SEM borda — só a tela com cantos de 28 px, uma luz roxa/rosa bem
+ * fraca ao fundo e o neon girando no contorno. O trecho parado do contorno é
+ * transparente, senão ele aparece como uma linha.
+ *
+ * A intensidade da luz de fundo fica no próprio elemento (`opacity-30`), não só
+ * na animação: quando a animação não roda (sistema com "reduzir movimento"),
+ * a luz não pode aparecer com força total.
+ */
 function PhoneShell({ children }: { children: ReactNode }) {
   return (
     <div className="relative">
       <div
         aria-hidden
-        className="pointer-events-none absolute -inset-4 rounded-[56px] lg:-inset-6 lg:rounded-[64px]"
-        style={{
-          background: "radial-gradient(closest-side, rgba(166,38,200,0.45), rgba(166,38,200,0))",
-        }}
+        className="lp-breathe pointer-events-none absolute -inset-4 rounded-[42px] opacity-30 blur-[20px] lg:-inset-5 lg:rounded-[48px] lg:blur-[24px]"
+        style={{ background: "linear-gradient(140deg, #7c1ad8, #e82dae)" }}
       />
-      <div className="relative overflow-hidden rounded-[44px] p-[1.5px] shadow-[0_50px_100px_-40px_rgba(0,0,0,0.9)] lg:rounded-[48px]">
+      <div className="relative overflow-hidden rounded-[28px] p-[1.5px] shadow-[0_50px_100px_-40px_rgba(0,0,0,0.9)]">
         <div
           aria-hidden
           className="lp-ring"
           style={{
             background:
-              "conic-gradient(from 0deg, rgba(255,255,255,0.08) 0deg, rgba(255,255,255,0.08) 250deg, #8b2be2 300deg, #e82dae 340deg, rgba(255,255,255,0.08) 360deg)",
+              "conic-gradient(from 0deg, rgba(139,43,226,0) 0deg, rgba(139,43,226,0) 240deg, #8b2be2 295deg, #e82dae 335deg, rgba(232,45,174,0) 360deg)",
           }}
         />
-        <div className="relative rounded-[42.5px] bg-[#1a1614] p-[8.5px] lg:rounded-[46.5px] lg:p-[10.5px]">
-          <div className="overflow-hidden rounded-[34px] bg-[#0a0a0f] lg:rounded-[36px]">
-            {children}
-          </div>
+        <div className="relative overflow-hidden rounded-[26.5px] bg-[#07070d]">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Seletor do mockup (17/09/2026). Hoje só existe "O Guia Digital"; outros
+ * mockups (painel etc.) entram como novos botões iguais, lado a lado, e o
+ * ponto de luz passa para o que estiver selecionado. Discreto de propósito:
+ * contorno de 1 px, sem fundo; no hover o contorno fica rosa.
+ */
+const DEMOS = [{ id: "guia", label: "O Guia Digital" }] as const;
+
+function DemoTabs() {
+  const ativo = "guia";
+  return (
+    <div className="mb-3.5 flex items-center justify-center gap-2.5 lg:gap-4">
+      <span
+        aria-hidden
+        className="h-px w-6 lg:w-14"
+        style={{
+          background: "linear-gradient(90deg, rgba(255,255,255,0), rgba(233,123,214,0.45))",
+        }}
+      />
+      <div role="tablist" aria-label="Demonstrações" className="flex items-center gap-2">
+        {DEMOS.map((d) => (
+          <button
+            key={d.id}
+            type="button"
+            role="tab"
+            aria-selected={d.id === ativo}
+            className="inline-flex h-9 cursor-pointer items-center gap-2.5 rounded-full border border-white/[0.16] px-4 font-display text-[11.5px] font-semibold tracking-[0.24em] whitespace-nowrap text-[#f6f3ef] uppercase transition-colors duration-300 hover:border-[#e82dae]/55 hover:bg-[#e82dae]/[0.06]"
+          >
+            {d.id === ativo ? (
+              <span
+                aria-hidden
+                className="lp-live size-[5px] rounded-full bg-[linear-gradient(135deg,#8b2be2,#e82dae)] shadow-[0_0_6px_rgba(232,45,174,0.8)]"
+              />
+            ) : null}
+            {d.label}
+          </button>
+        ))}
+      </div>
+      <span
+        aria-hidden
+        className="h-px w-6 lg:w-14"
+        style={{
+          background: "linear-gradient(90deg, rgba(233,123,214,0.45), rgba(255,255,255,0))",
+        }}
+      />
+    </div>
+  );
+}
+
+/* ---------------- CONSTELAÇÃO (celular e tablet) ---------------- */
+
+/**
+ * Os 4 destaques em telas menores que 1280 px (17/09/2026, opção C aprovada):
+ * uma esfera "IA" no centro, ligada aos 4 recursos por linhas tracejadas em
+ * movimento. Fica a 72 px do celular — a mesma distância até a faixa de
+ * capacidades logo abaixo. Títulos com iniciais maiúsculas, como o cliente
+ * editou no canvas.
+ */
+const CONSTELACAO = [
+  { icon: House, title: "Check-in Guiado", desc: "Chegada, regras e saída passo a passo." },
+  {
+    icon: LockKeyhole,
+    title: "Senhas Protegidas",
+    desc: "Wi-Fi, portão e fechadura só com reserva ativa.",
+  },
+  {
+    icon: MessageSquare,
+    title: "IA de Atendimento",
+    desc: "Responde o hóspede em português e inglês.",
+  },
+  { icon: MapPin, title: "Dicas da Cidade", desc: "Passeios, restaurantes e mercados perto." },
+];
+
+function ConstelacaoNo({ c, lado }: { c: (typeof CONSTELACAO)[number]; lado: "cima" | "baixo" }) {
+  return (
+    <div
+      className={cn(
+        "flex min-w-0 flex-col items-center text-center",
+        lado === "cima" ? "justify-end" : "justify-start",
+      )}
+    >
+      <span className="grid size-12 place-items-center rounded-2xl border border-[#e82dae]/45 bg-[#14100e] text-[#f0a6e4] shadow-[0_0_24px_-6px_rgba(232,45,174,0.6)]">
+        <c.icon className="size-[22px]" strokeWidth={1.8} />
+      </span>
+      <h3 className="mt-2.5 font-display text-[14.5px] leading-tight font-bold">{c.title}</h3>
+      <p className="mt-1 text-[12.5px] leading-[1.45] text-[#a9a39b]">{c.desc}</p>
+    </div>
+  );
+}
+
+function Constelacao() {
+  const linhas = [
+    "M25 0 C 28 45, 42 58, 50 50",
+    "M75 0 C 72 45, 58 58, 50 50",
+    "M25 100 C 28 55, 42 42, 50 50",
+    "M75 100 C 72 55, 58 42, 50 50",
+  ];
+  return (
+    <div className="mx-auto mt-[72px] grid w-full max-w-[350px] grid-cols-2 gap-x-5 xl:hidden">
+      <ConstelacaoNo c={CONSTELACAO[0]} lado="cima" />
+      <ConstelacaoNo c={CONSTELACAO[1]} lado="cima" />
+
+      <div className="relative col-span-2 h-[170px]">
+        <svg
+          aria-hidden
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          className="absolute inset-0 size-full overflow-visible"
+        >
+          <defs>
+            <linearGradient id="lp-constelacao" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stopColor="#8b2be2" />
+              <stop offset="1" stopColor="#e82dae" />
+            </linearGradient>
+          </defs>
+          {linhas.map((d) => (
+            <path
+              key={d}
+              d={d}
+              className="lp-dash"
+              stroke="url(#lp-constelacao)"
+              strokeWidth={1.2}
+              strokeDasharray="4 6"
+              fill="none"
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+        </svg>
+        <div
+          aria-hidden
+          className="lp-spin-slow absolute top-1/2 left-1/2 -mt-[60px] -ml-[60px] size-[120px] rounded-full border border-dashed border-[#e97bd6]/35"
+        />
+        <div className="lp-pulse absolute top-1/2 left-1/2 -mt-[35px] -ml-[35px] grid size-[70px] place-items-center rounded-full bg-[radial-gradient(circle_at_35%_30%,#f7c6ec,#e82dae_40%,#7c1ad8_100%)] shadow-[0_0_50px_rgba(232,45,174,0.7)]">
+          <span className="font-display text-[16px] font-extrabold text-white">IA</span>
         </div>
       </div>
+
+      <ConstelacaoNo c={CONSTELACAO[2]} lado="baixo" />
+      <ConstelacaoNo c={CONSTELACAO[3]} lado="baixo" />
     </div>
   );
 }
 
 export function Hero() {
   return (
-    <section id="topo" className="relative overflow-hidden pt-16 lg:pt-28">
+    <section id="topo" className="relative overflow-x-clip pt-16 lg:pt-28">
       <div
         aria-hidden
         className="lp-grid pointer-events-none absolute inset-x-0 top-0 h-[620px] lg:h-[900px]"
@@ -132,7 +278,7 @@ export function Hero() {
             <span className="hidden lg:inline">Sistema operacional para hospedagem</span>
           </p>
 
-          <h1 className="mt-6 font-display text-[40px] leading-[1.08] font-extrabold tracking-[-0.03em] sm:text-[48px] lg:mt-8 lg:text-[72px] lg:leading-[1.04] lg:tracking-[-0.035em]">
+          <h1 className="mt-6 font-display text-[40px] leading-[1.08] font-extrabold tracking-[-0.03em] sm:text-[48px] lg:mt-8 lg:text-[64px] xl:text-[72px] lg:leading-[1.04] lg:tracking-[-0.035em]">
             <span className="lg:block lg:whitespace-nowrap">
               O <span className="lp-shimmer">cérebro</span> da sua operação
             </span>{" "}
@@ -177,6 +323,7 @@ export function Hero() {
             </div>
 
             <div className="mx-auto w-full max-w-[380px]">
+              <DemoTabs />
               <PhoneShell>
                 <LiveGuideFrame />
               </PhoneShell>
@@ -187,17 +334,10 @@ export function Hero() {
                 <Destaque key={d.title} d={d} />
               ))}
             </div>
-
-            {/* Telas menores que 1280 px: os mesmos 4 destaques numa grade abaixo do guia. */}
-            <div className="grid grid-cols-2 gap-3 text-left lg:grid-cols-4 lg:gap-6 xl:hidden">
-              {[...DESTAQUES_ESQ, ...DESTAQUES_DIR].map((d, i) => (
-                <div key={d.title} className={cn(CARD, "rounded-[18px] p-[18px]", "lp-float")}>
-                  <h3 className="font-display text-[15px] font-bold">{d.title}</h3>
-                  <p className="mt-1.5 text-[13px] leading-normal text-[#a9a39b]">{d.short}</p>
-                </div>
-              ))}
-            </div>
           </div>
+
+          {/* Telas menores que 1280 px: a constelação, 72 px abaixo do celular. */}
+          <Constelacao />
         </Reveal>
       </div>
     </section>
