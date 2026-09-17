@@ -164,6 +164,8 @@ function tentarUmaVez(params: {
     const xhr = new XMLHttpRequest();
     let ultimoByte = Date.now();
     let encerrado = false;
+    /** Corpo já saiu inteiro: a partir daqui esperamos o servidor gravar. */
+    let corpoEnviado = false;
 
     const finalizar = (r: UmaTentativa) => {
       if (encerrado) return;
