@@ -955,3 +955,161 @@ dd {
 .ds-form-dialog {
   border-radius: 8px;
 }
+
+/*
+ * EFEITOS DA LANDING (17/09/2026) — pedido do cliente: "um e outro efeito
+ * visual ELEGANTE para não parecer a mesma coisa do início ao fim".
+ * Cada seção usa um efeito diferente, sempre lento. Todos param quando o
+ * sistema pede menos movimento.
+ */
+@keyframes lp-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes lp-shimmer {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 200% 50%;
+  }
+}
+@keyframes lp-drift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(40px, 24px) scale(1.08);
+  }
+}
+@keyframes lp-travel {
+  0% {
+    left: 0%;
+    opacity: 0;
+  }
+  10%,
+  90% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+@keyframes lp-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+.lp-shimmer {
+  background-image: linear-gradient(
+    100deg,
+    #8b2be2 0%,
+    #e82dae 25%,
+    #f7c6ec 38%,
+    #e82dae 50%,
+    #8b2be2 75%,
+    #e82dae 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: lp-shimmer 6s linear infinite;
+}
+/* Borda de luz girando: o pai tem `overflow-hidden` e 1.5px de respiro. */
+.lp-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 250%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  animation: lp-spin 7s linear infinite;
+}
+.lp-drift {
+  animation: lp-drift 14s ease-in-out infinite;
+}
+.lp-drift-rev {
+  animation: lp-drift 18s ease-in-out infinite reverse;
+}
+.lp-travel {
+  animation: lp-travel 4.5s cubic-bezier(0.6, 0, 0.4, 1) infinite;
+}
+.lp-float {
+  animation: lp-float 6s ease-in-out infinite;
+}
+.lp-float-late {
+  animation: lp-float 6s ease-in-out 1.5s infinite;
+}
+/* Grade fina do topo, que some nas bordas. */
+.lp-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-position: center top;
+  -webkit-mask-image: radial-gradient(ellipse 70% 55% at 50% 30%, #000 20%, transparent 75%);
+  mask-image: radial-gradient(ellipse 70% 55% at 50% 30%, #000 20%, transparent 75%);
+}
+@media (min-width: 1024px) {
+  .lp-grid {
+    background-size: 64px 64px;
+    -webkit-mask-image: radial-gradient(ellipse 55% 60% at 50% 30%, #000 20%, transparent 75%);
+    mask-image: radial-gradient(ellipse 55% 60% at 50% 30%, #000 20%, transparent 75%);
+  }
+}
+/* Pontilhado da seção de dúvidas. */
+.lp-dots {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 22px 22px;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 25%, #000 75%, transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 25%, #000 75%, transparent);
+}
+.lp-wordmark {
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.09);
+  background: linear-gradient(180deg, rgba(232, 45, 174, 0.16), rgba(232, 45, 174, 0) 80%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-shimmer,
+  .lp-ring,
+  .lp-drift,
+  .lp-drift-rev,
+  .lp-travel,
+  .lp-float,
+  .lp-float-late {
+    animation: none;
+  }
+}
+/* Versão vertical do ponto de luz (linha do tempo no celular). */
+@keyframes lp-travel-y {
+  0% {
+    top: 0%;
+    opacity: 0;
+  }
+  10%,
+  90% {
+    opacity: 1;
+  }
+  100% {
+    top: 100%;
+    opacity: 0;
+  }
+}
+.lp-travel-y {
+  animation: lp-travel-y 4.5s cubic-bezier(0.6, 0, 0.4, 1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-travel-y {
+    animation: none;
+  }
+}

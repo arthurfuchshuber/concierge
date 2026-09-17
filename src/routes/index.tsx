@@ -3,7 +3,14 @@ import { useEffect } from "react";
 import { LandingNav } from "@/components/landing/LandingNav";
 import { LeadForm } from "@/components/landing/LeadForm";
 import { PricingSection } from "@/components/landing/PricingSection";
-import { AudienceSection, FlowSection, Hero, LandingFooter } from "@/components/landing/sections";
+import {
+  AudienceSection,
+  CapabilityStrip,
+  FaqSection,
+  FlowSection,
+  Hero,
+  LandingFooter,
+} from "@/components/landing/sections";
 import { metaPixelTrackCustomOnce } from "@/lib/meta-pixel";
 import { siteUrl } from "@/lib/site-url";
 
@@ -56,13 +63,15 @@ function Landing() {
     // Tema escuro local: a landing tem identidade própria, sem alterar o tema
     // do painel. `overflow-x-hidden` garante que nenhum brilho ou mockup
     // ultrapasse a margem direita em telas estreitas.
-    <div className="dark min-h-dvh w-full overflow-x-clip bg-background text-foreground antialiased">
+    <div className="dark min-h-dvh w-full overflow-x-clip bg-[#0e0b09] text-[#f6f3ef] antialiased">
       <LandingNav />
       <main>
         <Hero />
+        <CapabilityStrip />
         <FlowSection />
         <AudienceSection />
         <PricingSection />
+        <FaqSection />
         <LeadForm />
       </main>
       <LandingFooter />

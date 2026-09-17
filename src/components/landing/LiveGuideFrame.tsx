@@ -47,7 +47,8 @@ export function LiveGuideFrame() {
         ref={iframeRef}
         src={`/g/${DEMO_SLUG}?preview=1&demo=1`}
         title="Guia do hóspede — demonstração"
-        loading="lazy"
+        // Fica no topo da landing: carregar já, sem esperar a rolagem.
+        loading="eager"
         onLoad={measureArrivalCard}
         className="block size-full border-0"
       />
