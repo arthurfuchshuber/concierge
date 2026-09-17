@@ -614,6 +614,9 @@ function Guide({ data }: { data: GuideOk }) {
   const revealCodes = useServerFn(revealGuideAccessCodes);
   const codesNeedReservation = !!(baseProp as { codesNeedReservation?: boolean })
     .codesNeedReservation;
+  // Tentativa manual: se a liberação falhar (rede/limite/iCal), o hóspede
+  // toca no olho e tentamos de novo — nunca fica um campo vazio e mudo.
+  const [revealAttempt, setRevealAttempt] = useState(0);
   useEffect(() => {
     if (isPreview || !codesNeedReservation) return;
     const codeValue = accessRec?.code?.trim();
@@ -621,7 +624,13 @@ function Guide({ data }: { data: GuideOk }) {
     let cancelled = false;
     revealCodes({ data: { slug, property_id: p.id, code: codeValue } })
       .then((r) => {
-        if (cancelled || !r?.ok) return;
+        if (cancelled) return;
+        if (!r?.ok) {
+          if (revealAttempt > 0) {
+            toast.error("Não conseguimos liberar as senhas agora. Tente novamente em instantes.");
+          }
+          return;
+        }
         setRevealedCodes({
           wifi_password: r.wifi_password,
           lock_code: r.lock_code,
@@ -629,12 +638,27 @@ function Guide({ data }: { data: GuideOk }) {
         });
       })
       .catch(() => {
-        /* rede instável: tenta de novo quando o registro mudar */
+        if (cancelled) return;
+        if (revealAttempt > 0) {
+          toast.error("Não conseguimos liberar as senhas agora. Verifique sua conexão.");
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [isPreview, codesNeedReservation, accessRec?.code, slug, p.id, revealCodes]);
+  }, [isPreview, codesNeedReservation, accessRec?.code, slug, p.id, revealCodes, revealAttempt]);
+
+  const retryRevealCodes = useCallback(() => {
+    if (!codesNeedReservation) return;
+    const codeValue = accessRec?.code?.trim();
+    if (!codeValue || codeValue.length < 4) {
+      toast.error("Informe o código da sua reserva para liberar as senhas.");
+      return;
+    }
+    toast.loading("Liberando suas senhas…", { duration: 1500 });
+    setRevealAttempt((n) => n + 1);
+  }, [codesNeedReservation, accessRec?.code]);
+
 
   // Enquanto o estado real ainda não foi decidido (gateReady === false), a
   // página de fundo fica coberta — nunca "pisca" a home por trás do
@@ -1367,6 +1391,8 @@ function Guide({ data }: { data: GuideOk }) {
                                   checkinLocked={checkinLocked}
                                   hasAccessRec={!!accessRec}
                                   gateEnabled={gateEnabled}
+                                  onMissingCodes={retryRevealCodes}
+
                                 />
                               </div>
                             )}
@@ -1387,6 +1413,8 @@ function Guide({ data }: { data: GuideOk }) {
                                   checkinLocked={checkinLocked}
                                   hasAccessRec={!!accessRec}
                                   gateEnabled={gateEnabled}
+                                  onMissingCodes={retryRevealCodes}
+
                                   theme={theme}
                                   onShown={markPasswordsSeen}
                                   gateInstructions={p.gate_instructions as string | null}
@@ -4924,6 +4952,7 @@ function WifiStrip({
   checkinLocked,
   hasAccessRec,
   gateEnabled,
+  onMissingCodes,
 }: {
   ssid?: string | null;
   password?: string | null;
@@ -4934,6 +4963,7 @@ function WifiStrip({
   checkinLocked: boolean;
   hasAccessRec: boolean;
   gateEnabled: boolean;
+  onMissingCodes?: () => void;
 }) {
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -4956,6 +4986,12 @@ function WifiStrip({
       );
       return false;
     }
+    // A senha existe no imóvel mas ainda não chegou ao aparelho: em vez de
+    // mostrar um campo vazio e mudo, tentamos liberar de novo.
+    if (!password && onMissingCodes) {
+      onMissingCodes();
+      return false;
+    }
     return true;
   }
 
@@ -4967,6 +5003,7 @@ function WifiStrip({
     if (!gateOk()) return;
     requestUnlock(() => setRevealed(true));
   }
+
 
   function copyPwd() {
     if (!gateOk()) return;
@@ -5050,6 +5087,8 @@ function AccessCodesStrip({
   gateMedia,
   lockMedia,
   onShown,
+  onMissingCodes,
+
 }: {
   gateCode: string | null;
   lockCode: string | null;
@@ -5070,6 +5109,8 @@ function AccessCodesStrip({
   gateMedia?: Array<{ url: string; type: "image" | "video" }>;
   lockMedia?: Array<{ url: string; type: "image" | "video" }>;
   onShown?: (kind: "lock" | "gate") => void;
+  onMissingCodes?: () => void;
+
 }) {
   const [revealed, setRevealed] = useState(false);
   const [instrOpen, setInstrOpen] = useState(false);
@@ -5107,7 +5148,14 @@ function AccessCodesStrip({
       );
       return false;
     }
+    // Códigos existem no imóvel mas ainda não chegaram: tenta liberar de novo
+    // em vez de revelar campos vazios.
+    if (!gateCode && !lockCode && onMissingCodes) {
+      onMissingCodes();
+      return false;
+    }
     return true;
+
   }
 
   function handleEyeClick() {
