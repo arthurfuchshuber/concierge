@@ -5087,6 +5087,8 @@ function AccessCodesStrip({
   gateMedia,
   lockMedia,
   onShown,
+  onMissingCodes,
+
 }: {
   gateCode: string | null;
   lockCode: string | null;
@@ -5107,6 +5109,8 @@ function AccessCodesStrip({
   gateMedia?: Array<{ url: string; type: "image" | "video" }>;
   lockMedia?: Array<{ url: string; type: "image" | "video" }>;
   onShown?: (kind: "lock" | "gate") => void;
+  onMissingCodes?: () => void;
+
 }) {
   const [revealed, setRevealed] = useState(false);
   const [instrOpen, setInstrOpen] = useState(false);
