@@ -206,6 +206,17 @@ function tentarUmaVez(params: {
         params.onProgress?.(Math.min(99, Math.round((e.loaded / e.total) * 100)));
       }
     };
+    // Último byte do corpo enviado: troca o relógio e mostra 100% do envio —
+    // o que falta agora é só a resposta do servidor.
+    xhr.upload.onloadend = () => {
+      corpoEnviado = true;
+      ultimoByte = Date.now();
+      params.onProgress?.(100);
+    };
+    // Qualquer sinal de vida do servidor também reinicia o relógio.
+    xhr.onreadystatechange = () => {
+      ultimoByte = Date.now();
+    };
     xhr.onerror = () => finalizar({ ok: false, motivo: "rede", repetivel: true });
     xhr.ontimeout = () => finalizar({ ok: false, motivo: "tempo", repetivel: true });
     xhr.onabort = () => finalizar({ ok: false, motivo: "cancelado", repetivel: false });
