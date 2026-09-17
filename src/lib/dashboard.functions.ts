@@ -318,6 +318,25 @@ export type CleaningBreakdownItem = {
   totalCents: number;
 };
 export type CleaningDailyPoint = { date: string; count: number; totalCents: number };
+/**
+ * UMA limpeza do período — alimenta a tabela que abre ao tocar numa barra ou
+ * num ponto dos gráficos da aba Limpeza (mockup aprovado, 17/09/2026).
+ * `date` é o dia local (SP) da conclusão, o mesmo usado na série diária.
+ * As completas pendentes vêm junto, marcadas, para a tabela mostrar
+ * "em análise" — mas continuam fora dos totais.
+ */
+export type CleaningDayItem = {
+  id: string;
+  date: string;
+  propertyId: string;
+  propertyName: string;
+  ownerName: string | null;
+  cleaningType: "normal" | "completa" | null;
+  priceCents: number | null;
+  pending: boolean;
+  concludedAt: string | null;
+  doneByName: string | null;
+};
 
 const CleaningStatsInput = z.object({
   ownerId: z.string().uuid().nullable().optional(),
@@ -354,6 +373,7 @@ export const getCleaningStats = createServerFn({ method: "GET" })
         breakdown: [] as CleaningBreakdownItem[],
         daily: emptyDaily,
         pendingApproval: { count: 0, totalCents: 0 },
+        items: [] as CleaningDayItem[],
       };
     }
     // Brasil não observa mais horário de verão (abolido em 2019) — São Paulo
@@ -363,7 +383,9 @@ export const getCleaningStats = createServerFn({ method: "GET" })
 
     const { data: rows, error } = await context.supabase
       .from("guest_arrival_status")
-      .select("property_id, cleaning_type, cleaning_price_cents, concluded_at, cleaning_approval_status")
+      .select(
+        "id, property_id, cleaning_type, cleaning_price_cents, concluded_at, cleaning_approval_status, cleaning_done_by",
+      )
       .in("property_id", propIds)
       .eq("kind", "checkout")
       .not("cleaning_type", "is", null)
@@ -373,11 +395,13 @@ export const getCleaningStats = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
 
     type Row = {
+      id: string;
       property_id: string;
       cleaning_type: string | null;
       cleaning_price_cents: number | null;
       concluded_at: string | null;
       cleaning_approval_status: string | null;
+      cleaning_done_by: string | null;
     };
     // LIMPEZA COMPLETA SÓ CONTA DEPOIS DE APROVADA (pedido explícito,
     // 17/09/2026): as pendentes ficam fora de TODOS os números desta função
@@ -396,9 +420,11 @@ export const getCleaningStats = createServerFn({ method: "GET" })
     // Série diária (gráficos "Limpezas por dia"/"Custo total por dia") — cada
     // registro cai no dia local (SP, UTC-3) do momento em que foi concluído.
     const dailyByDate = new Map(emptyDaily.map((p) => [p.date, p]));
+    const localDateOf = (iso: string) =>
+      new Date(new Date(iso).getTime() - 3 * 3600_000).toISOString().slice(0, 10);
     for (const r of list) {
       if (!r.concluded_at) continue;
-      const localDate = new Date(new Date(r.concluded_at).getTime() - 3 * 3600_000).toISOString().slice(0, 10);
+      const localDate = localDateOf(r.concluded_at);
       const point = dailyByDate.get(localDate);
       if (point) {
         point.count += 1;
@@ -418,11 +444,14 @@ export const getCleaningStats = createServerFn({ method: "GET" })
       byProperty.set(r.property_id, cur);
     }
     let breakdown: CleaningBreakdownItem[] = [];
-    if (byProperty.size > 0) {
+    let items: CleaningDayItem[] = [];
+    if (all.length > 0) {
+      // Imóveis de TODAS as linhas (inclusive pendentes): a tabela do dia
+      // precisa do nome de cada uma, não só das que entraram no ranking.
       const { data: props } = await context.supabase
         .from("properties")
         .select("id, name, address, maps_url, garage_maps_url, owner_contact_id")
-        .in("id", Array.from(byProperty.keys()));
+        .in("id", Array.from(new Set(all.map((r) => r.property_id))));
       type PropRow = {
         id: string;
         name: string | null;
@@ -460,8 +489,49 @@ export const getCleaningStats = createServerFn({ method: "GET" })
           };
         })
         .sort((a, b) => b.count - a.count || a.propertyName.localeCompare(b.propertyName, "pt-BR"));
+
+      // Quem concluiu: nome do cadastro de prestador ligado ao login (mesma
+      // regra do aviso "Finalizado por").
+      const doneByIds = Array.from(
+        new Set(all.map((r) => r.cleaning_done_by).filter((v): v is string => !!v)),
+      );
+      const providerNameByUser = new Map<string, string>();
+      if (doneByIds.length > 0) {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: providers } = await supabaseAdmin
+          .from("service_providers")
+          .select("member_user_id, name, trade_name")
+          .in("member_user_id", doneByIds);
+        for (const pr of (providers ?? []) as Array<{
+          member_user_id: string | null;
+          name: string | null;
+          trade_name: string | null;
+        }>) {
+          const label = (pr.trade_name || pr.name || "").trim();
+          if (pr.member_user_id && label) providerNameByUser.set(pr.member_user_id, label);
+        }
+      }
+      items = all
+        .filter((r) => !!r.concluded_at)
+        .map((r): CleaningDayItem => {
+          const p = propById.get(r.property_id);
+          return {
+            id: r.id,
+            date: localDateOf(r.concluded_at!),
+            propertyId: r.property_id,
+            propertyName: p?.name ?? "Imóvel",
+            ownerName: p?.owner_contact_id ? (ownerNameById.get(p.owner_contact_id) ?? null) : null,
+            cleaningType:
+              r.cleaning_type === "completa" || r.cleaning_type === "normal" ? r.cleaning_type : null,
+            priceCents: r.cleaning_price_cents,
+            pending: r.cleaning_approval_status === "pending",
+            concludedAt: r.concluded_at,
+            doneByName: r.cleaning_done_by ? (providerNameByUser.get(r.cleaning_done_by) ?? null) : null,
+          };
+        })
+        .sort((a, b) => (b.concludedAt ?? "").localeCompare(a.concludedAt ?? ""));
     }
-    return { cleaningsDone, totalCents, breakdown, daily, pendingApproval };
+    return { cleaningsDone, totalCents, breakdown, daily, pendingApproval, items };
   });
 
 // ----- Engagement -----

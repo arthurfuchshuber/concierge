@@ -61,6 +61,7 @@ export type CleaningApprovalItem = {
   id: string;
   propertyId: string;
   propertyName: string;
+  ownerName: string | null;
   concludedAt: string | null;
   doneByName: string | null;
   priceCents: number | null;
@@ -115,17 +116,35 @@ export const listCleaningApprovals = createServerFn({ method: "GET" })
     const propertyIdsInList = Array.from(new Set(list.map((r) => r.property_id)));
     const { data: props } = await context.supabase
       .from("properties")
-      .select("id, name, cleaning_price_normal_cents")
+      .select("id, name, cleaning_price_normal_cents, owner_contact_id")
       .in("id", propertyIdsInList);
-    const propById = new Map(
-      (
-        (props ?? []) as Array<{
-          id: string;
-          name: string | null;
-          cleaning_price_normal_cents: number | null;
-        }>
-      ).map((p) => [p.id, p]),
+    const propArr = (props ?? []) as Array<{
+      id: string;
+      name: string | null;
+      cleaning_price_normal_cents: number | null;
+      owner_contact_id: string | null;
+    }>;
+    const propById = new Map(propArr.map((p) => [p.id, p]));
+
+    // Regra da casa: todo nome de imóvel vem com o proprietário embaixo.
+    const ownerIds = Array.from(
+      new Set(propArr.map((p) => p.owner_contact_id).filter((v): v is string => !!v)),
     );
+    const ownerNameById = new Map<string, string>();
+    if (ownerIds.length > 0) {
+      const { data: owners } = await context.supabase
+        .from("property_owners")
+        .select("id, name, trade_name")
+        .in("id", ownerIds);
+      for (const o of (owners ?? []) as Array<{
+        id: string;
+        name: string | null;
+        trade_name: string | null;
+      }>) {
+        const label = (o.trade_name || o.name || "").trim();
+        if (label) ownerNameById.set(o.id, label);
+      }
+    }
 
     // Quem concluiu: o nome do cadastro de prestador vinculado ao login (mesma
     // regra do aviso "Finalizado por" em ops-push.server.ts).
@@ -155,6 +174,7 @@ export const listCleaningApprovals = createServerFn({ method: "GET" })
         id: r.id,
         propertyId: r.property_id,
         propertyName: p?.name ?? "Imóvel",
+        ownerName: p?.owner_contact_id ? (ownerNameById.get(p.owner_contact_id) ?? null) : null,
         concludedAt: r.concluded_at,
         doneByName: r.cleaning_done_by ? (nameByUser.get(r.cleaning_done_by) ?? null) : null,
         priceCents: r.cleaning_price_cents,

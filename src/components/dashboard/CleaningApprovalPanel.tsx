@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Clock3, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { CARD_OWNER } from "@/components/dashboard/card-colors";
 import {
   decideCleaningApproval,
   listCleaningApprovals,
@@ -152,6 +153,11 @@ function ApprovalRow({
       <div className="flex justify-between gap-2.5">
         <div className="min-w-0">
           <span className="ds-card-title block">{item.propertyName}</span>
+          {item.ownerName && (
+            <span className={`mt-0.5 block truncate text-[10.5px] ${CARD_OWNER}`}>
+              {item.ownerName}
+            </span>
+          )}
           {meta && <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{meta}</p>}
         </div>
         <div className="shrink-0 text-right">

@@ -27,8 +27,16 @@ import {
   XAxis,
   LabelList,
   CartesianGrid,
+  Cell,
+  ReferenceDot,
+  ReferenceLine,
   Tooltip as RechartsTooltip,
 } from "recharts";
+import {
+  CleaningDayDetail,
+  type CleaningForecastItem,
+  type DayDetailSource,
+} from "@/components/dashboard/CleaningDayDetail";
 import {
   Search,
   X,
@@ -1616,8 +1624,19 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         matchesKanbanOwnerCity(r),
     );
     const byProperty = new Map<string, CleaningBreakdownItem>();
+    // Linhas da tabela do dia (toque na barra/ponto da previsão).
+    const items: CleaningForecastItem[] = [];
     for (const r of rows) {
       const estimate = r.cleaningPriceNormalCents ?? 0;
+      items.push({
+        id: `${r.logId}:${r.reservationId ?? ""}`,
+        date: r.date,
+        propertyName: r.propertyName ?? "Imóvel",
+        ownerName: r.ownerName ?? null,
+        timeLabel: r.arrivalTimeOverride ?? r.standardTime ?? r.propertyCheckoutTime ?? null,
+        guestName: r.guestName || null,
+        estimateCents: estimate,
+      });
       const point = dailyByDate.get(r.date);
       if (point) {
         point.count += 1;
@@ -1640,9 +1659,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     const breakdown = Array.from(byProperty.values()).sort(
       (a, b) => b.count - a.count || a.propertyName.localeCompare(b.propertyName, "pt-BR"),
     );
+    items.sort((a, b) => (a.timeLabel ?? "99:99").localeCompare(b.timeLabel ?? "99:99"));
     return {
       daily,
       breakdown,
+      items,
       cleaningsExpected: rows.length,
       estimatedTotalCents: rows.reduce(
         (sum: number, r: ArrivalRow) => sum + (r.cleaningPriceNormalCents ?? 0),
@@ -2856,6 +2877,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             <CleaningDailyBarChart
               title={cleaningWindow === "past" ? "Limpezas por dia" : "Limpezas previstas por dia"}
               data={cleaningWindow === "past" ? cleaningTrendQ.data?.daily : cleaningForecast.daily}
+              detail={
+                cleaningWindow === "past"
+                  ? { mode: "done", items: cleaningTrendQ.data?.items ?? [] }
+                  : { mode: "forecast", items: cleaningForecast.items }
+              }
               loading={
                 cleaningWindow === "past"
                   ? cleaningTrendQ.isLoading
@@ -2865,6 +2891,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             <CleaningDailyAreaChart
               title={cleaningWindow === "past" ? "Custo total por dia" : "Custo estimado por dia"}
               data={cleaningWindow === "past" ? cleaningTrendQ.data?.daily : cleaningForecast.daily}
+              detail={
+                cleaningWindow === "past"
+                  ? { mode: "cost", items: cleaningTrendQ.data?.items ?? [] }
+                  : { mode: "forecast", items: cleaningForecast.items }
+              }
               loading={
                 cleaningWindow === "past"
                   ? cleaningTrendQ.isLoading
@@ -4306,7 +4337,15 @@ function StatDisplayCard({
           </InfoHint>
         )}
       </div>
-      <div className="flex items-end justify-between gap-2 mt-1.5">
+      {/* ESPAÇAMENTO COM AVISO (pedido explícito, 17/09/2026, com print): a
+          linha "+N aguardando aprovação" encolhia o vão entre o título e o
+          número, e o card ficava diferente dos vizinhos. Com aviso, o vão
+          título→número é FIXO e igual ao dos cards sem aviso (96px de altura
+          mínima, 20px de respiro: sobra 22px no celular e 20px no desktop,
+          onde o número é 2px maior), e o aviso ganha o próprio respiro. */}
+      <div
+        className={`flex items-end justify-between gap-2 ${note && !loading ? "mt-[22px] sm:mt-5" : "mt-1.5"}`}
+      >
         {/* Mesmo ajuste dos KpiCards: fonte um pouco menor, negrito mantido. */}
         <div className="text-[20px] sm:text-[22px] font-display font-bold tabular-nums leading-none text-foreground">
           {loading ? "—" : value}
@@ -4329,7 +4368,10 @@ function StatDisplayCard({
         )}
       </div>
       {note && !loading && (
-        <p className="mt-1.5 truncate text-[10.5px] font-bold text-amber-500 dark:text-amber-400" title={note}>
+        <p
+          className="mt-3 truncate text-[10.5px] font-bold leading-none text-amber-500 dark:text-amber-400"
+          title={note}
+        >
           {note}
         </p>
       )}
@@ -4358,6 +4400,12 @@ function dayTick(v: string): string {
   return `${d}/${m}`;
 }
 
+/** O que o gráfico recebe da moldura para destacar e abrir o dia tocado. */
+type ChartPick = {
+  selected: string | null;
+  onPick: (state: { activeLabel?: string | number; activeCoordinate?: { x: number } } | null) => void;
+};
+
 /**
  * Moldura comum dos dois gráficos de previsão (pedido explícito, 08/09/2026).
  *
@@ -4377,15 +4425,49 @@ function CleaningChartFrame({
   title,
   data,
   loading,
+  detail,
   children,
 }: {
   title: string;
   data: CleaningDailyPoint[] | undefined;
   loading: boolean;
-  children: (width: number) => React.ReactElement;
+  /**
+   * De onde sai a tabela do dia (mockup aprovado, 17/09/2026): tocar numa
+   * barra ou num ponto abre, logo abaixo do gráfico, a tabela daquele dia.
+   * Tocar de novo no mesmo dia, ou no X, fecha.
+   */
+  detail?: DayDetailSource;
+  children: (width: number, pick: ChartPick) => React.ReactElement;
 }) {
   const days = data?.length ?? 0;
   const anti = useAntiClipColumns(days, CLEANING_DAY_MIN_PX);
+  const [selected, setSelected] = useState<string | null>(null);
+  /** X do dia tocado, nas coordenadas do gráfico (antes da rolagem). */
+  const [pickX, setPickX] = useState<number | null>(null);
+  const [scrollLeft, setScrollLeft] = useState(0);
+
+  // Trocou a janela (últimos 7d ↔ próximos 7d) ou o período e o dia aberto
+  // saiu da série: fecha. Recarga a cada 30s com os mesmos dias não fecha.
+  const dayKey = data?.map((d) => d.date).join(",") ?? "";
+  useEffect(() => {
+    setSelected((cur) => (cur && dayKey.split(",").includes(cur) ? cur : null));
+  }, [dayKey]);
+
+  const pick: ChartPick = {
+    selected,
+    onPick: (state) => {
+      if (!detail) return;
+      const label = state?.activeLabel != null ? String(state.activeLabel) : null;
+      if (!label) return;
+      if (label === selected) {
+        setSelected(null);
+        return;
+      }
+      setSelected(label);
+      setPickX(state?.activeCoordinate?.x ?? null);
+    },
+  };
+
   return (
     <div className="w-full rounded-[0.3rem] border-0 bg-card px-3.5 py-3.5 ds-3d">
       <div className="flex items-center justify-between gap-2 mb-2">
@@ -4399,21 +4481,32 @@ function CleaningChartFrame({
           <Loader2 className="size-4 animate-spin" />
         </div>
       ) : (
-        <div ref={anti.ref} className="flex w-full">
-          <div
-            className="sg-elegant-scroll overflow-x-auto overflow-y-hidden"
-            style={{ width: anti.viewportWidth }}
-          >
-            <div className="h-32" style={{ width: anti.contentWidth }}>
-              {anti.contentWidth ? children(anti.contentWidth) : null}
+        <>
+          <div ref={anti.ref} className="flex w-full">
+            <div
+              className="sg-elegant-scroll overflow-x-auto overflow-y-hidden"
+              style={{ width: anti.viewportWidth }}
+              onScroll={(e) => setScrollLeft(e.currentTarget.scrollLeft)}
+            >
+              <div className={`h-32 ${detail ? "cursor-pointer" : ""}`} style={{ width: anti.contentWidth }}>
+                {anti.contentWidth ? children(anti.contentWidth, pick) : null}
+              </div>
             </div>
+            {/* Espaçador INVISÍVEL: é a sobra que não dá para um dia inteiro.
+                Sem ele, o dia seguinte apareceria pela metade na borda. */}
+            {anti.spacer > 0 && (
+              <span aria-hidden className="shrink-0" style={{ width: anti.spacer }} />
+            )}
           </div>
-          {/* Espaçador INVISÍVEL: é a sobra que não dá para um dia inteiro.
-              Sem ele, o dia seguinte apareceria pela metade na borda. */}
-          {anti.spacer > 0 && (
-            <span aria-hidden className="shrink-0" style={{ width: anti.spacer }} />
+          {detail && selected && (
+            <CleaningDayDetail
+              date={selected}
+              source={detail}
+              caretX={pickX == null ? null : pickX - scrollLeft}
+              onClose={() => setSelected(null)}
+            />
           )}
-        </div>
+        </>
       )}
     </div>
   );
@@ -4431,21 +4524,24 @@ function CleaningDailyBarChart({
   data,
   loading,
   title = "Limpezas por dia",
+  detail,
 }: {
   data: CleaningDailyPoint[] | undefined;
   loading: boolean;
   /** A mesma tela serve às duas janelas (últimos 7d / próximos 7d); só o
    * título muda. */
   title?: string;
+  detail?: DayDetailSource;
 }) {
   return (
-    <CleaningChartFrame title={title} data={data} loading={loading}>
-      {(width) => (
+    <CleaningChartFrame title={title} data={data} loading={loading} detail={detail}>
+      {(width, pick) => (
         <BarChart
           width={width}
           height={128}
           data={data}
           margin={{ top: 14, right: 8, left: 8, bottom: 0 }}
+          onClick={pick.onPick}
         >
           <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" vertical={false} />
           <XAxis
@@ -4457,11 +4553,14 @@ function CleaningDailyBarChart({
             // interval=0: todos os dias rotulados, sem exceção.
             interval={0}
           />
+          {/* Com a tabela do dia no lugar, o balão do hover sai; fica só o
+              realce da coluna sob o cursor, que diz "isto é clicável". */}
           <RechartsTooltip
             contentStyle={CLEANING_TOOLTIP_STYLE}
             labelFormatter={(v: unknown) => fmtDateBR(String(v))}
             formatter={(value: number) => [`${value}`, "Limpezas"]}
             cursor={{ fill: "var(--muted)", opacity: 0.3 }}
+            content={detail ? () => null : undefined}
           />
           <Bar
             dataKey="count"
@@ -4470,6 +4569,13 @@ function CleaningDailyBarChart({
             maxBarSize={22}
             isAnimationActive={false}
           >
+            {/* Dia aberto em cor cheia; os demais esmaecem. */}
+            {(data ?? []).map((d) => (
+              <Cell
+                key={d.date}
+                fillOpacity={pick.selected && pick.selected !== d.date ? 0.32 : 1}
+              />
+            ))}
             {/* Substitui o eixo vertical removido: o número fica em cima da
                 própria barra, que é onde se olha. */}
             <LabelList
@@ -4489,19 +4595,22 @@ function CleaningDailyAreaChart({
   data,
   loading,
   title = "Custo total por dia",
+  detail,
 }: {
   data: CleaningDailyPoint[] | undefined;
   loading: boolean;
   title?: string;
+  detail?: DayDetailSource;
 }) {
   return (
-    <CleaningChartFrame title={title} data={data} loading={loading}>
-      {(width) => (
+    <CleaningChartFrame title={title} data={data} loading={loading} detail={detail}>
+      {(width, pick) => (
         <AreaChart
           width={width}
           height={128}
           data={data}
           margin={{ top: 16, right: 8, left: 8, bottom: 0 }}
+          onClick={pick.onPick}
         >
           <defs>
             <linearGradient id="cleaningCostArea" x1="0" x2="0" y1="0" y2="1">
@@ -4523,7 +4632,16 @@ function CleaningDailyAreaChart({
             labelFormatter={(v: unknown) => fmtDateBR(String(v))}
             formatter={(value: number) => [centsToBRL(value), "Custo"]}
             cursor={{ stroke: "var(--border)" }}
+            content={detail ? () => null : undefined}
           />
+          {pick.selected && (
+            <ReferenceLine
+              x={pick.selected}
+              stroke="var(--muted-foreground)"
+              strokeOpacity={0.5}
+              strokeDasharray="3 3"
+            />
+          )}
           <Area
             type="monotone"
             dataKey="totalCents"
@@ -4546,6 +4664,17 @@ function CleaningDailyAreaChart({
               style={{ fontSize: 9.5, fill: "var(--muted-foreground)" }}
             />
           </Area>
+          {pick.selected && (
+            <ReferenceDot
+              x={pick.selected}
+              y={data?.find((d) => d.date === pick.selected)?.totalCents ?? 0}
+              r={4.5}
+              fill={CLEANING_COST_COLOR}
+              stroke="var(--card)"
+              strokeWidth={2}
+              isFront
+            />
+          )}
         </AreaChart>
       )}
     </CleaningChartFrame>
