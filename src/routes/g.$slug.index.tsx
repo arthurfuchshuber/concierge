@@ -4952,6 +4952,7 @@ function WifiStrip({
   checkinLocked,
   hasAccessRec,
   gateEnabled,
+  onMissingCodes,
 }: {
   ssid?: string | null;
   password?: string | null;
@@ -4962,6 +4963,7 @@ function WifiStrip({
   checkinLocked: boolean;
   hasAccessRec: boolean;
   gateEnabled: boolean;
+  onMissingCodes?: () => void;
 }) {
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -4984,6 +4986,12 @@ function WifiStrip({
       );
       return false;
     }
+    // A senha existe no imóvel mas ainda não chegou ao aparelho: em vez de
+    // mostrar um campo vazio e mudo, tentamos liberar de novo.
+    if (!password && onMissingCodes) {
+      onMissingCodes();
+      return false;
+    }
     return true;
   }
 
@@ -4995,6 +5003,7 @@ function WifiStrip({
     if (!gateOk()) return;
     requestUnlock(() => setRevealed(true));
   }
+
 
   function copyPwd() {
     if (!gateOk()) return;
