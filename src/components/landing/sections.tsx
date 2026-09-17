@@ -157,9 +157,11 @@ function DemoTabs() {
 /**
  * Os 4 destaques em telas menores que 1280 px (17/09/2026, opção C aprovada):
  * uma esfera "IA" no centro, ligada aos 4 recursos por linhas tracejadas em
- * movimento. Fica a 72 px do celular — a mesma distância até a faixa de
- * capacidades logo abaixo. Títulos com iniciais maiúsculas, como o cliente
- * editou no canvas.
+ * movimento. Espaçamentos no celular (17/09/2026, pedido do cliente: "um pouco
+ * mais" que os 72 px anteriores): 96 px do celular até a constelação, da
+ * constelação até a faixa de capacidades e da faixa até "Como funciona"
+ * (88 px da seção + `mb-2` da faixa). Títulos com iniciais maiúsculas, como o
+ * cliente editou no canvas.
  */
 const CONSTELACAO = [
   { icon: House, title: "Check-in Guiado", desc: "Chegada, regras e saída passo a passo." },
@@ -201,7 +203,7 @@ function Constelacao() {
     "M75 100 C 72 55, 58 42, 50 50",
   ];
   return (
-    <div className="mx-auto mt-[72px] grid w-full max-w-[350px] grid-cols-2 gap-x-5 xl:hidden">
+    <div className="mx-auto mt-[96px] grid w-full max-w-[350px] grid-cols-2 gap-x-5 xl:hidden">
       <ConstelacaoNo c={CONSTELACAO[0]} lado="cima" />
       <ConstelacaoNo c={CONSTELACAO[1]} lado="cima" />
 
@@ -336,7 +338,7 @@ export function Hero() {
             </div>
           </div>
 
-          {/* Telas menores que 1280 px: a constelação, 72 px abaixo do celular. */}
+          {/* Telas menores que 1280 px: a constelação, 96 px abaixo do celular. */}
           <Constelacao />
         </Reveal>
       </div>
@@ -355,7 +357,7 @@ const CAPACIDADES = [
 
 export function CapabilityStrip() {
   return (
-    <div className="mx-auto mt-[72px] w-full max-w-[1200px] px-5 sm:px-8 lg:mt-[120px] xl:px-0">
+    <div className="mx-auto mt-[96px] mb-2 w-full max-w-[1200px] px-5 sm:px-8 lg:mt-[120px] lg:mb-0 xl:px-0">
       <Reveal>
         <div className="relative grid grid-cols-2 border-b border-white/[0.08] text-center lg:grid-cols-4">
           <div
