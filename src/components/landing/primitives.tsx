@@ -78,9 +78,9 @@ export function Eyebrow({ children, className }: { children: ReactNode; classNam
 }
 
 /**
- * Título de seção. Escala única: 24 px no celular (ajuste do cliente no
- * canvas aprovado) e 48 px no computador, com altura de linha 1.1 — antes era
- * 1.5, e o título de duas linhas ficava "solto".
+ * Título de seção. Escala única: 32 px no celular e 48 px no computador, com
+ * altura de linha 1.1 — antes era 1.5, e o título de duas linhas ficava
+ * "solto". (17/09/2026: o cliente voltou o celular de 24 para 32 px.)
  */
 export function SectionHeading({
   eyebrow,
@@ -94,7 +94,7 @@ export function SectionHeading({
   return (
     <div className="relative mx-auto max-w-[820px] text-center">
       {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
-      <h2 className="mt-4 font-display text-[24px] font-bold leading-[1.12] tracking-[-0.025em] text-balance lg:mt-5 lg:text-[48px] lg:leading-[1.1] lg:tracking-[-0.03em]">
+      <h2 className="mt-4 font-display text-[32px] font-bold leading-[1.12] tracking-[-0.025em] text-balance lg:mt-5 lg:text-[48px] lg:leading-[1.1] lg:tracking-[-0.03em]">
         {title}
       </h2>
       {description ? (

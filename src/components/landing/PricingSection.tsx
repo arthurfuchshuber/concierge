@@ -174,7 +174,7 @@ function PlanBody({ p }: { p: PlanCard }) {
         <span
           className={cn(
             "font-display font-bold tracking-[-0.02em]",
-            p.period ? "text-[40px] lg:text-[44px]" : "text-[24px] lg:text-[44px]",
+            p.period ? "text-[40px] lg:text-[44px]" : "text-[36px] lg:text-[44px]",
           )}
         >
           {p.price}

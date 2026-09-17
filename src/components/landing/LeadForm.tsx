@@ -118,7 +118,7 @@ export function LeadForm() {
             <p className="relative text-[11px] font-bold uppercase tracking-[0.24em] text-[#f0a6e4] lg:text-[12px]">
               Demonstração
             </p>
-            <h2 className="relative mt-3.5 max-w-[255px] font-display text-[22px] font-bold leading-[1.12] tracking-[-0.025em] lg:mt-5 lg:max-w-none lg:text-[44px] lg:leading-[1.1] lg:tracking-[-0.03em]">
+            <h2 className="relative mt-3.5 font-display text-[30px] font-bold leading-[1.12] tracking-[-0.025em] lg:mt-5 lg:text-[44px] lg:leading-[1.1] lg:tracking-[-0.03em]">
               Veja o ConciergeIA <br className="hidden lg:block" />
               com os seus imóveis.
             </h2>

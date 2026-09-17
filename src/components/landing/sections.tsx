@@ -132,8 +132,7 @@ export function Hero() {
             <span className="hidden lg:inline">Sistema operacional para hospedagem</span>
           </p>
 
-          {/* 24 px no celular: ajuste do próprio cliente no canvas aprovado. */}
-          <h1 className="mt-6 max-w-[317px] font-display text-[24px] leading-[1.08] font-extrabold tracking-[-0.03em] sm:max-w-none sm:text-[48px] lg:mt-8 lg:text-[72px] lg:leading-[1.04] lg:tracking-[-0.035em]">
+          <h1 className="mt-6 font-display text-[40px] leading-[1.08] font-extrabold tracking-[-0.03em] sm:text-[48px] lg:mt-8 lg:text-[72px] lg:leading-[1.04] lg:tracking-[-0.035em]">
             <span className="lg:block lg:whitespace-nowrap">
               O <span className="lp-shimmer">cérebro</span> da sua operação
             </span>{" "}
