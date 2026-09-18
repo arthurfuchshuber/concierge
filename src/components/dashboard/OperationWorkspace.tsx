@@ -3686,10 +3686,23 @@ export function OperationShell({
  * a palavra em caixa alta e um fio que vai sumindo até a borda direita.
  * Ocupa a largura inteira da grade de 2 colunas do celular.
  */
-function SectionLabel({ children, className }: { children: string; className?: string }) {
+function SectionLabel({
+  children,
+  className,
+  tone,
+}: {
+  children: string;
+  className?: string;
+  /** "late" pinta SÓ a palavra de vermelho — o fio continua neutro. */
+  tone?: "late";
+}) {
   return (
     <div className={`col-span-2 flex items-center gap-2.5 pt-1.5 ${className ?? ""}`}>
-      <span className="ds-eyebrow text-[10px] tracking-[0.18em] ds-faint">{children}</span>
+      <span
+        className={`ds-eyebrow text-[10px] tracking-[0.18em] ${tone === "late" ? "text-red-600 dark:text-red-400" : "ds-faint"}`}
+      >
+        {children}
+      </span>
       <span
         aria-hidden
         className="h-px flex-1 bg-gradient-to-r from-[color-mix(in_oklab,var(--foreground)_14%,transparent)] to-transparent"
@@ -4171,7 +4184,16 @@ function KpiCard({
             </div>
           ) : (
             <div className="pb-3">
-              <ArrivalGroup title="" {...cardProps} rows={displayRows} compact />
+              {/* `restLabel`: quando há atrasados, o segundo grupo se chama
+                  como o período do card ("Hoje", "Amanhã") em vez de "No
+                  prazo" — é o mesmo texto que já aparece no cabeçalho. */}
+              <ArrivalGroup
+                title=""
+                {...cardProps}
+                rows={displayRows}
+                compact
+                restLabel={rangeLabel}
+              />
             </div>
           )}
         </div>
@@ -7865,6 +7887,7 @@ function ArrivalGroup({
   expandedId: expandedIdProp,
   onExpandedChange,
   compact,
+  restLabel,
   cleaningTasks,
   nextCheckinByProperty,
   onToggleCleaningTask,
@@ -7902,6 +7925,9 @@ function ArrivalGroup({
   onExpandedChange?: (id: string | null) => void;
   /** Modo "Lista" (pedido explícito) — repassado pra cada ArrivalCard. */
   compact?: boolean;
+  /** Rótulo do segundo grupo quando existem atrasados (ex.: "Hoje",
+   * "Amanhã"). Sem isto, o grupo se chama "No prazo". */
+  restLabel?: string;
   /** Pendências pra exibir como checklist no card (só a coluna de Limpeza
    * repassa isso — ver arrivalGroupPropsFor). */
   cleaningTasks?: {
@@ -7925,40 +7951,79 @@ function ArrivalGroup({
   // antigo, baseado na largura da JANELA (não do container), fazia os cards
   // se espremerem em várias colunas dentro de uma coluna de ~220px.
   if (rows.length === 0) return null;
+
+  /**
+   * ATRASADOS NO TOPO (opção 1 aprovada, 18/09/2026).
+   *
+   * "checkin atrasado precisa ser prioridade máxima no topo da lista e, se
+   * puder colocar algo que mostre ser um checkin atrasado, melhor... isso tem
+   * que valer para os demais status também."
+   *
+   * O "algo que mostre" é o MENOR sinal possível — o cliente recusou as
+   * versões com etiqueta e bloco colorido ("muito gritantes"): um rótulo de
+   * seção igual ao de "Hoje"/"Amanhã", com a palavra em vermelho. O card não
+   * ganha nada novo; a barra lateral dele já fica vermelha quando atrasa e a
+   * linha do período já é a cor do estado. O canto superior direito continua
+   * sendo o horário previsto — pedido explícito: aquela informação não é
+   * substituída por nenhuma outra.
+   *
+   * A ordem em si vem do servidor (arrival-board.server.ts). Aqui só se
+   * separa visualmente, e só quando há os dois grupos: uma lista inteira de
+   * atrasados não precisa de rótulo para dizer o óbvio.
+   */
+  const hojeISO = todayISOSaoPaulo();
+  const atrasado = (r: ArrivalRow) => r.status !== "done" && r.date < hojeISO;
+  const atrasados = rows.filter(atrasado);
+  const noPrazo = rows.filter((r) => !atrasado(r));
+  const separar = atrasados.length > 0 && noPrazo.length > 0;
+
+  const cartao = (r: ArrivalRow) => (
+    <ArrivalCard
+      key={r.logId}
+      row={r}
+      kind={kind}
+      mode={mode}
+      onMark={onMark}
+      onRevert={onRevert}
+      onNoShow={onNoShow}
+      onSkipCleaning={onSkipCleaning}
+      onSyncIcal={onSyncIcal}
+      onNote={onNote}
+      onEditDates={onEditDates}
+      onEditTime={onEditTime}
+      prediction={getPrediction ? getPrediction(r) : null}
+      onEditPredictedDate={onEditPredictedDate}
+      onClearPredicted={onClearPredicted}
+      busy={busyRowId === r.logId}
+      expanded={openId === r.logId}
+      onToggleExpanded={(open) => setOpenId(open ? r.logId : null)}
+      cleaningBlocked={
+        mode === "checkin" ? (cleaningPendingPropIds?.get(r.propertyId) ?? null) : null
+      }
+      compact={compact}
+      cleaningTasks={cleaningTasks}
+      nextCheckinByProperty={nextCheckinByProperty}
+      onToggleCleaningTask={onToggleCleaningTask}
+    />
+  );
+
   return (
     // gap maior que o "gap-1.5" de antes: dá espaço pro badge de engajamento
     // (fixo no topo de cada card, cortando a borda) sem sobrepor o card
     // anterior.
     <div className={`flex flex-col gap-4 ${muted ? "opacity-70" : ""}`}>
-      {rows.map((r) => (
-        <ArrivalCard
-          key={r.logId}
-          row={r}
-          kind={kind}
-          mode={mode}
-          onMark={onMark}
-          onRevert={onRevert}
-          onNoShow={onNoShow}
-          onSkipCleaning={onSkipCleaning}
-          onSyncIcal={onSyncIcal}
-          onNote={onNote}
-          onEditDates={onEditDates}
-          onEditTime={onEditTime}
-          prediction={getPrediction ? getPrediction(r) : null}
-          onEditPredictedDate={onEditPredictedDate}
-          onClearPredicted={onClearPredicted}
-          busy={busyRowId === r.logId}
-          expanded={openId === r.logId}
-          onToggleExpanded={(open) => setOpenId(open ? r.logId : null)}
-          cleaningBlocked={
-            mode === "checkin" ? (cleaningPendingPropIds?.get(r.propertyId) ?? null) : null
-          }
-          compact={compact}
-          cleaningTasks={cleaningTasks}
-          nextCheckinByProperty={nextCheckinByProperty}
-          onToggleCleaningTask={onToggleCleaningTask}
-        />
-      ))}
+      {separar ? (
+        <>
+          <SectionLabel tone="late" className="pt-0">
+            {`Atrasados · ${atrasados.length}`}
+          </SectionLabel>
+          {atrasados.map(cartao)}
+          <SectionLabel>{`${restLabel ?? "No prazo"} · ${noPrazo.length}`}</SectionLabel>
+          {noPrazo.map(cartao)}
+        </>
+      ) : (
+        rows.map(cartao)
+      )}
     </div>
   );
 }

@@ -1140,13 +1140,28 @@ export async function buildArrivalRows(
     rows.length = 0;
     rows.push(...finalRows);
 
-    // Prioridade: data → horário previsto (override do anfitrião ou informado pelo
-    // hóspede) → ordem alfabética da residência. O horário padrão da propriedade
-    // NÃO entra na chave de ordenação — só o previsto/manual manda.
+    // Prioridade: ATRASADO → data → horário previsto (override do anfitrião ou
+    // informado pelo hóspede) → ordem alfabética da residência. O horário padrão
+    // da propriedade NÃO entra na chave de ordenação — só o previsto/manual manda.
+    //
+    // ATRASADO SEMPRE NO TOPO (pedido explícito, 18/09/2026: "checkin atrasado
+    // precisa ser prioridade máxima no topo da lista... isso tem que valer para
+    // os demais status também"). Antes a lista era só data DESC — ou seja, um
+    // check-in esquecido ontem CAÍA para o fim da lista hoje, justamente o
+    // contrário do que precisa acontecer. Vale para chegada e para saída: a
+    // regra é "a data já passou e a ação continua pendente", sem olhar o lado.
+    // Entre os atrasados, o mais antigo vem primeiro — quanto mais tempo
+    // esperando, mais em cima.
+    const atrasado = (r: ArrivalRow): boolean => r.status !== "done" && r.date < today;
     const effTime = (r: ArrivalRow): string => r.arrivalTimeOverride ?? r.guestArrivalTime ?? "99:99";
     rows.sort((a, b) => {
-      // Mais recente primeiro (data DESC). Empate: horário previsto DESC → residência A→Z.
-      const d = b.date.localeCompare(a.date);
+      const aAtraso = atrasado(a);
+      const bAtraso = atrasado(b);
+      if (aAtraso !== bAtraso) return aAtraso ? -1 : 1;
+      // Atrasados: do mais antigo para o mais recente. Os demais seguem a regra
+      // de sempre — mais recente primeiro. Empate: horário previsto DESC →
+      // residência A→Z.
+      const d = aAtraso ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date);
       if (d !== 0) return d;
       const t = effTime(b).localeCompare(effTime(a));
       if (t !== 0) return t;
