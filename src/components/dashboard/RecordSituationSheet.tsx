@@ -610,7 +610,9 @@ export function RecordSituationSheet({
           ? "O servidor demorou demais para responder. Toque em “Tentar de novo” — nada foi perdido."
           : m === "CANCELADO"
             ? "Envio cancelado. O que você digitou continua aqui."
-            : m || "Não consegui registrar a situação.",
+            : ehFalhaDeRede(e)
+              ? "A internet oscilou e o registro não chegou ao servidor. Toque em “Tentar de novo” — nada foi perdido."
+              : m || "Não consegui registrar a situação.",
       );
     } finally {
       cancelarRef.current = null;
