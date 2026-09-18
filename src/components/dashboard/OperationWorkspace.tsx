@@ -2541,109 +2541,77 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     };
   }
 
-  // Painel de engajamento, agora no TOPO da página (antes dos cards de
-  // check-ins/checkouts) — mesmo tratamento visual do mockup aprovado
-  // (borda + gradiente radial roxo/rosa + acento lateral + rótulo com
-  // ícone), só sem negrito nas frases. Some quando não há dado, igual já
-  // era. No mobile continua sendo 1 card só com as 2 métricas juntas
-  // (EngagementBars não muda por dentro) — só reposicionado. No desktop
-  // quebra em 2 cards, um por métrica, lado a lado.
+  // Painel de engajamento, no TOPO da página (antes dos cards de
+  // check-ins/checkouts). Some quando não há dado, igual já era. É um card
+  // só, no celular e no computador, com as duas métricas em anéis — o
+  // quadrante aprovado em 17/09/2026.
+  /* PADRÃO "A · NOITE" (mockup aprovado, 17/09/2026): o bloco de engajamento
+     é o único com o contorno de neon em movimento — o mesmo da landing — e um
+     brilho roxo saindo do canto superior esquerdo. O acento lateral de 3px
+     saiu: com o contorno inteiro aceso ele virava um segundo traço. */
   const engagementCardBg =
-    "radial-gradient(120% 140% at 0% 0%, rgba(168,85,247,0.16), transparent 55%), radial-gradient(120% 140% at 100% 100%, rgba(236,72,153,0.12), transparent 55%)";
-  const engagementAccentBar = (
-    <span
-      aria-hidden="true"
-      className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-purple-500 to-pink-500"
-    />
+    "radial-gradient(120% 90% at 0% 0%, rgba(124,26,216,0.16), transparent 60%)";
+  const engagementRing = (
+    <span aria-hidden="true" className="absolute inset-0 overflow-hidden rounded-[16px]">
+      <span
+        className="lp-ring"
+        style={{
+          background:
+            "conic-gradient(from 0deg, rgba(255,255,255,0.08) 0deg, rgba(255,255,255,0.08) 250deg, #7c1ad8 300deg, #ffffff 325deg, #e82dae 345deg, rgba(255,255,255,0.08) 360deg)",
+        }}
+      />
+    </span>
+  );
+  const engagementEyebrow = (
+    <div className="mb-3 flex items-center gap-2">
+      <span
+        aria-hidden="true"
+        className="size-1.5 rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE]"
+      />
+      <span className="ds-eyebrow text-[10px] text-muted-foreground">Guia do hóspede</span>
+    </div>
   );
   function renderEngagementTop() {
     const hasData =
       (engQ.data?.checkinsInPeriod ?? 0) > 0 || (engQ.data?.checkinsWithCodes ?? 0) > 0;
     if (!engQ.isLoading && !hasData) return null;
 
-    const loading = engQ.isLoading;
-    const pctOf = (num: number, total: number) =>
-      Math.min(100, Math.round((num / Math.max(total, 1)) * 100));
-    const checkins = engQ.data?.checkinsInPeriod ?? 0;
-    const checkinsWithCodes = engQ.data?.checkinsWithCodes ?? 0;
-    const checkinBreakdown = engQ.data?.checkinBreakdown;
-    const codesBreakdown = engQ.data?.codesBreakdown;
-    const checkinViewed = checkinBreakdown?.viewed.length ?? 0;
-    const codesViewed = codesBreakdown?.viewed.length ?? 0;
-    const showCheckin = checkins > 0;
-    const showCodes = checkinsWithCodes > 0;
-
+    /* UM CARD SÓ, no celular e no computador (mockup aprovado, 17/09/2026).
+       Antes o computador quebrava em dois cards, um por métrica — só um
+       deles com o contorno de neon, o que deixava os dois desencontrados.
+       Agora é o mesmo quadrante nas duas telas: o próprio `EngagementBars`
+       muda a arrumação de cada anel conforme a largura. */
     return (
-      <>
-        {/* Mobile: 1 card só, as 2 métricas juntas — estrutura interna
-            idêntica à de sempre (EngagementBars não muda), só reposicionado
-            pro topo e com o destaque do mockup. */}
+      <div className="relative overflow-hidden rounded-[16px] p-px">
+        {engagementRing}
         <div
-          className="lg:hidden relative overflow-hidden rounded-lg border border-purple-300/30 bg-card p-4 shadow-[0_8px_24px_-12px_rgba(168,85,247,0.35)]"
+          className="relative rounded-[15px] bg-card p-4 lg:px-5"
           style={{ backgroundImage: engagementCardBg }}
         >
-          {engagementAccentBar}
+          {engagementEyebrow}
           <EngagementBars
-            loading={loading}
-            checkins={checkins}
-            checkinsWithCodes={checkinsWithCodes}
-            checkinBreakdown={checkinBreakdown}
-            codesBreakdown={codesBreakdown}
+            loading={engQ.isLoading}
+            checkins={engQ.data?.checkinsInPeriod ?? 0}
+            checkinsWithCodes={engQ.data?.checkinsWithCodes ?? 0}
+            checkinBreakdown={engQ.data?.checkinBreakdown}
+            codesBreakdown={engQ.data?.codesBreakdown}
           />
         </div>
-
-        {/* Desktop: 2 cards separados, um por métrica, lado a lado. */}
-        <div className="hidden lg:block">
-          {loading ? (
-            <div
-              className="relative overflow-hidden rounded-lg border border-purple-300/30 bg-card py-6 text-center text-sm text-muted-foreground shadow-[0_8px_24px_-12px_rgba(168,85,247,0.35)]"
-              style={{ backgroundImage: engagementCardBg }}
-            >
-              {engagementAccentBar}
-              <Loader2 className="size-4 inline animate-spin" />
-            </div>
-          ) : (
-            <div className="grid grid-cols-4 gap-1.5">
-              {showCheckin && (
-                <div className={showCodes ? "col-span-2" : "col-span-4"}>
-                  <EngagementCard
-                    icon={ListChecks}
-                    label="Viram instruções de check-in"
-                    value={checkinViewed}
-                    total={checkins}
-                    pct={pctOf(checkinViewed, checkins)}
-                    breakdown={checkinBreakdown}
-                    hint='Hóspedes com check-in no período que já abriram as "Instruções" apresentadas na sessão "Chegada" pelo menos uma vez.'
-                  />
-                </div>
-              )}
-              {showCodes && (
-                <div className={showCheckin ? "col-span-2" : "col-span-4"}>
-                  <EngagementCard
-                    icon={KeyRound}
-                    label="Viram senha de acesso"
-                    value={codesViewed}
-                    total={checkinsWithCodes}
-                    pct={pctOf(codesViewed, checkinsWithCodes)}
-                    breakdown={codesBreakdown}
-                    hint="Hóspedes com check-in no período que já visualizaram as senhas de acesso no guia pelo menos uma vez."
-                  />
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </>
+      </div>
     );
   }
 
   return (
     // Alinhado à esquerda (sem mx-auto): com o menu recolhido a área fica mais
     // larga e o centramento aumentava a margem esquerda.
+    /* PADRÃO "A · NOITE" (mockup aprovado, 17/09/2026): respiro lateral de
+       14px no celular, um pouco mais de ar entre os blocos (10px) e o halo
+       roxo bem fraco no topo — o mesmo efeito da landing. */
     <div
       ref={pageRef}
-      className="px-2.5 sm:px-5 lg:px-8 py-5 lg:py-8 max-w-[1440px] w-full space-y-1.5"
+      className="relative w-full max-w-[1440px] space-y-2.5 px-3.5 py-5 sm:px-5 lg:px-8 lg:py-8"
     >
+      <div aria-hidden className="ds-page-halo" />
       <OperationShell
         view={view}
         /* O Operacional NÃO tem ações no título (pedido explícito,
@@ -2757,8 +2725,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               Desktop (lg:grid-cols-4): os 4 cards de pendentes/amanhã numa
               única linha → liberado p/ limpeza (faixa cheia) → calendário →
               em estadia e imóveis livres na linha seguinte. */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5">
-            <div className="order-1 lg:order-1">
+          <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+            {/* RÓTULOS DE SEÇÃO — só no celular (mockup aprovado,
+                17/09/2026): "Hoje", "Amanhã" e "Ocupação" separam a lista
+                num fio que some. No computador os quatro cards ficam numa
+                linha só e os rótulos não fazem falta. */}
+            <SectionLabel className="order-1 lg:hidden">Hoje</SectionLabel>
+            <div className="order-2 lg:order-1">
               <KpiCard
                 label="Check-ins Pendentes"
                 rows={checkinPendingRows}
@@ -2774,7 +2747,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 cardProps={arrivalGroupPropsFor("checkin", checkinPendingRows)}
               />
             </div>
-            <div className="order-2 lg:order-2">
+            <div className="order-3 lg:order-2">
               <KpiCard
                 label="Checkouts Pendentes"
                 rows={checkoutPendingRows}
@@ -2790,7 +2763,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 cardProps={arrivalGroupPropsFor("checkout", checkoutPendingRows)}
               />
             </div>
-            <div className="order-3 lg:order-3">
+            <SectionLabel className="order-5 lg:hidden">Amanhã</SectionLabel>
+            <div className="order-6 lg:order-3">
               <KpiCard
                 label="Check-ins amanhã"
                 rows={tomorrowCheckinPendingRows}
@@ -2803,7 +2777,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 cardProps={arrivalGroupPropsFor("checkin", tomorrowCheckinPendingRows)}
               />
             </div>
-            <div className="order-4 lg:order-4">
+            <div className="order-7 lg:order-4">
               <KpiCard
                 label="Checkouts amanhã"
                 rows={tomorrowCheckoutPendingRows}
@@ -2821,7 +2795,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 1+), mantendo o destaque âmbar (borda + gradiente + acento
                 lateral). Fica logo depois dos 4 KPIs do topo. */}
             {cleaningRows.length > 0 ? (
-              <div className="order-5 lg:order-5 col-span-2 lg:col-span-4">
+              <div className="order-4 col-span-2 lg:order-5 lg:col-span-4">
                 <KpiCard
                   label="Fila de Limpeza"
                   rows={cleaningRows}
@@ -2849,7 +2823,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 ficam livres para nada, já que não há mais nenhum outro item
                 com esse mesmo order). No mobile não muda (col-span-2 =
                 largura cheia da grade de 2 colunas). */}
-            <div className="order-6 lg:order-6 col-span-2 lg:col-start-1 lg:col-span-2">
+            <SectionLabel className="order-8 lg:hidden">Ocupação</SectionLabel>
+            <div className="order-9 col-span-2 lg:order-6 lg:col-span-2 lg:col-start-1">
               <OccupancyPanel
                 loading={occupancyQ.isLoading}
                 start={occupancyQ.data?.start ?? occStart}
@@ -2876,7 +2851,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 DEPOIS do calendário (antes vinham antes) — `lg:col-start-1`
                 em "Em Estadia" força os dois pra uma linha nova própria,
                 mesma técnica usada acima pelo calendário. */}
-            <div className="order-7 lg:order-7 col-span-1 lg:col-start-1">
+            <div className="order-10 col-span-1 lg:order-7 lg:col-start-1">
               <KpiCard
                 label="Em Estadia"
                 rows={stayRows}
@@ -2889,7 +2864,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 cardProps={arrivalGroupPropsFor("stay", stayRows)}
               />
             </div>
-            <div className="order-8 lg:order-8 col-span-1">
+            <div className="order-11 col-span-1 lg:order-8">
               <FreePropertiesCard
                 loading={occupancyQ.isLoading}
                 properties={freeProperties}
@@ -3644,9 +3619,21 @@ export function OperationShell({
   actions?: React.ReactNode;
 }) {
   const copy = OPERATION_COPY[view];
+  // Data de hoje por extenso, acima do título (padrão "A · Noite", mockup
+  // aprovado 17/09/2026). É só a data do aparelho, no fuso de São Paulo —
+  // nenhuma regra nova depende dela.
+  const hoje = new Date()
+    .toLocaleDateString("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    })
+    .replace(/^\w/, (c) => c.toUpperCase());
   return (
     <div className="space-y-3">
       <div>
+        <p className="ds-eyebrow mb-1.5 text-[10.5px] tracking-[0.18em] text-accent">{hoje}</p>
         {/* As ações dividem a LINHA DO TÍTULO — não o bloco de duas linhas.
             Centradas no bloco inteiro (como estavam), elas caíam na altura do
             vão entre título e subtítulo e ficavam visivelmente baixas em
@@ -3666,17 +3653,21 @@ export function OperationShell({
           transformar esta barra na barra ROLÁVEL (ds-segmented) por causa da
           quarta aba foi rejeitada no teste — a sobra virava um vão morto
           depois da última aba. Aqui não há sobra por construção. */}
-      <nav className="mb-5 flex w-full overflow-hidden rounded-[0.3rem] bg-foreground/5">
+      {/* Padrão "A · Noite" (mockup aprovado, 17/09/2026): controle segmentado
+          — caixa com fio de 1px e respiro de 4px, e a aba ativa como uma
+          pílula com o gradiente da marca. Continuam sendo quatro fatias
+          iguais ocupando a largura inteira, sem sobra. */}
+      <nav className="ds-tabs mb-5">
         {OPERATION_TABS.map((t) => {
           const active = t.view === view;
           return (
             <Link
               key={t.view}
               to={t.to}
-              className={`flex-1 px-3 py-3.5 text-center text-sm font-semibold leading-none flex items-center justify-center min-h-[46px] transition-colors ${
+              className={`flex min-h-[38px] flex-1 items-center justify-center rounded-[10px] px-2 text-center text-[13px] leading-none transition-colors ${
                 active
-                  ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "ds-tab-active font-bold"
+                  : "font-semibold text-muted-foreground hover:text-foreground"
               }`}
             >
               {t.label}
@@ -3689,6 +3680,23 @@ export function OperationShell({
 }
 
 /* ------------------------- UI Building Blocks ------------------------- */
+
+/**
+ * Rótulo de seção do padrão "A · Noite" (mockup aprovado, 17/09/2026):
+ * a palavra em caixa alta e um fio que vai sumindo até a borda direita.
+ * Ocupa a largura inteira da grade de 2 colunas do celular.
+ */
+function SectionLabel({ children, className }: { children: string; className?: string }) {
+  return (
+    <div className={`col-span-2 flex items-center gap-2.5 pt-1.5 ${className ?? ""}`}>
+      <span className="ds-eyebrow text-[10px] tracking-[0.18em] ds-faint">{children}</span>
+      <span
+        aria-hidden
+        className="h-px flex-1 bg-gradient-to-r from-[color-mix(in_oklab,var(--foreground)_14%,transparent)] to-transparent"
+      />
+    </div>
+  );
+}
 
 const KANBAN_TONE: Record<string, string> = {
   emerald: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 ring-emerald-500/20",
@@ -4030,60 +4038,78 @@ function KpiCard({
               // (`rounded-[0.3rem]`, não o `rounded-lg` mais arredondado que
               // estava aqui) — só o raio das pontas mudou, resto do
               // destaque âmbar (borda/gradiente/acento) continua igual.
-              className="relative w-full overflow-hidden flex items-center gap-2.5 rounded-[0.3rem] border border-amber-300/30 bg-card px-3.5 py-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 shadow-[0_8px_24px_-12px_rgba(245,158,11,0.30)]"
+              /* FAIXA DE DESTAQUE — padrão "A · Noite": fio âmbar de 1px,
+                 gradiente que sai da esquerda, ícone em caixinha e o número
+                 grande à direita. Mesmo conteúdo de sempre. */
+              className="relative flex w-full items-center gap-3 overflow-hidden rounded-[14px] border border-amber-300/35 bg-card px-3.5 py-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               style={{
                 backgroundImage:
-                  "radial-gradient(120% 160% at 0% 0%, rgba(245,158,11,0.16), transparent 55%), radial-gradient(120% 160% at 100% 100%, rgba(245,158,11,0.08), transparent 55%)",
+                  "linear-gradient(90deg, rgba(251,191,36,0.12), rgba(251,191,36,0.03) 60%)",
               }}
             >
-              <span
-                aria-hidden="true"
-                className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-amber-500 to-amber-300"
-              />
-              <span className="grid size-6 shrink-0 place-items-center rounded-md bg-amber-500/15 text-amber-500">
-                <Icon className="size-[13px]" strokeWidth={2.5} />
+              <span className="grid size-8 shrink-0 place-items-center rounded-[10px] bg-amber-500/15 text-amber-500">
+                <Icon className="size-4" strokeWidth={2.2} />
               </span>
-              <span className="min-w-0 truncate text-[10.5px] font-normal uppercase tracking-[0.08em] leading-[1.2] text-foreground">
+              <span className="ds-eyebrow min-w-0 flex-1 truncate text-[10.5px] text-amber-500 dark:text-amber-400">
                 {label}
               </span>
-              <span className="ml-auto shrink-0 text-base font-normal tabular-nums text-foreground">
+              <span className="shrink-0 font-display text-[22px] font-bold leading-none tabular-nums text-foreground">
                 {loading ? "—" : rows.length}
               </span>
             </button>
           ) : (
             <button
               type="button"
-              className={`w-full flex items-center gap-2 rounded-[0.3rem] border-0 bg-card px-3.5 py-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+              className={`flex w-full items-center gap-2.5 rounded-[14px] border-0 bg-card px-3.5 py-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
             >
-              <Icon className={`size-3.5 shrink-0 ${dotClass.replace("bg-", "text-")}`} />
-              <span className="ds-eyebrow truncate">{label}</span>
-              <span className={`ml-auto text-base font-display tabular-nums ${valueColor}`}>
+              <span
+                className={`grid size-[26px] shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] ${dotClass.replace("bg-", "text-")}`}
+              >
+                <Icon className="size-3.5" strokeWidth={2} />
+              </span>
+              <span className="ds-eyebrow min-w-0 flex-1 truncate">{label}</span>
+              <span
+                className={`shrink-0 font-display text-[20px] font-bold leading-none tabular-nums ${valueColor}`}
+              >
                 {loading ? "—" : rows.length}
               </span>
             </button>
           )
         ) : (
+          /* CARTÃO DE NÚMERO — padrão "A · Noite" (mockup aprovado,
+             17/09/2026, com dois ajustes do cliente):
+               · o título fica SEMPRE à direita do ícone, numa linha só, com
+                 reticências quando não couber;
+               · o número fica centralizado no meio do cartão;
+               · a data (o mesmo `rangeLabel` que o popup já usava) vai para o
+                 canto inferior direito, em letra menor;
+               · o cartão ficou mais baixo — 14px de respiro em vez de 20. */
           <button
             type="button"
-            className={`w-full h-full rounded-[0.3rem] border-0 bg-card px-3.5 py-5 min-h-[96px] flex flex-col justify-between text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+            className={`flex h-full w-full flex-col gap-1 rounded-[14px] border-0 bg-card px-2.5 pb-2.5 pt-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
-            <div className="flex items-center gap-2 ds-eyebrow min-w-0">
-              <Icon className="size-3.5 shrink-0" />
+            <div className="flex w-full min-w-0 items-center gap-1.5">
+              <span
+                className={`grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] ${dotClass.replace("bg-", "text-")}`}
+              >
+                <Icon className="size-3.5" strokeWidth={2} />
+              </span>
               {/* Uma única linha — sempre reticências, nunca quebra. */}
-              <span className="min-w-0 flex-1 truncate leading-none" title={label}>
+              <span
+                className="ds-eyebrow min-w-0 flex-1 truncate text-[9px] tracking-[0.04em] sm:text-[10px] sm:tracking-[0.08em]"
+                title={label}
+              >
                 {label}
               </span>
             </div>
-
             <div
-              // Pedido explícito: fonte um pouco menor que antes nos cards
-              // numéricos da página Operacional — mantendo o negrito.
-              className={`font-display font-bold mt-1.5 tabular-nums leading-none ${valueColor} ${
-                shadowTone ? "text-[22px] sm:text-[24px]" : "text-[20px] sm:text-[22px]"
+              className={`w-full pt-1.5 text-center font-display font-bold tabular-nums leading-none ${valueColor} ${
+                shadowTone ? "text-[30px] sm:text-[34px]" : "text-[28px] sm:text-[32px]"
               }`}
             >
               {loading ? "—" : rows.length}
             </div>
+            <span className="ds-card-date">{rangeLabel}</span>
           </button>
         )}
       </DialogTrigger>
@@ -4273,26 +4299,33 @@ function FreePropertiesCard({
       }}
     >
       <DialogTrigger asChild>
+        {/* Mesmo cartão dos números (padrão "A · Noite"): título ao lado do
+            ícone, número no meio, data no canto inferior direito. */}
         <button
           type="button"
-          className="w-full h-full rounded-[0.3rem] border-0 bg-card px-3.5 py-5 min-h-[96px] flex flex-col justify-between text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ds-3d ds-3d-hover"
+          className="ds-3d ds-3d-hover flex h-full w-full flex-col gap-1 rounded-[14px] border-0 bg-card px-2.5 pb-2.5 pt-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         >
-          <div className="flex items-center gap-2 ds-eyebrow min-w-0">
+          <div className="flex w-full min-w-0 items-center gap-1.5">
             {/* Ícone neutro (mesma cor do texto do rótulo) — só o número
                 grande é que muda de cor conforme o estado. */}
-            <Home className="size-3.5 shrink-0" />
+            <span className="grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] text-muted-foreground">
+              <Home className="size-3.5" strokeWidth={2} />
+            </span>
             <span
-              className="min-w-0 flex-1 truncate leading-none"
+              className="ds-eyebrow min-w-0 flex-1 truncate text-[9px] tracking-[0.04em] sm:text-[10px] sm:tracking-[0.08em]"
               title={`Imóveis livres ${dayLabel}`}
             >
-              Imóveis livres {isToday ? "" : dayLabel}
+              Imóveis livres
             </span>
           </div>
           <div
-            className={`text-[24px] sm:text-[26px] font-display font-bold mt-1.5 tabular-nums leading-none ${hasFree ? "text-red-500 dark:text-red-400" : "text-foreground"}`}
+            className={`w-full pt-1.5 text-center font-display font-bold tabular-nums leading-none text-[30px] sm:text-[34px] ${hasFree ? "text-red-500 dark:text-red-400" : "text-foreground"}`}
           >
             {loading ? "—" : properties.length}
           </div>
+          <span className="ds-card-date">
+            {dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1)}
+          </span>
         </button>
       </DialogTrigger>
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-lg">
@@ -7166,7 +7199,7 @@ function OccupancyPanel({
   }, [visibleProperties, dayList, byProperty, checkedInPropertyIds, todayISO]);
 
   return (
-    <section className="relative rounded-[0.3rem] border-0 bg-card ds-3d">
+    <section className="ds-3d relative rounded-[14px] border-0 bg-card">
       {/* Pedido explícito: o botão único de filtros (Período/Cidade/
             Proprietário/limpar) fica AO LADO do título, entre o texto e a
             setinha de expandir/recolher — por isso o cabeçalho deixou de
@@ -7174,17 +7207,23 @@ function OccupancyPanel({
             <div> com dois botões independentes (título+ícone / filtros),
             mais a setinha por último. Clicar no título OU na setinha
             expande/recolhe; clicar no botão de filtros não. */}
-      <div className="flex w-full items-center gap-2 px-3.5 py-3.5 text-left">
+      <div className="flex w-full items-center gap-2 px-4 py-3.5 text-left">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
-          // Pedido explícito: sem fundo no ícone, alinhado à esquerda igual
-          // ao ícone do card "Limpezas Realizadas" (mesmo padding px-3.5).
+          /* PADRÃO "A · NOITE" (mockup aprovado, 17/09/2026): ícone em
+             caixinha e título em Sora, como nos demais cards. O título fica
+             numa linha só, com reticências. */
           className="flex min-w-0 flex-1 items-center gap-2 text-left"
         >
-          <CalendarRange className="size-3.5 shrink-0 text-foreground/70" strokeWidth={2} />
-          <span className="min-w-0 flex-1 truncate text-[13px] font-medium leading-snug text-foreground">
+          <span className="grid size-7 shrink-0 place-items-center rounded-[9px] bg-foreground/[0.05] text-foreground">
+            <CalendarRange className="size-[15px]" strokeWidth={2} />
+          </span>
+          <span
+            className="ds-card-title min-w-0 flex-1 text-[14px]"
+            title="Calendário de ocupação"
+          >
             Calendário de ocupação
           </span>
         </button>
@@ -7372,7 +7411,9 @@ function OccupancyPanel({
                 </div>
               </div>
 
-              <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[10.5px] font-medium text-muted-foreground">
+              {/* Legenda do padrão "A · Noite": fio de 1px separando, e os
+                  mesmos estados de sempre. */}
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-border pt-3.5 text-[11px] font-medium text-muted-foreground">
                 {LEGEND_ITEMS.filter((item) => presentStates.has(item.state)).map((item) => (
                   <span key={item.state} className="inline-flex items-center gap-1.5">
                     {item.state === "free" ? (
@@ -7453,25 +7494,19 @@ function EngagementBars({
     );
   const checkinViewed = checkinBreakdown?.viewed.length ?? 0;
   const codesViewed = codesBreakdown?.viewed.length ?? 0;
+  const temCheckin = checkins > 0;
+  const temCodigos = checkinsWithCodes > 0;
   return (
-    // Grade de 4 colunas (barrinha | frase | espaço flexível | valor)
-    // compartilhada pelas duas linhas. A barrinha fica na 1ª coluna, com
-    // largura FIXA (mesma nas duas linhas, por definição, já que é a mesma
-    // coluna da grade). A 2ª coluna (frase) usa "max-content" — do tamanho
-    // exato do texto, SEM esticar — para que a 2ª coluna comece sempre no
-    // mesmo X nas duas linhas sem sobrar espaço vazio depois da frase (com
-    // "auto" simples, sem nenhuma coluna "1fr", a grade estica as colunas
-    // "auto" para preencher o espaço livre do quadrante — é o que abria um
-    // vão enorme entre a frase e o valor). A 3ª coluna ("1fr") absorve TODO
-    // o espaço livre, empurrando a 4ª coluna (valor) para a borda direita do
-    // quadrante — é assim que o "X de Y" fica sempre alinhado à direita,
-    // não importa a largura do quadrante.
-    <div
-      className="relative grid items-center gap-x-2.5 gap-y-1.5 text-sm"
-      style={{ gridTemplateColumns: "2.5rem max-content 1fr max-content" }}
-    >
-      {checkins > 0 && (
-        <BarRow
+    /* O QUADRANTE (mockup aprovado, 17/09/2026): as duas métricas lado a
+       lado, cada uma num anel, separadas por um fio vertical. No celular o
+       anel fica em cima e a frase centralizada embaixo; no computador o anel
+       vai para a esquerda e a frase para a direita, que é onde sobra
+       largura. Quando só existe uma das métricas, ela ocupa o espaço todo e
+       o fio não aparece. */
+    <div className="flex items-start gap-3.5 lg:gap-7">
+      {temCheckin && (
+        <RingCell
+          icon={ListChecks}
           label="Viram instruções de check-in"
           value={checkinViewed}
           total={checkins}
@@ -7482,8 +7517,15 @@ function EngagementBars({
           }
         />
       )}
-      {checkinsWithCodes > 0 && (
-        <BarRow
+      {temCheckin && temCodigos && (
+        <span
+          aria-hidden="true"
+          className="w-px shrink-0 self-stretch bg-gradient-to-b from-transparent via-foreground/20 to-transparent"
+        />
+      )}
+      {temCodigos && (
+        <RingCell
+          icon={KeyRound}
           label="Viram senha de acesso"
           value={codesViewed}
           total={checkinsWithCodes}
@@ -7494,86 +7536,6 @@ function EngagementBars({
           }
         />
       )}
-    </div>
-  );
-}
-
-/**
- * Card individual do Engajamento (desktop) — exatamente o tratamento visual
- * do mockup aprovado (borda + fundo com gradiente radial roxo/rosa + acento
- * lateral + ícone em caixinha + valor em destaque), só sem negrito nas
- * frases (pedido explícito).
- */
-function EngagementCard({
-  icon: Icon,
-  label,
-  value,
-  total,
-  pct,
-  breakdown,
-  hint,
-}: {
-  icon: React.ElementType;
-  label: string;
-  value: number;
-  total: number;
-  pct: number;
-  breakdown?: Breakdown;
-  hint?: string;
-}) {
-  const labelEl = breakdown ? (
-    <EngagementBreakdownDialog
-      label={label}
-      value={value}
-      total={total}
-      breakdown={breakdown}
-      trigger={
-        <button
-          type="button"
-          aria-label={`Detalhes: ${label}`}
-          className="min-w-0 truncate rounded px-1 -mx-1 py-0.5 text-left text-[13px] font-normal text-foreground transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          {label}
-        </button>
-      }
-    />
-  ) : (
-    <span className="min-w-0 truncate text-[13px] font-normal text-foreground">{label}</span>
-  );
-
-  return (
-    <div
-      className="relative h-full overflow-hidden rounded-lg border border-purple-300/30 bg-card px-3.5 py-3 shadow-[0_8px_24px_-12px_rgba(168,85,247,0.35)]"
-      style={{
-        backgroundImage:
-          "radial-gradient(120% 140% at 0% 0%, rgba(168,85,247,0.16), transparent 55%), radial-gradient(120% 140% at 100% 100%, rgba(236,72,153,0.12), transparent 55%)",
-      }}
-    >
-      <span
-        aria-hidden="true"
-        className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-purple-500 to-pink-500"
-      />
-      <div className="mb-2 flex items-center justify-between gap-2">
-        {labelEl}
-        <span className="grid size-[22px] shrink-0 place-items-center rounded-md bg-purple-500/15 text-purple-600 dark:text-purple-300">
-          <Icon className="size-3" strokeWidth={2.5} />
-        </span>
-      </div>
-      <div className="mb-2 flex items-baseline gap-1.5">
-        <span className="text-[22px] font-normal leading-none tabular-nums text-foreground">
-          {value}
-        </span>
-        <span className="text-xs font-normal text-muted-foreground inline-flex items-center gap-1">
-          de {total} ({pct}%)
-          {hint ? <InfoHint title={label}>{hint}</InfoHint> : null}
-        </span>
-      </div>
-      <div className="h-1.5 w-full rounded-full bg-rose-500/60 overflow-hidden">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-[width] duration-700"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
     </div>
   );
 }
@@ -7766,7 +7728,14 @@ function EngagementBreakdownDialog({
   );
 }
 
-function BarRow({
+/** Medidas do anel — o traço é grosso o bastante para ler de longe. */
+const RING_D = 76;
+const RING_SW = 7;
+const RING_R = RING_D / 2 - RING_SW;
+const RING_C = 2 * Math.PI * RING_R;
+
+function RingCell({
+  icon: Icon,
   label,
   value,
   total,
@@ -7774,70 +7743,103 @@ function BarRow({
   breakdown,
   hint,
 }: {
+  icon: React.ElementType;
   label: string;
   value: number;
   total: number;
   pct: number;
   breakdown?: Breakdown;
-  /** Texto explicativo do que a métrica mede (ícone "i" ao lado do valor). */
+  /** Texto explicativo do que a métrica mede (ícone "i" ao lado da frase). */
   hint?: string;
 }) {
-  // Cada BarRow devolve um FRAGMENT com 3 itens soltos, na ordem barrinha →
-  // frase → valor — sem <div> envolvendo — assim eles caem como filhos
-  // DIRETOS da grade de 3 colunas do EngagementBars (ver comentário lá): é
-  // a grade (1ª coluna de largura fixa), e não este componente, quem faz a
-  // barrinha bater na mesma largura e a frase começar sempre no mesmo X
-  // entre as duas linhas.
-  const barCell = (
-    <div className="h-1.5 w-full rounded-full bg-rose-500/60 overflow-hidden">
-      <div
-        className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-[width] duration-700"
-        style={{ width: `${pct}%` }}
-      />
-    </div>
-  );
-  const valueCell = (
-    <span className="tabular-nums text-muted-foreground text-xs whitespace-nowrap inline-flex items-center gap-1">
-      {value} de {total}
-      {hint ? <InfoHint title={label}>{hint}</InfoHint> : null}
-    </span>
-  );
-  // Espaçador vazio — 3ª coluna ("1fr") da grade em EngagementBars. Sem ele,
-  // a grade não teria um item nessa coluna para "abrir espaço" antes do
-  // valor, e o valor acabaria colado logo após a frase em vez de encostado
-  // na borda direita do quadrante.
-  const spacerCell = <span aria-hidden="true" />;
-  if (!breakdown) {
-    return (
-      <>
-        {barCell}
-        <span className="whitespace-nowrap font-medium">{label}</span>
-        {spacerCell}
-        {valueCell}
-      </>
-    );
-  }
+  /* UM QUADRANTE DO ENGAJAMENTO (mockup aprovado, 17/09/2026: "coloque esse
+     estilo de quadrante do engajamento, mas com os efeitos visuais do
+     primeiro").
+
+       celular            computador
+       ┌───────┐          ┌───────┐
+       │ (2/2) │          │ (2/2) │ 🗒 Viram instruções de check-in (i)
+       └───────┘          └───────┘
+       🗒 Viram… (i)
+
+     O anel é LISO, sem brilho: o brilho ficava preso à borda do desenho e
+     virava um quadrado colorido atrás do círculo (o cliente apontou duas
+     vezes). Os efeitos da direção A continuam no card que envolve isto aqui
+     — contorno de neon girando, clarão roxo no canto e o ponto pulsando.
+
+     Verde quando completou, rosa quando ainda falta gente: as mesmas cores
+     das barras que havia antes, e o mesmo mínimo de 3% para o anel nunca
+     sumir de vez quando ninguém viu ainda. */
+  const done = pct >= 100;
+  const tone = done ? "text-emerald-400" : "text-rose-400";
+  const arco = RING_C * Math.max(pct, 3) * 0.01;
+  const labelClass =
+    "min-w-0 text-center text-[12px] font-semibold leading-snug text-muted-foreground lg:text-left lg:text-[13px]";
   return (
-    <>
-      {barCell}
-      <EngagementBreakdownDialog
-        label={label}
-        value={value}
-        total={total}
-        breakdown={breakdown}
-        trigger={
-          <button
-            type="button"
-            aria-label={`Detalhes: ${label}`}
-            className="whitespace-nowrap rounded-lg px-1 -mx-1 py-0.5 text-left font-medium transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
+    <div className="flex min-w-0 flex-1 flex-col items-center gap-2.5 lg:flex-row lg:gap-4">
+      <div className="relative shrink-0" style={{ width: RING_D, height: RING_D }}>
+        <svg
+          width={RING_D}
+          height={RING_D}
+          viewBox={`0 0 ${RING_D} ${RING_D}`}
+          className="-rotate-90"
+          aria-hidden="true"
+        >
+          <circle
+            cx={RING_D / 2}
+            cy={RING_D / 2}
+            r={RING_R}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={RING_SW}
+            className="text-foreground/[0.07]"
+          />
+          <circle
+            cx={RING_D / 2}
+            cy={RING_D / 2}
+            r={RING_R}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={RING_SW}
+            strokeLinecap="round"
+            strokeDasharray={`${arco} ${RING_C}`}
+            className={`${tone} transition-[stroke-dasharray] duration-700`}
+          />
+        </svg>
+        <span className="absolute inset-0 flex items-center justify-center font-display leading-none tabular-nums">
+          <span className={`text-[19px] font-bold ${tone}`}>{value}</span>
+          <span className="ds-faint text-[13px] font-medium">/{total}</span>
+        </span>
+      </div>
+      <div className="flex min-w-0 items-center justify-center gap-1.5 lg:justify-start">
+        <span className={`shrink-0 ${tone}`} aria-hidden="true">
+          <Icon className="size-[14px]" strokeWidth={2} />
+        </span>
+        {breakdown ? (
+          <EngagementBreakdownDialog
+            label={label}
+            value={value}
+            total={total}
+            breakdown={breakdown}
+            trigger={
+              <button
+                type="button"
+                aria-label={`Detalhes: ${label}`}
+                title={label}
+                className={`${labelClass} -mx-1 rounded-lg px-1 py-0.5 transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+              >
+                {label}
+              </button>
+            }
+          />
+        ) : (
+          <span className={labelClass} title={label}>
             {label}
-          </button>
-        }
-      />
-      {spacerCell}
-      {valueCell}
-    </>
+          </span>
+        )}
+        {hint ? <InfoHint title={label}>{hint}</InfoHint> : null}
+      </div>
+    </div>
   );
 }
 

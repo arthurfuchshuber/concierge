@@ -284,16 +284,29 @@ function AdminLayout() {
                 key={item.label}
                 to={item.to}
                 title={collapsed ? item.label : undefined}
-                className={`flex items-center gap-3 px-3 py-2.5 ds-surface text-sm transition-colors ${collapsed ? "justify-center" : ""} ${
+                /* PADRÃO "A · NOITE" (mockup aprovado, 17/09/2026): item ativo
+                   com fundo de marca bem fraco, texto cheio e um traço de
+                   gradiente na borda esquerda — em vez do bloco branco que
+                   invertia a cor do texto. */
+                className={`relative flex items-center gap-3 rounded-xl px-3.5 py-0 h-11 text-sm transition-colors ${collapsed ? "justify-center" : ""} ${
                   active
-                    ? "bg-primary text-primary-foreground font-medium shadow-sm"
-                    : "text-foreground/70 hover:bg-secondary hover:text-foreground"
+                    ? "bg-accent/10 font-bold text-foreground"
+                    : "font-semibold text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
                 }`}
               >
-                <Icon className="size-4 shrink-0" strokeWidth={2} />
-                {!collapsed && <span className="flex-1">{item.label}</span>}
+                {active && !collapsed && (
+                  <span
+                    aria-hidden
+                    className="absolute -left-2 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-r-[3px] bg-gradient-to-b from-[#7C1AD8] to-[#E82DAE]"
+                  />
+                )}
+                <Icon
+                  className={`size-4 shrink-0 ${active ? "text-accent" : ""}`}
+                  strokeWidth={2}
+                />
+                {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
                 {badge > 0 && !collapsed && (
-                  <span className="min-w-5 h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center">
+                  <span className="grid h-5 min-w-5 place-items-center rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] px-1.5 text-[10px] font-extrabold text-white">
                     {badge}
                   </span>
                 )}
@@ -319,14 +332,17 @@ function AdminLayout() {
                     key={item.label}
                     to={item.to}
                     title={collapsed ? item.label : undefined}
-                    className={`flex items-center gap-3 px-3 py-2.5 ds-surface text-sm transition-colors ${collapsed ? "justify-center" : ""} ${
+                    className={`relative flex items-center gap-3 rounded-xl px-3.5 py-0 h-11 text-sm transition-colors ${collapsed ? "justify-center" : ""} ${
                       active
-                        ? "bg-primary text-primary-foreground font-medium shadow-sm"
-                        : "text-foreground/70 hover:bg-secondary hover:text-foreground"
+                        ? "bg-accent/10 font-bold text-foreground"
+                        : "font-semibold text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
                     }`}
                   >
-                    <Icon className="size-4 shrink-0" strokeWidth={2} />
-                    {!collapsed && item.label}
+                    <Icon
+                      className={`size-4 shrink-0 ${active ? "text-accent" : ""}`}
+                      strokeWidth={2}
+                    />
+                    {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
                   </Link>
                 );
               })}
@@ -349,7 +365,7 @@ function AdminLayout() {
           <button
             onClick={signOut}
             title={collapsed ? "Sair / Trocar usuário" : undefined}
-            className={`flex items-center gap-3 rounded-xl text-sm font-medium border border-border bg-secondary/40 hover:bg-secondary transition-colors ${collapsed ? "size-9 justify-center px-0 py-0" : "w-full px-3 py-2.5"}`}
+            className={`flex items-center gap-3 rounded-xl border border-border bg-secondary/40 text-sm font-semibold transition-colors hover:bg-secondary ${collapsed ? "size-9 justify-center px-0 py-0" : "h-11 w-full px-3.5"}`}
           >
             <LogOut className="size-4 shrink-0" strokeWidth={2} />
             {!collapsed && "Sair / Trocar usuário"}
@@ -365,19 +381,29 @@ function AdminLayout() {
       {/* Main */}
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Mobile topbar */}
-        <header className="lg:hidden sticky top-0 z-20 glass border-b border-border px-4 py-3 flex items-center justify-between">
+        {/* CABEÇALHO DO CELULAR — padrão "A · Noite" (mockup aprovado,
+            17/09/2026): fundo do app com transparência e desfoque, fio de 1px
+            embaixo, e o alvo do menu com 44px (o mínimo confortável no dedo).
+            Sem cantos arredondados: ele é a borda da tela. */}
+        <header className="sticky top-0 z-20 flex h-[60px] items-center justify-between border-b border-border bg-background/85 px-3 backdrop-blur-xl lg:hidden">
           <button
             onClick={() => setOpen(true)}
-            className="size-9 grid place-items-center rounded-lg hover:bg-secondary"
+            className="grid size-11 place-items-center rounded-xl text-foreground transition-colors hover:bg-secondary/60"
             aria-label="Abrir menu"
           >
             <Menu className="size-5" />
           </button>
           <Link to="/admin" className="inline-flex items-center gap-2.5">
-            <img src={conciergeLogo} alt="ConciergeIA" className="size-10 rounded-lg object-contain shrink-0" />
-            <span className="font-display text-xl leading-none">ConciergeIA</span>
+            <img
+              src={conciergeLogo}
+              alt="ConciergeIA"
+              className="size-9 shrink-0 rounded-lg object-contain"
+            />
+            <span className="font-display text-[18px] font-bold leading-none tracking-[-0.01em]">
+              ConciergeIA
+            </span>
           </Link>
-          <div className="size-9" />
+          <div className="size-11" />
         </header>
 
         <main className="flex-1 pb-[calc(96px+env(safe-area-inset-bottom))] lg:pb-0">
@@ -411,29 +437,37 @@ function AdminLayout() {
               const badge = ("badge" in item ? item.badge : 0) ?? 0;
               const shortLabel = BOTTOM_NAV_SHORT_LABEL[item.label] ?? item.label;
               return (
+                /* PADRÃO "A · NOITE" (mockup aprovado, 17/09/2026): o item
+                   ativo ganha um traço de gradiente no topo da barra e uma
+                   caixinha com o rosa da marca bem fraco — o emblema cheio
+                   virava uma mancha forte demais ao lado dos outros quatro. */
                 <Link
                   key={item.label}
                   to={item.to}
-                  className="flex-1 min-w-0 flex flex-col items-center justify-center gap-1 py-1.5 rounded-lg relative"
+                  className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl pt-1"
                 >
+                  {active && (
+                    <span
+                      aria-hidden
+                      className="absolute -top-2 h-[3px] w-7 rounded-b-[3px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE]"
+                    />
+                  )}
                   <span
-                    className={`size-10 rounded-lg grid place-items-center ${
-                      active
-                        ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white shadow-[0_4px_20px_-2px_rgba(232,45,174,0.55)]"
-                        : "text-muted-foreground"
+                    className={`grid h-8 w-11 place-items-center rounded-xl ${
+                      active ? "bg-accent/15 text-foreground" : "text-muted-foreground"
                     }`}
                   >
                     <Icon className="size-[18px]" strokeWidth={1.9} />
                   </span>
                   <span
-                    className={`text-[10px] font-bold tracking-tight truncate max-w-full ${
-                      active ? "text-foreground" : "text-muted-foreground"
+                    className={`max-w-full truncate text-[10.5px] tracking-tight ${
+                      active ? "font-extrabold text-foreground" : "font-semibold ds-faint"
                     }`}
                   >
                     {shortLabel}
                   </span>
                   {badge > 0 && (
-                    <span className="absolute top-0 right-[18%] min-w-[15px] h-[15px] px-1 rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white text-[9px] font-bold grid place-items-center ring-2 ring-background">
+                    <span className="absolute top-0 right-[18%] grid h-[15px] min-w-[15px] place-items-center rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] px-1 text-[9px] font-extrabold text-white ring-2 ring-background">
                       {badge}
                     </span>
                   )}

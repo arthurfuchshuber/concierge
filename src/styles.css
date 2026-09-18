@@ -92,25 +92,28 @@
 }
 
 .dark {
-  /* Cinematic obsidian night palette */
-  --background: oklch(0.14 0.012 60);
-  --foreground: oklch(0.96 0.008 80);
-  --surface: oklch(0.18 0.014 60);
-  --surface-elevated: oklch(0.22 0.016 60);
+  /* PADRÃO "A · NOITE" (mockup aprovado, 17/09/2026) — a mesma linguagem da
+     landing dentro do sistema: fundo quase preto QUENTE, uma superfície só
+     para os cards, e fio de 1px no lugar de borda cinza. Os valores vêm do
+     quadro "Fundamentos" do canvas. */
+  --background: #0b0908;
+  --foreground: #f6f3ef;
+  --surface: #0e0c0b;
+  --surface-elevated: #1b1715;
 
-  --card: oklch(0.2 0.014 60);
-  --card-foreground: oklch(0.96 0.008 80);
-  --popover: oklch(0.2 0.014 60);
-  --popover-foreground: oklch(0.96 0.008 80);
+  --card: #141110;
+  --card-foreground: #f6f3ef;
+  --popover: #171312;
+  --popover-foreground: #f6f3ef;
 
-  --primary: oklch(0.96 0.008 80);
-  --primary-foreground: oklch(0.18 0.014 60);
+  --primary: #f6f3ef;
+  --primary-foreground: #0e0c0b;
 
-  --secondary: oklch(0.25 0.016 60);
-  --secondary-foreground: oklch(0.96 0.008 80);
+  --secondary: #1b1715;
+  --secondary-foreground: #f6f3ef;
 
-  --muted: oklch(0.25 0.016 60);
-  --muted-foreground: oklch(0.7 0.014 70);
+  --muted: #1b1715;
+  --muted-foreground: #a9a39b;
 
   /* Estava com um laranja/bege neutro sobrado do tema base (nunca foi
      atualizado pra marca) — por isso qualquer dropdown/menu usando o
@@ -123,9 +126,11 @@
   --destructive: oklch(0.65 0.2 27);
   --destructive-foreground: oklch(0.96 0.008 80);
 
-  --border: oklch(1 0 0 / 0.08);
-  --input: oklch(1 0 0 / 0.1);
+  --border: rgba(255, 255, 255, 0.07);
+  --input: rgba(255, 255, 255, 0.11);
   --ring: oklch(0.72 0.15 40 / 0.4);
+  /* Texto de apoio mais discreto que o "muted" (datas, legendas). */
+  --faint: #6f6962;
 
   --shadow-soft: 0 1px 2px oklch(0 0 0 / 0.4), 0 4px 16px oklch(0 0 0 / 0.3);
   --shadow-elevated: 0 8px 32px oklch(0 0 0 / 0.5);
@@ -654,14 +659,15 @@ dd {
 @utility ds-page-title {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 22px;
-  line-height: 1.18;
-  letter-spacing: -0.01em;
+  /* 26px no padrão "A · Noite" (era 22px) — mockup aprovado 17/09/2026. */
+  font-size: 26px;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
 }
 @utility ds-page-subtitle {
   font-family: var(--font-sans);
   font-weight: 400;
-  font-size: 13px;
+  font-size: 13.5px;
   line-height: 1.45;
   color: var(--muted-foreground);
 }
@@ -892,8 +898,12 @@ dd {
    Contêineres estruturais (card, item de acordeão, painel, linha
    de lista) em 8px. Botões, badges e chips NÃO entram nesta regra.
    ============================================================ */
+/* Cantos do padrão "A · Noite" (17/09/2026): era 0.3rem (≈5px) e o mockup
+   aprovado arredondou tudo. 12px aqui porque `ds-surface` também veste
+   campos e caixas pequenas; os cards grandes da tela pedem 14px na própria
+   classe. Um lugar só. */
 @utility ds-surface {
-  border-radius: 0.3rem;
+  border-radius: 12px;
 }
 /* Lista densa: 6px entre itens irmãos. */
 @utility ds-list {
@@ -905,21 +915,27 @@ dd {
 .glass,
 [data-slot="card"],
 [data-slot="accordion-item"] {
-  border-radius: 0.3rem;
+  border-radius: 14px;
 }
 
 /* ============================================================
    Elevação plana — cards e quadrantes (sem 3D)
    ============================================================ */
+/* Card do padrão "A · Noite": fio de 1px por dentro (em vez de borda que
+   soma largura) e sombra fina. Sem cor, sem volume. */
 @utility ds-3d {
   border: 0 !important;
-  box-shadow: 0 1px 2px color-mix(in oklab, var(--foreground) 6%, transparent);
+  box-shadow:
+    inset 0 0 0 1px var(--border),
+    0 1px 2px color-mix(in oklab, var(--foreground) 6%, transparent);
 }
 @utility ds-3d-hover {
   transition: box-shadow 200ms ease;
 }
 .ds-3d-hover:hover {
-  box-shadow: 0 2px 6px -2px color-mix(in oklab, var(--foreground) 12%, transparent);
+  box-shadow:
+    inset 0 0 0 1px var(--input),
+    0 2px 6px -2px color-mix(in oklab, var(--foreground) 12%, transparent);
 }
 
 
@@ -1188,4 +1204,58 @@ dd {
   animation-name: undo-drain;
   animation-timing-function: linear;
   animation-fill-mode: forwards;
+}
+
+
+/* ============================================================
+   PADRÃO "A · NOITE" (mockup aprovado, 17/09/2026)
+   Peças que se repetem em todas as telas do sistema.
+   ============================================================ */
+
+/* Texto de apoio mais fraco que o "muted": datas no canto do card,
+   legendas do calendário, contagens. */
+@utility ds-faint {
+  color: var(--faint, var(--muted-foreground));
+}
+
+/* A etiqueta do canto inferior direito dos cards de número ("Hoje",
+   "Amanhã · sex, 18/09", "Agora") — pedido explícito do cliente. */
+@utility ds-card-date {
+  display: block;
+  width: 100%;
+  text-align: right;
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--faint, var(--muted-foreground));
+}
+
+/* Barra de abas (Operacional / Kanban / Limpeza / Registros). */
+@utility ds-tabs {
+  display: flex;
+  width: 100%;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+/* Aba ativa: o gradiente da marca fica reservado para o que está ativo. */
+@utility ds-tab-active {
+  background: linear-gradient(120deg, #7c1ad8, #e82dae);
+  color: #fff;
+  box-shadow: 0 8px 22px -10px rgba(232, 45, 174, 0.8);
+}
+
+/* Halo roxo do topo da página — o mesmo efeito da landing, bem fraco. */
+@utility ds-page-halo {
+  position: absolute;
+  left: -80px;
+  right: -80px;
+  top: -140px;
+  height: 360px;
+  pointer-events: none;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(124, 26, 216, 0.16), transparent 70%);
 }

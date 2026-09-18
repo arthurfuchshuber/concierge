@@ -167,6 +167,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content",
       },
       { name: "theme-color", content: "#FDF9F2" },
+      // O nome que fica embaixo do ícone na tela inicial do iPhone — sem
+      // isto, o iPhone usa o título da página, que é uma frase inteira.
+      { name: "apple-mobile-web-app-title", content: "ConciergeIA" },
+      { name: "application-name", content: "ConciergeIA" },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "ConciergeIA" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -193,8 +197,30 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", type: "image/png", href: "/favicon.png" },
-      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+      /**
+       * A MARCA EM TODO LUGAR (17/09/2026, pedido do cliente com prints do
+       * resultado do Google, do atalho do Chrome e do ícone na tela inicial
+       * do iPhone: "há a logo do lovable (ou nenhuma logo) em várias páginas
+       * — precisamos migrar COMPLETAMENTE para a logo com fundo preto do
+       * ConciergeIA").
+       *
+       * Cada lugar procura um arquivo diferente, e era isso que fazia a marca
+       * sumir em uns e não em outros:
+       *
+       *   · Google e atalho do Windows  →  /favicon.ico (16/32/48/64/128/256)
+       *   · aba do navegador            →  /favicon.png
+       *   · tela inicial do iPhone      →  /apple-touch-icon.png (180 px)
+       *   · atalho do Chrome e Android  →  os ícones do manifest
+       *
+       * Todos saem da mesma arte (`src/assets/concierge-logo.png`) sobre o
+       * preto do produto — nada de fundo transparente, que no iPhone vira um
+       * quadrado branco. `sizes` no .ico é o que faz o Google escolher a
+       * versão certa em vez de espremer a maior.
+       */
+      { rel: "icon", type: "image/x-icon", href: "/favicon.ico", sizes: "any" },
+      { rel: "icon", type: "image/png", href: "/favicon.png", sizes: "512x512" },
+      { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
       {
