@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { track } from "@/lib/trail";
-import { comPrazo, enviarMidia, garantirToken, PRAZO_SERVIDOR_MS } from "@/lib/media-upload";
+import { chamarServidor, ehFalhaDeRede, enviarMidia, garantirToken } from "@/lib/media-upload";
 import {
   apagarRascunho,
   chaveRascunho,
