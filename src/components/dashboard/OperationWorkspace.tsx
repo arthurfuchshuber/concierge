@@ -2823,8 +2823,16 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 ficam livres para nada, já que não há mais nenhum outro item
                 com esse mesmo order). No mobile não muda (col-span-2 =
                 largura cheia da grade de 2 colunas). */}
+            {/* NO COMPUTADOR o calendário ocupa 3 das 4 colunas e OCUPA DUAS
+                LINHAS (`lg:row-span-2`): com isso "Em Estadia" e "Imóveis
+                livres" caem sozinhos na 4ª coluna, um embaixo do outro, à
+                direita dele — exatamente o mockup aprovado (pedido explícito,
+                18/09/2026). A regra anti-corte do calendário continua
+                valendo sem nenhum ajuste: ele mede a PRÓPRIA largura por
+                ResizeObserver, então em 3 colunas simplesmente cabem menos
+                dias inteiros, nunca um dia cortado na margem. */}
             <SectionLabel className="order-8 lg:hidden">Ocupação</SectionLabel>
-            <div className="order-9 col-span-2 lg:order-6 lg:col-span-2 lg:col-start-1">
+            <div className="order-9 col-span-2 lg:order-6 lg:col-span-3 lg:col-start-1 lg:row-span-2">
               <OccupancyPanel
                 loading={occupancyQ.isLoading}
                 start={occupancyQ.data?.start ?? occStart}
@@ -2847,11 +2855,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
             {/* "Limpezas Realizadas" e "Custo Total Limpeza" se mudaram pra
                 aba própria "Limpeza" (pedido explícito) — ver
-                view === "limpeza" mais abaixo. Pedido explícito: agora vêm
-                DEPOIS do calendário (antes vinham antes) — `lg:col-start-1`
-                em "Em Estadia" força os dois pra uma linha nova própria,
-                mesma técnica usada acima pelo calendário. */}
-            <div className="order-10 col-span-1 lg:order-7 lg:col-start-1">
+                view === "limpeza" mais abaixo. No computador estes dois não
+                começam mais uma linha nova: caem na 4ª coluna, ao lado do
+                calendário (que ocupa as três primeiras e duas linhas). No
+                celular continuam lado a lado, meia largura cada. */}
+            <div className="order-10 col-span-1 lg:order-7 lg:self-start">
               <KpiCard
                 label="Em Estadia"
                 rows={stayRows}
@@ -2864,7 +2872,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 cardProps={arrivalGroupPropsFor("stay", stayRows)}
               />
             </div>
-            <div className="order-11 col-span-1 lg:order-8">
+            <div className="order-11 col-span-1 lg:order-8 lg:self-start">
               <FreePropertiesCard
                 loading={occupancyQ.isLoading}
                 properties={freeProperties}
@@ -3631,50 +3639,55 @@ export function OperationShell({
     })
     .replace(/^\w/, (c) => c.toUpperCase());
   return (
+    /* NO COMPUTADOR, as abas ficam na MESMA LINHA do título, à direita — é o
+       que o mockup aprovado mostra (pedido explícito, 18/09/2026: "você havia
+       colocado a barra de menu na parte demarcada, e não onde encontra-se
+       atualmente"). No celular nada muda: elas continuam embaixo, ocupando a
+       largura inteira. */
     <div className="space-y-3">
-      <div>
-        <p className="ds-eyebrow mb-1.5 text-[10.5px] tracking-[0.18em] text-accent">{hoje}</p>
-        {/* As ações dividem a LINHA DO TÍTULO — não o bloco de duas linhas.
-            Centradas no bloco inteiro (como estavam), elas caíam na altura do
-            vão entre título e subtítulo e ficavam visivelmente baixas em
-            relação ao título (print de 09/09/2026). Dentro da mesma linha do
-            h1, o alinhamento passa a ser exato por construção, sem depender de
-            medida nenhuma — e o subtítulo volta a ter a largura inteira. */}
-        <div className="flex items-center gap-2">
-          <h1 className="ds-page-title min-w-0 flex-1 truncate">{title ?? copy.title}</h1>
-          {actions && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}
+      <div className="lg:flex lg:items-end lg:justify-between lg:gap-8">
+        <div className="min-w-0 lg:flex-1">
+          <p className="ds-eyebrow mb-1.5 text-[10.5px] tracking-[0.18em] text-accent">{hoje}</p>
+          {/* As ações dividem a LINHA DO TÍTULO — não o bloco de duas linhas.
+              Centradas no bloco inteiro (como estavam), elas caíam na altura
+              do vão entre título e subtítulo e ficavam visivelmente baixas em
+              relação ao título (print de 09/09/2026). Dentro da mesma linha do
+              h1, o alinhamento passa a ser exato por construção, sem depender
+              de medida nenhuma — e o subtítulo volta a ter a largura inteira. */}
+          <div className="flex items-center gap-2">
+            <h1 className="ds-page-title min-w-0 flex-1 truncate">{title ?? copy.title}</h1>
+            {actions && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}
+          </div>
+          <p className="ds-page-subtitle mt-1.5 truncate">{subtitle ?? copy.subtitle}</p>
         </div>
-        <p className="ds-page-subtitle mt-1.5 truncate">{subtitle ?? copy.subtitle}</p>
-      </div>
 
-      {/* Segmented control — Operacional / Kanban / Limpeza / Registros.
-          Quatro fatias iguais, coladas, ocupando a largura inteira: é o
-          desenho que já estava no ar e o cliente aprovou. Uma tentativa de
-          transformar esta barra na barra ROLÁVEL (ds-segmented) por causa da
-          quarta aba foi rejeitada no teste — a sobra virava um vão morto
-          depois da última aba. Aqui não há sobra por construção. */}
-      {/* Padrão "A · Noite" (mockup aprovado, 17/09/2026): controle segmentado
-          — caixa com fio de 1px e respiro de 4px, e a aba ativa como uma
-          pílula com o gradiente da marca. Continuam sendo quatro fatias
-          iguais ocupando a largura inteira, sem sobra. */}
-      <nav className="ds-tabs mb-5">
-        {OPERATION_TABS.map((t) => {
-          const active = t.view === view;
-          return (
-            <Link
-              key={t.view}
-              to={t.to}
-              className={`flex min-h-[38px] flex-1 items-center justify-center rounded-[10px] px-2 text-center text-[13px] leading-none transition-colors ${
-                active
-                  ? "ds-tab-active font-bold"
-                  : "font-semibold text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {t.label}
-            </Link>
-          );
-        })}
-      </nav>
+        {/* Segmented control — Operacional / Kanban / Limpeza / Registros.
+            Quatro fatias iguais, coladas. No celular ocupam a largura inteira;
+            no computador, uma faixa fixa de 520px à direita do título. Uma
+            tentativa de transformar esta barra na barra ROLÁVEL (ds-segmented)
+            por causa da quarta aba foi rejeitada no teste — a sobra virava um
+            vão morto depois da última aba. Aqui não há sobra por construção.
+            Padrão "A · Noite": caixa com fio de 1px e respiro de 4px, e a aba
+            ativa como uma pílula com o gradiente da marca. */}
+        <nav className="ds-tabs mb-5 lg:mb-0 lg:w-[520px] lg:shrink-0">
+          {OPERATION_TABS.map((t) => {
+            const active = t.view === view;
+            return (
+              <Link
+                key={t.view}
+                to={t.to}
+                className={`flex min-h-[38px] flex-1 items-center justify-center rounded-[10px] px-2 text-center text-[13px] leading-none transition-colors ${
+                  active
+                    ? "ds-tab-active font-bold"
+                    : "font-semibold text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {t.label}
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
     </div>
   );
 }
@@ -6997,9 +7010,21 @@ function OccupancyPanel({
   const NAME_COL_BASE = 130;
   const MOBILE_DAYS = 5;
   const MIN_DAY_W = 38; // largura mínima por coluna no desktop
-  // Recolhido por padrão — reduz a poluição visual da tela; a pessoa expande
-  // quando quiser ver a agenda.
+  /**
+   * ABERTO NO COMPUTADOR, recolhido no celular (pedido explícito, 18/09/2026:
+   * "mantenha o calendário sempre expandido na visão DESKTOP, mas com
+   * possibilidade de recolher clicando em cima da barra"). No celular
+   * continua recolhido por padrão — lá ele come a tela inteira.
+   *
+   * A decisão é tomada depois de montar, não no estado inicial: ler a largura
+   * da janela ali quebraria a hidratação, porque no servidor não existe
+   * janela. Roda uma vez só — quem recolher continua recolhido, e
+   * redimensionar a janela depois não reabre o quadro sozinho.
+   */
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth >= 1024) setOpen(true);
+  }, []);
   const outerRef = useRef<HTMLDivElement | null>(null);
   const scrollbarWRef = useRef<number | null>(null);
   const [dayW, setDayW] = useState(40);
@@ -7798,8 +7823,38 @@ function RingCell({
   const labelClass =
     "min-w-0 text-center text-[12px] font-semibold leading-snug text-muted-foreground lg:text-left lg:text-[13px]";
   return (
-    <div className="flex min-w-0 flex-1 flex-col items-center gap-2.5 lg:flex-row lg:gap-4">
-      <div className="relative shrink-0" style={{ width: RING_D, height: RING_D }}>
+    /* O QUADRANTE INTEIRO É O BOTÃO (pedido explícito, 18/09/2026: "torne o
+       quadrante todo de cada engajamento respectivo CLICÁVEL... se estiver
+       dividido ao meio, então metade clicável para mostrar quem viu
+       instruções e a outra metade para quem viu as senhas").
+
+       O botão é uma camada por baixo (`absolute inset-0`), e não um <button>
+       em volta do conteúdo: o "i" também é um botão e um não pode ficar
+       dentro do outro. O conteúdo fica por cima sem receber clique
+       (`pointer-events-none`), então o toque atravessa para a camada de
+       baixo em qualquer ponto da metade — menos no próprio "i", que volta a
+       receber clique. */
+    <div className="relative flex min-w-0 flex-1 flex-col items-center gap-2.5 lg:flex-row lg:gap-4">
+      {breakdown ? (
+        <EngagementBreakdownDialog
+          label={label}
+          value={value}
+          total={total}
+          breakdown={breakdown}
+          trigger={
+            <button
+              type="button"
+              aria-label={`Detalhes: ${label}`}
+              title={label}
+              className="absolute -inset-x-1.5 -inset-y-1 z-0 rounded-[14px] transition-colors hover:bg-foreground/[0.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+          }
+        />
+      ) : null}
+      <div
+        className="pointer-events-none relative z-[1] shrink-0"
+        style={{ width: RING_D, height: RING_D }}
+      >
         <svg
           width={RING_D}
           height={RING_D}
@@ -7833,33 +7888,20 @@ function RingCell({
           <span className="ds-faint text-[13px] font-medium">/{total}</span>
         </span>
       </div>
-      <div className="flex min-w-0 items-center justify-center gap-1.5 lg:justify-start">
+      <div className="pointer-events-none relative z-[1] flex min-w-0 items-center justify-center gap-1.5 lg:justify-start">
         <span className={`shrink-0 ${tone}`} aria-hidden="true">
           <Icon className="size-[14px]" strokeWidth={2} />
         </span>
-        {breakdown ? (
-          <EngagementBreakdownDialog
-            label={label}
-            value={value}
-            total={total}
-            breakdown={breakdown}
-            trigger={
-              <button
-                type="button"
-                aria-label={`Detalhes: ${label}`}
-                title={label}
-                className={`${labelClass} -mx-1 rounded-lg px-1 py-0.5 transition-colors hover:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
-              >
-                {label}
-              </button>
-            }
-          />
-        ) : (
-          <span className={labelClass} title={label}>
-            {label}
+        <span className={labelClass} title={label}>
+          {label}
+        </span>
+        {/* O "i" é o único ponto do quadrante que NÃO abre a lista: ele abre
+            a explicação da métrica. Por isso volta a receber clique. */}
+        {hint ? (
+          <span className="pointer-events-auto shrink-0">
+            <InfoHint title={label}>{hint}</InfoHint>
           </span>
-        )}
-        {hint ? <InfoHint title={label}>{hint}</InfoHint> : null}
+        ) : null}
       </div>
     </div>
   );
