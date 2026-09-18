@@ -516,20 +516,20 @@ export function RecordSituationSheet({
 
         if (r.ok) {
           try {
-            await comPrazo(
-              appendFn({
-                data: {
-                  groupId,
-                  propertyId,
-                  path,
-                  kind: it.kind,
-                  mime: it.mime || "application/octet-stream",
-                  sizeBytes: it.blob.size,
-                  durationMs: it.durationMs,
-                },
-              }),
-              PRAZO_SERVIDOR_MS,
-              ctrl.signal,
+            await chamarServidor(
+              () =>
+                appendFn({
+                  data: {
+                    groupId,
+                    propertyId,
+                    path,
+                    kind: it.kind,
+                    mime: it.mime || "application/octet-stream",
+                    sizeBytes: it.blob.size,
+                    durationMs: it.durationMs,
+                  },
+                }),
+              { signal: ctrl.signal },
             );
             enviados.push(it.key);
           } catch (e) {
