@@ -446,22 +446,22 @@ export function RecordSituationSheet({
            caminho. Sem prazo, uma rede congelada travaria o botão aqui, antes
            mesmo de qualquer arquivo — exatamente o sintoma relatado, só que um
            passo antes. Ver `comPrazo` em `media-upload.ts`. */
-        const criada = await comPrazo(
-          createFn({
-            data: {
-              propertyId,
-              logId: target.logId,
-              reservationId: target.reservationId,
-              cardMode,
-              category,
-              title: title.trim() || null,
-              description: description.trim() || null,
-              media: [],
-              pendingMedia: items.length,
-            },
-          }),
-          PRAZO_SERVIDOR_MS,
-          ctrl.signal,
+        const criada = await chamarServidor(
+          () =>
+            createFn({
+              data: {
+                propertyId,
+                logId: target.logId,
+                reservationId: target.reservationId,
+                cardMode,
+                category,
+                title: title.trim() || null,
+                description: description.trim() || null,
+                media: [],
+                pendingMedia: items.length,
+              },
+            }),
+          { signal: ctrl.signal },
         );
         groupId = (criada as { groupId?: string })?.groupId ?? null;
         if (!groupId) throw new Error("Não consegui abrir o registro.");
