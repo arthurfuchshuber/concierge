@@ -525,8 +525,10 @@ export function RecordsWorkspace() {
           cartões numa linha só deixavam o rótulo cortado ("ESQUECID…",
           "MANUTEN…") justamente nas categorias que mais importam. Em
           `grid-cols-3` sobram três em cima e dois embaixo, com o rótulo
-          inteiro. O número é da cor da categoria e o cartão selecionado
-          ganha o anel da mesma cor; tocar no selecionado volta para "todos". */}
+          inteiro. O número NÃO tem cor própria (padrão "Presença"): a
+          categoria é o fio de 2px na aresta de cima, e o cartão selecionado
+          ganha luz, não cor (ver `CARD_ACTIVE`). Tocar no selecionado volta
+          para "todos". */}
       <div className="grid grid-cols-3 gap-1.5">
         {/* TODOS é o primeiro cartão e o filtro de entrada da aba (pedido
             explícito, 10/09/2026). Ele não é "mais uma categoria": é a visão

@@ -656,6 +656,35 @@ dd {
    Escala tipográfica fixa, espaçamento base 4px e barras de
    ação que rolam na horizontal em vez de quebrar em 2 linhas.
    ============================================================ */
+/**
+ * O RITMO DO CABEÇALHO DE PÁGINA — UM VALOR SÓ, PARA OS DOIS VÃOS.
+ *
+ * REGRA (pedido explícito, 18/09/2026): "o espaçamento entre a data e o
+ * título tem que ser o mesmo espaçamento entre o título e o subtítulo —
+ * isso tem que ser regra".
+ *
+ * Era regra nenhuma: a data ficava num ramo do HTML e o subtítulo em outro,
+ * cada um com o seu número escrito à mão na classe. Os dois nasceram iguais
+ * (6px), mas quando a data mudou de lugar um deles virou −6px e ninguém
+ * percebeu — porque nada obrigava os dois a andarem juntos.
+ *
+ * `ds-page-heading` é essa obrigação. É uma coluna flex cujo respiro sai de
+ * `--ds-heading-gap`, e o cabeçalho a usa DUAS vezes: uma para data+título,
+ * outra para título+subtítulo. Os dois vãos passam a ser o mesmo valor por
+ * construção — mudar o ritmo é mudar a variável aqui, e nunca mais um número
+ * solto no meio do componente.
+ *
+ * Por que flex e não margem: margem entre irmãos COLAPSA (e com margem
+ * negativa o resultado deixa de ser óbvio). `gap` não colapsa nunca — o que
+ * está escrito aqui é o que aparece na tela.
+ */
+@utility ds-page-heading {
+  --ds-heading-gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-heading-gap);
+}
+
 @utility ds-page-title {
   font-family: var(--font-display);
   font-weight: 700;
