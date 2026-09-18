@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /auth
+Disallow: /painel
+Disallow: /api/
+Disallow: /mcp
+Disallow: /.mcp/
+Disallow: /.well-known/
+
+Sitemap: https://conciergeia.app/sitemap.xml
