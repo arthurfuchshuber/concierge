@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Clock3 } from "lucide-react";
 import { toast } from "sonner";
 import { CARD_OWNER } from "@/components/dashboard/card-colors";
+import { PANEL_SHELL, PanelHeading, CountPill } from "@/components/dashboard/panel-chrome";
 import { notifyAction } from "@/components/UndoActionBar";
 import {
   decideCleaningApproval,
@@ -123,39 +124,43 @@ export function CleaningApprovalPanel({
   const canApprove = q.data?.canApprove === true;
 
   return (
+    /* PADRÃO "PRESENÇA" (18/09/2026): era uma moldura âmbar inteira — borda,
+       fundo tingido, ícone e contagem, tudo da mesma cor. Virou um card
+       normal com um FIO âmbar na aresta de cima e o cabeçalho de bloco
+       comum às três abas (`PanelHeading`). Continua sendo a primeira coisa
+       que se vê depois dos números, sem ser a mais barulhenta. */
     <section
       aria-label="Limpezas completas para aprovar"
-      className="mt-1.5 rounded-[0.5rem] bg-gradient-to-b from-amber-400/45 via-amber-400/[0.06] to-amber-400/[0.03] p-px"
+      className={`${PANEL_SHELL} mt-1.5 px-1.5 pb-1.5 pt-3`}
     >
-      <div className="rounded-[calc(0.5rem-1px)] bg-gradient-to-b from-[color-mix(in_oklab,#fbbf24_7%,var(--background))] to-background to-75% px-1.5 pb-1.5 pt-3">
-        <div className="flex items-center justify-between gap-2 px-1.5 pb-1">
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="grid size-[22px] shrink-0 place-items-center rounded-md bg-amber-400/15 text-amber-500 dark:text-amber-400">
-              <Clock3 className="size-[13px]" strokeWidth={2.2} />
-            </span>
-            <h2 className="truncate font-display text-[13px] font-bold">
-              Limpezas completas para aprovar
-            </h2>
-          </div>
-          <span className="shrink-0 text-[11px] font-extrabold tabular-nums text-amber-500 dark:text-amber-400">
-            {items.length}
+      <span
+        aria-hidden
+        className="absolute inset-x-3 top-0 h-[2px] rounded-b-[3px] bg-gradient-to-r from-[#c9a962] to-transparent"
+      />
+      <PanelHeading
+        title="Limpezas completas para aprovar"
+        dot={
+          <span className="ds-atencao grid size-[22px] shrink-0 place-items-center rounded-md bg-[#c9a962]/12">
+            <Clock3 className="size-[13px]" strokeWidth={2.2} />
           </span>
-        </div>
-        <p className="px-1.5 pb-1.5 text-[11.5px] leading-relaxed text-muted-foreground">
-          {canApprove
-            ? "Só entram no custo depois de aprovadas. “Foi normal” registra com o valor da limpeza normal."
-            : "Só entram no custo depois que o gestor aprovar."}
-        </p>
-        <div className="grid gap-1.5 lg:grid-cols-2">
-          {items.map((it) => (
-            <ApprovalRow
-              key={it.id}
-              item={it}
-              canApprove={canApprove}
-              onDecide={(decision) => decide(it, decision)}
-            />
-          ))}
-        </div>
+        }
+        right={<CountPill>{items.length}</CountPill>}
+        className="mb-1 px-1.5"
+      />
+      <p className="px-1.5 pb-1.5 text-[11.5px] leading-relaxed text-muted-foreground">
+        {canApprove
+          ? "Só entram no custo depois de aprovadas. “Foi normal” registra com o valor da limpeza normal."
+          : "Só entram no custo depois que o gestor aprovar."}
+      </p>
+      <div className="grid gap-1.5 lg:grid-cols-2">
+        {items.map((it) => (
+          <ApprovalRow
+            key={it.id}
+            item={it}
+            canApprove={canApprove}
+            onDecide={(decision) => decide(it, decision)}
+          />
+        ))}
       </div>
     </section>
   );
@@ -174,7 +179,7 @@ function ApprovalRow({
     .filter(Boolean)
     .join(" · ");
   return (
-    <div className="ds-3d flex flex-col gap-2.5 rounded-[0.3rem] bg-card p-3">
+    <div className={`${PANEL_SHELL} flex flex-col gap-2.5 p-3`}>
       <div className="flex justify-between gap-2.5">
         <div className="min-w-0">
           <span className="ds-card-title block">{item.propertyName}</span>
@@ -212,7 +217,7 @@ function ApprovalRow({
           </button>
         </div>
       ) : (
-        <p className="text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-amber-500 dark:text-amber-400">
+        <p className="ds-atencao text-[10.5px] font-extrabold uppercase tracking-[0.1em]">
           Aguardando aprovação
         </p>
       )}

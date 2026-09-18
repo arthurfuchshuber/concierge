@@ -137,6 +137,12 @@ import {
 import { MoneyInput } from "@/components/ui/money-input";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import {
+  PANEL_SHELL,
+  PanelHeading,
+  SectionLabel,
+  CountPill,
+} from "@/components/dashboard/panel-chrome";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -280,6 +286,25 @@ function dateToISOLocal(d: Date): string {
 /** Centavos → "R$ X,XX" (mesma convenção usada para hourly_rate_cents). */
 function centsToBRL(cents: number): string {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+/**
+ * O MESMO VALOR, SEM OS CENTAVOS — só para os NÚMEROS GRANDES dos cards
+ * (pedido explícito, 18/09/2026: "remova os centavos do card de moeda").
+ *
+ * Num total de período, os centavos não mudam decisão nenhuma e custam caro:
+ * são quatro caracteres a mais na linha mais larga da tela, que é justamente
+ * a que tem menos espaço no celular ("CUSTO TOTAL LI…" cortava por causa
+ * deles). Onde o centavo importa — tabela do dia, valor de uma limpeza,
+ * aprovação — continua `centsToBRL`.
+ */
+function centsToBRLShort(cents: number): string {
+  return (cents / 100).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
 }
 
 /* ---------- Ordenação de checkouts (pedido explícito) ---------- */
@@ -2579,26 +2604,22 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
      anel tinha o seu, e os dois textos eram quase iguais. O fio que vai
      sumindo entre o rótulo e o "i" fecha a linha sem pedir mais nada. */
   const engagementEyebrow = (
-    <div className="mb-3 flex items-center gap-2.5">
-      <span
-        aria-hidden="true"
-        className="size-1.5 shrink-0 rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE]"
-      />
-      <span className="ds-eyebrow shrink-0 text-[10px] tracking-[0.2em] text-muted-foreground">
-        Guia do hóspede
-      </span>
-      <span
-        aria-hidden
-        className="h-px flex-1 bg-gradient-to-r from-[color-mix(in_oklab,var(--foreground)_9%,transparent)] to-transparent"
-      />
-      <span className="shrink-0">
+    <PanelHeading
+      title="Guia do hóspede"
+      dot={
+        <span
+          aria-hidden="true"
+          className="size-1.5 shrink-0 rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE]"
+        />
+      }
+      right={
         <InfoHint title="Guia do hóspede">
           Conta os hóspedes com check-in no período. “Viram instruções de check-in” são os que já
           abriram as Instruções da sessão “Chegada” pelo menos uma vez; “Viram senha de acesso” são
           os que já visualizaram as senhas no guia pelo menos uma vez.
         </InfoHint>
-      </span>
-    </div>
+      }
+    />
   );
   function renderEngagementTop() {
     const hasData =
@@ -2665,13 +2686,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                       : "Voltar aos últimos 7 dias"
                   }
                   aria-pressed={cleaningWindow === "next"}
-                  className={`ds-3d ds-3d-hover flex h-11 flex-1 items-center justify-center gap-2 rounded-[13px] bg-card text-[12.5px] font-bold transition-colors lg:size-11 lg:flex-none lg:gap-0 ${
+                  className={`ds-3d ds-3d-hover flex h-9 flex-1 items-center justify-center gap-2 rounded-[11px] bg-card text-[12.5px] font-bold transition-colors lg:size-11 lg:flex-none lg:gap-0 lg:rounded-[13px] ${
                     cleaningWindow === "next"
                       ? "ds-atencao"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  <Sparkles className="size-[17px] shrink-0" />
+                  <Sparkles className="size-[16px] shrink-0" />
                   <span className="lg:hidden">
                     {cleaningWindow === "past" ? "Próximos 7 dias" : "Últimos 7 dias"}
                   </span>
@@ -2685,9 +2706,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   onClick={() => setPendenciasOpen(true)}
                   title="Pendências"
                   aria-label={`Pendências (${openTasksCount})`}
-                  className="ds-3d ds-3d-hover relative flex h-11 flex-1 items-center justify-center gap-2 rounded-[13px] bg-card text-[12.5px] font-bold text-muted-foreground transition-colors hover:text-foreground lg:size-11 lg:flex-none lg:gap-0"
+                  className="ds-3d ds-3d-hover relative flex h-9 flex-1 items-center justify-center gap-2 rounded-[11px] bg-card text-[12.5px] font-bold text-muted-foreground transition-colors hover:text-foreground lg:size-11 lg:flex-none lg:gap-0 lg:rounded-[13px]"
                 >
-                  <ListChecks className="size-[17px] shrink-0" />
+                  <ListChecks className="size-[16px] shrink-0" />
                   <span className="lg:hidden">Pendências</span>
                   {openTasksCount > 0 && (
                     <span className="ds-atencao absolute -right-1.5 -top-1.5 grid h-[16px] min-w-[16px] place-items-center rounded-full bg-[#c9a962] px-1 text-[9px] font-extrabold leading-none text-[#1a1408]">
@@ -2763,7 +2784,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 17/09/2026): "Hoje", "Amanhã" e "Ocupação" separam a lista
                 num fio que some. No computador os quatro cards ficam numa
                 linha só e os rótulos não fazem falta. */}
-            <SectionLabel className="order-1 lg:hidden">Hoje</SectionLabel>
+            <SectionLabel className="col-span-2 order-1 lg:hidden">Hoje</SectionLabel>
             <div className="order-2 lg:order-1">
               <KpiCard
                 label="Check-ins Pendentes"
@@ -2796,7 +2817,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 cardProps={arrivalGroupPropsFor("checkout", checkoutPendingRows)}
               />
             </div>
-            <SectionLabel className="order-5 lg:hidden">Amanhã</SectionLabel>
+            <SectionLabel className="col-span-2 order-5 lg:hidden">Amanhã</SectionLabel>
             <div className="order-6 lg:order-3">
               <KpiCard
                 label="Check-ins amanhã"
@@ -2864,7 +2885,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 valendo sem nenhum ajuste: ele mede a PRÓPRIA largura por
                 ResizeObserver, então em 3 colunas simplesmente cabem menos
                 dias inteiros, nunca um dia cortado na margem. */}
-            <SectionLabel className="order-8 lg:hidden">Ocupação</SectionLabel>
+            <SectionLabel className="col-span-2 order-8 lg:hidden">Ocupação</SectionLabel>
             <div className="order-9 col-span-2 lg:order-6 lg:col-span-3 lg:col-start-1 lg:row-span-2">
               <OccupancyPanel
                 loading={occupancyQ.isLoading}
@@ -2970,7 +2991,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             <div className="col-span-1">
               <StatDisplayCard
                 label={cleaningWindow === "past" ? "Custo Total Limpeza" : "Custo Estimado"}
-                value={centsToBRL(
+                value={centsToBRLShort(
                   cleaningWindow === "past"
                     ? (cleaningStatsQ.data?.totalCents ?? 0)
                     : cleaningForecast.estimatedTotalCents,
@@ -2983,7 +3004,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 }
                 note={
                   cleaningWindow === "past" && pendingApproval.count > 0
-                    ? `+${centsToBRL(pendingApproval.totalCents)} em análise`
+                    ? `+${centsToBRLShort(pendingApproval.totalCents)} em análise`
                     : null
                 }
               />
@@ -3724,7 +3745,11 @@ export function OperationShell({
             divididos igualmente: é onde sobra espaço, e com espaço dá para
             mostrar o rótulo em vez de só o ícone. `[&>*]:flex-1` estica o que
             cada tela passa em `actions` sem que cada uma precise saber disso. */}
-        <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-2">
+        {/* No celular, um respiro real entre o subtítulo e a barra de abas
+            (pedido explícito, 18/09/2026, com print: elas estavam coladas). No
+            computador o conjunto vive na mesma linha do título, então não há
+            margem nenhuma. */}
+        <div className="mt-5 flex flex-col gap-2 lg:mt-0 lg:flex-row lg:items-center lg:gap-2">
           <nav className="ds-tabs order-1 lg:order-2 lg:w-[520px] lg:shrink-0">
             {OPERATION_TABS.map((t) => {
               const active = t.view === view;
@@ -3756,35 +3781,11 @@ export function OperationShell({
 
 /* ------------------------- UI Building Blocks ------------------------- */
 
-/**
- * Rótulo de seção do padrão "A · Noite" (mockup aprovado, 17/09/2026):
- * a palavra em caixa alta e um fio que vai sumindo até a borda direita.
- * Ocupa a largura inteira da grade de 2 colunas do celular.
- */
-function SectionLabel({
-  children,
-  className,
-  tone,
-}: {
-  children: string;
-  className?: string;
-  /** "late" pinta SÓ a palavra de vermelho — o fio continua neutro. */
-  tone?: "late";
-}) {
-  return (
-    <div className={`col-span-2 flex items-center gap-2.5 pt-1.5 ${className ?? ""}`}>
-      <span
-        className={`ds-eyebrow text-[10px] tracking-[0.18em] ${tone === "late" ? "text-red-600 dark:text-red-400" : "ds-faint"}`}
-      >
-        {children}
-      </span>
-      <span
-        aria-hidden
-        className="h-px flex-1 bg-gradient-to-r from-[color-mix(in_oklab,var(--foreground)_14%,transparent)] to-transparent"
-      />
-    </div>
-  );
-}
+/* `SectionLabel` mudou de casa (18/09/2026): agora mora em
+   `panel-chrome.tsx`, junto com o cabeçalho de bloco, porque os Registros
+   passaram a usar o MESMO rótulo para separar "Precisam de atenção" de "Em
+   dia". Um rótulo de seção escrito duas vezes é um rótulo de seção que vai
+   divergir. Ver o comentário de abertura daquele arquivo. */
 
 const KANBAN_TONE: Record<string, string> = {
   emerald: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 ring-emerald-500/20",
@@ -4565,66 +4566,76 @@ function StatDisplayCard({
       enquanto, só a linha). */
   sparkline?: { data: CleaningDailyPoint[]; metric: "count" | "totalCents"; color: string };
 }) {
+  /* MESMA ANATOMIA DOS CARDS DO OPERACIONAL (pedido explícito, 18/09/2026:
+     "não é só replicar a paleta, mas sim o layout inteiro").
+  
+     Este card vivia com um desenho só dele — ícone e rótulo juntos no topo,
+     número encostado embaixo à esquerda. Agora segue a mesma regra dos
+     outros: ícone em caixinha, rótulo em caixa alta numa linha só, número
+     CENTRALIZADO no meio do card e o que sobra (aviso, tendência) embaixo. É
+     o que faz as três abas parecerem o mesmo produto. */
   return (
-    <div className="w-full h-full rounded-[0.3rem] border-0 bg-card px-3.5 py-5 min-h-[96px] flex flex-col justify-between ds-3d">
-      <div className="flex items-center gap-2 ds-eyebrow min-w-0">
-        <Icon className="size-3.5 shrink-0" />
-        <span className="min-w-0 flex-1 truncate leading-none" title={label}>
+    <button
+      type="button"
+      disabled
+      className="ds-3d flex h-full w-full flex-col gap-1 rounded-[14px] border-0 bg-card px-2.5 pb-2.5 pt-3 text-left disabled:cursor-default"
+    >
+      <div className="flex w-full min-w-0 items-center gap-1.5">
+        <span className="grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] text-muted-foreground">
+          <Icon className="size-3.5" strokeWidth={2} />
+        </span>
+        <span
+          className="ds-eyebrow min-w-0 flex-1 truncate text-[9px] tracking-[0.04em] sm:text-[10px] sm:tracking-[0.08em]"
+          title={label}
+        >
           {label}
         </span>
         {breakdown && breakdown.length > 0 && (
-          <InfoHint title={label}>
-            <CleaningBreakdownContent label={label} breakdown={breakdown} />
-          </InfoHint>
+          <span className="shrink-0">
+            <InfoHint title={label}>
+              <CleaningBreakdownContent label={label} breakdown={breakdown} />
+            </InfoHint>
+          </span>
         )}
       </div>
-      {/* ESPAÇAMENTO COM AVISO (pedido explícito, 17/09/2026, com print): a
-          linha "+N aguardando aprovação" encolhia o vão entre o título e o
-          número, e o card ficava diferente dos vizinhos. Com aviso, o vão
-          título→número é FIXO e igual ao dos cards sem aviso (96px de altura
-          mínima, 20px de respiro: sobra 22px no celular e 20px no desktop,
-          onde o número é 2px maior), e o aviso ganha o próprio respiro. */}
-      <div
-        className={`flex items-end justify-between gap-2 ${note && !loading ? "mt-[22px] sm:mt-5" : "mt-1.5"}`}
-      >
-        {/* Mesmo ajuste dos KpiCards: fonte um pouco menor, negrito mantido. */}
-        <div className="text-[20px] sm:text-[22px] font-display font-bold tabular-nums leading-none text-foreground">
-          {loading ? "—" : value}
-        </div>
-        {sparkline && sparkline.data.length > 1 && !loading && (
-          <div className="h-5 w-16 shrink-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={sparkline.data} margin={{ top: 2, right: 1, left: 1, bottom: 2 }}>
-                <Line
-                  type="monotone"
-                  dataKey={sparkline.metric}
-                  stroke={sparkline.color}
-                  strokeWidth={2}
-                  dot={false}
-                  isAnimationActive={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        )}
+      <div className="w-full pt-1.5 text-center font-display text-[26px] font-bold leading-none tracking-[-0.03em] tabular-nums sm:text-[30px]">
+        {loading ? "—" : value}
       </div>
-      {note && !loading && (
+      {note && !loading ? (
         <p
-          className="mt-3 truncate text-[10.5px] font-bold leading-none text-amber-500 dark:text-amber-400"
+          className="ds-atencao w-full truncate pt-1 text-center text-[10px] font-bold"
           title={note}
         >
           {note}
         </p>
-      )}
-    </div>
+      ) : null}
+      {sparkline && sparkline.data.length > 1 && !loading ? (
+        <div className="h-5 w-full pt-1">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={sparkline.data} margin={{ top: 2, right: 1, left: 1, bottom: 2 }}>
+              <Line
+                type="monotone"
+                dataKey={sparkline.metric}
+                stroke={sparkline.color}
+                strokeWidth={2}
+                dot={false}
+                isAnimationActive={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      ) : null}
+    </button>
   );
 }
 
-/** Cor consistente com a identidade já usada pra "limpeza" no resto do app
-    (aba/coluna do Kanban) e para custo/dinheiro (mesmo tom âmbar do destaque
-    "Fila de Limpeza"). */
-const CLEANING_COUNT_COLOR = "#38bdf8"; // sky-400
-const CLEANING_COST_COLOR = "#d97706"; // amber-600
+/** PADRÃO "PRESENÇA" (18/09/2026): os gráficos da Limpeza usavam azul-céu e
+    laranja saturados — as duas cores mais berrantes da tela inteira. Agora são
+    os mesmos tons contidos do resto do sistema: verde sálvia para a CONTAGEM e
+    âmbar queimado para o DINHEIRO. Quem separa os dois gráficos continua sendo
+    a cor, só que em voz baixa. */
+const CLEANING_COUNT_COLOR = "#7fb79a"; // verde sálvia (ds-ok)
+const CLEANING_COST_COLOR = "#c9a962"; // âmbar queimado (ds-atencao)
 
 /**
  * Largura mínima de UM dia nos gráficos de previsão. Escolhida pelo rótulo
@@ -4667,11 +4678,14 @@ function CleaningChartFrame({
   data,
   loading,
   detail,
+  tone,
   children,
 }: {
   title: string;
   data: CleaningDailyPoint[] | undefined;
   loading: boolean;
+  /** Cor do ponto do cabeçalho — a mesma da série desenhada abaixo. */
+  tone?: string;
   /**
    * De onde sai a tabela do dia (mockup aprovado, 17/09/2026): tocar numa
    * barra ou num ponto abre, logo abaixo do gráfico, a tabela daquele dia.
@@ -4710,13 +4724,23 @@ function CleaningChartFrame({
   };
 
   return (
-    <div className="w-full rounded-[0.3rem] border-0 bg-card px-3.5 py-3.5 ds-3d">
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <span className="ds-eyebrow">{title}</span>
-        <span className="text-[10px] text-muted-foreground">
-          {days > 0 ? `${days} dias${anti.scrolls ? " · role para o lado" : ""}` : ""}
-        </span>
-      </div>
+    /* MESMA MOLDURA DOS BLOCOS DA OPERACIONAL (pedido explícito, 18/09/2026):
+       o gráfico usava um canto quase reto (0.3rem) e um título solto no topo,
+       enquanto todo bloco da Operacional tem 14px de raio e o cabeçalho com
+       ponto, rótulo e fio que some. Agora é o mesmo `PanelHeading` de lá. */
+    <div className={`${PANEL_SHELL} w-full px-3.5 py-3.5`}>
+      <PanelHeading
+        title={title}
+        dotColor={tone}
+        className="mb-2.5"
+        right={
+          days > 0 ? (
+            <span className="text-[10px] text-muted-foreground">
+              {`${days} dias${anti.scrolls ? " · role para o lado" : ""}`}
+            </span>
+          ) : null
+        }
+      />
       {loading || !data || days === 0 ? (
         <div className="h-32 grid place-items-center text-muted-foreground">
           <Loader2 className="size-4 animate-spin" />
@@ -4775,7 +4799,13 @@ function CleaningDailyBarChart({
   detail?: DayDetailSource;
 }) {
   return (
-    <CleaningChartFrame title={title} data={data} loading={loading} detail={detail}>
+    <CleaningChartFrame
+      title={title}
+      data={data}
+      loading={loading}
+      detail={detail}
+      tone={CLEANING_COUNT_COLOR}
+    >
       {(width, pick) => (
         <BarChart
           width={width}
@@ -4844,7 +4874,13 @@ function CleaningDailyAreaChart({
   detail?: DayDetailSource;
 }) {
   return (
-    <CleaningChartFrame title={title} data={data} loading={loading} detail={detail}>
+    <CleaningChartFrame
+      title={title}
+      data={data}
+      loading={loading}
+      detail={detail}
+      tone={CLEANING_COST_COLOR}
+    >
       {(width, pick) => (
         <AreaChart
           width={width}
@@ -4932,11 +4968,13 @@ function CleaningTopProperties({
   const top = (items ?? []).slice(0, 5);
   const maxCount = Math.max(1, ...top.map((i) => i.count));
   return (
-    <div className="w-full rounded-[0.3rem] border-0 bg-card px-3.5 py-3.5 ds-3d">
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <span className="ds-eyebrow">Top 5 imóveis</span>
-        <span className="text-[10px] text-muted-foreground">nº de limpezas</span>
-      </div>
+    <div className={`${PANEL_SHELL} w-full px-3.5 py-3.5`}>
+      <PanelHeading
+        title="Top 5 imóveis"
+        dotColor={CLEANING_COUNT_COLOR}
+        className="mb-2.5"
+        right={<span className="text-[10px] text-muted-foreground">nº de limpezas</span>}
+      />
       {loading ? (
         <div className="py-6 grid place-items-center text-muted-foreground">
           <Loader2 className="size-4 animate-spin" />
@@ -6775,9 +6813,9 @@ function CalendarFiltersButton({
             type="button"
             title={hasCustomFilters ? "Filtros e print · há filtro ativo" : "Filtros e print"}
             aria-label="Filtros e print"
-            className="ds-3d ds-3d-hover relative flex h-11 flex-1 items-center justify-center gap-2 rounded-[13px] bg-card text-[12.5px] font-bold text-muted-foreground transition-colors hover:text-foreground lg:size-11 lg:flex-none lg:gap-0"
+            className="ds-3d ds-3d-hover relative flex h-9 flex-1 items-center justify-center gap-2 rounded-[11px] bg-card text-[12.5px] font-bold text-muted-foreground transition-colors hover:text-foreground lg:size-11 lg:flex-none lg:gap-0 lg:rounded-[13px]"
           >
-            <SlidersHorizontal className="size-[17px] shrink-0" />
+            <SlidersHorizontal className="size-[16px] shrink-0" />
             <span className="lg:hidden">Filtros</span>
             {hasCustomFilters && (
               <span className="absolute right-2 top-2 size-[5px] rounded-full bg-accent" />
@@ -7264,6 +7302,29 @@ function OccupancyPanel({
         onFitRef.current?.(cabem);
       }
       const count = isDesktop ? Math.max(1, Math.min(days, cabem)) : MOBILE_DAYS;
+
+      if (!isDesktop) {
+        /* CELULAR — ANTI-CORTE (regressão apontada em 18/09/2026, com print:
+           o 4º dia aparecia cortado na margem direita).
+           A causa: a coluna do nome estava FIXA em NAME_COL_BASE (200px), o
+           que numa tela de ~360px deixa menos de 150px para 5 colunas de dia
+           — abaixo do mínimo de 38px cada. O cálculo então produzia
+           5 × 38 = 190px de dias dentro de 150px de espaço: corte garantido.
+           No celular quem cede é a COLUNA DO NOME (ela tem reticências e
+           aguenta), nunca a última coluna de dia. Os 5 dias inteiros sempre
+           cabem exatamente na largura real da tela. */
+        const MOBILE_NAME_MIN = 96;
+        const total = w - (scrollbarWRef.current ?? 0);
+        const dayWMobile = Math.max(
+          22,
+          Math.min(MAX_DAY_W, Math.floor((total - MOBILE_NAME_MIN) / MOBILE_DAYS)),
+        );
+        setVisibleDays(MOBILE_DAYS);
+        setDayW(dayWMobile);
+        setNameColW(Math.max(MOBILE_NAME_MIN, total - dayWMobile * MOBILE_DAYS));
+        return;
+      }
+
       // Regra original: nome fixo (+ sobra) + N colunas INTEIRAS preenchendo
       // 100% da largura disponível — nunca deixar sobra vazia (barra cinza)
       // nem cortar coluna alguma na margem direita. A sobra do

@@ -11,6 +11,7 @@ import {
   Loader2,
   Mic,
   Pencil,
+  LayoutGrid,
   SlidersHorizontal,
   StickyNote,
   Video,
@@ -32,6 +33,12 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useImpersonation } from "@/hooks/useImpersonation";
+import {
+  PANEL_SHELL,
+  PanelHeading,
+  SectionLabel,
+  CountPill,
+} from "@/components/dashboard/panel-chrome";
 import { CARD_OWNER } from "@/components/dashboard/card-colors";
 import { OperationShell } from "@/components/dashboard/OperationWorkspace";
 import { AudioPlayer } from "@/components/dashboard/ReservationRecords";
@@ -176,20 +183,25 @@ function hasTitle(r: AccountRecord): boolean {
  * translucidez deixa a imagem aparecer por baixo.
  */
 /** A mesma cor, sólida — para quando a etiqueta fica SOBRE uma imagem. */
+/* PADRÃO "PRESENÇA" (18/09/2026): as cinco categorias usavam cinco cores
+   saturadas (laranja, rosa, violeta, azul, cinza). Agora são três tons
+   contidos, pela NATUREZA e não pelo nome: rosa terroso para o que é problema
+   (dano, manutenção), âmbar queimado para o que pede atenção (esquecidos,
+   outros) e verde sálvia para rotina (auditoria de limpeza). */
 const CATEGORY_SOLID: Record<RecordCategory, string> = {
-  forgotten: "bg-orange-600",
-  damage: "bg-rose-600",
-  cleaning_audit: "bg-violet-600",
-  maintenance: "bg-sky-600",
-  other: "bg-zinc-600",
+  forgotten: "bg-[#c9a962] text-[#1a1408]",
+  damage: "bg-[#c98c8c] text-[#1a0a0a]",
+  cleaning_audit: "bg-[#7fb79a] text-[#05140d]",
+  maintenance: "bg-[#c98c8c] text-[#1a0a0a]",
+  other: "bg-muted-foreground text-background",
 };
 
 const CATEGORY_BAND: Record<RecordCategory, string> = {
-  forgotten: "bg-orange-500/20 text-orange-300",
-  damage: "bg-rose-500/20 text-rose-300",
-  cleaning_audit: "bg-violet-500/20 text-violet-300",
-  maintenance: "bg-sky-500/20 text-sky-300",
-  other: "bg-muted-foreground/20 text-muted-foreground",
+  forgotten: "bg-[#c9a962]/15 text-[#c9a962]",
+  damage: "bg-[#c98c8c]/15 text-[#c98c8c]",
+  cleaning_audit: "bg-[#7fb79a]/15 text-[#7fb79a]",
+  maintenance: "bg-[#c98c8c]/15 text-[#c98c8c]",
+  other: "bg-muted-foreground/15 text-muted-foreground",
 };
 
 /** "07–10 set" — a janela da reserva na etiqueta do grupo. */
@@ -523,6 +535,7 @@ export function RecordsWorkspace() {
           label="Todos"
           count={q.data?.total ?? 0}
           tone={null}
+          icon={LayoutGrid}
           active={category === null}
           loading={q.isLoading}
           onClick={() => setCategory(null)}
@@ -533,6 +546,7 @@ export function RecordsWorkspace() {
             label={c.short}
             count={counts?.[c.key] ?? 0}
             tone={c.key}
+            icon={c.icon}
             active={category === c.key}
             loading={q.isLoading}
             onClick={() => setCategory(category === c.key ? null : c.key)}
@@ -563,35 +577,46 @@ export function RecordsWorkspace() {
           {attentionGroups.length > 0 && (
             <section
               aria-label="Imóveis que precisam de atenção"
-              className="rounded-[0.5rem] bg-gradient-to-b from-rose-400/45 via-rose-400/[0.06] to-transparent to-60% p-px"
+              /* PADRÃO "PRESENÇA" (18/09/2026): era uma moldura vermelha
+                 inteira, com fundo tingido e etiqueta vermelha — gritava mais
+                 que o próprio conteúdo. Agora é um card normal, com um FIO no
+                 tom rosa terroso na aresta de cima e a contagem numa pílula
+                 neutra. Continua sendo a primeira coisa que se vê, sem ser a
+                 mais barulhenta. */
+              className={`${PANEL_SHELL} px-1.5 pb-1.5 pt-3`}
             >
-              <div className="space-y-1.5 rounded-[calc(0.5rem-1px)] bg-gradient-to-b from-[color-mix(in_oklab,#fb7185_7%,var(--background))] to-background to-70% px-1.5 pb-1.5 pt-3">
-                <div className="flex items-center justify-between gap-2 px-1.5 pb-1">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span className="grid size-[22px] shrink-0 place-items-center rounded-md bg-rose-400/15 text-rose-500 dark:text-rose-400">
+              <span
+                aria-hidden
+                className="absolute inset-x-3 top-0 h-[2px] rounded-b-[3px] bg-gradient-to-r from-[#c98c8c] to-transparent"
+              />
+              <div className="space-y-1.5">
+                {/* MESMO CABEÇALHO DE BLOCO das outras duas abas (pedido
+                    explícito, 18/09/2026: "não é só replicar a paleta, mas sim
+                    o layout inteiro") — ponto, rótulo em caixa alta, fio que
+                    some e a contagem na pílula neutra. */}
+                <PanelHeading
+                  title="Precisam de atenção"
+                  dot={
+                    <span className="grid size-[22px] shrink-0 place-items-center rounded-md bg-[#c98c8c]/12 text-[#c98c8c]">
                       <CircleAlert className="size-[13px]" strokeWidth={2.2} />
                     </span>
-                    <h2 className="truncate font-display text-[13px] font-bold">
-                      Precisam de atenção
-                    </h2>
-                  </div>
-                  <span className="flex h-5 shrink-0 items-center rounded-full bg-rose-400/12 px-2 text-[10px] font-extrabold tabular-nums text-rose-600 dark:text-rose-400">
-                    {attentionCount} {attentionCount === 1 ? "pendência" : "pendências"}
-                  </span>
-                </div>
+                  }
+                  right={
+                    <CountPill>
+                      {attentionCount} {attentionCount === 1 ? "pendência" : "pendências"}
+                    </CountPill>
+                  }
+                  className="mb-1 px-1.5"
+                />
                 {attentionGroups.map(renderCard)}
               </div>
             </section>
           )}
 
           {attentionGroups.length > 0 && calmGroups.length > 0 && (
-            <div className="flex items-center gap-3 px-1 pb-1.5 pt-5">
-              <span className="h-px flex-1 bg-border" />
-              <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground">
-                Em dia · {calmGroups.length}
-              </span>
-              <span className="h-px flex-1 bg-border" />
-            </div>
+            <SectionLabel className="px-1 pb-1.5 pt-5" count={calmGroups.length}>
+              Em dia
+            </SectionLabel>
           )}
 
           {calmGroups.map(renderCard)}
@@ -648,26 +673,43 @@ export function RecordsWorkspace() {
  *
  * Cartão zerado NÃO é mais esmaecido — todos têm a mesma tonalidade.
  */
-const CARD_NUMBER_TONE: Record<RecordCategory, string> = {
-  maintenance: "text-rose-500 dark:text-rose-400",
-  damage: "text-rose-500 dark:text-rose-400",
-  forgotten: "text-amber-500 dark:text-amber-400",
-  cleaning_audit: "text-violet-600 dark:text-violet-400",
-  other: "text-amber-500 dark:text-amber-400",
+/* PADRÃO "PRESENÇA" (18/09/2026): o NÚMERO não tem mais cor própria. Seis
+   cartões, cada um com o seu tom, era o que fazia esta tela parecer um
+   carnaval — e, pior, dava o mesmo peso visual a "31 limpezas" (rotina) e a
+   "1 manutenção" (problema). Agora o número é sempre cor de texto e a
+   categoria vira um FIO de 2px na aresta de cima do cartão. */
+const CARD_TOP_LINE: Record<RecordCategory, string> = {
+  maintenance: "bg-gradient-to-r from-[#c98c8c] to-transparent",
+  damage: "bg-gradient-to-r from-[#c98c8c] to-transparent",
+  forgotten: "bg-gradient-to-r from-[#c9a962] to-transparent",
+  cleaning_audit: "bg-gradient-to-r from-[#7fb79a] to-transparent",
+  other: "bg-gradient-to-r from-[#c9a962] to-transparent",
 };
 
-const CARD_RING_TONE: Record<RecordCategory, string> = {
-  maintenance: "ring-sky-500/60",
-  damage: "ring-rose-500/60",
-  forgotten: "ring-orange-500/60",
-  cleaning_audit: "ring-violet-500/60",
-  other: "ring-muted-foreground/50",
-};
+/**
+ * O CARTÃO SELECIONADO — LUZ, NÃO COR (pedido explícito, 18/09/2026: "não tem
+ * que ter essa borda rosa no card 'todos', fica muito poluído... pode ser mais
+ * sutil como fez com os demais cards, mas talvez utilizando outra cor").
+ *
+ * O anel era de 2px e da cor da categoria — e, no "Todos", do rosa da marca,
+ * que é a cor mais forte do sistema inteiro. Numa grade de seis cartões, isso
+ * é uma moldura gritando ao lado de cinco fios discretos.
+ *
+ * A seleção passa a ser a MESMA coisa que o padrão "Presença" usa em todo
+ * lugar: um fio de 1px e um fundo um tom acima. Neutro de propósito — a cor já
+ * é do que o cartão CONTA (a categoria, no fio de cima); se ela também
+ * dissesse "estou selecionado", as duas informações brigariam. Assim o fio de
+ * categoria continua legível no cartão selecionado, coisa que o anel grosso
+ * escondia.
+ */
+const CARD_ACTIVE =
+  "bg-foreground/[0.055] ring-1 ring-inset ring-[color-mix(in_oklab,var(--foreground)_22%,transparent)]";
 
 function CategoryCard({
   label,
   count,
   tone,
+  icon: Icon,
   active,
   loading,
   onClick,
@@ -675,27 +717,49 @@ function CategoryCard({
   label: string;
   count: number;
   tone: RecordCategory | null;
+  icon: React.ElementType;
   active: boolean;
   loading: boolean;
   onClick: () => void;
 }) {
-  const numberClass = !tone || count === 0 ? "text-foreground" : CARD_NUMBER_TONE[tone];
+  const topLine = tone && count > 0 ? CARD_TOP_LINE[tone] : null;
+  /* MESMA ANATOMIA DOS CARDS DO OPERACIONAL (pedido explícito, 18/09/2026:
+     "não é só replicar a paleta, mas sim o layout inteiro"): o RÓTULO em cima,
+     em caixa alta e numa linha só; o NÚMERO centralizado embaixo, sem cor
+     própria. Antes era o contrário — número em cima, rótulo miúdo embaixo —
+     e as duas telas pareciam produtos diferentes. */
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`ds-3d relative flex flex-col justify-between rounded-[0.3rem] bg-card px-2 py-2.5 text-left transition hover:bg-secondary/30 ${
-        active ? `ring-2 ring-inset ${tone ? CARD_RING_TONE[tone] : "ring-accent/70"}` : ""
+      className={`${PANEL_SHELL} flex flex-col px-2 pb-2.5 pt-2.5 text-left transition hover:bg-secondary/30 ${
+        active ? CARD_ACTIVE : ""
       }`}
     >
-      <span
-        className={`font-display text-[17px] font-bold leading-none tabular-nums ${numberClass}`}
-      >
+      {topLine && (
+        <span
+          aria-hidden
+          className={`absolute inset-x-2.5 top-0 h-[2px] rounded-b-[3px] ${topLine}`}
+        />
+      )}
+      {/* ÍCONE EM CAIXINHA + RÓTULO NUMA LINHA SÓ — a mesma primeira linha do
+          KpiCard da Operacional. Aqui a caixinha é de 20px (e não 24px)
+          porque são três cartões por linha no celular, não dois: com 24px o
+          rótulo perdia largura e voltava a cortar em "ESQUECID…". */}
+      <div className="flex w-full min-w-0 items-center gap-1.5">
+        <span className="grid size-5 shrink-0 place-items-center rounded-[7px] bg-foreground/[0.05] text-muted-foreground">
+          <Icon className="size-3" strokeWidth={2} />
+        </span>
+        <span
+          className="ds-eyebrow min-w-0 flex-1 truncate text-[8.5px] tracking-[0.04em] text-muted-foreground"
+          title={label}
+        >
+          {label}
+        </span>
+      </div>
+      <span className="w-full pt-2 text-center font-display text-[22px] font-bold leading-none tracking-[-0.03em] tabular-nums">
         {loading ? "—" : count}
-      </span>
-      <span className="ds-eyebrow mt-1.5 truncate text-[8.5px] text-muted-foreground" title={label}>
-        {label}
       </span>
     </button>
   );
@@ -753,12 +817,16 @@ function CategoryCard({
  * Dois botões de ajuste, se quiser calibrar: a LARGURA (`w-[4px]`) e a
  * OPACIDADE das duas pontas do degradê.
  */
+/* O TRAÇO DE CATEGORIA — 2px na lateral, sumindo nas duas pontas. É o mesmo
+   desenho da faixa de limpeza da Operacional (padrão "Presença", 18/09/2026):
+   antes era um bloco cheio de 4px correndo a altura toda do cartão, a coisa
+   mais colorida da tela depois dos seis cartões de contagem. */
 const STRIPE_GRADIENT: Record<RecordCategory, string> = {
-  damage: "from-rose-500/80 to-rose-500/15",
-  maintenance: "from-sky-500/80 to-sky-500/15",
-  forgotten: "from-amber-400/80 to-amber-400/15",
-  other: "from-zinc-400/70 to-zinc-400/10",
-  cleaning_audit: "from-violet-500/80 to-violet-500/15",
+  damage: "bg-gradient-to-b from-transparent via-[#c98c8c] to-transparent",
+  maintenance: "bg-gradient-to-b from-transparent via-[#c98c8c] to-transparent",
+  forgotten: "bg-gradient-to-b from-transparent via-[#c9a962] to-transparent",
+  other: "bg-gradient-to-b from-transparent via-muted-foreground to-transparent",
+  cleaning_audit: "bg-gradient-to-b from-transparent via-[#7fb79a] to-transparent",
 };
 
 /** Ordem de desempate, da mais grave para a menos. */
@@ -824,11 +892,16 @@ function PropertyCard({
   const stripe = stripeCategory([...group.pending, ...group.rest]);
 
   return (
-    <div className="ds-3d relative overflow-hidden rounded-[0.3rem] bg-card p-3">
+    /* MESMA CASCA DOS CARDS DA OPERACIONAL (18/09/2026): o cartão de imóvel
+       usava um canto quase reto (0.3rem) enquanto todo cartão das outras abas
+       tem 14px, e a faixa de categoria era um bloco cheio de 4px na lateral.
+       Agora é o traço de 2px que some nas pontas — o mesmo da faixa de
+       limpeza da Operacional. */
+    <div className={`${PANEL_SHELL} p-3`}>
       {stripe && (
         <span
           aria-hidden
-          className={`pointer-events-none absolute inset-y-0 left-0 w-[4px] bg-gradient-to-r ${STRIPE_GRADIENT[stripe]}`}
+          className={`pointer-events-none absolute inset-y-0 left-0 w-[2px] ${STRIPE_GRADIENT[stripe]}`}
         />
       )}
       {/* `relative` mantém o conteúdo acima da faixa: elemento posicionado
@@ -867,10 +940,13 @@ function PropertyCard({
               aria-expanded={pendingOpen}
               className="mb-1 mt-2.5 flex w-full items-center gap-2 text-left"
             >
-              <span className="shrink-0 text-[9px] font-extrabold uppercase tracking-[0.11em] text-rose-600 dark:text-rose-400">
+              <span className="ds-falta shrink-0 text-[9px] font-extrabold uppercase tracking-[0.11em]">
                 Pendências
               </span>
-              <span className="h-px flex-1 bg-border" />
+              <span
+                aria-hidden
+                className="h-px flex-1 bg-gradient-to-r from-[color-mix(in_oklab,var(--foreground)_9%,transparent)] to-transparent"
+              />
               <span className="shrink-0 text-[9px] font-bold tabular-nums text-muted-foreground">
                 {group.pending.length}
               </span>
@@ -924,7 +1000,10 @@ function PropertyCard({
               <span className="shrink-0 text-[9px] font-extrabold uppercase tracking-[0.11em] text-muted-foreground">
                 Registros
               </span>
-              <span className="h-px flex-1 bg-border" />
+              <span
+                aria-hidden
+                className="h-px flex-1 bg-gradient-to-r from-[color-mix(in_oklab,var(--foreground)_9%,transparent)] to-transparent"
+              />
               <span className="shrink-0 text-[9px] font-bold tabular-nums text-muted-foreground">
                 {group.rest.length}
               </span>
@@ -2001,17 +2080,19 @@ function RecordsFiltersButton({
       }}
     >
       <PopoverTrigger asChild>
-        {/* MESMO botão das outras telas (CalendarFiltersButton, compactTrigger):
-            quadrado de 30px, raio 0.4rem, fundo foreground/6%, ponto no accent. */}
+        {/* MESMO botão das outras telas (padrão "Presença", 18/09/2026): no
+            celular divide a largura com os irmãos e mostra o rótulo; no
+            computador vira um quadrado de 44px ao lado da barra de abas. */}
         <button
           type="button"
           title={hasCustomFilters ? "Filtros · há filtro ativo" : "Filtros"}
           aria-label="Filtros dos registros"
-          className="relative grid size-[30px] shrink-0 place-items-center rounded-[0.4rem] bg-foreground/[0.06] text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
+          className="ds-3d ds-3d-hover relative flex h-9 flex-1 items-center justify-center gap-2 rounded-[11px] bg-card text-[12.5px] font-bold text-muted-foreground transition-colors hover:text-foreground lg:size-11 lg:flex-none lg:gap-0 lg:rounded-[13px]"
         >
-          <SlidersHorizontal className="size-3.5" />
+          <SlidersHorizontal className="size-[16px] shrink-0" />
+          <span className="lg:hidden">Filtros</span>
           {hasCustomFilters && (
-            <span className="absolute right-1 top-1 size-[5px] rounded-full bg-accent" />
+            <span className="absolute right-2 top-2 size-[5px] rounded-full bg-accent" />
           )}
         </button>
       </PopoverTrigger>

@@ -39,6 +39,14 @@ export type CategoryMeta = {
  * ORDEM definida pelo cliente (07/09/2026) — é exatamente esta a ordem em
  * que aparecem no seletor e nos filtros.
  */
+/* PADRÃO "PRESENÇA" (18/09/2026): as cinco categorias tinham cinco matizes
+   saturados (laranja, rosa, violeta, azul-céu, zinco) — eram a última coisa
+   que ainda fazia a tela de Registros parecer um carnaval ao lado das outras
+   abas. Agora usam os MESMOS três tons contidos do resto do sistema, pelo
+   significado e não pela variedade: rosa terroso = problema (dano,
+   manutenção), âmbar = atenção (esquecidos), verde sálvia = rotina em ordem
+   (auditoria de limpeza), neutro = o resto. É exatamente o mapa que
+   `CARD_TOP_LINE` já usava nos cartões de contagem. */
 export const CATEGORIES: CategoryMeta[] = [
   {
     key: "forgotten",
@@ -46,8 +54,8 @@ export const CATEGORIES: CategoryMeta[] = [
     short: "Esquecidos",
     hint: "Achados e perdidos",
     icon: Package,
-    tone: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30",
-    dot: "bg-orange-500",
+    tone: "bg-[#c9a962]/10 text-[#c9a962] border-[#c9a962]/30",
+    dot: "bg-[#c9a962]",
     createsTask: true,
   },
   {
@@ -56,8 +64,8 @@ export const CATEGORIES: CategoryMeta[] = [
     short: "Danos",
     hint: "Prova pra cobrança",
     icon: AlertTriangle,
-    tone: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30",
-    dot: "bg-rose-500",
+    tone: "bg-[#c98c8c]/10 text-[#c98c8c] border-[#c98c8c]/30",
+    dot: "bg-[#c98c8c]",
     createsTask: true,
   },
   {
@@ -66,8 +74,8 @@ export const CATEGORIES: CategoryMeta[] = [
     short: "Limpeza",
     hint: "Pronto pro próximo hóspede",
     icon: Sparkles,
-    tone: "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/30",
-    dot: "bg-violet-500",
+    tone: "bg-[#7fb79a]/10 text-[#7fb79a] border-[#7fb79a]/30",
+    dot: "bg-[#7fb79a]",
     createsTask: false,
   },
   {
@@ -76,8 +84,8 @@ export const CATEGORIES: CategoryMeta[] = [
     short: "Manutenção",
     hint: "Reparo necessário ou feito",
     icon: Wrench,
-    tone: "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/30",
-    dot: "bg-sky-500",
+    tone: "bg-[#c98c8c]/10 text-[#c98c8c] border-[#c98c8c]/30",
+    dot: "bg-[#c98c8c]",
     createsTask: true,
   },
   {
@@ -86,8 +94,8 @@ export const CATEGORIES: CategoryMeta[] = [
     short: "Outros",
     hint: "Registro comum",
     icon: StickyNote,
-    tone: "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/30",
-    dot: "bg-zinc-500",
+    tone: "bg-foreground/[0.06] text-muted-foreground border-border",
+    dot: "bg-muted-foreground/60",
     createsTask: false,
   },
 ];
