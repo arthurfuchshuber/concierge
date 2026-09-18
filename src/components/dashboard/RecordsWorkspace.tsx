@@ -38,6 +38,9 @@ import {
   PanelHeading,
   SectionLabel,
   CountPill,
+  ACTION_BUTTON,
+  ACTION_BUTTON_TONE,
+  ACTION_ICON,
 } from "@/components/dashboard/panel-chrome";
 import { CARD_OWNER } from "@/components/dashboard/card-colors";
 import { OperationShell } from "@/components/dashboard/OperationWorkspace";
@@ -495,33 +498,46 @@ export function RecordsWorkspace() {
        Limpeza) — este wrapper é o que dá o respiro lateral, o teto de
        largura e o alinhamento do título com o conteúdo. Sem ele a tela
        nasce colada nas bordas e desalinhada de todo o resto do app. */
-    <div className="w-full max-w-[1440px] space-y-1.5 px-2.5 py-5 sm:px-5 lg:px-8 lg:py-8">
-      <OperationShell
-        view="registros"
-        subtitle={subtitle}
-        actions={
-          <RecordsFiltersButton
-            category={category}
-            onCategoryChange={setCategory}
-            groupBy={groupBy}
-            onGroupByChange={setGroupBy}
-            period={period}
-            onPeriodChange={setPeriod}
-            onlyOpen={onlyOpen}
-            onOnlyOpenChange={setOnlyOpen}
-            ownerFilters={ownerFilters}
-            onOwnerFiltersChange={setOwnerFilters}
-            ownerOptions={ownerOptions}
-            propertyFilters={propertyFilters}
-            onPropertyFiltersChange={setPropertyFilters}
-            propertyOptions={linkProperties}
-            hasCustomFilters={hasCustomFilters}
-            onClearAll={clearAllFilters}
-          />
-        }
-      />
+    <div className="w-full max-w-[1440px] px-2.5 py-5 sm:px-5 lg:px-8 lg:py-8">
+      {/* O RESPIRO DA SUBPÁGINA VEM DA REGRA (mockup "Direção A" aprovado,
+          18/09/2026). Era `space-y-1.5` — 6px entre TUDO: a barra de abas
+          encostava nos cartões, os cartões encostavam no bloco de atenção, e
+          a tela inteira lia como um amontoado só. O cliente comparou com o
+          Operacional: "veja como você espaçou bem os cards... isso torna o
+          visual mais limpo".
 
-      {/* 1 — CONTADORES, em DUAS LINHAS de três (pedido explícito): cinco
+          `ds-blocks` (24px, ver `styles.css`) separa os BLOCOS; dentro de
+          cada um, o vão continua curto de propósito — o que é da mesma coisa
+          continua junto. Os diálogos ficam FORA deste contêiner: eles não
+          desenham nada em linha, e como irmãos de um flex abririam um vão
+          fantasma no fim da página. */}
+      <div className="ds-blocks">
+        <OperationShell
+          view="registros"
+          subtitle={subtitle}
+          actions={
+            <RecordsFiltersButton
+              category={category}
+              onCategoryChange={setCategory}
+              groupBy={groupBy}
+              onGroupByChange={setGroupBy}
+              period={period}
+              onPeriodChange={setPeriod}
+              onlyOpen={onlyOpen}
+              onOnlyOpenChange={setOnlyOpen}
+              ownerFilters={ownerFilters}
+              onOwnerFiltersChange={setOwnerFilters}
+              ownerOptions={ownerOptions}
+              propertyFilters={propertyFilters}
+              onPropertyFiltersChange={setPropertyFilters}
+              propertyOptions={linkProperties}
+              hasCustomFilters={hasCustomFilters}
+              onClearAll={clearAllFilters}
+            />
+          }
+        />
+
+        {/* 1 — CONTADORES, em DUAS LINHAS de três (pedido explícito): cinco
           cartões numa linha só deixavam o rótulo cortado ("ESQUECID…",
           "MANUTEN…") justamente nas categorias que mais importam. Em
           `grid-cols-3` sobram três em cima e dois embaixo, com o rótulo
@@ -529,108 +545,109 @@ export function RecordsWorkspace() {
           categoria é o fio de 2px na aresta de cima, e o cartão selecionado
           ganha luz, não cor (ver `CARD_ACTIVE`). Tocar no selecionado volta
           para "todos". */}
-      <div className="grid grid-cols-3 gap-1.5">
-        {/* TODOS é o primeiro cartão e o filtro de entrada da aba (pedido
+        <div className="ds-card-grid grid-cols-3">
+          {/* TODOS é o primeiro cartão e o filtro de entrada da aba (pedido
             explícito, 10/09/2026). Ele não é "mais uma categoria": é a visão
             em que os registros de uma MESMA RESERVA vêm empacotados. */}
-        <CategoryCard
-          label="Todos"
-          count={q.data?.total ?? 0}
-          tone={null}
-          icon={LayoutGrid}
-          active={category === null}
-          loading={q.isLoading}
-          onClick={() => setCategory(null)}
-        />
-        {CARDS.map((c) => (
           <CategoryCard
-            key={c.key}
-            label={c.short}
-            count={counts?.[c.key] ?? 0}
-            tone={c.key}
-            icon={c.icon}
-            active={category === c.key}
+            label="Todos"
+            count={q.data?.total ?? 0}
+            tone={null}
+            icon={LayoutGrid}
+            active={category === null}
             loading={q.isLoading}
-            onClick={() => setCategory(category === c.key ? null : c.key)}
+            onClick={() => setCategory(null)}
           />
-        ))}
-      </div>
-
-      {/* UM CARTÃO POR GRUPO, com a fileira de miniaturas */}
-      {q.isLoading ? (
-        <div className="grid place-items-center py-16 text-muted-foreground">
-          <Loader2 className="size-5 animate-spin" />
+          {CARDS.map((c) => (
+            <CategoryCard
+              key={c.key}
+              label={c.short}
+              count={counts?.[c.key] ?? 0}
+              tone={c.key}
+              icon={c.icon}
+              active={category === c.key}
+              loading={q.isLoading}
+              onClick={() => setCategory(category === c.key ? null : c.key)}
+            />
+          ))}
         </div>
-      ) : groups.length === 0 ? (
-        <p className="py-14 text-center text-sm text-muted-foreground">
-          {onlyOpen
-            ? "Nada em aberto por aqui."
-            : category
-              ? "Nenhum registro nesta categoria."
-              : "Os registros feitos nos cards aparecem aqui."}
-        </p>
-      ) : (
-        <div className="space-y-1.5">
-          {/* PENDÊNCIAS SEMPRE EM CIMA (mockup B aprovado, 17/09/2026): os
+
+        {/* UM CARTÃO POR GRUPO, com a fileira de miniaturas */}
+        {q.isLoading ? (
+          <div className="grid place-items-center py-16 text-muted-foreground">
+            <Loader2 className="size-5 animate-spin" />
+          </div>
+        ) : groups.length === 0 ? (
+          <p className="py-14 text-center text-sm text-muted-foreground">
+            {onlyOpen
+              ? "Nada em aberto por aqui."
+              : category
+                ? "Nenhum registro nesta categoria."
+                : "Os registros feitos nos cards aparecem aqui."}
+          </p>
+        ) : (
+          <div className="ds-blocks">
+            {/* PENDÊNCIAS SEMPRE EM CIMA (mockup B aprovado, 17/09/2026): os
               imóveis com pendência aberta sobem para um bloco próprio, com
               borda de luz e o total de pendências; os que estão em dia vêm
               depois de um divisor discreto. Só vale para "Por imóvel" — em
               "Por data" a ordem do dia é a informação e não é quebrada. */}
-          {attentionGroups.length > 0 && (
-            <section
-              aria-label="Imóveis que precisam de atenção"
-              /* PADRÃO "PRESENÇA" (18/09/2026): era uma moldura vermelha
+            {attentionGroups.length > 0 && (
+              <section
+                aria-label="Imóveis que precisam de atenção"
+                /* PADRÃO "PRESENÇA" (18/09/2026): era uma moldura vermelha
                  inteira, com fundo tingido e etiqueta vermelha — gritava mais
                  que o próprio conteúdo. Agora é um card normal, com um FIO no
                  tom rosa terroso na aresta de cima e a contagem numa pílula
                  neutra. Continua sendo a primeira coisa que se vê, sem ser a
                  mais barulhenta. */
-              className={`${PANEL_SHELL} px-1.5 pb-1.5 pt-3`}
-            >
-              <span
-                aria-hidden
-                className="absolute inset-x-3 top-0 h-[2px] rounded-b-[3px] bg-gradient-to-r from-[#c98c8c] to-transparent"
-              />
-              <div className="space-y-1.5">
-                {/* MESMO CABEÇALHO DE BLOCO das outras duas abas (pedido
+                className={`${PANEL_SHELL} px-1.5 pb-1.5 pt-3`}
+              >
+                <span
+                  aria-hidden
+                  className="absolute inset-x-3 top-0 h-[2px] rounded-b-[3px] bg-gradient-to-r from-[#c98c8c] to-transparent"
+                />
+                <div className="space-y-1.5">
+                  {/* MESMO CABEÇALHO DE BLOCO das outras duas abas (pedido
                     explícito, 18/09/2026: "não é só replicar a paleta, mas sim
                     o layout inteiro") — ponto, rótulo em caixa alta, fio que
                     some e a contagem na pílula neutra. */}
-                <PanelHeading
-                  title="Precisam de atenção"
-                  dot={
-                    <span className="grid size-[22px] shrink-0 place-items-center rounded-md bg-[#c98c8c]/12 text-[#c98c8c]">
-                      <CircleAlert className="size-[13px]" strokeWidth={2.2} />
-                    </span>
-                  }
-                  right={
-                    <CountPill>
-                      {attentionCount} {attentionCount === 1 ? "pendência" : "pendências"}
-                    </CountPill>
-                  }
-                  className="mb-1 px-1.5"
-                />
-                {attentionGroups.map(renderCard)}
-              </div>
-            </section>
-          )}
+                  <PanelHeading
+                    title="Precisam de atenção"
+                    dot={
+                      <span className="grid size-[22px] shrink-0 place-items-center rounded-md bg-[#c98c8c]/12 text-[#c98c8c]">
+                        <CircleAlert className="size-[13px]" strokeWidth={2.2} />
+                      </span>
+                    }
+                    right={
+                      <CountPill>
+                        {attentionCount} {attentionCount === 1 ? "pendência" : "pendências"}
+                      </CountPill>
+                    }
+                    className="mb-1 px-1.5"
+                  />
+                  <div className="ds-card-grid">{attentionGroups.map(renderCard)}</div>
+                </div>
+              </section>
+            )}
 
-          {attentionGroups.length > 0 && calmGroups.length > 0 && (
-            <SectionLabel className="px-1 pb-1.5 pt-5" count={calmGroups.length}>
-              Em dia
-            </SectionLabel>
-          )}
+            {attentionGroups.length > 0 && calmGroups.length > 0 && (
+              <SectionLabel className="px-1 pt-0" count={calmGroups.length}>
+                Em dia
+              </SectionLabel>
+            )}
 
-          {calmGroups.map(renderCard)}
+            <div className="ds-card-grid">{calmGroups.map(renderCard)}</div>
 
-          {q.data?.truncated && (
-            <p className="pt-1 text-center text-[11px] text-muted-foreground">
-              Histórico longo — a lista mostra os mais recentes. Escolher uma categoria ou um
-              período afina o que aparece.
-            </p>
-          )}
-        </div>
-      )}
+            {q.data?.truncated && (
+              <p className="pt-1 text-center text-[11px] text-muted-foreground">
+                Histórico longo — a lista mostra os mais recentes. Escolher uma categoria ou um
+                período afina o que aparece.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
 
       <RecordViewerDialog
         record={opened}
@@ -735,7 +752,7 @@ function CategoryCard({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`${PANEL_SHELL} flex flex-col px-2 pb-2.5 pt-2.5 text-left transition hover:bg-secondary/30 ${
+      className={`${PANEL_SHELL} flex flex-col px-2 pb-3 pt-3 text-left transition hover:bg-secondary/30 ${
         active ? CARD_ACTIVE : ""
       }`}
     >
@@ -2089,9 +2106,9 @@ function RecordsFiltersButton({
           type="button"
           title={hasCustomFilters ? "Filtros · há filtro ativo" : "Filtros"}
           aria-label="Filtros dos registros"
-          className="ds-3d ds-3d-hover relative flex h-9 flex-1 items-center justify-center gap-2 rounded-[11px] bg-card text-[12.5px] font-bold text-muted-foreground transition-colors hover:text-foreground lg:size-11 lg:flex-none lg:gap-0 lg:rounded-[13px]"
+          className={`${ACTION_BUTTON} ${ACTION_BUTTON_TONE}`}
         >
-          <SlidersHorizontal className="size-[16px] shrink-0" />
+          <SlidersHorizontal className={ACTION_ICON} />
           <span className="lg:hidden">Filtros</span>
           {hasCustomFilters && (
             <span className="absolute right-2 top-2 size-[5px] rounded-full bg-accent" />

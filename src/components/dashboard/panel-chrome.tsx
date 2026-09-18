@@ -132,3 +132,33 @@ export function CountPill({ children }: { children: ReactNode }) {
     </span>
   );
 }
+
+/**
+ * O BOTÃO DE AÇÃO DO CABEÇALHO — uma cadeia de classes só, para todos eles.
+ *
+ * REGRA (pedido explícito, 18/09/2026: "os botões de filtros precisam ficar
+ * bem mais finos... temos que colocar como regra"). Usam isto: Filtros
+ * (Kanban, Limpeza e Registros), Pendências, o interruptor das janelas da
+ * Limpeza — e qualquer botão de ação que venha depois.
+ *
+ * Antes, cada um repetia à mão a mesma cadeia de doze classes. Eram quatro
+ * cópias da mesma decisão: na primeira vez que o cliente pediu "mais baixo",
+ * eu mexi em três e esqueci o quarto, e foi ele quem viu pelo print.
+ *
+ * As DUAS medidas vêm de `--ds-action-h` / `--ds-action-h-lg` em
+ * `styles.css`; aqui fica a forma, lá fica o número.
+ *
+ * No celular o botão divide a largura com os irmãos e mostra o rótulo; no
+ * computador vira um quadrado só de ícone, com a altura da barra de abas, que
+ * é a regra que o cliente fixou em 18/09/2026 ("sendo o mesmo tamanho/altura
+ * da barra de menu"). Quem usa põe o ícone e um `<span className="lg:hidden">`
+ * com o rótulo.
+ */
+export const ACTION_BUTTON =
+  "ds-3d ds-3d-hover relative flex h-[var(--ds-action-h)] flex-1 items-center justify-center gap-2 rounded-[9px] bg-card text-[12px] font-bold transition-colors lg:size-[var(--ds-action-h-lg)] lg:h-[var(--ds-action-h-lg)] lg:flex-none lg:gap-0 lg:rounded-[13px]";
+
+/** O tom padrão (cinza que acende no hover). Um botão ligado troca por outro. */
+export const ACTION_BUTTON_TONE = "text-muted-foreground hover:text-foreground";
+
+/** Tamanho do ícone dentro de um botão de ação. */
+export const ACTION_ICON = "size-[15px] shrink-0";

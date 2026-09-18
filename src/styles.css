@@ -511,7 +511,6 @@ html {
   }
 }
 
-
 /* Continuous shine sweep for CTA buttons */
 
 @keyframes btn-shine-sweep {
@@ -537,7 +536,12 @@ html {
   left: 0;
   width: 45%;
   height: 100%;
-  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.55) 50%, transparent 100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.55) 50%,
+    transparent 100%
+  );
   animation: btn-shine-sweep 3s ease-in-out infinite;
   pointer-events: none;
   z-index: 1;
@@ -590,7 +594,6 @@ dd {
   text-wrap-style: auto;
 }
 
-
 /* Amber mirror sweep — faixa "Liberado Limpeza" */
 @keyframes amber-mirror-sweep {
   0% {
@@ -636,7 +639,8 @@ dd {
 .sg-always-scroll {
   overflow-y: scroll;
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklab, #a855f7 55%, transparent) color-mix(in oklab, var(--foreground) 8%, transparent);
+  scrollbar-color: color-mix(in oklab, #a855f7 55%, transparent)
+    color-mix(in oklab, var(--foreground) 8%, transparent);
   scrollbar-gutter: stable;
 }
 .sg-always-scroll::-webkit-scrollbar {
@@ -683,6 +687,67 @@ dd {
   display: flex;
   flex-direction: column;
   gap: var(--ds-heading-gap);
+}
+
+/**
+ * O RESPIRO DE UMA SUBPÁGINA — o segundo ritmo, e também um valor só.
+ *
+ * REGRA (mockup "Direção A" aprovado, 18/09/2026): o cliente comparou o
+ * Operacional com os Registros — "veja como você espaçou bem os cards... isso
+ * torna o visual mais limpo, diferentemente de como está a subpágina
+ * registros" — e pediu mais ar.
+ *
+ * São dois números, e nenhum deles é escrito à mão na tela:
+ *
+ *   --ds-block-gap  o vão entre BLOCOS de uma subpágina (a barra de abas, a
+ *                   grade de cartões, um painel, um rótulo de seção). É o que
+ *                   dá o "limpo": blocos que não se encostam.
+ *   --ds-grid-gap   o vão entre CARTÕES vizinhos dentro de uma grade. Menor
+ *                   que o de bloco de propósito — cartões da mesma grade são
+ *                   uma coisa só, e precisam se ler como uma coisa só.
+ *
+ * `ds-blocks` é o mesmo idioma de `ds-page-heading`: coluna flex com o
+ * respiro vindo da variável. Flex e não margem porque margem entre irmãos
+ * colapsa — foi exatamente assim que o vão da data virou −6px em 18/09/2026.
+ */
+@utility ds-blocks {
+  --ds-block-gap: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-block-gap);
+}
+
+@utility ds-card-grid {
+  --ds-grid-gap: 10px;
+  display: grid;
+  gap: var(--ds-grid-gap);
+}
+
+/**
+ * A ALTURA DOS BOTÕES DE AÇÃO DO CABEÇALHO — um valor só, para todos.
+ *
+ * REGRA (pedido explícito, 18/09/2026: "os botões de filtros precisam ficar
+ * bem mais finos... temos que colocar como regra"). Vale para TODOS os botões
+ * de ação do cabeçalho — Filtros, Pendências, o interruptor das janelas da
+ * Limpeza e qualquer outro que venha depois. Antes cada um repetia a mesma
+ * cadeia de classes escrita à mão, e a altura vivia em três lugares.
+ *
+ * Dois valores porque são duas situações, não por capricho:
+ *
+ *   CELULAR      28px. O botão divide a largura com os irmãos e tem rótulo;
+ *                fino de propósito, para não competir com a barra de abas.
+ *   COMPUTADOR   44px, quadrado e só ícone — porque ali ele fica COLADO à
+ *                barra de abas e precisa ter a mesma altura dela (pedido
+ *                explícito, 18/09/2026: "sendo o mesmo tamanho/altura da
+ *                barra de menu"). Essa regra continua valendo; é ela que
+ *                impede o 28px de vazar para o desktop.
+ *
+ * A cadeia de classes completa mora em `ACTION_BUTTON`
+ * (`src/components/dashboard/panel-chrome.tsx`) — aqui fica só a medida.
+ */
+:root {
+  --ds-action-h: 28px;
+  --ds-action-h-lg: 44px;
 }
 
 @utility ds-page-title {
@@ -784,7 +849,6 @@ dd {
   scrollbar-width: none;
   -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
-
 
   &::-webkit-scrollbar {
     display: none;
@@ -978,7 +1042,6 @@ dd {
     inset 0 0 0 1px var(--input),
     0 2px 6px -2px color-mix(in oklab, var(--foreground) 12%, transparent);
 }
-
 
 /* Campos compactos do Design System (mesma formatação do popup de edição
    em massa): usado no editor de guia para inputs, textareas e selects. */
@@ -1246,7 +1309,6 @@ dd {
   animation-timing-function: linear;
   animation-fill-mode: forwards;
 }
-
 
 /* ============================================================
    PADRÃO "A · NOITE" (mockup aprovado, 17/09/2026)

@@ -88,7 +88,10 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
-import { CleaningApprovalPanel, CLEANING_APPROVALS_KEY } from "@/components/dashboard/CleaningApprovalPanel";
+import {
+  CleaningApprovalPanel,
+  CLEANING_APPROVALS_KEY,
+} from "@/components/dashboard/CleaningApprovalPanel";
 import { notifyAction } from "@/components/UndoActionBar";
 import { ReservationRecordsButton } from "@/components/dashboard/ReservationRecords";
 import {
@@ -141,6 +144,9 @@ import {
   PanelHeading,
   SectionLabel,
   CountPill,
+  ACTION_BUTTON,
+  ACTION_BUTTON_TONE,
+  ACTION_ICON,
 } from "@/components/dashboard/panel-chrome";
 import {
   DropdownMenu,
@@ -1782,10 +1788,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const notifyTaskUndo = useCallback(
     (message: string, undo: () => Promise<unknown>, attachmentIds: string[] = []) => {
       notifyAction(message, () => {
-        void Promise.all([
-          undo(),
-          ...attachmentIds.map((id) => deleteRecordFn({ data: { id } })),
-        ])
+        void Promise.all([undo(), ...attachmentIds.map((id) => deleteRecordFn({ data: { id } }))])
           .catch(undoFailed)
           .finally(invalidateTasks);
       });
@@ -1825,9 +1828,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     }) => createTaskFn({ data: { ownerId: activeOwnerId, ...v } }),
     onSuccess: (res) => {
       invalidateTasks();
-      notifyTaskUndo("Pendência criada.", () =>
-        deleteTasksFn({ data: { taskIds: [res.id] } }),
-      );
+      notifyTaskUndo("Pendência criada.", () => deleteTasksFn({ data: { taskIds: [res.id] } }));
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao criar pendência."),
   });
@@ -2686,13 +2687,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                       : "Voltar aos últimos 7 dias"
                   }
                   aria-pressed={cleaningWindow === "next"}
-                  className={`ds-3d ds-3d-hover flex h-9 flex-1 items-center justify-center gap-2 rounded-[11px] bg-card text-[12.5px] font-bold transition-colors lg:size-11 lg:flex-none lg:gap-0 lg:rounded-[13px] ${
-                    cleaningWindow === "next"
-                      ? "ds-atencao"
-                      : "text-muted-foreground hover:text-foreground"
+                  className={`${ACTION_BUTTON} ${
+                    cleaningWindow === "next" ? "ds-atencao" : ACTION_BUTTON_TONE
                   }`}
                 >
-                  <Sparkles className="size-[16px] shrink-0" />
+                  <Sparkles className={ACTION_ICON} />
                   <span className="lg:hidden">
                     {cleaningWindow === "past" ? "Próximos 7 dias" : "Últimos 7 dias"}
                   </span>
@@ -2706,9 +2705,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   onClick={() => setPendenciasOpen(true)}
                   title="Pendências"
                   aria-label={`Pendências (${openTasksCount})`}
-                  className="ds-3d ds-3d-hover relative flex h-9 flex-1 items-center justify-center gap-2 rounded-[11px] bg-card text-[12.5px] font-bold text-muted-foreground transition-colors hover:text-foreground lg:size-11 lg:flex-none lg:gap-0 lg:rounded-[13px]"
+                  className={`${ACTION_BUTTON} ${ACTION_BUTTON_TONE}`}
                 >
-                  <ListChecks className="size-[16px] shrink-0" />
+                  <ListChecks className={ACTION_ICON} />
                   <span className="lg:hidden">Pendências</span>
                   {openTasksCount > 0 && (
                     <span className="ds-atencao absolute -right-1.5 -top-1.5 grid h-[16px] min-w-[16px] place-items-center rounded-full bg-[#c9a962] px-1 text-[9px] font-extrabold leading-none text-[#1a1408]">
@@ -3617,7 +3616,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     }}
                   >
                     <span className="font-medium">Limpeza completa</span>
-                    <span className="text-[10.5px] font-semibold opacity-75">vai para aprovação</span>
+                    <span className="text-[10.5px] font-semibold opacity-75">
+                      vai para aprovação
+                    </span>
                   </Button>
                 )}
                 {hasCompleta && (
@@ -4678,7 +4679,9 @@ function dayTick(v: string): string {
 /** O que o gráfico recebe da moldura para destacar e abrir o dia tocado. */
 type ChartPick = {
   selected: string | null;
-  onPick: (state: { activeLabel?: string | number; activeCoordinate?: { x: number } } | null) => void;
+  onPick: (
+    state: { activeLabel?: string | number; activeCoordinate?: { x: number } } | null,
+  ) => void;
 };
 
 /**
@@ -4776,7 +4779,10 @@ function CleaningChartFrame({
               style={{ width: anti.viewportWidth }}
               onScroll={(e) => setScrollLeft(e.currentTarget.scrollLeft)}
             >
-              <div className={`h-32 ${detail ? "cursor-pointer" : ""}`} style={{ width: anti.contentWidth }}>
+              <div
+                className={`h-32 ${detail ? "cursor-pointer" : ""}`}
+                style={{ width: anti.contentWidth }}
+              >
                 {anti.contentWidth ? children(anti.contentWidth, pick) : null}
               </div>
             </div>
@@ -6836,9 +6842,9 @@ function CalendarFiltersButton({
             type="button"
             title={hasCustomFilters ? "Filtros e print · há filtro ativo" : "Filtros e print"}
             aria-label="Filtros e print"
-            className="ds-3d ds-3d-hover relative flex h-9 flex-1 items-center justify-center gap-2 rounded-[11px] bg-card text-[12.5px] font-bold text-muted-foreground transition-colors hover:text-foreground lg:size-11 lg:flex-none lg:gap-0 lg:rounded-[13px]"
+            className={`${ACTION_BUTTON} ${ACTION_BUTTON_TONE}`}
           >
-            <SlidersHorizontal className="size-[16px] shrink-0" />
+            <SlidersHorizontal className={ACTION_ICON} />
             <span className="lg:hidden">Filtros</span>
             {hasCustomFilters && (
               <span className="absolute right-2 top-2 size-[5px] rounded-full bg-accent" />
@@ -7539,10 +7545,7 @@ function OccupancyPanel({
           <span className="grid size-7 shrink-0 place-items-center rounded-[9px] bg-foreground/[0.05] text-foreground">
             <CalendarRange className="size-[15px]" strokeWidth={2} />
           </span>
-          <span
-            className="ds-card-title min-w-0 flex-1 text-[14px]"
-            title="Calendário de ocupação"
-          >
+          <span className="ds-card-title min-w-0 flex-1 text-[14px]" title="Calendário de ocupação">
             Calendário de ocupação
           </span>
         </button>
@@ -8429,9 +8432,7 @@ function ArrivalCard({
           },
         })
           .then(refresh)
-          .catch((e) =>
-            toast.error(e instanceof Error ? e.message : "Não foi possível desfazer."),
-          );
+          .catch((e) => toast.error(e instanceof Error ? e.message : "Não foi possível desfazer."));
       });
     },
     onError: () => toast.error("Não foi possível alterar o silenciamento."),
