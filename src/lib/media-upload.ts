@@ -108,6 +108,53 @@ export function comPrazo<T>(promessa: Promise<T>, ms: number, signal?: AbortSign
 export const PRAZO_AUTH_MS = 12_000;
 export const PRAZO_SERVIDOR_MS = 30_000;
 
+/** Falha de REDE do navegador (aba em segundo plano, 4G oscilando, DNS). */
+export function ehFalhaDeRede(e: unknown): boolean {
+  const m = ((e as Error)?.message ?? "").toLowerCase();
+  return (
+    m === "prazo" ||
+    m.includes("failed to fetch") ||
+    m.includes("networkerror") ||
+    m.includes("network request failed") ||
+    m.includes("load failed") ||
+    m.includes("connection")
+  );
+}
+
+/**
+ * CHAMADA AO SERVIDOR QUE NÃO MORRE NA PRIMEIRA OSCILAÇÃO (18/09/2026).
+ *
+ * A equipe de limpeza está no imóvel, em rede móvel. Um `Failed to fetch` —
+ * a requisição nem sai do aparelho — derrubava o registro inteiro e mostrava
+ * essa frase em inglês na tela. Agora tentamos de novo (até 3 vezes, com
+ * espera curta) antes de desistir, e quem desiste fala em português.
+ */
+export async function chamarServidor<T>(
+  executar: () => Promise<T>,
+  opts?: { prazoMs?: number; signal?: AbortSignal; tentativas?: number },
+): Promise<T> {
+  const prazo = opts?.prazoMs ?? PRAZO_SERVIDOR_MS;
+  const total = opts?.tentativas ?? 3;
+  let ultimo: unknown = null;
+  for (let i = 0; i < total; i += 1) {
+    if (opts?.signal?.aborted) throw new Error("CANCELADO");
+    try {
+      return await comPrazo(executar(), prazo, opts?.signal);
+    } catch (e) {
+      const msg = (e as Error)?.message ?? "";
+      if (msg === "CANCELADO") throw e;
+      if (!ehFalhaDeRede(e)) throw e;
+      ultimo = e;
+      if (i < total - 1) await esperar(ESPERA_MS[i] ?? 3_000, opts?.signal);
+    }
+  }
+  throw new Error(
+    ultimo && (ultimo as Error).message === "PRAZO"
+      ? "PRAZO"
+      : "A internet oscilou e o registro não chegou ao servidor. Toque em “Tentar de novo” — nada foi perdido.",
+  );
+}
+
 /**
  * Garante que existe um token válido AGORA.
  *

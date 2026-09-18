@@ -1736,7 +1736,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // o dialog usa a lista inteira; o checklist do card filtra client-side
   // pelas marcadas "aparece na limpeza".
   // ---------------------------------------------------------------------
-  const [pendenciasOpen, setPendenciasOpen] = useState(false);
+
   // Alternador "Completo"/"Lista" do Kanban — mesmo padrão já usado nos
   // popups de KPI e no tooltip de Limpeza. Pedido explícito
   // (07/09/2026): "Lista" é o padrão ao abrir o Kanban (mais compacto, cabe
@@ -1754,16 +1754,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     queryFn: () => listTasksFn({ data: { ownerId: activeOwnerId } }),
     staleTime: 15_000,
     enabled: authed,
-  });
-  const openTasksCount = useMemo(
-    () => (tasksQ.data?.tasks ?? []).filter((t) => t.status === "pending").length,
-    [tasksQ.data],
-  );
-  const taskLinkOptionsQ = useQuery({
-    queryKey: ["dash-task-link-options", activeOwnerId ?? "self"],
-    queryFn: () => taskLinkOptionsFn({ data: { ownerId: activeOwnerId } }),
-    staleTime: 60_000,
-    enabled: authed && pendenciasOpen,
   });
   const invalidateTasks = useCallback(() => {
     qc.invalidateQueries({ queryKey: ["dash-tasks", activeOwnerId ?? "self"] });
@@ -1813,25 +1803,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     },
     [qc],
   );
-  const createTaskMutation = useMutation({
-    mutationFn: (v: {
-      title: string;
-      description?: string | null;
-      category: TaskCategory;
-      priority: TaskPriority;
-      dueDate?: string | null;
-      showInCleaning: boolean;
-      propertyId?: string | null;
-      ownerContactId?: string | null;
-      amountSpentCents?: number | null;
-      recurrenceDays?: number | null;
-    }) => createTaskFn({ data: { ownerId: activeOwnerId, ...v } }),
-    onSuccess: (res) => {
-      invalidateTasks();
-      notifyTaskUndo("Pendência criada.", () => deleteTasksFn({ data: { taskIds: [res.id] } }));
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao criar pendência."),
-  });
   const setTaskStatusMutation = useMutation({
     mutationFn: (v: {
       taskId: string;
@@ -1865,19 +1836,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       },
     );
   }
-  // "Excluir só esta ocorrência" de uma pendência recorrente — ver
-  // skipTaskOccurrence em tasks.functions.ts.
-  const skipTaskOccurrenceMutation = useMutation({
-    mutationFn: (v: { taskId: string }) => skipTaskOccurrenceFn({ data: v }),
-    onSuccess: (res) => {
-      invalidateTasks();
-      notifyTaskUndo(
-        `Ocorrência pulada. Próximo prazo: ${fmtDateBR(res.dueDate)}.`,
-        restoreTaskUndo(res.before),
-      );
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao pular a ocorrência."),
-  });
   const toggleCleaningTaskMutation = useMutation({
     mutationFn: (v: {
       taskId: string;
@@ -1914,7 +1872,21 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // checklist do card de Limpeza ("cleaning", que fecha só a ocorrência).
   type ResolvePromptState =
     { kind: "status"; task: TaskRow } | { kind: "cleaning"; task: TaskRow; row: ArrivalRow };
+  /* SÓ O GATILHO DA LIMPEZA mora aqui agora (18/09/2026). O outro — concluir
+     pela lista de Pendências — foi junto com o botão para os Registros, em
+     `pendencias.tsx`. Dois caminhos para a MESMA tela de conclusão, cada um
+     na tela que tem os dados dele; nunca abrem ao mesmo tempo. */
   const [resolvePrompt, setResolvePrompt] = useState<ResolvePromptState | null>(null);
+  const taskLinkOptionsQ = useQuery({
+    queryKey: ["dash-task-link-options", activeOwnerId ?? "self"],
+    queryFn: () => taskLinkOptionsFn({ data: { ownerId: activeOwnerId } }),
+    staleTime: 60_000,
+    /* Antes isto acordava junto com o painel de Pendências, que mudou de aba.
+       O único consumidor que sobrou aqui é a TELA DE CONCLUSÃO do checklist
+       da limpeza, que precisa da lista de prestadores — então é ela quem
+       liga a consulta. */
+    enabled: authed && !!resolvePrompt,
+  });
   const attachTaskRecordFn = useServerFn(attachTaskRecord);
 
   function closeResolvePrompt() {
@@ -1982,20 +1954,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     }
     closeResolvePrompt();
     notifyTaskUndo("Pendência concluída.", undo, attachmentIds);
-  }
-
-  function requestSetTaskStatus(taskId: string, status: "pending" | "done" | "canceled") {
-    if (status === "done") {
-      const task = (tasksQ.data?.tasks ?? []).find((t) => t.id === taskId);
-      // Diferente do antigo prompt (que só aparecia quando o valor estava em
-      // branco), a tela de conclusão sempre abre: ela não pergunta só o
-      // gasto, pergunta a prestação de contas inteira.
-      if (task) {
-        setResolvePrompt({ kind: "status", task });
-        return;
-      }
-    }
-    setTaskStatusWithUndo(taskId, status);
   }
 
   // Sem período escolhido, mantém o padrão de "hoje" (mesma convenção já
@@ -2138,11 +2096,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     tomorrowCheckinPendingRows,
     tomorrowCheckoutPendingRows,
   ]);
-  function guestNameForTask(t: TaskRow): string {
-    if (t.logId) return guestNameByStayRef.get(`log:${t.logId}`) ?? "Hóspede";
-    if (t.reservationId) return guestNameByStayRef.get(`res:${t.reservationId}`) ?? "Hóspede";
-    return "Hóspede";
-  }
   // Tarefas que aparecem no checklist do card de Limpeza — repassadas pra
   // ArrivalGroup/ArrivalCard só quando colMode === "cleaning" (única coluna
   // que usa isso; as outras ignoram por completo).
@@ -2697,25 +2650,12 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   </span>
                 </button>
               )}
-              {view === "kanban" && (
-                /* Pendências NÃO entra no menu de filtros: o número dela é um
-                 alerta, e alerta dentro de menu fechado deixa de alertar. */
-                <button
-                  type="button"
-                  onClick={() => setPendenciasOpen(true)}
-                  title="Pendências"
-                  aria-label={`Pendências (${openTasksCount})`}
-                  className={`${ACTION_BUTTON} ${ACTION_BUTTON_TONE}`}
-                >
-                  <ListChecks className={ACTION_ICON} />
-                  <span className="lg:hidden">Pendências</span>
-                  {openTasksCount > 0 && (
-                    <span className="ds-atencao absolute -right-1.5 -top-1.5 grid h-[16px] min-w-[16px] place-items-center rounded-full bg-[#c9a962] px-1 text-[9px] font-extrabold leading-none text-[#1a1408]">
-                      {openTasksCount > 99 ? "99+" : openTasksCount}
-                    </span>
-                  )}
-                </button>
-              )}
+              {/* O BOTÃO "PENDÊNCIAS" MUDOU DE ABA (pedido explícito,
+                  18/09/2026): saiu do Kanban e passou a morar nos REGISTROS,
+                  que é onde as pendências já aparecem ("Precisam de atenção").
+                  Ver `PendenciasButton` em `pendencias.tsx`. O painel em si
+                  (`TasksDialog`) continua morando NESTE arquivo e é importado
+                  de lá — mover mil linhas não valia o risco. */}
               <CalendarFiltersButton
                 compactTrigger
                 periodRange={periodRange}
@@ -2965,106 +2905,124 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               aqui só afeta os cards desta aba. */}
           {/* Cards de limpeza — mais métricas chegam aqui conforme forem
               implementadas. */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5 mt-1.5">
-            <div className="col-span-1">
-              <StatDisplayCard
-                label={cleaningWindow === "past" ? "Limpezas Realizadas" : "Limpezas Previstas"}
-                value={
-                  cleaningWindow === "past"
-                    ? (cleaningStatsQ.data?.cleaningsDone ?? 0)
-                    : cleaningForecast.cleaningsExpected
-                }
-                icon={CheckCircle2}
-                loading={
-                  cleaningWindow === "past"
-                    ? cleaningStatsQ.isLoading
-                    : cleaningForecastListQ.isLoading
-                }
-                note={
-                  cleaningWindow === "past" && pendingApproval.count > 0
-                    ? `+${pendingApproval.count} aguardando aprovação`
-                    : null
-                }
-              />
-            </div>
-            <div className="col-span-1">
-              <StatDisplayCard
-                label={cleaningWindow === "past" ? "Custo Total Limpeza" : "Custo Estimado"}
-                value={centsToBRLShort(
-                  cleaningWindow === "past"
-                    ? (cleaningStatsQ.data?.totalCents ?? 0)
-                    : cleaningForecast.estimatedTotalCents,
-                )}
-                icon={Banknote}
-                loading={
-                  cleaningWindow === "past"
-                    ? cleaningStatsQ.isLoading
-                    : cleaningForecastListQ.isLoading
-                }
-                note={
-                  cleaningWindow === "past" && pendingApproval.count > 0
-                    ? `+${centsToBRLShort(pendingApproval.totalCents)} em análise`
-                    : null
-                }
-              />
-            </div>
-          </div>
+          {/* O RESPIRO DA REGRA, SÓ NESTA ABA (18/09/2026). A Limpeza tinha o
+              mesmo aperto que os Registros: `mt-1.5`/`gap-1.5`, 6px entre
+              tudo. Agora `ds-blocks` (24px) entre blocos e `ds-card-grid`
+              (10px) entre cartões — ver `styles.css`.
 
-          {/* Limpeza completa só entra no custo depois de aprovada (pedido
+              O ENVOLTÓRIO ESTÁ AQUI DENTRO, e não no invólucro da página, de
+              propósito: aquele é compartilhado com o OPERACIONAL, e o cliente
+              foi explícito — "não ajuste nada de espaçamentos na página
+              operacional, pois ela está perfeita". Mexer lá fora mudaria as
+              duas. */}
+          <div className="ds-blocks">
+            <div className="ds-card-grid grid-cols-2 lg:grid-cols-4">
+              <div className="col-span-1">
+                <StatDisplayCard
+                  label={cleaningWindow === "past" ? "Limpezas Realizadas" : "Limpezas Previstas"}
+                  value={
+                    cleaningWindow === "past"
+                      ? (cleaningStatsQ.data?.cleaningsDone ?? 0)
+                      : cleaningForecast.cleaningsExpected
+                  }
+                  icon={CheckCircle2}
+                  loading={
+                    cleaningWindow === "past"
+                      ? cleaningStatsQ.isLoading
+                      : cleaningForecastListQ.isLoading
+                  }
+                  note={
+                    cleaningWindow === "past" && pendingApproval.count > 0
+                      ? `+${pendingApproval.count} aguardando aprovação`
+                      : null
+                  }
+                />
+              </div>
+              <div className="col-span-1">
+                <StatDisplayCard
+                  label={cleaningWindow === "past" ? "Custo Total Limpeza" : "Custo Estimado"}
+                  value={centsToBRLShort(
+                    cleaningWindow === "past"
+                      ? (cleaningStatsQ.data?.totalCents ?? 0)
+                      : cleaningForecast.estimatedTotalCents,
+                  )}
+                  icon={Banknote}
+                  loading={
+                    cleaningWindow === "past"
+                      ? cleaningStatsQ.isLoading
+                      : cleaningForecastListQ.isLoading
+                  }
+                  note={
+                    cleaningWindow === "past" && pendingApproval.count > 0
+                      ? `+${centsToBRLShort(pendingApproval.totalCents)} em análise`
+                      : null
+                  }
+                />
+              </div>
+            </div>
+
+            {/* Limpeza completa só entra no custo depois de aprovada (pedido
               explícito, 17/09/2026). O bloco só existe quando há pendência. */}
-          <CleaningApprovalPanel
-            ownerId={activeOwnerId}
-            propertyIds={cleaningStatsPropertyIds}
-            enabled={authed}
-          />
+            <CleaningApprovalPanel
+              ownerId={activeOwnerId}
+              propertyIds={cleaningStatsPropertyIds}
+              enabled={authed}
+            />
 
-          {/* Gráficos de tendência (pedido explícito, combinando as opções A
+            {/* Gráficos de tendência (pedido explícito, combinando as opções A
               e C dos mockups aprovados) — sem mexer no layout dos cards
               acima, só adicionando estes logo abaixo. */}
-          {/* Os MESMOS componentes nas duas janelas — só a fonte muda. */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-1.5 mt-1.5">
-            <CleaningDailyBarChart
-              title={cleaningWindow === "past" ? "Limpezas por dia" : "Limpezas previstas por dia"}
-              data={cleaningWindow === "past" ? cleaningTrendQ.data?.daily : cleaningForecast.daily}
-              detail={
-                cleaningWindow === "past"
-                  ? { mode: "done", items: cleaningTrendQ.data?.items ?? [] }
-                  : { mode: "forecast", items: cleaningForecast.items }
-              }
-              loading={
-                cleaningWindow === "past"
-                  ? cleaningTrendQ.isLoading
-                  : cleaningForecastListQ.isLoading
-              }
-            />
-            <CleaningDailyAreaChart
-              title={cleaningWindow === "past" ? "Custo total por dia" : "Custo estimado por dia"}
-              data={cleaningWindow === "past" ? cleaningTrendQ.data?.daily : cleaningForecast.daily}
-              detail={
-                cleaningWindow === "past"
-                  ? { mode: "cost", items: cleaningTrendQ.data?.items ?? [] }
-                  : { mode: "forecast", items: cleaningForecast.items }
-              }
-              loading={
-                cleaningWindow === "past"
-                  ? cleaningTrendQ.isLoading
-                  : cleaningForecastListQ.isLoading
-              }
-            />
-          </div>
-          <div className="mt-1.5">
-            <CleaningTopProperties
-              items={
-                cleaningWindow === "past"
-                  ? cleaningTrendQ.data?.breakdown
-                  : cleaningForecast.breakdown
-              }
-              loading={
-                cleaningWindow === "past"
-                  ? cleaningTrendQ.isLoading
-                  : cleaningForecastListQ.isLoading
-              }
-            />
+            {/* Os MESMOS componentes nas duas janelas — só a fonte muda. */}
+            <div className="ds-card-grid grid-cols-1 lg:grid-cols-2">
+              <CleaningDailyBarChart
+                title={
+                  cleaningWindow === "past" ? "Limpezas por dia" : "Limpezas previstas por dia"
+                }
+                data={
+                  cleaningWindow === "past" ? cleaningTrendQ.data?.daily : cleaningForecast.daily
+                }
+                detail={
+                  cleaningWindow === "past"
+                    ? { mode: "done", items: cleaningTrendQ.data?.items ?? [] }
+                    : { mode: "forecast", items: cleaningForecast.items }
+                }
+                loading={
+                  cleaningWindow === "past"
+                    ? cleaningTrendQ.isLoading
+                    : cleaningForecastListQ.isLoading
+                }
+              />
+              <CleaningDailyAreaChart
+                title={cleaningWindow === "past" ? "Custo total por dia" : "Custo estimado por dia"}
+                data={
+                  cleaningWindow === "past" ? cleaningTrendQ.data?.daily : cleaningForecast.daily
+                }
+                detail={
+                  cleaningWindow === "past"
+                    ? { mode: "cost", items: cleaningTrendQ.data?.items ?? [] }
+                    : { mode: "forecast", items: cleaningForecast.items }
+                }
+                loading={
+                  cleaningWindow === "past"
+                    ? cleaningTrendQ.isLoading
+                    : cleaningForecastListQ.isLoading
+                }
+              />
+            </div>
+            <div>
+              <CleaningTopProperties
+                items={
+                  cleaningWindow === "past"
+                    ? cleaningTrendQ.data?.breakdown
+                    : cleaningForecast.breakdown
+                }
+                loading={
+                  cleaningWindow === "past"
+                    ? cleaningTrendQ.isLoading
+                    : cleaningForecastListQ.isLoading
+                }
+              />
+            </div>
           </div>
 
           <div className="h-1.5" />
@@ -3479,20 +3437,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 </KanbanColumn>
               </div>
             </div>
-
-            <TasksDialog
-              open={pendenciasOpen}
-              onOpenChange={setPendenciasOpen}
-              tasks={tasksQ.data?.tasks ?? []}
-              loading={tasksQ.isLoading}
-              linkProperties={taskLinkOptionsQ.data?.properties ?? []}
-              linkOwners={taskLinkOptionsQ.data?.owners ?? []}
-              guestNameForTask={guestNameForTask}
-              onCreate={(v) => createTaskMutation.mutateAsync(v)}
-              creating={createTaskMutation.isPending}
-              onSetStatus={requestSetTaskStatus}
-              onSkipOccurrence={(taskId) => skipTaskOccurrenceMutation.mutate({ taskId })}
-            />
 
             <TaskResolveDialog
               state={resolvePrompt}
@@ -5048,7 +4992,7 @@ function CleaningTopProperties({
  * OPCIONAIS — o botão "Concluir" funciona com tudo em branco, que é o
  * comportamento que existia antes.
  */
-function TaskResolveDialog({
+export function TaskResolveDialog({
   state,
   onOpenChange,
   providers,
@@ -5490,7 +5434,7 @@ export function TaskChoiceMenu<T extends string>({
  * Imóvel / Imóvel + Hóspede) + formulário de criação. Toda pendência é
  * obrigatoriamente vinculada a um imóvel e/ou a um proprietário (pedido
  * explícito) — nunca solta. */
-function TasksDialog({
+export function TasksDialog({
   open,
   onOpenChange,
   tasks,

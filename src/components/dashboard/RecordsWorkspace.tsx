@@ -43,6 +43,7 @@ import {
   ACTION_ICON,
 } from "@/components/dashboard/panel-chrome";
 import { CARD_OWNER } from "@/components/dashboard/card-colors";
+import { PendenciasButton } from "@/components/dashboard/pendencias";
 import { OperationShell } from "@/components/dashboard/OperationWorkspace";
 import { AudioPlayer } from "@/components/dashboard/ReservationRecords";
 import { MediaLightbox } from "@/components/dashboard/MediaLightbox";
@@ -516,24 +517,31 @@ export function RecordsWorkspace() {
           view="registros"
           subtitle={subtitle}
           actions={
-            <RecordsFiltersButton
-              category={category}
-              onCategoryChange={setCategory}
-              groupBy={groupBy}
-              onGroupByChange={setGroupBy}
-              period={period}
-              onPeriodChange={setPeriod}
-              onlyOpen={onlyOpen}
-              onOnlyOpenChange={setOnlyOpen}
-              ownerFilters={ownerFilters}
-              onOwnerFiltersChange={setOwnerFilters}
-              ownerOptions={ownerOptions}
-              propertyFilters={propertyFilters}
-              onPropertyFiltersChange={setPropertyFilters}
-              propertyOptions={linkProperties}
-              hasCustomFilters={hasCustomFilters}
-              onClearAll={clearAllFilters}
-            />
+            <>
+              {/* PENDÊNCIAS MORA AQUI AGORA (pedido explícito, 18/09/2026):
+                  veio do Kanban, porque é nesta aba que as pendências já
+                  aparecem ("Precisam de atenção") — é aqui que a mão procura.
+                  Ver `pendencias.tsx`. */}
+              <PendenciasButton ownerId={activeOwnerId} enabled />
+              <RecordsFiltersButton
+                category={category}
+                onCategoryChange={setCategory}
+                groupBy={groupBy}
+                onGroupByChange={setGroupBy}
+                period={period}
+                onPeriodChange={setPeriod}
+                onlyOpen={onlyOpen}
+                onOnlyOpenChange={setOnlyOpen}
+                ownerFilters={ownerFilters}
+                onOwnerFiltersChange={setOwnerFilters}
+                ownerOptions={ownerOptions}
+                propertyFilters={propertyFilters}
+                onPropertyFiltersChange={setPropertyFilters}
+                propertyOptions={linkProperties}
+                hasCustomFilters={hasCustomFilters}
+                onClearAll={clearAllFilters}
+              />
+            </>
           }
         />
 

@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { track } from "@/lib/trail";
-import { comPrazo, enviarMidia, garantirToken, PRAZO_SERVIDOR_MS } from "@/lib/media-upload";
+import { chamarServidor, ehFalhaDeRede, enviarMidia, garantirToken } from "@/lib/media-upload";
 import {
   apagarRascunho,
   chaveRascunho,
@@ -446,22 +446,22 @@ export function RecordSituationSheet({
            caminho. Sem prazo, uma rede congelada travaria o botão aqui, antes
            mesmo de qualquer arquivo — exatamente o sintoma relatado, só que um
            passo antes. Ver `comPrazo` em `media-upload.ts`. */
-        const criada = await comPrazo(
-          createFn({
-            data: {
-              propertyId,
-              logId: target.logId,
-              reservationId: target.reservationId,
-              cardMode,
-              category,
-              title: title.trim() || null,
-              description: description.trim() || null,
-              media: [],
-              pendingMedia: items.length,
-            },
-          }),
-          PRAZO_SERVIDOR_MS,
-          ctrl.signal,
+        const criada = await chamarServidor(
+          () =>
+            createFn({
+              data: {
+                propertyId,
+                logId: target.logId,
+                reservationId: target.reservationId,
+                cardMode,
+                category,
+                title: title.trim() || null,
+                description: description.trim() || null,
+                media: [],
+                pendingMedia: items.length,
+              },
+            }),
+          { signal: ctrl.signal },
         );
         groupId = (criada as { groupId?: string })?.groupId ?? null;
         if (!groupId) throw new Error("Não consegui abrir o registro.");
@@ -516,20 +516,20 @@ export function RecordSituationSheet({
 
         if (r.ok) {
           try {
-            await comPrazo(
-              appendFn({
-                data: {
-                  groupId,
-                  propertyId,
-                  path,
-                  kind: it.kind,
-                  mime: it.mime || "application/octet-stream",
-                  sizeBytes: it.blob.size,
-                  durationMs: it.durationMs,
-                },
-              }),
-              PRAZO_SERVIDOR_MS,
-              ctrl.signal,
+            await chamarServidor(
+              () =>
+                appendFn({
+                  data: {
+                    groupId,
+                    propertyId,
+                    path,
+                    kind: it.kind,
+                    mime: it.mime || "application/octet-stream",
+                    sizeBytes: it.blob.size,
+                    durationMs: it.durationMs,
+                  },
+                }),
+              { signal: ctrl.signal },
             );
             enviados.push(it.key);
           } catch (e) {
@@ -610,7 +610,9 @@ export function RecordSituationSheet({
           ? "O servidor demorou demais para responder. Toque em “Tentar de novo” — nada foi perdido."
           : m === "CANCELADO"
             ? "Envio cancelado. O que você digitou continua aqui."
-            : m || "Não consegui registrar a situação.",
+            : ehFalhaDeRede(e)
+              ? "A internet oscilou e o registro não chegou ao servidor. Toque em “Tentar de novo” — nada foi perdido."
+              : m || "Não consegui registrar a situação.",
       );
     } finally {
       cancelarRef.current = null;
