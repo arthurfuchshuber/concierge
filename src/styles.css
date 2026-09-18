@@ -923,11 +923,23 @@ dd {
    ============================================================ */
 /* Card do padrão "A · Noite": fio de 1px por dentro (em vez de borda que
    soma largura) e sombra fina. Sem cor, sem volume. */
+/* PADRÃO "PRESENÇA" (aprovado 18/09/2026). O cliente achou a tela colorida
+   demais ("parece um carnaval") e, quando a cor saiu, achou simples demais. A
+   resposta não foi devolver cor: foi devolver LUZ. Todo card passou a ter
+   três camadas — um degradê de cima para baixo no fundo, um fio de luz de 1px
+   na aresta SUPERIOR (a luz vem de cima, como no mundo real) e uma sombra que
+   descola o card do fundo. Nenhuma delas tem cor. */
 @utility ds-3d {
   border: 0 !important;
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--foreground) 4.5%, transparent),
+    color-mix(in oklab, var(--foreground) 1.2%, transparent) 55%
+  );
   box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--foreground) 7%, transparent),
     inset 0 0 0 1px var(--border),
-    0 1px 2px color-mix(in oklab, var(--foreground) 6%, transparent);
+    0 10px 24px -16px rgb(0 0 0 / 0.9);
 }
 @utility ds-3d-hover {
   transition: box-shadow 200ms ease;
@@ -1214,6 +1226,25 @@ dd {
 
 /* Texto de apoio mais fraco que o "muted": datas no canto do card,
    legendas do calendário, contagens. */
+/* ============================================================
+   Semânticas contidas — padrão "Presença" (18/09/2026)
+   ============================================================
+   O verde-neon e o rosa-choque saíram: dizem a mesma coisa em tom terroso,
+   sem gritar. A data do topo é o amarelo fraco pedido pelo cliente. Um lugar
+   só para os três, porque eles se repetem em várias telas. */
+@utility ds-ok {
+  color: #7fb79a;
+}
+@utility ds-falta {
+  color: #c98c8c;
+}
+@utility ds-atencao {
+  color: #c9a962;
+}
+@utility ds-data {
+  color: #cbb87f;
+}
+
 @utility ds-faint {
   color: var(--faint, var(--muted-foreground));
 }
@@ -1242,11 +1273,32 @@ dd {
   box-shadow: inset 0 0 0 1px var(--border);
 }
 
-/* Aba ativa: o gradiente da marca fica reservado para o que está ativo. */
+/* Aba ativa (padrão "Presença", 18/09/2026): era uma pílula com o gradiente
+   inteiro — a coisa mais gritante da tela. Virou uma pílula neutra, com o
+   mesmo tratamento de luz dos cards, e o gradiente reduzido a um fio de 2px
+   embaixo. A marca continua ali; só parou de mandar na tela. */
 @utility ds-tab-active {
+  position: relative;
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--foreground) 10%, transparent),
+    color-mix(in oklab, var(--foreground) 3%, transparent)
+  );
+  color: var(--foreground);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--foreground) 10%, transparent),
+    inset 0 0 0 1px color-mix(in oklab, var(--foreground) 10%, transparent),
+    0 6px 16px -10px rgba(232, 45, 174, 0.5);
+}
+.ds-tab-active::after {
+  content: "";
+  position: absolute;
+  left: 13px;
+  right: 13px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
   background: linear-gradient(120deg, #7c1ad8, #e82dae);
-  color: #fff;
-  box-shadow: 0 8px 22px -10px rgba(232, 45, 174, 0.8);
 }
 
 /* Halo roxo do topo da página — o mesmo efeito da landing, bem fraco. */
@@ -1257,5 +1309,7 @@ dd {
   top: -140px;
   height: 360px;
   pointer-events: none;
-  background: radial-gradient(50% 50% at 50% 50%, rgba(124, 26, 216, 0.16), transparent 70%);
+  /* 0.16 → 0.10 (padrão "Presença"): o facho fica, mas ninguém mais consegue
+     apontar "a cor" — só a sensação de profundidade. */
+  background: radial-gradient(50% 50% at 50% 50%, rgba(124, 26, 216, 0.1), transparent 70%);
 }

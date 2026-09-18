@@ -910,6 +910,17 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   }
 
   const occStart = periodRange?.start ?? todayISOSaoPaulo();
+  /**
+   * QUANTOS DIAS BUSCAR (pedido explícito, 18/09/2026: "se couberem mais dias
+   * dentro da visão respeitando a regra anti corte, é para colocar").
+   *
+   * Com filtro de período, quem manda é o período escolhido — não mexemos.
+   * Sem filtro, o próprio calendário avisa quantos dias INTEIROS cabem no
+   * quadro com as colunas no tamanho máximo, e buscamos exatamente isso. O
+   * número fixo de antes (21) ora sobrava, ora faltava: quando faltava, as
+   * colunas esticavam para ocupar o espaço.
+   */
+  const [fitDays, setFitDays] = useState<number | null>(null);
   const occDays = periodRange
     ? Math.min(
         90,
@@ -921,7 +932,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           ) + 1,
         ),
       )
-    : 21;
+    : Math.min(90, Math.max(7, fitDays ?? 21));
   const occupancyQ = useQuery({
     queryKey: ["dash-occupancy", activeOwnerId ?? "self", occStart, occDays],
     queryFn: () =>
@@ -2562,13 +2573,31 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       />
     </span>
   );
+  /* UM "i" SÓ, no canto superior direito, explicando as DUAS métricas (pedido
+     explícito, 18/09/2026: "coloque apenas um ícone 'i' contendo a informação
+     de ambos os cards do engajamento, no canto superior direito"). Antes cada
+     anel tinha o seu, e os dois textos eram quase iguais. O fio que vai
+     sumindo entre o rótulo e o "i" fecha a linha sem pedir mais nada. */
   const engagementEyebrow = (
-    <div className="mb-3 flex items-center gap-2">
+    <div className="mb-3 flex items-center gap-2.5">
       <span
         aria-hidden="true"
-        className="size-1.5 rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE]"
+        className="size-1.5 shrink-0 rounded-full bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE]"
       />
-      <span className="ds-eyebrow text-[10px] text-muted-foreground">Guia do hóspede</span>
+      <span className="ds-eyebrow shrink-0 text-[10px] tracking-[0.2em] text-muted-foreground">
+        Guia do hóspede
+      </span>
+      <span
+        aria-hidden
+        className="h-px flex-1 bg-gradient-to-r from-[color-mix(in_oklab,var(--foreground)_9%,transparent)] to-transparent"
+      />
+      <span className="shrink-0">
+        <InfoHint title="Guia do hóspede">
+          Conta os hóspedes com check-in no período. “Viram instruções de check-in” são os que já
+          abriram as Instruções da sessão “Chegada” pelo menos uma vez; “Viram senha de acesso” são
+          os que já visualizaram as senhas no guia pelo menos uma vez.
+        </InfoHint>
+      </span>
     </div>
   );
   function renderEngagementTop() {
@@ -2636,13 +2665,16 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                       : "Voltar aos últimos 7 dias"
                   }
                   aria-pressed={cleaningWindow === "next"}
-                  className={`grid size-[30px] shrink-0 place-items-center rounded-[0.4rem] transition-colors ${
+                  className={`ds-3d ds-3d-hover flex h-11 flex-1 items-center justify-center gap-2 rounded-[13px] bg-card text-[12.5px] font-bold transition-colors lg:size-11 lg:flex-none lg:gap-0 ${
                     cleaningWindow === "next"
-                      ? "bg-amber-500/20 text-amber-600 dark:text-amber-400"
-                      : "bg-foreground/[0.06] text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+                      ? "ds-atencao"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  <Sparkles className="size-3.5" />
+                  <Sparkles className="size-[17px] shrink-0" />
+                  <span className="lg:hidden">
+                    {cleaningWindow === "past" ? "Próximos 7 dias" : "Últimos 7 dias"}
+                  </span>
                 </button>
               )}
               {view === "kanban" && (
@@ -2653,11 +2685,12 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   onClick={() => setPendenciasOpen(true)}
                   title="Pendências"
                   aria-label={`Pendências (${openTasksCount})`}
-                  className="relative grid size-[30px] shrink-0 place-items-center rounded-[0.4rem] bg-foreground/[0.06] text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
+                  className="ds-3d ds-3d-hover relative flex h-11 flex-1 items-center justify-center gap-2 rounded-[13px] bg-card text-[12.5px] font-bold text-muted-foreground transition-colors hover:text-foreground lg:size-11 lg:flex-none lg:gap-0"
                 >
-                  <ListChecks className="size-3.5" />
+                  <ListChecks className="size-[17px] shrink-0" />
+                  <span className="lg:hidden">Pendências</span>
                   {openTasksCount > 0 && (
-                    <span className="absolute -right-1 -top-1 grid h-[15px] min-w-[15px] place-items-center rounded-full bg-rose-600 px-1 text-[8px] font-extrabold leading-none text-white">
+                    <span className="ds-atencao absolute -right-1.5 -top-1.5 grid h-[16px] min-w-[16px] place-items-center rounded-full bg-[#c9a962] px-1 text-[9px] font-extrabold leading-none text-[#1a1408]">
                       {openTasksCount > 99 ? "99+" : openTasksCount}
                     </span>
                   )}
@@ -2850,6 +2883,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 ownerOptions={ownerOptions}
                 hasCustomFilters={hasCustomFilters}
                 onClearAllFilters={clearAllFilters}
+                onFitDaysChange={setFitDays}
               />
             </div>
 
@@ -2859,26 +2893,36 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 começam mais uma linha nova: caem na 4ª coluna, ao lado do
                 calendário (que ocupa as três primeiras e duas linhas). No
                 celular continuam lado a lado, meia largura cada. */}
-            <div className="order-10 col-span-1 lg:order-7 lg:self-start">
-              <KpiCard
-                label="Em Estadia"
-                rows={stayRows}
-                icon={BedDouble}
-                tone="primary-soft"
-                loading={checkinListQ.isLoading}
-                onRefresh={() => checkinListQ.refetch()}
-                rangeLabel={rangeLabel[range]}
-                pinnedIds={pinnedRowIds}
-                cardProps={arrivalGroupPropsFor("stay", stayRows)}
-              />
-            </div>
-            <div className="order-11 col-span-1 lg:order-8 lg:self-start">
-              <FreePropertiesCard
-                loading={occupancyQ.isLoading}
-                properties={freeProperties}
-                day={occStart}
-                onRefresh={() => occupancyQ.refetch()}
-              />
+            {/* NO COMPUTADOR os dois viram UMA célula só, empilhados com o
+                mesmo respiro dos outros cards — antes eram duas células da
+                grade e as linhas (altas por causa do calendário) abriam um vão
+                enorme entre eles (pedido explícito, 18/09/2026: "o card
+                imóveis livres ficou longe do card em estadia.. precisa ficar
+                logo na sequência"). No celular `contents` some com o invólucro
+                e os dois voltam a ser dois itens da grade, meia largura cada,
+                exatamente como eram. */}
+            <div className="contents lg:order-7 lg:col-start-4 lg:row-span-2 lg:flex lg:flex-col lg:gap-2.5 lg:self-start">
+              <div className="order-10 col-span-1">
+                <KpiCard
+                  label="Em Estadia"
+                  rows={stayRows}
+                  icon={BedDouble}
+                  tone="primary-soft"
+                  loading={checkinListQ.isLoading}
+                  onRefresh={() => checkinListQ.refetch()}
+                  rangeLabel={rangeLabel[range]}
+                  pinnedIds={pinnedRowIds}
+                  cardProps={arrivalGroupPropsFor("stay", stayRows)}
+                />
+              </div>
+              <div className="order-11 col-span-1">
+                <FreePropertiesCard
+                  loading={occupancyQ.isLoading}
+                  properties={freeProperties}
+                  day={occStart}
+                  onRefresh={() => occupancyQ.refetch()}
+                />
+              </div>
             </div>
           </div>
 
@@ -3647,17 +3691,16 @@ export function OperationShell({
     <div className="space-y-3">
       <div className="lg:flex lg:items-end lg:justify-between lg:gap-8">
         <div className="min-w-0 lg:flex-1">
-          <p className="ds-eyebrow mb-1.5 text-[10.5px] tracking-[0.18em] text-accent">{hoje}</p>
+          {/* A data em amarelo fraco (pedido explícito, 18/09/2026) — era o
+              rosa da marca, que no topo da página disputava com a aba ativa. */}
+          <p className="ds-eyebrow ds-data mb-1.5 text-[10.5px] tracking-[0.2em]">{hoje}</p>
           {/* As ações dividem a LINHA DO TÍTULO — não o bloco de duas linhas.
               Centradas no bloco inteiro (como estavam), elas caíam na altura
               do vão entre título e subtítulo e ficavam visivelmente baixas em
               relação ao título (print de 09/09/2026). Dentro da mesma linha do
               h1, o alinhamento passa a ser exato por construção, sem depender
               de medida nenhuma — e o subtítulo volta a ter a largura inteira. */}
-          <div className="flex items-center gap-2">
-            <h1 className="ds-page-title min-w-0 flex-1 truncate">{title ?? copy.title}</h1>
-            {actions && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}
-          </div>
+          <h1 className="ds-page-title truncate">{title ?? copy.title}</h1>
           <p className="ds-page-subtitle mt-1.5 truncate">{subtitle ?? copy.subtitle}</p>
         </div>
 
@@ -3669,24 +3712,43 @@ export function OperationShell({
             vão morto depois da última aba. Aqui não há sobra por construção.
             Padrão "A · Noite": caixa com fio de 1px e respiro de 4px, e a aba
             ativa como uma pílula com o gradiente da marca. */}
-        <nav className="ds-tabs mb-5 lg:mb-0 lg:w-[520px] lg:shrink-0">
-          {OPERATION_TABS.map((t) => {
-            const active = t.view === view;
-            return (
-              <Link
-                key={t.view}
-                to={t.to}
-                className={`flex min-h-[38px] flex-1 items-center justify-center rounded-[10px] px-2 text-center text-[13px] leading-none transition-colors ${
-                  active
-                    ? "ds-tab-active font-bold"
-                    : "font-semibold text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {t.label}
-              </Link>
-            );
-          })}
-        </nav>
+        {/* OS BOTÕES E AS ABAS SÃO UM CONJUNTO SÓ (pedido explícito,
+            18/09/2026, com print).
+        
+            No computador, os botões ficam À ESQUERDA da barra de abas, com a
+            MESMA ALTURA (44px) e o mesmo raio dela — os três encostam à
+            direita e alinham pela base com o subtítulo. Antes eles ficavam na
+            linha do título, sem par de altura com nada.
+        
+            No celular, eles ocupam a LARGURA INTEIRA logo abaixo das abas,
+            divididos igualmente: é onde sobra espaço, e com espaço dá para
+            mostrar o rótulo em vez de só o ícone. `[&>*]:flex-1` estica o que
+            cada tela passa em `actions` sem que cada uma precise saber disso. */}
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-2">
+          <nav className="ds-tabs order-1 lg:order-2 lg:w-[520px] lg:shrink-0">
+            {OPERATION_TABS.map((t) => {
+              const active = t.view === view;
+              return (
+                <Link
+                  key={t.view}
+                  to={t.to}
+                  className={`flex min-h-[36px] flex-1 items-center justify-center rounded-[9px] px-2 text-center text-[13px] leading-none transition-colors ${
+                    active
+                      ? "ds-tab-active font-bold"
+                      : "font-semibold text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t.label}
+                </Link>
+              );
+            })}
+          </nav>
+          {actions && (
+            <div className="order-2 flex w-full items-center gap-2 lg:order-1 lg:w-auto lg:shrink-0">
+              {actions}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -4025,27 +4087,27 @@ function KpiCard({
 
   const list = useWholeCardsMaxHeight(2, `${open}:${displayRows.length}:${loading}`);
   const screenshotRef = useRef<HTMLDivElement | null>(null);
-  const valueTone = tone === "primary" ? "text-accent" : "text-foreground";
-  const valueColor =
+  /* PADRÃO "PRESENÇA" (18/09/2026): o número NÃO tem mais cor própria. Cada
+     card pintava o seu de azul, verde ou rosa e a tela virava um carnaval
+     ("muitas cores... preciso de algo mais profissional"). Agora o número é
+     sempre cor de texto — com o peso tipográfico que ele merece — e o estado
+     vira um FIO de 2px na aresta de cima do card, que se lê de longe sem
+     pintar nada. */
+  const topLine =
     shadowTone === "emerald"
-      ? "text-emerald-600 dark:text-emerald-400"
+      ? "bg-gradient-to-r from-[#7fb79a] to-transparent"
       : shadowTone === "amber"
-        ? "text-amber-600 dark:text-amber-400"
+        ? "bg-gradient-to-r from-[#c9a962] to-transparent"
         : shadowTone === "sky"
-          ? "text-sky-600 dark:text-sky-400"
-          : valueTone;
+          ? "bg-gradient-to-r from-[#7fb79a] to-transparent"
+          : null;
   // Refinamento executivo (só nesta página): removido o glow colorido
   // (shadow grande em rgba emerald/amber) — mantém a sombra neutra e fina
   // que já era usada nos cards sem cor, pra reduzir o "volume" visual.
   const shadowClass = "ds-3d ds-3d-hover";
-  const dotClass =
-    shadowTone === "emerald"
-      ? "bg-emerald-500"
-      : shadowTone === "amber"
-        ? "bg-amber-500"
-        : shadowTone === "sky"
-          ? "bg-sky-400"
-          : "bg-muted-foreground/50";
+  /* O ícone do card deixou de carregar a cor do estado — quem faz isso agora
+     é o fio de cima. Ele fica em cinza, como qualquer outro apoio. */
+  const dotClass = "bg-muted-foreground/50";
 
   return (
     <Dialog
@@ -4067,19 +4129,24 @@ function KpiCard({
               /* FAIXA DE DESTAQUE — padrão "A · Noite": fio âmbar de 1px,
                  gradiente que sai da esquerda, ícone em caixinha e o número
                  grande à direita. Mesmo conteúdo de sempre. */
-              className="relative flex w-full items-center gap-3 overflow-hidden rounded-[14px] border border-amber-300/35 bg-card px-3.5 py-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-              style={{
-                backgroundImage:
-                  "linear-gradient(90deg, rgba(251,191,36,0.12), rgba(251,191,36,0.03) 60%)",
-              }}
+              /* PADRÃO "PRESENÇA" (18/09/2026): a faixa era um card âmbar
+                 inteiro — borda, gradiente e rótulo, tudo da mesma cor. Virou
+                 um card normal com um TRAÇO âmbar na lateral; o rótulo fica
+                 CENTRALIZADO (pedido explícito, com print) e a contagem à
+                 direita, numa pílula neutra. */
+              className={`relative flex w-full items-center gap-3 overflow-hidden rounded-[14px] border-0 bg-card px-3.5 py-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
             >
-              <span className="grid size-8 shrink-0 place-items-center rounded-[10px] bg-amber-500/15 text-amber-500">
+              <span
+                aria-hidden
+                className="absolute inset-y-0 left-0 w-[2px] bg-gradient-to-b from-transparent via-[#c9a962] to-transparent"
+              />
+              <span className="ds-atencao grid size-8 shrink-0 place-items-center rounded-[10px] bg-[#c9a962]/10">
                 <Icon className="size-4" strokeWidth={2.2} />
               </span>
-              <span className="ds-eyebrow min-w-0 flex-1 truncate text-[10.5px] text-amber-500 dark:text-amber-400">
+              <span className="ds-eyebrow min-w-0 flex-1 truncate text-center text-[10.5px] tracking-[0.12em] text-muted-foreground">
                 {label}
               </span>
-              <span className="shrink-0 font-display text-[22px] font-bold leading-none tabular-nums text-foreground">
+              <span className="grid h-[26px] min-w-[26px] shrink-0 place-items-center rounded-full bg-foreground/[0.06] px-2 font-display text-[14px] font-bold leading-none tabular-nums shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
                 {loading ? "—" : rows.length}
               </span>
             </button>
@@ -4094,9 +4161,7 @@ function KpiCard({
                 <Icon className="size-3.5" strokeWidth={2} />
               </span>
               <span className="ds-eyebrow min-w-0 flex-1 truncate">{label}</span>
-              <span
-                className={`shrink-0 font-display text-[20px] font-bold leading-none tabular-nums ${valueColor}`}
-              >
+              <span className="shrink-0 font-display text-[20px] font-bold leading-none tabular-nums tracking-[-0.02em]">
                 {loading ? "—" : rows.length}
               </span>
             </button>
@@ -4112,8 +4177,14 @@ function KpiCard({
                · o cartão ficou mais baixo — 14px de respiro em vez de 20. */
           <button
             type="button"
-            className={`flex h-full w-full flex-col gap-1 rounded-[14px] border-0 bg-card px-2.5 pb-2.5 pt-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+            className={`relative flex h-full w-full flex-col gap-1 overflow-hidden rounded-[14px] border-0 bg-card px-2.5 pb-2.5 pt-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
           >
+            {topLine && (
+              <span
+                aria-hidden
+                className={`absolute inset-x-3 top-0 h-[2px] rounded-b-[3px] ${topLine}`}
+              />
+            )}
             <div className="flex w-full min-w-0 items-center gap-1.5">
               <span
                 className={`grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] ${dotClass.replace("bg-", "text-")}`}
@@ -4129,7 +4200,7 @@ function KpiCard({
               </span>
             </div>
             <div
-              className={`w-full pt-1.5 text-center font-display font-bold tabular-nums leading-none ${valueColor} ${
+              className={`w-full pt-1.5 text-center font-display font-bold tabular-nums leading-none tracking-[-0.03em] ${
                 shadowTone ? "text-[30px] sm:text-[34px]" : "text-[28px] sm:text-[32px]"
               }`}
             >
@@ -6694,20 +6765,22 @@ function CalendarFiltersButton({
             tratamento da borracha de limpar filtros, só ícone + texto
             soltos, sem caixinha ao redor, e SEM fundo nem no hover. */}
         {compactTrigger ? (
-          /* AÇÕES NA LINHA DO TÍTULO (mockup aprovado, 09/09/2026): quadrado de
-             30px, só ícone. Sem rótulo porque é o texto que estoura a largura
-             quando o título é longo — e o ponto rosa devolve, de graça, algo
-             que a barra antiga não dava: dá para VER que a tela está filtrada
-             sem abrir o painel. */
+          /* AÇÕES AO LADO DAS ABAS (18/09/2026). No computador é um quadrado
+             de 44px, só ícone, com a mesma altura e o mesmo raio da barra de
+             abas. No celular o botão ocupa metade da largura, e aí cabe o
+             rótulo: ícone sozinho num canto obriga a adivinhar; com espaço
+             sobrando, não custa nada dizer o que é. O ponto rosa continua
+             mostrando que a tela está filtrada sem precisar abrir o painel. */
           <button
             type="button"
             title={hasCustomFilters ? "Filtros e print · há filtro ativo" : "Filtros e print"}
             aria-label="Filtros e print"
-            className="relative grid size-[30px] shrink-0 place-items-center rounded-[0.4rem] bg-foreground/[0.06] text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
+            className="ds-3d ds-3d-hover relative flex h-11 flex-1 items-center justify-center gap-2 rounded-[13px] bg-card text-[12.5px] font-bold text-muted-foreground transition-colors hover:text-foreground lg:size-11 lg:flex-none lg:gap-0"
           >
-            <SlidersHorizontal className="size-3.5" />
+            <SlidersHorizontal className="size-[17px] shrink-0" />
+            <span className="lg:hidden">Filtros</span>
             {hasCustomFilters && (
-              <span className="absolute right-1 top-1 size-[5px] rounded-full bg-accent" />
+              <span className="absolute right-2 top-2 size-[5px] rounded-full bg-accent" />
             )}
           </button>
         ) : (
@@ -6955,6 +7028,68 @@ function CalendarFiltersButton({
  * painel, na aba "Limpeza") — por isso os valores/opções e os callbacks de
  * mudança chegam tudo via props. `properties` já chega FILTRADA.
  */
+/**
+ * A FOTO DO IMÓVEL AO PASSAR O MOUSE (pedido explícito, 18/09/2026: "ao
+ * colocar o mouse acima do quadrante que mostra o nome do título, do
+ * proprietário, etc.. deve-se abrir um quadrado com a foto do imóvel pra
+ * facilitar a vida do usuário.. isso também deve acontecer pelo celular ao
+ * clicar em cima desse quadrante").
+ *
+ * É o MESMO `Popover` do resto do sistema, só com dois gatilhos: no
+ * computador ele abre ao passar o mouse e fecha ao sair; no celular, onde não
+ * existe "passar o mouse", abre no toque e fecha no toque seguinte (ou ao
+ * tocar fora). Sem foto cadastrada o bloco continua sendo só texto — nada
+ * abre, para não prometer o que não existe.
+ */
+function PropertyPhotoPeek({
+  name,
+  photo,
+  children,
+}: {
+  name: string;
+  photo: string | null;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  if (!photo) return <>{children}</>;
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Ver foto de ${name}`}
+          onMouseEnter={() => setOpen(true)}
+          onMouseLeave={() => setOpen(false)}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setOpen(false)}
+          className="block w-full min-w-0 text-left"
+        >
+          {children}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="right"
+        align="start"
+        sideOffset={8}
+        // Não rouba o foco nem o toque: é só uma prévia, e no computador o
+        // mouse precisa poder sair por cima dela sem "prender" o quadro.
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        className="pointer-events-none w-[232px] overflow-hidden rounded-[12px] border-border/60 bg-popover p-1.5 shadow-2xl"
+      >
+        <img
+          src={photo}
+          alt={name}
+          loading="lazy"
+          className="h-[150px] w-full rounded-[9px] object-cover"
+        />
+        <p className="truncate px-1 pb-0.5 pt-1.5 text-[11.5px] font-semibold" title={name}>
+          {name}
+        </p>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function OccupancyPanel({
   loading,
   start,
@@ -6972,11 +7107,19 @@ function OccupancyPanel({
   ownerOptions,
   hasCustomFilters,
   onClearAllFilters,
+  onFitDaysChange,
 }: {
   loading: boolean;
   start: string;
   days: number;
-  properties: Array<{ id: string; name: string; city: string | null; ownerName?: string | null }>;
+  properties: Array<{
+    id: string;
+    name: string;
+    city: string | null;
+    ownerName?: string | null;
+    /** Foto de capa do imóvel — a prévia que abre no nome. */
+    heroImageUrl?: string | null;
+  }>;
   stays: Array<{
     propertyId: string;
     checkin: string;
@@ -7001,15 +7144,34 @@ function OccupancyPanel({
   ownerOptions: string[];
   hasCustomFilters: boolean;
   onClearAllFilters: () => void;
+  /** Quantos dias INTEIROS cabem no quadro com as colunas no tamanho máximo.
+   * O pai usa isto para buscar exatamente essa quantidade de dias, em vez de
+   * um número fixo — é o que faz o calendário mostrar mais dias quando há
+   * espaço, sem esticar coluna nenhuma. */
+  onFitDaysChange?: (days: number) => void;
 }) {
   /**
    * Mobile: exatamente 5 dias inteiros no visor.
    * Desktop: o máximo de dias inteiros que couber na largura do quadrante,
    * sem nunca cortar a bolinha do último dia.
    */
-  const NAME_COL_BASE = 130;
+  /* AS COLUNAS (pedido explícito, 18/09/2026, com print).
+
+     · A coluna do IMÓVEL cresceu: o nome do imóvel vinha cortado cedo demais,
+       e o pedido foi "aumente a coluna A até a linha demarcada".
+
+     · Cada coluna de dia agora tem LARGURA MÁXIMA — "apenas uma bolinha
+       simétrica". Antes só havia um mínimo (38px), então as colunas ESTICAVAM
+       para preencher o quadro: com poucos dias no visor cada um virava uma
+       faixa larguíssima com uma bolinha perdida no meio. Com um teto, a conta
+       se inverte: em vez de engordar as colunas, o quadro passa a mostrar
+       MAIS DIAS — que é exatamente o pedido ("se couberem mais dias dentro da
+       visão respeitando a regra anti corte, é para colocar"). */
+  const NAME_COL_BASE = 200;
   const MOBILE_DAYS = 5;
   const MIN_DAY_W = 38; // largura mínima por coluna no desktop
+  /** Teto por coluna: a bolinha (28px) mais o respiro dos dois lados. */
+  const MAX_DAY_W = 40;
   /**
    * ABERTO NO COMPUTADOR, recolhido no celular (pedido explícito, 18/09/2026:
    * "mantenha o calendário sempre expandido na visão DESKTOP, mas com
@@ -7027,6 +7189,13 @@ function OccupancyPanel({
   }, []);
   const outerRef = useRef<HTMLDivElement | null>(null);
   const scrollbarWRef = useRef<number | null>(null);
+  /** Última capacidade avisada ao pai — evita repetir o mesmo número. */
+  const fitRef = useRef<number | null>(null);
+  /* O aviso ao pai vai por uma referência, não direto: o efeito que mede a
+     largura roda com `[days, open]` e não deve reiniciar toda vez que o pai
+     recria a função. */
+  const onFitRef = useRef(onFitDaysChange);
+  onFitRef.current = onFitDaysChange;
   const [dayW, setDayW] = useState(40);
   const [visibleDays, setVisibleDays] = useState(MOBILE_DAYS);
   // Largura da coluna do nome — normalmente NAME_COL_BASE, mas cresce pra
@@ -7072,17 +7241,36 @@ function OccupancyPanel({
       // pensados pra tela pequena, com cada coluna minúscula e a sobra de
       // arredondamento inchando a coluna do nome a ponto de invadir
       // visualmente o espaço dos primeiros dias.
-      const isDesktop = w >= 1024;
-      const count = isDesktop
-        ? Math.max(1, Math.min(days, Math.floor(usable / MIN_DAY_W)))
-        : MOBILE_DAYS;
+      /* Quem decide se é "computador" é o QUADRO, não a janela. O limite era
+         1024px porque o calendário ocupava a largura inteira do conteúdo e as
+         duas medidas batiam. Depois que ele passou a ocupar 3 das 4 colunas
+         (18/09/2026), a largura DELE caiu abaixo de 1024 em telas normais de
+         computador e o quadro caía na regra do celular — 5 dias esticados,
+         que foi justamente o que o cliente apontou. Agora o critério é o que
+         importa de verdade: cabe a coluna do nome mais pelo menos 7 dias
+         inteiros? Então é computador. */
+      const isDesktop = usable >= 7 * MIN_DAY_W;
+      /* Quantos dias CABEM com a coluna no teto de largura. Entre o mínimo e o
+         máximo por coluna existe uma faixa de contagens possíveis; pegamos a
+         menor contagem que já respeita o teto (colunas no tamanho máximo), sem
+         nunca passar do que o mínimo permite — é ele que garante a regra
+         anti-corte. */
+      const cabem = Math.max(
+        1,
+        Math.min(Math.ceil(usable / MAX_DAY_W), Math.floor(usable / MIN_DAY_W)),
+      );
+      if (isDesktop && fitRef.current !== cabem) {
+        fitRef.current = cabem;
+        onFitRef.current?.(cabem);
+      }
+      const count = isDesktop ? Math.max(1, Math.min(days, cabem)) : MOBILE_DAYS;
       // Regra original: nome fixo (+ sobra) + N colunas INTEIRAS preenchendo
       // 100% da largura disponível — nunca deixar sobra vazia (barra cinza)
       // nem cortar coluna alguma na margem direita. A sobra do
       // arredondamento (usable não dividido perfeitamente por `count`) vai
       // pra coluna do NOME em vez de ficar de fora — é ela que cresce,
       // nunca uma coluna de dia cortada.
-      const baseDayW = Math.max(MIN_DAY_W, Math.floor(usable / count));
+      const baseDayW = Math.min(MAX_DAY_W, Math.max(MIN_DAY_W, Math.floor(usable / count)));
       const leftover = Math.max(0, usable - baseDayW * count);
       setVisibleDays(count);
       setDayW(baseDayW);
@@ -7375,24 +7563,26 @@ function OccupancyPanel({
                               className="sticky left-0 z-10 bg-card py-1 pr-3 align-middle"
                               style={{ width: nameColW, minWidth: nameColW }}
                             >
-                              <div className="min-w-0 max-w-full border-l-2 border-border/60 pl-2 group-hover:border-primary/50">
-                                {p.ownerName ? (
-                                  <div className="truncate text-[9.5px] font-semibold uppercase tracking-wide text-accent/80">
-                                    {p.ownerName}
+                              <PropertyPhotoPeek name={p.name} photo={p.heroImageUrl ?? null}>
+                                <div className="min-w-0 max-w-full border-l-2 border-border/60 pl-2 group-hover:border-primary/50">
+                                  {p.ownerName ? (
+                                    <div className="truncate text-[9.5px] font-semibold uppercase tracking-wide text-accent/80">
+                                      {p.ownerName}
+                                    </div>
+                                  ) : null}
+                                  <div
+                                    className="truncate text-[11.5px] font-semibold leading-tight"
+                                    title={p.name}
+                                  >
+                                    {p.name}
                                   </div>
-                                ) : null}
-                                <div
-                                  className="truncate text-[11.5px] font-semibold leading-tight"
-                                  title={p.name}
-                                >
-                                  {p.name}
+                                  {p.city ? (
+                                    <div className="truncate text-[10px] leading-tight text-muted-foreground">
+                                      {p.city}
+                                    </div>
+                                  ) : null}
                                 </div>
-                                {p.city ? (
-                                  <div className="truncate text-[10px] leading-tight text-muted-foreground">
-                                    {p.city}
-                                  </div>
-                                ) : null}
-                              </div>
+                              </PropertyPhotoPeek>
                             </td>
                             {dayList.map((d, i) => {
                               const a = halves[i * 2] as CellPart;
@@ -7553,15 +7743,11 @@ function EngagementBars({
     <div className="flex items-start gap-3.5 lg:gap-7">
       {temCheckin && (
         <RingCell
-          icon={ListChecks}
           label="Viram instruções de check-in"
           value={checkinViewed}
           total={checkins}
           pct={pctOf(checkinViewed, checkins)}
           breakdown={checkinBreakdown}
-          hint={
-            'Hóspedes com check-in no período que já abriram as "Instruções" apresentadas na sessão "Chegada" pelo menos uma vez.'
-          }
         />
       )}
       {temCheckin && temCodigos && (
@@ -7572,15 +7758,11 @@ function EngagementBars({
       )}
       {temCodigos && (
         <RingCell
-          icon={KeyRound}
           label="Viram senha de acesso"
           value={codesViewed}
           total={checkinsWithCodes}
           pct={pctOf(codesViewed, checkinsWithCodes)}
           breakdown={codesBreakdown}
-          hint={
-            "Hóspedes com check-in no período que já visualizaram as senhas de acesso no guia pelo menos uma vez."
-          }
         />
       )}
     </div>
@@ -7776,65 +7958,48 @@ function EngagementBreakdownDialog({
 }
 
 /** Medidas do anel — o traço é grosso o bastante para ler de longe. */
-const RING_D = 76;
-const RING_SW = 7;
+const RING_D = 78;
+const RING_SW = 7.5;
 const RING_R = RING_D / 2 - RING_SW;
 const RING_C = 2 * Math.PI * RING_R;
 
 function RingCell({
-  icon: Icon,
+  icon: _icon,
   label,
   value,
   total,
   pct,
   breakdown,
-  hint,
 }: {
-  icon: React.ElementType;
+  icon?: React.ElementType;
   label: string;
   value: number;
   total: number;
   pct: number;
   breakdown?: Breakdown;
-  /** Texto explicativo do que a métrica mede (ícone "i" ao lado da frase). */
-  hint?: string;
 }) {
-  /* UM QUADRANTE DO ENGAJAMENTO (mockup aprovado, 17/09/2026: "coloque esse
-     estilo de quadrante do engajamento, mas com os efeitos visuais do
-     primeiro").
-
-       celular            computador
-       ┌───────┐          ┌───────┐
-       │ (2/2) │          │ (2/2) │ 🗒 Viram instruções de check-in (i)
-       └───────┘          └───────┘
-       🗒 Viram… (i)
-
-     O anel é LISO, sem brilho: o brilho ficava preso à borda do desenho e
-     virava um quadrado colorido atrás do círculo (o cliente apontou duas
-     vezes). Os efeitos da direção A continuam no card que envolve isto aqui
-     — contorno de neon girando, clarão roxo no canto e o ponto pulsando.
-
-     Verde quando completou, rosa quando ainda falta gente: as mesmas cores
-     das barras que havia antes, e o mesmo mínimo de 3% para o anel nunca
-     sumir de vez quando ninguém viu ainda. */
+  /* UM QUADRANTE DO ENGAJAMENTO.
+  
+     Ajustes do cliente (18/09/2026, com prints): saiu o ícone que ficava ao
+     lado da frase e saiu o "i" de cada métrica — agora existe UM "i" só, no
+     canto superior direito do card, explicando as duas. A frase ficou em UMA
+     LINHA (por isso ela encolhe no celular, onde a metade é estreita).
+  
+     O anel é liso, sem brilho — o brilho ficava preso à borda do desenho e
+     virava um quadrado colorido atrás do círculo. O arco tem um degradê da
+     própria cor para o transparente: dá volume sem acender nada. As cores são
+     as contidas do padrão "Presença" (verde sálvia / rosa terroso), e o
+     número no meio é sempre cor de texto.
+  
+     O quadrante inteiro é clicável: a camada de clique fica por baixo e o
+     conteúdo por cima sem receber toque, então qualquer ponto da metade abre
+     a lista de quem viu. */
   const done = pct >= 100;
-  const tone = done ? "text-emerald-400" : "text-rose-400";
+  const tone = done ? "ds-ok" : "ds-falta";
+  const gid = `ring-${done ? "ok" : "falta"}`;
   const arco = RING_C * Math.max(pct, 3) * 0.01;
-  const labelClass =
-    "min-w-0 text-center text-[12px] font-semibold leading-snug text-muted-foreground lg:text-left lg:text-[13px]";
   return (
-    /* O QUADRANTE INTEIRO É O BOTÃO (pedido explícito, 18/09/2026: "torne o
-       quadrante todo de cada engajamento respectivo CLICÁVEL... se estiver
-       dividido ao meio, então metade clicável para mostrar quem viu
-       instruções e a outra metade para quem viu as senhas").
-
-       O botão é uma camada por baixo (`absolute inset-0`), e não um <button>
-       em volta do conteúdo: o "i" também é um botão e um não pode ficar
-       dentro do outro. O conteúdo fica por cima sem receber clique
-       (`pointer-events-none`), então o toque atravessa para a camada de
-       baixo em qualquer ponto da metade — menos no próprio "i", que volta a
-       receber clique. */
-    <div className="relative flex min-w-0 flex-1 flex-col items-center gap-2.5 lg:flex-row lg:gap-4">
+    <div className="relative flex min-w-0 flex-1 flex-col items-center gap-3 lg:flex-row lg:gap-4">
       {breakdown ? (
         <EngagementBreakdownDialog
           label={label}
@@ -7859,9 +8024,15 @@ function RingCell({
           width={RING_D}
           height={RING_D}
           viewBox={`0 0 ${RING_D} ${RING_D}`}
-          className="-rotate-90"
+          className={`-rotate-90 ${tone}`}
           aria-hidden="true"
         >
+          <defs>
+            <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stopColor="currentColor" />
+              <stop offset="1" stopColor="currentColor" stopOpacity="0.45" />
+            </linearGradient>
+          </defs>
           <circle
             cx={RING_D / 2}
             cy={RING_D / 2}
@@ -7869,40 +8040,33 @@ function RingCell({
             fill="none"
             stroke="currentColor"
             strokeWidth={RING_SW}
-            className="text-foreground/[0.07]"
+            className="text-foreground/[0.06]"
           />
           <circle
             cx={RING_D / 2}
             cy={RING_D / 2}
             r={RING_R}
             fill="none"
-            stroke="currentColor"
+            stroke={`url(#${gid})`}
             strokeWidth={RING_SW}
             strokeLinecap="round"
             strokeDasharray={`${arco} ${RING_C}`}
-            className={`${tone} transition-[stroke-dasharray] duration-700`}
+            className="transition-[stroke-dasharray] duration-700"
           />
         </svg>
         <span className="absolute inset-0 flex items-center justify-center font-display leading-none tabular-nums">
-          <span className={`text-[19px] font-bold ${tone}`}>{value}</span>
+          <span className="text-[20px] font-bold tracking-[-0.02em]">{value}</span>
           <span className="ds-faint text-[13px] font-medium">/{total}</span>
         </span>
       </div>
-      <div className="pointer-events-none relative z-[1] flex min-w-0 items-center justify-center gap-1.5 lg:justify-start">
-        <span className={`shrink-0 ${tone}`} aria-hidden="true">
-          <Icon className="size-[14px]" strokeWidth={2} />
-        </span>
-        <span className={labelClass} title={label}>
-          {label}
-        </span>
-        {/* O "i" é o único ponto do quadrante que NÃO abre a lista: ele abre
-            a explicação da métrica. Por isso volta a receber clique. */}
-        {hint ? (
-          <span className="pointer-events-auto shrink-0">
-            <InfoHint title={label}>{hint}</InfoHint>
-          </span>
-        ) : null}
-      </div>
+      {/* A frase em UMA linha: no celular ela encolhe para caber inteira na
+          metade do card; no computador sobra largura de sobra. */}
+      <p
+        className="pointer-events-none relative z-[1] min-w-0 truncate text-center text-[10.5px] font-semibold text-muted-foreground lg:text-left lg:text-[13px]"
+        title={label}
+      >
+        {label}
+      </p>
     </div>
   );
 }

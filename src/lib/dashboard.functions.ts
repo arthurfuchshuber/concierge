@@ -1984,7 +1984,9 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
       { data: checkinStatuses },
       { data: checkoutStatuses },
     ] = await Promise.all([
-      context.supabase.from("properties").select("id, name, city, owner_contact_id").in("id", propIds).order("name"),
+      // `hero_image_url`: a foto de capa do imóvel. Serve só para a prévia que
+      // abre ao passar o mouse (ou tocar) no nome, no calendário de ocupação.
+      context.supabase.from("properties").select("id, name, city, owner_contact_id, hero_image_url").in("id", propIds).order("name"),
       context.supabase
         .from("property_reservations")
         .select("id, property_id, checkin_date, checkout_date, guest_hint, status, raw_summary")
@@ -2123,6 +2125,7 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
       name: string | null;
       city: string | null;
       owner_contact_id?: string | null;
+      hero_image_url?: string | null;
     }>;
     const occOwnerIds = Array.from(
       new Set(propsRaw.map((p) => p.owner_contact_id).filter((v): v is string => !!v)),
@@ -2144,6 +2147,7 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
       name: p.name ?? "Sem nome",
       city: p.city ?? null,
       ownerName: p.owner_contact_id ? (occOwnerName.get(p.owner_contact_id) ?? null) : null,
+      heroImageUrl: p.hero_image_url ?? null,
     }));
 
     /**
