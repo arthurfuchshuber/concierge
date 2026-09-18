@@ -658,10 +658,6 @@ function Guide({ data }: { data: GuideOk }) {
     toast.loading("Liberando suas senhas…", { duration: 1500 });
     setRevealAttempt((n) => n + 1);
   }, [codesNeedReservation, accessRec?.code]);
-<<<<<<< HEAD
-=======
-
->>>>>>> 1946830e3fe521295bdc28efea0aecb3644a100c
 
   // Enquanto o estado real ainda não foi decidido (gateReady === false), a
   // página de fundo fica coberta — nunca "pisca" a home por trás do
@@ -1395,10 +1391,6 @@ function Guide({ data }: { data: GuideOk }) {
                                   hasAccessRec={!!accessRec}
                                   gateEnabled={gateEnabled}
                                   onMissingCodes={retryRevealCodes}
-<<<<<<< HEAD
-=======
-
->>>>>>> 1946830e3fe521295bdc28efea0aecb3644a100c
                                 />
                               </div>
                             )}
@@ -1420,10 +1412,6 @@ function Guide({ data }: { data: GuideOk }) {
                                   hasAccessRec={!!accessRec}
                                   gateEnabled={gateEnabled}
                                   onMissingCodes={retryRevealCodes}
-<<<<<<< HEAD
-=======
-
->>>>>>> 1946830e3fe521295bdc28efea0aecb3644a100c
                                   theme={theme}
                                   onShown={markPasswordsSeen}
                                   gateInstructions={p.gate_instructions as string | null}
@@ -5013,7 +5001,6 @@ function WifiStrip({
     requestUnlock(() => setRevealed(true));
   }
 
-
   function copyPwd() {
     if (!gateOk()) return;
     requestUnlock(() => {
@@ -5097,10 +5084,6 @@ function AccessCodesStrip({
   lockMedia,
   onShown,
   onMissingCodes,
-<<<<<<< HEAD
-=======
-
->>>>>>> 1946830e3fe521295bdc28efea0aecb3644a100c
 }: {
   gateCode: string | null;
   lockCode: string | null;
@@ -5122,10 +5105,6 @@ function AccessCodesStrip({
   lockMedia?: Array<{ url: string; type: "image" | "video" }>;
   onShown?: (kind: "lock" | "gate") => void;
   onMissingCodes?: () => void;
-<<<<<<< HEAD
-=======
-
->>>>>>> 1946830e3fe521295bdc28efea0aecb3644a100c
 }) {
   const [revealed, setRevealed] = useState(false);
   const [instrOpen, setInstrOpen] = useState(false);
@@ -5170,7 +5149,6 @@ function AccessCodesStrip({
       return false;
     }
     return true;
-
   }
 
   function handleEyeClick() {
