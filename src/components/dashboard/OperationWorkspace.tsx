@@ -7264,6 +7264,29 @@ function OccupancyPanel({
         onFitRef.current?.(cabem);
       }
       const count = isDesktop ? Math.max(1, Math.min(days, cabem)) : MOBILE_DAYS;
+
+      if (!isDesktop) {
+        /* CELULAR — ANTI-CORTE (regressão apontada em 18/09/2026, com print:
+           o 4º dia aparecia cortado na margem direita).
+           A causa: a coluna do nome estava FIXA em NAME_COL_BASE (200px), o
+           que numa tela de ~360px deixa menos de 150px para 5 colunas de dia
+           — abaixo do mínimo de 38px cada. O cálculo então produzia
+           5 × 38 = 190px de dias dentro de 150px de espaço: corte garantido.
+           No celular quem cede é a COLUNA DO NOME (ela tem reticências e
+           aguenta), nunca a última coluna de dia. Os 5 dias inteiros sempre
+           cabem exatamente na largura real da tela. */
+        const MOBILE_NAME_MIN = 96;
+        const total = w - (scrollbarWRef.current ?? 0);
+        const dayWMobile = Math.max(
+          22,
+          Math.min(MAX_DAY_W, Math.floor((total - MOBILE_NAME_MIN) / MOBILE_DAYS)),
+        );
+        setVisibleDays(MOBILE_DAYS);
+        setDayW(dayWMobile);
+        setNameColW(Math.max(MOBILE_NAME_MIN, total - dayWMobile * MOBILE_DAYS));
+        return;
+      }
+
       // Regra original: nome fixo (+ sobra) + N colunas INTEIRAS preenchendo
       // 100% da largura disponível — nunca deixar sobra vazia (barra cinza)
       // nem cortar coluna alguma na margem direita. A sobra do
