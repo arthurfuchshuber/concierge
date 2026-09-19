@@ -71,7 +71,7 @@ export const conciergeAgent: AgentDefinition = {
     "outro",
   ],
   memoryKinds: ["fact", "preference"],
-  reasoningEffort: "medium",
+  reasoningEffort: "max",
   maxSteps: 12,
   escalationRules: [
     "pedido explícito de falar com um humano",

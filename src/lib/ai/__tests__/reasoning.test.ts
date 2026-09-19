@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { maxStepsFor, reasoningFor } from "../reasoning";
 
 describe("política de raciocínio", () => {
-  it("não gasta raciocínio em saudação e agradecimento", () => {
+  it("reduz (sem zerar) em saudação e agradecimento", () => {
     for (const m of ["oi", "Olá", "bom dia", "ok", "obrigado!", "valeu", "tchau"]) {
-      expect(reasoningFor(m)).toBe("low");
+      expect(reasoningFor(m)).toBe("medium");
     }
   });
 
@@ -17,35 +17,41 @@ describe("política de raciocínio", () => {
       "como funciona o checkout automático?",
       "qual o melhor horário pra limpeza?",
     ]) {
-      expect(reasoningFor(m), m).toBe("high");
+      expect(reasoningFor(m), m).toBe("max");
     }
   });
 
   it("pensa fundo quando há várias perguntas ou texto longo", () => {
-    expect(reasoningFor("que horas é o checkout? e o wifi qual é?")).toBe("high");
-    expect(reasoningFor("a".repeat(200))).toBe("high");
+    expect(reasoningFor("que horas é o checkout? e o wifi qual é?")).toBe("max");
+    expect(reasoningFor("a".repeat(200))).toBe("max");
   });
 
-  it("usa o padrão médio numa pergunta objetiva comum", () => {
-    expect(reasoningFor("quantas limpezas eu tenho amanhã")).toBe("medium");
-    expect(reasoningFor("o studio 105 está ocupado hoje")).toBe("medium");
+  it("o padrão é o esforço máximo", () => {
+    expect(reasoningFor("quantas limpezas eu tenho amanhã")).toBe("max");
+    expect(reasoningFor("o studio 105 está ocupado hoje")).toBe("max");
+  });
+
+  it("reduz um pouco numa consulta pontual de um dado só", () => {
+    expect(reasoningFor("que horas é o checkout?")).toBe("xhigh");
+    expect(reasoningFor("qual é a senha do wifi?")).toBe("xhigh");
   });
 
   it("nunca deixa um pedido de ação no mínimo", () => {
     // "ok" sozinho é trivial, mas no painel toda mensagem pode virar gravação.
-    expect(reasoningFor("ok", { isAction: true })).toBe("medium");
-    expect(reasoningFor("abre uma pendência no 105", { isAction: true })).toBe("medium");
+    expect(reasoningFor("ok", { isAction: true })).toBe("max");
+    expect(reasoningFor("abre uma pendência no 105", { isAction: true })).toBe("max");
   });
 
   it("risco alto manda direto para o topo", () => {
-    expect(reasoningFor("oi", { highRisk: true })).toBe("high");
+    expect(reasoningFor("oi", { highRisk: true })).toBe("max");
   });
 
   it("não confunde um 'ok' que continua numa pergunta de verdade", () => {
-    expect(reasoningFor("ok, mas por que a limpeza mudou de dia?")).toBe("high");
+    expect(reasoningFor("ok, mas por que a limpeza mudou de dia?")).toBe("max");
   });
 
   it("dá mais passos de ferramenta a quem pensa mais", () => {
+    expect(maxStepsFor("max")).toBeGreaterThanOrEqual(maxStepsFor("high"));
     expect(maxStepsFor("high")).toBeGreaterThan(maxStepsFor("medium"));
     expect(maxStepsFor("medium")).toBeGreaterThan(maxStepsFor("low"));
   });

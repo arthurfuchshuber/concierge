@@ -337,7 +337,7 @@ export async function runAgent(params: {
   input: ResponsesItem[];
   tools: AgentTool[];
   maxSteps?: number;
-  reasoningEffort?: "low" | "medium" | "high";
+  reasoningEffort?: "low" | "medium" | "high" | "xhigh" | "max";
   signal?: AbortSignal;
   /**
    * Recebe o texto da resposta conforme ele é escrito, para a interface poder
@@ -382,7 +382,7 @@ export async function runAgent(params: {
         stream: true,
         store: false,
         ...(toolDefs.length ? { tools: toolDefs, tool_choice: "auto" } : {}),
-        reasoning: { effort: params.reasoningEffort ?? "low", summary: "auto" },
+        reasoning: { effort: params.reasoningEffort ?? "max", summary: "auto" },
         include: ["reasoning.encrypted_content"],
       },
       signal,
