@@ -44,6 +44,9 @@ const CardMode = z.enum(["checkin", "checkout", "stay", "cleaning", "done", "no_
  * objeto, enquanto dano e manutenção são pra operação resolver, não pra
  * faxina executar.
  */
+/** Marca das pendências que o próprio registro abriu — só essas somem junto. */
+const DESCRICAO_PENDENCIA_AUTOMATICA = "Aberta automaticamente a partir de um registro da reserva.";
+
 const TASK_RULES: Record<
   string,
   {
