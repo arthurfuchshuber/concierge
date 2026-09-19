@@ -754,7 +754,12 @@ function CategoryCard({
       {active && (
         <span
           aria-hidden
-          className="absolute inset-1 rounded-[9px] bg-foreground/[0.07] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)]"
+          /* A MANCHA OCUPA A CÉLULA INTEIRA (pedido explícito, 18/09/2026):
+             com `inset-1` sobrava uma moldura do fundo em volta e os fios
+             internos apareciam colados na direita e embaixo. Agora vai de
+             aresta a aresta — o raio de canto quem dá é a casca do bloco,
+             que já recorta o que passa. */
+          className="absolute inset-0 bg-foreground/[0.07] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)]"
         />
       )}
       <div className="relative flex w-full min-w-0 items-center gap-1.5">
