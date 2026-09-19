@@ -22,14 +22,7 @@ import { useUndoableRecordDelete } from "@/hooks/useUndoableRecordDelete";
 import { useRealtimeInvalidate } from "@/hooks/useRealtimeInvalidate";
 import { notifyAction } from "@/components/UndoActionBar";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useImpersonation } from "@/hooks/useImpersonation";
@@ -231,13 +224,7 @@ function fmtStayRange(checkin: string | null, checkout: string | null): string |
  * Não mexe em `CATEGORIES`: aquela ordem é do SELETOR que abre antes da
  * câmera (definida pelo cliente em 07/09/2026) e continua valendo lá.
  */
-const CARD_ORDER: readonly RecordCategory[] = [
-  "maintenance",
-  "damage",
-  "forgotten",
-  "cleaning_audit",
-  "other",
-];
+const CARD_ORDER: readonly RecordCategory[] = ["maintenance", "damage", "forgotten", "cleaning_audit", "other"];
 const CARDS = CARD_ORDER.map((k) => CATEGORY_BY_KEY.get(k)!).filter(Boolean);
 
 /** Quantas pendências o cartão do imóvel lista antes de colapsar em "+N". */
@@ -310,10 +297,7 @@ export function RecordsWorkspace() {
     staleTime: 5 * 60_000,
   });
   const linkProperties = useMemo(() => optionsQ.data?.properties ?? [], [optionsQ.data]);
-  const ownerOptions = useMemo(
-    () => (optionsQ.data?.owners ?? []).map((o) => o.name),
-    [optionsQ.data],
-  );
+  const ownerOptions = useMemo(() => (optionsQ.data?.owners ?? []).map((o) => o.name), [optionsQ.data]);
 
   /**
    * O filtro de PROPRIETÁRIO vira lista de imóveis antes de ir ao servidor —
@@ -322,9 +306,7 @@ export function RecordsWorkspace() {
    */
   const propertyIds = useMemo<string[] | null>(() => {
     const byOwner =
-      ownerFilters.length > 0
-        ? linkProperties.filter((p) => p.ownerName && ownerFilters.includes(p.ownerName))
-        : null;
+      ownerFilters.length > 0 ? linkProperties.filter((p) => p.ownerName && ownerFilters.includes(p.ownerName)) : null;
     const ids = new Set<string>();
     if (byOwner) for (const p of byOwner) ids.add(p.id);
     if (propertyFilters.length > 0) {
@@ -351,8 +333,7 @@ export function RecordsWorkspace() {
       period,
       (propertyIds ?? []).join(","),
     ] as const,
-    queryFn: () =>
-      listFn({ data: { ownerId: activeOwnerId, category, onlyOpen, days, propertyIds } }),
+    queryFn: () => listFn({ data: { ownerId: activeOwnerId, category, onlyOpen, days, propertyIds } }),
   });
 
   // Excluir com "Desfazer" e resposta instantânea (17/09/2026).
@@ -499,7 +480,7 @@ export function RecordsWorkspace() {
        Limpeza) — este wrapper é o que dá o respiro lateral, o teto de
        largura e o alinhamento do título com o conteúdo. Sem ele a tela
        nasce colada nas bordas e desalinhada de todo o resto do app. */
-    <div className="w-full max-w-[1440px] px-2.5 py-5 sm:px-5 lg:px-8 lg:py-8">
+    <div className="w-full max-w-[1440px] px-3.5 py-5 sm:px-5 lg:px-8 lg:py-8">
       {/* O RESPIRO DA SUBPÁGINA VEM DA REGRA (mockup "Direção A" aprovado,
           18/09/2026). Era `space-y-1.5` — 6px entre TUDO: a barra de abas
           encostava nos cartões, os cartões encostavam no bloco de atenção, e
@@ -653,8 +634,8 @@ export function RecordsWorkspace() {
 
             {q.data?.truncated && (
               <p className="pt-1 text-center text-[11px] text-muted-foreground">
-                Histórico longo — a lista mostra os mais recentes. Escolher uma categoria ou um
-                período afina o que aparece.
+                Histórico longo — a lista mostra os mais recentes. Escolher uma categoria ou um período afina o que
+                aparece.
               </p>
             )}
           </div>
@@ -794,9 +775,7 @@ const FIO_INTERNO = "bg-[color-mix(in_oklab,var(--foreground)_11%,transparent)]"
 function CategoriaCelula({ i, children }: { i: number; children: React.ReactNode }) {
   return (
     <div className="relative">
-      {i % 3 !== 0 && (
-        <span aria-hidden className={`absolute inset-y-2 left-0 w-px ${FIO_INTERNO}`} />
-      )}
+      {i % 3 !== 0 && <span aria-hidden className={`absolute inset-y-2 left-0 w-px ${FIO_INTERNO}`} />}
       {i >= 3 && <span aria-hidden className={`absolute inset-x-2 top-0 h-px ${FIO_INTERNO}`} />}
       {children}
     </div>
@@ -955,9 +934,7 @@ function PropertyCard({
             mesmo cartão só roubava largura do nome do imóvel. */}
         <span className="ds-card-title block">{group.label}</span>
         {group.sublabel && (
-          <span className={`mt-0.5 block truncate text-[10.5px] ${CARD_OWNER}`}>
-            {group.sublabel}
-          </span>
+          <span className={`mt-0.5 block truncate text-[10.5px] ${CARD_OWNER}`}>{group.sublabel}</span>
         )}
 
         {hasPending && (
@@ -991,16 +968,9 @@ function PropertyCard({
             </button>
             {pendingOpen && (
               <>
-                {(showAllPending ? group.pending : group.pending.slice(0, PENDING_ROWS)).map(
-                  (r) => (
-                    <PendingRow
-                      key={r.id}
-                      record={r}
-                      onOpen={() => onOpen(r)}
-                      onResolve={() => onResolve(r)}
-                    />
-                  ),
-                )}
+                {(showAllPending ? group.pending : group.pending.slice(0, PENDING_ROWS)).map((r) => (
+                  <PendingRow key={r.id} record={r} onOpen={() => onOpen(r)} onResolve={() => onResolve(r)} />
+                ))}
                 {hiddenPending > 0 && (
                   <button
                     type="button"
@@ -1054,18 +1024,9 @@ function PropertyCard({
                   const isLastSlot = i === thumbCap - 1;
                   const hidden = group.rest.length - thumbCap;
                   if (isLastSlot && hidden > 0) {
-                    return (
-                      <MoreThumb
-                        key="more"
-                        small={hasPending}
-                        count={hidden + 1}
-                        onClick={() => onOpen(r)}
-                      />
-                    );
+                    return <MoreThumb key="more" small={hasPending} count={hidden + 1} onClick={() => onOpen(r)} />;
                   }
-                  return (
-                    <Thumb key={r.id} record={r} small={hasPending} onOpen={() => onOpen(r)} />
-                  );
+                  return <Thumb key={r.id} record={r} small={hasPending} onOpen={() => onOpen(r)} />;
                 })}
               </div>
             )}
@@ -1077,15 +1038,7 @@ function PropertyCard({
 }
 
 /** O "+N" da tira — mesma caixa do quadrante, sem faixa e sem data. */
-function MoreThumb({
-  small,
-  count,
-  onClick,
-}: {
-  small?: boolean;
-  count: number;
-  onClick: () => void;
-}) {
+function MoreThumb({ small, count, onClick }: { small?: boolean; count: number; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -1178,15 +1131,7 @@ function PendingRow({
   );
 }
 
-function Thumb({
-  record,
-  small,
-  onOpen,
-}: {
-  record: AccountRecord;
-  small?: boolean;
-  onOpen: () => void;
-}) {
+function Thumb({ record, small, onOpen }: { record: AccountRecord; small?: boolean; onOpen: () => void }) {
   const meta = CATEGORY_BY_KEY.get(record.category);
   const open = record.taskStatus === "pending";
   const bandH = small ? "h-3.5" : "h-4";
@@ -1212,12 +1157,7 @@ function Thumb({
               container não cortam nada — o texto vaza pelos dois lados. */}
           <span className="truncate">{meta?.short ?? "Registro"}</span>
         </span>
-        {open && (
-          <span
-            className="absolute inset-x-0 bottom-0 h-[3px] bg-rose-500"
-            aria-label="Em aberto"
-          />
-        )}
+        {open && <span className="absolute inset-x-0 bottom-0 h-[3px] bg-rose-500" aria-label="Em aberto" />}
         {/* UMA SITUAÇÃO COM VÁRIAS MÍDIAS: o número avisa que tem mais coisa
             ali dentro — sem ele, quatro fotos viram um quadrado só e ninguém
             desconfia. */}
@@ -1276,14 +1216,7 @@ function RecordViewerDialog({
         className="w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border-border/60 bg-card/95 p-0 backdrop-blur-xl sm:w-full sm:max-w-md"
         aria-describedby={undefined}
       >
-        {record && (
-          <RecordViewerBody
-            record={record}
-            onDelete={onDelete}
-            onResolve={onResolve}
-            onEdited={onEdited}
-          />
-        )}
+        {record && <RecordViewerBody record={record} onDelete={onDelete} onResolve={onResolve} onEdited={onEdited} />}
       </DialogContent>
     </Dialog>
   );
@@ -1403,8 +1336,7 @@ function RecordViewerBody({
   // Linha da reserva: hóspede · código · datas, sem os separadores dos
   // pedaços que não existem.
   const reservationLine =
-    [record.guestName, record.reservationCode, stay].filter(Boolean).join(" · ") ||
-    "Sem reserva vinculada";
+    [record.guestName, record.reservationCode, stay].filter(Boolean).join(" · ") || "Sem reserva vinculada";
 
   /* UMA SITUAÇÃO PODE TER VÁRIAS MÍDIAS (10/09/2026). O palco mostra uma de
      cada vez e a fileira embaixo troca — registro antigo, de uma mídia só,
@@ -1449,13 +1381,9 @@ function RecordViewerBody({
           {record.propertyName}
         </DialogTitle>
         {record.ownerName && (
-          <span className={`block truncate text-[10.5px] leading-tight ${CARD_OWNER}`}>
-            {record.ownerName}
-          </span>
+          <span className={`block truncate text-[10.5px] leading-tight ${CARD_OWNER}`}>{record.ownerName}</span>
         )}
-        <span className="block truncate text-[10px] leading-tight text-muted-foreground">
-          {reservationLine}
-        </span>
+        <span className="block truncate text-[10px] leading-tight text-muted-foreground">{reservationLine}</span>
       </DialogHeader>
 
       <div className={`relative ${VIEWER_STAGE} overflow-hidden bg-black`}>
@@ -1737,9 +1665,7 @@ function ResolveDialog({
     mutationFn: async () => {
       if (!record?.taskId) throw new Error("Este registro não tem pendência.");
       // "1.234,56" e "1234.56" chegam iguais em centavos.
-      const cents = hasCost
-        ? Math.round(Number(amount.replace(/\./g, "").replace(",", ".")) * 100)
-        : null;
+      const cents = hasCost ? Math.round(Number(amount.replace(/\./g, "").replace(",", ".")) * 100) : null;
       if (hasCost && (!Number.isFinite(cents) || (cents ?? 0) < 0)) {
         throw new Error("Informe um valor válido.");
       }
@@ -1769,8 +1695,7 @@ function ResolveDialog({
           .catch((e) => toast.error(e instanceof Error ? e.message : "Não foi possível desfazer."));
       });
     },
-    onError: (e: unknown) =>
-      toast.error(e instanceof Error ? e.message : "Não foi possível resolver."),
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Não foi possível resolver."),
   });
 
   const options = payer === "owner" ? owners : payer === "provider" ? providers : [];
@@ -1783,9 +1708,7 @@ function ResolveDialog({
         aria-describedby={undefined}
       >
         <DialogHeader className="space-y-0 px-4 pb-2 pr-11 pt-4 text-left">
-          <DialogTitle className="ds-card-title block w-full truncate">
-            Resolver pendência
-          </DialogTitle>
+          <DialogTitle className="ds-card-title block w-full truncate">Resolver pendência</DialogTitle>
           {record && (
             <span className="mt-0.5 block truncate text-[10.5px] text-muted-foreground">
               {/* Aqui é identificação, não leitura: sem título, o nome do
@@ -1822,9 +1745,7 @@ function ResolveDialog({
               </label>
 
               <div>
-                <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">
-                  Quem paga
-                </span>
+                <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">Quem paga</span>
                 <div className="mt-1 grid grid-cols-3 gap-1">
                   {(
                     [
@@ -1855,11 +1776,7 @@ function ResolveDialog({
               {needsWho && (
                 <div className="overflow-hidden rounded-[0.3rem] border border-border/60">
                   <Command>
-                    <CommandInput
-                      placeholder={
-                        payer === "owner" ? "Buscar proprietário..." : "Buscar prestador..."
-                      }
-                    />
+                    <CommandInput placeholder={payer === "owner" ? "Buscar proprietário..." : "Buscar prestador..."} />
                     <CommandList className="sg-elegant-scroll max-h-40">
                       <CommandEmpty>Nenhum cadastrado.</CommandEmpty>
                       <CommandGroup>
@@ -1870,9 +1787,7 @@ function ResolveDialog({
                             onSelect={() => setPayerId(o.id)}
                             className="cursor-pointer gap-2"
                           >
-                            <Check
-                              className={`size-3.5 ${payerId === o.id ? "opacity-100" : "opacity-0"}`}
-                            />
+                            <Check className={`size-3.5 ${payerId === o.id ? "opacity-100" : "opacity-0"}`} />
                             <span className="truncate">{o.name}</span>
                           </CommandItem>
                         ))}
@@ -1885,9 +1800,7 @@ function ResolveDialog({
           )}
 
           <label className="block">
-            <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">
-              Observação (opcional)
-            </span>
+            <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">Observação (opcional)</span>
             <textarea
               rows={2}
               value={note}
@@ -1957,13 +1870,7 @@ function ViewerStage({
           playsInline
           className="pointer-events-none absolute -inset-5 size-[calc(100%+2.5rem)] scale-110 object-cover blur-2xl brightness-[.55] saturate-125"
         />
-        <video
-          src={record.url}
-          controls
-          playsInline
-          preload="metadata"
-          className="relative size-full object-contain"
-        />
+        <video src={record.url} controls playsInline preload="metadata" className="relative size-full object-contain" />
       </>
     );
   }
@@ -2081,17 +1988,7 @@ function RecordsFiltersButton({
     );
   }
 
-  function Row({
-    label,
-    value,
-    onClick,
-    last,
-  }: {
-    label: string;
-    value: string;
-    onClick: () => void;
-    last?: boolean;
-  }) {
+  function Row({ label, value, onClick, last }: { label: string; value: string; onClick: () => void; last?: boolean }) {
     return (
       <button
         type="button"
@@ -2129,9 +2026,7 @@ function RecordsFiltersButton({
         >
           <SlidersHorizontal className={ACTION_ICON} />
           <span className="lg:hidden">Filtros</span>
-          {hasCustomFilters && (
-            <span className="absolute right-2 top-2 size-[5px] rounded-full bg-accent" />
-          )}
+          {hasCustomFilters && <span className="absolute right-2 top-2 size-[5px] rounded-full bg-accent" />}
         </button>
       </PopoverTrigger>
 
@@ -2205,9 +2100,7 @@ function RecordsFiltersButton({
                 onClick={() => onGroupByChange(o.value)}
                 className="flex w-full items-center gap-2 border-b border-border px-3 py-2.5 text-left text-xs transition-colors last:border-b-0 hover:bg-secondary/30"
               >
-                <Check
-                  className={`size-3.5 ${o.value === groupBy ? "opacity-100" : "opacity-0"}`}
-                />
+                <Check className={`size-3.5 ${o.value === groupBy ? "opacity-100" : "opacity-0"}`} />
                 {o.label}
               </button>
             ))}
@@ -2262,10 +2155,7 @@ function RecordsFiltersButton({
                       onSelect={() => toggle(ownerFilters, o, onOwnerFiltersChange)}
                       className="cursor-pointer gap-2"
                     >
-                      <Checkbox
-                        checked={ownerFilters.includes(o)}
-                        className="pointer-events-none"
-                      />
+                      <Checkbox checked={ownerFilters.includes(o)} className="pointer-events-none" />
                       <span className="truncate">{o}</span>
                     </CommandItem>
                   ))}
@@ -2306,10 +2196,7 @@ function RecordsFiltersButton({
                       onSelect={() => toggle(propertyFilters, p.id, onPropertyFiltersChange)}
                       className="cursor-pointer gap-2"
                     >
-                      <Checkbox
-                        checked={propertyFilters.includes(p.id)}
-                        className="pointer-events-none"
-                      />
+                      <Checkbox checked={propertyFilters.includes(p.id)} className="pointer-events-none" />
                       <span className="truncate">{p.name}</span>
                     </CommandItem>
                   ))}
