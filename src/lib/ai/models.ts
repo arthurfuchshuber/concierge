@@ -8,25 +8,25 @@
 
 export const AI_MODELS = {
   /** Agente principal: raciocínio, planejamento, tool calling, resposta. */
-  agent: "openai/gpt-5.6-sol",
+  agent: "openai/gpt-6-astra",
   /** Classificação de intenção / idioma / urgência (baixa latência, baixo custo). */
-  intent: "google/gemini-3.1-flash-lite",
+  intent: "google/gemini-3.8-flash",
   /** Tradução bidirecional em tempo real. */
   translate: "google/gemini-3.1-flash-lite",
   /** Análise de sentimento e risco. */
-  sentiment: "google/gemini-3.1-flash-lite",
+  sentiment: "google/gemini-3.8-flash",
   /** Resumo automático de conversas. */
-  summary: "google/gemini-2.5-flash",
+  summary: "google/gemini-3.8-flash",
   /** Memória inteligente por hóspede. */
-  memory: "google/gemini-2.5-flash",
+  memory: "google/gemini-3.8-flash",
   /** Validação final antes de enviar ao hóspede. */
-  validation: "google/gemini-2.5-flash",
+  validation: "google/gemini-3.8-flash",
   /** City Pulse: clima, eventos, notícias, informações locais. */
   cityPulse: "google/gemini-2.5-flash",
   /** Extração inteligente de documentos (RG, passaporte, CNH, comprovantes). */
   documents: "google/gemini-2.5-flash",
   /** Interpretação de contratos (ClickSign). */
-  contracts: "openai/gpt-5.6-sol",
+  contracts: "openai/gpt-6-astra",
   /** Geração de conteúdo (descrições, mensagens, anúncios, e-mails). */
   content: "google/gemini-2.5-flash",
   /**
@@ -38,7 +38,7 @@ export const AI_MODELS = {
    * modelo mais barato aqui não é uma troca de qualidade por custo — é ficar
    * sem ferramenta nenhuma.
    */
-  internal: "openai/gpt-5.6-sol",
+  internal: "openai/gpt-6-astra",
   /** Organização e justificativa de recomendações turísticas. */
   recommendations: "google/gemini-2.5-flash",
   /** Embeddings do Hybrid RAG. */
@@ -58,7 +58,9 @@ export function isResponsesModel(model: string): boolean {
 
 /** Custo estimado em USD por 1M de tokens (aproximado, apenas para observabilidade). */
 const COST_PER_MTOK: Record<string, { input: number; output: number }> = {
+  "openai/gpt-6-astra": { input: 1.25, output: 10 },
   "openai/gpt-5.6-sol": { input: 1.25, output: 10 },
+  "google/gemini-3.8-flash": { input: 0.3, output: 2.5 },
   "google/gemini-2.5-flash": { input: 0.3, output: 2.5 },
   "google/gemini-3.1-flash-lite": { input: 0.1, output: 0.4 },
   "google/gemini-embedding-2": { input: 0.15, output: 0 },
