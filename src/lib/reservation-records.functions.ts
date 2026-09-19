@@ -325,7 +325,7 @@ async function createLinkedTask(
       log_id: input.logId ?? null,
       reservation_id: input.reservationId ?? null,
       title,
-      description: "Aberta automaticamente a partir de um registro da reserva.",
+      description: DESCRICAO_PENDENCIA_AUTOMATICA,
       category: rule.taskCategory,
       priority: rule.priority,
       due_date: null,
