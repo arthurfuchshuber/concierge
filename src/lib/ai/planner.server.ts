@@ -33,49 +33,6 @@ export type ExecutionPlan = {
 };
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function heuristicPlan(intent: Intent): ExecutionPlan {
-  const tools: PlannedTool[] = [];
-  const add = (name: string, reason: string, query?: string) => tools.push({ name, reason, query });
-
-  switch (intent.category) {
-    case "acesso":
-    case "residencia":
-      add("search_knowledge_base", "dúvida sobre a residência", intent.searchQuery);
-      add("get_property_facts", "conferir dados oficiais do imóvel");
-      break;
-    case "reserva":
-      add("get_reservation", "dados da reserva do hóspede");
-      add("get_property_facts", "horários oficiais do imóvel");
-      break;
-    case "cidade":
-    case "recomendacao":
-      add("list_recommendations", "recomendações curadas");
-      add("search_places", "complementar com lugares reais", intent.searchQuery);
-      break;
-    case "operacional":
-      // O agente de manutenção documenta o próprio método como: histórico → base de
-      // conhecimento → só então instruir ou escalar. O fallback pulava direto pro
-      // humano, contrariando esse método sempre que o planner principal falhasse.
-      add("search_knowledge_base", "verificar instrução documentada antes de escalar", intent.searchQuery);
-      add("request_human_handoff", "possível problema operacional");
-      break;
-    case "social":
-      break;
-    default:
-      add("search_knowledge_base", "verificar base oficial", intent.searchQuery);
-  }
-
-  return {
-    objective: intent.intent || "atender o hóspede",
-    tools,
-    parallel: tools.length > 1,
-    needsHuman: intent.needsHuman,
-    riskLevel: intent.urgency,
-    notes: "plano heurístico (planner indisponível)",
-    fallback: true,
-  };
-}
-
 /**
  * DESATIVADO em 19/09/2026 — não chama modelo.
  *
