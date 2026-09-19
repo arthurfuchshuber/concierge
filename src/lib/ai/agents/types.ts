@@ -38,7 +38,7 @@ export type AgentDefinition = {
   categories: string[];
   escalationRules: string[];
   memoryKinds: MemoryKind[];
-  reasoningEffort: "low" | "medium" | "high";
+  reasoningEffort: "low" | "medium" | "high" | "xhigh" | "max";
   maxSteps: number;
 };
 
