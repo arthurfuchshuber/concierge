@@ -539,30 +539,41 @@ export function RecordsWorkspace() {
           {/* TODOS é o primeiro cartão e o filtro de entrada da aba (pedido
             explícito, 10/09/2026). Ele não é "mais uma categoria": é a visão
             em que os registros de uma MESMA RESERVA vêm empacotados. */}
-          <CategoriaCelula i={0}>
-            <CategoryCard
-              label="Todos"
-              count={q.data?.total ?? 0}
-              tone={null}
-              icon={LayoutGrid}
-              active={category === null}
-              loading={q.isLoading}
-              onClick={() => setCategory(null)}
-            />
-          </CategoriaCelula>
-          {CARDS.map((c, i) => (
-            <CategoriaCelula key={c.key} i={i + 1}>
-              <CategoryCard
-                label={c.short}
-                count={counts?.[c.key] ?? 0}
-                tone={c.key}
-                icon={c.icon}
-                active={category === c.key}
-                loading={q.isLoading}
-                onClick={() => setCategory(category === c.key ? null : c.key)}
-              />
-            </CategoriaCelula>
-          ))}
+          {(() => {
+            /* O ÍNDICE SELECIONADO comanda os fios: a célula acesa e as suas
+               vizinhas de cima/esquerda escondem o fio que encostaria na
+               mancha de seleção — é isso que elimina a "borda" que sobrava
+               na direita e embaixo do cartão selecionado. */
+            const ativo = category === null ? 0 : CARDS.findIndex((c) => c.key === category) + 1;
+            return (
+              <>
+                <CategoriaCelula i={0} ativo={ativo}>
+                  <CategoryCard
+                    label="Todos"
+                    count={q.data?.total ?? 0}
+                    tone={null}
+                    icon={LayoutGrid}
+                    active={category === null}
+                    loading={q.isLoading}
+                    onClick={() => setCategory(null)}
+                  />
+                </CategoriaCelula>
+                {CARDS.map((c, i) => (
+                  <CategoriaCelula key={c.key} i={i + 1} ativo={ativo}>
+                    <CategoryCard
+                      label={c.short}
+                      count={counts?.[c.key] ?? 0}
+                      tone={c.key}
+                      icon={c.icon}
+                      active={category === c.key}
+                      loading={q.isLoading}
+                      onClick={() => setCategory(category === c.key ? null : c.key)}
+                    />
+                  </CategoriaCelula>
+                ))}
+              </>
+            );
+          })()}
         </div>
 
         {/* UM CARTÃO POR GRUPO, com a fileira de miniaturas */}
@@ -743,7 +754,12 @@ function CategoryCard({
       {active && (
         <span
           aria-hidden
-          className="absolute inset-1 rounded-[9px] bg-foreground/[0.07] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)]"
+          /* A MANCHA OCUPA A CÉLULA INTEIRA (pedido explícito, 18/09/2026):
+             com `inset-1` sobrava uma moldura do fundo em volta e os fios
+             internos apareciam colados na direita e embaixo. Agora vai de
+             aresta a aresta — o raio de canto quem dá é a casca do bloco,
+             que já recorta o que passa. */
+          className="absolute inset-0 bg-foreground/[0.07] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)]"
         />
       )}
       <div className="relative flex w-full min-w-0 items-center gap-1.5">
@@ -772,11 +788,27 @@ const FIO_INTERNO = "bg-[color-mix(in_oklab,var(--foreground)_11%,transparent)]"
 
 /** Envolve cada célula e desenha os fios: vertical à esquerda (menos na 1ª
  *  coluna) e horizontal em cima (só a partir da 2ª fileira). */
-function CategoriaCelula({ i, children }: { i: number; children: React.ReactNode }) {
+function CategoriaCelula({
+  i,
+  ativo,
+  children,
+}: {
+  i: number;
+  /** Índice da célula selecionada no bloco (0 = "Todos"). */
+  ativo: number;
+  children: React.ReactNode;
+}) {
+  const euSou = i === ativo;
+  const esquerdaAcesa = ativo === i - 1 && i % 3 !== 0;
+  const cimaAcesa = ativo === i - 3;
   return (
     <div className="relative">
-      {i % 3 !== 0 && <span aria-hidden className={`absolute inset-y-2 left-0 w-px ${FIO_INTERNO}`} />}
-      {i >= 3 && <span aria-hidden className={`absolute inset-x-2 top-0 h-px ${FIO_INTERNO}`} />}
+      {i % 3 !== 0 && !euSou && !esquerdaAcesa && (
+        <span aria-hidden className={`absolute inset-y-2 left-0 w-px ${FIO_INTERNO}`} />
+      )}
+      {i >= 3 && !euSou && !cimaAcesa && (
+        <span aria-hidden className={`absolute inset-x-2 top-0 h-px ${FIO_INTERNO}`} />
+      )}
       {children}
     </div>
   );
