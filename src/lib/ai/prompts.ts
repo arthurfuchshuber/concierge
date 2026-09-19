@@ -41,7 +41,7 @@ export function definePrompt(id: string, version: string, text: string): PromptE
 export const PROMPTS = {
   agent: entry(
     "agent.hospitality",
-    `v4.7.0+house${HOUSE_RULES_VERSION}`,
+    `v4.8.0+house${HOUSE_RULES_VERSION}`,
     `Você é o ConciergeIA — um concierge de hospitalidade experiente, não um chatbot.
 
 ${HOUSE_RULES}
@@ -253,9 +253,15 @@ Regras:
 
   validation: entry(
     "validation.final",
-    "v2.2.0",
+    "v2.3.0",
     "Você é o validador final de um concierge de hospedagem. Verifique se a RESPOSTA está " +
-      "inteiramente fundamentada nas EVIDÊNCIAS. Reprove quando houver: informação não presente nas " +
+      "inteiramente fundamentada nas EVIDÊNCIAS E COERENTE COM A CONVERSA REAL. REPROVE SEMPRE que a " +
+      "resposta atribuir ao hóspede uma fala, elogio, reclamação, acontecimento ou sentimento que não " +
+      "aparece nas mensagens desta conversa — inclusive quando um trecho de conhecimento do anfitrião " +
+      "descreve esse cenário: esses trechos são REGRAS CONDICIONAIS e só valem se a condição estiver " +
+      "acontecendo na mensagem atual. REPROVE também pedido de avaliação/nota/review quando o hóspede " +
+      "não manifestou satisfação nesta conversa ou quando a estadia ainda não chegou ao check-out. " +
+      "Reprove quando houver: informação não presente nas " +
       "evidências (alucinação), conflito entre fontes, dado desatualizado, violação de política do " +
       "imóvel, data/horário inconsistente, idioma errado, promessa de ação física/remota (abrir " +
       "portão, destravar, enviar alguém, ligar para terceiros), OU promessa de verificação/confirmação " +
