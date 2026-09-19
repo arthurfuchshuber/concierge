@@ -559,6 +559,12 @@ export async function buildArrivalRows(
     const checkinDoneReservations = new Set<string>();
     const checkinPendingLogs = new Set<string>();
     const checkinPendingReservations = new Set<string>();
+    // Saídas já encerradas (manualmente ou pelo checkout automático) — usadas
+    // pelo racional da esteira para tirar de "Atrasados" a chegada que nunca
+    // foi confirmada (ver stayStillOpenForArrival).
+    const checkoutDoneLogs = new Set<string>();
+    const checkoutDoneReservations = new Set<string>();
+
     // "Não Compareceu" (guest_arrival_status kind="checkin" status="no_show",
     // ver markNoShow em dashboard.functions.ts) precisa remover o card TANTO
     // de Checkouts quanto de Fila de Limpeza — pedido explícito (07/09/2026):
