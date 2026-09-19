@@ -26,6 +26,7 @@ import {
   lembrarRota,
   limparCachesDoNavegador,
   registrarCacheOffline,
+  ultimaRota,
 } from "@/lib/offline/sw-register";
 import { idbLimparTudo } from "@/lib/offline/idb";
 import { SITE_ORIGIN, siteUrl } from "@/lib/site-url";
@@ -324,7 +325,14 @@ function RootComponent() {
     if (typeof window === "undefined" || !window.visualViewport) return;
     const vv = window.visualViewport;
     const update = () => {
-      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      const coberto = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      /* SÓ TECLADO CONTA (19/09/2026, pedido com print: "a janela abre em uma
+         posição acima e segundos depois vai para o centro"). No celular, a
+         barra de endereço do navegador também deixa `coberto` positivo — e a
+         janela nascia deslocada para cima, voltando ao centro no primeiro
+         evento de rolagem. Abaixo de 120px não é teclado: é a casca do
+         navegador, e ela não pode mexer no centro da janela. */
+      const inset = coberto > 120 ? Math.round(coberto) : 0;
       document.documentElement.style.setProperty("--kb-inset", `${inset}px`);
     };
     vv.addEventListener("resize", update);
@@ -363,6 +371,43 @@ function RootComponent() {
     // A última rota aberta, para a rede de segurança de quando o app abrir
     // sem internet numa página que ele nunca guardou.
     lembrarRota(pathname);
+  }, [pathname]);
+
+  /**
+   * ABRIR O APP CAI NA ÚLTIMA PÁGINA USADA (19/09/2026, pedido do cliente:
+   * "toda vez que abrimos pelo app ele volta para a tela da landing").
+   *
+   * O atalho salvo na área de trabalho abre sempre o endereço inicial ("/"),
+   * que é a landing. Quando a abertura veio do app instalado — pelo `?app=1`
+   * do atalho novo ou pelo modo janela nos atalhos já instalados — trocamos
+   * a landing pela última página que a pessoa estava usando. Uma vez por
+   * abertura, e nunca durante a navegação normal pelo site.
+   */
+  useEffect(() => {
+    if (pathname !== "/") return;
+    let jaFez = false;
+    try {
+      jaFez = window.sessionStorage.getItem("ci-app-retomou") === "1";
+    } catch {
+      /* sem sessionStorage: tenta mesmo assim, no máximo repete uma vez */
+    }
+    if (jaFez) return;
+    const nav = window.navigator as Navigator & { standalone?: boolean };
+    const comoApp =
+      new URLSearchParams(window.location.search).get("app") === "1" ||
+      nav.standalone === true ||
+      (window.matchMedia?.("(display-mode: standalone)").matches ?? false) ||
+      (window.matchMedia?.("(display-mode: minimal-ui)").matches ?? false) ||
+      (window.matchMedia?.("(display-mode: window-controls-overlay)").matches ?? false);
+    if (!comoApp) return;
+    try {
+      window.sessionStorage.setItem("ci-app-retomou", "1");
+    } catch {
+      /* noop */
+    }
+    const destino = ultimaRota();
+    if (!destino || destino === "/" || !destino.startsWith("/")) return;
+    window.location.replace(destino);
   }, [pathname]);
 
   /**

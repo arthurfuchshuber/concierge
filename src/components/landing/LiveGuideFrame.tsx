@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * Guia do hóspede REAL dentro da moldura da landing.
@@ -61,6 +61,12 @@ const REVELAR_NA_HORA = `(function(){var b=document.getElementById(${JSON.string
 export function LiveGuideFrame() {
   const boxRef = useRef<HTMLDivElement | null>(null);
   const frameRef = useRef<HTMLIFrameElement | null>(null);
+  /* ESQUELETO ENQUANTO O GUIA CARREGA (19/09/2026, pedido com print: "o guia
+     no mockup está demorando muito a aparecer"). O guia é uma página inteira:
+     mesmo carregando já, leva um instante até desenhar. Antes, esse instante
+     era um retângulo preto. Agora é o contorno do próprio guia piscando, e
+     ele some assim que a página de dentro termina de carregar. */
+  const [carregado, setCarregado] = useState(false);
 
   useEffect(() => {
     const box = boxRef.current;
@@ -73,7 +79,13 @@ export function LiveGuideFrame() {
     aplicar();
     const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(aplicar) : null;
     ro?.observe(box);
-    return () => ro?.disconnect();
+    // Se o `load` do iframe não chegar (cache, navegação interna), o esqueleto
+    // não pode ficar preso na frente do guia.
+    const t = window.setTimeout(() => setCarregado(true), 4000);
+    return () => {
+      ro?.disconnect();
+      window.clearTimeout(t);
+    };
   }, []);
 
   return (
@@ -83,12 +95,30 @@ export function LiveGuideFrame() {
       className="relative w-full min-w-0 overflow-hidden bg-[#07070d]"
       style={{ aspectRatio: `${GUIDE_WIDTH} / ${GUIDE_HEIGHT}` }}
     >
+      {!carregado && (
+        <div
+          aria-hidden
+          className="absolute inset-0 z-10 animate-pulse bg-[#0b0b14] px-[6%] pt-[8%]"
+        >
+          <div className="h-[22%] w-full rounded-[10px] bg-white/[0.07]" />
+          <div className="mt-[6%] h-[7%] w-3/5 rounded-full bg-white/[0.06]" />
+          <div className="mt-[3%] h-[5%] w-2/5 rounded-full bg-white/[0.05]" />
+          <div className="mt-[7%] grid grid-cols-2 gap-[4%]">
+            <div className="aspect-[3/2] rounded-[10px] bg-white/[0.06]" />
+            <div className="aspect-[3/2] rounded-[10px] bg-white/[0.06]" />
+            <div className="aspect-[3/2] rounded-[10px] bg-white/[0.05]" />
+            <div className="aspect-[3/2] rounded-[10px] bg-white/[0.05]" />
+          </div>
+          <div className="absolute inset-x-0 bottom-0 h-[9%] bg-white/[0.04]" />
+        </div>
+      )}
       <iframe
         ref={frameRef}
         src={`/g/${DEMO_SLUG}?preview=1&demo=1`}
         title="Guia do hóspede — demonstração"
         // Fica no topo da landing: carregar já, sem esperar a rolagem.
         loading="eager"
+        onLoad={() => setCarregado(true)}
         className="absolute top-0 left-0 block border-0"
         style={{
           width: GUIDE_WIDTH,

@@ -90,7 +90,10 @@ import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { CleaningApprovalPanel, CLEANING_APPROVALS_KEY } from "@/components/dashboard/CleaningApprovalPanel";
 import { notifyAction } from "@/components/UndoActionBar";
-import { ReservationRecordsButton } from "@/components/dashboard/ReservationRecords";
+import {
+  ReservationRecordsButton,
+  ReservationRecordsDialog,
+} from "@/components/dashboard/ReservationRecords";
 import {
   AttachmentPicker,
   AttachmentsSending,
@@ -3558,9 +3561,11 @@ const CHECKLIST_VISIVEL = 3;
 function CleaningChecklist({
   items,
   onToggle,
+  onOpenRecords,
 }: {
   items: { task: TaskRow; done: boolean }[];
   onToggle: (task: TaskRow) => void;
+  onOpenRecords?: (task: TaskRow) => void;
 }) {
   const [tudo, setTudo] = useState(false);
   const feitas = items.filter((c) => c.done).length;
@@ -3586,19 +3591,29 @@ function CleaningChecklist({
         {lista.map(({ task, done }) => {
           const meta = CATEGORY_BY_KEY.get(TASK_CATEGORIA_REGISTRO[task.category] ?? "other");
           return (
-            <label
+            <div
               key={task.id}
-              className="flex cursor-pointer items-center gap-2.5 rounded-[8px] px-1 py-[7px] transition-colors hover:bg-foreground/[0.04]"
+              className="flex items-center gap-2.5 rounded-[8px] px-1 py-[7px] transition-colors hover:bg-foreground/[0.04]"
             >
-              <Checkbox checked={done} onCheckedChange={() => onToggle(task)} className="size-[17px] shrink-0" />
-              <span
-                className={`min-w-0 flex-1 truncate text-[12px] leading-snug ${
+              <Checkbox
+                checked={done}
+                onCheckedChange={() => onToggle(task)}
+                className="size-[17px] shrink-0 cursor-pointer"
+                aria-label={task.title}
+              />
+              {/* O TEXTO ABRE O REGISTRO (19/09/2026): a pendência nasceu de um
+                  registro da reserva, e era preciso sair do card e procurar na
+                  aba Registros para ver a foto/descrição. Agora abre aqui. */}
+              <button
+                type="button"
+                onClick={() => onOpenRecords?.(task)}
+                className={`min-w-0 flex-1 truncate text-left text-[12px] leading-snug underline-offset-2 hover:underline ${
                   done ? "text-muted-foreground line-through" : ""
                 }`}
-                title={task.title}
+                title={`${task.title} — ver registro`}
               >
                 {task.title}
-              </span>
+              </button>
               {meta && (
                 <span
                   className={`shrink-0 rounded-full px-1.5 py-px text-[8.5px] font-extrabold uppercase tracking-[0.06em] ${meta.tone.replace(/border-\S+/, "")}`}
@@ -3606,7 +3621,7 @@ function CleaningChecklist({
                   {meta.short}
                 </span>
               )}
-            </label>
+            </div>
           );
         })}
       </div>
@@ -8001,6 +8016,8 @@ function ArrivalCard({
 }) {
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState(row.note ?? "");
+  // Registros da reserva abertos pelo toque num item do checklist da limpeza.
+  const [recordsOpen, setRecordsOpen] = useState(false);
 
   // Silenciar alertas de atraso desta reserva (1h a 24h) — vale para a conta toda.
   const qcCard = useQueryClient();
@@ -8867,7 +8884,21 @@ function ArrivalCard({
           pelo menos 1 pendência marcada "aparece na limpeza" pra este
           imóvel/estadia (pedido explícito). */}
       {!listBare && cleaningChecklist.length > 0 && (
-        <CleaningChecklist items={cleaningChecklist} onToggle={(task) => onToggleCleaningTask?.(task, row)} />
+        <CleaningChecklist
+          items={cleaningChecklist}
+          onToggle={(task) => onToggleCleaningTask?.(task, row)}
+          /* Tocar no texto abre os registros desta reserva — é de lá que a
+             pendência veio (pedido do cliente, 19/09/2026). */
+          onOpenRecords={() => setRecordsOpen(true)}
+        />
+      )}
+      {recordsOpen && (
+        <ReservationRecordsDialog
+          open
+          onOpenChange={setRecordsOpen}
+          row={row}
+          mode={mode}
+        />
       )}
 
       {/* Action row: botão principal em largura total; Maps + menu à direita.

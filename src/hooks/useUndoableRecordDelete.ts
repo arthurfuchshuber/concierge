@@ -62,7 +62,13 @@ export function useUndoableRecordDelete(onDeleted?: () => void) {
         () => {
           for (const [key, data] of snapshots) qc.setQueryData(key, data);
           void request
-            .then((res) => (res.removed ? restoreFn({ data: { removed: res.removed } }) : null))
+            .then((res) =>
+              res.removed
+                ? restoreFn({
+                    data: { removed: res.removed, removedTask: res.removedTask ?? null },
+                  })
+                : null,
+            )
             .catch((err) =>
               toast.error(err instanceof Error ? err.message : "Não foi possível desfazer."),
             )
