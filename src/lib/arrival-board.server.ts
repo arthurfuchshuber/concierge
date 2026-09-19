@@ -735,9 +735,14 @@ export async function buildArrivalRows(
     function logCheckoutResolved(logId: string | null | undefined): boolean {
       return !!logId && checkoutDoneLogs.has(logId);
     }
-    function reservationCheckoutResolved(r: { id: string; property_id: string; checkin_date: string }): boolean {
-      return checkoutDoneReservations.has(r.id) || checkoutDoneStays.has(`${r.property_id}|${r.checkin_date}`);
+    function reservationCheckoutResolved(r: ReservationRow): boolean {
+      if (checkoutDoneReservations.has(r.id)) return true;
+      const legacy = placeholderStatus.get(placeholderKey(r.property_id, r.checkin_date, r.checkout_date, "checkout"));
+      if (legacy && (legacy.status === "done" || !!legacy.done_at)) return true;
+      const { primary, extras } = findLogsForReservation(uniqueLogs, r, "checkout");
+      return [primary, ...extras].some((l) => logCheckoutResolved(l?.id));
     }
+
 
 
     function logCheckinDone(logId: string | null | undefined): boolean {
