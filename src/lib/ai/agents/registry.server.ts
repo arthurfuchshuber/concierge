@@ -1,75 +1,125 @@
 /**
- * Agent Registry — catálogo único dos agentes especialistas.
+ * Agent Registry — UM ÚNICO concierge (19/09/2026).
  *
- * Registra nome, especialidade, ferramentas permitidas, autonomia, versão de
- * prompt e regras de escalonamento. É a fonte de verdade da equipe digital:
- * nenhuma outra camada define capacidade de agente.
+ * POR QUE ISTO DEIXOU DE SER UM CATÁLOGO DE ESPECIALISTAS
+ *
+ * Havia seis agentes (Reserva, Manutenção, Experiência, Recuperação, Receita e
+ * Generalista) e, antes deles, três camadas baratas decidindo no lugar do
+ * modelo bom: classificador de intenção, supervisor e planejador. O efeito
+ * medido não foi especialização, foi burrice:
+ *
+ *  · cada especialista só enxergava uma lista curta de ferramentas, então toda
+ *    pergunta mal roteada chegava ao modelo já sem a ferramenta que resolveria;
+ *  · o especialista de Reserva pensava em esforço "low" — respondia de
+ *    bate-pronto por decreto do papel, não da pergunta;
+ *  · o roteador rotulava a mensagem antes do modelo ler a conversa, e um
+ *    "Ola, boa tarde" virou "pós-estadia" com pedido de avaliação.
+ *
+ * O assistente interno do painel nunca teve nada disso — recebe a pergunta, tem
+ * todas as ferramentas na mão, pensa e responde — e é justamente o que ficou
+ * bom. Agora o concierge do hóspede funciona igual.
+ *
+ * O que era regra boa dos especialistas (tom de recuperação em reclamação,
+ * método de manutenção, disciplina de não ofertar serviço sem evidência) virou
+ * INSTRUÇÃO no prompt abaixo, não gaiola de ferramenta.
  */
 import { DEFAULT_THRESHOLDS } from "../confidence";
 import { definePrompt, stampEntries, type PromptVersionStamp } from "../prompts";
-import { complaintRecoveryAgent } from "./complaint-recovery";
-import { guestExperienceAgent } from "./guest-experience";
-import { maintenanceAgent } from "./maintenance";
-import { reservationAgent } from "./reservation";
-import { revenueAgent } from "./revenue";
 import type { AgentDefinition, AgentKey } from "./types";
 
-/** Fallback: conversa social ou pedido que não pertence a nenhum especialista. */
-export const generalistAgent: AgentDefinition = {
+/** Catálogo completo: o concierge enxerga TODAS as ferramentas. */
+export const ALL_TOOLS = [
+  "search_knowledge_base",
+  "get_property_facts",
+  "get_reservation",
+  "list_recommendations",
+  "search_places",
+  "search_web",
+  "get_weather",
+  "get_city_news",
+  "get_itinerary",
+  "add_itinerary_item",
+  "remove_itinerary_item",
+  "set_reservation_mode",
+  "check_availability",
+  "find_available_stays",
+  "search_property_history",
+  "create_maintenance_ticket",
+  "check_service_availability",
+  "ask_human_supervisor",
+  "request_human_handoff",
+];
+
+/** O concierge — agente único do atendimento ao hóspede. */
+export const conciergeAgent: AgentDefinition = {
   key: "generalist",
-  name: "Concierge Generalista",
-  description: "Atende o que não pertence a nenhuma especialidade.",
-  specialty: "conversa geral e triagem",
-  allowedTools: [
-    "search_knowledge_base",
-    "get_property_facts",
-    "get_reservation",
-    "list_recommendations",
-    "get_city_news",
-    "search_places",
-    "get_weather",
-    "get_itinerary",
-    "set_reservation_mode",
-    "add_itinerary_item",
-    "remove_itinerary_item",
-    // O generalista é o AGENTE DE QUEDA: recebe tudo que o supervisor não
-    // classificou e tudo que ele classificou errado. Se o calendário e a busca
-    // externa só existirem nos especialistas, uma pergunta mal roteada morre
-    // aqui — que foi o que aconteceu a cada vez que o roteamento errou.
-    "check_availability",
-    "find_available_stays",
-    "search_web",
-    "request_human_handoff",
-  ],
-  autonomy: "medium",
+  name: "Concierge",
+  description: "Agente único de atendimento ao hóspede, com autonomia total de investigação.",
+  specialty: "hospedagem por temporada, de ponta a ponta",
+  allowedTools: ALL_TOOLS,
+  autonomy: "high",
   thresholds: DEFAULT_THRESHOLDS,
-  categories: ["outro", "social"],
+  categories: [
+    "acesso",
+    "residencia",
+    "reserva",
+    "cidade",
+    "recomendacao",
+    "operacional",
+    "financeiro",
+    "social",
+    "outro",
+  ],
   memoryKinds: ["fact", "preference"],
-  reasoningEffort: "low",
-  maxSteps: 6,
-  escalationRules: ["informação ausente nas fontes oficiais", "pedido explícito de humano"],
+  reasoningEffort: "medium",
+  maxSteps: 12,
+  escalationRules: [
+    "pedido explícito de falar com um humano",
+    "emergência, risco à segurança ou incidente de acesso",
+    "decisão que envolve dinheiro, reembolso, desconto ou alteração contratual da reserva",
+    "informação que não existe em nenhuma fonte oficial consultada",
+  ],
   prompt: definePrompt(
-    "agent.generalist",
-    "v1.0.0",
-    `PAPEL ATUAL: CONCIERGE GENERALISTA.
-Atenda com naturalidade, investigue nas fontes oficiais antes de afirmar qualquer coisa sobre a hospedagem
-e encaminhe para o especialista humano sempre que o assunto exigir decisão.`,
+    "agent.concierge",
+    "v2.0.0",
+    `PAPEL: CONCIERGE DESTA HOSPEDAGEM. Você é um só — não existe "encaminhar para outro agente".
+
+COMO PENSAR ANTES DE FALAR
+1. Leia a conversa inteira e entenda o que ESTA mensagem pede, agora. Nunca deduza um
+   acontecimento, um elogio ou uma reclamação que o hóspede não escreveu.
+2. Investigue com as ferramentas ANTES de afirmar qualquer coisa sobre o imóvel, a reserva,
+   horários, preços, serviços ou a cidade. Pode acionar várias na mesma rodada.
+3. Só responda o que estiver sustentado por fonte oficial, ferramenta ou pela própria conversa.
+   Sem evidência, diga com honestidade que vai confirmar — nunca preencha com suposição.
+
+CONDUTA POR SITUAÇÃO (mesmo agente, tom diferente)
+· Reclamação ou insatisfação: acolha primeiro, sem justificar; registre o problema; nunca
+  prometa reembolso, desconto ou indenização — isso é decisão humana.
+· Problema no imóvel: consulte o histórico operacional e a base antes de instruir; registre o
+  chamado; deixe claro que o registro não é o conserto.
+· Reserva, datas e acesso: confira sempre nos dados reais da reserva; nunca improvise horário,
+  endereço, senha ou código.
+· Serviço extra: só existe se a verificação confirmar. Sem confirmação, não ofereça nem estime preço.
+· Cidade e recomendações: só cite lugares vindos das ferramentas, com o que elas retornaram.
+· Conversa social: seja breve e natural. Saudação é saudação — não é gancho para oferta,
+  pedido de avaliação ou instrução de check-out.
+
+AUTONOMIA: resolva o que estiver documentado. Chamar um humano é sobre quem DECIDE, não sobre
+quem fala: você continua respondendo o que já apurou.`,
   ),
 };
 
-export const AGENT_REGISTRY: Record<AgentKey, AgentDefinition> = {
-  reservation: reservationAgent,
-  maintenance: maintenanceAgent,
-  guest_experience: guestExperienceAgent,
-  complaint_recovery: complaintRecoveryAgent,
-  revenue: revenueAgent,
-  generalist: generalistAgent,
+/** Mantido para compatibilidade com quem importava o generalista. */
+export const generalistAgent = conciergeAgent;
+
+export const AGENT_REGISTRY: Record<string, AgentDefinition> = {
+  generalist: conciergeAgent,
 };
 
 export const AGENT_KEYS = Object.keys(AGENT_REGISTRY) as AgentKey[];
 
-export function getAgent(key: string | null | undefined): AgentDefinition {
-  return AGENT_REGISTRY[(key ?? "") as AgentKey] ?? generalistAgent;
+export function getAgent(_key?: string | null): AgentDefinition {
+  return conciergeAgent;
 }
 
 /** Filtra o catálogo global de ferramentas pela whitelist do agente. */
@@ -84,9 +134,8 @@ export function allowedToolsOf<T extends { name: string }>(
 export function renderAgentBriefing(agent: AgentDefinition): string {
   return (
     `${agent.prompt.text}\n\n` +
-    `AUTONOMIA: ${agent.autonomy}\n` +
     `FERRAMENTAS LIBERADAS PARA VOCÊ: ${agent.allowedTools.join(", ")}\n` +
-    `ESCALONAMENTO OBRIGATÓRIO NESTE PAPEL:\n` +
+    `ESCALONAMENTO OBRIGATÓRIO:\n` +
     agent.escalationRules.map((r) => `- ${r}`).join("\n")
   );
 }
