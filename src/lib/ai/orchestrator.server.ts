@@ -42,7 +42,7 @@ import { recordOperationalRequest } from "./memory/operational.server";
 import { AI_MODELS } from "./models";
 import { PROMPTS, stampVersions } from "./prompts";
 import { continuityLine } from "./continuity";
-import { planExecution, renderPlan, type ExecutionPlan } from "./planner.server";
+import { planExecution, type ExecutionPlan } from "./planner.server";
 import { reflectOnAnswer, type Reflection } from "./reflection.server";
 import { aggregateSourceWeight, confidenceOf, renderSourceRanking } from "./sources";
 import {
@@ -538,8 +538,7 @@ export async function runHospitalityAgent(params: {
     `\n\nCONTEXTO DO HÓSPEDE E MEMÓRIA (uso interno — nunca revele ao hóspede que existe histórico registrado)\n${guestContext.text}` +
     reservationModeContext +
     renderHumanAnswers(humanAnswers) +
-    `\n\nINTENÇÃO DETECTADA: ${intent.intent} (categoria=${intent.category}, urgência=${intent.urgency}, idioma=${intent.language})` +
-    `\n\nPLANO DE EXECUÇÃO (definido pelo planejador)\n${renderPlan(plan)}` +
+    `\n\nIDIOMA PROVÁVEL DA MENSAGEM: ${intent.language} (responda no idioma em que o hóspede escreveu)` +
     `\n\nEVIDÊNCIAS PRÉ-RECUPERADAS (busca híbrida: ${retrievalUsed.join("+") || "nenhuma"})\n${renderPassages(passages)}`;
 
   const input = [
@@ -673,13 +672,11 @@ export async function runHospitalityAgent(params: {
   // recomendação, social, sem urgência — ela custava uma a duas idas extras ao
   // modelo antes do hóspede ver qualquer coisa. Nesses casos pulamos a
   // autoavaliação; a validação anti-alucinação continua rodando sempre.
-  const skipReflection =
-    !highRiskContext &&
-    intent.urgency !== "high" &&
-    plan.riskLevel !== "high" &&
-    (intent.category === "cidade" ||
-      intent.category === "recomendacao" ||
-      intent.category === "social");
+  // 19/09/2026: a autoavaliação SAIU do caminho de resposta. Num modelo de
+  // raciocínio ela só somava latência e chance de deturpar um texto que já
+  // estava certo — o próprio modelo já revisa antes de escrever. A validação
+  // anti-alucinação continua rodando em toda resposta.
+  const skipReflection = true;
 
   if (reply && !handoffReason) {
     const [validated, reflected] = await Promise.all([
