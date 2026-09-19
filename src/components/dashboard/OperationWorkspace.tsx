@@ -3500,7 +3500,7 @@ export function OperationShell({
                 <Link
                   key={t.view}
                   to={t.to}
-                  className={`flex min-h-[36px] flex-1 items-center justify-center rounded-[9px] px-2 text-center text-[13px] leading-none transition-colors ${
+                  className={`flex min-h-[44px] flex-1 items-center justify-center px-2 text-center text-[13px] leading-none transition-colors ${
                     active ? "ds-tab-active font-bold" : "font-semibold text-muted-foreground hover:text-foreground"
                   }`}
                 >
