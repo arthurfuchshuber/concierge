@@ -457,7 +457,7 @@ function CategorySheet({
 /** O que a pessoa quis fazer antes de escolher a categoria. */
 type PendingAction = "photo" | "video" | "file" | "audio" | "note";
 
-function ReservationRecordsDialog({
+export function ReservationRecordsDialog({
   open,
   onOpenChange,
   row,
