@@ -324,7 +324,14 @@ function RootComponent() {
     if (typeof window === "undefined" || !window.visualViewport) return;
     const vv = window.visualViewport;
     const update = () => {
-      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      const coberto = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      /* SÓ TECLADO CONTA (19/09/2026, pedido com print: "a janela abre em uma
+         posição acima e segundos depois vai para o centro"). No celular, a
+         barra de endereço do navegador também deixa `coberto` positivo — e a
+         janela nascia deslocada para cima, voltando ao centro no primeiro
+         evento de rolagem. Abaixo de 120px não é teclado: é a casca do
+         navegador, e ela não pode mexer no centro da janela. */
+      const inset = coberto > 120 ? Math.round(coberto) : 0;
       document.documentElement.style.setProperty("--kb-inset", `${inset}px`);
     };
     vv.addEventListener("resize", update);
