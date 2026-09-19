@@ -966,6 +966,46 @@ const RemovedRecordSchema = z.object({
 });
 export type RemovedRecord = z.infer<typeof RemovedRecordSchema>;
 
+/**
+ * A PENDÊNCIA MORRE COM O REGISTRO (19/09/2026, pedido do cliente com print:
+ * "o checklist de pendências não está replicando fielmente a lista de
+ * registros — ao excluir algum, ele não atualiza no card de limpeza").
+ *
+ * Antes, apagar o registro deixava a pendência que ele criou viva: o card da
+ * limpeza continuava cobrando uma coisa que já não existia em lugar nenhum.
+ * Agora a pendência é apagada junto, com três travas: só se AINDA ESTIVER EM
+ * ABERTO (uma já concluída é histórico de gasto/execução, não some), só se
+ * NENHUM outro registro apontar para ela, e ela volta inteira se a pessoa
+ * tocar em "Desfazer".
+ */
+const TASK_COLUMNS = [
+  "id",
+  "account_owner_id",
+  "property_id",
+  "log_id",
+  "reservation_id",
+  "owner_contact_id",
+  "title",
+  "description",
+  "category",
+  "priority",
+  "status",
+  "due_date",
+  "recurrence_days",
+  "show_in_cleaning",
+  "amount_spent_cents",
+  "cost_payer",
+  "cost_payer_id",
+  "resolved_by_provider_id",
+  "resolution_note",
+  "completed_at",
+  "created_at",
+  "created_by",
+  "updated_at",
+] as const;
+
+export type RemovedTask = Record<string, unknown>;
+
 export const deleteReservationRecord = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { id: string; keepFile?: boolean }) =>
@@ -978,10 +1018,32 @@ export const deleteReservationRecord = createServerFn({ method: "POST" })
       .select(RECORD_RESTORE_COLUMNS)
       .eq("id", data.id)
       .maybeSingle();
-    if (!existing) return { ok: true, removed: null as RemovedRecord | null };
+    if (!existing)
+      return { ok: true, removed: null as RemovedRecord | null, removedTask: null as RemovedTask | null };
 
     const { error } = await supabase.from("reservation_records").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
+
+    let removedTask: RemovedTask | null = null;
+    const taskId = (existing as { task_id: string | null }).task_id;
+    if (taskId) {
+      const { data: outros } = await supabase
+        .from("reservation_records")
+        .select("id")
+        .eq("task_id", taskId)
+        .limit(1);
+      if ((outros ?? []).length === 0) {
+        const { data: task } = await supabase
+          .from("tasks")
+          .select(TASK_COLUMNS.join(", "))
+          .eq("id", taskId)
+          .maybeSingle();
+        if (task && (task as { status?: string }).status === "pending") {
+          const { error: delErr } = await supabase.from("tasks").delete().eq("id", taskId);
+          if (!delErr) removedTask = task as RemovedTask;
+        }
+      }
+    }
 
     if (existing.storage_path && !data.keepFile) {
       // Best-effort: se o arquivo já não existir mais no storage por algum
@@ -992,15 +1054,32 @@ export const deleteReservationRecord = createServerFn({ method: "POST" })
         // ignore
       }
     }
-    return { ok: true, removed: existing as RemovedRecord };
+    return { ok: true, removed: existing as RemovedRecord, removedTask };
   });
 
-/** "Desfazer" da exclusão: a mesma linha, com o mesmo id, de volta. */
+/** "Desfazer" da exclusão: a mesma linha, com o mesmo id, de volta — e, se a
+ *  pendência tiver ido junto, ela volta antes (o registro aponta para ela). */
 export const restoreReservationRecord = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ removed: RemovedRecordSchema }).parse(input))
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        removed: RemovedRecordSchema,
+        removedTask: z.record(z.string(), z.unknown()).nullish(),
+      })
+      .parse(input),
+  )
   .handler(async ({ data, context }) => {
     const supabase = context.supabase as unknown as AnyClient;
+    if (data.removedTask) {
+      // Só as colunas conhecidas da tabela — nada que venha do navegador
+      // entra numa coluna que não seja essa lista.
+      const linha: Record<string, unknown> = {};
+      for (const col of TASK_COLUMNS) {
+        if (col in data.removedTask) linha[col] = data.removedTask[col];
+      }
+      if (linha.id) await supabase.from("tasks").upsert(linha, { onConflict: "id" });
+    }
     const { error } = await supabase
       .from("reservation_records")
       .upsert(data.removed, { onConflict: "id" });
