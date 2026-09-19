@@ -728,27 +728,42 @@ export async function buildArrivalRows(
       return [primary, ...extras].some((l) => logCheckinDone(l?.id));
     }
 
-    // Regra da esteira: uma reserva só pode aparecer em UM estágio. Enquanto a
-    // estadia ainda não terminou, o card fica retido em Check-ins (como
-    // atrasado) até o check manual. Mas quando o DIA DO CHECKOUT já chegou, a
-    // estadia acabou fisicamente e o card precisa migrar para Checkouts mesmo
-    // sem o check-in ter sido marcado — caso contrário a saída do dia some do
-    // painel.
+    // Regra da esteira: uma reserva só pode aparecer em UM estágio — EXCETO
+    // quando a chegada nunca foi confirmada (pedido explícito, 19/09/2026):
+    // nesse caso o card FICA em Chegadas como atrasado até o anfitrião
+    // confirmar (ou marcar "não compareceu"), e mesmo assim continua sendo
+    // mostrado em Saídas (amanhã / pendentes de hoje, conforme a data real),
+    // porque a saída daquele dia precisa existir no painel de qualquer forma.
+    // Antes, ao virar a meia-noite do dia da saída, a chegada pendente
+    // simplesmente sumia da tela sem ninguém ter confirmado nada.
     function belongsToCheckoutStage(
       checkinDate: string,
       checkoutDate: string | null,
-      _checkinDone: boolean,
+      checkinResolved: boolean,
     ): boolean {
       if (!checkoutDate) return false;
+      if (!checkinResolved) return false;
       return checkinDate <= today && checkoutDate <= today;
     }
 
+    /** Chegada já resolvida pelo usuário: confirmada OU marcada "não compareceu". */
+    function reservationCheckinResolved(r: ReservationRow): boolean {
+      if (checkinNoShowReservations.has(r.id)) return true;
+      if (checkinNoShowStays.has(`${r.property_id}|${r.checkin_date}`)) return true;
+      return reservationCheckinDone(r);
+    }
+    function logCheckinResolved(l: { id: string; property_id: string; checkin_date: string }): boolean {
+      if (checkinNoShowLogs.has(l.id)) return true;
+      if (checkinNoShowStays.has(`${l.property_id}|${l.checkin_date}`)) return true;
+      return logCheckinDone(l.id);
+    }
 
     function reservationInRange(r: ReservationRow): boolean {
       const resCheckinDone = data.kind === "checkin" ? reservationCheckinDone(r) : false;
       if (data.kind === "checkin") {
-        if (belongsToCheckoutStage(r.checkin_date, r.checkout_date, resCheckinDone)) return false;
+        if (belongsToCheckoutStage(r.checkin_date, r.checkout_date, reservationCheckinResolved(r))) return false;
       }
+
       // Pedido explícito do cliente (04/09/2026): a previsão informada
       // (arrival_date_override) manda no dia em que o card aparece — a data
       // bruta da reserva só é usada de fallback quando não há previsão.
