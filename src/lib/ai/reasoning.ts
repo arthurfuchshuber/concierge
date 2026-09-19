@@ -14,59 +14,24 @@
  * parecerem rasas mesmo com todo o contexto certo na mão — não faltava
  * informação, faltava pensar.
  *
- * O QUE MUDA
+ * O QUE MUDA (19/09/2026 — pedido: "a IA SEMPRE com o máximo esforço, mas com
+ * poder de decisão para reduzir quando achar pertinente")
  *
- * O esforço passa a depender do que foi PERGUNTADO, e não só de urgência:
+ * O padrão passa a ser o TOPO ("max"). A redução é a exceção, e só acontece
+ * quando a própria mensagem não deixa dúvida de que não há o que pensar:
  *
- *   · alto   — a pessoa pediu comparação, recomendação, um porquê, um plano,
- *              ou mandou um texto longo com várias perguntas juntas. É o tipo
- *              de resposta que só fica boa se o modelo pensar antes.
- *   · médio  — o padrão de qualquer conversa de verdade. Vale também para todo
- *              pedido de AÇÃO: gravar a coisa errada custa mais caro do que os
- *              segundos a mais de raciocínio.
- *   · baixo  — só o que é genuinamente trivial: saudação, "ok", "obrigado",
- *              uma confirmação de uma linha.
+ *   · max    — padrão de tudo. Qualquer pergunta, pedido, reclamação, ação.
+ *   · xhigh  — pergunta objetiva e curta de um dado só ("que horas é o
+ *              checkout?"), onde o topo só adicionaria espera.
+ *   · medium — saudação/agradecimento solto ("oi", "obrigado", "ok").
  *
  * O CUSTO, DITO NA CARA
  *
  * Pensar mais custa mais tempo e mais tokens. A escolha aqui é deliberada:
- * pagar isso nas perguntas que merecem e não pagar nas que não merecem — em
- * vez de economizar em todas, que era o comportamento anterior e o motivo da
- * reclamação.
+ * o padrão é pagar para pensar; economizar é a exceção justificada.
  */
 
-export type ReasoningEffort = "low" | "medium" | "high";
-
-/** Pede raciocínio de verdade: comparar, explicar, planejar, recomendar. */
-const DEEP = [
-  "por que",
-  "porque",
-  "porquê",
-  "qual a diferença",
-  "diferença entre",
-  "compare",
-  "comparar",
-  "melhor",
-  "pior",
-  "vale a pena",
-  "recomend",
-  "sugest",
-  "sugir",
-  "o que fazer",
-  "como faço",
-  "como funciona",
-  "explica",
-  "explique",
-  "motivo",
-  "roteiro",
-  "planej",
-  "estratég",
-  "analis",
-  "análise",
-  "resum",
-  "quanto custa",
-  "prefer",
-];
+export type ReasoningEffort = "low" | "medium" | "high" | "xhigh" | "max";
 
 /** Trivial de verdade — não vale gastar raciocínio. */
 const TRIVIAL = [
@@ -91,54 +56,61 @@ const TRIVIAL = [
   "até mais",
 ];
 
+/** Pergunta objetiva de um dado só: um "qual/que horas/onde" curto e único. */
+const FACTUAL_START = [
+  "qual",
+  "quais",
+  "que horas",
+  "onde",
+  "quando",
+  "quanto",
+  "tem ",
+  "existe",
+];
+
 function norm(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 }
 
 /**
- * Decide o esforço para uma mensagem.
+ * Decide o esforço para uma mensagem. O padrão é o máximo; só reduz quando a
+ * mensagem é comprovadamente trivial ou uma consulta pontual de um dado.
  *
- * `isAction` cobre o caso em que a pessoa está mandando o sistema FAZER algo
- * (criar pendência, marcar não comparecimento): ali o piso é médio mesmo que a
- * frase seja curta, porque interpretar errado grava dado errado.
+ * `isAction` cobre o caso em que a pessoa está mandando o sistema FAZER algo:
+ * ali nunca reduzimos, porque interpretar errado grava dado errado.
  */
 export function reasoningFor(
   message: string,
   opts?: { isAction?: boolean; highRisk?: boolean },
 ): ReasoningEffort {
-  if (opts?.highRisk) return "high";
+  if (opts?.highRisk || opts?.isAction) return "max";
 
   const text = norm(message);
   const words = text.split(/\s+/).filter(Boolean);
+  const bare = text.replace(/[!?.…,;:]+$/, "").trim();
 
   // Saudação solta e afins: só quando a mensagem inteira é isso, para "ok, mas
   // por que a limpeza mudou de dia?" não cair aqui por começar com "ok".
-  // A pontuação final sai antes da comparação — "obrigado!" e "oi?" são a
-  // mesma coisa que "obrigado" e "oi", e um teste pegou justamente isso.
-  const bare = text.replace(/[!?.…,;:]+$/, "").trim();
   if (words.length <= 3 && TRIVIAL.map(norm).some((k) => bare === k || bare.startsWith(`${k} `))) {
-    return opts?.isAction ? "medium" : "low";
+    return "medium";
   }
 
   const questions = (message.match(/\?/g) ?? []).length;
-  // As palavras-chave também passam por norm(): o texto já vem sem acento,
-  // então comparar com "análise" cru nunca casaria.
-  const deep = DEEP.some((k) => text.includes(norm(k)));
+  const factual =
+    questions <= 1 &&
+    words.length <= 8 &&
+    message.length <= 80 &&
+    FACTUAL_START.some((k) => bare.startsWith(norm(k)));
+  if (factual) return "xhigh";
 
-  // Texto longo, várias perguntas na mesma mensagem ou pedido que exige
-  // julgamento: é onde a diferença entre pensar e não pensar aparece.
-  if (deep || questions >= 2 || message.length > 180) return "high";
-
-  return "medium";
+  return "max";
 }
 
 /**
- * Passos de ferramenta disponíveis. Seis passos obrigavam o agente a responder
- * com o que tivesse em mãos assim que a conversa exigisse duas ou três
- * consultas encadeadas ("acha o imóvel" → "vê a agenda" → "confere a
- * pendência") — o teto chegava antes da resposta. Uma pergunta que merece
- * raciocínio também merece espaço para investigar.
+ * Passos de ferramenta disponíveis. Uma pergunta que merece raciocínio também
+ * merece espaço para investigar.
  */
 export function maxStepsFor(effort: ReasoningEffort): number {
+  if (effort === "max" || effort === "xhigh") return 12;
   return effort === "high" ? 10 : effort === "medium" ? 8 : 5;
 }
