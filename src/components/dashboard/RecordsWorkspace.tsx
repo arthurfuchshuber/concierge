@@ -788,11 +788,27 @@ const FIO_INTERNO = "bg-[color-mix(in_oklab,var(--foreground)_11%,transparent)]"
 
 /** Envolve cada célula e desenha os fios: vertical à esquerda (menos na 1ª
  *  coluna) e horizontal em cima (só a partir da 2ª fileira). */
-function CategoriaCelula({ i, children }: { i: number; children: React.ReactNode }) {
+function CategoriaCelula({
+  i,
+  ativo,
+  children,
+}: {
+  i: number;
+  /** Índice da célula selecionada no bloco (0 = "Todos"). */
+  ativo: number;
+  children: React.ReactNode;
+}) {
+  const euSou = i === ativo;
+  const esquerdaAcesa = ativo === i - 1 && i % 3 !== 0;
+  const cimaAcesa = ativo === i - 3;
   return (
     <div className="relative">
-      {i % 3 !== 0 && <span aria-hidden className={`absolute inset-y-2 left-0 w-px ${FIO_INTERNO}`} />}
-      {i >= 3 && <span aria-hidden className={`absolute inset-x-2 top-0 h-px ${FIO_INTERNO}`} />}
+      {i % 3 !== 0 && !euSou && !esquerdaAcesa && (
+        <span aria-hidden className={`absolute inset-y-2 left-0 w-px ${FIO_INTERNO}`} />
+      )}
+      {i >= 3 && !euSou && !cimaAcesa && (
+        <span aria-hidden className={`absolute inset-x-2 top-0 h-px ${FIO_INTERNO}`} />
+      )}
       {children}
     </div>
   );
