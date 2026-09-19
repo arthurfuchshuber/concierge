@@ -8001,6 +8001,8 @@ function ArrivalCard({
 }) {
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState(row.note ?? "");
+  // Registros da reserva abertos pelo toque num item do checklist da limpeza.
+  const [recordsOpen, setRecordsOpen] = useState(false);
 
   // Silenciar alertas de atraso desta reserva (1h a 24h) — vale para a conta toda.
   const qcCard = useQueryClient();
