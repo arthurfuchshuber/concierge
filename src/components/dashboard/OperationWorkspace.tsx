@@ -8867,7 +8867,21 @@ function ArrivalCard({
           pelo menos 1 pendência marcada "aparece na limpeza" pra este
           imóvel/estadia (pedido explícito). */}
       {!listBare && cleaningChecklist.length > 0 && (
-        <CleaningChecklist items={cleaningChecklist} onToggle={(task) => onToggleCleaningTask?.(task, row)} />
+        <CleaningChecklist
+          items={cleaningChecklist}
+          onToggle={(task) => onToggleCleaningTask?.(task, row)}
+          /* Tocar no texto abre os registros desta reserva — é de lá que a
+             pendência veio (pedido do cliente, 19/09/2026). */
+          onOpenRecords={() => setRecordsOpen(true)}
+        />
+      )}
+      {recordsOpen && (
+        <ReservationRecordsDialog
+          open
+          onOpenChange={setRecordsOpen}
+          row={row}
+          mode={mode}
+        />
       )}
 
       {/* Action row: botão principal em largura total; Maps + menu à direita.
