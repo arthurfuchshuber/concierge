@@ -539,30 +539,41 @@ export function RecordsWorkspace() {
           {/* TODOS é o primeiro cartão e o filtro de entrada da aba (pedido
             explícito, 10/09/2026). Ele não é "mais uma categoria": é a visão
             em que os registros de uma MESMA RESERVA vêm empacotados. */}
-          <CategoriaCelula i={0}>
-            <CategoryCard
-              label="Todos"
-              count={q.data?.total ?? 0}
-              tone={null}
-              icon={LayoutGrid}
-              active={category === null}
-              loading={q.isLoading}
-              onClick={() => setCategory(null)}
-            />
-          </CategoriaCelula>
-          {CARDS.map((c, i) => (
-            <CategoriaCelula key={c.key} i={i + 1}>
-              <CategoryCard
-                label={c.short}
-                count={counts?.[c.key] ?? 0}
-                tone={c.key}
-                icon={c.icon}
-                active={category === c.key}
-                loading={q.isLoading}
-                onClick={() => setCategory(category === c.key ? null : c.key)}
-              />
-            </CategoriaCelula>
-          ))}
+          {(() => {
+            /* O ÍNDICE SELECIONADO comanda os fios: a célula acesa e as suas
+               vizinhas de cima/esquerda escondem o fio que encostaria na
+               mancha de seleção — é isso que elimina a "borda" que sobrava
+               na direita e embaixo do cartão selecionado. */
+            const ativo = category === null ? 0 : CARDS.findIndex((c) => c.key === category) + 1;
+            return (
+              <>
+                <CategoriaCelula i={0} ativo={ativo}>
+                  <CategoryCard
+                    label="Todos"
+                    count={q.data?.total ?? 0}
+                    tone={null}
+                    icon={LayoutGrid}
+                    active={category === null}
+                    loading={q.isLoading}
+                    onClick={() => setCategory(null)}
+                  />
+                </CategoriaCelula>
+                {CARDS.map((c, i) => (
+                  <CategoriaCelula key={c.key} i={i + 1} ativo={ativo}>
+                    <CategoryCard
+                      label={c.short}
+                      count={counts?.[c.key] ?? 0}
+                      tone={c.key}
+                      icon={c.icon}
+                      active={category === c.key}
+                      loading={q.isLoading}
+                      onClick={() => setCategory(category === c.key ? null : c.key)}
+                    />
+                  </CategoriaCelula>
+                ))}
+              </>
+            );
+          })()}
         </div>
 
         {/* UM CARTÃO POR GRUPO, com a fileira de miniaturas */}
