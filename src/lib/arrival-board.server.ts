@@ -589,6 +589,11 @@ export async function buildArrivalRows(
         if (s.log_id) checkinPendingLogs.add(s.log_id);
         if (s.reservation_id) checkinPendingReservations.add(s.reservation_id);
       }
+      if (s.kind === "checkout" && (s.status === "done" || !!s.done_at || (s.status as string) === "no_show")) {
+        if (s.log_id) checkoutDoneLogs.add(s.log_id);
+        if (s.reservation_id) checkoutDoneReservations.add(s.reservation_id);
+      }
+
       if (s.kind !== data.kind) continue;
       const value = {
         kind: s.kind,
