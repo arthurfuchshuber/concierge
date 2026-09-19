@@ -374,6 +374,43 @@ function RootComponent() {
   }, [pathname]);
 
   /**
+   * ABRIR O APP CAI NA ÚLTIMA PÁGINA USADA (19/09/2026, pedido do cliente:
+   * "toda vez que abrimos pelo app ele volta para a tela da landing").
+   *
+   * O atalho salvo na área de trabalho abre sempre o endereço inicial ("/"),
+   * que é a landing. Quando a abertura veio do app instalado — pelo `?app=1`
+   * do atalho novo ou pelo modo janela nos atalhos já instalados — trocamos
+   * a landing pela última página que a pessoa estava usando. Uma vez por
+   * abertura, e nunca durante a navegação normal pelo site.
+   */
+  useEffect(() => {
+    if (pathname !== "/") return;
+    let jaFez = false;
+    try {
+      jaFez = window.sessionStorage.getItem("ci-app-retomou") === "1";
+    } catch {
+      /* sem sessionStorage: tenta mesmo assim, no máximo repete uma vez */
+    }
+    if (jaFez) return;
+    const nav = window.navigator as Navigator & { standalone?: boolean };
+    const comoApp =
+      new URLSearchParams(window.location.search).get("app") === "1" ||
+      nav.standalone === true ||
+      (window.matchMedia?.("(display-mode: standalone)").matches ?? false) ||
+      (window.matchMedia?.("(display-mode: minimal-ui)").matches ?? false) ||
+      (window.matchMedia?.("(display-mode: window-controls-overlay)").matches ?? false);
+    if (!comoApp) return;
+    try {
+      window.sessionStorage.setItem("ci-app-retomou", "1");
+    } catch {
+      /* noop */
+    }
+    const destino = ultimaRota();
+    if (!destino || destino === "/" || !destino.startsWith("/")) return;
+    window.location.replace(destino);
+  }, [pathname]);
+
+  /**
    * O CACHE DE PÁGINAS E ARQUIVOS (11/09/2026).
    *
    * O cache de CONSULTAS abaixo já existia e faz a última visão continuar
