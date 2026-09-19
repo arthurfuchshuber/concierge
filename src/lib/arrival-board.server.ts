@@ -1022,10 +1022,15 @@ export async function buildArrivalRows(
         data.range !== "tomorrow" &&
         !reservationCheckinDone(r) &&
         !virtualStay &&
-        withinOverdueWindow(r.checkin_date);
+        withinOverdueWindow(r.checkin_date) &&
+        stayStillOpenForArrival(r.checkout_date, reservationCheckoutResolved(r));
       // Datas passadas só entram sem interação quando representam uma estadia
-      // vigente ou um check-in ainda pendente (atrasado).
-      if (date < today && !s && !virtualStay && !overduePending) return null;
+      // vigente ou um check-in ainda pendente (atrasado). Um check-in antigo
+      // cuja saída já foi encerrada sai da lista mesmo tendo status gravado —
+      // senão vira card morto, atrasado e com o botão travado.
+      if (date < today && !virtualStay && !overduePending && !isCurrentStay(r.checkin_date, r.checkout_date))
+        return null;
+
 
 
       return {
