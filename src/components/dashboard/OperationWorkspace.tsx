@@ -4035,9 +4035,20 @@ function KpiCard({
                 {label}
               </span>
             </div>
+            {/* Pedido explícito (19/09/2026): o NÚMERO volta a ter cor —
+                mas só quando é maior que zero, e só a cor que o mesmo estado
+                já tem no calendário (chegada pendente = azul `sky-400`,
+                saída pendente = âmbar `amber-400`). Zerado continua em cor
+                de texto, sem carnaval. */}
             <div
               className={`w-full pt-1.5 text-center font-display font-bold tabular-nums leading-none tracking-[-0.03em] ${
                 shadowTone ? "text-[30px] sm:text-[34px]" : "text-[28px] sm:text-[32px]"
+              } ${
+                !loading && rows.length > 0 && shadowTone === "sky"
+                  ? "text-sky-500 dark:text-sky-400"
+                  : !loading && rows.length > 0 && shadowTone === "amber"
+                    ? "text-amber-500 dark:text-amber-400"
+                    : ""
               }`}
             >
               {loading ? "—" : rows.length}
