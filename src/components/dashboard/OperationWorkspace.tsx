@@ -3464,7 +3464,7 @@ export function OperationShell({
               relação ao título (print de 09/09/2026). Dentro da mesma linha do
               h1, o alinhamento passa a ser exato por construção, sem depender
               de medida nenhuma — e o subtítulo volta a ter a largura inteira. */}
-          <h1 className="ds-page-title truncate">{title ?? copy.title}</h1>
+          <h1 className="ds-page-title text-lg truncate">{title ?? copy.title}</h1>
           <p className="ds-page-subtitle truncate">{subtitle ?? copy.subtitle}</p>
         </div>
 
