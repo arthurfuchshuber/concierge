@@ -90,7 +90,10 @@ import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { CleaningApprovalPanel, CLEANING_APPROVALS_KEY } from "@/components/dashboard/CleaningApprovalPanel";
 import { notifyAction } from "@/components/UndoActionBar";
-import { ReservationRecordsButton } from "@/components/dashboard/ReservationRecords";
+import {
+  ReservationRecordsButton,
+  ReservationRecordsDialog,
+} from "@/components/dashboard/ReservationRecords";
 import {
   AttachmentPicker,
   AttachmentsSending,
