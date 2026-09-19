@@ -56,6 +56,28 @@ const TRIVIAL = [
   "até mais",
 ];
 
+/** Pede julgamento de verdade — nunca reduz o esforço. */
+const DEEP = [
+  "por que",
+  "porque",
+  "diferenca",
+  "compar",
+  "melhor",
+  "pior",
+  "vale a pena",
+  "recomend",
+  "sugest",
+  "explica",
+  "explique",
+  "motivo",
+  "roteiro",
+  "planej",
+  "estrateg",
+  "analis",
+  "resum",
+  "prefer",
+];
+
 /** Pergunta objetiva de um dado só: um "qual/que horas/onde" curto e único. */
 const FACTUAL_START = [
   "qual",
@@ -96,7 +118,9 @@ export function reasoningFor(
   }
 
   const questions = (message.match(/\?/g) ?? []).length;
+  const deep = DEEP.some((k) => text.includes(norm(k)));
   const factual =
+    !deep &&
     questions <= 1 &&
     words.length <= 8 &&
     message.length <= 80 &&
