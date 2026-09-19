@@ -79,19 +79,19 @@ describe("contrato ferramentas × agentes", () => {
   });
 });
 
-describe("o agente de reservas enxerga o calendário", () => {
-  it("tem as duas ferramentas de disponibilidade", () => {
-    const r = AGENT_REGISTRY.reservation.allowedTools;
+describe("agente único: o concierge enxerga tudo", () => {
+  it("tem o calendário e a busca de estadias", () => {
+    const r = AGENT_REGISTRY.generalist.allowedTools;
     expect(r).toContain("check_availability");
     expect(r).toContain("find_available_stays");
   });
 
-  it("não carrega mais a ordem de escalar toda pergunta de data", () => {
-    // A regra antiga ("qualquer alteração de datas, prorrogação, antecipação
-    // ou cancelamento") era injetada no prompt como ESCALONAMENTO OBRIGATÓRIO
-    // e anulava a ferramenta na prática.
-    const regras = AGENT_REGISTRY.reservation.escalationRules.join(" ").toLowerCase();
+  it("não escala pergunta de data por decreto", () => {
+    const regras = AGENT_REGISTRY.generalist.escalationRules.join(" ").toLowerCase();
     expect(regras).not.toContain("qualquer alteração de datas");
-    expect(regras).toContain("já fechada");
+  });
+
+  it("existe um agente só", () => {
+    expect(Object.keys(AGENT_REGISTRY)).toEqual(["generalist"]);
   });
 });
