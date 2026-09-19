@@ -1369,19 +1369,26 @@ dd {
   color: var(--faint, var(--muted-foreground));
 }
 
-/* Barra de abas (Operacional / Kanban / Limpeza / Registros). */
+/* Barra de abas (Operacional / Kanban / Limpeza / Registros).
+
+   19/09/2026 (pedido explícito, com print): a aba ativa precisa pintar a
+   FATIA INTEIRA, como as células de categoria dos Registros — nada de moldura
+   sobrando à direita/embaixo. Por isso a casca perdeu o respiro interno e o
+   vão entre fatias, e recorta o que passa (`overflow: hidden`); cada fatia
+   vai de fio a fio. */
 @utility ds-tabs {
   display: flex;
   width: 100%;
-  gap: 2px;
-  padding: 4px;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
   border-radius: 14px;
   background: var(--card);
   box-shadow: inset 0 0 0 1px var(--border);
 }
 
 /* Aba ativa (padrão "Presença", 18/09/2026): era uma pílula com o gradiente
-   inteiro — a coisa mais gritante da tela. Virou uma pílula neutra, com o
+   inteiro — a coisa mais gritante da tela. Virou uma mancha neutra, com o
    mesmo tratamento de luz dos cards, e o gradiente reduzido a um fio de 2px
    embaixo. A marca continua ali; só parou de mandar na tela. */
 @utility ds-tab-active {
@@ -1392,21 +1399,19 @@ dd {
     color-mix(in oklab, var(--foreground) 3%, transparent)
   );
   color: var(--foreground);
-  box-shadow:
-    inset 0 1px 0 color-mix(in oklab, var(--foreground) 10%, transparent),
-    inset 0 0 0 1px color-mix(in oklab, var(--foreground) 10%, transparent),
-    0 6px 16px -10px rgba(232, 45, 174, 0.5);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--foreground) 10%, transparent);
 }
 .ds-tab-active::after {
   content: "";
   position: absolute;
   left: 13px;
   right: 13px;
-  bottom: -1px;
+  bottom: 0;
   height: 2px;
   border-radius: 2px;
   background: linear-gradient(120deg, #7c1ad8, #e82dae);
 }
+
 
 /* Halo roxo do topo da página — o mesmo efeito da landing, bem fraco. */
 @utility ds-page-halo {
