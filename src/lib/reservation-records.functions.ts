@@ -44,6 +44,9 @@ const CardMode = z.enum(["checkin", "checkout", "stay", "cleaning", "done", "no_
  * objeto, enquanto dano e manutenção são pra operação resolver, não pra
  * faxina executar.
  */
+/** Marca das pendências que o próprio registro abriu — só essas somem junto. */
+const DESCRICAO_PENDENCIA_AUTOMATICA = "Aberta automaticamente a partir de um registro da reserva.";
+
 const TASK_RULES: Record<
   string,
   {
@@ -325,7 +328,7 @@ async function createLinkedTask(
       log_id: input.logId ?? null,
       reservation_id: input.reservationId ?? null,
       title,
-      description: "Aberta automaticamente a partir de um registro da reserva.",
+      description: DESCRICAO_PENDENCIA_AUTOMATICA,
       category: rule.taskCategory,
       priority: rule.priority,
       due_date: null,
@@ -1038,7 +1041,14 @@ export const deleteReservationRecord = createServerFn({ method: "POST" })
           .select(TASK_COLUMNS.join(", "))
           .eq("id", taskId)
           .maybeSingle();
-        if (task && (task as { status?: string }).status === "pending") {
+        /* SÓ SOME A PENDÊNCIA QUE O PRÓPRIO REGISTRO ABRIU (19/09/2026).
+           Uma pendência criada à mão e que apenas RECEBEU uma foto anexada
+           também guarda o task_id no registro; apagar essa foto não pode
+           levar embora o título, o prazo e a recorrência que a pessoa
+           digitou. Por isso exigimos a marca das abertas automaticamente. */
+        const automatica =
+          (task as { description?: string | null }).description === DESCRICAO_PENDENCIA_AUTOMATICA;
+        if (task && automatica && (task as { status?: string }).status === "pending") {
           const { error: delErr } = await supabase.from("tasks").delete().eq("id", taskId);
           if (!delErr) removedTask = task as RemovedTask;
         }

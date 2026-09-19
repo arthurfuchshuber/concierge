@@ -114,7 +114,10 @@ const CHAVE_ROTA = "ci-ultima-rota";
 
 export function lembrarRota(caminho: string): void {
   try {
-    if (caminho && caminho !== "/auth") window.localStorage.setItem(CHAVE_ROTA, caminho);
+    // A landing ("/") nunca é guardada: ela é justamente a tela que o atalho
+    // do app abre sozinho, e guardá-la apagaria a última página de verdade.
+    if (caminho && caminho !== "/auth" && caminho !== "/")
+      window.localStorage.setItem(CHAVE_ROTA, caminho);
   } catch {
     /* sem localStorage, sem memória de rota — e tudo bem */
   }
