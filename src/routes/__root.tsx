@@ -26,6 +26,7 @@ import {
   lembrarRota,
   limparCachesDoNavegador,
   registrarCacheOffline,
+  ultimaRota,
 } from "@/lib/offline/sw-register";
 import { idbLimparTudo } from "@/lib/offline/idb";
 import { SITE_ORIGIN, siteUrl } from "@/lib/site-url";
