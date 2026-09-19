@@ -154,8 +154,28 @@ export function CountPill({ children }: { children: ReactNode }) {
  * da barra de menu"). Quem usa põe o ícone e um `<span className="lg:hidden">`
  * com o rótulo.
  */
-export const ACTION_BUTTON =
-  "ds-3d ds-3d-hover relative flex h-[var(--ds-action-h)] flex-1 items-center justify-center gap-2 rounded-[9px] bg-card text-[12px] font-bold transition-colors lg:size-[var(--ds-action-h-lg)] lg:h-[var(--ds-action-h-lg)] lg:flex-none lg:gap-0 lg:rounded-[13px]";
+/**
+ * OS BOTÕES DE AÇÃO SÃO UMA PEÇA SÓ, PARTIDA AO MEIO (pedido explícito,
+ * 18/09/2026, mockup aprovado): "é possível juntarmos esses 2 botões como se
+ * fosse um só, mas dividindo o clique deles ao meio? quando clicado à direita
+ * abre Filtros, à esquerda abre Pendências — fazer isso nas outras subpáginas
+ * também".
+ *
+ * `ACTION_BAR` é a casca (a única com luz, fundo e raio) e `ACTION_SEGMENT` é
+ * cada metade, sem casca própria. O fio entre elas vem do `divide-x` da
+ * barra, então dois, três ou um botão funcionam sem ninguém combinar nada: um
+ * botão sozinho simplesmente ocupa a peça inteira, como no Kanban.
+ *
+ * A ALTURA continua vindo de `--ds-action-h` / `--ds-action-h-lg`
+ * (`styles.css`) — 28px no celular, e no computador a altura da barra de abas,
+ * porque ali a peça fica colada nela.
+ */
+export const ACTION_BAR =
+  "ds-3d ds-3d-hover relative flex h-[var(--ds-action-h)] w-full overflow-hidden rounded-[9px] bg-card divide-x divide-[color-mix(in_oklab,var(--foreground)_11%,transparent)] lg:h-[var(--ds-action-h-lg)] lg:w-auto lg:rounded-[13px]";
+
+/** Cada metade da peça. Sem fundo e sem borda: quem tem casca é a barra. */
+export const ACTION_SEGMENT =
+  "relative flex flex-1 items-center justify-center gap-2 px-3 text-[12px] font-bold transition-colors lg:w-[var(--ds-action-h-lg)] lg:flex-none lg:gap-0 lg:px-0";
 
 /** O tom padrão (cinza que acende no hover). Um botão ligado troca por outro. */
 export const ACTION_BUTTON_TONE = "text-muted-foreground hover:text-foreground";

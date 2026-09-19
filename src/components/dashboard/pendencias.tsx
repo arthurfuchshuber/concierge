@@ -41,7 +41,7 @@ import { ListChecks } from "lucide-react";
 import { toast } from "sonner";
 import { notifyAction } from "@/components/UndoActionBar";
 import {
-  ACTION_BUTTON,
+  ACTION_SEGMENT,
   ACTION_BUTTON_TONE,
   ACTION_ICON,
 } from "@/components/dashboard/panel-chrome";
@@ -284,12 +284,15 @@ export function PendenciasButton({
         onClick={() => setAberto(true)}
         title="Pendências"
         aria-label={`Pendências (${emAberto})`}
-        className={`${ACTION_BUTTON} ${ACTION_BUTTON_TONE}`}
+        className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
       >
         <ListChecks className={ACTION_ICON} />
         <span className="lg:hidden">Pendências</span>
+        {/* O SELO FICA DENTRO do segmento: pendurado no canto, ele era cortado
+            pela borda da barra (que precisa de `overflow-hidden` para os
+            cantos arredondados valerem nos segmentos). */}
         {emAberto > 0 && (
-          <span className="ds-atencao absolute -right-1.5 -top-1.5 grid h-[16px] min-w-[16px] place-items-center rounded-full bg-[#c9a962] px-1 text-[9px] font-extrabold leading-none text-[#1a1408]">
+          <span className="grid h-[15px] min-w-[15px] shrink-0 place-items-center rounded-full bg-[#c9a962] px-1 text-[9px] font-extrabold leading-none text-[#1a1408]">
             {emAberto > 99 ? "99+" : emAberto}
           </span>
         )}

@@ -38,7 +38,7 @@ import {
   PanelHeading,
   SectionLabel,
   CountPill,
-  ACTION_BUTTON,
+  ACTION_SEGMENT,
   ACTION_BUTTON_TONE,
   ACTION_ICON,
 } from "@/components/dashboard/panel-chrome";
@@ -549,34 +549,38 @@ export function RecordsWorkspace() {
           cartões numa linha só deixavam o rótulo cortado ("ESQUECID…",
           "MANUTEN…") justamente nas categorias que mais importam. Em
           `grid-cols-3` sobram três em cima e dois embaixo, com o rótulo
-          inteiro. O número NÃO tem cor própria (padrão "Presença"): a
-          categoria é o fio de 2px na aresta de cima, e o cartão selecionado
-          ganha luz, não cor (ver `CARD_ACTIVE`). Tocar no selecionado volta
+          inteiro. Desde 18/09/2026 os seis são um BLOCO SÓ, com fios internos
+          — cada quadrado continua sendo o seu próprio clique. O número não tem
+          cor própria (padrão "Presença"): a categoria vive na caixinha do
+          ícone e o selecionado ganha luz, não cor. Tocar no selecionado volta
           para "todos". */}
-        <div className="ds-card-grid grid-cols-3">
+        <div className={`${PANEL_SHELL} grid grid-cols-3`}>
           {/* TODOS é o primeiro cartão e o filtro de entrada da aba (pedido
             explícito, 10/09/2026). Ele não é "mais uma categoria": é a visão
             em que os registros de uma MESMA RESERVA vêm empacotados. */}
-          <CategoryCard
-            label="Todos"
-            count={q.data?.total ?? 0}
-            tone={null}
-            icon={LayoutGrid}
-            active={category === null}
-            loading={q.isLoading}
-            onClick={() => setCategory(null)}
-          />
-          {CARDS.map((c) => (
+          <CategoriaCelula i={0}>
             <CategoryCard
-              key={c.key}
-              label={c.short}
-              count={counts?.[c.key] ?? 0}
-              tone={c.key}
-              icon={c.icon}
-              active={category === c.key}
+              label="Todos"
+              count={q.data?.total ?? 0}
+              tone={null}
+              icon={LayoutGrid}
+              active={category === null}
               loading={q.isLoading}
-              onClick={() => setCategory(category === c.key ? null : c.key)}
+              onClick={() => setCategory(null)}
             />
+          </CategoriaCelula>
+          {CARDS.map((c, i) => (
+            <CategoriaCelula key={c.key} i={i + 1}>
+              <CategoryCard
+                label={c.short}
+                count={counts?.[c.key] ?? 0}
+                tone={c.key}
+                icon={c.icon}
+                active={category === c.key}
+                loading={q.isLoading}
+                onClick={() => setCategory(category === c.key ? null : c.key)}
+              />
+            </CategoriaCelula>
           ))}
         </div>
 
@@ -705,33 +709,31 @@ export function RecordsWorkspace() {
    carnaval — e, pior, dava o mesmo peso visual a "31 limpezas" (rotina) e a
    "1 manutenção" (problema). Agora o número é sempre cor de texto e a
    categoria vira um FIO de 2px na aresta de cima do cartão. */
-const CARD_TOP_LINE: Record<RecordCategory, string> = {
-  maintenance: "bg-gradient-to-r from-[#c98c8c] to-transparent",
-  damage: "bg-gradient-to-r from-[#c98c8c] to-transparent",
-  forgotten: "bg-gradient-to-r from-[#c9a962] to-transparent",
-  cleaning_audit: "bg-gradient-to-r from-[#7fb79a] to-transparent",
-  other: "bg-gradient-to-r from-[#c9a962] to-transparent",
+/* A COR DA CATEGORIA MUDOU DE LUGAR (mockup aprovado, 18/09/2026). Era um fio
+   de 2px na aresta de cima de cada cartão; com os seis virando um BLOCO só, o
+   fio da segunda fileira cairia no meio da peça. Foi para a caixinha do
+   ícone, que está sempre dentro da célula e funciona em qualquer posição da
+   grade. O mapa é o mesmo de sempre: rosa terroso = problema, âmbar =
+   atenção, verde sálvia = rotina em ordem. */
+const CARD_ICON_TONE: Record<RecordCategory, string> = {
+  maintenance: "#c98c8c",
+  damage: "#c98c8c",
+  forgotten: "#c9a962",
+  cleaning_audit: "#7fb79a",
+  other: "#c9a962",
 };
 
 /**
- * O CARTÃO SELECIONADO — LUZ, NÃO COR (pedido explícito, 18/09/2026: "não tem
- * que ter essa borda rosa no card 'todos', fica muito poluído... pode ser mais
- * sutil como fez com os demais cards, mas talvez utilizando outra cor").
+ * Uma CÉLULA do bloco de contadores — não é mais um cartão solto.
  *
- * O anel era de 2px e da cor da categoria — e, no "Todos", do rosa da marca,
- * que é a cor mais forte do sistema inteiro. Numa grade de seis cartões, isso
- * é uma moldura gritando ao lado de cinco fios discretos.
+ * Pedido explícito (18/09/2026): "é possível fazer o mesmo com os cards?
+ * separando certinho para que cada quadrado seja clicável naquela
+ * informação". Seis cartões com respiro entre eles viraram uma peça única com
+ * fios internos; cada quadrado continua sendo o seu próprio clique.
  *
- * A seleção passa a ser a MESMA coisa que o padrão "Presença" usa em todo
- * lugar: um fio de 1px e um fundo um tom acima. Neutro de propósito — a cor já
- * é do que o cartão CONTA (a categoria, no fio de cima); se ela também
- * dissesse "estou selecionado", as duas informações brigariam. Assim o fio de
- * categoria continua legível no cartão selecionado, coisa que o anel grosso
- * escondia.
+ * O selecionado ganha uma placa POR DENTRO, com respiro da borda: um fundo
+ * que fosse até a borda brigaria com o canto arredondado do bloco.
  */
-const CARD_ACTIVE =
-  "bg-foreground/[0.055] ring-1 ring-inset ring-[color-mix(in_oklab,var(--foreground)_22%,transparent)]";
-
 function CategoryCard({
   label,
   count,
@@ -749,34 +751,26 @@ function CategoryCard({
   loading: boolean;
   onClick: () => void;
 }) {
-  const topLine = tone && count > 0 ? CARD_TOP_LINE[tone] : null;
-  /* MESMA ANATOMIA DOS CARDS DO OPERACIONAL (pedido explícito, 18/09/2026:
-     "não é só replicar a paleta, mas sim o layout inteiro"): o RÓTULO em cima,
-     em caixa alta e numa linha só; o NÚMERO centralizado embaixo, sem cor
-     própria. Antes era o contrário — número em cima, rótulo miúdo embaixo —
-     e as duas telas pareciam produtos diferentes. */
+  const cor = tone && count > 0 ? CARD_ICON_TONE[tone] : null;
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`${PANEL_SHELL} flex flex-col px-2 pb-3 pt-3 text-left transition hover:bg-secondary/30 ${
-        active ? CARD_ACTIVE : ""
-      }`}
+      className="relative flex w-full flex-col px-2 pb-3 pt-3 text-left transition-colors hover:bg-foreground/[0.03]"
     >
-      {topLine && (
+      {active && (
         <span
           aria-hidden
-          className={`absolute inset-x-2.5 top-0 h-[2px] rounded-b-[3px] ${topLine}`}
+          className="absolute inset-1 rounded-[9px] bg-foreground/[0.07] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)]"
         />
       )}
-      {/* ÍCONE EM CAIXINHA + RÓTULO NUMA LINHA SÓ — a mesma primeira linha do
-          KpiCard da Operacional. Aqui a caixinha é de 20px (e não 24px)
-          porque são três cartões por linha no celular, não dois: com 24px o
-          rótulo perdia largura e voltava a cortar em "ESQUECID…". */}
-      <div className="flex w-full min-w-0 items-center gap-1.5">
-        <span className="grid size-5 shrink-0 place-items-center rounded-[7px] bg-foreground/[0.05] text-muted-foreground">
-          <Icon className="size-3" strokeWidth={2} />
+      <div className="relative flex w-full min-w-0 items-center gap-1.5">
+        <span
+          className="grid size-5 shrink-0 place-items-center rounded-[7px]"
+          style={cor ? { background: `${cor}1f`, color: cor } : undefined}
+        >
+          <Icon className={`size-3 ${cor ? "" : "text-muted-foreground"}`} strokeWidth={2} />
         </span>
         <span
           className="ds-eyebrow min-w-0 flex-1 truncate text-[8.5px] tracking-[0.04em] text-muted-foreground"
@@ -785,10 +779,27 @@ function CategoryCard({
           {label}
         </span>
       </div>
-      <span className="w-full pt-2 text-center font-display text-[22px] font-bold leading-none tracking-[-0.03em] tabular-nums">
+      <span className="relative w-full pt-2 text-center font-display text-[22px] font-bold leading-none tracking-[-0.03em] tabular-nums">
         {loading ? "—" : count}
       </span>
     </button>
+  );
+}
+
+/** O fio entre as células do bloco. */
+const FIO_INTERNO = "bg-[color-mix(in_oklab,var(--foreground)_11%,transparent)]";
+
+/** Envolve cada célula e desenha os fios: vertical à esquerda (menos na 1ª
+ *  coluna) e horizontal em cima (só a partir da 2ª fileira). */
+function CategoriaCelula({ i, children }: { i: number; children: React.ReactNode }) {
+  return (
+    <div className="relative">
+      {i % 3 !== 0 && (
+        <span aria-hidden className={`absolute inset-y-2 left-0 w-px ${FIO_INTERNO}`} />
+      )}
+      {i >= 3 && <span aria-hidden className={`absolute inset-x-2 top-0 h-px ${FIO_INTERNO}`} />}
+      {children}
+    </div>
   );
 }
 
@@ -2114,7 +2125,7 @@ function RecordsFiltersButton({
           type="button"
           title={hasCustomFilters ? "Filtros · há filtro ativo" : "Filtros"}
           aria-label="Filtros dos registros"
-          className={`${ACTION_BUTTON} ${ACTION_BUTTON_TONE}`}
+          className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
         >
           <SlidersHorizontal className={ACTION_ICON} />
           <span className="lg:hidden">Filtros</span>

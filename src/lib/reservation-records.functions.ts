@@ -298,6 +298,11 @@ async function createLinkedTask(
     logId?: string;
     reservationId?: string;
     body: string | null;
+    /**
+     * A COLUNA ONDE O REGISTRO NASCEU. É ela que decide se a pendência entra
+     * no checklist da limpeza — ver `show_in_cleaning` no insert abaixo.
+     */
+    cardMode?: z.infer<typeof CardMode>;
   },
 ): Promise<string | null> {
   const rule = TASK_RULES[input.category];
@@ -324,7 +329,21 @@ async function createLinkedTask(
       category: rule.taskCategory,
       priority: rule.priority,
       due_date: null,
-      show_in_cleaning: rule.showInCleaning,
+      /* "APARECE NA LIMPEZA" SEGUE A ORIGEM, NÃO SÓ A CATEGORIA (pedido
+         explícito, 18/09/2026: "tudo que a própria limpeza abre deve ser
+         marcado como 'aparecer na limpeza' automaticamente para que ela faça
+         o acompanhamento").
+
+         Antes valia só a categoria, e por isso um DANO registrado pela
+         própria faxineira, na coluna de Limpeza, nascia invisível para ela:
+         das 8 pendências abertas da Casa Charmosa, 7 eram dano e o checklist
+         mostrava 1. Quem abriu na limpeza está dizendo "isto é para a próxima
+         faxina olhar" — a categoria descreve o QUE é, não PARA QUEM é.
+
+         Fora da limpeza, o padrão da categoria continua valendo, e o usuário
+         interno continua podendo desmarcar no formulário; desmarcada, não
+         aparece no checklist. */
+      show_in_cleaning: input.cardMode === "cleaning" ? true : rule.showInCleaning,
       amount_spent_cents: null,
       recurrence_days: null,
       created_by: userId,
@@ -382,6 +401,7 @@ export const attachReservationRecord = createServerFn({ method: "POST" })
       logId: data.logId,
       reservationId: data.reservationId,
       body: data.caption ?? null,
+      cardMode: data.cardMode,
     });
 
     const { error } = await supabase.from("reservation_records").insert({
@@ -435,6 +455,7 @@ export const createReservationRecordNote = createServerFn({ method: "POST" })
       logId: data.logId,
       reservationId: data.reservationId,
       body: data.body,
+      cardMode: data.cardMode,
     });
 
     const { error } = await supabase.from("reservation_records").insert({
@@ -535,6 +556,7 @@ export const createRecordSituation = createServerFn({ method: "POST" })
       logId: data.logId,
       reservationId: data.reservationId,
       body: (data.title ?? "").trim() || null,
+      cardMode: data.cardMode,
     });
     const fileName = await nextRecordName(supabase, data.propertyId);
     const groupId = crypto.randomUUID();

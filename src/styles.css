@@ -717,6 +717,22 @@ dd {
   gap: var(--ds-block-gap);
 }
 
+/**
+ * O PRIMEIRO BLOCO DE UMA ABA — o respiro depois do cabeçalho.
+ *
+ * REGRA (mockup aprovado, 18/09/2026): entre a barra de abas/ações e o
+ * primeiro bloco de conteúdo vale o respiro de BLOCO (24px), não o de lista.
+ *
+ * Por que existe uma utility em vez de um `mt-6` solto: o invólucro da página
+ * já dá 0.625rem a todos os filhos (`space-y-2.5`) e ele é COMPARTILHADO com o
+ * Operacional, que o cliente pediu para não tocar ("está perfeita"). Esta
+ * utility completa a diferença, derivada do mesmo token — se `--ds-block-gap`
+ * mudar, isto acompanha sozinho.
+ */
+@utility ds-lead-block {
+  margin-top: calc(var(--ds-block-gap, 24px) - 0.625rem);
+}
+
 @utility ds-card-grid {
   --ds-grid-gap: 10px;
   display: grid;

@@ -139,12 +139,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { MoneyInput } from "@/components/ui/money-input";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
+import { CATEGORY_BY_KEY } from "@/components/dashboard/record-categories";
+import type { RecordCategory } from "@/lib/reservation-records.functions";
 import {
   PANEL_SHELL,
   PanelHeading,
   SectionLabel,
   CountPill,
-  ACTION_BUTTON,
+  ACTION_BAR,
+  ACTION_SEGMENT,
   ACTION_BUTTON_TONE,
   ACTION_ICON,
 } from "@/components/dashboard/panel-chrome";
@@ -2640,7 +2643,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                       : "Voltar aos últimos 7 dias"
                   }
                   aria-pressed={cleaningWindow === "next"}
-                  className={`${ACTION_BUTTON} ${
+                  className={`${ACTION_SEGMENT} ${
                     cleaningWindow === "next" ? "ds-atencao" : ACTION_BUTTON_TONE
                   }`}
                 >
@@ -2915,7 +2918,12 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               foi explícito — "não ajuste nada de espaçamentos na página
               operacional, pois ela está perfeita". Mexer lá fora mudaria as
               duas. */}
-          <div className="ds-blocks">
+          {/* TUDO A 10px DALI PARA BAIXO (pedido explícito, 18/09/2026): "entre
+              os cards de limpeza realizada/custo total e o quadrante limpezas
+              por dia, o mesmo espaçamento que entre limpezas por dia e custo
+              total por dia". Cards e gráficos leem como um grupo só; o que os
+              separa do cabeçalho é o `ds-lead-block` (24px). */}
+          <div className="ds-card-grid ds-lead-block">
             <div className="ds-card-grid grid-cols-2 lg:grid-cols-4">
               <div className="col-span-1">
                 <StatDisplayCard
@@ -3737,9 +3745,12 @@ export function OperationShell({
             })}
           </nav>
           {actions && (
-            <div className="order-2 flex w-full items-center gap-2 lg:order-1 lg:w-auto lg:shrink-0">
-              {actions}
-            </div>
+            /* UMA PEÇA SÓ, partida ao meio (mockup aprovado, 18/09/2026).
+               Era um `flex gap-2` com um botão-cartão por ação; virou a barra
+               `ACTION_BAR`, que tem a casca, e cada ação é um segmento sem
+               casca. Uma ação sozinha ocupa a peça inteira — é o caso do
+               Kanban, que ficou só com Filtros. */
+            <div className={`order-2 lg:order-1 lg:shrink-0 ${ACTION_BAR}`}>{actions}</div>
           )}
         </div>
       </div>
@@ -3754,6 +3765,111 @@ export function OperationShell({
    passaram a usar o MESMO rótulo para separar "Precisam de atenção" de "Em
    dia". Um rótulo de seção escrito duas vezes é um rótulo de seção que vai
    divergir. Ver o comentário de abertura daquele arquivo. */
+
+/**
+ * O CHECKLIST DA LIMPEZA — as pendências do imóvel dentro do card.
+ *
+ * DUAS MUDANÇAS DE 18/09/2026, ambas a pedido do cliente:
+ *
+ * 1. TRÊS DE CADA VEZ, com "+N" para abrir o resto — "igual fizemos na aba
+ *    registros". Um imóvel com oito pendências transformava o card num
+ *    rolo: a lista empurrava o botão de concluir para fora da tela, que é
+ *    justamente o botão que a pessoa foi ali usar. Três cabem sem empurrar
+ *    nada, e quem precisa ver tudo abre.
+ *
+ * 2. SAIU DO AZUL-CÉU. O bloco tinha borda, fundo e título em azul-céu — a
+ *    cor mais berrante que sobrou da paleta antiga, dentro de um card que já
+ *    está no padrão "Presença". Agora é a mesma casca dos outros blocos, com
+ *    o fio âmbar no topo (é espera, não problema) e a contagem na pílula
+ *    neutra.
+ *
+ * A etiqueta à direita de cada linha diz de ONDE a pendência veio (Dano,
+ * Manutenção...): a lista passou a misturar categorias quando a origem virou
+ * o critério de entrada, e sem a etiqueta a faxineira não sabe se "cobre-leito
+ * manchado" é tarefa dela ou recado para o proprietário.
+ */
+const CHECKLIST_VISIVEL = 3;
+
+function CleaningChecklist({
+  items,
+  onToggle,
+}: {
+  items: { task: TaskRow; done: boolean }[];
+  onToggle: (task: TaskRow) => void;
+}) {
+  const [tudo, setTudo] = useState(false);
+  const feitas = items.filter((c) => c.done).length;
+  const escondidas = items.length - CHECKLIST_VISIVEL;
+  const lista = tudo ? items : items.slice(0, CHECKLIST_VISIVEL);
+
+  return (
+    <div className={`${PANEL_SHELL} px-2.5 pb-2 pt-2.5`} onClick={(e) => e.stopPropagation()}>
+      <span
+        aria-hidden
+        className="absolute inset-x-3 top-0 h-[2px] rounded-b-[3px] bg-gradient-to-r from-[#c9a962] to-transparent"
+      />
+      <PanelHeading
+        title="Checklist desta limpeza"
+        className="mb-2"
+        right={
+          <CountPill>
+            {feitas}/{items.length}
+          </CountPill>
+        }
+      />
+      <div className="space-y-px">
+        {lista.map(({ task, done }) => {
+          const meta = CATEGORY_BY_KEY.get(TASK_CATEGORIA_REGISTRO[task.category] ?? "other");
+          return (
+            <label
+              key={task.id}
+              className="flex cursor-pointer items-center gap-2.5 rounded-[8px] px-1 py-[7px] transition-colors hover:bg-foreground/[0.04]"
+            >
+              <Checkbox
+                checked={done}
+                onCheckedChange={() => onToggle(task)}
+                className="size-[17px] shrink-0"
+              />
+              <span
+                className={`min-w-0 flex-1 truncate text-[12px] leading-snug ${
+                  done ? "text-muted-foreground line-through" : ""
+                }`}
+                title={task.title}
+              >
+                {task.title}
+              </span>
+              {meta && (
+                <span
+                  className={`shrink-0 rounded-full px-1.5 py-px text-[8.5px] font-extrabold uppercase tracking-[0.06em] ${meta.tone.replace(/border-\S+/, "")}`}
+                >
+                  {meta.short}
+                </span>
+              )}
+            </label>
+          );
+        })}
+      </div>
+      {escondidas > 0 && (
+        <button
+          type="button"
+          onClick={() => setTudo((v) => !v)}
+          aria-expanded={tudo}
+          className="mt-1 w-full rounded-[8px] py-1 text-center text-[10px] font-bold text-muted-foreground transition-colors hover:bg-secondary/40 hover:text-foreground"
+        >
+          {tudo ? "Mostrar menos" : `+${escondidas} pendências`}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** A categoria da PENDÊNCIA volta à categoria do REGISTRO que a abriu, para a
+ *  etiqueta usar o mesmo vocabulário que a pessoa vê na aba Registros. */
+const TASK_CATEGORIA_REGISTRO: Record<string, RecordCategory> = {
+  maintenance: "maintenance",
+  inspection: "damage",
+  guest_request: "forgotten",
+};
 
 const KANBAN_TONE: Record<string, string> = {
   emerald: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 ring-emerald-500/20",
@@ -6786,7 +6902,7 @@ function CalendarFiltersButton({
             type="button"
             title={hasCustomFilters ? "Filtros e print · há filtro ativo" : "Filtros e print"}
             aria-label="Filtros e print"
-            className={`${ACTION_BUTTON} ${ACTION_BUTTON_TONE}`}
+            className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
           >
             <SlidersHorizontal className={ACTION_ICON} />
             <span className="lg:hidden">Filtros</span>
@@ -8398,17 +8514,20 @@ function ArrivalCard({
         )
         .map((c) => c.taskId),
     );
-    // Pedido explícito (07/09/2026): as pendências abertas do imóvel vão
-    // TODAS para a PRÓXIMA limpeza dele — não mais "cada uma na limpeza da
-    // sua própria reserva" (que escondia a pendência de uma estadia já
-    // encerrada) nem "em toda limpeza" (que repetia a mesma pendência em
-    // vários cards ao mesmo tempo). Este card só mostra o checklist se ELE
-    // for a próxima limpeza do imóvel; a eleição é recalculada a cada
-    // carregamento (ver nextCleaningKeyByProperty), então uma reserva nova
-    // com limpeza mais próxima puxa a lista pra ela sozinha.
-    const thisKey = row.reservationId ?? row.logId;
-    const nextKey = cleaningTasks.nextCleaningKeyByProperty.get(row.propertyId);
-    if (!thisKey || !nextKey || thisKey !== nextKey) return [];
+    /* EM TODA LIMPEZA DO IMÓVEL (pedido explícito, 18/09/2026), e não só na
+       primeira da fila.
+
+       A regra de 07/09/2026 elegia UMA limpeza — a mais próxima — para
+       carregar as pendências do imóvel, para a mesma pendência não se repetir
+       em vários cards. Na prática isso escondia a lista de quem estava com o
+       card na mão: se o imóvel tinha duas limpezas na fila e a pessoa abriu a
+       segunda, não via nada. O cliente preferiu a repetição à omissão —
+       "mostrar em toda limpeza do imóvel".
+
+       Repetir não duplica trabalho: marcar em qualquer um dos cards fecha a
+       MESMA pendência, e a marca daquela ocorrência (`task_completions`) é
+       por card. `nextCleaningKeyByProperty` continua existindo porque o
+       cálculo da próxima limpeza é usado em outro lugar. */
 
     // Uma pendência concluída não deve seguir ocupando espaço nas limpezas
     // seguintes, mas também não pode sumir no instante do clique — senão
@@ -9230,32 +9349,10 @@ function ArrivalCard({
           pelo menos 1 pendência marcada "aparece na limpeza" pra este
           imóvel/estadia (pedido explícito). */}
       {!listBare && cleaningChecklist.length > 0 && (
-        <div className="rounded-lg border border-sky-400/25 bg-sky-400/[0.06] px-2.5 py-2 space-y-1.5">
-          <div className="flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-wider text-sky-500 dark:text-sky-400">
-            <span>Checklist desta limpeza</span>
-            <span className="tabular-nums opacity-80">
-              {cleaningChecklist.filter((c) => c.done).length}/{cleaningChecklist.length}
-            </span>
-          </div>
-          {cleaningChecklist.map(({ task, done: taskDone }) => (
-            <label
-              key={task.id}
-              className="flex items-start gap-2 cursor-pointer"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Checkbox
-                checked={taskDone}
-                onCheckedChange={() => onToggleCleaningTask?.(task, row)}
-                className="mt-0.5 shrink-0"
-              />
-              <span
-                className={`text-xs leading-snug ${taskDone ? "text-muted-foreground line-through" : ""}`}
-              >
-                {task.title}
-              </span>
-            </label>
-          ))}
-        </div>
+        <CleaningChecklist
+          items={cleaningChecklist}
+          onToggle={(task) => onToggleCleaningTask?.(task, row)}
+        />
       )}
 
       {/* Action row: botão principal em largura total; Maps + menu à direita.
