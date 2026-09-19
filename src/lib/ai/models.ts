@@ -61,7 +61,6 @@ const COST_PER_MTOK: Record<string, { input: number; output: number }> = {
   "openai/gpt-6-astra": { input: 1.25, output: 10 },
   "openai/gpt-5.6-sol": { input: 1.25, output: 10 },
   "google/gemini-3.8-flash": { input: 0.3, output: 2.5 },
-  "google/gemini-3.8-flash": { input: 0.3, output: 2.5 },
   "google/gemini-3.1-flash-lite": { input: 0.1, output: 0.4 },
   "google/gemini-embedding-2": { input: 0.15, output: 0 },
 };
