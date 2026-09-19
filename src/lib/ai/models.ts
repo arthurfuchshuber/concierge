@@ -22,13 +22,13 @@ export const AI_MODELS = {
   /** Validação final antes de enviar ao hóspede. */
   validation: "google/gemini-3.8-flash",
   /** City Pulse: clima, eventos, notícias, informações locais. */
-  cityPulse: "google/gemini-2.5-flash",
+  cityPulse: "google/gemini-3.8-flash",
   /** Extração inteligente de documentos (RG, passaporte, CNH, comprovantes). */
-  documents: "google/gemini-2.5-flash",
+  documents: "google/gemini-3.8-flash",
   /** Interpretação de contratos (ClickSign). */
   contracts: "openai/gpt-6-astra",
   /** Geração de conteúdo (descrições, mensagens, anúncios, e-mails). */
-  content: "google/gemini-2.5-flash",
+  content: "google/gemini-3.8-flash",
   /**
    * Assistente do Painel — o concierge interno dos operadores.
    *
@@ -40,7 +40,7 @@ export const AI_MODELS = {
    */
   internal: "openai/gpt-6-astra",
   /** Organização e justificativa de recomendações turísticas. */
-  recommendations: "google/gemini-2.5-flash",
+  recommendations: "google/gemini-3.8-flash",
   /** Embeddings do Hybrid RAG. */
   embeddings: "google/gemini-embedding-2",
 } as const;
@@ -61,7 +61,7 @@ const COST_PER_MTOK: Record<string, { input: number; output: number }> = {
   "openai/gpt-6-astra": { input: 1.25, output: 10 },
   "openai/gpt-5.6-sol": { input: 1.25, output: 10 },
   "google/gemini-3.8-flash": { input: 0.3, output: 2.5 },
-  "google/gemini-2.5-flash": { input: 0.3, output: 2.5 },
+  "google/gemini-3.8-flash": { input: 0.3, output: 2.5 },
   "google/gemini-3.1-flash-lite": { input: 0.1, output: 0.4 },
   "google/gemini-embedding-2": { input: 0.15, output: 0 },
 };
