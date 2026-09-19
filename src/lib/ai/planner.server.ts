@@ -6,8 +6,7 @@
  * Roda em modelo rápido e barato; falhas nunca bloqueiam o atendimento
  * (o agente principal continua com autonomia total de tool calling).
  */
-import { chatJson, EMPTY_USAGE, type Usage } from "./gateway.server";
-import { PROMPTS } from "./prompts";
+import { EMPTY_USAGE, type Usage } from "./gateway.server";
 import type { Intent } from "./intent.server";
 
 export const KNOWN_TOOLS = [
@@ -33,6 +32,7 @@ export type ExecutionPlan = {
   fallback: boolean;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function heuristicPlan(intent: Intent): ExecutionPlan {
   const tools: PlannedTool[] = [];
   const add = (name: string, reason: string, query?: string) => tools.push({ name, reason, query });
@@ -76,64 +76,34 @@ function heuristicPlan(intent: Intent): ExecutionPlan {
   };
 }
 
+/**
+ * DESATIVADO em 19/09/2026 — não chama modelo.
+ *
+ * O planejador rodava em modelo barato e entregava ao concierge um roteiro de
+ * ferramentas montado por quem pensa menos do que ele. Um modelo de raciocínio
+ * planeja melhor sozinho. Mantido determinístico só para o restante do
+ * pipeline (limiares de risco, auditoria) continuar recebendo o mesmo formato.
+ */
 export async function planExecution(params: {
   message: string;
   intent: Intent;
   history: Array<{ role: string; content: string }>;
   explorationMode?: boolean;
-  /** Contexto do hóspede/memória (uso interno) para calibrar o plano. */
   contextHint?: string | null;
 }): Promise<{ plan: ExecutionPlan; usage: Usage; model: string }> {
-  const recent = params.history
-    .slice(-4)
-    .map((m) => `${m.role === "user" ? "Hóspede" : "IA"}: ${m.content}`)
-    .join("\n");
-
-  try {
-    const { data, usage, model } = await chatJson<Partial<ExecutionPlan>>("intent", [
-      { role: "system", content: PROMPTS.planner.text },
-      {
-        role: "user",
-        content:
-          `${params.explorationMode ? "Modo exploração ativo (conversa sobre a cidade).\n" : ""}` +
-          `Intenção detectada: ${params.intent.intent} (categoria=${params.intent.category}, ` +
-          `urgência=${params.intent.urgency}, idioma=${params.intent.language})\n` +
-          `${params.contextHint ? `Contexto e memória do hóspede (interno):\n${params.contextHint}\n` : ""}` +
-          `${recent ? `Contexto recente:\n${recent}\n` : ""}` +
-          `Mensagem do hóspede:\n${params.message}`,
-      },
-    ]);
-
-
-    if (!data) return { plan: heuristicPlan(params.intent), usage, model };
-
-    const rawTools = Array.isArray(data.tools) ? (data.tools as PlannedTool[]) : [];
-    const tools = rawTools
-      .map((t) => ({
-        name: String(t?.name ?? ""),
-        reason: String(t?.reason ?? ""),
-        query: t?.query ? String(t.query) : undefined,
-      }))
-      .filter((t) => (KNOWN_TOOLS as readonly string[]).includes(t.name))
-      .slice(0, 6);
-
-    return {
-      plan: {
-        objective: String(data.objective ?? params.intent.intent ?? ""),
-        tools,
-        parallel: data.parallel !== false && tools.length > 1,
-        needsHuman: data.needsHuman === true || params.intent.needsHuman,
-        riskLevel: data.riskLevel === "high" || data.riskLevel === "low" ? data.riskLevel : "normal",
-        notes: String(data.notes ?? ""),
-        fallback: false,
-      },
-      usage,
-      model,
-    };
-  } catch (err) {
-    console.error("[ai] planExecution falhou", err);
-    return { plan: heuristicPlan(params.intent), usage: EMPTY_USAGE, model: "" };
-  }
+  return {
+    plan: {
+      objective: params.intent.intent || "atender o hóspede",
+      tools: [],
+      parallel: false,
+      needsHuman: false,
+      riskLevel: params.intent.urgency === "high" ? "high" : "normal",
+      notes: "",
+      fallback: false,
+    },
+    usage: EMPTY_USAGE,
+    model: "",
+  };
 }
 
 /** Renderiza o plano para o agente principal seguir (sem tirar sua autonomia). */
