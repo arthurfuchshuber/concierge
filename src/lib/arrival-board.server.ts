@@ -1028,8 +1028,16 @@ export async function buildArrivalRows(
       // vigente ou um check-in ainda pendente (atrasado). Um check-in antigo
       // cuja saída já foi encerrada sai da lista mesmo tendo status gravado —
       // senão vira card morto, atrasado e com o botão travado.
-      if (date < today && !virtualStay && !overduePending && !isCurrentStay(r.checkin_date, r.checkout_date))
+      const keepDespiteStatus = data.kind === "checkin" ? false : !!s;
+      if (
+        date < today &&
+        !keepDespiteStatus &&
+        !virtualStay &&
+        !overduePending &&
+        !(data.kind === "checkin" && isCurrentStay(r.checkin_date, r.checkout_date))
+      )
         return null;
+
 
 
 
