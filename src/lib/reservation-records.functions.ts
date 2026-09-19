@@ -1004,7 +1004,7 @@ const TASK_COLUMNS = [
   "updated_at",
 ] as const;
 
-export type RemovedTask = Record<string, unknown>;
+export type RemovedTask = Record<string, string | number | boolean | null>;
 
 export const deleteReservationRecord = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -1065,7 +1065,9 @@ export const restoreReservationRecord = createServerFn({ method: "POST" })
     z
       .object({
         removed: RemovedRecordSchema,
-        removedTask: z.record(z.string(), z.unknown()).nullish(),
+        removedTask: z
+          .record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()]))
+          .nullish(),
       })
       .parse(input),
   )
@@ -1074,7 +1076,7 @@ export const restoreReservationRecord = createServerFn({ method: "POST" })
     if (data.removedTask) {
       // Só as colunas conhecidas da tabela — nada que venha do navegador
       // entra numa coluna que não seja essa lista.
-      const linha: Record<string, unknown> = {};
+      const linha: Record<string, string | number | boolean | null> = {};
       for (const col of TASK_COLUMNS) {
         if (col in data.removedTask) linha[col] = data.removedTask[col];
       }
