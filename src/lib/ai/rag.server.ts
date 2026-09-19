@@ -98,21 +98,42 @@ export async function hybridRetrieve(params: {
     console.error("[rag] busca textual falhou", err);
   }
 
-  const passages = Array.from(byId.values())
-    .sort((a, b) => b.score - a.score || b.confidence - a.confidence)
-    .slice(0, limit);
+  // Piso de relevância: um trecho fracamente parecido com a pergunta entrava no
+  // prompt com "confiabilidade=97%" e o modelo o tratava como fato do momento
+  // (ex.: template de pedido de avaliação puxado por um simples "boa tarde").
+  const MIN_SCORE = 0.25;
+  const all = Array.from(byId.values()).sort(
+    (a, b) => b.score - a.score || b.confidence - a.confidence,
+  );
+  const relevant = all.filter((p) => p.score >= MIN_SCORE);
+  const passages = (relevant.length ? relevant : all.slice(0, 3)).slice(0, limit);
 
   return { passages, usage, retrievalUsed };
 }
 
-/** Formata os trechos recuperados com a fonte e o score, para o agente interpretar. */
+/** Fontes que guardam REGRAS CONDICIONAIS ensinadas pelo anfitrião ("quando o hóspede disser X, faça Y"). */
+const CONDITIONAL_SOURCES = new Set(["host_knowledge", "host_behavior", "tenant_knowledge"]);
+
+/** Formata os trechos recuperados com a fonte e a relevância, para o agente interpretar. */
 export function renderPassages(passages: Passage[]): string {
   if (!passages.length) return "(nenhum trecho recuperado)";
-  return passages
-    .map(
-      (p, i) =>
-        `[${i + 1}] fonte=${p.source} confiabilidade=${Math.round(p.confidence * 100)}%` +
-        `${p.title ? ` título="${p.title}"` : ""}\n${p.content}`,
-    )
-    .join("\n\n");
+  const header =
+    "ATENÇÃO: os trechos abaixo são apenas CANDIDATOS encontrados por busca. Eles NÃO descrevem " +
+    "o que está acontecendo nesta conversa e NÃO são prova de que o hóspede disse, sentiu ou fez " +
+    "algo. Use um trecho só se ele responder de fato à mensagem atual.\n\n";
+  return (
+    header +
+    passages
+      .map((p, i) => {
+        const conditional = CONDITIONAL_SOURCES.has(p.source)
+          ? " (REGRA CONDICIONAL: só vale se a situação descrita estiver acontecendo AGORA, na mensagem atual do hóspede)"
+          : "";
+        return (
+          `[${i + 1}] fonte=${p.source} confiabilidade_da_fonte=${Math.round(p.confidence * 100)}%` +
+          ` relevância_para_esta_mensagem=${Math.round(Math.min(p.score, 1) * 100)}%${conditional}` +
+          `${p.title ? ` título="${p.title}"` : ""}\n${p.content}`
+        );
+      })
+      .join("\n\n")
+  );
 }
