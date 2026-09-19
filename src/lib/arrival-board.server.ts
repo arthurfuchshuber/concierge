@@ -559,6 +559,12 @@ export async function buildArrivalRows(
     const checkinDoneReservations = new Set<string>();
     const checkinPendingLogs = new Set<string>();
     const checkinPendingReservations = new Set<string>();
+    // Saídas já encerradas (manualmente ou pelo checkout automático) — usadas
+    // pelo racional da esteira para tirar de "Atrasados" a chegada que nunca
+    // foi confirmada (ver stayStillOpenForArrival).
+    const checkoutDoneLogs = new Set<string>();
+    const checkoutDoneReservations = new Set<string>();
+
     // "Não Compareceu" (guest_arrival_status kind="checkin" status="no_show",
     // ver markNoShow em dashboard.functions.ts) precisa remover o card TANTO
     // de Checkouts quanto de Fila de Limpeza — pedido explícito (07/09/2026):
@@ -583,6 +589,11 @@ export async function buildArrivalRows(
         if (s.log_id) checkinPendingLogs.add(s.log_id);
         if (s.reservation_id) checkinPendingReservations.add(s.reservation_id);
       }
+      if (s.kind === "checkout" && (s.status === "done" || !!s.done_at || (s.status as string) === "no_show")) {
+        if (s.log_id) checkoutDoneLogs.add(s.log_id);
+        if (s.reservation_id) checkoutDoneReservations.add(s.reservation_id);
+      }
+
       if (s.kind !== data.kind) continue;
       const value = {
         kind: s.kind,
@@ -717,6 +728,34 @@ export async function buildArrivalRows(
       return checkinDate >= addDaysISO(today, -OVERDUE_WINDOW_DAYS);
     }
 
+    // RACIONAL DA ESTEIRA (pedido explícito 19/09/2026) — uma chegada sem
+    // confirmação só fica em "Atrasados" ENQUANTO a estadia ainda está viva:
+    //   1. a saída daquela estadia ainda não foi encerrada (nem manualmente,
+    //      nem pelo checkout automático), E
+    //   2. o dia da saída ainda não passou (o checkout automático atua no
+    //      próprio dia previsto — depois dele não existe mais chegada a fazer).
+    // Quando qualquer uma das duas condições cai, o card SAI de Atrasados sem
+    // o sistema decidir nada sobre o hóspede (não marca "compareceu" nem
+    // "não compareceu") — vira histórico. Isso evita o card morto: chegada
+    // eternamente atrasada com o botão travado porque a saída já foi dada.
+    function stayStillOpenForArrival(checkoutDate: string | null, checkoutResolved: boolean): boolean {
+      if (checkoutResolved) return false;
+      if (checkoutDate && checkoutDate < today) return false;
+      return true;
+    }
+    function logCheckoutResolved(logId: string | null | undefined): boolean {
+      return !!logId && checkoutDoneLogs.has(logId);
+    }
+    function reservationCheckoutResolved(r: ReservationRow): boolean {
+      if (checkoutDoneReservations.has(r.id)) return true;
+      const legacy = placeholderStatus.get(placeholderKey(r.property_id, r.checkin_date, r.checkout_date, "checkout"));
+      if (legacy && (legacy.status === "done" || !!legacy.done_at)) return true;
+      const { primary, extras } = findLogsForReservation(uniqueLogs, r, "checkout");
+      return [primary, ...extras].some((l) => logCheckoutResolved(l?.id));
+    }
+
+
+
     function logCheckinDone(logId: string | null | undefined): boolean {
       return !!logId && checkinDoneLogs.has(logId);
     }
@@ -784,7 +823,15 @@ export async function buildArrivalRows(
           // Estadia em andamento continua visível para alimentar "Em Estadia".
           if (isCurrentStay(r.checkin_date, r.checkout_date)) return true;
           // Check-in atrasado sem check permanece na lista de Check-ins.
-          if (!resCheckinDone && withinOverdueWindow(r.checkin_date)) return true;
+          // Check-in atrasado sem check permanece na lista de Check-ins —
+          // mas só enquanto a estadia ainda está aberta (racional da esteira).
+          if (
+            !resCheckinDone &&
+            withinOverdueWindow(r.checkin_date) &&
+            stayStillOpenForArrival(r.checkout_date, reservationCheckoutResolved(r))
+          )
+            return true;
+
         }
         return false;
       }
@@ -862,7 +909,12 @@ export async function buildArrivalRows(
       }
       const virtualStay = autoStayDone(l.checkin_date, l.checkout_date ?? null, l.created_at ?? null);
       const logDone = logCheckinDone(l.id) || virtualStay;
-      const overduePending = data.kind === "checkin" && !logDone && withinOverdueWindow(l.checkin_date);
+      const overduePending =
+        data.kind === "checkin" &&
+        !logDone &&
+        withinOverdueWindow(l.checkin_date) &&
+        stayStillOpenForArrival(l.checkout_date ?? null, logCheckoutResolved(l.id));
+
       const logResolved = logDone || logCheckinResolved(l);
       if (data.kind === "checkin" && belongsToCheckoutStage(l.checkin_date, l.checkout_date ?? null, logResolved)) {
 
@@ -970,10 +1022,23 @@ export async function buildArrivalRows(
         data.range !== "tomorrow" &&
         !reservationCheckinDone(r) &&
         !virtualStay &&
-        withinOverdueWindow(r.checkin_date);
+        withinOverdueWindow(r.checkin_date) &&
+        stayStillOpenForArrival(r.checkout_date, reservationCheckoutResolved(r));
       // Datas passadas só entram sem interação quando representam uma estadia
-      // vigente ou um check-in ainda pendente (atrasado).
-      if (date < today && !s && !virtualStay && !overduePending) return null;
+      // vigente ou um check-in ainda pendente (atrasado). Um check-in antigo
+      // cuja saída já foi encerrada sai da lista mesmo tendo status gravado —
+      // senão vira card morto, atrasado e com o botão travado.
+      const keepDespiteStatus = data.kind === "checkin" ? false : !!s;
+      if (
+        date < today &&
+        !keepDespiteStatus &&
+        !virtualStay &&
+        !overduePending &&
+        !(data.kind === "checkin" && isCurrentStay(r.checkin_date, r.checkout_date))
+      )
+        return null;
+
+
 
 
       return {
