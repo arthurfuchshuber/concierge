@@ -823,7 +823,15 @@ export async function buildArrivalRows(
           // Estadia em andamento continua visível para alimentar "Em Estadia".
           if (isCurrentStay(r.checkin_date, r.checkout_date)) return true;
           // Check-in atrasado sem check permanece na lista de Check-ins.
-          if (!resCheckinDone && withinOverdueWindow(r.checkin_date)) return true;
+          // Check-in atrasado sem check permanece na lista de Check-ins —
+          // mas só enquanto a estadia ainda está aberta (racional da esteira).
+          if (
+            !resCheckinDone &&
+            withinOverdueWindow(r.checkin_date) &&
+            stayStillOpenForArrival(r.checkout_date, reservationCheckoutResolved(r))
+          )
+            return true;
+
         }
         return false;
       }
