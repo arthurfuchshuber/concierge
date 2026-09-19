@@ -717,6 +717,29 @@ export async function buildArrivalRows(
       return checkinDate >= addDaysISO(today, -OVERDUE_WINDOW_DAYS);
     }
 
+    // RACIONAL DA ESTEIRA (pedido explícito 19/09/2026) — uma chegada sem
+    // confirmação só fica em "Atrasados" ENQUANTO a estadia ainda está viva:
+    //   1. a saída daquela estadia ainda não foi encerrada (nem manualmente,
+    //      nem pelo checkout automático), E
+    //   2. o dia da saída ainda não passou (o checkout automático atua no
+    //      próprio dia previsto — depois dele não existe mais chegada a fazer).
+    // Quando qualquer uma das duas condições cai, o card SAI de Atrasados sem
+    // o sistema decidir nada sobre o hóspede (não marca "compareceu" nem
+    // "não compareceu") — vira histórico. Isso evita o card morto: chegada
+    // eternamente atrasada com o botão travado porque a saída já foi dada.
+    function stayStillOpenForArrival(checkoutDate: string | null, checkoutResolved: boolean): boolean {
+      if (checkoutResolved) return false;
+      if (checkoutDate && checkoutDate < today) return false;
+      return true;
+    }
+    function logCheckoutResolved(logId: string | null | undefined): boolean {
+      return !!logId && checkoutDoneLogs.has(logId);
+    }
+    function reservationCheckoutResolved(r: { id: string; property_id: string; checkin_date: string }): boolean {
+      return checkoutDoneReservations.has(r.id) || checkoutDoneStays.has(`${r.property_id}|${r.checkin_date}`);
+    }
+
+
     function logCheckinDone(logId: string | null | undefined): boolean {
       return !!logId && checkinDoneLogs.has(logId);
     }
