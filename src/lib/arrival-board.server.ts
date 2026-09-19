@@ -909,7 +909,12 @@ export async function buildArrivalRows(
       }
       const virtualStay = autoStayDone(l.checkin_date, l.checkout_date ?? null, l.created_at ?? null);
       const logDone = logCheckinDone(l.id) || virtualStay;
-      const overduePending = data.kind === "checkin" && !logDone && withinOverdueWindow(l.checkin_date);
+      const overduePending =
+        data.kind === "checkin" &&
+        !logDone &&
+        withinOverdueWindow(l.checkin_date) &&
+        stayStillOpenForArrival(l.checkout_date ?? null, logCheckoutResolved(l.id));
+
       const logResolved = logDone || logCheckinResolved(l);
       if (data.kind === "checkin" && belongsToCheckoutStage(l.checkin_date, l.checkout_date ?? null, logResolved)) {
 
