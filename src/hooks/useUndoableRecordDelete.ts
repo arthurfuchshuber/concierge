@@ -37,19 +37,24 @@ export function useUndoableRecordDelete(onDeleted?: () => void) {
   }, [qc]);
 
   return useCallback(
-    (id: string) => {
+    /** Um id ou o grupo inteiro (situação com texto + mídias): tudo some de
+     * uma vez, com UM único "Desfazer" (pedido 20/09/2026 — o menu não
+     * oferece mais excluir pedaço por pedaço). */
+    (idOrIds: string | string[]) => {
+      const ids = Array.isArray(idOrIds) ? idOrIds : [idOrIds];
+      if (ids.length === 0) return;
       const snapshots: Array<[QueryKey, unknown]> = RECORD_KEYS.flatMap((k) =>
         qc.getQueriesData({ queryKey: [k] }),
       );
       for (const k of RECORD_KEYS) {
         void qc.cancelQueries({ queryKey: [k] });
         qc.setQueriesData<WithRecords>({ queryKey: [k] }, (old) =>
-          old?.records ? { ...old, records: old.records.filter((r) => r.id !== id) } : old,
+          old?.records ? { ...old, records: old.records.filter((r) => !ids.includes(r.id)) } : old,
         );
       }
       onDeleted?.();
 
-      const request = deleteFn({ data: { id, keepFile: true } });
+      const request = Promise.all(ids.map((id) => deleteFn({ data: { id, keepFile: true } })));
       request
         .catch((err) => {
           for (const [key, data] of snapshots) qc.setQueryData(key, data);
@@ -62,12 +67,16 @@ export function useUndoableRecordDelete(onDeleted?: () => void) {
         () => {
           for (const [key, data] of snapshots) qc.setQueryData(key, data);
           void request
-            .then((res) =>
-              res.removed
-                ? restoreFn({
-                    data: { removed: res.removed, removedTask: res.removedTask ?? null },
-                  })
-                : null,
+            .then((results) =>
+              Promise.all(
+                results
+                  .filter((res) => res.removed)
+                  .map((res) =>
+                    restoreFn({
+                      data: { removed: res.removed!, removedTask: res.removedTask ?? null },
+                    }),
+                  ),
+              ),
             )
             .catch((err) =>
               toast.error(err instanceof Error ? err.message : "Não foi possível desfazer."),
@@ -77,11 +86,14 @@ export function useUndoableRecordDelete(onDeleted?: () => void) {
         {
           onExpire: () => {
             void request
-              .then((res) => {
-                const path = res.removed?.storage_path;
-                if (path) return purgeFn({ data: { storagePath: path } });
-                return null;
-              })
+              .then((results) =>
+                Promise.all(
+                  results
+                    .map((res) => res.removed?.storage_path)
+                    .filter((p): p is string => !!p)
+                    .map((storagePath) => purgeFn({ data: { storagePath } })),
+                ),
+              )
               .catch(() => {
                 /* o arquivo fica órfão; não atrapalha ninguém */
               });
