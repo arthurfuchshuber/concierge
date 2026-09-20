@@ -194,6 +194,105 @@ function groupRecords(records: ReservationRecord[]): RecordGroup[] {
   return out;
 }
 
+const KIND_LABEL: Record<string, string> = {
+  photo: "foto",
+  video: "vídeo",
+  audio: "áudio",
+  file: "arquivo",
+};
+
+const KIND_PLURAL: Record<string, string> = {
+  photo: "fotos",
+  video: "vídeos",
+  audio: "áudios",
+  file: "arquivos",
+};
+
+/** Resumo honesto do que a situação tem: "1 vídeo", "2 fotos · 1 vídeo".
+ * A NOTA DE TEXTO NUNCA conta como mídia (bug 20/09/2026: uma situação com
+ * 1 vídeo + o texto "Limpeza" aparecia como "2 mídias" e o menu oferecia
+ * "Excluir foto 1 / Excluir foto 2" — nem foto era). */
+function mediaSummary(items: ReservationRecord[]): string {
+  const order = ["photo", "video", "audio", "file"] as const;
+  const counts = new Map<string, number>();
+  for (const it of items) counts.set(it.kind, (counts.get(it.kind) ?? 0) + 1);
+  return order
+    .filter((k) => (counts.get(k) ?? 0) > 0)
+    .map((k) => {
+      const n = counts.get(k)!;
+      return `${n} ${n === 1 ? KIND_LABEL[k] : KIND_PLURAL[k]}`;
+    })
+    .join(" · ");
+}
+
+/** Rótulo do menu de exclusão — pelo tipo REAL do item, com número só quando
+ * há mais de um item do mesmo tipo na mesma situação. */
+function deleteLabel(it: ReservationRecord, items: ReservationRecord[]): string {
+  if (it.kind === "note") return "Excluir texto da situação";
+  const sameKind = items.filter((x) => x.kind === it.kind);
+  const label = KIND_LABEL[it.kind] ?? "registro";
+  if (sameKind.length < 2) return `Excluir ${label}`;
+  return `Excluir ${label} ${sameKind.indexOf(it) + 1}`;
+}
+
+function fmtDuration(ms: number | null): string | null {
+  if (!ms) return null;
+  const s = Math.round(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+/** Miniatura quadrada pequena (pedido 20/09/2026): o card deixa de ser
+ * dominado pelo player — toca para abrir a mídia em tela cheia. */
+function MediaThumb({
+  item,
+  onOpen,
+}: {
+  item: ReservationRecord;
+  onOpen: (it: ReservationRecord) => void;
+}) {
+  const dur = fmtDuration(item.durationMs);
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(item)}
+      aria-label={`Abrir ${KIND_LABEL[item.kind] ?? "registro"}`}
+      className="relative size-[68px] shrink-0 overflow-hidden rounded-lg border border-border/50 bg-secondary/40"
+    >
+      {item.kind === "photo" && item.url ? (
+        <img
+          src={item.url}
+          alt={item.fileName ?? "Foto"}
+          className="size-full object-cover"
+          loading="lazy"
+        />
+      ) : item.kind === "video" && item.url ? (
+        <>
+          <video
+            src={`${item.url}#t=0.1`}
+            preload="metadata"
+            muted
+            playsInline
+            className="size-full bg-black object-cover"
+          />
+          <span className="absolute inset-0 grid place-items-center bg-black/25">
+            <span className="grid size-6 place-items-center rounded-full bg-white/20 backdrop-blur-sm">
+              <Play className="size-3 fill-white text-white" />
+            </span>
+          </span>
+        </>
+      ) : (
+        <span className="grid size-full place-items-center text-muted-foreground">
+          {item.kind === "audio" ? <Mic className="size-4" /> : <FileText className="size-4" />}
+        </span>
+      )}
+      <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 bg-black/55 px-1 py-0.5 text-[8.5px] font-bold uppercase tracking-wide text-white">
+        <span className="truncate">{KIND_LABEL[item.kind] ?? "item"}</span>
+        {dur && <span className="shrink-0 tabular-nums">{dur}</span>}
+      </span>
+    </button>
+  );
+}
+
 export function RecordBlock({
   group,
   onDelete,
@@ -202,7 +301,11 @@ export function RecordBlock({
   onDelete: (id: string) => void;
 }) {
   const head = group.items[0];
-  const photos = group.items.length > 1;
+  const [viewing, setViewing] = useState<ReservationRecord | null>(null);
+
+  const mediaItems = group.items.filter((it) => it.kind !== "note" && it.url);
+  const body = group.items.find((it) => it.body)?.body ?? null;
+  const audioOnly = mediaItems.length === 1 && mediaItems[0].kind === "audio";
 
   return (
     <div
@@ -210,7 +313,7 @@ export function RecordBlock({
         head.category === "damage" ? "border-rose-500/35" : "border-border/60"
       }`}
     >
-      <div className="flex items-center gap-1.5 px-2.5 pb-2 pt-2.5">
+      <div className="flex items-center gap-1.5 px-2.5 pb-1.5 pt-2.5">
         <CategoryBadge category={head.category} />
         <span className="ml-auto shrink-0 text-[10px] tabular-nums text-muted-foreground">
           {fmtClock(head.createdAt)}
@@ -225,126 +328,68 @@ export function RecordBlock({
               <MoreVertical className="size-3.5" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-[10rem]">
-            {group.items.map((it, i) => (
+          <DropdownMenuContent align="end" className="min-w-[11rem]">
+            {group.items.map((it) => (
               <DropdownMenuItem key={it.id} onClick={() => onDelete(it.id)}>
                 <Trash2 className="size-3.5 shrink-0" />
-                {photos ? `Excluir foto ${i + 1}` : "Excluir registro"}
+                {deleteLabel(it, group.items)}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
 
-      <div className="px-2.5 pb-2.5">
-        {photos ? (
-          /* SITUAÇÃO COM VÁRIAS MÍDIAS (10/09/2026): a grade não é mais só de
-             fotos — vídeo, áudio e arquivo entram na mesma situação, cada um
-             desenhado do seu jeito. E o texto aparece embaixo, uma vez só. */
-          <>
-            <div className="grid grid-cols-2 gap-1">
-              {group.items.map((it) => {
-                if (!it.url) return null;
-                if (it.kind === "photo") {
-                  return (
-                    <a key={it.id} href={it.url} target="_blank" rel="noreferrer" className="block">
-                      <img
-                        src={it.url}
-                        alt={it.fileName ?? "Foto"}
-                        className="aspect-[4/3] w-full rounded-md border border-border/50 object-cover"
-                      />
-                    </a>
-                  );
-                }
-                if (it.kind === "video") {
-                  return (
-                    <video
-                      key={it.id}
-                      src={it.url}
-                      controls
-                      playsInline
-                      preload="metadata"
-                      className="aspect-[4/3] w-full rounded-md border border-border/50 bg-black object-cover"
-                    />
-                  );
-                }
-                if (it.kind === "audio") {
-                  return (
-                    <div key={it.id} className="col-span-2">
-                      <AudioPlayer url={it.url} durationMs={it.durationMs} />
-                    </div>
-                  );
-                }
-                return (
-                  <a
-                    key={it.id}
-                    href={it.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="col-span-2 flex items-center gap-2 rounded-md border border-border/50 bg-secondary/30 px-2 py-1.5 hover:bg-secondary/50"
-                  >
-                    <FileText className="size-4 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1 truncate text-xs">
-                      {it.fileName ?? "Arquivo"}
-                    </span>
-                    <Download className="size-3.5 shrink-0 text-muted-foreground" />
-                  </a>
-                );
-              })}
-            </div>
-            {head.body && (
-              <p className="mt-1.5 whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground/80">
-                {head.body}
-              </p>
-            )}
-          </>
-        ) : (
-          <>
-            {head.kind === "note" && (
-              <p className="whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground/90">
-                {head.body}
-              </p>
-            )}
-            {head.kind === "photo" && head.url && (
-              <a href={head.url} target="_blank" rel="noreferrer" className="block">
-                <img
-                  src={head.url}
-                  alt={head.fileName ?? "Foto"}
-                  className="max-h-56 w-full rounded-md border border-border/50 object-cover"
-                />
-              </a>
-            )}
-            {head.kind === "video" && head.url && (
-              <video
-                src={head.url}
-                controls
-                className="max-h-56 w-full rounded-md border border-border/50 bg-black"
-              />
-            )}
-            {head.kind === "audio" && head.url && (
-              <AudioPlayer url={head.url} durationMs={head.durationMs} />
-            )}
-            {head.kind === "file" && head.url && (
-              <a
-                href={head.url}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-2 rounded-md border border-border/50 bg-secondary/30 px-2 py-1.5 hover:bg-secondary/50"
-              >
-                <FileText className="size-4 shrink-0 text-muted-foreground" />
-                <span className="min-w-0 flex-1 truncate text-xs">
-                  {head.fileName ?? "Arquivo"}
-                </span>
-                <Download className="size-3.5 shrink-0 text-muted-foreground" />
-              </a>
-            )}
-            {head.body && head.kind !== "note" && (
-              <p className="mt-1.5 whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground/80">
-                {head.body}
-              </p>
-            )}
-          </>
+      <div className="flex items-start gap-2.5 px-2.5 pb-2.5">
+        {mediaItems.length > 0 && !audioOnly && (
+          /* Mais de uma mídia: fileira rolável (`ds-scroll-x`, sem degradê de
+             fade — regra do projeto), nunca estourando a margem direita. */
+          <div
+            className={
+              mediaItems.length > 1
+                ? "ds-scroll-x flex max-w-[150px] gap-1.5"
+                : "flex shrink-0 gap-1.5"
+            }
+          >
+            {mediaItems.map((it) => (
+              <MediaThumb key={it.id} item={it} onOpen={setViewing} />
+            ))}
+          </div>
         )}
+
+        <div className="min-w-0 flex-1 space-y-1">
+          {body && (
+            <p className="whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground/90">
+              {body}
+            </p>
+          )}
+          {audioOnly && mediaItems[0].url && (
+            <AudioPlayer url={mediaItems[0].url!} durationMs={mediaItems[0].durationMs} />
+          )}
+          {!body && mediaItems.length === 0 && (
+            <p className="text-[11px] italic text-muted-foreground">Registro sem conteúdo.</p>
+          )}
+          <div className="flex flex-wrap items-center gap-x-1.5 text-[10.5px] text-muted-foreground">
+            <span className="truncate">{head.createdByName ?? "Equipe"}</span>
+            {head.cardMode && (
+              <>
+                <span className="opacity-50">·</span>
+                <span className="truncate">via {MODE_LABEL[head.cardMode]}</span>
+              </>
+            )}
+            {mediaItems.length > 0 && (
+              <>
+                <span className="opacity-50">·</span>
+                <span className="shrink-0">{mediaSummary(mediaItems)}</span>
+              </>
+            )}
+            {mediaItems.length === 1 && head.sizeBytes ? (
+              <>
+                <span className="opacity-50">·</span>
+                <span className="shrink-0">{fmtSize(head.sizeBytes)}</span>
+              </>
+            ) : null}
+          </div>
+        </div>
       </div>
 
       {head.taskId && (
@@ -371,30 +416,50 @@ export function RecordBlock({
         </div>
       )}
 
-      <div className="flex items-center gap-1.5 border-t border-border/50 px-2.5 py-1.5 text-[10.5px] text-muted-foreground">
-        <span className="truncate">{head.createdByName ?? "Equipe"}</span>
-        {head.cardMode && (
-          <>
-            <span className="opacity-50">·</span>
-            <span className="truncate">via {MODE_LABEL[head.cardMode]}</span>
-          </>
-        )}
-        {photos && (
-          <>
-            <span className="opacity-50">·</span>
-            <span className="shrink-0">
-              {group.items.length}{" "}
-              {group.items.every((it) => it.kind === "photo") ? "fotos" : "mídias"}
-            </span>
-          </>
-        )}
-        {!photos && head.sizeBytes ? (
-          <>
-            <span className="opacity-50">·</span>
-            <span className="shrink-0">{fmtSize(head.sizeBytes)}</span>
-          </>
-        ) : null}
-      </div>
+      <Dialog open={!!viewing} onOpenChange={(v) => !v && setViewing(null)}>
+        <DialogContent className="w-[calc(100vw-1.5rem)] gap-0 overflow-hidden rounded-lg border-border/60 p-0 sm:max-w-lg">
+          <DialogHeader className="px-4 pb-2 pt-4">
+            <DialogTitle className="truncate text-[14px] font-display">
+              {viewing?.fileName ?? KIND_LABEL[viewing?.kind ?? "file"]}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="px-3 pb-3">
+            {viewing?.kind === "photo" && viewing.url && (
+              <img
+                src={viewing.url}
+                alt={viewing.fileName ?? "Foto"}
+                className="max-h-[70vh] w-full rounded-md object-contain"
+              />
+            )}
+            {viewing?.kind === "video" && viewing.url && (
+              <video
+                src={viewing.url}
+                controls
+                autoPlay
+                playsInline
+                className="max-h-[70vh] w-full rounded-md bg-black"
+              />
+            )}
+            {viewing?.kind === "audio" && viewing.url && (
+              <AudioPlayer url={viewing.url} durationMs={viewing.durationMs} />
+            )}
+            {viewing?.kind === "file" && viewing.url && (
+              <a
+                href={viewing.url}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-2 rounded-md border border-border/50 bg-secondary/30 px-2 py-2 hover:bg-secondary/50"
+              >
+                <FileText className="size-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate text-xs">
+                  {viewing.fileName ?? "Arquivo"}
+                </span>
+                <Download className="size-3.5 shrink-0 text-muted-foreground" />
+              </a>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
