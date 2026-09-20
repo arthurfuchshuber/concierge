@@ -96,6 +96,9 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
   const [image, setImage] = useState<{ dataUrl: string; name: string } | null>(null);
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  /** O que o servidor está fazendo agora e o texto que já foi escrito. */
+  const [stage, setStage] = useState<string | null>(null);
+  const [streamed, setStreamed] = useState("");
 
   const history = useQuery({
     queryKey: ["assistant-thread"],
