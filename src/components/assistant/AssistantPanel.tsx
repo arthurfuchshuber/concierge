@@ -148,7 +148,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length, pending]);
+  }, [messages.length, pending, streamed]);
 
   /**
    * RESPOSTA EM TEMPO REAL (20/09/2026 — "está demorando MUITO para responder").
@@ -610,7 +610,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
             </div>
             {streamed && (
               <div className="min-w-0 text-[13px] leading-relaxed">
-                <AiMarkdown content={streamed} />
+                <AiMarkdown>{streamed}</AiMarkdown>
               </div>
             )}
           </div>
