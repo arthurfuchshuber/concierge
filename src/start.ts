@@ -12,6 +12,12 @@ const errorMiddleware = createMiddleware().server(async ({ next, request }) => {
   try {
     return await next();
   } catch (error) {
+    // Respostas já formadas (401 da autenticação, redirects, notFound) precisam
+    // chegar inteiras ao cliente. Engolir isso num 500 genérico deixava a tela
+    // branca quando a sessão expirava no meio do uso.
+    if (error instanceof Response) {
+      throw error;
+    }
     if (error != null && typeof error === "object" && "statusCode" in error) {
       throw error;
     }
