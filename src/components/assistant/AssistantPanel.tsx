@@ -36,7 +36,8 @@ import {
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
 import { createTask, deleteTasks, setTaskStatus, setTasksStatusBulk } from "@/lib/tasks.functions";
 import { advanceArrival, markNoShow, upsertArrivalStatus } from "@/lib/dashboard.functions";
-import type { AssistantMessage, PendingAction } from "@/lib/assistant-types";
+import type { AssistantAsk, AssistantMessage, PendingAction } from "@/lib/assistant-types";
+import { supabase } from "@/integrations/supabase/client";
 import { AiMarkdown } from "@/components/ai/AiMarkdown";
 import {
   CHAT_HEADER,
