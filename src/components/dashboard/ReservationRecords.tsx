@@ -20,6 +20,7 @@ import {
   Wrench,
   ListChecks,
   MoreVertical,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useUndoableRecordDelete } from "@/hooks/useUndoableRecordDelete";
@@ -42,6 +43,7 @@ import {
 } from "@/components/dashboard/record-categories";
 import {
   listReservationRecords,
+  updateRecordText,
   type ReservationRecord,
   type RecordCategory,
 } from "@/lib/reservation-records.functions";
@@ -223,16 +225,6 @@ function mediaSummary(items: ReservationRecord[]): string {
       return `${n} ${n === 1 ? KIND_LABEL[k] : KIND_PLURAL[k]}`;
     })
     .join(" · ");
-}
-
-/** Rótulo do menu de exclusão — pelo tipo REAL do item, com número só quando
- * há mais de um item do mesmo tipo na mesma situação. */
-function deleteLabel(it: ReservationRecord, items: ReservationRecord[]): string {
-  if (it.kind === "note") return "Excluir texto da situação";
-  const sameKind = items.filter((x) => x.kind === it.kind);
-  const label = KIND_LABEL[it.kind] ?? "registro";
-  if (sameKind.length < 2) return `Excluir ${label}`;
-  return `Excluir ${label} ${sameKind.indexOf(it) + 1}`;
 }
 
 function fmtDuration(ms: number | null): string | null {
