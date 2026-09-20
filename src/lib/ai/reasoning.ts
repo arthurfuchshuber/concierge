@@ -94,6 +94,83 @@ function norm(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 }
 
+/** Assuntos em que errar custa caro — nunca reduzem o esforço. */
+const TOUCHY = [
+  "reembols",
+  "cobran",
+  "pagamento",
+  "cancel",
+  "multa",
+  "estorno",
+  "hospede",
+  "hóspede",
+  "reclama",
+];
+
+/**
+ * A mensagem manda o sistema FAZER algo? (20/09/2026)
+ *
+ * Até aqui o painel marcava TODA mensagem como ação, o que travava o topo do
+ * raciocínio até em "como faço para anexar um vídeo?". Quem decide agora é o
+ * verbo escrito: pedido de gravação continua no máximo, pergunta não.
+ *
+ * Só conta verbo no IMPERATIVO/INFINITIVO de pedido. "Como eu crio uma
+ * pendência?" é pergunta — por isso a frase que começa com "como", "o que",
+ * "onde", "quando", "por que" ou "qual" não é tratada como ação.
+ */
+const ACTION_VERBS = [
+  "cria",
+  "criar",
+  "crie",
+  "abre",
+  "abrir",
+  "abra",
+  "exclu",
+  "apaga",
+  "apagar",
+  "apague",
+  "remov",
+  "delet",
+  "arquiv",
+  "conclu",
+  "finaliza",
+  "encerra",
+  "marca",
+  "marcar",
+  "marque",
+  "define",
+  "definir",
+  "defina",
+  "altera",
+  "alterar",
+  "altere",
+  "muda",
+  "mudar",
+  "mude",
+  "atualiza",
+  "reabr",
+  "adiciona",
+  "adicionar",
+  "agenda",
+  "agendar",
+  "envia",
+  "enviar",
+  "confirma",
+  "confirmar",
+  "faz ",
+  "faça",
+  "avanc",
+  "avanç",
+];
+
+const QUESTION_START = ["como", "o que", "oque", "onde", "quando", "por que", "porque", "qual", "quais", "quem"];
+
+export function looksLikeAction(message: string): boolean {
+  const text = norm(message);
+  if (QUESTION_START.some((k) => text.startsWith(norm(k)))) return false;
+  return ACTION_VERBS.some((v) => text.includes(norm(v)));
+}
+
 /**
  * Decide o esforço para uma mensagem. O padrão é o máximo; só reduz quando a
  * mensagem é comprovadamente trivial ou uma consulta pontual de um dado.
