@@ -11,18 +11,9 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-12T02:36:54.406Z";
+export const GENERATED_AT = "2026-09-20T17:42:13.563Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
-  {
-    "doc_key": "route:/",
-    "kind": "route",
-    "title": "ConciergeIA — Atendimento com IA para hóspedes de temporada — tela /",
-    "content": "Caminho no sistema: /\n\nO ConciergeIA responde seus hóspedes em segundos, no idioma deles, com o tom da sua marca. Menos check-ins caóticos, mais avaliações 5 estrelas.",
-    "source_path": "src/routes/index.tsx",
-    "audience": [],
-    "content_hash": "f4082c37773fdf585eda6fba12139b77"
-  },
   {
     "doc_key": "route:/admin/administrativo",
     "kind": "route",
@@ -240,6 +231,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "01d444953dcf5e7fce254d2e3265a71b"
   },
   {
+    "doc_key": "rule:ACTION_BAR",
+    "kind": "rule",
+    "title": "Regra — ACTION_BAR",
+    "content": "OS BOTÕES DE AÇÃO SÃO UMA PEÇA SÓ, PARTIDA AO MEIO (pedido explícito,\n18/09/2026, mockup aprovado): \"é possível juntarmos esses 2 botões como se\nfosse um só, mas dividindo o clique deles ao meio? quando clicado à direita\nabre Filtros, à esquerda abre Pendências — fazer isso nas outras subpáginas\ntambém\".\n\n`ACTION_BAR` é a casca (a única com luz, fundo e raio) e `ACTION_SEGMENT` é\ncada metade, sem casca própria. O fio entre elas vem do `divide-x` da\nbarra, então dois, três ou um botão funcionam sem ninguém combinar nada: um\nbotão sozinho simplesmente ocupa a peça inteira, como no Kanban.\n\nA ALTURA continua vindo de `--ds-action-h` / `--ds-action-h-lg`\n(`styles.css`) — 28px no celular, e no computador a altura da barra de abas,\nporque ali a peça fica colada nela.",
+    "source_path": "src/components/dashboard/panel-chrome.tsx",
+    "audience": [],
+    "content_hash": "6aaebe0a0cfa67305ec16f862f79698e"
+  },
+  {
     "doc_key": "rule:ACTION_OPTIONS",
     "kind": "rule",
     "title": "Regra — ACTION_OPTIONS",
@@ -294,6 +294,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "a9e26dae0c2ca4bd8fa88b024cfa4de9"
   },
   {
+    "doc_key": "rule:APPROVE_CLEANING_PERMISSION",
+    "kind": "rule",
+    "title": "Regra — APPROVE_CLEANING_PERMISSION",
+    "content": "APROVAÇÃO DA LIMPEZA COMPLETA (pedido explícito, 17/09/2026).\n\n\"sempre que a limpeza selecionar 'completa', essa informação precisa ir\n pra aprovação antes de contabilizar no valor do dashboard\"\n\nAo concluir uma limpeza como COMPLETA, a linha de saída nasce com\n`cleaning_approval_status = 'pending'` e fica fora de \"Limpezas Realizadas\"\ne \"Custo Total Limpeza\" (ver `getCleaningStats`). O gestor decide aqui:\n\n Aprovar completa → 'approved': passa a contar com o valor da completa.\n Foi normal → 'rejected': a linha vira limpeza NORMAL, com o valor\n vigente da normal do imóvel, e o valor pedido fica\n guardado em `cleaning_requested_price_cents`.\n\nQUEM APROVA (decisão do cliente): o dono da conta, e quem recebeu o nó\n`tenant.dashboard.chegadas.aprovar-limpeza` DIRETAMENTE. A herança da aba\n\"Chegadas e saídas\" não vale: prestadores costumam ter essa aba inteira\nliberada para concluir limpezas, e quem faz a limpeza não pode aprovar a\nprópria cobrança.\n\nA gravação da decisão usa a chave de serviço, depois de checar a permissão\ne o acesso ao imóvel com a sessão da pessoa. O gatilho\n`guard_cleaning_approval` no banco recusa qualquer decisão gravada por\noutro caminho.",
+    "source_path": "src/lib/cleaning-approval.functions.ts",
+    "audience": [],
+    "content_hash": "5facaab41a4755646afadaca4252483a"
+  },
+  {
     "doc_key": "rule:AreaGate",
     "kind": "rule",
     "title": "Regra — AreaGate",
@@ -337,6 +346,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/offline/idb.ts",
     "audience": [],
     "content_hash": "7916cdbde5a1f756cc802b1bfd645106"
+  },
+  {
+    "doc_key": "rule:BentoCard",
+    "kind": "rule",
+    "title": "Regra — BentoCard",
+    "content": "Cartão da grade bento: borda delicada, brilho suave no canto e realce\ndiscreto no hover. Usa `min-w-0` para nunca estourar a margem direita.",
+    "source_path": "src/components/landing/primitives.tsx",
+    "audience": [],
+    "content_hash": "964de4019a43bd45e8158a32017af373"
   },
   {
     "doc_key": "rule:blobToBase64",
@@ -429,15 +447,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "d3c327edec42c496f04c190f3ac1114c"
   },
   {
-    "doc_key": "rule:CARD_NUMBER_TONE",
-    "kind": "rule",
-    "title": "Regra — CARD_NUMBER_TONE",
-    "content": "Contador/filtro de uma categoria. Mesma casca dos KPIs da Operacional.\n\nA COR DO NÚMERO É UM SEMÁFORO, NÃO UMA ETIQUETA (pedido explícito,\n10/09/2026): zerado é BRANCO em todas as categorias — não há nada ali, nada\na sinalizar. Acima de zero, a cor diz o quanto aquilo pesa: manutenção e\ndano em vermelho (é trabalho parado), esquecidos e outros em âmbar (é\natenção), auditoria de limpeza no violeta de sempre (é rotina, não alarme)\ne \"Todos\" sempre branco, porque somar tudo não é sinal de nada.\n\nCartão zerado NÃO é mais esmaecido — todos têm a mesma tonalidade.",
-    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
-    "audience": [],
-    "content_hash": "81e657e993d3db98c81a03c7d04accac"
-  },
-  {
     "doc_key": "rule:CARD_ORDER",
     "kind": "rule",
     "title": "Regra — CARD_ORDER",
@@ -456,6 +465,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "c47eaa9424d89caa750b4901b33ec3df"
   },
   {
+    "doc_key": "rule:CategoryCard",
+    "kind": "rule",
+    "title": "Regra — CategoryCard",
+    "content": "Uma CÉLULA do bloco de contadores — não é mais um cartão solto.\n\nPedido explícito (18/09/2026): \"é possível fazer o mesmo com os cards?\nseparando certinho para que cada quadrado seja clicável naquela\ninformação\". Seis cartões com respiro entre eles viraram uma peça única com\nfios internos; cada quadrado continua sendo o seu próprio clique.\n\nO selecionado ganha uma placa POR DENTRO, com respiro da borda: um fundo\nque fosse até a borda brigaria com o canto arredondado do bloco.",
+    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
+    "audience": [],
+    "content_hash": "d2dbd848503cb17884eb616c80df9224"
+  },
+  {
     "doc_key": "rule:cellHalves",
     "kind": "rule",
     "title": "Regra — cellHalves",
@@ -465,6 +483,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "7ac439d7f03848e5eae4591d9ee2343d"
   },
   {
+    "doc_key": "rule:centsToBRLShort",
+    "kind": "rule",
+    "title": "Regra — centsToBRLShort",
+    "content": "O MESMO VALOR, SEM OS CENTAVOS — só para os NÚMEROS GRANDES dos cards\n(pedido explícito, 18/09/2026: \"remova os centavos do card de moeda\").\n\nNum total de período, os centavos não mudam decisão nenhuma e custam caro:\nsão quatro caracteres a mais na linha mais larga da tela, que é justamente\na que tem menos espaço no celular (\"CUSTO TOTAL LI…\" cortava por causa\ndeles). Onde o centavo importa — tabela do dia, valor de uma limpeza,\naprovação — continua `centsToBRL`.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "8afbd4d3f33c267a21500bc9ff544060"
+  },
+  {
     "doc_key": "rule:centsToReaisInput",
     "kind": "rule",
     "title": "Regra — centsToReaisInput",
@@ -472,6 +499,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/ui/money-input.tsx",
     "audience": [],
     "content_hash": "681aaf06e118ef3af14a89d0f1d4c8d8"
+  },
+  {
+    "doc_key": "rule:chamarServidor",
+    "kind": "rule",
+    "title": "Regra — chamarServidor",
+    "content": "CHAMADA AO SERVIDOR QUE NÃO MORRE NA PRIMEIRA OSCILAÇÃO (18/09/2026).\n\nA equipe de limpeza está no imóvel, em rede móvel. Um `Failed to fetch` —\na requisição nem sai do aparelho — derrubava o registro inteiro e mostrava\nessa frase em inglês na tela. Agora tentamos de novo (até 3 vezes, com\nespera curta) antes de desistir, e quem desiste fala em português.",
+    "source_path": "src/lib/media-upload.ts",
+    "audience": [],
+    "content_hash": "037d6da820ffc6ee8fc89e18b7e96043"
   },
   {
     "doc_key": "rule:ChannelType",
@@ -499,6 +535,24 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/arrival-board.server.ts",
     "audience": [],
     "content_hash": "314eb75812f6c04b06c933a3b0f2fa4f"
+  },
+  {
+    "doc_key": "rule:CHECKLIST_VISIVEL",
+    "kind": "rule",
+    "title": "Regra — CHECKLIST_VISIVEL",
+    "content": "O CHECKLIST DA LIMPEZA — as pendências do imóvel dentro do card.\n\nDUAS MUDANÇAS DE 18/09/2026, ambas a pedido do cliente:\n\n1. TRÊS DE CADA VEZ, com \"+N\" para abrir o resto — \"igual fizemos na aba\n registros\". Um imóvel com oito pendências transformava o card num\n rolo: a lista empurrava o botão de concluir para fora da tela, que é\n justamente o botão que a pessoa foi ali usar. Três cabem sem empurrar\n nada, e quem precisa ver tudo abre.\n\n2. SAIU DO AZUL-CÉU. O bloco tinha borda, fundo e título em azul-céu — a\n cor mais berrante que sobrou da paleta antiga, dentro de um card que já\n está no padrão \"Presença\". Agora é a mesma casca dos outros blocos, com\n o fio âmbar no topo (é espera, não problema) e a contagem na pílula\n neutra.\n\nA etiqueta à direita de cada linha diz de ONDE a pendência veio (Dano,\nManutenção...): a lista passou a misturar categorias quando a origem virou\no critério de entrada, e sem a etiqueta a faxineira não sabe se \"cobre-leito\nmanchado\" é tarefa dela ou recado para o proprietário.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "b2dcdf6b25b0d8d962da03d2108b3139"
+  },
+  {
+    "doc_key": "rule:CLEANING_APPROVALS_KEY",
+    "kind": "rule",
+    "title": "Regra — CLEANING_APPROVALS_KEY",
+    "content": "\"LIMPEZAS COMPLETAS PARA APROVAR\" — aba Limpeza (mockup aprovado,\n17/09/2026: bloco com borda de luz, mesma linguagem do bloco de atenção dos\nRegistros, em âmbar porque aqui é espera e não problema).\n\nAparece só quando existe completa pendente. Quem pode aprovar vê os dois\nbotões; os demais (ex.: o prestador que concluiu) veem a mesma lista com a\netiqueta \"Aguardando aprovação\", para saber que o pedido chegou.",
+    "source_path": "src/components/dashboard/CleaningApprovalPanel.tsx",
+    "audience": [],
+    "content_hash": "6dc54154aafeccec9ba81dcdc3cb74b7"
   },
   {
     "doc_key": "rule:CLEANING_DAY_MIN_PX",
@@ -600,6 +654,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "af6ff78ea3b75aa3ef3deb925ddaeea5"
   },
   {
+    "doc_key": "rule:CONSTELACAO",
+    "kind": "rule",
+    "title": "Regra — CONSTELACAO",
+    "content": "Os 4 destaques em telas menores que 1280 px (17/09/2026, opção C aprovada):\numa esfera \"IA\" no centro, ligada aos 4 recursos por linhas tracejadas em\nmovimento. Espaçamentos no celular (17/09/2026, pedido do cliente: \"um pouco\nmais\" que os 72 px anteriores): 96 px do celular até a constelação, da\nconstelação até a faixa de capacidades e da faixa até \"Como funciona\"\n(88 px da seção + `mb-2` da faixa). Títulos com iniciais maiúsculas, como o\ncliente editou no canvas.",
+    "source_path": "src/components/landing/sections.tsx",
+    "audience": [],
+    "content_hash": "ff49de903a1737c38d77d65557d57636"
+  },
+  {
     "doc_key": "rule:ContinuityKind",
     "kind": "rule",
     "title": "Regra — ContinuityKind",
@@ -681,6 +744,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ea31ea92e4d0ab8e5ad3511d50f5d855"
   },
   {
+    "doc_key": "rule:decide",
+    "kind": "rule",
+    "title": "Regra — decide",
+    "content": "RESPOSTA INSTANTÂNEA (pedido explícito, 17/09/2026, com print: \"cliquei\nem 'normal' e ele ficou carregando... as respostas de QUALQUER ação\nprecisam ser INSTANTÂNEAS\").\n\nO clique já mexe na tela: o item sai do bloco e os cards de cima mudam\nna hora (otimista). O servidor confirma em segundo plano; se ele falhar\n— ou não responder em 15s — tudo volta como estava e aparece o erro.\nNada de botão girando: não existe mais estado de \"carregando\" aqui.\nOs outros usuários recebem pelo canal ao vivo do dashboard.",
+    "source_path": "src/components/dashboard/CleaningApprovalPanel.tsx",
+    "audience": [],
+    "content_hash": "bb926ed5ca5f090d5e76b4305c504cb7"
+  },
+  {
     "doc_key": "rule:dedupeFormLogs",
     "kind": "rule",
     "title": "Regra — dedupeFormLogs",
@@ -708,15 +780,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "79655ce433b542cf5418297d7d066721"
   },
   {
-    "doc_key": "rule:deleteReservationRecord",
-    "kind": "rule",
-    "title": "Regra — deleteReservationRecord",
-    "content": "Remove um registro (e o arquivo do storage, se houver). A pendência\ngerada NÃO é apagada junto: ela pode já estar em andamento com outra\npessoa: quem quiser encerrá-la faz isso na tela de Pendências.",
-    "source_path": "src/lib/reservation-records.functions.ts",
-    "audience": [],
-    "content_hash": "e57100511b0c10d3f65a8ad99e7ce441"
-  },
-  {
     "doc_key": "rule:DeliveryTicks",
     "kind": "rule",
     "title": "Regra — DeliveryTicks",
@@ -724,6 +787,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/handoff/ConversationView.tsx",
     "audience": [],
     "content_hash": "a56da7cf0a8af60eb9b3291ffb38a087"
+  },
+  {
+    "doc_key": "rule:DEMO_SLUG",
+    "kind": "rule",
+    "title": "Regra — DEMO_SLUG",
+    "content": "Guia do hóspede REAL dentro da moldura da landing.\n\nNão é uma recriação: é a própria página do guia (`/g/<slug>`), carregada em\num iframe no modo vitrine (`?preview=1&demo=1`). O modo vitrine pula o\nformulário de acesso e mascara no servidor tudo que é sensível — senha de\nwi-fi, códigos de fechadura/portão, endereço e telefones.\n\nALTURA TRAVADA (17/09/2026, pedido do cliente com print): a moldura mostra\no guia do topo até logo abaixo do cartão \"Chegada\" — contando que a faixa\n\"check-in libera em\" e o aviso \"Importante · Check-in\" estejam visíveis —\ne, embaixo, a barra de navegação do guia. A altura é FIXA: não é medida\ndepois de carregar e não muda com a tela.\n\nComo a mesma altura vale em qualquer tela: o guia é sempre desenhado com\n375 px de largura e reduzido/ampliado para caber na moldura, então a quebra\nde linha dos textos e o ponto de corte são os mesmos em todo lugar.\n\nDe onde vem o número (medido no site publicado, em 375 px de largura, com\nduas alturas de janela diferentes — o resultado foi o mesmo nas duas):\ntopo do guia → fim do cartão \"Chegada\" = 593 px; a barra de navegação do\nmodo vitrine ocupa 59 px e encosta no rodapé da moldura. Para a barra cair\nno ESPAÇAMENTO abaixo do cartão (são 12 px até a próxima fileira), o corte\nfica 6 px depois do cartão: 593 + 6 = 599 de conteúdo + 59 da barra = 658.\n\nO valor anterior (610) foi medido quando o topo do guia era 48 px mais\ncurto; depois que ele cresceu, a barra passou a cobrir o pé do cartão\n\"Chegada\" — que é exatamente o que o cliente apontou nos prints de\n17/09/2026. Se o topo do guia mudar de altura de novo, refaça a medida e\najuste GUIDE_HEIGHT.",
+    "source_path": "src/components/landing/LiveGuideFrame.tsx",
+    "audience": [],
+    "content_hash": "07c58953894a3a6c94b8f48f2bce629a"
   },
   {
     "doc_key": "rule:DictationField",
@@ -787,15 +859,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
     "content_hash": "4e3dcc804876f097fcf80f261b06c420"
-  },
-  {
-    "doc_key": "rule:EngagementCard",
-    "kind": "rule",
-    "title": "Regra — EngagementCard",
-    "content": "Card individual do Engajamento (desktop) — exatamente o tratamento visual\ndo mockup aprovado (borda + fundo com gradiente radial roxo/rosa + acento\nlateral + ícone em caixinha + valor em destaque), só sem negrito nas\nfrases (pedido explícito).",
-    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
-    "audience": [],
-    "content_hash": "d2569b61de70b30381dd02696cbf9574"
   },
   {
     "doc_key": "rule:EngagementFlags",
@@ -933,6 +996,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "d3274393c73139e4eeb07352e8f5ee34"
   },
   {
+    "doc_key": "rule:FRAME_ID",
+    "kind": "rule",
+    "title": "Regra — FRAME_ID",
+    "content": "POR QUE TEM UM <script> AQUI DENTRO (17/09/2026, pedido do cliente com\nprint: \"o guia não está abrindo no mockup assim que o usuário carrega a\npágina\").\n\nO guia carregava normalmente — o que faltava era deixá-lo APARECER. A\nredução (`scale`) só podia ser calculada no navegador, porque depende da\nlargura da moldura, e antes disso a moldura ficava preta de propósito, para\nninguém ver o guia no tamanho errado. Só que essa conta morava num efeito\ndo React: ela só acontecia depois da HIDRATAÇÃO da landing — que no celular\ndemora vários segundos, com a página inteira e o próprio guia disputando o\nprocessador. Resultado: retângulo preto por segundos, com o guia pronto\natrás dele.\n\nEste script roda na hora em que o navegador LÊ o HTML, antes de qualquer\nJavaScript da aplicação: mede a moldura, aplica a redução e revela o guia\nno primeiro quadro. O efeito do React abaixo faz a mesma coisa (para quando\na landing é aberta por navegação interna, sem recarregar a página) e cuida\nde continuar acompanhando quando a janela muda de tamanho.",
+    "source_path": "src/components/landing/LiveGuideFrame.tsx",
+    "audience": [],
+    "content_hash": "ff0531c69b21fc70a09e66ad6b2cd27f"
+  },
+  {
     "doc_key": "rule:freeProperties",
     "kind": "rule",
     "title": "Regra — freeProperties",
@@ -1041,6 +1113,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "d320ff76de3a6a8eda05d230e31ecb66"
   },
   {
+    "doc_key": "rule:hojeISO",
+    "kind": "rule",
+    "title": "Regra — hojeISO",
+    "content": "ATRASADOS NO TOPO (opção 1 aprovada, 18/09/2026).\n\n\"checkin atrasado precisa ser prioridade máxima no topo da lista e, se\npuder colocar algo que mostre ser um checkin atrasado, melhor... isso tem\nque valer para os demais status também.\"\n\nO \"algo que mostre\" é o MENOR sinal possível — o cliente recusou as\nversões com etiqueta e bloco colorido (\"muito gritantes\"): um rótulo de\nseção igual ao de \"Hoje\"/\"Amanhã\", com a palavra em vermelho. O card não\nganha nada novo; a barra lateral dele já fica vermelha quando atrasa e a\nlinha do período já é a cor do estado. O canto superior direito continua\nsendo o horário previsto — pedido explícito: aquela informação não é\nsubstituída por nenhuma outra.\n\nA ordem em si vem do servidor (arrival-board.server.ts). Aqui só se\nsepara visualmente, e só quando há os dois grupos: uma lista inteira de\natrasados não precisa de rótulo para dizer o óbvio.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "9505a6a0e9a9bf367976380ebff0900e"
+  },
+  {
     "doc_key": "rule:HoraPrevista",
     "kind": "rule",
     "title": "Regra — HoraPrevista",
@@ -1129,6 +1210,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/ai/pause.ts",
     "audience": [],
     "content_hash": "0ccdf22e402bc032e0360b20f70c75ff"
+  },
+  {
+    "doc_key": "rule:isReservationGated",
+    "kind": "rule",
+    "title": "Regra — isReservationGated",
+    "content": "Guia cujo acesso depende do código de reserva validado no iCal. É a MESMA\ncondição usada em `recordGuideAccess` para exigir o código — sem iCal não\nhá contra o que validar, e o guia segue a regra antiga (acesso pelo link).",
+    "source_path": "src/lib/guest-access.server.ts",
+    "audience": [],
+    "content_hash": "f21b3ebb2c857139b312e17925d78c1a"
   },
   {
     "doc_key": "rule:isTodayOrFutureDate",
@@ -1221,6 +1311,24 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "6ce33995100bd8a6dc87a44673e6e24a"
   },
   {
+    "doc_key": "rule:loadDecisionRow",
+    "kind": "rule",
+    "title": "Regra — loadDecisionRow",
+    "content": "Checagens comuns à decisão e ao desfazer — em PARALELO (pedido explícito,\n17/09/2026: \"as respostas de QUALQUER ação precisam ser INSTANTÂNEAS\").\nAntes eram três idas ao banco em fila.",
+    "source_path": "src/lib/cleaning-approval.functions.ts",
+    "audience": [],
+    "content_hash": "7d57ea8d2287ba7172f45859e000a388"
+  },
+  {
+    "doc_key": "rule:lookupReservationByCode",
+    "kind": "rule",
+    "title": "Regra — lookupReservationByCode",
+    "content": "Consulta a reserva pelo código (HM…) no espelho do iCal do imóvel. Movida de\n`guide-access.functions.ts` sem mudança de regra, para ser usada também pelo\nguia (liberação das senhas) e pelo chat do hóspede.",
+    "source_path": "src/lib/guest-access.server.ts",
+    "audience": [],
+    "content_hash": "f378de1180c0ae07259f847154cc185a"
+  },
+  {
     "doc_key": "rule:maskDigitsIfLocked",
     "kind": "rule",
     "title": "Regra — maskDigitsIfLocked",
@@ -1228,6 +1336,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/ai/indexing.server.ts",
     "audience": [],
     "content_hash": "44b97639ca10a736f8228bdaa9cada84"
+  },
+  {
+    "doc_key": "rule:MobileTimeline",
+    "kind": "rule",
+    "title": "Regra — MobileTimeline",
+    "content": "A linha liga o centro do 01 ao centro do 04. Os cartões têm alturas\ndiferentes, então a distância é medida depois de montar (e ao redimensionar).",
+    "source_path": "src/components/landing/sections.tsx",
+    "audience": [],
+    "content_hash": "53addeb3d83e742c75ac60e0b4641fad"
   },
   {
     "doc_key": "rule:MultiLinkPicker",
@@ -1246,15 +1363,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/ui/multi-select-filter.tsx",
     "audience": [],
     "content_hash": "3f23654d4e9d0b45a1f15fd12d93653e"
-  },
-  {
-    "doc_key": "rule:NAME_COL_BASE",
-    "kind": "rule",
-    "title": "Regra — NAME_COL_BASE",
-    "content": "Mobile: exatamente 5 dias inteiros no visor.\nDesktop: o máximo de dias inteiros que couber na largura do quadrante,\nsem nunca cortar a bolinha do último dia.",
-    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
-    "audience": [],
-    "content_hash": "9c4874ae6312d801e917341e534c4da1"
   },
   {
     "doc_key": "rule:newThread",
@@ -1309,15 +1417,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/ai/indexing.server.ts",
     "audience": [],
     "content_hash": "75d80e82843db0378e9d38e60c3c64dd"
-  },
-  {
-    "doc_key": "rule:OccupancyPanel",
-    "kind": "rule",
-    "title": "Regra — OccupancyPanel",
-    "content": "Agenda macro: ocupação de todos os imóveis nos próximos dias.\n\nOs filtros de Período/Proprietário/Cidade não vivem mais aqui como\nbotões separados — viraram um botão único (`CalendarFiltersButton`, ao\nlado do título) dentro do cabeçalho deste painel. O ESTADO continua\nvivendo no OperationWorkspace (o pai), porque também precisa afetar os\ncards \"Limpezas Realizadas\"/\"Custo Total Limpeza\" (que são irmãos deste\npainel, na aba \"Limpeza\") — por isso os valores/opções e os callbacks de\nmudança chegam tudo via props. `properties` já chega FILTRADA.",
-    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
-    "audience": [],
-    "content_hash": "b9d2e597086f026243bb1c43e760fdbf"
   },
   {
     "doc_key": "rule:occupiedOnDay",
@@ -1381,6 +1480,24 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/ds/PageHeader.tsx",
     "audience": [],
     "content_hash": "ffaf52c027cb534edf3565ba11b98e42"
+  },
+  {
+    "doc_key": "rule:PANEL_SHELL",
+    "kind": "rule",
+    "title": "Regra — PANEL_SHELL",
+    "content": "A casca de um bloco: luz do `ds-3d`, fundo de cartão e o raio de 14px.\nSem respiro — cada bloco escolhe o seu, porque um gráfico e um cartão de\nimóvel não respiram igual.",
+    "source_path": "src/components/dashboard/panel-chrome.tsx",
+    "audience": [],
+    "content_hash": "e38d1242c165644e80a95e8978996fb3"
+  },
+  {
+    "doc_key": "rule:PanelHeading",
+    "kind": "rule",
+    "title": "Regra — PanelHeading",
+    "content": "CABEÇALHO DE BLOCO — ponto, rótulo em caixa alta, fio que vai sumindo e,\nquando houver, uma informação à direita (contagem, aviso, \"i\").\n\nNasceu no quadrante de engajamento da Operacional e é o desenho aprovado\npelo cliente; daqui vai para os gráficos da Limpeza e para os blocos dos\nRegistros sem nenhuma variação.\n\n`dot` aceita um nó próprio (o ponto degradê da marca, por exemplo) ou uma\ncor sólida via `dotColor`; sem nenhum dos dois, o ponto some e o rótulo\ncomeça a linha.",
+    "source_path": "src/components/dashboard/panel-chrome.tsx",
+    "audience": [],
+    "content_hash": "fe64d0bcbc30268cdf76e8f27884cf7b"
   },
   {
     "doc_key": "rule:parseGuestSummary",
@@ -1491,6 +1608,24 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "d3b7ef85e34907c66fd245f5482bc138"
   },
   {
+    "doc_key": "rule:PhoneShell",
+    "kind": "rule",
+    "title": "Regra — PhoneShell",
+    "content": "Moldura do guia (17/09/2026, pedido do cliente com print): SEM carcaça de\ncelular e SEM borda — só a tela com cantos de 28 px, uma luz roxa/rosa bem\nfraca ao fundo e o neon girando no contorno. O trecho parado do contorno é\ntransparente, senão ele aparece como uma linha.\n\nA intensidade da luz de fundo fica no próprio elemento (`opacity-30`), não só\nna animação: quando a animação não roda (sistema com \"reduzir movimento\"),\na luz não pode aparecer com força total.",
+    "source_path": "src/components/landing/sections.tsx",
+    "audience": [],
+    "content_hash": "af4491ead48808dd80e140998590f3e9"
+  },
+  {
+    "doc_key": "rule:planExecution",
+    "kind": "rule",
+    "title": "Regra — planExecution",
+    "content": "DESATIVADO em 19/09/2026 — não chama modelo.\n\nO planejador rodava em modelo barato e entregava ao concierge um roteiro de\nferramentas montado por quem pensa menos do que ele. Um modelo de raciocínio\nplaneja melhor sozinho. Mantido determinístico só para o restante do\npipeline (limiares de risco, auditoria) continuar recebendo o mesmo formato.",
+    "source_path": "src/lib/ai/planner.server.ts",
+    "audience": [],
+    "content_hash": "5051ef6f34355ea08aa04f84f82d0ddb"
+  },
+  {
     "doc_key": "rule:PlanKey",
     "kind": "rule",
     "title": "Regra — PlanKey",
@@ -1554,6 +1689,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "562deeb16089ca5cb76577d8936f84c7"
   },
   {
+    "doc_key": "rule:PROCESSAMENTO_MS",
+    "kind": "rule",
+    "title": "Regra — PROCESSAMENTO_MS",
+    "content": "DEPOIS DO ÚLTIMO BYTE (17/09/2026) — por que existe um segundo prazo.\n\nO cão de guarda media silêncio pelo progresso de ENVIO. Só que, terminado o\núltimo byte de um vídeo de 48 MB, o servidor ainda leva minutos gravando o\narquivo — e nesse intervalo não existe \"byte novo\" nenhum. Passados 45\nsegundos, o app cortava uma conexão que estava perfeitamente viva, dizia\n\"a conexão ficou muito lenta\" e reenviava o MESMO vídeo do zero. Foi isso\nque a equipe de limpeza viu: o botão girando em \"Enviando 1 de 1\" enquanto\no arquivo já estava guardado (e ainda duplicava no armazenamento).\n\nAgora, assim que o corpo termina de sair, o relógio muda: esperamos a\nresposta do servidor por até 5 minutos sem cortar nada.",
+    "source_path": "src/lib/media-upload.ts",
+    "audience": [],
+    "content_hash": "f1c1a1445d439e04464973d22c1ff725"
+  },
+  {
     "doc_key": "rule:propertyCityById",
     "kind": "rule",
     "title": "Regra — propertyCityById",
@@ -1561,6 +1705,24 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
     "content_hash": "d836f92dfc9b771a74094215ed3616ad"
+  },
+  {
+    "doc_key": "rule:PropertyPhotoPeek",
+    "kind": "rule",
+    "title": "Regra — PropertyPhotoPeek",
+    "content": "A FOTO DO IMÓVEL AO PASSAR O MOUSE (pedido explícito, 18/09/2026: \"ao\ncolocar o mouse acima do quadrante que mostra o nome do título, do\nproprietário, etc.. deve-se abrir um quadrado com a foto do imóvel pra\nfacilitar a vida do usuário.. isso também deve acontecer pelo celular ao\nclicar em cima desse quadrante\").\n\nÉ o MESMO `Popover` do resto do sistema, só com dois gatilhos: no\ncomputador ele abre ao passar o mouse e fecha ao sair; no celular, onde não\nexiste \"passar o mouse\", abre no toque e fecha no toque seguinte (ou ao\ntocar fora). Sem foto cadastrada o bloco continua sendo só texto — nada\nabre, para não prometer o que não existe.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "eed9c1ffc9557ff46914da16cb2354a2"
+  },
+  {
+    "doc_key": "rule:purgeRecordFile",
+    "kind": "rule",
+    "title": "Regra — purgeRecordFile",
+    "content": "Fim da janela do \"Desfazer\": apaga o arquivo que ficou guardado. Só apaga\nse nenhum registro aponta mais para ele e se o imóvel do caminho é um que\na pessoa enxerga — um caminho qualquer vindo do navegador não apaga nada.",
+    "source_path": "src/lib/reservation-records.functions.ts",
+    "audience": [],
+    "content_hash": "7cb8e577aa1ae7ee4016c52584b7aacf"
   },
   {
     "doc_key": "rule:PushNotificationBanner",
@@ -1584,19 +1746,28 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:ReasoningEffort",
     "kind": "rule",
     "title": "Regra — ReasoningEffort",
-    "content": "Quanto a IA pensa antes de responder — política única das duas IAs.\n\nPedido explícito (07/09/2026): \"quero que ela seja altamente inteligente,\ncomo se o usuário estivesse conversando com o ChatGPT, com o Gemini\".\n\nO QUE ESTAVA ERRADO\n\nOs dois agentes rodavam com `reasoningEffort: \"low\"` em praticamente toda\nconversa — o atendimento só subia para \"medium\" quando a mensagem era urgente\nou arriscada, e o assistente do painel estava fixo em \"low\". Num modelo de\nraciocínio, \"low\" não é uma economia inofensiva: é a diferença entre pensar\nno problema e responder de bate-pronto. Era o que fazia as respostas\nparecerem rasas mesmo com todo o contexto certo na mão — não faltava\ninformação, faltava pensar.\n\nO QUE MUDA\n\nO esforço passa a depender do que foi PERGUNTADO, e não só de urgência:\n\n · alto — a pessoa pediu comparação, recomendação, um porquê, um plano,\n ou mandou um texto longo com várias perguntas juntas. É o tipo\n de resposta que só fica boa se o modelo pensar antes.\n · médio — o padrão de qualquer conversa de verdade. Vale também para todo\n pedido de AÇÃO: gravar a coisa errada custa mais caro do que os\n segundos a mais de raciocínio.\n · baixo — só o que é genuinamente trivial: saudação, \"ok\", \"obrigado\",\n uma confirmação de uma linha.\n\nO CUSTO, DITO NA CARA\n\nPensar mais custa mais tempo e mais tokens. A escolha aqui é deliberada:\npagar isso nas perguntas que merecem e não pagar nas que não merecem — em\nvez de economizar em todas, que era o comportamento anterior e o motivo da\nreclamação.",
+    "content": "Quanto a IA pensa antes de responder — política única das duas IAs.\n\nPedido explícito (07/09/2026): \"quero que ela seja altamente inteligente,\ncomo se o usuário estivesse conversando com o ChatGPT, com o Gemini\".\n\nO QUE ESTAVA ERRADO\n\nOs dois agentes rodavam com `reasoningEffort: \"low\"` em praticamente toda\nconversa — o atendimento só subia para \"medium\" quando a mensagem era urgente\nou arriscada, e o assistente do painel estava fixo em \"low\". Num modelo de\nraciocínio, \"low\" não é uma economia inofensiva: é a diferença entre pensar\nno problema e responder de bate-pronto. Era o que fazia as respostas\nparecerem rasas mesmo com todo o contexto certo na mão — não faltava\ninformação, faltava pensar.\n\nO QUE MUDA (19/09/2026 — pedido: \"a IA SEMPRE com o máximo esforço, mas com\npoder de decisão para reduzir quando achar pertinente\")\n\nO padrão passa a ser o TOPO (\"max\"). A redução é a exceção, e só acontece\nquando a própria mensagem não deixa dúvida de que não há o que pensar:\n\n · max — padrão de tudo. Qualquer pergunta, pedido, reclamação, ação.\n · xhigh — pergunta objetiva e curta de um dado só (\"que horas é o\n checkout?\"), onde o topo só adicionaria espera.\n · medium — saudação/agradecimento solto (\"oi\", \"obrigado\", \"ok\").\n\nO CUSTO, DITO NA CARA\n\nPensar mais custa mais tempo e mais tokens. A escolha aqui é deliberada:\no padrão é pagar para pensar; economizar é a exceção justificada.",
     "source_path": "src/lib/ai/reasoning.ts",
     "audience": [],
-    "content_hash": "d0e0dc85d2d00b3333b56e00d4fb8d64"
+    "content_hash": "29766e292b1fdeca128e9c8062faeba4"
   },
   {
     "doc_key": "rule:reasoningFor",
     "kind": "rule",
     "title": "Regra — reasoningFor",
-    "content": "Decide o esforço para uma mensagem.\n\n`isAction` cobre o caso em que a pessoa está mandando o sistema FAZER algo\n(criar pendência, marcar não comparecimento): ali o piso é médio mesmo que a\nfrase seja curta, porque interpretar errado grava dado errado.",
+    "content": "Decide o esforço para uma mensagem. O padrão é o máximo; só reduz quando a\nmensagem é comprovadamente trivial ou uma consulta pontual de um dado.\n\n`isAction` cobre o caso em que a pessoa está mandando o sistema FAZER algo:\nali nunca reduzimos, porque interpretar errado grava dado errado.",
     "source_path": "src/lib/ai/reasoning.ts",
     "audience": [],
-    "content_hash": "21463f078baac3321475523c21c8b704"
+    "content_hash": "83e57214fa6918d1539c3c55d1329589"
+  },
+  {
+    "doc_key": "rule:RECORD_RESTORE_COLUMNS",
+    "kind": "rule",
+    "title": "Regra — RECORD_RESTORE_COLUMNS",
+    "content": "Remove um registro (e o arquivo do storage, se houver). A pendência\ngerada NÃO é apagada junto: ela pode já estar em andamento com outra\npessoa: quem quiser encerrá-la faz isso na tela de Pendências.\n\nDESFAZER (17/09/2026): com `keepFile`, o arquivo fica no storage durante\nos 5s do botão \"Desfazer\" e a linha apagada volta para o cliente. Se a\npessoa desfizer, `restoreReservationRecord` recoloca a linha; se não,\n`purgeRecordFile` apaga o arquivo quando a janela fecha.",
+    "source_path": "src/lib/reservation-records.functions.ts",
+    "audience": [],
+    "content_hash": "b908794264e4f055394ffe369b50d8d6"
   },
   {
     "doc_key": "rule:RECORD_TITLE_MAX",
@@ -1725,6 +1896,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "fe2e5ad544b27a3d48da06b869ebd467"
   },
   {
+    "doc_key": "rule:revealGuideAccessCodes",
+    "kind": "rule",
+    "title": "Regra — revealGuideAccessCodes",
+    "content": "Entrega Wi-Fi / portão / fechadura ao hóspede que PROVOU a reserva\n(16/09/2026). É o par de `getPublicGuide`, que deixou de mandar esses campos\nnos guias com código de reserva. Mesma prova do formulário de acesso: o\ncódigo precisa estar ativo no iCal do imóvel, e o acesso cai sozinho quando\na reserva termina ou é cancelada.",
+    "source_path": "src/lib/guide.functions.ts",
+    "audience": [],
+    "content_hash": "d17d28e4046881a62efb98bdcbf647d2"
+  },
+  {
     "doc_key": "rule:rowByStay",
     "kind": "rule",
     "title": "Regra — rowByStay",
@@ -1759,6 +1939,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/ops-push.server.ts",
     "audience": [],
     "content_hash": "cc8a24bdff35842e5a13d7218b5c910c"
+  },
+  {
+    "doc_key": "rule:sanitizeGuestDocuments",
+    "kind": "rule",
+    "title": "Regra — sanitizeGuestDocuments",
+    "content": "DOCUMENTOS DO HÓSPEDE SÓ APONTAM PARA ARQUIVOS DESTE IMÓVEL (16/09/2026).\n\nO formulário é público. Antes, o que viesse em `guest_documents` era gravado\ncomo veio: um `file_url` qualquer virava link clicável no painel da equipe\n(Hóspedes → \"Arquivo\"), e um `file_path` de outro imóvel seria assinado pelo\npainel com a chave de serviço. O upload legítimo (`guest-doc-upload`) sempre\ndevolve `<id do imóvel>/<uuid>.<ext>` e o formulário nunca envia `file_url`\n— então as duas coisas saem aqui sem afetar nenhum hóspede real.",
+    "source_path": "src/lib/guide-access.functions.ts",
+    "audience": [],
+    "content_hash": "7653a715e186ab2ef67e8031dd0a1ced"
   },
   {
     "doc_key": "rule:ScopeInput",
@@ -1804,6 +1993,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/editor/Section.tsx",
     "audience": [],
     "content_hash": "6a2193bf9ba397b363b2f989f892d79e"
+  },
+  {
+    "doc_key": "rule:SectionLabel",
+    "kind": "rule",
+    "title": "Regra — SectionLabel",
+    "content": "RÓTULO DE SEÇÃO — a palavra CENTRADA, com o fio dos dois lados (pedido\nexplícito, 18/09/2026: \"a palavra deve ficar ao meio, e a linha deve\ncontinuar visível ao lado direito e esquerdo da palavra\").\n\nDivide a página em vez de começar um bloco: é o que separa os atrasados do\nresto na Operacional e os imóveis em dia dos que precisam de atenção nos\nRegistros.",
+    "source_path": "src/components/dashboard/panel-chrome.tsx",
+    "audience": [],
+    "content_hash": "b2defe9a6851c10f0074e0ac7c690f9f"
   },
   {
     "doc_key": "rule:SEG_TAB",
@@ -1923,7 +2121,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "2cc9bc470dd974359ec18d1ab3e41539"
   },
   {
-    "doc_key": "rule:src/components/ai/AiMarkdown.tsx:2740",
+    "doc_key": "rule:src/components/ai/AiMarkdown.tsx:2774",
     "kind": "rule",
     "title": "Regra em AiMarkdown.tsx",
     "content": "Substituições pontuais de quem usa. O chat do hóspede precisa de duas: um\n`code` com botão de copiar (senha de Wi-Fi se copia, não se digita) e um\n`img` que some quando a foto do lugar expira, em vez de mostrar ícone\nquebrado. O resto do padrão continua valendo para os dois chats.",
@@ -2013,7 +2211,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "59823a76849d5b7930747f34a9a3cc3b"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:142459",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:150040",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "A Limpeza tem DUAS janelas na MESMA tela (últimos 7d / próximos 7d) e o\ntítulo precisa dizer qual está no ar (pedido explícito). Só o texto muda;\no resto da página é idêntico.",
@@ -2022,7 +2220,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "df381f0b82c9a345baeae12ba649c01f"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:142693",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:150274",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "AS AÇÕES DA TELA MORAM AQUI (mockup aprovado, 09/09/2026).\n\nAs três telas gastavam uma faixa horizontal inteira só com dois ou três\nbotões, e essa faixa empurrava o conteúdo para baixo justamente onde a\ntela é mais estreita. Encostadas à direita do bloco título+subtítulo elas\nnão custam altura nenhuma — e, de quebra, passam a estar SEMPRE no mesmo\ncanto nas três telas, que é o que faz a mão aprender um lugar só.\n\n`items-center`: alinhadas ao centro do bloco de duas linhas, não ao topo.\nAlinhado ao topo, o botão encosta no título e a dupla fica torta quando o\nsubtítulo quebra.",
@@ -2031,7 +2229,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "9fe3ad8ae446109e5ae90b0e1d1fb01d"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:155095",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:171380",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Destaque visual opt-in (só usado hoje por \"Fila de Limpeza\"): borda +\ngradiente âmbar + acento lateral + ícone em caixinha, sem negrito.\nNão afeta nenhum outro uso do KpiCard (compact ou não).",
@@ -2040,7 +2238,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ec0f34c7bfc0754666d9cc96f2f2a568"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:155330",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:171615",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Cards que devem continuar visíveis no popup mesmo que já não pertençam\nmais à lista — hoje só os que tiveram HORÁRIO/DATA PREVISTOS ajustados.",
@@ -2049,7 +2247,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "4b33a44930f947dea6060da94f816439"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:155522",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:171807",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Pedido explícito: os cards dentro do popup precisam ficar IDÊNTICOS ao\ncard do Kanban — em vez de manter uma segunda implementação (que já\ndivergiu do Kanban antes, ver o bug do bloqueio de check-in), o popup\nagora renderiza o MESMO <ArrivalGroup>/<ArrivalCard> do Kanban, com os\nMESMOS handlers. Vem de arrivalGroupPropsFor(colMode, rows) — a mesma\nfunção que já alimenta as colunas do Kanban.",
@@ -2058,7 +2256,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "dfd7cbf815d96bcf7c9214257a5e2387"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:197001",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:220879",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Rótulo de seção do formulário de pendência — dá hierarquia ao que antes\nera uma pilha de campos do mesmo tamanho (pedido explícito, 07/09/2026).",
@@ -2067,7 +2265,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "56b708e624e12bb9a26b2593234ea4c6"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:206827",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:230712",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Padrão = IMÓVEL, que é o que os dois mockups aprovados mostram selecionado.\nUrgência continua a um toque de distância, e é a escolha certa quando a\npergunta é \"o que eu resolvo agora\" — mas a operação abre esta tela quase\nsempre pensando num imóvel, e agrupada ela cabe muito mais no olho: nove\npendências iguais em nove imóveis viram nove cabeçalhos com uma linha cada,\nem vez de nove linhas repetindo o mesmo título.",
@@ -2076,7 +2274,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "59042beafabc7c04c6cad6bab466aea1"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:279820",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:301005",
+    "kind": "rule",
+    "title": "Regra em OperationWorkspace.tsx",
+    "content": "Agenda macro: ocupação de todos os imóveis nos próximos dias.\n\nOs filtros de Período/Proprietário/Cidade não vivem mais aqui como\nbotões separados — viraram um botão único (`CalendarFiltersButton`, ao\nlado do título) dentro do cabeçalho deste painel. O ESTADO continua\nvivendo no OperationWorkspace (o pai), porque também precisa afetar os\ncards \"Limpezas Realizadas\"/\"Custo Total Limpeza\" (que são irmãos deste\npainel, na aba \"Limpeza\") — por isso os valores/opções e os callbacks de\nmudança chegam tudo via props. `properties` já chega FILTRADA.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "8d33ed005e451cb14ae1e9daf6895ef8"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:304462",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Pedido explícito: os filtros (Período/Cidade/Proprietário) que antes\nficavam numa linha própria acima deste card viraram um botão único\n(`CalendarFiltersButton`) dentro do cabeçalho, ao lado do título — por\nisso o estado/opções continuam vindo do pai (`OperationWorkspace`),\nque é quem também usa esses mesmos filtros pros cards de limpeza.",
@@ -2085,7 +2292,34 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "67345afec21e651284020dbb8b2f7803"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:311665",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:305227",
+    "kind": "rule",
+    "title": "Regra em OperationWorkspace.tsx",
+    "content": "Quantos dias INTEIROS cabem no quadro com as colunas no tamanho máximo.\nO pai usa isto para buscar exatamente essa quantidade de dias, em vez de\num número fixo — é o que faz o calendário mostrar mais dias quando há\nespaço, sem esticar coluna nenhuma.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "dd2d137dfd7e39a43fdb06189c653167"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:305551",
+    "kind": "rule",
+    "title": "Regra em OperationWorkspace.tsx",
+    "content": "Mobile: exatamente 5 dias inteiros no visor.\nDesktop: o máximo de dias inteiros que couber na largura do quadrante,\nsem nunca cortar a bolinha do último dia.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "bc5ec68f4eb684360832917721f34380"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:306685",
+    "kind": "rule",
+    "title": "Regra em OperationWorkspace.tsx",
+    "content": "ABERTO NO COMPUTADOR, recolhido no celular (pedido explícito, 18/09/2026:\n\"mantenha o calendário sempre expandido na visão DESKTOP, mas com\npossibilidade de recolher clicando em cima da barra\"). No celular\ncontinua recolhido por padrão — lá ele come a tela inteira.\n\nA decisão é tomada depois de montar, não no estado inicial: ler a largura\nda janela ali quebraria a hidratação, porque no servidor não existe\njanela. Roda uma vez só — quem recolher continua recolhido, e\nredimensionar a janela depois não reabre o quadro sozinho.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "330b51e2134088f3291e2d7d7ff1aec1"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:337309",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Dialog de detalhe (quem viu / quem não viu) — extraído do BarRow original\npra poder ser reaproveitado também pelo EngagementCard (cards separados do\ndesktop), sem duplicar esse JSX nos dois lugares.",
@@ -2094,7 +2328,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "191a73d470b9e71e3339a0db344ffb5a"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:319632",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:346880",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Controlado de fora (pela coluna do Kanban) quando presente — permite\nrecolher os \"Detalhes da operação\" ao rolar a coluna. Sem isso, cai de\nvolta pro estado local de sempre.",
@@ -2103,7 +2337,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1420a71a82d71664b9b9257192bc6178"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:323228",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:352142",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Marca este card (Check-ins) como \"Não Compareceu\" — pedido explícito,\n05/09/2026: opção no menu \"⋮\", só nos cards de check-in ainda pendentes.",
@@ -2112,7 +2346,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "b858b5d3155e42847ae34a889b4053e2"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:324241",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:353142",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Modo \"Lista\" (pedido explícito): mostra só proprietário, imóvel e os\n botões de ação (bem menores) — some com nome do hóspede, código,\n período, previsto e alertas de iCal. Reaproveita o mesmo card e os\n mesmos handlers; só a apresentação muda.",
@@ -2121,7 +2355,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "943bbf38018e813c04eeb6799825fda6"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:337066",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:36069",
+    "kind": "rule",
+    "title": "Regra em OperationWorkspace.tsx",
+    "content": "QUANTOS DIAS BUSCAR (pedido explícito, 18/09/2026: \"se couberem mais dias\ndentro da visão respeitando a regra anti corte, é para colocar\").\n\nCom filtro de período, quem manda é o período escolhido — não mexemos.\nSem filtro, o próprio calendário avisa quantos dias INTEIROS cabem no\nquadro com as colunas no tamanho máximo, e buscamos exatamente isso. O\nnúmero fixo de antes (21) ora sobrava, ora faltava: quando faltava, as\ncolunas esticavam para ocupar o espaço.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "85e771cbd9918de65a04ae399626feb3"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:366789",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Lista + Concluídos/Não Compareceu = card mínimo (pedido explícito,\n08/09/2026): \"não deve ser apresentada qualquer info que não seja o nome\ndo proprietário, título do anúncio e botões\".\n\nSão as duas listas de ARQUIVO do quadro. Ali ninguém está operando nada:\nestá procurando um card específico para desfazer ou conferir. Período,\nprevisão, nota e alertas de iCal só alongam a linha e atrasam a busca —\no histórico completo continua a um clique (ver o popup de histórico).\n\nA etiqueta ALERTA é a exceção deliberada, por pedido explícito no mesmo\ndia: ela aparece em todo e qualquer card, inclusive aqui.",
@@ -2130,7 +2373,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1b25cf359cf9c187087b403bc46fefe6"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:337735",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:367458",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "CARD SEMPRE COMPACTO, QUE ABRE NO TOQUE (pedido explícito, 09/09/2026,\nmockup aprovado).\n\nO botão de trocar visualização saiu do sistema. No lugar de uma escolha\nglobal entre \"Completo\" e \"Lista\" — que obrigava a pessoa a decidir de\nantemão, para TODOS os cards, quanta informação queria ver —, cada card\nnasce compacto e abre sozinho quando você toca nele. A escolha deixa de\nser uma configuração e passa a ser um gesto, card a card.\n\n`compact` continua sendo a mesma variável de antes e continua governando o\nmesmo conjunto de detalhes; o que mudou é quem a define. A prop recebida\n(`compactProp`) segue valendo como PADRÃO, e o estado local só a sobrepõe\nquando a pessoa abre aquele card.\n\nO estado NÃO é lembrado entre aberturas da tela: tudo volta compacto.\nLembrar significaria reabrir o quadro com metade dos cards expandidos, o\nque desfaz exatamente o ganho de espaço que motivou a mudança.",
@@ -2139,7 +2382,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "74aa32f170f1ad76a18f288788d2b4cf"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:342479",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:372161",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "HISTÓRICO DA RESERVA (pedido explícito, 08/09/2026).\n\nNa visão Lista, o clique no próprio card abre a jornada completa — é o\ngesto natural quando o card mostra pouca coisa. No modo Completo o card\nestá cheio de controles e um clique global roubaria o clique de todos\neles, então ali o caminho é o item do menu \"⋮\". Os dois abrem exatamente\na mesma tela.\n\nSó identificador real: a chave sintética \"ical:<id>\" não é um uuid de\nlog — nesses cards a reserva é quem identifica a estadia.",
@@ -2148,7 +2391,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "91b0393d11ad3250d65978789bbf0665"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:387886",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:416679",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Restringe de verdade os horários selecionáveis (inclusive) ao horário\n configurado do imóvel — pedido explícito do cliente (04/09/2026): antes\n só existia um aviso visual (âmbar) depois de já ter escolhido um\n horário fora da janela; agora o horário nem aparece como opção. `null`/\n omitido = sem limite (imóvel sem esse horário configurado).",
@@ -2157,7 +2400,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8ebe1ab97a0756cd4e0279b3025812c8"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:390650",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:419397",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Data e horário previstos são dois campos SEPARADOS de novo (pedido\nexplícito, 05/09/2026: \"quero que fiquem separados como antes, porém\nambos no layout padrão dos tooltips\") — cada botão abre seu próprio\ntooltip (só calendário / só horário, cada um com o mesmo visual dos\ntooltips padrão do sistema), não mais um painel único com os dois juntos.\n\nMas por baixo dos panos continua sendo UMA ÚNICA sessão de edição\n(`open`/pendingDate/pendingTime compartilhados): os dois botões só trocam\nQUAL conteúdo aparece dentro do mesmo Popover (ver `openField`), sem abrir\ne fechar de verdade um popover por vez. Isso é o que preserva o ajuste\nanterior (pedido explícito, mesma data): \"não é mover depois de fechar o\ncalendário, é mover depois de fechar o TOOLTIP inteiro\" — se cada campo\ntivesse seu próprio Popover independente, fechar o de Data já confirmaria\ne moveria o card antes do usuário conseguir abrir o de Horário, voltando\nao bug original. Nada é gravado (nem o card se move) enquanto QUALQUER um\ndos dois estiver \"aberto\" — só quando o usuário clica fora dos dois\nbotões (ou aperta \"Concluir\"/Esc) é que a data e o horário pendentes são\nconfirmados juntos, numa única leva.\n\nO piso/teto do horário reage à data QUE ESTÁ SENDO escolhida (ainda não\nconfirmada) — mesma regra de \"dia mudou → sem piso/teto\" do card, só que\ncalculada aqui em cima do valor pendente, senão a lista de horários\nficaria com a janela do dia errado enquanto o usuário ainda decide.",
@@ -2166,7 +2409,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "2b5d3cc828947c9353140290107ef27c"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:43543",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:46060",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Cards \"fixados\" no popup aberto: SÓ ajustes de data/horário previsto\nseguram o card na lista até o usuário fechar o popup no \"X\". Qualquer\noutra ação (check, não compareceu, limpeza não será realizada, desfazer)\ntira o card da tela na hora.",
@@ -2175,13 +2418,40 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "edce2904f3ccf71032151d09f19ecae0"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:61570",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:66936",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "A tela de Limpeza tem DUAS janelas, e é a MESMA tela nas duas (pedido\nexplícito, 09/09/2026: \"não quero que abra um tooltip ao clicar em\ntendência; quero que a tela seja a mesma da visão oficial, mas que os\ndados sejam mudados para os próximos 7 dias\").\n\nAntes a previsão vivia num popup com layout próprio — outra moldura, outra\ndensidade, outro jeito de ler os mesmos gráficos. Agora só a FONTE dos\ndados muda; cards, gráficos e ranking são os mesmos componentes.",
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
     "content_hash": "a094d0063ac14a38e9749905f4336c1b"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/panel-chrome.tsx:0",
+    "kind": "rule",
+    "title": "Regra em panel-chrome.tsx",
+    "content": "AS PEÇAS DE MOLDURA DO PADRÃO \"PRESENÇA\" — um lugar só, para as três abas.\n\nPedido explícito (18/09/2026): \"não é só replicar a paleta, mas sim o\nlayout inteiro\". Até aqui cada aba tinha reescrito o seu cabeçalho de\nbloco e o seu rótulo de seção por conta própria: a Operacional usava\nponto + palavra + fio que some, a Limpeza usava só a palavra solta no topo\ndo gráfico, e os Registros usavam palavra + fio reto. Três desenhos para a\nmesma função é o que fazia as abas parecerem três produtos.\n\nAs duas peças abaixo são a forma única. Quem quiser um cabeçalho de bloco\nou um rótulo de seção chama daqui — mudar o padrão volta a ser mudar UM\narquivo, como já acontece com as cores em `card-colors.ts`.\n\nO raio dos cartões também mora aqui (`PANEL_SHELL`): 14px é o raio dos\ncartões da Operacional, e era o que os gráficos da Limpeza e os cartões de\nimóvel dos Registros não seguiam (usavam 0.3rem, quase um canto reto).",
+    "source_path": "src/components/dashboard/panel-chrome.tsx",
+    "audience": [],
+    "content_hash": "a18d6ca9316b39358f2fa4beee31274b"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/panel-chrome.tsx:4803",
+    "kind": "rule",
+    "title": "Regra em panel-chrome.tsx",
+    "content": "O BOTÃO DE AÇÃO DO CABEÇALHO — uma cadeia de classes só, para todos eles.\n\nREGRA (pedido explícito, 18/09/2026: \"os botões de filtros precisam ficar\nbem mais finos... temos que colocar como regra\"). Usam isto: Filtros\n(Kanban, Limpeza e Registros), Pendências, o interruptor das janelas da\nLimpeza — e qualquer botão de ação que venha depois.\n\nAntes, cada um repetia à mão a mesma cadeia de doze classes. Eram quatro\ncópias da mesma decisão: na primeira vez que o cliente pediu \"mais baixo\",\neu mexi em três e esqueci o quarto, e foi ele quem viu pelo print.\n\nAs DUAS medidas vêm de `--ds-action-h` / `--ds-action-h-lg` em\n`styles.css`; aqui fica a forma, lá fica o número.\n\nNo celular o botão divide a largura com os irmãos e mostra o rótulo; no\ncomputador vira um quadrado só de ícone, com a altura da barra de abas, que\né a regra que o cliente fixou em 18/09/2026 (\"sendo o mesmo tamanho/altura\nda barra de menu\"). Quem usa põe o ícone e um `<span className=\"lg:hidden\">`\ncom o rótulo.",
+    "source_path": "src/components/dashboard/panel-chrome.tsx",
+    "audience": [],
+    "content_hash": "bce3d720c4558ebbacde2cf31f29b4bd"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/pendencias.tsx:0",
+    "kind": "rule",
+    "title": "Regra em pendencias.tsx",
+    "content": "O BOTÃO \"PENDÊNCIAS\" — autossuficiente, para qualquer tela do dashboard.\n\nPedido explícito (18/09/2026): o botão sai do Kanban e passa a morar nos\nREGISTROS. Faz sentido — a aba de Registros já é onde as pendências\naparecem (\"Precisam de atenção\"), então é lá que a mão vai procurar.\n\nPOR QUE ESTE ARQUIVO EXISTE, E POR QUE ELE É PEQUENO\n\nO painel em si (`TasksDialog`) tem mais de mil linhas e mora no\n`OperationWorkspace`. Mudá-lo de casa seria mover ~1500 linhas junto com\ntodas as pecinhas que ele usa lá dentro — muito risco para uma tela que o\ncliente usa todo dia, e sem chance de eu clicar no fluxo para conferir.\n\nEntão o que se move é só o CONTROLE: este componente traz o botão, o estado\nde aberto/fechado, as consultas e as mutações que o painel precisa, e\nIMPORTA os dois diálogos de lá. A dependência é de mão única\n(Registros → aqui → OperationWorkspace), sem ciclo, e nenhuma linha do\npainel foi tocada — o que já funcionava continua sendo exatamente o mesmo\ncódigo.\n\nO QUE FICOU NO `OperationWorkspace`\n\nO outro gatilho da tela de conclusão: marcar uma pendência no CHECKLIST do\ncard de limpeza (`kind: \"cleaning\"`). Aquele fluxo carrega um card da\nesteira (`ArrivalRow`) — dado que só o Kanban tem — e por isso não vem\njunto. São dois caminhos para a mesma tela de conclusão, cada um na tela\nque tem os dados dele; nunca abrem ao mesmo tempo.\n\n`guestNameForTask` é OPCIONAL de propósito: o nome do hóspede de uma\npendência sai da cadeia de consultas de chegadas/saídas, que só o Kanban\ncarrega. Nos Registros não vale acordar essa cadeia inteira para uma linha\nde apoio — sem ela o painel mostra \"Hóspede\", como já fazia para qualquer\npendência sem reserva vinculada.",
+    "source_path": "src/components/dashboard/pendencias.tsx",
+    "audience": [],
+    "content_hash": "84636e47e3e2224e4752bbd2749f7935"
   },
   {
     "doc_key": "rule:src/components/dashboard/record-categories.ts:0",
@@ -2193,7 +2463,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1b50fd69dd824cce84da89a6a3bd6fb7"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordSituationSheet.tsx:7956",
+    "doc_key": "rule:src/components/dashboard/RecordSituationSheet.tsx:8096",
     "kind": "rule",
     "title": "Regra em RecordSituationSheet.tsx",
     "content": "Erro do último envio, MOSTRADO NA FOLHA. Um toast some em quatro\n segundos e não deixa rastro nenhum — foi por isso que ninguém soube\n dizer o que tinha acontecido.",
@@ -2202,7 +2472,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "bb858acdfcfe0c71275a4ebad074241a"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:10242",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:11071",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "ACERVO RECOLHIDO POR PADRÃO, UM DE CADA VEZ (pedido explícito,\n10/09/2026). A tela abre mostrando só o que há para EXECUTAR; as\nminiaturas de prova ficam a um toque. E abrir um imóvel fecha o anterior,\nsenão a página volta a ser uma parede de quadradinhos.",
@@ -2211,7 +2481,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "da56a7e41911b71c751dc4fed78c2097"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:10598",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:11427",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "PENDÊNCIAS TAMBÉM RECOLHIDAS, PELA MESMA REGRA (pedido explícito,\n11/09/2026): \"coloque também a linha PENDÊNCIAS recolhida seguindo as\nmesmas regras da linha REGISTROS\". Mesma mecânica, estado separado — a\nlinha inteira é o botão, sem seta, e abrir um imóvel fecha o anterior.\nSeparado do acervo de propósito: são duas perguntas diferentes (\"o que há\npara fazer aqui?\" e \"que provas existem aqui?\"), e amarrar as duas faria\numa abrir a outra sem ninguém ter pedido.",
@@ -2220,7 +2490,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "921b94e2b28e53f61ef460f4945f7be2"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:24294",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:28770",
+    "kind": "rule",
+    "title": "Regra em RecordsWorkspace.tsx",
+    "content": "Contador/filtro de uma categoria. Mesma casca dos KPIs da Operacional.\n\nA COR DO NÚMERO É UM SEMÁFORO, NÃO UMA ETIQUETA (pedido explícito,\n10/09/2026): zerado é BRANCO em todas as categorias — não há nada ali, nada\na sinalizar. Acima de zero, a cor diz o quanto aquilo pesa: manutenção e\ndano em vermelho (é trabalho parado), esquecidos e outros em âmbar (é\natenção), auditoria de limpeza no violeta de sempre (é rotina, não alarme)\ne \"Todos\" sempre branco, porque somar tudo não é sinal de nada.\n\nCartão zerado NÃO é mais esmaecido — todos têm a mesma tonalidade.",
+    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
+    "audience": [],
+    "content_hash": "0d8acd5693abba2abe9b8f2962b36ba3"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:33661",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "O CARTÃO DO IMÓVEL EM DOIS ANDARES (mockup B, aprovado 10/09/2026).\n\nAntes era uma fileira de quadrados cinzentos com um ponto de 6px: um dano\nsem conserto e uma foto de auditoria eram visualmente o mesmo quadrado. O\ncartão passa a admitir que há duas naturezas ali dentro —\n\n A RESOLVER o que abriu pendência e ela ainda está de pé (dano,\n manutenção, objeto esquecido). Vira LINHA, com título\n legível, porque é trabalho e trabalho precisa de nome.\n REGISTROS o resto. Continua miniatura, porque é prova.\n\nSem nada em aberto o primeiro andar não existe e o cartão fica igual ao de\nantes — a mesma regra de sempre: o aviso só aparece quando há aviso.",
@@ -2229,7 +2508,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1bede5e40def9ea40c009fa805397bcc"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:25021",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:34388",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "A FAIXA LATERAL DO CARTÃO DO IMÓVEL (pedido explícito, 10/09/2026).\n\nMesma barra de 3px dos cards do Kanban, mas dizendo outra coisa: aqui ela\nresponde \"o que mais tem neste imóvel?\" antes de a pessoa ler qualquer\nlinha. A cor é a da CATEGORIA MAIS FREQUENTE entre os registros daquele\nimóvel, com UMA exceção pedida pelo cliente:\n\n \"só nunca usar a cor da auditoria de limpeza quando tiver registro de\n outras categorias junto. só usar a cor da auditoria da limpeza quando só\n tiver isso no imóvel\"\n\nFaz sentido: auditoria é ROTINA — todo imóvel limpo gera vídeo, então ela\nganharia quase sempre na contagem e a faixa viraria uma fileira roxa que não\ninforma nada. Tirando-a da disputa, a faixa passa a mostrar o que exige\natenção; roxo então significa exatamente \"aqui só há prova de limpeza, nada\npendente\".\n\nEmpate: vence a mais grave — dano, depois manutenção, depois esquecidos,\ndepois outros.",
@@ -2238,7 +2517,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ac3013773b1e44cf4e096d38a8c66d5a"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:6509",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:35354",
+    "kind": "rule",
+    "title": "Regra em RecordsWorkspace.tsx",
+    "content": "O DEGRADÊ MORA DENTRO DA BARRA (pedido explícito, 10/09/2026).\n\nA primeira tentativa deixava a cor sangrar para dentro do cartão e o\ncliente cortou na hora: \"eu não quero que a cor vaze para o quadrante, eu\nsó quero que o efeito da barra conceda uma leveza na cor, sem torná-la\ngritante\".\n\nEntão a faixa continua sendo SÓ a faixa — nada invade o conteúdo. O que\nmudou é que ela deixou de ser um bloco chapado: cheia na quina de fora e\ndissolvendo até quase transparente do lado de dentro. De longe continua\ndizendo a cor; de perto é um fio de luz, não um adesivo.\n\nDois botões de ajuste, se quiser calibrar: a LARGURA (`w-[4px]`) e a\nOPACIDADE das duas pontas do degradê.",
+    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
+    "audience": [],
+    "content_hash": "97b6f9784d7da10988b59a2e367b62d3"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:6956",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "A FAIXA DA CATEGORIA dentro do quadrante (pedido explícito, 10/09/2026):\nmesma cor da categoria, translúcida, com o texto na versão clara dela. Fica\nde ponta a ponta no topo do quadrado, centralizada — sobre foto ou vídeo a\ntranslucidez deixa a imagem aparecer por baixo.",
@@ -2292,7 +2580,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "761bb7887d9e424202b492fd9eec4277"
   },
   {
-    "doc_key": "rule:src/components/guide/BottomNav.tsx:448",
+    "doc_key": "rule:src/components/guide/BottomNav.tsx:505",
     "kind": "rule",
     "title": "Regra em BottomNav.tsx",
     "content": "Quando definido, só o item com esta key responde a toque — os demais\nficam visualmente apagados e travados. Usado durante o onboarding\npós-formulário: o hóspede vê o menu real, com \"Chegada\" selecionado,\nmas não consegue navegar pra outra aba até concluir as etapas.",
@@ -2427,6 +2715,24 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "e7eeff2cce4d7ee0121d7baf6831cc3d"
   },
   {
+    "doc_key": "rule:src/lib/ai/agents/registry.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em registry.server.ts",
+    "content": "Agent Registry — UM ÚNICO concierge (19/09/2026).\n\nPOR QUE ISTO DEIXOU DE SER UM CATÁLOGO DE ESPECIALISTAS\n\nHavia seis agentes (Reserva, Manutenção, Experiência, Recuperação, Receita e\nGeneralista) e, antes deles, três camadas baratas decidindo no lugar do\nmodelo bom: classificador de intenção, supervisor e planejador. O efeito\nmedido não foi especialização, foi burrice:\n\n · cada especialista só enxergava uma lista curta de ferramentas, então toda\n pergunta mal roteada chegava ao modelo já sem a ferramenta que resolveria;\n · o especialista de Reserva pensava em esforço \"low\" — respondia de\n bate-pronto por decreto do papel, não da pergunta;\n · o roteador rotulava a mensagem antes do modelo ler a conversa, e um\n \"Ola, boa tarde\" virou \"pós-estadia\" com pedido de avaliação.\n\nO assistente interno do painel nunca teve nada disso — recebe a pergunta, tem\ntodas as ferramentas na mão, pensa e responde — e é justamente o que ficou\nbom. Agora o concierge do hóspede funciona igual.\n\nO que era regra boa dos especialistas (tom de recuperação em reclamação,\nmétodo de manutenção, disciplina de não ofertar serviço sem evidência) virou\nINSTRUÇÃO no prompt abaixo, não gaiola de ferramenta.",
+    "source_path": "src/lib/ai/agents/registry.server.ts",
+    "audience": [],
+    "content_hash": "1c0e465fc4396bea4820ddeebb95e845"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/agents/supervisor.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em supervisor.server.ts",
+    "content": "Roteamento — desativado em 19/09/2026.\n\nO supervisor era uma chamada de modelo barato que escolhia um especialista\nANTES do modelo bom ler a conversa, e a escolha restringia as ferramentas\ndisponíveis. Isso custava uma ida ao modelo por mensagem e, quando errava,\nentregava a pergunta a um agente sem a ferramenta que a resolveria.\n\nAgora existe um concierge único com todas as ferramentas (ver\nregistry.server.ts). Este módulo continua existindo só para manter o formato\nde auditoria (`AgentRouting`) estável nos logs e nas telas do painel — mas é\ndeterminístico e não chama modelo nenhum.",
+    "source_path": "src/lib/ai/agents/supervisor.server.ts",
+    "audience": [],
+    "content_hash": "b6a09b772844adf73ebace99d42b585a"
+  },
+  {
     "doc_key": "rule:src/lib/ai/alerts/engine.server.ts:0",
     "kind": "rule",
     "title": "Regra em engine.server.ts",
@@ -2463,7 +2769,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "f2e918e1f71ceaccd888a58bc4aeba73"
   },
   {
-    "doc_key": "rule:src/lib/ai/assistant-tools.server.ts:42790",
+    "doc_key": "rule:src/lib/ai/assistant-tools.server.ts:42821",
     "kind": "rule",
     "title": "Regra em assistant-tools.server.ts",
     "content": "A ÚNICA ferramenta que grava na hora, sem cartão — e por um motivo\nlógico, não por exceção: ela É o cartão. Pedir confirmação para\ndesligar a confirmação seria uma piada.\n\nPedido explícito (09/09/2026): \"se o usuário pedir 'dispense a\nconfirmação', então ela tem que acatar e manter isso memorizado para\naquele usuário específico\".\n\nO que ela NÃO faz: ampliar permissão. Com a chave ligada, cada\ngravação continua passando pela MESMA server function da tela e pelo\nMESMO RLS — quem não pode arquivar uma pendência continua não podendo,\ne a falha aparece igual. O que sai é o clique, não a checagem.\n\nEscreve em `profiles` com o cliente do PRÓPRIO usuário: o RLS\n(\"profiles update own\") garante sozinho que ninguém mude a preferência\nde outra pessoa, sem nenhuma checagem extra aqui.",
@@ -2535,7 +2841,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8e948ef1fef50aa5eb76b9a25449d422"
   },
   {
-    "doc_key": "rule:src/lib/ai/gateway.server.ts:11418",
+    "doc_key": "rule:src/lib/ai/gateway.server.ts:11436",
     "kind": "rule",
     "title": "Regra em gateway.server.ts",
     "content": "Recebe o texto da resposta conforme ele é escrito, para a interface poder\nmostrar em vez de esperar. Ver `postResponses`.\n\nO agente pode dar VÁRIAS voltas (uma por rodada de ferramentas), e cada\nvolta pode escrever texto. Por isso vem junto o número do passo: quem\nescuta descarta o que veio de um passo anterior quando um novo começa a\nescrever — senão o preâmbulo de uma rodada intermediária ficaria colado na\nresposta final.",
@@ -2569,6 +2875,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/ai/human-loop/learning.server.ts",
     "audience": [],
     "content_hash": "ae972fa05a8b175c30900b6a3b5196a6"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/intent.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em intent.server.ts",
+    "content": "Sinal de intenção — DETERMINÍSTICO desde 19/09/2026.\n\nIsto era uma chamada de modelo barato que rotulava a mensagem ANTES do\nconcierge ler a conversa, e o rótulo mandava no resto do pipeline. Foi o que\ntransformou um \"Ola, boa tarde\" em \"pós-estadia\" e disparou um pedido de\navaliação para quem nem tinha chegado.\n\nQuem entende a mensagem agora é o concierge (modelo de raciocínio, com todas\nas ferramentas). O que sobra aqui é só um sinal barato e previsível para\nurgência, idioma e para decidir o modo exploração/limiares — nada disso\nrestringe o que o modelo pode fazer, e nenhuma linha aqui chama o gateway.",
+    "source_path": "src/lib/ai/intent.server.ts",
+    "audience": [],
+    "content_hash": "a4cc365cb24f22a8f5db508b5e207ab4"
   },
   {
     "doc_key": "rule:src/lib/ai/learning/conversation-analyzer.server.ts:0",
@@ -2670,7 +2985,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ebcb5115e572b1b9e6479729def45d01"
   },
   {
-    "doc_key": "rule:src/lib/ai/models.ts:1382",
+    "doc_key": "rule:src/lib/ai/models.ts:1372",
     "kind": "rule",
     "title": "Regra em models.ts",
     "content": "Assistente do Painel — o concierge interno dos operadores.\n\nPrecisa ser um modelo OpenAI: ele é o único caminho de tool calling nesta\narquitetura (`runAgent` fala com a Responses API), e o assistente depende\nde ferramentas tanto para ler a operação quanto para montar uma ação. Um\nmodelo mais barato aqui não é uma troca de qualidade por custo — é ficar\nsem ferramenta nenhuma.",
@@ -2697,7 +3012,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "d83a74c35e881710671cd72249217e20"
   },
   {
-    "doc_key": "rule:src/lib/ai/orchestrator.server.ts:32751",
+    "doc_key": "rule:src/lib/ai/orchestrator.server.ts:34327",
     "kind": "rule",
     "title": "Regra em orchestrator.server.ts",
     "content": "A RESPOSTA PARCIAL DE UMA ESCALAÇÃO TAMBÉM PASSA PELO VALIDADOR.\n\nO bloco grande acima roda com `!handoffReason`: quando o modelo escala, a\nchecagem anti-alucinação e a autoavaliação eram puladas inteiras e a\nconfiança virava 1 por decreto. Só que o prompt MANDA responder\nparcialmente antes de escalar — então justamente o texto entregue no\nmomento mais delicado era o único que ninguém revisava.\n\nFoi assim que saiu, para um hóspede que perguntou em que apartamento\nestava, um \"não consegui localizar sua reserva\" que o contexto\ndesmentia (08/09/2026). A checagem é barata perto do estrago.\n\nReprovado, o texto não é remendado: cai para uma frase curta e honesta.\nQuem continua a conversa é a pessoa que recebeu a escalação.",
@@ -2706,7 +3021,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "6421e59807ab173ca9d54a11e289e332"
   },
   {
-    "doc_key": "rule:src/lib/ai/orchestrator.server.ts:4350",
+    "doc_key": "rule:src/lib/ai/orchestrator.server.ts:4402",
     "kind": "rule",
     "title": "Regra em orchestrator.server.ts",
     "content": "Opções curtas de resposta rápida (botões) — [] quando a resposta não é\numa pergunta de múltipla escolha. O hóspede sempre pode digitar livre.",
@@ -2715,13 +3030,22 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "b363c30ad7d651fa7ca1b6cfc775680f"
   },
   {
-    "doc_key": "rule:src/lib/ai/orchestrator.server.ts:6678",
+    "doc_key": "rule:src/lib/ai/orchestrator.server.ts:6730",
     "kind": "rule",
     "title": "Regra em orchestrator.server.ts",
     "content": "Datas da reserva — usadas para vincular o roteiro (itinerário) à\nRESERVA, não ao hóspede individual: mais de uma pessoa pode estar\nconversando sobre a mesma reserva (casal, cada um pelo próprio\ncelular), e todos precisam ver o mesmo roteiro compartilhado.",
     "source_path": "src/lib/ai/orchestrator.server.ts",
     "audience": [],
     "content_hash": "b2317eaba815caf04ea6f76f3bff779e"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/orchestrator.server.ts:7214",
+    "kind": "rule",
+    "title": "Regra em orchestrator.server.ts",
+    "content": "Trava as senhas/códigos do imóvel para ESTA conversa, mesmo sem PIN de\nvisualização configurado (16/09/2026). O chat do guia liga isto quando o\nvisitante não provou a reserva — antes, qualquer pessoa com o link (ou a\nvitrine da landing) recebia o código da fechadura pela IA.",
+    "source_path": "src/lib/ai/orchestrator.server.ts",
+    "audience": [],
+    "content_hash": "2a2fb741f644efd40bfe7d345bbb8ac9"
   },
   {
     "doc_key": "rule:src/lib/ai/outbound/speak.server.ts:0",
@@ -2760,6 +3084,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "5a509cc5762f76525f390cd4f786a869"
   },
   {
+    "doc_key": "rule:src/lib/ai/quick-replies.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em quick-replies.server.ts",
+    "content": "Sugestão de botões de resposta rápida a partir da resposta final da IA.\nModelo barato — nunca altera o texto enviado ao hóspede.\n\nRegra do produto: sempre que a IA termina fazendo uma pergunta, o hóspede\nprecisa poder responder num toque (\"Quero\", \"Agora não\", \"Atualizar\nsugestões\"). O campo de digitar continua sempre disponível — o botão é\natalho, nunca substituto.",
+    "source_path": "src/lib/ai/quick-replies.server.ts",
+    "audience": [],
+    "content_hash": "f08ea5e678e4f981e9e1178a51d3c77d"
+  },
+  {
     "doc_key": "rule:src/lib/ai/reflection.server.ts:0",
     "kind": "rule",
     "title": "Regra em reflection.server.ts",
@@ -2767,6 +3100,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/ai/reflection.server.ts",
     "audience": [],
     "content_hash": "c74cb990d8b09b4ceeb514f126510d44"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/reflection.server.ts:1154",
+    "kind": "rule",
+    "title": "Regra em reflection.server.ts",
+    "content": "Pula a autoavaliação (economia de uma ida ao modelo em turnos de baixo\nrisco — ver orchestrator.server.ts). A validação anti-alucinação NUNCA é\npulada; só a reescrita opcional de redação.",
+    "source_path": "src/lib/ai/reflection.server.ts",
+    "audience": [],
+    "content_hash": "7df5045db98798a33280efe41ef7d627"
   },
   {
     "doc_key": "rule:src/lib/ai/reservation-mode.server.ts:0",
@@ -2805,7 +3147,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "f593d0ae6b6b03cc73ecc50c0cee4c0e"
   },
   {
-    "doc_key": "rule:src/lib/ai/tools.server.ts:7532",
+    "doc_key": "rule:src/lib/ai/tools.server.ts:7852",
     "kind": "rule",
     "title": "Regra em tools.server.ts",
     "content": "O IMÓVEL É SEMPRE CONHECIDO — e é ele que responde \"qual é o meu\napartamento\".\n\nUm guia pertence a UM imóvel. O hóspede que está conversando aqui\nabriu o guia daquele imóvel; não existe ambiguidade sobre em que\nunidade ele está. Antes esta ferramenta devolvia `{encontrada:false}`\ne mais nada quando não achava o FORMULÁRIO do hóspede, e o agente\nconcluía que não sabia nem em que apartamento a pessoa estava —\nrespondendo com uma pergunta de volta a quem só queria o número da\nporta (caso real, 08/09/2026).\n\nAgora a unidade vai sempre. O que pode faltar é o formulário — e a\nausência dele afeta apenas as DATAS, nunca a identidade do imóvel.",
@@ -2814,7 +3156,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "28da5258f8c193c8ec21d8cf77c664eb"
   },
   {
-    "doc_key": "rule:src/lib/ai/tools.server.ts:8784",
+    "doc_key": "rule:src/lib/ai/tools.server.ts:9104",
     "kind": "rule",
     "title": "Regra em tools.server.ts",
     "content": "A busca do formulário usa a MESMA cadeia tolerante do construtor de\ncontexto (ver context.server.ts): nome exato normalizado → primeiro\nnome → estadia que cobre hoje → mais recente.\n\nAntes era `.eq(\"guest_name\", name)`, igualdade byte a byte. Bastava um\nacento, uma caixa diferente ou um sobrenome faltando para o contexto\nACHAR a estadia e a ferramenta NÃO achar — e o agente recebia as duas\ncoisas ao mesmo tempo, dizendo ao hóspede que não localizou a reserva\nenquanto tinha as datas dela no próprio prompt.",
@@ -2994,13 +3336,40 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "93c3dfccb774c6892f686a76e9058356"
   },
   {
-    "doc_key": "rule:src/lib/dashboard.functions.ts:70422",
+    "doc_key": "rule:src/lib/dashboard.functions.ts:62364",
+    "kind": "rule",
+    "title": "Regra em dashboard.functions.ts",
+    "content": "CORREÇÃO (16/09/2026): a trava não tinha recorte de data. Uma estadia\nantiga que ficou sem conclusão na esteira (ninguém arrastou o card até\n\"Concluído\") travava PARA SEMPRE todo check-in futuro do imóvel, sem\nforma de limpar pela tela. A regra só vale enquanto a estadia anterior\nainda está em curso: se a saída dela já passou, o imóvel está livre.",
+    "source_path": "src/lib/dashboard.functions.ts",
+    "audience": [],
+    "content_hash": "f0dc32f8e039acbdce5c3d639d01aec7"
+  },
+  {
+    "doc_key": "rule:src/lib/dashboard.functions.ts:65296",
+    "kind": "rule",
+    "title": "Regra em dashboard.functions.ts",
+    "content": "\"Não Compareceu\" NÃO libera o imóvel (pedido explícito, 15/09/2026).\nA estadia continua ocupando o imóvel até que a reserva seja de fato\ncancelada no sistema — só então a próxima chegada é liberada. Como\nmarkNoShow grava concluded_at, essas linhas não aparecem na consulta\nacima; por isso olhamos para elas separadamente.\n\nCORREÇÃO (15/09/2026): a trava não tinha recorte de data. Um \"Não\nCompareceu\" do mês passado, cuja reserva importada por iCal continua\n\"confirmed\" para sempre, travava TODA chegada futura daquele imóvel,\nsem nenhuma forma de limpar. A regra só faz sentido enquanto a estadia\ndo no-show ainda está em curso: se a data de saída dela já passou, o\nimóvel está livre, independentemente do status da reserva.",
+    "source_path": "src/lib/dashboard.functions.ts",
+    "audience": [],
+    "content_hash": "edc55a43f4b31fbebe1f8cc20b92ca0d"
+  },
+  {
+    "doc_key": "rule:src/lib/dashboard.functions.ts:81778",
     "kind": "rule",
     "title": "Regra em dashboard.functions.ts",
     "content": "Completa o identificador que faltou (pedido explícito, 08/09/2026: o\ncard marcado como \"não compareceu\" continuava espelhado na Fila de\nLimpeza).\n\nO card de chegada e o de saída da MESMA estadia nem sempre carregam o\nmesmo identificador — o casamento formulário↔reserva é mais exigente\ndo lado da chegada (ver `findLogsForReservation`). Gravando só o que o\ncard clicado tinha, o outro lado ficava sem chave em comum e escapava\ndo filtro. Aqui procuramos o par pela estadia e gravamos os DOIS, de\nmodo que qualquer consumidor — não só o quadro — reconheça o\nnão comparecimento por qualquer um dos lados.",
     "source_path": "src/lib/dashboard.functions.ts",
     "audience": [],
     "content_hash": "47be47ef7e7c20587e5825edf22d4743"
+  },
+  {
+    "doc_key": "rule:src/lib/guest-access.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em guest-access.server.ts",
+    "content": "PROVA DE ACESSO DO HÓSPEDE — tudo que decide se um visitante anônimo pode\nver senhas/códigos do imóvel mora aqui (auditoria de segurança, 16/09/2026).\n\nO problema que isto fecha:\n\n 1. Nos guias \"Check-In & Check-Out\" o formulário exige o código da reserva\n do Airbnb — mas essa exigência existia SÓ na tela. `getPublicGuide`\n devolvia Wi-Fi, código do portão e da fechadura para qualquer chamada\n direta à função, e o `sitemap.xml` publica o endereço de todo guia\n público. Quem soubesse o link tinha a senha da porta, sem reserva.\n 2. A IA do guia entregava os mesmos códigos pela ferramenta\n `get_property_facts` para qualquer pessoa que abrisse o chat — inclusive\n na vitrine da landing, que mostra um guia real.\n 3. Os cookies de PIN (`sg-pin-<id>` / `sg-accesscodes-<id>`) tinham o valor\n fixo \"ok\": bastava criar o cookie no navegador para \"acertar\" o PIN.\n\nA regra agora: dado sensível só sai do servidor com prova verificável —\ncódigo de reserva ATIVO no iCal (guias com código), ou cookie ASSINADO\nemitido depois de o PIN ser conferido no servidor.",
+    "source_path": "src/lib/guest-access.server.ts",
+    "audience": [],
+    "content_hash": "dfadc73aa6511b19eecd62a5b9388cf1"
   },
   {
     "doc_key": "rule:src/lib/guest-push-client.ts:0",
@@ -3300,7 +3669,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8df8468b519bbea9643ac2223113b3c4"
   },
   {
-    "doc_key": "rule:src/lib/reservation-records.functions.ts:36396",
+    "doc_key": "rule:src/lib/reservation-records.functions.ts:1444",
+    "kind": "rule",
+    "title": "Regra em reservation-records.functions.ts",
+    "content": "As três categorias que viram pendência no Kanban (pedido explícito): a\ntarefa nasce vinculada AO MESMO TEMPO à reserva (log_id/reservation_id) e\nao imóvel (property_id) — os três campos já existiam em `tasks`, nada\nprecisou mudar lá.\n\n`taskCategory` mapeia para as categorias que a tela de Pendências já\nconhece (ver TaskCategory em tasks-types.ts); `showInCleaning` só é\nligado em \"objeto esquecido\" — quem limpa é quem vai achar e separar o\nobjeto, enquanto dano e manutenção são pra operação resolver, não pra\nfaxina executar.",
+    "source_path": "src/lib/reservation-records.functions.ts",
+    "audience": [],
+    "content_hash": "d4f15feb0a45a65b7b85dc098d3339a8"
+  },
+  {
+    "doc_key": "rule:src/lib/reservation-records.functions.ts:47096",
     "kind": "rule",
     "title": "Regra em reservation-records.functions.ts",
     "content": "IDENTIDADE DA RESERVA — é por ela que a aba agrupa os registros no filtro\n\"Todos\". Vem de `guide_access_logs` (formulário do hóspede: nome, código\ne as duas datas) e, quando o registro só tem `reservation_id`, do próprio\n`property_reservations` (iCal: só a dica de nome e as datas).\n\n`reservationKey` vazio = registro preso apenas ao imóvel ou a uma\npendência. Esses caem no grupo \"Sem reserva\" — nada some.",
@@ -3309,7 +3687,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "23b7afe5ab85d98754e9b12e37d1bd4a"
   },
   {
-    "doc_key": "rule:src/lib/reservation-records.functions.ts:37006",
+    "doc_key": "rule:src/lib/reservation-records.functions.ts:47706",
     "kind": "rule",
     "title": "Regra em reservation-records.functions.ts",
     "content": "TODAS as mídias da situação, em ordem cronológica — a própria incluída.\nUma situação com quatro fotos é UMA linha na tela com quatro mídias\ndentro, não quatro linhas (ver `createRecordSituation`).",
@@ -3399,15 +3777,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "545c4cb92effd8e79a487b3b34f797a6"
   },
   {
-    "doc_key": "rule:STRIPE_GRADIENT",
-    "kind": "rule",
-    "title": "Regra — STRIPE_GRADIENT",
-    "content": "O DEGRADÊ MORA DENTRO DA BARRA (pedido explícito, 10/09/2026).\n\nA primeira tentativa deixava a cor sangrar para dentro do cartão e o\ncliente cortou na hora: \"eu não quero que a cor vaze para o quadrante, eu\nsó quero que o efeito da barra conceda uma leveza na cor, sem torná-la\ngritante\".\n\nEntão a faixa continua sendo SÓ a faixa — nada invade o conteúdo. O que\nmudou é que ela deixou de ser um bloco chapado: cheia na quina de fora e\ndissolvendo até quase transparente do lado de dentro. De longe continua\ndizendo a cor; de perto é um fio de luz, não um adesivo.\n\nDois botões de ajuste, se quiser calibrar: a LARGURA (`w-[4px]`) e a\nOPACIDADE das duas pontas do degradê.",
-    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
-    "audience": [],
-    "content_hash": "1b10658ee0618ab493d64c08a2dd327b"
-  },
-  {
     "doc_key": "rule:subscriptionGrantsAccess",
     "kind": "rule",
     "title": "Regra — subscriptionGrantsAccess",
@@ -3453,13 +3822,13 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "709febd5233eead2c4a01689dc766031"
   },
   {
-    "doc_key": "rule:TASK_RULES",
+    "doc_key": "rule:TASK_COLUMNS",
     "kind": "rule",
-    "title": "Regra — TASK_RULES",
-    "content": "As três categorias que viram pendência no Kanban (pedido explícito): a\ntarefa nasce vinculada AO MESMO TEMPO à reserva (log_id/reservation_id) e\nao imóvel (property_id) — os três campos já existiam em `tasks`, nada\nprecisou mudar lá.\n\n`taskCategory` mapeia para as categorias que a tela de Pendências já\nconhece (ver TaskCategory em tasks-types.ts); `showInCleaning` só é\nligado em \"objeto esquecido\" — quem limpa é quem vai achar e separar o\nobjeto, enquanto dano e manutenção são pra operação resolver, não pra\nfaxina executar.",
+    "title": "Regra — TASK_COLUMNS",
+    "content": "A PENDÊNCIA MORRE COM O REGISTRO (19/09/2026, pedido do cliente com print:\n\"o checklist de pendências não está replicando fielmente a lista de\nregistros — ao excluir algum, ele não atualiza no card de limpeza\").\n\nAntes, apagar o registro deixava a pendência que ele criou viva: o card da\nlimpeza continuava cobrando uma coisa que já não existia em lugar nenhum.\nAgora a pendência é apagada junto, com três travas: só se AINDA ESTIVER EM\nABERTO (uma já concluída é histórico de gasto/execução, não some), só se\nNENHUM outro registro apontar para ela, e ela volta inteira se a pessoa\ntocar em \"Desfazer\".",
     "source_path": "src/lib/reservation-records.functions.ts",
     "audience": [],
-    "content_hash": "4a63227ae8b6e0fa00edd75f687643fe"
+    "content_hash": "b9928870ec504ba5c9db66d1e7871fe2"
   },
   {
     "doc_key": "rule:TaskBucket",
@@ -3550,6 +3919,24 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/reservation-records.functions.ts",
     "audience": [],
     "content_hash": "416922cd1ecd46498049deaa1ef770bb"
+  },
+  {
+    "doc_key": "rule:UndoEntry",
+    "kind": "rule",
+    "title": "Regra — UndoEntry",
+    "content": "Padrão único de feedback de ação no produto:\n- mensagem informativa no topo da tela (toast do sonner, 5s)\n- botão \"Desfazer\" DESTACADO, também por 5s\n\nUse `notifyAction(\"Check-out confirmado.\", () => desfazer())`. Sem função de\ndesfazer, só a mensagem do topo aparece.\n\nDESFAZER EM QUALQUER AÇÃO (pedido explícito, 17/09/2026): \"precisa mostrar\no botão 'Desfazer' sobre QUALQUER AÇÃO realizada, por 5 segundos, de forma\ndestacada\". Mockup aprovado com um ajuste do cliente: o botão leva SÓ a\npalavra \"Desfazer\" — nada de nome de imóvel ou detalhe da ação (a mensagem\ncontinua no topo). Borda em gradiente da marca e uma linha que esvazia nos\n5 segundos, para a pessoa ver quanto tempo ainda tem.\n\nNo celular ele fica centralizado logo ACIMA do menu inferior (antes ficava\nno canto, por cima do menu e do botão flutuante do assistente).\n\n`onExpire` roda quando os 5s acabam sem ninguém desfazer — é onde mora a\nlimpeza definitiva de algo que precisou ficar guardado para o desfazer\nfuncionar (ex.: o arquivo de um registro excluído). Uma nova ação no meio\nda janela encerra a anterior: o desfazer antigo sai de cena e o `onExpire`\ndele roda na hora.",
+    "source_path": "src/components/UndoActionBar.tsx",
+    "audience": [],
+    "content_hash": "b7164ca7a11a0f168cd181db7980f22c"
+  },
+  {
+    "doc_key": "rule:UndoInput",
+    "kind": "rule",
+    "title": "Regra — UndoInput",
+    "content": "DESFAZER a decisão (botão \"Desfazer\", 5s — pedido explícito, 17/09/2026).\nDevolve a limpeza para \"aguardando aprovação\" exatamente como estava:\nse tinha virado normal, volta a ser completa com o valor pedido.",
+    "source_path": "src/lib/cleaning-approval.functions.ts",
+    "audience": [],
+    "content_hash": "4f205ac7e85e15f15c155c1faa6572fa"
   },
   {
     "doc_key": "rule:UNTITLED",
