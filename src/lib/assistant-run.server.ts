@@ -26,38 +26,6 @@ type AnyClient = { from: (t: string) => any };
 /** Quantas mensagens anteriores voltam ao modelo — contexto sem inchar o custo. */
 const HISTORY_TURNS = 10;
 
-export const AssistantAskInput = z.object({
-  threadId: z.string().uuid().nullable().optional(),
-  message: z.string().trim().min(1).max(2000),
-  /** Rota em que a pessoa está — "onde eu marco isso?" depende disso. */
-  currentPath: z.string().max(300).nullable().optional(),
-  /**
-   * Imagem anexada, como data URL (pedido explícito, 07/09/2026). Vai junto da
-   * pergunta para o modelo olhar — um print da tela costuma explicar melhor
-   * que qualquer descrição. Não é gravada em lugar nenhum: serve a esta
-   * pergunta e acaba ali.
-   */
-  imageDataUrl: z
-    .string()
-    .max(8_000_000)
-    .regex(/^data:image\/(png|jpe?g|webp|gif);base64,/)
-    .nullable()
-    .optional(),
-});
-
-export type AssistantAskData = z.infer<typeof AssistantAskInput>;
-
-/**
- * O que o painel recebe enquanto o turno roda.
- *
- * `delta` traz o passo junto: o agente pode escrever um preâmbulo numa rodada
- * intermediária e a resposta final noutra, e quem escuta descarta o texto do
- * passo anterior quando um novo começa a escrever.
- */
-export type AssistantEvent =
-  | { type: "stage"; label: string }
-  | { type: "delta"; text: string; step: number };
-
 /** Nome da ferramenta → o que dizer para quem está esperando. */
 function stageLabel(tool: string): string {
   if (tool.startsWith("preparar_")) return "Montando a ação";
