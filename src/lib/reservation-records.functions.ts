@@ -694,6 +694,22 @@ export const appendSituationMedia = createServerFn({ method: "POST" })
     if (!p) throw new Error("Situação não encontrada.");
     if (p.property_id !== data.propertyId) throw new Error("Situação de outro imóvel.");
 
+    /* ANEXAR DUAS VEZES O MESMO ARQUIVO NÃO PODE CRIAR DOIS REGISTROS
+     * (20/09/2026).
+     *
+     * Em rede móvel a resposta desta chamada se perde: o aparelho tenta de
+     * novo (até três vezes) sem saber que a primeira gravou. Foi assim que um
+     * único vídeo virou quatro cartões iguais na tela da equipe. O caminho no
+     * armazenamento é único por arquivo, então ele é a chave de idempotência:
+     * se já existe linha com este caminho, a mídia já está anexada. */
+    const { data: jaExiste } = await supabase
+      .from("reservation_records")
+      .select("id")
+      .eq("storage_path", data.path)
+      .limit(1)
+      .maybeSingle();
+    if (jaExiste) return { ok: true, duplicate: true };
+
     const who = await resolveAuthorName(supabase, context.userId);
     const { error } = await supabase.from("reservation_records").insert({
       property_id: p.property_id,
@@ -713,6 +729,11 @@ export const appendSituationMedia = createServerFn({ method: "POST" })
       created_by_name: who,
       task_id: null,
     });
+    // Corrida entre duas tentativas simultâneas: o índice único do caminho
+    // barra a segunda. Isso é sucesso, não erro — a mídia está anexada.
+    if (error && (error as { code?: string }).code === "23505") {
+      return { ok: true, duplicate: true };
+    }
     if (error) throw new Error(error.message);
     return { ok: true };
   });
