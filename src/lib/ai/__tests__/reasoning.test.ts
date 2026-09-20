@@ -14,11 +14,26 @@ describe("política de raciocínio", () => {
       "qual a diferença entre limpeza normal e completa?",
       "me recomenda um restaurante bom aqui perto",
       "vale a pena antecipar o check-in?",
-      "como funciona o checkout automático?",
       "qual o melhor horário pra limpeza?",
     ]) {
       expect(reasoningFor(m), m).toBe("max");
     }
+  });
+
+  /**
+   * 20/09/2026 — "não pode demorar tanto para responder". Pergunta de como o
+   * sistema funciona não manda fazer nada e não pede julgamento: responde no
+   * nível alto, que é o mesmo modelo chegando muito antes.
+   */
+  it("pergunta informativa responde em alto, não no topo", () => {
+    expect(reasoningFor("como funciona o checkout automático?")).toBe("high");
+    expect(reasoningFor("como faço para anexar um vídeo em uma limpeza?")).toBe("high");
+    expect(reasoningFor("quantas limpezas eu tenho amanhã")).toBe("high");
+  });
+
+  it("pedido de gravação vai ao topo mesmo sem ninguém avisar", () => {
+    expect(reasoningFor("exclua todas as pendências de limpeza do studio 105")).toBe("max");
+    expect(reasoningFor("marca o checkout do 103 como concluído")).toBe("max");
   });
 
   it("pensa fundo quando há várias perguntas ou texto longo", () => {
@@ -26,9 +41,9 @@ describe("política de raciocínio", () => {
     expect(reasoningFor("a".repeat(200))).toBe("max");
   });
 
-  it("o padrão é o esforço máximo", () => {
-    expect(reasoningFor("quantas limpezas eu tenho amanhã")).toBe("max");
-    expect(reasoningFor("o studio 105 está ocupado hoje")).toBe("max");
+  it("assunto sensível (hóspede, dinheiro, cancelamento) vai ao topo", () => {
+    expect(reasoningFor("o hóspede do 105 chegou?")).toBe("max");
+    expect(reasoningFor("teve algum cancelamento essa semana")).toBe("max");
   });
 
   it("reduz um pouco numa consulta pontual de um dado só", () => {

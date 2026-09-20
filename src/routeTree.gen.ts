@@ -24,6 +24,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as GSlugRouteImport } from './routes/g.$slug'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
+import { Route as ApiAssistantStreamRouteImport } from './routes/api/assistant-stream'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
@@ -166,6 +167,11 @@ const GSlugRoute = GSlugRouteImport.update({
 const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
   id: '/email/unsubscribe',
   path: '/email/unsubscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAssistantStreamRoute = ApiAssistantStreamRouteImport.update({
+  id: '/api/assistant-stream',
+  path: '/api/assistant-stream',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
@@ -580,6 +586,7 @@ export interface FileRoutesByFullPath {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/api/assistant-stream': typeof ApiAssistantStreamRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/g/$slug': typeof GSlugRouteWithChildren
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -664,6 +671,7 @@ export interface FileRoutesByTo {
   '/unsubscribe': typeof UnsubscribeRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/api/assistant-stream': typeof ApiAssistantStreamRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -749,6 +757,7 @@ export interface FileRoutesById {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/api/assistant-stream': typeof ApiAssistantStreamRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/g/$slug': typeof GSlugRouteWithChildren
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -836,6 +845,7 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/admin'
+    | '/api/assistant-stream'
     | '/email/unsubscribe'
     | '/g/$slug'
     | '/.lovable/oauth/consent'
@@ -920,6 +930,7 @@ export interface FileRouteTypes {
     | '/unsubscribe'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/api/assistant-stream'
     | '/email/unsubscribe'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -1004,6 +1015,7 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/_authenticated/admin'
+    | '/api/assistant-stream'
     | '/email/unsubscribe'
     | '/g/$slug'
     | '/.lovable/oauth/consent'
@@ -1090,6 +1102,7 @@ export interface RootRouteChildren {
   UnsubscribeRoute: typeof UnsubscribeRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  ApiAssistantStreamRoute: typeof ApiAssistantStreamRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   GSlugRoute: typeof GSlugRouteWithChildren
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
@@ -1237,6 +1250,13 @@ declare module '@tanstack/react-router' {
       path: '/email/unsubscribe'
       fullPath: '/email/unsubscribe'
       preLoaderRoute: typeof EmailUnsubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/assistant-stream': {
+      id: '/api/assistant-stream'
+      path: '/api/assistant-stream'
+      fullPath: '/api/assistant-stream'
+      preLoaderRoute: typeof ApiAssistantStreamRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin': {
@@ -1846,6 +1866,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  ApiAssistantStreamRoute: ApiAssistantStreamRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   GSlugRoute: GSlugRouteWithChildren,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,

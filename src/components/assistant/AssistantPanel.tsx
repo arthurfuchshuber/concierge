@@ -36,7 +36,8 @@ import {
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
 import { createTask, deleteTasks, setTaskStatus, setTasksStatusBulk } from "@/lib/tasks.functions";
 import { advanceArrival, markNoShow, upsertArrivalStatus } from "@/lib/dashboard.functions";
-import type { AssistantMessage, PendingAction } from "@/lib/assistant-types";
+import type { AssistantAsk, AssistantMessage, PendingAction } from "@/lib/assistant-types";
+import { supabase } from "@/integrations/supabase/client";
 import { AiMarkdown } from "@/components/ai/AiMarkdown";
 import {
   CHAT_HEADER,
@@ -95,6 +96,9 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
   const [image, setImage] = useState<{ dataUrl: string; name: string } | null>(null);
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  /** O que o servidor está fazendo agora e o texto que já foi escrito. */
+  const [stage, setStage] = useState<string | null>(null);
+  const [streamed, setStreamed] = useState("");
 
   const history = useQuery({
     queryKey: ["assistant-thread"],
@@ -144,18 +148,108 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length, pending]);
+  }, [messages.length, pending, streamed]);
+
+  /**
+   * RESPOSTA EM TEMPO REAL (20/09/2026 — "está demorando MUITO para responder").
+   *
+   * A pergunta vai para a rota SSE e o painel mostra o que está acontecendo
+   * ("consultando pendências") e o texto conforme ele é escrito, em vez de um
+   * "pensando…" mudo até o fim. Se o streaming não subir, cai na server
+   * function de sempre — mesma resposta, só sem o acompanhamento.
+   */
+  async function askStreaming(v: {
+    text: string;
+    imageDataUrl: string | null;
+  }): Promise<AssistantAsk> {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) throw new Error("sem-sessao");
+
+    const res = await fetch("/api/assistant-stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        threadId,
+        message: v.text,
+        currentPath: pathname,
+        imageDataUrl: v.imageDataUrl,
+      }),
+    });
+    if (!res.ok || !res.body) throw new Error("sem-streaming");
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let done: AssistantAsk | null = null;
+    let failure: string | null = null;
+    let currentStep = 0;
+    let partial = "";
+
+    const handle = (event: string, payload: any) => {
+      if (event === "stage") setStage(String(payload?.label ?? ""));
+      else if (event === "delta") {
+        // Cada rodada de ferramentas pode escrever texto; o que vale é o
+        // da rodada atual — o preâmbulo da anterior não fica colado.
+        if (payload?.step !== currentStep) {
+          currentStep = payload?.step ?? currentStep;
+          partial = "";
+        }
+        partial += String(payload?.text ?? "");
+        setStreamed(partial);
+      } else if (event === "done") done = payload as AssistantAsk;
+      else if (event === "error") failure = String(payload?.message ?? "");
+    };
+
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      buffer += decoder.decode(chunk.value, { stream: true });
+      const blocks = buffer.split("\n\n");
+      buffer = blocks.pop() ?? "";
+      for (const block of blocks) {
+        let event = "message";
+        let dataLine = "";
+        for (const line of block.split("\n")) {
+          if (line.startsWith("event:")) event = line.slice(6).trim();
+          else if (line.startsWith("data:")) dataLine += line.slice(5).trim();
+        }
+        if (!dataLine) continue;
+        try {
+          handle(event, JSON.parse(dataLine));
+        } catch {
+          /* bloco parcial — ignora */
+        }
+      }
+    }
+
+    if (failure) throw new Error(failure);
+    if (!done) throw new Error("sem-streaming");
+    return done;
+  }
 
   const ask = useMutation({
-    mutationFn: (v: { text: string; imageDataUrl: string | null }) =>
-      askFn({
-        data: {
-          threadId,
-          message: v.text,
-          currentPath: pathname,
-          imageDataUrl: v.imageDataUrl,
-        },
-      }),
+    mutationFn: async (v: { text: string; imageDataUrl: string | null }) => {
+      try {
+        return await askStreaming(v);
+      } catch (err) {
+        // Erro do próprio turno (o servidor respondeu "error") não se repete:
+        // repetir gastaria outra vez e devolveria o mesmo problema.
+        const reason = err instanceof Error ? err.message : "";
+        if (reason && reason !== "sem-streaming" && reason !== "sem-sessao") throw err;
+        return askFn({
+          data: {
+            threadId,
+            message: v.text,
+            currentPath: pathname,
+            imageDataUrl: v.imageDataUrl,
+          },
+        });
+      } finally {
+        setStage(null);
+        setStreamed("");
+      }
+    },
     onSuccess: (res) => {
       setThreadId(res.threadId);
       setLive((prev) => [...prev, res.message]);
@@ -509,8 +603,16 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
         })}
 
         {ask.isPending && (
-          <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
-            <Loader2 className="size-3.5 animate-spin" /> pensando…
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
+              <Loader2 className="size-3.5 animate-spin" />
+              <span className="min-w-0 break-words">{stage ?? "pensando…"}</span>
+            </div>
+            {streamed && (
+              <div className="min-w-0 text-[13px] leading-relaxed">
+                <AiMarkdown>{streamed}</AiMarkdown>
+              </div>
+            )}
           </div>
         )}
 
