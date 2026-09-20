@@ -41,9 +41,9 @@ describe("política de raciocínio", () => {
     expect(reasoningFor("a".repeat(200))).toBe("max");
   });
 
-  it("o padrão é o esforço máximo", () => {
-    expect(reasoningFor("quantas limpezas eu tenho amanhã")).toBe("max");
-    expect(reasoningFor("o studio 105 está ocupado hoje")).toBe("max");
+  it("assunto sensível (hóspede, dinheiro, cancelamento) vai ao topo", () => {
+    expect(reasoningFor("o hóspede do 105 chegou?")).toBe("max");
+    expect(reasoningFor("teve algum cancelamento essa semana")).toBe("max");
   });
 
   it("reduz um pouco numa consulta pontual de um dado só", () => {
