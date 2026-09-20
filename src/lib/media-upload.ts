@@ -274,6 +274,18 @@ function tentarUmaVez(params: {
         finalizar({ ok: true });
         return;
       }
+      /* 409 = O ARQUIVO JÁ ESTÁ LÁ (20/09/2026).
+       *
+       * O caminho nasce com identificador único por arquivo, então "já existe"
+       * só acontece quando a tentativa ANTERIOR gravou o vídeo e a resposta se
+       * perdeu no caminho (rede móvel da equipe de limpeza). Tratar isso como
+       * erro fazia o registro ser marcado como falho com o vídeo inteiro já
+       * guardado — foi o que a equipe viu. Aqui é sucesso. */
+      if (s === 409) {
+        params.onProgress?.(100);
+        finalizar({ ok: true });
+        return;
+      }
       // 401/403 = token ausente ou política do bucket. Repetir a mesma
       // requisição não muda nada; quem chama renova o token e tenta de novo.
       if (s === 401) finalizar({ ok: false, motivo: "sessao", repetivel: true });
