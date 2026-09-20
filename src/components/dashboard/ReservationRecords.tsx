@@ -42,13 +42,21 @@ import {
   type CardMode,
 } from "@/components/dashboard/record-categories";
 import {
+  appendSituationMedia,
+  deleteReservationRecord,
   listReservationRecords,
   updateRecordText,
   type ReservationRecord,
   type RecordCategory,
 } from "@/lib/reservation-records.functions";
 import { RecordSituationSheet } from "@/components/dashboard/RecordSituationSheet";
-import { draftItemFrom, type DraftItem } from "@/components/dashboard/record-draft";
+import {
+  draftItemFrom,
+  extFor,
+  inferKind,
+  type DraftItem,
+} from "@/components/dashboard/record-draft";
+import { chamarServidor, enviarMidia, garantirToken } from "@/lib/media-upload";
 import type { ArrivalRow } from "@/lib/dashboard-arrival-types";
 
 /**
@@ -505,9 +513,15 @@ function RecordEditDialog({
 export function RecordBlock({
   group,
   onDelete,
+  propertyId = null,
+  target = {},
+  onChanged = () => {},
 }: {
   group: RecordGroup;
   onDelete: (ids: string[]) => void;
+  propertyId?: string | null;
+  target?: { logId?: string; reservationId?: string };
+  onChanged?: () => void;
 }) {
   const head = group.items[0];
   const [viewing, setViewing] = useState<ReservationRecord | null>(null);
@@ -551,7 +565,16 @@ export function RecordBlock({
         </DropdownMenu>
       </div>
 
-      {editing && <RecordTextDialog record={head} open onOpenChange={setEditing} />}
+      {editing && (
+        <RecordEditDialog
+          group={group}
+          propertyId={propertyId}
+          target={target}
+          open
+          onOpenChange={setEditing}
+          onChanged={onChanged}
+        />
+      )}
 
       <div className="flex items-start gap-2.5 px-2.5 pb-2.5">
         {mediaItems.length > 0 && !audioOnly && (
@@ -953,7 +976,13 @@ export function ReservationRecordsDialog({
                           <span className="h-px flex-1 bg-border/70" />
                         </div>
                       )}
-                      <RecordBlock group={g} onDelete={deleteRecord} />
+                      <RecordBlock
+                        group={g}
+                        onDelete={deleteRecord}
+                        propertyId={row.propertyId}
+                        target={target}
+                        onChanged={invalidate}
+                      />
                     </div>
                   );
                 })}
