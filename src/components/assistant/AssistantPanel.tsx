@@ -603,8 +603,16 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
         })}
 
         {ask.isPending && (
-          <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
-            <Loader2 className="size-3.5 animate-spin" /> pensando…
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
+              <Loader2 className="size-3.5 animate-spin" />
+              <span className="min-w-0 break-words">{stage ?? "pensando…"}</span>
+            </div>
+            {streamed && (
+              <div className="min-w-0 text-[13px] leading-relaxed">
+                <AiMarkdown content={streamed} />
+              </div>
+            )}
           </div>
         )}
 
