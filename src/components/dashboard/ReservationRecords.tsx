@@ -20,6 +20,7 @@ import {
   Wrench,
   ListChecks,
   MoreVertical,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useUndoableRecordDelete } from "@/hooks/useUndoableRecordDelete";
@@ -42,6 +43,7 @@ import {
 } from "@/components/dashboard/record-categories";
 import {
   listReservationRecords,
+  updateRecordText,
   type ReservationRecord,
   type RecordCategory,
 } from "@/lib/reservation-records.functions";
@@ -225,16 +227,6 @@ function mediaSummary(items: ReservationRecord[]): string {
     .join(" · ");
 }
 
-/** Rótulo do menu de exclusão — pelo tipo REAL do item, com número só quando
- * há mais de um item do mesmo tipo na mesma situação. */
-function deleteLabel(it: ReservationRecord, items: ReservationRecord[]): string {
-  if (it.kind === "note") return "Excluir texto da situação";
-  const sameKind = items.filter((x) => x.kind === it.kind);
-  const label = KIND_LABEL[it.kind] ?? "registro";
-  if (sameKind.length < 2) return `Excluir ${label}`;
-  return `Excluir ${label} ${sameKind.indexOf(it) + 1}`;
-}
-
 function fmtDuration(ms: number | null): string | null {
   if (!ms) return null;
   const s = Math.round(ms / 1000);
@@ -293,15 +285,99 @@ function MediaThumb({
   );
 }
 
+/** Editar o texto da situação (título na 1ª linha + descrição), decisão
+ * 20/09/2026: o menu não fatia mais o registro — ou se EDITA, ou se EXCLUI
+ * o registro inteiro. */
+function RecordTextDialog({
+  record,
+  open,
+  onOpenChange,
+}: {
+  record: ReservationRecord;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const updateFn = useServerFn(updateRecordText);
+  const qc = useQueryClient();
+  const [first, ...rest] = (record.body ?? "").split("\n");
+  const [title, setTitle] = useState(first ?? "");
+  const [description, setDescription] = useState(rest.join("\n"));
+  const [saving, setSaving] = useState(false);
+  const requiresTitle = !!CATEGORY_BY_KEY.get(record.category)?.createsTask;
+
+  async function save() {
+    if (saving || (requiresTitle && !title.trim())) return;
+    setSaving(true);
+    try {
+      await updateFn({
+        data: { id: record.id, title: title.trim(), description: description.trim() || null },
+      });
+      void qc.invalidateQueries({ queryKey: ["reservation-records"] });
+      void qc.invalidateQueries({ queryKey: ["account-records"] });
+      toast.success("Registro atualizado.");
+      onOpenChange(false);
+    } catch (e) {
+      toast.error((e as Error).message || "Não consegui salvar.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[calc(100vw-1.5rem)] gap-0 rounded-lg border-border/60 p-0 sm:max-w-sm">
+        <DialogHeader className="px-4 pb-2 pt-4">
+          <DialogTitle className="text-[15px] font-display">Editar registro</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-2.5 px-4 pb-4">
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            maxLength={50}
+            placeholder="Em poucas palavras, o que houve"
+            className="h-9 w-full rounded-lg border border-border bg-background px-3 text-xs outline-none placeholder:text-muted-foreground"
+          />
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={4}
+            placeholder="Onde, desde quando, o que precisa ser feito"
+            className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-xs outline-none placeholder:text-muted-foreground"
+          />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="rounded-[0.3rem] px-2.5 py-1.5 text-[10.5px] font-bold text-muted-foreground hover:text-foreground"
+            >
+              Cancelar
+            </button>
+            <span className="flex-1" />
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving || (requiresTitle && !title.trim())}
+              className="rounded-[0.3rem] bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] px-3 py-1.5 text-[10.5px] font-bold text-white disabled:from-muted disabled:to-muted disabled:text-muted-foreground"
+            >
+              Salvar
+            </button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function RecordBlock({
   group,
   onDelete,
 }: {
   group: RecordGroup;
-  onDelete: (id: string) => void;
+  onDelete: (ids: string[]) => void;
 }) {
   const head = group.items[0];
   const [viewing, setViewing] = useState<ReservationRecord | null>(null);
+  const [editing, setEditing] = useState(false);
 
   const mediaItems = group.items.filter((it) => it.kind !== "note" && it.url);
   const body = group.items.find((it) => it.body)?.body ?? null;
@@ -329,15 +405,19 @@ export function RecordBlock({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-[11rem]">
-            {group.items.map((it) => (
-              <DropdownMenuItem key={it.id} onClick={() => onDelete(it.id)}>
-                <Trash2 className="size-3.5 shrink-0" />
-                {deleteLabel(it, group.items)}
-              </DropdownMenuItem>
-            ))}
+            <DropdownMenuItem onClick={() => setEditing(true)}>
+              <Pencil className="size-3.5 shrink-0" />
+              Editar
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onDelete(group.items.map((it) => it.id))}>
+              <Trash2 className="size-3.5 shrink-0" />
+              Excluir registro
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      {editing && <RecordTextDialog record={head} open onOpenChange={setEditing} />}
 
       <div className="flex items-start gap-2.5 px-2.5 pb-2.5">
         {mediaItems.length > 0 && !audioOnly && (
