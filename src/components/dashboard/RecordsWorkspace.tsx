@@ -1918,16 +1918,27 @@ function ViewerStage({
   // NOTA: o palco NÃO repete o texto (pedido explícito, 10/09/2026). Ele
   // aparecia aqui e de novo logo abaixo, como título e descrição — a mesma
   // frase duas vezes, e a de cima ainda ficava escondida atrás da etiqueta.
+  //
+  // O QUE MUDA EM 20/09/2026: o palco cinza com um ícone solto era lido como
+  // "o vídeo está borrado / com erro". Não estava: o registro simplesmente não
+  // tem mídia (o envio não chegou e sobrou só o texto). Agora o palco DIZ isso.
   if (record.kind === "note") {
     return (
-      <div className="grid size-full place-items-center bg-gradient-to-br from-secondary/60 to-secondary/20 text-muted-foreground">
+      <div className="grid size-full place-items-center gap-2 bg-gradient-to-br from-secondary/60 to-secondary/20 px-5 text-center text-muted-foreground">
         <StickyNote className="size-8" />
+        <span className="text-[11px] leading-snug">Registro sem foto ou vídeo</span>
       </div>
     );
   }
+  const semArquivo = record.kind === "photo" || record.kind === "video" || record.kind === "audio";
   return (
-    <div className="grid size-full place-items-center gap-2 bg-gradient-to-br from-secondary/60 to-secondary/20 text-muted-foreground">
+    <div className="grid size-full place-items-center gap-2 bg-gradient-to-br from-secondary/60 to-secondary/20 px-5 text-center text-muted-foreground">
       <FileText className="size-8" />
+      {semArquivo && (
+        <span className="text-[11px] leading-snug">
+          O arquivo não está disponível. Envie de novo pelo registro da reserva.
+        </span>
+      )}
     </div>
   );
 }
