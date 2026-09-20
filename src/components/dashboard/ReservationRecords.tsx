@@ -42,13 +42,21 @@ import {
   type CardMode,
 } from "@/components/dashboard/record-categories";
 import {
+  appendSituationMedia,
+  deleteReservationRecord,
   listReservationRecords,
   updateRecordText,
   type ReservationRecord,
   type RecordCategory,
 } from "@/lib/reservation-records.functions";
 import { RecordSituationSheet } from "@/components/dashboard/RecordSituationSheet";
-import { draftItemFrom, type DraftItem } from "@/components/dashboard/record-draft";
+import {
+  draftItemFrom,
+  extFor,
+  inferKind,
+  type DraftItem,
+} from "@/components/dashboard/record-draft";
+import { chamarServidor, enviarMidia, garantirToken } from "@/lib/media-upload";
 import type { ArrivalRow } from "@/lib/dashboard-arrival-types";
 
 /**
@@ -285,35 +293,116 @@ function MediaThumb({
   );
 }
 
-/** Editar o texto da situação (título na 1ª linha + descrição), decisão
- * 20/09/2026: o menu não fatia mais o registro — ou se EDITA, ou se EXCLUI
- * o registro inteiro. */
-function RecordTextDialog({
-  record,
+/** Editar a situação (decisão 20/09/2026): o menu não fatia mais o registro
+ * — ou se EDITA (texto + mídias: apagar as que já estão lá e acrescentar
+ * novas), ou se EXCLUI o registro inteiro. */
+function RecordEditDialog({
+  group,
+  propertyId,
+  target,
   open,
   onOpenChange,
+  onChanged,
 }: {
-  record: ReservationRecord;
+  group: RecordGroup;
+  propertyId: string | null;
+  target: { logId?: string; reservationId?: string };
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  onChanged: () => void;
 }) {
+  const head = group.items[0];
   const updateFn = useServerFn(updateRecordText);
+  const appendFn = useServerFn(appendSituationMedia);
+  const deleteFn = useServerFn(deleteReservationRecord);
   const qc = useQueryClient();
-  const [first, ...rest] = (record.body ?? "").split("\n");
+  const [first, ...rest] = (head.body ?? "").split("\n");
   const [title, setTitle] = useState(first ?? "");
   const [description, setDescription] = useState(rest.join("\n"));
   const [saving, setSaving] = useState(false);
-  const requiresTitle = !!CATEGORY_BY_KEY.get(record.category)?.createsTask;
+  const [busyMedia, setBusyMedia] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+  const requiresTitle = !!CATEGORY_BY_KEY.get(head.category)?.createsTask;
+  const media = group.items.filter((it) => it.kind !== "note");
+  const addRef = useRef<HTMLInputElement>(null);
+
+  function refresh() {
+    void qc.invalidateQueries({ queryKey: ["reservation-records"] });
+    void qc.invalidateQueries({ queryKey: ["account-records"] });
+    onChanged();
+  }
+
+  async function removeMedia(it: ReservationRecord) {
+    if (busyMedia) return;
+    setBusyMedia(it.id);
+    try {
+      await deleteFn({ data: { id: it.id } });
+      toast.success(`${KIND_LABEL[it.kind] ?? "Item"} excluído.`);
+      refresh();
+    } catch (e) {
+      toast.error((e as Error).message || "Não consegui excluir.");
+    } finally {
+      setBusyMedia(null);
+    }
+  }
+
+  async function addMedia(file: File) {
+    const groupId = head.groupId ?? head.id;
+    if (!propertyId) {
+      toast.error("Não consegui identificar o imóvel deste registro.");
+      return;
+    }
+    setEnviando(true);
+    try {
+      const token = await garantirToken();
+      if (!token) {
+        toast.error("Sua sessão expirou. Entre de novo e tente outra vez.");
+        return;
+      }
+      const mime = file.type || "application/octet-stream";
+      const kind = inferKind(mime);
+      const folder = target.logId ?? target.reservationId ?? "avulso";
+      const path = `${propertyId}/${folder}/${crypto.randomUUID()}.${extFor(kind, mime)}`;
+      const r = await enviarMidia({
+        bucket: "reservation-records",
+        path,
+        blob: file,
+        contentType: mime,
+      });
+      if (!r.ok) {
+        toast.error(r.mensagem);
+        return;
+      }
+      await chamarServidor(() =>
+        appendFn({
+          data: {
+            groupId,
+            propertyId,
+            path,
+            kind,
+            mime,
+            sizeBytes: file.size,
+            durationMs: null,
+          },
+        }),
+      );
+      toast.success("Adicionado ao registro.");
+      refresh();
+    } catch (e) {
+      toast.error((e as Error).message || "Não consegui adicionar.");
+    } finally {
+      setEnviando(false);
+    }
+  }
 
   async function save() {
     if (saving || (requiresTitle && !title.trim())) return;
     setSaving(true);
     try {
       await updateFn({
-        data: { id: record.id, title: title.trim(), description: description.trim() || null },
+        data: { id: head.id, title: title.trim(), description: description.trim() || null },
       });
-      void qc.invalidateQueries({ queryKey: ["reservation-records"] });
-      void qc.invalidateQueries({ queryKey: ["account-records"] });
+      refresh();
       toast.success("Registro atualizado.");
       onOpenChange(false);
     } catch (e) {
@@ -344,6 +433,58 @@ function RecordTextDialog({
             placeholder="Onde, desde quando, o que precisa ser feito"
             className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-xs outline-none placeholder:text-muted-foreground"
           />
+
+          {/* Fotos, vídeos, áudios e arquivos deste registro: dá para tirar os
+              que não servem e juntar novos, sem abrir outro registro. */}
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Fotos, vídeos e arquivos
+            </p>
+            {media.length === 0 ? (
+              <p className="text-[11px] italic text-muted-foreground">Nenhuma mídia neste registro.</p>
+            ) : (
+              <div className="ds-scroll-x flex gap-1.5">
+                {media.map((it) => (
+                  <div key={it.id} className="relative shrink-0">
+                    <MediaThumb item={it} onOpen={() => {}} />
+                    <button
+                      type="button"
+                      onClick={() => void removeMedia(it)}
+                      disabled={!!busyMedia}
+                      aria-label={`Excluir ${KIND_LABEL[it.kind] ?? "item"}`}
+                      className="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full border border-border bg-card text-muted-foreground shadow hover:text-rose-500"
+                    >
+                      {busyMedia === it.id ? (
+                        <Loader2 className="size-3 animate-spin" />
+                      ) : (
+                        <Trash2 className="size-3" />
+                      )}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <input
+              ref={addRef}
+              type="file"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (f) void addMedia(f);
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => addRef.current?.click()}
+              disabled={enviando}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-secondary/30 px-2.5 py-1.5 text-[11px] font-medium text-foreground/80 hover:bg-secondary/50 disabled:opacity-60"
+            >
+              {enviando ? <Loader2 className="size-3.5 animate-spin" /> : <Paperclip className="size-3.5" />}
+              {enviando ? "Enviando…" : "Adicionar mídia"}
+            </button>
+          </div>
+
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -368,12 +509,19 @@ function RecordTextDialog({
   );
 }
 
+
 export function RecordBlock({
   group,
   onDelete,
+  propertyId = null,
+  target = {},
+  onChanged = () => {},
 }: {
   group: RecordGroup;
   onDelete: (ids: string[]) => void;
+  propertyId?: string | null;
+  target?: { logId?: string; reservationId?: string };
+  onChanged?: () => void;
 }) {
   const head = group.items[0];
   const [viewing, setViewing] = useState<ReservationRecord | null>(null);
@@ -417,7 +565,16 @@ export function RecordBlock({
         </DropdownMenu>
       </div>
 
-      {editing && <RecordTextDialog record={head} open onOpenChange={setEditing} />}
+      {editing && (
+        <RecordEditDialog
+          group={group}
+          propertyId={propertyId}
+          target={target}
+          open
+          onOpenChange={setEditing}
+          onChanged={onChanged}
+        />
+      )}
 
       <div className="flex items-start gap-2.5 px-2.5 pb-2.5">
         {mediaItems.length > 0 && !audioOnly && (
@@ -819,7 +976,13 @@ export function ReservationRecordsDialog({
                           <span className="h-px flex-1 bg-border/70" />
                         </div>
                       )}
-                      <RecordBlock group={g} onDelete={deleteRecord} />
+                      <RecordBlock
+                        group={g}
+                        onDelete={deleteRecord}
+                        propertyId={row.propertyId}
+                        target={target}
+                        onChanged={invalidate}
+                      />
                     </div>
                   );
                 })}
