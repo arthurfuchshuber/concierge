@@ -16,8 +16,8 @@
  * As duas rodam exatamente o mesmo código, com o mesmo cliente do usuário e o
  * mesmo RLS. Não existe caminho de escrita paralelo.
  */
-import { z } from "zod";
 import type { AssistantAsk, AssistantSource, PendingAction } from "@/lib/assistant-types";
+import type { AssistantAskData, AssistantEvent } from "@/lib/assistant-run.shared";
 import { HOUSE_RULES } from "@/lib/ai/house-rules";
 import { looksLikeAction, maxStepsFor, reasoningFor } from "@/lib/ai/reasoning";
 
