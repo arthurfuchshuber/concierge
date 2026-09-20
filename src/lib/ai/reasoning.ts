@@ -106,6 +106,7 @@ export function reasoningFor(
   opts?: { isAction?: boolean; highRisk?: boolean },
 ): ReasoningEffort {
   if (opts?.highRisk || opts?.isAction) return "max";
+  if (looksLikeAction(message) || TOUCHY.some((k) => norm(message).includes(norm(k)))) return "max";
 
   const text = norm(message);
   const words = text.split(/\s+/).filter(Boolean);
@@ -126,8 +127,19 @@ export function reasoningFor(
     message.length <= 80 &&
     FACTUAL_START.some((k) => bare.startsWith(norm(k)));
   if (factual) return "xhigh";
+  if (deep) return "max";
 
-  return "max";
+  /**
+   * PERGUNTA INFORMATIVA (20/09/2026 — "não pode demorar tanto para responder,
+   * nem para a equipe nem para hóspedes").
+   *
+   * "Como faço para anexar um vídeo?" não manda o sistema fazer nada, não
+   * envolve dinheiro nem hóspede e não pede julgamento — e estava pensando no
+   * topo, 90 segundos. "high" é o mesmo modelo, com a mesma documentação na
+   * mão, respondendo em uma fração do tempo. O topo continua sendo o padrão de
+   * tudo que DECIDE ou GRAVA algo.
+   */
+  return "high";
 }
 
 /**
