@@ -204,7 +204,9 @@ export function reasoningFor(
     message.length <= 80 &&
     FACTUAL_START.some((k) => bare.startsWith(norm(k)));
   if (factual) return "xhigh";
-  if (deep) return "max";
+  // Julgamento, várias perguntas de uma vez ou um texto longo: é aí que a
+  // pessoa realmente escreveu algo que exige pensar.
+  if (deep || questions > 1 || message.length > 160) return "max";
 
   /**
    * PERGUNTA INFORMATIVA (20/09/2026 — "não pode demorar tanto para responder,
