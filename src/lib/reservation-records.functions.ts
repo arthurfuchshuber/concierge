@@ -729,6 +729,11 @@ export const appendSituationMedia = createServerFn({ method: "POST" })
       created_by_name: who,
       task_id: null,
     });
+    // Corrida entre duas tentativas simultâneas: o índice único do caminho
+    // barra a segunda. Isso é sucesso, não erro — a mídia está anexada.
+    if (error && (error as { code?: string }).code === "23505") {
+      return { ok: true, duplicate: true };
+    }
     if (error) throw new Error(error.message);
     return { ok: true };
   });
