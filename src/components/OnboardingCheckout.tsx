@@ -17,6 +17,17 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
   const [selected, setSelected] = useState<PlanKey>("pro");
   const [opening, setOpening] = useState(false);
   const [opened, setOpened] = useState(false);
+  const [checkoutFailed, setCheckoutFailed] = useState(false);
+
+  // O painel de pagamento pode falhar por indisponibilidade do provedor. Nesse
+  // caso o iframe mostra um aviso em inglês; aqui damos uma saída em português.
+  useEffect(() => {
+    return onPaddleCheckoutEvent(({ name }) => {
+      if (name === "checkout.error") setCheckoutFailed(true);
+      if (name === "checkout.loaded" || name === "checkout.completed") setCheckoutFailed(false);
+    });
+  }, []);
+
 
   // Etapa 1 (documento) → Etapa 2 (cartão + plano).
   const [step, setStep] = useState<1 | 2>(1);
