@@ -2857,11 +2857,25 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 loading={cleaningWindow === "past" ? cleaningTrendQ.isLoading : cleaningForecastListQ.isLoading}
               />
             </div>
-            <div>
-              <CleaningTopProperties
-                items={cleaningWindow === "past" ? cleaningTrendQ.data?.breakdown : cleaningForecast.breakdown}
-                loading={cleaningWindow === "past" ? cleaningTrendQ.isLoading : cleaningForecastListQ.isLoading}
-              />
+            {/* Top 5 ocupa a MESMA largura do gráfico da esquerda (pedido
+                explícito, 21/09/2026); o lado direito ganha o painel de
+                eficiência. No celular, o painel vem ANTES do Top 5 — por isso
+                ele está primeiro no DOM e troca de ordem só no desktop. */}
+            <div className="ds-card-grid grid-cols-1 lg:grid-cols-2 items-stretch">
+              <div className="lg:order-2">
+                <CleaningEfficiencyPanel
+                  daily={cleaningWindow === "past" ? cleaningTrendQ.data?.daily : cleaningForecast.daily}
+                  items={cleaningWindow === "past" ? cleaningTrendQ.data?.breakdown : cleaningForecast.breakdown}
+                  loading={cleaningWindow === "past" ? cleaningTrendQ.isLoading : cleaningForecastListQ.isLoading}
+                  forecast={cleaningWindow !== "past"}
+                />
+              </div>
+              <div className="lg:order-1">
+                <CleaningTopProperties
+                  items={cleaningWindow === "past" ? cleaningTrendQ.data?.breakdown : cleaningForecast.breakdown}
+                  loading={cleaningWindow === "past" ? cleaningTrendQ.isLoading : cleaningForecastListQ.isLoading}
+                />
+              </div>
             </div>
           </div>
 
