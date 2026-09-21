@@ -1045,6 +1045,46 @@ export const deleteReservationRecord = createServerFn({ method: "POST" })
     if (!existing)
       return { ok: true, removed: null as RemovedRecord | null, removedTask: null as RemovedTask | null };
 
+    /* APAGAR UMA FOTO NUNCA APAGA O TEXTO NEM A PENDÊNCIA DA SITUAÇÃO
+       (20/09/2026). A linha PRINCIPAL do grupo (`id = group_id`) é a que
+       guarda o texto digitado e o vínculo com a pendência do Kanban — e,
+       quando a situação nasceu de um vídeo/foto, essa mesma linha é uma
+       mídia. Se ainda existem outras mídias no grupo, tirar essa mídia não
+       pode levar embora a situação inteira: a linha continua viva, só perde
+       o arquivo e vira o texto do grupo. Sem irmãs, o registro some inteiro,
+       como antes. */
+    const { data: irmas } = await supabase
+      .from("reservation_records")
+      .select("id")
+      .eq("group_id", data.id)
+      .neq("id", data.id)
+      .limit(1);
+    const ehPrincipalComIrmas = (irmas ?? []).length > 0;
+
+    if (ehPrincipalComIrmas) {
+      const { error: stripErr } = await supabase
+        .from("reservation_records")
+        .update({
+          kind: "note",
+          storage_path: null,
+          mime: null,
+          size_bytes: null,
+          duration_ms: null,
+          file_name: null,
+        })
+        .eq("id", data.id);
+      if (stripErr) throw new Error(stripErr.message);
+      if (existing.storage_path && !data.keepFile) {
+        try {
+          await supabase.storage.from(BUCKET).remove([existing.storage_path]);
+        } catch {
+          // ignore
+        }
+      }
+      // "Desfazer" devolve a linha original (com o arquivo) por upsert.
+      return { ok: true, removed: existing as RemovedRecord, removedTask: null as RemovedTask | null };
+    }
+
     const { error } = await supabase.from("reservation_records").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
 
