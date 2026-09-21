@@ -23,6 +23,26 @@ export const AssistantAskInput = z.object({
     .regex(/^data:image\/(png|jpe?g|webp|gif);base64,/)
     .nullable()
     .optional(),
+  /**
+   * ARQUIVO ANEXADO À PERGUNTA (21/09/2026) — só a ficha, não o conteúdo.
+   *
+   * Pedido: "se um usuário interno mandar um vídeo pedindo para anexar a
+   * alguma reserva ou alguma limpeza feita, ela tem que conseguir". O vídeo
+   * NÃO sobe junto da pergunta: fica no aparelho enquanto a IA descobre a qual
+   * estadia ele pertence, e só sobe na confirmação — pelo mesmo caminho da
+   * tela de registros. O que vem aqui é o que o modelo precisa saber para
+   * decidir: nome, tipo, tamanho e duração.
+   */
+  attachment: z
+    .object({
+      name: z.string().trim().min(1).max(300),
+      mime: z.string().trim().min(1).max(150),
+      sizeBytes: z.number().int().nonnegative(),
+      kind: z.enum(["photo", "video", "audio", "file"]),
+      durationMs: z.number().int().nonnegative().nullable().optional(),
+    })
+    .nullable()
+    .optional(),
 });
 
 export type AssistantAskData = z.infer<typeof AssistantAskInput>;

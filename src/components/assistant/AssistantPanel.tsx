@@ -36,6 +36,9 @@ import {
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
 import { createTask, deleteTasks, setTaskStatus, setTasksStatusBulk } from "@/lib/tasks.functions";
 import { advanceArrival, markNoShow, upsertArrivalStatus } from "@/lib/dashboard.functions";
+import { createRecordSituation } from "@/lib/reservation-records.functions";
+import { extFor, inferKind } from "@/components/dashboard/record-draft";
+import { enviarMidia } from "@/lib/media-upload";
 import type { AssistantAsk, AssistantMessage, PendingAction } from "@/lib/assistant-types";
 import { supabase } from "@/integrations/supabase/client";
 import { AiMarkdown } from "@/components/ai/AiMarkdown";
@@ -48,6 +51,14 @@ import {
   COMPOSER_SEND_BTN,
 } from "@/components/chat/composer-styles";
 import { toast } from "sonner";
+
+/** Ficha do arquivo que segue com a pergunta (o conteúdo fica no aparelho). */
+type AskAttachment = {
+  name: string;
+  mime: string;
+  sizeBytes: number;
+  kind: "photo" | "video" | "audio" | "file";
+};
 
 /** Blob → base64 puro (sem o cabeçalho data:), que é o que a transcrição espera. */
 function blobToBase64(blob: Blob): Promise<string> {
@@ -81,6 +92,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
   const predictionFn = useServerFn(upsertArrivalStatus);
   const advanceFn = useServerFn(advanceArrival);
   const transcribeFn = useServerFn(transcribeAssistantAudio);
+  const createRecordSituationFn = useServerFn(createRecordSituation);
 
   const [threadId, setThreadId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -91,9 +103,24 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
   const [doneActions, setDoneActions] = useState<Set<string>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  // Imagem anexada à PRÓXIMA pergunta. Vive só até o envio: não é
-  // guardada em lugar nenhum, serve para o modelo olhar e acaba ali.
-  const [image, setImage] = useState<{ dataUrl: string; name: string } | null>(null);
+  /**
+   * ARQUIVO ANEXADO À PRÓXIMA PERGUNTA (21/09/2026).
+   *
+   * Aceita qualquer tipo. Imagem também vira data URL, para o modelo olhar o
+   * print. Os outros (vídeo, áudio, documento) seguem só como ficha — o
+   * conteúdo fica aqui no aparelho e só sobe se a pessoa confirmar o anexo a
+   * uma estadia, pelo mesmo caminho da tela de registros.
+   */
+  const [image, setImage] = useState<{
+    file: File;
+    dataUrl: string | null;
+    name: string;
+    mime: string;
+    sizeBytes: number;
+    kind: "photo" | "video" | "audio" | "file";
+  } | null>(null);
+  /** O último arquivo enviado na conversa — é ele que sobe na confirmação. */
+  const sentFileRef = useRef<File | null>(null);
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   /** O que o servidor está fazendo agora e o texto que já foi escrito. */
@@ -161,6 +188,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
   async function askStreaming(v: {
     text: string;
     imageDataUrl: string | null;
+    attachment: AskAttachment | null;
   }): Promise<AssistantAsk> {
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token;
@@ -174,6 +202,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
         message: v.text,
         currentPath: pathname,
         imageDataUrl: v.imageDataUrl,
+        attachment: v.attachment,
       }),
     });
     if (!res.ok || !res.body) throw new Error("sem-streaming");
@@ -229,7 +258,11 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
   }
 
   const ask = useMutation({
-    mutationFn: async (v: { text: string; imageDataUrl: string | null }) => {
+    mutationFn: async (v: {
+      text: string;
+      imageDataUrl: string | null;
+      attachment: AskAttachment | null;
+    }) => {
       try {
         return await askStreaming(v);
       } catch (err) {
@@ -243,6 +276,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
             message: v.text,
             currentPath: pathname,
             imageDataUrl: v.imageDataUrl,
+            attachment: v.attachment,
           },
         });
       } finally {
@@ -288,12 +322,15 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
     setDraft("");
     setImage(null);
     setPending(null);
+    // O arquivo continua guardado aqui depois do envio: é ele que sobe se a
+    // pessoa confirmar o anexo à estadia.
+    sentFileRef.current = attached?.file ?? sentFileRef.current;
     setLive((prev) => [
       ...prev,
       {
         id: crypto.randomUUID(),
-        // Marca a imagem na própria bolha: sem isso, a pessoa manda um print e
-        // a conversa não guarda sinal nenhum de que ele foi junto.
+        // Marca o arquivo na própria bolha: sem isso, a pessoa manda um print
+        // e a conversa não guarda sinal nenhum de que ele foi junto.
         content: attached ? `${clean}\n\n📎 ${attached.name}` : clean,
         role: "user",
         createdAt: new Date().toISOString(),
@@ -301,26 +338,44 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
         pendingAction: null,
       },
     ]);
-    ask.mutate({ text: clean, imageDataUrl: attached?.dataUrl ?? null });
+    ask.mutate({
+      text: clean,
+      imageDataUrl: attached?.dataUrl ?? null,
+      attachment: attached
+        ? {
+            name: attached.name,
+            mime: attached.mime,
+            sizeBytes: attached.sizeBytes,
+            kind: attached.kind,
+          }
+        : null,
+    });
   }
 
   function onPickImage(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Por enquanto eu consigo olhar imagens — uma foto ou um print da tela.");
+    // `||` e não `??`: alguns Android entregam o arquivo da câmera com tipo
+    // vazio, e string vazia passa pelo nulo-coalescente.
+    const mime = file.type || "application/octet-stream";
+    const kind = inferKind(mime);
+    // 300 MB é o teto do envio de mídia da tela de registros.
+    if (file.size > 300_000_000) {
+      toast.error("Arquivo muito grande. O limite é 300 MB.");
       return;
     }
-    // 6 MB: acima disso o data URL passa do limite aceito pela server function.
-    if (file.size > 6_000_000) {
-      toast.error("Imagem muito grande. Tente uma menor que 6 MB.");
+    const base = { file, name: file.name, mime, sizeBytes: file.size, kind };
+    // Só imagem vira data URL (e só até 6 MB): é o que o modelo consegue
+    // olhar. Vídeo, áudio e documento seguem como ficha e sobem depois.
+    if (kind === "photo" && file.size <= 6_000_000) {
+      const reader = new FileReader();
+      reader.onload = () => setImage({ ...base, dataUrl: String(reader.result) });
+      reader.onerror = () => toast.error("Não consegui ler esse arquivo.");
+      reader.readAsDataURL(file);
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => setImage({ dataUrl: String(reader.result), name: file.name });
-    reader.onerror = () => toast.error("Não consegui ler esse arquivo.");
-    reader.readAsDataURL(file);
+    setImage({ ...base, dataUrl: null });
   }
 
   /**
@@ -346,6 +401,44 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
   const confirm = useMutation({
     mutationFn: async (p: PendingAction) => {
       const a = p.action;
+      if (a.kind === "attach_record_media") {
+        /**
+         * O arquivo sobe AGORA, não na pergunta: mesma sequência da tela de
+         * registros — primeiro o storage, depois a linha. Falhando o envio,
+         * nada é gravado e a mensagem de erro é a mesma que a equipe vê no
+         * celular.
+         */
+        const file = sentFileRef.current;
+        if (!file) {
+          throw new Error("O arquivo não está mais aqui. Anexe de novo e peça outra vez.");
+        }
+        const mime = file.type || "application/octet-stream";
+        const kind = inferKind(mime);
+        const pasta = a.payload.logId ?? a.payload.reservationId ?? "avulso";
+        const path = `${a.payload.propertyId}/${pasta}/${crypto.randomUUID()}.${extFor(kind, mime)}`;
+        const envio = await enviarMidia({
+          bucket: "reservation-records",
+          path,
+          blob: file,
+          contentType: mime,
+        });
+        if (!envio.ok) throw new Error(envio.mensagem ?? "Não consegui enviar o arquivo.");
+
+        await createRecordSituationFn({
+          data: {
+            propertyId: a.payload.propertyId,
+            logId: a.payload.logId ?? undefined,
+            reservationId: a.payload.reservationId ?? undefined,
+            cardMode: a.payload.cardMode,
+            category: a.payload.category,
+            title: a.payload.title,
+            description: a.payload.description,
+            media: [{ path, kind, mime, sizeBytes: file.size }],
+          },
+        } as never);
+        sentFileRef.current = null;
+        return;
+      }
       if (a.kind === "create_task") {
         await createTaskFn({
           data: {
@@ -633,22 +726,33 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
         }}
         className="shrink-0 border-t border-border bg-surface px-3 py-2"
       >
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={onPickImage}
-        />
+        <input ref={fileRef} type="file" className="hidden" onChange={onPickImage} />
 
         {image && (
           <div className="mb-2 flex items-center gap-2 rounded-lg border border-border bg-card px-2 py-1.5">
-            <img src={image.dataUrl} alt="" className="size-8 shrink-0 rounded object-cover" />
-            <span className="min-w-0 flex-1 truncate text-[11.5px]">{image.name}</span>
+            {image.dataUrl ? (
+              <img src={image.dataUrl} alt="" className="size-8 shrink-0 rounded object-cover" />
+            ) : (
+              <span className="grid size-8 shrink-0 place-items-center rounded bg-muted text-[10px] font-semibold uppercase text-muted-foreground">
+                {image.kind === "video"
+                  ? "Vid"
+                  : image.kind === "audio"
+                    ? "Áud"
+                    : image.kind === "photo"
+                      ? "Foto"
+                      : "Arq"}
+              </span>
+            )}
+            <span className="min-w-0 flex-1 truncate text-[11.5px]">
+              {image.name}
+              <span className="ml-1 text-muted-foreground">
+                {(image.sizeBytes / 1_000_000).toFixed(1)} MB
+              </span>
+            </span>
             <button
               type="button"
               onClick={() => setImage(null)}
-              aria-label="Remover imagem"
+              aria-label="Remover arquivo"
               className="grid size-6 shrink-0 place-items-center rounded text-muted-foreground hover:text-destructive"
             >
               <X className="size-3.5" />
@@ -663,8 +767,8 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={busy}
-            aria-label="Anexar imagem"
-            title="Anexar uma foto ou print"
+            aria-label="Anexar arquivo"
+            title="Anexar foto, vídeo, áudio ou documento"
             className={COMPOSER_ICON_BTN}
           >
             <Paperclip className="size-4" />

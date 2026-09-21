@@ -43,7 +43,18 @@ function instructions(params: {
   knowledge: string;
   currentPath: string | null;
   today: string;
+  attachment: AssistantAskData["attachment"];
 }): string {
+  const TIPO: Record<string, string> = {
+    photo: "foto",
+    video: "vídeo",
+    audio: "áudio",
+    file: "arquivo",
+  };
+  const a = params.attachment;
+  const anexo = a
+    ? `ARQUIVO ANEXADO A ESTA MENSAGEM: ${TIPO[a.kind] ?? "arquivo"} "${a.name}" (${a.mime}, ${(a.sizeBytes / 1_000_000).toFixed(1)} MB). Ele ainda está no aparelho da pessoa e só sobe quando ela confirmar a ação.`
+    : "";
   return [
     "Você é o Assistente do Painel do ConciergeIA — um sistema de gestão de imóveis de aluguel por temporada.",
     "Você atende quem OPERA o sistema: equipe, anfitriões e prestadores (limpeza, manutenção). Nunca hóspedes.",
@@ -72,6 +83,8 @@ function instructions(params: {
     "· Numa lista em que os dois casos aparecem, não resuma tudo num horário só: diga o horário de quem informou e trate o resto como 'a partir de'.",
     "",
     "AÇÕES — sua autonomia é máxima dentro do que a pessoa pode fazer",
+    "· ARQUIVO ANEXADO: quando a mensagem vier com um arquivo (a ficha dele aparece abaixo), você CONSEGUE anexá-lo a uma estadia ou a uma limpeza. Descubra o imóvel (`listar_imoveis`) e a estadia (`agenda` para os próximos dias, `reservas_do_imovel` para o que já passou) e chame `preparar_anexar_midia`. Nunca responda que não dá para anexar pelo chat, e nunca mande a pessoa fazer isso pela tela sem ter tentado.",
+    "· O que você NUNCA altera é a reserva em si (datas, hóspede, status): ela vem sincronizada do canal. Anexar registro, criar pendência e mover a esteira não são alteração de reserva — isso você faz.",
     "· Diante de um pedido de ação, sua postura padrão é EXECUTAR, não explicar como se faz. Só explique o caminho na tela se a pessoa pedir o caminho.",
     "· Você tem ferramentas para: criar pendência (com prazo, recorrência em dias e a chave de mostrar/ocultar na limpeza), criar a MESMA pendência em vários imóveis de uma vez, concluir, arquivar e reabrir pendência, definir ou limpar data/horário previstos de chegada e de saída, avançar o card na esteira (check-in, encerrar estadia, confirmar checkout, concluir limpeza) e marcar não comparecimento.",
     "· NUNCA responda 'não consigo' sem ter tentado a ferramenta. Quem decide o que cada pessoa pode fazer é o sistema — as consultas respeitam a permissão dela e a gravação passa pela mesma checagem da tela. Recusar por conta própria nega à pessoa algo que ela talvez pudesse fazer.",
@@ -89,6 +102,7 @@ function instructions(params: {
     "",
     `Hoje é ${params.today}.`,
     params.currentPath ? `A pessoa está agora na tela: ${params.currentPath}` : "",
+    anexo,
     "",
     "DOCUMENTAÇÃO DO SISTEMA (recuperada para esta pergunta)",
     params.knowledge,
@@ -169,6 +183,7 @@ export async function runAssistantTurn(params: {
     userId,
     propertyIds,
     prepared,
+    attachment: data.attachment ?? null,
   });
   // Cada ferramenta avisa antes de rodar: é isso que troca o "pensando…" mudo
   // por "consultando pendências" na tela de quem espera.
@@ -189,7 +204,11 @@ export async function runAssistantTurn(params: {
    * de ação, dinheiro, hóspede ou julgamento continuam no máximo; pergunta
    * informativa roda em "alto", que responde igual e chega bem antes.
    */
-  const effort = reasoningFor(data.message, { isAction: looksLikeAction(data.message) });
+  // Mensagem com arquivo anexado é pedido de ação por definição: vai virar
+  // registro no imóvel de alguém, então o raciocínio não desce.
+  const effort = reasoningFor(data.message, {
+    isAction: looksLikeAction(data.message) || Boolean(data.attachment),
+  });
 
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(
     new Date(),
@@ -201,6 +220,7 @@ export async function runAssistantTurn(params: {
       knowledge: renderSystemDocs(knowledge.docs),
       currentPath: data.currentPath ?? null,
       today,
+      attachment: data.attachment ?? null,
     }),
     input: [
       ...past.map((m) => ({ type: "message", role: m.role, content: m.content })),

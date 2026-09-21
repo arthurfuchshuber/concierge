@@ -21,6 +21,14 @@ import { defaultShowInCleaning, type TaskCategory, type TaskPriority } from "@/l
 
 type AnyClient = { from: (t: string) => any };
 
+export type AssistantAttachment = {
+  name: string;
+  mime: string;
+  sizeBytes: number;
+  kind: "photo" | "video" | "audio" | "file";
+  durationMs?: number | null;
+};
+
 export type AssistantToolContext = {
   supabase: SupabaseClient;
   userId: string;
@@ -28,6 +36,12 @@ export type AssistantToolContext = {
   propertyIds: string[];
   /** Preenchido pela ferramenta de preparação; lido depois pelo chamador. */
   prepared: { current: PendingAction | null };
+  /**
+   * Ficha do arquivo que veio junto da pergunta (21/09/2026). O conteúdo
+   * continua no aparelho: só sobe na confirmação, pelo mesmo caminho da tela
+   * de registros. Aqui basta saber que existe e o que é.
+   */
+  attachment?: AssistantAttachment | null;
 };
 
 /** JSON Schema estrito, como a Responses API exige. */
@@ -1081,6 +1095,226 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
             ? "A partir de agora eu gravo direto o que você pedir, sem cartão de confirmação."
             : "Voltei a pedir confirmação antes de gravar qualquer coisa.",
         };
+      },
+    },
+
+    // ──────────────── registros (anexar arquivo da conversa) ────────────────
+    {
+      /**
+       * A agenda só enxerga 7 dias. Um vídeo de limpeza quase sempre chega
+       * depois — "a limpeza de ontem", "a saída da semana passada" — e sem
+       * esta consulta o assistente não teria como achar a estadia certa.
+       * Leitura pelo cliente do usuário: o RLS decide o que aparece.
+       */
+      name: "reservas_do_imovel",
+      description:
+        "Lista as estadias de um imóvel numa janela recente (padrão: 21 dias atrás até 14 dias à frente), com id da reserva, datas e hóspede. Use para achar a estadia/limpeza a que um arquivo deve ser anexado quando ela não está na agenda dos próximos 7 dias.",
+      parameters: schema(
+        {
+          propertyId: { type: "string" },
+          diasAtras: { type: ["number", "null"], description: "Padrão 21, máximo 120." },
+          diasAFrente: { type: ["number", "null"], description: "Padrão 14, máximo 120." },
+        },
+        ["propertyId", "diasAtras", "diasAFrente"],
+      ),
+      execute: async (args) => {
+        const propertyId = String(args.propertyId);
+        if (!ctx.propertyIds.includes(propertyId)) {
+          return { erro: "Você não tem acesso a esse imóvel." };
+        }
+        const clamp = (v: unknown, padrao: number) => {
+          const n = typeof v === "number" && Number.isFinite(v) ? Math.trunc(v) : padrao;
+          return Math.min(120, Math.max(0, n));
+        };
+        const atras = clamp(args.diasAtras, 21);
+        const frente = clamp(args.diasAFrente, 14);
+        const desloca = (dias: number) => {
+          const d = new Date(`${todayISO()}T12:00:00Z`);
+          d.setUTCDate(d.getUTCDate() + dias);
+          return d.toISOString().slice(0, 10);
+        };
+        const inicio = desloca(-atras);
+        const fim = desloca(frente);
+
+        const { data, error } = await db
+          .from("property_reservations")
+          .select("id, checkin_date, checkout_date, guest_hint, status")
+          .eq("property_id", propertyId)
+          .gte("checkout_date", inicio)
+          .lte("checkin_date", fim)
+          .order("checkout_date", { ascending: false })
+          .limit(60);
+        if (error) return { erro: error.message };
+
+        const rows = (data ?? []) as Array<{
+          id: string;
+          checkin_date: string | null;
+          checkout_date: string | null;
+          guest_hint: string | null;
+          status: string | null;
+        }>;
+        return {
+          hoje: todayISO(),
+          janela: { de: inicio, ate: fim },
+          reservas: rows.map((r) => ({
+            reservationId: r.id,
+            entrada: r.checkin_date,
+            saida: r.checkout_date,
+            hospede: r.guest_hint,
+            status: r.status,
+          })),
+        };
+      },
+    },
+    {
+      /**
+       * ANEXAR O ARQUIVO DA CONVERSA A UMA ESTADIA (21/09/2026).
+       *
+       * Pedido explícito: a IA interna precisa conseguir executar qualquer
+       * ação que não seja alteração direta em reserva sincronizada — "se um
+       * usuário interno mandar um vídeo pedindo para anexar a alguma reserva
+       * ou alguma limpeza feita, ela tem que conseguir".
+       *
+       * Como todas as outras, esta ferramenta NÃO grava e NÃO sobe nada: ela
+       * confere o imóvel contra a permissão, escolhe a categoria e monta o
+       * cartão. O envio do arquivo e o `createRecordSituation` acontecem na
+       * confirmação, pelo mesmo caminho da tela de registros — mesmo RLS,
+       * mesma numeração, mesma regra de pendência por categoria.
+       */
+      name: "preparar_anexar_midia",
+      description:
+        "Monta (SEM gravar) o anexo do arquivo que veio nesta conversa a uma estadia/limpeza, como registro do imóvel. Só funciona se a pessoa tiver anexado um arquivo à mensagem. Descubra antes o imóvel (listar_imoveis) e a estadia (agenda ou reservas_do_imovel). Categoria: cleaning_audit para vídeo/foto de limpeza, damage para estrago, maintenance para conserto, forgotten para objeto esquecido, other para o resto. Dano, manutenção e objeto esquecido EXIGEM título e abrem pendência no Kanban.",
+      parameters: schema(
+        {
+          propertyId: { type: "string" },
+          logId: { type: ["string", "null"] },
+          reservationId: { type: ["string", "null"] },
+          etapa: {
+            type: "string",
+            enum: ["checkin", "stay", "checkout", "cleaning"],
+            description: "Momento da estadia a que o arquivo pertence. Limpeza = 'cleaning'.",
+          },
+          categoria: {
+            type: "string",
+            enum: ["cleaning_audit", "damage", "maintenance", "forgotten", "other"],
+          },
+          titulo: { type: ["string", "null"], description: "Máx. 120 caracteres." },
+          descricao: { type: ["string", "null"] },
+        },
+        ["propertyId", "logId", "reservationId", "etapa", "categoria", "titulo", "descricao"],
+      ),
+      execute: async (args) => {
+        const anexo = ctx.attachment;
+        if (!anexo) {
+          return {
+            erro: "Não veio arquivo nenhum nesta mensagem. Peça para a pessoa anexar a foto, o vídeo ou o áudio no botão de anexo e mandar de novo.",
+          };
+        }
+
+        const propertyId = String(args.propertyId);
+        if (!ctx.propertyIds.includes(propertyId)) {
+          return { erro: "Você não tem acesso a esse imóvel." };
+        }
+
+        const logId = typeof args.logId === "string" && args.logId ? args.logId : null;
+        const reservationId =
+          typeof args.reservationId === "string" && args.reservationId ? args.reservationId : null;
+        const realLog = realLogId(logId);
+        if (!realLog && !reservationId) {
+          return {
+            erro: "Informe a estadia (logId ou reservationId). Use agenda ou reservas_do_imovel para encontrá-la.",
+          };
+        }
+
+        const categoria = String(args.categoria);
+        const titulo =
+          typeof args.titulo === "string" && args.titulo.trim() ? args.titulo.trim().slice(0, 120) : null;
+        const descricao =
+          typeof args.descricao === "string" && args.descricao.trim()
+            ? args.descricao.trim().slice(0, 2000)
+            : null;
+        if (!titulo && categoria !== "cleaning_audit" && categoria !== "other") {
+          return { erro: "Dano, manutenção e objeto esquecido precisam de um título." };
+        }
+
+        // Confere o imóvel e a estadia no banco em vez de aceitar o que o
+        // modelo escreveu: um vídeo anexado na reserva errada aparece na
+        // linha do tempo de outro hóspede.
+        const [{ data: prop }, reserva] = await Promise.all([
+          db.from("properties").select("id, name").eq("id", propertyId).maybeSingle(),
+          reservationId
+            ? db
+                .from("property_reservations")
+                .select("id, property_id, checkin_date, checkout_date, guest_hint")
+                .eq("id", reservationId)
+                .maybeSingle()
+            : Promise.resolve({ data: null }),
+        ]);
+        const propRow = prop as { id: string; name: string | null } | null;
+        if (!propRow) return { erro: "Imóvel não encontrado ou sem acesso." };
+
+        const resRow = (reserva as { data?: unknown }).data as {
+          id: string;
+          property_id: string;
+          checkin_date: string | null;
+          checkout_date: string | null;
+          guest_hint: string | null;
+        } | null;
+        if (reservationId && !resRow) return { erro: "Reserva não encontrada ou sem acesso." };
+        if (resRow && resRow.property_id !== propertyId) {
+          return { erro: "Essa reserva é de outro imóvel." };
+        }
+
+        const TIPO: Record<string, string> = {
+          photo: "Foto",
+          video: "Vídeo",
+          audio: "Áudio",
+          file: "Arquivo",
+        };
+        const CATEGORIA_LABEL: Record<string, string> = {
+          cleaning_audit: "Auditoria de limpeza",
+          damage: "Dano",
+          maintenance: "Manutenção",
+          forgotten: "Objeto esquecido",
+          other: "Outros",
+        };
+        const mb = anexo.sizeBytes / 1_000_000;
+
+        const action: AssistantAction = {
+          kind: "attach_record_media",
+          payload: {
+            propertyId,
+            propertyName: propRow.name ?? "(sem nome)",
+            logId: realLog,
+            reservationId: resRow?.id ?? null,
+            cardMode: args.etapa as "checkin" | "stay" | "checkout" | "cleaning",
+            category: categoria,
+            title: titulo,
+            description: descricao,
+          },
+        };
+        const preview = [
+          { label: "Imóvel", value: propRow.name ?? "(sem nome)" },
+          {
+            label: "Estadia",
+            value: resRow
+              ? `${resRow.guest_hint ?? "Hóspede"} · ${resRow.checkin_date ?? "?"} a ${resRow.checkout_date ?? "?"}`
+              : "Card da esteira",
+          },
+          { label: "Registro", value: CATEGORIA_LABEL[categoria] ?? categoria },
+          {
+            label: "Arquivo",
+            value: `${TIPO[anexo.kind] ?? "Arquivo"} · ${anexo.name} · ${mb < 0.1 ? "<0,1" : mb.toFixed(1)} MB`,
+          },
+        ];
+        if (titulo) preview.push({ label: "Título", value: titulo });
+        if (descricao) preview.push({ label: "Descrição", value: descricao });
+        if (categoria === "damage" || categoria === "maintenance" || categoria === "forgotten") {
+          preview.push({ label: "Efeito", value: "Também abre uma pendência no Kanban" });
+        }
+
+        ctx.prepared.current = { action, confirmLabel: "Anexar ao registro", preview };
+        return { pronto: true, resumo: preview };
       },
     },
 
