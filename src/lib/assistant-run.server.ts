@@ -204,7 +204,11 @@ export async function runAssistantTurn(params: {
    * de ação, dinheiro, hóspede ou julgamento continuam no máximo; pergunta
    * informativa roda em "alto", que responde igual e chega bem antes.
    */
-  const effort = reasoningFor(data.message, { isAction: looksLikeAction(data.message) });
+  // Mensagem com arquivo anexado é pedido de ação por definição: vai virar
+  // registro no imóvel de alguém, então o raciocínio não desce.
+  const effort = reasoningFor(data.message, {
+    isAction: looksLikeAction(data.message) || Boolean(data.attachment),
+  });
 
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(
     new Date(),
