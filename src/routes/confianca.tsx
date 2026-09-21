@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { siteUrl } from "@/lib/site-url";
 import { ShieldCheck, Lock, KeyRound, Database, Globe, Mail } from "lucide-react";
 
 const FAQ_ITEMS: Array<{ q: string; a: string }> = [
@@ -39,9 +40,9 @@ export const Route = createFileRoute("/confianca")({
         content:
           "Controles de segurança, privacidade e subprocessadores do ConciergeIA para anfitriões e hóspedes.",
       },
-      { property: "og:url", content: "/confianca" },
+      { property: "og:url", content: siteUrl("/confianca") },
     ],
-    links: [{ rel: "canonical", href: "/confianca" }],
+    links: [{ rel: "canonical", href: siteUrl("/confianca") }],
     scripts: [
       {
         type: "application/ld+json",

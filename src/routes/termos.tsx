@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { siteUrl } from "@/lib/site-url";
 
 export const Route = createFileRoute("/termos")({
   head: () => ({
@@ -14,9 +15,9 @@ export const Route = createFileRoute("/termos")({
         property: "og:description",
         content: "Termos de uso do ConciergeIA, incluindo assinatura, pagamentos via Paddle e suporte.",
       },
-      { property: "og:url", content: "/termos" },
+      { property: "og:url", content: siteUrl("/termos") },
     ],
-    links: [{ rel: "canonical", href: "/termos" }],
+    links: [{ rel: "canonical", href: siteUrl("/termos") }],
   }),
   component: TermsPage,
 });

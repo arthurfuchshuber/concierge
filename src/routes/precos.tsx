@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { siteUrl } from "@/lib/site-url";
 import { Check, Sparkles, ArrowRight, X } from "lucide-react";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,9 +20,9 @@ export const Route = createFileRoute("/precos")({
       },
       { property: "og:title", content: "Planos ConciergeIA" },
       { property: "og:description", content: "Starter, Pro, Business e Enterprise. 7 dias grátis." },
-      { property: "og:url", content: "/precos" },
+      { property: "og:url", content: siteUrl("/precos") },
     ],
-    links: [{ rel: "canonical", href: "/precos" }],
+    links: [{ rel: "canonical", href: siteUrl("/precos") }],
   }),
   component: PricingPage,
 });
