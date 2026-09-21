@@ -179,6 +179,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
   async function askStreaming(v: {
     text: string;
     imageDataUrl: string | null;
+    attachment: AskAttachment | null;
   }): Promise<AssistantAsk> {
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token;
@@ -192,6 +193,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
         message: v.text,
         currentPath: pathname,
         imageDataUrl: v.imageDataUrl,
+        attachment: v.attachment,
       }),
     });
     if (!res.ok || !res.body) throw new Error("sem-streaming");
