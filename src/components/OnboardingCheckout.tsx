@@ -112,6 +112,7 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
   async function openInlineCheckout(target: PlanKey) {
     if (!user || !docCheck?.ok) return;
     setSelected(target);
+    setCheckoutFailed(false);
     setOpening(true);
     setOpened(true);
     try {
