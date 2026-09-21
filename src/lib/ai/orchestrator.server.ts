@@ -570,12 +570,12 @@ export async function runHospitalityAgent(params: {
       input,
       tools,
       // Esforço e passos vêm da política única das duas IAs (ver
-      // src/lib/ai/reasoning.ts). Antes disso o padrão era "low" em quase toda
-      // conversa e o teto do agente era fixo, o que deixava a resposta rasa
-      // mesmo com o contexto certo em mãos. `agent.maxSteps` continua sendo o
-      // teto do especialista — a política só pede mais espaço quando a
-      // pergunta merece, nunca menos do que o agente já permitia.
-      maxSteps: Math.max(agent.maxSteps, maxStepsFor(effort)),
+      // src/lib/ai/reasoning.ts). `agent.maxSteps` é o TETO do especialista; a
+      // política diz quanto daquele teto a mensagem realmente merece.
+      // 21/09/2026: aqui era `Math.max`, ou seja, toda mensagem — inclusive um
+      // "oi" — nascia com a dúzia de passos liberada, e cada passo é uma
+      // chamada paga. Uma pergunta difícil continua com o teto inteiro.
+      maxSteps: Math.min(agent.maxSteps, maxStepsFor(effort)),
       reasoningEffort: effort,
     });
 
@@ -678,6 +678,22 @@ export async function runHospitalityAgent(params: {
   // anti-alucinação continua rodando em toda resposta.
   const skipReflection = true;
 
+  /**
+   * "Oi, tudo bem?" → "Olá! Tudo ótimo, como posso ajudar?" (21/09/2026)
+   *
+   * Uma resposta puramente social, sem ferramenta nenhuma chamada e sem um
+   * único número, não afirma nada que possa ser conferido contra evidência —
+   * e mesmo assim pagava uma checagem anti-invenção completa, em toda
+   * saudação. Qualquer fato, código, horário, preço ou endereço tem dígito ou
+   * veio de ferramenta: aí a checagem continua obrigatória.
+   */
+  const respostaSocialSimples =
+    intent.category === "social" &&
+    !highRiskContext &&
+    toolsUsed.length === 0 &&
+    reply.length <= 400 &&
+    !/\d/.test(reply);
+
   if (reply && !handoffReason) {
     const [validated, reflected] = await Promise.all([
       validateAnswer({
@@ -688,6 +704,7 @@ export async function runHospitalityAgent(params: {
         policies: context.behavior || undefined,
         history: params.history,
         highRisk: highRiskContext,
+        skip: respostaSocialSimples,
       }),
       reflectOnAnswer({
         question: params.message,
@@ -877,45 +894,67 @@ export async function runHospitalityAgent(params: {
     { role: "user", content: params.message },
     { role: "assistant", content: reply },
   ];
-  void updateGuestMemory({
-    supabase,
-    ownerId,
-    propertyId,
-    guestKey,
-    guestName: params.guestName,
-    language: intent.language,
-    previous: memory,
-    transcript,
-  }).catch(() => undefined);
 
-  // Política de gravação: só o que tem utilidade futura vira memória de longo prazo.
-  void (async () => {
-    try {
-      const { candidates } = await classifyForMemory({
-        message: params.message,
-        answer: reply,
-        category: intent.category,
-        intent: intent.intent,
-        language: intent.language,
-      });
-      if (candidates.length) {
-        rememberEntities(params.conversationId, {
-          ultimo_tema: candidates[0]?.title ?? candidates[0]?.content.slice(0, 80) ?? "",
+  /**
+   * ANÁLISE PÓS-CONVERSA SÓ ONDE HÁ O QUE APRENDER (21/09/2026)
+   *
+   * As duas rotinas abaixo — retrato do hóspede e seleção do que vira memória
+   * de longo prazo — rodavam depois de TODA mensagem, inclusive de um "oi" ou
+   * de um "obrigado". Eram duas chamadas de modelo por turno para concluir,
+   * previsivelmente, que não havia nada a guardar.
+   *
+   * Agora só rodam quando a mensagem tem substância. Escalonamento, urgência e
+   * reclamação passam sempre, independente do tamanho: é exatamente ali que
+   * lembrar do que aconteceu importa.
+   */
+  const conversaComSubstancia =
+    intent.category !== "social" &&
+    (params.message.trim().length >= 12 ||
+      intent.urgency === "high" ||
+      intent.sentiment === "negativo" ||
+      Boolean(handoffReason));
+
+  if (conversaComSubstancia) {
+    void updateGuestMemory({
+      supabase,
+      ownerId,
+      propertyId,
+      guestKey,
+      guestName: params.guestName,
+      language: intent.language,
+      previous: memory,
+      transcript,
+    }).catch(() => undefined);
+
+    // Política de gravação: só o que tem utilidade futura vira memória de longo prazo.
+    void (async () => {
+      try {
+        const { candidates } = await classifyForMemory({
+          message: params.message,
+          answer: reply,
+          category: intent.category,
+          intent: intent.intent,
+          language: intent.language,
         });
-        await writeMemories({
-          supabase,
-          ownerId,
-          propertyId,
-          subjectKey: guestKey,
-          guestName: params.guestName,
-          sourceRef: params.conversationId,
-          candidates,
-        });
+        if (candidates.length) {
+          rememberEntities(params.conversationId, {
+            ultimo_tema: candidates[0]?.title ?? candidates[0]?.content.slice(0, 80) ?? "",
+          });
+          await writeMemories({
+            supabase,
+            ownerId,
+            propertyId,
+            subjectKey: guestKey,
+            guestName: params.guestName,
+            sourceRef: params.conversationId,
+            candidates,
+          });
+        }
+      } catch (err) {
+        console.error("[agent] gravação de memória falhou", err);
       }
-    } catch (err) {
-      console.error("[agent] gravação de memória falhou", err);
-    }
-  })();
+    })();
+  }
 
   // Memória operacional: todo escalonamento vira chamado rastreável.
   if (handoffReason || intent.category === "operacional") {

@@ -18,17 +18,25 @@
  * poder de decisão para reduzir quando achar pertinente")
  *
  * O padrão passa a ser o TOPO ("max"). A redução é a exceção, e só acontece
- * quando a própria mensagem não deixa dúvida de que não há o que pensar:
+ * quando a própria mensagem não deixa dúvida de que não há o que pensar.
  *
- *   · max    — padrão de tudo. Qualquer pergunta, pedido, reclamação, ação.
- *   · xhigh  — pergunta objetiva e curta de um dado só ("que horas é o
- *              checkout?"), onde o topo só adicionaria espera.
- *   · medium — saudação/agradecimento solto ("oi", "obrigado", "ok").
+ * CALIBRAGEM DE CUSTO (21/09/2026 — o app sozinho consumiu 303 chamadas e ~56
+ * créditos num único dia, a maior parte em raciocínio máximo sobre mensagens
+ * que não pediam nada disso)
  *
- * O CUSTO, DITO NA CARA
+ * A escada continua a mesma; o que muda é o degrau de cada tipo de mensagem:
  *
- * Pensar mais custa mais tempo e mais tokens. A escolha aqui é deliberada:
- * o padrão é pagar para pensar; economizar é a exceção justificada.
+ *   · max    — tudo que DECIDE, GRAVA ou JULGA: ação, dinheiro, hóspede,
+ *              cancelamento, comparação, texto longo, várias perguntas, risco.
+ *   · high   — pergunta informativa comum ("como faço para anexar um vídeo?").
+ *   · medium — pergunta objetiva e curta de um dado só ("que horas é o
+ *              checkout?"): o mesmo modelo, a mesma documentação, sem gastar
+ *              milhares de tokens de raciocínio para ler uma linha.
+ *   · low    — saudação/agradecimento solto ("oi", "obrigado", "ok"). Não há
+ *              o que pensar; pensar aqui é só conta.
+ *
+ * O que NUNCA desce: risco, ação, dinheiro e julgamento continuam no topo. A
+ * economia sai das mensagens triviais, não da qualidade das difíceis.
  */
 
 export type ReasoningEffort = "low" | "medium" | "high" | "xhigh" | "max";
@@ -192,7 +200,7 @@ export function reasoningFor(
   // Saudação solta e afins: só quando a mensagem inteira é isso, para "ok, mas
   // por que a limpeza mudou de dia?" não cair aqui por começar com "ok".
   if (words.length <= 3 && TRIVIAL.map(norm).some((k) => bare === k || bare.startsWith(`${k} `))) {
-    return "medium";
+    return "low";
   }
 
   const questions = (message.match(/\?/g) ?? []).length;
@@ -203,7 +211,7 @@ export function reasoningFor(
     words.length <= 8 &&
     message.length <= 80 &&
     FACTUAL_START.some((k) => bare.startsWith(norm(k)));
-  if (factual) return "xhigh";
+  if (factual) return "medium";
   // Julgamento, várias perguntas de uma vez ou um texto longo: é aí que a
   // pessoa realmente escreveu algo que exige pensar.
   if (deep || questions > 1 || message.length > 160) return "max";
@@ -227,5 +235,7 @@ export function reasoningFor(
  */
 export function maxStepsFor(effort: ReasoningEffort): number {
   if (effort === "max" || effort === "xhigh") return 12;
-  return effort === "high" ? 10 : effort === "medium" ? 8 : 5;
+  // Consulta pontual e saudação não precisam de uma dúzia de idas a ferramenta:
+  // cada passo é uma chamada paga a mais sobre a mesma pergunta simples.
+  return effort === "high" ? 10 : effort === "medium" ? 5 : 2;
 }
