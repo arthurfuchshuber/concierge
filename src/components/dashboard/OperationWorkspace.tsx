@@ -4786,7 +4786,7 @@ function CleaningTopProperties({ items, loading }: { items: CleaningBreakdownIte
   const top = (items ?? []).slice(0, 5);
   const maxCount = Math.max(1, ...top.map((i) => i.count));
   return (
-    <div className={`${PANEL_SHELL} w-full px-3.5 py-3.5`}>
+    <div className={`${PANEL_SHELL} h-full w-full px-3.5 py-3.5`}>
       <PanelHeading
         title="Top 5 imóveis"
         dotColor={CLEANING_COUNT_COLOR}
