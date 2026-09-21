@@ -6,6 +6,7 @@
  * arquivo deve chamar o gateway diretamente.
  */
 import { estimateCostUsd, isResponsesModel, modelFor, type AiTask } from "./models";
+import { cached, cacheKeyOf } from "./cache.server";
 
 const BASE = "https://ai.gateway.lovable.dev/v1";
 
