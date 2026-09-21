@@ -52,6 +52,14 @@ import {
 } from "@/components/chat/composer-styles";
 import { toast } from "sonner";
 
+/** Ficha do arquivo que segue com a pergunta (o conteúdo fica no aparelho). */
+type AskAttachment = {
+  name: string;
+  mime: string;
+  sizeBytes: number;
+  kind: "photo" | "video" | "audio" | "file";
+};
+
 /** Blob → base64 puro (sem o cabeçalho data:), que é o que a transcrição espera. */
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
