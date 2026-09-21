@@ -45,10 +45,17 @@ export async function initializePaddle(): Promise<void> {
         window.Paddle.Initialize({
           token: clientToken,
           eventCallback: (data: any) => {
-            // Surface checkout errors for debugging.
-            if (data?.name === "checkout.error" || data?.name === "checkout.warning") {
+            const name = String(data?.name ?? "");
+            if (name === "checkout.error" || name === "checkout.warning") {
               // eslint-disable-next-line no-console
-              console.error("[Paddle event]", data?.name, data);
+              console.error("[Paddle event]", name, data);
+            }
+            for (const cb of checkoutListeners) {
+              try {
+                cb({ name, data });
+              } catch {
+                /* listener não pode derrubar o checkout */
+              }
             }
           },
         });
