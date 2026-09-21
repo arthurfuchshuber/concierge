@@ -792,7 +792,7 @@ export async function buildArrivalRows(
     function reservationInRange(r: ReservationRow): boolean {
       const resCheckinDone = data.kind === "checkin" ? reservationCheckinDone(r) : false;
       if (data.kind === "checkin") {
-        if (belongsToCheckoutStage(r.checkin_date, r.checkout_date, reservationCheckinResolved(r))) return false;
+        if (belongsToCheckoutStage(r.checkin_date, r.checkout_date)) return false;
       }
 
       // Pedido explícito do cliente (04/09/2026): a previsão informada
@@ -908,7 +908,7 @@ export async function buildArrivalRows(
         stayStillOpenForArrival(l.checkout_date ?? null, logCheckoutResolved(l.id));
 
       const logResolved = logDone || logCheckinResolved(l);
-      if (data.kind === "checkin" && belongsToCheckoutStage(l.checkin_date, l.checkout_date ?? null, logResolved)) {
+      if (data.kind === "checkin" && belongsToCheckoutStage(l.checkin_date, l.checkout_date ?? null)) {
 
         return null;
       }
