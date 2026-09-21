@@ -183,6 +183,7 @@ export async function runAssistantTurn(params: {
     userId,
     propertyIds,
     prepared,
+    attachment: data.attachment ?? null,
   });
   // Cada ferramenta avisa antes de rodar: é isso que troca o "pensando…" mudo
   // por "consultando pendências" na tela de quem espera.
