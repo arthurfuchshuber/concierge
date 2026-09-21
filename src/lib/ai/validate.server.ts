@@ -44,12 +44,28 @@ export async function validateAnswer(params: {
   history?: Array<{ role: string; content: string }>;
   /** Falha fechado (nunca aprova às cegas) quando true. Ver nota FAIL-SAFE acima. */
   highRisk?: boolean;
+  /**
+   * Dispensa a checagem para uma resposta que não afirma NADA verificável
+   * (21/09/2026). Quem liga isto é o orquestrador, e só quando a resposta é
+   * puramente social, não chamou ferramenta nenhuma e não contém um único
+   * número — ou seja, não há fato, código, horário, preço ou endereço a
+   * conferir. Qualquer outra resposta continua passando pelo validador.
+   */
+  skip?: boolean;
 }): Promise<{ validation: Validation; usage: Usage; model: string }> {
   const highRisk = params.highRisk === true;
 
   if (!params.answer.trim()) {
     return {
       validation: { approved: false, reason: "resposta vazia", issues: ["empty"], needsHuman: true, confidence: 0 },
+      usage: EMPTY_USAGE,
+      model: "",
+    };
+  }
+
+  if (params.skip === true && !highRisk) {
+    return {
+      validation: { approved: true, reason: "resposta social sem afirmação verificável", issues: [], needsHuman: false, confidence: 0.9 },
       usage: EMPTY_USAGE,
       model: "",
     };
