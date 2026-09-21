@@ -154,6 +154,35 @@ export type AssistantAction =
         /** Obrigatório em `from: "cleaning"` — define o preço gravado. */
         cleaningType: "normal" | "completa" | null;
       };
+    }
+  | {
+      /**
+       * ANEXAR O ARQUIVO DA CONVERSA A UMA RESERVA/LIMPEZA (21/09/2026).
+       *
+       * Pedido explícito: "se um usuário interno mandar um vídeo pedindo para
+       * anexar a alguma reserva ou alguma limpeza feita, ela tem que
+       * conseguir".
+       *
+       * O arquivo NÃO sobe junto da pergunta: ele fica no aparelho enquanto a
+       * IA decide a qual reserva pertence. Quem sobe é a confirmação, pelo
+       * mesmo caminho da tela de registros (`enviarMidia` +
+       * `createRecordSituation`) — então vale o mesmo RLS, a mesma numeração
+       * do registro e a mesma regra de pendência por categoria.
+       *
+       * Isto é registro do sistema: não toca em `property_reservations`, que é
+       * sincronizada com o canal e nunca pode ser reescrita por aqui.
+       */
+      kind: "attach_record_media";
+      payload: {
+        propertyId: string;
+        propertyName: string;
+        logId: string | null;
+        reservationId: string | null;
+        cardMode: "checkin" | "stay" | "checkout" | "cleaning";
+        category: string;
+        title: string | null;
+        description: string | null;
+      };
     };
 
 export type PendingAction = {
