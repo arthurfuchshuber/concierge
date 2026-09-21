@@ -570,12 +570,12 @@ export async function runHospitalityAgent(params: {
       input,
       tools,
       // Esforço e passos vêm da política única das duas IAs (ver
-      // src/lib/ai/reasoning.ts). Antes disso o padrão era "low" em quase toda
-      // conversa e o teto do agente era fixo, o que deixava a resposta rasa
-      // mesmo com o contexto certo em mãos. `agent.maxSteps` continua sendo o
-      // teto do especialista — a política só pede mais espaço quando a
-      // pergunta merece, nunca menos do que o agente já permitia.
-      maxSteps: Math.max(agent.maxSteps, maxStepsFor(effort)),
+      // src/lib/ai/reasoning.ts). `agent.maxSteps` é o TETO do especialista; a
+      // política diz quanto daquele teto a mensagem realmente merece.
+      // 21/09/2026: aqui era `Math.max`, ou seja, toda mensagem — inclusive um
+      // "oi" — nascia com a dúzia de passos liberada, e cada passo é uma
+      // chamada paga. Uma pergunta difícil continua com o teto inteiro.
+      maxSteps: Math.min(agent.maxSteps, maxStepsFor(effort)),
       reasoningEffort: effort,
     });
 
