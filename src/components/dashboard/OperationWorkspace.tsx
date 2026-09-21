@@ -998,16 +998,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     placeholderData: keepPreviousData,
     enabled: authed,
   });
-  // Gráficos da aba Limpeza (pedido explícito): usam o MESMO endpoint acima,
-  // mas com uma janela própria — os cards de estatística mostram "Hoje" por
-  // padrão (número em tempo real), enquanto os gráficos de tendência
-  // precisam de vários dias pra fazer sentido. Sem período customizado, cai
-  // nos últimos 7 dias; com período escolhido, os dois passam a usar
-  // exatamente o mesmo intervalo (mesmo racional do cleaningStatsRange).
-  const cleaningTrendRange = periodRange ?? {
-    start: addDaysISO(todayISOSaoPaulo(), -6) ?? todayISOSaoPaulo(),
-    end: todayISOSaoPaulo(),
-  };
+  // Gráficos da aba Limpeza: MESMA janela dos cards — um número só por
+  // período, nunca um card "hoje" acima de um gráfico de 7 dias.
+  const cleaningTrendRange = cleaningStatsRange;
   const cleaningTrendQ = useQuery({
     queryKey: [
       "dash-cleaning-stats",
