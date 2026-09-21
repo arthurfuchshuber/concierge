@@ -84,6 +84,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
   const predictionFn = useServerFn(upsertArrivalStatus);
   const advanceFn = useServerFn(advanceArrival);
   const transcribeFn = useServerFn(transcribeAssistantAudio);
+  const createRecordSituationFn = useServerFn(createRecordSituation);
 
   const [threadId, setThreadId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
