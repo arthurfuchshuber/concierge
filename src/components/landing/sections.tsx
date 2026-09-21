@@ -276,8 +276,10 @@ export function Hero() {
         <Reveal className="flex flex-col items-center">
           <p className="inline-flex h-[30px] items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 text-[10.5px] font-bold uppercase tracking-[0.18em] text-[#cfc9c2] lg:h-[34px] lg:gap-2.5 lg:px-4 lg:text-[12px] lg:tracking-[0.2em]">
             <span className="size-1.5 rounded-full bg-[#e24fc9]" />
-            <span className="lg:hidden">Sistema para hospedagem</span>
-            <span className="hidden lg:inline">Sistema operacional para hospedagem</span>
+            <span className="lg:hidden">Software SaaS para hospedagem</span>
+            <span className="hidden lg:inline">
+              Software SaaS por assinatura para gestão de hospedagem
+            </span>
           </p>
 
           <h1 className="mt-6 font-display text-[40px] leading-[1.08] font-extrabold tracking-[-0.03em] sm:text-[48px] lg:mt-8 lg:text-[64px] xl:text-[72px] lg:leading-[1.04] lg:tracking-[-0.035em]">
@@ -294,6 +296,12 @@ export function Hero() {
             <span className="font-semibold text-[#f6f3ef] lg:block">
               E você para de apagar incêndio.
             </span>
+          </p>
+
+          <p className="mt-4 max-w-[680px] text-[14px] leading-relaxed text-[#8f8981] lg:text-[15px]">
+            ConciergeIA é uma plataforma de software (SaaS) por assinatura, acessada pelo navegador.
+            Todo o atendimento ao hóspede é feito automaticamente pelo aplicativo, com inteligência
+            artificial — não é um serviço de concierge prestado por pessoas.
           </p>
 
           <div className="mt-8 flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:gap-4 lg:mt-10">
