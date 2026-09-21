@@ -249,7 +249,11 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
   }
 
   const ask = useMutation({
-    mutationFn: async (v: { text: string; imageDataUrl: string | null }) => {
+    mutationFn: async (v: {
+      text: string;
+      imageDataUrl: string | null;
+      attachment: AskAttachment | null;
+    }) => {
       try {
         return await askStreaming(v);
       } catch (err) {
@@ -263,6 +267,7 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
             message: v.text,
             currentPath: pathname,
             imageDataUrl: v.imageDataUrl,
+            attachment: v.attachment,
           },
         });
       } finally {
