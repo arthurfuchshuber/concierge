@@ -705,9 +705,9 @@ const LINKS_PRODUTO = [
 ];
 
 const LINKS_INSTITUCIONAL = [
-  { to: "/privacidade", label: "Privacidade" },
-  { to: "/termos", label: "Termos" },
-  { to: "/reembolso", label: "Reembolso" },
+  { to: "/termos", label: "Termos de Serviço" },
+  { to: "/privacidade", label: "Política de Privacidade" },
+  { to: "/reembolso", label: "Política de Reembolso" },
   { to: "/confianca", label: "Confiança" },
 ] as const;
 
@@ -720,7 +720,8 @@ export function LandingFooter() {
           <div>
             <p className="font-display text-[18px] font-bold">ConciergeIA</p>
             <p className="mt-3 max-w-[320px] text-[14px] leading-relaxed text-[#a9a39b]">
-              O sistema operacional inteligente da sua hospedagem.
+              Software (SaaS) por assinatura para gestão de hospedagem. Atendimento ao hóspede
+              automatizado por inteligência artificial, sem operação manual.
             </p>
           </div>
           <nav className="flex flex-col items-center gap-2.5 text-[14px]">
