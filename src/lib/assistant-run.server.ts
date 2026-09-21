@@ -43,7 +43,18 @@ function instructions(params: {
   knowledge: string;
   currentPath: string | null;
   today: string;
+  attachment: AssistantAskData["attachment"];
 }): string {
+  const TIPO: Record<string, string> = {
+    photo: "foto",
+    video: "vídeo",
+    audio: "áudio",
+    file: "arquivo",
+  };
+  const a = params.attachment;
+  const anexo = a
+    ? `ARQUIVO ANEXADO A ESTA MENSAGEM: ${TIPO[a.kind] ?? "arquivo"} "${a.name}" (${a.mime}, ${(a.sizeBytes / 1_000_000).toFixed(1)} MB). Ele ainda está no aparelho da pessoa e só sobe quando ela confirmar a ação.`
+    : "";
   return [
     "Você é o Assistente do Painel do ConciergeIA — um sistema de gestão de imóveis de aluguel por temporada.",
     "Você atende quem OPERA o sistema: equipe, anfitriões e prestadores (limpeza, manutenção). Nunca hóspedes.",
