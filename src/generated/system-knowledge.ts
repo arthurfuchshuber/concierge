@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-20T17:42:13.563Z";
+export const GENERATED_AT = "2026-09-21T15:35:38.679Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -249,6 +249,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "497a7b770a19055ba45867e8899a2fb1"
   },
   {
+    "doc_key": "rule:ACTION_VERBS",
+    "kind": "rule",
+    "title": "Regra — ACTION_VERBS",
+    "content": "A mensagem manda o sistema FAZER algo? (20/09/2026)\n\nAté aqui o painel marcava TODA mensagem como ação, o que travava o topo do\nraciocínio até em \"como faço para anexar um vídeo?\". Quem decide agora é o\nverbo escrito: pedido de gravação continua no máximo, pergunta não.\n\nSó conta verbo no IMPERATIVO/INFINITIVO de pedido. \"Como eu crio uma\npendência?\" é pergunta — por isso a frase que começa com \"como\", \"o que\",\n\"onde\", \"quando\", \"por que\" ou \"qual\" não é tratada como ação.",
+    "source_path": "src/lib/ai/reasoning.ts",
+    "audience": [],
+    "content_hash": "1fc32c5904de6132878c683f1a0130e2"
+  },
+  {
     "doc_key": "rule:Addr",
     "kind": "rule",
     "title": "Regra — Addr",
@@ -310,6 +319,24 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/permissions/AreaGate.tsx",
     "audience": [],
     "content_hash": "f5a072be47e2e09fbb90667c37bb02ca"
+  },
+  {
+    "doc_key": "rule:askAssistant",
+    "kind": "rule",
+    "title": "Regra — askAssistant",
+    "content": "Caminho SEM streaming (reserva).\n\nO painel normalmente conversa pela rota `/api/assistant-stream`, que mostra a\nresposta enquanto ela é escrita. Quando o streaming não sobe (rede da equipe\noscilando, proxy que segura SSE), o painel cai aqui e recebe a resposta\npronta. É o MESMO turno, o mesmo modelo, as mesmas ferramentas — muda só\nquando a pessoa vê o texto.",
+    "source_path": "src/lib/assistant.functions.ts",
+    "audience": [],
+    "content_hash": "947002c6ffc30a03dc945a61504e230b"
+  },
+  {
+    "doc_key": "rule:askStreaming",
+    "kind": "rule",
+    "title": "Regra — askStreaming",
+    "content": "RESPOSTA EM TEMPO REAL (20/09/2026 — \"está demorando MUITO para responder\").\n\nA pergunta vai para a rota SSE e o painel mostra o que está acontecendo\n(\"consultando pendências\") e o texto conforme ele é escrito, em vez de um\n\"pensando…\" mudo até o fim. Se o streaming não subir, cai na server\nfunction de sempre — mesma resposta, só sem o acompanhamento.",
+    "source_path": "src/components/assistant/AssistantPanel.tsx",
+    "audience": [],
+    "content_hash": "1a8b1fc11d0ed0a65486956483773c63"
   },
   {
     "doc_key": "rule:attachReservationRecord",
@@ -582,6 +609,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "abc6be4b1241f1b198d0c96335e60b46"
   },
   {
+    "doc_key": "rule:CleaningEfficiencyPanel",
+    "kind": "rule",
+    "title": "Regra — CleaningEfficiencyPanel",
+    "content": "\"Eficiência da limpeza\" (pedido explícito, 21/09/2026) — ocupa a metade\ndireita da faixa do Top 5 no desktop e vai ACIMA dele no celular. Tudo é\nderivado das mesmas séries já carregadas (nenhuma consulta nova): custo\nmédio por limpeza, imóveis atendidos, média por dia e o dia de pico.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "b26e4ba9c535591c0af111ba1d088333"
+  },
+  {
     "doc_key": "rule:cleaningForecastListQ",
     "kind": "rule",
     "title": "Regra — cleaningForecastListQ",
@@ -598,6 +634,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
     "content_hash": "28f8194ed1c409eb4bdf7e276a73dfb6"
+  },
+  {
+    "doc_key": "rule:cleaningStatsRange",
+    "kind": "rule",
+    "title": "Regra — cleaningStatsRange",
+    "content": "OS CARDS LEEM EXATAMENTE O MESMO INTERVALO DOS GRÁFICOS (pedido explícito,\n21/09/2026: \"os cards não estão contabilizando corretamente\").\n\nAntes os cards olhavam só o DIA DE HOJE quando não havia período\nescolhido, enquanto os gráficos/ranking já mostravam os últimos 7 dias —\ndaí \"0 limpezas\" em cima de um gráfico com 14. Agora é uma janela só:\nperíodo escolhido, ou os últimos 7 dias.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "e911569df7b53ef14745f9f49c2da44a"
   },
   {
     "doc_key": "rule:ClicksignContractStartConflictDialog",
@@ -841,6 +886,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/contract-fill.server.ts",
     "audience": [],
     "content_hash": "e2e455ccbb86e8a30d5213e6edb5c29c"
+  },
+  {
+    "doc_key": "rule:effort",
+    "kind": "rule",
+    "title": "Regra — effort",
+    "content": "ESFORÇO NA MEDIDA DA PERGUNTA (20/09/2026).\n\nAqui estava fixo `isAction: true`, o que forçava o topo do raciocínio em\nTODA mensagem do painel — inclusive \"como faço para anexar um vídeo?\",\nque levou 90 segundos. Agora quem decide é o que a mensagem escreve: pedido\nde ação, dinheiro, hóspede ou julgamento continuam no máximo; pergunta\ninformativa roda em \"alto\", que responde igual e chega bem antes.",
+    "source_path": "src/lib/assistant-run.server.ts",
+    "audience": [],
+    "content_hash": "30b0a22593e049ab4740323ac7c0205a"
   },
   {
     "doc_key": "rule:enableGuestPush",
@@ -1338,6 +1392,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "44b97639ca10a736f8228bdaa9cada84"
   },
   {
+    "doc_key": "rule:mediaSummary",
+    "kind": "rule",
+    "title": "Regra — mediaSummary",
+    "content": "Resumo honesto do que a situação tem: \"1 vídeo\", \"2 fotos · 1 vídeo\".\nA NOTA DE TEXTO NUNCA conta como mídia (bug 20/09/2026: uma situação com\n1 vídeo + o texto \"Limpeza\" aparecia como \"2 mídias\" e o menu oferecia\n\"Excluir foto 1 / Excluir foto 2\" — nem foto era).",
+    "source_path": "src/components/dashboard/ReservationRecords.tsx",
+    "audience": [],
+    "content_hash": "83bc1983418c411310451061417a0c52"
+  },
+  {
     "doc_key": "rule:MobileTimeline",
     "kind": "rule",
     "title": "Regra — MobileTimeline",
@@ -1788,6 +1851,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "20ddcef6f60560e7ea8f0e5b6257eef1"
   },
   {
+    "doc_key": "rule:RecordEditDialog",
+    "kind": "rule",
+    "title": "Regra — RecordEditDialog",
+    "content": "Editar a situação (decisão 20/09/2026): o menu não fatia mais o registro\n— ou se EDITA (texto + mídias: apagar as que já estão lá e acrescentar\nnovas), ou se EXCLUI o registro inteiro.",
+    "source_path": "src/components/dashboard/ReservationRecords.tsx",
+    "audience": [],
+    "content_hash": "88f59d5955f02d695b5abfa94fe188d5"
+  },
+  {
     "doc_key": "rule:records",
     "kind": "rule",
     "title": "Regra — records",
@@ -2013,6 +2085,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "cc1ee53bc55458f9e9727b4d80fc231d"
   },
   {
+    "doc_key": "rule:sendAppEmail",
+    "kind": "rule",
+    "title": "Regra — sendAppEmail",
+    "content": "Envia um e-mail transacional do app a partir do servidor (sem depender do\nJWT do usuário): renderiza o template registrado e envia pela entrega\ngerenciada do Lovable. Bloqueios (bounce/reclamação/descadastro) são\naplicados no lado do Lovable — não há fila nem lista local.",
+    "source_path": "src/lib/email/send-app-email.server.ts",
+    "audience": [],
+    "content_hash": "0d7775cab875a00c5a630a6c0d125559"
+  },
+  {
     "doc_key": "rule:sendBrandedAccountInvite",
     "kind": "rule",
     "title": "Regra — sendBrandedAccountInvite",
@@ -2139,7 +2220,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1d6019faf67077787112e40ec8da6346"
   },
   {
-    "doc_key": "rule:src/components/assistant/AssistantPanel.tsx:13032",
+    "doc_key": "rule:src/components/assistant/AssistantPanel.tsx:16569",
     "kind": "rule",
     "title": "Regra em AssistantPanel.tsx",
     "content": "Uma chamada só para a lista inteira — não um laço de N chamadas como\nna criação em lote. Ali cada imóvel é uma linha nova e um erro no\nmeio não pode derrubar o que já entrou; aqui é um único `IN (...)`\nsobre linhas que já existem, então o banco resolve de uma vez e o\nresultado é tudo-ou-nada, que é o que se espera de \"apague estas\".",
@@ -2148,7 +2229,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "4fba9ff5bf0bc6d6c1139ad34a9b7f77"
   },
   {
-    "doc_key": "rule:src/components/assistant/AssistantPanel.tsx:23674",
+    "doc_key": "rule:src/components/assistant/AssistantPanel.tsx:27529",
     "kind": "rule",
     "title": "Regra em AssistantPanel.tsx",
     "content": "Uma DECISÃO não é uma fala — e não pode se parecer com uma.\n\n\"Criar em 9 imóveis\" dito pela IA é uma proposta; gravado no histórico é\num fato. Como bolha de conversa os dois ficariam idênticos, e depois de\nmeses ninguém saberia distinguir o que foi sugerido do que foi feito. Por\nisso o registro de execução sai como uma linha própria, com o ✓ na cor de\nconfirmado e a lista do que foi gravado embaixo.",
@@ -2157,7 +2238,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "4ba661e6477dca474d48ff7716a78aaf"
   },
   {
-    "doc_key": "rule:src/components/assistant/AssistantPanel.tsx:4275",
+    "doc_key": "rule:src/components/assistant/AssistantPanel.tsx:4530",
     "kind": "rule",
     "title": "Regra em AssistantPanel.tsx",
     "content": "HISTÓRICO PERMANENTE (pedido explícito, 09/09/2026).\n\nO servidor devolve a última página e diz se existem mensagens anteriores;\n`older` guarda as páginas já buscadas, na ordem certa. Nada é descartado —\no que existe é uma janela que a pessoa vai abrindo para trás.\n\nCarregar tudo de uma vez seria a única maneira de \"mostrar tudo\" que\ntrava o navegador depois de alguns meses de uso.",
@@ -2166,7 +2247,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "94590587e43020d767e9efd1ae3422b1"
   },
   {
-    "doc_key": "rule:src/components/assistant/AssistantPanel.tsx:6272",
+    "doc_key": "rule:src/components/assistant/AssistantPanel.tsx:9809",
     "kind": "rule",
     "title": "Regra em AssistantPanel.tsx",
     "content": "CONFIRMAÇÃO AUTOMÁTICA (pedido explícito, 09/09/2026: \"se o usuário\npedir 'dispense a confirmação', então ela tem que acatar e manter isso\nmemorizado para aquele usuário específico\").\n\nA ação segue exatamente o mesmo caminho de sempre — a mutation\n`confirm`, as mesmas server functions das telas, o mesmo RLS. O que\nmuda é só quem dispara: o clique da pessoa ou esta linha. Por isso a\nautonomia não vira privilégio: se ela não pode gravar aquilo, falha\naqui igual falharia no cartão, com o mesmo erro.\n\n`res.autoConfirm` é lido no servidor DEPOIS do turno, então \"dispense\na confirmação\" já vale para a ação preparada nesta mesma mensagem.",
@@ -2211,7 +2292,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "59823a76849d5b7930747f34a9a3cc3b"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:150040",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:151071",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "A Limpeza tem DUAS janelas na MESMA tela (últimos 7d / próximos 7d) e o\ntítulo precisa dizer qual está no ar (pedido explícito). Só o texto muda;\no resto da página é idêntico.",
@@ -2220,7 +2301,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "df381f0b82c9a345baeae12ba649c01f"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:150274",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:151305",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "AS AÇÕES DA TELA MORAM AQUI (mockup aprovado, 09/09/2026).\n\nAs três telas gastavam uma faixa horizontal inteira só com dois ou três\nbotões, e essa faixa empurrava o conteúdo para baixo justamente onde a\ntela é mais estreita. Encostadas à direita do bloco título+subtítulo elas\nnão custam altura nenhuma — e, de quebra, passam a estar SEMPRE no mesmo\ncanto nas três telas, que é o que faz a mão aprender um lugar só.\n\n`items-center`: alinhadas ao centro do bloco de duas linhas, não ao topo.\nAlinhado ao topo, o botão encosta no título e a dupla fica torta quando o\nsubtítulo quebra.",
@@ -2229,7 +2310,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "9fe3ad8ae446109e5ae90b0e1d1fb01d"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:171380",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:172411",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Destaque visual opt-in (só usado hoje por \"Fila de Limpeza\"): borda +\ngradiente âmbar + acento lateral + ícone em caixinha, sem negrito.\nNão afeta nenhum outro uso do KpiCard (compact ou não).",
@@ -2238,7 +2319,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ec0f34c7bfc0754666d9cc96f2f2a568"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:171615",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:172646",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Cards que devem continuar visíveis no popup mesmo que já não pertençam\nmais à lista — hoje só os que tiveram HORÁRIO/DATA PREVISTOS ajustados.",
@@ -2247,7 +2328,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "4b33a44930f947dea6060da94f816439"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:171807",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:172838",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Pedido explícito: os cards dentro do popup precisam ficar IDÊNTICOS ao\ncard do Kanban — em vez de manter uma segunda implementação (que já\ndivergiu do Kanban antes, ver o bug do bloqueio de check-in), o popup\nagora renderiza o MESMO <ArrivalGroup>/<ArrivalCard> do Kanban, com os\nMESMOS handlers. Vem de arrivalGroupPropsFor(colMode, rows) — a mesma\nfunção que já alimenta as colunas do Kanban.",
@@ -2256,7 +2337,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "dfd7cbf815d96bcf7c9214257a5e2387"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:220879",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:224860",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Rótulo de seção do formulário de pendência — dá hierarquia ao que antes\nera uma pilha de campos do mesmo tamanho (pedido explícito, 07/09/2026).",
@@ -2265,7 +2346,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "56b708e624e12bb9a26b2593234ea4c6"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:230712",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:234693",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Padrão = IMÓVEL, que é o que os dois mockups aprovados mostram selecionado.\nUrgência continua a um toque de distância, e é a escolha certa quando a\npergunta é \"o que eu resolvo agora\" — mas a operação abre esta tela quase\nsempre pensando num imóvel, e agrupada ela cabe muito mais no olho: nove\npendências iguais em nove imóveis viram nove cabeçalhos com uma linha cada,\nem vez de nove linhas repetindo o mesmo título.",
@@ -2274,7 +2355,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "59042beafabc7c04c6cad6bab466aea1"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:301005",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:304986",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Agenda macro: ocupação de todos os imóveis nos próximos dias.\n\nOs filtros de Período/Proprietário/Cidade não vivem mais aqui como\nbotões separados — viraram um botão único (`CalendarFiltersButton`, ao\nlado do título) dentro do cabeçalho deste painel. O ESTADO continua\nvivendo no OperationWorkspace (o pai), porque também precisa afetar os\ncards \"Limpezas Realizadas\"/\"Custo Total Limpeza\" (que são irmãos deste\npainel, na aba \"Limpeza\") — por isso os valores/opções e os callbacks de\nmudança chegam tudo via props. `properties` já chega FILTRADA.",
@@ -2283,7 +2364,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8d33ed005e451cb14ae1e9daf6895ef8"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:304462",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:308443",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Pedido explícito: os filtros (Período/Cidade/Proprietário) que antes\nficavam numa linha própria acima deste card viraram um botão único\n(`CalendarFiltersButton`) dentro do cabeçalho, ao lado do título — por\nisso o estado/opções continuam vindo do pai (`OperationWorkspace`),\nque é quem também usa esses mesmos filtros pros cards de limpeza.",
@@ -2292,7 +2373,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "67345afec21e651284020dbb8b2f7803"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:305227",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:309208",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Quantos dias INTEIROS cabem no quadro com as colunas no tamanho máximo.\nO pai usa isto para buscar exatamente essa quantidade de dias, em vez de\num número fixo — é o que faz o calendário mostrar mais dias quando há\nespaço, sem esticar coluna nenhuma.",
@@ -2301,7 +2382,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "dd2d137dfd7e39a43fdb06189c653167"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:305551",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:309532",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Mobile: exatamente 5 dias inteiros no visor.\nDesktop: o máximo de dias inteiros que couber na largura do quadrante,\nsem nunca cortar a bolinha do último dia.",
@@ -2310,7 +2391,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "bc5ec68f4eb684360832917721f34380"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:306685",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:310666",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "ABERTO NO COMPUTADOR, recolhido no celular (pedido explícito, 18/09/2026:\n\"mantenha o calendário sempre expandido na visão DESKTOP, mas com\npossibilidade de recolher clicando em cima da barra\"). No celular\ncontinua recolhido por padrão — lá ele come a tela inteira.\n\nA decisão é tomada depois de montar, não no estado inicial: ler a largura\nda janela ali quebraria a hidratação, porque no servidor não existe\njanela. Roda uma vez só — quem recolher continua recolhido, e\nredimensionar a janela depois não reabre o quadro sozinho.",
@@ -2319,7 +2400,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "330b51e2134088f3291e2d7d7ff1aec1"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:337309",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:341290",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Dialog de detalhe (quem viu / quem não viu) — extraído do BarRow original\npra poder ser reaproveitado também pelo EngagementCard (cards separados do\ndesktop), sem duplicar esse JSX nos dois lugares.",
@@ -2328,7 +2409,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "191a73d470b9e71e3339a0db344ffb5a"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:346880",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:350861",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Controlado de fora (pela coluna do Kanban) quando presente — permite\nrecolher os \"Detalhes da operação\" ao rolar a coluna. Sem isso, cai de\nvolta pro estado local de sempre.",
@@ -2337,7 +2418,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1420a71a82d71664b9b9257192bc6178"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:352142",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:356123",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Marca este card (Check-ins) como \"Não Compareceu\" — pedido explícito,\n05/09/2026: opção no menu \"⋮\", só nos cards de check-in ainda pendentes.",
@@ -2346,7 +2427,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "b858b5d3155e42847ae34a889b4053e2"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:353142",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:357123",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Modo \"Lista\" (pedido explícito): mostra só proprietário, imóvel e os\n botões de ação (bem menores) — some com nome do hóspede, código,\n período, previsto e alertas de iCal. Reaproveita o mesmo card e os\n mesmos handlers; só a apresentação muda.",
@@ -2364,7 +2445,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "85e771cbd9918de65a04ae399626feb3"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:366789",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:370770",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Lista + Concluídos/Não Compareceu = card mínimo (pedido explícito,\n08/09/2026): \"não deve ser apresentada qualquer info que não seja o nome\ndo proprietário, título do anúncio e botões\".\n\nSão as duas listas de ARQUIVO do quadro. Ali ninguém está operando nada:\nestá procurando um card específico para desfazer ou conferir. Período,\nprevisão, nota e alertas de iCal só alongam a linha e atrasam a busca —\no histórico completo continua a um clique (ver o popup de histórico).\n\nA etiqueta ALERTA é a exceção deliberada, por pedido explícito no mesmo\ndia: ela aparece em todo e qualquer card, inclusive aqui.",
@@ -2373,7 +2454,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1b25cf359cf9c187087b403bc46fefe6"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:367458",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:371439",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "CARD SEMPRE COMPACTO, QUE ABRE NO TOQUE (pedido explícito, 09/09/2026,\nmockup aprovado).\n\nO botão de trocar visualização saiu do sistema. No lugar de uma escolha\nglobal entre \"Completo\" e \"Lista\" — que obrigava a pessoa a decidir de\nantemão, para TODOS os cards, quanta informação queria ver —, cada card\nnasce compacto e abre sozinho quando você toca nele. A escolha deixa de\nser uma configuração e passa a ser um gesto, card a card.\n\n`compact` continua sendo a mesma variável de antes e continua governando o\nmesmo conjunto de detalhes; o que mudou é quem a define. A prop recebida\n(`compactProp`) segue valendo como PADRÃO, e o estado local só a sobrepõe\nquando a pessoa abre aquele card.\n\nO estado NÃO é lembrado entre aberturas da tela: tudo volta compacto.\nLembrar significaria reabrir o quadro com metade dos cards expandidos, o\nque desfaz exatamente o ganho de espaço que motivou a mudança.",
@@ -2382,7 +2463,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "74aa32f170f1ad76a18f288788d2b4cf"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:372161",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:376142",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "HISTÓRICO DA RESERVA (pedido explícito, 08/09/2026).\n\nNa visão Lista, o clique no próprio card abre a jornada completa — é o\ngesto natural quando o card mostra pouca coisa. No modo Completo o card\nestá cheio de controles e um clique global roubaria o clique de todos\neles, então ali o caminho é o item do menu \"⋮\". Os dois abrem exatamente\na mesma tela.\n\nSó identificador real: a chave sintética \"ical:<id>\" não é um uuid de\nlog — nesses cards a reserva é quem identifica a estadia.",
@@ -2391,7 +2472,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "91b0393d11ad3250d65978789bbf0665"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:416679",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:420660",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Restringe de verdade os horários selecionáveis (inclusive) ao horário\n configurado do imóvel — pedido explícito do cliente (04/09/2026): antes\n só existia um aviso visual (âmbar) depois de já ter escolhido um\n horário fora da janela; agora o horário nem aparece como opção. `null`/\n omitido = sem limite (imóvel sem esse horário configurado).",
@@ -2400,7 +2481,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8ebe1ab97a0756cd4e0279b3025812c8"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:419397",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:423378",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Data e horário previstos são dois campos SEPARADOS de novo (pedido\nexplícito, 05/09/2026: \"quero que fiquem separados como antes, porém\nambos no layout padrão dos tooltips\") — cada botão abre seu próprio\ntooltip (só calendário / só horário, cada um com o mesmo visual dos\ntooltips padrão do sistema), não mais um painel único com os dois juntos.\n\nMas por baixo dos panos continua sendo UMA ÚNICA sessão de edição\n(`open`/pendingDate/pendingTime compartilhados): os dois botões só trocam\nQUAL conteúdo aparece dentro do mesmo Popover (ver `openField`), sem abrir\ne fechar de verdade um popover por vez. Isso é o que preserva o ajuste\nanterior (pedido explícito, mesma data): \"não é mover depois de fechar o\ncalendário, é mover depois de fechar o TOOLTIP inteiro\" — se cada campo\ntivesse seu próprio Popover independente, fechar o de Data já confirmaria\ne moveria o card antes do usuário conseguir abrir o de Horário, voltando\nao bug original. Nada é gravado (nem o card se move) enquanto QUALQUER um\ndos dois estiver \"aberto\" — só quando o usuário clica fora dos dois\nbotões (ou aperta \"Concluir\"/Esc) é que a data e o horário pendentes são\nconfirmados juntos, numa única leva.\n\nO piso/teto do horário reage à data QUE ESTÁ SENDO escolhida (ainda não\nconfirmada) — mesma regra de \"dia mudou → sem piso/teto\" do card, só que\ncalculada aqui em cima do valor pendente, senão a lista de horários\nficaria com a janela do dia errado enquanto o usuário ainda decide.",
@@ -2409,7 +2490,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "2b5d3cc828947c9353140290107ef27c"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:46060",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:46135",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Cards \"fixados\" no popup aberto: SÓ ajustes de data/horário previsto\nseguram o card na lista até o usuário fechar o popup no \"X\". Qualquer\noutra ação (check, não compareceu, limpeza não será realizada, desfazer)\ntira o card da tela na hora.",
@@ -2418,7 +2499,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "edce2904f3ccf71032151d09f19ecae0"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:66936",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:67011",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "A tela de Limpeza tem DUAS janelas, e é a MESMA tela nas duas (pedido\nexplícito, 09/09/2026: \"não quero que abra um tooltip ao clicar em\ntendência; quero que a tela seja a mesma da visão oficial, mas que os\ndados sejam mudados para os próximos 7 dias\").\n\nAntes a previsão vivia num popup com layout próprio — outra moldura, outra\ndensidade, outro jeito de ler os mesmos gráficos. Agora só a FONTE dos\ndados muda; cards, gráficos e ranking são os mesmos componentes.",
@@ -3093,6 +3174,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "f08ea5e678e4f981e9e1178a51d3c77d"
   },
   {
+    "doc_key": "rule:src/lib/ai/reasoning.ts:5598",
+    "kind": "rule",
+    "title": "Regra em reasoning.ts",
+    "content": "PERGUNTA INFORMATIVA (20/09/2026 — \"não pode demorar tanto para responder,\nnem para a equipe nem para hóspedes\").\n\n\"Como faço para anexar um vídeo?\" não manda o sistema fazer nada, não\nenvolve dinheiro nem hóspede e não pede julgamento — e estava pensando no\ntopo, 90 segundos. \"high\" é o mesmo modelo, com a mesma documentação na\nmão, respondendo em uma fração do tempo. O topo continua sendo o padrão de\ntudo que DECIDE ou GRAVA algo.",
+    "source_path": "src/lib/ai/reasoning.ts",
+    "audience": [],
+    "content_hash": "7f06c5f1df1281f907657ff66fb49060"
+  },
+  {
     "doc_key": "rule:src/lib/ai/reflection.server.ts:0",
     "kind": "rule",
     "title": "Regra em reflection.server.ts",
@@ -3192,6 +3282,42 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "6d4da53872e2d063d01a89de0ea2c51f"
   },
   {
+    "doc_key": "rule:src/lib/assistant-run.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em assistant-run.server.ts",
+    "content": "O TURNO DO ASSISTENTE DO PAINEL — um lugar só, dois caminhos de entrega.\n\nAté 20/09/2026 toda a lógica morava dentro da server function `askAssistant`,\nque só devolve alguma coisa quando o turno inteiro termina. Numa pergunta\ncomum isso eram 90 segundos de \"pensando…\" com a tela parada — não porque o\nmodelo seja lento, mas porque ninguém via nada até o fim.\n\nAgora o turno vive aqui e aceita um ouvinte (`onEvent`):\n\n · a rota SSE (`/api/assistant-stream`) escuta e repassa etapa por etapa e\n palavra por palavra — é o caminho normal do painel;\n · a server function `askAssistant` chama sem ouvinte e continua devolvendo\n a resposta pronta — é a reserva de quando o streaming não sobe.\n\nAs duas rodam exatamente o mesmo código, com o mesmo cliente do usuário e o\nmesmo RLS. Não existe caminho de escrita paralelo.",
+    "source_path": "src/lib/assistant-run.server.ts",
+    "audience": [],
+    "content_hash": "28ba8945e3d5e51d0ebac3fe3ff8b0f2"
+  },
+  {
+    "doc_key": "rule:src/lib/assistant-run.server.ts:13454",
+    "kind": "rule",
+    "title": "Regra em assistant-run.server.ts",
+    "content": "A preferência é lida DEPOIS do run, de propósito: a própria conversa\npode ter acabado de ligá-la (ver `definir_confirmacao_automatica`). Lida\nantes, o \"dispense a confirmação\" só valeria a partir da mensagem\nseguinte — e a pessoa veria um cartão logo depois de pedir para não ver\nmais cartões.",
+    "source_path": "src/lib/assistant-run.server.ts",
+    "audience": [],
+    "content_hash": "a956ccc996023031055fb65f74677b18"
+  },
+  {
+    "doc_key": "rule:src/lib/assistant-run.shared.ts:0",
+    "kind": "rule",
+    "title": "Regra em assistant-run.shared.ts",
+    "content": "O formato de uma pergunta ao Assistente do Painel.\n\nFica fora do arquivo `.server` porque quem valida é o servidor, mas quem\nmonta o corpo do pedido é a tela — e as duas pontas precisam concordar sem\nque o navegador acabe importando código de servidor.",
+    "source_path": "src/lib/assistant-run.shared.ts",
+    "audience": [],
+    "content_hash": "c8a6305e71cbd0033ef37a77dbea720e"
+  },
+  {
+    "doc_key": "rule:src/lib/assistant-run.shared.ts:579",
+    "kind": "rule",
+    "title": "Regra em assistant-run.shared.ts",
+    "content": "Imagem anexada, como data URL (pedido explícito, 07/09/2026). Vai junto da\npergunta para o modelo olhar — um print da tela costuma explicar melhor\nque qualquer descrição. Não é gravada em lugar nenhum.",
+    "source_path": "src/lib/assistant-run.shared.ts",
+    "audience": [],
+    "content_hash": "b541f55454f57cbfd424fcdc17a0536f"
+  },
+  {
     "doc_key": "rule:src/lib/assistant-types.ts:0",
     "kind": "rule",
     "title": "Regra em assistant-types.ts",
@@ -3262,24 +3388,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/assistant.functions.ts",
     "audience": [],
     "content_hash": "5674b6fa53ea76be36860872abcb06e6"
-  },
-  {
-    "doc_key": "rule:src/lib/assistant.functions.ts:13225",
-    "kind": "rule",
-    "title": "Regra em assistant.functions.ts",
-    "content": "A preferência é lida DEPOIS do run, de propósito: a própria conversa\npode ter acabado de ligá-la (ver `definir_confirmacao_automatica`). Lida\nantes, o \"dispense a confirmação\" só valeria a partir da mensagem\nseguinte — e a pessoa veria um cartão logo depois de pedir para não ver\nmais cartões.",
-    "source_path": "src/lib/assistant.functions.ts",
-    "audience": [],
-    "content_hash": "c26269ecadfeac7f7b283f7a4334219f"
-  },
-  {
-    "doc_key": "rule:src/lib/assistant.functions.ts:1837",
-    "kind": "rule",
-    "title": "Regra em assistant.functions.ts",
-    "content": "Imagem anexada, como data URL (pedido explícito, 07/09/2026). Vai junto da\npergunta para o modelo olhar — um print da tela costuma explicar melhor\nque qualquer descrição. Não é gravada em lugar nenhum: serve a esta\npergunta e acaba ali.",
-    "source_path": "src/lib/assistant.functions.ts",
-    "audience": [],
-    "content_hash": "33dec6642968c2b0f4f777319ad37516"
   },
   {
     "doc_key": "rule:src/lib/audit-fn-labels.server.ts:0",
@@ -3678,7 +3786,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "d4f15feb0a45a65b7b85dc098d3339a8"
   },
   {
-    "doc_key": "rule:src/lib/reservation-records.functions.ts:47096",
+    "doc_key": "rule:src/lib/reservation-records.functions.ts:48647",
     "kind": "rule",
     "title": "Regra em reservation-records.functions.ts",
     "content": "IDENTIDADE DA RESERVA — é por ela que a aba agrupa os registros no filtro\n\"Todos\". Vem de `guide_access_logs` (formulário do hóspede: nome, código\ne as duas datas) e, quando o registro só tem `reservation_id`, do próprio\n`property_reservations` (iCal: só a dica de nome e as datas).\n\n`reservationKey` vazio = registro preso apenas ao imóvel ou a uma\npendência. Esses caem no grupo \"Sem reserva\" — nada some.",
@@ -3687,7 +3795,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "23b7afe5ab85d98754e9b12e37d1bd4a"
   },
   {
-    "doc_key": "rule:src/lib/reservation-records.functions.ts:47706",
+    "doc_key": "rule:src/lib/reservation-records.functions.ts:49257",
     "kind": "rule",
     "title": "Regra em reservation-records.functions.ts",
     "content": "TODAS as mídias da situação, em ordem cronológica — a própria incluída.\nUma situação com quatro fotos é UMA linha na tela com quatro mídias\ndentro, não quatro linhas (ver `createRecordSituation`).",
