@@ -678,6 +678,22 @@ export async function runHospitalityAgent(params: {
   // anti-alucinação continua rodando em toda resposta.
   const skipReflection = true;
 
+  /**
+   * "Oi, tudo bem?" → "Olá! Tudo ótimo, como posso ajudar?" (21/09/2026)
+   *
+   * Uma resposta puramente social, sem ferramenta nenhuma chamada e sem um
+   * único número, não afirma nada que possa ser conferido contra evidência —
+   * e mesmo assim pagava uma checagem anti-invenção completa, em toda
+   * saudação. Qualquer fato, código, horário, preço ou endereço tem dígito ou
+   * veio de ferramenta: aí a checagem continua obrigatória.
+   */
+  const respostaSocialSimples =
+    intent.category === "social" &&
+    !highRiskContext &&
+    toolsUsed.length === 0 &&
+    reply.length <= 400 &&
+    !/\d/.test(reply);
+
   if (reply && !handoffReason) {
     const [validated, reflected] = await Promise.all([
       validateAnswer({
@@ -688,6 +704,7 @@ export async function runHospitalityAgent(params: {
         policies: context.behavior || undefined,
         history: params.history,
         highRisk: highRiskContext,
+        skip: respostaSocialSimples,
       }),
       reflectOnAnswer({
         question: params.message,
