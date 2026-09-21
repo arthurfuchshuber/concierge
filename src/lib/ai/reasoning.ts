@@ -235,5 +235,7 @@ export function reasoningFor(
  */
 export function maxStepsFor(effort: ReasoningEffort): number {
   if (effort === "max" || effort === "xhigh") return 12;
-  return effort === "high" ? 10 : effort === "medium" ? 8 : 5;
+  // Consulta pontual e saudação não precisam de uma dúzia de idas a ferramenta:
+  // cada passo é uma chamada paga a mais sobre a mesma pergunta simples.
+  return effort === "high" ? 10 : effort === "medium" ? 5 : 2;
 }
