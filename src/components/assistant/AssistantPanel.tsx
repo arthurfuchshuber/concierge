@@ -392,6 +392,44 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
   const confirm = useMutation({
     mutationFn: async (p: PendingAction) => {
       const a = p.action;
+      if (a.kind === "attach_record_media") {
+        /**
+         * O arquivo sobe AGORA, não na pergunta: mesma sequência da tela de
+         * registros — primeiro o storage, depois a linha. Falhando o envio,
+         * nada é gravado e a mensagem de erro é a mesma que a equipe vê no
+         * celular.
+         */
+        const file = sentFileRef.current;
+        if (!file) {
+          throw new Error("O arquivo não está mais aqui. Anexe de novo e peça outra vez.");
+        }
+        const mime = file.type || "application/octet-stream";
+        const kind = inferKind(mime);
+        const pasta = a.payload.logId ?? a.payload.reservationId ?? "avulso";
+        const path = `${a.payload.propertyId}/${pasta}/${crypto.randomUUID()}.${extFor(kind, mime)}`;
+        const envio = await enviarMidia({
+          bucket: "reservation-records",
+          path,
+          blob: file,
+          contentType: mime,
+        });
+        if (!envio.ok) throw new Error(envio.mensagem ?? "Não consegui enviar o arquivo.");
+
+        await createRecordSituationFn({
+          data: {
+            propertyId: a.payload.propertyId,
+            logId: a.payload.logId ?? undefined,
+            reservationId: a.payload.reservationId ?? undefined,
+            cardMode: a.payload.cardMode,
+            category: a.payload.category,
+            title: a.payload.title,
+            description: a.payload.description,
+            media: [{ path, kind, mime, sizeBytes: file.size }],
+          },
+        } as never);
+        sentFileRef.current = null;
+        return;
+      }
       if (a.kind === "create_task") {
         await createTaskFn({
           data: {
