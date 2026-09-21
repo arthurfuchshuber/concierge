@@ -4827,6 +4827,83 @@ function CleaningTopProperties({ items, loading }: { items: CleaningBreakdownIte
 }
 
 /**
+ * "Eficiência da limpeza" (pedido explícito, 21/09/2026) — ocupa a metade
+ * direita da faixa do Top 5 no desktop e vai ACIMA dele no celular. Tudo é
+ * derivado das mesmas séries já carregadas (nenhuma consulta nova): custo
+ * médio por limpeza, imóveis atendidos, média por dia e o dia de pico.
+ */
+function CleaningEfficiencyPanel({
+  daily,
+  items,
+  loading,
+  forecast,
+}: {
+  daily: CleaningDailyPoint[] | undefined;
+  items: CleaningBreakdownItem[] | undefined;
+  loading: boolean;
+  forecast?: boolean;
+}) {
+  const series = daily ?? [];
+  const breakdown = items ?? [];
+  const totalCount = series.reduce((s, d) => s + d.count, 0);
+  const totalCents = series.reduce((s, d) => s + d.totalCents, 0);
+  const avgCents = totalCount > 0 ? Math.round(totalCents / totalCount) : 0;
+  const days = series.length || 1;
+  const avgPerDay = totalCount / days;
+  const peak = series.reduce<CleaningDailyPoint | null>((best, d) => (!best || d.count > best.count ? d : best), null);
+
+  const cells: { label: string; value: string; hint: string }[] = [
+    {
+      label: forecast ? "Custo médio estimado" : "Custo médio por limpeza",
+      value: centsToBRLShort(avgCents),
+      hint: totalCount > 0 ? `${totalCount} limpeza${totalCount === 1 ? "" : "s"} no período` : "sem limpezas",
+    },
+    {
+      label: "Imóveis atendidos",
+      value: String(breakdown.length),
+      hint: breakdown.length > 0 ? `${(totalCount / breakdown.length).toFixed(1)} por imóvel` : "sem imóveis",
+    },
+    {
+      label: "Média por dia",
+      value: avgPerDay.toFixed(1),
+      hint: `em ${days} dia${days === 1 ? "" : "s"}`,
+    },
+    {
+      label: "Dia de pico",
+      value: peak && peak.count > 0 ? fmtDateBR(peak.date) : "—",
+      hint: peak && peak.count > 0 ? `${peak.count} limpeza${peak.count === 1 ? "" : "s"}` : "sem movimento",
+    },
+  ];
+
+  return (
+    <div className={`${PANEL_SHELL} h-full w-full px-3.5 py-3.5`}>
+      <PanelHeading
+        title="Eficiência da limpeza"
+        dotColor={CLEANING_COST_COLOR}
+        className="mb-2.5"
+        right={<span className="text-[10px] text-muted-foreground">{forecast ? "previsto" : "no período"}</span>}
+      />
+      {loading ? (
+        <div className="py-6 grid place-items-center text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          {cells.map((c) => (
+            <div key={c.label} className="min-w-0 rounded-[0.7rem] border border-border/60 bg-muted/20 px-3 py-2.5">
+              <div className="truncate text-[9.5px] uppercase tracking-wide text-muted-foreground">{c.label}</div>
+              <div className="mt-1 truncate text-[17px] font-semibold tabular-nums text-foreground">{c.value}</div>
+              <div className="truncate text-[10px] text-muted-foreground">{c.hint}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+/**
  * Conclusão de pendência com prestação de contas (pedido explícito,
  * 07/09/2026): quem resolveu, quanto custou e a comprovação. Os três são
  * OPCIONAIS — o botão "Concluir" funciona com tudo em branco, que é o
