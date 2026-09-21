@@ -21,6 +21,14 @@ import { defaultShowInCleaning, type TaskCategory, type TaskPriority } from "@/l
 
 type AnyClient = { from: (t: string) => any };
 
+export type AssistantAttachment = {
+  name: string;
+  mime: string;
+  sizeBytes: number;
+  kind: "photo" | "video" | "audio" | "file";
+  durationMs?: number | null;
+};
+
 export type AssistantToolContext = {
   supabase: SupabaseClient;
   userId: string;
@@ -28,6 +36,12 @@ export type AssistantToolContext = {
   propertyIds: string[];
   /** Preenchido pela ferramenta de preparação; lido depois pelo chamador. */
   prepared: { current: PendingAction | null };
+  /**
+   * Ficha do arquivo que veio junto da pergunta (21/09/2026). O conteúdo
+   * continua no aparelho: só sobe na confirmação, pelo mesmo caminho da tela
+   * de registros. Aqui basta saber que existe e o que é.
+   */
+  attachment?: AssistantAttachment | null;
 };
 
 /** JSON Schema estrito, como a Responses API exige. */
