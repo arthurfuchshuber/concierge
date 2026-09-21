@@ -718,22 +718,33 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
         }}
         className="shrink-0 border-t border-border bg-surface px-3 py-2"
       >
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={onPickImage}
-        />
+        <input ref={fileRef} type="file" className="hidden" onChange={onPickImage} />
 
         {image && (
           <div className="mb-2 flex items-center gap-2 rounded-lg border border-border bg-card px-2 py-1.5">
-            <img src={image.dataUrl} alt="" className="size-8 shrink-0 rounded object-cover" />
-            <span className="min-w-0 flex-1 truncate text-[11.5px]">{image.name}</span>
+            {image.dataUrl ? (
+              <img src={image.dataUrl} alt="" className="size-8 shrink-0 rounded object-cover" />
+            ) : (
+              <span className="grid size-8 shrink-0 place-items-center rounded bg-muted text-[10px] font-semibold uppercase text-muted-foreground">
+                {image.kind === "video"
+                  ? "Vid"
+                  : image.kind === "audio"
+                    ? "Áud"
+                    : image.kind === "photo"
+                      ? "Foto"
+                      : "Arq"}
+              </span>
+            )}
+            <span className="min-w-0 flex-1 truncate text-[11.5px]">
+              {image.name}
+              <span className="ml-1 text-muted-foreground">
+                {(image.sizeBytes / 1_000_000).toFixed(1)} MB
+              </span>
+            </span>
             <button
               type="button"
               onClick={() => setImage(null)}
-              aria-label="Remover imagem"
+              aria-label="Remover arquivo"
               className="grid size-6 shrink-0 place-items-center rounded text-muted-foreground hover:text-destructive"
             >
               <X className="size-3.5" />
@@ -748,8 +759,8 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={busy}
-            aria-label="Anexar imagem"
-            title="Anexar uma foto ou print"
+            aria-label="Anexar arquivo"
+            title="Anexar foto, vídeo, áudio ou documento"
             className={COMPOSER_ICON_BTN}
           >
             <Paperclip className="size-4" />
