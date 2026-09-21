@@ -894,45 +894,67 @@ export async function runHospitalityAgent(params: {
     { role: "user", content: params.message },
     { role: "assistant", content: reply },
   ];
-  void updateGuestMemory({
-    supabase,
-    ownerId,
-    propertyId,
-    guestKey,
-    guestName: params.guestName,
-    language: intent.language,
-    previous: memory,
-    transcript,
-  }).catch(() => undefined);
 
-  // Política de gravação: só o que tem utilidade futura vira memória de longo prazo.
-  void (async () => {
-    try {
-      const { candidates } = await classifyForMemory({
-        message: params.message,
-        answer: reply,
-        category: intent.category,
-        intent: intent.intent,
-        language: intent.language,
-      });
-      if (candidates.length) {
-        rememberEntities(params.conversationId, {
-          ultimo_tema: candidates[0]?.title ?? candidates[0]?.content.slice(0, 80) ?? "",
+  /**
+   * ANÁLISE PÓS-CONVERSA SÓ ONDE HÁ O QUE APRENDER (21/09/2026)
+   *
+   * As duas rotinas abaixo — retrato do hóspede e seleção do que vira memória
+   * de longo prazo — rodavam depois de TODA mensagem, inclusive de um "oi" ou
+   * de um "obrigado". Eram duas chamadas de modelo por turno para concluir,
+   * previsivelmente, que não havia nada a guardar.
+   *
+   * Agora só rodam quando a mensagem tem substância. Escalonamento, urgência e
+   * reclamação passam sempre, independente do tamanho: é exatamente ali que
+   * lembrar do que aconteceu importa.
+   */
+  const conversaComSubstancia =
+    intent.category !== "social" &&
+    (params.message.trim().length >= 12 ||
+      intent.urgency === "high" ||
+      intent.sentiment === "negativo" ||
+      Boolean(handoffReason));
+
+  if (conversaComSubstancia) {
+    void updateGuestMemory({
+      supabase,
+      ownerId,
+      propertyId,
+      guestKey,
+      guestName: params.guestName,
+      language: intent.language,
+      previous: memory,
+      transcript,
+    }).catch(() => undefined);
+
+    // Política de gravação: só o que tem utilidade futura vira memória de longo prazo.
+    void (async () => {
+      try {
+        const { candidates } = await classifyForMemory({
+          message: params.message,
+          answer: reply,
+          category: intent.category,
+          intent: intent.intent,
+          language: intent.language,
         });
-        await writeMemories({
-          supabase,
-          ownerId,
-          propertyId,
-          subjectKey: guestKey,
-          guestName: params.guestName,
-          sourceRef: params.conversationId,
-          candidates,
-        });
+        if (candidates.length) {
+          rememberEntities(params.conversationId, {
+            ultimo_tema: candidates[0]?.title ?? candidates[0]?.content.slice(0, 80) ?? "",
+          });
+          await writeMemories({
+            supabase,
+            ownerId,
+            propertyId,
+            subjectKey: guestKey,
+            guestName: params.guestName,
+            sourceRef: params.conversationId,
+            candidates,
+          });
+        }
+      } catch (err) {
+        console.error("[agent] gravação de memória falhou", err);
       }
-    } catch (err) {
-      console.error("[agent] gravação de memória falhou", err);
-    }
-  })();
+    })();
+  }
 
   // Memória operacional: todo escalonamento vira chamado rastreável.
   if (handoffReason || intent.category === "operacional") {
