@@ -102,6 +102,7 @@ function instructions(params: {
     "",
     `Hoje é ${params.today}.`,
     params.currentPath ? `A pessoa está agora na tela: ${params.currentPath}` : "",
+    anexo,
     "",
     "DOCUMENTAÇÃO DO SISTEMA (recuperada para esta pergunta)",
     params.knowledge,
