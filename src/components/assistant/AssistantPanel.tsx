@@ -94,9 +94,24 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
   const [doneActions, setDoneActions] = useState<Set<string>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  // Imagem anexada à PRÓXIMA pergunta. Vive só até o envio: não é
-  // guardada em lugar nenhum, serve para o modelo olhar e acaba ali.
-  const [image, setImage] = useState<{ dataUrl: string; name: string } | null>(null);
+  /**
+   * ARQUIVO ANEXADO À PRÓXIMA PERGUNTA (21/09/2026).
+   *
+   * Aceita qualquer tipo. Imagem também vira data URL, para o modelo olhar o
+   * print. Os outros (vídeo, áudio, documento) seguem só como ficha — o
+   * conteúdo fica aqui no aparelho e só sobe se a pessoa confirmar o anexo a
+   * uma estadia, pelo mesmo caminho da tela de registros.
+   */
+  const [image, setImage] = useState<{
+    file: File;
+    dataUrl: string | null;
+    name: string;
+    mime: string;
+    sizeBytes: number;
+    kind: "photo" | "video" | "audio" | "file";
+  } | null>(null);
+  /** O último arquivo enviado na conversa — é ele que sobe na confirmação. */
+  const sentFileRef = useRef<File | null>(null);
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   /** O que o servidor está fazendo agora e o texto que já foi escrito. */
