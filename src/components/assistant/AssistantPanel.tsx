@@ -313,12 +313,15 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
     setDraft("");
     setImage(null);
     setPending(null);
+    // O arquivo continua guardado aqui depois do envio: é ele que sobe se a
+    // pessoa confirmar o anexo à estadia.
+    sentFileRef.current = attached?.file ?? sentFileRef.current;
     setLive((prev) => [
       ...prev,
       {
         id: crypto.randomUUID(),
-        // Marca a imagem na própria bolha: sem isso, a pessoa manda um print e
-        // a conversa não guarda sinal nenhum de que ele foi junto.
+        // Marca o arquivo na própria bolha: sem isso, a pessoa manda um print
+        // e a conversa não guarda sinal nenhum de que ele foi junto.
         content: attached ? `${clean}\n\n📎 ${attached.name}` : clean,
         role: "user",
         createdAt: new Date().toISOString(),
@@ -326,26 +329,44 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
         pendingAction: null,
       },
     ]);
-    ask.mutate({ text: clean, imageDataUrl: attached?.dataUrl ?? null });
+    ask.mutate({
+      text: clean,
+      imageDataUrl: attached?.dataUrl ?? null,
+      attachment: attached
+        ? {
+            name: attached.name,
+            mime: attached.mime,
+            sizeBytes: attached.sizeBytes,
+            kind: attached.kind,
+          }
+        : null,
+    });
   }
 
   function onPickImage(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Por enquanto eu consigo olhar imagens — uma foto ou um print da tela.");
+    // `||` e não `??`: alguns Android entregam o arquivo da câmera com tipo
+    // vazio, e string vazia passa pelo nulo-coalescente.
+    const mime = file.type || "application/octet-stream";
+    const kind = inferKind(mime);
+    // 300 MB é o teto do envio de mídia da tela de registros.
+    if (file.size > 300_000_000) {
+      toast.error("Arquivo muito grande. O limite é 300 MB.");
       return;
     }
-    // 6 MB: acima disso o data URL passa do limite aceito pela server function.
-    if (file.size > 6_000_000) {
-      toast.error("Imagem muito grande. Tente uma menor que 6 MB.");
+    const base = { file, name: file.name, mime, sizeBytes: file.size, kind };
+    // Só imagem vira data URL (e só até 6 MB): é o que o modelo consegue
+    // olhar. Vídeo, áudio e documento seguem como ficha e sobem depois.
+    if (kind === "photo" && file.size <= 6_000_000) {
+      const reader = new FileReader();
+      reader.onload = () => setImage({ ...base, dataUrl: String(reader.result) });
+      reader.onerror = () => toast.error("Não consegui ler esse arquivo.");
+      reader.readAsDataURL(file);
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => setImage({ dataUrl: String(reader.result), name: file.name });
-    reader.onerror = () => toast.error("Não consegui ler esse arquivo.");
-    reader.readAsDataURL(file);
+    setImage({ ...base, dataUrl: null });
   }
 
   /**
