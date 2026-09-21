@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { siteUrl } from "@/lib/site-url";
 
 export const Route = createFileRoute("/reembolso")({
   head: () => ({
@@ -14,9 +15,9 @@ export const Route = createFileRoute("/reembolso")({
         property: "og:description",
         content: "Garantia de 30 dias e instruções para solicitar reembolso ou cancelar a assinatura ConciergeIA.",
       },
-      { property: "og:url", content: "/reembolso" },
+      { property: "og:url", content: siteUrl("/reembolso") },
     ],
-    links: [{ rel: "canonical", href: "/reembolso" }],
+    links: [{ rel: "canonical", href: siteUrl("/reembolso") }],
   }),
   component: RefundPage,
 });

@@ -757,7 +757,7 @@ export function LandingFooter() {
         {/* Celular: tudo centralizado */}
         <div className="flex flex-col items-center gap-6 text-center lg:hidden">
           <p className="font-display text-[18px] font-bold">ConciergeIA</p>
-          <nav className="grid grid-cols-2 gap-x-8 gap-y-3 text-[14px]">
+          <nav className="grid w-full grid-cols-1 gap-y-3 text-[14px]">
             {LINKS_INSTITUCIONAL.map((l) => (
               <Link key={l.to} to={l.to} className="text-[#a9a39b]">
                 {l.label}

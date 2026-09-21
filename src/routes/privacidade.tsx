@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { siteUrl } from "@/lib/site-url";
 
 export const Route = createFileRoute("/privacidade")({
   head: () => ({
@@ -14,9 +15,9 @@ export const Route = createFileRoute("/privacidade")({
         content:
           "Práticas de coleta, uso, compartilhamento, retenção e direitos sobre dados pessoais no ConciergeIA (LGPD).",
       },
-      { property: "og:url", content: "/privacidade" },
+      { property: "og:url", content: siteUrl("/privacidade") },
     ],
-    links: [{ rel: "canonical", href: "/privacidade" }],
+    links: [{ rel: "canonical", href: siteUrl("/privacidade") }],
   }),
   component: PrivacyPage,
 });
