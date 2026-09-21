@@ -907,7 +907,6 @@ export async function buildArrivalRows(
         withinOverdueWindow(l.checkin_date) &&
         stayStillOpenForArrival(l.checkout_date ?? null, logCheckoutResolved(l.id));
 
-      const logResolved = logDone || logCheckinResolved(l);
       if (data.kind === "checkin" && belongsToCheckoutStage(l.checkin_date, l.checkout_date ?? null)) {
 
         return null;
