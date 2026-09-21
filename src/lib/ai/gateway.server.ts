@@ -208,9 +208,19 @@ export async function embedTexts(texts: string[]): Promise<{ vectors: number[][]
   return { vectors, usage };
 }
 
+/** Validade do embedding em cache: a mesma frase gera sempre o mesmo vetor. */
+const EMBED_CACHE_TTL_MS = 30 * 60 * 1000;
+
 export async function embedOne(text: string): Promise<{ vector: number[] | null; usage: Usage }> {
-  const { vectors, usage } = await embedTexts([text]);
-  return { vector: vectors[0] ?? null, usage };
+  // Perguntas frequentes chegam repetidas palavra por palavra de hóspedes
+  // diferentes. O vetor de uma frase é determinístico — recalcular é pagar de
+  // novo pelo mesmo resultado. O custo só é contabilizado na primeira vez.
+  const key = `embed:${cacheKeyOf(text)}`;
+  const vector = await cached(key, EMBED_CACHE_TTL_MS, async () => {
+    const { vectors } = await embedTexts([text]);
+    return vectors[0] ?? null;
+  });
+  return { vector, usage: EMPTY_USAGE };
 }
 
 // ───────────────────────── Responses API (modelos OpenAI, com tool calling) ─────────────────────────
