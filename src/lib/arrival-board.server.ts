@@ -767,21 +767,13 @@ export async function buildArrivalRows(
       return [primary, ...extras].some((l) => logCheckinDone(l?.id));
     }
 
-    // Regra da esteira: uma reserva só pode aparecer em UM estágio — EXCETO
-    // quando a chegada nunca foi confirmada (pedido explícito, 19/09/2026):
-    // nesse caso o card FICA em Chegadas como atrasado até o anfitrião
-    // confirmar (ou marcar "não compareceu"), e mesmo assim continua sendo
-    // mostrado em Saídas (amanhã / pendentes de hoje, conforme a data real),
-    // porque a saída daquele dia precisa existir no painel de qualquer forma.
-    // Antes, ao virar a meia-noite do dia da saída, a chegada pendente
-    // simplesmente sumia da tela sem ninguém ter confirmado nada.
-    function belongsToCheckoutStage(
-      checkinDate: string,
-      checkoutDate: string | null,
-      checkinResolved: boolean,
-    ): boolean {
+    // Regra da esteira (pedido explícito 20/09/2026): uma reserva só aparece
+    // em UM estágio. Chegou o dia da saída, a reserva é assunto de SAÍDA —
+    // tenha a chegada sido confirmada ou não. Sem essa regra, a chegada não
+    // confirmada ficava eternamente em "Atrasados" com o botão travado pela
+    // saída em aberto.
+    function belongsToCheckoutStage(checkinDate: string, checkoutDate: string | null): boolean {
       if (!checkoutDate) return false;
-      if (!checkinResolved) return false;
       return checkinDate <= today && checkoutDate <= today;
     }
 
