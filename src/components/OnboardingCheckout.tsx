@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, CreditCard, Loader2, ShieldCheck, Sparkles, ArrowLeft, BadgeCheck } from "lucide-react";
+import { Check, CreditCard, Loader2, ShieldCheck, Sparkles, ArrowLeft, BadgeCheck, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePaddleCheckout } from "@/hooks/usePaddleCheckout";
+import { onPaddleCheckoutEvent } from "@/lib/paddle";
 import { PLANS, type PlanKey } from "@/lib/payments.functions";
 import { formatCPF, formatCNPJ, onlyDigits } from "@/lib/masks";
 import { validateTaxId, type TaxIdCheck } from "@/lib/tax-id.functions";
