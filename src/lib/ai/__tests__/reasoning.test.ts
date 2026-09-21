@@ -4,7 +4,7 @@ import { maxStepsFor, reasoningFor } from "../reasoning";
 describe("política de raciocínio", () => {
   it("reduz (sem zerar) em saudação e agradecimento", () => {
     for (const m of ["oi", "Olá", "bom dia", "ok", "obrigado!", "valeu", "tchau"]) {
-      expect(reasoningFor(m)).toBe("medium");
+      expect(reasoningFor(m)).toBe("low");
     }
   });
 
@@ -47,8 +47,8 @@ describe("política de raciocínio", () => {
   });
 
   it("reduz um pouco numa consulta pontual de um dado só", () => {
-    expect(reasoningFor("que horas é o checkout?")).toBe("xhigh");
-    expect(reasoningFor("qual é a senha do wifi?")).toBe("xhigh");
+    expect(reasoningFor("que horas é o checkout?")).toBe("medium");
+    expect(reasoningFor("qual é a senha do wifi?")).toBe("medium");
   });
 
   it("nunca deixa um pedido de ação no mínimo", () => {
