@@ -200,7 +200,7 @@ export function reasoningFor(
   // Saudação solta e afins: só quando a mensagem inteira é isso, para "ok, mas
   // por que a limpeza mudou de dia?" não cair aqui por começar com "ok".
   if (words.length <= 3 && TRIVIAL.map(norm).some((k) => bare === k || bare.startsWith(`${k} `))) {
-    return "medium";
+    return "low";
   }
 
   const questions = (message.match(/\?/g) ?? []).length;
@@ -211,7 +211,7 @@ export function reasoningFor(
     words.length <= 8 &&
     message.length <= 80 &&
     FACTUAL_START.some((k) => bare.startsWith(norm(k)));
-  if (factual) return "xhigh";
+  if (factual) return "medium";
   // Julgamento, várias perguntas de uma vez ou um texto longo: é aí que a
   // pessoa realmente escreveu algo que exige pensar.
   if (deep || questions > 1 || message.length > 160) return "max";
