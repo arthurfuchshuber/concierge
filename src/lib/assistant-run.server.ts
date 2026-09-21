@@ -216,6 +216,7 @@ export async function runAssistantTurn(params: {
       knowledge: renderSystemDocs(knowledge.docs),
       currentPath: data.currentPath ?? null,
       today,
+      attachment: data.attachment ?? null,
     }),
     input: [
       ...past.map((m) => ({ type: "message", role: m.role, content: m.content })),
