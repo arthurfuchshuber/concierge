@@ -36,6 +36,9 @@ import {
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
 import { createTask, deleteTasks, setTaskStatus, setTasksStatusBulk } from "@/lib/tasks.functions";
 import { advanceArrival, markNoShow, upsertArrivalStatus } from "@/lib/dashboard.functions";
+import { createRecordSituation } from "@/lib/reservation-records.functions";
+import { extFor, inferKind } from "@/components/dashboard/record-draft";
+import { enviarMidia } from "@/lib/media-upload";
 import type { AssistantAsk, AssistantMessage, PendingAction } from "@/lib/assistant-types";
 import { supabase } from "@/integrations/supabase/client";
 import { AiMarkdown } from "@/components/ai/AiMarkdown";
