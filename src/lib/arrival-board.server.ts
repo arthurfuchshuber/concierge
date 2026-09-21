@@ -728,19 +728,19 @@ export async function buildArrivalRows(
       return checkinDate >= addDaysISO(today, -OVERDUE_WINDOW_DAYS);
     }
 
-    // RACIONAL DA ESTEIRA (pedido explícito 19/09/2026) — uma chegada sem
+    // RACIONAL DA ESTEIRA (pedido explícito 20/09/2026) — uma chegada sem
     // confirmação só fica em "Atrasados" ENQUANTO a estadia ainda está viva:
     //   1. a saída daquela estadia ainda não foi encerrada (nem manualmente,
     //      nem pelo checkout automático), E
-    //   2. o dia da saída ainda não passou (o checkout automático atua no
-    //      próprio dia previsto — depois dele não existe mais chegada a fazer).
-    // Quando qualquer uma das duas condições cai, o card SAI de Atrasados sem
-    // o sistema decidir nada sobre o hóspede (não marca "compareceu" nem
-    // "não compareceu") — vira histórico. Isso evita o card morto: chegada
-    // eternamente atrasada com o botão travado porque a saída já foi dada.
+    //   2. o dia da saída AINDA NÃO CHEGOU. Chegou o dia da saída sem ninguém
+    //      ter confirmado a chegada? A reserva deixa de ser assunto de
+    //      "Check-ins" e passa a ser assunto de "Checkouts pendentes" — é lá
+    //      que a ação real acontece a partir daquele dia.
+    // Assim o card nunca fica preso em Atrasados com o botão travado por causa
+    // da saída, e nunca some da tela: ele só muda de coluna.
     function stayStillOpenForArrival(checkoutDate: string | null, checkoutResolved: boolean): boolean {
       if (checkoutResolved) return false;
-      if (checkoutDate && checkoutDate < today) return false;
+      if (checkoutDate && checkoutDate <= today) return false;
       return true;
     }
     function logCheckoutResolved(logId: string | null | undefined): boolean {
@@ -767,21 +767,13 @@ export async function buildArrivalRows(
       return [primary, ...extras].some((l) => logCheckinDone(l?.id));
     }
 
-    // Regra da esteira: uma reserva só pode aparecer em UM estágio — EXCETO
-    // quando a chegada nunca foi confirmada (pedido explícito, 19/09/2026):
-    // nesse caso o card FICA em Chegadas como atrasado até o anfitrião
-    // confirmar (ou marcar "não compareceu"), e mesmo assim continua sendo
-    // mostrado em Saídas (amanhã / pendentes de hoje, conforme a data real),
-    // porque a saída daquele dia precisa existir no painel de qualquer forma.
-    // Antes, ao virar a meia-noite do dia da saída, a chegada pendente
-    // simplesmente sumia da tela sem ninguém ter confirmado nada.
-    function belongsToCheckoutStage(
-      checkinDate: string,
-      checkoutDate: string | null,
-      checkinResolved: boolean,
-    ): boolean {
+    // Regra da esteira (pedido explícito 20/09/2026): uma reserva só aparece
+    // em UM estágio. Chegou o dia da saída, a reserva é assunto de SAÍDA —
+    // tenha a chegada sido confirmada ou não. Sem essa regra, a chegada não
+    // confirmada ficava eternamente em "Atrasados" com o botão travado pela
+    // saída em aberto.
+    function belongsToCheckoutStage(checkinDate: string, checkoutDate: string | null): boolean {
       if (!checkoutDate) return false;
-      if (!checkinResolved) return false;
       return checkinDate <= today && checkoutDate <= today;
     }
 
@@ -800,7 +792,7 @@ export async function buildArrivalRows(
     function reservationInRange(r: ReservationRow): boolean {
       const resCheckinDone = data.kind === "checkin" ? reservationCheckinDone(r) : false;
       if (data.kind === "checkin") {
-        if (belongsToCheckoutStage(r.checkin_date, r.checkout_date, reservationCheckinResolved(r))) return false;
+        if (belongsToCheckoutStage(r.checkin_date, r.checkout_date)) return false;
       }
 
       // Pedido explícito do cliente (04/09/2026): a previsão informada
@@ -915,8 +907,7 @@ export async function buildArrivalRows(
         withinOverdueWindow(l.checkin_date) &&
         stayStillOpenForArrival(l.checkout_date ?? null, logCheckoutResolved(l.id));
 
-      const logResolved = logDone || logCheckinResolved(l);
-      if (data.kind === "checkin" && belongsToCheckoutStage(l.checkin_date, l.checkout_date ?? null, logResolved)) {
+      if (data.kind === "checkin" && belongsToCheckoutStage(l.checkin_date, l.checkout_date ?? null)) {
 
         return null;
       }
