@@ -2857,11 +2857,25 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 loading={cleaningWindow === "past" ? cleaningTrendQ.isLoading : cleaningForecastListQ.isLoading}
               />
             </div>
-            <div>
-              <CleaningTopProperties
-                items={cleaningWindow === "past" ? cleaningTrendQ.data?.breakdown : cleaningForecast.breakdown}
-                loading={cleaningWindow === "past" ? cleaningTrendQ.isLoading : cleaningForecastListQ.isLoading}
-              />
+            {/* Top 5 ocupa a MESMA largura do gráfico da esquerda (pedido
+                explícito, 21/09/2026); o lado direito ganha o painel de
+                eficiência. No celular, o painel vem ANTES do Top 5 — por isso
+                ele está primeiro no DOM e troca de ordem só no desktop. */}
+            <div className="ds-card-grid grid-cols-1 lg:grid-cols-2 items-stretch">
+              <div className="lg:order-2">
+                <CleaningEfficiencyPanel
+                  daily={cleaningWindow === "past" ? cleaningTrendQ.data?.daily : cleaningForecast.daily}
+                  items={cleaningWindow === "past" ? cleaningTrendQ.data?.breakdown : cleaningForecast.breakdown}
+                  loading={cleaningWindow === "past" ? cleaningTrendQ.isLoading : cleaningForecastListQ.isLoading}
+                  forecast={cleaningWindow !== "past"}
+                />
+              </div>
+              <div className="lg:order-1">
+                <CleaningTopProperties
+                  items={cleaningWindow === "past" ? cleaningTrendQ.data?.breakdown : cleaningForecast.breakdown}
+                  loading={cleaningWindow === "past" ? cleaningTrendQ.isLoading : cleaningForecastListQ.isLoading}
+                />
+              </div>
             </div>
           </div>
 
@@ -4772,7 +4786,7 @@ function CleaningTopProperties({ items, loading }: { items: CleaningBreakdownIte
   const top = (items ?? []).slice(0, 5);
   const maxCount = Math.max(1, ...top.map((i) => i.count));
   return (
-    <div className={`${PANEL_SHELL} w-full px-3.5 py-3.5`}>
+    <div className={`${PANEL_SHELL} h-full w-full px-3.5 py-3.5`}>
       <PanelHeading
         title="Top 5 imóveis"
         dotColor={CLEANING_COUNT_COLOR}
@@ -4811,6 +4825,83 @@ function CleaningTopProperties({ items, loading }: { items: CleaningBreakdownIte
     </div>
   );
 }
+
+/**
+ * "Eficiência da limpeza" (pedido explícito, 21/09/2026) — ocupa a metade
+ * direita da faixa do Top 5 no desktop e vai ACIMA dele no celular. Tudo é
+ * derivado das mesmas séries já carregadas (nenhuma consulta nova): custo
+ * médio por limpeza, imóveis atendidos, média por dia e o dia de pico.
+ */
+function CleaningEfficiencyPanel({
+  daily,
+  items,
+  loading,
+  forecast,
+}: {
+  daily: CleaningDailyPoint[] | undefined;
+  items: CleaningBreakdownItem[] | undefined;
+  loading: boolean;
+  forecast?: boolean;
+}) {
+  const series = daily ?? [];
+  const breakdown = items ?? [];
+  const totalCount = series.reduce((s, d) => s + d.count, 0);
+  const totalCents = series.reduce((s, d) => s + d.totalCents, 0);
+  const avgCents = totalCount > 0 ? Math.round(totalCents / totalCount) : 0;
+  const days = series.length || 1;
+  const avgPerDay = totalCount / days;
+  const peak = series.reduce<CleaningDailyPoint | null>((best, d) => (!best || d.count > best.count ? d : best), null);
+
+  const cells: { label: string; value: string; hint: string }[] = [
+    {
+      label: forecast ? "Custo médio estimado" : "Custo médio por limpeza",
+      value: centsToBRLShort(avgCents),
+      hint: totalCount > 0 ? `${totalCount} limpeza${totalCount === 1 ? "" : "s"} no período` : "sem limpezas",
+    },
+    {
+      label: "Imóveis atendidos",
+      value: String(breakdown.length),
+      hint: breakdown.length > 0 ? `${(totalCount / breakdown.length).toFixed(1)} por imóvel` : "sem imóveis",
+    },
+    {
+      label: "Média por dia",
+      value: avgPerDay.toFixed(1),
+      hint: `em ${days} dia${days === 1 ? "" : "s"}`,
+    },
+    {
+      label: "Dia de pico",
+      value: peak && peak.count > 0 ? fmtDateBR(peak.date) : "—",
+      hint: peak && peak.count > 0 ? `${peak.count} limpeza${peak.count === 1 ? "" : "s"}` : "sem movimento",
+    },
+  ];
+
+  return (
+    <div className={`${PANEL_SHELL} h-full w-full px-3.5 py-3.5`}>
+      <PanelHeading
+        title="Eficiência da limpeza"
+        dotColor={CLEANING_COST_COLOR}
+        className="mb-2.5"
+        right={<span className="text-[10px] text-muted-foreground">{forecast ? "previsto" : "no período"}</span>}
+      />
+      {loading ? (
+        <div className="py-6 grid place-items-center text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          {cells.map((c) => (
+            <div key={c.label} className="min-w-0 rounded-[0.7rem] border border-border/60 bg-muted/20 px-3 py-2.5">
+              <div className="truncate text-[9.5px] uppercase tracking-wide text-muted-foreground">{c.label}</div>
+              <div className="mt-1 truncate text-[17px] font-semibold tabular-nums text-foreground">{c.value}</div>
+              <div className="truncate text-[10px] text-muted-foreground">{c.hint}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 /**
  * Conclusão de pendência com prestação de contas (pedido explícito,
