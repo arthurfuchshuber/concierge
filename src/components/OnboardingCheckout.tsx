@@ -348,6 +348,35 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
                 </button>
               )}
 
+              {checkoutFailed && (
+                <div className="ds-surface border border-amber-500/40 bg-amber-500/[0.06] p-3.5 mt-3 text-xs">
+                  <p className="font-medium text-foreground inline-flex items-center gap-1.5">
+                    <AlertTriangle className="size-4 text-amber-500 shrink-0" />
+                    O pagamento está indisponível no momento
+                  </p>
+                  <p className="text-muted-foreground mt-1">
+                    Não foi possível abrir a tela de cartão agora. Sua conta e seus dados já estão salvos —
+                    tente de novo em alguns minutos ou fale com a gente para liberar seu acesso na hora.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      onClick={() => openInlineCheckout(selected)}
+                      className="h-9 rounded-full border border-border px-4 text-xs font-semibold hover:border-foreground/40"
+                    >
+                      Tentar de novo
+                    </button>
+                    <a
+                      href="https://wa.me/5545999999999?text=Quero%20ativar%20meu%20plano%20no%20ConciergeIA"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="h-9 inline-flex items-center rounded-full bg-gradient-to-br from-brand-purple to-brand-magenta px-4 text-xs font-semibold text-white hover:opacity-90"
+                    >
+                      Falar com o suporte
+                    </a>
+                  </div>
+                </div>
+              )}
+
               <div
                 id="sigma-onboarding-checkout"
                 className={`sigma-onboarding-checkout mt-3 ds-surface ${opened ? "min-h-[500px]" : "hidden"}`}
