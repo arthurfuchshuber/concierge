@@ -964,7 +964,19 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       ownerFilters.length > 0 || cityFilters.length > 0 ? filteredOccupancyProperties.map((p) => p.id) : undefined,
     [ownerFilters, cityFilters, filteredOccupancyProperties],
   );
-  const cleaningStatsRange = periodRange ?? { start: todayISOSaoPaulo(), end: todayISOSaoPaulo() };
+  /**
+   * OS CARDS LEEM EXATAMENTE O MESMO INTERVALO DOS GRÁFICOS (pedido explícito,
+   * 21/09/2026: "os cards não estão contabilizando corretamente").
+   *
+   * Antes os cards olhavam só o DIA DE HOJE quando não havia período
+   * escolhido, enquanto os gráficos/ranking já mostravam os últimos 7 dias —
+   * daí "0 limpezas" em cima de um gráfico com 14. Agora é uma janela só:
+   * período escolhido, ou os últimos 7 dias.
+   */
+  const cleaningStatsRange = periodRange ?? {
+    start: addDaysISO(todayISOSaoPaulo(), -6) ?? todayISOSaoPaulo(),
+    end: todayISOSaoPaulo(),
+  };
   const cleaningStatsQ = useQuery({
     queryKey: [
       "dash-cleaning-stats",
