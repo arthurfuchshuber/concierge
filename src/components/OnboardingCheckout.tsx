@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, CreditCard, Loader2, ShieldCheck, Sparkles, ArrowLeft, BadgeCheck } from "lucide-react";
+import { Check, CreditCard, Loader2, ShieldCheck, Sparkles, ArrowLeft, BadgeCheck, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePaddleCheckout } from "@/hooks/usePaddleCheckout";
+import { onPaddleCheckoutEvent } from "@/lib/paddle";
 import { PLANS, type PlanKey } from "@/lib/payments.functions";
 import { formatCPF, formatCNPJ, onlyDigits } from "@/lib/masks";
 import { validateTaxId, type TaxIdCheck } from "@/lib/tax-id.functions";
@@ -16,6 +17,17 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
   const [selected, setSelected] = useState<PlanKey>("pro");
   const [opening, setOpening] = useState(false);
   const [opened, setOpened] = useState(false);
+  const [checkoutFailed, setCheckoutFailed] = useState(false);
+
+  // O painel de pagamento pode falhar por indisponibilidade do provedor. Nesse
+  // caso o iframe mostra um aviso em inglês; aqui damos uma saída em português.
+  useEffect(() => {
+    return onPaddleCheckoutEvent(({ name }) => {
+      if (name === "checkout.error") setCheckoutFailed(true);
+      if (name === "checkout.loaded" || name === "checkout.completed") setCheckoutFailed(false);
+    });
+  }, []);
+
 
   // Etapa 1 (documento) → Etapa 2 (cartão + plano).
   const [step, setStep] = useState<1 | 2>(1);
@@ -100,6 +112,7 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
   async function openInlineCheckout(target: PlanKey) {
     if (!user || !docCheck?.ok) return;
     setSelected(target);
+    setCheckoutFailed(false);
     setOpening(true);
     setOpened(true);
     try {
@@ -333,6 +346,35 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
                     <><CreditCard className="size-4" /> Continuar para pagamento</>
                   )}
                 </button>
+              )}
+
+              {checkoutFailed && (
+                <div className="ds-surface border border-amber-500/40 bg-amber-500/[0.06] p-3.5 mt-3 text-xs">
+                  <p className="font-medium text-foreground inline-flex items-center gap-1.5">
+                    <AlertTriangle className="size-4 text-amber-500 shrink-0" />
+                    O pagamento está indisponível no momento
+                  </p>
+                  <p className="text-muted-foreground mt-1">
+                    Não foi possível abrir a tela de cartão agora. Sua conta e seus dados já estão salvos —
+                    tente de novo em alguns minutos ou fale com a gente para liberar seu acesso na hora.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      onClick={() => openInlineCheckout(selected)}
+                      className="h-9 rounded-full border border-border px-4 text-xs font-semibold hover:border-foreground/40"
+                    >
+                      Tentar de novo
+                    </button>
+                    <a
+                      href="https://wa.me/5545999999999?text=Quero%20ativar%20meu%20plano%20no%20ConciergeIA"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="h-9 inline-flex items-center rounded-full bg-gradient-to-br from-brand-purple to-brand-magenta px-4 text-xs font-semibold text-white hover:opacity-90"
+                    >
+                      Falar com o suporte
+                    </a>
+                  </div>
+                </div>
               )}
 
               <div

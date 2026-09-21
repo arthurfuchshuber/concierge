@@ -14,6 +14,19 @@ export function getPaddleEnvironment(): "sandbox" | "live" {
 
 let paddleInitPromise: Promise<void> | null = null;
 
+/**
+ * Assinantes de eventos do checkout (erro/aviso). Permite que a tela de
+ * contratação mostre uma mensagem em português em vez do painel em inglês
+ * "Something went wrong" renderizado dentro do iframe do provedor.
+ */
+type CheckoutListener = (event: { name: string; data?: unknown }) => void;
+const checkoutListeners = new Set<CheckoutListener>();
+
+export function onPaddleCheckoutEvent(cb: CheckoutListener): () => void {
+  checkoutListeners.add(cb);
+  return () => checkoutListeners.delete(cb);
+}
+
 export async function initializePaddle(): Promise<void> {
   if (paddleInitPromise) return paddleInitPromise;
   if (!clientToken) throw new Error("VITE_PAYMENTS_CLIENT_TOKEN is not set");
@@ -32,10 +45,17 @@ export async function initializePaddle(): Promise<void> {
         window.Paddle.Initialize({
           token: clientToken,
           eventCallback: (data: any) => {
-            // Surface checkout errors for debugging.
-            if (data?.name === "checkout.error" || data?.name === "checkout.warning") {
+            const name = String(data?.name ?? "");
+            if (name === "checkout.error" || name === "checkout.warning") {
               // eslint-disable-next-line no-console
-              console.error("[Paddle event]", data?.name, data);
+              console.error("[Paddle event]", name, data);
+            }
+            for (const cb of checkoutListeners) {
+              try {
+                cb({ name, data });
+              } catch {
+                /* listener não pode derrubar o checkout */
+              }
             }
           },
         });
