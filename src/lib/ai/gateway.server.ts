@@ -216,11 +216,13 @@ export async function embedOne(text: string): Promise<{ vector: number[] | null;
   // diferentes. O vetor de uma frase é determinístico — recalcular é pagar de
   // novo pelo mesmo resultado. O custo só é contabilizado na primeira vez.
   const key = `embed:${cacheKeyOf(text)}`;
+  let missUsage = EMPTY_USAGE;
   const vector = await cached(key, EMBED_CACHE_TTL_MS, async () => {
-    const { vectors } = await embedTexts([text]);
+    const { vectors, usage } = await embedTexts([text]);
+    missUsage = usage;
     return vectors[0] ?? null;
   });
-  return { vector, usage: EMPTY_USAGE };
+  return { vector, usage: missUsage };
 }
 
 // ───────────────────────── Responses API (modelos OpenAI, com tool calling) ─────────────────────────
