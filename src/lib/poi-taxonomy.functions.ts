@@ -34,17 +34,15 @@ export type Taxonomy = {
   tags: PoiTag[];
 };
 
-function publicClient() {
-  return createClient<Database>(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_PUBLISHABLE_KEY!,
-    { auth: { storage: undefined, persistSession: false, autoRefreshToken: false } },
-  );
+/** Leitura da taxonomia é server-side: as tabelas não têm mais leitura anônima. */
+async function taxonomyReader() {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  return supabaseAdmin;
 }
 
-// ============== Public reader (anon) ==============
+// ============== Leitor da taxonomia (somente servidor) ==============
 export const getPoiTaxonomy = createServerFn({ method: "GET" }).handler(async (): Promise<Taxonomy> => {
-  const supabase = publicClient();
+  const supabase = await taxonomyReader();
   const [catsRes, tagsRes] = await Promise.all([
     supabase.from("poi_categories").select("id,slug,label,description,display_order,is_protected").order("display_order"),
     supabase
