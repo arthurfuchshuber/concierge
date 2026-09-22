@@ -28,6 +28,9 @@ export function safeDbError(scope: string, error: PgErrorLike): Error {
       return new Error(
         "Uma atualização recente do sistema ainda não foi aplicada neste banco de dados. Peça pra quem administra o Supabase aplicar as migrations pendentes e tente salvar de novo.",
       );
+    // statement_timeout — o banco cortou a operação por demora.
+    case "57014":
+      return new Error("O sistema demorou demais para salvar. Nada foi perdido — toque em salvar de novo.");
     case "42501":
     case "PGRST301":
       return new Error("Você não tem permissão para esta ação.");

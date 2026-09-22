@@ -920,12 +920,23 @@ export const upsertProperty = createServerFn({ method: "POST" })
     }
 
     if (propertyId) {
-      const { data: updated, error } = await writeClient
-        .from("properties")
-        .update(propertyData)
-        .eq("id", propertyId)
-        .select("id")
-        .maybeSingle();
+      // O update da linha do imóvel dispara gatilhos pesados (reindexação da
+      // base da IA). Sob carga, o banco corta a instrução por timeout (57014)
+      // e o salvamento falhava de vez. Tentamos de novo com espera curta.
+      let updated: { id: string } | null = null;
+      let error: { code?: string } | null = null;
+      for (let tentativa = 0; tentativa < 3; tentativa += 1) {
+        if (tentativa > 0) await new Promise((r) => setTimeout(r, 400 * tentativa));
+        const res = await writeClient
+          .from("properties")
+          .update(propertyData)
+          .eq("id", propertyId)
+          .select("id")
+          .maybeSingle();
+        updated = (res.data as { id: string } | null) ?? null;
+        error = res.error as { code?: string } | null;
+        if (!error || error.code !== "57014") break;
+      }
       if (error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", error);
       if (!updated) throw new Error("O guia não foi atualizado. Verifique sua permissão e tente novamente.");
     } else {
