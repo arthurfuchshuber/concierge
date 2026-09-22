@@ -25,26 +25,36 @@ export const Route = createFileRoute("/api/public/place-photo")({
           return new Response("Maps connector not configured", { status: 500 });
         }
 
-        const upstream = await fetch(
-          `https://connector-gateway.lovable.dev/google_maps/places/v1/${name}/media?maxWidthPx=${w}`,
-          {
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-              "X-Connection-Api-Key": mapsKey,
-            },
-          },
-        );
+        // O Google às vezes devolve 429/5xx num pico de acessos. Em vez de
+        // estourar um 502 (que vira erro de rota no app), tentamos de novo e,
+        // se ainda assim falhar, devolvemos um pixel transparente: a tela
+        // segue inteira, apenas sem a foto.
+        let upstream: Response | null = null;
+        for (let tentativa = 0; tentativa < 3; tentativa += 1) {
+          if (tentativa > 0) await new Promise((r) => setTimeout(r, 250 * tentativa));
+          try {
+            upstream = await fetch(
+              `https://connector-gateway.lovable.dev/google_maps/places/v1/${name}/media?maxWidthPx=${w}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${apiKey}`,
+                  "X-Connection-Api-Key": mapsKey,
+                },
+              },
+            );
+          } catch {
+            upstream = null;
+          }
+          if (upstream?.ok) break;
+          if (upstream && upstream.status !== 429 && upstream.status < 500) break;
+        }
 
-        if (!upstream.ok || !upstream.body) {
-          return new Response("Photo unavailable", { status: 502 });
+        const ct = upstream?.headers.get("content-type") ?? "";
+        if (!upstream?.ok || !upstream.body || !ct.startsWith("image/")) {
+          return placeholderResponse();
         }
 
         const headers = new Headers();
-        const ct = upstream.headers.get("content-type") ?? "image/jpeg";
-        // Only allow image content types through
-        if (!ct.startsWith("image/")) {
-          return new Response("Invalid content type", { status: 502 });
-        }
         headers.set("Content-Type", ct);
         // Aggressive cache: photo resource names are stable/immutable.
         // 24h browser cache, 7d CDN/edge cache.
