@@ -105,13 +105,36 @@ export const Route = createFileRoute("/api/public/guest-doc-upload")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data: prop } = await supabaseAdmin
           .from("properties")
-          .select("id, published")
+          .select("id, published, access_mode, pin_code")
           .eq("slug", parsed.data.slug)
           .eq("published", true)
           .maybeSingle();
         if (!prop) {
           return new Response(JSON.stringify({ error: "not_found" }), { status: 404 });
         }
+
+        // Guia com PIN: só quem já provou o PIN envia documento (cookie assinado).
+        const p = prop as { id: string; access_mode?: string | null; pin_code?: string | null };
+        if (p.access_mode === "pin") {
+          const { getCookie } = await import("@tanstack/react-start/server");
+          const guestAccess = await import("@/lib/guest-access.server");
+          const pinOk = await guestAccess.verifyPinCookie(
+            "pin",
+            p.id,
+            p.pin_code ?? null,
+            getCookie(guestAccess.pinCookieName("pin", p.id)) ?? null,
+          );
+          if (!pinOk) {
+            return new Response(JSON.stringify({ error: "forbidden" }), { status: 403 });
+          }
+        }
+
+        // Teto de custo do dia (storage + visão de IA) por imóvel e global.
+        const { allowPaidGuestUse } = await import("@/lib/public-rate-limit.server");
+        if (!allowPaidGuestUse({ scope: "guest-doc", propertyId: p.id, perProperty: 60, global: 600 })) {
+          return new Response(JSON.stringify({ error: "rate_limited" }), { status: 429 });
+        }
+
 
         const ext = extFromMime(mime);
         const objectId = crypto.randomUUID();
