@@ -8,17 +8,30 @@ describe("política de raciocínio", () => {
     }
   });
 
-  it("pensa fundo quando pedem o porquê, comparação ou recomendação", () => {
+  it("pensa fundo quando pedem o porquê ou comparação", () => {
     for (const m of [
       "por que a pendência de manutenção já aparece na limpeza?",
       "qual a diferença entre limpeza normal e completa?",
-      "me recomenda um restaurante bom aqui perto",
-      "vale a pena antecipar o check-in?",
-      "qual o melhor horário pra limpeza?",
     ]) {
       expect(reasoningFor(m), m).toBe("max");
     }
   });
+
+  /**
+   * 22/09/2026 — indicar lugar é buscar e escolher, não deliberar. No topo,
+   * "melhor restaurante perto daqui?" levava três minutos e o hóspede ficava
+   * sem resposta; em "alto" a resposta é a mesma e chega a tempo.
+   */
+  it("pedido de indicação responde em alto", () => {
+    for (const m of [
+      "me recomenda um restaurante bom aqui perto",
+      "vale a pena antecipar o check-in?",
+      "qual o melhor horário pra limpeza?",
+    ]) {
+      expect(reasoningFor(m), m).toBe("high");
+    }
+  });
+
 
   /**
    * 20/09/2026 — "não pode demorar tanto para responder". Pergunta de como o
