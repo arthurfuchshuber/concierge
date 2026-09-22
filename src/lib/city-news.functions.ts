@@ -552,34 +552,29 @@ export async function generateAndCacheCityNews(input: {
 export const getCityNews = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => Input.parse(i))
   .handler(async ({ data }): Promise<CityNews | null> => {
-    /* SÓ CIDADE REAL, COM O NOME QUE ESTÁ NO BANCO (16/09/2026).
+    /* SOMENTE LEITURA DO CACHE (22/09/2026).
      *
-     * Esta função é pública e gera conteúdo com IA + busca paga quando o dia
-     * ainda não tem cache. Antes, `cityLabel` vinha do navegador e ia direto
-     * para o prompt — qualquer um podia gerar notícias para cidades
-     * inventadas (custo) ou "envenenar" o feed do dia de uma cidade real com
-     * um nome manipulado, que ficava em cache para todos os hóspedes dela.
-     * Agora a cidade precisa ter guia publicado, e o nome usado é o do guia. */
+     * Esta função é pública (o hóspede anônimo lê as manchetes da cidade no
+     * guia). Antes, um cache vazio fazia a própria chamada do visitante
+     * disparar busca paga (Firecrawl) + curadoria de IA — ou seja, qualquer
+     * pessoa na internet conseguia gastar crédito nosso à vontade.
+     *
+     * Agora a geração acontece APENAS no cron diário
+     * (`/api/public/cron/refresh-city-news`, protegido por segredo). A rota
+     * pública só devolve o que já está gravado para o dia. */
     const { allowPublicRate, clientIpFrom } = await import("@/lib/public-rate-limit.server");
     const { getRequest } = await import("@tanstack/react-start/server");
     if (!allowPublicRate(`city-news:${clientIpFrom(getRequest())}`, 30, 60_000)) return null;
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: props } = await supabaseAdmin
-      .from("properties")
-      .select("city, country")
-      .eq("published", true)
-      .not("city", "is", null)
-      .limit(1000);
-    const { cityKey } = await import("@/lib/city-key");
-    const real = ((props ?? []) as Array<{ city: string | null; country: string | null }>).find(
-      (p) => !!p.city && cityKey(p.city) === data.cityKey,
-    );
-    if (!real?.city) return null;
-    const r = await generateAndCacheCityNews({
-      cityKey: data.cityKey,
-      cityLabel: real.city,
-      country: real.country ?? data.country ?? null,
-      lang: data.lang,
-    });
-    return r.items ? { items: r.items } : null;
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: cached } = await supabaseAdmin
+      .from("city_daily_news")
+      .select("items")
+      .eq("city_key", data.cityKey)
+      .eq("date", today)
+      .maybeSingle();
+    const items = (cached?.items ?? null) as NewsItem[] | null;
+    return items && items.length > 0 ? { items } : null;
   });
+
