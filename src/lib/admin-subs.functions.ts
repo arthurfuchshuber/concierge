@@ -732,11 +732,25 @@ export const adminRevokeInvite = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Só o administrador que enviou o convite pode cancelá-lo (ou convites
+    // antigos sem autor registrado). Antes, qualquer admin derrubava o convite
+    // de qualquer outro pelo id (22/09/2026).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: invite } = await (supabaseAdmin.from("admin_invites" as never) as any)
+      .select("id, invited_by, status")
+      .eq("id", data.inviteId)
+      .maybeSingle();
+    const row = invite as { invited_by: string | null; status: string } | null;
+    if (!row) throw new Error("Convite não encontrado.");
+    if (row.invited_by && row.invited_by !== context.userId) {
+      throw new Error("Apenas quem enviou este convite pode cancelá-lo.");
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabaseAdmin.from("admin_invites" as never) as any)
       .update({ status: "revoked", updated_at: new Date().toISOString() })
       .eq("id", data.inviteId);
     if (error) throw new Error("Não foi possível cancelar o convite.");
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabaseAdmin.from("audit_logs" as never) as any).insert({
       user_id: context.userId,
