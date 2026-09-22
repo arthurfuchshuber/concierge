@@ -70,11 +70,6 @@ const DEEP = [
   "porque",
   "diferenca",
   "compar",
-  "melhor",
-  "pior",
-  "vale a pena",
-  "recomend",
-  "sugest",
   "explica",
   "explique",
   "motivo",
@@ -83,8 +78,18 @@ const DEEP = [
   "estrateg",
   "analis",
   "resum",
-  "prefer",
 ];
+
+/**
+ * PEDIDO DE INDICAÇÃO (22/09/2026).
+ *
+ * "Melhor restaurante para jantar perto daqui?" caía em DEEP e ia para o topo
+ * com 12 idas a ferramenta: três minutos de espera para a pergunta mais comum
+ * que um hóspede faz — e, na prática, resposta nenhuma. Indicar lugar é buscar
+ * e escolher, não deliberar: "high" dá a mesma resposta em uma fração do tempo.
+ */
+const ADVICE = ["melhor", "pior", "vale a pena", "recomend", "sugest", "prefer"];
+
 
 /** Pergunta objetiva de um dado só: um "qual/que horas/onde" curto e único. */
 const FACTUAL_START = [
