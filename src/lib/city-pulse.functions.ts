@@ -66,12 +66,54 @@ Retorne JSON estrito: {"items":[{"title":"...","category":"...","detail":"...","
   return { items };
 }
 
+/**
+ * Geração + gravação do pulso do dia. Uso INTERNO (servidor/cron): custa IA,
+ * então nunca pode ser disparada por uma chamada pública anônima.
+ */
+export async function generateAndCacheCityPulse(input: {
+  cityKey: string;
+  cityLabel: string;
+  country?: string | null;
+  lang?: "pt" | "en" | "es" | "fr";
+}): Promise<CityPulse | null> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { propertyTimeZone, todayInTZ } = await import("@/lib/property-timezone");
+  const today = todayInTZ(propertyTimeZone(input.cityLabel, input.country ?? null));
+
+  let content: CityPulse;
+  try {
+    content = await generateWithAi({
+      cityLabel: input.cityLabel,
+      country: input.country ?? null,
+      date: today,
+      lang: input.lang ?? "pt",
+    });
+  } catch {
+    return null;
+  }
+  if (content.items.length === 0) return null;
+
+  await supabaseAdmin
+    .from("city_daily_pulse")
+    .upsert(
+      { city_key: input.cityKey, date: today, items: content.items },
+      { onConflict: "city_key,date" },
+    );
+  return content;
+}
+
 export const getCityPulse = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => Input.parse(i))
   .handler(async ({ data }): Promise<CityPulse | null> => {
+    /* SOMENTE LEITURA DO CACHE (22/09/2026): a rota é pública e anônima; se o
+     * cache do dia estiver vazio, ela não chama mais a IA — quem gera é o
+     * servidor (cron/rotina interna), nunca o visitante. */
     if (!data.cityLabel) return null;
+    const { allowPublicRate, clientIpFrom } = await import("@/lib/public-rate-limit.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
+    if (!allowPublicRate(`city-pulse:${clientIpFrom(getRequest())}`, 30, 60_000)) return null;
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    // "Hoje" precisa ser o dia local da cidade, não o dia UTC.
     const { propertyTimeZone, todayInTZ } = await import("@/lib/property-timezone");
     const today = todayInTZ(propertyTimeZone(data.cityLabel, data.country ?? null));
 
@@ -81,26 +123,7 @@ export const getCityPulse = createServerFn({ method: "POST" })
       .eq("city_key", data.cityKey)
       .eq("date", today)
       .maybeSingle();
-    if (cached?.items) return { items: cached.items as PulseItem[] };
-
-    let content: CityPulse;
-    try {
-      content = await generateWithAi({
-        cityLabel: data.cityLabel,
-        country: data.country ?? null,
-        date: today,
-        lang: data.lang,
-      });
-    } catch {
-      return null;
-    }
-    if (content.items.length === 0) return null;
-
-    await supabaseAdmin
-      .from("city_daily_pulse")
-      .upsert(
-        { city_key: data.cityKey, date: today, items: content.items },
-        { onConflict: "city_key,date" },
-      );
-    return content;
+    const items = (cached?.items ?? null) as PulseItem[] | null;
+    return items && items.length > 0 ? { items } : null;
   });
+
