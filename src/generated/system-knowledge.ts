@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-21T15:35:38.679Z";
+export const GENERATED_AT = "2026-09-22T14:57:19.202Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -213,15 +213,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "b3ddc4ae7717516e16239ce371788ae6"
   },
   {
-    "doc_key": "route:/unsubscribe",
-    "kind": "route",
-    "title": "Cancelar e-mails — ConciergeIA — tela /unsubscribe",
-    "content": "Caminho no sistema: /unsubscribe\n\nCancele o recebimento de e-mails do ConciergeIA em poucos segundos, com confirmação segura.",
-    "source_path": "src/routes/unsubscribe.tsx",
-    "audience": [],
-    "content_hash": "77b2d459ed19d7df676713e6ee86dc9d"
-  },
-  {
     "doc_key": "rule:ACCENT_FROM",
     "kind": "rule",
     "title": "Regra — ACCENT_FROM",
@@ -274,6 +265,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/admin-subs.functions.ts",
     "audience": [],
     "content_hash": "cf95a46aea198eb04a974a076be740a1"
+  },
+  {
+    "doc_key": "rule:ADVICE",
+    "kind": "rule",
+    "title": "Regra — ADVICE",
+    "content": "PEDIDO DE INDICAÇÃO (22/09/2026).\n\n\"Melhor restaurante para jantar perto daqui?\" caía em DEEP e ia para o topo\ncom 12 idas a ferramenta: três minutos de espera para a pergunta mais comum\nque um hóspede faz — e, na prática, resposta nenhuma. Indicar lugar é buscar\ne escolher, não deliberar: \"high\" dá a mesma resposta em uma fração do tempo.",
+    "source_path": "src/lib/ai/reasoning.ts",
+    "audience": [],
+    "content_hash": "19a0dd22b0c6b4b5fd2b003ae05792b8"
   },
   {
     "doc_key": "rule:AgendaHit",
@@ -744,6 +744,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "81593a28310de075cb3d992a743ae6b4"
   },
   {
+    "doc_key": "rule:conversaComSubstancia",
+    "kind": "rule",
+    "title": "Regra — conversaComSubstancia",
+    "content": "ANÁLISE PÓS-CONVERSA SÓ ONDE HÁ O QUE APRENDER (21/09/2026)\n\nAs duas rotinas abaixo — retrato do hóspede e seleção do que vira memória\nde longo prazo — rodavam depois de TODA mensagem, inclusive de um \"oi\" ou\nde um \"obrigado\". Eram duas chamadas de modelo por turno para concluir,\nprevisivelmente, que não havia nada a guardar.\n\nAgora só rodam quando a mensagem tem substância. Escalonamento, urgência e\nreclamação passam sempre, independente do tamanho: é exatamente ali que\nlembrar do que aconteceu importa.",
+    "source_path": "src/lib/ai/orchestrator.server.ts",
+    "audience": [],
+    "content_hash": "f62f416c1d71ecbf69185147cc16e71e"
+  },
+  {
     "doc_key": "rule:conversationId",
     "kind": "rule",
     "title": "Regra — conversationId",
@@ -888,15 +897,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "e2e455ccbb86e8a30d5213e6edb5c29c"
   },
   {
-    "doc_key": "rule:effort",
-    "kind": "rule",
-    "title": "Regra — effort",
-    "content": "ESFORÇO NA MEDIDA DA PERGUNTA (20/09/2026).\n\nAqui estava fixo `isAction: true`, o que forçava o topo do raciocínio em\nTODA mensagem do painel — inclusive \"como faço para anexar um vídeo?\",\nque levou 90 segundos. Agora quem decide é o que a mensagem escreve: pedido\nde ação, dinheiro, hóspede ou julgamento continuam no máximo; pergunta\ninformativa roda em \"alto\", que responde igual e chega bem antes.",
-    "source_path": "src/lib/assistant-run.server.ts",
-    "audience": [],
-    "content_hash": "30b0a22593e049ab4740323ac7c0205a"
-  },
-  {
     "doc_key": "rule:enableGuestPush",
     "kind": "rule",
     "title": "Regra — enableGuestPush",
@@ -940,6 +940,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/permissions/permission.sync.server.ts",
     "audience": [],
     "content_hash": "1fd733aed05a2ecd527404f56fc93db4"
+  },
+  {
+    "doc_key": "rule:Entry",
+    "kind": "rule",
+    "title": "Regra — Entry",
+    "content": "Cache curto em memória para chamadas de IA repetidas (21/09/2026).\n\nPOR QUE EXISTE\n\nAs perguntas mais frequentes do hóspede se repetem palavra por palavra entre\npessoas diferentes (\"qual a senha do wi-fi\", \"que horas é o checkout\",\n\"qual o endereço\"). Cada repetição refazia o mesmo trabalho pago: gerar o\nembedding da frase e buscar os mesmos trechos.\n\nO que entra aqui é APENAS trabalho determinístico e impessoal — embedding de\num texto e trechos de conhecimento do imóvel. Resposta ao hóspede NUNCA é\nguardada: ela depende da reserva, do nome e do momento da estadia.\n\nVive no processo do servidor, com validade curta e teto de tamanho — some\nsozinho e nunca vira fonte de verdade desatualizada.",
+    "source_path": "src/lib/ai/cache.server.ts",
+    "audience": [],
+    "content_hash": "7b70dbe1115d05c5df7d26b01360c633"
   },
   {
     "doc_key": "rule:enviarMidia",
@@ -987,6 +996,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "e71705698627af53a6baeb089cfa258e"
   },
   {
+    "doc_key": "rule:fetchEngagementSectionEvents",
+    "kind": "rule",
+    "title": "Regra — fetchEngagementSectionEvents",
+    "content": "The Data API caps each response at 1,000 rows even when a larger limit is\nrequested. Engagement events must therefore be read page by page; otherwise\nolder, less frequent events such as `checkin-lido` disappear from cards.\n\nUma falha temporária do banco não pode derrubar o painel inteiro: tentamos de\nnovo algumas vezes e, se ainda assim falhar, devolvemos o que já foi lido.",
+    "source_path": "src/lib/engagement-events.server.ts",
+    "audience": [],
+    "content_hash": "935803d2864c1bb2099b18c17b23bfba"
+  },
+  {
     "doc_key": "rule:fetchWithRetry",
     "kind": "rule",
     "title": "Regra — fetchWithRetry",
@@ -1003,6 +1021,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/presence/FieldTypingBadge.tsx",
     "audience": [],
     "content_hash": "f7f55f2830a8f498fe6d611b4a82e8a0"
+  },
+  {
+    "doc_key": "rule:file",
+    "kind": "rule",
+    "title": "Regra — file",
+    "content": "O arquivo sobe AGORA, não na pergunta: mesma sequência da tela de\nregistros — primeiro o storage, depois a linha. Falhando o envio,\nnada é gravado e a mensagem de erro é a mesma que a equipe vê no\ncelular.",
+    "source_path": "src/components/assistant/AssistantPanel.tsx",
+    "audience": [],
+    "content_hash": "31785db2b191cc799c3a1fea3966bd2a"
   },
   {
     "doc_key": "rule:fillContractStartFromClicksign",
@@ -1809,10 +1836,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:ReasoningEffort",
     "kind": "rule",
     "title": "Regra — ReasoningEffort",
-    "content": "Quanto a IA pensa antes de responder — política única das duas IAs.\n\nPedido explícito (07/09/2026): \"quero que ela seja altamente inteligente,\ncomo se o usuário estivesse conversando com o ChatGPT, com o Gemini\".\n\nO QUE ESTAVA ERRADO\n\nOs dois agentes rodavam com `reasoningEffort: \"low\"` em praticamente toda\nconversa — o atendimento só subia para \"medium\" quando a mensagem era urgente\nou arriscada, e o assistente do painel estava fixo em \"low\". Num modelo de\nraciocínio, \"low\" não é uma economia inofensiva: é a diferença entre pensar\nno problema e responder de bate-pronto. Era o que fazia as respostas\nparecerem rasas mesmo com todo o contexto certo na mão — não faltava\ninformação, faltava pensar.\n\nO QUE MUDA (19/09/2026 — pedido: \"a IA SEMPRE com o máximo esforço, mas com\npoder de decisão para reduzir quando achar pertinente\")\n\nO padrão passa a ser o TOPO (\"max\"). A redução é a exceção, e só acontece\nquando a própria mensagem não deixa dúvida de que não há o que pensar:\n\n · max — padrão de tudo. Qualquer pergunta, pedido, reclamação, ação.\n · xhigh — pergunta objetiva e curta de um dado só (\"que horas é o\n checkout?\"), onde o topo só adicionaria espera.\n · medium — saudação/agradecimento solto (\"oi\", \"obrigado\", \"ok\").\n\nO CUSTO, DITO NA CARA\n\nPensar mais custa mais tempo e mais tokens. A escolha aqui é deliberada:\no padrão é pagar para pensar; economizar é a exceção justificada.",
+    "content": "Quanto a IA pensa antes de responder — política única das duas IAs.\n\nPedido explícito (07/09/2026): \"quero que ela seja altamente inteligente,\ncomo se o usuário estivesse conversando com o ChatGPT, com o Gemini\".\n\nO QUE ESTAVA ERRADO\n\nOs dois agentes rodavam com `reasoningEffort: \"low\"` em praticamente toda\nconversa — o atendimento só subia para \"medium\" quando a mensagem era urgente\nou arriscada, e o assistente do painel estava fixo em \"low\". Num modelo de\nraciocínio, \"low\" não é uma economia inofensiva: é a diferença entre pensar\nno problema e responder de bate-pronto. Era o que fazia as respostas\nparecerem rasas mesmo com todo o contexto certo na mão — não faltava\ninformação, faltava pensar.\n\nO QUE MUDA (19/09/2026 — pedido: \"a IA SEMPRE com o máximo esforço, mas com\npoder de decisão para reduzir quando achar pertinente\")\n\nO padrão passa a ser o TOPO (\"max\"). A redução é a exceção, e só acontece\nquando a própria mensagem não deixa dúvida de que não há o que pensar.\n\nCALIBRAGEM DE CUSTO (21/09/2026 — o app sozinho consumiu 303 chamadas e ~56\ncréditos num único dia, a maior parte em raciocínio máximo sobre mensagens\nque não pediam nada disso)\n\nA escada continua a mesma; o que muda é o degrau de cada tipo de mensagem:\n\n · max — tudo que DECIDE, GRAVA ou JULGA: ação, dinheiro, hóspede,\n cancelamento, comparação, texto longo, várias perguntas, risco.\n · high — pergunta informativa comum (\"como faço para anexar um vídeo?\").\n · medium — pergunta objetiva e curta de um dado só (\"que horas é o\n checkout?\"): o mesmo modelo, a mesma documentação, sem gastar\n milhares de tokens de raciocínio para ler uma linha.\n · low — saudação/agradecimento solto (\"oi\", \"obrigado\", \"ok\"). Não há\n o que pensar; pensar aqui é só conta.\n\nO que NUNCA desce: risco, ação, dinheiro e julgamento continuam no topo. A\neconomia sai das mensagens triviais, não da qualidade das difíceis.",
     "source_path": "src/lib/ai/reasoning.ts",
     "audience": [],
-    "content_hash": "29766e292b1fdeca128e9c8062faeba4"
+    "content_hash": "f2e8e4b901c79d4547aa6ea7d6112214"
   },
   {
     "doc_key": "rule:reasoningFor",
@@ -1966,6 +1993,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/auto-checkout.server.ts",
     "audience": [],
     "content_hash": "fe2e5ad544b27a3d48da06b869ebd467"
+  },
+  {
+    "doc_key": "rule:respostaSocialSimples",
+    "kind": "rule",
+    "title": "Regra — respostaSocialSimples",
+    "content": "\"Oi, tudo bem?\" → \"Olá! Tudo ótimo, como posso ajudar?\" (21/09/2026)\n\nUma resposta puramente social, sem ferramenta nenhuma chamada e sem um\núnico número, não afirma nada que possa ser conferido contra evidência —\ne mesmo assim pagava uma checagem anti-invenção completa, em toda\nsaudação. Qualquer fato, código, horário, preço ou endereço tem dígito ou\nveio de ferramenta: aí a checagem continua obrigatória.",
+    "source_path": "src/lib/ai/orchestrator.server.ts",
+    "audience": [],
+    "content_hash": "89c9e298154c5189b5ca1837146da27a"
   },
   {
     "doc_key": "rule:revealGuideAccessCodes",
@@ -2139,6 +2175,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "d4a1553d30fff796e6c716e62036fc7c"
   },
   {
+    "doc_key": "rule:signal",
+    "kind": "rule",
+    "title": "Regra — signal",
+    "content": "SEM RELÓGIO CONTRA O RACIOCÍNIO (22/09/2026).\n\nAqui havia `AbortSignal.timeout(90_000)`. Com esforço máximo e várias\nrodadas de ferramentas, um turno legítimo do hóspede passa de 90s — e o\nrelógio cortava o trabalho no meio: o gateway seguia cobrando e o hóspede\nrecebia \"não consegui responder agora\" (foi o que aconteceu com a Caroline\nàs 08:27 de 22/09). Só o caller cancela, e só quando alguém desiste de\nverdade; a rota SSE mantém a conexão viva mostrando cada etapa.",
+    "source_path": "src/lib/ai/gateway.server.ts",
+    "audience": [],
+    "content_hash": "f90e46c50745eaac2597ab4f4f1670dd"
+  },
+  {
     "doc_key": "rule:SLACK_MIN",
     "kind": "rule",
     "title": "Regra — SLACK_MIN",
@@ -2220,7 +2265,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1d6019faf67077787112e40ec8da6346"
   },
   {
-    "doc_key": "rule:src/components/assistant/AssistantPanel.tsx:16569",
+    "doc_key": "rule:src/components/assistant/AssistantPanel.tsx:10925",
+    "kind": "rule",
+    "title": "Regra em AssistantPanel.tsx",
+    "content": "CONFIRMAÇÃO AUTOMÁTICA (pedido explícito, 09/09/2026: \"se o usuário\npedir 'dispense a confirmação', então ela tem que acatar e manter isso\nmemorizado para aquele usuário específico\").\n\nA ação segue exatamente o mesmo caminho de sempre — a mutation\n`confirm`, as mesmas server functions das telas, o mesmo RLS. O que\nmuda é só quem dispara: o clique da pessoa ou esta linha. Por isso a\nautonomia não vira privilégio: se ela não pode gravar aquilo, falha\naqui igual falharia no cartão, com o mesmo erro.\n\n`res.autoConfirm` é lido no servidor DEPOIS do turno, então \"dispense\na confirmação\" já vale para a ação preparada nesta mesma mensagem.",
+    "source_path": "src/components/assistant/AssistantPanel.tsx",
+    "audience": [],
+    "content_hash": "5c2c5b13052a34cbf91c67dae6cfa570"
+  },
+  {
+    "doc_key": "rule:src/components/assistant/AssistantPanel.tsx:20053",
     "kind": "rule",
     "title": "Regra em AssistantPanel.tsx",
     "content": "Uma chamada só para a lista inteira — não um laço de N chamadas como\nna criação em lote. Ali cada imóvel é uma linha nova e um erro no\nmeio não pode derrubar o que já entrou; aqui é um único `IN (...)`\nsobre linhas que já existem, então o banco resolve de uma vez e o\nresultado é tudo-ou-nada, que é o que se espera de \"apague estas\".",
@@ -2229,7 +2283,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "4fba9ff5bf0bc6d6c1139ad34a9b7f77"
   },
   {
-    "doc_key": "rule:src/components/assistant/AssistantPanel.tsx:27529",
+    "doc_key": "rule:src/components/assistant/AssistantPanel.tsx:31606",
     "kind": "rule",
     "title": "Regra em AssistantPanel.tsx",
     "content": "Uma DECISÃO não é uma fala — e não pode se parecer com uma.\n\n\"Criar em 9 imóveis\" dito pela IA é uma proposta; gravado no histórico é\num fato. Como bolha de conversa os dois ficariam idênticos, e depois de\nmeses ninguém saberia distinguir o que foi sugerido do que foi feito. Por\nisso o registro de execução sai como uma linha própria, com o ✓ na cor de\nconfirmado e a lista do que foi gravado embaixo.",
@@ -2238,22 +2292,13 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "4ba661e6477dca474d48ff7716a78aaf"
   },
   {
-    "doc_key": "rule:src/components/assistant/AssistantPanel.tsx:4530",
+    "doc_key": "rule:src/components/assistant/AssistantPanel.tsx:5479",
     "kind": "rule",
     "title": "Regra em AssistantPanel.tsx",
     "content": "HISTÓRICO PERMANENTE (pedido explícito, 09/09/2026).\n\nO servidor devolve a última página e diz se existem mensagens anteriores;\n`older` guarda as páginas já buscadas, na ordem certa. Nada é descartado —\no que existe é uma janela que a pessoa vai abrindo para trás.\n\nCarregar tudo de uma vez seria a única maneira de \"mostrar tudo\" que\ntrava o navegador depois de alguns meses de uso.",
     "source_path": "src/components/assistant/AssistantPanel.tsx",
     "audience": [],
     "content_hash": "94590587e43020d767e9efd1ae3422b1"
-  },
-  {
-    "doc_key": "rule:src/components/assistant/AssistantPanel.tsx:9809",
-    "kind": "rule",
-    "title": "Regra em AssistantPanel.tsx",
-    "content": "CONFIRMAÇÃO AUTOMÁTICA (pedido explícito, 09/09/2026: \"se o usuário\npedir 'dispense a confirmação', então ela tem que acatar e manter isso\nmemorizado para aquele usuário específico\").\n\nA ação segue exatamente o mesmo caminho de sempre — a mutation\n`confirm`, as mesmas server functions das telas, o mesmo RLS. O que\nmuda é só quem dispara: o clique da pessoa ou esta linha. Por isso a\nautonomia não vira privilégio: se ela não pode gravar aquilo, falha\naqui igual falharia no cartão, com o mesmo erro.\n\n`res.autoConfirm` é lido no servidor DEPOIS do turno, então \"dispense\na confirmação\" já vale para a ação preparada nesta mesma mensagem.",
-    "source_path": "src/components/assistant/AssistantPanel.tsx",
-    "audience": [],
-    "content_hash": "5c2c5b13052a34cbf91c67dae6cfa570"
   },
   {
     "doc_key": "rule:src/components/chat/composer-styles.ts:0",
@@ -2832,7 +2877,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "c1ce0cdb28e49031425478368dfab246"
   },
   {
-    "doc_key": "rule:src/lib/ai/assistant-tools.server.ts:21221",
+    "doc_key": "rule:src/lib/ai/assistant-tools.server.ts:21655",
     "kind": "rule",
     "title": "Regra em assistant-tools.server.ts",
     "content": "PENDÊNCIA PARECIDA JÁ EXISTENTE — pedido explícito (08/09/2026):\n\"se tiver uma pendência parecida com essa que está sendo solicitada,\nvocê não tem que gravar uma nova. Você precisa perguntar para o\nusuário se ele quer gravar mesmo assim\".\n\n\"Parecida\" é comparação do TÍTULO normalizado (sem acento, sem\ncaixa, sem espaço sobrando) entre as pendências ABERTAS do imóvel:\né o que a pessoa reconhece como \"essa já existe\". Comparar por\nsemelhança semântica seria mais esperto e menos previsível — e aqui\nprevisibilidade vale mais, porque o custo do erro é duplicar\nsilenciosamente uma rotina em dezenas de imóveis.",
@@ -2841,7 +2886,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "387889c0801095ecc9769eaf2fb9135f"
   },
   {
-    "doc_key": "rule:src/lib/ai/assistant-tools.server.ts:25234",
+    "doc_key": "rule:src/lib/ai/assistant-tools.server.ts:25668",
     "kind": "rule",
     "title": "Regra em assistant-tools.server.ts",
     "content": "VÁRIAS pendências, UM cartão — arquivar, reabrir ou EXCLUIR de vez.\n\nPedido explícito (09/09/2026): \"remova todas as pendências que você\ncriou agora, de todos os imóveis\" e, na sequência, \"exclua\ndefinitivamente, não quero arquivar\". A IA respondeu que não conseguia\n— e estava certa: não havia ferramenta. Mesma lição da criação em\nlote: o que limita a autonomia quase nunca é o cartão de confirmação,\né a COBERTURA. Sem ação em lote, desfazer uma criação em quinze\nimóveis eram quinze cartões; sem exclusão, \"desfazer\" deixava quinze\nlinhas mortas atrás de um filtro.\n\nA busca é por TÍTULO normalizado (sem acento, sem caixa) porque é\nassim que a pessoa se refere a elas — \"as de limpeza dos filtros\" — e\nporque foi assim que o lote as criou. Sem busca, pega todas as abertas\ndo escopo visível.",
@@ -2850,13 +2895,31 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "f2e918e1f71ceaccd888a58bc4aeba73"
   },
   {
-    "doc_key": "rule:src/lib/ai/assistant-tools.server.ts:42821",
+    "doc_key": "rule:src/lib/ai/assistant-tools.server.ts:43255",
     "kind": "rule",
     "title": "Regra em assistant-tools.server.ts",
     "content": "A ÚNICA ferramenta que grava na hora, sem cartão — e por um motivo\nlógico, não por exceção: ela É o cartão. Pedir confirmação para\ndesligar a confirmação seria uma piada.\n\nPedido explícito (09/09/2026): \"se o usuário pedir 'dispense a\nconfirmação', então ela tem que acatar e manter isso memorizado para\naquele usuário específico\".\n\nO que ela NÃO faz: ampliar permissão. Com a chave ligada, cada\ngravação continua passando pela MESMA server function da tela e pelo\nMESMO RLS — quem não pode arquivar uma pendência continua não podendo,\ne a falha aparece igual. O que sai é o clique, não a checagem.\n\nEscreve em `profiles` com o cliente do PRÓPRIO usuário: o RLS\n(\"profiles update own\") garante sozinho que ninguém mude a preferência\nde outra pessoa, sem nenhuma checagem extra aqui.",
     "source_path": "src/lib/ai/assistant-tools.server.ts",
     "audience": [],
     "content_hash": "43a4dc370011c06bfb8946cd8f24d2b8"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/assistant-tools.server.ts:45744",
+    "kind": "rule",
+    "title": "Regra em assistant-tools.server.ts",
+    "content": "A agenda só enxerga 7 dias. Um vídeo de limpeza quase sempre chega\ndepois — \"a limpeza de ontem\", \"a saída da semana passada\" — e sem\nesta consulta o assistente não teria como achar a estadia certa.\nLeitura pelo cliente do usuário: o RLS decide o que aparece.",
+    "source_path": "src/lib/ai/assistant-tools.server.ts",
+    "audience": [],
+    "content_hash": "b640024eae0c50f747b46fb168f07a8b"
+  },
+  {
+    "doc_key": "rule:src/lib/ai/assistant-tools.server.ts:48487",
+    "kind": "rule",
+    "title": "Regra em assistant-tools.server.ts",
+    "content": "ANEXAR O ARQUIVO DA CONVERSA A UMA ESTADIA (21/09/2026).\n\nPedido explícito: a IA interna precisa conseguir executar qualquer\nação que não seja alteração direta em reserva sincronizada — \"se um\nusuário interno mandar um vídeo pedindo para anexar a alguma reserva\nou alguma limpeza feita, ela tem que conseguir\".\n\nComo todas as outras, esta ferramenta NÃO grava e NÃO sobe nada: ela\nconfere o imóvel contra a permissão, escolhe a categoria e monta o\ncartão. O envio do arquivo e o `createRecordSituation` acontecem na\nconfirmação, pelo mesmo caminho da tela de registros — mesmo RLS,\nmesma numeração, mesma regra de pendência por categoria.",
+    "source_path": "src/lib/ai/assistant-tools.server.ts",
+    "audience": [],
+    "content_hash": "ff1883731b7e0de8ea61858ceba8fabc"
   },
   {
     "doc_key": "rule:src/lib/ai/audit/events.server.ts:0",
@@ -2922,7 +2985,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8e948ef1fef50aa5eb76b9a25449d422"
   },
   {
-    "doc_key": "rule:src/lib/ai/gateway.server.ts:11436",
+    "doc_key": "rule:src/lib/ai/gateway.server.ts:12095",
     "kind": "rule",
     "title": "Regra em gateway.server.ts",
     "content": "Recebe o texto da resposta conforme ele é escrito, para a interface poder\nmostrar em vez de esperar. Ver `postResponses`.\n\nO agente pode dar VÁRIAS voltas (uma por rodada de ferramentas), e cada\nvolta pode escrever texto. Por isso vem junto o número do passo: quem\nescuta descarta o que veio de um passo anterior quando um novo começa a\nescrever — senão o preâmbulo de uma rodada intermediária ficaria colado na\nresposta final.",
@@ -3093,7 +3156,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "d83a74c35e881710671cd72249217e20"
   },
   {
-    "doc_key": "rule:src/lib/ai/orchestrator.server.ts:34327",
+    "doc_key": "rule:src/lib/ai/orchestrator.server.ts:34996",
     "kind": "rule",
     "title": "Regra em orchestrator.server.ts",
     "content": "A RESPOSTA PARCIAL DE UMA ESCALAÇÃO TAMBÉM PASSA PELO VALIDADOR.\n\nO bloco grande acima roda com `!handoffReason`: quando o modelo escala, a\nchecagem anti-alucinação e a autoavaliação eram puladas inteiras e a\nconfiança virava 1 por decreto. Só que o prompt MANDA responder\nparcialmente antes de escalar — então justamente o texto entregue no\nmomento mais delicado era o único que ninguém revisava.\n\nFoi assim que saiu, para um hóspede que perguntou em que apartamento\nestava, um \"não consegui localizar sua reserva\" que o contexto\ndesmentia (08/09/2026). A checagem é barata perto do estrago.\n\nReprovado, o texto não é remendado: cai para uma frase curta e honesta.\nQuem continua a conversa é a pessoa que recebeu a escalação.",
@@ -3174,7 +3237,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "f08ea5e678e4f981e9e1178a51d3c77d"
   },
   {
-    "doc_key": "rule:src/lib/ai/reasoning.ts:5598",
+    "doc_key": "rule:src/lib/ai/reasoning.ts:6595",
     "kind": "rule",
     "title": "Regra em reasoning.ts",
     "content": "PERGUNTA INFORMATIVA (20/09/2026 — \"não pode demorar tanto para responder,\nnem para a equipe nem para hóspedes\").\n\n\"Como faço para anexar um vídeo?\" não manda o sistema fazer nada, não\nenvolve dinheiro nem hóspede e não pede julgamento — e estava pensando no\ntopo, 90 segundos. \"high\" é o mesmo modelo, com a mesma documentação na\nmão, respondendo em uma fração do tempo. O topo continua sendo o padrão de\ntudo que DECIDE ou GRAVA algo.",
@@ -3273,6 +3336,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "eb7ac9fc0427ac606871aaf01847f5fe"
   },
   {
+    "doc_key": "rule:src/lib/ai/validate.server.ts:1835",
+    "kind": "rule",
+    "title": "Regra em validate.server.ts",
+    "content": "Dispensa a checagem para uma resposta que não afirma NADA verificável\n(21/09/2026). Quem liga isto é o orquestrador, e só quando a resposta é\npuramente social, não chamou ferramenta nenhuma e não contém um único\nnúmero — ou seja, não há fato, código, horário, preço ou endereço a\nconferir. Qualquer outra resposta continua passando pelo validador.",
+    "source_path": "src/lib/ai/validate.server.ts",
+    "audience": [],
+    "content_hash": "6fb02ab1eb08ffff1fd69c2e5dcc957f"
+  },
+  {
     "doc_key": "rule:src/lib/airbnb.functions.ts:1005",
     "kind": "rule",
     "title": "Regra em airbnb.functions.ts",
@@ -3291,7 +3363,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "28ba8945e3d5e51d0ebac3fe3ff8b0f2"
   },
   {
-    "doc_key": "rule:src/lib/assistant-run.server.ts:13454",
+    "doc_key": "rule:src/lib/assistant-run.server.ts:11896",
+    "kind": "rule",
+    "title": "Regra em assistant-run.server.ts",
+    "content": "ESFORÇO NA MEDIDA DA PERGUNTA (20/09/2026).\n\nAqui estava fixo `isAction: true`, o que forçava o topo do raciocínio em\nTODA mensagem do painel — inclusive \"como faço para anexar um vídeo?\",\nque levou 90 segundos. Agora quem decide é o que a mensagem escreve: pedido\nde ação, dinheiro, hóspede ou julgamento continuam no máximo; pergunta\ninformativa roda em \"alto\", que responde igual e chega bem antes.",
+    "source_path": "src/lib/assistant-run.server.ts",
+    "audience": [],
+    "content_hash": "4c14a0e1909f95f0f2737cbd08d9a670"
+  },
+  {
+    "doc_key": "rule:src/lib/assistant-run.server.ts:15117",
     "kind": "rule",
     "title": "Regra em assistant-run.server.ts",
     "content": "A preferência é lida DEPOIS do run, de propósito: a própria conversa\npode ter acabado de ligá-la (ver `definir_confirmacao_automatica`). Lida\nantes, o \"dispense a confirmação\" só valeria a partir da mensagem\nseguinte — e a pessoa veria um cartão logo depois de pedir para não ver\nmais cartões.",
@@ -3316,6 +3397,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/assistant-run.shared.ts",
     "audience": [],
     "content_hash": "b541f55454f57cbfd424fcdc17a0536f"
+  },
+  {
+    "doc_key": "rule:src/lib/assistant-run.shared.ts:949",
+    "kind": "rule",
+    "title": "Regra em assistant-run.shared.ts",
+    "content": "ARQUIVO ANEXADO À PERGUNTA (21/09/2026) — só a ficha, não o conteúdo.\n\nPedido: \"se um usuário interno mandar um vídeo pedindo para anexar a\nalguma reserva ou alguma limpeza feita, ela tem que conseguir\". O vídeo\nNÃO sobe junto da pergunta: fica no aparelho enquanto a IA descobre a qual\nestadia ele pertence, e só sobe na confirmação — pelo mesmo caminho da\ntela de registros. O que vem aqui é o que o modelo precisa saber para\ndecidir: nome, tipo, tamanho e duração.",
+    "source_path": "src/lib/assistant-run.shared.ts",
+    "audience": [],
+    "content_hash": "59f10b1a0a05145b16f3fdf9eddc3955"
   },
   {
     "doc_key": "rule:src/lib/assistant-types.ts:0",
@@ -3345,7 +3435,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "7cee7f992f02ee273378e324bee34b3f"
   },
   {
-    "doc_key": "rule:src/lib/assistant-types.ts:6849",
+    "doc_key": "rule:src/lib/assistant-types.ts:6355",
+    "kind": "rule",
+    "title": "Regra em assistant-types.ts",
+    "content": "ANEXAR O ARQUIVO DA CONVERSA A UMA RESERVA/LIMPEZA (21/09/2026).\n\nPedido explícito: \"se um usuário interno mandar um vídeo pedindo para\nanexar a alguma reserva ou alguma limpeza feita, ela tem que\nconseguir\".\n\nO arquivo NÃO sobe junto da pergunta: ele fica no aparelho enquanto a\nIA decide a qual reserva pertence. Quem sobe é a confirmação, pelo\nmesmo caminho da tela de registros (`enviarMidia` +\n`createRecordSituation`) — então vale o mesmo RLS, a mesma numeração\ndo registro e a mesma regra de pendência por categoria.\n\nIsto é registro do sistema: não toca em `property_reservations`, que é\nsincronizada com o canal e nunca pode ser reescrita por aqui.",
+    "source_path": "src/lib/assistant-types.ts",
+    "audience": [],
+    "content_hash": "7993cdd9eef9ef1bc238dc71417398a2"
+  },
+  {
+    "doc_key": "rule:src/lib/assistant-types.ts:8005",
     "kind": "rule",
     "title": "Regra em assistant-types.ts",
     "content": "Conversa a que a mensagem pertence — a interface usa para desenhar a\ndivisória de \"nova conversa\" no histórico contínuo. Só vem do histórico\ngravado; mensagens recém-criadas na tela não precisam dele.",
@@ -3354,7 +3453,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "322fda48734505a60f8aa0baac338d0f"
   },
   {
-    "doc_key": "rule:src/lib/assistant-types.ts:7197",
+    "doc_key": "rule:src/lib/assistant-types.ts:8353",
     "kind": "rule",
     "title": "Regra em assistant-types.ts",
     "content": "O que foi EXECUTADO neste turno, em uma linha (\"Criar em 9 imóveis\").\n\nPedido explícito (09/09/2026): o histórico guarda \"todas as decisões\".\nO cartão de confirmação é objeto de tela — some ao confirmar e não deixa\nrastro. Isto é o rastro: fica gravado como mensagem e sobrevive a\nrecarregar, inclusive quando a confirmação automática está ligada e\ncartão nenhum chega a aparecer.",
@@ -3363,7 +3462,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "0609b0237b4cc6e11e79f334a5777c85"
   },
   {
-    "doc_key": "rule:src/lib/assistant-types.ts:7658",
+    "doc_key": "rule:src/lib/assistant-types.ts:8814",
     "kind": "rule",
     "title": "Regra em assistant-types.ts",
     "content": "A tela apontada pela resposta vira link dentro do próprio texto\n(07/09/2026) — não há mais um campo separado nem um chip embaixo da\nmensagem repetindo o mesmo caminho.",
@@ -3372,7 +3471,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "aea6e0dd752ab44bafbf64ca31f3132f"
   },
   {
-    "doc_key": "rule:src/lib/assistant-types.ts:7966",
+    "doc_key": "rule:src/lib/assistant-types.ts:9122",
     "kind": "rule",
     "title": "Regra em assistant-types.ts",
     "content": "A pessoa dispensou o cartão de confirmação (`profiles.assistant_auto_\nconfirm`). Com `true`, a interface executa a `pendingAction` na hora, em\nvez de esperar o clique.\n\nPedido explícito (09/09/2026): \"se o usuário pedir 'dispense a\nconfirmação', então ela tem que acatar e manter isso memorizado para\naquele usuário específico\".\n\nVem no envelope da resposta, e não de uma query separada, porque a\npreferência pode ter mudado NESTA mensagem — a IA tem uma ferramenta para\nligá-la, e o valor que interessa é o de depois da conversa.\n\nA autonomia é sobre o CLIQUE, não sobre permissão: a gravação continua\npassando pela mesma server function e pelo mesmo RLS da tela.",
