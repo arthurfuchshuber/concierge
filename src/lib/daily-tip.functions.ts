@@ -98,14 +98,24 @@ Retorne JSON estrito no formato: {"greeting":"...","title":"...","body":"..."}.
 export const getDailyTip = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => Input.parse(i))
   .handler(async ({ data }): Promise<DailyTip | null> => {
+    /* Rota pública e paga (22/09/2026): só imóvel PUBLICADO gera dica, com
+     * freio por IP e teto diário por imóvel — o cache já limita a uma geração
+     * por imóvel/dia, e estes limites impedem varredura de ids. */
+    const { allowPublicRate, clientIpFrom, allowPaidGuestUse } =
+      await import("@/lib/public-rate-limit.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
+    if (!allowPublicRate(`daily-tip:${clientIpFrom(getRequest())}`, 20, 60_000)) return null;
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: prop } = await supabaseAdmin
       .from("properties")
       .select("id, name, city, country, lat, lng")
       .eq("id", data.propertyId)
+      .eq("published", true)
       .maybeSingle();
     if (!prop) return null;
     if (!prop.city && (prop.lat == null || prop.lng == null)) return null;
+
 
     const { propertyTimeZone, todayInTZ } = await import("@/lib/property-timezone");
     const today = todayInTZ(propertyTimeZone(prop.city, prop.country));
@@ -117,7 +127,13 @@ export const getDailyTip = createServerFn({ method: "POST" })
       .maybeSingle();
     if (cached?.content) return cached.content as DailyTip;
 
+    // Cache vazio = geração paga. Teto diário por imóvel e global.
+    if (!allowPaidGuestUse({ scope: "daily-tip", propertyId: prop.id, perProperty: 4, global: 500 })) {
+      return null;
+    }
+
     const weather = prop.lat != null && prop.lng != null ? await fetchWeather(Number(prop.lat), Number(prop.lng)) : null;
+
 
     let content: DailyTip;
     try {

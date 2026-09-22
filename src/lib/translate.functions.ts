@@ -18,18 +18,72 @@ const InputSchema = z.object({
     .refine((v): v is (typeof SUPPORTED_LANGS)[number] => (SUPPORTED_LANGS as readonly string[]).includes(v), {
       message: "Idioma não suportado.",
     }),
+  /**
+   * Contexto do hóspede (sem login): o par slug + sessionId de uma conversa
+   * REAL do guia. Sem ele — e sem sessão de usuário — a tradução não roda.
+   */
+  guest: z
+    .object({
+      slug: z.string().regex(/^[a-z0-9-]{1,64}$/),
+      sessionId: z.string().min(8).max(120),
+    })
+    .nullable()
+    .optional(),
 });
 
+/** Sessão autenticada do painel (quem atende), quando houver. */
+async function hasStaffSession(): Promise<boolean> {
+  try {
+    const { getRequest } = await import("@tanstack/react-start/server");
+    const header = getRequest()?.headers.get("authorization") ?? "";
+    if (!header.startsWith("Bearer ")) return false;
+    const token = header.slice(7);
+    if (!token) return false;
+    const { createClient } = await import("@supabase/supabase-js");
+    const url = process.env["SUPABASE_URL"];
+    const key = process.env["SUPABASE_PUBLISHABLE_KEY"];
+    if (!url || !key) return false;
+    const sb = createClient(url, key, {
+      auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+    });
+    const { data, error } = await sb.auth.getClaims(token);
+    return !error && !!data?.claims?.sub;
+  } catch {
+    return false;
+  }
+}
+
+/** O hóspede precisa ter uma conversa de verdade naquele guia publicado. */
+async function isKnownGuest(guest: { slug: string; sessionId: string }): Promise<boolean> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: prop } = await supabaseAdmin
+    .from("properties")
+    .select("id")
+    .eq("slug", guest.slug)
+    .eq("published", true)
+    .maybeSingle();
+  if (!prop) return false;
+  const { data: conv } = await supabaseAdmin
+    .from("property_chat_conversations")
+    .select("id")
+    .eq("property_id", (prop as { id: string }).id)
+    .eq("guest_session_id", guest.sessionId)
+    .limit(1)
+    .maybeSingle();
+  return !!conv;
+}
+
 /**
- * Tradução de mensagens do chat. Pública de propósito: o hóspede (sem login)
- * também precisa ver as mensagens do atendente no idioma dele.
+ * Tradução de mensagens do chat. Continua acessível ao hóspede anônimo, mas
+ * só dentro de uma conversa existente do guia dele — antes qualquer pessoa na
+ * internet usava a rota como tradutor de IA de graça (22/09/2026).
  */
 export const translateMessage = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data }) => {
     // Endpoint público: sem freio por IP viraria proxy gratuito de LLM.
     const { getRequestIP } = await import("@tanstack/react-start/server");
-    const { allowPublicRate } = await import("@/lib/public-rate-limit.server");
+    const { allowPublicRate, allowPaidGuestUse } = await import("@/lib/public-rate-limit.server");
     let ip = "anon";
     try {
       ip = getRequestIP({ xForwardedFor: true }) ?? "anon";
@@ -40,8 +94,29 @@ export const translateMessage = createServerFn({ method: "POST" })
       throw new Error("Muitas traduções em pouco tempo. Tente novamente em instantes.");
     }
 
+    const staff = await hasStaffSession();
+    if (!staff) {
+      const guest = data.guest ?? null;
+      if (!guest || !(await isKnownGuest(guest))) {
+        throw new Error("Tradução indisponível para esta sessão.");
+      }
+      if (
+        !allowPaidGuestUse({
+          scope: "translate",
+          propertyId: guest.slug,
+          sessionId: guest.sessionId,
+          perSession: 120,
+          perProperty: 1500,
+          global: 8000,
+        })
+      ) {
+        throw new Error("Limite de traduções do dia atingido.");
+      }
+    }
+
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("Tradução indisponível no momento.");
+
 
     const target = data.targetLang;
 

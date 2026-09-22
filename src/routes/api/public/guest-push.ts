@@ -27,6 +27,32 @@ const UnsubscribeSchema = z.object({
 
 const BodySchema = z.discriminatedUnion("action", [SubscribeSchema, UnsubscribeSchema]);
 
+/** Serviços de push legítimos dos navegadores. */
+const PUSH_HOSTS = [
+  "fcm.googleapis.com",
+  "android.googleapis.com",
+  "updates.push.services.mozilla.com",
+  "updates-autopush.stage.mozaws.net",
+  "web.push.apple.com",
+];
+
+function isPushServiceEndpoint(endpoint: string): boolean {
+  try {
+    const u = new URL(endpoint);
+    if (u.protocol !== "https:") return false;
+    const h = u.hostname.toLowerCase();
+    return (
+      PUSH_HOSTS.includes(h) ||
+      h.endsWith(".notify.windows.com") ||
+      h.endsWith(".push.apple.com") ||
+      h.endsWith(".push.services.mozilla.com")
+    );
+  } catch {
+    return false;
+  }
+}
+
+
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -68,6 +94,18 @@ export const Route = createFileRoute("/api/public/guest-push")({
 
         const b = parsed.data;
 
+        // 1) O endereço de entrega precisa ser de um serviço de push real —
+        // sem isso a rota vira um encaminhador para destino escolhido por quem chama.
+        if (!isPushServiceEndpoint(b.endpoint)) {
+          return jsonResponse({ error: "Endereço de notificação inválido" }, 400);
+        }
+
+        // 2) A sessão do hóspede é o segredo que amarra a inscrição; sessões
+        // curtas (adivinháveis) não são aceitas.
+        if (b.sessionId.replace(/^preview-/, "").length < 16) {
+          return jsonResponse({ error: "Sessão inválida" }, 400);
+        }
+
         // Resolve o property_id pelo slug
         const { data: prop } = await supabaseAdmin
           .from("properties")
@@ -76,6 +114,25 @@ export const Route = createFileRoute("/api/public/guest-push")({
           .eq("published", true)
           .maybeSingle();
         if (!prop) return jsonResponse({ error: "Imóvel não encontrado" }, 404);
+        const propertyId = (prop as { id: string }).id;
+
+        // 3) Se a sessão já é conhecida, ela pertence a UM imóvel. Tentar
+        // registrar a mesma sessão em outro guia é sinal de sequestro de
+        // notificação, não de uso legítimo.
+        const { data: donos } = await supabaseAdmin
+          .from("guest_push_subscriptions")
+          .select("property_id, endpoint")
+          .eq("guest_session_id", b.sessionId)
+          .limit(10);
+        const existentes = (donos ?? []) as Array<{ property_id: string; endpoint: string }>;
+        if (existentes.some((r) => r.property_id !== propertyId)) {
+          return jsonResponse({ error: "Sessão inválida" }, 403);
+        }
+        // 4) Teto de aparelhos por sessão (um hóspede não tem 20 celulares).
+        const novosEndpoints = existentes.filter((r) => r.endpoint !== b.endpoint).length;
+        if (novosEndpoints >= 5) {
+          return jsonResponse({ error: "Limite de aparelhos atingido" }, 429);
+        }
 
         // Se conversationId informado, valida que pertence a esta property + sessão.
         // Se NÃO informado (o caso comum: o hóspede autoriza a notificação antes
@@ -86,7 +143,7 @@ export const Route = createFileRoute("/api/public/guest-push")({
           const { data: existente } = await supabaseAdmin
             .from("property_chat_conversations")
             .select("id")
-            .eq("property_id", (prop as { id: string }).id)
+            .eq("property_id", propertyId)
             .eq("guest_session_id", b.sessionId)
             .order("last_message_at", { ascending: false })
             .limit(1);
@@ -100,7 +157,7 @@ export const Route = createFileRoute("/api/public/guest-push")({
             .maybeSingle();
           if (
             conv &&
-            (conv as { property_id: string }).property_id === (prop as { id: string }).id &&
+            (conv as { property_id: string }).property_id === propertyId &&
             (conv as { guest_session_id: string }).guest_session_id === b.sessionId
           ) {
             conversationId = b.conversationId;
@@ -110,7 +167,7 @@ export const Route = createFileRoute("/api/public/guest-push")({
         const { error } = await supabaseAdmin.from("guest_push_subscriptions").upsert(
           {
             guest_session_id: b.sessionId,
-            property_id: (prop as { id: string }).id,
+            property_id: propertyId,
             conversation_id: conversationId,
             endpoint: b.endpoint,
             p256dh: b.keys.p256dh,
@@ -122,8 +179,14 @@ export const Route = createFileRoute("/api/public/guest-push")({
           { onConflict: "endpoint" },
         );
 
-        if (error) return jsonResponse({ error: error.message }, 500);
+        if (error) {
+          // Detalhe do banco fica no log do servidor; o visitante recebe só
+          // uma mensagem genérica (22/09/2026).
+          console.error("[guest-push] falha ao salvar inscrição:", error.message);
+          return jsonResponse({ error: "Não foi possível salvar a inscrição." }, 500);
+        }
         return jsonResponse({ ok: true });
+
       },
     },
   },

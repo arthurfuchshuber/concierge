@@ -212,13 +212,20 @@ export function GuideAiChat({
       const id = m.id as string;
       translatingRef.current.add(id);
       try {
-        const r = await translateMessage({ data: { text: m.content.slice(0, 2000), targetLang: myLang } });
+        const r = await translateMessage({
+          data: {
+            text: m.content.slice(0, 2000),
+            targetLang: myLang,
+            guest: sessionId ? { slug, sessionId } : null,
+          },
+        });
         setAutoTranslated((p) => ({ ...p, [id]: r.translated }));
       } catch {
         /* mantém o original */
       }
     });
-  }, [messages, autoTranslated]);
+  }, [messages, autoTranslated, slug, sessionId]);
+
 
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);

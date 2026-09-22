@@ -241,10 +241,21 @@ export const generateCityReferences = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => GenerateInput.parse(i))
   .handler(async ({ data, context }) => {
     await assertCanManageCity(context, { city_label: data.city_label, state: normalizeState(data.state ?? null), country: data.country });
+    // Ter imóvel na cidade não basta: as refs nascem no escopo do `propertyId`
+    // enviado. Sem esta checagem, um anfitrião gravava referências no guia de
+    // outro anfitrião da mesma cidade (22/09/2026).
+    if (data.propertyId) {
+      const { data: canAccess } = await context.supabase.rpc("user_can_access_property", {
+        _user_id: context.userId,
+        _property_id: data.propertyId,
+      });
+      if (!canAccess) throw new Error("Você não tem acesso a esta residência.");
+    }
     const { assertFeature } = await import("@/lib/plan-guard.server");
     await assertFeature(context.supabase, context.userId, "autoImport", { propertyId: data.propertyId ?? null });
     return runCityGeneration({ ...data, type: data.type ?? null, propertyId: data.propertyId ?? null });
   });
+
 
 
 // Função interna reaproveitável pelo cron (sem auth middleware).

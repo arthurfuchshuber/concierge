@@ -51,11 +51,42 @@ export const Route = createFileRoute("/api/public/guide-transcribe")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data: prop } = await supabaseAdmin
           .from("properties")
-          .select("id")
+          .select("id, access_mode, pin_code")
           .eq("slug", body.slug)
           .eq("published", true)
           .maybeSingle();
         if (!prop) return json({ error: "Guia não encontrado." }, 404);
+
+        // Guia protegido por PIN: só transcreve quem já provou o PIN (cookie
+        // assinado), exatamente como o chat faz.
+        const p = prop as { id: string; access_mode?: string | null; pin_code?: string | null };
+        if (p.access_mode === "pin") {
+          const { getCookie } = await import("@tanstack/react-start/server");
+          const guestAccess = await import("@/lib/guest-access.server");
+          const ok = await guestAccess.verifyPinCookie(
+            "pin",
+            p.id,
+            p.pin_code ?? null,
+            getCookie(guestAccess.pinCookieName("pin", p.id)) ?? null,
+          );
+          if (!ok) return json({ error: "Acesso bloqueado." }, 403);
+        }
+
+        // Teto de custo do dia: por sessão do hóspede, por imóvel e global.
+        const { allowPaidGuestUse } = await import("@/lib/public-rate-limit.server");
+        if (
+          !allowPaidGuestUse({
+            scope: "guide-transcribe",
+            propertyId: p.id,
+            sessionId: body.sessionId,
+            perSession: 40,
+            perProperty: 300,
+            global: 2000,
+          })
+        ) {
+          return json({ error: "Limite de transcrições atingido por hoje." }, 429);
+        }
+
 
         try {
           const { transcribeAudioBase64 } = await import("@/lib/ai/transcribe.server");

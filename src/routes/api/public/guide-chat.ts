@@ -578,24 +578,70 @@ export const Route = createFileRoute("/api/public/guide-chat")({
         const conversationId = url.searchParams.get("conversationId") ?? "";
         const sessionId = url.searchParams.get("sessionId") ?? "";
         const since = url.searchParams.get("since");
-        if (!/^[0-9a-f-]{36}$/i.test(conversationId) || sessionId.length < 8) {
+        /* O par conversa + sessão É a credencial do hóspede anônimo. Para que
+         * isso seja de fato uma credencial, a sessão precisa ter entropia de
+         * verdade (UUID) e as tentativas erradas precisam ter freio — senão
+         * dá para varrer sessões curtas e ler conversa alheia (22/09/2026). */
+        const sessionCore = sessionId.replace(/^preview-/, "");
+        if (!/^[0-9a-f-]{36}$/i.test(conversationId) || sessionCore.length < 16) {
           return new Response(JSON.stringify({ error: "invalid" }), {
             status: 400,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        const { clientIpFrom, allowPublicRate } = await import("@/lib/public-rate-limit.server");
+        const ip = clientIpFrom(request);
+        if (!allowPublicRate(`guide-chat-get:${ip}`, 120, 60_000)) {
+          return new Response(JSON.stringify({ error: "rate_limited" }), {
+            status: 429,
             headers: { "Content-Type": "application/json" },
           });
         }
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data: conv } = await supabaseAdmin
           .from("property_chat_conversations")
-          .select("id, guest_session_id, ai_paused, status")
+          .select("id, property_id, guest_session_id, ai_paused, status")
           .eq("id", conversationId)
           .maybeSingle();
         if (!conv || conv.guest_session_id !== sessionId) {
+          // Tentativa errada consome um orçamento próprio: 20 falhas por
+          // minuto por IP encerram a varredura.
+          if (!allowPublicRate(`guide-chat-get-miss:${ip}`, 20, 60_000)) {
+            return new Response(JSON.stringify({ error: "rate_limited" }), {
+              status: 429,
+              headers: { "Content-Type": "application/json" },
+            });
+          }
           return new Response(JSON.stringify({ error: "not_found" }), {
             status: 404,
             headers: { "Content-Type": "application/json" },
           });
         }
+        // Guia protegido por PIN: o histórico também exige o PIN provado.
+        {
+          const { data: prop } = await supabaseAdmin
+            .from("properties")
+            .select("id, access_mode, pin_code")
+            .eq("id", (conv as { property_id: string }).property_id)
+            .maybeSingle();
+          const p = prop as { id: string; access_mode?: string | null; pin_code?: string | null } | null;
+          if (p && p.access_mode === "pin") {
+            const guestAccess = await import("@/lib/guest-access.server");
+            const pinOk = await guestAccess.verifyPinCookie(
+              "pin",
+              p.id,
+              p.pin_code ?? null,
+              getCookie(guestAccess.pinCookieName("pin", p.id)) ?? null,
+            );
+            if (!pinOk) {
+              return new Response(JSON.stringify({ error: "forbidden" }), {
+                status: 403,
+                headers: { "Content-Type": "application/json" },
+              });
+            }
+          }
+        }
+
         let q = supabaseAdmin
           .from("property_chat_messages")
           .select(
