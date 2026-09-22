@@ -27,6 +27,32 @@ const UnsubscribeSchema = z.object({
 
 const BodySchema = z.discriminatedUnion("action", [SubscribeSchema, UnsubscribeSchema]);
 
+/** Serviços de push legítimos dos navegadores. */
+const PUSH_HOSTS = [
+  "fcm.googleapis.com",
+  "android.googleapis.com",
+  "updates.push.services.mozilla.com",
+  "updates-autopush.stage.mozaws.net",
+  "web.push.apple.com",
+];
+
+function isPushServiceEndpoint(endpoint: string): boolean {
+  try {
+    const u = new URL(endpoint);
+    if (u.protocol !== "https:") return false;
+    const h = u.hostname.toLowerCase();
+    return (
+      PUSH_HOSTS.includes(h) ||
+      h.endsWith(".notify.windows.com") ||
+      h.endsWith(".push.apple.com") ||
+      h.endsWith(".push.services.mozilla.com")
+    );
+  } catch {
+    return false;
+  }
+}
+
+
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
