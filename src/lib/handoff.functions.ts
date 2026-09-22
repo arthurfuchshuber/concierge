@@ -1376,8 +1376,10 @@ export const deleteHandoffMessage = createServerFn({ method: "POST" })
       .select("id, sender_type, conversation_id")
       .eq("id", data.messageId)
       .maybeSingle();
+    // Mensagem já apagada (clique duplo / reenvio): trata como sucesso em vez
+    // de derrubar a tela com erro.
     if (!msg || msg.conversation_id !== data.conversationId)
-      throw new Error("Mensagem não encontrada.");
+      return { ok: true, alreadyDeleted: true };
     if (msg.sender_type === "guest") throw new Error("Não é possível apagar mensagens do hóspede.");
     const { error } = await supabase
       .from("property_chat_messages")
