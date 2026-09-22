@@ -119,9 +119,11 @@ export async function chatText(
   const res = await fetchWithRetry(`${BASE}/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey() },
-    // Timeout defensivo: chamadas de classificação/validação são rápidas por natureza;
-    // 20s é folga generosa sem deixar o turno do hóspede travado indefinidamente.
-    signal: opts?.signal ?? AbortSignal.timeout(20_000),
+    // Classificação/validação são curtas por natureza, mas o corte não pode
+    // ser apertado: um pico do provedor virava resposta perdida para o
+    // hóspede. 120s é folga larga, não um relógio disputando com o modelo.
+    signal: opts?.signal ?? AbortSignal.timeout(120_000),
+
     body: JSON.stringify({
       model,
       messages,
@@ -366,10 +368,18 @@ export async function runAgent(params: {
 }): Promise<AgentRun> {
   const model = modelFor(params.task ?? "agent");
   const maxSteps = params.maxSteps ?? 5;
-  // Timeout padrão: nenhuma chamada ao agente principal pode travar indefinidamente.
-  // 90s cobre um loop de tool-calling de vários passos com folga; se o caller já
-  // passou seu próprio signal, respeitamos o dele em vez de sobrepor.
-  const signal = params.signal ?? AbortSignal.timeout(90_000);
+  /**
+   * SEM RELÓGIO CONTRA O RACIOCÍNIO (22/09/2026).
+   *
+   * Aqui havia `AbortSignal.timeout(90_000)`. Com esforço máximo e várias
+   * rodadas de ferramentas, um turno legítimo do hóspede passa de 90s — e o
+   * relógio cortava o trabalho no meio: o gateway seguia cobrando e o hóspede
+   * recebia "não consegui responder agora" (foi o que aconteceu com a Caroline
+   * às 08:27 de 22/09). Só o caller cancela, e só quando alguém desiste de
+   * verdade; a rota SSE mantém a conexão viva mostrando cada etapa.
+   */
+  const signal = params.signal;
+
   const toolMap = new Map(params.tools.map((t) => [t.name, t]));
   const toolDefs = params.tools.map((t) => ({
     type: "function",
