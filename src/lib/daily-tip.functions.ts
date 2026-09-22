@@ -127,7 +127,13 @@ export const getDailyTip = createServerFn({ method: "POST" })
       .maybeSingle();
     if (cached?.content) return cached.content as DailyTip;
 
+    // Cache vazio = geração paga. Teto diário por imóvel e global.
+    if (!allowPaidGuestUse({ scope: "daily-tip", propertyId: prop.id, perProperty: 4, global: 500 })) {
+      return null;
+    }
+
     const weather = prop.lat != null && prop.lng != null ? await fetchWeather(Number(prop.lat), Number(prop.lng)) : null;
+
 
     let content: DailyTip;
     try {
