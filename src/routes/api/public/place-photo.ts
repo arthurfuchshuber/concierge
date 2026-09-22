@@ -1,6 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { tooManyRequests, rateLimitedResponse } from "@/lib/public-rate-limit.server";
 
+// Pixel transparente devolvido quando a foto não vem do Google.
+const PIXEL_BASE64 =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+function placeholderResponse() {
+  const bin = atob(PIXEL_BASE64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+  return new Response(bytes, {
+    status: 200,
+    headers: {
+      "Content-Type": "image/png",
+      // Cache curto: a foto pode voltar a funcionar logo.
+      "Cache-Control": "public, max-age=60",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
+}
+
 // Proxy público para fotos do Google Places.
 // Mantém a chave do Google no servidor (necessário em domínios custom onde
 // a browser key restrita a *.lovable.app não funciona).
