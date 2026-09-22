@@ -108,11 +108,20 @@ export const Route = createFileRoute("/api/public/landing-chat")({
 
         // `cf-connecting-ip` primeiro: o 1º item do `x-forwarded-for` vem do
         // próprio cliente e deixava trocar de "IP" a cada chamada (16/09/2026).
-        const { clientIpFrom } = await import("@/lib/public-rate-limit.server");
+        const { clientIpFrom, allowDailyBudget } = await import("@/lib/public-rate-limit.server");
         const clientIp = clientIpFrom(request);
         if (!checkRateLimit(clientIp)) {
           return new Response(JSON.stringify({ error: "Muitas mensagens em pouco tempo. Aguarde um instante." }), { status: 429, headers: { "Content-Type": "application/json" } });
         }
+        // Teto diário: a rota é anônima e cada resposta custa crédito de IA.
+        // Sem isto, um visitante persistente consome o crédito do mês inteiro.
+        if (!allowDailyBudget(`landing-chat:ip:${clientIp}`, 60) || !allowDailyBudget("landing-chat:global", 1500)) {
+          return new Response(
+            JSON.stringify({ error: "Limite de conversas por hoje atingido. Fale com o time pelo WhatsApp." }),
+            { status: 429, headers: { "Content-Type": "application/json" } },
+          );
+        }
+
 
         const apiKey = process.env.LOVABLE_API_KEY;
         if (!apiKey) {
