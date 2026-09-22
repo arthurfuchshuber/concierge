@@ -210,8 +210,11 @@ export function reasoningFor(
 
   const questions = (message.match(/\?/g) ?? []).length;
   const deep = DEEP.some((k) => text.includes(norm(k)));
+  const advice = ADVICE.some((k) => text.includes(norm(k)));
   const factual =
     !deep &&
+    !advice &&
+
     questions <= 1 &&
     words.length <= 8 &&
     message.length <= 80 &&
