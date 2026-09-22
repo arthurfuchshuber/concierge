@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-22T14:57:19.202Z";
+export const GENERATED_AT = "2026-09-22T17:03:13.635Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -292,6 +292,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/OperationWorkspace.tsx",
     "audience": [],
     "content_hash": "aa559bfb5c318579be22dfd7ffd8c016"
+  },
+  {
+    "doc_key": "rule:allowPaidGuestUse",
+    "kind": "rule",
+    "title": "Regra — allowPaidGuestUse",
+    "content": "Freio de custo padrão das rotas públicas pagas: teto por sessão do hóspede,\npor imóvel e global no dia. Devolve false quando qualquer um estourar.",
+    "source_path": "src/lib/public-rate-limit.server.ts",
+    "audience": [],
+    "content_hash": "0b7c7668030d98cc97a2ef5c6827a4e0"
   },
   {
     "doc_key": "rule:appendSituationMedia",
@@ -3955,6 +3964,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/trail.ts",
     "audience": [],
     "content_hash": "6b410279c93cc87f14fef0f542338d1e"
+  },
+  {
+    "doc_key": "rule:src/lib/translate.functions.ts:751",
+    "kind": "rule",
+    "title": "Regra em translate.functions.ts",
+    "content": "Contexto do hóspede (sem login): o par slug + sessionId de uma conversa\nREAL do guia. Sem ele — e sem sessão de usuário — a tradução não roda.",
+    "source_path": "src/lib/translate.functions.ts",
+    "audience": [],
+    "content_hash": "7ab43b287abced8beb2b6d033a0cb686"
   },
   {
     "doc_key": "rule:stage",
