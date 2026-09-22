@@ -69,7 +69,7 @@ const CACHE_TTL_MS = 60_000;
 
 export async function loadTaxonomyCached(): Promise<Taxonomy> {
   if (_cache && Date.now() - _cache.at < CACHE_TTL_MS) return _cache.taxonomy;
-  const supabase = publicClient();
+  const supabase = await taxonomyReader();
   const [catsRes, tagsRes] = await Promise.all([
     supabase.from("poi_categories").select("id,slug,label,description,display_order,is_protected").order("display_order"),
     supabase
