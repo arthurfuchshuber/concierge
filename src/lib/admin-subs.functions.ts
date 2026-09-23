@@ -5,8 +5,18 @@ import { PLANS, planFromProductId, type PlanKey } from "@/lib/payments.functions
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function assertAdmin(supabase: any, userId: string) {
-  const { data, error } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
-  if (error) throw new Error("Erro ao verificar permissão");
+  const { retryDbResult, isTemporaryDbError } = await import("@/lib/db-errors.server");
+  const { data, error } = await retryDbResult<{ data: unknown; error: { code?: string; message?: string } | null }>(
+    () => supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
+  );
+  if (error) {
+    console.error("[assertAdmin]", error);
+    throw new Error(
+      isTemporaryDbError(error)
+        ? "O sistema de dados está se reconectando. Aguarde alguns segundos e tente de novo."
+        : "Erro ao verificar permissão",
+    );
+  }
   if (!data) throw new Error("Acesso negado: apenas administradores");
 }
 
