@@ -47,10 +47,12 @@ export const Route = createFileRoute("/api/public/cron/proactive-concierge")({
           }
 
           // Envio real das ações de baixa autonomia já aprovadas pelo motor
-          // (welcome/checkout/silent-guest) — antes desta correção, ficavam
-          // aprovadas para sempre sem nunca chegar ao hóspede.
+          // (welcome/checkout/silent-guest). PAUSADO em 23/09/2026 pela trava
+          // `PROACTIVE_SENDING_ENABLED` em sender.server.ts — as ações seguem
+          // sendo geradas e aprovadas, só não consomem IA para serem enviadas.
           const { sendApprovedProactiveActions } = await import("@/lib/ai/agents/proactive/sender.server");
           const send = await sendApprovedProactiveActions({ supabase: supabaseAdmin, limit: 200 });
+
 
           return Response.json({ ok: true, scan, send, tenantsMeasured: tenantIds.length });
         } catch (err) {
