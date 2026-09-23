@@ -2858,7 +2858,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
                 >
                   <CalendarRange className={ACTION_ICON} />
-                  <span className="lg:hidden">{cleaningPeriodLabel}</span>
+                  {/* Sem a palavra "Período" no botão (pedido explícito,
+                      23/09/2026) — o título da tela já diz; aqui só as datas. */}
+                  <span className="lg:hidden">{cleaningPeriodLabel.replace(/^Período /, "")}</span>
                   <X className="size-3 shrink-0 opacity-70" />
                 </button>
               )}
@@ -4875,18 +4877,20 @@ type CleaningPeriodPoint = CleaningDailyPoint & {
     barra se dividir em verde (realizadas) e laranja fraco (previstas). */
 type CleaningTopItem = CleaningBreakdownItem & { doneCount?: number; forecastCount?: number };
 
-/** Legenda "● realizadas ● previstas" no cabeçalho do gráfico — só aparece
-    quando o período mistura as duas parcelas. */
+/** Legenda "● Realizadas ● Previstas" — só aparece quando o período mistura
+    as duas parcelas. Fica CENTRADA embaixo do gráfico, com a primeira letra
+    maiúscula (pedido explícito, 23/09/2026) — no cabeçalho ela disputava
+    espaço com o título e a contagem de dias e acabava cortada no celular. */
 function CleaningSplitLegend() {
   return (
-    <span className="flex items-center gap-2 text-[10px] text-muted-foreground">
+    <span className="flex items-center justify-center gap-3 text-[10px] text-muted-foreground">
       <span className="flex items-center gap-1">
         <span aria-hidden className="size-1.5 rounded-full" style={{ backgroundColor: CLEANING_DONE_COLOR }} />
-        realizadas
+        Realizadas
       </span>
       <span className="flex items-center gap-1">
         <span aria-hidden className="size-1.5 rounded-full" style={{ backgroundColor: CLEANING_FORECAST_COLOR }} />
-        previstas
+        Previstas
       </span>
     </span>
   );
@@ -4948,7 +4952,7 @@ function CleaningChartFrame({
    * Tocar de novo no mesmo dia, ou no X, fecha.
    */
   detail?: DayDetailSource | ((date: string) => DayDetailSource[]);
-  /** Legenda de cores, à esquerda da contagem de dias (período misto). */
+  /** Legenda de cores, centrada embaixo do gráfico (período misto). */
   legend?: React.ReactNode;
   children: (width: number, pick: ChartPick) => React.ReactElement;
 }) {
@@ -4958,6 +4962,16 @@ function CleaningChartFrame({
   /** X do dia tocado, nas coordenadas do gráfico (antes da rolagem). */
   const [pickX, setPickX] = useState<number | null>(null);
   const [scrollLeft, setScrollLeft] = useState(0);
+  // "role para o lado" SÓ quando ainda há dias fora da vista, à direita
+  // (pedido explícito, 23/09/2026): some quando todos os dias cabem e também
+  // quando a pessoa já rolou até o último dia. Folga de 2px para o
+  // arredondamento de subpixel do navegador.
+  const hasHiddenDays =
+    days > 0 &&
+    anti.scrolls &&
+    anti.viewportWidth != null &&
+    anti.contentWidth != null &&
+    scrollLeft + anti.viewportWidth < anti.contentWidth - 2;
 
   // Trocou a janela (últimos 7d ↔ próximos 7d) ou o período e o dia aberto
   // saiu da série: fecha. Recarga a cada 30s com os mesmos dias não fecha.
@@ -4987,18 +5001,16 @@ function CleaningChartFrame({
        enquanto todo bloco da Operacional tem 14px de raio e o cabeçalho com
        ponto, rótulo e fio que some. Agora é o mesmo `PanelHeading` de lá. */
     <div className={`${PANEL_SHELL} w-full px-3.5 py-3.5`}>
+      {/* "(12 DIAS)" colado ao título, entre parênteses e no mesmo caixa
+          alta do rótulo (pedido explícito, 23/09/2026). À direita sobra só o
+          aviso de rolagem, quando os dias não cabem na largura. */}
       <PanelHeading
-        title={title}
+        title={days > 0 ? `${title} (${days} ${days === 1 ? "dia" : "dias"})` : title}
         dotColor={tone}
         className="mb-2.5"
         right={
-          days > 0 ? (
-            <span className="flex items-center gap-3">
-              {legend}
-              <span className="text-[10px] text-muted-foreground">
-                {`${days} dias${anti.scrolls ? " · role para o lado" : ""}`}
-              </span>
-            </span>
+          hasHiddenDays ? (
+            <span className="text-[10px] text-muted-foreground">role para o lado</span>
           ) : null
         }
       />
@@ -5022,6 +5034,7 @@ function CleaningChartFrame({
                 Sem ele, o dia seguinte apareceria pela metade na borda. */}
             {anti.spacer > 0 && <span aria-hidden className="shrink-0" style={{ width: anti.spacer }} />}
           </div>
+          {legend ? <div className="mt-2">{legend}</div> : null}
           {/* No período misto o dia de HOJE pode ter as duas tabelas
               (realizadas e previstas), uma embaixo da outra; a seta aponta
               só da primeira. */}
@@ -7017,6 +7030,10 @@ function MultiSelectFilterButton({
   );
 }
 
+/** "Salvar imagem" / "Copiar imagem" no menu de Filtros — desligados por
+ * enquanto (pedido explícito, 23/09/2026). */
+const SHOW_SHOT_ACTIONS: boolean = false;
+
 /**
  * Botão único que reúne Período + Cidade + Proprietário + "limpar todos" num
  * só painel — pedido explícito: no Dashboard, os 3 botões de filtro (que
@@ -7220,7 +7237,10 @@ function CalendarFiltersButton({
               onClick={() => setScreen("owner")}
               last
             />
-            {shot && (
+            {/* "Salvar imagem" / "Copiar imagem" FORA do menu por enquanto
+                (pedido explícito, 23/09/2026). A lógica continua pronta
+                (`shot`); para voltar, ligar `SHOW_SHOT_ACTIONS`. */}
+            {shot && SHOW_SHOT_ACTIONS && (
               /* O PRINT VIRA ITEM DE MENU (mockup aprovado, 09/09/2026). */
               <FilterSection>
                 <FilterActionRow icon={Download} label="Salvar imagem" disabled={shot.busy} onClick={shot.handleSave} />
