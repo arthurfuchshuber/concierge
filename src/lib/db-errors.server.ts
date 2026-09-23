@@ -3,9 +3,34 @@
 
 type PgErrorLike = { code?: string; message?: string; details?: string | null; hint?: string | null } | null | undefined;
 
+export function isTemporaryDbError(error: PgErrorLike): boolean {
+  const message = [error?.message, error?.details, error?.hint].filter(Boolean).join(" ");
+  return (
+    error?.code === "57014" ||
+    error?.code === "PGRST002" ||
+    /schema cache|connection pool|connection timeout|connect error|disconnect|reset before headers|timed? out|timeout|temporarily unavailable|upstream/i.test(message)
+  );
+}
+
+export async function retryDbResult<T extends { error: PgErrorLike }>(
+  operation: () => PromiseLike<T>,
+  attempts = 5,
+): Promise<T> {
+  let result = await operation();
+  for (let attempt = 1; result.error && isTemporaryDbError(result.error) && attempt < attempts; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, Math.min(500 * 2 ** (attempt - 1), 4_000)));
+    result = await operation();
+  }
+  return result;
+}
+
 export function safeDbError(scope: string, error: PgErrorLike): Error {
   // Always log the raw error server-side for operators.
   console.error(`[db:${scope}]`, error);
+
+  if (isTemporaryDbError(error)) {
+    return new Error("O sistema de dados está se reconectando. Nada foi perdido — aguarde alguns segundos e tente de novo.");
+  }
 
   const code = error?.code;
   switch (code) {

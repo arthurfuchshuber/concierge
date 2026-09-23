@@ -707,16 +707,23 @@ export const getMyProperty = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
     await enforce(context.userId, "imoveis.editor.read", { propertyId: data.id });
-    const [p, manual, recs, emerg, faqs, checkout] = await Promise.all([
-      context.supabase.from("properties").select("*").eq("id", data.id).maybeSingle(),
-      context.supabase.from("property_manual_items").select("*").eq("property_id", data.id).order("position"),
-      context.supabase.from("property_recommendations").select("*").eq("property_id", data.id).order("scope").order("type").order("position"),
-      context.supabase.from("property_emergency_contacts").select("*").eq("property_id", data.id).order("position"),
-      context.supabase.from("property_faqs").select("*").eq("property_id", data.id).order("position"),
-      context.supabase.from("property_checkout_items").select("*").eq("property_id", data.id).order("position"),
-    ]);
-    if (p.error) throw (await import("@/lib/db-errors.server")).safeDbError("properties", p.error);
+    const { retryDbResult, safeDbError } = await import("@/lib/db-errors.server");
+    // O editor abre várias seções de uma vez. Faça as leituras em sequência
+    // para não pressionar o pool durante uma reconexão e repita só falhas
+    // transitórias; uma falha nunca pode parecer que o imóvel foi apagado.
+    const p = await retryDbResult(() => context.supabase.from("properties").select("*").eq("id", data.id).maybeSingle());
+    if (p.error) throw safeDbError("properties", p.error);
     if (!p.data) throw new Error("Guia não encontrado.");
+    const manual = await retryDbResult(() => context.supabase.from("property_manual_items").select("*").eq("property_id", data.id).order("position"));
+    if (manual.error) throw safeDbError("property_manual_items", manual.error);
+    const recs = await retryDbResult(() => context.supabase.from("property_recommendations").select("*").eq("property_id", data.id).order("scope").order("type").order("position"));
+    if (recs.error) throw safeDbError("property_recommendations", recs.error);
+    const emerg = await retryDbResult(() => context.supabase.from("property_emergency_contacts").select("*").eq("property_id", data.id).order("position"));
+    if (emerg.error) throw safeDbError("property_emergency_contacts", emerg.error);
+    const faqs = await retryDbResult(() => context.supabase.from("property_faqs").select("*").eq("property_id", data.id).order("position"));
+    if (faqs.error) throw safeDbError("property_faqs", faqs.error);
+    const checkout = await retryDbResult(() => context.supabase.from("property_checkout_items").select("*").eq("property_id", data.id).order("position"));
+    if (checkout.error) throw safeDbError("property_checkout_items", checkout.error);
     const { signPropertyImages } = await import("@/lib/storage.server");
     const property = await signPropertyImages(context.supabase, p.data);
     return {

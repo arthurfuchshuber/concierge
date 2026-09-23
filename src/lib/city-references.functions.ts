@@ -179,11 +179,13 @@ export const listCityReferences = createServerFn({ method: "POST" })
 
     if (data.propertyId) {
       // Modo por escopo (property/group). Permissão: dono OU admin.
-      const { data: prop } = await supabaseAdmin
+      const { retryDbResult, safeDbError } = await import("@/lib/db-errors.server");
+      const { data: prop, error: propError } = await retryDbResult(() => supabaseAdmin
         .from("properties")
         .select("owner_id")
-        .eq("id", data.propertyId)
-        .maybeSingle();
+        .eq("id", data.propertyId as string)
+        .maybeSingle());
+      if (propError) throw safeDbError("city_references_property", propError);
       if (!prop) throw new Error("Imóvel não encontrado.");
       const { data: isAdmin } = await context.supabase.rpc("has_role", {
         _user_id: context.userId, _role: "admin",
@@ -204,8 +206,8 @@ export const listCityReferences = createServerFn({ method: "POST" })
         q = q.eq("property_id", scope.propertyId).is("group_id", null);
       }
       if (!data.includeHidden) q = q.eq("is_hidden", false);
-      const { data: rows, error } = await q;
-      if (error) throw new Error(error.message);
+      const { data: rows, error } = await retryDbResult(() => q);
+      if (error) throw safeDbError("city_references", error);
       return { items: rows ?? [], job: null, scope };
     }
 
