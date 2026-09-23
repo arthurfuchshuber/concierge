@@ -965,21 +965,25 @@ export const upsertProperty = createServerFn({ method: "POST" })
     }
 
     // Replace child tables wholesale (simpler than diff).
-    // Cada tabela faz delete -> insert em cadeia própria, e as 5 cadeias rodam
-    // em paralelo: reduz de ~11 idas e voltas sequenciais ao banco para ~2.
+    // As listas rodam em sequência. Executá-las em paralelo saturava o pool do
+    // Data API e devolvia PGRST002, sobretudo enquanto os gatilhos do imóvel e
+    // a reindexação da IA ainda estavam terminando.
     if (!propertyId) throw new Error("Não foi possível salvar o guia.");
     const id = propertyId;
     const { safeDbError } = await import("@/lib/db-errors.server");
-    // O banco pode cortar a instrução por demora (57014) quando os gatilhos
-    // pesados do imóvel estão rodando. Repetimos com espera curta antes de
-    // devolver erro à tela.
-    const comRetry = async (exec: () => Promise<{ error: { code?: string } | null }>) => {
-      let error: { code?: string } | null = null;
-      for (let tentativa = 0; tentativa < 3; tentativa += 1) {
-        if (tentativa > 0) await new Promise((r) => setTimeout(r, 400 * tentativa));
+    // 57014 é timeout da instrução; PGRST002 é indisponibilidade temporária do
+    // pool/schema cache. Ambos devem ser repetidos, com espera progressiva.
+    const comRetry = async (exec: () => Promise<{ error: { code?: string; message?: string } | null }>) => {
+      let error: { code?: string; message?: string } | null = null;
+      for (let tentativa = 0; tentativa < 5; tentativa += 1) {
+        if (tentativa > 0) await new Promise((r) => setTimeout(r, 750 * 2 ** (tentativa - 1)));
         const res = await exec();
-        error = (res.error as { code?: string } | null) ?? null;
-        if (!error || error.code !== "57014") break;
+        error = (res.error as { code?: string; message?: string } | null) ?? null;
+        const temporario =
+          error?.code === "57014" ||
+          error?.code === "PGRST002" ||
+          /schema cache|connection pool|timed? out|timeout/i.test(error?.message ?? "");
+        if (!error || !temporario) break;
       }
       return error;
     };
@@ -996,13 +1000,11 @@ export const upsertProperty = createServerFn({ method: "POST" })
     };
 
 
-    await Promise.all([
-      replaceChild("property_recommendations", data.recommendations as unknown as Record<string, unknown>[]),
-      replaceChild("property_manual_items", data.manual as unknown as Record<string, unknown>[]),
-      replaceChild("property_emergency_contacts", data.emergency as unknown as Record<string, unknown>[]),
-      replaceChild("property_faqs", data.faqs as unknown as Record<string, unknown>[]),
-      replaceChild("property_checkout_items", data.checkout as unknown as Record<string, unknown>[]),
-    ]);
+    await replaceChild("property_recommendations", data.recommendations as unknown as Record<string, unknown>[]);
+    await replaceChild("property_manual_items", data.manual as unknown as Record<string, unknown>[]);
+    await replaceChild("property_emergency_contacts", data.emergency as unknown as Record<string, unknown>[]);
+    await replaceChild("property_faqs", data.faqs as unknown as Record<string, unknown>[]);
+    await replaceChild("property_checkout_items", data.checkout as unknown as Record<string, unknown>[]);
 
     // Reindexa a base de conhecimento (RAG) para a IA refletir as mudanças do guia.
     // Fire-and-forget: gerar embeddings não deve bloquear o salvamento na tela do anfitrião.
