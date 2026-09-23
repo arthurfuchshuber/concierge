@@ -833,7 +833,10 @@ export const listProvidersForProperty = createServerFn({ method: "POST" })
         .eq("account_owner_id", accountId)
         .eq("property_id", data.propertyId),
     ]);
-    if (error) throw new Error(error.message);
+    if (error) {
+      const { safeDbError } = await import("@/lib/db-errors.server");
+      throw safeDbError("listProvidersForProperty", error);
+    }
     const linked = new Set((links ?? []).map((l) => l.provider_id as string));
     return {
       providers: (all ?? []).map((p) => ({
