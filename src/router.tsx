@@ -54,7 +54,7 @@ export const getRouter = () => {
         refetchOnWindowFocus: false, // não refetch ao voltar para a aba
         // Erros de autenticação podem ser lentidão momentânea do login:
         // tenta mais vezes, com espera crescente.
-        retry: (count, err) => (isUnauthorizedError(err) ? count < 3 : count < 1),
+        retry: (count, err) => (isUnauthorizedError(err) || isTemporaryError(err) ? count < 3 : count < 1),
         retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
       },
     },
