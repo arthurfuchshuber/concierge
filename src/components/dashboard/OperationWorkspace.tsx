@@ -7022,7 +7022,16 @@ function OccupancyPanel({
   useEffect(() => {
     if (typeof window !== "undefined" && window.innerWidth >= 1024) setOpen(true);
   }, []);
-  const outerRef = useRef<HTMLDivElement | null>(null);
+  /* MEDIÇÃO (correção 23/09/2026, com print: no computador o quadro nascia
+     com 5 dias e um vão vazio à direita).
+     O nó medido só existe DEPOIS que os dados chegam (antes disso o quadro é
+     só um spinner). Com `useRef` + efeito em `[days, open]`, o efeito rodava
+     enquanto o nó ainda era null, saía cedo e nunca mais voltava — o quadro
+     ficava congelado nos valores iniciais (5 dias × 40px). Guardar o nó em
+     ESTADO, por ref de callback, faz a medição rodar no exato momento em que
+     ele entra na tela. */
+  const [outerEl, setOuterEl] = useState<HTMLDivElement | null>(null);
+  const outerRef = useCallback((node: HTMLDivElement | null) => setOuterEl(node), []);
   const scrollbarWRef = useRef<number | null>(null);
   /** Última capacidade avisada ao pai — evita repetir o mesmo número. */
   const fitRef = useRef<number | null>(null);
