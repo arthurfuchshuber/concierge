@@ -1684,7 +1684,12 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     const min = earliestCleaningQ.data?.date ?? null;
     const max = cleaningDemandMaxDate;
     if (!min && !max) return null;
-    return { min: min ?? max!, max: max ?? min! };
+    // Sem uma das pontas, usa HOJE como limite — nunca colapsa para um único dia.
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const lo = min ?? (max! < today ? max! : today);
+    const hi = max ?? (min! > today ? min! : today);
+    return { min: lo, max: hi };
   }, [earliestCleaningQ.data?.date, cleaningDemandMaxDate]);
   const cleaningForecast = useMemo(() => {
     const today = forecastStart;
