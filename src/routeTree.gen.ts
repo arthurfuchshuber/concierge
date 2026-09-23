@@ -31,6 +31,7 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as OauthGoogleCalendarReturnRouteImport } from './routes/oauth.google-calendar.return'
 import { Route as LovableEmailEventsRouteImport } from './routes/lovable/email/events'
 import { Route as GSlugExplorarRouteImport } from './routes/g.$slug.explorar'
+import { Route as GSlugAppDotwebmanifestRouteImport } from './routes/g.$slug.app[.]webmanifest'
 import { Route as ApiPublicWebhookChannexReservasRouteImport } from './routes/api/public/webhook-channex-reservas'
 import { Route as ApiPublicVersionRouteImport } from './routes/api/public/version'
 import { Route as ApiPublicPlacePhotoRouteImport } from './routes/api/public/place-photo'
@@ -201,6 +202,11 @@ const LovableEmailEventsRoute = LovableEmailEventsRouteImport.update({
 const GSlugExplorarRoute = GSlugExplorarRouteImport.update({
   id: '/explorar',
   path: '/explorar',
+  getParentRoute: () => GSlugRoute,
+} as any)
+const GSlugAppDotwebmanifestRoute = GSlugAppDotwebmanifestRouteImport.update({
+  id: '/app.webmanifest',
+  path: '/app.webmanifest',
   getParentRoute: () => GSlugRoute,
 } as any)
 const ApiPublicWebhookChannexReservasRoute =
@@ -590,6 +596,7 @@ export interface FileRoutesByFullPath {
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/public/version': typeof ApiPublicVersionRoute
   '/api/public/webhook-channex-reservas': typeof ApiPublicWebhookChannexReservasRoute
+  '/g/$slug/app.webmanifest': typeof GSlugAppDotwebmanifestRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/lovable/email/events': typeof LovableEmailEventsRoute
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
@@ -669,6 +676,7 @@ export interface FileRoutesByTo {
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/public/version': typeof ApiPublicVersionRoute
   '/api/public/webhook-channex-reservas': typeof ApiPublicWebhookChannexReservasRoute
+  '/g/$slug/app.webmanifest': typeof GSlugAppDotwebmanifestRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/lovable/email/events': typeof LovableEmailEventsRoute
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
@@ -753,6 +761,7 @@ export interface FileRoutesById {
   '/api/public/place-photo': typeof ApiPublicPlacePhotoRoute
   '/api/public/version': typeof ApiPublicVersionRoute
   '/api/public/webhook-channex-reservas': typeof ApiPublicWebhookChannexReservasRoute
+  '/g/$slug/app.webmanifest': typeof GSlugAppDotwebmanifestRoute
   '/g/$slug/explorar': typeof GSlugExplorarRoute
   '/lovable/email/events': typeof LovableEmailEventsRoute
   '/oauth/google-calendar/return': typeof OauthGoogleCalendarReturnRoute
@@ -837,6 +846,7 @@ export interface FileRouteTypes {
     | '/api/public/place-photo'
     | '/api/public/version'
     | '/api/public/webhook-channex-reservas'
+    | '/g/$slug/app.webmanifest'
     | '/g/$slug/explorar'
     | '/lovable/email/events'
     | '/oauth/google-calendar/return'
@@ -916,6 +926,7 @@ export interface FileRouteTypes {
     | '/api/public/place-photo'
     | '/api/public/version'
     | '/api/public/webhook-channex-reservas'
+    | '/g/$slug/app.webmanifest'
     | '/g/$slug/explorar'
     | '/lovable/email/events'
     | '/oauth/google-calendar/return'
@@ -999,6 +1010,7 @@ export interface FileRouteTypes {
     | '/api/public/place-photo'
     | '/api/public/version'
     | '/api/public/webhook-channex-reservas'
+    | '/g/$slug/app.webmanifest'
     | '/g/$slug/explorar'
     | '/lovable/email/events'
     | '/oauth/google-calendar/return'
@@ -1245,6 +1257,13 @@ declare module '@tanstack/react-router' {
       path: '/explorar'
       fullPath: '/g/$slug/explorar'
       preLoaderRoute: typeof GSlugExplorarRouteImport
+      parentRoute: typeof GSlugRoute
+    }
+    '/g/$slug/app.webmanifest': {
+      id: '/g/$slug/app.webmanifest'
+      path: '/app.webmanifest'
+      fullPath: '/g/$slug/app.webmanifest'
+      preLoaderRoute: typeof GSlugAppDotwebmanifestRouteImport
       parentRoute: typeof GSlugRoute
     }
     '/api/public/webhook-channex-reservas': {
@@ -1756,11 +1775,13 @@ const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
 interface GSlugRouteChildren {
+  GSlugAppDotwebmanifestRoute: typeof GSlugAppDotwebmanifestRoute
   GSlugExplorarRoute: typeof GSlugExplorarRoute
   GSlugIndexRoute: typeof GSlugIndexRoute
 }
 
 const GSlugRouteChildren: GSlugRouteChildren = {
+  GSlugAppDotwebmanifestRoute: GSlugAppDotwebmanifestRoute,
   GSlugExplorarRoute: GSlugExplorarRoute,
   GSlugIndexRoute: GSlugIndexRoute,
 }

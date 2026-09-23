@@ -385,13 +385,21 @@ function RootComponent() {
    */
   useEffect(() => {
     if (pathname !== "/") return;
+    const destino = ultimaRota();
+    if (!destino || destino === "/" || !destino.startsWith("/")) return;
+    // Hóspede NUNCA pode parar na página inicial (22/09/2026): a landing
+    // mostra a amostra de outro imóvel, e uma hóspede do Studio 105 acabou
+    // conversando ali achando que era o guia dela. Quem estava num guia volta
+    // para o guia, em toda abertura — sem a trava de "uma vez por sessão", que
+    // era justamente o que a deixava presa na landing na segunda abertura.
+    const eraGuia = destino.startsWith("/g/");
     let jaFez = false;
     try {
       jaFez = window.sessionStorage.getItem("ci-app-retomou") === "1";
     } catch {
       /* sem sessionStorage: tenta mesmo assim, no máximo repete uma vez */
     }
-    if (jaFez) return;
+    if (jaFez && !eraGuia) return;
     const nav = window.navigator as Navigator & { standalone?: boolean };
     const comoApp =
       new URLSearchParams(window.location.search).get("app") === "1" ||
@@ -405,8 +413,6 @@ function RootComponent() {
     } catch {
       /* noop */
     }
-    const destino = ultimaRota();
-    if (!destino || destino === "/" || !destino.startsWith("/")) return;
     window.location.replace(destino);
   }, [pathname]);
 
