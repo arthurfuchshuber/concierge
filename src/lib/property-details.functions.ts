@@ -22,11 +22,12 @@ const SaveInput = z.object({
 type AnySb = { rpc: (fn: never, args: never) => Promise<{ data: unknown; error: { message: string } | null }> };
 
 async function assertAccess(supabase: unknown, userId: string, propertyId: string) {
-  const { data, error } = await (supabase as AnySb).rpc("user_can_access_property" as never, {
+  const { retryDbResult, safeDbError } = await import("@/lib/db-errors.server");
+  const { data, error } = await retryDbResult(() => (supabase as AnySb).rpc("user_can_access_property" as never, {
     _user_id: userId,
     _property_id: propertyId,
-  } as never);
-  if (error) throw new Error(error.message);
+  } as never));
+  if (error) throw safeDbError("property_details_access", error);
   if (!data) throw new Error("Você não tem acesso a esta propriedade.");
 }
 
@@ -45,13 +46,14 @@ export const listPropertyDetails = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => PropertyIdInput.parse(i))
   .handler(async ({ data, context }) => {
     await assertAccess(context.supabase, context.userId, data.propertyId);
-    const { data: rows, error } = await context.supabase
+    const { retryDbResult, safeDbError } = await import("@/lib/db-errors.server");
+    const { data: rows, error } = await retryDbResult(() => context.supabase
       .from("property_details")
       .select("id, title, content, images, source, position, updated_at")
       .eq("property_id", data.propertyId)
       .order("position", { ascending: true })
-      .order("created_at", { ascending: true });
-    if (error) throw new Error(error.message);
+      .order("created_at", { ascending: true }));
+    if (error) throw safeDbError("property_details", error);
     return {
       details: (rows ?? []).map((r) => ({
         ...r,
