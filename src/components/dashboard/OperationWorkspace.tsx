@@ -144,12 +144,21 @@ import {
   ACTION_SEGMENT,
   ACTION_BUTTON_TONE,
   ACTION_ICON,
-  FilterIconBadge,
-  FilterValuePill,
-  FilterCountBadge,
-  FilterMenuRow,
-  FilterScreenHeader,
 } from "@/components/dashboard/panel-chrome";
+import {
+  FILTER_PANEL_CLASS,
+  FILTER_PANEL_COLLISION,
+  FILTER_PANEL_OFFSET,
+  FilterActionRow,
+  FilterCountBadge,
+  FilterHeaderClear,
+  FilterMenuRow,
+  FilterMultiSelect,
+  FilterPeriodCalendar,
+  FilterRootHeader,
+  FilterScreenHeader,
+  FilterSection,
+} from "@/components/dashboard/filter-panel";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -949,6 +958,23 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const ownerOptions = useMemo(() => {
     const names: string[] = occupancyProperties.map((p) => p.ownerName).filter((v): v is string => !!v);
     return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [occupancyProperties]);
+  // Linha de apoio sob cada proprietário no filtro (mockup aprovado,
+  // 23/09/2026): a(s) cidade(s) dos imóveis dele.
+  const ownerSubtitles = useMemo(() => {
+    const byOwner = new Map<string, Set<string>>();
+    for (const p of occupancyProperties) {
+      if (!p.ownerName) continue;
+      const set = byOwner.get(p.ownerName) ?? new Set<string>();
+      if (p.city) set.add(p.city);
+      byOwner.set(p.ownerName, set);
+    }
+    const out: Record<string, string> = {};
+    for (const [owner, cities] of byOwner) {
+      const list = Array.from(cities).sort((a, b) => a.localeCompare(b, "pt-BR"));
+      if (list.length) out[owner] = list.join(", ");
+    }
+    return out;
   }, [occupancyProperties]);
   const cityOptions = useMemo(() => {
     const names: string[] = occupancyProperties.map((p) => p.city).filter((v): v is string => !!v);
@@ -2837,14 +2863,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 </button>
               )}
               {view === "limpeza" && !cleaningPeriod && (
-                /* Interruptor das duas janelas. Só ícone: o título ao lado já
-                 diz em qual delas você está ("Limpezas Concluídas"), então o
-                 botão só precisa mostrar que está LIGADO.
-                 COR = A MESMA REGRA DOS GRÁFICOS (pedido explícito,
-                 23/09/2026: "o botão também precisa carregar as cores"):
-                 verde enquanto mostra o realizado (últimos 7 dias), laranja
-                 fraco enquanto mostra o previsto (próximos 7 dias) — sempre a
-                 cor da janela que ESTÁ NA TELA, não da que o botão leva. */
+                /* Interruptor das duas janelas. COR e TEXTO mostram o status
+                 ATUAL (a janela que está na tela), não a ação do clique —
+                 senão fica confuso (pedido explícito, 23/09/2026: cor verde
+                 com texto "Próximos 7 dias" parecia contraditório). Verde +
+                 "Últimos 7 dias" enquanto mostra o realizado; laranja fraco +
+                 "Próximos 7 dias" enquanto mostra o previsto. O título
+                 (tooltip) continua descrevendo a ação do clique. */
                 <button
                   type="button"
                   onClick={() => setCleaningWindow((w) => (w === "past" ? "next" : "past"))}
@@ -2855,7 +2880,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   } hover:opacity-80`}
                 >
                   <Sparkles className={ACTION_ICON} />
-                  <span className="lg:hidden">{cleaningWindow === "past" ? "Próximos 7 dias" : "Últimos 7 dias"}</span>
+                  <span className="lg:hidden">{cleaningWindow === "past" ? "Últimos 7 dias" : "Próximos 7 dias"}</span>
                 </button>
               )}
               {/* O BOTÃO "PENDÊNCIAS" MUDOU DE ABA (pedido explícito,
@@ -2874,6 +2899,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 ownerFilters={ownerFilters}
                 onOwnerFiltersChange={setOwnerFilters}
                 ownerOptions={ownerOptions}
+                ownerSubtitles={ownerSubtitles}
                 hasCustomFilters={hasCustomFilters}
                 onClearAll={clearAllFilters}
                 screenshot={
@@ -3062,6 +3088,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 ownerFilters={ownerFilters}
                 onOwnerFiltersChange={setOwnerFilters}
                 ownerOptions={ownerOptions}
+                ownerSubtitles={ownerSubtitles}
                 hasCustomFilters={hasCustomFilters}
                 onClearAllFilters={clearAllFilters}
                 onFitDaysChange={setFitDays}
@@ -7016,6 +7043,7 @@ function CalendarFiltersButton({
   ownerFilters,
   onOwnerFiltersChange,
   ownerOptions,
+  ownerSubtitles,
   hasCustomFilters,
   onClearAll,
   screenshot,
@@ -7031,6 +7059,8 @@ function CalendarFiltersButton({
   ownerFilters: string[];
   onOwnerFiltersChange: (next: string[]) => void;
   ownerOptions: string[];
+  /** Linha de apoio sob cada proprietário na lista (ex.: cidade dos imóveis dele). */
+  ownerSubtitles?: Record<string, string>;
   hasCustomFilters: boolean;
   onClearAll: () => void;
   /** Print da tela — vira duas linhas dentro deste menu quando informado. */
@@ -7068,10 +7098,6 @@ function CalendarFiltersButton({
   // (`setScreen("period")`, abaixo), então navegar dentro do calendário
   // nunca "gruda" pra próxima vez que a pessoa entrar aqui.
   const [calendarMonth, setCalendarMonth] = useState<Date>(() => parseISODateLocal(todayISOSaoPaulo()));
-
-  function toggle(list: string[], value: string, onChange: (next: string[]) => void) {
-    onChange(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
-  }
 
   const periodLabel = periodRange
     ? `${format(parseISODateLocal(periodRange.start), "dd/MM", { locale: ptBR })} – ${format(parseISODateLocal(periodRange.end), "dd/MM", { locale: ptBR })}`
@@ -7156,29 +7182,17 @@ function CalendarFiltersButton({
       </PopoverTrigger>
       <PopoverContent
         align="end"
-        collisionPadding={16}
-        className="sg-elegant-scroll w-64 p-0 max-h-[min(28rem,70vh)] overflow-y-auto"
+        sideOffset={FILTER_PANEL_OFFSET}
+        collisionPadding={FILTER_PANEL_COLLISION}
+        className={FILTER_PANEL_CLASS}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
+        {/* TODAS as telas deste quadrante seguem o mockup aprovado
+            (23/09/2026) e são montadas só com as peças de
+            `filter-panel.tsx` — ver o comentário do topo daquele arquivo. */}
         {screen === "root" ? (
           <>
-            {/* Pedido explícito: sem o texto "Filtros" aqui dentro (o
-                tooltip já abre a partir de um botão com esse nome, repetir
-                era redundante) — só o link "Limpar" (sem "tudo"), alinhado à
-                esquerda (mesma coluna dos rótulos Período/Cidade/
-                Proprietário abaixo), usando text-foreground/70 (igual ao
-                gatilho "Filtros") em vez de text-muted-foreground, que
-                ficava escuro demais no tema escuro. */}
-            <div className="flex items-center justify-start gap-2 px-3 py-2.5 border-b border-border">
-              <button
-                type="button"
-                disabled={!hasCustomFilters}
-                onClick={onClearAll}
-                className="text-[11px] font-medium text-foreground/70 transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-              >
-                Limpar
-              </button>
-            </div>
+            <FilterRootHeader canClear={hasCustomFilters} onClear={onClearAll} />
             <FilterMenuRow
               icon={CalendarRange}
               label="Período"
@@ -7207,29 +7221,11 @@ function CalendarFiltersButton({
               last
             />
             {shot && (
-              /* O PRINT VIRA ITEM DE MENU (mockup aprovado, 09/09/2026).
-                 Ele tinha botão fixo na barra e era a menos usada das três
-                 ações — perder o lugar fixo é o preço justo por a barra
-                 inteira sair da tela. Aqui ele fica em duas linhas diretas,
-                 sem o menu-dentro-do-menu que o botão antigo abria. */
-              <div className="border-t border-border">
-                <button
-                  type="button"
-                  disabled={shot.busy}
-                  onClick={shot.handleSave}
-                  className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-medium transition-colors hover:bg-secondary/30 disabled:opacity-50"
-                >
-                  <Download className="size-3.5 shrink-0 opacity-60" /> Salvar imagem
-                </button>
-                <button
-                  type="button"
-                  disabled={shot.busy}
-                  onClick={shot.handleCopy}
-                  className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-medium transition-colors hover:bg-secondary/30 disabled:opacity-50"
-                >
-                  <Copy className="size-3.5 shrink-0 opacity-60" /> Copiar imagem
-                </button>
-              </div>
+              /* O PRINT VIRA ITEM DE MENU (mockup aprovado, 09/09/2026). */
+              <FilterSection>
+                <FilterActionRow icon={Download} label="Salvar imagem" disabled={shot.busy} onClick={shot.handleSave} />
+                <FilterActionRow icon={Copy} label="Copiar imagem" disabled={shot.busy} onClick={shot.handleCopy} last />
+              </FilterSection>
             )}
           </>
         ) : null}
@@ -7241,70 +7237,35 @@ function CalendarFiltersButton({
               title="Período"
               onBack={() => setScreen("root")}
               right={
-                <button
-                  type="button"
-                  className="text-[11px] font-medium text-foreground/70 transition-colors hover:text-foreground"
+                <FilterHeaderClear
+                  disabled={!draft && !periodRange}
                   onClick={() => {
                     setDraft(undefined);
                     onPeriodRangeChange(null);
                   }}
-                >
-                  Limpar
-                </button>
+                />
               }
             />
-            <div className="p-3 space-y-2">
-              {/* Calendário padrão (completo) — o MESMO componente/config
-                  (mode="range", 1 mês) que já era usado no antigo botão
-                  "Período" sozinho, não uma versão reduzida. */}
-              <RangeCalendar
-                mode="range"
-                numberOfMonths={1}
-                locale={ptBR}
-                selected={draft}
-                // CONTROLADO (não `defaultMonth`) — ver `calendarMonth` acima:
-                // sempre volta pro mês de hoje quando esta tela é aberta, e
-                // `onMonthChange` só acompanha a navegação manual ENQUANTO o
-                // calendário está aberto, sem "grudar" pra próxima vez.
-                month={calendarMonth}
-                onMonthChange={setCalendarMonth}
-                disabled={demandDisabled}
-                onSelect={(nextRange) => {
-                  setDraft(nextRange);
-                  // Só propaga quando o intervalo estiver completo (início E
-                  // fim) — o primeiro clique sozinho ainda não é um período
-                  // válido.
-                  if (nextRange?.from && nextRange?.to) {
-                    onPeriodRangeChange({
-                      start: dateToISOLocal(nextRange.from),
-                      end: dateToISOLocal(nextRange.to),
-                    });
-                  }
-                }}
-                className="p-0"
-              />
-              {/* Rodapé em 2 chips (mockup aprovado, 23/09/2026) — antes era
-                  um texto único "Início – Fim", menos fácil de escanear. */}
-              <div className="flex items-center gap-1.5 pt-1">
-                <div className="flex-1 min-w-0 rounded-[10px] bg-foreground/[0.05] px-2.5 py-1.5">
-                  <div className="text-[9.5px] font-bold uppercase tracking-[0.04em] text-muted-foreground">
-                    Início
-                  </div>
-                  <div className="text-[13px] font-bold">
-                    {draft?.from ? format(draft.from, "dd/MM", { locale: ptBR }) : "—"}
-                  </div>
-                </div>
-                <span className="text-[13px] text-muted-foreground">→</span>
-                <div className="flex-1 min-w-0 rounded-[10px] bg-foreground/[0.05] px-2.5 py-1.5">
-                  <div className="text-[9.5px] font-bold uppercase tracking-[0.04em] text-muted-foreground">
-                    Fim
-                  </div>
-                  <div className="text-[13px] font-bold">
-                    {draft?.to ? format(draft.to, "dd/MM", { locale: ptBR }) : "—"}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <FilterPeriodCalendar
+              value={draft}
+              month={calendarMonth}
+              onMonthChange={setCalendarMonth}
+              today={parseISODateLocal(todayISOSaoPaulo())}
+              min={demandMinDate}
+              max={demandMaxDate}
+              onChange={(nextRange) => {
+                setDraft(nextRange);
+                // Só propaga quando o intervalo estiver completo (início E
+                // fim) — o primeiro clique sozinho ainda não é um período
+                // válido.
+                if (nextRange?.from && nextRange?.to) {
+                  onPeriodRangeChange({
+                    start: dateToISOLocal(nextRange.from),
+                    end: dateToISOLocal(nextRange.to),
+                  });
+                }
+              }}
+            />
           </>
         ) : null}
 
@@ -7316,44 +7277,12 @@ function CalendarFiltersButton({
               onBack={() => setScreen("root")}
               right={<FilterCountBadge count={cityFilters.length} />}
             />
-            <Command>
-              <CommandInput placeholder="Buscar cidade..." />
-              <div className="flex items-center justify-between gap-2 border-b border-border px-2 py-1.5">
-                <button
-                  type="button"
-                  className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
-                  onClick={() => onCityFiltersChange(cityOptions)}
-                >
-                  Selecionar todos
-                </button>
-                <button
-                  type="button"
-                  className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
-                  onClick={() => onCityFiltersChange([])}
-                >
-                  Limpar
-                </button>
-              </div>
-              <CommandList className="sg-elegant-scroll max-h-52">
-                <CommandEmpty>Nenhum resultado.</CommandEmpty>
-                <CommandGroup>
-                  {cityOptions.map((o) => (
-                    <CommandItem
-                      key={o}
-                      value={o}
-                      onSelect={() => toggle(cityFilters, o, onCityFiltersChange)}
-                      // Tom SUAVE do rosa na seleção (mockup aprovado,
-                      // 23/09/2026) — antes vinha do estilo padrão do
-                      // `CommandItem` (bg-accent sólido, forte demais aqui).
-                      className="cursor-pointer gap-2 rounded-[10px] data-[selected=true]:bg-accent/[0.14] data-[selected=true]:text-foreground"
-                    >
-                      <Checkbox checked={cityFilters.includes(o)} className="pointer-events-none" />
-                      <span className="truncate">{o}</span>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
+            <FilterMultiSelect
+              options={cityOptions.map((o) => ({ value: o, label: o }))}
+              selected={cityFilters}
+              onChange={onCityFiltersChange}
+              searchPlaceholder="Buscar cidade..."
+            />
           </>
         ) : null}
 
@@ -7365,41 +7294,12 @@ function CalendarFiltersButton({
               onBack={() => setScreen("root")}
               right={<FilterCountBadge count={ownerFilters.length} />}
             />
-            <Command>
-              <CommandInput placeholder="Buscar proprietário..." />
-              <div className="flex items-center justify-between gap-2 border-b border-border px-2 py-1.5">
-                <button
-                  type="button"
-                  className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
-                  onClick={() => onOwnerFiltersChange(ownerOptions)}
-                >
-                  Selecionar todos
-                </button>
-                <button
-                  type="button"
-                  className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
-                  onClick={() => onOwnerFiltersChange([])}
-                >
-                  Limpar
-                </button>
-              </div>
-              <CommandList className="sg-elegant-scroll max-h-52">
-                <CommandEmpty>Nenhum resultado.</CommandEmpty>
-                <CommandGroup>
-                  {ownerOptions.map((o) => (
-                    <CommandItem
-                      key={o}
-                      value={o}
-                      onSelect={() => toggle(ownerFilters, o, onOwnerFiltersChange)}
-                      className="cursor-pointer gap-2 rounded-[10px] data-[selected=true]:bg-accent/[0.14] data-[selected=true]:text-foreground"
-                    >
-                      <Checkbox checked={ownerFilters.includes(o)} className="pointer-events-none" />
-                      <span className="truncate">{o}</span>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
+            <FilterMultiSelect
+              options={ownerOptions.map((o) => ({ value: o, label: o, sublabel: ownerSubtitles?.[o] ?? null }))}
+              selected={ownerFilters}
+              onChange={onOwnerFiltersChange}
+              searchPlaceholder="Buscar proprietário..."
+            />
           </>
         ) : null}
       </PopoverContent>
@@ -7490,6 +7390,7 @@ function OccupancyPanel({
   ownerFilters,
   onOwnerFiltersChange,
   ownerOptions,
+  ownerSubtitles,
   hasCustomFilters,
   onClearAllFilters,
   onFitDaysChange,
@@ -7527,6 +7428,7 @@ function OccupancyPanel({
   ownerFilters: string[];
   onOwnerFiltersChange: (next: string[]) => void;
   ownerOptions: string[];
+  ownerSubtitles?: Record<string, string>;
   hasCustomFilters: boolean;
   onClearAllFilters: () => void;
   /** Quantos dias INTEIROS cabem no quadro com as colunas no tamanho máximo.
@@ -7878,6 +7780,7 @@ function OccupancyPanel({
           ownerFilters={ownerFilters}
           onOwnerFiltersChange={onOwnerFiltersChange}
           ownerOptions={ownerOptions}
+          ownerSubtitles={ownerSubtitles}
           hasCustomFilters={hasCustomFilters}
           onClearAll={onClearAllFilters}
         />

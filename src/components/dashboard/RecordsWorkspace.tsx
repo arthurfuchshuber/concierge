@@ -30,16 +30,24 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  FILTER_PANEL_CLASS,
+  FILTER_PANEL_COLLISION,
+  FILTER_PANEL_OFFSET,
+  FilterCountBadge,
+  FilterMenuRow,
+  FilterMultiSelect,
+  FilterOptionRow,
+  FilterRootHeader,
+  FilterScreenHeader,
+  FilterToggleRow,
+} from "@/components/dashboard/filter-panel";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import {
   PANEL_SHELL,
   PanelHeading,
   SectionLabel,
   CountPill,
-  FilterCountBadge,
-  FilterMenuRow,
-  FilterScreenHeader,
-  FilterOptionRow,
   ACTION_SEGMENT,
   ACTION_BUTTON_TONE,
   ACTION_ICON,
@@ -2007,10 +2015,6 @@ function RecordsFiltersButton({
   type Screen = "root" | "category" | "group" | "period" | "owner" | "property";
   const [screen, setScreen] = useState<Screen>("root");
 
-  function toggle(list: string[], value: string, onChange: (next: string[]) => void) {
-    onChange(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
-  }
-
   const categoryLabel = category ? (CATEGORY_BY_KEY.get(category)?.short ?? "Todas") : "Todas";
   const groupLabel = GROUP_OPTIONS.find((o) => o.value === groupBy)?.label ?? "Por imóvel";
   const periodLabel = PERIOD_OPTIONS.find((o) => o.value === period)?.label ?? "Todo o período";
@@ -2053,35 +2057,23 @@ function RecordsFiltersButton({
 
       <PopoverContent
         align="end"
-        collisionPadding={16}
-        className="sg-elegant-scroll max-h-[min(28rem,70vh)] w-64 overflow-y-auto p-0"
+        sideOffset={FILTER_PANEL_OFFSET}
+        collisionPadding={FILTER_PANEL_COLLISION}
+        className={FILTER_PANEL_CLASS}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
+        {/* TODAS as telas deste quadrante seguem o mockup aprovado
+            (23/09/2026) e são montadas só com as peças de
+            `filter-panel.tsx` — o MESMO padrão dos Filtros das outras abas. */}
         {screen === "root" ? (
           <>
-            <div className="flex items-center justify-start gap-2 border-b border-border px-3 py-2.5">
-              <button
-                type="button"
-                disabled={!hasCustomFilters}
-                onClick={onClearAll}
-                className="text-[11px] font-medium text-foreground/70 transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-              >
-                Limpar
-              </button>
-            </div>
+            <FilterRootHeader canClear={hasCustomFilters} onClear={onClearAll} />
             <FilterMenuRow icon={Tag} label="Categoria" value={categoryLabel} active={!!category} onClick={() => setScreen("category")} />
             <FilterMenuRow icon={Layers} label="Agrupar" value={groupLabel} active={groupBy !== GROUP_OPTIONS[0].value} onClick={() => setScreen("group")} />
             <FilterMenuRow icon={CalendarRange} label="Período" value={periodLabel} active={period !== "all"} onClick={() => setScreen("period")} />
             <FilterMenuRow icon={Users} label="Proprietário" value={ownerLabel} active={ownerFilters.length > 0} onClick={() => setScreen("owner")} />
             <FilterMenuRow icon={Building2} label="Imóvel" value={propertyLabel} active={propertyFilters.length > 0} onClick={() => setScreen("property")} last />
-            <button
-              type="button"
-              onClick={() => onOnlyOpenChange(!onlyOpen)}
-              className="flex w-full items-center gap-2 border-t border-border px-3 py-2.5 text-left transition-colors hover:bg-secondary/30"
-            >
-              <Checkbox checked={onlyOpen} className="pointer-events-none" />
-              <span className="text-xs font-medium">Só os em aberto</span>
-            </button>
+            <FilterToggleRow label="Só os em aberto" checked={onlyOpen} onChange={onOnlyOpenChange} />
           </>
         ) : null}
 
@@ -2094,7 +2086,7 @@ function RecordsFiltersButton({
                 key={c.key}
                 label={c.label}
                 selected={c.key === category}
-                dotColor={c.dot}
+                dotClassName={c.dot}
                 onClick={() => onCategoryChange(c.key)}
                 last={i === CARDS.length - 1}
               />
@@ -2140,41 +2132,15 @@ function RecordsFiltersButton({
               onBack={() => setScreen("root")}
               right={<FilterCountBadge count={ownerFilters.length} />}
             />
-            <Command>
-              <CommandInput placeholder="Buscar proprietário..." />
-              <div className="flex items-center justify-between gap-2 border-b border-border px-2 py-1.5">
-                <button
-                  type="button"
-                  className="text-[11px] text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
-                  onClick={() => onOwnerFiltersChange([...ownerOptions])}
-                >
-                  Selecionar todos
-                </button>
-                <button
-                  type="button"
-                  className="text-[11px] text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
-                  onClick={() => onOwnerFiltersChange([])}
-                >
-                  Limpar
-                </button>
-              </div>
-              <CommandList className="sg-elegant-scroll max-h-52">
-                <CommandEmpty>Nenhum resultado.</CommandEmpty>
-                <CommandGroup>
-                  {ownerOptions.map((o) => (
-                    <CommandItem
-                      key={o}
-                      value={o}
-                      onSelect={() => toggle(ownerFilters, o, onOwnerFiltersChange)}
-                      className="cursor-pointer gap-2 rounded-[10px] data-[selected=true]:bg-accent/[0.14] data-[selected=true]:text-foreground"
-                    >
-                      <Checkbox checked={ownerFilters.includes(o)} className="pointer-events-none" />
-                      <span className="truncate">{o}</span>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
+            <FilterMultiSelect
+              options={ownerOptions.map((o) => {
+                const n = propertyOptions.filter((p) => p.ownerName === o).length;
+                return { value: o, label: o, sublabel: n ? `${n} ${n === 1 ? "imóvel" : "imóveis"}` : null };
+              })}
+              selected={ownerFilters}
+              onChange={onOwnerFiltersChange}
+              searchPlaceholder="Buscar proprietário..."
+            />
           </>
         ) : null}
 
@@ -2186,41 +2152,12 @@ function RecordsFiltersButton({
               onBack={() => setScreen("root")}
               right={<FilterCountBadge count={propertyFilters.length} />}
             />
-            <Command>
-              <CommandInput placeholder="Buscar imóvel..." />
-              <div className="flex items-center justify-between gap-2 border-b border-border px-2 py-1.5">
-                <button
-                  type="button"
-                  className="text-[11px] text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
-                  onClick={() => onPropertyFiltersChange(propertyOptions.map((p) => p.id))}
-                >
-                  Selecionar todos
-                </button>
-                <button
-                  type="button"
-                  className="text-[11px] text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
-                  onClick={() => onPropertyFiltersChange([])}
-                >
-                  Limpar
-                </button>
-              </div>
-              <CommandList className="sg-elegant-scroll max-h-52">
-                <CommandEmpty>Nenhum resultado.</CommandEmpty>
-                <CommandGroup>
-                  {propertyOptions.map((p) => (
-                    <CommandItem
-                      key={p.id}
-                      value={`${p.name} ${p.ownerName ?? ""}`}
-                      onSelect={() => toggle(propertyFilters, p.id, onPropertyFiltersChange)}
-                      className="cursor-pointer gap-2 rounded-[10px] data-[selected=true]:bg-accent/[0.14] data-[selected=true]:text-foreground"
-                    >
-                      <Checkbox checked={propertyFilters.includes(p.id)} className="pointer-events-none" />
-                      <span className="truncate">{p.name}</span>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
+            <FilterMultiSelect
+              options={propertyOptions.map((p) => ({ value: p.id, label: p.name, sublabel: p.ownerName }))}
+              selected={propertyFilters}
+              onChange={onPropertyFiltersChange}
+              searchPlaceholder="Buscar imóvel..."
+            />
           </>
         ) : null}
       </PopoverContent>
