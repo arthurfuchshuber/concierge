@@ -125,8 +125,11 @@ export function sanitizeArgs(data: unknown, depth = 0): unknown {
   }
   if (typeof data === "object") {
     if (depth > 3) return "{…}";
-    const out: Record<string, unknown> = {};
+    // Objeto sem protótipo: uma chave "__proto__"/"constructor" vinda de fora
+    // passa a ser só um dado no registro, nunca altera o objeto criado aqui.
+    const out: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
     for (const [k, v] of Object.entries(data as Record<string, unknown>)) {
+      if (k === "__proto__" || k === "constructor" || k === "prototype") continue;
       if (SENSITIVE.test(k)) {
         out[k] = "***";
         continue;
@@ -134,8 +137,9 @@ export function sanitizeArgs(data: unknown, depth = 0): unknown {
       if (typeof v === "function") continue;
       out[k] = sanitizeArgs(v, depth + 1);
     }
-    return out;
+    return { ...out };
   }
+
   return null;
 }
 
