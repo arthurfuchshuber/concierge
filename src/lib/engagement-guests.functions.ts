@@ -164,11 +164,11 @@ async function loadCommon(
   ]);
   return {
     filteredIds, nameById, cityById, ownerByPropId, accountNameById, ownerIds, since,
-    logs: (logsQ.data ?? []) as Array<{ id: string; property_id: string; guest_name: string; reservation_code: string | null; checkin_date: string; guest_phone: string | null; guest_phone_country: string | null; created_at: string }>,
-    events: (eventsQ.data ?? []) as Evt[],
-    convs: (convsQ.data ?? []) as Array<{ id: string; property_id: string; guest_session_id: string; guest_name: string | null; created_at: string; last_message_at: string }>,
-    msgs: (msgsQ.data ?? []) as Array<{ id: string; conversation_id: string; role: string; content: string | null; created_at: string; sender_type?: string | null; sender_user_id?: string | null }>,
-    feedback: (feedbackQ.data ?? []) as Array<{ message_id: string; conversation_id: string; resolved: boolean }>,
+    logs: rows("logs", logsQ) as Array<{ id: string; property_id: string; guest_name: string; reservation_code: string | null; checkin_date: string; guest_phone: string | null; guest_phone_country: string | null; created_at: string }>,
+    events: rows("section-events", eventsQ) as Evt[],
+    convs: rows("conversations", convsQ) as Array<{ id: string; property_id: string; guest_session_id: string; guest_name: string | null; created_at: string; last_message_at: string }>,
+    msgs: rows("messages", msgsQ) as Array<{ id: string; conversation_id: string; role: string; content: string | null; created_at: string; sender_type?: string | null; sender_user_id?: string | null }>,
+    feedback: rows("feedback", feedbackQ) as unknown as Array<{ message_id: string; conversation_id: string; resolved: boolean }>,
   };
 }
 
