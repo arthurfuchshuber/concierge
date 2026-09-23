@@ -34,7 +34,7 @@ CREATE EXTENSION IF NOT EXISTS pg_net;
 DO $$
 DECLARE
   base text := 'https://project--c6a061b9-4ae8-4241-9a99-3375bda32242.lovable.app/api/public/cron/';
-  segredo text := 'UiKfyYqTqxI-3zrXDuFwikiJwD-9rwqk5P0GtrGNdQd70t-qqRaAtMgL_Y3FMrmv';
+  segredo text := (select decrypted_secret from vault.decrypted_secrets where name = 'cron_secret');
   j record;
 BEGIN
   FOR j IN
@@ -102,7 +102,7 @@ SELECT cron.schedule(
     url := 'https://project--c6a061b9-4ae8-4241-9a99-3375bda32242.lovable.app/api/public/cron/evaluation-suite',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'x-cron-secret', 'UiKfyYqTqxI-3zrXDuFwikiJwD-9rwqk5P0GtrGNdQd70t-qqRaAtMgL_Y3FMrmv'
+      'x-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'cron_secret')
     ),
     body := '{}'::jsonb,
     timeout_milliseconds := 300000
