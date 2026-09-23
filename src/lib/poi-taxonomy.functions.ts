@@ -1,0 +1,385 @@
+import { createServerFn } from "@tanstack/react-start";
+import { createClient } from "@supabase/supabase-js";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
+import { z } from "zod";
+
+export type PoiCategory = {
+  id: string;
+  slug: string;
+  label: string;
+  description: string | null;
+  display_order: number;
+  is_protected: boolean;
+};
+
+
+export type PoiTag = {
+  id: string;
+  slug: string;
+  label: string;
+  category_id: string;
+  category_slug: string;
+  category_label: string;
+  accepted_primary_types: string[];
+  places_types: string[];
+  query_variants: string[];
+  min_reviews: number;
+  is_protected: boolean;
+  display_order: number;
+};
+
+export type Taxonomy = {
+  categories: PoiCategory[];
+  tags: PoiTag[];
+};
+
+/** Leitura da taxonomia é server-side: as tabelas não têm mais leitura anônima. */
+async function taxonomyReader() {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  return supabaseAdmin;
+}
+
+// ============== Leitor da taxonomia (somente servidor) ==============
+export const getPoiTaxonomy = createServerFn({ method: "GET" }).handler(async (): Promise<Taxonomy> => {
+  const supabase = await taxonomyReader();
+  const [catsRes, tagsRes] = await Promise.all([
+    supabase.from("poi_categories").select("id,slug,label,description,display_order,is_protected").order("display_order"),
+    supabase
+      .from("poi_tags")
+      .select("id,slug,label,category_id,accepted_primary_types,places_types,query_variants,min_reviews,is_protected,display_order")
+      .order("display_order"),
+  ]);
+  const categories = (catsRes.data ?? []) as PoiCategory[];
+  const catById = new Map(categories.map((c) => [c.id, c]));
+  const tags: PoiTag[] = ((tagsRes.data ?? []) as Array<Omit<PoiTag, "category_slug" | "category_label">>).map((t) => {
+    const c = catById.get(t.category_id);
+    return {
+      ...t,
+      category_slug: c?.slug ?? "",
+      category_label: c?.label ?? "Outros",
+    };
+  });
+  return { categories, tags };
+});
+
+// ============== Server-side cache for TYPE_MAP (used by maps.functions) ==============
+let _cache: { taxonomy: Taxonomy; at: number } | null = null;
+const CACHE_TTL_MS = 60_000;
+
+export async function loadTaxonomyCached(): Promise<Taxonomy> {
+  if (_cache && Date.now() - _cache.at < CACHE_TTL_MS) return _cache.taxonomy;
+  const supabase = await taxonomyReader();
+  const [catsRes, tagsRes] = await Promise.all([
+    supabase.from("poi_categories").select("id,slug,label,description,display_order,is_protected").order("display_order"),
+    supabase
+      .from("poi_tags")
+      .select("id,slug,label,category_id,accepted_primary_types,places_types,query_variants,min_reviews,is_protected,display_order")
+      .order("display_order"),
+  ]);
+  const categories = (catsRes.data ?? []) as PoiCategory[];
+  const catById = new Map(categories.map((c) => [c.id, c]));
+  const tags: PoiTag[] = ((tagsRes.data ?? []) as Array<Omit<PoiTag, "category_slug" | "category_label">>).map((t) => {
+    const c = catById.get(t.category_id);
+    return {
+      ...t,
+      category_slug: c?.slug ?? "",
+      category_label: c?.label ?? "Outros",
+    };
+  });
+  _cache = { taxonomy: { categories, tags }, at: Date.now() };
+  return _cache.taxonomy;
+}
+
+export function invalidateTaxonomyCache() {
+  _cache = null;
+}
+
+// ============== Admin CRUD ==============
+async function assertAdmin(ctx: { supabase: ReturnType<typeof createClient<Database>>; userId: string }) {
+  const { data } = await ctx.supabase.rpc("has_role", { _user_id: ctx.userId, _role: "admin" });
+  if (!data) throw new Error("Forbidden");
+}
+
+const slugify = (s: string) =>
+  s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+
+// ---- Categories ----
+const CreateCategorySchema = z.object({ label: z.string().min(1).max(60) });
+export const createPoiCategory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => CreateCategorySchema.parse(i))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const slug = `${slugify(data.label)}-${Math.random().toString(36).slice(2, 6)}`;
+    const { data: row, error } = await context.supabase
+      .from("poi_categories")
+      .insert({ slug, label: data.label.trim(), is_protected: false, display_order: 500 })
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    invalidateTaxonomyCache();
+    return row;
+  });
+
+const UpdateCategorySchema = z.object({
+  id: z.string().uuid(),
+  label: z.string().min(1).max(60).optional(),
+  description: z.string().max(500).nullable().optional(),
+});
+export const updatePoiCategory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => UpdateCategorySchema.parse(i))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    type CatUpdate = Database["public"]["Tables"]["poi_categories"]["Update"];
+    const patch: CatUpdate = {};
+    if (data.label !== undefined) patch.label = data.label.trim();
+    if (data.description !== undefined) patch.description = data.description?.trim() ? data.description.trim() : null;
+    if (Object.keys(patch).length === 0) return { ok: true };
+    const { error } = await context.supabase
+      .from("poi_categories")
+      .update(patch)
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    invalidateTaxonomyCache();
+    return { ok: true };
+  });
+
+const DeleteCategorySchema = z.object({
+  id: z.string().uuid(),
+  reassign_to_category_id: z.string().uuid().optional(),
+});
+export const deletePoiCategory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => DeleteCategorySchema.parse(i))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { data: cat } = await context.supabase
+      .from("poi_categories")
+      .select("is_protected")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (!cat) throw new Error("Categoria não encontrada");
+    if (cat.is_protected) throw new Error("Esta categoria padrão não pode ser excluída.");
+    const { count } = await context.supabase
+      .from("poi_tags")
+      .select("id", { count: "exact", head: true })
+      .eq("category_id", data.id);
+    if ((count ?? 0) > 0) {
+      if (!data.reassign_to_category_id) {
+        throw new Error("Escolha uma categoria de destino para as tags.");
+      }
+      if (data.reassign_to_category_id === data.id) {
+        throw new Error("Destino inválido.");
+      }
+      const { error: moveErr } = await context.supabase
+        .from("poi_tags")
+        .update({ category_id: data.reassign_to_category_id })
+        .eq("category_id", data.id);
+      if (moveErr) throw new Error(moveErr.message);
+    }
+    const { error } = await context.supabase.from("poi_categories").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    invalidateTaxonomyCache();
+    return { ok: true };
+  });
+
+// ---- Reorder categories ----
+const ReorderSchema = z.object({ ordered_ids: z.array(z.string().uuid()).min(1) });
+export const reorderPoiCategories = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => ReorderSchema.parse(i))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    // Atribui display_order = índice * 10 (deixa espaço para inserts futuros)
+    for (let i = 0; i < data.ordered_ids.length; i++) {
+      const { error } = await context.supabase
+        .from("poi_categories")
+        .update({ display_order: (i + 1) * 10 })
+        .eq("id", data.ordered_ids[i]);
+      if (error) throw new Error(error.message);
+    }
+    invalidateTaxonomyCache();
+    return { ok: true };
+  });
+
+// ---- Bulk tag operations ----
+const BulkMoveSchema = z.object({
+  tag_ids: z.array(z.string().uuid()).min(1),
+  category_id: z.string().uuid(),
+});
+export const bulkMovePoiTags = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => BulkMoveSchema.parse(i))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { error } = await context.supabase
+      .from("poi_tags")
+      .update({ category_id: data.category_id })
+      .in("id", data.tag_ids);
+    if (error) throw new Error(error.message);
+    invalidateTaxonomyCache();
+    return { ok: true };
+  });
+
+const BulkDeleteSchema = z.object({ tag_ids: z.array(z.string().uuid()).min(1) });
+export const bulkDeletePoiTags = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => BulkDeleteSchema.parse(i))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    // Never delete protected tags — silently skip them
+    const { data: rows } = await context.supabase
+      .from("poi_tags")
+      .select("id,is_protected")
+      .in("id", data.tag_ids);
+    const removable = (rows ?? []).filter((r) => !r.is_protected).map((r) => r.id);
+    if (removable.length === 0) {
+      throw new Error("Nenhuma tag pode ser excluída (todas são padrão do Google).");
+    }
+    const { error } = await context.supabase.from("poi_tags").delete().in("id", removable);
+    if (error) throw new Error(error.message);
+    invalidateTaxonomyCache();
+    return { ok: true, deleted: removable.length, skipped: data.tag_ids.length - removable.length };
+  });
+
+// ---- Tags ----
+const CreateTagSchema = z.object({
+  label: z.string().min(1).max(60),
+  category_id: z.string().uuid(),
+  accepted_primary_types: z.array(z.string()).default([]),
+  places_types: z.array(z.string()).default([]),
+  query_variants: z.array(z.string()).default([]),
+  min_reviews: z.number().int().min(0).max(10000).default(150),
+});
+export const createPoiTag = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => CreateTagSchema.parse(i))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const slug = `${slugify(data.label)}-${Math.random().toString(36).slice(2, 6)}`;
+    const { data: row, error } = await context.supabase
+      .from("poi_tags")
+      .insert({
+        slug,
+        label: data.label.trim(),
+        category_id: data.category_id,
+        accepted_primary_types: data.accepted_primary_types,
+        places_types: data.places_types,
+        query_variants: data.query_variants,
+        min_reviews: data.min_reviews,
+        is_protected: false,
+        display_order: 500,
+      })
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    invalidateTaxonomyCache();
+    return row;
+  });
+
+const UpdateTagSchema = z.object({
+  id: z.string().uuid(),
+  label: z.string().min(1).max(60).optional(),
+  category_id: z.string().uuid().optional(),
+  accepted_primary_types: z.array(z.string()).optional(),
+  places_types: z.array(z.string()).optional(),
+  query_variants: z.array(z.string()).optional(),
+  min_reviews: z.number().int().min(0).max(10000).optional(),
+});
+export const updatePoiTag = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => UpdateTagSchema.parse(i))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    type TagUpdate = Database["public"]["Tables"]["poi_tags"]["Update"];
+    const patch: TagUpdate = {};
+    if (data.label !== undefined) patch.label = data.label.trim();
+    if (data.category_id !== undefined) patch.category_id = data.category_id;
+    if (data.accepted_primary_types !== undefined) patch.accepted_primary_types = data.accepted_primary_types;
+    if (data.places_types !== undefined) patch.places_types = data.places_types;
+    if (data.query_variants !== undefined) patch.query_variants = data.query_variants;
+    if (data.min_reviews !== undefined) patch.min_reviews = data.min_reviews;
+    if (Object.keys(patch).length === 0) return { ok: true };
+    const { error } = await context.supabase.from("poi_tags").update(patch).eq("id", data.id);
+    if (error) throw new Error(error.message);
+    invalidateTaxonomyCache();
+    return { ok: true };
+  });
+
+const DeleteTagSchema = z.object({ id: z.string().uuid() });
+export const deletePoiTag = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => DeleteTagSchema.parse(i))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { data: tag } = await context.supabase
+      .from("poi_tags")
+      .select("is_protected")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (!tag) throw new Error("Tag não encontrada");
+    if (tag.is_protected) throw new Error("Esta tag padrão não pode ser excluída (usada pela IA).");
+    const { error } = await context.supabase.from("poi_tags").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    invalidateTaxonomyCache();
+    return { ok: true };
+  });
+
+// ---- Merge categories ----
+const MergeSchema = z.object({
+  category_ids: z.array(z.string().uuid()).min(2),
+  new_label: z.string().min(1).max(120).optional(),
+});
+export const mergePoiCategories = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => MergeSchema.parse(i))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { data: cats, error: catErr } = await context.supabase
+      .from("poi_categories")
+      .select("id, label, slug, is_protected, display_order")
+      .in("id", data.category_ids);
+    if (catErr) throw new Error(catErr.message);
+    if (!cats || cats.length < 2) throw new Error("Selecione ao menos 2 categorias.");
+
+    // Primária: a protegida (se houver) tem prioridade — caso contrário, a de menor display_order.
+    const sorted = [...cats].sort((a, b) => {
+      if (a.is_protected !== b.is_protected) return a.is_protected ? -1 : 1;
+      return (a.display_order ?? 0) - (b.display_order ?? 0);
+    });
+    const primary = sorted[0];
+    const absorbed = sorted.slice(1);
+
+    // Se houver alguma protegida entre as absorvidas, recusa — protegidas não podem desaparecer.
+    if (absorbed.some((c) => c.is_protected)) {
+      throw new Error("Categorias padrão não podem ser absorvidas. Use-as como categoria principal.");
+    }
+
+    const newLabel = (data.new_label?.trim()) || cats.map((c) => c.label).join(", ");
+
+    // 1. move tags absorvidas para a primária
+    const { error: tagErr } = await context.supabase
+      .from("poi_tags")
+      .update({ category_id: primary.id })
+      .in("category_id", absorbed.map((c) => c.id));
+    if (tagErr) throw new Error(tagErr.message);
+
+    // 2. atualiza label da primária
+    const { error: lblErr } = await context.supabase
+      .from("poi_categories")
+      .update({ label: newLabel })
+      .eq("id", primary.id);
+    if (lblErr) throw new Error(lblErr.message);
+
+    // 3. apaga as absorvidas
+    const { error: delErr } = await context.supabase
+      .from("poi_categories")
+      .delete()
+      .in("id", absorbed.map((c) => c.id));
+    if (delErr) throw new Error(delErr.message);
+
+    invalidateTaxonomyCache();
+    return { ok: true, primary_id: primary.id, absorbed: absorbed.length, label: newLabel };
+  });

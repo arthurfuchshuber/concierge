@@ -20,7 +20,7 @@ SELECT cron.schedule(
     url := 'https://project--c6a061b9-4ae8-4241-9a99-3375bda32242.lovable.app/api/public/cron/refresh-airbnb-listings',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'x-cron-secret', 'UiKfyYqTqxI-3zrXDuFwikiJwD-9rwqk5P0GtrGNdQd70t-qqRaAtMgL_Y3FMrmv'
+      'x-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'cron_secret')
     ),
     body := '{"limit": 100}'::jsonb
   ) AS request_id;

@@ -3,7 +3,7 @@
   "short_name": "ConciergeIA",
   "description": "O sistema operacional inteligente da sua hospedagem.",
   "lang": "pt-BR",
-  "start_url": "/",
+  "start_url": "/?app=1",
   "scope": "/",
   "display": "browser",
   "background_color": "#0a0908",

@@ -973,6 +973,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
    * daí "0 limpezas" em cima de um gráfico com 14. Agora é uma janela só:
    * período escolhido, ou os últimos 7 dias.
    */
+<<<<<<< HEAD
   /**
    * PERÍODO PERSONALIZADO MANDA NA LIMPEZA (pedido explícito, 23/09/2026:
    * "ao selecionar um período personalizado, a página deve obedecer esse
@@ -1016,6 +1017,12 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         { locale: ptBR },
       )}`
     : "";
+=======
+  const cleaningStatsRange = periodRange ?? {
+    start: addDaysISO(todayISOSaoPaulo(), -6) ?? todayISOSaoPaulo(),
+    end: todayISOSaoPaulo(),
+  };
+>>>>>>> 760415b80b6da4b1b04c0e4bc0ce273e8f17f5e5
   const cleaningStatsQ = useQuery({
     queryKey: [
       "dash-cleaning-stats",
@@ -1651,7 +1658,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     }));
     const dailyByDate = new Map(daily.map((p) => [p.date, p]));
     const lastDate = daily[daily.length - 1]?.date ?? today;
+<<<<<<< HEAD
     const rows = (forecastEnabled ? (cleaningForecastListQ.data?.rows ?? []) : []).filter(
+=======
+    const rows = (cleaningForecastListQ.data?.rows ?? []).filter(
+>>>>>>> 760415b80b6da4b1b04c0e4bc0ce273e8f17f5e5
       (r) => r.status === "pending" && r.date >= today && r.date <= lastDate && matchesKanbanOwnerCity(r),
     );
     const byProperty = new Map<string, CleaningBreakdownItem>();
@@ -2791,6 +2802,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           )
         }
         title={
+<<<<<<< HEAD
           view === "limpeza"
             ? cleaningPeriodView
               ? cleaningPeriodLabel
@@ -2798,6 +2810,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 ? "Limpezas Concluídas"
                 : "Limpezas Previstas"
             : undefined
+=======
+          view === "limpeza" ? (cleaningWindow === "past" ? "Limpezas Concluídas" : "Limpezas Previstas") : undefined
+>>>>>>> 760415b80b6da4b1b04c0e4bc0ce273e8f17f5e5
         }
         subtitle={
           view === "limpeza"
@@ -3048,8 +3063,17 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   label={cleaningScreen.countLabel}
                   value={cleaningScreen.countValue}
                   icon={CheckCircle2}
+<<<<<<< HEAD
                   loading={cleaningScreen.statsLoading}
                   note={cleaningScreen.countNote}
+=======
+                  loading={cleaningWindow === "past" ? cleaningStatsQ.isLoading : cleaningForecastListQ.isLoading}
+                  note={
+                    cleaningWindow === "past" && pendingApproval.count > 0
+                      ? `+${pendingApproval.count} aguardando aprovação`
+                      : null
+                  }
+>>>>>>> 760415b80b6da4b1b04c0e4bc0ce273e8f17f5e5
                 />
               </div>
               <div className="col-span-1">
@@ -3057,8 +3081,17 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   label={cleaningScreen.costLabel}
                   value={centsToBRLShort(cleaningScreen.costValue)}
                   icon={Banknote}
+<<<<<<< HEAD
                   loading={cleaningScreen.statsLoading}
                   note={cleaningScreen.costNote}
+=======
+                  loading={cleaningWindow === "past" ? cleaningStatsQ.isLoading : cleaningForecastListQ.isLoading}
+                  note={
+                    cleaningWindow === "past" && pendingApproval.count > 0
+                      ? `+${centsToBRLShort(pendingApproval.totalCents)} em análise`
+                      : null
+                  }
+>>>>>>> 760415b80b6da4b1b04c0e4bc0ce273e8f17f5e5
                 />
               </div>
             </div>
@@ -3074,6 +3107,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 personalizado — só a fonte muda (ver `cleaningScreen`). */}
             <div className="ds-card-grid grid-cols-1 lg:grid-cols-2">
               <CleaningDailyBarChart
+<<<<<<< HEAD
                 title={cleaningScreen.barTitle}
                 data={cleaningScreen.daily}
                 detail={cleaningScreen.barDetail}
@@ -3086,6 +3120,26 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 detail={cleaningScreen.areaDetail}
                 loading={cleaningScreen.trendLoading}
                 split={cleaningScreen.split}
+=======
+                title={cleaningWindow === "past" ? "Limpezas por dia" : "Limpezas previstas por dia"}
+                data={cleaningWindow === "past" ? cleaningTrendQ.data?.daily : cleaningForecast.daily}
+                detail={
+                  cleaningWindow === "past"
+                    ? { mode: "done", items: cleaningTrendQ.data?.items ?? [] }
+                    : { mode: "forecast", items: cleaningForecast.items }
+                }
+                loading={cleaningWindow === "past" ? cleaningTrendQ.isLoading : cleaningForecastListQ.isLoading}
+              />
+              <CleaningDailyAreaChart
+                title={cleaningWindow === "past" ? "Custo total por dia" : "Custo estimado por dia"}
+                data={cleaningWindow === "past" ? cleaningTrendQ.data?.daily : cleaningForecast.daily}
+                detail={
+                  cleaningWindow === "past"
+                    ? { mode: "cost", items: cleaningTrendQ.data?.items ?? [] }
+                    : { mode: "forecast", items: cleaningForecast.items }
+                }
+                loading={cleaningWindow === "past" ? cleaningTrendQ.isLoading : cleaningForecastListQ.isLoading}
+>>>>>>> 760415b80b6da4b1b04c0e4bc0ce273e8f17f5e5
               />
             </div>
             {/* Top 5 ocupa a MESMA largura do gráfico da esquerda (pedido
@@ -3095,6 +3149,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             <div className="ds-card-grid grid-cols-1 lg:grid-cols-2 items-stretch">
               <div className="lg:order-2">
                 <CleaningEfficiencyPanel
+<<<<<<< HEAD
                   daily={cleaningScreen.daily}
                   items={cleaningScreen.breakdown}
                   loading={cleaningScreen.trendLoading}
@@ -3103,6 +3158,19 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               </div>
               <div className="lg:order-1">
                 <CleaningTopProperties items={cleaningScreen.breakdown} loading={cleaningScreen.trendLoading} />
+=======
+                  daily={cleaningWindow === "past" ? cleaningTrendQ.data?.daily : cleaningForecast.daily}
+                  items={cleaningWindow === "past" ? cleaningTrendQ.data?.breakdown : cleaningForecast.breakdown}
+                  loading={cleaningWindow === "past" ? cleaningTrendQ.isLoading : cleaningForecastListQ.isLoading}
+                  forecast={cleaningWindow !== "past"}
+                />
+              </div>
+              <div className="lg:order-1">
+                <CleaningTopProperties
+                  items={cleaningWindow === "past" ? cleaningTrendQ.data?.breakdown : cleaningForecast.breakdown}
+                  loading={cleaningWindow === "past" ? cleaningTrendQ.isLoading : cleaningForecastListQ.isLoading}
+                />
+>>>>>>> 760415b80b6da4b1b04c0e4bc0ce273e8f17f5e5
               </div>
             </div>
           </div>
@@ -4919,6 +4987,7 @@ function CleaningDailyBarChart({
   split?: boolean;
 }) {
   return (
+<<<<<<< HEAD
     <CleaningChartFrame
       title={title}
       data={data}
@@ -4927,6 +4996,9 @@ function CleaningDailyBarChart({
       tone={CLEANING_COUNT_COLOR}
       legend={split ? <CleaningSplitLegend doneColor={CLEANING_COUNT_COLOR} /> : null}
     >
+=======
+    <CleaningChartFrame title={title} data={data} loading={loading} detail={detail} tone={CLEANING_COUNT_COLOR}>
+>>>>>>> 760415b80b6da4b1b04c0e4bc0ce273e8f17f5e5
       {(width, pick) => (
         <BarChart
           width={width}
@@ -5013,6 +5085,7 @@ function CleaningDailyAreaChart({
   split?: boolean;
 }) {
   return (
+<<<<<<< HEAD
     <CleaningChartFrame
       title={title}
       data={data}
@@ -5021,6 +5094,9 @@ function CleaningDailyAreaChart({
       tone={CLEANING_COST_COLOR}
       legend={split ? <CleaningSplitLegend doneColor={CLEANING_COST_COLOR} /> : null}
     >
+=======
+    <CleaningChartFrame title={title} data={data} loading={loading} detail={detail} tone={CLEANING_COST_COLOR}>
+>>>>>>> 760415b80b6da4b1b04c0e4bc0ce273e8f17f5e5
       {(width, pick) => (
         <AreaChart
           width={width}
