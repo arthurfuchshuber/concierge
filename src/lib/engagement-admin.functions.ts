@@ -186,8 +186,9 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
       const m = byProp.get(c.property_id);
       if (m) m.conversations++;
     }
+    const propByConv = new Map((convs ?? []).map((c) => [c.id as string, c.property_id as string]));
     for (const msg of msgs ?? []) {
-      const propId = (msg as { property_chat_conversations?: { property_id?: string } }).property_chat_conversations?.property_id;
+      const propId = propByConv.get(msg.conversation_id as string);
       if (!propId) continue;
       const m = byProp.get(propId);
       if (m) m.messages++;
