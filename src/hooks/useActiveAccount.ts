@@ -60,7 +60,10 @@ export function useActiveAccount() {
   }, [needsAccount, accounts]);
 
   const resolving =
-    !impersonation && (adminLoading || (q.isLoading && !q.data) || needsAccount);
+    hasSession !== false &&
+    !impersonation &&
+    (adminLoading || (q.isLoading && !q.data) || needsAccount);
+
 
   return { accounts, hasOwn, impersonation, isAdmin, resolving, awaitingAccountChoice, query: q };
 }
