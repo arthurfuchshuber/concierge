@@ -571,6 +571,13 @@ function Guide({ data }: { data: GuideOk }) {
     setGateReady(true);
   }, [slug]);
   const needsGate = gateReady && !accessRec && !isPreview;
+  // Vitrine da landing (?demo=1): o guia ali é só uma amostra visual. O chat
+  // NÃO pode funcionar nesse modo — um visitante (ou um hóspede que caiu na
+  // página inicial) conversava com a IA como "Hóspede de teste" e a conversa
+  // caía na central de atendimento do anfitrião, num imóvel que não é o dele.
+  const isDemoGuide = useRouterState({
+    select: (st) => String((st.location.search as { demo?: unknown }).demo ?? "") === "1",
+  });
 
   // Revalidação contínua da reserva: se o código deixar de existir/ficar
   // ativo no calendário do Airbnb (cancelamento, alteração de datas ou
