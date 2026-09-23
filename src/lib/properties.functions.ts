@@ -792,6 +792,16 @@ const SavePropertyInput = z.object({
   checkout: z.array(z.object({
     label: z.string().min(1).max(200),
   })).max(40).default([]),
+  // Gravação cirúrgica: quando informado, só as seções marcadas são gravadas
+  // (as demais ficam intactas no banco). Ausente = grava tudo (compatível).
+  sections: z.object({
+    property: z.boolean().optional(),
+    recommendations: z.boolean().optional(),
+    manual: z.boolean().optional(),
+    emergency: z.boolean().optional(),
+    faqs: z.boolean().optional(),
+    checkout: z.boolean().optional(),
+  }).optional().nullable(),
 });
 
 
@@ -926,7 +936,13 @@ export const upsertProperty = createServerFn({ method: "POST" })
       writeClient = (await import("@/integrations/supabase/client.server")).supabaseAdmin as unknown as typeof supabase;
     }
 
-    if (propertyId) {
+    const sec = data.sections ?? null;
+    const want = (k: "property" | "recommendations" | "manual" | "emergency" | "faqs" | "checkout") =>
+      !propertyId || !sec || sec[k] === true;
+
+    if (propertyId && !want("property")) {
+      // nada a gravar na linha do imóvel nesta rodada
+    } else if (propertyId) {
       // O update da linha do imóvel dispara gatilhos pesados (reindexação da
       // base da IA). Sob carga, o banco corta a instrução por timeout (57014)
       // e o salvamento falhava de vez. Tentamos de novo com espera curta.
@@ -1005,11 +1021,16 @@ export const upsertProperty = createServerFn({ method: "POST" })
     };
 
 
-    await replaceChild("property_recommendations", data.recommendations as unknown as Record<string, unknown>[]);
-    await replaceChild("property_manual_items", data.manual as unknown as Record<string, unknown>[]);
-    await replaceChild("property_emergency_contacts", data.emergency as unknown as Record<string, unknown>[]);
-    await replaceChild("property_faqs", data.faqs as unknown as Record<string, unknown>[]);
-    await replaceChild("property_checkout_items", data.checkout as unknown as Record<string, unknown>[]);
+    if (want("recommendations")) await replaceChild("property_recommendations", data.recommendations as unknown as Record<string, unknown>[]);
+    if (want("manual")) await replaceChild("property_manual_items", data.manual as unknown as Record<string, unknown>[]);
+    if (want("emergency")) await replaceChild("property_emergency_contacts", data.emergency as unknown as Record<string, unknown>[]);
+    if (want("faqs")) await replaceChild("property_faqs", data.faqs as unknown as Record<string, unknown>[]);
+    if (want("checkout")) await replaceChild("property_checkout_items", data.checkout as unknown as Record<string, unknown>[]);
+
+    // Só reindexa a IA quando mudou algo que ela usa — não a cada tecla em
+    // campos que não entram na base de conhecimento.
+    const needsReindex = !sec || Object.values(sec).some(Boolean);
+    if (!needsReindex) return { id };
 
     // Reindexa a base de conhecimento (RAG) para a IA refletir as mudanças do guia.
     // Fire-and-forget: gerar embeddings não deve bloquear o salvamento na tela do anfitrião.
