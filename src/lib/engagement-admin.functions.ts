@@ -48,6 +48,16 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
       };
     }
 
+    // Mensagens são buscadas por conversation_id (índice existente). O join
+    // embutido por property_id varria a tabela toda e estourava o tempo.
+    const { data: convIdRows, error: convIdsErr } = await supabase
+      .from("property_chat_conversations")
+      .select("id")
+      .in("property_id", propertyIds)
+      .limit(20000);
+    if (convIdsErr) throw convIdsErr;
+    const convIds = (convIdRows ?? []).map((c) => c.id);
+
     const [
       { data: logs, error: logsErr },
       { data: convs, error: convsErr },
@@ -68,16 +78,19 @@ export const getEngagementOverview = createServerFn({ method: "GET" })
         .in("property_id", propertyIds)
         .order("last_message_at", { ascending: false })
         .limit(1000),
-      supabase
-        .from("property_chat_messages")
-        .select("id, conversation_id, role, created_at, property_chat_conversations!inner(property_id)")
-        .in("property_chat_conversations.property_id", propertyIds)
-        .order("created_at", { ascending: false })
-        .limit(5000),
+      convIds.length === 0
+        ? Promise.resolve({ data: [] as Array<{ id: string; conversation_id: string; role: string; created_at: string }>, error: null })
+        : supabase
+            .from("property_chat_messages")
+            .select("id, conversation_id, role, created_at")
+            .in("conversation_id", convIds)
+            .order("created_at", { ascending: false })
+            .limit(5000),
       supabase
         .from("chat_message_feedback")
         .select("message_id, conversation_id, property_id, reason, resolved, behavior_id, created_at")
-        .eq("owner_id", userId),
+        .eq("owner_id", userId)
+        .limit(5000),
       supabase.from("host_knowledge").select("id", { count: "exact", head: true }).eq("owner_id", userId).eq("enabled", true),
       supabase.from("host_behavior").select("id", { count: "exact", head: true }).eq("owner_id", userId).eq("enabled", true),
     ]);
