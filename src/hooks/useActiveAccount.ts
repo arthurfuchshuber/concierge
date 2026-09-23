@@ -4,6 +4,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { listMyAccounts } from "@/lib/active-account.functions";
 import { useImpersonation, setImpersonation } from "@/hooks/useImpersonation";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useHasSession } from "@/hooks/useHasSession";
+
 
 /**
  * Garante que um membro de equipe sempre abra o painel já dentro da empresa
@@ -16,12 +18,17 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 export function useActiveAccount() {
   const { isAdmin, isLoading: adminLoading } = useIsAdmin();
   const listFn = useServerFn(listMyAccounts);
+  // Só consulta com sessão válida: sem token a chamada protegida falhava e
+  // deixava a tela em branco ao sair da conta ou quando a sessão expirava.
+  const hasSession = useHasSession();
   const q = useQuery({
     queryKey: ["my-accounts"],
     queryFn: () => listFn(),
     staleTime: 5 * 60_000,
-    enabled: !adminLoading,
+    enabled: !adminLoading && hasSession === true,
+    retry: false,
   });
+
   const { impersonation } = useImpersonation();
 
   const accounts = useMemo(() => q.data?.accounts ?? [], [q.data]);
@@ -53,7 +60,10 @@ export function useActiveAccount() {
   }, [needsAccount, accounts]);
 
   const resolving =
-    !impersonation && (adminLoading || (q.isLoading && !q.data) || needsAccount);
+    hasSession !== false &&
+    !impersonation &&
+    (adminLoading || (q.isLoading && !q.data) || needsAccount);
+
 
   return { accounts, hasOwn, impersonation, isAdmin, resolving, awaitingAccountChoice, query: q };
 }
