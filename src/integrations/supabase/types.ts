@@ -4222,6 +4222,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          images: string[]
           position: number
           property_id: string
           title: string
@@ -4231,6 +4232,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          images?: string[]
           position?: number
           property_id: string
           title: string
@@ -4240,6 +4242,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          images?: string[]
           position?: number
           property_id?: string
           title?: string
