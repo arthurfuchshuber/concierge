@@ -7022,7 +7022,16 @@ function OccupancyPanel({
   useEffect(() => {
     if (typeof window !== "undefined" && window.innerWidth >= 1024) setOpen(true);
   }, []);
-  const outerRef = useRef<HTMLDivElement | null>(null);
+  /* MEDIÇÃO (correção 23/09/2026, com print: no computador o quadro nascia
+     com 5 dias e um vão vazio à direita).
+     O nó medido só existe DEPOIS que os dados chegam (antes disso o quadro é
+     só um spinner). Com `useRef` + efeito em `[days, open]`, o efeito rodava
+     enquanto o nó ainda era null, saía cedo e nunca mais voltava — o quadro
+     ficava congelado nos valores iniciais (5 dias × 40px). Guardar o nó em
+     ESTADO, por ref de callback, faz a medição rodar no exato momento em que
+     ele entra na tela. */
+  const [outerEl, setOuterEl] = useState<HTMLDivElement | null>(null);
+  const outerRef = useCallback((node: HTMLDivElement | null) => setOuterEl(node), []);
   const scrollbarWRef = useRef<number | null>(null);
   /** Última capacidade avisada ao pai — evita repetir o mesmo número. */
   const fitRef = useRef<number | null>(null);
@@ -7043,7 +7052,7 @@ function OccupancyPanel({
   const viewportW = nameColW + visibleDays * dayW;
 
   useEffect(() => {
-    const el = outerRef.current;
+    const el = outerEl;
     if (!el) return;
     const update = () => {
       const w = el.clientWidth;
@@ -7133,10 +7142,10 @@ function OccupancyPanel({
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-    // `open` também entra nas deps: recolhido por padrão, este nó nem existe
-    // (`el` fica null e o efeito sai cedo) até a pessoa expandir — precisa
-    // rodar de novo nesse momento pra medir a largura real pela 1ª vez.
-  }, [days, open]);
+    // `outerEl` nas deps: o nó só nasce quando o quadro está aberto E os
+    // dados já chegaram. Assim que ele aparece, a medição roda na hora — sem
+    // depender de um resize ou de recolher/reabrir o calendário.
+  }, [days, outerEl]);
 
   const todayISO = todayISOSaoPaulo();
 
