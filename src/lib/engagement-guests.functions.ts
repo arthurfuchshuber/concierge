@@ -136,6 +136,11 @@ async function loadCommon(
     return { filteredIds, nameById, cityById, ownerByPropId, accountNameById, ownerIds, since, logs: [], events: [], convs: [], msgs: [], feedback: [] };
   }
 
+  const { rows } = await import("@/lib/engagement-query.server");
+  const convIdsQ = await supabase.from("property_chat_conversations")
+    .select("id").in("property_id", filteredIds).limit(20000);
+  const convIds = rows("conversation-ids", convIdsQ).map((c) => (c as { id: string }).id);
+
   const [logsQ, eventsQ, convsQ, msgsQ, feedbackQ] = await Promise.all([
     supabase.from("guide_access_logs")
       .select("id, property_id, guest_name, reservation_code, checkin_date, guest_phone, guest_phone_country, user_agent, created_at")
@@ -147,13 +152,15 @@ async function loadCommon(
     supabase.from("property_chat_conversations")
       .select("id, property_id, guest_session_id, guest_name, created_at, last_message_at")
       .in("property_id", filteredIds).gte("created_at", since.toISOString()).limit(10000),
-    supabase.from("property_chat_messages")
-      .select("id, conversation_id, role, content, created_at, sender_type, sender_user_id, property_chat_conversations!inner(property_id)")
-      .in("property_chat_conversations.property_id", filteredIds)
-      .gte("created_at", since.toISOString()).order("created_at", { ascending: true }).limit(30000),
+    convIds.length === 0
+      ? Promise.resolve({ data: [] as Array<Record<string, unknown>>, error: null })
+      : supabase.from("property_chat_messages")
+          .select("id, conversation_id, role, content, created_at, sender_type, sender_user_id")
+          .in("conversation_id", convIds)
+          .gte("created_at", since.toISOString()).order("created_at", { ascending: true }).limit(30000),
     supabase.from("chat_message_feedback")
       .select("message_id, conversation_id, property_id, reason, resolved, created_at")
-      .in("property_id", filteredIds).gte("created_at", since.toISOString()),
+      .in("property_id", filteredIds).gte("created_at", since.toISOString()).limit(5000),
   ]);
   return {
     filteredIds, nameById, cityById, ownerByPropId, accountNameById, ownerIds, since,
