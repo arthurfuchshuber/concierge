@@ -977,23 +977,21 @@ export const upsertProperty = createServerFn({ method: "POST" })
     // a reindexação da IA ainda estavam terminando.
     if (!propertyId) throw new Error("Não foi possível salvar o guia.");
     const id = propertyId;
-    const { safeDbError } = await import("@/lib/db-errors.server");
+    const { safeDbError, isTemporaryDbError } = await import("@/lib/db-errors.server");
     // 57014 é timeout da instrução; PGRST002 é indisponibilidade temporária do
-    // pool/schema cache. Ambos devem ser repetidos, com espera progressiva.
+    // pool/schema cache. Ambos devem ser repetidos, com espera progressiva e
+    // janela longa o bastante para cobrir uma reconexão real do banco.
     const comRetry = async (exec: () => Promise<{ error: { code?: string; message?: string } | null }>) => {
       let error: { code?: string; message?: string } | null = null;
-      for (let tentativa = 0; tentativa < 5; tentativa += 1) {
-        if (tentativa > 0) await new Promise((r) => setTimeout(r, 750 * 2 ** (tentativa - 1)));
+      for (let tentativa = 0; tentativa < 8; tentativa += 1) {
+        if (tentativa > 0) await new Promise((r) => setTimeout(r, Math.min(750 * 2 ** (tentativa - 1), 5_000)));
         const res = await exec();
         error = (res.error as { code?: string; message?: string } | null) ?? null;
-        const temporario =
-          error?.code === "57014" ||
-          error?.code === "PGRST002" ||
-          /schema cache|connection pool|timed? out|timeout/i.test(error?.message ?? "");
-        if (!error || !temporario) break;
+        if (!error || !isTemporaryDbError(error)) break;
       }
       return error;
     };
+
     const replaceChild = async (
       table: "property_recommendations" | "property_manual_items" | "property_emergency_contacts" | "property_faqs" | "property_checkout_items",
       items: Record<string, unknown>[],
