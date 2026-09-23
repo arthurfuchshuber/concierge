@@ -354,6 +354,11 @@ export const updateTeamMemberRole = createServerFn({ method: "POST" })
     const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data?.accountOwnerId ?? null);
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
     await enforce(userId, "equipe.write", { });
+    // Mesma regra do convite: promover alguém a titular só o titular faz.
+    if (data.role === "owner" && userId !== ownerId) {
+      throw new Error("Somente o titular da conta pode conceder o papel de titular.");
+    }
+
     const { error } = await supabase
       .from("account_members")
       .update({ role: data.role })
