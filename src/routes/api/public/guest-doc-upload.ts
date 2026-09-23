@@ -129,11 +129,18 @@ export const Route = createFileRoute("/api/public/guest-doc-upload")({
           }
         }
 
-        // Teto de custo do dia (storage + visão de IA) por imóvel e global.
-        const { allowPaidGuestUse } = await import("@/lib/public-rate-limit.server");
+        // Teto de custo do dia (storage + visão de IA) por imóvel, por origem
+        // da chamada e global — a rota é aberta e cada envio custa dinheiro.
+        const { allowPaidGuestUse, allowDailyBudget, clientIpFrom } = await import(
+          "@/lib/public-rate-limit.server"
+        );
+        if (!allowDailyBudget(`guest-doc:ip:${clientIpFrom(request)}`, 30)) {
+          return new Response(JSON.stringify({ error: "rate_limited" }), { status: 429 });
+        }
         if (!allowPaidGuestUse({ scope: "guest-doc", propertyId: p.id, perProperty: 60, global: 600 })) {
           return new Response(JSON.stringify({ error: "rate_limited" }), { status: 429 });
         }
+
 
 
         const ext = extFromMime(mime);
