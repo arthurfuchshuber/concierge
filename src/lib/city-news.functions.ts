@@ -567,12 +567,18 @@ export const getCityNews = createServerFn({ method: "POST" })
     if (!allowPublicRate(`city-news:${clientIpFrom(getRequest())}`, 30, 60_000)) return null;
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const today = new Date().toISOString().slice(0, 10);
+    // Última edição gravada nos últimos 3 dias. Não usamos igualdade com a
+    // data UTC de hoje: o cron grava pela data local da cidade (à noite, num
+    // fuso UTC-3, a data UTC já virou) e uma execução falha deixaria o guia
+    // sem manchete nenhuma.
+    const limite = new Date(Date.now() - 3 * 86400_000).toISOString().slice(0, 10);
     const { data: cached } = await supabaseAdmin
       .from("city_daily_news")
       .select("items")
       .eq("city_key", data.cityKey)
-      .eq("date", today)
+      .gte("date", limite)
+      .order("date", { ascending: false })
+      .limit(1)
       .maybeSingle();
     const items = (cached?.items ?? null) as NewsItem[] | null;
     return items && items.length > 0 ? { items } : null;
