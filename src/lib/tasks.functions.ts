@@ -179,7 +179,7 @@ export const listTasks = createServerFn({ method: "GET" })
       if (data.onlyCleaning) query = query.eq("show_in_cleaning", true);
 
       const { retryDbResult, safeDbError } = await import("@/lib/db-errors.server");
-      const { data: rows, error } = await retryDbResult(() => query);
+      const { data: rows, error } = await retryDbResult<{ data: unknown[] | null; error: { code?: string; message?: string } | null }>(() => query);
       if (error) throw safeDbError("listTasks", error);
       const raw = (rows ?? []) as Array<{
         id: string;
