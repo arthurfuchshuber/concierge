@@ -2,6 +2,11 @@ import { QueryCache, QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
 
+function isTemporaryError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err ?? "");
+  return /timeout|timed out|upstream|reconectando|demorou demais|failed to fetch|network/i.test(msg);
+}
+
 function isUnauthorizedError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err ?? "");
   return /unauthorized|invalid token|no authorization header|jwt/i.test(msg);
