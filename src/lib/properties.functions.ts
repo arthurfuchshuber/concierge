@@ -970,17 +970,31 @@ export const upsertProperty = createServerFn({ method: "POST" })
     if (!propertyId) throw new Error("Não foi possível salvar o guia.");
     const id = propertyId;
     const { safeDbError } = await import("@/lib/db-errors.server");
+    // O banco pode cortar a instrução por demora (57014) quando os gatilhos
+    // pesados do imóvel estão rodando. Repetimos com espera curta antes de
+    // devolver erro à tela.
+    const comRetry = async (exec: () => Promise<{ error: { code?: string } | null }>) => {
+      let error: { code?: string } | null = null;
+      for (let tentativa = 0; tentativa < 3; tentativa += 1) {
+        if (tentativa > 0) await new Promise((r) => setTimeout(r, 400 * tentativa));
+        const res = await exec();
+        error = (res.error as { code?: string } | null) ?? null;
+        if (!error || error.code !== "57014") break;
+      }
+      return error;
+    };
     const replaceChild = async (
       table: "property_recommendations" | "property_manual_items" | "property_emergency_contacts" | "property_faqs" | "property_checkout_items",
       items: Record<string, unknown>[],
     ) => {
-      const del = await (writeClient.from(table) as any).delete().eq("property_id", id);
-      if (del.error) throw safeDbError("properties", del.error);
+      const delErr = await comRetry(() => (writeClient.from(table) as any).delete().eq("property_id", id));
+      if (delErr) throw safeDbError("properties", delErr);
       if (!items.length) return;
       const rows = items.map((r, i) => ({ ...r, property_id: id, position: i }));
-      const { error } = await (writeClient.from(table) as any).insert(rows);
-      if (error) throw safeDbError("properties", error);
+      const insErr = await comRetry(() => (writeClient.from(table) as any).insert(rows));
+      if (insErr) throw safeDbError("properties", insErr);
     };
+
 
     await Promise.all([
       replaceChild("property_recommendations", data.recommendations as unknown as Record<string, unknown>[]),
