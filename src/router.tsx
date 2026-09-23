@@ -2,6 +2,11 @@ import { QueryCache, QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
 
+function isTemporaryError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err ?? "");
+  return /timeout|timed out|upstream|reconectando|demorou demais|failed to fetch|network/i.test(msg);
+}
+
 function isUnauthorizedError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err ?? "");
   return /unauthorized|invalid token|no authorization header|jwt/i.test(msg);
@@ -49,7 +54,7 @@ export const getRouter = () => {
         refetchOnWindowFocus: false, // não refetch ao voltar para a aba
         // Erros de autenticação podem ser lentidão momentânea do login:
         // tenta mais vezes, com espera crescente.
-        retry: (count, err) => (isUnauthorizedError(err) ? count < 3 : count < 1),
+        retry: (count, err) => (isUnauthorizedError(err) || isTemporaryError(err) ? count < 3 : count < 1),
         retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
       },
     },
