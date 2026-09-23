@@ -99,12 +99,26 @@ export const Route = createFileRoute("/api/public/landing-chat")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        /* SÓ A PARTIR DO PRÓPRIO SITE (23/09/2026).
+           A rota é aberta (o visitante da página inicial não faz login) e cada
+           resposta custa crédito de IA. Exigir que a chamada venha da nossa
+           própria página tira do caminho o uso por script de fora. */
+        const origem = request.headers.get("origin") ?? request.headers.get("referer") ?? "";
+        const host = new URL(request.url).host;
+        if (origem && !origem.includes(host)) {
+          return new Response(JSON.stringify({ error: "Origem não autorizada." }), {
+            status: 403,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
         let body: z.infer<typeof Body>;
         try {
           body = Body.parse(await request.json());
         } catch {
           return new Response(JSON.stringify({ error: "Entrada inválida." }), { status: 400, headers: { "Content-Type": "application/json" } });
         }
+
 
         // `cf-connecting-ip` primeiro: o 1º item do `x-forwarded-for` vem do
         // próprio cliente e deixava trocar de "IP" a cada chamada (16/09/2026).
