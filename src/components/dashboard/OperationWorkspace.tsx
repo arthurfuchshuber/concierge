@@ -7142,10 +7142,10 @@ function OccupancyPanel({
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-    // `open` também entra nas deps: recolhido por padrão, este nó nem existe
-    // (`el` fica null e o efeito sai cedo) até a pessoa expandir — precisa
-    // rodar de novo nesse momento pra medir a largura real pela 1ª vez.
-  }, [days, open]);
+    // `outerEl` nas deps: o nó só nasce quando o quadro está aberto E os
+    // dados já chegaram. Assim que ele aparece, a medição roda na hora — sem
+    // depender de um resize ou de recolher/reabrir o calendário.
+  }, [days, outerEl]);
 
   const todayISO = todayISOSaoPaulo();
 
