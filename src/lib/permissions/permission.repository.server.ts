@@ -1,0 +1,289 @@
+/**
+ * Permission Repository — único ponto de acesso ao banco para permissões.
+ *
+ * FASE 1: implementado, porém nenhum fluxo existente o utiliza.
+ * Usa o cliente admin porque o engine roda server-side e faz o próprio
+ * isolamento por tenant em cada consulta.
+ */
+import type {
+  AccessLevel,
+  PermissionAssignment,
+  PermissionAuditEntry,
+  PermissionNode,
+  PermissionNodeDefinition,
+  PropertyAssignment,
+  ScopeType,
+} from "./permission.types";
+
+async function admin() {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  return supabaseAdmin;
+}
+
+/* ------------------------------------------------------------------ nodes */
+
+export async function listNodes(): Promise<PermissionNode[]> {
+  const db = await admin();
+  const { data, error } = await db
+    .from("permission_nodes")
+    .select("*")
+    .order("order", { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as PermissionNode[];
+}
+
+export async function getNodeBySlug(slug: string): Promise<PermissionNode | null> {
+  const db = await admin();
+  const { data, error } = await db
+    .from("permission_nodes")
+    .select("*")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data as unknown as PermissionNode) ?? null;
+}
+
+/** Mapa slug → id, consumido pelo engine na avaliação.
+ *  Cacheado em memória (60s): `permission_nodes` é praticamente estático e
+ *  era relido a cada checagem de permissão, encarecendo toda operação. */
+let nodeMapCache: { at: number; map: Record<string, string> } | null = null;
+const NODE_MAP_TTL = 60_000;
+
+export function invalidateNodeMapCache(): void {
+  nodeMapCache = null;
+}
+
+export async function nodeIdBySlug(): Promise<Record<string, string>> {
+  if (nodeMapCache && Date.now() - nodeMapCache.at < NODE_MAP_TTL) return nodeMapCache.map;
+  const nodes = await listNodes();
+  const map: Record<string, string> = {};
+  for (const node of nodes) map[node.slug] = node.id;
+  nodeMapCache = { at: Date.now(), map };
+  return map;
+}
+
+/**
+ * Sincroniza definições do Registry com a tabela (upsert por slug).
+ * Nenhum nó é apagado — compatibilidade total com o que já existe.
+ *
+ * O upsert é feito em ondas por profundidade do slug para que o `parent_id`
+ * dos filhos sempre encontre o pai já persistido (herança garantida).
+ */
+export async function upsertNodes(defs: PermissionNodeDefinition[]): Promise<number> {
+  if (!defs.length) return 0;
+  const db = await admin();
+
+  const byDepth = new Map<number, PermissionNodeDefinition[]>();
+  for (const d of defs) {
+    const depth = d.slug.split(".").length;
+    byDepth.set(depth, [...(byDepth.get(depth) ?? []), d]);
+  }
+
+  let total = 0;
+  for (const depth of [...byDepth.keys()].sort((a, b) => a - b)) {
+    invalidateNodeMapCache();
+    const existing = await nodeIdBySlug();
+    const rows = (byDepth.get(depth) ?? []).map((d) => ({
+      slug: d.slug,
+      name: d.name,
+      type: d.type,
+      description: d.description ?? null,
+      order: d.order ?? 0,
+      active: d.active ?? true,
+      parent_id: d.parentSlug ? (existing[d.parentSlug] ?? null) : null,
+      label: d.label ?? d.name,
+      route: d.route ?? null,
+      icon: d.icon ?? null,
+      display_order: d.displayOrder ?? d.order ?? 0,
+      is_system: d.isSystem ?? true,
+      is_hidden: d.isHidden ?? false,
+      version: d.version ?? 1,
+      deprecated: d.deprecated ?? false,
+    }));
+    if (!rows.length) continue;
+    const { error } = await db
+      .from("permission_nodes")
+      .upsert(rows as never, { onConflict: "slug" });
+    if (error) throw new Error(error.message);
+    total += rows.length;
+  }
+  return total;
+}
+
+/* ------------------------------------------------------ permission assignments */
+
+export async function listAssignments(
+  tenantId: string,
+  userId?: string,
+): Promise<PermissionAssignment[]> {
+  const db = await admin();
+  let query = db.from("permission_assignments").select("*").eq("tenant_id", tenantId);
+  if (userId) query = query.eq("user_id", userId);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as PermissionAssignment[];
+}
+
+export type UpsertAssignmentInput = {
+  tenantId: string;
+  userId: string;
+  permissionNodeId: string;
+  accessLevel: AccessLevel;
+  scopeType?: ScopeType;
+  scopeId?: string | null;
+  createdBy?: string | null;
+};
+
+export async function upsertAssignment(
+  input: UpsertAssignmentInput,
+): Promise<PermissionAssignment> {
+  const db = await admin();
+  const scopeType = input.scopeType ?? "TENANT";
+  const scopeId = input.scopeId ?? null;
+
+  // Substituição atômica no banco: serializa gravações simultâneas do mesmo
+  // usuário/nó/escopo e elimina a janela entre DELETE e INSERT que causava
+  // `permission_assignments_unique_scope_null` no duplo clique/refetch.
+  const { data, error } = await db.rpc("replace_permission_assignment", {
+    _tenant_id: input.tenantId,
+    _user_id: input.userId,
+    _permission_node_id: input.permissionNodeId,
+    _access_level: input.accessLevel,
+    _scope_type: scopeType,
+    _scope_id: scopeId ?? undefined,
+    _created_by: input.createdBy ?? undefined,
+  });
+  if (error) throw new Error(error.message);
+  return data as unknown as PermissionAssignment;
+}
+
+export async function deleteAssignment(tenantId: string, assignmentId: string): Promise<void> {
+  const db = await admin();
+  const { error } = await db
+    .from("permission_assignments")
+    .delete()
+    .eq("tenant_id", tenantId)
+    .eq("id", assignmentId);
+  if (error) throw new Error(error.message);
+}
+
+/* -------------------------------------------------------- property assignments */
+
+export async function listPropertyAssignments(
+  tenantId: string,
+  userId?: string,
+): Promise<PropertyAssignment[]> {
+  const db = await admin();
+  let query = db.from("property_assignments").select("*").eq("tenant_id", tenantId);
+  if (userId) query = query.eq("user_id", userId);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as PropertyAssignment[];
+}
+
+export async function upsertPropertyAssignment(input: {
+  tenantId: string;
+  propertyId: string;
+  userId: string;
+  status?: string;
+  createdBy?: string | null;
+}): Promise<PropertyAssignment> {
+  const db = await admin();
+  const { data, error } = await db
+    .from("property_assignments")
+    .upsert(
+      {
+        tenant_id: input.tenantId,
+        property_id: input.propertyId,
+        user_id: input.userId,
+        status: input.status ?? "active",
+        created_by: input.createdBy ?? null,
+      } as never,
+      { onConflict: "tenant_id,property_id,user_id" },
+    )
+    .select("*")
+    .single();
+  if (error) throw new Error(error.message);
+  return data as unknown as PropertyAssignment;
+}
+
+/** Remove o vínculo de um imóvel com um usuário (escopo PROPERTY). */
+export async function deletePropertyAssignment(
+  tenantId: string,
+  propertyId: string,
+  userId: string,
+): Promise<void> {
+  const db = await admin();
+  const { error } = await db
+    .from("property_assignments")
+    .delete()
+    .eq("tenant_id", tenantId)
+    .eq("property_id", propertyId)
+    .eq("user_id", userId);
+  if (error) throw new Error(error.message);
+}
+
+/* ------------------------------------------------------------------- audit */
+
+export type AuditInput = {
+  tenantId: string;
+  actorId?: string | null;
+  actorName?: string | null;
+  targetUserId?: string | null;
+  permissionNodeId?: string | null;
+  previousAccessLevel?: AccessLevel | null;
+  newAccessLevel?: AccessLevel | null;
+  scopeType?: ScopeType | null;
+  scopeId?: string | null;
+  action?: string;
+  metadata?: Record<string, unknown> | null;
+};
+
+/** Auditoria nunca derruba a operação principal. */
+export async function recordAudit(input: AuditInput): Promise<void> {
+  try {
+    const db = await admin();
+    await db.from("permission_audit").insert({
+      tenant_id: input.tenantId,
+      actor_id: input.actorId ?? null,
+      actor_name: input.actorName ?? null,
+      target_user_id: input.targetUserId ?? null,
+      permission_node_id: input.permissionNodeId ?? null,
+      previous_access_level: input.previousAccessLevel ?? null,
+      new_access_level: input.newAccessLevel ?? null,
+      scope_type: input.scopeType ?? null,
+      scope_id: input.scopeId ?? null,
+      action: input.action ?? "update",
+      metadata: (input.metadata ?? null) as never,
+    } as never);
+  } catch (err) {
+    console.error("[permissions] falha ao registrar auditoria", err);
+  }
+}
+
+export async function listAudit(tenantId: string, limit = 100): Promise<PermissionAuditEntry[]> {
+  const db = await admin();
+  const { data, error } = await db
+    .from("permission_audit")
+    .select("*")
+    .eq("tenant_id", tenantId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as PermissionAuditEntry[];
+}
+
+export const permissionRepository = {
+  listNodes,
+  getNodeBySlug,
+  nodeIdBySlug,
+  upsertNodes,
+  listAssignments,
+  upsertAssignment,
+  deleteAssignment,
+  listPropertyAssignments,
+  upsertPropertyAssignment,
+  deletePropertyAssignment,
+  recordAudit,
+  listAudit,
+};

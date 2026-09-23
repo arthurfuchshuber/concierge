@@ -1,0 +1,1062 @@
+import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+// ---------------------------------------------------------------------------
+// Stakeholders = Proprietários (property_owners) + Prestadores (service_providers).
+// Ambas as entidades compartilham ficha, linha do tempo (stakeholder_events) e
+// quadro de atividades (stakeholder_activities).
+// ---------------------------------------------------------------------------
+
+const Kind = z.enum(["owner", "provider"]);
+type KindT = z.infer<typeof Kind>;
+
+const TABLE: Record<KindT, "property_owners" | "service_providers"> = {
+  owner: "property_owners",
+  provider: "service_providers",
+};
+
+const ListInput = z.object({
+  kind: Kind,
+  accountOwnerId: z.string().uuid().optional().nullable(),
+});
+
+export const listStakeholders = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => ListInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.accountOwnerId);
+    // Garante que estágios e cancelamentos vencidos já apareçam promovidos
+    // (Ativo / Cancelado definitivo) mesmo que ninguém tenha aberto o popup
+    // de confirmação — a própria listagem se autocorrige a cada carregamento.
+    await promoteDueStages(supabase, accountId);
+    const { data: rows, error } = await supabase
+      .from(TABLE[data.kind])
+      .select("*")
+      .eq("account_owner_id", accountId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+
+    const { data: acts } = await supabase
+      .from("stakeholder_activities")
+      .select("id, stakeholder_id, status, title, due_date, priority")
+      .eq("account_owner_id", accountId)
+      .eq("stakeholder_type", data.kind);
+
+    const { data: props } =
+      data.kind === "owner"
+        ? await supabase.from("properties").select("id, name, owner_contact_id").eq("owner_id", accountId)
+        : { data: [] as Array<{ id: string; name: string; owner_contact_id: string | null }> };
+
+    return {
+      accountId,
+      rows: rows ?? [],
+      activities: acts ?? [],
+      properties: props ?? [],
+    };
+  });
+
+const SaveInput = z.object({
+  kind: Kind,
+  accountOwnerId: z.string().uuid().optional().nullable(),
+  id: z.string().uuid().optional().nullable(),
+  name: z.string().trim().min(1).max(160),
+  trade_name: z.string().trim().max(160).optional().nullable(),
+  category: z.string().trim().max(60).optional().nullable(),
+  categories: z.array(z.string().trim().max(60)).max(20).optional(),
+  person_type: z.enum(["pf", "pj"]).default("pf"),
+  doc_type: z.enum(["cpf", "cnpj"]).default("cpf"),
+  doc: z.string().trim().max(40).optional().nullable(),
+  birth_date: z.string().trim().max(20).optional().nullable(),
+  email: z.string().trim().max(200).optional().nullable(),
+  phone: z.string().trim().max(40).optional().nullable(),
+  phone_country: z.string().trim().max(4).optional().nullable(),
+  cep: z.string().trim().max(12).optional().nullable(),
+  address: z.string().trim().max(300).optional().nullable(),
+  district: z.string().trim().max(120).optional().nullable(),
+  city: z.string().trim().max(120).optional().nullable(),
+  state: z.string().trim().max(60).optional().nullable(),
+  notes: z.string().trim().max(4000).optional().nullable(),
+  status: z.enum(["active", "inactive", "paused", "canceled"]).default("active"),
+  contract_start: z.string().trim().max(20).optional().nullable(),
+  contract_end: z.string().trim().max(20).optional().nullable(),
+});
+
+function onlyDigits(v?: string | null) {
+  return (v ?? "").replace(/\D+/g, "");
+}
+
+function isValidCPFDigits(d: string): boolean {
+  if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
+  const calc = (base: string, factor: number) => {
+    let sum = 0;
+    for (let i = 0; i < base.length; i++) sum += Number(base[i]) * (factor - i);
+    const rest = (sum * 10) % 11;
+    return rest === 10 ? 0 : rest;
+  };
+  return calc(d.slice(0, 9), 10) === Number(d[9]) && calc(d.slice(0, 10), 11) === Number(d[10]);
+}
+
+function isValidCNPJDigits(d: string): boolean {
+  if (d.length !== 14 || /^(\d)\1{13}$/.test(d)) return false;
+  const calc = (base: string) => {
+    const weights =
+      base.length === 12
+        ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+        : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    let sum = 0;
+    for (let i = 0; i < base.length; i++) sum += Number(base[i]) * weights[i];
+    const rest = sum % 11;
+    return rest < 2 ? 0 : 11 - rest;
+  };
+  return calc(d.slice(0, 12)) === Number(d[12]) && calc(d.slice(0, 13)) === Number(d[13]);
+}
+
+/** Nomes amigáveis dos campos do cadastro, usados na Linha do Tempo. */
+const FIELD_LABELS: Record<string, string> = {
+  name: "Nome",
+  email: "E-mail",
+  phone: "Telefone",
+  doc: "CPF/CNPJ",
+  doc_type: "Tipo de documento",
+  person_type: "Tipo de pessoa",
+  birth_date: "Data de nascimento",
+  address: "Endereço",
+  address_number: "Número",
+  complement: "Complemento",
+  neighborhood: "Bairro",
+  city: "Cidade",
+  state: "Estado",
+  cep: "CEP",
+  category: "Categoria principal",
+  categories: "Categorias de serviço",
+  status: "Situação",
+  notes: "Observações",
+  bank: "Banco",
+  pix_key: "Chave Pix",
+  commission: "Comissão",
+  rate: "Valor / diária",
+  contract_start: "Início do contrato",
+  contract_end: "Fim do contrato",
+};
+
+const MASKED_FIELDS = new Set(["doc", "pix_key"]);
+
+function displayValue(field: string, value: unknown): string {
+  if (value === null || value === undefined || value === "") return "vazio";
+  if (Array.isArray(value)) return value.length ? value.join(", ") : "vazio";
+  const text = String(value);
+  if (MASKED_FIELDS.has(field)) return `${text.slice(0, 3)}•••${text.slice(-2)}`;
+  return text.length > 60 ? `${text.slice(0, 60)}…` : text;
+}
+
+/** dd/mm/aaaa a partir de "aaaa-mm-dd" (formato salvo no banco). */
+function displayDate(value: unknown): string {
+  const s = displayValue("", value);
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : s;
+}
+
+function sameValue(a: unknown, b: unknown): boolean {
+  const norm = (v: unknown) =>
+    Array.isArray(v) ? [...v].map(String).sort().join("|") : v === null || v === undefined ? "" : String(v);
+  return norm(a) === norm(b);
+}
+
+/** Frase direta por campo ("Nome alterado para X"), em vez do formato
+ *  "Campo: valor antigo → valor novo" — mais fácil de ler de relance na
+ *  Linha do Tempo. Campos sem entrada aqui caem no genérico com o rótulo. */
+const FIELD_CHANGE_TEXT: Record<string, (v: string) => string> = {
+  name: (v) => `Nome alterado para "${v}"`,
+  email: (v) => `E-mail alterado para "${v}"`,
+  city: (v) => `Cidade alterada para "${v}"`,
+  state: (v) => `Estado alterado para "${v}"`,
+  status: (v) => `Situação alterada para "${v}"`,
+  category: (v) => `Categoria principal alterada para "${v}"`,
+  categories: () => "Categorias de serviço atualizadas",
+  notes: () => "Observações atualizadas",
+  commission: (v) => `Comissão alterada para ${v}`,
+  rate: (v) => `Valor/diária alterado para ${v}`,
+};
+
+/** Campos cujo valor é uma data ISO ("aaaa-mm-dd") e por isso precisam
+ *  passar por `displayDate` (dd/mm/aaaa) em vez de `displayValue` cru. */
+const DATE_FIELDS = new Set(["birth_date"]);
+
+/** Mudanças legíveis entre o cadastro anterior e o novo, já em frases
+ *  prontas para a Linha do Tempo (não "Campo: A → B"). Início e fim do
+ *  contrato viram frases próprias e independentes ("Data de início do
+ *  contrato alterada para X"), e quando os dois mudam juntos (ex.: contrato
+ *  novo com vigência completa) as duas frases se juntam numa só com "e" —
+ *  cada uma só aparece quando aquele campo específico realmente mudou. */
+function diffPayload(before: Record<string, unknown>, after: Record<string, unknown>): string[] {
+  const changed = new Set<string>();
+  for (const [key, value] of Object.entries(after)) {
+    if (key === "account_owner_id" || key === "created_by") continue;
+    if (!(key in before)) continue;
+    if (sameValue(before[key], value)) continue;
+    changed.add(key);
+  }
+
+  const out: string[] = [];
+
+  if (changed.has("contract_start") || changed.has("contract_end")) {
+    const startChanged = changed.has("contract_start");
+    const endChanged = changed.has("contract_end");
+    changed.delete("contract_start");
+    changed.delete("contract_end");
+    const start = displayDate(after["contract_start"]);
+    const end = displayDate(after["contract_end"]);
+    const startPhrase =
+      start === "vazio" ? "Data de início do contrato removida" : `Data de início do contrato alterada para ${start}`;
+    const endPhrase = end === "vazio" ? "data final removida" : `data final alterada para ${end}`;
+    if (startChanged && endChanged) {
+      out.push(`${startPhrase} e ${endPhrase}`);
+    } else if (startChanged) {
+      out.push(startPhrase);
+    } else {
+      out.push(end === "vazio" ? "Data final do contrato removida" : `Data final do contrato alterada para ${end}`);
+    }
+  }
+
+  for (const key of changed) {
+    const narrate = FIELD_CHANGE_TEXT[key];
+    if (narrate) {
+      out.push(narrate(displayValue(key, after[key])));
+      continue;
+    }
+    const value = DATE_FIELDS.has(key) ? displayDate(after[key]) : displayValue(key, after[key]);
+    out.push(
+      value === "vazio"
+        ? `${FIELD_LABELS[key] ?? key} removido(a)`
+        : `${FIELD_LABELS[key] ?? key} alterado(a) para "${value}"`,
+    );
+  }
+  return out;
+}
+
+export const saveStakeholder = createServerFn({ method: "POST" })
+
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => SaveInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "stakeholders.write", { resource: data.id ?? null });
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.accountOwnerId);
+    const { kind, id, category, categories, accountOwnerId: _accountOwnerId, ...rest } = data;
+
+    // Validação real do documento no servidor (dígitos verificadores oficiais).
+    const doc = onlyDigits(rest.doc);
+    if (doc) {
+      if (rest.doc_type === "cnpj" && !isValidCNPJDigits(doc)) throw new Error("CNPJ inválido.");
+      if (rest.doc_type === "cpf" && !isValidCPFDigits(doc)) throw new Error("CPF inválido.");
+    }
+
+    const payload: Record<string, unknown> = {
+      ...rest,
+      doc: doc || null,
+      phone: onlyDigits(rest.phone) || null,
+      cep: onlyDigits(rest.cep) || null,
+      account_owner_id: accountId,
+    };
+
+    // Cidade/UF são conferíveis online (CEP na BrasilAPI, endereço no
+    // OpenStreetMap). Se vierem vazias, completamos automaticamente em vez de
+    // deixar o card sem localização.
+    if (!String(payload["city"] ?? "").trim() || !String(payload["state"] ?? "").trim()) {
+      const { enrichAddress } = await import("@/lib/geo-enrich.server");
+      const found = await enrichAddress({
+        cep: payload["cep"] as string | null,
+        address: payload["address"] as string | null,
+        district: payload["district"] as string | null,
+        city: payload["city"] as string | null,
+        state: payload["state"] as string | null,
+      });
+      Object.assign(payload, found);
+    }
+    if (kind === "provider") {
+      const list = (categories ?? []).filter(Boolean);
+      payload.categories = list;
+      // `category` segue preenchida (primeira categoria) para compatibilidade
+      // com filtros e telas antigas.
+      payload.category = list[0] || category || "outros";
+    }
+
+
+    if (id) {
+      const { data: before } = await supabase
+        .from(TABLE[kind])
+        .select("*")
+        .eq("id", id)
+        .eq("account_owner_id", accountId)
+        .maybeSingle();
+
+      const { error } = await supabase
+        .from(TABLE[kind])
+        .update(payload as never)
+        .eq("id", id)
+        .eq("account_owner_id", accountId);
+      if (error) throw new Error(error.message);
+      const changes = diffPayload((before ?? {}) as Record<string, unknown>, payload);
+      await supabase.from("stakeholder_events").insert({
+        account_owner_id: accountId,
+        stakeholder_type: kind,
+        stakeholder_id: id,
+        kind: "update",
+        // Frases diretas (uma por mudança) em vez de "Cadastro atualizado —
+        // N informação(ões) alterada(s): Campo: A → B" — cada frase já diz o
+        // que mudou, o prefixo genérico só repetia informação.
+        message: changes.length ? changes.join("; ") : "Cadastro salvo sem alterações.",
+        created_by: userId,
+      });
+      return { ok: true, id };
+    }
+
+
+    const { data: inserted, error } = await supabase
+      .from(TABLE[kind])
+      .insert({ ...payload, created_by: userId } as never)
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    await supabase.from("stakeholder_events").insert({
+      account_owner_id: accountId,
+      stakeholder_type: kind,
+      stakeholder_id: inserted.id as string,
+      kind: "create",
+      message: (() => {
+        const filled = Object.entries(payload)
+          .filter(([k, v]) => k !== "account_owner_id" && v !== null && v !== "" && !(Array.isArray(v) && !v.length))
+          .map(([k, v]) => `${FIELD_LABELS[k] ?? k}: "${displayValue(k, v)}"`);
+        return filled.length ? `Cadastro criado com ${filled.join("; ")}` : "Cadastro criado.";
+      })(),
+
+      created_by: userId,
+    });
+    return { ok: true, id: inserted.id as string };
+  });
+
+const IdInput = z.object({
+  kind: Kind,
+  id: z.string().uuid(),
+  accountOwnerId: z.string().uuid().optional().nullable(),
+});
+
+export const deleteStakeholder = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => IdInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "stakeholders.delete", { resource: data.id });
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.accountOwnerId);
+    const { error } = await supabase
+      .from(TABLE[data.kind])
+      .delete()
+      .eq("id", data.id)
+      .eq("account_owner_id", accountId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const getStakeholderDetail = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => IdInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "stakeholders.read", { resource: data.id });
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.accountOwnerId);
+    await promoteDueStages(supabase, accountId);
+    const [{ data: row }, { data: events }, { data: activities }] = await Promise.all([
+      supabase.from(TABLE[data.kind]).select("*").eq("id", data.id).eq("account_owner_id", accountId).maybeSingle(),
+      supabase
+        .from("stakeholder_events")
+        .select("*")
+        .eq("account_owner_id", accountId)
+        .eq("stakeholder_type", data.kind)
+        .eq("stakeholder_id", data.id)
+        .order("created_at", { ascending: false })
+        .limit(100),
+      supabase
+        .from("stakeholder_activities")
+        .select("*")
+        .eq("account_owner_id", accountId)
+        .eq("stakeholder_type", data.kind)
+        .eq("stakeholder_id", data.id)
+        .order("created_at", { ascending: false }),
+    ]);
+    type PropRow = {
+      id: string;
+      name: string;
+      slug: string;
+      published: boolean;
+      guide_created: boolean;
+      city: string | null;
+      state: string | null;
+      owner_contact_id: string | null;
+    };
+    let properties: PropRow[] = [];
+    let availableProperties: PropRow[] = [];
+
+    if (data.kind === "owner") {
+      // `guide_created` só existe depois da migration 20260814180000. Se ela
+      // ainda não rodou no banco, o select abaixo falha (coluna inexistente)
+      // e o Supabase devolve `data: null` — sem isto, o código antigo fazia
+      // `all ?? []` silenciosamente e a lista de imóveis vinculados sumia
+      // por inteiro, para QUALQUER proprietário, sem erro visível em lugar
+      // nenhum. Agora falha "alto": loga o motivo e cai para o select antigo
+      // (sem guide_created) em vez de mostrar "nenhuma residência" errado.
+      let all: Array<Record<string, unknown>> | null = null;
+      const first = await supabase
+        .from("properties")
+        .select("id, name, slug, published, guide_created, city, state, owner_contact_id")
+        .eq("owner_id", accountId)
+        .order("name");
+      if (first.error) {
+        console.error(
+          "[stakeholders] select com guide_created falhou — migration 20260814180000 já rodou no banco? " +
+            first.error.message,
+        );
+        const fallback = await supabase
+          .from("properties")
+          .select("id, name, slug, published, city, state, owner_contact_id")
+          .eq("owner_id", accountId)
+          .order("name");
+        if (fallback.error) {
+          console.error("[stakeholders] select de properties falhou mesmo sem guide_created: " + fallback.error.message);
+        }
+        all = (fallback.data ?? []).map((p) => ({ ...p, guide_created: false }));
+      } else {
+        all = first.data;
+      }
+      const rows = (all ?? []) as unknown as PropRow[];
+      properties = rows.filter((p) => p.owner_contact_id === data.id);
+      availableProperties = rows.filter((p) => !p.owner_contact_id);
+    }
+
+    if (data.kind === "provider") {
+      // Prestador é N:N com imóvel (via property_providers) — diferente do
+      // proprietário, que é 1:1 via properties.owner_contact_id. "Disponível"
+      // aqui não significa "sem prestador nenhum" (um imóvel pode ter vários),
+      // significa "ainda não vinculado a ESTE prestador".
+      const [{ data: links }, allProps] = await Promise.all([
+        supabase.from("property_providers").select("property_id").eq("provider_id", data.id).eq("account_owner_id", accountId),
+        supabase
+          .from("properties")
+          .select("id, name, slug, published, guide_created, city, state")
+          .eq("owner_id", accountId)
+          .order("name"),
+      ]);
+      const linkedIds = new Set((links ?? []).map((l) => l.property_id as string));
+      const rows = (allProps.data ?? []) as unknown as Array<Omit<PropRow, "owner_contact_id">>;
+      properties = rows.filter((p) => linkedIds.has(p.id)).map((p) => ({ ...p, owner_contact_id: null }));
+      availableProperties = rows.filter((p) => !linkedIds.has(p.id)).map((p) => ({ ...p, owner_contact_id: null }));
+    }
+    // Autor de cada movimentação da linha do tempo: resolve os `created_by`
+    // em nome legível (perfil da equipe). Sem autor = evento automático.
+    const authorIds = Array.from(
+      new Set(
+        (events ?? [])
+          .map((e) => (e as { created_by?: string | null }).created_by)
+          .filter((v): v is string => !!v),
+      ),
+    );
+    const authorNames = new Map<string, string>();
+    if (authorIds.length > 0) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, full_name, trade_name")
+        .in("id", authorIds);
+      for (const p of profs ?? []) {
+        const name = (p.trade_name || p.full_name || "").trim();
+        if (name) authorNames.set(p.id as string, name);
+      }
+    }
+
+    return {
+      row: row ?? null,
+      events: (events ?? []).map((e) => {
+        const by = (e as { created_by?: string | null }).created_by ?? null;
+        return { ...e, author_name: by ? (authorNames.get(by) ?? null) : null };
+      }),
+      activities: activities ?? [],
+      properties,
+      availableProperties,
+    };
+  });
+
+
+const LinkInput = z.object({
+  ownerId: z.string().uuid(),
+  propertyId: z.string().uuid(),
+  link: z.boolean(),
+  accountOwnerId: z.string().uuid().optional().nullable(),
+});
+
+// Vincula (ou desvincula) uma residência ao proprietário.
+export const linkPropertyToOwner = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => LinkInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "stakeholders.vinculo-imovel", { resource: data.ownerId, propertyId: data.propertyId });
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.accountOwnerId);
+    const { data: owner } = await supabase
+      .from("property_owners")
+      .select("id, name")
+      .eq("id", data.ownerId)
+      .eq("account_owner_id", accountId)
+      .maybeSingle();
+    if (!owner) throw new Error("Proprietário não encontrado");
+    // Nome da residência para a mensagem do evento — "Residência X vinculada"
+    // é bem mais útil na Timeline do que o genérico "vinculada ao
+    // proprietário" (redundante: o evento já está na ficha do proprietário).
+    const { data: property } = await supabase
+      .from("properties")
+      .select("name")
+      .eq("id", data.propertyId)
+      .maybeSingle();
+    const propertyLabel = property?.name ? `Residência "${property.name}"` : "Residência";
+
+    const { error } = await supabase
+      .from("properties")
+      .update({ owner_contact_id: data.link ? data.ownerId : null })
+      .eq("id", data.propertyId)
+      .eq("owner_id", accountId);
+    if (error) throw new Error(error.message);
+
+    await supabase.from("stakeholder_events").insert({
+      account_owner_id: accountId,
+      stakeholder_type: "owner",
+      stakeholder_id: data.ownerId,
+      kind: "property",
+      message: data.link ? `${propertyLabel} vinculada` : `${propertyLabel} desvinculada`,
+      created_by: userId,
+    });
+    return { ok: true };
+  });
+
+
+const ProviderLinkInput = z.object({
+  providerId: z.string().uuid(),
+  propertyId: z.string().uuid(),
+  link: z.boolean(),
+  accountOwnerId: z.string().uuid().optional().nullable(),
+});
+
+// Vincula (ou desvincula) um imóvel a um prestador. N:N — um imóvel pode ter
+// vários prestadores (limpeza, manutenção...) e um prestador pode atender
+// vários imóveis, por isso não existe "transferir" aqui como em proprietário:
+// desvincular é sempre permitido, sem exigir substituto.
+export const linkPropertyToProvider = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => ProviderLinkInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "stakeholders.vinculo-imovel-prestador", {
+      resource: data.providerId,
+      propertyId: data.propertyId,
+    });
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.accountOwnerId);
+
+    const { data: provider } = await supabase
+      .from("service_providers")
+      .select("id, name")
+      .eq("id", data.providerId)
+      .eq("account_owner_id", accountId)
+      .maybeSingle();
+    if (!provider) throw new Error("Prestador não encontrado");
+    const { data: property } = await supabase
+      .from("properties")
+      .select("id, name")
+      .eq("id", data.propertyId)
+      .eq("owner_id", accountId)
+      .maybeSingle();
+    if (!property) throw new Error("Imóvel não encontrado");
+    const propertyLabel = property.name ? `Residência "${property.name}"` : "Residência";
+
+    if (data.link) {
+      const { error } = await supabase
+        .from("property_providers")
+        .upsert(
+          { account_owner_id: accountId, property_id: data.propertyId, provider_id: data.providerId, created_by: userId },
+          { onConflict: "property_id,provider_id" },
+        );
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await supabase
+        .from("property_providers")
+        .delete()
+        .eq("account_owner_id", accountId)
+        .eq("property_id", data.propertyId)
+        .eq("provider_id", data.providerId);
+      if (error) throw new Error(error.message);
+    }
+
+    // Se o prestador também tem login na equipe, o vínculo com o imóvel precisa
+    // refletir na "residência atendida" — senão ele continua sem ver o imóvel
+    // nos painéis (dashboard, fila de limpeza, calendário).
+    const { data: providerUser } = await supabase
+      .from("service_providers")
+      .select("member_user_id")
+      .eq("id", data.providerId)
+      .maybeSingle();
+    const memberUserId = (providerUser as { member_user_id?: string | null } | null)?.member_user_id ?? null;
+    if (memberUserId) {
+      // Prestador com login atende apenas as residências vinculadas a ele —
+      // nunca o modo "todas as residências" da equipe interna.
+      await supabase
+        .from("account_members")
+        .update({ all_properties: false } as never)
+        .eq("owner_id", accountId)
+        .eq("member_user_id", memberUserId);
+      if (data.link) {
+        await supabase.from("property_assignments").upsert(
+          {
+            tenant_id: accountId,
+            property_id: data.propertyId,
+            user_id: memberUserId,
+            status: "active",
+            created_by: userId,
+          } as never,
+          { onConflict: "tenant_id,property_id,user_id" },
+        );
+      } else {
+        await supabase
+          .from("property_assignments")
+          .delete()
+          .eq("tenant_id", accountId)
+          .eq("property_id", data.propertyId)
+          .eq("user_id", memberUserId);
+      }
+    }
+
+
+    await supabase.from("stakeholder_events").insert({
+      account_owner_id: accountId,
+      stakeholder_type: "provider",
+      stakeholder_id: data.providerId,
+      kind: "property",
+      message: data.link ? `${propertyLabel} vinculada` : `${propertyLabel} desvinculada`,
+      created_by: userId,
+    });
+    return { ok: true };
+  });
+
+
+const NoteInput = z.object({
+  kind: Kind,
+  id: z.string().uuid(),
+  message: z.string().trim().min(1).max(2000),
+  accountOwnerId: z.string().uuid().optional().nullable(),
+});
+
+export const addStakeholderNote = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => NoteInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.accountOwnerId);
+    const { error } = await supabase.from("stakeholder_events").insert({
+      account_owner_id: accountId,
+      stakeholder_type: data.kind,
+      stakeholder_id: data.id,
+      kind: "note",
+      message: data.message,
+      created_by: userId,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+const ActivityInput = z.object({
+  kind: Kind,
+  stakeholderId: z.string().uuid(),
+  id: z.string().uuid().optional().nullable(),
+  title: z.string().trim().min(1).max(200),
+  description: z.string().trim().max(2000).optional().nullable(),
+  status: z.enum(["todo", "doing", "done"]).default("todo"),
+  priority: z.enum(["low", "normal", "high"]).default("normal"),
+  due_date: z.string().trim().max(20).optional().nullable(),
+});
+
+export const saveStakeholderActivity = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => ActivityInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId);
+    const payload = {
+      account_owner_id: accountId,
+      stakeholder_type: data.kind,
+      stakeholder_id: data.stakeholderId,
+      title: data.title,
+      description: data.description || null,
+      status: data.status,
+      priority: data.priority,
+      due_date: data.due_date || null,
+    };
+    if (data.id) {
+      const { error } = await supabase
+        .from("stakeholder_activities")
+        .update(payload)
+        .eq("id", data.id)
+        .eq("account_owner_id", accountId);
+      if (error) throw new Error(error.message);
+      return { ok: true, id: data.id };
+    }
+    const { data: ins, error } = await supabase
+      .from("stakeholder_activities")
+      .insert({ ...payload, created_by: userId } as never)
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    await supabase.from("stakeholder_events").insert({
+      account_owner_id: accountId,
+      stakeholder_type: data.kind,
+      stakeholder_id: data.stakeholderId,
+      kind: "activity",
+      message: `Atividade criada: ${data.title}`,
+      created_by: userId,
+    });
+    return { ok: true, id: ins.id as string };
+  });
+
+const ActivityStatusInput = z.object({
+  id: z.string().uuid(),
+  status: z.enum(["todo", "doing", "done"]),
+});
+
+export const setStakeholderActivityStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => ActivityStatusInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId);
+    const { error } = await supabase
+      .from("stakeholder_activities")
+      .update({ status: data.status })
+      .eq("id", data.id)
+      .eq("account_owner_id", accountId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const deleteStakeholderActivity = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ id: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId);
+    const { error } = await supabase
+      .from("stakeholder_activities")
+      .delete()
+      .eq("id", data.id)
+      .eq("account_owner_id", accountId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+// Usado pela página de Guias: bloqueia a criação de guia sem proprietário.
+export const countPropertyOwners = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId);
+    const { count } = await supabase
+      .from("property_owners")
+      .select("id", { count: "exact", head: true })
+      .eq("account_owner_id", accountId)
+      .eq("status", "active");
+    return { count: count ?? 0 };
+  });
+
+// Lista enxuta de proprietários ativos, para o seletor obrigatório na
+// criação/edição de imóvel (sem imóvel vinculado a um proprietário, sem guia).
+export const listActivePropertyOwnersForSelect = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId);
+    const { data, error } = await supabase
+      .from("property_owners")
+      .select("id, name, trade_name")
+      .eq("account_owner_id", accountId)
+      .eq("status", "active")
+      .order("name", { ascending: true });
+    if (error) throw new Error(error.message);
+    return {
+      owners: (data ?? []).map((o) => ({
+        id: o.id as string,
+        name: (o.trade_name as string | null) || (o.name as string),
+      })),
+    };
+  });
+
+// Prestadores da conta + quais deles já atendem um imóvel específico —
+// usado pelo quadrante "Prestadores de serviço" dentro do editor do imóvel
+// (o mesmo vínculo N:N da ficha do prestador, visto pelo outro lado).
+export const listProvidersForProperty = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ propertyId: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId);
+    const [{ data: all, error }, { data: links }] = await Promise.all([
+      supabase
+        .from("service_providers")
+        .select("id, name, trade_name, category, categories")
+        .eq("account_owner_id", accountId)
+        .order("name", { ascending: true }),
+      supabase
+        .from("property_providers")
+        .select("provider_id")
+        .eq("account_owner_id", accountId)
+        .eq("property_id", data.propertyId),
+    ]);
+    if (error) throw new Error(error.message);
+    const linked = new Set((links ?? []).map((l) => l.provider_id as string));
+    return {
+      providers: (all ?? []).map((p) => ({
+        id: p.id as string,
+        name: ((p.trade_name as string | null) || (p.name as string)) ?? "",
+        categories: (Array.isArray(p.categories) ? (p.categories as string[]) : p.category ? [p.category as string] : []),
+        linked: linked.has(p.id as string),
+      })),
+    };
+  });
+
+
+
+/**
+ * Situação do cadastro com a data informada pelo usuário.
+ * - "canceled" com data futura vira "canceling" (amarelo) e só é confirmado depois.
+ * - Estágios intermediários (documentation/contract/signature) viram "active" na data.
+ */
+export const setStakeholderStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        kind: Kind,
+        id: z.string().uuid(),
+        status: z.enum([
+          "active",
+          "documentation",
+          "contract",
+          "signature",
+          "paused",
+          "canceled",
+        ]),
+        changed_at: z.string().trim().min(4).max(40),
+        accountOwnerId: z.string().uuid().optional().nullable(),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "stakeholders.write", { resource: data.id });
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId, data.accountOwnerId);
+    const when = new Date(
+      /^\d{4}-\d{2}-\d{2}$/.test(data.changed_at) ? `${data.changed_at}T12:00:00` : data.changed_at,
+    );
+    if (Number.isNaN(when.getTime())) throw new Error("Data inválida.");
+
+    const { statusLabel, isFutureDate, isTodayOrFutureDate } = await import("@/lib/stakeholder-status");
+    const future = isFutureDate(when);
+    let stored: string = data.status;
+    // O dia marcado para o cancelamento continua vigente por inteiro — por
+    // isso usamos "hoje ou futuro" aqui (não só "futuro"): agendar para hoje
+    // ainda precisa passar pelo estado "Cancelando", nunca virar "Cancelado"
+    // na hora. Só se torna definitivo a partir do dia seguinte (promoção
+    // automática em `promoteDueStages`) ou por confirmação humana no popup.
+    if (data.status === "canceled" && isTodayOrFutureDate(when)) stored = "canceling";
+    if (
+      (data.status === "documentation" || data.status === "contract" || data.status === "signature") &&
+      !future
+    ) {
+      stored = "active";
+    }
+
+    // Cancelamento (agendado ou imediato) define a "data final" da vigência:
+    // a partir do momento em que a pessoa escolhe quando o cancelamento
+    // acontece, o card já deve mostrar "Vigência: início → aquela data" em
+    // vez de "→ momento" — não só depois que o cancelamento vira definitivo.
+    const patch: Record<string, unknown> = { status: stored, status_changed_at: when.toISOString() };
+    if (data.status === "canceled") {
+      patch.contract_end = /^\d{4}-\d{2}-\d{2}$/.test(data.changed_at)
+        ? data.changed_at
+        : when.toISOString().slice(0, 10);
+    } else {
+      // Sair de um cancelamento reabre a vigência: a data final gravada pelo
+      // próprio cancelamento precisa sumir. Mas uma data final informada
+      // manualmente (contrato com prazo) não pode ser apagada por uma simples
+      // troca de situação — por isso só limpamos quando o registro estava
+      // realmente cancelado/cancelando.
+      const { data: current } = await supabase
+        .from(TABLE[data.kind])
+        .select("status")
+        .eq("id", data.id)
+        .eq("account_owner_id", accountId)
+        .maybeSingle();
+      const prev = (current as { status?: string } | null)?.status;
+      if (prev === "canceled" || prev === "canceling") patch.contract_end = null;
+    }
+
+
+    const { error } = await supabase
+      .from(TABLE[data.kind])
+      .update(patch as never)
+      .eq("id", data.id)
+      .eq("account_owner_id", accountId);
+    if (error) throw new Error(error.message);
+
+    const prefix = future ? "a partir de" : "em";
+    await supabase.from("stakeholder_events").insert({
+      account_owner_id: accountId,
+      stakeholder_type: data.kind,
+      stakeholder_id: data.id,
+      kind: "update",
+      created_at: new Date().toISOString(),
+      message: `Situação alterada para ${statusLabel(stored)} ${prefix} ${when.toLocaleDateString("pt-BR")}.`,
+      metadata: { source: "status", status: stored, at: when.toISOString() } as never,
+      created_by: userId,
+    });
+    return { ok: true };
+  });
+
+/** Promove estágios intermediários vencidos para "Ativo" (a data chegou). */
+async function promoteDueStages(supabase: SupabaseClient, accountId: string) {
+  const nowIso = new Date().toISOString();
+  await Promise.all(
+    (["property_owners", "service_providers"] as const).map((t) =>
+      supabase
+        .from(t)
+        .update({ status: "active" } as never)
+        .eq("account_owner_id", accountId)
+        .in("status", ["documentation", "contract", "signature"])
+        .lte("status_changed_at", nowIso),
+    ),
+  );
+
+  // Cancelamento agendado: o dia marcado continua "Cancelando" (vigente) até
+  // o fim — inclusive já com o popup de confirmação disponível. Só quando
+  // esse dia passa por completo (viramos o dia seguinte) é que o
+  // cancelamento se torna definitivo por conta própria, mesmo que ninguém
+  // tenha respondido ao popup.
+  const todayMidnight = new Date();
+  todayMidnight.setHours(0, 0, 0, 0);
+  await Promise.all(
+    (["property_owners", "service_providers"] as const).map((t) =>
+      supabase
+        .from(t)
+        .update({ status: "canceled" } as never)
+        .eq("account_owner_id", accountId)
+        .eq("status", "canceling")
+        .lt("status_changed_at", todayMidnight.toISOString()),
+    ),
+  );
+}
+
+/** Cancelamentos agendados cuja data já chegou e ainda aguardam confirmação humana. */
+export const listPendingCancellations = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId);
+    await promoteDueStages(supabase, accountId);
+    const nowIso = new Date().toISOString();
+    const [owners, providers] = await Promise.all(
+      (["owner", "provider"] as const).map((k) =>
+        supabase
+          .from(TABLE[k])
+          .select("id, name, trade_name, status_changed_at")
+          .eq("account_owner_id", accountId)
+          .eq("status", "canceling")
+          .lte("status_changed_at", nowIso),
+      ),
+    );
+    const map = (kind: "owner" | "provider", rows: any[] | null) =>
+      (rows ?? []).map((r) => ({
+        kind,
+        id: r.id as string,
+        name: (r.trade_name || r.name || "Cadastro") as string,
+        scheduled_at: r.status_changed_at as string,
+      }));
+    return { pending: [...map("owner", owners.data), ...map("provider", providers.data)] };
+  });
+
+/** Resposta do popup: confirma o cancelamento ou reverte o cliente para ativo. */
+export const resolveScheduledCancellation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z
+      .object({
+        kind: Kind,
+        id: z.string().uuid(),
+        outcome: z.enum(["canceled", "active"]),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(userId, "stakeholders.write", { resource: data.id });
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const accountId = await resolveAuthorizedAccountOwnerId(supabase, userId);
+    const nowIso = new Date().toISOString();
+
+    // "Cancelou definitivamente": contract_end já foi gravado quando o
+    // cancelamento foi agendado (setStakeholderStatus) — não mexe aqui.
+    // "Revertido para Ativo": o cancelamento não vai mais acontecer, então a
+    // vigência volta a não ter fim definido ("→ momento") até que alguém
+    // grave uma nova data manualmente.
+    const patch: Record<string, unknown> = { status: data.outcome, status_changed_at: nowIso };
+    if (data.outcome === "active") patch.contract_end = null;
+
+    const { error } = await supabase
+      .from(TABLE[data.kind])
+      .update(patch as never)
+      .eq("id", data.id)
+      .eq("account_owner_id", accountId)
+      .eq("status", "canceling");
+    if (error) throw new Error(error.message);
+
+    await supabase.from("stakeholder_events").insert({
+      account_owner_id: accountId,
+      stakeholder_type: data.kind,
+      stakeholder_id: data.id,
+      kind: "update",
+      created_at: nowIso,
+      message:
+        data.outcome === "canceled"
+          ? "Cancelamento confirmado: cliente cancelado definitivamente."
+          : "Cancelamento revertido: cliente segue ativo.",
+      metadata: { source: "cancellation_review", status: data.outcome } as never,
+      created_by: userId,
+    });
+    return { ok: true };
+  });
+
