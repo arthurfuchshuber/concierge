@@ -70,6 +70,7 @@ import {
   Banknote,
   CalendarRange,
   User,
+  Users,
   Eraser,
   Filter,
   ChevronRight,
@@ -143,6 +144,11 @@ import {
   ACTION_SEGMENT,
   ACTION_BUTTON_TONE,
   ACTION_ICON,
+  FilterIconBadge,
+  FilterValuePill,
+  FilterCountBadge,
+  FilterMenuRow,
+  FilterScreenHeader,
 } from "@/components/dashboard/panel-chrome";
 import {
   DropdownMenu,
@@ -7046,6 +7052,17 @@ function CalendarFiltersButton({
       periodRange ? { from: parseISODateLocal(periodRange.start), to: parseISODateLocal(periodRange.end) } : undefined,
     );
   }, [periodRange]);
+  // MÊS DO CALENDÁRIO SEMPRE O DE HOJE AO ABRIR (pedido explícito,
+  // 23/09/2026: "ao abrir o calendário de data, precisa-se abrir no mês do
+  // dia vigente e não em meses diferentes desse"). Antes o mês inicial era
+  // só um `defaultMonth` (valor lido 1x na montagem) — se a pessoa já tinha
+  // navegado pra outro mês numa visita anterior, ou já havia um período
+  // salvo num mês bem distante de hoje, a próxima abertura podia continuar
+  // de onde parou em vez de voltar pro mês atual. Agora é controlado: o
+  // estado reresta pro mês de hoje sempre que a tela "Período" é aberta
+  // (`setScreen("period")`, abaixo), então navegar dentro do calendário
+  // nunca "gruda" pra próxima vez que a pessoa entrar aqui.
+  const [calendarMonth, setCalendarMonth] = useState<Date>(() => parseISODateLocal(todayISOSaoPaulo()));
 
   function toggle(list: string[], value: string, onChange: (next: string[]) => void) {
     onChange(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
@@ -7092,19 +7109,6 @@ function CalendarFiltersButton({
   });
   const shot = screenshot ? shotActions : null;
 
-  function BackRow({ label }: { label: string }) {
-    return (
-      <button
-        type="button"
-        onClick={() => setScreen("root")}
-        className="flex w-full items-center gap-1.5 border-b border-border px-3 py-2.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ChevronLeft className="size-3.5" />
-        {label}
-      </button>
-    );
-  }
-
   return (
     <Popover
       onOpenChange={(open) => {
@@ -7147,7 +7151,7 @@ function CalendarFiltersButton({
       </PopoverTrigger>
       <PopoverContent
         align="end"
-        collisionPadding={12}
+        collisionPadding={16}
         className="sg-elegant-scroll w-64 p-0 max-h-[min(28rem,70vh)] overflow-y-auto"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
@@ -7170,39 +7174,33 @@ function CalendarFiltersButton({
                 Limpar
               </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setScreen("period")}
-              className="flex w-full items-center justify-between gap-2 border-b border-border px-3 py-2.5 text-left transition-colors hover:bg-secondary/30"
-            >
-              <span className="text-xs font-medium">Período</span>
-              <span className="flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
-                <span className="truncate max-w-[7rem]">{periodLabel}</span>
-                <ChevronRight className="size-3.5 shrink-0 opacity-60" />
-              </span>
-            </button>
-            <button
-              type="button"
+            <FilterMenuRow
+              icon={CalendarRange}
+              label="Período"
+              value={periodLabel}
+              active={!!periodRange}
+              onClick={() => {
+                setScreen("period");
+                // Volta pro mês de hoje toda vez que esta tela é aberta —
+                // ver o comentário de `calendarMonth` acima.
+                setCalendarMonth(parseISODateLocal(todayISOSaoPaulo()));
+              }}
+            />
+            <FilterMenuRow
+              icon={MapPin}
+              label="Cidade"
+              value={cityLabel}
+              active={cityFilters.length > 0}
               onClick={() => setScreen("city")}
-              className="flex w-full items-center justify-between gap-2 border-b border-border px-3 py-2.5 text-left transition-colors hover:bg-secondary/30"
-            >
-              <span className="text-xs font-medium">Cidade</span>
-              <span className="flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
-                <span className="truncate max-w-[7rem]">{cityLabel}</span>
-                <ChevronRight className="size-3.5 shrink-0 opacity-60" />
-              </span>
-            </button>
-            <button
-              type="button"
+            />
+            <FilterMenuRow
+              icon={Users}
+              label="Proprietário"
+              value={ownerLabel}
+              active={ownerFilters.length > 0}
               onClick={() => setScreen("owner")}
-              className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors hover:bg-secondary/30"
-            >
-              <span className="text-xs font-medium">Proprietário</span>
-              <span className="flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
-                <span className="truncate max-w-[7rem]">{ownerLabel}</span>
-                <ChevronRight className="size-3.5 shrink-0 opacity-60" />
-              </span>
-            </button>
+              last
+            />
             {shot && (
               /* O PRINT VIRA ITEM DE MENU (mockup aprovado, 09/09/2026).
                  Ele tinha botão fixo na barra e era a menos usada das três
@@ -7233,13 +7231,14 @@ function CalendarFiltersButton({
 
         {screen === "period" ? (
           <>
-            <BackRow label="Filtros" />
-            <div className="p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-[11px] font-medium text-muted-foreground">Período</p>
+            <FilterScreenHeader
+              icon={CalendarRange}
+              title="Período"
+              onBack={() => setScreen("root")}
+              right={
                 <button
                   type="button"
-                  className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
+                  className="text-[11px] font-medium text-foreground/70 transition-colors hover:text-foreground"
                   onClick={() => {
                     setDraft(undefined);
                     onPeriodRangeChange(null);
@@ -7247,7 +7246,9 @@ function CalendarFiltersButton({
                 >
                   Limpar
                 </button>
-              </div>
+              }
+            />
+            <div className="p-3 space-y-2">
               {/* Calendário padrão (completo) — o MESMO componente/config
                   (mode="range", 1 mês) que já era usado no antigo botão
                   "Período" sozinho, não uma versão reduzida. */}
@@ -7256,7 +7257,12 @@ function CalendarFiltersButton({
                 numberOfMonths={1}
                 locale={ptBR}
                 selected={draft}
-                defaultMonth={draft?.from ?? demandMinDate}
+                // CONTROLADO (não `defaultMonth`) — ver `calendarMonth` acima:
+                // sempre volta pro mês de hoje quando esta tela é aberta, e
+                // `onMonthChange` só acompanha a navegação manual ENQUANTO o
+                // calendário está aberto, sem "grudar" pra próxima vez.
+                month={calendarMonth}
+                onMonthChange={setCalendarMonth}
                 disabled={demandDisabled}
                 onSelect={(nextRange) => {
                   setDraft(nextRange);
@@ -7272,10 +7278,26 @@ function CalendarFiltersButton({
                 }}
                 className="p-0"
               />
-              <div className="text-center text-[11px] text-muted-foreground">
-                {draft?.from ? format(draft.from, "dd/MM", { locale: ptBR }) : "Início"}
-                {" – "}
-                {draft?.to ? format(draft.to, "dd/MM", { locale: ptBR }) : "Fim"}
+              {/* Rodapé em 2 chips (mockup aprovado, 23/09/2026) — antes era
+                  um texto único "Início – Fim", menos fácil de escanear. */}
+              <div className="flex items-center gap-1.5 pt-1">
+                <div className="flex-1 min-w-0 rounded-[10px] bg-foreground/[0.05] px-2.5 py-1.5">
+                  <div className="text-[9.5px] font-bold uppercase tracking-[0.04em] text-muted-foreground">
+                    Início
+                  </div>
+                  <div className="text-[13px] font-bold">
+                    {draft?.from ? format(draft.from, "dd/MM", { locale: ptBR }) : "—"}
+                  </div>
+                </div>
+                <span className="text-[13px] text-muted-foreground">→</span>
+                <div className="flex-1 min-w-0 rounded-[10px] bg-foreground/[0.05] px-2.5 py-1.5">
+                  <div className="text-[9.5px] font-bold uppercase tracking-[0.04em] text-muted-foreground">
+                    Fim
+                  </div>
+                  <div className="text-[13px] font-bold">
+                    {draft?.to ? format(draft.to, "dd/MM", { locale: ptBR }) : "—"}
+                  </div>
+                </div>
               </div>
             </div>
           </>
@@ -7283,7 +7305,12 @@ function CalendarFiltersButton({
 
         {screen === "city" ? (
           <>
-            <BackRow label="Filtros" />
+            <FilterScreenHeader
+              icon={MapPin}
+              title="Cidade"
+              onBack={() => setScreen("root")}
+              right={<FilterCountBadge count={cityFilters.length} />}
+            />
             <Command>
               <CommandInput placeholder="Buscar cidade..." />
               <div className="flex items-center justify-between gap-2 border-b border-border px-2 py-1.5">
@@ -7310,7 +7337,10 @@ function CalendarFiltersButton({
                       key={o}
                       value={o}
                       onSelect={() => toggle(cityFilters, o, onCityFiltersChange)}
-                      className="cursor-pointer gap-2"
+                      // Tom SUAVE do rosa na seleção (mockup aprovado,
+                      // 23/09/2026) — antes vinha do estilo padrão do
+                      // `CommandItem` (bg-accent sólido, forte demais aqui).
+                      className="cursor-pointer gap-2 rounded-[10px] data-[selected=true]:bg-accent/[0.14] data-[selected=true]:text-foreground"
                     >
                       <Checkbox checked={cityFilters.includes(o)} className="pointer-events-none" />
                       <span className="truncate">{o}</span>
@@ -7324,7 +7354,12 @@ function CalendarFiltersButton({
 
         {screen === "owner" ? (
           <>
-            <BackRow label="Filtros" />
+            <FilterScreenHeader
+              icon={Users}
+              title="Proprietário"
+              onBack={() => setScreen("root")}
+              right={<FilterCountBadge count={ownerFilters.length} />}
+            />
             <Command>
               <CommandInput placeholder="Buscar proprietário..." />
               <div className="flex items-center justify-between gap-2 border-b border-border px-2 py-1.5">
@@ -7351,7 +7386,7 @@ function CalendarFiltersButton({
                       key={o}
                       value={o}
                       onSelect={() => toggle(ownerFilters, o, onOwnerFiltersChange)}
-                      className="cursor-pointer gap-2"
+                      className="cursor-pointer gap-2 rounded-[10px] data-[selected=true]:bg-accent/[0.14] data-[selected=true]:text-foreground"
                     >
                       <Checkbox checked={ownerFilters.includes(o)} className="pointer-events-none" />
                       <span className="truncate">{o}</span>

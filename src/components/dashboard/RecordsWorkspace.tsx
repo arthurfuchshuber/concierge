@@ -16,6 +16,11 @@ import {
   StickyNote,
   Video,
   Maximize2,
+  Tag,
+  Layers,
+  Building2,
+  CalendarRange,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useUndoableRecordDelete } from "@/hooks/useUndoableRecordDelete";
@@ -31,6 +36,10 @@ import {
   PanelHeading,
   SectionLabel,
   CountPill,
+  FilterCountBadge,
+  FilterMenuRow,
+  FilterScreenHeader,
+  FilterOptionRow,
   ACTION_SEGMENT,
   ACTION_BUTTON_TONE,
   ACTION_ICON,
@@ -2018,37 +2027,6 @@ function RecordsFiltersButton({
         ? (propertyOptions.find((p) => p.id === propertyFilters[0])?.name ?? "1 selecionado")
         : `${propertyFilters.length} selecionados`;
 
-  function BackRow() {
-    return (
-      <button
-        type="button"
-        onClick={() => setScreen("root")}
-        className="flex w-full items-center gap-1.5 border-b border-border px-3 py-2.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ChevronLeft className="size-3.5" />
-        Filtros
-      </button>
-    );
-  }
-
-  function Row({ label, value, onClick, last }: { label: string; value: string; onClick: () => void; last?: boolean }) {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        className={`flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors hover:bg-secondary/30 ${
-          last ? "" : "border-b border-border"
-        }`}
-      >
-        <span className="text-xs font-medium">{label}</span>
-        <span className="flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
-          <span className="max-w-[7rem] truncate">{value}</span>
-          <ChevronRight className="size-3.5 shrink-0 opacity-60" />
-        </span>
-      </button>
-    );
-  }
-
   return (
     <Popover
       onOpenChange={(open) => {
@@ -2075,7 +2053,7 @@ function RecordsFiltersButton({
 
       <PopoverContent
         align="end"
-        collisionPadding={12}
+        collisionPadding={16}
         className="sg-elegant-scroll max-h-[min(28rem,70vh)] w-64 overflow-y-auto p-0"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
@@ -2091,11 +2069,11 @@ function RecordsFiltersButton({
                 Limpar
               </button>
             </div>
-            <Row label="Categoria" value={categoryLabel} onClick={() => setScreen("category")} />
-            <Row label="Agrupar" value={groupLabel} onClick={() => setScreen("group")} />
-            <Row label="Período" value={periodLabel} onClick={() => setScreen("period")} />
-            <Row label="Proprietário" value={ownerLabel} onClick={() => setScreen("owner")} />
-            <Row label="Imóvel" value={propertyLabel} onClick={() => setScreen("property")} />
+            <FilterMenuRow icon={Tag} label="Categoria" value={categoryLabel} active={!!category} onClick={() => setScreen("category")} />
+            <FilterMenuRow icon={Layers} label="Agrupar" value={groupLabel} active={groupBy !== GROUP_OPTIONS[0].value} onClick={() => setScreen("group")} />
+            <FilterMenuRow icon={CalendarRange} label="Período" value={periodLabel} active={period !== "all"} onClick={() => setScreen("period")} />
+            <FilterMenuRow icon={Users} label="Proprietário" value={ownerLabel} active={ownerFilters.length > 0} onClick={() => setScreen("owner")} />
+            <FilterMenuRow icon={Building2} label="Imóvel" value={propertyLabel} active={propertyFilters.length > 0} onClick={() => setScreen("property")} last />
             <button
               type="button"
               onClick={() => onOnlyOpenChange(!onlyOpen)}
@@ -2109,67 +2087,59 @@ function RecordsFiltersButton({
 
         {screen === "category" ? (
           <>
-            <BackRow />
-            <button
-              type="button"
-              onClick={() => onCategoryChange(null)}
-              className="flex w-full items-center gap-2 border-b border-border px-3 py-2.5 text-left text-xs transition-colors hover:bg-secondary/30"
-            >
-              <Check className={`size-3.5 ${category === null ? "opacity-100" : "opacity-0"}`} />
-              Todas
-            </button>
-            {CARDS.map((c) => (
-              <button
+            <FilterScreenHeader icon={Tag} title="Categoria" onBack={() => setScreen("root")} />
+            <FilterOptionRow label="Todas" selected={category === null} onClick={() => onCategoryChange(null)} />
+            {CARDS.map((c, i) => (
+              <FilterOptionRow
                 key={c.key}
-                type="button"
+                label={c.label}
+                selected={c.key === category}
+                dotColor={c.dot}
                 onClick={() => onCategoryChange(c.key)}
-                className="flex w-full items-center gap-2 border-b border-border px-3 py-2.5 text-left text-xs transition-colors last:border-b-0 hover:bg-secondary/30"
-              >
-                <Check className={`size-3.5 ${c.key === category ? "opacity-100" : "opacity-0"}`} />
-                <span className={`size-1.5 shrink-0 rounded-full ${c.dot}`} />
-                {c.label}
-              </button>
+                last={i === CARDS.length - 1}
+              />
             ))}
           </>
         ) : null}
 
         {screen === "group" ? (
           <>
-            <BackRow />
-            {GROUP_OPTIONS.map((o) => (
-              <button
+            <FilterScreenHeader icon={Layers} title="Agrupar" onBack={() => setScreen("root")} />
+            {GROUP_OPTIONS.map((o, i) => (
+              <FilterOptionRow
                 key={o.value}
-                type="button"
+                label={o.label}
+                selected={o.value === groupBy}
                 onClick={() => onGroupByChange(o.value)}
-                className="flex w-full items-center gap-2 border-b border-border px-3 py-2.5 text-left text-xs transition-colors last:border-b-0 hover:bg-secondary/30"
-              >
-                <Check className={`size-3.5 ${o.value === groupBy ? "opacity-100" : "opacity-0"}`} />
-                {o.label}
-              </button>
+                last={i === GROUP_OPTIONS.length - 1}
+              />
             ))}
           </>
         ) : null}
 
         {screen === "period" ? (
           <>
-            <BackRow />
-            {PERIOD_OPTIONS.map((o) => (
-              <button
+            <FilterScreenHeader icon={CalendarRange} title="Período" onBack={() => setScreen("root")} />
+            {PERIOD_OPTIONS.map((o, i) => (
+              <FilterOptionRow
                 key={o.value}
-                type="button"
+                label={o.label}
+                selected={o.value === period}
                 onClick={() => onPeriodChange(o.value)}
-                className="flex w-full items-center gap-2 border-b border-border px-3 py-2.5 text-left text-xs transition-colors last:border-b-0 hover:bg-secondary/30"
-              >
-                <Check className={`size-3.5 ${o.value === period ? "opacity-100" : "opacity-0"}`} />
-                {o.label}
-              </button>
+                last={i === PERIOD_OPTIONS.length - 1}
+              />
             ))}
           </>
         ) : null}
 
         {screen === "owner" ? (
           <>
-            <BackRow />
+            <FilterScreenHeader
+              icon={Users}
+              title="Proprietário"
+              onBack={() => setScreen("root")}
+              right={<FilterCountBadge count={ownerFilters.length} />}
+            />
             <Command>
               <CommandInput placeholder="Buscar proprietário..." />
               <div className="flex items-center justify-between gap-2 border-b border-border px-2 py-1.5">
@@ -2196,7 +2166,7 @@ function RecordsFiltersButton({
                       key={o}
                       value={o}
                       onSelect={() => toggle(ownerFilters, o, onOwnerFiltersChange)}
-                      className="cursor-pointer gap-2"
+                      className="cursor-pointer gap-2 rounded-[10px] data-[selected=true]:bg-accent/[0.14] data-[selected=true]:text-foreground"
                     >
                       <Checkbox checked={ownerFilters.includes(o)} className="pointer-events-none" />
                       <span className="truncate">{o}</span>
@@ -2210,7 +2180,12 @@ function RecordsFiltersButton({
 
         {screen === "property" ? (
           <>
-            <BackRow />
+            <FilterScreenHeader
+              icon={Building2}
+              title="Imóvel"
+              onBack={() => setScreen("root")}
+              right={<FilterCountBadge count={propertyFilters.length} />}
+            />
             <Command>
               <CommandInput placeholder="Buscar imóvel..." />
               <div className="flex items-center justify-between gap-2 border-b border-border px-2 py-1.5">
@@ -2237,7 +2212,7 @@ function RecordsFiltersButton({
                       key={p.id}
                       value={`${p.name} ${p.ownerName ?? ""}`}
                       onSelect={() => toggle(propertyFilters, p.id, onPropertyFiltersChange)}
-                      className="cursor-pointer gap-2"
+                      className="cursor-pointer gap-2 rounded-[10px] data-[selected=true]:bg-accent/[0.14] data-[selected=true]:text-foreground"
                     >
                       <Checkbox checked={propertyFilters.includes(p.id)} className="pointer-events-none" />
                       <span className="truncate">{p.name}</span>
