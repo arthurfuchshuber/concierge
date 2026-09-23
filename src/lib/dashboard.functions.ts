@@ -534,6 +534,41 @@ export const getCleaningStats = createServerFn({ method: "GET" })
     return { cleaningsDone, totalCents, breakdown, daily, pendingApproval, items };
   });
 
+const EarliestCleaningInput = z.object({ ownerId: z.string().uuid().nullable().optional() });
+
+/**
+ * Data (dia local, SP) da limpeza CONCLUÍDA mais antiga que existe —
+ * ignorando qualquer período/filtro de tela. Serve só pra limitar o
+ * calendário de "Período" da aba Limpeza (pedido explícito, 23/09/2026:
+ * "restringir tanto para trás, quanto para a frente"), pra não deixar
+ * escolher uma data sem nenhum histórico por trás. Mesma regra de aprovação
+ * do resto da aba: limpeza pendente de aprovação não conta como "realizada".
+ */
+export const getEarliestCleaningDate = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => EarliestCleaningInput.parse(i ?? {}))
+  .handler(async ({ data, context }) => {
+    const propIds = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null, context.userId);
+    if (propIds.length === 0) return { date: null as string | null };
+    const { data: row, error } = await context.supabase
+      .from("guest_arrival_status")
+      .select("concluded_at")
+      .in("property_id", propIds)
+      .eq("kind", "checkout")
+      .not("cleaning_type", "is", null)
+      .neq("cleaning_approval_status", "pending")
+      .not("concluded_at", "is", null)
+      .order("concluded_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    const concluded = (row as { concluded_at: string } | null)?.concluded_at ?? null;
+    if (!concluded) return { date: null as string | null };
+    // Mesma conversão pro dia local (SP, UTC-3) usada em getCleaningStats.
+    const date = new Date(new Date(concluded).getTime() - 3 * 3600_000).toISOString().slice(0, 10);
+    return { date };
+  });
+
 // ----- Engagement -----
 
 type EventRow = { property_id: string; guest_name: string | null; guest_phone: string | null };

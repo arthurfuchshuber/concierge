@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-09-23T20:04:28.386Z";
+export const GENERATED_AT = "2026-09-23T20:49:59.889Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -618,6 +618,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "5eb4a030742377d73ed305d31cc5f25b"
   },
   {
+    "doc_key": "rule:cleaningChartDaily",
+    "kind": "rule",
+    "title": "Regra — cleaningChartDaily",
+    "content": "SÓ MOSTRAR ATÉ ONDE HÁ DEMANDA DE VERDADE (pedido explícito, 23/09/2026:\n\"limitar a visão de dias dos gráficos para mostrar somente até o dia que\nrealmente tenha demanda\").\n\nUm período personalizado pode ser bem maior que o movimento real dele —\n\"01/09 a 30/09\" com a última limpeza prevista em 06/09 não precisa de um\ngráfico com 24 dias vazios pela frente. Corta a série na última barra\nCOM ALGUMA COISA (realizada ou prevista), sem tocar no INÍCIO — esse é\no dia que a pessoa escolheu, fica como está.\n\nSó os DOIS GRÁFICOS usam esta série cortada; os cards (totais do\nperíodo inteiro), o Top 5 e a Eficiência continuam somando o período\ncompleto escolhido — cortar ali mudaria a média por dia, e não foi\npedido. Só vale com período personalizado: as janelas fixas de 7 dias já\nsão curtas o bastante para não precisar de corte.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "b2ae64f0e2ae5061bef48994704ede08"
+  },
+  {
     "doc_key": "rule:CleaningChartFrame",
     "kind": "rule",
     "title": "Regra — CleaningChartFrame",
@@ -897,6 +906,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "63b9a471041fc1a614eb08df847578b4"
   },
   {
+    "doc_key": "rule:earliestCleaningQ",
+    "kind": "rule",
+    "title": "Regra — earliestCleaningQ",
+    "content": "LIMITES DO CALENDÁRIO DE \"PERÍODO\" NA ABA LIMPEZA (pedido explícito,\n23/09/2026: \"restringir tanto para trás, quanto para a frente\"). Só\nnesta aba — os outros usos do mesmo `CalendarFiltersButton` (Kanban,\ncalendário de ocupação) não recebem esses limites e continuam livres.\n · para trás: dia da limpeza CONCLUÍDA mais antiga (`getEarliestCleaningDate`,\n sem recorte de período — é justamente o que descobre o início real);\n · para frente: maior data entre os checkouts previstos (pendentes) da\n mesma lista \"all\" usada nos cards, com os mesmos filtros de\n cidade/proprietário já aplicados na tela.\nSem nenhum dado dos dois lados, não há o que limitar (calendário livre).",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "82f3a2959b3e7263a44a5c924d2c0aa4"
+  },
+  {
     "doc_key": "rule:earliestSignedAt",
     "kind": "rule",
     "title": "Regra — earliestSignedAt",
@@ -1111,6 +1129,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/media-upload.ts",
     "audience": [],
     "content_hash": "4ea953e55f62d83e772f4b7278a00fa2"
+  },
+  {
+    "doc_key": "rule:getEarliestCleaningDate",
+    "kind": "rule",
+    "title": "Regra — getEarliestCleaningDate",
+    "content": "Data (dia local, SP) da limpeza CONCLUÍDA mais antiga que existe —\nignorando qualquer período/filtro de tela. Serve só pra limitar o\ncalendário de \"Período\" da aba Limpeza (pedido explícito, 23/09/2026:\n\"restringir tanto para trás, quanto para a frente\"), pra não deixar\nescolher uma data sem nenhum histórico por trás. Mesma regra de aprovação\ndo resto da aba: limpeza pendente de aprovação não conta como \"realizada\".",
+    "source_path": "src/lib/dashboard.functions.ts",
+    "audience": [],
+    "content_hash": "6cdbe3f22363885039b1eedc032f2c14"
   },
   {
     "doc_key": "rule:getPropertyForQuickEdit",
@@ -2364,7 +2391,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "59823a76849d5b7930747f34a9a3cc3b"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:162365",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:167422",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "A Limpeza tem DUAS janelas na MESMA tela (últimos 7d / próximos 7d) e o\ntítulo precisa dizer qual está no ar (pedido explícito). Só o texto muda;\no resto da página é idêntico.",
@@ -2373,7 +2400,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "df381f0b82c9a345baeae12ba649c01f"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:162599",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:167656",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "AS AÇÕES DA TELA MORAM AQUI (mockup aprovado, 09/09/2026).\n\nAs três telas gastavam uma faixa horizontal inteira só com dois ou três\nbotões, e essa faixa empurrava o conteúdo para baixo justamente onde a\ntela é mais estreita. Encostadas à direita do bloco título+subtítulo elas\nnão custam altura nenhuma — e, de quebra, passam a estar SEMPRE no mesmo\ncanto nas três telas, que é o que faz a mão aprender um lugar só.\n\n`items-center`: alinhadas ao centro do bloco de duas linhas, não ao topo.\nAlinhado ao topo, o botão encosta no título e a dupla fica torta quando o\nsubtítulo quebra.",
@@ -2382,7 +2409,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "9fe3ad8ae446109e5ae90b0e1d1fb01d"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:183705",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:188762",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Destaque visual opt-in (só usado hoje por \"Fila de Limpeza\"): borda +\ngradiente âmbar + acento lateral + ícone em caixinha, sem negrito.\nNão afeta nenhum outro uso do KpiCard (compact ou não).",
@@ -2391,7 +2418,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ec0f34c7bfc0754666d9cc96f2f2a568"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:183940",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:188997",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Cards que devem continuar visíveis no popup mesmo que já não pertençam\nmais à lista — hoje só os que tiveram HORÁRIO/DATA PREVISTOS ajustados.",
@@ -2400,7 +2427,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "4b33a44930f947dea6060da94f816439"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:184132",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:189189",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Pedido explícito: os cards dentro do popup precisam ficar IDÊNTICOS ao\ncard do Kanban — em vez de manter uma segunda implementação (que já\ndivergiu do Kanban antes, ver o bug do bloqueio de check-in), o popup\nagora renderiza o MESMO <ArrivalGroup>/<ArrivalCard> do Kanban, com os\nMESMOS handlers. Vem de arrivalGroupPropsFor(colMode, rows) — a mesma\nfunção que já alimenta as colunas do Kanban.",
@@ -2409,7 +2436,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "dfd7cbf815d96bcf7c9214257a5e2387"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:243037",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:212841",
+    "kind": "rule",
+    "title": "Regra em OperationWorkspace.tsx",
+    "content": "Linha de aviso embaixo do número (ex.: \"+2 aguardando aprovação\"). No\nperíodo misto (23/09/2026) vem com as PARCELAS coloridas — verde\nrealizado, laranja fraco previsto — então aceita nó React, não só\ntexto puro.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "f8fd62250f3451a100ad8fa9969fb024"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:248332",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Rótulo de seção do formulário de pendência — dá hierarquia ao que antes\nera uma pilha de campos do mesmo tamanho (pedido explícito, 07/09/2026).",
@@ -2418,7 +2454,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "56b708e624e12bb9a26b2593234ea4c6"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:252870",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:258165",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Padrão = IMÓVEL, que é o que os dois mockups aprovados mostram selecionado.\nUrgência continua a um toque de distância, e é a escolha certa quando a\npergunta é \"o que eu resolvo agora\" — mas a operação abre esta tela quase\nsempre pensando num imóvel, e agrupada ela cabe muito mais no olho: nove\npendências iguais em nove imóveis viram nove cabeçalhos com uma linha cada,\nem vez de nove linhas repetindo o mesmo título.",
@@ -2427,7 +2463,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "59042beafabc7c04c6cad6bab466aea1"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:323163",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:314220",
+    "kind": "rule",
+    "title": "Regra em OperationWorkspace.tsx",
+    "content": "Limite do calendário de \"Período\" (pedido explícito, 23/09/2026: só\ndeixar escolher datas que tenham demanda real de limpeza por trás).\nOpcionais e de uso pontual — quando não informados (todos os outros\nusos deste botão, fora a aba Limpeza) o calendário continua livre,\nexatamente como sempre foi.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "921d4fd959b37a8bef68c9e16fe9519b"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:329685",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Agenda macro: ocupação de todos os imóveis nos próximos dias.\n\nOs filtros de Período/Proprietário/Cidade não vivem mais aqui como\nbotões separados — viraram um botão único (`CalendarFiltersButton`, ao\nlado do título) dentro do cabeçalho deste painel. O ESTADO continua\nvivendo no OperationWorkspace (o pai), porque também precisa afetar os\ncards \"Limpezas Realizadas\"/\"Custo Total Limpeza\" (que são irmãos deste\npainel, na aba \"Limpeza\") — por isso os valores/opções e os callbacks de\nmudança chegam tudo via props. `properties` já chega FILTRADA.",
@@ -2436,7 +2481,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8d33ed005e451cb14ae1e9daf6895ef8"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:326620",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:333142",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Pedido explícito: os filtros (Período/Cidade/Proprietário) que antes\nficavam numa linha própria acima deste card viraram um botão único\n(`CalendarFiltersButton`) dentro do cabeçalho, ao lado do título — por\nisso o estado/opções continuam vindo do pai (`OperationWorkspace`),\nque é quem também usa esses mesmos filtros pros cards de limpeza.",
@@ -2445,7 +2490,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "67345afec21e651284020dbb8b2f7803"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:327385",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:333907",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Quantos dias INTEIROS cabem no quadro com as colunas no tamanho máximo.\nO pai usa isto para buscar exatamente essa quantidade de dias, em vez de\num número fixo — é o que faz o calendário mostrar mais dias quando há\nespaço, sem esticar coluna nenhuma.",
@@ -2454,7 +2499,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "dd2d137dfd7e39a43fdb06189c653167"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:327709",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:334231",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Mobile: exatamente 5 dias inteiros no visor.\nDesktop: o máximo de dias inteiros que couber na largura do quadrante,\nsem nunca cortar a bolinha do último dia.",
@@ -2463,7 +2508,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "bc5ec68f4eb684360832917721f34380"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:328843",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:335365",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "ABERTO NO COMPUTADOR, recolhido no celular (pedido explícito, 18/09/2026:\n\"mantenha o calendário sempre expandido na visão DESKTOP, mas com\npossibilidade de recolher clicando em cima da barra\"). No celular\ncontinua recolhido por padrão — lá ele come a tela inteira.\n\nA decisão é tomada depois de montar, não no estado inicial: ler a largura\nda janela ali quebraria a hidratação, porque no servidor não existe\njanela. Roda uma vez só — quem recolher continua recolhido, e\nredimensionar a janela depois não reabre o quadro sozinho.",
@@ -2472,16 +2517,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "330b51e2134088f3291e2d7d7ff1aec1"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:360087",
-    "kind": "rule",
-    "title": "Regra em OperationWorkspace.tsx",
-    "content": "Dialog de detalhe (quem viu / quem não viu) — extraído do BarRow original\npra poder ser reaproveitado também pelo EngagementCard (cards separados do\ndesktop), sem duplicar esse JSX nos dois lugares.",
-    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
-    "audience": [],
-    "content_hash": "191a73d470b9e71e3339a0db344ffb5a"
-  },
-  {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:36069",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:36163",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "QUANTOS DIAS BUSCAR (pedido explícito, 18/09/2026: \"se couberem mais dias\ndentro da visão respeitando a regra anti corte, é para colocar\").\n\nCom filtro de período, quem manda é o período escolhido — não mexemos.\nSem filtro, o próprio calendário avisa quantos dias INTEIROS cabem no\nquadro com as colunas no tamanho máximo, e buscamos exatamente isso. O\nnúmero fixo de antes (21) ora sobrava, ora faltava: quando faltava, as\ncolunas esticavam para ocupar o espaço.",
@@ -2490,7 +2526,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "85e771cbd9918de65a04ae399626feb3"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:369658",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:366609",
+    "kind": "rule",
+    "title": "Regra em OperationWorkspace.tsx",
+    "content": "Dialog de detalhe (quem viu / quem não viu) — extraído do BarRow original\npra poder ser reaproveitado também pelo EngagementCard (cards separados do\ndesktop), sem duplicar esse JSX nos dois lugares.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "191a73d470b9e71e3339a0db344ffb5a"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:376180",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Controlado de fora (pela coluna do Kanban) quando presente — permite\nrecolher os \"Detalhes da operação\" ao rolar a coluna. Sem isso, cai de\nvolta pro estado local de sempre.",
@@ -2499,7 +2544,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1420a71a82d71664b9b9257192bc6178"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:374920",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:381442",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Marca este card (Check-ins) como \"Não Compareceu\" — pedido explícito,\n05/09/2026: opção no menu \"⋮\", só nos cards de check-in ainda pendentes.",
@@ -2508,7 +2553,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "b858b5d3155e42847ae34a889b4053e2"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:375920",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:382442",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Modo \"Lista\" (pedido explícito): mostra só proprietário, imóvel e os\n botões de ação (bem menores) — some com nome do hóspede, código,\n período, previsto e alertas de iCal. Reaproveita o mesmo card e os\n mesmos handlers; só a apresentação muda.",
@@ -2517,25 +2562,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "943bbf38018e813c04eeb6799825fda6"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:389567",
-    "kind": "rule",
-    "title": "Regra em OperationWorkspace.tsx",
-    "content": "Lista + Concluídos/Não Compareceu = card mínimo (pedido explícito,\n08/09/2026): \"não deve ser apresentada qualquer info que não seja o nome\ndo proprietário, título do anúncio e botões\".\n\nSão as duas listas de ARQUIVO do quadro. Ali ninguém está operando nada:\nestá procurando um card específico para desfazer ou conferir. Período,\nprevisão, nota e alertas de iCal só alongam a linha e atrasam a busca —\no histórico completo continua a um clique (ver o popup de histórico).\n\nA etiqueta ALERTA é a exceção deliberada, por pedido explícito no mesmo\ndia: ela aparece em todo e qualquer card, inclusive aqui.",
-    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
-    "audience": [],
-    "content_hash": "1b25cf359cf9c187087b403bc46fefe6"
-  },
-  {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:390236",
-    "kind": "rule",
-    "title": "Regra em OperationWorkspace.tsx",
-    "content": "CARD SEMPRE COMPACTO, QUE ABRE NO TOQUE (pedido explícito, 09/09/2026,\nmockup aprovado).\n\nO botão de trocar visualização saiu do sistema. No lugar de uma escolha\nglobal entre \"Completo\" e \"Lista\" — que obrigava a pessoa a decidir de\nantemão, para TODOS os cards, quanta informação queria ver —, cada card\nnasce compacto e abre sozinho quando você toca nele. A escolha deixa de\nser uma configuração e passa a ser um gesto, card a card.\n\n`compact` continua sendo a mesma variável de antes e continua governando o\nmesmo conjunto de detalhes; o que mudou é quem a define. A prop recebida\n(`compactProp`) segue valendo como PADRÃO, e o estado local só a sobrepõe\nquando a pessoa abre aquele card.\n\nO estado NÃO é lembrado entre aberturas da tela: tudo volta compacto.\nLembrar significaria reabrir o quadro com metade dos cards expandidos, o\nque desfaz exatamente o ganho de espaço que motivou a mudança.",
-    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
-    "audience": [],
-    "content_hash": "74aa32f170f1ad76a18f288788d2b4cf"
-  },
-  {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:39101",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:39195",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "OS CARDS LEEM EXATAMENTE O MESMO INTERVALO DOS GRÁFICOS (pedido explícito,\n21/09/2026: \"os cards não estão contabilizando corretamente\").\n\nAntes os cards olhavam só o DIA DE HOJE quando não havia período\nescolhido, enquanto os gráficos/ranking já mostravam os últimos 7 dias —\ndaí \"0 limpezas\" em cima de um gráfico com 14. Agora é uma janela só:\nperíodo escolhido, ou os últimos 7 dias.",
@@ -2544,7 +2571,25 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "dbd77003e82cc32fac6076e0787b7170"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:394939",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:396089",
+    "kind": "rule",
+    "title": "Regra em OperationWorkspace.tsx",
+    "content": "Lista + Concluídos/Não Compareceu = card mínimo (pedido explícito,\n08/09/2026): \"não deve ser apresentada qualquer info que não seja o nome\ndo proprietário, título do anúncio e botões\".\n\nSão as duas listas de ARQUIVO do quadro. Ali ninguém está operando nada:\nestá procurando um card específico para desfazer ou conferir. Período,\nprevisão, nota e alertas de iCal só alongam a linha e atrasam a busca —\no histórico completo continua a um clique (ver o popup de histórico).\n\nA etiqueta ALERTA é a exceção deliberada, por pedido explícito no mesmo\ndia: ela aparece em todo e qualquer card, inclusive aqui.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "1b25cf359cf9c187087b403bc46fefe6"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:396758",
+    "kind": "rule",
+    "title": "Regra em OperationWorkspace.tsx",
+    "content": "CARD SEMPRE COMPACTO, QUE ABRE NO TOQUE (pedido explícito, 09/09/2026,\nmockup aprovado).\n\nO botão de trocar visualização saiu do sistema. No lugar de uma escolha\nglobal entre \"Completo\" e \"Lista\" — que obrigava a pessoa a decidir de\nantemão, para TODOS os cards, quanta informação queria ver —, cada card\nnasce compacto e abre sozinho quando você toca nele. A escolha deixa de\nser uma configuração e passa a ser um gesto, card a card.\n\n`compact` continua sendo a mesma variável de antes e continua governando o\nmesmo conjunto de detalhes; o que mudou é quem a define. A prop recebida\n(`compactProp`) segue valendo como PADRÃO, e o estado local só a sobrepõe\nquando a pessoa abre aquele card.\n\nO estado NÃO é lembrado entre aberturas da tela: tudo volta compacto.\nLembrar significaria reabrir o quadro com metade dos cards expandidos, o\nque desfaz exatamente o ganho de espaço que motivou a mudança.",
+    "source_path": "src/components/dashboard/OperationWorkspace.tsx",
+    "audience": [],
+    "content_hash": "74aa32f170f1ad76a18f288788d2b4cf"
+  },
+  {
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:401461",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "HISTÓRICO DA RESERVA (pedido explícito, 08/09/2026).\n\nNa visão Lista, o clique no próprio card abre a jornada completa — é o\ngesto natural quando o card mostra pouca coisa. No modo Completo o card\nestá cheio de controles e um clique global roubaria o clique de todos\neles, então ali o caminho é o item do menu \"⋮\". Os dois abrem exatamente\na mesma tela.\n\nSó identificador real: a chave sintética \"ical:<id>\" não é um uuid de\nlog — nesses cards a reserva é quem identifica a estadia.",
@@ -2553,7 +2598,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "91b0393d11ad3250d65978789bbf0665"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:439457",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:445979",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Restringe de verdade os horários selecionáveis (inclusive) ao horário\n configurado do imóvel — pedido explícito do cliente (04/09/2026): antes\n só existia um aviso visual (âmbar) depois de já ter escolhido um\n horário fora da janela; agora o horário nem aparece como opção. `null`/\n omitido = sem limite (imóvel sem esse horário configurado).",
@@ -2562,7 +2607,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8ebe1ab97a0756cd4e0279b3025812c8"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:442175",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:448697",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Data e horário previstos são dois campos SEPARADOS de novo (pedido\nexplícito, 05/09/2026: \"quero que fiquem separados como antes, porém\nambos no layout padrão dos tooltips\") — cada botão abre seu próprio\ntooltip (só calendário / só horário, cada um com o mesmo visual dos\ntooltips padrão do sistema), não mais um painel único com os dois juntos.\n\nMas por baixo dos panos continua sendo UMA ÚNICA sessão de edição\n(`open`/pendingDate/pendingTime compartilhados): os dois botões só trocam\nQUAL conteúdo aparece dentro do mesmo Popover (ver `openField`), sem abrir\ne fechar de verdade um popover por vez. Isso é o que preserva o ajuste\nanterior (pedido explícito, mesma data): \"não é mover depois de fechar o\ncalendário, é mover depois de fechar o TOOLTIP inteiro\" — se cada campo\ntivesse seu próprio Popover independente, fechar o de Data já confirmaria\ne moveria o card antes do usuário conseguir abrir o de Horário, voltando\nao bug original. Nada é gravado (nem o card se move) enquanto QUALQUER um\ndos dois estiver \"aberto\" — só quando o usuário clica fora dos dois\nbotões (ou aperta \"Concluir\"/Esc) é que a data e o horário pendentes são\nconfirmados juntos, numa única leva.\n\nO piso/teto do horário reage à data QUE ESTÁ SENDO escolhida (ainda não\nconfirmada) — mesma regra de \"dia mudou → sem piso/teto\" do card, só que\ncalculada aqui em cima do valor pendente, senão a lista de horários\nficaria com a janela do dia errado enquanto o usuário ainda decide.",
@@ -2571,7 +2616,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "2b5d3cc828947c9353140290107ef27c"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:48353",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:48447",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "Cards \"fixados\" no popup aberto: SÓ ajustes de data/horário previsto\nseguram o card na lista até o usuário fechar o popup no \"X\". Qualquer\noutra ação (check, não compareceu, limpeza não será realizada, desfazer)\ntira o card da tela na hora.",
@@ -2580,7 +2625,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "edce2904f3ccf71032151d09f19ecae0"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:65946",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:66040",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "\"Limpeza Prevista 7d\" (pedido explícito) — diferente do histórico\n(`getCleaningStats`, baseado em `concluded_at`), aqui a base são os\nCHECKOUTS AGENDADOS (ainda pendentes) pros próximos 7 dias: cada\ncheckout previsto vira uma limpeza esperada naquele dia. Reaproveita a\nmesma lista/lógica de \"Checkouts\" (iCal, gating etc.) via `listFn`, só\nque com `range: \"7d\"` (hoje → hoje+6).\nCusto: como o tipo de limpeza (normal/completa) só é escolhido na hora\nde concluir, o valor aqui é uma ESTIMATIVA usando o preço da limpeza\nnormal de cada imóvel (pedido explícito) — nunca um valor fechado.",
@@ -2589,7 +2634,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1a6d487bfb64816890d2e542b2a67012"
   },
   {
-    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:74671",
+    "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:76777",
     "kind": "rule",
     "title": "Regra em OperationWorkspace.tsx",
     "content": "A tela de Limpeza tem DUAS janelas, e é a MESMA tela nas duas (pedido\nexplícito, 09/09/2026: \"não quero que abra um tooltip ao clicar em\ntendência; quero que a tela seja a mesma da visão oficial, mas que os\ndados sejam mudados para os próximos 7 dias\").\n\nAntes a previsão vivia num popup com layout próprio — outra moldura, outra\ndensidade, outro jeito de ler os mesmos gráficos. Agora só a FONTE dos\ndados muda; cards, gráficos e ranking são os mesmos componentes.",
@@ -3588,7 +3633,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "93c3dfccb774c6892f686a76e9058356"
   },
   {
-    "doc_key": "rule:src/lib/dashboard.functions.ts:62364",
+    "doc_key": "rule:src/lib/dashboard.functions.ts:64113",
     "kind": "rule",
     "title": "Regra em dashboard.functions.ts",
     "content": "CORREÇÃO (16/09/2026): a trava não tinha recorte de data. Uma estadia\nantiga que ficou sem conclusão na esteira (ninguém arrastou o card até\n\"Concluído\") travava PARA SEMPRE todo check-in futuro do imóvel, sem\nforma de limpar pela tela. A regra só vale enquanto a estadia anterior\nainda está em curso: se a saída dela já passou, o imóvel está livre.",
@@ -3597,7 +3642,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "f0dc32f8e039acbdce5c3d639d01aec7"
   },
   {
-    "doc_key": "rule:src/lib/dashboard.functions.ts:65296",
+    "doc_key": "rule:src/lib/dashboard.functions.ts:67045",
     "kind": "rule",
     "title": "Regra em dashboard.functions.ts",
     "content": "\"Não Compareceu\" NÃO libera o imóvel (pedido explícito, 15/09/2026).\nA estadia continua ocupando o imóvel até que a reserva seja de fato\ncancelada no sistema — só então a próxima chegada é liberada. Como\nmarkNoShow grava concluded_at, essas linhas não aparecem na consulta\nacima; por isso olhamos para elas separadamente.\n\nCORREÇÃO (15/09/2026): a trava não tinha recorte de data. Um \"Não\nCompareceu\" do mês passado, cuja reserva importada por iCal continua\n\"confirmed\" para sempre, travava TODA chegada futura daquele imóvel,\nsem nenhuma forma de limpar. A regra só faz sentido enquanto a estadia\ndo no-show ainda está em curso: se a data de saída dela já passou, o\nimóvel está livre, independentemente do status da reserva.",
@@ -3606,7 +3651,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "edc55a43f4b31fbebe1f8cc20b92ca0d"
   },
   {
-    "doc_key": "rule:src/lib/dashboard.functions.ts:81778",
+    "doc_key": "rule:src/lib/dashboard.functions.ts:83527",
     "kind": "rule",
     "title": "Regra em dashboard.functions.ts",
     "content": "Completa o identificador que faltou (pedido explícito, 08/09/2026: o\ncard marcado como \"não compareceu\" continuava espelhado na Fila de\nLimpeza).\n\nO card de chegada e o de saída da MESMA estadia nem sempre carregam o\nmesmo identificador — o casamento formulário↔reserva é mais exigente\ndo lado da chegada (ver `findLogsForReservation`). Gravando só o que o\ncard clicado tinha, o outro lado ficava sem chave em comum e escapava\ndo filtro. Aqui procuramos o par pela estadia e gravamos os DOIS, de\nmodo que qualquer consumidor — não só o quadro — reconheça o\nnão comparecimento por qualquer um dos lados.",

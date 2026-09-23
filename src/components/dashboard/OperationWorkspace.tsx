@@ -167,6 +167,7 @@ import {
   listNoShowArrivals,
   getOccupancyBoard,
   getCleaningStats,
+  getEarliestCleaningDate,
   type ArrivalRow,
   type CleaningBreakdownItem,
   type CleaningDailyPoint,
@@ -694,6 +695,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const markNoShowFn = useServerFn(markNoShow);
   const occupancyFn = useServerFn(getOccupancyBoard);
   const cleaningStatsFn = useServerFn(getCleaningStats);
+  const earliestCleaningFn = useServerFn(getEarliestCleaningDate);
   const taskLinkOptionsFn = useServerFn(listTaskLinkOptions);
   const listTasksFn = useServerFn(listTasks);
   const createTaskFn = useServerFn(createTask);
@@ -1628,17 +1630,56 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // Com período personalizado a previsão cobre de hoje (ou do início do
   // período, se for depois) até o FIM do período — que pode passar dos 7
   // dias. Aí a lista vem sem teto ("all") e o corte é feito aqui embaixo.
-  const forecastRange: "7d" | "all" = cleaningPeriod ? "all" : "7d";
+  // A busca em si passou a ser SEMPRE "all" (23/09/2026): além de alimentar
+  // os cards/gráficos (cortados por `forecastStart`/`forecastEnd` abaixo),
+  // essa mesma lista sem teto é a base do limite PARA A FRENTE do calendário
+  // de "Período" — precisa estar disponível mesmo sem nenhum período ainda
+  // escolhido, senão o calendário abriria sem saber até onde há previsão.
+  const forecastRange: "7d" | "all" = "all";
   const forecastEnabled = !cleaningPeriod || cleaningPeriod.hasFuture;
   const cleaningForecastListQ = useQuery({
-    queryKey: ["dash-list", "checkout", `${forecastRange}-forecast`, activeOwnerId ?? "self"],
+    queryKey: ["dash-list", "checkout", "all-forecast", activeOwnerId ?? "self"],
     queryFn: () => listFn({ data: { kind: "checkout", range: forecastRange, ownerId: activeOwnerId } }),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
-    enabled: authed && view === "limpeza" && forecastEnabled,
+    enabled: authed && view === "limpeza",
   });
   const forecastStart = cleaningPeriod && cleaningPeriod.start > cleaningToday ? cleaningPeriod.start : cleaningToday;
   const forecastEnd = cleaningPeriod ? cleaningPeriod.end : (addDaysISO(cleaningToday, 6) ?? cleaningToday);
+  /**
+   * LIMITES DO CALENDÁRIO DE "PERÍODO" NA ABA LIMPEZA (pedido explícito,
+   * 23/09/2026: "restringir tanto para trás, quanto para a frente"). Só
+   * nesta aba — os outros usos do mesmo `CalendarFiltersButton` (Kanban,
+   * calendário de ocupação) não recebem esses limites e continuam livres.
+   *   · para trás: dia da limpeza CONCLUÍDA mais antiga (`getEarliestCleaningDate`,
+   *     sem recorte de período — é justamente o que descobre o início real);
+   *   · para frente: maior data entre os checkouts previstos (pendentes) da
+   *     mesma lista "all" usada nos cards, com os mesmos filtros de
+   *     cidade/proprietário já aplicados na tela.
+   * Sem nenhum dado dos dois lados, não há o que limitar (calendário livre).
+   */
+  const earliestCleaningQ = useQuery({
+    queryKey: ["cleaning-earliest-date", activeOwnerId ?? "self"],
+    queryFn: () => earliestCleaningFn({ data: { ownerId: activeOwnerId } }),
+    staleTime: 5 * 60_000,
+    enabled: authed && view === "limpeza",
+  });
+  const cleaningDemandMaxDate = useMemo(() => {
+    const rows = cleaningForecastListQ.data?.rows ?? [];
+    let max: string | null = null;
+    for (const r of rows) {
+      if (r.status !== "pending") continue;
+      if (!matchesKanbanOwnerCity(r)) continue;
+      if (!max || r.date > max) max = r.date;
+    }
+    return max;
+  }, [cleaningForecastListQ.data?.rows, matchesKanbanOwnerCity]);
+  const cleaningDemandBounds = useMemo(() => {
+    const min = earliestCleaningQ.data?.date ?? null;
+    const max = cleaningDemandMaxDate;
+    if (!min && !max) return null;
+    return { min: min ?? max!, max: max ?? min! };
+  }, [earliestCleaningQ.data?.date, cleaningDemandMaxDate]);
   const cleaningForecast = useMemo(() => {
     const today = forecastStart;
     const span = forecastEnabled
@@ -1812,29 +1853,34 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       const approvalNote = pendingApproval.count > 0 ? `+${pendingApproval.count} aguardando aprovação` : null;
       const approvalCostNote =
         pendingApproval.count > 0 ? `+${centsToBRLShort(pendingApproval.totalCents)} em análise` : null;
+      // Nota com as duas parcelas coloridas (pedido explícito, 23/09/2026:
+      // "essas infos também precisam carregar as próprias cores definidas
+      // concluídos vs previstos"). O aviso de aprovação continua âmbar,
+      // herdado do `ds-atencao` do card — só as parcelas ganham cor própria.
+      const countNoteMixed = (
+        <>
+          <span className="text-[#7fb79a]">{pv.doneCount} realizadas</span>
+          {" + "}
+          <span className="text-[#e2a36b]">{pv.forecastCount} previstas</span>
+          {approvalNote ? <> · {approvalNote}</> : null}
+        </>
+      );
+      const costNoteMixed = (
+        <>
+          <span className="text-[#7fb79a]">{centsToBRLShort(pv.doneCents)} realizado</span>
+          {" + "}
+          <span className="text-[#e2a36b]">{centsToBRLShort(pv.forecastCents)} estimado</span>
+          {approvalCostNote ? <> · {approvalCostNote}</> : null}
+        </>
+      );
       return {
         countLabel:
           pv.kind === "past" ? "Limpezas Realizadas" : pv.kind === "future" ? "Limpezas Previstas" : "Limpezas no Período",
         countValue: pv.doneCount + pv.forecastCount,
-        countNote:
-          pv.kind === "mixed"
-            ? [`${pv.doneCount} realizadas + ${pv.forecastCount} previstas`, approvalNote].filter(Boolean).join(" · ")
-            : pv.kind === "past"
-              ? approvalNote
-              : null,
+        countNote: pv.kind === "mixed" ? countNoteMixed : pv.kind === "past" ? approvalNote : null,
         costLabel: pv.kind === "past" ? "Custo Total Limpeza" : pv.kind === "future" ? "Custo Estimado" : "Custo no Período",
         costValue: pv.doneCents + pv.forecastCents,
-        costNote:
-          pv.kind === "mixed"
-            ? [
-                `${centsToBRLShort(pv.doneCents)} realizado + ${centsToBRLShort(pv.forecastCents)} estimado`,
-                approvalCostNote,
-              ]
-                .filter(Boolean)
-                .join(" · ")
-            : pv.kind === "past"
-              ? approvalCostNote
-              : null,
+        costNote: pv.kind === "mixed" ? costNoteMixed : pv.kind === "past" ? approvalCostNote : null,
         statsLoading: pv.statsLoading,
         trendLoading: pv.trendLoading,
         daily: pv.daily as CleaningDailyPoint[],
@@ -1874,6 +1920,32 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         : { mode: "forecast", items: cleaningForecast.items }) as DayDetailSource,
     };
   })();
+
+  /**
+   * SÓ MOSTRAR ATÉ ONDE HÁ DEMANDA DE VERDADE (pedido explícito, 23/09/2026:
+   * "limitar a visão de dias dos gráficos para mostrar somente até o dia que
+   * realmente tenha demanda").
+   *
+   * Um período personalizado pode ser bem maior que o movimento real dele —
+   * "01/09 a 30/09" com a última limpeza prevista em 06/09 não precisa de um
+   * gráfico com 24 dias vazios pela frente. Corta a série na última barra
+   * COM ALGUMA COISA (realizada ou prevista), sem tocar no INÍCIO — esse é
+   * o dia que a pessoa escolheu, fica como está.
+   *
+   * Só os DOIS GRÁFICOS usam esta série cortada; os cards (totais do
+   * período inteiro), o Top 5 e a Eficiência continuam somando o período
+   * completo escolhido — cortar ali mudaria a média por dia, e não foi
+   * pedido. Só vale com período personalizado: as janelas fixas de 7 dias já
+   * são curtas o bastante para não precisar de corte.
+   */
+  const cleaningChartDaily = useMemo(() => {
+    const daily = cleaningScreen.daily;
+    if (!cleaningPeriodView || !daily || daily.length <= 1) return daily;
+    let lastIdx = -1;
+    for (let i = 0; i < daily.length; i += 1) if (daily[i].count > 0) lastIdx = i;
+    if (lastIdx < 0) return daily.slice(0, 1);
+    return daily.slice(0, lastIdx + 1);
+  }, [cleaningScreen.daily, cleaningPeriodView]);
 
   // ---------------------------------------------------------------------
   // Tarefas/Pendências — botão "PENDÊNCIAS" (Kanban, ao lado de "Filtros")
@@ -2734,14 +2806,19 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                    23/09/2026). Com período personalizado o interruptor
                    "últimos/próximos 7 dias" não manda mais — então ele sai, e
                    no lugar dele fica o selo do período. Tocar nele limpa o
-                   período e devolve a tela aos 7 dias fixos. Mesmo formato e
-                   tom "ligado" do interruptor. */
+                   período e devolve a tela aos 7 dias fixos.
+                   COR NEUTRA (pedido explícito, 23/09/2026: "a cor precisa
+                   ser a mesma que as letras do botão Filtros"): um período
+                   personalizado mistura realizado e previsto, então não é
+                   nem verde nem laranja — mesmo tom do gatilho "Filtros"
+                   (`ACTION_BUTTON_TONE`), sem o destaque âmbar que o
+                   interruptor fixo tinha antes. */
                 <button
                   type="button"
                   onClick={() => setPeriodRange(null)}
                   title="Limpar período e voltar aos 7 dias"
                   aria-label={`${cleaningPeriodLabel} — limpar período`}
-                  className={`${ACTION_SEGMENT} ds-atencao`}
+                  className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
                 >
                   <CalendarRange className={ACTION_ICON} />
                   <span className="lg:hidden">{cleaningPeriodLabel}</span>
@@ -2751,14 +2828,20 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               {view === "limpeza" && !cleaningPeriod && (
                 /* Interruptor das duas janelas. Só ícone: o título ao lado já
                  diz em qual delas você está ("Limpezas Concluídas"), então o
-                 botão só precisa mostrar que está LIGADO — daí o fundo âmbar
-                 quando a janela é a dos próximos 7 dias. */
+                 botão só precisa mostrar que está LIGADO.
+                 COR = A MESMA REGRA DOS GRÁFICOS (pedido explícito,
+                 23/09/2026: "o botão também precisa carregar as cores"):
+                 verde enquanto mostra o realizado (últimos 7 dias), laranja
+                 fraco enquanto mostra o previsto (próximos 7 dias) — sempre a
+                 cor da janela que ESTÁ NA TELA, não da que o botão leva. */
                 <button
                   type="button"
                   onClick={() => setCleaningWindow((w) => (w === "past" ? "next" : "past"))}
                   title={cleaningWindow === "past" ? "Ver os próximos 7 dias" : "Voltar aos últimos 7 dias"}
                   aria-pressed={cleaningWindow === "next"}
-                  className={`${ACTION_SEGMENT} ${cleaningWindow === "next" ? "ds-atencao" : ACTION_BUTTON_TONE}`}
+                  className={`${ACTION_SEGMENT} ${
+                    cleaningWindow === "next" ? "text-[#e2a36b]" : "text-[#7fb79a]"
+                  } hover:opacity-80`}
                 >
                   <Sparkles className={ACTION_ICON} />
                   <span className="lg:hidden">{cleaningWindow === "past" ? "Próximos 7 dias" : "Últimos 7 dias"}</span>
@@ -2787,6 +2870,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                     ? { targetRef: kanbanRowRef, fileName: "kanban" }
                     : { targetRef: pageRef, fileName: "limpeza" }
                 }
+                // Limite do calendário de "Período" SÓ NA ABA LIMPEZA (pedido
+                // explícito, 23/09/2026) — no Kanban este mesmo botão continua
+                // com o calendário livre, sem os limites de demanda.
+                demandMin={view === "limpeza" ? (cleaningDemandBounds?.min ?? null) : null}
+                demandMax={view === "limpeza" ? (cleaningDemandBounds?.max ?? null) : null}
               />
             </>
           )
@@ -3076,14 +3164,14 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             <div className="ds-card-grid grid-cols-1 lg:grid-cols-2">
               <CleaningDailyBarChart
                 title={cleaningScreen.barTitle}
-                data={cleaningScreen.daily}
+                data={cleaningChartDaily}
                 detail={cleaningScreen.barDetail}
                 loading={cleaningScreen.trendLoading}
                 series={cleaningScreen.series}
               />
               <CleaningDailyAreaChart
                 title={cleaningScreen.areaTitle}
-                data={cleaningScreen.daily}
+                data={cleaningChartDaily}
                 detail={cleaningScreen.areaDetail}
                 loading={cleaningScreen.trendLoading}
                 series={cleaningScreen.series}
@@ -4638,8 +4726,11 @@ function StatDisplayCard({
   value: string | number;
   icon: React.ElementType;
   loading: boolean;
-  /** Linha de aviso embaixo do número (ex.: "+2 aguardando aprovação"). */
-  note?: string | null;
+  /** Linha de aviso embaixo do número (ex.: "+2 aguardando aprovação"). No
+   * período misto (23/09/2026) vem com as PARCELAS coloridas — verde
+   * realizado, laranja fraco previsto — então aceita nó React, não só
+   * texto puro. */
+  note?: React.ReactNode | null;
   breakdown?: CleaningBreakdownItem[];
   /** Mini gráfico de tendência (pedido explícito: sem percentual comparativo por
       enquanto, só a linha). */
@@ -4681,7 +4772,10 @@ function StatDisplayCard({
         {loading ? "—" : value}
       </div>
       {note && !loading ? (
-        <p className="ds-atencao w-full truncate pt-1 text-center text-[10px] font-bold" title={note}>
+        <p
+          className="ds-atencao w-full truncate pt-1 text-center text-[10px] font-bold"
+          title={typeof note === "string" ? note : undefined}
+        >
           {note}
         </p>
       ) : null}
@@ -6915,6 +7009,8 @@ function CalendarFiltersButton({
   onClearAll,
   screenshot,
   compactTrigger,
+  demandMin,
+  demandMax,
 }: {
   periodRange: { start: string; end: string } | null;
   onPeriodRangeChange: (next: { start: string; end: string } | null) => void;
@@ -6930,6 +7026,13 @@ function CalendarFiltersButton({
   screenshot?: ScreenshotTarget;
   /** Ícone quadrado (linha do título) em vez do botão com o texto "FILTROS". */
   compactTrigger?: boolean;
+  /** Limite do calendário de "Período" (pedido explícito, 23/09/2026: só
+   * deixar escolher datas que tenham demanda real de limpeza por trás).
+   * Opcionais e de uso pontual — quando não informados (todos os outros
+   * usos deste botão, fora a aba Limpeza) o calendário continua livre,
+   * exatamente como sempre foi. */
+  demandMin?: string | null;
+  demandMax?: string | null;
 }) {
   type Screen = "root" | "period" | "city" | "owner";
   const [screen, setScreen] = useState<Screen>("root");
@@ -6951,6 +7054,20 @@ function CalendarFiltersButton({
   const periodLabel = periodRange
     ? `${format(parseISODateLocal(periodRange.start), "dd/MM", { locale: ptBR })} – ${format(parseISODateLocal(periodRange.end), "dd/MM", { locale: ptBR })}`
     : "Todos";
+  // Limite do calendário de "Período" (só quando `demandMin`/`demandMax`
+  // vêm informados — hoje, só a aba Limpeza passa esses dois; ver o pedido
+  // explícito acima, na declaração das props). Mesmo padrão já usado em
+  // `DateEditor` mais abaixo neste arquivo, com `{ before, after }`.
+  const demandMinDate = demandMin ? parseISODateLocal(demandMin) : undefined;
+  const demandMaxDate = demandMax ? parseISODateLocal(demandMax) : undefined;
+  const demandDisabled =
+    demandMinDate && demandMaxDate
+      ? [{ before: demandMinDate }, { after: demandMaxDate }]
+      : demandMinDate
+        ? { before: demandMinDate }
+        : demandMaxDate
+          ? { after: demandMaxDate }
+          : undefined;
   const cityLabel =
     cityFilters.length === 0
       ? "Todas"
@@ -7139,6 +7256,8 @@ function CalendarFiltersButton({
                 numberOfMonths={1}
                 locale={ptBR}
                 selected={draft}
+                defaultMonth={draft?.from ?? demandMinDate}
+                disabled={demandDisabled}
                 onSelect={(nextRange) => {
                   setDraft(nextRange);
                   // Só propaga quando o intervalo estiver completo (início E
