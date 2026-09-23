@@ -16,12 +16,17 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 export function useActiveAccount() {
   const { isAdmin, isLoading: adminLoading } = useIsAdmin();
   const listFn = useServerFn(listMyAccounts);
+  // Só consulta com sessão válida: sem token a chamada protegida falhava e
+  // deixava a tela em branco ao sair da conta ou quando a sessão expirava.
+  const hasSession = useHasSession();
   const q = useQuery({
     queryKey: ["my-accounts"],
     queryFn: () => listFn(),
     staleTime: 5 * 60_000,
-    enabled: !adminLoading,
+    enabled: !adminLoading && hasSession === true,
+    retry: false,
   });
+
   const { impersonation } = useImpersonation();
 
   const accounts = useMemo(() => q.data?.accounts ?? [], [q.data]);
