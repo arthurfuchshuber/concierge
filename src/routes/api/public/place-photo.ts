@@ -37,6 +37,21 @@ export const Route = createFileRoute("/api/public/place-photo")({
           return new Response("Bad photo name", { status: 400 });
         }
 
+        /* TETO DE CONSUMO DO DIA (23/09/2026).
+           A rota é aberta (o guia do hóspede não tem login) e cada foto gasta
+           cota paga do Google. O limite por minuto segura rajada, mas não
+           segurava uso constante o dia inteiro. Passando do teto, devolvemos
+           o pixel transparente: a tela do hóspede continua inteira. */
+        const { clientIpFrom, allowDailyBudget } = await import("@/lib/public-rate-limit.server");
+        const ip = clientIpFrom(request);
+        if (
+          !allowDailyBudget(`place-photo:ip:${ip}`, 600) ||
+          !allowDailyBudget("place-photo:global", 20_000)
+        ) {
+          return placeholderResponse();
+        }
+
+
         const apiKey = process.env.LOVABLE_API_KEY;
         const mapsKey =
           process.env.GOOGLE_MAPS_API_KEY_2 ?? process.env.GOOGLE_MAPS_API_KEY;
