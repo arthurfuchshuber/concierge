@@ -1740,16 +1740,16 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       };
     });
     // Top 5 / eficiência: soma as duas parcelas por imóvel.
-    const byProperty = new Map<string, CleaningBreakdownItem>();
-    for (const item of [...(cleaningTrendData?.breakdown ?? []), ...cleaningForecast.breakdown]) {
-      const cur = byProperty.get(item.propertyId);
-      if (cur) {
-        cur.count += item.count;
-        cur.totalCents += item.totalCents;
-      } else {
-        byProperty.set(item.propertyId, { ...item });
-      }
-    }
+    const byProperty = new Map<string, CleaningTopItem>();
+    const addParcel = (item: CleaningBreakdownItem, parcel: "doneCount" | "forecastCount") => {
+      const cur = byProperty.get(item.propertyId) ?? { ...item, count: 0, totalCents: 0, doneCount: 0, forecastCount: 0 };
+      cur.count += item.count;
+      cur.totalCents += item.totalCents;
+      cur[parcel] = (cur[parcel] ?? 0) + item.count;
+      byProperty.set(item.propertyId, cur);
+    };
+    for (const item of cleaningTrendData?.breakdown ?? []) addParcel(item, "doneCount");
+    for (const item of cleaningForecast.breakdown) addParcel(item, "forecastCount");
     const breakdown = Array.from(byProperty.values()).sort(
       (a, b) => b.count - a.count || a.propertyName.localeCompare(b.propertyName, "pt-BR"),
     );
@@ -1839,8 +1839,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         trendLoading: pv.trendLoading,
         daily: pv.daily as CleaningDailyPoint[],
         breakdown: pv.breakdown,
-        // Duas cores só quando o período tem as duas parcelas.
-        split: pv.kind === "mixed",
+        // Verde = realizado, laranja fraco = previsto; as duas só quando o
+        // período cruza hoje.
+        series: (pv.kind === "mixed" ? "split" : pv.kind === "future" ? "forecast" : "done") as CleaningSeries,
         forecastOnly: pv.kind === "future",
         barTitle: pv.kind === "future" ? "Limpezas previstas por dia" : "Limpezas por dia",
         areaTitle:
@@ -1861,7 +1862,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       trendLoading: past ? cleaningTrendQ.isLoading : cleaningForecastListQ.isLoading,
       daily: past ? cleaningTrendData?.daily : cleaningForecast.daily,
       breakdown: past ? cleaningTrendData?.breakdown : cleaningForecast.breakdown,
-      split: false,
+      series: (past ? "done" : "forecast") as CleaningSeries,
       forecastOnly: !past,
       barTitle: past ? "Limpezas por dia" : "Limpezas previstas por dia",
       areaTitle: past ? "Custo total por dia" : "Custo estimado por dia",
@@ -3078,14 +3079,14 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 data={cleaningScreen.daily}
                 detail={cleaningScreen.barDetail}
                 loading={cleaningScreen.trendLoading}
-                split={cleaningScreen.split}
+                series={cleaningScreen.series}
               />
               <CleaningDailyAreaChart
                 title={cleaningScreen.areaTitle}
                 data={cleaningScreen.daily}
                 detail={cleaningScreen.areaDetail}
                 loading={cleaningScreen.trendLoading}
-                split={cleaningScreen.split}
+                series={cleaningScreen.series}
               />
             </div>
             {/* Top 5 ocupa a MESMA largura do gráfico da esquerda (pedido
@@ -3102,7 +3103,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 />
               </div>
               <div className="lg:order-1">
-                <CleaningTopProperties items={cleaningScreen.breakdown} loading={cleaningScreen.trendLoading} />
+                <CleaningTopProperties
+                  items={cleaningScreen.breakdown}
+                  loading={cleaningScreen.trendLoading}
+                  series={cleaningScreen.series}
+                />
               </div>
             </div>
           </div>
@@ -4700,19 +4705,27 @@ function StatDisplayCard({
   );
 }
 
-/** PADRÃO "PRESENÇA" (18/09/2026): os gráficos da Limpeza usavam azul-céu e
-    laranja saturados — as duas cores mais berrantes da tela inteira. Agora são
-    os mesmos tons contidos do resto do sistema: verde sálvia para a CONTAGEM e
-    âmbar queimado para o DINHEIRO. Quem separa os dois gráficos continua sendo
-    a cor, só que em voz baixa. */
-const CLEANING_COUNT_COLOR = "#7fb79a"; // verde sálvia (ds-ok)
-const CLEANING_COST_COLOR = "#c9a962"; // âmbar queimado (ds-atencao)
-/** A PARCELA PREVISTA de um período personalizado (pedido explícito,
-    23/09/2026: "passado + previsão, separando por cores"). Uma cor só para
-    "previsto" nos dois gráficos — lavanda contida, no mesmo tom baixo das
-    outras duas — para que a leitura seja uma só: o que é desta cor ainda não
-    aconteceu. */
-const CLEANING_FORECAST_COLOR = "#8f9fd6"; // lavanda (previsto)
+/** CORES DOS GRÁFICOS DA LIMPEZA = O QUE JÁ ACONTECEU × O QUE ESTÁ PREVISTO
+    (pedido explícito, 23/09/2026: "verde atual precisa ser o que já foi feito
+    / laranja fraco precisa ser o previsto — isso para todo o racional da
+    página quando for um gráfico").
+
+    Antes a cor separava a GRANDEZA (verde = contagem, âmbar = dinheiro). Agora
+    ela separa o TEMPO, em todo gráfico da aba: barras, linha de custo, Top 5 e
+    o ponto dos cabeçalhos. Realizado é sempre o verde sálvia; previsto é
+    sempre o laranja fraco. A janela "próximos 7 dias" é toda prevista, então
+    sai toda em laranja; a dos "últimos 7 dias" sai toda em verde; um período
+    que cruza hoje mistura as duas, cada parcela na sua cor. */
+const CLEANING_DONE_COLOR = "#7fb79a"; // verde sálvia (ds-ok) — realizado
+const CLEANING_FORECAST_COLOR = "#e2a36b"; // laranja fraco — previsto
+
+/** Qual parcela o gráfico mostra: só realizado, só previsto ou as duas. */
+type CleaningSeries = "done" | "forecast" | "split";
+/** Cor "da série inteira" — ponto do cabeçalho e barra/linha única. No misto
+    vale o verde; a parcela prevista ganha a sua cor à parte. */
+function cleaningSeriesColor(series: CleaningSeries): string {
+  return series === "forecast" ? CLEANING_FORECAST_COLOR : CLEANING_DONE_COLOR;
+}
 
 /** Ponto do período personalizado: o total do dia (`count`/`totalCents`,
     lido pelos rótulos e pelos painéis) e as duas parcelas separadas, que é o
@@ -4726,13 +4739,17 @@ type CleaningPeriodPoint = CleaningDailyPoint & {
   futureLineCents: number | null;
 };
 
+/** Imóvel do Top 5 — no período misto carrega as duas parcelas, para a
+    barra se dividir em verde (realizadas) e laranja fraco (previstas). */
+type CleaningTopItem = CleaningBreakdownItem & { doneCount?: number; forecastCount?: number };
+
 /** Legenda "● realizadas ● previstas" no cabeçalho do gráfico — só aparece
     quando o período mistura as duas parcelas. */
-function CleaningSplitLegend({ doneColor }: { doneColor: string }) {
+function CleaningSplitLegend() {
   return (
     <span className="flex items-center gap-2 text-[10px] text-muted-foreground">
       <span className="flex items-center gap-1">
-        <span aria-hidden className="size-1.5 rounded-full" style={{ backgroundColor: doneColor }} />
+        <span aria-hidden className="size-1.5 rounded-full" style={{ backgroundColor: CLEANING_DONE_COLOR }} />
         realizadas
       </span>
       <span className="flex items-center gap-1">
@@ -4906,7 +4923,7 @@ function CleaningDailyBarChart({
   loading,
   title = "Limpezas por dia",
   detail,
-  split = false,
+  series = "done",
 }: {
   data: CleaningDailyPoint[] | undefined;
   loading: boolean;
@@ -4914,18 +4931,19 @@ function CleaningDailyBarChart({
    * título muda. */
   title?: string;
   detail?: DayDetailSource | ((date: string) => DayDetailSource[]);
-  /** Período misto (23/09/2026): barra empilhada — realizadas embaixo, na cor
-   * da contagem, previstas em cima, na cor de previsto. */
-  split?: boolean;
+  /** "split" (período que cruza hoje): barra empilhada — realizadas embaixo,
+   * em verde; previstas em cima, em laranja fraco. */
+  series?: CleaningSeries;
 }) {
+  const split = series === "split";
   return (
     <CleaningChartFrame
       title={title}
       data={data}
       loading={loading}
       detail={detail}
-      tone={CLEANING_COUNT_COLOR}
-      legend={split ? <CleaningSplitLegend doneColor={CLEANING_COUNT_COLOR} /> : null}
+      tone={cleaningSeriesColor(series)}
+      legend={split ? <CleaningSplitLegend /> : null}
     >
       {(width, pick) => (
         <BarChart
@@ -4958,7 +4976,7 @@ function CleaningDailyBarChart({
             <Bar
               dataKey="doneCount"
               stackId="limpezas"
-              fill={CLEANING_COUNT_COLOR}
+              fill={CLEANING_DONE_COLOR}
               // Cantos arredondados também embaixo: nos dias passados a
               // parcela prevista é zero e esta é a barra que aparece inteira.
               radius={[4, 4, 0, 0]}
@@ -4973,7 +4991,7 @@ function CleaningDailyBarChart({
           <Bar
             dataKey={split ? "forecastCount" : "count"}
             stackId={split ? "limpezas" : undefined}
-            fill={split ? CLEANING_FORECAST_COLOR : CLEANING_COUNT_COLOR}
+            fill={split ? CLEANING_FORECAST_COLOR : cleaningSeriesColor(series)}
             radius={[4, 4, 0, 0]}
             maxBarSize={22}
             isAnimationActive={false}
@@ -5002,24 +5020,27 @@ function CleaningDailyAreaChart({
   loading,
   title = "Custo total por dia",
   detail,
-  split = false,
+  series = "done",
 }: {
   data: CleaningDailyPoint[] | undefined;
   loading: boolean;
   title?: string;
   detail?: DayDetailSource | ((date: string) => DayDetailSource[]);
-  /** Período misto (23/09/2026): a linha muda de cor em HOJE — âmbar até
-   * hoje (realizado), lavanda de hoje em diante (estimado). */
-  split?: boolean;
+  /** "split" (período que cruza hoje): a linha muda de cor em HOJE — verde
+   * até hoje (realizado), laranja fraco tracejado de hoje em diante
+   * (estimado). Só previsto: a linha inteira em laranja tracejado. */
+  series?: CleaningSeries;
 }) {
+  const split = series === "split";
+  const lineColor = cleaningSeriesColor(series);
   return (
     <CleaningChartFrame
       title={title}
       data={data}
       loading={loading}
       detail={detail}
-      tone={CLEANING_COST_COLOR}
-      legend={split ? <CleaningSplitLegend doneColor={CLEANING_COST_COLOR} /> : null}
+      tone={lineColor}
+      legend={split ? <CleaningSplitLegend /> : null}
     >
       {(width, pick) => (
         <AreaChart
@@ -5031,8 +5052,8 @@ function CleaningDailyAreaChart({
         >
           <defs>
             <linearGradient id="cleaningCostArea" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor={CLEANING_COST_COLOR} stopOpacity={0.35} />
-              <stop offset="100%" stopColor={CLEANING_COST_COLOR} stopOpacity={0} />
+              <stop offset="0%" stopColor={CLEANING_DONE_COLOR} stopOpacity={0.35} />
+              <stop offset="100%" stopColor={CLEANING_DONE_COLOR} stopOpacity={0} />
             </linearGradient>
             <linearGradient id="cleaningForecastArea" x1="0" x2="0" y1="0" y2="1">
               <stop offset="0%" stopColor={CLEANING_FORECAST_COLOR} stopOpacity={0.35} />
@@ -5070,7 +5091,7 @@ function CleaningDailyAreaChart({
             <Area
               type="monotone"
               dataKey="pastLineCents"
-              stroke={CLEANING_COST_COLOR}
+              stroke={CLEANING_DONE_COLOR}
               strokeWidth={2}
               fill="url(#cleaningCostArea)"
               isAnimationActive={false}
@@ -5092,9 +5113,10 @@ function CleaningDailyAreaChart({
           <Area
             type="monotone"
             dataKey="totalCents"
-            stroke={split ? "none" : CLEANING_COST_COLOR}
+            stroke={split ? "none" : lineColor}
             strokeWidth={2}
-            fill={split ? "none" : "url(#cleaningCostArea)"}
+            strokeDasharray={series === "forecast" ? "4 3" : undefined}
+            fill={split ? "none" : series === "forecast" ? "url(#cleaningForecastArea)" : "url(#cleaningCostArea)"}
             isAnimationActive={false}
           >
             {/* Mesmo papel do rótulo das barras. Valor arredondado e sem
@@ -5120,7 +5142,7 @@ function CleaningDailyAreaChart({
                 split &&
                 (data?.find((d) => d.date === pick.selected) as CleaningPeriodPoint | undefined)?.pastLineCents == null
                   ? CLEANING_FORECAST_COLOR
-                  : CLEANING_COST_COLOR
+                  : lineColor
               }
               stroke="var(--card)"
               strokeWidth={2}
@@ -5133,14 +5155,24 @@ function CleaningDailyAreaChart({
   );
 }
 
-function CleaningTopProperties({ items, loading }: { items: CleaningBreakdownItem[] | undefined; loading: boolean }) {
+function CleaningTopProperties({
+  items,
+  loading,
+  series = "done",
+}: {
+  items: CleaningTopItem[] | undefined;
+  loading: boolean;
+  /** Mesma regra de cor dos gráficos: verde realizado, laranja fraco
+   * previsto; no período misto a barra de cada imóvel se divide nas duas. */
+  series?: CleaningSeries;
+}) {
   const top = (items ?? []).slice(0, 5);
   const maxCount = Math.max(1, ...top.map((i) => i.count));
   return (
     <div className={`${PANEL_SHELL} h-full w-full px-3.5 py-3.5`}>
       <PanelHeading
         title="Top 5 imóveis"
-        dotColor={CLEANING_COUNT_COLOR}
+        dotColor={cleaningSeriesColor(series)}
         className="mb-2.5"
         right={<span className="text-[10px] text-muted-foreground">nº de limpezas</span>}
       />
@@ -5158,13 +5190,26 @@ function CleaningTopProperties({ items, loading }: { items: CleaningBreakdownIte
                 {item.propertyName}
               </span>
               <span className="h-2 flex-1 rounded-full bg-muted/50 overflow-hidden">
-                <span
-                  className="block h-full rounded-full"
-                  style={{
-                    width: `${(item.count / maxCount) * 100}%`,
-                    backgroundColor: CLEANING_COUNT_COLOR,
-                  }}
-                />
+                {series === "split" ? (
+                  <span className="flex h-full overflow-hidden rounded-full" style={{ width: `${(item.count / maxCount) * 100}%` }}>
+                    <span
+                      className="block h-full"
+                      style={{ flexGrow: item.doneCount ?? 0, backgroundColor: CLEANING_DONE_COLOR }}
+                    />
+                    <span
+                      className="block h-full"
+                      style={{ flexGrow: item.forecastCount ?? 0, backgroundColor: CLEANING_FORECAST_COLOR }}
+                    />
+                  </span>
+                ) : (
+                  <span
+                    className="block h-full rounded-full"
+                    style={{
+                      width: `${(item.count / maxCount) * 100}%`,
+                      backgroundColor: cleaningSeriesColor(series),
+                    }}
+                  />
+                )}
               </span>
               <span className="w-9 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground">
                 {item.count}
@@ -5230,7 +5275,7 @@ function CleaningEfficiencyPanel({
     <div className={`${PANEL_SHELL} h-full w-full px-3.5 py-3.5`}>
       <PanelHeading
         title="Eficiência da limpeza"
-        dotColor={CLEANING_COST_COLOR}
+        dotColor={forecast ? CLEANING_FORECAST_COLOR : CLEANING_DONE_COLOR}
         className="mb-2.5"
         right={<span className="text-[10px] text-muted-foreground">{forecast ? "previsto" : "no período"}</span>}
       />
