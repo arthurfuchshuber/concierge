@@ -9,7 +9,7 @@
  */
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/g/$slug/app/webmanifest")({
+export const Route = createFileRoute("/g/$slug/app.webmanifest")({
   server: {
     handlers: {
       GET: async ({ params }) => {
