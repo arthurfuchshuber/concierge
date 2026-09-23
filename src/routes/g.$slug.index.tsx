@@ -571,13 +571,26 @@ function Guide({ data }: { data: GuideOk }) {
     setGateReady(true);
   }, [slug]);
   const needsGate = gateReady && !accessRec && !isPreview;
-  // Vitrine da landing (?demo=1): o guia ali é só uma amostra visual. O chat
-  // NÃO pode funcionar nesse modo — um visitante (ou um hóspede que caiu na
-  // página inicial) conversava com a IA como "Hóspede de teste" e a conversa
-  // caía na central de atendimento do anfitrião, num imóvel que não é o dele.
-  const isDemoGuide = useRouterState({
-    select: (st) => String((st.location.search as { demo?: unknown }).demo ?? "") === "1",
-  });
+  /**
+   * O ATALHO DO HÓSPEDE PRECISA ABRIR O GUIA DELE (22/09/2026).
+   *
+   * O manifesto do site é um só e manda o atalho abrir "/" — a página
+   * inicial do produto. Quem salvou o guia na tela do celular (ou reabriu o
+   * app depois) caía na landing, que mostra uma amostra de OUTRO imóvel; foi
+   * assim que uma hóspede do Studio 105 acabou conversando na demonstração da
+   * Casa Charmosa. Enquanto o guia está aberto, trocamos o manifesto pelo
+   * manifesto DESTE guia, cujo endereço de abertura é o próprio guia.
+   */
+  useEffect(() => {
+    if (isPreview) return;
+    const link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+    if (!link) return;
+    const anterior = link.getAttribute("href");
+    link.setAttribute("href", `/g/${slug}/app.webmanifest`);
+    return () => {
+      if (anterior) link.setAttribute("href", anterior);
+    };
+  }, [slug, isPreview]);
 
   // Revalidação contínua da reserva: se o código deixar de existir/ficar
   // ativo no calendário do Airbnb (cancelamento, alteração de datas ou
