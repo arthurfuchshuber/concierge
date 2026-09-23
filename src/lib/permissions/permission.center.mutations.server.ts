@@ -124,8 +124,15 @@ export async function createCenterUser(
   input: { email: string; role: AccountRole },
 ): Promise<MutationResult> {
   const ctx = await assertCenterWrite(actorId);
+  /* SÓ O TITULAR CRIA OUTRO TITULAR (23/09/2026). Sem isto, quem administra
+     permissões podia convidar alguém já como titular e perder o controle da
+     conta para essa pessoa. */
+  if (input.role === "owner" && ctx.actorId !== ctx.tenantId) {
+    throw new Error("Somente o titular da conta pode conceder o papel de titular.");
+  }
   const email = input.email.trim().toLowerCase();
   const client = await db();
+
 
   const { data: existing } = await client
     .from("account_member_invites")
