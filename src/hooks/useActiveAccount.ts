@@ -4,6 +4,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { listMyAccounts } from "@/lib/active-account.functions";
 import { useImpersonation, setImpersonation } from "@/hooks/useImpersonation";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { useHasSession } from "@/hooks/useHasSession";
+
 
 /**
  * Garante que um membro de equipe sempre abra o painel já dentro da empresa
