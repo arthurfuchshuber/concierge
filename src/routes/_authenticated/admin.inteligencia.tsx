@@ -46,7 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { usePresence } from "@/hooks/usePresence";
+import { usePresence, useLiveState } from "@/hooks/usePresence";
 import { PresenceAvatars } from "@/components/presence/PresenceAvatars";
 import { FieldTypingBadge } from "@/components/presence/FieldTypingBadge";
 import {
@@ -214,6 +214,7 @@ function GlobalTab() {
   // Insight novo/não salvo ainda não tem id — desliga a presença pra este
   // render (usePresence aceita null) até que o registro exista de verdade.
   const presence = usePresence(form?.id ? `insight:${form.id}` : null);
+  useLiveState(presence, "form", form, (v) => v && setForm(v), { enabled: !!form?.id });
 
   const { data, isLoading } = useQuery({
     queryKey: ["saas-global-insights"],

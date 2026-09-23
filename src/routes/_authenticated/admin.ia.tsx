@@ -27,7 +27,7 @@ import {
 import { listLearningQueue, reviewLearningCandidate } from "@/lib/ai-learning.functions";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { PageHeader } from "@/components/ds/PageHeader";
-import { usePresence } from "@/hooks/usePresence";
+import { usePresence, useLiveState } from "@/hooks/usePresence";
 import { PresenceAvatars } from "@/components/presence/PresenceAvatars";
 import { FieldTypingBadge } from "@/components/presence/FieldTypingBadge";
 
@@ -152,6 +152,7 @@ function KnowledgeTab({ openNewSignal }: { openNewSignal: number }) {
   // novo/não salvo ainda não tem id, então usa null (desliga presença sem
   // quebrar o render).
   const presence = usePresence(form?.id ? `ia-knowledge:${form.id}` : null);
+  useLiveState(presence, "form", form, (v) => v && setForm(v), { enabled: !!form?.id });
   const lastSignal = useRef(openNewSignal);
   useEffect(() => {
     if (openNewSignal !== lastSignal.current) {

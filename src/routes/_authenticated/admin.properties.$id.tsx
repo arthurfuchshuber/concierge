@@ -138,7 +138,7 @@ import {
   usePrefetchPropertyDetails,
 } from "@/components/admin/PropertyDetailsEditor";
 import { PropertyTypeSelect } from "@/components/admin/PropertyTypeSelect";
-import { usePresence } from "@/hooks/usePresence";
+import { usePresence, useLiveState } from "@/hooks/usePresence";
 import { useRealtimeInvalidate } from "@/hooks/useRealtimeInvalidate";
 import { PresenceAvatars } from "@/components/presence/PresenceAvatars";
 import { FieldTypingBadge } from "@/components/presence/FieldTypingBadge";
@@ -449,13 +449,6 @@ function PropertyEditor() {
       // Se você tem edição local não salva, recarregar agora apagaria o que
       // está digitando — nesse caso só avisamos, sem sobrescrever sozinho.
       shouldRefetch: () => !dirtyRef.current,
-      onRemoteChange: () => {
-        if (dirtyRef.current) {
-          toast.info(
-            "Outra pessoa atualizou este imóvel. Salve suas alterações para não perder nada, depois atualize a página para ver as mudanças dela.",
-          );
-        }
-      },
     },
   );
   // Permissão do editor: com "Visualizar" o conteúdo aparece, mas travado.
@@ -608,6 +601,9 @@ function PropertyEditor() {
   const suppressHydrationAutosaveRef = useRef(false);
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRecsRef = useRef<string>("");
+  // Gravação cirúrgica: último conteúdo gravado de cada seção. O autosave só
+  // envia ao servidor as seções que realmente mudaram desde então.
+  const savedSectionsRef = useRef<Record<string, string> | null>(null);
   const [autoSaving, setAutoSaving] = useState(false);
   // Antes, um erro no autosave silencioso só ia pro console.warn — a pessoa
   // via "Alterações salvas automaticamente" mesmo quando a alteração NÃO
@@ -920,6 +916,7 @@ function PropertyEditor() {
     setTimeout(() => {
       hydratedRef.current = true;
       dirtyRef.current = false;
+      savedSectionsRef.current = sectionSnapshots(formRef.current);
       lastSavedRecsRef.current = JSON.stringify(
         (data.recommendations ?? []).filter((r: Record<string, unknown>) => r.scope === "nearby"),
       );
@@ -1422,7 +1419,21 @@ function PropertyEditor() {
         propertySource.city.trim() ||
         "Novo imóvel";
       const galleryImages = propertySource.gallery_images.filter((u) => u.trim()).slice(0, 4);
+      const currentSections = sectionSnapshots({ ...formToSave, property: propertySource });
+      let sections: Record<string, boolean> | null = null;
+      if (silent && !isNew && savedSectionsRef.current && !overrides) {
+        const prev = savedSectionsRef.current;
+        sections = {
+          property: prev.p !== currentSections.p,
+          manual: prev.m !== currentSections.m,
+          emergency: prev.e !== currentSections.e,
+          faqs: prev.f !== currentSections.f,
+          checkout: prev.c !== currentSections.c,
+        };
+        if (!Object.values(sections).some(Boolean)) return;
+      }
       const payload = {
+        sections,
         id: isNew ? null : id,
         ownerId: isNew ? (impersonation?.userId ?? null) : null,
         property: {
@@ -1510,6 +1521,7 @@ function PropertyEditor() {
         () => undefined,
       );
       const r = await queuedSave;
+      savedSectionsRef.current = { ...(savedSectionsRef.current ?? {}), ...currentSections };
       if (!silent) toast.success(isNew ? "Imóvel criado" : "Guia salvo");
       setAutoSaveError(null);
       if (editVersionRef.current === saveVersion) dirtyRef.current = false;
@@ -1563,6 +1575,7 @@ function PropertyEditor() {
         setAutoSaving(true);
         const galleryImages = form.property.gallery_images.filter((u) => u.trim()).slice(0, 4);
         const payload = {
+          sections: { recommendations: true },
           id,
           property: {
             ...form.property,
@@ -1603,6 +1616,39 @@ function PropertyEditor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.recommendations, step, isNew]);
 
+  // ---- Sincronização instantânea entre quem está nesta tela (estilo Miro) ----
+  // Cada seção é transmitida na hora para os outros navegadores; quem recebe
+  // só exibe (não regrava) — a gravação é feita por quem editou.
+  const liveEnabled = !isNew && hydratedRef.current;
+  const applyRemote = (key: "property" | "manual" | "emergency" | "faqs" | "checkout", snap: string) =>
+    (v: unknown) => {
+      suppressHydrationAutosaveRef.current = true;
+      savedSectionsRef.current = { ...(savedSectionsRef.current ?? {}), [snap]: JSON.stringify(v) };
+      setForm((f) => ({ ...f, [key]: v }) as FormState);
+    };
+  useLiveState(presence, "p", form.property, applyRemote("property", "p"), { enabled: liveEnabled });
+  useLiveState(presence, "m", form.manual, applyRemote("manual", "m"), { enabled: liveEnabled });
+  useLiveState(presence, "e", form.emergency, applyRemote("emergency", "e"), { enabled: liveEnabled });
+  useLiveState(presence, "f", form.faqs, applyRemote("faqs", "f"), { enabled: liveEnabled });
+  useLiveState(presence, "c", form.checkout, applyRemote("checkout", "c"), { enabled: liveEnabled });
+  const nearbyLive = React.useMemo(
+    () => form.recommendations.filter((r) => r.scope === "nearby"),
+    [form.recommendations],
+  );
+  useLiveState(
+    presence,
+    "r",
+    nearbyLive,
+    (v) => {
+      lastSavedRecsRef.current = JSON.stringify(v);
+      setForm((f) => ({
+        ...f,
+        recommendations: [...f.recommendations.filter((r) => r.scope !== "nearby"), ...v],
+      }));
+    },
+    { enabled: liveEnabled },
+  );
+
   // ---- Autosave global do editor ----
   // Qualquer campo, chave ou botão do "Editar guia" grava sozinho ~1,2s depois
   // da última alteração — sem depender do botão "Salvar" (que foi removido).
@@ -1638,7 +1684,7 @@ function PropertyEditor() {
         snapshot: formRef.current,
         editVersion: editVersionRef.current,
       });
-    }, 350);
+    }, 900);
     return () => {
       if (globalTimerRef.current) clearTimeout(globalTimerRef.current);
     };
@@ -6018,4 +6064,15 @@ function CaptureRow({
       {children && <div className="px-3.5 pb-3.5">{children}</div>}
     </div>
   );
+}
+
+/** Conteúdo serializado de cada seção do editor — base da gravação cirúrgica. */
+function sectionSnapshots(f: FormState): Record<string, string> {
+  return {
+    p: JSON.stringify(f.property),
+    m: JSON.stringify(f.manual),
+    e: JSON.stringify(f.emergency),
+    f: JSON.stringify(f.faqs),
+    c: JSON.stringify(f.checkout),
+  };
 }
