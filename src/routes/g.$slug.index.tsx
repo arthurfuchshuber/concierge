@@ -2546,7 +2546,7 @@ function Guide({ data }: { data: GuideOk }) {
           />
         );
       })()}
-      {!needsGate && data.aiEnabled ? (
+      {!needsGate && data.aiEnabled && !isDemoGuide ? (
         <GuideAiChat
           slug={slug}
           propertyName={heroParts.title}
