@@ -94,8 +94,15 @@ async function aplicarReserva(supabaseAdmin: SupabaseAdmin, payload: unknown) {
   if (!codigo) throw new Error("Reserva sem código identificador.");
 
   const room = booking.rooms?.[0] ?? {};
-  const roomTypeId = room.room_type_id ?? null;
-  const ratePlanId = room.rate_plan_id ?? null;
+  /* IDENTIFICADORES DO CANAL SÓ VALEM SE FOREM UUID (23/09/2026).
+     O quarto/tarifa vinham do corpo do webhook e eram concatenados num filtro
+     de busca. Um valor com vírgula ou ponto mudava o filtro e podia amarrar a
+     reserva ao imóvel errado — de outro anfitrião, inclusive. */
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const somenteUuid = (v: unknown): string | null =>
+    typeof v === "string" && UUID.test(v.trim()) ? v.trim() : null;
+  const roomTypeId = somenteUuid(room.room_type_id);
+  const ratePlanId = somenteUuid(room.rate_plan_id);
 
   // Vincula ao imóvel pelo UUID do quarto ou da tarifa criados na sincronização.
   let propriedadeId: string | null = null;
@@ -115,6 +122,7 @@ async function aplicarReserva(supabaseAdmin: SupabaseAdmin, payload: unknown) {
       .maybeSingle();
     propriedadeId = prop?.id ?? null;
   }
+
 
   const nome = [booking.customer?.name, booking.customer?.surname].filter(Boolean).join(" ").trim();
   const valor = booking.amount != null ? Number(booking.amount) : null;
