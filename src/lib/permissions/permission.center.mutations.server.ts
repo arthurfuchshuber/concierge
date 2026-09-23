@@ -166,7 +166,12 @@ export async function updateCenterUserRole(
 ): Promise<MutationResult> {
   const ctx = await assertCenterWrite(actorId);
   if (input.targetUserId === ctx.tenantId) throw new Error("O papel do titular da conta não pode ser alterado.");
+  // Promover alguém a titular só o titular faz (mesma regra do convite).
+  if (input.role === "owner" && ctx.actorId !== ctx.tenantId) {
+    throw new Error("Somente o titular da conta pode conceder o papel de titular.");
+  }
   const previousRole = await assertSameTenant(ctx.tenantId, input.targetUserId);
+
 
   const client = await db();
   const { error } = await client
