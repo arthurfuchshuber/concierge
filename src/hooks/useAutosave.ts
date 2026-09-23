@@ -24,6 +24,9 @@ export function useAutosave<T>(
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const valueRef = useRef(value);
   const firstRunRef = useRef(true);
+  // Valor recebido de outra pessoa em tempo real: já foi gravado por ela,
+  // então não regravamos.
+  const skipRef = useRef<string | null>(null);
   const serialized = JSON.stringify(value);
 
   // onSave muda de identidade a cada render (fecha sobre props/estado que
@@ -45,6 +48,10 @@ export function useAutosave<T>(
     if (!enabled) return;
     if (firstRunRef.current) {
       firstRunRef.current = false;
+      return;
+    }
+    if (skipRef.current === serialized) {
+      skipRef.current = null;
       return;
     }
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -86,5 +93,10 @@ export function useAutosave<T>(
     }
   }
 
-  return { status, lastError, flush };
+  /** Marca um valor como já salvo (vindo de outra pessoa) — não dispara gravação. */
+  function markRemote(v: T) {
+    skipRef.current = JSON.stringify(v);
+  }
+
+  return { status, lastError, flush, markRemote };
 }

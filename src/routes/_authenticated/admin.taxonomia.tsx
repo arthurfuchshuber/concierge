@@ -38,7 +38,7 @@ import {
 import { ArrowLeft, ChevronDown, Lock, Pencil, Plus, Trash2, Loader2 } from "lucide-react";
 import { PageHeader, ActionBar } from "@/components/ds/PageHeader";
 import { toast } from "sonner";
-import { usePresence } from "@/hooks/usePresence";
+import { usePresence, useLiveState } from "@/hooks/usePresence";
 import { PresenceAvatars } from "@/components/presence/PresenceAvatars";
 import { FieldTypingBadge } from "@/components/presence/FieldTypingBadge";
 
@@ -316,6 +316,7 @@ function EditCategoryDialog({ cat, onClose, onSave, onDelete }: {
   const [label, setLabel] = useState(cat.label);
   const [saving, setSaving] = useState(false);
   const presence = usePresence(`poi-category:${cat.id}`);
+  useLiveState(presence, "form", { label }, (v) => setLabel(v.label));
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-sm">
@@ -372,6 +373,19 @@ function EditTagDialog({ tag, categories, onClose, onSave, onDelete }: {
   const [minR, setMinR] = useState(tag.min_reviews);
   const [saving, setSaving] = useState(false);
   const presence = usePresence(`poi-tag:${tag.id}`);
+  useLiveState(
+    presence,
+    "form",
+    { label, catId, primary, places, variants, minR },
+    (v) => {
+      setLabel(v.label);
+      setCatId(v.catId);
+      setPrimary(v.primary);
+      setPlaces(v.places);
+      setVariants(v.variants);
+      setMinR(v.minR);
+    },
+  );
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-md">

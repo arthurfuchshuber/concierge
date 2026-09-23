@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { AutosaveIndicator } from "@/components/ui/autosave-indicator";
 import { useAutosave } from "@/hooks/useAutosave";
 import { AudioRecorderButton } from "@/components/handoff/AudioRecorderButton";
-import { usePresence } from "@/hooks/usePresence";
+import { usePresence, useLiveState } from "@/hooks/usePresence";
 import { FieldTypingBadge } from "@/components/presence/FieldTypingBadge";
 import {
   listPropertyDetails,
@@ -140,6 +140,18 @@ export function PropertyDetailsEditor({
   // atualiza o cache local na hora e NUNCA refaz a busca no servidor — refetch
   // a cada save era o que deixava a tela lenta.
   const legacyCleanedRef = useRef(false);
+  // Sincronização instantânea com quem está na mesma tela (estilo Miro).
+  useLiveState(
+    presence,
+    `property-details:${propertyId}`,
+    { text, images },
+    (v) => {
+      autosave.markRemote(v);
+      setText(v.text);
+      setImages(v.images);
+    },
+    { enabled: loaded },
+  );
   const autosave = useAutosave(
     { text, images },
     async (value) => {

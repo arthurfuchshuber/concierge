@@ -39,7 +39,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Section, SectionGroup, DenseSections } from "@/components/editor/Section";
 import { MaskedInput, stripMask } from "@/components/inputs/MaskedInput";
-import { usePresence } from "@/hooks/usePresence";
+import { usePresence, useLiveState } from "@/hooks/usePresence";
 import { PresenceAvatars } from "@/components/presence/PresenceAvatars";
 import { FieldTypingBadge } from "@/components/presence/FieldTypingBadge";
 import { getStakeholderAccess, createStakeholderProvisionalAccess } from "@/lib/stakeholder-access.functions";
@@ -248,6 +248,8 @@ export function StakeholderFormDialog({
   // Presença em tempo real: só existe sala pra registros já salvos (com id) —
   // um cadastro novo, ainda sem id, não tem o que outra pessoa acompanhar.
   const presence = usePresence(form.id ? `stakeholder:${form.id}` : null);
+  // Sincronização instantânea do cadastro inteiro com quem está na mesma ficha.
+  useLiveState(presence, "form", form, (v) => setForm(v), { enabled: !!form.id });
 
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim());
