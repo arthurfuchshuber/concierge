@@ -154,6 +154,15 @@ async function runAnalytics(
   if (filteredIds.length === 0) return emptyPayload(properties);
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { rows } = await import("@/lib/engagement-query.server");
+
+  // Conversas do período + ids de conversa do imóvel (para buscar mensagens
+  // por conversation_id, que é indexado — o join embutido por property_id
+  // varria a tabela inteira e estourava o tempo do banco).
+  const convIdsQ = await supabase.from("property_chat_conversations")
+    .select("id").in("property_id", filteredIds).limit(20000);
+  const convIds = rows("conversation-ids", convIdsQ).map((c) => (c as { id: string }).id);
+
   const [logsQ, prevLogsQ, convsQ, msgsQ, feedbackQ, sectionsQ, poiQ, recsQ] = await Promise.all([
     supabase.from("guide_access_logs")
       .select("id, property_id, guest_name, user_agent, created_at")
@@ -166,13 +175,15 @@ async function runAnalytics(
     supabase.from("property_chat_conversations")
       .select("id, property_id, guest_session_id, created_at, last_message_at")
       .in("property_id", filteredIds).gte("created_at", since.toISOString()).limit(10000),
-    supabase.from("property_chat_messages")
-      .select("id, conversation_id, role, created_at, property_chat_conversations!inner(property_id)")
-      .in("property_chat_conversations.property_id", filteredIds)
-      .gte("created_at", since.toISOString()).limit(20000),
+    convIds.length === 0
+      ? Promise.resolve({ data: [] as Array<{ id: string; conversation_id: string; role: string; created_at: string }>, error: null })
+      : supabase.from("property_chat_messages")
+          .select("id, conversation_id, role, created_at")
+          .in("conversation_id", convIds)
+          .gte("created_at", since.toISOString()).limit(20000),
     supabase.from("chat_message_feedback")
       .select("message_id, conversation_id, property_id, reason, resolved, created_at")
-      .in("property_id", filteredIds).gte("created_at", since.toISOString()),
+      .in("property_id", filteredIds).gte("created_at", since.toISOString()).limit(5000),
     (supabaseAdmin.from("guide_section_events" as never) as ReturnType<typeof supabaseAdmin.from>)
       .select("property_id, section, guest_session_id, created_at")
       .in("property_id", filteredIds).gte("created_at", since.toISOString())
@@ -183,14 +194,14 @@ async function runAnalytics(
     supabase.from("property_recommendations")
       .select("id, property_id, place_id, name").in("property_id", filteredIds).limit(5000),
   ]);
-  const logs = logsQ.data ?? [];
-  const prevLogs = prevLogsQ.data ?? [];
-  const convs = convsQ.data ?? [];
-  const msgs = msgsQ.data ?? [];
-  const feedback = feedbackQ.data ?? [];
-  const sectionsRaw = sectionsQ.data ?? [];
-  const poiEvents = poiQ.data ?? [];
-  const recs = recsQ.data ?? [];
+  const logs = rows("logs", logsQ);
+  const prevLogs = rows("prev-logs", prevLogsQ);
+  const convs = rows("conversations", convsQ);
+  const msgs = rows("messages", msgsQ);
+  const feedback = rows("feedback", feedbackQ);
+  const sectionsRaw = rows("section-events", sectionsQ) as SectionEvt[];
+  const poiEvents = rows("poi-events", poiQ);
+  const recs = rows("recommendations", recsQ);
 
   const logsF = input.device === "all" ? logs : logs.filter((l) => detectDevice(l.user_agent) === input.device);
 
