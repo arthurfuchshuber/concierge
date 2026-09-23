@@ -5009,9 +5009,16 @@ function CleaningChartFrame({
         dotColor={tone}
         className="mb-2.5"
         right={
-          hasHiddenDays ? (
-            <span className="text-[10px] text-muted-foreground">role para o lado</span>
-          ) : null
+          /* O texto fica sempre montado (mesmo escondido) para reservar a
+             mesma altura no cabeçalho — sem isso o quadrante encolhia um
+             pouco quando o aviso sumia (pedido explícito, 23/09/2026). */
+          <span
+            className="text-[10px] text-muted-foreground"
+            style={hasHiddenDays ? undefined : { visibility: "hidden" }}
+            aria-hidden={hasHiddenDays ? undefined : true}
+          >
+            role para o lado
+          </span>
         }
       />
       {loading || !data || days === 0 ? (
