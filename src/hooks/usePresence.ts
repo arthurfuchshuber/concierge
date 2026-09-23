@@ -16,6 +16,15 @@ export type FieldTyping = {
   at: number;
 };
 
+export type RemoteEvent = {
+  kind: "typing" | "state";
+  fieldId: string;
+  value: unknown;
+  userId: string;
+};
+
+export type Presence = ReturnType<typeof usePresence>;
+
 const PALETTE = ["#e82dae", "#7c1ad8", "#1D9E75", "#378ADD", "#EF9F27", "#E24B4A"];
 
 function colorForUser(userId: string): string {
@@ -51,6 +60,8 @@ export function usePresence(roomKey: string | null) {
   const [users, setUsers] = useState<PresenceUser[]>([]);
   const [typing, setTyping] = useState<Record<string, FieldTyping>>({});
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const listenersRef = useRef(new Set<(ev: RemoteEvent) => void>());
+  const stateTimersRef = useRef(new Map<string, { timer: ReturnType<typeof setTimeout> | null; value: unknown }>());
 
   useEffect(() => {
     let cancelled = false;
@@ -92,6 +103,12 @@ export function usePresence(roomKey: string | null) {
         const p = payload as FieldTyping;
         if (p.userId === me.userId) return;
         setTyping((prev) => ({ ...prev, [p.fieldId]: p }));
+        for (const l of listenersRef.current) l({ kind: "typing", fieldId: p.fieldId, value: p.value, userId: p.userId });
+      })
+      .on("broadcast", { event: "state" }, ({ payload }) => {
+        const p = payload as { scope: string; value: unknown; userId: string };
+        if (p.userId === me.userId) return;
+        for (const l of listenersRef.current) l({ kind: "state", fieldId: p.scope, value: p.value, userId: p.userId });
       })
       .on("broadcast", { event: "field-blur" }, ({ payload }) => {
         const p = payload as { fieldId: string; userId: string };
@@ -166,5 +183,100 @@ export function usePresence(roomKey: string | null) {
     [me],
   );
 
-  return { me, users, typing, broadcastTyping, broadcastFieldBlur };
+  /**
+   * Transmite o estado de uma seção inteira (ex.: lista de FAQs) para quem
+   * está na mesma tela — chega na hora, antes mesmo de gravar no banco.
+   * Agrupa rajadas de digitação em no máximo 1 envio a cada ~80ms.
+   */
+  const broadcastState = useCallback(
+    (scope: string, value: unknown) => {
+      if (!me) return;
+      const map = stateTimersRef.current;
+      const entry = map.get(scope) ?? { timer: null, value };
+      entry.value = value;
+      map.set(scope, entry);
+      if (entry.timer) return;
+      entry.timer = setTimeout(() => {
+        entry.timer = null;
+        channelRef.current?.send({
+          type: "broadcast",
+          event: "state",
+          payload: { scope, value: entry.value, userId: me.userId },
+        });
+      }, 80);
+    },
+    [me],
+  );
+
+  const subscribe = useCallback((cb: (ev: RemoteEvent) => void) => {
+    listenersRef.current.add(cb);
+    return () => {
+      listenersRef.current.delete(cb);
+    };
+  }, []);
+
+  return { me, users, typing, broadcastTyping, broadcastFieldBlur, broadcastState, subscribe };
+}
+
+/**
+ * Aplica na hora, no campo local, o que outra pessoa está digitando no mesmo
+ * campo (via broadcastTyping já existente) — estilo Miro. O salvamento no
+ * banco continua sendo feito por quem digitou; quem recebe só exibe.
+ */
+export function useLiveField(
+  presence: Pick<Presence, "subscribe"> | null | undefined,
+  fieldId: string,
+  apply: (value: string) => void,
+) {
+  const applyRef = useRef(apply);
+  applyRef.current = apply;
+  useEffect(() => {
+    if (!presence) return;
+    return presence.subscribe((ev) => {
+      if (ev.kind === "typing" && ev.fieldId === fieldId && typeof ev.value === "string") applyRef.current(ev.value);
+    });
+  }, [presence?.subscribe, fieldId]);
+}
+
+/**
+ * Sincroniza um pedaço de estado (objeto/lista) entre todos com a tela aberta:
+ * alterações locais são transmitidas na hora; alterações remotas são
+ * aplicadas localmente sem serem re-transmitidas (evita eco).
+ * `onRemote` é chamado com o valor recebido — use-o para aplicar no estado e
+ * marcar que esse valor já está salvo por quem o enviou.
+ */
+export function useLiveState<T>(
+  presence: Pick<Presence, "subscribe" | "broadcastState"> | null | undefined,
+  scope: string,
+  value: T,
+  onRemote: (value: T) => void,
+  options?: { enabled?: boolean },
+) {
+  const enabled = options?.enabled ?? true;
+  const serialized = JSON.stringify(value);
+  const lastRef = useRef<string | null>(null);
+  const onRemoteRef = useRef(onRemote);
+  onRemoteRef.current = onRemote;
+
+  useEffect(() => {
+    if (!presence || !enabled) return;
+    return presence.subscribe((ev) => {
+      if (ev.kind !== "state" || ev.fieldId !== scope) return;
+      lastRef.current = JSON.stringify(ev.value);
+      onRemoteRef.current(ev.value as T);
+    });
+  }, [presence?.subscribe, scope, enabled]);
+
+  useEffect(() => {
+    if (!presence || !enabled) return;
+    if (lastRef.current === null) {
+      // primeira renderização: só registra, não transmite dados recém-carregados
+      lastRef.current = serialized;
+      return;
+    }
+    if (lastRef.current === serialized) return;
+    lastRef.current = serialized;
+    presence.broadcastState(scope, value);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serialized, enabled, scope]);
 }
