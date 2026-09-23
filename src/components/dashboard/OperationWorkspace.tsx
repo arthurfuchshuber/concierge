@@ -7052,7 +7052,7 @@ function OccupancyPanel({
   const viewportW = nameColW + visibleDays * dayW;
 
   useEffect(() => {
-    const el = outerRef.current;
+    const el = outerEl;
     if (!el) return;
     const update = () => {
       const w = el.clientWidth;
