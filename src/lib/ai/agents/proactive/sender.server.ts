@@ -213,7 +213,20 @@ export type SendProactiveResult = {
   /** Quantas ficaram para a próxima varredura (madrugada, conversa recente). */
   adiadas: number;
   porCanal: { guia: number; whatsapp: number };
+  /** Presente apenas quando a voz ativa está desligada por configuração. */
+  disabled?: boolean;
 };
+
+/**
+ * PAUSA DA VOZ ATIVA (23/09/2026 — pedido do cliente: economia de créditos).
+ *
+ * Hoje os hóspedes não têm push habilitado, então a mensagem proativa custava
+ * uma chamada de IA (agente + validação) sem chegar de fato a ninguém. Nada
+ * foi removido: o motor continua varrendo, gravando e aprovando as ações em
+ * `ai_proactive_actions` — apenas o ÚLTIMO passo (gerar o texto com IA e
+ * enviar) fica fechado. Para religar, basta trocar para `true`.
+ */
+export const PROACTIVE_SENDING_ENABLED = false;
 
 /** Processa o lote de ações de baixa autonomia já aprovadas e ainda não executadas. */
 export async function sendApprovedProactiveActions(params: {
@@ -229,6 +242,11 @@ export async function sendApprovedProactiveActions(params: {
     adiadas: 0,
     porCanal: { guia: 0, whatsapp: 0 },
   };
+
+  // Voz ativa pausada: as ações continuam aprovadas na fila, intactas, e
+  // voltam a ser processadas assim que a trava for religada.
+  if (!PROACTIVE_SENDING_ENABLED) return { ...result, disabled: true };
+
 
   const { data: actions, error } = await supabase
     .from("ai_proactive_actions")
