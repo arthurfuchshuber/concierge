@@ -100,6 +100,12 @@ export const translateMessage = createServerFn({ method: "POST" })
       if (!guest || !(await isKnownGuest(guest))) {
         throw new Error("Tradução indisponível para esta sessão.");
       }
+      // Teto do dia também por origem da chamada: sem isto, alguém que copie
+      // uma sessão válida do guia usaria a tradução paga o dia inteiro.
+      const { allowDailyBudget } = await import("@/lib/public-rate-limit.server");
+      if (!allowDailyBudget(`translate:day:${ip}`, 400)) {
+        throw new Error("Limite de traduções do dia atingido.");
+      }
       if (
         !allowPaidGuestUse({
           scope: "translate",
@@ -113,6 +119,7 @@ export const translateMessage = createServerFn({ method: "POST" })
         throw new Error("Limite de traduções do dia atingido.");
       }
     }
+
 
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("Tradução indisponível no momento.");

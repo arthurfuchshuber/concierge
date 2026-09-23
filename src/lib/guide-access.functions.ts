@@ -270,32 +270,18 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
       }
     }
 
+    /* REGISTRO OPERACIONAL SEM DADO PESSOAL (23/09/2026).
+       Este trecho só escrevia uma linha de diagnóstico, mas levava junto o
+       nome do hóspede e o e-mail do anfitrião — dados que ficavam guardados
+       fora da sessão, num log que qualquer pessoa da operação lê. Agora
+       registra apenas o imóvel acessado; quem precisa do detalhe consulta o
+       histórico de acessos do próprio guia, que é protegido. */
     try {
-      const { data: fullProp } = await supabaseAdmin
-        .from("properties")
-        .select("owner_id, name, slug")
-        .eq("id", prop.id)
-        .maybeSingle();
-      if (fullProp?.owner_id) {
-        const { data: ownerData } = await supabaseAdmin.auth.admin.getUserById(fullProp.owner_id);
-        const ownerEmail = ownerData?.user?.email;
-        if (ownerEmail) {
-          const guestLabel = data.guest_name;
-          const checkinLabel = data.checkin_date
-            ? new Date(data.checkin_date + "T12:00:00").toLocaleDateString("pt-BR", {
-                day: "2-digit",
-                month: "short",
-              })
-            : "data não informada";
-          const linkDoGuia = guideUrl(fullProp.slug);
-          console.info(
-            `[guide-access] Guest "${guestLabel}" (check-in ${checkinLabel}) accessed guide "${fullProp.name}". Notify: ${ownerEmail} — ${linkDoGuia}`,
-          );
-        }
-      }
+      console.info(`[guide-access] acesso registrado no imóvel ${prop.id}`);
     } catch {
-      // Notification failure never blocks guest access
+      // Falha de log nunca bloqueia o acesso do hóspede
     }
+
 
     return {
       ok: true as const,

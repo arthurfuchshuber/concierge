@@ -454,7 +454,9 @@ export const Route = createFileRoute("/api/public/guide-chat")({
         // Rate limit checks
         // IP pelo helper comum: prioriza `cf-connecting-ip`. O primeiro item do
         // `x-forwarded-for` é escolhido pelo próprio cliente e anulava o limite.
-        const { clientIpFrom } = await import("@/lib/public-rate-limit.server");
+        const { clientIpFrom, allowPaidGuestUse, allowDailyBudget } = await import(
+          "@/lib/public-rate-limit.server"
+        );
         const clientIp = clientIpFrom(request);
         const rl = checkRateLimit(body.sessionId, clientIp, body.slug);
         if (!rl.ok) {
@@ -463,6 +465,32 @@ export const Route = createFileRoute("/api/public/guide-chat")({
             { status: 429, headers: { "Content-Type": "application/json" } },
           );
         }
+
+        /* TETO DE CUSTO DO DIA (23/09/2026).
+           O chat do hóspede é aberto por natureza (ninguém faz login para ler
+           o guia) e cada resposta custa crédito de IA. O limite por minuto
+           segura rajada; este teto impede que uma única pessoa, um único
+           imóvel ou um dia ruim consumam o crédito do mês. */
+        if (
+          !allowDailyBudget(`guide-chat:ip:${clientIp}`, 200) ||
+          !allowPaidGuestUse({
+            scope: "guide-chat",
+            propertyId: body.slug,
+            sessionId: body.sessionId,
+            perSession: 120,
+            perProperty: 600,
+            global: 4000,
+          })
+        ) {
+          return new Response(
+            JSON.stringify({
+              error:
+                "O atendimento automático atingiu o limite de mensagens de hoje. Fale com o anfitrião.",
+            }),
+            { status: 429, headers: { "Content-Type": "application/json" } },
+          );
+        }
+
 
         if (!body.stream) return runGuideChat(body, () => {});
 

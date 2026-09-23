@@ -87,6 +87,14 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
     const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data?.accountOwnerId ?? null);
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
     await enforce(userId, "equipe.write", { });
+    /* SÓ O TITULAR CRIA OUTRO TITULAR (23/09/2026).
+       Quem administra a equipe podia convidar alguém já como "titular" e, com
+       isso, entregar o controle da conta inteira. O papel de titular agora só
+       pode ser dado por quem é o titular da conta. */
+    if (data.role === "owner" && userId !== ownerId) {
+      throw new Error("Somente o titular da conta pode conceder o papel de titular.");
+    }
+
     // Check plan limit
     const { resolveUserPlan } = await import("@/lib/plan-guard.server");
     const plan = await resolveUserPlan(supabase, ownerId);
@@ -346,6 +354,11 @@ export const updateTeamMemberRole = createServerFn({ method: "POST" })
     const ownerId = await resolveAuthorizedAccountOwnerId(supabase, userId, data?.accountOwnerId ?? null);
     const { enforce } = await import("@/lib/permissions/permission.enforce.server");
     await enforce(userId, "equipe.write", { });
+    // Mesma regra do convite: promover alguém a titular só o titular faz.
+    if (data.role === "owner" && userId !== ownerId) {
+      throw new Error("Somente o titular da conta pode conceder o papel de titular.");
+    }
+
     const { error } = await supabase
       .from("account_members")
       .update({ role: data.role })
