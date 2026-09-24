@@ -9501,48 +9501,6 @@ function ArrivalCard({
               para "Em Estadia" (23/09/2026); agora vale para toda lista —
               Checkouts, Check-ins, Limpeza — não só quando o card está aberto. */}
           {periodoBlock}
-
-          {!listBare && !compact && (
-            <>
-              {/* Nome e código na MESMA linha, código sempre no canto
-                  direito (pedido explícito, 24/09/2026 — de volta à versão de
-                  23/09/2026, depois de ver a empilhada ao vivo: "coloque
-                  novamente o codigo de reserva ao canto direito do nome do
-                  hospede"). */}
-              <div className="flex items-center gap-2 text-[11.5px]">
-                {isPendingFill ? (
-                  <span className={`inline-flex min-w-0 flex-1 items-center gap-1 ${CARD_PENDING_GUEST}`}>
-                    <UserPlus className="size-3 shrink-0" />
-                    {/* SEM quebra em 2 linhas — regra do card é a linha
-                        inteira com reticências quando falta espaço (mesma
-                        regra do nome do hóspede logo abaixo), corrigido
-                        24/09/2026: "Hóspede pendente" quebrava em duas linhas
-                        e empurrava o código pra fora do canto direito. */}
-                    <span className="min-w-0 truncate">Hóspede pendente</span>
-                  </span>
-                ) : row.guestName && row.guestName !== row.reservationCode ? (
-                  <span className={`inline-flex min-w-0 flex-1 items-center gap-1.5 ${CARD_MUTED}`}>
-                    {/* Pedido explícito: nome do hóspede SEMPRE em maiúsculo. */}
-                    <span className="min-w-0 truncate uppercase">{row.guestName}</span>
-                    <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
-                    <ExtraGuests guests={row.additionalGuests ?? []} />
-                  </span>
-                ) : (
-                  <span className="flex-1" />
-                )}
-                {row.reservationCode && (
-                  <button
-                    type="button"
-                    onClick={(e) => copyReservationCode(e, row.reservationCode as string)}
-                    title="Copiar código da reserva"
-                    className={`shrink-0 max-w-[45%] truncate rounded-[6px] border border-border/50 bg-foreground/[0.04] px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-wide transition-colors hover:border-foreground/20 hover:bg-foreground/[0.07] hover:text-foreground ${CARD_MUTED}`}
-                  >
-                    {row.reservationCode}
-                  </button>
-                )}
-              </div>
-            </>
-          )}
         </div>
 
         {/* A COLUNA DA PREVISÃO — rótulo, horário, dia. Largura fixa de 78px
@@ -9610,6 +9568,56 @@ function ArrivalCard({
           />
         )}
       </div>
+      {/* LINHA DO HÓSPEDE + CÓDIGO NA LARGURA INTEIRA DO CARD (corrigido
+          24/09/2026, com o print marcado: "o código de reserva não está
+          alinhado à direita"). Ela morava DENTRO da coluna da esquerda, que
+          divide a largura com a coluna de 78px da previsão ("SEM PREVISÃO"),
+          então o "canto direito" dela parava 78px antes da borda do card — o
+          código nunca chegava ao canto de verdade e o nome do hóspede era
+          cortado cedo. Agora fica fora dessa coluna: o código encosta na
+          mesma margem direita da previsão e dos botões. `-mt-1` mantém o
+          mesmo respiro de 4px das outras linhas (o card usa gap-2). */}
+      {!listBare && !compact && (
+        <>
+          {/* Nome e código na MESMA linha, código sempre no canto
+              direito (pedido explícito, 24/09/2026 — de volta à versão de
+              23/09/2026, depois de ver a empilhada ao vivo: "coloque
+              novamente o codigo de reserva ao canto direito do nome do
+              hospede"). */}
+          <div className="-mt-1 flex items-center gap-2 text-[11.5px]">
+            {isPendingFill ? (
+              <span className={`inline-flex min-w-0 flex-1 items-center gap-1 ${CARD_PENDING_GUEST}`}>
+                <UserPlus className="size-3 shrink-0" />
+                {/* SEM quebra em 2 linhas — regra do card é a linha
+                    inteira com reticências quando falta espaço (mesma
+                    regra do nome do hóspede logo abaixo), corrigido
+                    24/09/2026: "Hóspede pendente" quebrava em duas linhas
+                    e empurrava o código pra fora do canto direito. */}
+                <span className="min-w-0 truncate">Hóspede pendente</span>
+              </span>
+            ) : row.guestName && row.guestName !== row.reservationCode ? (
+              <span className={`inline-flex min-w-0 flex-1 items-center gap-1.5 ${CARD_MUTED}`}>
+                {/* Pedido explícito: nome do hóspede SEMPRE em maiúsculo. */}
+                <span className="min-w-0 truncate uppercase">{row.guestName}</span>
+                <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
+                <ExtraGuests guests={row.additionalGuests ?? []} />
+              </span>
+            ) : (
+              <span className="flex-1" />
+            )}
+            {row.reservationCode && (
+              <button
+                type="button"
+                onClick={(e) => copyReservationCode(e, row.reservationCode as string)}
+                title="Copiar código da reserva"
+                className={`shrink-0 max-w-[45%] truncate rounded-[6px] border border-border/50 bg-foreground/[0.04] px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-wide transition-colors hover:border-foreground/20 hover:bg-foreground/[0.07] hover:text-foreground ${CARD_MUTED}`}
+              >
+                {row.reservationCode}
+              </button>
+            )}
+          </div>
+        </>
+      )}
 
       {/* A JANELA PERMITIDA do imóvel, nomeada (pedido explícito): antes o
           horário padrão aparecia sem rótulo nenhum e ninguém sabia o que
