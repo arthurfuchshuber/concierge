@@ -804,7 +804,10 @@ export const saveGuideAsSigmaPack = createServerFn({ method: "POST" })
       supabaseAdmin
         .from("city_references")
         .select("type, name, category, rating, user_ratings_total, note, image_url, maps_url, place_id, address, lat, lng, opening_hours")
-        .eq("property_id", data.property_id),
+        .eq("property_id", data.property_id)
+        // Pontos excluídos pelo anfitrião ficam guardados como ocultos (para
+        // nunca voltarem numa nova geração) — não entram no pacote.
+        .eq("is_hidden", false),
       supabaseAdmin
         .from("property_faqs")
         .select("question, answer, tags, position")

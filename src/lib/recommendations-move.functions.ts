@@ -140,14 +140,30 @@ export const addPlaceAuto = createServerFn({ method: "POST" })
     const key = cityKey(prop.city ?? "");
     if (!groupId && !key) throw new Error("Defina a cidade do imóvel antes.");
 
-    // duplicado por (group_id|city_key) + place_id
+    // Duplicado no ESCOPO DESTE GUIA (grupo, ou o próprio imóvel) + place_id.
+    // Antes a conferência era por cidade (city_key) e a linha nova nascia sem
+    // property_id: virava uma referência "da cidade", sem dono, que o guia
+    // nem mostrava — e a conferência enxergava linhas de outros clientes da
+    // mesma cidade (isolamento por conta, 24/09/2026).
     let dupQ = supabaseAdmin
       .from("city_references")
-      .select("id")
+      .select("id, is_hidden")
       .eq("place_id", p.id);
-    dupQ = groupId ? dupQ.eq("group_id", groupId) : dupQ.eq("city_key", key).is("group_id", null);
-    const { data: dup } = await dupQ.maybeSingle();
-    if (dup) return { ok: true, scope: "city" as const, id: dup.id, duplicate: true };
+    dupQ = groupId
+      ? dupQ.eq("group_id", groupId)
+      : dupQ.eq("property_id", data.propertyId).is("group_id", null);
+    const { data: dup } = await dupQ.limit(1).maybeSingle();
+    if (dup) {
+      // Adicionar na mão um lugar que tinha sido excluído o traz de volta —
+      // a única forma de um excluído voltar (regra de 24/09/2026).
+      if ((dup as { is_hidden?: boolean }).is_hidden) {
+        await supabaseAdmin
+          .from("city_references")
+          .update({ is_hidden: false, excluded_at: null } as never)
+          .eq("id", dup.id);
+      }
+      return { ok: true, scope: "city" as const, id: dup.id, duplicate: true };
+    }
 
     const { data: row, error } = await supabaseAdmin
       .from("city_references")
@@ -155,6 +171,7 @@ export const addPlaceAuto = createServerFn({ method: "POST" })
         city_key: key,
         city_label: prop.city ?? "",
         group_id: groupId,
+        property_id: groupId ? null : data.propertyId,
         type: matchedTag.slug,
         category: matchedTag.category_label,
         place_id: p.id,
@@ -265,10 +282,13 @@ export const moveRecommendations = createServerFn({ method: "POST" })
     const key = cityKey(prop.city ?? "");
     if (!groupId && !key) throw new Error("Defina a cidade do imóvel antes.");
 
+    // Só linhas DESTE guia (grupo ou o próprio imóvel). Filtrar por cidade
+    // deixava copiar pontos da lista de outro cliente da mesma cidade
+    // (isolamento por conta, 24/09/2026).
     let srcQ = supabaseAdmin.from("city_references").select("*").in("id", data.ids);
     srcQ = groupId
       ? srcQ.eq("group_id", groupId)
-      : srcQ.eq("city_key", key).is("group_id", null);
+      : srcQ.eq("property_id", data.propertyId).is("group_id", null);
     const { data: rows, error } = await srcQ;
     if (error) throw new Error(error.message);
     if (!rows || rows.length === 0) return { ok: true, moved: 0 };
@@ -323,6 +343,6 @@ export const moveRecommendations = createServerFn({ method: "POST" })
     );
 
     await supabaseAdmin.from("property_recommendations").insert(inserts as never);
-    // Não deletamos do city_references — outros guias da cidade ainda usam a lista compartilhada.
+    // A linha de "Pela cidade" continua lá (o guia pode querer o ponto nos dois quadrantes).
     return { ok: true, moved: rows.length };
   });

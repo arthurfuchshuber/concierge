@@ -73,16 +73,19 @@ export const listLinkableProperties = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({ propertyId: z.string().uuid() }).parse(i))
   .handler(async ({ data, context }) => {
-    const { prop, isAdmin } = await getMembershipForProperty(context, data.propertyId);
+    const { prop } = await getMembershipForProperty(context, data.propertyId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const key = cityKey(prop.city ?? "");
-    let q = supabaseAdmin
+    // SÓ GUIAS DA MESMA CONTA (tenant) — inclusive para admin (regra
+    // explícita, 24/09/2026: "NUNCA, JAMAIS, algum imóvel, guia ou tenant
+    // deve puxar de outros"). Antes, um admin via e vinculava guias de
+    // QUALQUER cliente da mesma cidade num grupo só.
+    const { data: all } = await supabaseAdmin
       .from("properties")
       .select("id, name, slug, city, owner_id")
       .neq("id", data.propertyId)
+      .eq("owner_id", prop.owner_id)
       .order("name", { ascending: true });
-    if (!isAdmin) q = q.eq("owner_id", context.userId);
-    const { data: all } = await q;
 
     // Filtra por mesma cidade e remove os que já estão em qualquer grupo
     const sameCity = (all ?? []).filter((p) => cityKey(p.city ?? "") === key);
@@ -175,12 +178,13 @@ export const linkPropertiesToGroup = createServerFn({ method: "POST" })
     // Adiciona os demais (filhos): RESET das refs individuais antes de
     // entrarem no grupo. Eles passam a ler exclusivamente do grupo (PAI).
     if (data.addPropertyIds.length > 0) {
-      const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
       const { data: rows } = await supabaseAdmin
         .from("properties")
         .select("id, owner_id, city")
         .in("id", data.addPropertyIds);
-      const allowed = (rows ?? []).filter((r) => (isAdmin || r.owner_id === context.userId) && cityKey(r.city ?? "") === key);
+      // Só imóveis da MESMA conta do guia âncora — admin também não junta
+      // guias de clientes diferentes (regra de isolamento, 24/09/2026).
+      const allowed = (rows ?? []).filter((r) => r.owner_id === prop.owner_id && cityKey(r.city ?? "") === key);
       if (allowed.length === 0) return { ok: true, group_id: groupId, added: 0 };
 
       for (const r of allowed) {

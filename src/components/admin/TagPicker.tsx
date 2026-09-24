@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/select";
 import { Trash2, Plus, Lock, ChevronDown, ChevronRight, Loader2, MoveRight, CheckSquare, Pencil, X as XIcon } from "lucide-react";
 import { toast } from "sonner";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 export const TAXONOMY_QUERY_KEY = ["poi-taxonomy"] as const;
 
@@ -68,6 +69,11 @@ type Props = {
 
 export function TagPicker({ value, onChange, className }: Props) {
   const { data } = useTaxonomy();
+  // O "Editar" deste seletor mexe na TAXONOMIA GLOBAL (vale para todos os
+  // clientes) — só admin vê. Para anfitrião, dava erro de permissão; para
+  // admin dentro de um guia, mudava o guia de todo mundo (auditoria das
+  // recomendações, 24/09/2026). Admin também tem Admin → Taxonomia.
+  const { isAdmin } = useIsAdmin();
   const [open, setOpen] = useState(false);
 
   const tags = data?.tags ?? [];
@@ -91,6 +97,7 @@ export function TagPicker({ value, onChange, className }: Props) {
           tags={tags}
           selectedSlug={value}
           onPickTag={(slug) => { onChange(slug); setOpen(false); }}
+          allowManage={isAdmin}
         />
       </PopoverContent>
     </Popover>
@@ -105,11 +112,14 @@ export function TaxonomyTree({
   tags,
   selectedSlug,
   onPickTag,
+  allowManage = true,
 }: {
   categories: PoiCategory[];
   tags: PoiTag[];
   selectedSlug?: string;
   onPickTag?: (slug: string) => void;
+  /** Mostra o modo "Editar" (renomear/criar/excluir na taxonomia global). */
+  allowManage?: boolean;
 }) {
   const qc = useQueryClient();
   const [expanded, setExpanded] = useState<string | null>(null); // accordion: only one
@@ -228,9 +238,11 @@ export function TaxonomyTree({
         ) : (
           <>
             <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Escolher tag</span>
-            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setManageMode(true)}>
-              <Pencil className="size-3" /> Editar
-            </Button>
+            {allowManage && (
+              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setManageMode(true)}>
+                <Pencil className="size-3" /> Editar
+              </Button>
+            )}
           </>
         )}
       </div>

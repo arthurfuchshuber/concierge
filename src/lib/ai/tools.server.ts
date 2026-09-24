@@ -350,17 +350,29 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
         .eq("property_id", ctx.propertyId)
         .limit(60);
 
-      const { cityKey } = await import("@/lib/city-key");
-      const ck = cityKey(ctx.property.city as string | null);
-      const { data: cityRefs } = ck
-        ? await ctx.supabase
-            .from("city_references")
-            .select("name, category, type, note")
-            .eq("city_key", ck)
-            .eq("country", (ctx.property.country as string) ?? "BR")
-            .eq("is_hidden", false)
-            .limit(80)
-        : { data: [] as Array<Record<string, unknown>> };
+      // "Pela cidade" com o MESMO escopo que o guia público mostra
+      // (guide.functions.ts → getPublicGuide): as referências do próprio
+      // imóvel, ou do grupo de guias vinculados a ele. Antes a IA lia por
+      // `city_key` com o cliente admin — ou seja, recomendava ao hóspede
+      // lugares da lista de OUTROS anfitriões da mesma cidade, inclusive
+      // itens que este anfitrião nunca escolheu ou que tinha excluído do
+      // próprio guia (auditoria das recomendações, 24/09/2026).
+      const { data: membership } = await ctx.supabase
+        .from("city_reference_group_members")
+        .select("group_id")
+        .eq("property_id", ctx.propertyId)
+        .maybeSingle();
+      const groupId = (membership as { group_id: string } | null)?.group_id ?? null;
+      let cityQ = ctx.supabase
+        .from("city_references")
+        .select("name, category, type, note")
+        .eq("is_hidden", false)
+        .order("user_ratings_total", { ascending: false })
+        .limit(80);
+      cityQ = groupId
+        ? cityQ.eq("group_id", groupId)
+        : cityQ.eq("property_id", ctx.propertyId).is("group_id", null);
+      const { data: cityRefs } = await cityQ;
 
       const matches = (row: Record<string, unknown>) =>
         !filter ||

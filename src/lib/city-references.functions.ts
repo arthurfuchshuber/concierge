@@ -88,6 +88,26 @@ async function isAdmin(ctx: any): Promise<boolean> {
   return Boolean(data);
 }
 
+/**
+ * ISOLAMENTO POR CONTA (regra explícita, 24/09/2026: "cada tenant deve ter
+ * suas visibilidades... NUNCA, JAMAIS, algum imóvel, guia ou tenant deve
+ * puxar de outros" — a única exceção é o que se VINCULA de propósito, como
+ * "usar recomendações Sigma"). Os escopos de referência que pertencem a esta
+ * conta: os imóveis dela e os grupos de guias em que esses imóveis estão.
+ */
+async function ownScopes(userId: string): Promise<{ propertyIds: string[]; groupIds: string[] }> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: props } = await supabaseAdmin.from("properties").select("id").eq("owner_id", userId);
+  const propertyIds = ((props ?? []) as Array<{ id: string }>).map((p) => p.id);
+  if (!propertyIds.length) return { propertyIds, groupIds: [] };
+  const { data: mem } = await supabaseAdmin
+    .from("city_reference_group_members")
+    .select("group_id")
+    .in("property_id", propertyIds);
+  const groupIds = Array.from(new Set(((mem ?? []) as Array<{ group_id: string }>).map((m) => m.group_id)));
+  return { propertyIds, groupIds };
+}
+
 // Admin OU dono de ao menos uma residência na cidade indicada.
 // Compara por city_key apenas: as referências são compartilhadas por cidade,
 // independentemente de variações em state/country salvas historicamente.
@@ -157,13 +177,10 @@ async function assertCanManageRefById(ctx: any, id: string) {
     return;
   }
 
-  // Legacy city-key-scoped ref (no group, no property): fall back to
-  // city-level ownership (used by the admin.cidades view).
-  await assertCanManageCity(ctx, {
-    city_label: r.city_label,
-    state: r.state ?? null,
-    country: r.country ?? "BR",
-  });
+  // Ref legada por cidade (sem imóvel e sem grupo): não pertence a nenhuma
+  // conta — só admin mexe. Antes, qualquer anfitrião com imóvel na cidade
+  // podia alterar essas linhas (isolamento por conta, 24/09/2026).
+  throw new Error("Sem permissão para editar este item.");
 }
 
 // ---- LIST -------------------------------------------------------------
@@ -214,13 +231,25 @@ export const listCityReferences = createServerFn({ method: "POST" })
     // Modo legado (city_key). Mantido só para a página admin.cidades.
     await assertCanManageCity(context, { city_label: data.city_label, state: normalizeState(data.state ?? null), country: data.country });
     const key = cityKey(data.city_label);
-    const { data: rows, error } = await supabaseAdmin
+    let legacyQ = supabaseAdmin
       .from("city_references")
       .select("*")
       .eq("city_key", key)
       .order("type")
       .order("display_order")
       .order("user_ratings_total", { ascending: false });
+    // Anfitrião vê só as referências dos PRÓPRIOS guias nesta cidade — nunca
+    // as de outros clientes da mesma cidade (isolamento, 24/09/2026). Admin
+    // continua vendo tudo, é a visão administrativa.
+    if (!(await isAdmin(context))) {
+      const { propertyIds, groupIds } = await ownScopes(context.userId);
+      const parts: string[] = [];
+      if (propertyIds.length) parts.push(`property_id.in.(${propertyIds.join(",")})`);
+      if (groupIds.length) parts.push(`group_id.in.(${groupIds.join(",")})`);
+      if (!parts.length) return { items: [], job: null, scope: null };
+      legacyQ = legacyQ.or(parts.join(","));
+    }
+    const { data: rows, error } = await legacyQ;
     if (error) throw new Error(error.message);
 
     const { data: job } = await supabaseAdmin
@@ -235,6 +264,10 @@ export const listCityReferences = createServerFn({ method: "POST" })
 const GenerateInput = CityIdent.extend({
   type: z.string().min(1).max(40).nullable().optional(),
   propertyId: z.string().uuid().nullable().optional(),
+  /** Coordenada do imóvel vinda da tela (ex.: link do Maps recém-colado,
+   * ainda não salvo). Só vale junto com `propertyId`. */
+  lat: z.number().min(-90).max(90).nullable().optional(),
+  lng: z.number().min(-180).max(180).nullable().optional(),
 });
 
 // ---- GENERATE ---------------------------------------------------------
@@ -243,6 +276,11 @@ export const generateCityReferences = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => GenerateInput.parse(i))
   .handler(async ({ data, context }) => {
     await assertCanManageCity(context, { city_label: data.city_label, state: normalizeState(data.state ?? null), country: data.country });
+    // Sem imóvel, a geração grava linhas "da cidade", sem dono — só admin
+    // (isolamento por conta, 24/09/2026).
+    if (!data.propertyId && !(await isAdmin(context))) {
+      throw new Error("Escolha o imóvel para gerar as recomendações.");
+    }
     // Ter imóvel na cidade não basta: as refs nascem no escopo do `propertyId`
     // enviado. Sem esta checagem, um anfitrião gravava referências no guia de
     // outro anfitrião da mesma cidade (22/09/2026).
@@ -255,7 +293,11 @@ export const generateCityReferences = createServerFn({ method: "POST" })
     }
     const { assertFeature } = await import("@/lib/plan-guard.server");
     await assertFeature(context.supabase, context.userId, "autoImport", { propertyId: data.propertyId ?? null });
-    return runCityGeneration({ ...data, type: data.type ?? null, propertyId: data.propertyId ?? null });
+    const origin =
+      data.propertyId && typeof data.lat === "number" && typeof data.lng === "number"
+        ? { lat: data.lat, lng: data.lng }
+        : null;
+    return runCityGeneration({ ...data, type: data.type ?? null, propertyId: data.propertyId ?? null, origin });
   });
 
 
@@ -269,6 +311,7 @@ export async function runCityGeneration(input: {
   country: string;
   type?: string | null;
   propertyId?: string | null;
+  origin?: { lat: number; lng: number } | null;
 }) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const key = cityKey(input.city_label);
@@ -283,6 +326,19 @@ export async function runCityGeneration(input: {
     scopeProperty = s.groupId ? null : s.propertyId;
   }
 
+  // O raio de 30 km é contado a partir da RESIDÊNCIA (regra explícita,
+  // 24/09/2026). Sem coordenada no imóvel, cai para o centro da cidade.
+  let origin: { lat: number; lng: number } | null = input.origin ?? null;
+  if (!origin && input.propertyId) {
+    const { data: prop } = await supabaseAdmin
+      .from("properties")
+      .select("lat, lng")
+      .eq("id", input.propertyId)
+      .maybeSingle();
+    const p = prop as { lat: number | null; lng: number | null } | null;
+    if (p && typeof p.lat === "number" && typeof p.lng === "number") origin = { lat: p.lat, lng: p.lng };
+  }
+
   let rows: CityReferenceRow[] = [];
   let status = "ok";
   let message: string | null = null;
@@ -292,6 +348,7 @@ export async function runCityGeneration(input: {
       state: st,
       country,
       type: input.type ?? null,
+      origin,
     });
   } catch (e) {
     status = "error";
@@ -301,16 +358,18 @@ export async function runCityGeneration(input: {
   // Carrega existentes do MESMO escopo para decidir entre INSERT e UPDATE.
   let existingQ = supabaseAdmin
     .from("city_references")
-    .select("id, place_id, name, is_hidden, source");
+    .select("id, place_id, name, is_hidden, source, note");
   if (scopeGroup) existingQ = existingQ.eq("group_id", scopeGroup);
   else if (scopeProperty) existingQ = existingQ.eq("property_id", scopeProperty).is("group_id", null);
   else existingQ = existingQ.eq("city_key", key).is("property_id", null).is("group_id", null);
   const { data: existing } = await existingQ;
-  const byPlace = new Map<string, { id: string; is_hidden: boolean }>();
-  const byName = new Map<string, { id: string; is_hidden: boolean }>();
-  for (const e of (existing ?? []) as Array<{ id: string; place_id: string | null; name: string; is_hidden: boolean }>) {
-    if (e.place_id) byPlace.set(e.place_id, { id: e.id, is_hidden: e.is_hidden });
-    else byName.set(e.name.toLowerCase(), { id: e.id, is_hidden: e.is_hidden });
+  type Existing = { id: string; is_hidden: boolean; note: string | null };
+  const byPlace = new Map<string, Existing>();
+  const byName = new Map<string, Existing>();
+  for (const e of (existing ?? []) as Array<{ id: string; place_id: string | null; name: string; is_hidden: boolean; note: string | null }>) {
+    const v = { id: e.id, is_hidden: e.is_hidden, note: e.note };
+    if (e.place_id) byPlace.set(e.place_id, v);
+    else byName.set(e.name.toLowerCase(), v);
   }
 
 
@@ -343,9 +402,32 @@ export async function runCityGeneration(input: {
       last_synced_at: nowIso,
     };
     if (match) {
+      // REGERAR NÃO DESFAZ O QUE O ANFITRIÃO EDITOU (auditoria, 24/09/2026).
+      // Antes o update regravava a linha inteira: nome, categoria, tipo e
+      // nota voltavam ao que o Google/IA sugeriu — quem tinha movido um
+      // ponto para outra categoria ou escrito a própria nota perdia tudo a
+      // cada "Gerar"/troca do link do Maps. Agora só os DADOS DO GOOGLE são
+      // atualizados (nota, avaliações, foto, horários, link, posição); a nota
+      // só é preenchida quando ainda está vazia, e a origem (manual/Sigma)
+      // também é mantida.
+      const {
+        name: _name,
+        category: _category,
+        type: _type,
+        note: _note,
+        city_key: _ck,
+        city_label: _cl,
+        state: _st,
+        country: _co,
+        source: _src,
+        ...facts
+      } = base;
+      void [_name, _category, _type, _note, _ck, _cl, _st, _co, _src];
+      const patch: Record<string, unknown> = { ...facts };
+      if (!match.note && base.note) patch.note = base.note;
       const { error } = await supabaseAdmin
         .from("city_references")
-        .update(base)
+        .update(patch as never)
         .eq("id", match.id);
       if (error) {
         failed += 1;
@@ -421,13 +503,33 @@ export const deleteCityReference = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertCanManageRefById(context, data.id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.from("city_references").delete().eq("id", data.id);
+    // Mesma regra do bulk abaixo: excluído fica guardado oculto e nunca volta.
+    const { error } = await supabaseAdmin
+      .from("city_references")
+      .update({ is_hidden: true, excluded_at: new Date().toISOString() } as never)
+      .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
 
 // ---- BULK DELETE ------------------------------------------------------
-const BulkDeleteInput = z.object({ ids: z.array(z.string().uuid()).min(1).max(500) });
+/*
+ * EXCLUÍDO NUNCA VOLTA (regra explícita, 24/09/2026: "eu quero que EXCLUÍDOS
+ * NUNCA voltem").
+ *
+ * Apagar a linha de verdade deixava o lugar livre para a próxima geração
+ * (botão "Gerar", troca do link do Maps) inseri-lo de novo — o anfitrião
+ * excluía e o ponto reaparecia. Agora "excluir" guarda a linha OCULTA
+ * (`is_hidden = true`): ela some do editor, do guia e da IA, e a geração, que
+ * reconhece o lugar pelo place_id, só atualiza os dados do Google sem nunca
+ * mexer no `is_hidden`. O ponto só volta se o anfitrião adicioná-lo de novo
+ * na mão (a adição manual reativa a linha). `hard: true` apaga de verdade —
+ * usado só por quem precisa (ex.: limpeza administrativa).
+ */
+const BulkDeleteInput = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(500),
+  hard: z.boolean().optional(),
+});
 export const bulkDeleteCityReferences = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => BulkDeleteInput.parse(i))
@@ -437,7 +539,12 @@ export const bulkDeleteCityReferences = createServerFn({ method: "POST" })
       await assertCanManageRefById(context, id);
     }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.from("city_references").delete().in("id", data.ids);
+    const { error } = data.hard
+      ? await supabaseAdmin.from("city_references").delete().in("id", data.ids)
+      : await supabaseAdmin
+          .from("city_references")
+          .update({ is_hidden: true, excluded_at: new Date().toISOString() } as never)
+          .in("id", data.ids);
     if (error) throw new Error(error.message);
     return { ok: true, deleted: data.ids.length };
   });
@@ -485,6 +592,42 @@ export const updateCityReference = createServerFn({ method: "POST" })
   });
 
 
+// ---- RENOMEAR / MOVER CATEGORIA — SÓ NESTE GUIA ------------------------
+// A categoria de um ponto é o texto `category` da própria linha, e cada guia
+// (ou grupo de guias vinculados) tem as suas linhas. Renomear "Compras" para
+// "Shoppings" aqui muda só as linhas deste escopo.
+//
+// Antes, o lápis "Renomear categoria" do editor do guia chamava
+// `updatePoiCategory`, que altera a TAXONOMIA GLOBAL da plataforma (a mesma
+// para todos os clientes): para um anfitrião comum dava erro ("Forbidden"),
+// e para um admin renomeava a categoria de TODO MUNDO — foi assim que a
+// categoria-base "Compras" virou "No Paraguai" e passou a aparecer nos guias
+// de Ourinhos (auditoria das recomendações, 24/09/2026).
+const RenameCategoryInput = z.object({
+  propertyId: z.string().uuid(),
+  ids: z.array(z.string().uuid()).min(1).max(2000),
+  to: z.string().trim().min(1).max(60),
+});
+export const renameCityReferenceCategory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => RenameCategoryInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const { data: canAccess } = await context.supabase.rpc("user_can_access_property", {
+      _user_id: context.userId,
+      _property_id: data.propertyId,
+    });
+    if (!canAccess && !(await isAdmin(context))) throw new Error("Você não tem acesso a esta residência.");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const scope = await resolvePropertyScope(supabaseAdmin, data.propertyId);
+    // O filtro de escopo garante que ids de outro guia nunca são tocados,
+    // mesmo que alguém mande ids que não são deste imóvel.
+    let q = supabaseAdmin.from("city_references").update({ category: data.to }).in("id", data.ids);
+    q = scope.groupId ? q.eq("group_id", scope.groupId) : q.eq("property_id", data.propertyId).is("group_id", null);
+    const { error } = await q;
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 // ---- MANUAL ADD -------------------------------------------------------
 // Quando `propertyId` é informado, grava com escopo da property/grupo.
 // Sem propertyId mantém comportamento legado (city_key) só para a página admin.cidades.
@@ -513,7 +656,8 @@ export const addManualCityReference = createServerFn({ method: "POST" })
       scopeGroup = s.groupId;
       scopeProperty = s.groupId ? null : s.propertyId;
     } else {
-      await assertCanManageCity(context, { city_label: data.city_label, state: normalizeState(data.state ?? null), country: data.country });
+      // Sem imóvel = linha "da cidade", sem dono: só admin (isolamento, 24/09/2026).
+      if (!(await isAdmin(context))) throw new Error("Escolha o imóvel para adicionar o ponto.");
     }
 
     const key = cityKey(data.city_label);
@@ -538,7 +682,10 @@ export const addManualCityReference = createServerFn({ method: "POST" })
       maps_url: data.maps_url ?? null,
       opening_hours: data.opening_hours ?? null,
       source: "manual",
+      // Adicionar na mão um lugar que tinha sido excluído o traz de volta —
+      // é a única forma de um excluído voltar.
       is_hidden: false,
+      excluded_at: null,
       last_synced_at: new Date().toISOString(),
     };
     if (scopeGroup) payload.group_id = scopeGroup;
@@ -642,10 +789,17 @@ export const listAdminCities = createServerFn({ method: "POST" })
       b.last_status = j.last_status;
       map.set(id, b);
     }
-    // ref_count: conta por cidade.
-    const { data: refs } = await supabaseAdmin
-      .from("city_references")
-      .select("city_key, state, country");
+    // ref_count: conta por cidade — para anfitrião, só os pontos dos
+    // próprios guias (isolamento por conta, 24/09/2026).
+    let refsQ = supabaseAdmin.from("city_references").select("city_key, state, country");
+    if (!admin) {
+      const { propertyIds, groupIds } = await ownScopes(context.userId);
+      const parts: string[] = [];
+      if (propertyIds.length) parts.push(`property_id.in.(${propertyIds.join(",")})`);
+      if (groupIds.length) parts.push(`group_id.in.(${groupIds.join(",")})`);
+      refsQ = parts.length ? refsQ.or(parts.join(",")) : refsQ.eq("id", "00000000-0000-0000-0000-000000000000");
+    }
+    const { data: refs } = await refsQ;
     for (const r of (refs ?? []) as Array<{ city_key: string; state: string | null; country: string }>) {
       const id = k(r.city_key);
       const b = map.get(id);

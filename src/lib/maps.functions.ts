@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { crossBorderCategory } from "@/lib/poi-country";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { AI_MODELS } from "@/lib/ai/models";
@@ -130,6 +131,8 @@ export let TYPE_MAP: {
   acceptedPrimaryTypes: string[];
   category: string;
   queryVariants?: string[];
+  /** Nome da TAG (ex.: "Shopping") — usado na busca padrão de tags novas. */
+  label?: string;
 }[] = [
   { type: "restaurant", placesTypes: ["restaurant"], acceptedPrimaryTypes: ["restaurant", "pizza_restaurant", "italian_restaurant", "brazilian_restaurant", "steak_house", "seafood_restaurant", "japanese_restaurant", "sushi_restaurant", "mexican_restaurant", "fast_food_restaurant", "hamburger_restaurant", "barbecue_restaurant", "vegetarian_restaurant", "vegan_restaurant", "meal_takeaway", "meal_delivery", "fine_dining_restaurant", "american_restaurant", "chinese_restaurant", "french_restaurant"], category: "Restaurantes", queryVariants: ["melhores restaurantes em", "restaurantes famosos em", "restaurantes tradicionais em", "alta gastronomia em"] },
   { type: "attraction", placesTypes: ["tourist_attraction"], acceptedPrimaryTypes: ["tourist_attraction", "museum", "art_gallery", "amusement_park", "aquarium", "zoo", "historical_landmark", "monument", "cultural_center", "national_park", "observation_deck", "performing_arts_theater", "planetarium", "amusement_center", "water_park", "wildlife_park", "ecological_park", "garden", "botanical_garden", "stadium", "arena", "skydiving_center", "scenic_lookout"], category: "Atrações", queryVariants: ["pontos turísticos em", "atrações turísticas famosas em", "o que fazer em", "passeios imperdíveis em", "marcos históricos em", "museus famosos em", "mirantes em", "experiências turísticas em", "tours em"] },
@@ -144,6 +147,21 @@ export let TYPE_MAP: {
 ];
 
 export type TypeMapEntry = (typeof TYPE_MAP)[number];
+
+/** O que cada tipo-base significa, para o prompt da curadoria por IA. */
+const CANONICAL_TYPE_PROMPT: Record<string, string> = {
+  restaurant: "Restaurantes",
+  attraction: "Atrações, passeios e pontos turísticos",
+  nightlife: "Vida noturna (baladas e casas noturnas)",
+  bar: "Bares e pubs",
+  cafe: "Cafés, padarias e docerias",
+  beach: "Praias (de mar, rio ou represa)",
+  market: "Supermercados e mercados",
+  pharmacy: "Farmácias e drogarias",
+  park: "Parques urbanos e praças",
+  shopping: "Shopping centers e centros de compras",
+};
+
 
 // Hidrata TYPE_MAP a partir das tabelas poi_tags/poi_categories. As tags-base
 // (is_protected=true) preservam seu mapeamento Google original; o label/categoria
@@ -163,7 +181,7 @@ async function hydrateTypeMap(): Promise<void> {
       const base = baseBySlug.get(t.slug);
       if (base) {
         // Tag-base: preserva mapping Google, sobrescreve apenas label/categoria.
-        next.push({ ...base, category: t.category_label });
+        next.push({ ...base, category: t.category_label, label: t.label });
       } else if (t.accepted_primary_types.length || t.places_types.length) {
         // Tag custom com mapping → IA classifica.
         next.push({
@@ -171,6 +189,7 @@ async function hydrateTypeMap(): Promise<void> {
           placesTypes: t.places_types,
           acceptedPrimaryTypes: t.accepted_primary_types,
           category: t.category_label,
+          label: t.label,
           queryVariants: t.query_variants.length ? t.query_variants : undefined,
         });
       }
@@ -567,7 +586,14 @@ async function fetchIconicPlacesFromGemini(
   if (!apiKey || !city) return {};
 
   const locationLabel = [city, state, country].filter(Boolean).join(", ");
-  const categoriesPrompt = TYPE_MAP.map((c) => `- ${c.type}: ${c.category}`).join("\n");
+  // Descrição FIXA de cada tipo para a IA — nunca o rótulo da categoria, que
+  // é editável. Quando a categoria-base "Compras" foi renomeada para "No
+  // Paraguai", o prompt passou a pedir "shopping: No Paraguai" para QUALQUER
+  // cidade (inclusive Ourinhos) — a IA recebia uma instrução de Foz do Iguaçu
+  // (auditoria das recomendações, 24/09/2026).
+  const categoriesPrompt = TYPE_MAP.map(
+    (c) => `- ${c.type}: ${CANONICAL_TYPE_PROMPT[c.type] ?? c.label ?? c.category}`,
+  ).join("\n");
   const prompt = `Você é um concierge local com profundo conhecimento de ${locationLabel}. Sua missão é montar uma curadoria PRECISA e ABRANGENTE dos melhores lugares em cada categoria.
 
 REGRAS CRÍTICAS:
@@ -842,7 +868,7 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     // Traz referências locais que o Nearby não pega (filtros de tipo são rígidos).
     const textTasks: Array<{ q: string }> = [];
     for (const cat of TYPE_MAP) {
-      const variants = cat.queryVariants ?? [`melhores ${cat.category.toLowerCase()}`];
+      const variants = cat.queryVariants ?? [`melhores ${(cat.label ?? cat.category).toLowerCase()}`];
       // Usa TODAS as variantes — mais abrangência no entorno
       for (const v of variants) textTasks.push({ q: `${v} perto` });
     }
@@ -912,19 +938,33 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     let filtered = recommendations;
     if (data.propertyId) {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      // "Pela cidade" deste guia pode morar no GRUPO de guias vinculados
+      // (group_id, property_id nulo) — filtrar só por property_id deixava
+      // passar duplicatas nos guias agrupados (auditoria, 24/09/2026).
+      const { data: membership } = await supabaseAdmin
+        .from("city_reference_group_members")
+        .select("group_id")
+        .eq("property_id", data.propertyId)
+        .maybeSingle();
+      const groupId = (membership as { group_id: string } | null)?.group_id ?? null;
+      let refQ = supabaseAdmin.from("city_references").select("place_id, name").limit(2000);
+      refQ = groupId ? refQ.eq("group_id", groupId) : refQ.eq("property_id", data.propertyId);
       const [{ data: cityRows }, { data: refRows }] = await Promise.all([
         context.supabase
           .from("property_recommendations")
           .select("place_id, name")
           .eq("property_id", data.propertyId)
           .eq("scope", "city"),
-        supabaseAdmin
-          .from("city_references")
-          .select("place_id, name")
-          .eq("property_id", data.propertyId)
-          .limit(1000),
+        refQ,
       ]);
-      const cityPlaceIds = new Set<string>();
+      // Lugares que o anfitrião EXCLUIU deste guia nunca voltam pela geração
+      // automática (regra explícita, 24/09/2026 — ver `property_rec_exclusions`).
+      const { data: excl } = await supabaseAdmin
+        .from("property_rec_exclusions" as never)
+        .select("place_id")
+        .eq("property_id", data.propertyId);
+      const excludedIds = new Set(((excl ?? []) as Array<{ place_id: string }>).map((r) => r.place_id));
+      const cityPlaceIds = new Set<string>(excludedIds);
       const cityNames = new Set<string>();
       for (const r of ([...(cityRows ?? []), ...(refRows ?? [])] as Array<{ place_id: string | null; name: string | null }>)) {
         if (r.place_id) cityPlaceIds.add(r.place_id);
@@ -973,6 +1013,7 @@ type RecRow = {
   place_id: string | null;
   property_id: string;
   type: string | null;
+  note?: string | null;
 };
 
 const PLACE_DETAILS_FIELD_MASK =
@@ -1023,7 +1064,9 @@ async function refreshRecommendationsForProperty(
             user_ratings_total: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
             opening_hours: p.regularOpeningHours?.weekdayDescriptions ?? null,
             image_url: pickBestPlacePhoto(p.photos) ?? undefined,
-            note: noteTrimmed,
+            // Nota escrita pelo anfitrião nunca é trocada pelo resumo do
+            // Google — só preenche quando está vazia (auditoria, 24/09/2026).
+            note: r.note ? undefined : noteTrimmed,
             maps_url:
               p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
             last_synced_at: new Date().toISOString(),
@@ -1091,7 +1134,7 @@ export const refreshRecommendationsFromGoogle = createServerFn({ method: "POST" 
 
     const { data: recs, error: recsErr } = await supabaseAdmin
       .from("property_recommendations")
-      .select("id, place_id, property_id, type")
+      .select("id, place_id, property_id, type, note")
       .eq("property_id", prop.id)
       .not("place_id", "is", null);
     if (recsErr) throw new Error("Não foi possível carregar as recomendações.");
@@ -1118,7 +1161,7 @@ export async function refreshStaleRecommendations(limit: number) {
   // Busca recomendações mais antigas (ou nunca sincronizadas) primeiro.
   const { data: recs, error } = await supabaseAdmin
     .from("property_recommendations")
-    .select("id, place_id, property_id, type, last_synced_at")
+    .select("id, place_id, property_id, type, note, last_synced_at")
     .not("place_id", "is", null)
     .order("last_synced_at", { ascending: true, nullsFirst: true })
     .limit(cap);
@@ -1324,6 +1367,9 @@ export async function generateCityReferencesFromMaps(input: {
   state: string | null;
   country: string;
   type?: string | null;
+  /** Coordenada da RESIDÊNCIA — o centro do raio de 30 km. Sem ela (cron
+   * legado por cidade), o centro é o da cidade. */
+  origin?: { lat: number; lng: number } | null;
 }): Promise<CityReferenceRow[]> {
   await hydrateTypeMap();
   const { city_label, state, country, type } = input;
@@ -1332,15 +1378,28 @@ export async function generateCityReferencesFromMaps(input: {
     ? TYPE_MAP.filter((c) => c.type === type)
     : TYPE_MAP;
 
-  // Geocodifica a cidade para obter coordenadas centrais.
-  // Isso permite usar um viés geográfico forte e validar distância no nosso código.
-  const cityCenter = await resolveCityCenter(city_label, state, country);
-
-  // Raio da restrição geográfica em metros.
-  // Google Places API New impõe um MÁXIMO de 50.000 m em
-  // `locationBias.circle.radius`. Mantemos no limite aceito e filtramos distância localmente.
-  const CITY_RADIUS_M = 35_000;
-  const ATTRACTION_RADIUS_M = 50_000; // cap do Google — antes estava 60_000 (bug)
+  /*
+   * RAIO DE 30 KM DA RESIDÊNCIA — OBRIGATÓRIO (regra explícita, 24/09/2026:
+   * "o puxador automático precisa se limitar OBRIGATORIAMENTE a um raio de
+   * 30 km da residência e não mais que isso").
+   *
+   * Antes o centro era o da CIDADE (geocodificada) e o raio era 35 km — 50 km
+   * para atrações e praias —, então um imóvel na borda da cidade recebia
+   * lugares a até ~60 km dele. Agora: o centro é a coordenada do imóvel
+   * (`origin`), o raio é 30 km para TODOS os tipos, e todo lugar é conferido
+   * pela distância real antes de entrar, venha da busca com viés, da busca
+   * ampla de reserva ou da curadoria da IA. Sem nenhum ponto de referência
+   * (imóvel sem coordenada E cidade não encontrada), não importa nada — não
+   * dá para garantir o raio.
+   */
+  const center = input.origin ?? (await resolveCityCenter(city_label, state, country));
+  if (!center) {
+    throw new Error(
+      "Não encontramos a localização do imóvel nem da cidade — sem ela não dá para garantir o raio de 30 km. Confira o link do Google Maps do imóvel.",
+    );
+  }
+  const cityCenter = center;
+  const MAX_RADIUS_M = 30_000;
 
   const isQuality = (p: PlaceRaw, cat: TypeMapEntry) =>
     typeof p.rating === "number" &&
@@ -1376,15 +1435,9 @@ export async function generateCityReferencesFromMaps(input: {
     if (!targetTypes.some((c) => c.type === realCat.type)) { drop.outOfScope++; return; }
     if (!isQuality(p, realCat)) { drop.lowQuality++; return; }
 
-    // Validação geográfica extra: se temos coordenadas da cidade, descarta
-    // qualquer lugar que esteja além do raio permitido para a categoria.
-    if (cityCenter) {
-      const dist = haversineMeters(cityCenter, { lat: p.location.latitude, lng: p.location.longitude });
-      const maxDist = realCat.type === "attraction" || realCat.type === "beach"
-        ? ATTRACTION_RADIUS_M
-        : CITY_RADIUS_M;
-      if (dist > maxDist) { drop.tooFar++; return; }
-    }
+    // Trava dura do raio de 30 km (ver o comentário do `center` acima).
+    const dist = haversineMeters(cityCenter, { lat: p.location.latitude, lng: p.location.longitude });
+    if (dist > MAX_RADIUS_M) { drop.tooFar++; return; }
 
     seenIds.add(p.id);
     drop.kept++;
@@ -1395,19 +1448,19 @@ export async function generateCityReferencesFromMaps(input: {
 
   // Função auxiliar: usa viés geográfico quando possível e cai para busca
   // ampla quando a API não devolve itens para a cidade.
-  const searchForCity = async (query: string, cat: TypeMapEntry) => {
-    if (!cityCenter) return placesTextNoBias(query);
-    const radius = cat.type === "attraction" || cat.type === "beach"
-      ? ATTRACTION_RADIUS_M
-      : CITY_RADIUS_M;
-    const biased = await placesTextRestricted(query, cityCenter.lat, cityCenter.lng, radius);
+  // A busca ampla de reserva continua passando pela trava de 30 km do
+  // `ingest` — ela só ajuda quando o viés não devolve nada.
+  const searchForCity = async (query: string, _cat: TypeMapEntry) => {
+    const biased = await placesTextRestricted(query, cityCenter.lat, cityCenter.lng, MAX_RADIUS_M);
     return biased.length > 0 ? biased : placesTextNoBias(query);
   };
 
   // 1) Múltiplas queries por categoria com restrição geográfica
   const queryTasks: Array<{ q: string; cat: TypeMapEntry }> = [];
   for (const cat of targetTypes) {
-    const variants = cat.queryVariants ?? [`melhores ${cat.category.toLowerCase()} em`];
+    // Sem variantes próprias, busca pelo nome da TAG, não da categoria: um
+    // rótulo de categoria personalizado ("No Paraguai") não é termo de busca.
+    const variants = cat.queryVariants ?? [`melhores ${(cat.label ?? cat.category).toLowerCase()} em`];
     for (const v of variants) queryTasks.push({ q: `${v} ${cityQ}`, cat });
   }
 
@@ -1496,7 +1549,7 @@ export async function generateCityReferencesFromMaps(input: {
 
       out.push({
         place_id: p.id!,
-        category: p._cat.category,
+        category: crossBorderCategory(p.formattedAddress, country) ?? p._cat.category,
         type: p._cat.type,
         name: finalName,
         note: buildNote(p),
@@ -1514,7 +1567,7 @@ export async function generateCityReferencesFromMaps(input: {
   }
 
   console.log(
-    `[CityRefs] ${cityQ} center=${cityCenter ? `${cityCenter.lat.toFixed(3)},${cityCenter.lng.toFixed(3)}` : "null"} `
+    `[CityRefs] ${cityQ} center=${cityCenter.lat.toFixed(3)},${cityCenter.lng.toFixed(3)} (${input.origin ? "imóvel" : "cidade"}) raio=30km `
     + `drop=${JSON.stringify(drop)} out=${out.length}`,
   );
 
@@ -1543,12 +1596,16 @@ export async function refreshStaleCityReferencesByPlaceId(limit: number) {
   const cap = Math.max(1, Math.min(500, limit));
   const { data: refs, error } = await supabaseAdmin
     .from("city_references")
-    .select("id, place_id")
+    .select("id, place_id, note")
     .not("place_id", "is", null)
     .order("last_synced_at", { ascending: true, nullsFirst: true })
     .limit(cap);
   if (error) throw error;
-  const list = (refs ?? []).filter((r) => !!(r as { place_id: string | null }).place_id) as Array<{ id: string; place_id: string }>;
+  const list = (refs ?? []).filter((r) => !!(r as { place_id: string | null }).place_id) as Array<{
+    id: string;
+    place_id: string;
+    note: string | null;
+  }>;
   if (list.length === 0) return { updated: 0, failed: 0, total: 0 };
 
   let updated = 0;
@@ -1576,7 +1633,10 @@ export async function refreshStaleCityReferencesByPlaceId(limit: number) {
             user_ratings_total: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
             opening_hours: p.regularOpeningHours?.weekdayDescriptions ?? null,
             image_url: pickBestPlacePhoto(p.photos) ?? undefined,
-            note,
+            // A nota pode ter sido escrita pelo anfitrião ("Nota pessoal") —
+            // o refresh diário só preenche quando está vazia, nunca troca a
+            // que já existe (auditoria das recomendações, 24/09/2026).
+            note: r.note ? undefined : note,
             primary_type: p.primaryType ?? undefined,
             maps_url: p.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query_place_id=${p.id}`,
             lat: p.location.latitude,

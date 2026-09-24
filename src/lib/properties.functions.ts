@@ -1021,7 +1021,61 @@ export const upsertProperty = createServerFn({ method: "POST" })
     };
 
 
-    if (want("recommendations")) await replaceChild("property_recommendations", data.recommendations as unknown as Record<string, unknown>[]);
+    if (want("recommendations")) {
+      // Um mesmo lugar do Google só entra UMA vez por quadrante. Trocar o
+      // link do Maps somava a lista nova à antiga sem conferir o place_id, e
+      // o guia chegou a mostrar o mesmo shopping duas vezes (auditoria das
+      // recomendações, 24/09/2026). Mantém a primeira ocorrência — a que o
+      // anfitrião já tinha (e talvez editado).
+      const seen = new Set<string>();
+      const uniqueRecs = data.recommendations.filter((r) => {
+        if (!r.place_id) return true;
+        const key = `${r.scope}:${r.place_id}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      /*
+       * EXCLUÍDO NUNCA VOLTA — "Aqui pertinho" (regra explícita, 24/09/2026).
+       * Esta lista é regravada inteira a cada salvamento, então não sobra
+       * linha para "ocultar". Em vez disso, guardamos o place_id de cada
+       * lugar que SAIU da lista em `property_rec_exclusions`; a geração
+       * automática (link do Maps, "Gerar pertinho") ignora esses lugares. Se
+       * o anfitrião adicionar o lugar de novo na mão, a exclusão é apagada.
+       * Best-effort: falhar aqui nunca derruba o salvamento do guia.
+       */
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: before } = await supabaseAdmin
+          .from("property_recommendations")
+          .select("place_id, scope")
+          .eq("property_id", id)
+          .not("place_id", "is", null);
+        const nowKeys = new Set(uniqueRecs.filter((r) => r.place_id).map((r) => `${r.scope}:${r.place_id}`));
+        const removed = ((before ?? []) as Array<{ place_id: string; scope: string }>).filter(
+          (r) => !nowKeys.has(`${r.scope}:${r.place_id}`),
+        );
+        if (removed.length) {
+          await supabaseAdmin.from("property_rec_exclusions" as never).upsert(
+            removed.map((r) => ({ property_id: id, scope: r.scope, place_id: r.place_id })) as never,
+            { onConflict: "property_id,scope,place_id", ignoreDuplicates: true },
+          );
+        }
+        const kept = uniqueRecs.filter((r) => r.place_id).map((r) => r.place_id as string);
+        if (kept.length) {
+          await supabaseAdmin
+            .from("property_rec_exclusions" as never)
+            .delete()
+            .eq("property_id", id)
+            .in("place_id", kept);
+        }
+      } catch (e) {
+        console.warn("[properties] exclusões de recomendações não registradas", e);
+      }
+
+      await replaceChild("property_recommendations", uniqueRecs as unknown as Record<string, unknown>[]);
+    }
     if (want("manual")) await replaceChild("property_manual_items", data.manual as unknown as Record<string, unknown>[]);
     if (want("emergency")) await replaceChild("property_emergency_contacts", data.emergency as unknown as Record<string, unknown>[]);
     if (want("faqs")) await replaceChild("property_faqs", data.faqs as unknown as Record<string, unknown>[]);

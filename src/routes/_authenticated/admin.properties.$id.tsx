@@ -19,6 +19,7 @@ import {
   addManualCityReference,
   updateCityReference,
   bulkDeleteCityReferences,
+  renameCityReferenceCategory,
 } from "@/lib/city-references.functions";
 import {
   listActivePropertyOwnersForSelect,
@@ -128,10 +129,9 @@ import {
   TagPicker,
   useTaxonomy,
   TAXONOMY_QUERY_KEY,
-  NewCategoryDialog,
-  NewTagDialog,
 } from "@/components/admin/TagPicker";
-import { updatePoiCategory, reorderPoiCategories, deletePoiCategory } from "@/lib/poi-taxonomy.functions";
+import { reorderPoiCategories } from "@/lib/poi-taxonomy.functions";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import {
   PropertyDetailsEditor,
   DetailImages,
@@ -1073,8 +1073,16 @@ function PropertyEditor() {
           ? f.recommendations
           : [
               ...f.recommendations.filter((x) => x.scope === "nearby"),
+              // Só lugares que o guia ainda não tem (mesmo place_id): trocar o
+              // link do Maps somava tudo de novo e duplicava pontos
+              // (auditoria das recomendações, 24/09/2026).
               ...r.recommendations
                 .filter((rec) => rec.scope === "nearby" && (rec.distance_meters ?? 0) <= 2000)
+                .filter(
+                  (rec) =>
+                    !rec.place_id ||
+                    !f.recommendations.some((x) => x.scope === "nearby" && x.place_id === rec.place_id),
+                )
                 .map((rec) => ({
                   scope: rec.scope,
                   type: rec.type,
@@ -1129,6 +1137,9 @@ function PropertyEditor() {
                 state: (r.state || form.property.state || "").trim() || null,
                 country: (r.country || form.property.country || "BR").trim() || "BR",
                 propertyId: id,
+                // Centro do raio de 30 km = o imóvel do link recém-lido.
+                lat: r.lat,
+                lng: r.lng,
               },
             });
             const count = (result.inserted ?? 0) + (result.updated ?? 0);
@@ -1214,22 +1225,29 @@ function PropertyEditor() {
         country: form.property.country?.trim() || "BR",
         propertyId: id,
       };
+      // Centro do raio de 30 km = coordenada do imóvel na tela.
+      const originCoords =
+        typeof form.property.lat === "number" && typeof form.property.lng === "number"
+          ? { lat: form.property.lat, lng: form.property.lng }
+          : {};
       if (mode === "replace") {
-        // Apaga as atuais (auto + manual) antes de regerar.
+        // Apaga as atuais VISÍVEIS (auto + manual) antes de regerar. Os
+        // pontos que o anfitrião excluiu ficam guardados ocultos e continuam
+        // fora — "excluídos nunca voltam" (regra explícita, 24/09/2026).
         try {
-          const existing = await listGeneratedCityRefs({ data: { ...request, includeHidden: true } });
+          const existing = await listGeneratedCityRefs({ data: { ...request, includeHidden: false } });
           const ids = ((existing.items ?? []) as Array<{ id: string }>).map((r) => r.id);
           if (ids.length) {
             // bulk delete suporta no máximo 500 ids por chamada.
             for (let i = 0; i < ids.length; i += 500) {
-              await bulkDeleteCityRefsFn({ data: { ids: ids.slice(i, i + 500) } });
+              await bulkDeleteCityRefsFn({ data: { ids: ids.slice(i, i + 500), hard: true } });
             }
           }
         } catch (e) {
           console.warn("[CityRefs] replace: bulk delete failed", e);
         }
       }
-      const result = await generateCityRefs({ data: request });
+      const result = await generateCityRefs({ data: { ...request, ...originCoords } });
       invalidateCityRefs();
       const added = result.inserted ?? 0;
       const updated = result.updated ?? 0;
@@ -4986,11 +5004,24 @@ function CityRefsGroup({
     }
   }
 
+  // Renomear/mover uma categoria inteira grava EM LOTE, numa chamada só, e
+  // só nos pontos deste guia/grupo — não um update por ponto (com 100+
+  // pontos, o debounce por item disparava 100+ chamadas).
+  const renameCategoryFn = useServerFn(renameCityReferenceCategory);
+  async function handleRenameCategory(from: string, to: string, groupItems: RecItem[]) {
+    const ids = groupItems.map((it) => it._dbId).filter((x): x is string => !!x);
+    if (!ids.length) return;
+    await renameCategoryFn({ data: { propertyId, ids, to } });
+    setLocalItems((prev) => prev.map((it) => (it._dbId && ids.includes(it._dbId) ? { ...it, category: to } : it)));
+    invalidate();
+  }
+
   return (
     <RecGroup
       title="Pela cidade"
       items={localItems}
       onChange={handleChange}
+      onRenameCategory={handleRenameCategory}
       scope="city"
       lat={propertyLat}
       lng={propertyLng}
@@ -5024,11 +5055,16 @@ export function RecGroup({
   hideSearch,
   locked,
   metricsCounts,
+  onRenameCategory,
 }: {
   title: string;
   desc?: string;
   items: RecItem[];
   onChange: (i: RecItem[]) => void;
+  /** Troca o rótulo de categoria de um grupo de pontos NESTE guia (ver
+   * `CityRefsGroup`, que grava em lote). Sem isto, o rótulo é trocado nos
+   * itens via `onChange` — caso do "Aqui pertinho", salvo pelo autosave. */
+  onRenameCategory?: (from: string, to: string, groupItems: RecItem[]) => Promise<void>;
   scope: "nearby" | "city";
   lat: number | null;
   lng: number | null;
@@ -5044,8 +5080,11 @@ export function RecGroup({
   const [openItemIdx, setOpenItemIdx] = useState<number | null>(null);
   const [selectedIdx, setSelectedIdx] = useState<Set<number>>(new Set());
   const [filterQuery, setFilterQuery] = useState("");
-  const [showNewCat, setShowNewCat] = useState(false);
-  const [showNewTag, setShowNewTag] = useState(false);
+  // "Nova categoria…" do menu Mover: nome digitado para onde vão os
+  // pontos selecionados (a categoria só existe neste guia).
+  const [newMoveCatOpen, setNewMoveCatOpen] = useState(false);
+  const [newMoveCatName, setNewMoveCatName] = useState("");
+  const { isAdmin } = useIsAdmin();
   const [dragCat, setDragCat] = useState<string | null>(null);
   const [dragOverCat, setDragOverCat] = useState<string | null>(null);
   const qc = useQueryClient();
@@ -5091,6 +5130,48 @@ export function RecGroup({
     if (oa !== ob) return oa - ob;
     return a[0].localeCompare(b[0]);
   });
+
+  /*
+   * CATEGORIAS SÃO DESTE GUIA (auditoria das recomendações, 24/09/2026).
+   *
+   * Renomear, criar, mover e excluir categoria aqui mexe SÓ nos pontos deste
+   * guia (ou do grupo de guias vinculados). Antes, esses botões editavam a
+   * taxonomia GLOBAL da plataforma: para um anfitrião davam erro, e para um
+   * admin mudavam o guia de todo mundo — a categoria-base "Compras" virou "No
+   * Paraguai" num guia de Foz e passou a aparecer em Ourinhos. A taxonomia
+   * global continua existindo (é dela que vêm os nomes padrão e a ordem) e se
+   * edita só em Admin → Taxonomia.
+   */
+  const groupKeyOf = (it: RecItem) => it.category || tagToCategoryLabel.get(it.type) || "Outros";
+  async function renameGroup(from: string, to: string) {
+    const groupItems = items.filter((it) => groupKeyOf(it) === from);
+    if (onRenameCategory) await onRenameCategory(from, to, groupItems);
+    else onChange(items.map((it) => (groupKeyOf(it) === from ? { ...it, category: to } : it)));
+  }
+  function deleteGroup(label: string) {
+    onChange(items.filter((it) => groupKeyOf(it) !== label));
+  }
+  // Destinos possíveis para "Mover": as categorias já usadas neste guia + as
+  // padrão da plataforma (sem repetir), na ordem da taxonomia.
+  const moveTargets = React.useMemo(() => {
+    const labels = new Set<string>([
+      ...Array.from(groups.keys()),
+      ...(taxonomy?.categories ?? []).map((c) => c.label),
+    ]);
+    return Array.from(labels).sort((a, b) => {
+      const oa = orderByLabel.get(a) ?? 99999;
+      const ob = orderByLabel.get(b) ?? 99999;
+      if (oa !== ob) return oa - ob;
+      return a.localeCompare(b);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, taxonomy, orderByLabel]);
+  function moveSelectedTo(label: string) {
+    const next = items.map((it, i) => (selectedIdx.has(i) ? { ...it, category: label } : it));
+    onChange(next);
+    setSelectedIdx(new Set());
+    toast.success(`Movidos para "${label}"`);
+  }
 
   async function handleDropOnCat(targetLabel: string) {
     if (!dragCat || dragCat === targetLabel) {
@@ -5200,19 +5281,20 @@ export function RecGroup({
                   <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
                     <DropdownMenuLabel className="text-[10px] uppercase">Mover para categoria</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    {(taxonomy?.categories ?? []).map((c) => (
-                      <DropdownMenuItem
-                        key={c.id}
-                        onClick={() => {
-                          const next = items.map((it, i) => (selectedIdx.has(i) ? { ...it, category: c.label } : it));
-                          onChange(next);
-                          setSelectedIdx(new Set());
-                          toast.success(`Movidos para "${c.label}"`);
-                        }}
-                      >
-                        {c.label}
+                    {moveTargets.map((label) => (
+                      <DropdownMenuItem key={label} onClick={() => moveSelectedTo(label)}>
+                        {label}
                       </DropdownMenuItem>
                     ))}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        setNewMoveCatName("");
+                        setNewMoveCatOpen(true);
+                      }}
+                    >
+                      <Plus className="size-3.5" /> Nova categoria…
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>
@@ -5287,76 +5369,93 @@ export function RecGroup({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="max-h-[420px] overflow-y-auto w-64">
                 <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  Taxonomia
+                  Categorias deste guia
                 </DropdownMenuLabel>
-                <DropdownMenuItem onSelect={() => setShowNewCat(true)}>
-                  <Plus className="size-3.5" /> Nova categoria
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setShowNewTag(true)}>
-                  <Plus className="size-3.5" /> Nova tag
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  Editar categorias
-                </DropdownMenuLabel>
+                <p className="px-2 pb-1.5 text-[10.5px] leading-snug text-muted-foreground">
+                  Renomear ou excluir aqui muda só este guia.
+                </p>
                 <div className="px-1.5 pb-1.5 space-y-0.5">
-                  {(taxonomy?.categories ?? []).map((c) => {
-                    const count = groups.get(c.label)?.items.length ?? 0;
-                    return (
+                  {groupEntries.length === 0 ? (
+                    <p className="px-1.5 py-1 text-[11px] text-muted-foreground">Nenhuma categoria ainda.</p>
+                  ) : (
+                    groupEntries.map(([label, g]) => (
                       <div
-                        key={c.id}
+                        key={label}
                         className="flex items-center gap-1 rounded px-1.5 py-1 hover:bg-muted/60"
                         onClick={(e) => e.stopPropagation()}
                         onKeyDown={(e) => e.stopPropagation()}
                       >
-                        <span className="flex-1 truncate text-xs">
-                          {c.label} <span className="text-muted-foreground">({count})</span>
+                        <div className="min-w-0 flex-1">
+                          <InlineCategoryRename currentLabel={label} onRename={(to) => renameGroup(label, to)} />
+                        </div>
+                        <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                          ({g.items.length})
                         </span>
-                        <InlineCategoryRename
-                          currentLabel={c.label}
-                          categoryId={c.id}
-                          isProtected={c.is_protected}
-                          items={items}
-                          onChange={onChange}
-                        />
                         <CategoryDeleteButton
-                          currentLabel={c.label}
-                          categoryId={c.id}
-                          isProtected={c.is_protected}
-                          allCategories={(taxonomy?.categories ?? []).map((x) => ({ id: x.id, label: x.label }))}
-                          itemsInCategory={count}
-                          items={items}
-                          onChange={onChange}
+                          currentLabel={label}
+                          targets={moveTargets.filter((l) => l !== label)}
+                          itemsInCategory={g.items.length}
+                          onMove={(to) => renameGroup(label, to)}
+                          onDelete={() => deleteGroup(label)}
                         />
                       </div>
-                    );
-                  })}
+                    ))
+                  )}
                 </div>
+                {isAdmin && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin/taxonomia" className="text-xs">
+                        <Settings2 className="size-3.5" /> Taxonomia global (admin)
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </div>
 
-        {showNewCat && (
-          <NewCategoryDialog
-            onClose={() => setShowNewCat(false)}
-            onSaved={() => {
-              setShowNewCat(false);
-              qc.invalidateQueries({ queryKey: TAXONOMY_QUERY_KEY });
-            }}
-          />
-        )}
-        {showNewTag && (
-          <NewTagDialog
-            categories={taxonomy?.categories ?? []}
-            presetCategoryId={null}
-            onClose={() => setShowNewTag(false)}
-            onSaved={() => {
-              setShowNewTag(false);
-              qc.invalidateQueries({ queryKey: TAXONOMY_QUERY_KEY });
-            }}
-          />
-        )}
+        <Dialog open={newMoveCatOpen} onOpenChange={setNewMoveCatOpen}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Nova categoria</DialogTitle>
+            </DialogHeader>
+            <p className="text-xs text-muted-foreground">
+              Os {selectedIdx.size} ponto(s) selecionado(s) vão para esta categoria — ela vale só para este guia.
+            </p>
+            <Input
+              autoFocus
+              value={newMoveCatName}
+              onChange={(e) => setNewMoveCatName(e.target.value)}
+              placeholder="Ex.: Shoppings, Sorveterias, No Paraguai"
+              maxLength={60}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newMoveCatName.trim()) {
+                  e.preventDefault();
+                  moveSelectedTo(newMoveCatName.trim());
+                  setNewMoveCatOpen(false);
+                }
+              }}
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setNewMoveCatOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                disabled={!newMoveCatName.trim() || selectedIdx.size === 0}
+                onClick={() => {
+                  moveSelectedTo(newMoveCatName.trim());
+                  setNewMoveCatOpen(false);
+                }}
+              >
+                Mover
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {!hideSearch && (
           <PlaceAutocomplete
@@ -5395,14 +5494,17 @@ export function RecGroup({
                 >
                   <div
                     className="flex items-center gap-2 px-3.5 py-2.5 hover:bg-muted/30 transition-colors"
-                    draggable
-                    onDragStart={() => setDragCat(cat)}
+                    /* A ORDEM das categorias é a da taxonomia global (vale
+                       para todos os guias) — só admin arrasta. Para quem não
+                       é admin, arrastar sempre terminava em erro de permissão. */
+                    draggable={isAdmin}
+                    onDragStart={() => isAdmin && setDragCat(cat)}
                     onDragEnd={() => {
                       setDragCat(null);
                       setDragOverCat(null);
                     }}
-                    title="Arraste para reordenar"
-                    style={{ cursor: "grab" }}
+                    title={isAdmin ? "Arraste para reordenar (ordem global)" : undefined}
+                    style={{ cursor: isAdmin ? "grab" : undefined }}
                   >
                     <input
                       type="checkbox"
@@ -5425,21 +5527,13 @@ export function RecGroup({
                       aria-expanded={open}
                     >
                       <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <InlineCategoryRename
-                          currentLabel={cat}
-                          categoryId={taxonomy?.categories.find((c) => c.label === cat)?.id ?? null}
-                          isProtected={!!taxonomy?.categories.find((c) => c.label === cat)?.is_protected}
-                          items={items}
-                          onChange={onChange}
-                        />
+                        <InlineCategoryRename currentLabel={cat} onRename={(to) => renameGroup(cat, to)} />
                         <CategoryDeleteButton
                           currentLabel={cat}
-                          categoryId={taxonomy?.categories.find((c) => c.label === cat)?.id ?? null}
-                          isProtected={!!taxonomy?.categories.find((c) => c.label === cat)?.is_protected}
-                          allCategories={(taxonomy?.categories ?? []).map((c) => ({ id: c.id, label: c.label }))}
+                          targets={moveTargets.filter((l) => l !== cat)}
                           itemsInCategory={g.items.length}
-                          items={items}
-                          onChange={onChange}
+                          onMove={(to) => renameGroup(cat, to)}
+                          onDelete={() => deleteGroup(cat)}
                         />
                         <span className="text-[11px] text-muted-foreground">
                           ({g.items.length}
@@ -5564,50 +5658,46 @@ export function RecGroup({
   );
 }
 
+/**
+ * Renomear uma categoria DESTE GUIA (auditoria das recomendações,
+ * 24/09/2026). Troca só o rótulo dos pontos deste guia — nunca a taxonomia
+ * global, que valia para todos os clientes (ver `renameGroup` no RecGroup).
+ * Se o nome novo já existir no guia, os dois grupos viram um só.
+ */
 function InlineCategoryRename({
   currentLabel,
-  categoryId,
-  isProtected: _isProtected,
-  items,
-  onChange,
+  onRename,
 }: {
   currentLabel: string;
-  categoryId: string | null;
-  isProtected: boolean;
-  items: RecItem[];
-  onChange: (i: RecItem[]) => void;
+  onRename: (to: string) => Promise<void> | void;
 }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(currentLabel);
   const [saving, setSaving] = useState(false);
-  const qc = useQueryClient();
-  const updateFn = useServerFn(updatePoiCategory);
 
   useEffect(() => {
     setValue(currentLabel);
   }, [currentLabel]);
 
-  // Toda categoria pode ser renomeada (mantém a mesma, só ajusta o nome).
-  const canEdit = !!categoryId;
+  const cancel = () => {
+    setEditing(false);
+    setValue(currentLabel);
+  };
 
   const commit = async (e?: React.SyntheticEvent) => {
     e?.stopPropagation?.();
     const next = value.trim();
-    if (!next || next === currentLabel || !categoryId) {
-      setEditing(false);
-      setValue(currentLabel);
+    if (!next || next === currentLabel) {
+      cancel();
       return;
     }
     try {
       setSaving(true);
-      await updateFn({ data: { id: categoryId, label: next } });
-      // Atualiza referência local dos pontos para o novo rótulo (mesma categoria, novo nome)
-      onChange(items.map((it) => (it.category === currentLabel ? { ...it, category: next } : it)));
-      await qc.invalidateQueries({ queryKey: TAXONOMY_QUERY_KEY });
-      toast.success("Categoria renomeada");
+      await onRename(next);
+      toast.success(`Categoria renomeada para "${next}" neste guia`);
       setEditing(false);
-    } catch (err: any) {
-      toast.error(err?.message || "Erro ao renomear");
+    } catch (err) {
+      toast.error(friendlyErrorMessage(err, "Não conseguimos renomear agora. Tente de novo."));
     } finally {
       setSaving(false);
     }
@@ -5621,19 +5711,19 @@ function InlineCategoryRename({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
+            e.stopPropagation();
             if (e.key === "Enter") {
               e.preventDefault();
-              commit(e);
+              void commit(e);
             }
             if (e.key === "Escape") {
               e.preventDefault();
-              setEditing(false);
-              setValue(currentLabel);
+              cancel();
             }
           }}
           disabled={saving}
           className="h-7 text-sm w-44"
-          maxLength={80}
+          maxLength={60}
         />
         <button
           type="button"
@@ -5648,8 +5738,7 @@ function InlineCategoryRename({
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            setEditing(false);
-            setValue(currentLabel);
+            cancel();
           }}
           className="inline-flex size-7 items-center justify-center rounded-md hover:bg-muted text-muted-foreground"
           aria-label="Cancelar"
@@ -5663,77 +5752,63 @@ function InlineCategoryRename({
   return (
     <div className="flex items-center gap-1.5 min-w-0">
       <span className="text-sm font-medium truncate">{currentLabel}</span>
-      {canEdit && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setEditing(true);
-          }}
-          className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted opacity-60 hover:opacity-100"
-          aria-label="Renomear categoria"
-          title="Renomear categoria"
-        >
-          <Pencil className="size-3" />
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setEditing(true);
+        }}
+        className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted opacity-60 hover:opacity-100"
+        aria-label="Renomear categoria"
+        title="Renomear categoria (só neste guia)"
+      >
+        <Pencil className="size-3" />
+      </button>
     </div>
   );
 }
 
+/** Excluir uma categoria DESTE GUIA: move os pontos para outra ou apaga os
+ * pontos junto — nunca apaga a categoria da taxonomia global. */
 function CategoryDeleteButton({
   currentLabel,
-  categoryId,
-  isProtected,
-  allCategories,
+  targets,
   itemsInCategory,
-  items,
-  onChange,
+  onMove,
+  onDelete,
 }: {
   currentLabel: string;
-  categoryId: string | null;
-  isProtected: boolean;
-  allCategories: { id: string; label: string }[];
+  targets: string[];
   itemsInCategory: number;
-  items: RecItem[];
-  onChange: (i: RecItem[]) => void;
+  onMove: (to: string) => Promise<void> | void;
+  onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"move" | "delete">("move");
   const [targetLabel, setTargetLabel] = useState<string>("");
   const [saving, setSaving] = useState(false);
-  const qc = useQueryClient();
-  const deleteFn = useServerFn(deletePoiCategory);
 
-  const otherCats = allCategories.filter((c) => c.label !== currentLabel);
   useEffect(() => {
-    if (open && !targetLabel && otherCats[0]) setTargetLabel(otherCats[0].label);
-  }, [open, targetLabel, otherCats]);
-
-  if (!categoryId || isProtected) return null;
+    if (open && !targetLabel && targets[0]) setTargetLabel(targets[0]);
+  }, [open, targetLabel, targets]);
 
   const confirm = async () => {
     try {
       setSaving(true);
-      const targetId = mode === "move" ? allCategories.find((c) => c.label === targetLabel)?.id : undefined;
-      if (mode === "move" && !targetId) {
-        toast.error("Escolha uma categoria de destino.");
-        setSaving(false);
-        return;
-      }
-      await deleteFn({ data: { id: categoryId, reassign_to_category_id: targetId } });
-      // Atualiza os itens locais
-      if (mode === "move" && targetLabel) {
-        onChange(items.map((it) => (it.category === currentLabel ? { ...it, category: targetLabel } : it)));
-        toast.success(`Categoria excluída — pontos movidos para "${targetLabel}"`);
+      if (mode === "move" && itemsInCategory > 0) {
+        if (!targetLabel) {
+          toast.error("Escolha uma categoria de destino.");
+          return;
+        }
+        await onMove(targetLabel);
+        toast.success(`Pontos movidos para "${targetLabel}"`);
       } else {
-        onChange(items.filter((it) => it.category !== currentLabel));
-        toast.success("Categoria e pontos excluídos");
+        onDelete();
+        toast.success("Categoria e pontos excluídos deste guia");
       }
-      await qc.invalidateQueries({ queryKey: TAXONOMY_QUERY_KEY });
       setOpen(false);
-    } catch (err: any) {
-      toast.error(err?.message || "Erro ao excluir categoria");
+    } catch (err) {
+      toast.error(friendlyErrorMessage(err, "Não conseguimos excluir agora. Tente de novo."));
     } finally {
       setSaving(false);
     }
@@ -5747,20 +5822,20 @@ function CategoryDeleteButton({
           e.stopPropagation();
           setOpen(true);
         }}
-        className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:text-rose-500 hover:bg-muted opacity-60 hover:opacity-100"
+        className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-rose-500 hover:bg-muted opacity-60 hover:opacity-100"
         aria-label="Excluir categoria"
-        title="Excluir categoria"
+        title="Excluir categoria (só neste guia)"
       >
         <Trash2 className="size-3" />
       </button>
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir categoria "{currentLabel}"?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir a categoria "{currentLabel}" deste guia?</AlertDialogTitle>
             <AlertDialogDescription>
               {itemsInCategory > 0
-                ? `Existem ${itemsInCategory} ponto(s) vinculado(s) a esta categoria. Escolha o que fazer com eles antes de confirmar.`
-                : "Esta categoria não possui pontos vinculados."}
+                ? `Ela tem ${itemsInCategory} ponto(s). Escolha o que fazer com eles — os outros guias não são afetados.`
+                : "Esta categoria não tem pontos neste guia."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {itemsInCategory > 0 && (
@@ -5774,9 +5849,9 @@ function CategoryDeleteButton({
                       <SelectValue placeholder="Escolha a categoria de destino" />
                     </SelectTrigger>
                     <SelectContent>
-                      {otherCats.map((c) => (
-                        <SelectItem key={c.id} value={c.label}>
-                          {c.label}
+                      {targets.map((label) => (
+                        <SelectItem key={label} value={label}>
+                          {label}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -5797,89 +5872,17 @@ function CategoryDeleteButton({
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
-                confirm();
+                void confirm();
               }}
               disabled={saving || (itemsInCategory > 0 && mode === "move" && !targetLabel)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {saving ? <Loader2 className="size-3.5 animate-spin" /> : "Confirmar exclusão"}
+              {saving ? <Loader2 className="size-3.5 animate-spin" /> : "Confirmar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>
-  );
-}
-
-function CategoryDescriptionField({
-  categoryId,
-  currentDescription,
-  canEdit,
-}: {
-  categoryId: string | null;
-  currentDescription: string | null;
-  canEdit: boolean;
-}) {
-  const [value, setValue] = useState(currentDescription ?? "");
-  const [saving, setSaving] = useState(false);
-  const [savedAt, setSavedAt] = useState<number | null>(null);
-  const qc = useQueryClient();
-  const updateFn = useServerFn(updatePoiCategory);
-  const initialRef = React.useRef(currentDescription ?? "");
-
-  useEffect(() => {
-    setValue(currentDescription ?? "");
-    initialRef.current = currentDescription ?? "";
-  }, [currentDescription, categoryId]);
-
-  if (!categoryId) return null;
-
-  const save = async () => {
-    if (!canEdit || saving) return;
-    const next = value.trim();
-    if (next === (initialRef.current ?? "").trim()) return;
-    try {
-      setSaving(true);
-      await updateFn({ data: { id: categoryId, description: next || null } });
-      await qc.invalidateQueries({ queryKey: TAXONOMY_QUERY_KEY });
-      initialRef.current = next;
-      setSavedAt(Date.now());
-    } catch (err: any) {
-      toast.error(err?.message || "Erro ao salvar descrição");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="rounded-lg border border-dashed border-border/60 bg-muted/20 p-2.5">
-      <div className="flex items-center justify-between gap-2 mb-1.5">
-        <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
-          Descrição da categoria <span className="opacity-60 normal-case tracking-normal">(opcional)</span>
-        </label>
-        {saving ? (
-          <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
-            <Loader2 className="size-3 animate-spin" /> salvando
-          </span>
-        ) : savedAt ? (
-          <span className="text-[10px] text-emerald-600">salvo</span>
-        ) : null}
-      </div>
-      <Textarea
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onBlur={save}
-        disabled={!canEdit}
-        placeholder={
-          canEdit
-            ? "Ex: Os melhores restaurantes da região para uma boa refeição em família."
-            : "Categoria padrão — descrição não editável."
-        }
-        maxLength={500}
-        rows={2}
-        className="text-sm bg-background/60"
-      />
-    </div>
   );
 }
 

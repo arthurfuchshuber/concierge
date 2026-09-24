@@ -20,7 +20,7 @@ import { OfflineBanner } from "../components/OfflineBanner";
 import { supabase } from "../integrations/supabase/client";
 import { META_PIXEL_ID, initMetaPixel, metaPixelPageView } from "../lib/meta-pixel";
 import { startTrail, trackPageView } from "../lib/trail";
-import { useAppVersionWatcher } from "../lib/app-version";
+import { useAppVersionWatcher, CLIENT_BUILD_ID } from "../lib/app-version";
 import {
   esquecerRota,
   lembrarRota,
@@ -494,6 +494,11 @@ function RootComponent() {
       persistOptions={{
         persister,
         maxAge: 1000 * 60 * 60 * 24 * 7 /* 7 dias */,
+        // Versão nova publicada = consultas guardadas descartadas. Sem isso,
+        // depois de um deploy a tela podia abrir com dados no formato da
+        // versão anterior até cada consulta revalidar (pedido explícito,
+        // 24/09/2026: forçar o refresh de todos os usuários a cada deploy).
+        buster: CLIENT_BUILD_ID,
         dehydrateOptions: {
           shouldDehydrateQuery: (query) => query.state.status === "success",
         },

@@ -4690,18 +4690,20 @@ function EngagementAlertDropdown({ flags }: { flags: Array<{ icon: typeof Eye; l
         /* Etiqueta menor e mais baixa (pedido explícito, 09/09/2026): ela é um
            aviso, não um título — cresceu além do peso que merece e passou a
            competir com o nome do proprietário logo abaixo. */
-        className="inline-flex items-center gap-1 rounded-[0.25rem] border-0 bg-amber-500/20 px-1.5 py-px text-[8.5px] font-extrabold uppercase leading-[1.5] tracking-[0.09em] text-amber-700 shadow-sm transition-colors hover:bg-amber-500/30 dark:bg-amber-500/25 dark:text-amber-300"
+        /* SÓ O TRIÂNGULO, NO TAMANHO DA PÍLULA DE CONTAGEM (pedido explícito,
+           24/09/2026: "somente com o ícone do triângulo, sem a palavra... do
+           mesmo tamanho que o ícone da quantidade de reservas"). 20px e
+           redondo, como a `CountPill` do cabeçalho do grupo. A palavra
+           "ALERTA" saiu; o nome acessível e o `title` continuam dizendo o
+           que é. */
+        className="grid size-5 place-items-center rounded-full border-0 bg-amber-500/20 text-amber-700 shadow-sm transition-colors hover:bg-amber-500/30 dark:bg-amber-500/25 dark:text-amber-300"
         title="Ver alertas"
+        aria-label="Ver alertas"
       >
-        <AlertTriangle className="size-2.5 shrink-0" />
-        {/* "Engajamento" virou "ALERTA" (pedido explícito, 08/09/2026): a
-            etiqueta nomeia o que ela FAZ — avisar — e não a métrica de onde
-            os avisos saíram. Quem lê um card no meio da operação não precisa
-            saber que a origem é o engajamento do hóspede. */}
-        Alerta
+        <AlertTriangle className="size-3 shrink-0" strokeWidth={2.4} />
       </button>
       {open && (
-        <ul className="absolute left-1/2 top-full z-30 mt-1 min-w-[190px] -translate-x-1/2 space-y-1 rounded-[0.3rem] border border-amber-500/25 bg-popover px-2 py-1.5 shadow-lg">
+        <ul className="absolute left-0 top-full z-30 mt-1 min-w-[190px] space-y-1 rounded-[0.3rem] border border-amber-500/25 bg-popover px-2 py-1.5 shadow-lg">
           {flags.map((f) => (
             <li key={f.label} className="flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-400">
               <f.icon className="size-3 shrink-0" />
@@ -4798,12 +4800,19 @@ function FreePropertiesCard({
           ) : (
             <ul className="space-y-1.5 pb-3">
               {properties.map((p) => (
+                /* MESMA CASCA DOS CARDS DOS OUTROS TOOLTIPS (pedido explícito,
+                   24/09/2026: "o design dos tooltips deve incluir TODOS os
+                   tooltips... sem remover ou adicionar informações"): raio de
+                   10px, borda fina e fundo quase plano, com a barra lateral de
+                   3px no verde de "livre" — a mesma barra de etapa do
+                   `ArrivalCard`. O conteúdo continua só o nome do imóvel. */
                 <li
                   key={p.id}
                   data-whole-card
-                  className="rounded-lg border border-emerald-500/25 bg-emerald-500/[0.06] px-3 py-2 text-sm truncate"
+                  className="relative truncate rounded-[10px] border border-border bg-muted/20 py-2 pl-3.5 pr-3 text-sm"
                   title={p.name}
                 >
+                  <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] rounded-l-[10px] bg-emerald-400" />
                   {p.name}
                 </li>
               ))}
@@ -9464,7 +9473,12 @@ function ArrivalCard({
           que só acertava enquanto a etiqueta tivesse aquela altura — e ela
           encolheu duas vezes desde então. Com a translação por porcentagem,
           isso passa a valer sozinho em qualquer tamanho. */}
-      <div className="absolute left-1/2 top-0 z-30 -translate-x-1/2 -translate-y-1/2">
+      {/* NA BORDA DE CIMA, DO LADO ESQUERDO (pedido explícito, 24/09/2026,
+          com print marcado: "mova o triângulo para esse ponto") — antes
+          ficava no centro da borda. Continua cortando a borda ao meio; o
+          centro do ícone de 20px cai a 48px da borda esquerda do card, o
+          ponto marcado no print. */}
+      <div className="absolute left-[38px] top-0 z-30 -translate-y-1/2">
         <EngagementFlags
           openedGuide={row.openedGuide}
           readInstructions={row.readInstructions}
