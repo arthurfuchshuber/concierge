@@ -143,7 +143,6 @@ export const SAAS_ROUTES = new Set([
   "/admin/clientes",
   "/admin/recomendacoes-sigma",
   "/admin/inteligencia",
-  "/admin/cidades",
   "/admin/taxonomia",
 ]);
 

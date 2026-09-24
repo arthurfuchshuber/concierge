@@ -19,7 +19,6 @@ export const ROUTE_PERMISSIONS: Array<{ prefix: string; permission: string }> = 
   { prefix: "/admin/clientes", permission: "admin.clientes" },
   { prefix: "/admin/recomendacoes-sigma", permission: "admin.recomendacoes-sigma" },
   { prefix: "/admin/inteligencia", permission: "admin.inteligencia" },
-  { prefix: "/admin/cidades", permission: "admin.cidades" },
   { prefix: "/admin/taxonomia", permission: "admin.taxonomia" },
   { prefix: "/admin/admins", permission: "admin.admins" },
 ];

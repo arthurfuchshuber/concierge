@@ -1598,6 +1598,8 @@ export async function refreshStaleCityReferencesByPlaceId(limit: number) {
     .from("city_references")
     .select("id, place_id, note")
     .not("place_id", "is", null)
+    // Oculto/excluído não aparece em guia nenhum — não gasta consulta ao Google.
+    .eq("is_hidden", false)
     .order("last_synced_at", { ascending: true, nullsFirst: true })
     .limit(cap);
   if (error) throw error;

@@ -255,7 +255,6 @@ const SAAS_RECOMENDACOES: Def[] = [
   tab("admin.recomendacoes-sigma.recomendacoes", "Recomendações", 20),
   tab("admin.recomendacoes-sigma.faqs", "FAQs", 30),
   tab("admin.recomendacoes-sigma.marketplace", "Marketplace", 40),
-  sub("admin.cidades", "Cidades", 50, { route: "/admin/cidades", parentSlug: "admin.recomendacoes-sigma" }),
   sub("admin.taxonomia", "Taxonomia", 60, { route: "/admin/taxonomia", parentSlug: "admin.recomendacoes-sigma" }),
   act("admin.taxonomia.categorias", "Categorias", 10, { parentSlug: "admin.taxonomia" }),
   act("admin.taxonomia.tags", "Etiquetas", 20, { parentSlug: "admin.taxonomia" }),
