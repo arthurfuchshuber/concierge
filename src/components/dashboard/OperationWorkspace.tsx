@@ -8573,6 +8573,65 @@ function RingCell({
   );
 }
 
+/**
+ * CABEÇALHO DE GRUPO — mesmo padrão de "Precisam de atenção" dos Registros
+ * (`PANEL_SHELL` + `PanelHeading`: ícone em caixinha, rótulo em caixa alta,
+ * fio que some, contagem na pílula neutra) — pedido explícito, 24/09/2026,
+ * mockup aprovado: "implementar o mesmo cabeçalho... cabeçalho esse que
+ * 'engloba' os cards em questão". Substitui o `SectionLabel` (só a palavra,
+ * com fio dos dois lados) para os grupos Atrasados/Hoje do Kanban e dos
+ * tooltips — os dois usam o mesmo `ArrivalGroup`, então o cabeçalho novo vale
+ * para os dois de graça.
+ *
+ * Cada grupo usa a COR DO PRÓPRIO ESTADO, nunca uma cor nova: vermelho para
+ * atrasado (mesmo vermelho da barra lateral/período atrasado), e a cor do
+ * lado da esteira para o resto — azul chegada / laranja saída, os mesmos
+ * ícones (`LogIn`/`LogOut`) já usados nos KPIs e no editor de previsão.
+ */
+const GROUP_TONE: Record<
+  "late" | "checkin" | "checkout",
+  { icon: React.ElementType; iconColor: string; iconBg: string; hair: string }
+> = {
+  late: { icon: AlertTriangle, iconColor: "text-red-500 dark:text-red-400", iconBg: "bg-red-500/12", hair: "from-red-500/70" },
+  checkin: { icon: LogIn, iconColor: "text-sky-500 dark:text-sky-400", iconBg: "bg-sky-500/12", hair: "from-sky-500/70" },
+  checkout: {
+    icon: LogOut,
+    iconColor: "text-orange-500 dark:text-orange-400",
+    iconBg: "bg-orange-500/12",
+    hair: "from-orange-500/70",
+  },
+};
+
+function ArrivalGroupPanel({
+  tone,
+  label,
+  count,
+  children,
+}: {
+  tone: "late" | "checkin" | "checkout";
+  label: string;
+  count: number;
+  children: React.ReactNode;
+}) {
+  const { icon: Icon, iconColor, iconBg, hair } = GROUP_TONE[tone];
+  return (
+    <section aria-label={label} className={`${PANEL_SHELL} px-1.5 pb-1.5 pt-1.5`}>
+      <span aria-hidden className={`absolute inset-x-3 top-0 h-[2px] rounded-b-[3px] bg-gradient-to-r ${hair} to-transparent`} />
+      <PanelHeading
+        title={label}
+        dot={
+          <span className={`grid size-[22px] shrink-0 place-items-center rounded-md ${iconBg} ${iconColor}`}>
+            <Icon className="size-[13px]" strokeWidth={2.2} />
+          </span>
+        }
+        right={<CountPill>{count}</CountPill>}
+        className="mb-1.5 px-1"
+      />
+      <div className="flex flex-col gap-3 px-1 pb-1">{children}</div>
+    </section>
+  );
+}
+
 function ArrivalGroup({
   title,
   rows,
@@ -8717,12 +8776,12 @@ function ArrivalGroup({
     <div className={`flex flex-col gap-4 ${muted ? "opacity-70" : ""}`}>
       {separar ? (
         <>
-          <SectionLabel tone="late" className="pt-0">
-            {`Atrasados · ${atrasados.length}`}
-          </SectionLabel>
-          {atrasados.map(cartao)}
-          <SectionLabel>{`${restLabel ?? "No prazo"} · ${noPrazo.length}`}</SectionLabel>
-          {noPrazo.map(cartao)}
+          <ArrivalGroupPanel tone="late" label="Atrasados" count={atrasados.length}>
+            {atrasados.map(cartao)}
+          </ArrivalGroupPanel>
+          <ArrivalGroupPanel tone={kind} label={restLabel ?? "No prazo"} count={noPrazo.length}>
+            {noPrazo.map(cartao)}
+          </ArrivalGroupPanel>
         </>
       ) : (
         rows.map(cartao)
@@ -9424,33 +9483,33 @@ function ArrivalCard({
 
           {!listBare && !compact && (
             <>
-              {/* Nome e código EMPILHADOS, os dois alinhados à esquerda
-                  (pedido explícito, 24/09/2026: "coloque o codigo da reserva
-                  alinhado a esquerda ao nome do hospede, abaixo dele").
-                  Substitui a versão de uma linha só (nome esquerda/código
-                  direita, 23/09/2026) — o código volta a ficar em linha
-                  própria, mas sempre alinhado com o nome acima, nunca mais
-                  colado com "·". */}
-              <div className="flex flex-col gap-0.5 text-[11.5px]">
+              {/* Nome e código na MESMA linha, código sempre no canto
+                  direito (pedido explícito, 24/09/2026 — de volta à versão de
+                  23/09/2026, depois de ver a empilhada ao vivo: "coloque
+                  novamente o codigo de reserva ao canto direito do nome do
+                  hospede"). */}
+              <div className="flex items-center gap-2 text-[11.5px]">
                 {isPendingFill ? (
-                  <span className={`inline-flex min-w-0 items-center gap-1 ${CARD_PENDING_GUEST}`}>
+                  <span className={`inline-flex min-w-0 flex-1 items-center gap-1 ${CARD_PENDING_GUEST}`}>
                     <UserPlus className="size-3 shrink-0" />
                     Hóspede pendente
                   </span>
                 ) : row.guestName && row.guestName !== row.reservationCode ? (
-                  <span className={`inline-flex min-w-0 items-center gap-1.5 ${CARD_MUTED}`}>
+                  <span className={`inline-flex min-w-0 flex-1 items-center gap-1.5 ${CARD_MUTED}`}>
                     {/* Pedido explícito: nome do hóspede SEMPRE em maiúsculo. */}
                     <span className="min-w-0 truncate uppercase">{row.guestName}</span>
                     <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
                     <ExtraGuests guests={row.additionalGuests ?? []} />
                   </span>
-                ) : null}
+                ) : (
+                  <span className="flex-1" />
+                )}
                 {row.reservationCode && (
                   <button
                     type="button"
                     onClick={(e) => copyReservationCode(e, row.reservationCode as string)}
                     title="Copiar código da reserva"
-                    className={`w-fit min-w-0 max-w-full truncate rounded-[6px] border border-border/50 bg-foreground/[0.04] px-1.5 py-0.5 text-left font-mono text-[10px] font-semibold tracking-wide transition-colors hover:border-foreground/20 hover:bg-foreground/[0.07] hover:text-foreground ${CARD_MUTED}`}
+                    className={`shrink-0 max-w-[45%] truncate rounded-[6px] border border-border/50 bg-foreground/[0.04] px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-wide transition-colors hover:border-foreground/20 hover:bg-foreground/[0.07] hover:text-foreground ${CARD_MUTED}`}
                   >
                     {row.reservationCode}
                   </button>
