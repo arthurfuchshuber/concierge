@@ -9513,7 +9513,12 @@ function ArrivalCard({
                 {isPendingFill ? (
                   <span className={`inline-flex min-w-0 flex-1 items-center gap-1 ${CARD_PENDING_GUEST}`}>
                     <UserPlus className="size-3 shrink-0" />
-                    Hóspede pendente
+                    {/* SEM quebra em 2 linhas — regra do card é a linha
+                        inteira com reticências quando falta espaço (mesma
+                        regra do nome do hóspede logo abaixo), corrigido
+                        24/09/2026: "Hóspede pendente" quebrava em duas linhas
+                        e empurrava o código pra fora do canto direito. */}
+                    <span className="min-w-0 truncate">Hóspede pendente</span>
                   </span>
                 ) : row.guestName && row.guestName !== row.reservationCode ? (
                   <span className={`inline-flex min-w-0 flex-1 items-center gap-1.5 ${CARD_MUTED}`}>
