@@ -113,7 +113,9 @@ describe("Permission Center", () => {
     });
     render(<PermissionCenterPage />, { wrapper });
     await waitFor(() =>
-      expect(screen.getByText("Você não tem permissão para gerenciar acessos")).toBeTruthy(),
+      expect(
+        screen.getByText("Você não tem permissão para gerenciar os acessos desta conta"),
+      ).toBeTruthy(),
     );
     expect(screen.queryByText("Admin SaaS")).toBeNull();
     expect(screen.queryByText("admin@sigma.com")).toBeNull();
@@ -123,7 +125,7 @@ describe("Permission Center", () => {
     overviewMock.mockResolvedValue({ ...ADMIN_OVERVIEW, users: [] });
     render(<PermissionCenterPage />, { wrapper });
     await waitFor(() =>
-      expect(screen.getByText("Nenhuma pessoa nesta conta ainda.")).toBeTruthy(),
+      expect(screen.getByText("Ainda não há ninguém além de você")).toBeTruthy(),
     );
   });
 });

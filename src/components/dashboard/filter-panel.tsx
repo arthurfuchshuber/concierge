@@ -21,13 +21,15 @@
  * caixinha de 17px com raio 5; calendário com células de 34px, "hoje" com
  * anel fino e o intervalo em faixa rosa suave com as pontas em círculo.
  *
- * COR "AMEIXA GRAFITE" (mockup "Quadrantes v2" aprovado, 23/09/2026— pedido
+ * COR "GRAFITE QUENTE" (mockup "Quadrantes v2" aprovado, 23/09/2026 — pedido
  * explícito: "as janelas/quadrantes dos botões de filtros fiquem com a cor
  * principal diferente do tema abaixo... não muito agressivo, mas
- * diferente"). O painel deixou de usar `bg-card`/`border-border` (a cor
- * neutra do resto do app) e passou a usar os tokens `--panel*` só dele
- * (`src/styles.css`, dentro de `.dark`) — nunca os tokens globais, porque a
- * ideia é exatamente destacar o quadrante do fundo, não mudar o app inteiro.
+ * diferente"; revisão no mesmo dia: a 1ª versão, "Ameixa Grafite", tinha
+ * matiz roxo — virou grafite quente, sem roxo). O painel deixou de usar
+ * `bg-card`/`border-border` (a cor neutra do resto do app) e passou a usar
+ * os tokens `--panel*` só dele (`src/styles.css`, dentro de `.dark`) — nunca
+ * os tokens globais, porque a ideia é exatamente destacar o quadrante do
+ * fundo, não mudar o app inteiro.
  */
 import { useMemo, useState, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
@@ -111,24 +113,32 @@ function CheckBox({ checked }: { checked: boolean }) {
 /* Menu raiz                                                                 */
 /* ------------------------------------------------------------------------ */
 
-/** Topo do menu raiz: "FILTROS" à esquerda, "Limpar" à direita (mockup). */
+/** Topo do menu raiz: "FILTROS" à esquerda, "Limpar" alinhado com "Todos". */
 export function FilterRootHeader({ canClear, onClear }: { canClear: boolean; onClear: () => void }) {
   return (
-    <div className={`flex items-center gap-2.5 py-3 px-3.5 ${ROW_DIVIDER}`}>
+    <div className={`relative flex items-center gap-2.5 py-3 px-3.5 ${ROW_DIVIDER}`}>
       {/*
-       * "Limpar" À ESQUERDA, logo ao lado de "Filtros" — não mais empurrado
-       * pro canto direito do quadrante (pedido explícito, 23/09/2026: "deve
-       * ficar alinhado à esquerda e não à direita"). A tentativa anterior de
-       * alinhar com a coluna de valores das linhas abaixo (ex.: "Todos")
-       * ficou lendo como "à direita" — o resto da linha, à direita destes
-       * dois, fica vazio de propósito.
+       * "Limpar" alinhado com a BORDA ESQUERDA da palavra "Todos" nas linhas
+       * abaixo (pedido explícito, 23/09/2026 — 2ª correção: a 1ª tentativa,
+       * grudado em "Filtros" à esquerda com o resto da linha vazio, também
+       * ficou errada; antes dessa, alinhar pela borda DIREITA da coluna de
+       * valor tinha lido como "à direita"). Medido de verdade num build real
+       * do painel (280px, mesmo CSS compilado do app, fonte Manrope) em vez
+       * de chutar mais uma vez: com o painel/`PopoverContent` já `relative`
+       * (herdado aqui pela própria linha), o "Todos" de uma `FilterMenuRow`
+       * comum começa a 208px da borda do painel — 207px depois de descontar
+       * o `border` de 1px do quadrante, que é a origem do `left` de um filho
+       * `absolute`. Não depende do rótulo da linha (ex.: "Proprietário" vs.
+       * "Cidade"): o valor é sempre encostado à direita, antes da seta, e a
+       * seta/padding são os mesmos em toda linha — só o texto do MEIO
+       * (rótulo) muda de largura, e ele fica à esquerda desse ponto.
        */}
       <span className="ds-eyebrow text-muted-foreground">Filtros</span>
       <button
         type="button"
         disabled={!canClear}
         onClick={onClear}
-        className="text-[11px] font-semibold text-foreground/70 transition-colors hover:text-foreground disabled:pointer-events-none disabled:text-foreground/30"
+        className="absolute left-[207px] text-[11px] font-semibold text-foreground/70 transition-colors hover:text-foreground disabled:pointer-events-none disabled:text-foreground/30"
       >
         Limpar
       </button>
@@ -450,6 +460,13 @@ function RangeDayButton({ day, modifiers, className: _c, children, ...props }: D
         ? "text-foreground/20"
         : "text-foreground group-hover/day:bg-foreground/[0.06]";
 
+  // "Dia vigente" (hoje) ganha um efeito de espelho ESTÁTICO — sem sweep,
+  // sem transição, só o brilho de vidro parado (pedido explícito,
+  // 23/09/2026: "espelho sem movimento"). Só no anel de "hoje" puro; quando
+  // o dia de hoje também é ponta do intervalo (início/fim selecionado), a
+  // cor sólida do chip já basta e o vidro por cima ficaria estranho.
+  const showTodayMirror = modifiers.today && !endpoint;
+
   return (
     <button
       {...props}
@@ -459,7 +476,13 @@ function RangeDayButton({ day, modifiers, className: _c, children, ...props }: D
         <span aria-hidden className={`absolute inset-y-0.5 ${band} bg-accent/[0.14]`} />
       ) : null}
       <span className={`relative grid size-[30px] place-items-center rounded-full transition-colors ${circle}`}>
-        {children}
+        {showTodayMirror ? (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-b from-white/20 via-white/[0.04] to-transparent"
+          />
+        ) : null}
+        <span className="relative">{children}</span>
       </span>
     </button>
   );

@@ -70,7 +70,9 @@ export const Route = createFileRoute("/_authenticated/admin/engajamento")({
   errorComponent: ({ error }) => (
     <div className="p-6 max-w-md mx-auto text-center space-y-2">
       <p className="text-sm font-medium">Falha ao carregar engajamento</p>
-      <p className="text-xs text-muted-foreground">{error.message}</p>
+      <p className="text-xs text-muted-foreground">
+        {error instanceof Error ? error.message : "Erro desconhecido"}
+      </p>
     </div>
   ),
 });

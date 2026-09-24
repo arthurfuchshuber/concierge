@@ -132,17 +132,21 @@
   /* Texto de apoio mais discreto que o "muted" (datas, legendas). */
   --faint: #6f6962;
 
-  /* "AMEIXA GRAFITE" — cor dos QUADRANTES (Filtros / Previsão / Em Estadia),
-     distinta do fundo do app (mockup "Quadrantes v2" aprovado, 23/09/2026:
-     "não muito agressivo, mas diferente" do `--card`/`--popover` neutros
-     usados em todo o resto do app). Nunca usar em `--card`/`--popover`
-     globais — é uma cor só do "quadrante", não do app inteiro. */
-  --panel: #1d1722;
-  --panel-2: #251d2b;
-  --panel-border: rgba(214, 160, 255, 0.14);
+  /* "GRAFITE QUENTE" — cor dos QUADRANTES (Filtros / Previsão / tooltips do
+     Dashboard), distinta do fundo do app (mockup "Quadrantes v2" aprovado,
+     23/09/2026: "não muito agressivo, mas diferente" do `--card`/`--popover`
+     neutros usados em todo o resto do app). Pedido explícito (mesmo dia,
+     revisão): a 1ª versão ("Ameixa Grafite") tinha um matiz roxo/magenta
+     (mesmo tom do `--accent`) — virou um grafite quente de verdade, sem
+     roxo, com um leve calor (âmbar) em vez de frio. Nunca usar em
+     `--card`/`--popover` globais — é uma cor só do "quadrante", não do app
+     inteiro. */
+  --panel: #211d1a;
+  --panel-2: #2a2521;
+  --panel-border: rgba(255, 205, 150, 0.12);
   --panel-div: rgba(255, 255, 255, 0.065);
   --panel-well: rgba(255, 255, 255, 0.045);
-  --panel-hair: linear-gradient(90deg, transparent, oklch(0.69 0.24 330 / 0.55), transparent);
+  --panel-hair: linear-gradient(90deg, transparent, oklch(0.78 0.1 75 / 0.55), transparent);
 
   --shadow-soft: 0 1px 2px oklch(0 0 0 / 0.4), 0 4px 16px oklch(0 0 0 / 0.3);
   --shadow-elevated: 0 8px 32px oklch(0 0 0 / 0.5);

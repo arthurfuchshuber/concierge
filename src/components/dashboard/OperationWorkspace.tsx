@@ -3211,7 +3211,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   rangeLabel={rangeLabel[range]}
                   pinnedIds={pinnedRowIds}
                   cardProps={arrivalGroupPropsFor("stay", stayRows)}
-                  ameixaPanel
                 />
               </div>
               <div className="order-11 col-span-1">
@@ -4341,7 +4340,6 @@ function KpiCard({
   highlight,
   pinnedIds,
   cardProps,
-  ameixaPanel,
 }: {
   label: string;
   rows: ArrivalRow[];
@@ -4367,14 +4365,6 @@ function KpiCard({
    * MESMOS handlers. Vem de arrivalGroupPropsFor(colMode, rows) — a mesma
    * função que já alimenta as colunas do Kanban. */
   cardProps: Omit<React.ComponentProps<typeof ArrivalGroup>, "title">;
-  /**
-   * Casca "Ameixa Grafite" do diálogo (mockup "Quadrantes v2" aprovado,
-   * 23/09/2026) — só "Em Estadia" por enquanto (pedido explícito: os demais
-   * popups de KPI ainda não foram aprovados, "o resto, ainda não faça").
-   * Muda só cor/raio/sombra da casca do `DialogContent`; conteúdo e
-   * comportamento do diálogo continuam os mesmos de sempre.
-   */
-  ameixaPanel?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   // Modo "Lista" (pedido explícito) — só afeta o conteúdo do popup, não o
@@ -4547,21 +4537,16 @@ function KpiCard({
       </DialogTrigger>
 
       <DialogContent
-        className={
-          ameixaPanel
-            ? /* Casca "Ameixa Grafite" (mockup aprovado, 23/09/2026): mesma
-                 cor/raio/sombra/fio de luz do "quadrante" de Filtros e
-                 Previsão — nunca `bg-card`/`border-border`, que é a cor
-                 neutra do resto do app (ver `src/styles.css`, `.dark`). */
-              "w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-[18px] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] relative before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]"
-            : "w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-lg border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl"
-        }
+        /* Casca "Grafite Quente" (mockup "Quadrantes v2" aprovado,
+           23/09/2026; pedido explícito 23/09/2026 — revisão: "precisamos
+           implementar o layout/design padrão... agora em cada tooltip ao
+           longo das subpáginas dentro de dashboard", não só "Em Estadia"
+           como na 1ª leva). Mesma cor/raio/sombra/fio de luz do "quadrante"
+           de Filtros/Previsão em TODO KpiCard — nunca mais `bg-card`/
+           `border-border`, que é a cor neutra do resto do app (ver
+           `src/styles.css`, `.dark`). */
+        className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-[18px] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] relative before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]"
       >
-        {!ameixaPanel && (
-          <div
-            className={`absolute inset-x-0 top-0 h-px ${shadowTone === "emerald" ? "bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" : shadowTone === "amber" ? "bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" : shadowTone === "sky" ? "bg-gradient-to-r from-transparent via-sky-400/60 to-transparent" : "bg-gradient-to-r from-transparent via-primary/50 to-transparent"}`}
-          />
-        )}
         <DialogHeader className="px-5 pt-5 pb-0">
           <div className="flex items-center gap-3">
             <div
@@ -4576,19 +4561,16 @@ function KpiCard({
               </div>
             </div>
           </div>
-          {displayRows.length > 0 && (
-            <div className="flex items-center justify-end gap-1.5 mt-3">
-              <ScreenshotButton
-                targetRef={screenshotRef}
-                fileName={`${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-                receiptRows={displayRows}
-                receiptTitle={label}
-              />
-            </div>
-          )}
+          {/* Botão de print (câmera) removido POR ENQUANTO (pedido explícito,
+              23/09/2026: "remova o icone da foto por enquanto"). O
+              `screenshotRef`/`ScreenshotButton` continuam prontos — é só
+              trazer essa linha de volta pra religar. Sem essa linha extra
+              (que tinha `mt-3`), o respiro entre o título e o 1º card volta a
+              ser só o `pt-3` da área rolável logo abaixo — o espaçamento
+              "padrão" já usado em todo o resto do app, sem folga dupla. */}
         </DialogHeader>
-        {/* pt-3 aqui (em vez do pb-3 que o header tinha antes) — mesmo
-            espaçamento visual entre os botões e o 1º card, mas agora essa
+        {/* `pt-3` aqui (em vez do `pb-3` que o header tinha antes) — mesmo
+            espaçamento visual entre o título e o 1º card, mas agora essa
             "folga" fica DENTRO da área rolável (px-3 pt-3), que é onde o
             navegador realmente clipa o overflow. Isso dá espaço pro badge de
             engajamento (absolute -top-2.5, cortando a borda do 1º card) sem
@@ -4765,14 +4747,17 @@ function FreePropertiesCard({
           <span className="ds-card-date">{dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1)}</span>
         </button>
       </DialogTrigger>
-      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-lg">
-        <DialogHeader className="px-5 pt-5 pb-3">
+      {/* Casca "Grafite Quente" — mesmo padrão do `KpiCard` logo acima
+          (pedido explícito, 23/09/2026: design padrão em todo tooltip do
+          Dashboard, não só em "Em Estadia"). */}
+      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-[18px] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] relative before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]">
+        <DialogHeader className="px-5 pt-5 pb-0">
           <DialogTitle className="text-base font-display">Imóveis livres {dayLabel}</DialogTitle>
         </DialogHeader>
         <div
           ref={list.ref}
           style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
-          className="sg-elegant-scroll max-h-[70vh] overflow-y-auto px-4"
+          className="sg-elegant-scroll max-h-[70vh] overflow-y-auto px-4 pt-3"
         >
           {loading ? (
             <div className="py-10 grid place-items-center text-muted-foreground">
@@ -4781,7 +4766,7 @@ function FreePropertiesCard({
           ) : properties.length === 0 ? (
             <div className="py-10 text-center text-sm text-muted-foreground">Nenhum imóvel livre {dayLabel}.</div>
           ) : (
-            <ul className="space-y-1.5 pb-2">
+            <ul className="space-y-1.5 pb-3">
               {properties.map((p) => (
                 <li
                   key={p.id}
@@ -8042,14 +8027,26 @@ function OccupancyPanel({
                               className="sticky top-0 z-20 snap-start bg-card px-0 pb-2 font-medium tabular-nums"
                             >
                               <div
-                                className={`mx-auto flex w-full flex-col items-center rounded-md py-1 ${
+                                className={`relative mx-auto flex w-full flex-col items-center overflow-hidden rounded-md py-1 ${
                                   isToday ? "bg-primary/10 text-primary" : "text-muted-foreground"
                                 }`}
                               >
-                                <span className="text-[9px] uppercase tracking-wide opacity-70">
+                                {/* "Dia vigente" (hoje): efeito de espelho ESTÁTICO — vidro
+                                    parado, sem sweep/transição (pedido explícito, 23/09/2026:
+                                    "espelho sem movimento"). Mesmo tratamento do anel de "hoje"
+                                    no calendário de Período (`filter-panel.tsx`). */}
+                                {isToday && (
+                                  <span
+                                    aria-hidden
+                                    className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/15 via-white/[0.03] to-transparent"
+                                  />
+                                )}
+                                <span className="relative text-[9px] uppercase tracking-wide opacity-70">
                                   {wd.replace(".", "")}
                                 </span>
-                                <span className="text-[11px] font-semibold leading-tight">{d.slice(8, 10)}</span>
+                                <span className="relative text-[11px] font-semibold leading-tight">
+                                  {d.slice(8, 10)}
+                                </span>
                               </div>
                             </th>
                           );
@@ -10479,7 +10476,7 @@ function PredictedEditor({
       </PopoverTrigger>
 
       {/*
-       * CASCA "AMEIXA GRAFITE" (mockup "Quadrantes v2" aprovado, 23/09/2026):
+       * CASCA "GRAFITE QUENTE" (mockup "Quadrantes v2" aprovado, 23/09/2026):
        * as 3 telas deste popover (resumo/data/horário) passam a usar o
        * mesmo painel dos quadrantes de Filtros — `FILTER_PANEL_CLASS_ELEVATED`
        * (um tom mais claro, `--panel-2`, por abrir por cima do diálogo "Em
