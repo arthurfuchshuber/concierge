@@ -20,6 +20,14 @@
  * 28px (24px nos cabeçalhos internos); valor ativo em chip rosa suave;
  * caixinha de 17px com raio 5; calendário com células de 34px, "hoje" com
  * anel fino e o intervalo em faixa rosa suave com as pontas em círculo.
+ *
+ * COR "AMEIXA GRAFITE" (mockup "Quadrantes v2" aprovado, 23/09/2026— pedido
+ * explícito: "as janelas/quadrantes dos botões de filtros fiquem com a cor
+ * principal diferente do tema abaixo... não muito agressivo, mas
+ * diferente"). O painel deixou de usar `bg-card`/`border-border` (a cor
+ * neutra do resto do app) e passou a usar os tokens `--panel*` só dele
+ * (`src/styles.css`, dentro de `.dark`) — nunca os tokens globais, porque a
+ * ideia é exatamente destacar o quadrante do fundo, não mudar o app inteiro.
  */
 import { useMemo, useState, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
@@ -34,9 +42,22 @@ import { OVERLAY_COLLISION_PADDING } from "@/components/ui/overlay-collision";
 /* Casca do painel                                                           */
 /* ------------------------------------------------------------------------ */
 
-/** Classes do `PopoverContent` de qualquer botão de Filtros. */
+/**
+ * Classes do `PopoverContent` de qualquer botão de Filtros. `relative` +
+ * `before:*` desenha o fio de luz de 1px no topo (mockup: 28px de recuo de
+ * cada lado) sem precisar de mais um elemento em cada tela que usa o painel.
+ */
 export const FILTER_PANEL_CLASS =
-  "sg-elegant-scroll w-[280px] max-w-[calc(100vw-32px)] max-h-[min(36rem,var(--radix-popover-content-available-height))] overflow-y-auto overflow-x-hidden rounded-2xl border border-border bg-card p-0 text-foreground shadow-[0_24px_60px_rgba(0,0,0,0.55),0_2px_8px_rgba(0,0,0,0.35)]";
+  "sg-elegant-scroll relative before:pointer-events-none before:absolute before:inset-x-7 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)] w-[280px] max-w-[calc(100vw-32px)] max-h-[min(36rem,var(--radix-popover-content-available-height))] overflow-y-auto overflow-x-hidden rounded-2xl border border-[var(--panel-border)] bg-[var(--panel)] p-0 text-foreground shadow-[0_24px_60px_rgba(0,0,0,0.6),0_2px_8px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.05)]";
+
+/**
+ * Mesma casca, um tom mais claro (`--panel-2`) — para um quadrante que flutua
+ * SOBRE outro (ex.: o popover de Previsão, que abre por cima do diálogo "Em
+ * Estadia"). Mockup "Quadrantes v2" aprovado, 23/09/2026: o painel de baixo
+ * usa `--panel`, o de cima `--panel-2`, para os dois se distinguirem um do
+ * outro em vez de se fundirem numa mancha só.
+ */
+export const FILTER_PANEL_CLASS_ELEVATED = FILTER_PANEL_CLASS.replace("bg-[var(--panel)]", "bg-[var(--panel-2)]");
 
 /**
  * Nunca colado na lateral: 16px de folga dos dois lados, mantendo as faixas
@@ -49,7 +70,7 @@ export const FILTER_PANEL_COLLISION = { ...OVERLAY_COLLISION_PADDING, left: 16, 
 /** Distância entre o botão e o painel (mockup). */
 export const FILTER_PANEL_OFFSET = 8;
 
-const ROW_DIVIDER = "border-b border-foreground/[0.06]";
+const ROW_DIVIDER = "border-b border-[var(--panel-div)]";
 const ROW_HOVER = "transition-colors hover:bg-foreground/[0.03]";
 
 /* ------------------------------------------------------------------------ */
@@ -93,7 +114,15 @@ function CheckBox({ checked }: { checked: boolean }) {
 /** Topo do menu raiz: "FILTROS" à esquerda, "Limpar" à direita (mockup). */
 export function FilterRootHeader({ canClear, onClear }: { canClear: boolean; onClear: () => void }) {
   return (
-    <div className={`flex items-center justify-between gap-2 px-3.5 py-3 ${ROW_DIVIDER}`}>
+    <div className={`flex items-center gap-2.5 py-3 px-3.5 ${ROW_DIVIDER}`}>
+      {/*
+       * "Limpar" À ESQUERDA, logo ao lado de "Filtros" — não mais empurrado
+       * pro canto direito do quadrante (pedido explícito, 23/09/2026: "deve
+       * ficar alinhado à esquerda e não à direita"). A tentativa anterior de
+       * alinhar com a coluna de valores das linhas abaixo (ex.: "Todos")
+       * ficou lendo como "à direita" — o resto da linha, à direita destes
+       * dois, fica vazio de propósito.
+       */}
       <span className="ds-eyebrow text-muted-foreground">Filtros</span>
       <button
         type="button"
@@ -199,7 +228,7 @@ export function FilterToggleRow({
 
 /** Divisor entre o bloco de filtros e o bloco de ações do menu raiz. */
 export function FilterSection({ children }: { children: ReactNode }) {
-  return <div className="border-t border-foreground/[0.06]">{children}</div>;
+  return <div className="border-t border-[var(--panel-div)]">{children}</div>;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -288,7 +317,14 @@ export function FilterOptionRow({
   );
 }
 
-export type FilterMultiOption = { value: string; label: string; sublabel?: string | null };
+export type FilterMultiOption = {
+  value: string;
+  label: string;
+  sublabel?: string | null;
+  /** Rótulo em itálico (ex.: "Sem prestador informado" — mockup aprovado,
+   * 23/09/2026) — sinaliza uma opção "vazio", não um valor de verdade. */
+  italic?: boolean;
+};
 
 function normalize(s: string) {
   return s
@@ -328,7 +364,7 @@ export function FilterMultiSelect({
 
   return (
     <>
-      <label className="mx-3.5 mb-1.5 mt-2.5 flex items-center gap-2 rounded-[9px] border border-border bg-foreground/[0.025] px-2.5 py-2">
+      <label className="mx-3.5 mb-1.5 mt-2.5 flex items-center gap-2 rounded-[9px] border border-border bg-[var(--panel-well)] px-2.5 py-2">
         <Search className="size-3.5 shrink-0 text-foreground/40" strokeWidth={2} />
         <input
           value={query}
@@ -354,7 +390,7 @@ export function FilterMultiSelect({
           Limpar
         </button>
       </div>
-      <div className="border-t border-foreground/[0.06]">
+      <div className="border-t border-[var(--panel-div)]">
         {visible.length === 0 ? (
           <div className="px-3.5 py-6 text-center text-xs text-muted-foreground">{emptyLabel}</div>
         ) : (
@@ -373,7 +409,11 @@ export function FilterMultiSelect({
               >
                 <CheckBox checked={checked} />
                 <span className="flex min-w-0 flex-1 flex-col gap-px">
-                  <span className="truncate text-[12.5px] font-semibold leading-[1.3] text-foreground">{o.label}</span>
+                  <span
+                    className={`truncate text-[12.5px] font-semibold leading-[1.3] text-foreground ${o.italic ? "italic text-foreground/70" : ""}`}
+                  >
+                    {o.label}
+                  </span>
                   {o.sublabel ? (
                     <span className="truncate text-[10.5px] leading-[1.3] text-muted-foreground">{o.sublabel}</span>
                   ) : null}

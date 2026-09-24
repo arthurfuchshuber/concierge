@@ -338,6 +338,12 @@ export type CleaningDayItem = {
   doneByName: string | null;
 };
 
+// "Sem prestador informado" (mockup aprovado, 23/09/2026) — valor sentinela
+// dentro de `providerNames` que representa limpezas SEM `cleaning_done_by`
+// resolvido para um prestador cadastrado (nenhum registro, ou registro sem
+// cadastro de prestador vinculado ao login).
+export const NO_PROVIDER_LABEL = "Sem prestador informado";
+
 const CleaningStatsInput = z.object({
   ownerId: z.string().uuid().nullable().optional(),
   // ids já resolvidos no cliente a partir do filtro de Proprietário/Cidade
@@ -346,6 +352,12 @@ const CleaningStatsInput = z.object({
   propertyIds: z.array(z.string().uuid()).optional(),
   rangeStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   rangeEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  // Filtro de Prestador (pedido explícito, 23/09/2026): aqui, "realizada",
+  // conta por QUEM CONCLUIU a limpeza (`cleaning_done_by`) — não pelo
+  // prestador atualmente vinculado ao imóvel (esse vínculo pode ter mudado
+  // desde então; ver `providerName` em `getOccupancyBoard` para a regra das
+  // "previstas", que já é por vínculo do imóvel). Ausente/vazio = todos.
+  providerNames: z.array(z.string()).optional(),
 });
 
 export const getCleaningStats = createServerFn({ method: "GET" })
@@ -407,7 +419,44 @@ export const getCleaningStats = createServerFn({ method: "GET" })
     // 17/09/2026): as pendentes ficam fora de TODOS os números desta função
     // (cards, gráficos e ranking) e voltam separadas, só para o aviso
     // "+N aguardando aprovação" embaixo dos cards.
-    const all = (rows ?? []) as Row[];
+    const rawAll = (rows ?? []) as Row[];
+
+    // Nome de quem concluiu — resolvido AQUI, antes de qualquer filtro, para
+    // o filtro de Prestador (abaixo) poder decidir por nome. Mesma consulta
+    // que já existia mais adiante nesta função (só adiantada).
+    const doneByIds = Array.from(
+      new Set(rawAll.map((r) => r.cleaning_done_by).filter((v): v is string => !!v)),
+    );
+    const providerNameByUser = new Map<string, string>();
+    if (doneByIds.length > 0) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: providers } = await supabaseAdmin
+        .from("service_providers")
+        .select("member_user_id, name, trade_name")
+        .in("member_user_id", doneByIds);
+      for (const pr of (providers ?? []) as Array<{
+        member_user_id: string | null;
+        name: string | null;
+        trade_name: string | null;
+      }>) {
+        const label = (pr.trade_name || pr.name || "").trim();
+        if (pr.member_user_id && label) providerNameByUser.set(pr.member_user_id, label);
+      }
+    }
+
+    // Filtro de Prestador (pedido explícito, 23/09/2026) — aplicado ANTES de
+    // separar aprovadas/pendentes, para os dois grupos (e o aviso de "+N
+    // aguardando aprovação") já saírem consistentes com o prestador escolhido.
+    let all = rawAll;
+    if (data.providerNames && data.providerNames.length > 0) {
+      const wanted = new Set(data.providerNames);
+      const wantsNone = wanted.has(NO_PROVIDER_LABEL);
+      all = rawAll.filter((r) => {
+        const name = r.cleaning_done_by ? providerNameByUser.get(r.cleaning_done_by) : undefined;
+        return name ? wanted.has(name) : wantsNone;
+      });
+    }
+
     const list = all.filter((r) => r.cleaning_approval_status !== "pending");
     const pendingList = all.filter((r) => r.cleaning_approval_status === "pending");
     const pendingApproval = {
@@ -491,26 +540,8 @@ export const getCleaningStats = createServerFn({ method: "GET" })
         .sort((a, b) => b.count - a.count || a.propertyName.localeCompare(b.propertyName, "pt-BR"));
 
       // Quem concluiu: nome do cadastro de prestador ligado ao login (mesma
-      // regra do aviso "Finalizado por").
-      const doneByIds = Array.from(
-        new Set(all.map((r) => r.cleaning_done_by).filter((v): v is string => !!v)),
-      );
-      const providerNameByUser = new Map<string, string>();
-      if (doneByIds.length > 0) {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { data: providers } = await supabaseAdmin
-          .from("service_providers")
-          .select("member_user_id, name, trade_name")
-          .in("member_user_id", doneByIds);
-        for (const pr of (providers ?? []) as Array<{
-          member_user_id: string | null;
-          name: string | null;
-          trade_name: string | null;
-        }>) {
-          const label = (pr.trade_name || pr.name || "").trim();
-          if (pr.member_user_id && label) providerNameByUser.set(pr.member_user_id, label);
-        }
-      }
+      // regra do aviso "Finalizado por") — `providerNameByUser` já foi
+      // resolvido no topo da função, antes do filtro de Prestador.
       items = all
         .filter((r) => !!r.concluded_at)
         .map((r): CleaningDayItem => {
@@ -2177,13 +2208,45 @@ export const getOccupancyBoard = createServerFn({ method: "GET" })
       }
     }
 
-    const properties = propsRaw.map((p) => ({
-      id: p.id,
-      name: p.name ?? "Sem nome",
-      city: p.city ?? null,
-      ownerName: p.owner_contact_id ? (occOwnerName.get(p.owner_contact_id) ?? null) : null,
-      heroImageUrl: p.hero_image_url ?? null,
-    }));
+    // Prestador VINCULADO ao imóvel (filtro "Prestador" das limpezas
+    // PREVISTAS — pedido explícito, 23/09/2026: diferente das realizadas,
+    // que contam por quem concluiu; ver `NO_PROVIDER_LABEL`/`providerNames`
+    // em `getCleaningStats`). Mesmo padrão em 2 buscas do `ownerName` acima:
+    // `property_providers` (vínculo) → `service_providers` (nome).
+    const { data: propProviders } = await context.supabase
+      .from("property_providers")
+      .select("property_id, provider_id")
+      .in("property_id", propIds);
+    const providerIdByProperty = new Map<string, string>();
+    for (const pp of (propProviders ?? []) as Array<{ property_id: string; provider_id: string }>) {
+      // Um imóvel só deveria ter 1 prestador vinculado na prática — se houver
+      // mais de um, fica o primeiro encontrado (nunca sobrescreve).
+      if (!providerIdByProperty.has(pp.property_id)) providerIdByProperty.set(pp.property_id, pp.provider_id);
+    }
+    const occProviderIds = Array.from(new Set(providerIdByProperty.values()));
+    const occProviderName = new Map<string, string>();
+    if (occProviderIds.length > 0) {
+      const { data: providers } = await context.supabase
+        .from("service_providers")
+        .select("id, name, trade_name")
+        .in("id", occProviderIds);
+      for (const pr of (providers ?? []) as Array<{ id: string; name: string | null; trade_name: string | null }>) {
+        const label = (pr.trade_name || pr.name || "").trim();
+        if (label) occProviderName.set(pr.id, label);
+      }
+    }
+
+    const properties = propsRaw.map((p) => {
+      const providerId = providerIdByProperty.get(p.id);
+      return {
+        id: p.id,
+        name: p.name ?? "Sem nome",
+        city: p.city ?? null,
+        ownerName: p.owner_contact_id ? (occOwnerName.get(p.owner_contact_id) ?? null) : null,
+        heroImageUrl: p.hero_image_url ?? null,
+        providerName: providerId ? (occProviderName.get(providerId) ?? null) : null,
+      };
+    });
 
     /**
      * IMÓVEIS LIVRES DO DIA ABERTO (pedido explícito, 08/09/2026):

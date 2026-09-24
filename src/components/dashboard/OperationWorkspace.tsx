@@ -86,6 +86,7 @@ import {
   Ban,
   History,
   Clock3,
+  HardHat,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -147,6 +148,7 @@ import {
 } from "@/components/dashboard/panel-chrome";
 import {
   FILTER_PANEL_CLASS,
+  FILTER_PANEL_CLASS_ELEVATED,
   FILTER_PANEL_COLLISION,
   FILTER_PANEL_OFFSET,
   FilterActionRow,
@@ -183,6 +185,7 @@ import {
   getOccupancyBoard,
   getCleaningStats,
   getEarliestCleaningDate,
+  NO_PROVIDER_LABEL,
   type ArrivalRow,
   type CleaningBreakdownItem,
   type CleaningDailyPoint,
@@ -909,11 +912,22 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const [periodRange, setPeriodRange] = useState<{ start: string; end: string } | null>(null);
   const [ownerFilters, setOwnerFilters] = useState<string[]>([]);
   const [cityFilters, setCityFilters] = useState<string[]>([]);
-  const hasCustomFilters = !!periodRange || ownerFilters.length > 0 || cityFilters.length > 0;
+  // Filtro de Prestador (pedido explícito, 23/09/2026) — mesmo estado
+  // compartilhado do Proprietário/Cidade acima: um só, usado no Kanban, na
+  // aba Limpeza e no calendário de ocupação (os 3 lugares onde o mesmo
+  // `CalendarFiltersButton` aparece). A regra de contagem NÃO é uniforme:
+  // limpezas REALIZADAS contam por quem concluiu (`getCleaningStats`,
+  // `providerNames`), limpezas PREVISTAS (Kanban/calendário) contam pelo
+  // prestador vinculado ao imóvel (`providerName` de `getOccupancyBoard`,
+  // ver `propertyProviderById`/`matchesKanbanOwnerCity` mais abaixo).
+  const [providerFilters, setProviderFilters] = useState<string[]>([]);
+  const hasCustomFilters =
+    !!periodRange || ownerFilters.length > 0 || cityFilters.length > 0 || providerFilters.length > 0;
   function clearAllFilters() {
     setPeriodRange(null);
     setOwnerFilters([]);
     setCityFilters([]);
+    setProviderFilters([]);
   }
 
   const occStart = periodRange?.start ?? todayISOSaoPaulo();
@@ -954,6 +968,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     name: string;
     city: string | null;
     ownerName?: string | null;
+    providerName?: string | null;
   }> = occupancyQ.data?.properties ?? [];
   const ownerOptions = useMemo(() => {
     const names: string[] = occupancyProperties.map((p) => p.ownerName).filter((v): v is string => !!v);
@@ -980,15 +995,60 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     const names: string[] = occupancyProperties.map((p) => p.city).filter((v): v is string => !!v);
     return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [occupancyProperties]);
+  // Opções do filtro de Prestador — nome do prestador vinculado a cada
+  // imóvel, mais o sentinela "Sem prestador informado" quando existir algum
+  // imóvel sem vínculo (mockup aprovado, 23/09/2026, opção em itálico).
+  const providerOptions = useMemo(() => {
+    const names: string[] = occupancyProperties.map((p) => p.providerName).filter((v): v is string => !!v);
+    const opts = Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, "pt-BR"));
+    if (occupancyProperties.some((p) => !p.providerName)) opts.push(NO_PROVIDER_LABEL);
+    return opts;
+  }, [occupancyProperties]);
+  // Linha de apoio sob cada prestador (cidade dos imóveis dele + quantos
+  // imóveis) — mesmo padrão de `ownerSubtitles` acima.
+  const providerSubtitles = useMemo(() => {
+    const byProvider = new Map<string, { cities: Set<string>; count: number }>();
+    for (const p of occupancyProperties) {
+      const key = p.providerName ?? NO_PROVIDER_LABEL;
+      const entry = byProvider.get(key) ?? { cities: new Set<string>(), count: 0 };
+      if (p.city) entry.cities.add(p.city);
+      entry.count += 1;
+      byProvider.set(key, entry);
+    }
+    const out: Record<string, string> = {};
+    for (const [provider, { cities, count }] of byProvider) {
+      const cityList = Array.from(cities).sort((a, b) => a.localeCompare(b, "pt-BR")).join(", ");
+      const imoveis = `${count} imóvel${count === 1 ? "" : "eis"}`;
+      out[provider] = cityList ? `${cityList} · ${imoveis}` : imoveis;
+    }
+    return out;
+  }, [occupancyProperties]);
   const matchesOwnerCity = useCallback(
     (p: { ownerName?: string | null; city?: string | null }) =>
       (ownerFilters.length === 0 || (p.ownerName && ownerFilters.includes(p.ownerName))) &&
       (cityFilters.length === 0 || (p.city && cityFilters.includes(p.city))),
     [ownerFilters, cityFilters],
   );
+  // Prestador é aplicado SÓ para o calendário/Kanban (vínculo do imóvel) —
+  // nunca entra em `cleaningStatsPropertyIds` abaixo, que continua só
+  // Proprietário/Cidade: o filtro de Prestador das limpezas REALIZADAS é
+  // outro (por quem concluiu, enviado à parte como `providerNames`).
+  const matchesProvider = useCallback(
+    (p: { providerName?: string | null }) =>
+      providerFilters.length === 0 ||
+      (p.providerName ? providerFilters.includes(p.providerName) : providerFilters.includes(NO_PROVIDER_LABEL)),
+    [providerFilters],
+  );
   const filteredOccupancyProperties = useMemo(
     () => occupancyProperties.filter(matchesOwnerCity),
     [occupancyProperties, matchesOwnerCity],
+  );
+  // Lista que o CALENDÁRIO exibe: Proprietário/Cidade + Prestador (por
+  // vínculo do imóvel) — separada de `filteredOccupancyProperties` acima
+  // exatamente para não vazar o filtro de Prestador nas limpezas realizadas.
+  const calendarProperties = useMemo(
+    () => filteredOccupancyProperties.filter(matchesProvider),
+    [filteredOccupancyProperties, matchesProvider],
   );
   // ids que batem com Proprietário/Cidade — só enviado ao servidor quando
   // algum desses 2 filtros está ativo (sem filtro, o servidor já usa todos
@@ -1057,6 +1117,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       cleaningStatsRange.start,
       cleaningStatsRange.end,
       cleaningStatsPropertyIds?.join(",") ?? "",
+      providerFilters.join(","),
     ],
     queryFn: () =>
       cleaningStatsFn({
@@ -1065,6 +1126,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           rangeStart: cleaningStatsRange.start,
           rangeEnd: cleaningStatsRange.end,
           propertyIds: cleaningStatsPropertyIds,
+          providerNames: providerFilters.length > 0 ? providerFilters : undefined,
         },
       }),
     staleTime: 30_000,
@@ -1081,6 +1143,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       cleaningTrendRange.start,
       cleaningTrendRange.end,
       cleaningStatsPropertyIds?.join(",") ?? "",
+      providerFilters.join(","),
     ],
     queryFn: () =>
       cleaningStatsFn({
@@ -1089,6 +1152,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           rangeStart: cleaningTrendRange.start,
           rangeEnd: cleaningTrendRange.end,
           propertyIds: cleaningStatsPropertyIds,
+          providerNames: providerFilters.length > 0 ? providerFilters : undefined,
         },
       }),
     staleTime: 30_000,
@@ -1636,6 +1700,15 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     return map;
   }, [occupancyProperties]);
 
+  // Prestador VINCULADO ao imóvel (não quem concluiu) — regra das
+  // "previstas" (pedido explícito, 23/09/2026): o Kanban ainda não tem uma
+  // limpeza concluída pra saber quem fez, só o vínculo cadastrado.
+  const propertyProviderById = useMemo(() => {
+    const map = new Map<string, string | null>();
+    for (const p of occupancyProperties) map.set(p.id, p.providerName ?? null);
+    return map;
+  }, [occupancyProperties]);
+
   const matchesKanbanOwnerCity = useCallback(
     (r: ArrivalRow) => {
       if (ownerFilters.length > 0 && !(r.ownerName && ownerFilters.includes(r.ownerName))) return false;
@@ -1643,9 +1716,16 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         const city = propertyCityById.get(r.propertyId);
         if (!city || !cityFilters.includes(city)) return false;
       }
+      if (providerFilters.length > 0) {
+        const providerName = propertyProviderById.get(r.propertyId) ?? null;
+        const matches = providerName
+          ? providerFilters.includes(providerName)
+          : providerFilters.includes(NO_PROVIDER_LABEL);
+        if (!matches) return false;
+      }
       return true;
     },
-    [ownerFilters, cityFilters, propertyCityById],
+    [ownerFilters, cityFilters, providerFilters, propertyCityById, propertyProviderById],
   );
 
   /**
@@ -2902,6 +2982,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 onOwnerFiltersChange={setOwnerFilters}
                 ownerOptions={ownerOptions}
                 ownerSubtitles={ownerSubtitles}
+                providerFilters={providerFilters}
+                onProviderFiltersChange={setProviderFilters}
+                providerOptions={providerOptions}
+                providerSubtitles={providerSubtitles}
                 hasCustomFilters={hasCustomFilters}
                 onClearAll={clearAllFilters}
                 screenshot={
@@ -3079,7 +3163,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 loading={occupancyQ.isLoading}
                 start={occupancyQ.data?.start ?? occStart}
                 days={occupancyQ.data?.days ?? occDays}
-                properties={filteredOccupancyProperties}
+                properties={calendarProperties}
                 stays={occupancyQ.data?.stays ?? []}
                 checkedInPropertyIds={checkedInPropertyIds}
                 periodRange={periodRange}
@@ -3091,6 +3175,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 onOwnerFiltersChange={setOwnerFilters}
                 ownerOptions={ownerOptions}
                 ownerSubtitles={ownerSubtitles}
+                providerFilters={providerFilters}
+                onProviderFiltersChange={setProviderFilters}
+                providerOptions={providerOptions}
+                providerSubtitles={providerSubtitles}
                 hasCustomFilters={hasCustomFilters}
                 onClearAllFilters={clearAllFilters}
                 onFitDaysChange={setFitDays}
@@ -3123,6 +3211,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                   rangeLabel={rangeLabel[range]}
                   pinnedIds={pinnedRowIds}
                   cardProps={arrivalGroupPropsFor("stay", stayRows)}
+                  ameixaPanel
                 />
               </div>
               <div className="order-11 col-span-1">
@@ -4252,6 +4341,7 @@ function KpiCard({
   highlight,
   pinnedIds,
   cardProps,
+  ameixaPanel,
 }: {
   label: string;
   rows: ArrivalRow[];
@@ -4277,6 +4367,14 @@ function KpiCard({
    * MESMOS handlers. Vem de arrivalGroupPropsFor(colMode, rows) — a mesma
    * função que já alimenta as colunas do Kanban. */
   cardProps: Omit<React.ComponentProps<typeof ArrivalGroup>, "title">;
+  /**
+   * Casca "Ameixa Grafite" do diálogo (mockup "Quadrantes v2" aprovado,
+   * 23/09/2026) — só "Em Estadia" por enquanto (pedido explícito: os demais
+   * popups de KPI ainda não foram aprovados, "o resto, ainda não faça").
+   * Muda só cor/raio/sombra da casca do `DialogContent`; conteúdo e
+   * comportamento do diálogo continuam os mesmos de sempre.
+   */
+  ameixaPanel?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   // Modo "Lista" (pedido explícito) — só afeta o conteúdo do popup, não o
@@ -4448,10 +4546,22 @@ function KpiCard({
         )}
       </DialogTrigger>
 
-      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-lg border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl">
-        <div
-          className={`absolute inset-x-0 top-0 h-px ${shadowTone === "emerald" ? "bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" : shadowTone === "amber" ? "bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" : shadowTone === "sky" ? "bg-gradient-to-r from-transparent via-sky-400/60 to-transparent" : "bg-gradient-to-r from-transparent via-primary/50 to-transparent"}`}
-        />
+      <DialogContent
+        className={
+          ameixaPanel
+            ? /* Casca "Ameixa Grafite" (mockup aprovado, 23/09/2026): mesma
+                 cor/raio/sombra/fio de luz do "quadrante" de Filtros e
+                 Previsão — nunca `bg-card`/`border-border`, que é a cor
+                 neutra do resto do app (ver `src/styles.css`, `.dark`). */
+              "w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-[18px] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] relative before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]"
+            : "w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-lg border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl"
+        }
+      >
+        {!ameixaPanel && (
+          <div
+            className={`absolute inset-x-0 top-0 h-px ${shadowTone === "emerald" ? "bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" : shadowTone === "amber" ? "bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" : shadowTone === "sky" ? "bg-gradient-to-r from-transparent via-sky-400/60 to-transparent" : "bg-gradient-to-r from-transparent via-primary/50 to-transparent"}`}
+          />
+        )}
         <DialogHeader className="px-5 pt-5 pb-0">
           <div className="flex items-center gap-3">
             <div
@@ -7068,6 +7178,10 @@ function CalendarFiltersButton({
   onOwnerFiltersChange,
   ownerOptions,
   ownerSubtitles,
+  providerFilters,
+  onProviderFiltersChange,
+  providerOptions,
+  providerSubtitles,
   hasCustomFilters,
   onClearAll,
   screenshot,
@@ -7085,6 +7199,12 @@ function CalendarFiltersButton({
   ownerOptions: string[];
   /** Linha de apoio sob cada proprietário na lista (ex.: cidade dos imóveis dele). */
   ownerSubtitles?: Record<string, string>;
+  /** Filtro de Prestador (pedido explícito, 23/09/2026) — mesmo padrão de
+   * Proprietário, com "Sem prestador informado" entre as opções. */
+  providerFilters: string[];
+  onProviderFiltersChange: (next: string[]) => void;
+  providerOptions: string[];
+  providerSubtitles?: Record<string, string>;
   hasCustomFilters: boolean;
   onClearAll: () => void;
   /** Print da tela — vira duas linhas dentro deste menu quando informado. */
@@ -7099,7 +7219,7 @@ function CalendarFiltersButton({
   demandMin?: string | null;
   demandMax?: string | null;
 }) {
-  type Screen = "root" | "period" | "city" | "owner";
+  type Screen = "root" | "period" | "city" | "owner" | "provider";
   const [screen, setScreen] = useState<Screen>("root");
   const [draft, setDraft] = useState<DateRange | undefined>(
     periodRange ? { from: parseISODateLocal(periodRange.start), to: parseISODateLocal(periodRange.end) } : undefined,
@@ -7152,6 +7272,12 @@ function CalendarFiltersButton({
       : ownerFilters.length === 1
         ? ownerFilters[0]
         : `${ownerFilters.length} selecionados`;
+  const providerLabel =
+    providerFilters.length === 0
+      ? "Todos"
+      : providerFilters.length === 1
+        ? providerFilters[0]
+        : `${providerFilters.length} selecionados`;
 
   /* O hook roda sempre (regra dos hooks); sem alvo, `shot` fica nulo e as
      duas linhas do print não são desenhadas. */
@@ -7242,6 +7368,13 @@ function CalendarFiltersButton({
               value={ownerLabel}
               active={ownerFilters.length > 0}
               onClick={() => setScreen("owner")}
+            />
+            <FilterMenuRow
+              icon={HardHat}
+              label="Prestador"
+              value={providerLabel}
+              active={providerFilters.length > 0}
+              onClick={() => setScreen("provider")}
               last
             />
             {/* "Salvar imagem" / "Copiar imagem" FORA do menu por enquanto
@@ -7326,6 +7459,28 @@ function CalendarFiltersButton({
               selected={ownerFilters}
               onChange={onOwnerFiltersChange}
               searchPlaceholder="Buscar proprietário..."
+            />
+          </>
+        ) : null}
+
+        {screen === "provider" ? (
+          <>
+            <FilterScreenHeader
+              icon={HardHat}
+              title="Prestador"
+              onBack={() => setScreen("root")}
+              right={<FilterCountBadge count={providerFilters.length} />}
+            />
+            <FilterMultiSelect
+              options={providerOptions.map((o) => ({
+                value: o,
+                label: o,
+                sublabel: providerSubtitles?.[o] ?? null,
+                italic: o === NO_PROVIDER_LABEL,
+              }))}
+              selected={providerFilters}
+              onChange={onProviderFiltersChange}
+              searchPlaceholder="Buscar prestador..."
             />
           </>
         ) : null}
@@ -7418,6 +7573,10 @@ function OccupancyPanel({
   onOwnerFiltersChange,
   ownerOptions,
   ownerSubtitles,
+  providerFilters,
+  onProviderFiltersChange,
+  providerOptions,
+  providerSubtitles,
   hasCustomFilters,
   onClearAllFilters,
   onFitDaysChange,
@@ -7456,6 +7615,13 @@ function OccupancyPanel({
   onOwnerFiltersChange: (next: string[]) => void;
   ownerOptions: string[];
   ownerSubtitles?: Record<string, string>;
+  /** Filtro de Prestador (pedido explícito, 23/09/2026) — também no
+   * calendário de ocupação, por vínculo do imóvel (ver `calendarProperties`
+   * no pai). */
+  providerFilters: string[];
+  onProviderFiltersChange: (next: string[]) => void;
+  providerOptions: string[];
+  providerSubtitles?: Record<string, string>;
   hasCustomFilters: boolean;
   onClearAllFilters: () => void;
   /** Quantos dias INTEIROS cabem no quadro com as colunas no tamanho máximo.
@@ -7808,6 +7974,10 @@ function OccupancyPanel({
           onOwnerFiltersChange={onOwnerFiltersChange}
           ownerOptions={ownerOptions}
           ownerSubtitles={ownerSubtitles}
+          providerFilters={providerFilters}
+          onProviderFiltersChange={onProviderFiltersChange}
+          providerOptions={providerOptions}
+          providerSubtitles={providerSubtitles}
           hasCustomFilters={hasCustomFilters}
           onClearAll={onClearAllFilters}
         />
@@ -9038,6 +9208,37 @@ function ArrivalCard({
     onMark(row);
   }
 
+  /**
+   * PERÍODO SEMPRE VISÍVEL EM "EM ESTADIA" (pedido explícito, 23/09/2026,
+   * mockup "Quadrantes v2" — "coloque o período fora da expansividade abaixo
+   * do título do imóvel"). Só na lista de Em Estadia (`mode === "stay"`) o
+   * período sai de dentro do `!compact` e vai logo abaixo do título; nas
+   * outras listas (Kanban, Checkouts, Check-ins, Limpeza) nada muda — o
+   * período continua só aparecendo com o card aberto, como sempre foi. Por
+   * isso o bloco é montado uma vez só e cada modo decide ONDE renderizá-lo,
+   * em vez de duplicar duas versões da mesma regra de exibição (`!listBare`).
+   */
+  const isStay = mode === "stay";
+  const periodoBlock = !listBare ? (
+    <div className={`flex flex-wrap items-center gap-1.5 text-[11.5px] tabular-nums ${periodoColorClass}`}>
+      <DateEditor
+        value={row.guestCheckin}
+        disabled={busy || isPendingFill}
+        onChange={(v) => onEditDates(row, { checkinDate: v })}
+      />
+      {row.guestCheckout && (
+        <>
+          <span>→</span>
+          <DateEditor
+            value={row.guestCheckout}
+            disabled={busy || isPendingFill}
+            onChange={(v) => onEditDates(row, { checkoutDate: v })}
+          />
+        </>
+      )}
+    </div>
+  ) : null;
+
   return (
     <div
       // data-whole-card: usado pelo useWholeCardsMaxHeight quando este card
@@ -9185,61 +9386,85 @@ function ArrivalCard({
             {row.propertyName ?? "Sem nome"}
           </div>
 
+          {/* Em Estadia: período sempre visível, logo abaixo do título (ver
+              `periodoBlock` acima). Nas outras listas ele continua dentro da
+              área expansível, mais abaixo. */}
+          {isStay && periodoBlock}
+
           {!listBare && !compact && (
             <>
-              {/* Hóspede e código na MESMA linha, separados por ponto. Antes
-                  cada um ocupava uma linha própria e o card virava uma pilha
-                  de sete linhas com seis cores brigando entre si. */}
-              <div className="flex flex-wrap items-center gap-x-1.5 text-[11.5px]">
-                {isPendingFill ? (
-                  <span className={`inline-flex items-center gap-1 ${CARD_PENDING_GUEST}`}>
-                    <UserPlus className="size-3 shrink-0" />
-                    Hóspede pendente
-                  </span>
-                ) : row.guestName && row.guestName !== row.reservationCode ? (
-                  <span className={`inline-flex min-w-0 items-center gap-1.5 ${CARD_MUTED}`}>
-                    {/* Pedido explícito: nome do hóspede SEMPRE em maiúsculo. */}
-                    <span className="min-w-0 truncate uppercase">{row.guestName}</span>
-                    <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
-                    <ExtraGuests guests={row.additionalGuests ?? []} />
-                  </span>
-                ) : null}
-                {row.reservationCode && (
-                  <>
-                    {(isPendingFill || (row.guestName && row.guestName !== row.reservationCode)) && (
-                      <span className="text-muted-foreground/60">·</span>
-                    )}
+              {isStay ? (
+                /* EM ESTADIA: cada informação em sua própria linha (pedido
+                   explícito, 23/09/2026, mockup "Quadrantes v2" — "mantendo
+                   o código de reserva ABAIXO do nome... em formato de
+                   lista"). O período já saiu daqui (ver acima); resta o
+                   hóspede e o código, empilhados. */
+                <div className="flex flex-col gap-0.5 text-[11.5px]">
+                  {isPendingFill ? (
+                    <span className={`inline-flex items-center gap-1 ${CARD_PENDING_GUEST}`}>
+                      <UserPlus className="size-3 shrink-0" />
+                      Hóspede pendente
+                    </span>
+                  ) : row.guestName && row.guestName !== row.reservationCode ? (
+                    <span className={`inline-flex min-w-0 items-center gap-1.5 ${CARD_MUTED}`}>
+                      {/* Pedido explícito: nome do hóspede SEMPRE em maiúsculo. */}
+                      <span className="min-w-0 truncate uppercase">{row.guestName}</span>
+                      <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
+                      <ExtraGuests guests={row.additionalGuests ?? []} />
+                    </span>
+                  ) : null}
+                  {row.reservationCode && (
                     <button
                       type="button"
                       onClick={(e) => copyReservationCode(e, row.reservationCode as string)}
                       title="Copiar código da reserva"
-                      className={`min-w-0 truncate transition-colors hover:text-foreground ${CARD_MUTED}`}
+                      className={`w-fit min-w-0 max-w-full truncate text-left transition-colors hover:text-foreground ${CARD_MUTED}`}
                     >
                       {row.reservationCode}
                     </button>
-                  </>
-                )}
-              </div>
+                  )}
+                </div>
+              ) : (
+                /* Hóspede e código na MESMA linha, separados por ponto. Antes
+                    cada um ocupava uma linha própria e o card virava uma pilha
+                    de sete linhas com seis cores brigando entre si. */
+                <div className="flex flex-wrap items-center gap-x-1.5 text-[11.5px]">
+                  {isPendingFill ? (
+                    <span className={`inline-flex items-center gap-1 ${CARD_PENDING_GUEST}`}>
+                      <UserPlus className="size-3 shrink-0" />
+                      Hóspede pendente
+                    </span>
+                  ) : row.guestName && row.guestName !== row.reservationCode ? (
+                    <span className={`inline-flex min-w-0 items-center gap-1.5 ${CARD_MUTED}`}>
+                      {/* Pedido explícito: nome do hóspede SEMPRE em maiúsculo. */}
+                      <span className="min-w-0 truncate uppercase">{row.guestName}</span>
+                      <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
+                      <ExtraGuests guests={row.additionalGuests ?? []} />
+                    </span>
+                  ) : null}
+                  {row.reservationCode && (
+                    <>
+                      {(isPendingFill || (row.guestName && row.guestName !== row.reservationCode)) && (
+                        <span className="text-muted-foreground/60">·</span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => copyReservationCode(e, row.reservationCode as string)}
+                        title="Copiar código da reserva"
+                        className={`min-w-0 truncate transition-colors hover:text-foreground ${CARD_MUTED}`}
+                      >
+                        {row.reservationCode}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
 
               {/* O período, na cor do ESTADO — é ela que substituiu as antigas
-                  etiquetas "Atrasado"/"Data futura". */}
-              <div className={`flex flex-wrap items-center gap-1.5 text-[11.5px] tabular-nums ${periodoColorClass}`}>
-                <DateEditor
-                  value={row.guestCheckin}
-                  disabled={busy || isPendingFill}
-                  onChange={(v) => onEditDates(row, { checkinDate: v })}
-                />
-                {row.guestCheckout && (
-                  <>
-                    <span>→</span>
-                    <DateEditor
-                      value={row.guestCheckout}
-                      disabled={busy || isPendingFill}
-                      onChange={(v) => onEditDates(row, { checkoutDate: v })}
-                    />
-                  </>
-                )}
-              </div>
+                  etiquetas "Atrasado"/"Data futura". Em Estadia já mostrou o
+                  período acima (fora da expansividade); nas outras listas ele
+                  continua aqui dentro, como sempre foi. */}
+              {!isStay && periodoBlock}
             </>
           )}
         </div>
@@ -10120,6 +10345,15 @@ function PredictedEditor({
   const active = sideOf(editing);
   const activeDate = shownDate(editing);
   const activeTime = shownTime(editing);
+  // Mesma frase "Permitido entre/até X" da SideBlock, mas para o lado que
+  // está aberto nas telas de Data/Horário (mockup "Quadrantes v2").
+  const activeJanela = active ? allowedWindowPhrase(active.kind, active.standardTime, active.standardTimeMax) : null;
+  // Pílula colorida por lado (Saída/Chegada), igual à do card e ao ponto
+  // colorido do resumo — reaproveitada nos cabeçalhos de Data e Horário.
+  const kindPillClass = (kind: "checkin" | "checkout") =>
+    kind === "checkout"
+      ? "bg-[rgba(251,146,60,0.14)] text-[#fb923c]"
+      : "bg-[rgba(56,189,248,0.14)] text-[#38bdf8]";
 
   const selected = activeDate ? parseISODateLocal(activeDate) : undefined;
   const minDate = active?.dateMin ? parseISODateLocal(active.dateMin) : undefined;
@@ -10179,18 +10413,20 @@ function PredictedEditor({
     const d = shownDate(slot);
     const t = shownTime(slot);
     const janela = allowedWindowPhrase(side.kind, side.standardTime, side.standardTimeMax);
-    const dot = side.kind === "checkout" ? "bg-orange-400" : "bg-sky-400";
+    const KindIcon = side.kind === "checkout" ? LogOut : LogIn;
     return (
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-2.5">
         {/* Só o nome do lado. A linha que repetia aqui em cima a data e a hora
             que já aparecem nos campos logo abaixo saiu (pedido explícito,
             08/09/2026: "muito poluído/confuso") — era a mesma informação
             escrita duas vezes, a 6px de distância. */}
-        <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold">
-          <span className={`size-1.5 shrink-0 rounded-full ${dot}`} />
+        <span className="inline-flex items-center gap-2.5 text-[13px] font-semibold">
+          <span className={`grid size-7 shrink-0 place-items-center rounded-[9px] ${kindPillClass(side.kind)}`}>
+            <KindIcon className="size-[15px]" strokeWidth={2} />
+          </span>
           {side.label}
         </span>
-        <div className="grid grid-cols-[1fr_84px] gap-1.5">
+        <div className="grid grid-cols-[1fr_96px] gap-1.5">
           <button
             type="button"
             disabled={disabled}
@@ -10198,9 +10434,9 @@ function PredictedEditor({
               e.stopPropagation();
               openPicker(slot, "date");
             }}
-            className="ds-surface flex h-8 items-center gap-1.5 border border-border bg-background px-2.5 text-left text-xs tabular-nums hover:border-primary/50 disabled:opacity-50"
+            className="flex h-9 items-center gap-2 rounded-[10px] border border-border bg-[var(--panel-well)] px-2.5 text-left text-[12.5px] font-semibold tabular-nums hover:border-accent/50 disabled:opacity-50"
           >
-            <CalendarRange className="size-3 shrink-0 text-muted-foreground" />
+            <CalendarRange className="size-3.5 shrink-0 text-muted-foreground" />
             <span className={d ? "" : "text-muted-foreground"}>{d ? fmtDateBR(d) : "Data"}</span>
           </button>
           <button
@@ -10210,15 +10446,16 @@ function PredictedEditor({
               e.stopPropagation();
               openPicker(slot, "time");
             }}
-            className="ds-surface flex h-8 items-center gap-1.5 border border-border bg-background px-2.5 text-left text-xs tabular-nums hover:border-primary/50 disabled:opacity-50"
+            className="flex h-9 items-center gap-2 rounded-[10px] border border-border bg-[var(--panel-well)] px-2.5 text-left text-[12.5px] font-semibold tabular-nums hover:border-accent/50 disabled:opacity-50"
           >
-            <Clock3 className="size-3 shrink-0 text-muted-foreground" />
+            <Clock3 className="size-3.5 shrink-0 text-muted-foreground" />
             <span className={t ? "" : "text-muted-foreground"}>{t ?? "Horário"}</span>
           </button>
         </div>
         {janela && (
-          <span className="text-[9px] font-bold uppercase tracking-[0.06em] text-amber-600 dark:text-amber-400">
-            Permitido <span className="font-semibold">{janela}</span>
+          <span className="inline-flex items-center gap-1.5 text-[9.5px] font-extrabold uppercase tracking-[0.06em] text-amber-500 dark:text-amber-400">
+            <Clock3 className="size-[13px] shrink-0" strokeWidth={2} />
+            Permitido <span className="font-bold">{janela}</span>
           </span>
         )}
       </div>
@@ -10241,74 +10478,89 @@ function PredictedEditor({
         {trigger}
       </PopoverTrigger>
 
+      {/*
+       * CASCA "AMEIXA GRAFITE" (mockup "Quadrantes v2" aprovado, 23/09/2026):
+       * as 3 telas deste popover (resumo/data/horário) passam a usar o
+       * mesmo painel dos quadrantes de Filtros — `FILTER_PANEL_CLASS_ELEVATED`
+       * (um tom mais claro, `--panel-2`, por abrir por cima do diálogo "Em
+       * Estadia") — com `FilterRootHeader`/`FilterScreenHeader` no lugar dos
+       * cabeçalhos avulsos de antes. Nada do estado (view/editing/pending),
+       * das regras de horário (folga de 3h, dia trocado) ou dos handlers
+       * (openPicker/closeAndCommit) muda — só a apresentação.
+       */}
       {view === "summary" ? (
-        <PopoverContent align="end" className="w-[252px] p-3" onClick={(e) => e.stopPropagation()}>
-          <p className="mb-2.5 text-[9.5px] font-extrabold uppercase tracking-[0.14em] text-muted-foreground">
-            Previsão
-          </p>
-          <SideBlock slot="primary" />
-          {secondary && (
-            <>
-              <div className="my-2.5 h-px bg-border/70" />
-              {expanded ? (
+        <PopoverContent
+          align="end"
+          className={`${FILTER_PANEL_CLASS_ELEVATED} w-[280px]`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <FilterRootHeader
+            canClear
+            onClear={() => setPending((prev) => ({ ...prev, [editing]: { date: "", time: null } }))}
+          />
+          <div className="border-b border-[var(--panel-div)] px-3.5 py-3">
+            <SideBlock slot="primary" />
+          </div>
+          {secondary &&
+            (expanded ? (
+              <div className="px-3.5 py-3">
                 <SideBlock slot="secondary" />
-              ) : (
-                /* Recolhido: uma linha só. Quem não precisa do outro lado não
-                   ganha um segundo formulário na frente. */
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setExpanded(true);
-                  }}
-                  className="flex w-full items-center justify-between gap-2 rounded-[0.3rem] py-0.5 text-left transition-colors hover:bg-secondary/40"
-                >
-                  <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-muted-foreground">
-                    <span
-                      className={`size-1.5 shrink-0 rounded-full ${secondary.kind === "checkout" ? "bg-orange-400" : "bg-sky-400"}`}
-                    />
-                    {secondary.label}
-                  </span>
-                  <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                    {shownDate("secondary") || shownTime("secondary")
-                      ? [shownDate("secondary") ? fmtDateBR(shownDate("secondary")) : null, shownTime("secondary")]
-                          .filter(Boolean)
-                          .join(" · ")
-                      : "sem previsão"}
-                    <ChevronRight className="size-3" />
-                  </span>
-                </button>
-              )}
-            </>
-          )}
-          <div className="mt-3 flex items-center justify-between gap-2 border-t border-border/70 pt-2.5">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setPending((prev) => ({ ...prev, [editing]: { date: "", time: null } }));
-              }}
-              className="rounded-md px-1.5 py-1 text-[11px] text-muted-foreground hover:text-foreground"
-            >
-              Limpar previsão
-            </button>
+              </div>
+            ) : (
+              /* Recolhido: uma linha só. Quem não precisa do outro lado não
+                 ganha um segundo formulário na frente. */
+              <FilterMenuRow
+                icon={secondary.kind === "checkout" ? LogOut : LogIn}
+                label={secondary.label}
+                value={
+                  shownDate("secondary") || shownTime("secondary")
+                    ? [shownDate("secondary") ? fmtDateBR(shownDate("secondary")) : null, shownTime("secondary")]
+                        .filter(Boolean)
+                        .join(" · ")
+                    : "sem previsão"
+                }
+                onClick={() => setExpanded(true)}
+                last
+              />
+            ))}
+          <div className="flex items-center justify-end border-t border-[var(--panel-div)] px-3.5 py-3">
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 closeAndCommit();
               }}
-              className="ds-surface h-7 bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] px-3.5 text-[11.5px] font-bold text-white"
+              className="ds-surface h-8 bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] px-4 text-[12px] font-bold text-white"
             >
               Concluir
             </button>
           </div>
         </PopoverContent>
       ) : view === "date" ? (
-        <PopoverContent align="end" className="w-auto p-0" onClick={(e) => e.stopPropagation()}>
-          <div className="border-b border-border px-3 py-2 text-[11px] font-semibold text-muted-foreground">
-            Data prevista · {active?.label}
-          </div>
+        <PopoverContent
+          align="end"
+          className={`${FILTER_PANEL_CLASS_ELEVATED} w-[280px]`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <FilterScreenHeader
+            icon={CalendarRange}
+            title="Data prevista"
+            onBack={() => setView("summary")}
+            right={
+              active ? (
+                <span className={`rounded-full px-2 py-[3px] text-[10.5px] font-bold ${kindPillClass(active.kind)}`}>
+                  {active.label}
+                </span>
+              ) : undefined
+            }
+          />
+          {activeJanela && (
+            <div className="px-3.5 pt-2.5">
+              <span className="text-[9.5px] font-extrabold uppercase tracking-[0.06em] text-amber-500 dark:text-amber-400">
+                Permitido <span className="font-bold">{activeJanela}</span>
+              </span>
+            </div>
+          )}
           <RangeCalendar
             mode="single"
             locale={ptBR}
@@ -10324,56 +10576,75 @@ function PredictedEditor({
             }}
             className="p-3"
           />
-          {/* Este botão NÃO confirma nada: só volta ao resumo, dentro da MESMA
-              sessão aberta. Confirmar acontece apenas ao fechar o popover. */}
-          <div className="flex items-center justify-end border-t border-border p-2">
-            <button
-              type="button"
-              onClick={() => setView("summary")}
-              className="rounded-md px-2.5 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10"
-            >
-              Voltar
-            </button>
+          {/* Resumo do que está selecionado — a confirmação de verdade só
+              acontece ao fechar o popover (closeAndCommit), como sempre. */}
+          <div className="px-3.5 pb-3.5">
+            <div className="flex flex-col gap-0.5 rounded-[10px] bg-accent/[0.14] px-2.5 py-2">
+              <span className="text-[9.5px] font-bold uppercase tracking-[0.04em] text-accent">
+                {active?.kind === "checkout" ? "Saída prevista" : "Chegada prevista"}
+              </span>
+              <span className="text-[13px] font-bold text-foreground">
+                {activeDate
+                  ? format(parseISODateLocal(activeDate), "dd/MM · EEEE", { locale: ptBR }).replace("-feira", "")
+                  : "Nenhuma data escolhida"}
+              </span>
+            </div>
           </div>
         </PopoverContent>
       ) : (
-        <PopoverContent align="end" className="w-auto p-0" onClick={(e) => e.stopPropagation()}>
-          <div className="border-b border-border px-3 py-2 text-[11px] font-semibold text-muted-foreground">
-            Horário previsto · {active?.label}
-          </div>
-          <div className="p-2">
-            <div className="flex max-h-56 w-56 flex-wrap gap-1 overflow-y-auto px-1">
-              {timeSlots.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setPending((prev) => ({ ...prev, [editing]: { ...prev[editing], time: t } }))}
-                  className={`rounded px-2 py-1 text-[11px] tabular-nums ${
-                    activeTime === t
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary text-foreground hover:bg-secondary/70"
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
+        <PopoverContent
+          align="end"
+          className={`${FILTER_PANEL_CLASS_ELEVATED} w-[280px]`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <FilterScreenHeader
+            icon={Clock3}
+            title="Horário previsto"
+            onBack={() => setView("summary")}
+            right={
+              active ? (
+                <span className={`rounded-full px-2 py-[3px] text-[10.5px] font-bold ${kindPillClass(active.kind)}`}>
+                  {active.label}
+                </span>
+              ) : undefined
+            }
+          />
+          {activeJanela && (
+            <div className="px-3.5 pt-2.5">
+              <span className="text-[9.5px] font-extrabold uppercase tracking-[0.06em] text-amber-500 dark:text-amber-400">
+                Permitido <span className="font-bold">{activeJanela}</span>
+              </span>
             </div>
+          )}
+          <div className="grid grid-cols-4 gap-1.5 px-3.5 py-3">
+            {timeSlots.map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setPending((prev) => ({ ...prev, [editing]: { ...prev[editing], time: t } }))}
+                className={`h-8 rounded-[9px] text-[12px] font-semibold tabular-nums ${
+                  activeTime === t
+                    ? "bg-accent/[0.14] text-accent shadow-[inset_0_0_0_1px_oklch(0.69_0.24_330_/_0.45)]"
+                    : "bg-[var(--panel-well)] text-foreground/85 hover:bg-foreground/[0.06]"
+                }`}
+              >
+                {t}
+              </button>
+            ))}
           </div>
-          <div className="flex items-center justify-between border-t border-border p-2">
+          <div className="flex items-center justify-between border-t border-[var(--panel-div)] px-3.5 py-2.5">
             <button
               type="button"
               onClick={() => setPending((prev) => ({ ...prev, [editing]: { ...prev[editing], time: null } }))}
-              className="rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+              className="text-[11px] font-semibold text-foreground/70 transition-colors hover:text-foreground"
             >
               Limpar horário
             </button>
-            <button
-              type="button"
-              onClick={() => setView("summary")}
-              className="rounded-md px-2.5 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10"
-            >
-              Voltar
-            </button>
+            <span className="text-[11px] text-muted-foreground">
+              {active?.label}
+              {activeDate ? ` · ${fmtDateBR(activeDate)}` : ""}
+              {activeTime ? ` · ${activeTime}` : ""}
+            </span>
           </div>
         </PopoverContent>
       )}
