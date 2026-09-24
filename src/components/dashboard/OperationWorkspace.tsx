@@ -4544,8 +4544,15 @@ function KpiCard({
            como na 1ª leva). Mesma cor/raio/sombra/fio de luz do "quadrante"
            de Filtros/Previsão em TODO KpiCard — nunca mais `bg-card`/
            `border-border`, que é a cor neutra do resto do app (ver
-           `src/styles.css`, `.dark`). */
-        className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-[18px] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] relative before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]"
+           `src/styles.css`, `.dark`). SEM `relative` aqui: o `DialogContent`
+           base já vem `fixed` (é o que centraliza o diálogo na tela); como
+           `fixed`/`relative` disputam o mesmo grupo no `tailwind-merge`,
+           acrescentar `relative` apagava o `fixed` e o diálogo caía no fluxo
+           normal da página, colado embaixo em vez de centralizado (bug
+           relatado, 23/09/2026: "os tooltips saíram do centro"). O `fixed`
+           da base já é "positioned" o bastante para o `before:absolute` do
+           fio de luz funcionar sem precisar de `relative` extra aqui. */
+        className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-[18px] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]"
       >
         <DialogHeader className="px-5 pt-5 pb-0">
           <div className="flex items-center gap-3">
@@ -4749,8 +4756,11 @@ function FreePropertiesCard({
       </DialogTrigger>
       {/* Casca "Grafite Quente" — mesmo padrão do `KpiCard` logo acima
           (pedido explícito, 23/09/2026: design padrão em todo tooltip do
-          Dashboard, não só em "Em Estadia"). */}
-      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-[18px] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] relative before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]">
+          Dashboard, não só em "Em Estadia"). SEM `relative`: conflitaria com
+          o `fixed` da base do `DialogContent` no `tailwind-merge` e
+          descentralizaria o diálogo — ver comentário completo no `KpiCard`
+          acima. */}
+      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-[18px] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]">
         <DialogHeader className="px-5 pt-5 pb-0">
           <DialogTitle className="text-base font-display">Imóveis livres {dayLabel}</DialogTitle>
         </DialogHeader>
