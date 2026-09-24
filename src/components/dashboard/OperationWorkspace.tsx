@@ -9185,8 +9185,11 @@ function ArrivalCard({
   const journeyReservationId = row.reservationId ?? (row.logId.startsWith("ical:") ? row.logId.slice(5) : null);
   const canOpenJourney = !!journeyLogId || !!journeyReservationId;
   const canRevert = !!onRevert && mode !== "checkin" && !awaitingCheckout;
-  const showRevertButton = canRevert && !compact;
-  const showRevertMenuItem = canRevert && compact;
+  /* "Voltar ao status anterior" agora mora só no menu "⋮" (pedido explícito,
+     24/09/2026) — antes ganhava um botão próprio na fileira de ações quando
+     o card estava aberto (`!compact`), ocupando espaço ao lado de
+     concluir/mapa/anexo. Sai da fileira em qualquer estado do card. */
+  const showRevertMenuItem = canRevert;
   const revertConfirmLabel =
     mode === "stay" || mode === "checkout"
       ? "Desfazer o check-in e voltar este card para a lista de Check-ins?"
@@ -9236,16 +9239,15 @@ function ArrivalCard({
   }
 
   /**
-   * PERÍODO SEMPRE VISÍVEL EM "EM ESTADIA" (pedido explícito, 23/09/2026,
-   * mockup "Quadrantes v2" — "coloque o período fora da expansividade abaixo
-   * do título do imóvel"). Só na lista de Em Estadia (`mode === "stay"`) o
-   * período sai de dentro do `!compact` e vai logo abaixo do título; nas
-   * outras listas (Kanban, Checkouts, Check-ins, Limpeza) nada muda — o
-   * período continua só aparecendo com o card aberto, como sempre foi. Por
-   * isso o bloco é montado uma vez só e cada modo decide ONDE renderizá-lo,
-   * em vez de duplicar duas versões da mesma regra de exibição (`!listBare`).
+   * PERÍODO SEMPRE VISÍVEL, card aberto ou recolhido (pedido explícito,
+   * 23/09/2026, mockup "Quadrantes v2" — "coloque o período fora da
+   * expansividade abaixo do título do imóvel"; estendido a TODA lista em
+   * 24/09/2026 — "com o card recolhido", usando o print de Checkouts
+   * Pendentes como referência). Antes só valia para Em Estadia; as demais
+   * listas (Kanban, Checkouts, Check-ins, Limpeza) só mostravam o período
+   * com o card aberto. Agora o bloco sai de dentro do `!compact` para todo
+   * mundo — por isso é montado uma vez só, fora da área expansível.
    */
-  const isStay = mode === "stay";
   const periodoBlock = !listBare ? (
     <div className={`flex flex-wrap items-center gap-1.5 text-[11.5px] tabular-nums ${periodoColorClass}`}>
       <DateEditor
@@ -9413,60 +9415,47 @@ function ArrivalCard({
             {row.propertyName ?? "Sem nome"}
           </div>
 
-          {/* Em Estadia: período sempre visível, logo abaixo do título (ver
-              `periodoBlock` acima). Nas outras listas ele continua dentro da
-              área expansível, mais abaixo. */}
-          {isStay && periodoBlock}
+          {/* PERÍODO SEMPRE VISÍVEL, card aberto ou recolhido (pedido
+              explícito, 24/09/2026: "coloque o período abaixo do título do
+              imóvel FORA da expansividade... com o card recolhido"). Valia só
+              para "Em Estadia" (23/09/2026); agora vale para toda lista —
+              Checkouts, Check-ins, Limpeza — não só quando o card está aberto. */}
+          {periodoBlock}
 
           {!listBare && !compact && (
             <>
-              {/* UMA INFORMAÇÃO POR LINHA, código SEMPRE à direita do nome
-                  (pedido explícito, 23/09/2026 — mockup "Tooltips Operacional"
-                  aprovado, agora valendo para Kanban e tooltips igualmente:
-                  "quero que o layout valha para ambos").
-
-                  Substitui as duas variações que existiam antes: a de "Em
-                  Estadia" (nome e código empilhados em duas linhas) e a
-                  padrão (nome e código na mesma linha, separados por "·",
-                  quebrando quando o nome era longo). As duas viram uma só —
-                  nome à esquerda (trunca), código à direita, sempre a MESMA
-                  linha — porque o código nunca precisa de mais que a largura
-                  de um chip, e não faz mais sentido ter dois desenhos
-                  diferentes para a mesma informação em componente
-                  compartilhado entre Kanban e tooltips. */}
-              <div className="flex items-center gap-2 text-[11.5px]">
+              {/* Nome e código EMPILHADOS, os dois alinhados à esquerda
+                  (pedido explícito, 24/09/2026: "coloque o codigo da reserva
+                  alinhado a esquerda ao nome do hospede, abaixo dele").
+                  Substitui a versão de uma linha só (nome esquerda/código
+                  direita, 23/09/2026) — o código volta a ficar em linha
+                  própria, mas sempre alinhado com o nome acima, nunca mais
+                  colado com "·". */}
+              <div className="flex flex-col gap-0.5 text-[11.5px]">
                 {isPendingFill ? (
-                  <span className={`inline-flex min-w-0 flex-1 items-center gap-1 ${CARD_PENDING_GUEST}`}>
+                  <span className={`inline-flex min-w-0 items-center gap-1 ${CARD_PENDING_GUEST}`}>
                     <UserPlus className="size-3 shrink-0" />
                     Hóspede pendente
                   </span>
                 ) : row.guestName && row.guestName !== row.reservationCode ? (
-                  <span className={`inline-flex min-w-0 flex-1 items-center gap-1.5 ${CARD_MUTED}`}>
+                  <span className={`inline-flex min-w-0 items-center gap-1.5 ${CARD_MUTED}`}>
                     {/* Pedido explícito: nome do hóspede SEMPRE em maiúsculo. */}
                     <span className="min-w-0 truncate uppercase">{row.guestName}</span>
                     <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
                     <ExtraGuests guests={row.additionalGuests ?? []} />
                   </span>
-                ) : (
-                  <span className="flex-1" />
-                )}
+                ) : null}
                 {row.reservationCode && (
                   <button
                     type="button"
                     onClick={(e) => copyReservationCode(e, row.reservationCode as string)}
                     title="Copiar código da reserva"
-                    className={`shrink-0 max-w-[45%] truncate rounded-[6px] border border-border/50 bg-foreground/[0.04] px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-wide transition-colors hover:border-foreground/20 hover:bg-foreground/[0.07] hover:text-foreground ${CARD_MUTED}`}
+                    className={`w-fit min-w-0 max-w-full truncate rounded-[6px] border border-border/50 bg-foreground/[0.04] px-1.5 py-0.5 text-left font-mono text-[10px] font-semibold tracking-wide transition-colors hover:border-foreground/20 hover:bg-foreground/[0.07] hover:text-foreground ${CARD_MUTED}`}
                   >
                     {row.reservationCode}
                   </button>
                 )}
               </div>
-
-              {/* O período, na cor do ESTADO — é ela que substituiu as antigas
-                  etiquetas "Atrasado"/"Data futura". Em Estadia já mostrou o
-                  período acima (fora da expansividade); nas outras listas ele
-                  continua aqui dentro, como sempre foi. */}
-              {!isStay && periodoBlock}
             </>
           )}
         </div>
@@ -9551,7 +9540,13 @@ function ArrivalCard({
            cores para a mesma frase é que era a incoerência. */
         <div className="flex items-center gap-1.5 border-t border-border/40 pt-1.5 text-[9.5px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">
           <Clock3 className="size-2.5 shrink-0 opacity-70" />
-          Permitido <span className="font-semibold">{allowedPhrase}</span>
+          {/* Vão de 1 gap flex, não texto+espaço (corrigido 24/09/2026): o
+              tracking-wide do pai também estica o espaço digitado entre as
+              palavras, e "Permitido  ATÉ/ENTRE" saía com vão duplo. */}
+          <span className="inline-flex items-baseline gap-1">
+            <span>Permitido</span>
+            <span className="font-semibold">{allowedPhrase}</span>
+          </span>
         </div>
       )}
 
@@ -9841,22 +9836,10 @@ function ArrivalCard({
           </button>
         )}
 
-        {/* No modo "Lista" (pedido explícito) o botão de voltar some da
-            fileira de ações e passa a viver dentro do menu "⋮" — reduz mais
-            um ícone da largura sem perder a função (ver showRevertButton /
-            revertTitle / handleRevertClick, calculados mais abaixo). */}
-        {showRevertButton && (
-          <button
-            type="button"
-            onClick={handleRevertClick}
-            disabled={busy}
-            aria-label="Retornar ao status anterior"
-            title={revertTitle}
-            className="shrink-0 grid place-items-center rounded-lg bg-secondary hover:bg-secondary/80 border border-border/60 transition-colors size-9"
-          >
-            <Undo2 className="size-4" />
-          </button>
-        )}
+        {/* "Voltar ao status anterior" vive só no menu "⋮" (pedido explícito,
+            24/09/2026) — nunca mais ganha um botão próprio na fileira de
+            ações, aberto ou recolhido (ver showRevertMenuItem /
+            handleRevertClick, calculados mais acima). */}
 
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
           {mapsHref && (
@@ -10457,7 +10440,12 @@ function PredictedEditor({
         {janela && (
           <span className="inline-flex items-center gap-1.5 text-[9.5px] font-extrabold uppercase tracking-[0.06em] text-amber-500 dark:text-amber-400">
             <Clock3 className="size-[13px] shrink-0" strokeWidth={2} />
-            Permitido <span className="font-bold">{janela}</span>
+            {/* Vão de 1 gap flex, não texto+espaço (corrigido 24/09/2026) —
+                mesma correção do card do Kanban/tooltips. */}
+            <span className="inline-flex items-baseline gap-1">
+              <span>Permitido</span>
+              <span className="font-bold">{janela}</span>
+            </span>
           </span>
         )}
       </div>
@@ -10559,7 +10547,11 @@ function PredictedEditor({
           {activeJanela && (
             <div className="px-3.5 pt-2.5">
               <span className="text-[9.5px] font-extrabold uppercase tracking-[0.06em] text-amber-500 dark:text-amber-400">
-                Permitido <span className="font-bold">{activeJanela}</span>
+                {/* Vão de 1 gap flex, não texto+espaço (corrigido 24/09/2026). */}
+                <span className="inline-flex items-baseline gap-1">
+                  <span>Permitido</span>
+                  <span className="font-bold">{activeJanela}</span>
+                </span>
               </span>
             </div>
           )}
@@ -10614,7 +10606,11 @@ function PredictedEditor({
           {activeJanela && (
             <div className="px-3.5 pt-2.5">
               <span className="text-[9.5px] font-extrabold uppercase tracking-[0.06em] text-amber-500 dark:text-amber-400">
-                Permitido <span className="font-bold">{activeJanela}</span>
+                {/* Vão de 1 gap flex, não texto+espaço (corrigido 24/09/2026). */}
+                <span className="inline-flex items-baseline gap-1">
+                  <span>Permitido</span>
+                  <span className="font-bold">{activeJanela}</span>
+                </span>
               </span>
             </div>
           )}
