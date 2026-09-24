@@ -258,7 +258,11 @@ export function FilterScreenHeader({
   right?: ReactNode;
 }) {
   return (
-    <div className={`flex items-center gap-[9px] px-3.5 py-[11px] ${ROW_DIVIDER}`}>
+    /* Sem a linha divisória sob o título (pedido explícito, 24/09/2026,
+       Print 5: "remova completamente a linha divisória demarcada
+       especificamente no Print 5") — o respiro do próprio padding já separa
+       o cabeçalho do corpo da tela, sem precisar de um traço. */
+    <div className="flex items-center gap-[9px] px-3.5 py-[11px]">
       <button
         type="button"
         onClick={onBack}

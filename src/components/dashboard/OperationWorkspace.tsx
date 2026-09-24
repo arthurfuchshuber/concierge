@@ -8588,20 +8588,33 @@ function RingCell({
  * lado da esteira para o resto — azul chegada / laranja saída, os mesmos
  * ícones (`LogIn`/`LogOut`) já usados nos KPIs e no editor de previsão.
  */
-const GROUP_TONE: Record<
-  "late" | "checkin" | "checkout",
-  { icon: React.ElementType; iconColor: string; iconBg: string; hair: string }
-> = {
-  late: { icon: AlertTriangle, iconColor: "text-red-500 dark:text-red-400", iconBg: "bg-red-500/12", hair: "from-red-500/70" },
-  checkin: { icon: LogIn, iconColor: "text-sky-500 dark:text-sky-400", iconBg: "bg-sky-500/12", hair: "from-sky-500/70" },
-  checkout: {
-    icon: LogOut,
-    iconColor: "text-orange-500 dark:text-orange-400",
-    iconBg: "bg-orange-500/12",
-    hair: "from-orange-500/70",
-  },
+/** A cor de cada grupo — a MESMA cor do estado (`stageBarClass`/`periodColorClass`),
+ * nunca uma cor nova. Vira só um pontinho no cabeçalho agora (ver `ArrivalGroupPanel`
+ * abaixo) — o ícone-numa-caixa colorida saiu (mockup "mesmo ecossistema do
+ * Dashboard/Limpeza", aprovado 24/09/2026). */
+const GROUP_TONE: Record<"late" | "checkin" | "checkout", { dot: string }> = {
+  late: { dot: "#ef4444" },
+  checkin: { dot: "#38bdf8" },
+  checkout: { dot: "#fb923c" },
 };
 
+/**
+ * CABEÇALHO DE GRUPO — mesmo ecossistema visual do Dashboard/Limpeza (mockup
+ * aprovado 24/09/2026, com um ajuste pedido na hora: "coloque ao centro a
+ * informação atrasados/hoje").
+ *
+ * Duas mudanças em relação à 1ª versão (24/09/2026, cabeçalho à esquerda com
+ * selo de ícone + fio no topo colorido):
+ *  1. O selo de ícone numa caixa colorida vira um PONTINHO só — mesmo porte e
+ *     mesma função do pontinho que o `PanelHeading` usa nos painéis do
+ *     Dashboard e da Limpeza (`cleaningSeriesColor`/`dotColor`); a cor do
+ *     estado continua a mesma, só a forma que deixa de "gritar".
+ *  2. O bloco pontinho+rótulo+contagem vai para o CENTRO da linha, com o fio
+ *     nos dois lados (como o `SectionLabel`), em vez de ficar à esquerda com
+ *     o fio só sumindo à direita.
+ * O raio e a sombra do painel continuam os do `PANEL_SHELL` — os mesmos dos
+ * gráficos da Limpeza e do quadrante de engajamento da Operacional.
+ */
 function ArrivalGroupPanel({
   tone,
   label,
@@ -8613,20 +8626,22 @@ function ArrivalGroupPanel({
   count: number;
   children: React.ReactNode;
 }) {
-  const { icon: Icon, iconColor, iconBg, hair } = GROUP_TONE[tone];
+  const { dot } = GROUP_TONE[tone];
   return (
-    <section aria-label={label} className={`${PANEL_SHELL} px-1.5 pb-1.5 pt-1.5`}>
-      <span aria-hidden className={`absolute inset-x-3 top-0 h-[2px] rounded-b-[3px] bg-gradient-to-r ${hair} to-transparent`} />
-      <PanelHeading
-        title={label}
-        dot={
-          <span className={`grid size-[22px] shrink-0 place-items-center rounded-md ${iconBg} ${iconColor}`}>
-            <Icon className="size-[13px]" strokeWidth={2.2} />
-          </span>
-        }
-        right={<CountPill>{count}</CountPill>}
-        className="mb-1.5 px-1"
-      />
+    <section aria-label={label} className={`${PANEL_SHELL} px-2.5 pb-2.5 pt-2.5`}>
+      <div className="mb-2.5 flex items-center gap-2.5 px-1">
+        <span
+          aria-hidden
+          className="h-px flex-1 bg-gradient-to-r from-transparent to-[color-mix(in_oklab,var(--foreground)_14%,transparent)]"
+        />
+        <span aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ background: dot }} />
+        <span className="ds-eyebrow shrink-0 text-[10px] tracking-[0.2em] text-muted-foreground">{label}</span>
+        <CountPill>{count}</CountPill>
+        <span
+          aria-hidden
+          className="h-px flex-1 bg-gradient-to-l from-transparent to-[color-mix(in_oklab,var(--foreground)_14%,transparent)]"
+        />
+      </div>
       <div className="flex flex-col gap-3 px-1 pb-1">{children}</div>
     </section>
   );
@@ -9360,17 +9375,23 @@ function ArrivalCard({
         if (interactive && interactive !== e.currentTarget) return;
         setOpenFull((v) => !v);
       }}
-      /* A curva de 0.3rem é a do Design System — o card era o único bloco
-         quadrado do sistema. O acento lateral saiu daqui e virou a barra de
-         ETAPA: antes só existia em "atrasado" e "data futura", agora vale
-         para todas as fases. */
+      /* MESMO RAIO DE CANTO DAS CÉLULAS DA LIMPEZA (mockup "mesmo ecossistema
+         do Dashboard/Limpeza", aprovado 24/09/2026) — 10px, no lugar do
+         0.3rem (quase reto) de antes, que destoava do raio de 14px do painel
+         que passou a envolver o card (`ArrivalGroupPanel`/`PANEL_SHELL`).
+         Fundo quase plano com borda fina (a mesma receita da célula de
+         "Eficiência da limpeza": `border border-border bg-muted/20`), no
+         lugar do bloco `bg-secondary/70` — que ficava pesado ao lado da
+         casca neutra do painel. O acento lateral é a barra de ETAPA: antes só
+         existia em "atrasado" e "data futura", agora vale para todas as
+         fases. */
       /* SEM `overflow-hidden` (corrigido 08/09/2026): ele cortava exatamente a
          metade de cima da etiqueta ALERTA, que monta sobre a borda superior do
          card de propósito. A barra de etapa não precisa dele — ela já tem o
          próprio `rounded-l`. E `isolate` cria o contexto de empilhamento do
          card, para a etiqueta ficar acima do card de cima sem depender da
          ordem em que os cards aparecem no DOM. */
-      className="group relative isolate flex cursor-pointer snap-start flex-col rounded-[0.3rem] bg-secondary/70 p-3 pl-3.5 pb-0 gap-2 transition-colors hover:bg-secondary/90"
+      className="group relative isolate flex cursor-pointer snap-start flex-col rounded-[10px] border border-border bg-muted/20 p-3 pl-3.5 pb-0 gap-2 transition-colors hover:bg-muted/35"
     >
       {journeyOpen && (
         <ReservationJourneyDialog
@@ -9457,7 +9478,7 @@ function ArrivalCard({
           inteira dá para ver em que fase cada reserva está sem parar em
           nenhuma. Substitui as antigas bordas de "atrasado"/"data futura",
           que só existiam em dois casos e deixavam o resto sem sinal. */}
-      <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] rounded-l-[0.3rem] ${stageBarClass(stage)}`} />
+      <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] rounded-l-[10px] ${stageBarClass(stage)}`} />
 
       <div className="flex items-start gap-3">
         {/* ds-card-lines: o espaçamento padrão entre linhas de card (styles.css). */}
@@ -10347,6 +10368,9 @@ function PredictedEditor({
     primary: {},
     secondary: {},
   });
+  /** Qual lado tem o popover de "janela permitida" aberto (mockup aprovado
+   * "Quadrante Previsão — layout compacto") — nenhum, um, nunca os dois. */
+  const [infoOpenSlot, setInfoOpenSlot] = useState<"primary" | "secondary" | null>(null);
 
   const sideOf = (slot: "primary" | "secondary") => (slot === "primary" ? primary : secondary);
   const shownDate = (slot: "primary" | "secondary") => {
@@ -10363,6 +10387,7 @@ function PredictedEditor({
     setView("summary");
     setEditing("primary");
     setExpanded(false);
+    setInfoOpenSlot(null);
   }
 
   /** Grava os dois lados de uma vez — só o que de fato mudou. */
@@ -10450,63 +10475,74 @@ function PredictedEditor({
     });
   }, [liveMinTime, liveMaxTime]);
 
-  /** Um lado no resumo: nome, valor atual e os dois campos. */
+  /**
+   * Um lado no resumo — LAYOUT COMPACTO (mockup aprovado "Quadrante Previsão
+   * — layout compacto"): tudo numa linha só — o selo do lado vira um botão
+   * de info ("i"), o nome, e Data/Horário colados à direita, no lugar do
+   * título sozinho em cima e os dois campos ocupando a largura toda embaixo.
+   * A janela permitida ("Permitido entre/até X") deixa de ficar sempre
+   * escrita e passa a um popover que só aparece ao tocar o "i" — mesma
+   * informação, sem gastar altura o tempo todo.
+   */
   function SideBlock({ slot }: { slot: "primary" | "secondary" }) {
     const side = sideOf(slot);
     if (!side) return null;
     const d = shownDate(slot);
     const t = shownTime(slot);
     const janela = allowedWindowPhrase(side.kind, side.standardTime, side.standardTimeMax);
-    const KindIcon = side.kind === "checkout" ? LogOut : LogIn;
+    const infoOpen = infoOpenSlot === slot;
     return (
-      <div className="flex flex-col gap-2.5">
-        {/* Só o nome do lado. A linha que repetia aqui em cima a data e a hora
-            que já aparecem nos campos logo abaixo saiu (pedido explícito,
-            08/09/2026: "muito poluído/confuso") — era a mesma informação
-            escrita duas vezes, a 6px de distância. */}
-        <span className="inline-flex items-center gap-2.5 text-[13px] font-semibold">
-          <span className={`grid size-7 shrink-0 place-items-center rounded-[9px] ${kindPillClass(side.kind)}`}>
-            <KindIcon className="size-[15px]" strokeWidth={2} />
-          </span>
-          {side.label}
-        </span>
-        <div className="grid grid-cols-[1fr_96px] gap-1.5">
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={(e) => {
-              e.stopPropagation();
-              openPicker(slot, "date");
-            }}
-            className="flex h-9 items-center gap-2 rounded-[10px] border border-border bg-[var(--panel-well)] px-2.5 text-left text-[12.5px] font-semibold tabular-nums hover:border-accent/50 disabled:opacity-50"
-          >
-            <CalendarRange className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className={d ? "" : "text-muted-foreground"}>{d ? fmtDateBR(d) : "Data"}</span>
-          </button>
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={(e) => {
-              e.stopPropagation();
-              openPicker(slot, "time");
-            }}
-            className="flex h-9 items-center gap-2 rounded-[10px] border border-border bg-[var(--panel-well)] px-2.5 text-left text-[12.5px] font-semibold tabular-nums hover:border-accent/50 disabled:opacity-50"
-          >
-            <Clock3 className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className={t ? "" : "text-muted-foreground"}>{t ?? "Horário"}</span>
-          </button>
-        </div>
-        {janela && (
-          <span className="inline-flex items-center gap-1.5 text-[9.5px] font-extrabold uppercase tracking-[0.06em] text-amber-500 dark:text-amber-400">
-            <Clock3 className="size-[13px] shrink-0" strokeWidth={2} />
-            {/* Vão de 1 gap flex, não texto+espaço (corrigido 24/09/2026) —
-                mesma correção do card do Kanban/tooltips. */}
-            <span className="inline-flex items-baseline gap-1">
-              <span>Permitido</span>
-              <span className="font-bold">{janela}</span>
+      <div className="relative flex items-center gap-2">
+        <button
+          type="button"
+          disabled={!janela}
+          onClick={(e) => {
+            e.stopPropagation();
+            setInfoOpenSlot((cur) => (cur === slot ? null : slot));
+          }}
+          aria-label={`Ver janela permitida de ${side.label.toLowerCase()}`}
+          className={`grid size-7 shrink-0 place-items-center rounded-[9px] transition-opacity disabled:opacity-40 ${kindPillClass(side.kind)}`}
+        >
+          <Info className="size-[15px]" strokeWidth={2} />
+        </button>
+        {infoOpen && janela && (
+          <div className="absolute left-0 top-[34px] z-20 whitespace-nowrap rounded-[10px] border border-border bg-popover px-2.5 py-2 shadow-lg">
+            <span className="inline-flex items-center gap-1.5 text-[9.5px] font-extrabold uppercase tracking-[0.06em] text-amber-500 dark:text-amber-400">
+              {/* Vão de 1 gap flex, não texto+espaço (corrigido 24/09/2026) —
+                  mesma correção do card do Kanban/tooltips. */}
+              <span className="inline-flex items-baseline gap-1">
+                <span>Permitido</span>
+                <span className="font-bold">{janela}</span>
+              </span>
             </span>
-          </span>
+          </div>
         )}
+        <span className="whitespace-nowrap text-[13px] font-semibold">{side.label}</span>
+        <span className="flex-1" />
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={(e) => {
+            e.stopPropagation();
+            openPicker(slot, "date");
+          }}
+          className="flex h-8 shrink-0 items-center gap-1.5 rounded-[9px] border border-border bg-[var(--panel-well)] px-2 text-[12px] font-semibold tabular-nums hover:border-accent/50 disabled:opacity-50"
+        >
+          <CalendarRange className="size-3.5 shrink-0 text-muted-foreground" />
+          <span className={d ? "" : "text-muted-foreground"}>{d ? fmtDateBR(d) : "Data"}</span>
+        </button>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={(e) => {
+            e.stopPropagation();
+            openPicker(slot, "time");
+          }}
+          className="flex h-8 shrink-0 items-center gap-1.5 rounded-[9px] border border-border bg-[var(--panel-well)] px-2 text-[12px] font-semibold tabular-nums hover:border-accent/50 disabled:opacity-50"
+        >
+          <Clock3 className="size-3.5 shrink-0 text-muted-foreground" />
+          <span className={t ? "" : "text-muted-foreground"}>{t ?? "Horário"}</span>
+        </button>
       </div>
     );
   }
