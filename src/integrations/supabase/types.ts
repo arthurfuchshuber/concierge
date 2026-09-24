@@ -2226,6 +2226,7 @@ export type Database = {
           country: string
           created_at: string
           display_order: number
+          excluded_at: string | null
           group_id: string | null
           id: string
           image_url: string | null
@@ -2255,6 +2256,7 @@ export type Database = {
           country?: string
           created_at?: string
           display_order?: number
+          excluded_at?: string | null
           group_id?: string | null
           id?: string
           image_url?: string | null
@@ -2284,6 +2286,7 @@ export type Database = {
           country?: string
           created_at?: string
           display_order?: number
+          excluded_at?: string | null
           group_id?: string | null
           id?: string
           image_url?: string | null
@@ -4386,6 +4389,35 @@ export type Database = {
           },
         ]
       }
+      property_rec_exclusions: {
+        Row: {
+          excluded_at: string
+          place_id: string
+          property_id: string
+          scope: string
+        }
+        Insert: {
+          excluded_at?: string
+          place_id: string
+          property_id: string
+          scope?: string
+        }
+        Update: {
+          excluded_at?: string
+          place_id?: string
+          property_id?: string
+          scope?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_rec_exclusions_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       property_recommendations: {
         Row: {
           category: string | null
@@ -4680,6 +4712,78 @@ export type Database = {
           updated_at?: string
           user_agent?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      recs_category_repair_20260924: {
+        Row: {
+          new_category: string | null
+          old_category: string | null
+          repaired_at: string
+          row_id: string
+          tbl: string
+        }
+        Insert: {
+          new_category?: string | null
+          old_category?: string | null
+          repaired_at?: string
+          row_id: string
+          tbl: string
+        }
+        Update: {
+          new_category?: string | null
+          old_category?: string | null
+          repaired_at?: string
+          row_id?: string
+          tbl?: string
+        }
+        Relationships: []
+      }
+      recs_dedupe_backup_20260924: {
+        Row: {
+          removed_at: string
+          row_data: Json
+        }
+        Insert: {
+          removed_at?: string
+          row_data: Json
+        }
+        Update: {
+          removed_at?: string
+          row_data?: Json
+        }
+        Relationships: []
+      }
+      recs_orphan_cleanup_20260924: {
+        Row: {
+          removed_at: string
+          row_data: Json
+        }
+        Insert: {
+          removed_at?: string
+          row_data: Json
+        }
+        Update: {
+          removed_at?: string
+          row_data?: Json
+        }
+        Relationships: []
+      }
+      recs_radius_cleanup_20260924: {
+        Row: {
+          distance_m: number | null
+          removed_at: string
+          row_data: Json
+        }
+        Insert: {
+          distance_m?: number | null
+          removed_at?: string
+          row_data: Json
+        }
+        Update: {
+          distance_m?: number | null
+          removed_at?: string
+          row_data?: Json
         }
         Relationships: []
       }
