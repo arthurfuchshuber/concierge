@@ -38,7 +38,11 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid w-[calc(100%_-_2rem)] max-w-lg translate-x-[-50%] translate-y-[calc(-50%_-_var(--kb-inset,0px)_/_2)] gap-4 rounded-3xl border border-border/60 bg-card/95 backdrop-blur-2xl p-5 sm:p-6 shadow-[0_30px_80px_-30px_rgb(0_0_0/0.75)] ring-1 ring-inset ring-foreground/5 duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 max-h-[calc(100dvh_-_var(--kb-inset,0px)_-_3rem)] overflow-y-auto",
+        // Teto de ~75% da altura da tela (pedido explícito, 24/09/2026),
+        // ainda descontando o teclado (`--kb-inset`) e a margem de 3rem —
+        // `min(...)` garante o menor dos dois. `sg-elegant-scroll`: barra de
+        // rolagem fina e visível, igual aos demais tooltips/popovers.
+        "sg-elegant-scroll fixed left-[50%] top-[50%] z-50 grid w-[calc(100%_-_2rem)] max-w-lg translate-x-[-50%] translate-y-[calc(-50%_-_var(--kb-inset,0px)_/_2)] gap-4 rounded-3xl border border-border/60 bg-card/95 backdrop-blur-2xl p-5 sm:p-6 shadow-[0_30px_80px_-30px_rgb(0_0_0/0.75)] ring-1 ring-inset ring-foreground/5 duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 max-h-[min(75dvh,calc(100dvh_-_var(--kb-inset,0px)_-_3rem))] overflow-y-auto",
         className,
       )}
       {...props}

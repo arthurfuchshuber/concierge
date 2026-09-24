@@ -29,7 +29,13 @@ const PopoverContent = React.forwardRef<
         // altura ao espaço realmente disponível (a mesma variável que o
         // Radix já expõe e que o DropdownMenuContent do projeto já usa) e
         // rola por dentro em vez de estourar a viewport.
-        "z-50 w-72 max-h-[var(--radix-popover-content-available-height)] overflow-y-auto rounded-[0.3rem] border bg-popover p-4 text-popover-foreground shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--radix-popover-content-transform-origin)",
+        // TAMANHO MÁXIMO DE TELA (pedido explícito, 24/09/2026): além de
+        // nunca estourar o espaço disponível perto do gatilho, nenhum
+        // tooltip pode passar de ~75% da ALTURA TOTAL do aparelho — daí o
+        // `min(75dvh, …)`. `sg-elegant-scroll`: barra de rolagem fina,
+        // visível e na cor da marca (pedido explícito: "elegante e
+        // visível" — a nativa some sozinha em alguns navegadores/SOs).
+        "sg-elegant-scroll z-50 w-72 max-h-[min(75dvh,var(--radix-popover-content-available-height))] overflow-y-auto rounded-[0.3rem] border bg-popover p-4 text-popover-foreground shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--radix-popover-content-transform-origin)",
         className,
       )}
       {...props}

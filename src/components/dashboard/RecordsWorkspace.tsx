@@ -1674,7 +1674,87 @@ function RecordViewerBody({
  *
  * Tudo é opcional: dá para resolver sem informar nada, como antes.
  */
-type PayerKind = "company" | "owner" | "provider";
+type PayerKind = "company" | "owner" | "provider" | "guest";
+
+/**
+ * As duas linhas de "quem" (responsável pela despesa e quem pagou de fato)
+ * têm a mesma estrutura de botões — pedido explícito de 24/09/2026 ("inclua
+ * uma linha idêntica a essa do ponto 3"). "A empresa" e "Hóspede" não têm
+ * cadastro pra escolher; só proprietário e prestador abrem o buscador.
+ */
+const PAYER_OPTIONS = [
+  { key: "company" as const, label: "A empresa" },
+  { key: "owner" as const, label: "Proprietário" },
+  { key: "provider" as const, label: "Prestador" },
+  { key: "guest" as const, label: "Hóspede" },
+] satisfies ReadonlyArray<{ key: PayerKind; label: string }>;
+
+function PayerButtonGroup({
+  value,
+  onSelect,
+}: {
+  value: PayerKind;
+  onSelect: (key: PayerKind) => void;
+}) {
+  return (
+    <div className="mt-1 grid grid-cols-2 gap-1">
+      {PAYER_OPTIONS.map((o) => (
+        <button
+          key={o.key}
+          type="button"
+          onClick={() => onSelect(o.key)}
+          className={`rounded-[0.3rem] py-2 text-center text-[10.5px] font-bold transition-colors ${
+            value === o.key
+              ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
+              : "bg-foreground/[0.04] text-foreground/70 hover:bg-foreground/[0.08]"
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function PayerPicker({
+  kind,
+  options,
+  selectedId,
+  onSelect,
+}: {
+  kind: PayerKind;
+  options: ReadonlyArray<{ id: string; name: string }>;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <div className="overflow-hidden rounded-[0.3rem] border border-border/60">
+      <Command>
+        <CommandInput
+          placeholder={kind === "owner" ? "Buscar proprietário..." : "Buscar prestador..."}
+        />
+        <CommandList className="sg-elegant-scroll max-h-40">
+          <CommandEmpty>Nenhum cadastrado.</CommandEmpty>
+          <CommandGroup>
+            {options.map((o) => (
+              <CommandItem
+                key={o.id}
+                value={o.name}
+                onSelect={() => onSelect(o.id)}
+                className="cursor-pointer gap-2"
+              >
+                <Check
+                  className={`size-3.5 ${selectedId === o.id ? "opacity-100" : "opacity-0"}`}
+                />
+                <span className="truncate">{o.name}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </CommandList>
+      </Command>
+    </div>
+  );
+}
 
 function ResolveDialog({
   record,
@@ -1696,6 +1776,9 @@ function ResolveDialog({
   const [amount, setAmount] = useState("");
   const [payer, setPayer] = useState<PayerKind>("company");
   const [payerId, setPayerId] = useState<string | null>(null);
+  const [amountPaid, setAmountPaid] = useState("");
+  const [paidBy, setPaidBy] = useState<PayerKind>("company");
+  const [paidById, setPaidById] = useState<string | null>(null);
   const [note, setNote] = useState("");
 
   // Reabre sempre limpo — ninguém espera o formulário da pendência anterior.
@@ -1707,6 +1790,9 @@ function ResolveDialog({
     setAmount("");
     setPayer("company");
     setPayerId(null);
+    setAmountPaid("");
+    setPaidBy("company");
+    setPaidById(null);
     setNote("");
   }
 
@@ -1718,16 +1804,27 @@ function ResolveDialog({
       if (hasCost && (!Number.isFinite(cents) || (cents ?? 0) < 0)) {
         throw new Error("Informe um valor válido.");
       }
+      const paidCents =
+        hasCost && amountPaid.trim()
+          ? Math.round(Number(amountPaid.replace(/\./g, "").replace(",", ".")) * 100)
+          : null;
+      if (hasCost && amountPaid.trim() && (!Number.isFinite(paidCents) || (paidCents ?? 0) < 0)) {
+        throw new Error("Informe um valor pago válido.");
+      }
       return setStatusFn({
         data: {
           taskId: record.taskId,
           status: "done",
           amountSpentCents: cents,
           costPayer: hasCost ? payer : null,
-          costPayerId: hasCost && payer !== "company" ? payerId : null,
+          costPayerId: hasCost && payer !== "company" && payer !== "guest" ? payerId : null,
+          paidBy: hasCost ? paidBy : null,
+          paidById: hasCost && paidBy !== "company" && paidBy !== "guest" ? paidById : null,
+          amountPaidCents: paidCents,
           // Quem resolveu continua sendo o prestador, quando for ele quem
           // pagou ou executou — é a coluna que a tela de Pendências já lê.
-          resolvedByProviderId: payer === "provider" ? payerId : null,
+          resolvedByProviderId:
+            payer === "provider" ? payerId : paidBy === "provider" ? paidById : null,
           resolutionNote: note.trim() || null,
         },
       });
@@ -1748,7 +1845,9 @@ function ResolveDialog({
   });
 
   const options = payer === "owner" ? owners : payer === "provider" ? providers : [];
-  const needsWho = hasCost && payer !== "company";
+  const needsWho = hasCost && payer !== "company" && payer !== "guest";
+  const paidByOptions = paidBy === "owner" ? owners : paidBy === "provider" ? providers : [];
+  const needsWhoPaid = hasCost && paidBy !== "company" && paidBy !== "guest";
 
   return (
     <Dialog open={!!record} onOpenChange={(v) => !v && onClose()}>
@@ -1780,7 +1879,9 @@ function ResolveDialog({
           {hasCost && (
             <>
               <label className="block">
-                <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">Valor</span>
+                <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">
+                  Valor da resolução
+                </span>
                 <div className="mt-1 flex items-center gap-2 rounded-[0.3rem] bg-foreground/[0.04] px-2.5 py-2">
                   <span className="text-[11px] font-bold text-muted-foreground">R$</span>
                   <input
@@ -1794,57 +1895,60 @@ function ResolveDialog({
               </label>
 
               <div>
-                <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">Quem paga</span>
-                <div className="mt-1 grid grid-cols-3 gap-1">
-                  {(
-                    [
-                      { key: "company" as const, label: "A empresa" },
-                      { key: "owner" as const, label: "Proprietário" },
-                      { key: "provider" as const, label: "Prestador" },
-                    ] satisfies ReadonlyArray<{ key: PayerKind; label: string }>
-                  ).map((o) => (
-                    <button
-                      key={o.key}
-                      type="button"
-                      onClick={() => {
-                        setPayer(o.key);
-                        setPayerId(null);
-                      }}
-                      className={`rounded-[0.3rem] py-2 text-center text-[10.5px] font-bold transition-colors ${
-                        payer === o.key
-                          ? "bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-white"
-                          : "bg-foreground/[0.04] text-foreground/70 hover:bg-foreground/[0.08]"
-                      }`}
-                    >
-                      {o.label}
-                    </button>
-                  ))}
-                </div>
+                <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">
+                  Responsável pela despesa
+                </span>
+                <PayerButtonGroup
+                  value={payer}
+                  onSelect={(k) => {
+                    setPayer(k);
+                    setPayerId(null);
+                  }}
+                />
               </div>
 
               {needsWho && (
-                <div className="overflow-hidden rounded-[0.3rem] border border-border/60">
-                  <Command>
-                    <CommandInput placeholder={payer === "owner" ? "Buscar proprietário..." : "Buscar prestador..."} />
-                    <CommandList className="sg-elegant-scroll max-h-40">
-                      <CommandEmpty>Nenhum cadastrado.</CommandEmpty>
-                      <CommandGroup>
-                        {options.map((o) => (
-                          <CommandItem
-                            key={o.id}
-                            value={o.name}
-                            onSelect={() => setPayerId(o.id)}
-                            className="cursor-pointer gap-2"
-                          >
-                            <Check className={`size-3.5 ${payerId === o.id ? "opacity-100" : "opacity-0"}`} />
-                            <span className="truncate">{o.name}</span>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </div>
+                <PayerPicker
+                  kind={payer}
+                  options={options}
+                  selectedId={payerId}
+                  onSelect={setPayerId}
+                />
               )}
+
+              <div>
+                <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">Quem pagou?</span>
+                <PayerButtonGroup
+                  value={paidBy}
+                  onSelect={(k) => {
+                    setPaidBy(k);
+                    setPaidById(null);
+                  }}
+                />
+              </div>
+
+              {needsWhoPaid && (
+                <PayerPicker
+                  kind={paidBy}
+                  options={paidByOptions}
+                  selectedId={paidById}
+                  onSelect={setPaidById}
+                />
+              )}
+
+              <label className="block">
+                <span className="ds-eyebrow block text-[9.5px] text-muted-foreground">Valor pago</span>
+                <div className="mt-1 flex items-center gap-2 rounded-[0.3rem] bg-foreground/[0.04] px-2.5 py-2">
+                  <span className="text-[11px] font-bold text-muted-foreground">R$</span>
+                  <input
+                    inputMode="decimal"
+                    value={amountPaid}
+                    onChange={(e) => setAmountPaid(e.target.value)}
+                    placeholder="0,00"
+                    className="w-full bg-transparent text-[13px] font-semibold tabular-nums outline-none placeholder:text-muted-foreground/60"
+                  />
+                </div>
+              </label>
             </>
           )}
 
@@ -1869,7 +1973,7 @@ function ResolveDialog({
             </button>
             <button
               type="button"
-              disabled={resolve.isPending || (needsWho && !payerId)}
+              disabled={resolve.isPending || (needsWho && !payerId) || (needsWhoPaid && !paidById)}
               onClick={() => resolve.mutate()}
               className="flex-1 rounded-[0.3rem] bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] py-2 text-center text-[10.5px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
             >

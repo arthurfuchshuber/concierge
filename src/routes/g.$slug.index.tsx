@@ -3634,13 +3634,6 @@ function fmtOnbTime(raw: unknown): string | null {
   return `${m[1].padStart(2, "0")}:${m[2]}`;
 }
 
-function fmtOnbDate(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  if (!y || !m || !d) return iso;
-  const dt = new Date(y, m - 1, d);
-  return dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
-}
-
 /**
  * Área rolável que nunca "corta" um item pela metade: a altura máxima é
  * arredondada para baixo até a borda inferior do último item COMPLETO que cabe
@@ -3892,35 +3885,23 @@ function PostAccessOnboarding({
                 Confere os dados e veja onde vai estar sua senha.
               </p>
 
-              <div className="rounded-[0.3rem] border border-border bg-foreground/[0.03] px-3.5 mb-3">
-                <div className="flex items-center justify-between gap-3 py-2.5 border-b border-border">
-                  <p className="text-[12.5px] text-muted-foreground">Check-in</p>
-                  <p className="text-[12.5px] font-bold text-foreground text-right [text-wrap:auto]">
-                    {fmtOnbDate(checkinDate)}
-                    {checkinTime ? ` a partir das ${checkinTime}` : ""}
-                  </p>
-                </div>
-                <div
-                  className={cn(
-                    "flex items-center justify-between gap-3 py-2.5",
-                    shortAddress(address) && "border-b border-border",
-                  )}
-                >
-                  <p className="text-[12.5px] text-muted-foreground">Check-out</p>
-                  <p className="text-[12.5px] font-bold text-foreground text-right [text-wrap:auto]">
-                    {fmtOnbDate(checkoutDate)}
-                    {checkoutTime ? ` até ${checkoutTime}` : ""}
-                  </p>
-                </div>
-                {shortAddress(address) && (
+              {/* SEM "Check-in"/"Check-out" (pedido explícito, 24/09/2026:
+                  "essa informação é mostrada na próxima tela junto a outras
+                  infos da reserva") — antes repetia data e horário que a
+                  etapa seguinte da estadia já mostra junto do resto dos
+                  dados da reserva. Só o endereço continua aqui: é o único
+                  dado que esta tela apresentava e nenhuma outra repete. Sem
+                  endereço cadastrado, a caixa toda some — não sobra vazia. */}
+              {shortAddress(address) && (
+                <div className="rounded-[0.3rem] border border-border bg-foreground/[0.03] px-3.5 mb-3">
                   <div className="flex items-center justify-between gap-3 py-2.5">
                     <p className="text-[12.5px] text-muted-foreground shrink-0">Endereço</p>
                     <p className="text-[12.5px] font-bold text-foreground text-right [text-wrap:auto]">
                       {shortAddress(address)}
                     </p>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
               <div
                 className={cn(

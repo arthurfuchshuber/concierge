@@ -4558,7 +4558,10 @@ function useWholeCardsMaxHeight(visible: number, key: unknown) {
       // e compensamos o scroll atual do container.
       const absoluteTop = (element: HTMLElement) => element.getBoundingClientRect().top;
       const base = node.getBoundingClientRect().top - node.scrollTop;
-      const cap = Math.round(window.innerHeight * 0.7);
+      // ~75% da altura da TELA do aparelho (pedido explícito, 24/09/2026:
+      // "ajuste a altura de TODOS OS TOOLTIPS para que consuma em torno de
+      // 75% da TELA DO DISPOSITIVO DO USUÁRIO"). Era 0.7 antes.
+      const cap = Math.round(window.innerHeight * 0.75);
       const tops = items.map((i) => absoluteTop(i) - base);
       const bottoms = items.map((i) => absoluteTop(i) + i.offsetHeight - base);
       const total = bottoms[bottoms.length - 1];
@@ -4890,7 +4893,7 @@ function KpiCard({
             screenshotRef.current = el;
           }}
           style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
-          className="sg-elegant-scroll max-h-[70vh] overflow-y-auto px-3 pt-3"
+          className="sg-elegant-scroll max-h-[75dvh] overflow-y-auto px-3 pt-3"
         >
           {loading ? (
             <div className="py-14 grid place-items-center text-muted-foreground">
@@ -4984,8 +4987,10 @@ function EngagementAlertDropdown({ flags }: { flags: Array<{ icon: typeof Eye; l
            mesmo tamanho que o ícone da quantidade de reservas"). 20px e
            redondo, como a `CountPill` do cabeçalho do grupo. A palavra
            "ALERTA" saiu; o nome acessível e o `title` continuam dizendo o
-           que é. */
-        className="grid size-5 place-items-center rounded-full border-0 bg-amber-500/20 text-amber-700 shadow-sm transition-colors hover:bg-amber-500/30 dark:bg-amber-500/25 dark:text-amber-300"
+           que é.
+           SEM FUNDO (pedido explícito, 24/09/2026, print marcado): só o
+           ícone na cor — o círculo âmbar por trás saiu. */
+        className="grid size-5 place-items-center rounded-full border-0 text-amber-600 transition-opacity hover:opacity-75 dark:text-amber-400"
         title="Ver alertas"
         aria-label="Ver alertas"
       >
@@ -5083,7 +5088,7 @@ function FreePropertiesCard({
         <div
           ref={list.ref}
           style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
-          className="sg-elegant-scroll max-h-[70vh] overflow-y-auto px-4 pt-3"
+          className="sg-elegant-scroll max-h-[75dvh] overflow-y-auto px-4 pt-3"
         >
           {loading ? (
             <div className="py-10 grid place-items-center text-muted-foreground">
@@ -7175,7 +7180,7 @@ export function TasksDialog({
           <div
             ref={scroll.ref}
             style={scroll.maxHeight !== undefined ? { maxHeight: scroll.maxHeight } : undefined}
-            className="sg-elegant-scroll max-h-[70vh] overflow-y-auto px-5 pb-5 space-y-3"
+            className="sg-elegant-scroll max-h-[75dvh] overflow-y-auto px-5 pb-5 space-y-3"
           >
             {loading ? (
               <div className="py-12 grid place-items-center text-muted-foreground">
@@ -9163,20 +9168,15 @@ function ArrivalGroupPanel({
   const { dot } = GROUP_TONE[tone];
   return (
     <section aria-label={label} className={`${PANEL_SHELL} px-2.5 pb-2.5 pt-2.5`}>
-      <div className="mb-2.5 flex items-center gap-2.5 px-1">
-        <span
-          aria-hidden
-          className="h-px flex-1 bg-gradient-to-r from-transparent to-[color-mix(in_oklab,var(--foreground)_14%,transparent)]"
-        />
+      {/* SEM os fios dos dois lados (pedido explícito, 24/09/2026, print
+          marcado com duas setas em cima das linhas) — o bloco
+          pontinho+rótulo+contagem continua centralizado, só sem o traço. */}
+      <div className="mb-2.5 flex items-center justify-center gap-2.5 px-1">
         <span aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ background: dot }} />
         <span className="ds-eyebrow shrink-0 text-[10px] tracking-[0.2em] text-muted-foreground">
           {label}
         </span>
         <CountPill>{count}</CountPill>
-        <span
-          aria-hidden
-          className="h-px flex-1 bg-gradient-to-l from-transparent to-[color-mix(in_oklab,var(--foreground)_14%,transparent)]"
-        />
       </div>
       <div className="flex flex-col gap-3 px-1 pb-1">{children}</div>
     </section>
@@ -10076,6 +10076,29 @@ function ArrivalCard({
               para "Em Estadia" (23/09/2026); agora vale para toda lista —
               Checkouts, Check-ins, Limpeza — não só quando o card está aberto. */}
           {periodoBlock}
+
+          {/* "PERMITIDO ENTRE/ATÉ X" — MESMO TRATAMENTO do período acima
+              (pedido explícito, 24/09/2026, print marcado: "coloque a linha
+              PERMITIDO ENTRE/ATÉ no mesmo quadrante do nome do hóspede,
+              abaixo do nome do hóspede e também dentro da parte recolhida").
+              Antes vivia numa faixa PRÓPRIA, com borda superior e respiro
+              extra (`border-t border-border/40 pt-1.5`), depois de tudo — o
+              que empurrava a altura do card. Agora é só mais uma linha deste
+              mesmo bloco (`ds-card-lines`), sem borda nem respiro adicional:
+              info idêntica, sem o espaço que ela cobrava sozinha. Continua
+              SEM depender de `listBare`/`compact` — sempre visível, com o
+              card aberto ou recolhido. */}
+          {showPrediction && allowedPhrase && (
+            <div className="flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+              <Clock3 className="size-2.5 shrink-0 opacity-70" />
+              {/* Vão de 1 gap flex, não texto+espaço (mesma correção de
+                  24/09/2026 já aplicada aqui antes). */}
+              <span className="inline-flex items-baseline gap-1">
+                <span>Permitido</span>
+                <span className="font-semibold">{allowedPhrase}</span>
+              </span>
+            </div>
+          )}
         </div>
 
         {/* A COLUNA DA PREVISÃO — rótulo, horário, dia. Largura fixa de 78px
@@ -10194,30 +10217,6 @@ function ArrivalCard({
             )}
           </div>
         </>
-      )}
-
-      {/* A JANELA PERMITIDA do imóvel, nomeada (pedido explícito): antes o
-          horário padrão aparecia sem rótulo nenhum e ninguém sabia o que
-          aquele segundo horário significava.
-          Fica em linha própria, de largura inteira, e não dentro da coluna da
-          direita: "entre 15:00 e 23:00" precisa de ~130px, e ali roubaria do
-          nome do imóvel justamente o espaço que o faz caber. */}
-      {showPrediction && allowedPhrase && (
-        /* ÂMBAR EM TODO LUGAR (pedido explícito, 09/09/2026) — antes só a
-           janela da limpeza saía colorida. É a mesma informação nos dois
-           casos: o intervalo em que aquela ação PODE acontecer. Se ela merece
-           destaque no card de limpeza, merece no de chegada também; ter duas
-           cores para a mesma frase é que era a incoerência. */
-        <div className="flex items-center gap-1.5 border-t border-border/40 pt-1.5 text-[9.5px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">
-          <Clock3 className="size-2.5 shrink-0 opacity-70" />
-          {/* Vão de 1 gap flex, não texto+espaço (corrigido 24/09/2026): o
-              tracking-wide do pai também estica o espaço digitado entre as
-              palavras, e "Permitido  ATÉ/ENTRE" saía com vão duplo. */}
-          <span className="inline-flex items-baseline gap-1">
-            <span>Permitido</span>
-            <span className="font-semibold">{allowedPhrase}</span>
-          </span>
-        </div>
       )}
 
       {/* Alertas de conferência com o Airbnb (iCal) — divergência de datas,

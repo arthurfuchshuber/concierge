@@ -411,12 +411,24 @@ const SetTaskStatusInput = z.object({
   resolvedByProviderId: z.string().uuid().nullable().optional(),
   resolutionNote: z.string().trim().max(2000).nullable().optional(),
   /**
-   * QUEM ARCA COM O CUSTO (pedido explícito, 10/09/2026) — não é a mesma
-   * pergunta que "quem resolveu": um dano pode ser consertado pelo prestador
-   * e cobrado do proprietário, ou absorvido pela empresa.
+   * RESPONSÁVEL PELA DESPESA (pedido explícito, 10/09/2026, renomeado de
+   * "quem paga" em 24/09/2026) — não é a mesma pergunta que "quem resolveu":
+   * um dano pode ser consertado pelo prestador e cobrado do proprietário, ou
+   * absorvido pela empresa. "Hóspede" (pedido explícito, 24/09/2026) também
+   * pode ser o responsável — ex.: dano causado por ele.
    */
-  costPayer: z.enum(["company", "owner", "provider"]).nullable().optional(),
+  costPayer: z.enum(["company", "owner", "provider", "guest"]).nullable().optional(),
   costPayerId: z.string().uuid().nullable().optional(),
+  /**
+   * QUEM PAGOU DE FATO (pedido explícito, 24/09/2026) — pergunta nova,
+   * separada do responsável: a empresa pode adiantar o pagamento e cobrar
+   * depois do proprietário, por exemplo. `amountPaidCents` é o valor
+   * efetivamente pago, que pode ser menor que `amountSpentCents` (o "Valor
+   * da Resolução") em caso de pagamento parcial.
+   */
+  paidBy: z.enum(["company", "owner", "provider", "guest"]).nullable().optional(),
+  paidById: z.string().uuid().nullable().optional(),
+  amountPaidCents: z.number().int().min(0).nullable().optional(),
 });
 
 export const setTaskStatus = createServerFn({ method: "POST" })
@@ -437,8 +449,13 @@ export const setTaskStatus = createServerFn({ method: "POST" })
     if (data.resolutionNote !== undefined) patch.resolution_note = data.resolutionNote || null;
     if (data.costPayer !== undefined) patch.cost_payer = data.costPayer;
     if (data.costPayerId !== undefined) patch.cost_payer_id = data.costPayerId;
-    // "A empresa paga" não tem id — guardar um id aqui seria mentira.
-    if (data.costPayer === "company") patch.cost_payer_id = null;
+    // "A empresa"/"Hóspede" não têm id pra guardar — só proprietário e
+    // prestador (cadastros próprios) têm um id pra selecionar.
+    if (data.costPayer === "company" || data.costPayer === "guest") patch.cost_payer_id = null;
+    if (data.paidBy !== undefined) patch.paid_by = data.paidBy;
+    if (data.paidById !== undefined) patch.paid_by_id = data.paidById;
+    if (data.paidBy === "company" || data.paidBy === "guest") patch.paid_by_id = null;
+    if (data.amountPaidCents !== undefined) patch.amount_paid_cents = data.amountPaidCents;
     // Reabrir limpa a prestação de contas da conclusão anterior — senão a
     // pendência volta pendente ainda exibindo "resolvida por Fulano".
     if (data.status === "pending") {
@@ -446,6 +463,9 @@ export const setTaskStatus = createServerFn({ method: "POST" })
       patch.resolution_note = null;
       patch.cost_payer = null;
       patch.cost_payer_id = null;
+      patch.paid_by = null;
+      patch.paid_by_id = null;
+      patch.amount_paid_cents = null;
     }
 
     if (data.status === "done") {
@@ -660,7 +680,7 @@ export const setTasksStatusBulk = createServerFn({ method: "POST" })
  * ------------------------------------------------------------------------ */
 
 const TASK_SNAPSHOT_COLUMNS =
-  "id, status, completed_at, due_date, amount_spent_cents, resolved_by_provider_id, resolution_note, cost_payer, cost_payer_id";
+  "id, status, completed_at, due_date, amount_spent_cents, resolved_by_provider_id, resolution_note, cost_payer, cost_payer_id, paid_by, paid_by_id, amount_paid_cents";
 
 export type TaskSnapshot = z.infer<typeof TaskSnapshotSchema>;
 
@@ -685,8 +705,11 @@ const TaskSnapshotSchema = z.object({
   amount_spent_cents: z.number().int().min(0).nullable(),
   resolved_by_provider_id: z.string().uuid().nullable(),
   resolution_note: z.string().max(2000).nullable(),
-  cost_payer: z.enum(["company", "owner", "provider"]).nullable(),
+  cost_payer: z.enum(["company", "owner", "provider", "guest"]).nullable(),
   cost_payer_id: z.string().uuid().nullable(),
+  paid_by: z.enum(["company", "owner", "provider", "guest"]).nullable(),
+  paid_by_id: z.string().uuid().nullable(),
+  amount_paid_cents: z.number().int().min(0).nullable(),
 });
 
 export const restoreTask = createServerFn({ method: "POST" })

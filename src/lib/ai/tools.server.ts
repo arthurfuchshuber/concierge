@@ -274,7 +274,7 @@ export function buildGuestTools(ctx: ToolContext): AgentTool[] {
           .trim()
           .toLowerCase()
           .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "");
+          .replace(/[̀-ͯ]/g, "");
       const target = norm(ctx.guestName ?? null);
       const todayIso = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(
         new Date(),
