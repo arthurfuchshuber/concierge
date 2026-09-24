@@ -2296,6 +2296,26 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const kanbanCiRowsAll = kanbanCheckinListQ.data?.rows ?? [];
   const kanbanCoRowsAll = kanbanCheckoutListQ.data?.rows ?? [];
 
+  /**
+   * ATRASADOS NUNCA SOMEM DO KANBAN (bug corrigido, 24/09/2026).
+   *
+   * Sem período escolhido (padrão "Hoje"), `kanbanPeriodStart` cai em hoje —
+   * e o filtro `r.date >= kanbanPeriodStart` abaixo descartava silenciosamente
+   * todo check-in/checkout ATRASADO (data antes de hoje, ainda pendente) da
+   * coluna do Kanban, mesmo ele continuando pendente de verdade. O mesmo
+   * card aparecia normalmente no tooltip do KPI "Check-ins Pendentes" (que
+   * não tem esse piso), então o sumiço era só do quadro — daí o pedido
+   * "não há o card do check-in em atraso no Kanban".
+   *
+   * A correção só remove o PISO de data quando NÃO há período explícito
+   * escolhido pela pessoa: sem filtro, atrasado pendente sempre aparece
+   * (mesmo racional de ArrivalGroup/"ATRASADOS NO TOPO", 18/09/2026). Quando
+   * a pessoa escolhe um período customizado no botão "Filtros", o filtro
+   * respeita a escolha dela ao pé da letra, como sempre fez.
+   */
+  const kanbanCheckinFrom = periodRange ? kanbanPeriodStart : null;
+  const kanbanCheckoutFrom = periodRange ? kanbanPeriodStart : null;
+
   const kanbanCheckinPendingRows = useMemo(
     () =>
       sortCheckinRows(
@@ -2303,11 +2323,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           (r) =>
             r.status === "pending" &&
             matchesKanbanOwnerCity(r) &&
-            r.date >= kanbanPeriodStart &&
+            (kanbanCheckinFrom === null || r.date >= kanbanCheckinFrom) &&
             r.date <= kanbanPeriodEnd,
         ),
       ),
-    [kanbanCiRowsAll, matchesKanbanOwnerCity, kanbanPeriodStart, kanbanPeriodEnd, sortCheckinRows],
+    [kanbanCiRowsAll, matchesKanbanOwnerCity, kanbanCheckinFrom, kanbanPeriodEnd, sortCheckinRows],
   );
   const kanbanCheckoutPendingRows = useMemo(
     () =>
@@ -2316,14 +2336,14 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
           (r) =>
             r.status === "pending" &&
             matchesKanbanOwnerCity(r) &&
-            r.date >= kanbanPeriodStart &&
+            (kanbanCheckoutFrom === null || r.date >= kanbanCheckoutFrom) &&
             r.date <= kanbanPeriodEnd,
         ),
         // "all" range já cobre o período inteiro — inclusive giros com
         // check-in fora da janela filtrada no momento.
         [kanbanCiRowsAll],
       ),
-    [kanbanCoRowsAll, matchesKanbanOwnerCity, kanbanPeriodStart, kanbanPeriodEnd, kanbanCiRowsAll],
+    [kanbanCoRowsAll, matchesKanbanOwnerCity, kanbanCheckoutFrom, kanbanPeriodEnd, kanbanCiRowsAll],
   );
   // "Em Estadia" é sobre quem está hospedado AGORA — o período filtra pela
   // SOBREPOSIÇÃO da estadia com o intervalo escolhido (não só a data de
@@ -9400,72 +9420,47 @@ function ArrivalCard({
 
           {!listBare && !compact && (
             <>
-              {isStay ? (
-                /* EM ESTADIA: cada informação em sua própria linha (pedido
-                   explícito, 23/09/2026, mockup "Quadrantes v2" — "mantendo
-                   o código de reserva ABAIXO do nome... em formato de
-                   lista"). O período já saiu daqui (ver acima); resta o
-                   hóspede e o código, empilhados. */
-                <div className="flex flex-col gap-0.5 text-[11.5px]">
-                  {isPendingFill ? (
-                    <span className={`inline-flex items-center gap-1 ${CARD_PENDING_GUEST}`}>
-                      <UserPlus className="size-3 shrink-0" />
-                      Hóspede pendente
-                    </span>
-                  ) : row.guestName && row.guestName !== row.reservationCode ? (
-                    <span className={`inline-flex min-w-0 items-center gap-1.5 ${CARD_MUTED}`}>
-                      {/* Pedido explícito: nome do hóspede SEMPRE em maiúsculo. */}
-                      <span className="min-w-0 truncate uppercase">{row.guestName}</span>
-                      <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
-                      <ExtraGuests guests={row.additionalGuests ?? []} />
-                    </span>
-                  ) : null}
-                  {row.reservationCode && (
-                    <button
-                      type="button"
-                      onClick={(e) => copyReservationCode(e, row.reservationCode as string)}
-                      title="Copiar código da reserva"
-                      className={`w-fit min-w-0 max-w-full truncate text-left transition-colors hover:text-foreground ${CARD_MUTED}`}
-                    >
-                      {row.reservationCode}
-                    </button>
-                  )}
-                </div>
-              ) : (
-                /* Hóspede e código na MESMA linha, separados por ponto. Antes
-                    cada um ocupava uma linha própria e o card virava uma pilha
-                    de sete linhas com seis cores brigando entre si. */
-                <div className="flex flex-wrap items-center gap-x-1.5 text-[11.5px]">
-                  {isPendingFill ? (
-                    <span className={`inline-flex items-center gap-1 ${CARD_PENDING_GUEST}`}>
-                      <UserPlus className="size-3 shrink-0" />
-                      Hóspede pendente
-                    </span>
-                  ) : row.guestName && row.guestName !== row.reservationCode ? (
-                    <span className={`inline-flex min-w-0 items-center gap-1.5 ${CARD_MUTED}`}>
-                      {/* Pedido explícito: nome do hóspede SEMPRE em maiúsculo. */}
-                      <span className="min-w-0 truncate uppercase">{row.guestName}</span>
-                      <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
-                      <ExtraGuests guests={row.additionalGuests ?? []} />
-                    </span>
-                  ) : null}
-                  {row.reservationCode && (
-                    <>
-                      {(isPendingFill || (row.guestName && row.guestName !== row.reservationCode)) && (
-                        <span className="text-muted-foreground/60">·</span>
-                      )}
-                      <button
-                        type="button"
-                        onClick={(e) => copyReservationCode(e, row.reservationCode as string)}
-                        title="Copiar código da reserva"
-                        className={`min-w-0 truncate transition-colors hover:text-foreground ${CARD_MUTED}`}
-                      >
-                        {row.reservationCode}
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
+              {/* UMA INFORMAÇÃO POR LINHA, código SEMPRE à direita do nome
+                  (pedido explícito, 23/09/2026 — mockup "Tooltips Operacional"
+                  aprovado, agora valendo para Kanban e tooltips igualmente:
+                  "quero que o layout valha para ambos").
+
+                  Substitui as duas variações que existiam antes: a de "Em
+                  Estadia" (nome e código empilhados em duas linhas) e a
+                  padrão (nome e código na mesma linha, separados por "·",
+                  quebrando quando o nome era longo). As duas viram uma só —
+                  nome à esquerda (trunca), código à direita, sempre a MESMA
+                  linha — porque o código nunca precisa de mais que a largura
+                  de um chip, e não faz mais sentido ter dois desenhos
+                  diferentes para a mesma informação em componente
+                  compartilhado entre Kanban e tooltips. */}
+              <div className="flex items-center gap-2 text-[11.5px]">
+                {isPendingFill ? (
+                  <span className={`inline-flex min-w-0 flex-1 items-center gap-1 ${CARD_PENDING_GUEST}`}>
+                    <UserPlus className="size-3 shrink-0" />
+                    Hóspede pendente
+                  </span>
+                ) : row.guestName && row.guestName !== row.reservationCode ? (
+                  <span className={`inline-flex min-w-0 flex-1 items-center gap-1.5 ${CARD_MUTED}`}>
+                    {/* Pedido explícito: nome do hóspede SEMPRE em maiúsculo. */}
+                    <span className="min-w-0 truncate uppercase">{row.guestName}</span>
+                    <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />
+                    <ExtraGuests guests={row.additionalGuests ?? []} />
+                  </span>
+                ) : (
+                  <span className="flex-1" />
+                )}
+                {row.reservationCode && (
+                  <button
+                    type="button"
+                    onClick={(e) => copyReservationCode(e, row.reservationCode as string)}
+                    title="Copiar código da reserva"
+                    className={`shrink-0 max-w-[45%] truncate rounded-[6px] border border-border/50 bg-foreground/[0.04] px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-wide transition-colors hover:border-foreground/20 hover:bg-foreground/[0.07] hover:text-foreground ${CARD_MUTED}`}
+                  >
+                    {row.reservationCode}
+                  </button>
+                )}
+              </div>
 
               {/* O período, na cor do ESTADO — é ela que substituiu as antigas
                   etiquetas "Atrasado"/"Data futura". Em Estadia já mostrou o
