@@ -37,6 +37,17 @@ export const Route = createFileRoute("/api/public/place-photo")({
           return new Response("Bad photo name", { status: 400 });
         }
 
+        /* Só fotos que o próprio app emitiu (URL assinada pelo servidor) ou que
+           já estão salvas em algum guia/recomendação. Pedido arbitrário = pixel. */
+        const { isValidPlacePhotoSig } = await import("@/lib/place-photo-sign");
+        if (!isValidPlacePhotoSig(name, url.searchParams.get("sig"))) {
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const { data: known } = await supabaseAdmin.rpc("place_photo_known" as never, {
+            _name: name,
+          } as never);
+          if (known !== true) return placeholderResponse();
+        }
+
         /* TETO DE CONSUMO DO DIA (23/09/2026).
            A rota é aberta (o guia do hóspede não tem login) e cada foto gasta
            cota paga do Google. O limite por minuto segura rajada, mas não
