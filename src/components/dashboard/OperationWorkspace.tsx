@@ -8574,10 +8574,22 @@ function OccupancyPanel({
                     <thead>
                       <tr>
                         <th
-                          className="sticky left-0 top-0 z-20 border-r border-[var(--grid-line-v)] bg-card pb-2 pr-3 text-left"
+                          className="sticky left-0 top-0 z-20 relative bg-card pb-2 pr-3 text-left"
                           style={{ width: nameColW, minWidth: nameColW }}
                         >
                           <span className="ds-eyebrow block pl-[10px]">Imóvel</span>
+                          {/* Linha vertical da coluna fixa (nome) — ver comentário
+                              completo abaixo, no <th> de cada dia: em vez de
+                              `border-r` (que "para" na borda da célula e deixa um
+                              vão nas junções entre linhas, por causa do
+                              `border-spacing-y-1` da tabela), um fio absoluto que
+                              estica 4px além do próprio rodapé pra "encostar" sem
+                              vão na linha de baixo (25/09/2026, pedido explícito:
+                              "preciso que a linha encoste na faixa de status"). */}
+                          <span
+                            aria-hidden
+                            className="pointer-events-none absolute -bottom-1 right-0 top-0 w-px bg-[var(--grid-line-v)]"
+                          />
                         </th>
                         {dayList.map((d, i) => {
                           const wd = new Date(`${d}T12:00:00Z`).toLocaleDateString("pt-BR", {
@@ -8596,18 +8608,34 @@ function OccupancyPanel({
                              corpo da tabela (mais abaixo) a linha só aparece nos
                              trechos SEM reserva contínua atravessando a borda; no
                              cabeçalho não há status pra proteger, então a grade
-                             fica sempre completa aqui). Como `border-spacing-x-0`
-                             já cola as colunas, um `border-r` por célula forma uma
-                             linha vertical contínua sem falhas. Sem linha depois
-                             do último dia. */
+                             fica sempre completa aqui; (3) a linha precisa
+                             "encostar" na faixa de status sem deixar vão nas
+                             junções entre imóveis (pedido explícito, 25/09/2026) —
+                             por isso NÃO é mais `border-r` do `<th>`/`<td>` (que
+                             para exatamente na borda da célula): a tabela usa
+                             `border-spacing-y-1` (4px) entre linhas, e um
+                             `border-r` comum deixa esse vão de 4px sem nenhum
+                             traço, parecendo um segmento "flutuando" e
+                             desconectado da barra de baixo. Agora cada célula é
+                             `relative` e ganha um `<span>` absoluto que vai do
+                             topo até 4px ABAIXO do próprio rodapé
+                             (`-bottom-1` = -0.25rem = -4px, o mesmo valor de
+                             `border-spacing-y-1`), cobrindo esse vão e permitindo
+                             que o traço da célula de cima se funda com o da célula
+                             de baixo sem interrupção visual. Sem linha depois do
+                             último dia. */
                           return (
                             <th
                               key={d}
                               style={{ width: dayW, minWidth: dayW }}
-                              className={`sticky top-0 z-20 snap-start bg-card px-0 pb-2 font-medium tabular-nums ${
-                                i < dayList.length - 1 ? "border-r border-[var(--grid-line-v)]" : ""
-                              }`}
+                              className="sticky top-0 z-20 relative snap-start bg-card px-0 pb-2 font-medium tabular-nums"
                             >
+                              {i < dayList.length - 1 && (
+                                <span
+                                  aria-hidden
+                                  className="pointer-events-none absolute -bottom-1 right-0 top-0 w-px bg-[var(--grid-line-v)]"
+                                />
+                              )}
                               <div
                                 className={`relative mx-auto flex w-full flex-col items-center overflow-hidden rounded-md py-1 ${
                                   isToday ? "bg-primary/10 text-primary" : "text-muted-foreground"
@@ -8643,16 +8671,26 @@ function OccupancyPanel({
                         // um fio ainda mais discreto que o vertical, separando
                         // cada imóvel. Sem linha depois do último, mesma lógica
                         // das colunas.
-                        const rowDivider =
-                          pIdx < visibleProperties.length - 1
-                            ? "border-b border-[var(--grid-line-h)]"
-                            : "";
+                        const isLastRow = pIdx === visibleProperties.length - 1;
+                        const rowDivider = isLastRow
+                          ? ""
+                          : "border-b border-[var(--grid-line-h)]";
+                        // Ver comentário completo no <th> de cada dia: o fio
+                        // vertical agora é um <span> absoluto (não `border-r`)
+                        // que estica além do próprio rodapé pra "encostar" sem
+                        // vão na célula de baixo, através do gap de
+                        // `border-spacing-y-1`.
+                        const vLineBottomCls = isLastRow ? "bottom-0" : "-bottom-1";
                         return (
                           <tr key={p.id} data-whole-card className="group">
                             <td
-                              className={`sticky left-0 z-10 border-r border-[var(--grid-line-v)] bg-card py-1 pr-3 align-middle ${rowDivider}`}
+                              className={`sticky left-0 z-10 relative bg-card py-1 pr-3 align-middle ${rowDivider}`}
                               style={{ width: nameColW, minWidth: nameColW }}
                             >
+                              <span
+                                aria-hidden
+                                className={`pointer-events-none absolute right-0 top-0 w-px bg-[var(--grid-line-v)] ${vLineBottomCls}`}
+                              />
                               <PropertyPhotoPeek
                                 id={p.id}
                                 name={p.name}
@@ -8724,11 +8762,20 @@ function OccupancyPanel({
                                 <td
                                   key={d}
                                   style={{ width: dayW, minWidth: dayW }}
-                                  className={`px-0 py-1 snap-start ${
-                                    showVLine ? "border-r border-[var(--grid-line-v)]" : ""
-                                  } ${rowDivider}`}
+                                  className={`relative px-0 py-1 snap-start ${rowDivider}`}
                                   title={title}
                                 >
+                                  {/* Fio vertical do dia — `<span>` absoluto (ver
+                                      comentário completo no <th> do cabeçalho de
+                                      cada dia) em vez de `border-r`, pra "encostar"
+                                      sem vão na célula de baixo através do gap de
+                                      `border-spacing-y-1`. */}
+                                  {showVLine && (
+                                    <span
+                                      aria-hidden
+                                      className={`pointer-events-none absolute right-0 top-0 w-px bg-[var(--grid-line-v)] ${vLineBottomCls}`}
+                                    />
+                                  )}
                                   {/* Sem z-index explícito aqui: como os cabeçalhos
                                       "sticky" (topo/nome) usam z positivo, ficam
                                       sempre acima por padrão — antes as bolinhas
