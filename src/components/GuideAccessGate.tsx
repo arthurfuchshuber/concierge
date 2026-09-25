@@ -595,7 +595,7 @@ export function GuideAccessGate({
     const predictedCheckoutDate = departureAns === "yes" ? departureDate || checkoutDate : null;
     setLoading(true);
     try {
-      const res = await submit({
+      const res: any = await submit({
         data: {
           slug,
           property_id: propertyId,
