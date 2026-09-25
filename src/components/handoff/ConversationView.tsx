@@ -1,3 +1,4 @@
+import { friendlyErrorMessage } from "@/lib/friendly-error";
 import { ComposerPlusMenu } from "@/components/handoff/ComposerPlusMenu";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
@@ -291,7 +292,7 @@ export function ConversationView({ conversationId, compact, myUserId }: Props) {
       }));
     } catch (e) {
       setTranslations((p) => ({ ...p, [id]: { text: null, loading: false, showing: false } }));
-      setErrorMsg(e instanceof Error ? e.message : "Não consegui traduzir agora.");
+      setErrorMsg(friendlyErrorMessage(e, "Não consegui traduzir agora."));
     }
   };
 

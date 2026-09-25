@@ -1,3 +1,4 @@
+import { friendlyErrorMessage } from "@/lib/friendly-error";
 import { useEffect, useMemo, useState } from "react";
 import { Check, CreditCard, Loader2, ShieldCheck, Sparkles, ArrowLeft, BadgeCheck, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -103,7 +104,7 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
       }
       setStep(2);
     } catch (e) {
-      setDocError(e instanceof Error ? e.message : "Não foi possível validar agora.");
+      setDocError(friendlyErrorMessage(e, "Não foi possível validar agora."));
     } finally {
       setValidating(false);
     }
@@ -130,7 +131,7 @@ export function OnboardingCheckout({ onSignOut }: { onSignOut?: () => void }) {
     } catch (e) {
       setOpened(false);
       const { toast } = await import("sonner");
-      toast.error(e instanceof Error ? e.message : "Não foi possível abrir o checkout");
+      toast.error(friendlyErrorMessage(e, "Não foi possível abrir o checkout"));
     } finally {
       setOpening(false);
     }

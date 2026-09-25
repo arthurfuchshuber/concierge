@@ -1,3 +1,4 @@
+import { friendlyErrorMessage } from "@/lib/friendly-error";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
@@ -661,7 +662,7 @@ export function BulkEditDialog({
       onSaved?.();
     } catch (err) {
       // Antes o erro passava batido e o indicador continuava dizendo "Salvo".
-      toast.error(err instanceof Error ? err.message : "Não foi possível salvar as alterações nos guias selecionados.");
+      toast.error(friendlyErrorMessage(err, "Não foi possível salvar as alterações nos guias selecionados."));
       throw err;
     } finally {
       setSaving(false);
@@ -693,7 +694,7 @@ export function BulkEditDialog({
       setIsDirty(dirtyRef.current.size > 0 || dirtyListsRef.current.size > 0);
     } catch (e) {
       setSaveStatus("error");
-      setSaveError(e instanceof Error ? e.message : "Erro desconhecido");
+      setSaveError(friendlyErrorMessage(e));
     }
   }
 

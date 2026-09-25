@@ -3,6 +3,7 @@ import { createStart, createMiddleware } from "@tanstack/react-start";
 import { renderErrorPage } from "./lib/error-page";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 import { auditServerCalls } from "@/lib/audit-fn-middleware";
+import { translateServerErrors } from "@/lib/translate-errors-middleware";
 
 const errorMiddleware = createMiddleware().server(async ({ next, request }) => {
   const url = new URL(request.url);
@@ -31,5 +32,7 @@ const errorMiddleware = createMiddleware().server(async ({ next, request }) => {
 
 export const startInstance = createStart(() => ({
   requestMiddleware: [errorMiddleware],
-  functionMiddleware: [attachSupabaseAuth, auditServerCalls],
+  // translateServerErrors fica FORA da auditoria: o log guarda o erro técnico
+  // original, e o usuário recebe a frase em português.
+  functionMiddleware: [attachSupabaseAuth, translateServerErrors, auditServerCalls],
 }));

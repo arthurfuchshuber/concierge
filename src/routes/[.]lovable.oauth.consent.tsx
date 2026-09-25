@@ -1,3 +1,4 @@
+import { friendlyErrorMessage } from "@/lib/friendly-error";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -71,7 +72,7 @@ function Consent() {
       : await oauthApi().denyAuthorization(authorization_id);
     if (error) {
       setBusy(false);
-      setError(error.message);
+      setError(friendlyErrorMessage(error));
       return;
     }
     const target = data?.redirect_url ?? data?.redirect_to;

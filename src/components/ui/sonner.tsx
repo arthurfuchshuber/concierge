@@ -1,4 +1,21 @@
-import { Toaster as Sonner } from "sonner";
+import { Toaster as Sonner, toast } from "sonner";
+import { friendlyErrorMessage } from "@/lib/friendly-error";
+
+/* TODO AVISO DE ERRO EM PORTUGUÊS CLARO (25/09/2026): qualquer `toast.error`
+   ou `toast.warning` do sistema passa pelo tradutor único antes de aparecer. */
+type AnyToast = (message: unknown, data?: { description?: unknown } & Record<string, unknown>) => string | number;
+const patched = toast as unknown as { __ptPatched?: boolean; error: AnyToast; warning: AnyToast };
+if (!patched.__ptPatched) {
+  patched.__ptPatched = true;
+  for (const kind of ["error", "warning"] as const) {
+    const original = patched[kind].bind(toast) as AnyToast;
+    patched[kind] = (message, data) => {
+      const msg = typeof message === "string" || message instanceof Error ? friendlyErrorMessage(message) : message;
+      const next = data && typeof data.description === "string" ? { ...data, description: friendlyErrorMessage(data.description, "") || undefined } : data;
+      return original(msg, next);
+    };
+  }
+}
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 

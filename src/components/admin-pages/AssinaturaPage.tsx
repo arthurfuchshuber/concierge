@@ -1,3 +1,4 @@
+import { friendlyErrorMessage } from "@/lib/friendly-error";
 import { Link, useSearch } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
@@ -123,7 +124,7 @@ function AssinaturaPage() {
       const res = await portal({ data: { environment: env, ownerId: accountOwnerId } });
       window.open(res.overviewUrl, "_blank", "noopener,noreferrer");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao abrir o portal");
+      toast.error(friendlyErrorMessage(e, "Erro ao abrir o portal"));
     } finally {
       setOpening(false);
     }
@@ -151,7 +152,7 @@ function AssinaturaPage() {
           successUrl: `${window.location.origin}/admin/assinatura?checkout=success`,
         });
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Erro ao abrir checkout");
+        toast.error(friendlyErrorMessage(e, "Erro ao abrir checkout"));
       } finally {
         setChanging(null);
       }
@@ -167,7 +168,7 @@ function AssinaturaPage() {
       const t = setInterval(() => refetch(), 2000);
       setTimeout(() => clearInterval(t), 20000);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Não foi possível mudar de plano";
+      const msg = friendlyErrorMessage(e, "Não foi possível mudar de plano");
       if (msg.startsWith("EXCESS_GUIDES:")) {
         setExcessTarget(target);
       } else {
@@ -547,7 +548,7 @@ function CardTab({
       });
     } catch (e) {
       console.error("[CardValidation] failed to open Paddle checkout", e);
-      const msg = e instanceof Error ? e.message : "erro desconhecido";
+      const msg = friendlyErrorMessage(e);
       toast.error(`Não consegui abrir o checkout: ${msg}`);
       setOpenedInline(false);
     } finally {
