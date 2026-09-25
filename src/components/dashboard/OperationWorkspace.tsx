@@ -8574,22 +8574,38 @@ function OccupancyPanel({
                     <thead>
                       <tr>
                         <th
-                          className="sticky left-0 top-0 z-20 bg-card pb-2 pr-3 text-left"
+                          className="sticky left-0 top-0 z-20 border-r border-border bg-card pb-2 pr-3 text-left"
                           style={{ width: nameColW, minWidth: nameColW }}
                         >
                           <span className="ds-eyebrow block pl-[10px]">Imóvel</span>
                         </th>
-                        {dayList.map((d) => {
+                        {dayList.map((d, i) => {
                           const wd = new Date(`${d}T12:00:00Z`).toLocaleDateString("pt-BR", {
                             weekday: "short",
                             timeZone: "UTC",
                           });
                           const isToday = d === todayISO;
+                          /* GRADE DO CALENDÁRIO (pedido explícito, 25/09/2026, com
+                             mockup aprovado — "opção A"): uma linha vertical bem
+                             suave cortando cada dia, do cabeçalho até a última
+                             linha de imóvel. Como `border-spacing-x-0` já cola as
+                             colunas umas nas outras, um simples `border-r` em
+                             CADA célula do dia forma uma linha contínua e sem
+                             falhas — e, como o "bar" colorido de cada dia vive
+                             DENTRO da célula (nunca sobre a borda), a linha
+                             aparece por cima do status também, exatamente como
+                             pedido ("corte por cima dos status, não só ao
+                             redor"). Usa o mesmo token `--border` do resto do
+                             app (o "fio de 1px" já estabelecido), sem inventar
+                             uma cor nova — é o mesmo nível de suavidade do
+                             mockup aprovado. Sem linha depois do último dia. */
                           return (
                             <th
                               key={d}
                               style={{ width: dayW, minWidth: dayW }}
-                              className="sticky top-0 z-20 snap-start bg-card px-0 pb-2 font-medium tabular-nums"
+                              className={`sticky top-0 z-20 snap-start bg-card px-0 pb-2 font-medium tabular-nums ${
+                                i < dayList.length - 1 ? "border-r border-border" : ""
+                              }`}
                             >
                               <div
                                 className={`relative mx-auto flex w-full flex-col items-center overflow-hidden rounded-md py-1 ${
@@ -8619,13 +8635,19 @@ function OccupancyPanel({
                       </tr>
                     </thead>
                     <tbody>
-                      {visibleProperties.map((p) => {
+                      {visibleProperties.map((p, pIdx) => {
                         const halves = dayList.flatMap((d) => cellHalves(p.id, d));
                         const occ = halves.map((h) => h !== "free");
+                        // Linha horizontal do grid (ver comentário no cabeçalho) —
+                        // um fio ainda mais discreto que o vertical (`/60` sobre o
+                        // já translúcido `--border`), separando cada imóvel. Sem
+                        // linha depois do último, mesma lógica das colunas.
+                        const rowDivider =
+                          pIdx < visibleProperties.length - 1 ? "border-b border-border/60" : "";
                         return (
                           <tr key={p.id} data-whole-card className="group">
                             <td
-                              className="sticky left-0 z-10 bg-card py-1 pr-3 align-middle"
+                              className={`sticky left-0 z-10 border-r border-border bg-card py-1 pr-3 align-middle ${rowDivider}`}
                               style={{ width: nameColW, minWidth: nameColW }}
                             >
                               <PropertyPhotoPeek
@@ -8689,7 +8711,9 @@ function OccupancyPanel({
                                 <td
                                   key={d}
                                   style={{ width: dayW, minWidth: dayW }}
-                                  className="px-0 py-1 snap-start"
+                                  className={`px-0 py-1 snap-start ${
+                                    i < dayList.length - 1 ? "border-r border-border" : ""
+                                  } ${rowDivider}`}
                                   title={title}
                                 >
                                   {/* Sem z-index explícito aqui: como os cabeçalhos
