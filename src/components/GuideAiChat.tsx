@@ -216,11 +216,17 @@ export function GuideAiChat({
       const id = m.id as string;
       translatingRef.current.add(id);
       try {
+        const { ensureGuidePass } = await import("@/lib/guest-pass-client");
+        const pass = await ensureGuidePass(slug, {
+          name: readAccessRecord(slug)?.name ?? null,
+          code: readAccessRecord(slug)?.code ?? null,
+        });
+        if (!pass) return;
         const r = await translateMessage({
           data: {
             text: m.content.slice(0, 2000),
             targetLang: myLang,
-            guest: sessionId ? { slug, sessionId } : null,
+            guest: sessionId ? { slug, sessionId, pass } : null,
           },
         });
         setAutoTranslated((p) => ({ ...p, [id]: r.translated }));
