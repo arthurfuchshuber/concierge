@@ -10,7 +10,6 @@ import { useAntiClipBar } from "@/hooks/useAntiClipBar";
 import {
   CARD_MUTED,
   CARD_OWNER,
-  CARD_PENDING_GUEST,
   periodColorClass,
   stageBarClass,
   type CardStage,
@@ -10108,29 +10107,6 @@ function ArrivalCard({
               para "Em Estadia" (23/09/2026); agora vale para toda lista —
               Checkouts, Check-ins, Limpeza — não só quando o card está aberto. */}
           {periodoBlock}
-
-          {/* "PERMITIDO ENTRE/ATÉ X" — MESMO TRATAMENTO do período acima
-              (pedido explícito, 24/09/2026, print marcado: "coloque a linha
-              PERMITIDO ENTRE/ATÉ no mesmo quadrante do nome do hóspede,
-              abaixo do nome do hóspede e também dentro da parte recolhida").
-              Antes vivia numa faixa PRÓPRIA, com borda superior e respiro
-              extra (`border-t border-border/40 pt-1.5`), depois de tudo — o
-              que empurrava a altura do card. Agora é só mais uma linha deste
-              mesmo bloco (`ds-card-lines`), sem borda nem respiro adicional:
-              info idêntica, sem o espaço que ela cobrava sozinha. Continua
-              SEM depender de `listBare`/`compact` — sempre visível, com o
-              card aberto ou recolhido. */}
-          {showPrediction && allowedPhrase && (
-            <div className="flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">
-              <Clock3 className="size-2.5 shrink-0 opacity-70" />
-              {/* Vão de 1 gap flex, não texto+espaço (mesma correção de
-                  24/09/2026 já aplicada aqui antes). */}
-              <span className="inline-flex items-baseline gap-1">
-                <span>Permitido</span>
-                <span className="font-semibold">{allowedPhrase}</span>
-              </span>
-            </div>
-          )}
         </div>
 
         {/* A COLUNA DA PREVISÃO — rótulo, horário, dia. Largura fixa de 78px
@@ -10216,16 +10192,20 @@ function ArrivalCard({
               hospede"). */}
           <div className="-mt-1 flex items-center gap-2 text-[11.5px]">
             {isPendingFill ? (
-              <span
-                className={`inline-flex min-w-0 flex-1 items-center gap-1 ${CARD_PENDING_GUEST}`}
-              >
-                <UserPlus className="size-3 shrink-0" />
+              <span className="inline-flex min-w-0 flex-1 items-center gap-1 font-medium">
+                <UserPlus className="size-3 shrink-0 text-orange-500" />
                 {/* SEM quebra em 2 linhas — regra do card é a linha
                     inteira com reticências quando falta espaço (mesma
                     regra do nome do hóspede logo abaixo), corrigido
                     24/09/2026: "Hóspede pendente" quebrava em duas linhas
-                    e empurrava o código pra fora do canto direito. */}
-                <span className="min-w-0 truncate">Hóspede pendente</span>
+                    e empurrava o código pra fora do canto direito.
+                    Cor do TEXTO igualada à do código da reserva — mesmo
+                    `CARD_MUTED` do botão abaixo (pedido explícito,
+                    24/09/2026: "coloque a cor das letras de 'hospede
+                    pendente' com a mesma cor de letra do codigo da
+                    reserva"). Só o ícone continua laranja, como
+                    sinalizador visual da pendência. */}
+                <span className={`min-w-0 truncate ${CARD_MUTED}`}>Hóspede pendente</span>
               </span>
             ) : row.guestName && row.guestName !== row.reservationCode ? (
               <span className={`inline-flex min-w-0 flex-1 items-center gap-1.5 ${CARD_MUTED}`}>
@@ -10249,6 +10229,27 @@ function ArrivalCard({
             )}
           </div>
         </>
+      )}
+
+      {/* "PERMITIDO ENTRE/ATÉ X" — pedido explícito, 24/09/2026, print
+          marcado: "a linha 'PERMITIDO ENTRE/ATÉ' precisa estar dentro do
+          campo recolhido, abaixo do nome do hospede". Fica FORA do
+          fragmento acima (que só existe com o card aberto, `!compact`) para
+          continuar aparecendo também com o card recolhido — como já
+          acontecia antes — mas agora depois da linha do hóspede/código, não
+          antes dela: com o card aberto, o nome do hóspede vem primeiro e
+          esta linha fica logo abaixo; com o card recolhido, a linha do
+          hóspede nem renderiza e esta cai exatamente onde já ficava (logo
+          após o período). Ícone removido e frase alinhada à esquerda, no
+          mesmo início do nome do hóspede/"Hóspede pendente" acima (pedido
+          explícito, mesma data: "remova o icone ao lado esquerdo... e
+          alinhe a frase à esquerda do nome do hospede"). `-mt-1` mantém o
+          mesmo respiro de 4px das outras linhas (o card usa gap-2). */}
+      {showPrediction && allowedPhrase && (
+        <div className="-mt-1 flex items-baseline gap-1 text-[9.5px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+          <span>Permitido</span>
+          <span className="font-semibold">{allowedPhrase}</span>
+        </div>
       )}
 
       {/* Alertas de conferência com o Airbnb (iCal) — divergência de datas,
@@ -11107,9 +11108,24 @@ function PredictedEditor({
     const SLACK_MIN = 3 * 60;
     const a = liveMinTime ? timeToMinutes(liveMinTime) - SLACK_MIN : -Infinity;
     const b = liveMaxTime ? timeToMinutes(liveMaxTime) + SLACK_MIN : Infinity;
+    /**
+     * JANELA QUE VIRA A NOITE (corrigido 24/09/2026, print marcado: "o campo
+     * horário em 'saída', ao ser clicado, nada abre"). No checkout, `min` é
+     * o horário de ABERTURA (`standardTimeMax`) e `max` o horário LIMITE
+     * (`standardTime`) — quando o imóvel libera a saída já na noite anterior
+     * (ex.: "entre 23:00 e 15:00"), `min` (23:00) fica MAIOR que `max`
+     * (15:00) em minutos-desde-a-meia-noite. O filtro `v >= a && v <= b`
+     * pressupõe um intervalo comum (min < max) e, com a virada, `a > b`
+     * torna a condição impossível para qualquer horário — a lista saía
+     * vazia (o popover abria, só que sem nenhum horário dentro). Com a
+     * virada, o intervalo válido é a UNIÃO das duas pontas do relógio (do
+     * `a` até meia-noite, e de meia-noite até `b`), não a interseção — daí
+     * o `||` no lugar do `&&` só neste caso.
+     */
+    const wraps = a > b;
     return TIME_SLOTS.filter((t) => {
       const v = timeToMinutes(t);
-      return v >= a && v <= b;
+      return wraps ? v >= a || v <= b : v >= a && v <= b;
     });
   }, [liveMinTime, liveMaxTime]);
 
@@ -11164,11 +11180,19 @@ function PredictedEditor({
             e.stopPropagation();
             openPicker(slot, "date");
           }}
-          className="flex h-8 shrink-0 items-center gap-1.5 rounded-[9px] border border-border bg-[var(--panel-well)] px-2 text-[12px] font-semibold tabular-nums hover:border-accent/50 disabled:opacity-50"
+          className="flex h-8 w-[92px] shrink-0 items-center justify-center gap-1.5 rounded-[9px] border border-border bg-[var(--panel-well)] px-2 text-[12px] font-semibold tabular-nums hover:border-accent/50 disabled:opacity-50"
         >
           <CalendarRange className="size-3.5 shrink-0 text-muted-foreground" />
           <span className={d ? "" : "text-muted-foreground"}>{d ? fmtDateBR(d) : "Data"}</span>
         </button>
+        {/* Largura FIXA nos dois botões (pedido explícito, 24/09/2026, print
+            marcado: "os campos data e horário não estão alinhados") — sem
+            isso, o botão de Data encolhe para o texto "Data" (curto) ou
+            cresce para "22/09/2026" (mais largo), e o de Horário faz o mesmo
+            entre "Horário" e "23:00": a coluna de cada campo passava a
+            começar num X diferente entre Chegada e Saída, mesmo com os dois
+            lados alinhados à direita. Com largura fixa, as duas colunas
+            (Data e Horário) ficam sempre no mesmo lugar nas duas linhas. */}
         <button
           type="button"
           disabled={disabled}
@@ -11176,7 +11200,7 @@ function PredictedEditor({
             e.stopPropagation();
             openPicker(slot, "time");
           }}
-          className="flex h-8 shrink-0 items-center gap-1.5 rounded-[9px] border border-border bg-[var(--panel-well)] px-2 text-[12px] font-semibold tabular-nums hover:border-accent/50 disabled:opacity-50"
+          className="flex h-8 w-[78px] shrink-0 items-center justify-center gap-1.5 rounded-[9px] border border-border bg-[var(--panel-well)] px-2 text-[12px] font-semibold tabular-nums hover:border-accent/50 disabled:opacity-50"
         >
           <Clock3 className="size-3.5 shrink-0 text-muted-foreground" />
           <span className={t ? "" : "text-muted-foreground"}>{t ?? "Horário"}</span>
@@ -11444,7 +11468,16 @@ function allowedWindowPhrase(
 
 function isTimeWithin(t: string, min: string, max: string | null): boolean {
   const v = timeToMinutes(t);
-  const a = timeToMinutes(min);
-  const b = max ? timeToMinutes(max) : a + 60;
-  return v >= a - 30 && v <= b + 30;
+  const a = timeToMinutes(min) - 30;
+  const b = (max ? timeToMinutes(max) : timeToMinutes(min) + 60) + 30;
+  /**
+   * MESMA virada de noite do seletor de horário logo abaixo (corrigido
+   * 24/09/2026): no checkout, `min` (horário de abertura, ex.: 23:00) pode
+   * ser MAIOR que `max` (horário limite, ex.: 15:00) em minutos-desde-meia-
+   * noite. Sem tratar a virada, `a > b` fazia esta função devolver `false`
+   * para QUALQUER horário informado pelo hóspede — todo checkout com janela
+   * virada acendia o aviso "Horário divergente do padrão" mesmo quando o
+   * horário estava certinho dentro da janela.
+   */
+  return a > b ? v >= a || v <= b : v >= a && v <= b;
 }
