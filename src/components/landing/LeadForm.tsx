@@ -81,7 +81,11 @@ export function LeadForm() {
 
     setStatus("sending");
     try {
-      await send({ data: { ...form, name: form.name.trim(), email: form.email.trim() } });
+      const r = await send({ data: { ...form, name: form.name.trim(), email: form.email.trim() } });
+      if (r?.pass) {
+        const { savePass } = await import("@/lib/guest-pass-client");
+        savePass("landing", r.pass);
+      }
       setStatus("done");
     } catch {
       setStatus("error");
