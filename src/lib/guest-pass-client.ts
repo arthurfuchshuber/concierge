@@ -31,6 +31,15 @@ export function clearPass(scope: string) {
   }
 }
 
+function passIsVerified(pass: string): boolean {
+  try {
+    const body = pass.split(".")[0].replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(body)).v === 1;
+  } catch {
+    return false;
+  }
+}
+
 /** Devolve o passe do guia, emitindo um novo se houver identificação salva. */
 export async function ensureGuidePass(
   slug: string,
