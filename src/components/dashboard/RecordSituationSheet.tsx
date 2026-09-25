@@ -400,8 +400,9 @@ export function RecordSituationSheet({
     });
   }
 
-  const canSave =
-    !saving && (items.length > 0 || !!title.trim()) && (!requiresTitle || !!title.trim());
+  // Título sempre obrigatório (25/09/2026). O botão fica ativo para que, ao
+  // tocar sem título, a pessoa receba a explicação clara em vez de nada.
+  const canSave = !saving;
 
   function cancelarEnvio() {
     cancelarRef.current?.abort();
@@ -409,6 +410,10 @@ export function RecordSituationSheet({
 
   async function save() {
     if (!canSave) return;
+    if (!title.trim()) {
+      setErro("Falta o título. Escreva em poucas palavras o que aconteceu (ex.: \"Toalha manchada\") e toque em registrar de novo. Suas fotos e vídeos continuam aqui.");
+      return;
+    }
     setErro(null);
     setSaving(true);
     const ctrl = new AbortController();
@@ -768,7 +773,7 @@ export function RecordSituationSheet({
 
           <DictationField
             label="Título"
-            required={requiresTitle}
+            required
             value={title}
             onChange={setTitle}
             placeholder="Em poucas palavras, o que houve"
