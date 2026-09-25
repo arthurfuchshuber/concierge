@@ -631,6 +631,13 @@ export function GuideAccessGate({
               : null,
         },
       });
+      if (res.ok && "stay_token" in res && res.stay_token) {
+        try {
+          localStorage.setItem(`ci-stay:${slug}`, res.stay_token);
+        } catch {
+          /* sem armazenamento: segue */
+        }
+      }
       if (!res.ok) {
         toast.error(
           "reason" in res && res.reason === "no_match"

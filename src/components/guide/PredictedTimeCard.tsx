@@ -7,6 +7,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { allowedWindowPhrase, buildHourGrid } from "@/lib/time-window";
+import { readStayToken } from "@/lib/stay-token-client";
 import { submitPredictedTime } from "@/lib/guide-access.functions";
 
 /**
@@ -155,13 +156,16 @@ export function PredictedTimeCard({
           kind,
           date: effectiveDate,
           time: selectedTime,
+          stay_token: readStayToken(slug),
         },
       });
       if (!res?.ok) {
         setError(
           res && "reason" in res && res.reason === "outside_window"
             ? "Esse horário está fora da janela permitida para este dia. Escolha outro horário ou outra data."
-            : "Não deu para salvar agora. Tente de novo em instantes.",
+            : res && "reason" in res && res.reason === "not_identified"
+              ? "Para salvar o horário, faça de novo sua identificação no guia neste aparelho."
+              : "Não deu para salvar agora. Tente de novo em instantes.",
         );
         return;
       }

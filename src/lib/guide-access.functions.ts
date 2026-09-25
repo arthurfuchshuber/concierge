@@ -91,6 +91,17 @@ function sanitizeGuestDocuments(
   });
 }
 
+const STAY_ACCESS_PURPOSE = "guide-stay-access";
+
+/** Confere o comprovante do hóspede e devolve o id do registro dele. */
+async function stayLogFromToken(token: string | null | undefined, propertyId: string) {
+  if (!token) return null;
+  const { verifyGuestToken } = await import("@/lib/guest-access.server");
+  const pl = await verifyGuestToken<{ p: string; l: string; exp: number }>(STAY_ACCESS_PURPOSE, token);
+  if (!pl || pl.exp < Date.now() || pl.p !== propertyId) return null;
+  return pl.l;
+}
+
 export const recordGuideAccess = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => AccessInput.parse(i))
   .handler(async ({ data }) => {
@@ -293,8 +304,21 @@ export const recordGuideAccess = createServerFn({ method: "POST" })
     }
 
 
+    // Comprovante assinado de QUEM se identificou (liga o navegador ao
+    // registro criado agora) — exigido para marcar check-in/out e previsão.
+    let stay_token: string | null = null;
+    if (logId) {
+      const { signGuestToken } = await import("@/lib/guest-access.server");
+      stay_token = await signGuestToken(STAY_ACCESS_PURPOSE, {
+        p: prop.id,
+        l: logId,
+        exp: Date.now() + 120 * 24 * 3600 * 1000,
+      });
+    }
+
     return {
       ok: true as const,
+      stay_token,
       checkin_time: prop.checkin_time as string | null,
       checkin_date: data.checkin_date,
       checkout_date: data.checkout_date ?? null,
@@ -554,6 +578,7 @@ const MarkStepInput = StayStatusInput.extend({
   kind: z.enum(["checkin", "checkout"]),
   /** Código da reserva do hóspede — exigido nos guias com código (16/09/2026). */
   reservation_code: z.string().trim().max(40).optional().nullable(),
+  stay_token: z.string().max(2000).optional().nullable(),
 });
 
 /**
@@ -595,6 +620,10 @@ export const markGuideStayStep = createServerFn({ method: "POST" })
       const res = await lookup(data.slug, prop.id as string, code);
       if (!res.ok || res.checkin_date !== data.checkin_date) return { ok: false as const };
     }
+    // Comprovante assinado emitido na identificação: só o próprio hóspede
+    // (o navegador que se identificou) consegue alterar o registro dele.
+    const tokenLogId = await stayLogFromToken(data.stay_token, prop.id as string);
+    if (!tokenLogId) return { ok: false as const, reason: "not_identified" as const };
 
     const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
     const guest = norm(guestNameRaw);
@@ -609,6 +638,7 @@ export const markGuideStayStep = createServerFn({ method: "POST" })
     ).find((l) => {
       if (data.checkout_date && l.checkout_date && l.checkout_date !== data.checkout_date)
         return false;
+      if (l.id !== tokenLogId) return false;
       if (guest && l.guest_name && norm(l.guest_name) !== guest) return false;
       return true;
     });
@@ -870,6 +900,7 @@ export const getReservationLiveStatus = createServerFn({ method: "POST" })
 const PredictedTimeInput = StayStatusInput.extend({
   kind: z.enum(["checkin", "checkout"]),
   reservation_code: z.string().trim().max(40).optional().nullable(),
+  stay_token: z.string().max(2000).optional().nullable(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
 });
@@ -908,6 +939,10 @@ export const submitPredictedTime = createServerFn({ method: "POST" })
       const res = await lookup(data.slug, prop.id as string, code);
       if (!res.ok || res.checkin_date !== data.checkin_date) return { ok: false as const };
     }
+    // Comprovante assinado emitido na identificação: só o próprio hóspede
+    // (o navegador que se identificou) consegue alterar o registro dele.
+    const tokenLogId = await stayLogFromToken(data.stay_token, prop.id as string);
+    if (!tokenLogId) return { ok: false as const, reason: "not_identified" as const };
 
     const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
     const guest = norm(guestNameRaw);
@@ -927,6 +962,7 @@ export const submitPredictedTime = createServerFn({ method: "POST" })
     ).find((l) => {
       if (data.checkout_date && l.checkout_date && l.checkout_date !== data.checkout_date)
         return false;
+      if (l.id !== tokenLogId) return false;
       if (guest && l.guest_name && norm(l.guest_name) !== guest) return false;
       return true;
     });

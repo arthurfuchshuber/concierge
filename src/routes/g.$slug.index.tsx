@@ -1,3 +1,4 @@
+import { readStayToken } from "@/lib/stay-token-client";
 import { createFileRoute, notFound, redirect, Link, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -849,6 +850,7 @@ function Guide({ data }: { data: GuideOk }) {
             checkin_date: accessRec.checkinDate,
             checkout_date: accessRec?.checkoutDate ?? null,
             reservation_code: accessRec?.code ?? null,
+            stay_token: readStayToken(slug),
           },
         });
         if (!r.ok) {

@@ -17,7 +17,7 @@ export const Route = createFileRoute("/api/public/clicksign-webhook")({
       POST: async ({ request }) => {
         const ownerId = new URL(request.url).searchParams.get("o") ?? "";
         if (!UUID.safeParse(ownerId).success) {
-          return new Response("Invalid owner", { status: 400 });
+          return new Response("Invalid signature", { status: 401 });
         }
 
         const rawBody = await request.text();
@@ -33,7 +33,7 @@ export const Route = createFileRoute("/api/public/clicksign-webhook")({
           .maybeSingle();
 
         const secret = (cred?.webhook_secret as string | null) ?? null;
-        if (!secret) return new Response("Integration not configured", { status: 404 });
+        if (!secret) return new Response("Invalid signature", { status: 401 });
 
         const header =
           request.headers.get("content-hmac") ??
