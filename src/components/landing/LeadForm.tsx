@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Check, Loader2 } from "lucide-react";
-import { submitLandingLead } from "@/lib/landing-leads.functions";
+import { submitLandingLead, verifyLandingCode } from "@/lib/landing-leads.functions";
 import { Reveal, Section } from "./primitives";
 
 const PROPERTY_RANGES = ["1 a 5", "6 a 10", "11 a 30", "31 a 100", "Mais de 100"];
@@ -53,6 +53,31 @@ const EMAIL_RE = /^[^@\s]+@[^@\s.]+\.[^@\s]{2,}$/;
 
 export function LeadForm() {
   const send = useServerFn(submitLandingLead);
+  const confirmCode = useServerFn(verifyLandingCode);
+  const [challenge, setChallenge] = useState<string | null>(null);
+  const [code, setCode] = useState("");
+  const [codeState, setCodeState] = useState<"idle" | "checking" | "ok">("idle");
+  const [codeErr, setCodeErr] = useState<string | null>(null);
+
+  async function onConfirmCode(e: React.FormEvent) {
+    e.preventDefault();
+    if (!challenge || codeState === "checking") return;
+    if (!/^\d{6}$/.test(code.trim())) {
+      setCodeErr("Digite os 6 números que enviamos para o seu e-mail.");
+      return;
+    }
+    setCodeErr(null);
+    setCodeState("checking");
+    try {
+      const r = await confirmCode({ data: { challenge, code: code.trim() } });
+      const { savePass } = await import("@/lib/guest-pass-client");
+      savePass("landing", r.pass);
+      setCodeState("ok");
+    } catch (err) {
+      setCodeState("idle");
+      setCodeErr((err as Error).message || "Código incorreto ou expirado.");
+    }
+  }
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [erros, setErros] = useState<{ name?: string; email?: string; whatsapp?: string }>({});
   const [form, setForm] = useState({
@@ -82,10 +107,7 @@ export function LeadForm() {
     setStatus("sending");
     try {
       const r = await send({ data: { ...form, name: form.name.trim(), email: form.email.trim() } });
-      if (r?.pass) {
-        const { savePass } = await import("@/lib/guest-pass-client");
-        savePass("landing", r.pass);
-      }
+      setChallenge(r?.challenge ?? null);
       setStatus("done");
     } catch {
       setStatus("error");
@@ -148,6 +170,30 @@ export function LeadForm() {
                 <p className="mt-5 font-display text-[19px] leading-[1.5] tracking-tight">
                   Recebemos seus dados. Em breve, entraremos em contato.
                 </p>
+                {challenge && codeState !== "ok" ? (
+                  <form onSubmit={onConfirmCode} className="mx-auto mt-6 grid max-w-xs gap-2 text-left">
+                    <span className={labelClass}>Código enviado para o seu e-mail (libera o chat)</span>
+                    <input
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      className={inputClass}
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      placeholder="000000"
+                    />
+                    {codeErr ? <span className="text-[11px] text-destructive">{codeErr}</span> : null}
+                    <button
+                      type="submit"
+                      disabled={codeState === "checking"}
+                      className="mt-1 rounded-full bg-accent px-4 py-2.5 text-[14px] font-semibold text-accent-foreground"
+                    >
+                      {codeState === "checking" ? "Conferindo..." : "Confirmar código"}
+                    </button>
+                  </form>
+                ) : null}
+                {codeState === "ok" ? (
+                  <p className="mt-4 text-[14px] text-muted-foreground">E-mail confirmado. O chat já está liberado.</p>
+                ) : null}
               </div>
             ) : (
               <form

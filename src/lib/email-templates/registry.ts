@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react'
 import { template as accountInviteTemplate } from './account-invite'
 import { template as landingLeadTemplate } from './landing-lead'
+import { template as landingCodeTemplate } from './landing-code'
 
 
 
@@ -25,5 +26,6 @@ export interface TemplateEntry {
 export const TEMPLATES: Record<string, TemplateEntry> = {
   'account-invite': accountInviteTemplate,
   'landing-lead': landingLeadTemplate,
+  'landing-code': landingCodeTemplate,
 }
 

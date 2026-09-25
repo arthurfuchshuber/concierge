@@ -10,7 +10,7 @@
  */
 import { createHmac, timingSafeEqual } from "crypto";
 
-type PassPayload = { s: string; n: string; e: number };
+type PassPayload = { s: string; n: string; e: number; v?: 1 };
 
 function secret(): string {
   const s = process.env["GUEST_PASS_SECRET"];
@@ -22,8 +22,9 @@ function b64(buf: Buffer | string) {
   return Buffer.from(buf).toString("base64url");
 }
 
-export function signGuestPass(scope: string, name: string, ttlDays = 30): string {
+export function signGuestPass(scope: string, name: string, ttlDays = 30, verified = false): string {
   const payload: PassPayload = { s: scope, n: name.slice(0, 80), e: Date.now() + ttlDays * 86_400_000 };
+  if (verified) payload.v = 1;
   const body = b64(JSON.stringify(payload));
   const sig = b64(createHmac("sha256", secret()).update(body).digest());
   return `${body}.${sig}`;
@@ -31,6 +32,19 @@ export function signGuestPass(scope: string, name: string, ttlDays = 30): string
 
 /** Devolve o nome do titular se o passe for válido para o escopo; senão null. */
 export function verifyGuestPass(token: string | null | undefined, scope: string): string | null {
+  return verifyGuestPassInfo(token, scope)?.name ?? null;
+}
+
+/** Hash com segredo de um código curto (não dá para descobrir o código offline). */
+export function codeDigest(code: string): string {
+  return createHmac("sha256", secret()).update(`otp:${code}`).digest("base64url").slice(0, 32);
+}
+
+/** Como verifyGuestPass, mas diz também se a reserva foi conferida por código. */
+export function verifyGuestPassInfo(
+  token: string | null | undefined,
+  scope: string,
+): { name: string; verified: boolean } | null {
   if (!token || token.length > 1000) return null;
   const [body, sig] = token.split(".");
   if (!body || !sig) return null;
@@ -40,7 +54,7 @@ export function verifyGuestPass(token: string | null | undefined, scope: string)
   try {
     const p = JSON.parse(Buffer.from(body, "base64url").toString("utf-8")) as PassPayload;
     if (p.s !== scope || typeof p.e !== "number" || p.e < Date.now()) return null;
-    return p.n || null;
+    return p.n ? { name: p.n, verified: p.v === 1 } : null;
   } catch {
     return null;
   }
