@@ -200,7 +200,9 @@ export function reasoningFor(
   // 25/09/2026: montar uma ação (achar imóvel, preparar rascunho) não precisa
   // do topo — a gravação passa por cartão de confirmação. "high" responde bem
   // mais rápido com o mesmo modelo.
-  if (looksLikeAction(message)) return "high";
+  if (looksLikeAction(message)) {
+    return /\b(exclu|apag|delet|remov|cancel)/.test(norm(message)) ? "max" : "high";
+  }
 
   const text = norm(message);
   const words = text.split(/\s+/).filter(Boolean);

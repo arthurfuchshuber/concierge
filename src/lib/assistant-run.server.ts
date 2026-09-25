@@ -31,7 +31,7 @@ function stageLabel(tool: string): string {
   if (tool.startsWith("preparar_")) return "Montando a ação";
   const map: Record<string, string> = {
     listar_pendencias: "Consultando pendências",
-    listar_imoveis: "Olhando os imóveis",
+    listar_imoveis: "Procurando o imóvel",
     agenda_do_dia: "Consultando a agenda",
     listar_reservas: "Olhando as reservas",
     listar_registros: "Olhando os registros",
