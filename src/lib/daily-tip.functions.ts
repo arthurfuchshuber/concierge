@@ -2,7 +2,12 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { AI_MODELS } from "@/lib/ai/models";
 
-const Input = z.object({ propertyId: z.string().uuid(), lang: z.enum(["pt", "en", "es", "fr"]).default("pt") });
+const Input = z.object({
+  propertyId: z.string().uuid(),
+  lang: z.enum(["pt", "en", "es", "fr"]).default("pt"),
+  /** Passe de identificação do hóspede (assinado pelo servidor). */
+  pass: z.string().max(1000).optional().nullable(),
+});
 
 export type DailyTip = {
   greeting: string;
@@ -105,6 +110,9 @@ export const getDailyTip = createServerFn({ method: "POST" })
       await import("@/lib/public-rate-limit.server");
     const { getRequest } = await import("@tanstack/react-start/server");
     if (!allowPublicRate(`daily-tip:${clientIpFrom(getRequest())}`, 20, 60_000)) return null;
+    // Só hóspede identificado no guia aciona a IA paga (25/09/2026).
+    const { verifyGuestPass } = await import("@/lib/guest-pass.server");
+    if (!verifyGuestPass(data.pass, `guide:${data.propertyId}`)) return null;
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: prop } = await supabaseAdmin
