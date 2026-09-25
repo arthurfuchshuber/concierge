@@ -349,11 +349,25 @@ export async function runHospitalityAgent(params: {
 
   stage("retrieval", "Consultando o guia da residência");
   // 4) Pré-recuperação Hybrid RAG (indexa sob demanda na primeira vez)
-  const { count: chunkCount } = await supabase
-    .from("ai_kb_chunks")
-    .select("id", { count: "exact", head: true })
-    .eq("property_id", propertyId);
-  if (!chunkCount) {
+  /* BASE VELHA = BASE AUSENTE (25/09/2026).
+   * Antes só indexava quando não havia nenhum trecho. Uma base antiga ficava
+   * para sempre: a IA lia instruções de agosto, contradizia o guia atual e o
+   * validador chamava humano. Agora compara a data da base com a última edição
+   * do guia (imóvel, manual e recomendações) e reindexa se estiver atrás. */
+  const [chunkRes, propRes, manRes, recRes] = await Promise.all([
+    supabase.from("ai_kb_chunks").select("updated_at").eq("property_id", propertyId).order("updated_at", { ascending: false }).limit(1),
+    supabase.from("properties").select("updated_at").eq("id", propertyId).maybeSingle(),
+    supabase.from("property_manual_items").select("created_at").eq("property_id", propertyId).order("created_at", { ascending: false }).limit(1),
+    supabase.from("property_recommendations").select("created_at").eq("property_id", propertyId).order("created_at", { ascending: false }).limit(1),
+  ]);
+  const ts = (v: unknown) => (typeof v === "string" ? Date.parse(v) || 0 : 0);
+  const indexedAt = ts((chunkRes.data?.[0] as { updated_at?: string } | undefined)?.updated_at);
+  const editedAt = Math.max(
+    ts((propRes.data as { updated_at?: string } | null)?.updated_at),
+    ts((manRes.data?.[0] as { created_at?: string } | undefined)?.created_at),
+    ts((recRes.data?.[0] as { created_at?: string } | undefined)?.created_at),
+  );
+  if (!indexedAt || editedAt > indexedAt + 60_000) {
     // Teto de tempo: gerar embeddings pode demorar bastante para um guia grande.
     // Antes, isso bloqueava a primeira mensagem do hóspede sem limite nenhum.
     // Com o teto, se estourar, a resposta desta mensagem segue sem RAG (ainda

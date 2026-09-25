@@ -1086,19 +1086,21 @@ export const upsertProperty = createServerFn({ method: "POST" })
     const needsReindex = !sec || Object.values(sec).some(Boolean);
     if (!needsReindex) return { id };
 
-    // Reindexa a base de conhecimento (RAG) para a IA refletir as mudanças do guia.
-    // Fire-and-forget: gerar embeddings não deve bloquear o salvamento na tela do anfitrião.
-    // Sem isso, o search_knowledge_base do agente podia servir manual/FAQ/checkout/emergência
-    // desatualizados indefinidamente após a primeira indexação do imóvel.
-    void (async () => {
-      try {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { reindexProperty } = await import("@/lib/ai/indexing.server");
-        await reindexProperty(supabaseAdmin, id);
-      } catch (e) {
-        console.error("[properties] reindex pós-salvamento do guia falhou", e);
-      }
-    })();
+    /* REINDEXAÇÃO AGUARDADA (25/09/2026).
+     * Era "fire-and-forget" (`void (async…)`). No servidor da nuvem o trabalho
+     * que sobra depois da resposta é encerrado — a reindexação nunca terminava.
+     * Resultado medido: guias dos Studios com conhecimento de 18/08 e 13 guias
+     * publicados SEM conhecimento algum; a IA do hóspede lia instruções velhas,
+     * brigava com os dados atuais e chamava humano. O autosave é silencioso,
+     * então esperar aqui não trava a tela. Além disso o orquestrador reindexa
+     * sozinho quando detecta base mais velha que o guia. */
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { reindexProperty } = await import("@/lib/ai/indexing.server");
+      await reindexProperty(supabaseAdmin, id);
+    } catch (e) {
+      console.error("[properties] reindex pós-salvamento do guia falhou", e);
+    }
 
     return { id };
 
