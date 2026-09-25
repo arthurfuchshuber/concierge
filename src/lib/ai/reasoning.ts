@@ -196,7 +196,11 @@ export function reasoningFor(
   opts?: { isAction?: boolean; highRisk?: boolean },
 ): ReasoningEffort {
   if (opts?.highRisk || opts?.isAction) return "max";
-  if (looksLikeAction(message) || TOUCHY.some((k) => norm(message).includes(norm(k)))) return "max";
+  if (TOUCHY.some((k) => norm(message).includes(norm(k)))) return "max";
+  // 25/09/2026: montar uma ação (achar imóvel, preparar rascunho) não precisa
+  // do topo — a gravação passa por cartão de confirmação. "high" responde bem
+  // mais rápido com o mesmo modelo.
+  if (looksLikeAction(message)) return "high";
 
   const text = norm(message);
   const words = text.split(/\s+/).filter(Boolean);
@@ -222,7 +226,8 @@ export function reasoningFor(
   if (factual) return "medium";
   // Julgamento, várias perguntas de uma vez ou um texto longo: é aí que a
   // pessoa realmente escreveu algo que exige pensar.
-  if (deep || questions > 1 || message.length > 160) return "max";
+  // Texto longo sozinho não é motivo para o topo (25/09/2026 — demora).
+  if (deep || questions > 1) return "max";
 
   /**
    * PERGUNTA INFORMATIVA (20/09/2026 — "não pode demorar tanto para responder,
