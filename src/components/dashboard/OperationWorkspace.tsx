@@ -2612,6 +2612,22 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     { key: "no_show" as const, label: "Não Compareceu", icon: UserX, count: kanbanCounts.no_show },
   ];
 
+  // Cor do ícone/rótulo do dropdown "Trocar status" pelo status selecionado
+  // (mockup aprovado, 25/09/2026: "a cor das letras e do ícone precisam ser
+  // as cores do respectivo status") — mesma paleta que `STAGE_BAR`
+  // (`card-colors.ts`) já usa na barrinha lateral dos cards, só que como cor
+  // de texto em vez de fundo. `ACTION_BUTTON_TONE` (cinza neutro) é o padrão
+  // de TODOS os botões de ação do cabeçalho (Filtros, Pendências…) — aqui
+  // ela é substituída pela cor do status só neste botão específico.
+  const KANBAN_STATUS_TONE: Record<(typeof KANBAN_STATUS_TABS)[number]["key"], string> = {
+    checkin: "text-sky-600 dark:text-sky-400 hover:opacity-80",
+    checkout: "text-orange-600 dark:text-orange-400 hover:opacity-80",
+    cleaning: "text-amber-600 dark:text-amber-400 hover:opacity-80",
+    stay: "text-emerald-600 dark:text-emerald-400 hover:opacity-80",
+    done: ACTION_BUTTON_TONE,
+    no_show: "text-rose-600 dark:text-rose-400 hover:opacity-80",
+  };
+
   const rangeLabel: Record<typeof range, string> = {
     today: "Hoje",
     tomorrow: "Amanhã",
@@ -3250,11 +3266,23 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                           type="button"
                           title="Trocar status do Kanban"
                           aria-label="Trocar status do Kanban"
-                          className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
+                          /* Ícone e rótulo na cor do status selecionado (mockup
+                             aprovado, 25/09/2026) — ver `KANBAN_STATUS_TONE`
+                             acima. O ícone e o "⌄" herdam a cor por
+                             `currentColor`/herança de texto, sem precisar
+                             repetir a classe em cada um. */
+                          className={`${ACTION_SEGMENT} ${KANBAN_STATUS_TONE[current.key]}`}
                         >
                           <CurrentIcon className={ACTION_ICON} />
                           <span className="lg:hidden min-w-0 truncate">{current.label}</span>
-                          <span className="lg:hidden opacity-75 tabular-nums">{current.count}</span>
+                          {/* Selo SEMPRE dourado, igual ao de "Pendências"
+                              (`pendencias.tsx`) — pedido explícito,
+                              25/09/2026: "sempre dourado, igual Pendências",
+                              não herda a cor do status acima. Mesmas medidas e
+                              cores exatas do selo original. */}
+                          <span className="lg:hidden grid h-[15px] min-w-[15px] shrink-0 place-items-center rounded-full bg-[#c9a962] px-1 text-[9px] font-extrabold leading-none text-[#1a1408]">
+                            {current.count > 99 ? "99+" : current.count}
+                          </span>
                           <ChevronDown className="size-3 shrink-0 opacity-60" />
                         </button>
                       </DropdownMenuTrigger>
@@ -8658,7 +8686,21 @@ function OccupancyPanel({
                                 />
                               )}
                               <div
-                                className={`relative mx-auto flex w-full flex-col items-center overflow-hidden rounded-md py-1 ${
+                                /* "QUASE UM QUADRADO" (mockup aprovado,
+                                   25/09/2026: "o fundo que demarca o dia
+                                   vigente precisa ser quase um quadrado com
+                                   as bordas levemente curvadas e que consuma
+                                   somente o conteúdo, a fim de não ficar
+                                   encostando nas linhas verticais"). Antes era
+                                   `w-full`: ocupava a coluna INTEIRA do dia,
+                                   encostando nas duas linhas verticais da
+                                   grade (Adendo 3/4 do v20). Trocado por uma
+                                   largura fixa pequena (`w-7` = 28px, perto da
+                                   altura do próprio conteúdo) + `mx-auto`, que
+                                   já centralizava — agora sobra respiro dos
+                                   dois lados até a grade, ao "consumir" só o
+                                   texto (dia da semana + número). */
+                                className={`relative mx-auto flex w-7 flex-col items-center overflow-hidden rounded-md py-1 ${
                                   isToday ? "bg-primary/10 text-primary" : "text-muted-foreground"
                                 }`}
                               >
