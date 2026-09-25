@@ -234,6 +234,7 @@ export function GuideAccessGate({
    * tela aparece; se ele fechar o navegador aqui, nada se perde. */
   const [pushStep, setPushStep] = useState<AccessRecord | null>(null);
   const [name, setName] = useState(prefill?.name ?? "");
+  gateIdentity.name = name;
   const [code, setCode] = useState(prefill?.code ?? "");
   // Identidade digitada no 1º passo — usada para emitir o passe que libera
   // a conferência do documento (25/09/2026).

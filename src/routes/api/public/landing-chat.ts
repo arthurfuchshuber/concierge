@@ -112,6 +112,18 @@ export const Route = createFileRoute("/api/public/landing-chat")({
           });
         }
 
+        // Só visitante que deixou nome e contato no formulário conversa com a
+        // IA de vendas (25/09/2026) — passe assinado pelo servidor.
+        {
+          const { verifyGuestPass } = await import("@/lib/guest-pass.server");
+          if (!verifyGuestPass(request.headers.get("x-guest-pass"), "landing")) {
+            return new Response(
+              JSON.stringify({ error: "Deixe seu nome e contato no formulário para conversar com a nossa IA.", needsPass: true }),
+              { status: 401, headers: { "Content-Type": "application/json" } },
+            );
+          }
+        }
+
         let body: z.infer<typeof Body>;
         try {
           body = Body.parse(await request.json());

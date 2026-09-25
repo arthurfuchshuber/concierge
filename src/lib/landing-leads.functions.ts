@@ -71,5 +71,7 @@ export const submitLandingLead = createServerFn({ method: "POST" })
       console.error("[landing-lead] falha ao enviar aviso por e-mail", e);
     }
 
-    return { ok: true as const };
+    // Passe que libera o chat de vendas para quem deixou contato (25/09/2026).
+    const { signGuestPass } = await import("@/lib/guest-pass.server");
+    return { ok: true as const, pass: signGuestPass("landing", data.name, 7) };
   });
