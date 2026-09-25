@@ -57,6 +57,14 @@ export const Route = createFileRoute("/api/public/guide-transcribe")({
           .maybeSingle();
         if (!prop) return json({ error: "Guia não encontrado." }, 404);
 
+        // Só hóspede identificado (passe assinado) aciona a transcrição paga.
+        {
+          const { verifyGuestPass, GUEST_PASS_MISSING } = await import("@/lib/guest-pass.server");
+          if (!verifyGuestPass(request.headers.get("x-guest-pass"), `guide:${(prop as { id: string }).id}`)) {
+            return json({ error: GUEST_PASS_MISSING, needsPass: true }, 401);
+          }
+        }
+
         // Guia protegido por PIN: só transcreve quem já provou o PIN (cookie
         // assinado), exatamente como o chat faz.
         const p = prop as { id: string; access_mode?: string | null; pin_code?: string | null };
