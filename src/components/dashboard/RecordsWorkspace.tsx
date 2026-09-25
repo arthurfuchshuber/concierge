@@ -52,7 +52,7 @@ import {
   ACTION_BUTTON_TONE,
   ACTION_ICON,
 } from "@/components/dashboard/panel-chrome";
-import { CARD_OWNER } from "@/components/dashboard/card-colors";
+import { CARD_OWNER, ownerLabel } from "@/components/dashboard/card-colors";
 import { PendenciasButton } from "@/components/dashboard/pendencias";
 import { OperationShell } from "@/components/dashboard/OperationWorkspace";
 import { AudioPlayer } from "@/components/dashboard/ReservationRecords";
@@ -983,7 +983,9 @@ function PropertyCard({
             mesmo cartão só roubava largura do nome do imóvel. */}
         <span className="ds-card-title block">{group.label}</span>
         {group.sublabel && (
-          <span className={`mt-0.5 block truncate text-[10.5px] ${CARD_OWNER}`}>{group.sublabel}</span>
+          <span className={`mt-0.5 block truncate text-[10.5px] ${CARD_OWNER}`}>
+            {ownerLabel(group.sublabel)}
+          </span>
         )}
 
         {hasPending && (
@@ -1430,7 +1432,9 @@ function RecordViewerBody({
           {record.propertyName}
         </DialogTitle>
         {record.ownerName && (
-          <span className={`block truncate text-[10.5px] leading-tight ${CARD_OWNER}`}>{record.ownerName}</span>
+          <span className={`block truncate text-[10.5px] leading-tight ${CARD_OWNER}`}>
+            {ownerLabel(record.ownerName)}
+          </span>
         )}
         <span className="block truncate text-[10px] leading-tight text-muted-foreground">{reservationLine}</span>
       </DialogHeader>

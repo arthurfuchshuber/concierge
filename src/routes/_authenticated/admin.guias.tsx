@@ -1,5 +1,5 @@
 import { PhoneActionButton } from "@/components/PhoneActionButton";
-import { CARD_OWNER } from "@/components/dashboard/card-colors";
+import { CARD_OWNER, ownerLabel } from "@/components/dashboard/card-colors";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Compass, Home } from "lucide-react";
 import { useSearch } from "@tanstack/react-router";
@@ -823,7 +823,7 @@ function Dashboard() {
                       className={`min-w-0 max-w-full truncate text-[11px] ${CARD_OWNER}`}
                       title={(p as any).ownerName}
                     >
-                      {(p as any).ownerName}
+                      {ownerLabel((p as any).ownerName)}
                     </span>
                     <PhoneActionButton
                       phone={(p as any).ownerPhone}

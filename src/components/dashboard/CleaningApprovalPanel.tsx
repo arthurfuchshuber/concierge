@@ -2,7 +2,7 @@ import { useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Clock3 } from "lucide-react";
 import { toast } from "sonner";
-import { CARD_OWNER } from "@/components/dashboard/card-colors";
+import { CARD_OWNER, ownerLabel } from "@/components/dashboard/card-colors";
 import { PANEL_SHELL, PanelHeading, CountPill } from "@/components/dashboard/panel-chrome";
 import { notifyAction } from "@/components/UndoActionBar";
 import {
@@ -187,7 +187,7 @@ function ApprovalRow({
           <span className="ds-card-title block">{item.propertyName}</span>
           {item.ownerName && (
             <span className={`mt-0.5 block truncate text-[10.5px] ${CARD_OWNER}`}>
-              {item.ownerName}
+              {ownerLabel(item.ownerName)}
             </span>
           )}
           {meta && <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{meta}</p>}

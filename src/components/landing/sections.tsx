@@ -251,24 +251,19 @@ function Constelacao() {
 export function Hero() {
   return (
     <section id="topo" className="relative overflow-x-clip pt-16 lg:pt-28">
-      <div
-        aria-hidden
-        className="lp-grid pointer-events-none absolute inset-x-0 top-0 h-[620px] lg:h-[900px]"
-      />
+      <div aria-hidden className="lp-grid pointer-events-none absolute inset-x-0 top-0 h-[620px] lg:h-[900px]" />
       <div
         aria-hidden
         className="lp-drift pointer-events-none absolute -top-40 left-1/2 -ml-[300px] h-[380px] w-[420px] rounded-full lg:-top-56 lg:-ml-[620px] lg:h-[560px] lg:w-[760px]"
         style={{
-          background:
-            "radial-gradient(closest-side, rgba(124,26,216,0.34), rgba(124,26,216,0) 70%)",
+          background: "radial-gradient(closest-side, rgba(124,26,216,0.34), rgba(124,26,216,0) 70%)",
         }}
       />
       <div
         aria-hidden
         className="lp-drift-rev pointer-events-none absolute -top-32 left-1/2 -ml-[60px] h-[340px] w-[380px] rounded-full lg:-top-44 lg:-ml-[80px] lg:h-[520px] lg:w-[700px]"
         style={{
-          background:
-            "radial-gradient(closest-side, rgba(232,45,174,0.26), rgba(232,45,174,0) 70%)",
+          background: "radial-gradient(closest-side, rgba(232,45,174,0.26), rgba(232,45,174,0) 70%)",
         }}
       />
 
@@ -277,9 +272,7 @@ export function Hero() {
           <p className="inline-flex h-[30px] items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 text-[10.5px] font-bold uppercase tracking-[0.18em] text-[#cfc9c2] lg:h-[34px] lg:gap-2.5 lg:px-4 lg:text-[12px] lg:tracking-[0.2em]">
             <span className="size-1.5 rounded-full bg-[#e24fc9]" />
             <span className="lg:hidden">Software SaaS para hospedagem</span>
-            <span className="hidden lg:inline">
-              Software SaaS por assinatura para gestão de hospedagem
-            </span>
+            <span className="hidden lg:inline">Software SaaS por assinatura para gestão de hospedagem</span>
           </p>
 
           <h1 className="mt-6 font-display text-[40px] leading-[1.08] font-extrabold tracking-[-0.03em] sm:text-[48px] lg:mt-8 lg:text-[64px] xl:text-[72px] lg:leading-[1.04] lg:tracking-[-0.035em]">
@@ -293,15 +286,11 @@ export function Hero() {
             <span className="lg:block lg:whitespace-nowrap">
               Sua equipe sabe exatamente o que fazer. Seu hóspede tem resposta na hora.
             </span>{" "}
-            <span className="font-semibold text-[#f6f3ef] lg:block">
-              E você para de apagar incêndio.
-            </span>
+            <span className="font-semibold text-[#f6f3ef] lg:block">E você para de apagar incêndio.</span>
           </p>
 
           <p className="mt-4 max-w-[680px] text-[14px] leading-relaxed text-[#8f8981] lg:text-[15px]">
-            ConciergeIA é uma plataforma de software (SaaS) por assinatura, acessada pelo navegador.
-            Todo o atendimento ao hóspede é feito automaticamente pelo aplicativo, com inteligência
-            artificial — não é um serviço de concierge prestado por pessoas.
+            Pagamento mensal por assinatura via cartão de crédito.
           </p>
 
           <div className="mt-8 flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:gap-4 lg:mt-10">
@@ -439,8 +428,7 @@ export function FlowSection() {
           }
           description={
             <span className="hidden lg:inline">
-              Cada camada alimenta a próxima: o que a equipe registra vira resposta certa para o
-              hóspede.
+              Cada camada alimenta a próxima: o que a equipe registra vira resposta certa para o hóspede.
             </span>
           }
         />
@@ -458,8 +446,7 @@ export function FlowSection() {
           <span
             className="lp-travel absolute -top-[3px] -ml-[60px] h-[7px] w-[120px] rounded-full"
             style={{
-              background:
-                "radial-gradient(closest-side, #ffffff, rgba(232,45,174,0.8) 45%, rgba(232,45,174,0))",
+              background: "radial-gradient(closest-side, #ffffff, rgba(232,45,174,0.8) 45%, rgba(232,45,174,0))",
             }}
           />
         </div>
@@ -513,8 +500,7 @@ function MobileTimeline() {
           <span
             className="lp-travel-y absolute -left-[3px] -mt-[45px] h-[90px] w-[7px] rounded-full"
             style={{
-              background:
-                "radial-gradient(closest-side, #ffffff, rgba(232,45,174,0.8) 45%, rgba(232,45,174,0))",
+              background: "radial-gradient(closest-side, #ffffff, rgba(232,45,174,0.8) 45%, rgba(232,45,174,0))",
             }}
           />
         </div>
@@ -607,9 +593,7 @@ export function AudienceSection() {
               <span className="hidden size-14 place-items-center rounded-2xl bg-[#e24fc9]/12 text-[#e97bd6] lg:grid">
                 <p.icon className="size-[26px]" strokeWidth={1.8} />
               </span>
-              <h3 className="font-display text-[19px] font-bold lg:mt-6 lg:text-[22px]">
-                {p.title}
-              </h3>
+              <h3 className="font-display text-[19px] font-bold lg:mt-6 lg:text-[22px]">{p.title}</h3>
               <p className="mt-2 text-[14px] leading-[1.55] text-[#a9a39b] lg:mt-3 lg:text-[15px] lg:leading-relaxed">
                 <span className="lg:hidden">{p.short}</span>
                 <span className="hidden lg:inline">{p.desc}</span>
@@ -720,34 +704,22 @@ export function LandingFooter() {
           <div>
             <p className="font-display text-[18px] font-bold">ConciergeIA</p>
             <p className="mt-3 max-w-[320px] text-[14px] leading-relaxed text-[#a9a39b]">
-              Software (SaaS) por assinatura para gestão de hospedagem. Atendimento ao hóspede
-              automatizado por inteligência artificial, sem operação manual.
+              Software (SaaS) por assinatura para gestão de hospedagem. Atendimento ao hóspede automatizado por
+              inteligência artificial, sem operação manual.
             </p>
           </div>
           <nav className="flex flex-col items-center gap-2.5 text-[14px]">
-            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#7d776f]">
-              Produto
-            </p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#7d776f]">Produto</p>
             {LINKS_PRODUTO.map((l) => (
-              <a
-                key={l.href}
-                href={l.href}
-                className="text-[#a9a39b] transition-colors hover:text-white"
-              >
+              <a key={l.href} href={l.href} className="text-[#a9a39b] transition-colors hover:text-white">
                 {l.label}
               </a>
             ))}
           </nav>
           <nav className="flex flex-col items-end gap-2.5 text-[14px]">
-            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#7d776f]">
-              Institucional
-            </p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#7d776f]">Institucional</p>
             {LINKS_INSTITUCIONAL.map((l) => (
-              <Link
-                key={l.to}
-                to={l.to}
-                className="text-[#a9a39b] transition-colors hover:text-white"
-              >
+              <Link key={l.to} to={l.to} className="text-[#a9a39b] transition-colors hover:text-white">
                 {l.label}
               </Link>
             ))}

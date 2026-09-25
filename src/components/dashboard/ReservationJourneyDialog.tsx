@@ -15,7 +15,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Check, Loader2, ListChecks, Paperclip } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { getReservationJourney, type JourneyStep } from "@/lib/reservation-journey.functions";
-import { CARD_MUTED, CARD_OWNER, periodColorClass } from "@/components/dashboard/card-colors";
+import { CARD_MUTED, CARD_OWNER, ownerLabel, periodColorClass } from "@/components/dashboard/card-colors";
 
 function fmtWhen(iso: string | null): string | null {
   if (!iso) return null;
@@ -131,7 +131,9 @@ export function ReservationJourneyDialog({
             <>
               {/* Cabeçalho de identidade — mesmas cores do card de origem. */}
               <div className="ds-surface ds-card-lines border border-border/60 bg-secondary/30 px-3 py-2.5">
-                {data.ownerName && <div className={`truncate text-xs ${CARD_OWNER}`}>{data.ownerName}</div>}
+                {data.ownerName && (
+                  <div className={`truncate text-xs ${CARD_OWNER}`}>{ownerLabel(data.ownerName)}</div>
+                )}
                 <div className="ds-card-title truncate">{data.propertyName ?? "Sem nome"}</div>
                 {periodo && (
                   <div className={`text-xs ${periodColorClass({ kind: "checkin" })}`}>{periodo}</div>

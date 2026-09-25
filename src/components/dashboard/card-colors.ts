@@ -29,6 +29,24 @@
 /** Proprietário — rosa da marca. */
 export const CARD_OWNER = "text-accent font-bold";
 
+/**
+ * O RÓTULO "Proprietário: " + só o primeiro nome.
+ *
+ * Pedido explícito (25/09/2026): "coloque a palavra 'Proprietário: ' ao lado
+ * esquerdo do nome do proprietário em TODOS OS LUGARES. E o nome do
+ * proprietário precisa ser mostrado apenas com o primeiro [nome]".
+ *
+ * Único lugar que decide o texto — quem usa `CARD_OWNER` para pintar o nome
+ * do proprietário chama isto para formatá-lo, em vez de escrever o rótulo à
+ * mão em cada tela.
+ */
+export function ownerLabel(name: string | null | undefined): string | null {
+  if (!name) return null;
+  const firstName = name.trim().split(/\s+/)[0];
+  if (!firstName) return null;
+  return `Proprietário: ${firstName}`;
+}
+
 /** Nome do imóvel — tipografia de título do card, cor de texto cheia. */
 export const CARD_PROPERTY = "ds-card-title";
 

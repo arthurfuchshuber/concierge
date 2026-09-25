@@ -11,6 +11,7 @@ import { useAntiClipBar } from "@/hooks/useAntiClipBar";
 import {
   CARD_MUTED,
   CARD_OWNER,
+  ownerLabel,
   periodColorClass,
   stageBarClass,
   type CardStage,
@@ -40,6 +41,7 @@ import {
 import {
   Search,
   X,
+  Calendar,
   CalendarCheck,
   CalendarX,
   LogIn,
@@ -2612,21 +2614,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     { key: "no_show" as const, label: "Não Compareceu", icon: UserX, count: kanbanCounts.no_show },
   ];
 
-  // Cor do ícone/rótulo do dropdown "Trocar status" pelo status selecionado
-  // (mockup aprovado, 25/09/2026: "a cor das letras e do ícone precisam ser
-  // as cores do respectivo status") — mesma paleta que `STAGE_BAR`
-  // (`card-colors.ts`) já usa na barrinha lateral dos cards, só que como cor
-  // de texto em vez de fundo. `ACTION_BUTTON_TONE` (cinza neutro) é o padrão
-  // de TODOS os botões de ação do cabeçalho (Filtros, Pendências…) — aqui
-  // ela é substituída pela cor do status só neste botão específico.
-  const KANBAN_STATUS_TONE: Record<(typeof KANBAN_STATUS_TABS)[number]["key"], string> = {
-    checkin: "text-sky-600 dark:text-sky-400 hover:opacity-80",
-    checkout: "text-orange-600 dark:text-orange-400 hover:opacity-80",
-    cleaning: "text-amber-600 dark:text-amber-400 hover:opacity-80",
-    stay: "text-emerald-600 dark:text-emerald-400 hover:opacity-80",
-    done: ACTION_BUTTON_TONE,
-    no_show: "text-rose-600 dark:text-rose-400 hover:opacity-80",
-  };
+  // A cor do ícone/rótulo do dropdown "Trocar status" por status (mockup de
+  // 25/09/2026) foi revertida (pedido explícito, 25/09/2026: "remova as
+  // cores dos botoes dos status do kanban e da aba limpeza") — o botão volta
+  // ao `ACTION_BUTTON_TONE` neutro, o mesmo de todos os outros botões de
+  // ação do cabeçalho (Filtros, Pendências…).
 
   const rangeLabel: Record<typeof range, string> = {
     today: "Hoje",
@@ -3238,9 +3230,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                       : "Voltar aos últimos 7 dias"
                   }
                   aria-pressed={cleaningWindow === "next"}
-                  className={`${ACTION_SEGMENT} ${
-                    cleaningWindow === "next" ? "text-[#e2a36b]" : "text-[#7fb79a]"
-                  } hover:opacity-80`}
+                  /* Cor neutra de volta (pedido explícito, 25/09/2026: "remova
+                     as cores dos botoes dos status do kanban e da aba
+                     limpeza") — o verde/laranja por janela saiu; o `title`
+                     continua descrevendo qual janela o clique abre. */
+                  className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
                 >
                   <Sparkles className={ACTION_ICON} />
                   <span className="lg:hidden">
@@ -3266,12 +3260,11 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                           type="button"
                           title="Trocar status do Kanban"
                           aria-label="Trocar status do Kanban"
-                          /* Ícone e rótulo na cor do status selecionado (mockup
-                             aprovado, 25/09/2026) — ver `KANBAN_STATUS_TONE`
-                             acima. O ícone e o "⌄" herdam a cor por
-                             `currentColor`/herança de texto, sem precisar
-                             repetir a classe em cada um. */
-                          className={`${ACTION_SEGMENT} ${KANBAN_STATUS_TONE[current.key]}`}
+                          /* Cor neutra de volta (pedido explícito,
+                             25/09/2026: "remova as cores dos botoes dos
+                             status do kanban e da aba limpeza") — a cor por
+                             status do mockup de 25/09/2026 saiu. */
+                          className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
                         >
                           <CurrentIcon className={ACTION_ICON} />
                           <span className="lg:hidden min-w-0 truncate">{current.label}</span>
@@ -3283,7 +3276,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                           <span className="lg:hidden grid h-[15px] min-w-[15px] shrink-0 place-items-center rounded-full bg-[#c9a962] px-1 text-[9px] font-extrabold leading-none text-[#1a1408]">
                             {current.count > 99 ? "99+" : current.count}
                           </span>
-                          <ChevronDown className="size-3 shrink-0 opacity-60" />
+                          {/* Seta "⌄" removida (pedido explícito, 25/09/2026:
+                              "remova a seta que colocamos ao lado direito do
+                              status no botao para alterar status do
+                              kanban"). */}
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="min-w-[200px]">
@@ -5005,30 +5001,23 @@ function EngagementAlertDropdown({ flags }: { flags: Array<{ icon: typeof Eye; l
   return (
     <Popover>
       <PopoverTrigger asChild>
-        {/* Badge fica sobre a borda superior do card (pedido explícito) — por
-            isso precisa de fundo próprio, sem a seta de expandir. */}
+        {/* Agora vive na fileira de botões do card, não mais sobre a borda
+            superior (pedido explícito, 25/09/2026) — por isso a altura
+            passou a acompanhar os OUTROS botões da fileira (Maps, Registros,
+            "⋮": `size-7`) em vez do tamanho da pílula de contagem que valia
+            quando a etiqueta ficava sobre a borda. */}
         <button
           type="button"
           onClick={(e) => e.stopPropagation()}
-          /* Sem borda e com o canto do card (pedido explícito, 08/09/2026): a
-             etiqueta passou a usar o mesmo desenho do resto do sistema, em vez
-             da pílula contornada que era o único objeto assim na tela. */
-          /* Etiqueta menor e mais baixa (pedido explícito, 09/09/2026): ela é um
-             aviso, não um título — cresceu além do peso que merece e passou a
-             competir com o nome do proprietário logo abaixo. */
-          /* SÓ O TRIÂNGULO, NO TAMANHO DA PÍLULA DE CONTAGEM (pedido explícito,
-             24/09/2026: "somente com o ícone do triângulo, sem a palavra... do
-             mesmo tamanho que o ícone da quantidade de reservas"). 20px e
-             redondo, como a `CountPill` do cabeçalho do grupo. A palavra
+          /* Sem borda e sem fundo (pedido explícito, 08/09/2026 e 24/09/2026):
+             só o ícone na cor — sem o círculo âmbar por trás. A palavra
              "ALERTA" saiu; o nome acessível e o `title` continuam dizendo o
-             que é.
-             SEM FUNDO (pedido explícito, 24/09/2026, print marcado): só o
-             ícone na cor — o círculo âmbar por trás saiu. */
-          className="grid size-5 place-items-center rounded-full border-0 text-amber-600 transition-opacity hover:opacity-75 dark:text-amber-400"
+             que é. */
+          className="grid size-7 place-items-center rounded-full border-0 text-amber-600 transition-opacity hover:opacity-75 dark:text-amber-400"
           title="Ver alertas"
           aria-label="Ver alertas"
         >
-          <AlertTriangle className="size-3 shrink-0" strokeWidth={2.4} />
+          <AlertTriangle className="size-3.5 shrink-0" strokeWidth={2.4} />
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -7258,7 +7247,7 @@ export function TasksDialog({
                     </span>
                     {g.sublabel && (
                       <span className={`shrink truncate text-[9.5px] ${CARD_OWNER}`}>
-                        {g.sublabel}
+                        {groupBy === "property" ? ownerLabel(g.sublabel) : g.sublabel}
                       </span>
                     )}
                     {g.band && (
@@ -7387,7 +7376,7 @@ export function TasksDialog({
                               {(meta.length > 0 || (showOwner && t.ownerName)) && (
                                 <div className="truncate text-[10px] leading-none text-muted-foreground">
                                   {showOwner && t.ownerName && (
-                                    <span className={CARD_OWNER}>{t.ownerName}</span>
+                                    <span className={CARD_OWNER}>{ownerLabel(t.ownerName)}</span>
                                   )}
                                   {showOwner && t.ownerName && meta.length > 0 ? " · " : ""}
                                   {meta.join(" · ")}
@@ -8764,7 +8753,7 @@ function OccupancyPanel({
                                 <div className="min-w-0 max-w-full border-l-2 border-border/60 pl-2 group-hover:border-primary/50">
                                   {p.ownerName ? (
                                     <div className="truncate text-[9.5px] font-semibold uppercase tracking-wide text-accent/80">
-                                      {p.ownerName}
+                                      {ownerLabel(p.ownerName)}
                                     </div>
                                   ) : null}
                                   <div
@@ -10205,33 +10194,15 @@ function ArrivalCard({
           }
         />
       )}
-      {/* Etiqueta ALERTA — badge sobre a borda superior, CENTRALIZADO, sem
-          borda e com o mesmo canto do card (pedido explícito, 08/09/2026).
-          Sem condição nenhuma de contexto: "precisa aparecer EM TODO E
-          QUALQUER CARD, independentemente do local, tooltip, etc". O próprio
-          `EngagementFlags` devolve `null` quando não há o que alertar, então
-          o badge continua só aparecendo quando existe alerta — o que mudou é
-          que ele não é mais escondido pela coluna nem pela vista. */}
-      {/* A etiqueta CORTA a borda superior ao meio (pedido explícito,
-          09/09/2026): `top-0` põe o topo dela na linha da borda e
-          `-translate-y-1/2` sobe metade da própria altura, então a borda passa
-          exatamente pelo centro dela. Antes era um deslocamento fixo em pixels,
-          que só acertava enquanto a etiqueta tivesse aquela altura — e ela
-          encolheu duas vezes desde então. Com a translação por porcentagem,
-          isso passa a valer sozinho em qualquer tamanho. */}
-      {/* NA BORDA DE CIMA, DO LADO ESQUERDO (pedido explícito, 24/09/2026,
-          com print marcado: "mova o triângulo para esse ponto") — antes
-          ficava no centro da borda. Continua cortando a borda ao meio; o
-          centro do ícone de 20px cai a 48px da borda esquerda do card, o
-          ponto marcado no print. */}
-      <div className="absolute left-[38px] top-0 z-30 -translate-y-1/2">
-        <EngagementFlags
-          openedGuide={row.openedGuide}
-          readInstructions={row.readInstructions}
-          hasPasswords={row.hasPasswords}
-          viewedPasswords={row.viewedPasswords}
-        />
-      </div>
+      {/* A etiqueta ALERTA saiu da borda superior do card (pedido explícito,
+          25/09/2026, com print marcado): "mova o triângulo amarelo para a
+          parte demarcada no print 2" — agora mora na fileira de botões, ao
+          lado do botão de Check-in/Check-out (ver mais abaixo, perto de
+          `mt-auto flex flex-nowrap`), na mesma altura dos demais botões. Ela
+          também passou a só aparecer ANTES do check-in ser confirmado
+          (pedido explícito, 25/09/2026: "o triangulo deve permanecer visível
+          somente até o checkin ser confirmado") — antes aparecia em
+          qualquer `mode`, sem condição nenhuma de contexto. */}
 
       {/* A barra de ETAPA: 3px na borda esquerda, sempre no mesmo lugar. É a
           única informação do card que se lê sem ler — percorrendo uma coluna
@@ -10297,20 +10268,13 @@ function ArrivalCard({
                     </span>
                   </>
                 ) : (
-                  /* Duas palavras em duas linhas: "PREVISÃO" encosta na borda
-                     direita (a mesma margem do horário nos outros cards) e
-                     "SEM" fica CENTRALIZADO sobre ela (pedido explícito,
-                     09/09/2026).
-                     Quebra de linha automática não faz isso — ela alinha as
-                     duas pontas iguais. Por isso as duas palavras são spans
-                     separados: o `items-end` de fora cola o bloco na direita e
-                     o `items-center` de dentro centra "SEM" na largura de
-                     "PREVISÃO", que é a palavra mais larga. */
-                  <span className="flex flex-col items-end text-[8.5px] font-extrabold uppercase leading-[1.35] tracking-[0.12em] text-muted-foreground/70">
-                    <span className="flex flex-col items-center">
-                      <span>Sem</span>
-                      <span>Previsão</span>
-                    </span>
+                  /* Ícone de calendário no lugar do texto "SEM PREVISÃO"
+                     (pedido explícito, 25/09/2026: "altere 'sem previsao'
+                     para o ícone de um calendário (sem fundo) na mesma
+                     tonalidade"). Mesmo tom que o texto que ele substitui
+                     (`text-muted-foreground/70`), sem fundo nem borda. */
+                  <span className="flex items-center justify-end">
+                    <Calendar className="size-4 text-muted-foreground/70" />
                   </span>
                 )}
                 {predictionTime && predictionDay.label && (
@@ -10392,17 +10356,33 @@ function ArrivalCard({
             ) : (
               <span className="flex-1" />
             )}
-            {row.reservationCode && (
-              <button
-                type="button"
-                onClick={(e) => copyReservationCode(e, row.reservationCode as string)}
-                title="Copiar código da reserva"
-                className={`shrink-0 max-w-[45%] truncate rounded-[6px] border border-border/50 bg-foreground/[0.04] px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-wide transition-colors hover:border-foreground/20 hover:bg-foreground/[0.07] hover:text-foreground ${CARD_MUTED}`}
-              >
-                {row.reservationCode}
-              </button>
-            )}
           </div>
+          {/* Código da reserva em linha PRÓPRIA, abaixo do nome — pedido
+              explícito (25/09/2026): "coloque o código da reserva abaixo do
+              nome do hospede (com um ícone de 'chave' na mesma coloração ao
+              lado esquerdo, exatamente como fizemos com o icone do nome do
+              hospede" + "coloque a palavra 'Cód. Reserva: ' ao lado esquerdo
+              do código" + "remova o fundo do código da reserva". Antes o
+              código vivia dentro de um botão com borda e fundo, colado no
+              canto direito da linha do nome; agora é ícone + rótulo + código,
+              sem casca nenhuma — o MESMO desenho do ícone+nome do hóspede
+              acima, só que para o código. */}
+          {row.reservationCode && (
+            <div className="-mt-0.5 flex items-center gap-1.5 text-[11.5px]">
+              <span className={`inline-flex min-w-0 items-center gap-1.5 ${CARD_MUTED}`}>
+                <KeyRound className="size-3 shrink-0" />
+                <span className="shrink-0">Cód. Reserva:</span>
+                <button
+                  type="button"
+                  onClick={(e) => copyReservationCode(e, row.reservationCode as string)}
+                  title="Copiar código da reserva"
+                  className="min-w-0 truncate font-mono text-[10px] font-semibold tracking-wide transition-colors hover:text-foreground"
+                >
+                  {row.reservationCode}
+                </button>
+              </span>
+            </div>
+          )}
         </>
       )}
 
@@ -10589,24 +10569,46 @@ function ArrivalCard({
           No modo "Lista" (pedido explícito), os 3 botões encolhem ao máximo
           (altura/ícone reduzidos) sem deixar de funcionar — mesmos handlers,
           só o texto do botão principal some (fica só o ícone, com title). */}
-      <div className={`mt-auto flex flex-nowrap items-center gap-2 ${compact ? "" : "pt-1"}`}>
+      {/* Botões SEMPRE no tamanho/fonte/informação do card "recolhido" (pedido
+          explícito, 25/09/2026: "mantenha a mesma altura, tamanho de fontes
+          e informação dos botoes com relação a quando o card está
+          'recolhido'") — antes cada botão desta fileira crescia quando o
+          card era aberto (`compact ? X : Y`); agora essa fileira usa sempre
+          o valor de `compact`, independentemente do estado real do card. */}
+      <div className="mt-auto flex flex-nowrap items-center gap-2">
+        {/* Triângulo de alerta de engajamento — ver comentário completo mais
+            acima, perto de `stageBarClass`. Só antes do check-in confirmado
+            (pedido explícito, 25/09/2026), por isso mora aqui e não junto
+            aos ícones de Maps/Registros/"⋮", que continuam em qualquer
+            `mode`. `shrink-0`: é ele quem fica fixo — o botão principal
+            (`flex-1`) é quem cede largura para caber os dois. */}
+        {mode === "checkin" && (
+          <span className="shrink-0">
+            <EngagementFlags
+              openedGuide={row.openedGuide}
+              readInstructions={row.readInstructions}
+              hasPasswords={row.hasPasswords}
+              viewedPasswords={row.viewedPasswords}
+            />
+          </span>
+        )}
         {mode === "done" ? (
           <span
             title="Esteira concluída"
             aria-label="Esteira concluída"
-            className={`inline-flex flex-1 min-w-0 items-center justify-center gap-2 rounded-[0.3rem] bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 font-semibold ${compact ? "h-7 px-2.5 text-[11px]" : "h-9 px-3 text-xs"}`}
+            className="inline-flex flex-1 min-w-0 items-center justify-center gap-2 rounded-[0.3rem] bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 font-semibold h-7 px-2.5 text-[11px]"
           >
-            <CheckCircle2 className={compact ? "size-3 shrink-0" : "size-4 shrink-0"} />
+            <CheckCircle2 className="size-3 shrink-0" />
             <span className="truncate">Concluído</span>
           </span>
         ) : mode === "no_show" ? (
           <span
             title="Hóspede não compareceu"
             aria-label="Hóspede não compareceu"
-            className={`inline-flex flex-1 min-w-0 items-center justify-center gap-2 rounded-[0.3rem] bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/30 font-semibold ${compact ? "h-7 px-2.5 text-[11px]" : "h-9 px-3 text-xs"}`}
+            className="inline-flex flex-1 min-w-0 items-center justify-center gap-2 rounded-[0.3rem] bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/30 font-semibold h-7 px-2.5 text-[11px]"
           >
-            <UserX className={compact ? "size-3 shrink-0" : "size-4 shrink-0"} />
-            <span className="truncate">{compact ? "Não veio" : "Não Compareceu"}</span>
+            <UserX className="size-3 shrink-0" />
+            <span className="truncate">Não veio</span>
           </span>
         ) : (
           <button
@@ -10668,11 +10670,7 @@ function ArrivalCard({
                           ? "Reabrir (voltar para Pendente)"
                           : "Marcar como Concluído"
             }
-            className={`flex-1 min-w-0 self-center box-border leading-none inline-flex items-center justify-center gap-2 font-semibold tracking-tight rounded-[0.3rem] transition-all active:scale-[0.99] ${
-              compact
-                ? "h-7 max-h-7 min-h-7 px-2.5 text-[11px]"
-                : "h-9 max-h-9 min-h-9 px-3 text-[12.5px]"
-            } ${
+            className={`flex-1 min-w-0 self-center box-border leading-none inline-flex items-center justify-center gap-2 font-semibold tracking-tight rounded-[0.3rem] transition-all active:scale-[0.99] h-7 max-h-7 min-h-7 px-2.5 text-[11px] ${
               awaitingCheckout
                 ? "bg-amber-900/20 text-amber-800 dark:text-amber-600 border border-amber-800/40 cursor-not-allowed"
                 : cleaningBlock
@@ -10686,31 +10684,24 @@ function ArrivalCard({
                         : "bg-emerald-600 text-white hover:bg-emerald-700"
             }`}
           >
-            <Check className={compact ? "size-3 shrink-0" : "size-4 shrink-0"} />
+            <Check className="size-3 shrink-0" />
             {/* O botão SEMPRE diz o que faz, inclusive na Lista (pedido
                 explícito, 08/09/2026). Antes ali ficava só um ✓ ocupando
                 60% da largura do card: o maior objeto da tela era também o
-                que menos informava. Na Lista o rótulo é a versão curta —
-                "Check-in" em vez de "Check-in realizado!" — para caber sem
+                que menos informava. A informação é sempre a versão curta —
+                "Check-in" em vez de "Check-in realizado!" — a mesma do card
+                recolhido (pedido explícito, 25/09/2026), pra caber sem
                 empurrar os três ícones ao lado. */}
             <span className="truncate">
               {awaitingCheckout
-                ? compact
-                  ? "Aguardando"
-                  : "Aguardando check-out"
+                ? "Aguardando"
                 : mode === "cleaning"
-                  ? compact
-                    ? "Limpeza"
-                    : "Concluir limpeza!"
+                  ? "Limpeza"
                   : mode === "checkout" || mode === "stay"
-                    ? compact
-                      ? "Check-out"
-                      : "Check-out realizado!"
+                    ? "Check-out"
                     : done
                       ? "Reabrir"
-                      : compact
-                        ? "Check-in"
-                        : "Check-in realizado!"}
+                      : "Check-in"}
             </span>
           </button>
         )}
@@ -10728,9 +10719,9 @@ function ArrivalCard({
                   type="button"
                   aria-label="Opções do Maps"
                   title={row.garageMapsUrl ? "Garagem no Maps" : "Endereço no Maps"}
-                  className={`grid place-items-center rounded-[0.3rem] bg-background/60 border border-border/50 hover:bg-primary/[0.08] ${compact ? "size-7" : "size-9"}`}
+                  className="grid place-items-center rounded-[0.3rem] bg-background/60 border border-border/50 hover:bg-primary/[0.08] size-7"
                 >
-                  <MapPin className={compact ? "size-3.5" : "size-4"} />
+                  <MapPin className="size-3.5" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-[12rem]">
@@ -10750,7 +10741,9 @@ function ArrivalCard({
           {/* "Registros da reserva" (pedido explícito, 07/09/2026): mesmo
               ícone em QUALQUER status — abre a linha do tempo única da
               reserva (foto/vídeo/áudio/arquivo/nota), entre Maps e "⋮". */}
-          <ReservationRecordsButton row={row} mode={mode} compact={compact} />
+          {/* `compact` fixo em `true` aqui — pedido explícito (25/09/2026):
+              a fileira de botões usa sempre o tamanho do card recolhido. */}
+          <ReservationRecordsButton row={row} mode={mode} compact />
 
           {/* Nota + Silenciar juntos num só botão de menu, agora ao lado
                 direito do Maps. O menu principal mostra só 2 opções —
@@ -10763,13 +10756,13 @@ function ArrivalCard({
                 type="button"
                 aria-label="Mais opções"
                 title="Nota interna e alertas"
-                className={`grid place-items-center rounded-[0.3rem] border ${compact ? "size-7" : "size-9"} ${
+                className={`grid place-items-center rounded-[0.3rem] border size-7 ${
                   isMutedNow
                     ? "bg-amber-500/15 border-amber-500/50 text-amber-600 dark:text-amber-400"
                     : "bg-background/60 border-border/50 hover:bg-primary/[0.08]"
                 }`}
               >
-                <MoreVertical className={compact ? "size-3.5" : "size-4"} />
+                <MoreVertical className="size-3.5" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-[13rem]">
