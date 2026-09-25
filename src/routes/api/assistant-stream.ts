@@ -80,9 +80,10 @@ export const Route = createFileRoute("/api/assistant-stream")({
               });
               send("done", result);
             } catch (err) {
+              console.error("[assistant-stream]", err);
+              const { friendlyErrorMessage } = await import("@/lib/friendly-error");
               send("error", {
-                message:
-                  err instanceof Error ? err.message : "Não consegui responder agora.",
+                message: friendlyErrorMessage(err, "Não consegui responder agora. Tente de novo."),
               });
             } finally {
               closed = true;
