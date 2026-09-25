@@ -11,7 +11,12 @@ import conciergeLogo from "@/assets/concierge-logo.png";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (s: Record<string, unknown>) => ({
-    next: typeof s.next === "string" && s.next.startsWith("/") && !s.next.startsWith("//") ? s.next : undefined,
+    next:
+      typeof s.next === "string" &&
+      /^\/(?![/\\])[^\\\s]*$/.test(s.next) &&
+      !/[\u0000-\u001f]/.test(s.next)
+        ? s.next
+        : undefined,
   }),
   head: () => ({
     meta: [
@@ -34,7 +39,19 @@ function AuthPage() {
   const postAuthAbsolute = () =>
     typeof window !== "undefined" ? `${window.location.origin}${postAuthTo}` : postAuthTo;
   const goPostAuth = () => {
-    if (next) window.location.href = postAuthTo;
+    if (next) {
+      // Só navega se o destino resolver na mesma origem.
+      try {
+        const u = new URL(postAuthTo, window.location.origin);
+        if (u.origin === window.location.origin) {
+          window.location.href = u.pathname + u.search + u.hash;
+          return;
+        }
+      } catch {
+        /* cai no padrão */
+      }
+      navigate({ to: "/admin" });
+    }
     else navigate({ to: "/admin" });
   };
   const [mode, setMode] = useState<"signin" | "signup">("signin");
