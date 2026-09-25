@@ -7,7 +7,6 @@
  *
  * Nenhum fluxo, rota ou tela existente é alterado por este módulo.
  */
-import { bootstrapPermissionRegistry } from "./permission.bootstrap";
 import { permissionEngine } from "./permission.engine";
 import { permissionRegistry } from "./permission.registry";
 import { permissionRepository } from "./permission.repository.server";
@@ -114,6 +113,8 @@ export async function resolveSubjectSnapshot(
   userId: string,
   ctx: ResolveContext = {},
 ): Promise<SubjectSnapshot> {
+  // Carregado sob demanda: evita ciclo de importação na inicialização.
+  const { bootstrapPermissionRegistry } = await import("./permission.bootstrap");
   bootstrapPermissionRegistry();
 
   const membership = await resolveTenantOf(userId);
