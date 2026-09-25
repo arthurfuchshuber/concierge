@@ -28,6 +28,7 @@ export const issueGuestPass = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!prop) throw new Error("Este guia não está disponível.");
 
+    let verified = false;
     if ((prop.airbnb_ical_url ?? "").trim()) {
       const code = (data.reservationCode ?? "").trim();
       if (!code) throw new Error("Informe o código da reserva para continuar.");
@@ -36,7 +37,8 @@ export const issueGuestPass = createServerFn({ method: "POST" })
       if (!res.ok && res.reason !== "no_ical") {
         throw new Error("O código da reserva não confere. Confira o código e tente de novo.");
       }
+      verified = res.ok;
     }
     const { signGuestPass } = await import("@/lib/guest-pass.server");
-    return { pass: signGuestPass(`guide:${prop.id}`, data.guestName) };
+    return { pass: signGuestPass(`guide:${prop.id}`, data.guestName, 30, verified) };
   });
