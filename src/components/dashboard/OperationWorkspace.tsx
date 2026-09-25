@@ -8027,26 +8027,35 @@ function CalendarFiltersButton({
  * abre, para não prometer o que não existe.
  */
 function PropertyPhotoPeek({
+  id,
   name,
   photo,
   children,
+  activeId,
+  onActiveChange,
 }: {
+  id: string;
   name: string;
   photo: string | null;
   children: React.ReactNode;
+  /** Id da linha cuja prévia está aberta agora — vive no painel pai
+   * (`OccupancyPanel`), não aqui, para garantir que só uma exista por vez
+   * (ver comentário no `useState` do painel). */
+  activeId: string | null;
+  onActiveChange: (id: string | null) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const open = activeId === id;
   if (!photo) return <>{children}</>;
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(next) => onActiveChange(next ? id : null)}>
       <PopoverTrigger asChild>
         <button
           type="button"
           aria-label={`Ver foto de ${name}`}
-          onMouseEnter={() => setOpen(true)}
-          onMouseLeave={() => setOpen(false)}
-          onFocus={() => setOpen(true)}
-          onBlur={() => setOpen(false)}
+          onMouseEnter={() => onActiveChange(id)}
+          onMouseLeave={() => onActiveChange(null)}
+          onFocus={() => onActiveChange(id)}
+          onBlur={() => onActiveChange(null)}
           className="block w-full min-w-0 text-left"
         >
           {children}
@@ -8059,7 +8068,12 @@ function PropertyPhotoPeek({
         // Não rouba o foco nem o toque: é só uma prévia, e no computador o
         // mouse precisa poder sair por cima dela sem "prender" o quadro.
         onOpenAutoFocus={(e) => e.preventDefault()}
-        className="pointer-events-none w-[232px] overflow-hidden rounded-[12px] border-border/60 bg-popover p-1.5 shadow-2xl"
+        // `!animate-none`/`!duration-0` no fechamento: mesmo com um único id
+        // ativo, o Radix ainda tocaria a animação de SAÍDA da prévia antiga
+        // enquanto a nova já entra — por uma fração de segundo, duas ficam
+        // visíveis ao mesmo tempo. Fechar sem animação elimina essa janela
+        // de sobreposição por completo ("nunca, jamais" — pedido explícito).
+        className="pointer-events-none w-[232px] overflow-hidden rounded-[12px] border-border/60 bg-popover p-1.5 shadow-2xl data-[state=closed]:!animate-none data-[state=closed]:!duration-0"
       >
         <img
           src={photo}
@@ -8210,6 +8224,15 @@ function OccupancyPanel({
   // inteiro exato). Sem isso, essa sobra virava um espaço vazio (ou uma
   // coluna de dia cortada pela metade) na margem direita do quadrante.
   const [nameColW, setNameColW] = useState(NAME_COL_BASE);
+  /* Corrige bug real (25/09/2026, print: "nunca deve mostrar mais de 1 imagem
+     ao mesmo tempo"): cada `PropertyPhotoPeek` tinha seu PRÓPRIO `useState`,
+     então passar o mouse rápido de um imóvel para outro podia deixar dois
+     abertos ao mesmo tempo (o de saída ainda desaparecendo, o de entrada já
+     visível) — e no celular, um toque "fixava" um aberto sem nada fechá-lo
+     ao tocar em outro. Com UM ÚNICO id ativo aqui no painel, abrir qualquer
+     prévia fecha automaticamente qualquer outra pela própria definição do
+     estado (só pode haver um `activePhotoPeekId` por vez). */
+  const [activePhotoPeekId, setActivePhotoPeekId] = useState<string | null>(null);
   const dotSize = Math.max(18, Math.min(28, dayW - 6));
   // largura exata do "visor": nome + N colunas inteiras (sem sobra de coluna cortada)
   const viewportW = nameColW + visibleDays * dayW;
@@ -8605,7 +8628,13 @@ function OccupancyPanel({
                               className="sticky left-0 z-10 bg-card py-1 pr-3 align-middle"
                               style={{ width: nameColW, minWidth: nameColW }}
                             >
-                              <PropertyPhotoPeek name={p.name} photo={p.heroImageUrl ?? null}>
+                              <PropertyPhotoPeek
+                                id={p.id}
+                                name={p.name}
+                                photo={p.heroImageUrl ?? null}
+                                activeId={activePhotoPeekId}
+                                onActiveChange={setActivePhotoPeekId}
+                              >
                                 <div className="min-w-0 max-w-full border-l-2 border-border/60 pl-2 group-hover:border-primary/50">
                                   {p.ownerName ? (
                                     <div className="truncate text-[9.5px] font-semibold uppercase tracking-wide text-accent/80">

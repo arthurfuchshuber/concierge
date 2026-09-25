@@ -89,6 +89,25 @@
 
   --shadow-soft: 0 1px 2px oklch(0.22 0.02 60 / 0.04), 0 4px 16px oklch(0.22 0.02 60 / 0.04);
   --shadow-elevated: 0 8px 32px oklch(0.22 0.02 60 / 0.12);
+
+  /* Bug real corrigido (25/09/2026, print: janela de Filtros "100%
+     transparente" no tema claro): `--faint` e os tokens `--panel*`
+     ("grafite quente" dos quadrantes — Filtros/Previsão/tooltips do
+     Dashboard) só existiam dentro de `.dark`, sem equivalente aqui. Se o
+     app renderizasse antes da classe `.dark` ser aplicada (ou em qualquer
+     contexto sem ela), `bg-[var(--panel)]`/`border-[var(--panel-border)]`
+     resolviam para NADA — fundo invisível com o texto (que tem fallback
+     em ambos os temas) sobrando por cima do conteúdo de trás, sem nenhum
+     desfoque aparente. Valores abaixo são a versão clara do mesmo
+     "quadrante": distinto do `--card`/`--popover` (brancos puros), mas
+     ainda discreto — mesma lógica do .dark, adaptada pro dia. */
+  --faint: oklch(0.6 0.018 60);
+  --panel: oklch(0.965 0.014 75);
+  --panel-2: oklch(0.93 0.016 72);
+  --panel-border: oklch(0.4 0.03 60 / 0.14);
+  --panel-div: oklch(0.22 0.02 60 / 0.08);
+  --panel-well: oklch(0.22 0.02 60 / 0.045);
+  --panel-hair: linear-gradient(90deg, transparent, oklch(0.6 0.14 60 / 0.45), transparent);
 }
 
 .dark {
