@@ -59,8 +59,10 @@ export const Route = createFileRoute("/api/public/guide-transcribe")({
 
         // Só hóspede identificado (passe assinado) aciona a transcrição paga.
         {
-          const { verifyGuestPass, GUEST_PASS_MISSING } = await import("@/lib/guest-pass.server");
-          if (!verifyGuestPass(request.headers.get("x-guest-pass"), `guide:${(prop as { id: string }).id}`)) {
+          const { verifyGuestPassInfo, GUEST_PASS_MISSING } = await import("@/lib/guest-pass.server");
+          const info = verifyGuestPassInfo(request.headers.get("x-guest-pass"), `guide:${(prop as { id: string }).id}`);
+          // Só hóspede com código de reserva conferido pelo servidor.
+          if (!info || !info.verified) {
             return json({ error: GUEST_PASS_MISSING, needsPass: true }, 401);
           }
         }
