@@ -1447,6 +1447,10 @@ function PropertyEditor() {
           emergency: prev.e !== currentSections.e,
           faqs: prev.f !== currentSections.f,
           checkout: prev.c !== currentSections.c,
+          // Lugares "Aqui pertinho" preenchidos pelo link do Maps fora da aba
+          // Recomendações precisam ser gravados aqui; na própria aba, o
+          // salvamento dedicado dela já cuida disso.
+          recommendations: step !== "recs" && prev.r !== currentSections.r,
         };
         if (!Object.values(sections).some(Boolean)) return;
       }
