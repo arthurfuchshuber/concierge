@@ -3649,7 +3649,18 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               agora todos os status ficam visíveis ao mesmo tempo, e "puxar" um
               card de um status pro outro fica visual, não escondido atrás de um
               menu. */}
-          <section className="rounded-none bg-transparent p-0 space-y-4">
+          {/* `ds-lead-block` (pedido explícito, 25/09/2026: "o topo do card
+              desta visão precisa ser exatamente o mesmo alinhamento que o
+              topo do card da aba Limpeza") — faltava aqui. A REGRA já existia
+              e já valia pra Limpeza (`ds-card-grid ds-lead-block mt-6`, no
+              bloco de stat cards logo acima): o respiro entre a barra de
+              ações/abas e o primeiro bloco de conteúdo é sempre 24px (mockup
+              aprovado, 18/09/2026), nunca o de lista. Esta seção do Kanban
+              não tinha a classe, então o primeiro card ficava colado na
+              barra de ações — 0px em vez dos 24px — e por isso o topo dos
+              cards das duas abas não caía na mesma altura quando comparadas
+              lado a lado. */}
+          <section className="rounded-none bg-transparent p-0 space-y-4 ds-lead-block">
             {/* A faixa de Filtros/Pendências/print que ficava aqui SAIU: as três
                 ações moram na linha do título (ver OperationShell `actions`).
                 No desktop isso devolve uma faixa inteira ao quadro; no mobile,
@@ -8598,27 +8609,37 @@ function OccupancyPanel({
                           });
                           const isToday = d === todayISO;
                           /* GRADE DO CALENDÁRIO (pedido explícito, 25/09/2026,
-                             mockup aprovado — "opção A", com 2 ajustes depois de ver
-                             no real: (1) cor branca — não o `--border` do resto do
-                             app, que aqui saía fraco/escuro demais — e sim tokens
-                             próprios `--grid-line-v`/`--grid-line-h`
-                             (ver `styles.css`); (2) NÃO cortar por cima da faixa
-                             de status — o pedido original era cortar, mas depois
-                             de ver o resultado o pedido virou o oposto, então no
-                             corpo da tabela (mais abaixo) a linha só aparece nos
-                             trechos SEM reserva contínua atravessando a borda; no
-                             cabeçalho não há status pra proteger, então a grade
-                             fica sempre completa aqui; (3) a linha precisa
-                             "encostar" na faixa de status sem deixar vão nas
-                             junções entre imóveis (pedido explícito, 25/09/2026) —
-                             por isso NÃO é mais `border-r` do `<th>`/`<td>` (que
-                             para exatamente na borda da célula): a tabela usa
-                             `border-spacing-y-1` (4px) entre linhas, e um
-                             `border-r` comum deixa esse vão de 4px sem nenhum
-                             traço, parecendo um segmento "flutuando" e
-                             desconectado da barra de baixo. Agora cada célula é
-                             `relative` e ganha um `<span>` absoluto que vai do
-                             topo até 4px ABAIXO do próprio rodapé
+                             mockup aprovado — "opção A", com vários ajustes depois
+                             de ver no real: (1) cor branca — não o `--border` do
+                             resto do app, que aqui saía fraco/escuro demais — e
+                             sim tokens próprios `--grid-line-v`/`--grid-line-h`
+                             (ver `styles.css`); (2) a linha vertical do dia é
+                             SEMPRE desenhada, "de fora a fora" (inclusive por
+                             baixo das reservas) — pedido explícito, 25/09/2026:
+                             "quero que a linha vertical fique por completo, porém
+                             a faixa de status precisa estar acima dela". Ela não
+                             aparece "cortando" a faixa por cima porque o `<div>`
+                             da barra de status (mais abaixo, no corpo da tabela)
+                             também é `relative` e vem DEPOIS do `<span>` da linha
+                             no DOM — como os dois são elementos posicionados sem
+                             `z-index` explícito, quem vem depois pinta por cima:
+                             a barra (opaca, exceto "Ocupado" que é 35%
+                             translúcido) cobre a linha onde existe reserva, e a
+                             linha só fica visível nos trechos sem cor (isso já
+                             tinha sido tentado ao contrário — só desenhar a linha
+                             onde está livre — mas deixava a grade "furada" nas
+                             junções entre imóveis; agora a linha existe sempre,
+                             e quem decide se ela aparece é a pintura por cima,
+                             não a lógica de onde desenhar); (3) a linha precisa
+                             "encostar" nas junções entre imóveis, sem deixar vão
+                             (pedido explícito, 25/09/2026) — por isso NÃO é
+                             `border-r` do `<th>`/`<td>` (que para exatamente na
+                             borda da célula): a tabela usa `border-spacing-y-1`
+                             (4px) entre linhas, e um `border-r` comum deixa esse
+                             vão de 4px sem nenhum traço, parecendo um segmento
+                             "flutuando" e desconectado da linha de baixo. Cada
+                             célula é `relative` e ganha um `<span>` absoluto que
+                             vai do topo até 4px ABAIXO do próprio rodapé
                              (`-bottom-1` = -0.25rem = -4px, o mesmo valor de
                              `border-spacing-y-1`), cobrindo esse vão e permitindo
                              que o traço da célula de cima se funda com o da célula
@@ -8748,16 +8769,14 @@ function OccupancyPanel({
                                   occ[idx] && !occ[idx - 1] ? "rounded-l-full" : "",
                                   occ[idx] && !occ[idx + 1] ? "rounded-r-full" : "",
                                 ].join(" ");
-                              /* Pedido explícito (25/09/2026, revisão do que foi pedido
-                                 antes): a linha vertical do dia NÃO deve mais cortar
-                                 por cima da faixa de status — só quando os dois
-                                 lados da fronteira (fim do dia atual, começo do
-                                 próximo) estão livres. Se uma reserva atravessa
-                                 (os dois lados ocupados, mesmo "quadrante" colorido
-                                 continuando), a linha some ali. */
-                              const nextIdxA = idxB + 1;
-                              const crossesReservation = occ[idxB] && occ[nextIdxA];
-                              const showVLine = i < dayList.length - 1 && !crossesReservation;
+                              // Pedido explícito (25/09/2026, revisão do que tinha
+                              // sido pedido antes): a linha vertical do dia agora é
+                              // SEMPRE desenhada ("de fora a fora"), inclusive por
+                              // baixo de uma reserva contínua — ver comentário
+                              // completo no <th> de cada dia sobre por que ela não
+                              // aparece cortando por cima (a barra de status pinta
+                              // depois dela no DOM, então cobre a linha).
+                              const showVLine = i < dayList.length - 1;
                               return (
                                 <td
                                   key={d}

@@ -9,7 +9,7 @@ function isTemporaryError(err: unknown): boolean {
 
 function isUnauthorizedError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err ?? "");
-  return /unauthorized|invalid token|no authorization header|jwt/i.test(msg);
+  return /unauthorized|invalid token|no authorization header|jwt|sess[aã]o expirou|entre novamente/i.test(msg);
 }
 
 let checkingSession = false;
