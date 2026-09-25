@@ -1,10 +1,34 @@
 import * as React from "react";
 import { OVERLAY_COLLISION_PADDING } from "@/components/ui/overlay-collision";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
+import { pushGlobalOverlay } from "@/lib/global-overlay-store";
 
 import { cn } from "@/lib/utils";
 
-const Popover = PopoverPrimitive.Root;
+/**
+ * FUNDO COM DESFOQUE GLOBAL (pedido explícito, 24/09/2026): todo Popover do
+ * sistema avisa a central (`pushGlobalOverlay`) quando abre/fecha — o véu em
+ * si é desenhado uma única vez por `GlobalOverlayScrim`, no `__root`. Nada
+ * muda para quem já usa `<Popover>` hoje: controlado ou não, com ou sem o
+ * próprio `onOpenChange`, continua funcionando igual — só ganha esse aviso a
+ * mais.
+ */
+const Popover = ({
+  onOpenChange,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Root>) => {
+  const releaseRef = React.useRef<(() => void) | null>(null);
+  const handleOpenChange = React.useCallback(
+    (open: boolean) => {
+      releaseRef.current?.();
+      releaseRef.current = open ? pushGlobalOverlay() : null;
+      onOpenChange?.(open);
+    },
+    [onOpenChange],
+  );
+  React.useEffect(() => () => releaseRef.current?.(), []);
+  return <PopoverPrimitive.Root onOpenChange={handleOpenChange} {...props} />;
+};
 
 const PopoverTrigger = PopoverPrimitive.Trigger;
 

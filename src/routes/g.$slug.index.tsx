@@ -85,6 +85,7 @@ import { GuideAiChat } from "@/components/GuideAiChat";
 import { HomeIntelligence } from "@/components/guide/HomeIntelligence";
 import { CityNewsFeed } from "@/components/guide/CityNewsFeed";
 import { CheckinCountdown } from "@/components/guide/CheckinCountdown";
+import { PredictedTimeCard } from "@/components/guide/PredictedTimeCard";
 import { propertyTimeZone, todayInTZ, zonedTimeToUtc } from "@/lib/property-timezone";
 import { BottomNav, type BottomNavKey } from "@/components/guide/BottomNav";
 import {
@@ -1432,11 +1433,15 @@ function Guide({ data }: { data: GuideOk }) {
         guestName={accessRec?.name ?? "hóspede"}
         propertyName={(p.name as string | null) ?? ""}
         city={(p.city as string | null) ?? null}
+        slug={slug}
+        reservationCode={accessRec?.code ?? null}
         checkinDate={accessRec?.checkinDate ?? ""}
         checkoutDate={accessRec?.checkoutDate ?? ""}
 
         checkinTime={fmtOnbTime(p.checkin_time)}
         checkoutTime={fmtOnbTime(p.checkout_time)}
+        checkinTimeRaw={(p.checkin_time as string | null) ?? null}
+        checkinTimeMaxRaw={(p.checkin_time_max as string | null) ?? null}
         address={(p.address as string | null) ?? null}
         hasAccessPin={hasAccessPin}
         checkinAlreadyConfirmed={checkinConcluded || checkoutConcluded}
@@ -2442,6 +2447,25 @@ function Guide({ data }: { data: GuideOk }) {
                                         info={infoCtx}
                                       />
                                     </p>
+                                  </div>
+                                )}
+                                {/* SELETOR DE HORÁRIO PREVISTO DE SAÍDA
+                                    (pedido explícito, 24/09/2026, mockup
+                                    aprovado) — só quando a janela é fixa
+                                    (não flexível/sob agendamento) e o
+                                    hóspede já concluiu o acesso. */}
+                                {!isFlex && !isAgend && accessRec?.checkoutDate && (
+                                  <div className="mt-4 border-t border-border/40 pt-4">
+                                    <PredictedTimeCard
+                                      kind="checkout"
+                                      slug={slug}
+                                      guestName={accessRec.name ?? "hóspede"}
+                                      reservationCode={accessRec.code ?? null}
+                                      confirmedDate={accessRec.checkoutDate ?? ""}
+                                      otherConfirmedDate={accessRec.checkinDate ?? null}
+                                      standardTime={raw || null}
+                                      standardTimeMax={rawMin || null}
+                                    />
                                   </div>
                                 )}
                               </SubItem>
@@ -3971,11 +3995,15 @@ function PostAccessOnboarding({
   guestName,
   propertyName,
   city,
+  slug,
+  reservationCode,
 
   checkinDate,
   checkoutDate,
   checkinTime,
   checkoutTime,
+  checkinTimeRaw,
+  checkinTimeMaxRaw,
   address,
   hasAccessPin,
   checkinAlreadyConfirmed,
@@ -3999,11 +4027,18 @@ function PostAccessOnboarding({
   guestName: string;
   propertyName: string;
   city: string | null;
+  slug: string;
+  reservationCode?: string | null;
 
   checkinDate: string;
   checkoutDate: string;
   checkinTime?: string | null;
   checkoutTime?: string | null;
+  /** Horário CRU de check-in do imóvel (não formatado) — usado só pela grade
+   * do novo seletor de horário do hóspede (`PredictedTimeCard`); `checkinTime`
+   * acima já vem formatado para exibição e não serve pra essa validação. */
+  checkinTimeRaw?: string | null;
+  checkinTimeMaxRaw?: string | null;
   address?: string | null;
   hasAccessPin: boolean;
   /** Check-in já marcado como feito (por outro hóspede da reserva ou pelo anfitrião). */
@@ -4040,15 +4075,22 @@ function PostAccessOnboarding({
     checkinInstructionsText.trim()
   );
   const hasPasswordsStage = !!(lockCode || wifiPassword || gateCode);
+  // NOVA ETAPA "horário previsto de chegada" (pedido explícito, 24/09/2026,
+  // mockup aprovado "Previsão — seletor de horário do hóspede"): logo depois
+  // da confirmação da estadia, antes do passo a passo/senhas — só existe
+  // quando o imóvel tem um horário de check-in configurado (sem isso a
+  // grade não tem janela nenhuma pra mostrar).
+  const hasHorarioStage = !!checkinTimeRaw;
   const flow = useMemo(
     () =>
       [
         "intro" as const,
+        ...(hasHorarioStage ? (["horario"] as const) : []),
         ...(hasStepsStage ? (["steps"] as const) : []),
         ...(hasPasswordsStage ? (["passwords"] as const) : []),
         "final" as const,
-      ] as Array<"intro" | "steps" | "passwords" | "final">,
-    [hasStepsStage, hasPasswordsStage],
+      ] as Array<"intro" | "horario" | "steps" | "passwords" | "final">,
+    [hasHorarioStage, hasStepsStage, hasPasswordsStage],
   );
   /** Só citamos o que realmente existe cadastrado no guia deste imóvel. */
   const stageWording =
@@ -4213,6 +4255,50 @@ function PostAccessOnboarding({
                   className="flex-1 h-[42px] rounded-[0.3rem] text-white font-semibold text-[13px] bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] shadow-[0_10px_30px_-8px_rgba(232,45,174,0.55)] hover:brightness-110 transition-all"
                 >
                   Está tudo certo →
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* Passo (novo, 24/09/2026): horário previsto de chegada — data +
+              horário na MESMA tela (pedido explícito), skippável (nunca
+              trava o fluxo: quem não sabe ainda o horário só segue adiante). */}
+          {current === "horario" && (
+            <>
+              <h2 className="text-[19px] font-bold leading-[1.15] tracking-tight text-foreground mb-1">
+                Que horas você chega?
+              </h2>
+              <p className="text-[13px] leading-relaxed text-muted-foreground mb-4 [text-wrap:auto]">
+                Isso ajuda a equipe a te receber melhor. Você pode ajustar depois, a qualquer
+                momento.
+              </p>
+
+              <PredictedTimeCard
+                kind="checkin"
+                slug={slug}
+                guestName={guestName}
+                reservationCode={reservationCode}
+                confirmedDate={checkinDate}
+                otherConfirmedDate={checkoutDate || null}
+                standardTime={checkinTimeRaw ?? null}
+                standardTimeMax={checkinTimeMaxRaw ?? null}
+                onSaved={goNext}
+              />
+
+              <div className="flex gap-2 mt-4">
+                <button
+                  type="button"
+                  onClick={goBack}
+                  className="h-[42px] px-4 rounded-[0.3rem] border-0 text-[12.5px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  ← Voltar
+                </button>
+                <button
+                  type="button"
+                  onClick={goNext}
+                  className="flex-1 h-[42px] rounded-[0.3rem] border border-border text-[12.5px] font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+                >
+                  Pular por agora →
                 </button>
               </div>
             </>

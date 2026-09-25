@@ -10209,6 +10209,12 @@ function ArrivalCard({
               </span>
             ) : row.guestName && row.guestName !== row.reservationCode ? (
               <span className={`inline-flex min-w-0 flex-1 items-center gap-1.5 ${CARD_MUTED}`}>
+                {/* Ícone à esquerda do nome, na MESMA cor da letra do nome
+                    (pedido explícito, 24/09/2026) — paralelo ao ícone de
+                    "Hóspede pendente" acima, só que sem o laranja: aqui o
+                    hóspede já está identificado, então ícone e texto usam o
+                    mesmo `CARD_MUTED` do bloco inteiro. */}
+                <User className="size-3 shrink-0" />
                 {/* Pedido explícito: nome do hóspede SEMPRE em maiúsculo. */}
                 <span className="min-w-0 truncate uppercase">{row.guestName}</span>
                 <PhoneLink phone={row.guestPhone} country={row.guestPhoneCountry} />

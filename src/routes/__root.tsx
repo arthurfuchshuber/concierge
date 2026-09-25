@@ -17,6 +17,7 @@ import { installPermissionDeniedHandler } from "@/lib/permissions/permissionClie
 import { Toaster } from "../components/ui/sonner";
 import { UndoActionBar } from "../components/UndoActionBar";
 import { OfflineBanner } from "../components/OfflineBanner";
+import { GlobalOverlayScrim } from "../components/GlobalOverlayScrim";
 import { supabase } from "../integrations/supabase/client";
 import { META_PIXEL_ID, initMetaPixel, metaPixelPageView } from "../lib/meta-pixel";
 import { startTrail, trackPageView } from "../lib/trail";
@@ -471,6 +472,10 @@ function RootComponent() {
       <Outlet />
       <Toaster position="top-center" />
       <UndoActionBar />
+      {/* Fundo com desfoque global atrás de qualquer Popover/DropdownMenu
+          aberto (pedido explícito, 24/09/2026) — montado uma única vez aqui,
+          ver GlobalOverlayScrim. */}
+      <GlobalOverlayScrim />
     </I18nProvider>
   );
 

@@ -4,10 +4,29 @@ import * as React from "react";
 import { OVERLAY_COLLISION_PADDING } from "@/components/ui/overlay-collision";
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { Check, ChevronRight, Circle } from "lucide-react";
+import { pushGlobalOverlay } from "@/lib/global-overlay-store";
 
 import { cn } from "@/lib/utils";
 
-const DropdownMenu = DropdownMenuPrimitive.Root;
+/** Mesmo aviso do Popover (ver `popover.tsx`) para o fundo com desfoque
+ * global — o próprio `DropdownMenuSub` (submenu) não avisa aqui: ele só abre
+ * quando o `DropdownMenu` pai já está aberto, então o véu já está de pé. */
+const DropdownMenu = ({
+  onOpenChange,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Root>) => {
+  const releaseRef = React.useRef<(() => void) | null>(null);
+  const handleOpenChange = React.useCallback(
+    (open: boolean) => {
+      releaseRef.current?.();
+      releaseRef.current = open ? pushGlobalOverlay() : null;
+      onOpenChange?.(open);
+    },
+    [onOpenChange],
+  );
+  React.useEffect(() => () => releaseRef.current?.(), []);
+  return <DropdownMenuPrimitive.Root onOpenChange={handleOpenChange} {...props} />;
+};
 
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
 

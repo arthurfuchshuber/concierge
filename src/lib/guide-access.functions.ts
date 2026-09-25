@@ -843,3 +843,182 @@ export const getReservationLiveStatus = createServerFn({ method: "POST" })
       return { active: null as boolean | null };
     return { active: false as boolean | null, reason: res.reason };
   });
+
+/* ------------------------------------------------------------------ *
+ * PREVISÃO DE HORÁRIO PELO PRÓPRIO HÓSPEDE (pedido explícito, 24/09/2026,
+ * mockup aprovado "Previsão — seletor de horário do hóspede"): uma tela nova
+ * dentro do guia (chegada, logo depois da confirmação; saída, na aba
+ * "Saída") deixa o hóspede escolher data + horário previstos numa grade só,
+ * sem navegar entre telas.
+ *
+ * Grava exatamente na MESMA tabela que o editor de previsão do painel
+ * (`guest_arrival_status`, upsert por `kind` "checkin"/"checkout") — é assim
+ * que o card da reserva no painel reflete automaticamente o que o hóspede
+ * escolheu aqui, sem nenhuma sincronização extra: os dois leem/gravam a
+ * mesma linha (pedido explícito: "a data/horário inserido pelo hóspede
+ * deverá ser automaticamente inserida nos mesmos campos de previsão no card
+ * do cliente").
+ *
+ * `upsertArrivalStatus` (em `dashboard.functions.ts`) faz a mesma gravação,
+ * mas exige sessão autenticada da equipe (`requireSupabaseAuth`) — não dá
+ * pra reaproveitar direto numa tela pública. Esta função espelha o mesmo
+ * upsert atômico (com o mesmo cuidado de corrida quando os dois
+ * identificadores coexistem), mas com a verificação de identidade pública
+ * do `markGuideStayStep` (nome do hóspede + código da reserva quando o guia
+ * exige) no lugar da sessão autenticada.
+ */
+const PredictedTimeInput = StayStatusInput.extend({
+  kind: z.enum(["checkin", "checkout"]),
+  reservation_code: z.string().trim().max(40).optional().nullable(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+});
+
+export const submitPredictedTime = createServerFn({ method: "POST" })
+  .inputValidator((i: unknown) => PredictedTimeInput.parse(i))
+  .handler(async ({ data }) => {
+    const { allowPublicRate, clientIpFrom } = await import("@/lib/public-rate-limit.server");
+    const { getRequest } = await import("@tanstack/react-start/server");
+    if (!allowPublicRate(`guide-predicted-time:${clientIpFrom(getRequest())}`, 20, 60_000))
+      return { ok: false as const };
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const propQuery = supabaseAdmin
+      .from("properties")
+      .select(
+        "id, tagline, airbnb_ical_url, checkin_time, checkin_time_max, checkout_time, checkout_time_min",
+      )
+      .eq("slug", data.slug)
+      .eq("published", true);
+    const { data: prop } = data.property_id
+      ? await propQuery.eq("id", data.property_id).maybeSingle()
+      : await propQuery.maybeSingle();
+    if (!prop) return { ok: false as const };
+
+    // MESMA verificação de identidade do "já acessei/já saí" (16/09/2026):
+    // pública, então nome do hóspede é obrigatório e, nos guias com código
+    // de reserva, o código precisa bater com a data informada.
+    const guestNameRaw = (data.guest_name ?? "").trim();
+    if (!guestNameRaw) return { ok: false as const };
+    const { isReservationGated, lookupReservationByCode: lookup } =
+      await import("@/lib/guest-access.server");
+    if (isReservationGated(prop as { tagline?: string | null; airbnb_ical_url?: string | null })) {
+      const code = (data.reservation_code ?? "").trim();
+      if (!code) return { ok: false as const };
+      const res = await lookup(data.slug, prop.id as string, code);
+      if (!res.ok || res.checkin_date !== data.checkin_date) return { ok: false as const };
+    }
+
+    const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+    const guest = norm(guestNameRaw);
+    const { data: logs } = await supabaseAdmin
+      .from("guide_access_logs")
+      .select("id, guest_name, checkin_date, checkout_date")
+      .eq("property_id", prop.id)
+      .eq("checkin_date", data.checkin_date)
+      .limit(200);
+    const match = (
+      (logs ?? []) as Array<{
+        id: string;
+        guest_name: string | null;
+        checkin_date: string;
+        checkout_date: string | null;
+      }>
+    ).find((l) => {
+      if (data.checkout_date && l.checkout_date && l.checkout_date !== data.checkout_date)
+        return false;
+      if (guest && l.guest_name && norm(l.guest_name) !== guest) return false;
+      return true;
+    });
+    if (!match) return { ok: false as const };
+
+    // Mesma reserva real (iCal) que o "já acessei/já saí" casa — quando
+    // existe, a previsão grava nos dois identificadores (ver upsert abaixo).
+    const { isRealReservation } = await import("@/lib/reservations.server");
+    const { data: resRows } = await supabaseAdmin
+      .from("property_reservations")
+      .select("id, checkin_date, checkout_date, raw_summary, status, guest_hint")
+      .eq("property_id", prop.id)
+      .eq("checkin_date", data.checkin_date)
+      .limit(20);
+    const code = (data.reservation_code ?? "").trim().toUpperCase();
+    const reais = (
+      (resRows ?? []) as Array<{
+        id: string;
+        checkin_date: string;
+        checkout_date: string;
+        raw_summary: string | null;
+        status: string | null;
+        guest_hint: string | null;
+      }>
+    ).filter((r) => isRealReservation(r as never));
+    const reservation =
+      (code && reais.find((r) => (r.guest_hint ?? "").toUpperCase() === code)) ||
+      reais.find((r) => !data.checkout_date || r.checkout_date === data.checkout_date) ||
+      null;
+
+    // TRAVA NO SERVIDOR da janela do imóvel (não só decoração da tela — sem
+    // isto nada impede um bypass direto pela API). Mesma regra do editor do
+    // painel: a janela só vale enquanto a data prevista cai no MESMO dia da
+    // reserva confirmada — mudou o dia, qualquer horário passa a ser
+    // possível (ex.: chegada adiada pro dia seguinte).
+    const confirmedDate =
+      data.kind === "checkout"
+        ? (reservation?.checkout_date ?? match.checkout_date ?? data.checkout_date ?? null)
+        : data.checkin_date;
+    if (confirmedDate && data.date === confirmedDate) {
+      const { isTimeWithin } = await import("@/lib/time-window");
+      const windowMin =
+        data.kind === "checkout"
+          ? ((prop.checkout_time_min as string | null) ?? null)
+          : ((prop.checkin_time as string | null) ?? null);
+      const windowMax =
+        data.kind === "checkout"
+          ? ((prop.checkout_time as string | null) ?? null)
+          : ((prop.checkin_time_max as string | null) ?? null);
+      if (windowMin && !isTimeWithin(data.time, windowMin, windowMax)) {
+        return { ok: false as const, reason: "outside_window" as const };
+      }
+    }
+
+    const patch: {
+      log_id: string;
+      reservation_id?: string;
+      property_id: string;
+      kind: "checkin" | "checkout";
+      arrival_date_override: string;
+      arrival_time_override: string;
+    } = {
+      log_id: match.id,
+      property_id: prop.id as string,
+      kind: data.kind,
+      arrival_date_override: data.date,
+      arrival_time_override: data.time,
+    };
+    if (reservation?.id) patch.reservation_id = reservation.id;
+
+    // Mesmo upsert atômico (com a mesma cautela de corrida quando os dois
+    // identificadores coexistem) de `upsertArrivalStatus` — ver o comentário
+    // longo lá para o porquê da consulta extra só nesse caso.
+    if (reservation?.id) {
+      const { data: existing, error: findErr } = await supabaseAdmin
+        .from("guest_arrival_status")
+        .select("id")
+        .eq("kind", data.kind)
+        .or(`log_id.eq.${match.id},reservation_id.eq.${reservation.id}`)
+        .limit(1);
+      if (findErr) return { ok: false as const };
+      const existingId = (existing?.[0] as { id: string } | undefined)?.id;
+      const { error } = existingId
+        ? await supabaseAdmin.from("guest_arrival_status").update(patch).eq("id", existingId)
+        : await supabaseAdmin.from("guest_arrival_status").insert(patch);
+      if (error) return { ok: false as const };
+      return { ok: true as const };
+    }
+
+    const { error } = await supabaseAdmin
+      .from("guest_arrival_status")
+      .upsert(patch, { onConflict: "log_id,kind" });
+    if (error) return { ok: false as const };
+    return { ok: true as const };
+  });
